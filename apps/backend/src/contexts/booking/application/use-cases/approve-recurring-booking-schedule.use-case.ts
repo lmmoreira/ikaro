@@ -7,7 +7,10 @@ import {
   BookingScheduledInPastError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
-import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import {
+  RecurringBookingScheduleIneligibleServiceError,
+  RecurringBookingScheduleNotFoundError,
+} from '../../domain/errors/recurring-booking-schedule.error';
 import {
   enumerateRecurrenceOccurrences,
   RecurrenceOccurrence,
@@ -39,7 +42,13 @@ import {
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { materializeRecurringScheduleOccurrences } from './materialize-recurring-schedule-occurrences.helpers';
-import { assertPatternConflictFree } from './recurring-booking-schedule-request.helpers';
+import { assertServiceEligible } from './recurring-booking-schedule-eligibility.helpers';
+import {
+  assertPatternConflictFree,
+  ConflictCheckDeps,
+} from './recurring-booking-schedule-request.helpers';
+import { resolveAndLockConsidered } from './recurring-considered-resources.helpers';
+import { deriveAssignmentPolicy } from './recurring-service-requirement.helpers';
 import { dropPastOccurrences } from './recurring-booking-schedule-window.helpers';
 
 export interface ApproveRecurringBookingScheduleUseCaseInput {
@@ -138,47 +147,60 @@ export class ApproveRecurringBookingScheduleUseCase {
     return schedule;
   }
 
-  // The same lock the request path takes: a chosen resource for FIXED_ASSIGNMENT, the service
-  // itself when no resource is known before per-occurrence resolution.
+  // The same first lock the request path takes (then the considered resources, in
+  // assertTermStillHonorable()).
   private async lockForApproval(schedule: RecurringBookingSchedule): Promise<void> {
-    if (schedule.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-      await this.tenantLock.lockResources(
-        schedule.tenantId,
-        schedule.resourceAssignments.map((a) => a.resourceId),
-      );
-    } else {
-      await this.tenantLock.lockService(schedule.tenantId, schedule.serviceId);
-    }
+    await this.tenantLock.lockService(schedule.tenantId, schedule.serviceId);
   }
 
+  private get conflictDeps(): ConflictCheckDeps {
+    return {
+      resourceRepo: this.resourceRepo,
+      availabilityService: this.availabilityService,
+      occupancyRepo: this.occupancyRepo,
+      closureRepo: this.closureRepo,
+      openingRepo: this.openingRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
+
+  // The service is read as it is now, not as it was at request time, so an edit made while the
+  // request waited is caught here: a service that no longer qualifies, or whose requirements no
+  // longer yield the policy the schedule was accepted under, refuses the approval (TD49 Story 0).
   private async assertTermStillHonorable(
     schedule: RecurringBookingSchedule,
     service: Service,
     occurrences: RecurrenceOccurrence[],
     input: ApproveRecurringBookingScheduleUseCaseInput,
-  ): Promise<Resource[]> {
+  ): Promise<Resource[][]> {
+    assertServiceEligible(service);
+    if (deriveAssignmentPolicy(service) !== schedule.assignmentPolicy) {
+      throw new RecurringBookingScheduleIneligibleServiceError('selection-mode-mismatch');
+    }
+    const considered = await resolveAndLockConsidered(this.conflictDeps, {
+      tenantId: input.tenantId,
+      timezone: input.timezone,
+      service,
+      selections: schedule.resourceAssignments.map((a) => ({
+        resourceType: a.resourceType,
+        resourceId: a.resourceId,
+      })),
+      firstOccurrenceStart: occurrences[0].occurrenceStart,
+    });
     const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
     return assertPatternConflictFree(
-      {
-        resourceRepo: this.resourceRepo,
-        availabilityService: this.availabilityService,
-        occupancyRepo: this.occupancyRepo,
-        closureRepo: this.closureRepo,
-        openingRepo: this.openingRepo,
-        tenantLock: this.tenantLock,
-      },
+      this.conflictDeps,
       {
         tenantId: input.tenantId,
         timezone: input.timezone,
         businessHours,
-        assignmentPolicy: schedule.assignmentPolicy,
-        resourceIds: schedule.resourceAssignments.map((a) => a.resourceId),
         recurrence: schedule.recurrence,
         service,
         startsOn: schedule.startsOn,
         endsOn: schedule.endsOn,
         occurrences,
       },
+      considered,
     );
   }
 }

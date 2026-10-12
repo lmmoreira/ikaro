@@ -36,8 +36,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2026-12-29"
 }
@@ -60,9 +59,34 @@ Content-Type: application/json
     "startTime": "08:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "RESOLVE_PER_OCCURRENCE",
   "startsOn": "2026-10-05",
   "endsOn": "2026-12-28"
+}
+
+###
+
+### Request a recurring schedule for a bundle (TD49 Story 0): staff CUSTOMER_CHOICE + room AUTO_ANY
+# One entry per CUSTOMER_CHOICE requirement, keyed by resource type; the room is resolved per
+# occurrence. The assignment policy is derived from the service (FIXED_ASSIGNMENT here). 409 when
+# either requirement is busy in any occurrence, 422 when the staff pick is missing.
+POST {{baseUrl}}/recurring-booking-schedules
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+Content-Type: application/json
+
+{
+  "serviceId": "{{bundleServiceId}}",
+  "recurrence": {
+    "frequency": "WEEKLY",
+    "daysOfWeek": ["tuesday"],
+    "startTime": "10:00",
+    "durationMinutes": 60
+  },
+  "resourceSelections": [{ "resourceType": "STAFF", "resourceId": "{{staffResourceId}}" }],
+  "startsOn": "2026-10-06",
+  "endsOn": "2026-12-29"
 }
 
 ###
@@ -84,8 +108,7 @@ Content-Type: application/json
     "startTime": "14:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-08",
   "endsOn": "2026-12-31"
 }
@@ -185,8 +208,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2026-12-29"
 }
@@ -209,8 +231,7 @@ Content-Type: application/json
     "startTime": "06:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2026-12-29"
 }
@@ -233,8 +254,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-11",
   "endsOn": "2026-12-27"
 }
@@ -258,8 +278,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2027-01-05"
 }
@@ -282,8 +301,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2026-09-29"
 }
@@ -306,8 +324,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06"
 }
 
@@ -329,8 +346,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 60
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-06",
   "endsOn": "2026-12-29"
 }
@@ -357,8 +373,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-13",
   "endsOn": "2026-11-10"
 }
@@ -381,8 +396,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2027-06-01",
   "endsOn": "2027-06-29"
 }
@@ -405,8 +419,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2020-01-01",
   "endsOn": "2020-01-10"
 }
@@ -429,8 +442,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-14",
   "endsOn": "2026-10-14"
 }
@@ -456,8 +468,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-13",
   "endsOn": "2026-11-10",
   "renewsScheduleId": "{{scheduleId}}"
@@ -481,8 +492,7 @@ Content-Type: application/json
     "startTime": "10:00",
     "durationMinutes": 120
   },
-  "assignmentPolicy": "FIXED_ASSIGNMENT",
-  "resourceIds": ["{{resourceId}}"],
+  "resourceSelections": [{ "resourceType": "ROOM", "resourceId": "{{resourceId}}" }],
   "startsOn": "2026-10-13",
   "endsOn": "2026-11-10",
   "renewsScheduleId": "00000000-0000-4000-8000-00000000dead"

@@ -1,9 +1,13 @@
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import { ResourceType } from '../../domain/resource.types';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceOccupancyWindow } from '../ports/resource-occupancy-repository.port';
-import { planOccurrenceResources } from './recurring-occurrence-resource-plan.helpers';
+import {
+  planBundleOccurrences,
+  planOccurrenceResources,
+} from './recurring-occurrence-resource-plan.helpers';
 
 const TENANT = '10000000-0000-4000-8000-000000000600';
 const TIMEZONE = 'America/Sao_Paulo';
@@ -229,5 +233,138 @@ describe('planOccurrenceResources', () => {
 
       expect(windowsSpy).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('planBundleOccurrences', () => {
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
+
+  const make = (type: ResourceType, name: string) =>
+    new ResourceBuilder()
+      .withTenantId(TENANT)
+      .withType(type)
+      .withRefId(type === ResourceType.STAFF ? name + '-ref' : null)
+      .withName(name)
+      .build();
+
+  function plan(
+    requirements: {
+      selectionMode: 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL' | 'NONE';
+      resources: Resource[];
+    }[],
+    unavailableWindows: ResourceOccupancyWindow[] = [],
+  ) {
+    return planBundleOccurrences(occupancyRepo, {
+      tenantId: TENANT,
+      timezone: TIMEZONE,
+      occurrences: OCCURRENCES,
+      unavailableWindows,
+      requirements,
+    });
+  }
+
+  beforeEach(() => {
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
+  });
+
+  it('returns, per occurrence, one resource per requirement in the requirement order', async () => {
+    const staff = make(ResourceType.STAFF, 'Ana');
+    const room = make(ResourceType.ROOM, 'Sala A');
+
+    const result = await plan([
+      { selectionMode: 'CUSTOMER_CHOICE', resources: [staff] },
+      { selectionMode: 'AUTO_ANY', resources: [room] },
+    ]);
+
+    expect(result.map((resources) => resources.map((r) => r.id))).toEqual(
+      OCCURRENCES.map(() => [staff.id, room.id]),
+    );
+  });
+
+  it('never picks, for an automatic requirement, a resource busy in that occurrence', async () => {
+    const staff = make(ResourceType.STAFF, 'Ana');
+    const rooms = [make(ResourceType.ROOM, 'Sala A'), make(ResourceType.ROOM, 'Sala B')].sort(
+      (a, b) => a.id.localeCompare(b.id),
+    );
+    const busy: ResourceOccupancyWindow = {
+      resourceId: rooms[0].id,
+      startsAt: OCCURRENCES[1].occurrenceStart,
+      endsAt: new Date(OCCURRENCES[1].occurrenceStart.getTime() + 3_600_000),
+    };
+
+    const result = await plan(
+      [
+        { selectionMode: 'CUSTOMER_CHOICE', resources: [staff] },
+        { selectionMode: 'AUTO_ANY', resources: rooms },
+      ],
+      [busy],
+    );
+
+    expect(result[1][1].id).toBe(rooms[1].id);
+    expect(result[0][1].id).toBe(rooms[0].id);
+  });
+
+  it('gives two requirements of one type different resources in the same occurrence', async () => {
+    const rooms = [make(ResourceType.ROOM, 'Sala A'), make(ResourceType.ROOM, 'Sala B')];
+
+    const result = await plan([
+      { selectionMode: 'AUTO_ANY', resources: rooms },
+      { selectionMode: 'AUTO_ANY', resources: rooms },
+    ]);
+
+    for (const [first, second] of result) expect(first.id).not.toBe(second.id);
+  });
+
+  it('plans a customer-chosen resource before an automatic requirement that could also use it', async () => {
+    const [a, b] = [make(ResourceType.ROOM, 'Sala A'), make(ResourceType.ROOM, 'Sala B')].sort(
+      (x, y) => x.id.localeCompare(y.id),
+    );
+
+    const result = await plan([
+      { selectionMode: 'AUTO_ANY', resources: [a, b] },
+      { selectionMode: 'CUSTOMER_CHOICE', resources: [a] },
+    ]);
+
+    expect(result.map(([auto, chosen]) => [auto.id, chosen.id])).toEqual(
+      OCCURRENCES.map(() => [b.id, a.id]),
+    );
+  });
+
+  it('reports every occurrence as a conflict when the requirements share too few resources', async () => {
+    const sala = make(ResourceType.ROOM, 'Sala A');
+
+    const error = await plan([
+      { selectionMode: 'AUTO_ANY', resources: [sala] },
+      { selectionMode: 'AUTO_FUNGIBLE_POOL', resources: [sala] },
+    ]).catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+    expect(
+      (error as RecurringBookingScheduleConflictError).conflicts.map((c) => c.occurrenceStart),
+    ).toEqual(OCCURRENCES.map((o) => o.occurrenceStart));
+  });
+
+  it('plans a NONE requirement on its single resource', async () => {
+    const location = make(ResourceType.LOCATION, 'Unidade');
+    const staff = make(ResourceType.STAFF, 'Ana');
+
+    const result = await plan([
+      { selectionMode: 'NONE', resources: [location] },
+      { selectionMode: 'CUSTOMER_CHOICE', resources: [staff] },
+    ]);
+
+    expect(result.every(([first]) => first.id === location.id)).toBe(true);
+  });
+
+  it('plans nothing for a term without occurrences', async () => {
+    const result = await planBundleOccurrences(occupancyRepo, {
+      tenantId: TENANT,
+      timezone: TIMEZONE,
+      occurrences: [],
+      unavailableWindows: [],
+      requirements: [{ selectionMode: 'AUTO_ANY', resources: [make(ResourceType.ROOM, 'Sala A')] }],
+    });
+
+    expect(result).toEqual([]);
   });
 });

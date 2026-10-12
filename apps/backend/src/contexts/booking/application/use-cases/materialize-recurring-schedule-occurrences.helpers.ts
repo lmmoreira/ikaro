@@ -6,6 +6,7 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { RecurrenceOccurrence } from '../../domain/recurrence-rule.helpers';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
+import { ResourceRequirementSelectionMode } from '../../domain/resource-requirement';
 import { Resource } from '../../domain/resource.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
@@ -17,7 +18,7 @@ import {
   ResourceOccupancyCandidate,
 } from '../ports/resource-occupancy-repository.port';
 import { buildLineInputs } from './booking-request.mapper';
-import { effectiveRequirement } from './recurring-service-requirement.helpers';
+import { effectiveRequirements } from './recurring-service-requirement.helpers';
 
 export interface MaterializeOccurrencesDeps {
   bookingRepo: IBookingRepository;
@@ -30,9 +31,9 @@ export interface MaterializeOccurrencesParams {
   schedule: RecurringBookingSchedule;
   service: Service;
   occurrences: RecurrenceOccurrence[];
-  // The resource each occurrence is assigned to, in occurrence order — the plan
-  // assertPatternConflictFree() returns for the same term.
-  resources: Resource[];
+  // The resources each occurrence is assigned to, in occurrence order — one per requirement of the
+  // service, in its order: the plan assertPatternConflictFree() returns for the same term.
+  resources: Resource[][];
   // The approving staff member; null when the schedule auto-confirmed at creation.
   approvedByStaffId: string | null;
 }
@@ -71,9 +72,12 @@ export async function materializeRecurringScheduleOccurrences(
     schedule.tenantId,
     bookings.map((booking, index): BookingLineOccupancyAssignment => ({
       bookingLineId: booking.lines[0].lineId,
-      candidates: [
-        buildCandidate(deps.availabilityService, params, occurrences[index], resources[index]),
-      ],
+      candidates: buildCandidates(
+        deps.availabilityService,
+        params,
+        occurrences[index],
+        resources[index],
+      ),
     })),
     'COMMITTED',
     null,
@@ -113,17 +117,39 @@ function buildOccurrenceBooking(input: {
   });
 }
 
-// A recurring-eligible service has exactly one flat requirement of quantity one — its own, or the
-// default LOCATION a service with none falls back to (effectiveRequirement, see
-// assertServiceEligible) — so every occurrence holds one resource for its window plus that
-// resource's own trailing buffer/turnover gap — the same window the conflict check used.
+// Every requirement of a recurring-eligible service has a quantity of one — its own, or the default
+// LOCATION a service with none falls back to (effectiveRequirements, see assertServiceEligible) —
+// so every occurrence holds one resource per requirement, each for the window plus that resource's
+// own trailing buffer/turnover gap — the same window the conflict check used. With two or more
+// requirements the rows are bundle members, as for a one-off booking.
+function buildCandidates(
+  availabilityService: AvailabilityService,
+  params: MaterializeOccurrencesParams,
+  occurrence: RecurrenceOccurrence,
+  resources: Resource[],
+): ResourceOccupancyCandidate[] {
+  const requirements = effectiveRequirements(params.service);
+  return resources.map((resource, index) =>
+    buildCandidate(availabilityService, params, occurrence, {
+      resource,
+      selectionMode: requirements[index].selectionMode,
+      isBundleMember: requirements.length > 1,
+    }),
+  );
+}
+
 function buildCandidate(
   availabilityService: AvailabilityService,
   params: MaterializeOccurrencesParams,
   occurrence: RecurrenceOccurrence,
-  resource: Resource,
+  held: {
+    resource: Resource;
+    selectionMode: ResourceRequirementSelectionMode;
+    isBundleMember: boolean;
+  },
 ): ResourceOccupancyCandidate {
   const { schedule, service } = params;
+  const { resource } = held;
   const end = new Date(
     occurrence.occurrenceStart.getTime() + schedule.recurrence.durationMinutes * 60_000,
   );
@@ -141,7 +167,7 @@ function buildCandidate(
     endsAt: new Date(end.getTime() + (gap?.minutes ?? 0) * 60_000),
     gapMinutes: gap?.minutes ?? null,
     gapSource: gap?.source ?? null,
-    selectionMode: effectiveRequirement(service).selectionMode,
-    isBundleMember: false,
+    selectionMode: held.selectionMode,
+    isBundleMember: held.isBundleMember,
   };
 }

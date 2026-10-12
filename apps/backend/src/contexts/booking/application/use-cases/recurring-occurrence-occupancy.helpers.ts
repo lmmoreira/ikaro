@@ -7,6 +7,13 @@ import {
   ResourceOccupancyWindow,
 } from '../ports/resource-occupancy-repository.port';
 
+// What the occupancy check needs from each requirement: the resources that decide it and whether
+// one free resource suffices (see ConsideredRequirement).
+export interface OccupancyGroup {
+  resources: Resource[];
+  anyFreeResourceSuffices: boolean;
+}
+
 export interface OccupancyCheckInput {
   occupancyRepo: IResourceOccupancyRepository;
   availabilityService: AvailabilityService;
@@ -14,14 +21,16 @@ export interface OccupancyCheckInput {
   occurrences: RecurrenceOccurrence[];
   durationMinutes: number;
   bufferAfterMinutes: number;
-  resources: Resource[];
-  anyFreeResourceSuffices: boolean;
+  // One group per requirement of the service. Their windows go into a single query, so the cost
+  // does not grow with the number of requirements.
+  groups: OccupancyGroup[];
 }
 
 // The occupancy half of the whole-term check: every (resource x occurrence) window — each
 // extended by that resource's own trailing gap — goes into one findConflictingWindows() query, and
-// the verdict per occurrence is decided in memory. The busy windows are returned as well: the
-// resource plan reads them to tell which resources are free at each occurrence.
+// the verdict per occurrence is decided in memory. An occurrence is refused when any requirement
+// is unsatisfied. The busy windows are returned as well: the resource plan reads them to tell which
+// resources are free at each occurrence.
 export async function findOccupiedRefusals(input: OccupancyCheckInput): Promise<{
   refusals: RecurringScheduleOccurrenceConflict[];
   conflictingWindows: ResourceOccupancyWindow[];
@@ -30,17 +39,27 @@ export async function findOccupiedRefusals(input: OccupancyCheckInput): Promise<
     input.tenantId,
     buildOccurrenceWindows(input),
   );
-  const refusals = blockedOccurrenceStarts(conflictingWindows, input).map((occurrenceStart) => ({
-    occurrenceStart,
-    reason: 'OCCUPIED' as const,
-  }));
+  const blocked = new Set<number>();
+  for (const group of input.groups) {
+    for (const start of blockedOccurrenceStarts(conflictingWindows, input.occurrences, group)) {
+      blocked.add(start.getTime());
+    }
+  }
+  const refusals = input.occurrences
+    .filter(({ occurrenceStart }) => blocked.has(occurrenceStart.getTime()))
+    .map(({ occurrenceStart }) => ({ occurrenceStart, reason: 'OCCUPIED' as const }));
   return { refusals, conflictingWindows };
 }
 
 function buildOccurrenceWindows(input: OccupancyCheckInput): ResourceOccupancyWindow[] {
   const durationMs = input.durationMinutes * 60_000;
+  const resources = new Map(
+    input.groups.flatMap(({ resources: group }) =>
+      group.map((resource): [string, Resource] => [resource.id, resource]),
+    ),
+  );
   return input.occurrences.flatMap(({ occurrenceStart }) =>
-    input.resources.map((resource) => {
+    [...resources.values()].map((resource) => {
       const gapMinutes = input.availabilityService.effectiveFlatGapMinutes(
         input.bufferAfterMinutes,
         resource.turnoverMinutes,
@@ -54,24 +73,27 @@ function buildOccurrenceWindows(input: OccupancyCheckInput): ResourceOccupancyWi
   );
 }
 
-// An occurrence is blocked when a resource it needs is busy: a single conflicting window suffices,
-// except when one free resource is enough — then only when every considered resource is busy in
-// that occurrence.
+// An occurrence is blocked when a resource a requirement needs is busy: a single conflicting
+// window suffices, except when one free resource is enough — then only when every considered
+// resource of that requirement is busy in that occurrence.
 function blockedOccurrenceStarts(
   conflicting: ResourceOccupancyWindow[],
-  input: OccupancyCheckInput,
+  occurrences: RecurrenceOccurrence[],
+  group: OccupancyGroup,
 ): Date[] {
+  const groupIds = new Set(group.resources.map((resource) => resource.id));
   const busyByStart = new Map<number, Set<string>>();
   for (const { resourceId, startsAt } of conflicting) {
+    if (!groupIds.has(resourceId)) continue;
     const key = startsAt.getTime();
     busyByStart.set(key, (busyByStart.get(key) ?? new Set<string>()).add(resourceId));
   }
-  return input.occurrences
+  return occurrences
     .filter(({ occurrenceStart }) => {
       const busy = busyByStart.get(occurrenceStart.getTime());
       if (!busy) return false;
-      return input.anyFreeResourceSuffices
-        ? input.resources.every((resource) => busy.has(resource.id))
+      return group.anyFreeResourceSuffices
+        ? group.resources.every((resource) => busy.has(resource.id))
         : true;
     })
     .map(({ occurrenceStart }) => occurrenceStart);

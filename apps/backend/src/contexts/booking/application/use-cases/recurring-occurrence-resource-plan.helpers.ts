@@ -1,4 +1,6 @@
 import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
+import { mapSequentially } from '../../../../shared/utils/sequential';
+import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import { RecurrenceOccurrence } from '../../domain/recurrence-rule.helpers';
 import { ResourceRequirementSelectionMode } from '../../domain/resource-requirement';
 import { Resource } from '../../domain/resource.aggregate';
@@ -67,6 +69,66 @@ export async function planOccurrenceResources(
     return [...candidates].sort((a, b) => load(a) - load(b) || a.id.localeCompare(b.id))[0];
   });
 }
+
+export interface BundlePlanParams {
+  tenantId: string;
+  timezone: string;
+  occurrences: RecurrenceOccurrence[];
+  // The (resource, occurrence) pairs the whole-term check found unusable, across all requirements.
+  unavailableWindows: ResourceOccupancyWindow[];
+  // One entry per requirement of the service, in its order.
+  requirements: { selectionMode: ResourceRequirementSelectionMode; resources: Resource[] }[];
+}
+
+// planOccurrenceResources() for every requirement of a bundle: the result is one list per
+// occurrence, one resource per requirement in the service's order. Requirements with a single
+// possible resource (a customer's pick, a lone location) are planned first, then the automatic ones;
+// a resource an earlier requirement took in an occurrence is unavailable to the later ones in that
+// same occurrence. When an automatic requirement is left with nothing in an occurrence (the other
+// requirements took every resource it could use) that occurrence is reported as a conflict, before
+// anything is written, instead of surfacing as an exclusion-constraint failure on insert.
+export async function planBundleOccurrences(
+  occupancyRepo: IResourceOccupancyRepository,
+  params: BundlePlanParams,
+): Promise<Resource[][]> {
+  const order = params.requirements
+    .map((requirement, index) => ({ requirement, index }))
+    .sort((a, b) => Number(isFixed(b.requirement)) - Number(isFixed(a.requirement)));
+  const taken: ResourceOccupancyWindow[] = [];
+  const collisions = new Map<number, Date>();
+  const perRequirement = new Map<number, Resource[]>();
+  await mapSequentially(order, async ({ requirement, index }) => {
+    const planned = await planOccurrenceResources(occupancyRepo, {
+      tenantId: params.tenantId,
+      timezone: params.timezone,
+      selectionMode: requirement.selectionMode,
+      resources: requirement.resources,
+      occurrences: params.occurrences,
+      unavailableWindows: [...params.unavailableWindows, ...taken],
+    });
+    const takenKeys = new Set(taken.map((window) => windowKey(window.resourceId, window.startsAt)));
+    planned.forEach((resource, occurrenceIndex) => {
+      const startsAt = params.occurrences[occurrenceIndex].occurrenceStart;
+      if (takenKeys.has(windowKey(resource.id, startsAt)))
+        collisions.set(startsAt.getTime(), startsAt);
+      taken.push({ resourceId: resource.id, startsAt, endsAt: startsAt });
+    });
+    perRequirement.set(index, planned);
+  });
+  if (collisions.size > 0) {
+    throw new RecurringBookingScheduleConflictError(
+      [...collisions.values()]
+        .sort((a, b) => a.getTime() - b.getTime())
+        .map((occurrenceStart) => ({ occurrenceStart, reason: 'OCCUPIED' as const })),
+    );
+  }
+  return params.occurrences.map((_, occurrenceIndex) =>
+    params.requirements.map((__, index) => perRequirement.get(index)![occurrenceIndex]),
+  );
+}
+
+const isFixed = (requirement: BundlePlanParams['requirements'][number]): boolean =>
+  requirement.selectionMode === 'CUSTOMER_CHOICE' || requirement.resources.length === 1;
 
 // One query for the whole term: every active window of the considered resources between the
 // first occurrence's local day start and the last one's local day end.

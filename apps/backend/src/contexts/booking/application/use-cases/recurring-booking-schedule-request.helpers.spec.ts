@@ -13,16 +13,13 @@ import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import {
+  BookingBundlePartiallyUnavailableError,
   BookingResourceSelectionRequiredError,
   BookingServiceResourceTypeUnavailableError,
   BookingSlotUnavailableError,
 } from '../../domain/errors/booking-domain.error';
-import {
-  RecurringBookingScheduleConflictError,
-  RecurringBookingScheduleIneligibleServiceError,
-} from '../../domain/errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleConflictError } from '../../domain/errors/recurring-booking-schedule.error';
 import { Resource } from '../../domain/resource.aggregate';
-import { ServiceLeg } from '../../domain/service-leg';
 import {
   ResourceRequirement,
   ResourceRequirementSelectionMode,
@@ -33,10 +30,13 @@ import { Service } from '../../domain/service.aggregate';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import {
   assertPatternConflictFree,
-  assertServiceEligible,
   ConflictCheckDeps,
   ConflictCheckParams,
 } from './recurring-booking-schedule-request.helpers';
+import {
+  lockConsideredResources,
+  resolveConsideredRequirements,
+} from './recurring-considered-resources.helpers';
 import { resolveBookingLinesResourceCandidates } from './resource-occupancy.helpers';
 
 const TENANT = '10000000-0000-4000-8000-000000000400';
@@ -147,16 +147,45 @@ describe('assertPatternConflictFree', () => {
       .build();
   }
 
+  // What the request use case does before the conflict check: resolve the considered resources of
+  // every requirement and lock them once.
+  async function checkBundle(d: ConflictCheckDeps, params: SpecParams) {
+    if (params.occurrences.length === 0) return [];
+    const [first] = params.service.resourceRequirements;
+    const chosen = params.service.resourceRequirements.find(
+      (requirement) => requirement.selectionMode === 'CUSTOMER_CHOICE',
+    );
+    const considered = await resolveConsideredRequirements(d, {
+      tenantId: params.tenantId,
+      timezone: params.timezone,
+      service: params.service,
+      selections: params.resourceIds.map((resourceId) => ({
+        resourceType: (chosen ?? first)?.type ?? ResourceType.LOCATION,
+        resourceId,
+      })),
+      firstOccurrenceStart: params.occurrences[0].occurrenceStart,
+    });
+    await lockConsideredResources(d.tenantLock, params.tenantId, considered);
+    return assertPatternConflictFree(d, params, considered);
+  }
+
+  // The single-requirement shape: the resource of each occurrence.
+  async function check(d: ConflictCheckDeps, params: SpecParams): Promise<Resource[]> {
+    return (await checkBundle(d, params)).map(([resource]) => resource);
+  }
+
+  // The request's picks ride along with the params; check() turns them into resourceSelections.
+  type SpecParams = ConflictCheckParams & { resourceIds: string[] };
+
   function buildParams(
     service: Service,
     occurrenceCount: number,
     resourceIds: string[] = [],
-  ): ConflictCheckParams {
+  ): SpecParams {
     return {
       tenantId: TENANT,
       timezone: TIMEZONE,
       businessHours: BUSINESS_HOURS,
-      assignmentPolicy: resourceIds.length > 0 ? 'FIXED_ASSIGNMENT' : 'RESOLVE_PER_OCCURRENCE',
       resourceIds,
       recurrence: {
         frequency: 'WEEKLY',
@@ -225,7 +254,7 @@ describe('assertPatternConflictFree', () => {
       const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
       ).rejects.toThrow(RecurringBookingScheduleConflictError);
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
@@ -241,7 +270,7 @@ describe('assertPatternConflictFree', () => {
       const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
       ).resolves.toEqual(expect.any(Array));
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
@@ -252,23 +281,15 @@ describe('assertPatternConflictFree', () => {
       await seedResources(1);
 
       await expect(
-        assertPatternConflictFree(
-          deps,
-          buildParams(buildService('CUSTOMER_CHOICE'), 2, [uuidv7()]),
-        ),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 2, [uuidv7()])),
       ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
     });
 
     it('requires a caller-chosen resource', async () => {
       await seedResources(1);
-      const params = {
-        ...buildParams(buildService('CUSTOMER_CHOICE'), 2),
-        assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
-      };
+      const params = buildParams(buildService('CUSTOMER_CHOICE'), 2);
 
-      await expect(assertPatternConflictFree(deps, params)).rejects.toThrow(
-        BookingResourceSelectionRequiredError,
-      );
+      await expect(check(deps, params)).rejects.toThrow(BookingResourceSelectionRequiredError);
     });
   });
 
@@ -278,9 +299,9 @@ describe('assertPatternConflictFree', () => {
       occupy(rooms[0], occurrenceStart(2));
       occupy(rooms[1], occurrenceStart(2));
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 4)),
-      ).resolves.toEqual(expect.any(Array));
+      await expect(check(deps, buildParams(buildService('AUTO_ANY'), 4))).resolves.toEqual(
+        expect.any(Array),
+      );
     });
 
     it('rejects an occurrence where every eligible resource is busy', async () => {
@@ -289,9 +310,9 @@ describe('assertPatternConflictFree', () => {
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
       const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 6)),
-      ).rejects.toThrow(RecurringBookingScheduleConflictError);
+      await expect(check(deps, buildParams(buildService('AUTO_ANY'), 6))).rejects.toThrow(
+        RecurringBookingScheduleConflictError,
+      );
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
       expect(lockSpy.mock.calls[0][1].sort()).toEqual(rooms.map((room) => room.id).sort());
@@ -300,9 +321,9 @@ describe('assertPatternConflictFree', () => {
     });
 
     it('fails when the tenant has no active resource of the required type', async () => {
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 2)),
-      ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
+      await expect(check(deps, buildParams(buildService('AUTO_ANY'), 2))).rejects.toThrow(
+        BookingServiceResourceTypeUnavailableError,
+      );
     });
   });
 
@@ -315,10 +336,7 @@ describe('assertPatternConflictFree', () => {
       occupy(first, occurrenceStart(1));
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
 
-      const plan = await assertPatternConflictFree(
-        deps,
-        buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3),
-      );
+      const plan = await check(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3));
 
       // The busy occurrence takes the free unit; the others take the lowest id.
       expect(plan.map((resource) => resource.id)).toEqual([first.id, second.id, first.id]);
@@ -333,9 +351,9 @@ describe('assertPatternConflictFree', () => {
       });
       rooms.forEach((room) => occupy(room, occurrenceStart(1)));
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3)),
-      ).rejects.toThrow(RecurringBookingScheduleConflictError);
+      await expect(check(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3))).rejects.toThrow(
+        RecurringBookingScheduleConflictError,
+      );
     });
 
     it('accepts when the first eligible resource is free even though another one is busy', async () => {
@@ -348,7 +366,7 @@ describe('assertPatternConflictFree', () => {
       expect(first.id).not.toBe(second.id);
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3)),
+        check(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), 3)),
       ).resolves.toEqual(expect.any(Array));
     });
   });
@@ -361,7 +379,7 @@ describe('assertPatternConflictFree', () => {
       const findByIdSpy = jest.spyOn(resourceRepo, 'findById');
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 0, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 0, [room.id])),
       ).resolves.toEqual([]);
 
       expect(closureRepo.rangeQueryCount).toBe(0);
@@ -378,7 +396,7 @@ describe('assertPatternConflictFree', () => {
       });
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id])),
       ).rejects.toThrow(RecurringBookingScheduleConflictError);
     });
 
@@ -389,10 +407,7 @@ describe('assertPatternConflictFree', () => {
       });
 
       await expect(
-        assertPatternConflictFree(
-          deps,
-          buildParams(buildService('CUSTOMER_CHOICE', 30), 3, [room.id]),
-        ),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE', 30), 3, [room.id])),
       ).rejects.toThrow(RecurringBookingScheduleConflictError);
     });
 
@@ -403,10 +418,7 @@ describe('assertPatternConflictFree', () => {
       });
 
       await expect(
-        assertPatternConflictFree(
-          deps,
-          buildParams(buildService('CUSTOMER_CHOICE', 10), 3, [room.id]),
-        ),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE', 10), 3, [room.id])),
       ).resolves.toEqual(expect.any(Array));
     });
 
@@ -415,7 +427,7 @@ describe('assertPatternConflictFree', () => {
       occupy(room, occurrenceStart(2), { tenantId: OTHER_TENANT });
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
       ).resolves.toEqual(expect.any(Array));
     });
   });
@@ -428,7 +440,7 @@ describe('assertPatternConflictFree', () => {
         occupy(resource, occurrenceStart(2));
 
         await expect(
-          assertPatternConflictFree(
+          check(
             deps,
             buildParams(buildService('CUSTOMER_CHOICE', null, { type }), 4, [resource.id]),
           ),
@@ -439,7 +451,7 @@ describe('assertPatternConflictFree', () => {
         const [resource] = await seedResources(1, 0, type);
 
         await expect(
-          assertPatternConflictFree(
+          check(
             deps,
             buildParams(buildService('CUSTOMER_CHOICE', null, { type }), 4, [resource.id]),
           ),
@@ -451,13 +463,11 @@ describe('assertPatternConflictFree', () => {
         const service = buildService('AUTO_ANY', null, { type });
         occupy(resources[0], occurrenceStart(1));
 
-        await expect(assertPatternConflictFree(deps, buildParams(service, 3))).resolves.toEqual(
-          expect.any(Array),
-        );
+        await expect(check(deps, buildParams(service, 3))).resolves.toEqual(expect.any(Array));
 
         occupy(resources[1], occurrenceStart(1));
 
-        await expect(assertPatternConflictFree(deps, buildParams(service, 3))).rejects.toThrow(
+        await expect(check(deps, buildParams(service, 3))).rejects.toThrow(
           RecurringBookingScheduleConflictError,
         );
       });
@@ -474,7 +484,7 @@ describe('assertPatternConflictFree', () => {
       occupy(inPoolB, occurrenceStart(2));
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
 
-      await expect(assertPatternConflictFree(deps, buildParams(service, 4))).rejects.toThrow(
+      await expect(check(deps, buildParams(service, 4))).rejects.toThrow(
         RecurringBookingScheduleConflictError,
       );
 
@@ -489,9 +499,7 @@ describe('assertPatternConflictFree', () => {
       });
       occupy(inPoolA, occurrenceStart(2));
 
-      await expect(assertPatternConflictFree(deps, buildParams(service, 4))).resolves.toEqual(
-        expect.any(Array),
-      );
+      await expect(check(deps, buildParams(service, 4))).resolves.toEqual(expect.any(Array));
     });
 
     it('AUTO_FUNGIBLE_POOL considers every pool member and never one outside the pool', async () => {
@@ -500,9 +508,7 @@ describe('assertPatternConflictFree', () => {
       const service = buildService('AUTO_FUNGIBLE_POOL', null, { resourcePoolIds: poolIds });
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
 
-      await expect(assertPatternConflictFree(deps, buildParams(service, 3))).resolves.toEqual(
-        expect.any(Array),
-      );
+      await expect(check(deps, buildParams(service, 3))).resolves.toEqual(expect.any(Array));
 
       expect(lockSpy).toHaveBeenCalledWith(TENANT, expect.arrayContaining(poolIds));
       expect(lockSpy.mock.calls[0][1]).toHaveLength(2);
@@ -516,7 +522,7 @@ describe('assertPatternConflictFree', () => {
       await resourceRepo.save(room);
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 3, [room.id])),
       ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
     });
 
@@ -526,9 +532,9 @@ describe('assertPatternConflictFree', () => {
       await resourceRepo.save(inactive);
       occupy(active, occurrenceStart(1));
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 3)),
-      ).rejects.toThrow(RecurringBookingScheduleConflictError);
+      await expect(check(deps, buildParams(buildService('AUTO_ANY'), 3))).rejects.toThrow(
+        RecurringBookingScheduleConflictError,
+      );
     });
 
     it('AUTO_ANY fails as unavailable when every resource of the type is deactivated', async () => {
@@ -536,9 +542,9 @@ describe('assertPatternConflictFree', () => {
       room.deactivate();
       await resourceRepo.save(room);
 
-      await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 3)),
-      ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
+      await expect(check(deps, buildParams(buildService('AUTO_ANY'), 3))).rejects.toThrow(
+        BookingServiceResourceTypeUnavailableError,
+      );
     });
   });
 
@@ -548,7 +554,7 @@ describe('assertPatternConflictFree', () => {
       await occupyWithState(room, occurrenceStart(2), 'HOLD');
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
       ).rejects.toThrow(RecurringBookingScheduleConflictError);
     });
 
@@ -557,7 +563,7 @@ describe('assertPatternConflictFree', () => {
       await occupyWithState(room, occurrenceStart(2), 'REQUESTED');
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 4, [room.id])),
       ).resolves.toEqual(expect.any(Array));
     });
   });
@@ -570,10 +576,7 @@ describe('assertPatternConflictFree', () => {
       const lockSpy = jest.spyOn(tenantLock, 'lockResources');
       const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
 
-      await assertPatternConflictFree(
-        deps,
-        buildParams(buildService('CUSTOMER_CHOICE'), DAILY_OCCURRENCES, [room.id]),
-      );
+      await check(deps, buildParams(buildService('CUSTOMER_CHOICE'), DAILY_OCCURRENCES, [room.id]));
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
       expect(windowsSpy).toHaveBeenCalledTimes(1);
@@ -587,10 +590,7 @@ describe('assertPatternConflictFree', () => {
       const findByTenantSpy = jest.spyOn(resourceRepo, 'findByTenant');
       const findByIdSpy = jest.spyOn(resourceRepo, 'findById');
 
-      await assertPatternConflictFree(
-        deps,
-        buildParams(buildService('AUTO_ANY'), DAILY_OCCURRENCES),
-      );
+      await check(deps, buildParams(buildService('AUTO_ANY'), DAILY_OCCURRENCES));
 
       expect(lockSpy).toHaveBeenCalledTimes(1);
       expect(windowsSpy).toHaveBeenCalledTimes(1);
@@ -605,10 +605,7 @@ describe('assertPatternConflictFree', () => {
   describe('parity with the per-occurrence check', () => {
     const OCCURRENCE_COUNT = 5;
 
-    async function perOccurrenceAccepts(
-      service: Service,
-      params: ConflictCheckParams,
-    ): Promise<boolean> {
+    async function perOccurrenceAccepts(service: Service, params: SpecParams): Promise<boolean> {
       const slotConflictService = new BookingSlotConflictService(occupancyRepo, tenantLock);
       const resourceSelections = params.resourceIds.map((resourceId) => ({
         serviceId: service.id,
@@ -640,9 +637,9 @@ describe('assertPatternConflictFree', () => {
       }
     }
 
-    async function batchedAccepts(params: ConflictCheckParams): Promise<boolean> {
+    async function batchedAccepts(params: SpecParams): Promise<boolean> {
       try {
-        await assertPatternConflictFree(deps, params);
+        await check(deps, params);
         return true;
       } catch (error) {
         if (error instanceof RecurringBookingScheduleConflictError) return false;
@@ -739,10 +736,7 @@ describe('assertPatternConflictFree', () => {
         const lockSpy = jest.spyOn(tenantLock, 'lockResources');
         const windowsSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
 
-        const plan = await assertPatternConflictFree(
-          deps,
-          buildParams(buildDefaultService(shape), 8),
-        );
+        const plan = await check(deps, buildParams(buildDefaultService(shape), 8));
 
         expect(plan).toHaveLength(8);
         expect(plan.every((resource) => resource.id === location.id)).toBe(true);
@@ -758,10 +752,9 @@ describe('assertPatternConflictFree', () => {
         const [location] = await seedResources(1, 0, ResourceType.LOCATION);
         occupy(location, occurrenceStart(4));
 
-        const error = await assertPatternConflictFree(
-          deps,
-          buildParams(buildDefaultService(shape), 8),
-        ).catch((caught: unknown) => caught);
+        const error = await check(deps, buildParams(buildDefaultService(shape), 8)).catch(
+          (caught: unknown) => caught,
+        );
 
         expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
         expect((error as RecurringBookingScheduleConflictError).conflicts).toEqual([
@@ -782,9 +775,7 @@ describe('assertPatternConflictFree', () => {
         occurrenceStart: new Date(occurrence.occurrenceStart.getTime() - 3 * 60 * 60_000),
       }));
 
-      const error = await assertPatternConflictFree(deps, outsideHours).catch(
-        (caught: unknown) => caught,
-      );
+      const error = await check(deps, outsideHours).catch((caught: unknown) => caught);
 
       expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
       expect(
@@ -799,173 +790,23 @@ describe('assertPatternConflictFree', () => {
       occupy(location, occurrenceStart(2), { tenantId: OTHER_TENANT });
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildDefaultService('no requirement'), 5)),
+        check(deps, buildParams(buildDefaultService('no requirement'), 5)),
       ).resolves.toHaveLength(5);
     });
 
     it('fails as unavailable when the tenant has no active LOCATION resource', async () => {
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildDefaultService('no requirement'), 3)),
+        check(deps, buildParams(buildDefaultService('no requirement'), 3)),
       ).rejects.toThrow(BookingServiceResourceTypeUnavailableError);
-    });
-  });
-
-  // TD49-S03 — the web filter (recurrence-shape.spec.ts) is driven by the same shape table.
-  describe('assertServiceEligible', () => {
-    const location = (
-      selectionMode: ResourceRequirementSelectionMode,
-      resourcePoolIds?: string[],
-    ) =>
-      ResourceRequirement.create({ type: ResourceType.LOCATION, selectionMode, resourcePoolIds });
-    const room = (selectionMode: ResourceRequirementSelectionMode, requiredQuantity = 1) =>
-      ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode, requiredQuantity });
-    const staff = ResourceRequirement.create({
-      type: ResourceType.STAFF,
-      selectionMode: 'AUTO_ANY',
-    });
-
-    function service(
-      requirements: ResourceRequirement[],
-      options: { legs?: boolean; pickup?: boolean; recurrence?: boolean } = {},
-    ): Service {
-      return new ServiceBuilder()
-        .withTenantId(TENANT)
-        .withBookingModel('APPOINTMENT')
-        .withBookingPolicy({ recurrenceEligible: options.recurrence ?? true })
-        .withRequiresPickupAddress(options.pickup ?? false)
-        .withResourceRequirements(requirements)
-        .withLegs(
-          options.legs
-            ? [
-                ServiceLeg.create({
-                  legIndex: 0,
-                  name: 'Etapa',
-                  durationMinutes: 30,
-                  resourceRequirements: [room('AUTO_ANY')],
-                  transitionGapAfterMinutes: 0,
-                }),
-              ]
-            : null,
-        )
-        .build();
-    }
-
-    type Policy = 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
-    type IneligibleReason = ConstructorParameters<
-      typeof RecurringBookingScheduleIneligibleServiceError
-    >[0];
-    const accepted: [string, () => Service, Policy][] = [
-      ['no requirement', () => service([]), 'RESOLVE_PER_OCCURRENCE'],
-      [
-        'a stored unrestricted NONE location',
-        () => service([location('NONE')]),
-        'RESOLVE_PER_OCCURRENCE',
-      ],
-      [
-        'a stored unrestricted NONE location with an empty pool list',
-        () => service([location('NONE', [])]),
-        'RESOLVE_PER_OCCURRENCE',
-      ],
-      [
-        'one CUSTOMER_CHOICE room, fixed',
-        () => service([room('CUSTOMER_CHOICE')]),
-        'FIXED_ASSIGNMENT',
-      ],
-      ['one AUTO_ANY room', () => service([room('AUTO_ANY')]), 'RESOLVE_PER_OCCURRENCE'],
-      [
-        'one AUTO_FUNGIBLE_POOL room',
-        () => service([room('AUTO_FUNGIBLE_POOL')]),
-        'RESOLVE_PER_OCCURRENCE',
-      ],
-      ['an AUTO_ANY location', () => service([location('AUTO_ANY')]), 'RESOLVE_PER_OCCURRENCE'],
-    ];
-    const refused: [string, () => Service, Policy, IneligibleReason][] = [
-      [
-        'a service with legs',
-        () => service([], { legs: true }),
-        'RESOLVE_PER_OCCURRENCE',
-        'legged-or-bundled',
-      ],
-      [
-        'two requirements (staff + room)',
-        () => service([staff, room('AUTO_ANY')]),
-        'RESOLVE_PER_OCCURRENCE',
-        'legged-or-bundled',
-      ],
-      [
-        'a requirement of quantity 2',
-        () => service([room('AUTO_FUNGIBLE_POOL', 2)]),
-        'RESOLVE_PER_OCCURRENCE',
-        'legged-or-bundled',
-      ],
-      [
-        'a pickup-address service with no requirement',
-        () => service([], { pickup: true }),
-        'RESOLVE_PER_OCCURRENCE',
-        'requires-pickup-address',
-      ],
-      [
-        'recurrence switched off on a default service',
-        () => service([], { recurrence: false }),
-        'RESOLVE_PER_OCCURRENCE',
-        'recurrence-not-enabled',
-      ],
-      [
-        'a NONE room (NONE is accepted for the unrestricted location only)',
-        () => service([room('NONE')]),
-        'RESOLVE_PER_OCCURRENCE',
-        'selection-mode-mismatch',
-      ],
-      [
-        'a NONE location restricted to a pool',
-        () => service([location('NONE', [uuidv7()])]),
-        'RESOLVE_PER_OCCURRENCE',
-        'selection-mode-mismatch',
-      ],
-      [
-        'FIXED_ASSIGNMENT on a service with no requirement',
-        () => service([]),
-        'FIXED_ASSIGNMENT',
-        'selection-mode-mismatch',
-      ],
-      [
-        'FIXED_ASSIGNMENT on a stored NONE location',
-        () => service([location('NONE')]),
-        'FIXED_ASSIGNMENT',
-        'selection-mode-mismatch',
-      ],
-      [
-        'RESOLVE_PER_OCCURRENCE on a CUSTOMER_CHOICE room',
-        () => service([room('CUSTOMER_CHOICE')]),
-        'RESOLVE_PER_OCCURRENCE',
-        'selection-mode-mismatch',
-      ],
-    ];
-
-    it.each(accepted)('accepts %s', (_name, build, policy) => {
-      expect(() => assertServiceEligible(build(), policy)).not.toThrow();
-    });
-
-    it.each(refused)('refuses %s', (_name, build, policy, reason) => {
-      let thrown: unknown;
-      try {
-        assertServiceEligible(build(), policy);
-      } catch (error) {
-        thrown = error;
-      }
-      expect(thrown).toBeInstanceOf(RecurringBookingScheduleIneligibleServiceError);
-      expect((thrown as Error).message).toBe(
-        new RecurringBookingScheduleIneligibleServiceError(reason).message,
-      );
     });
   });
 
   // M23-S18 — working hours and closures: the same rule availability applies, checked for every
   // occurrence of the term, with hours and occupancy refusals merged into one list.
   describe('working hours, closures and the merged conflict list', () => {
-    async function conflictsOf(params: ConflictCheckParams) {
+    async function conflictsOf(params: SpecParams) {
       try {
-        await assertPatternConflictFree(deps, params);
+        await check(deps, params);
       } catch (error) {
         if (error instanceof RecurringBookingScheduleConflictError) return error.conflicts;
         throw error;
@@ -980,7 +821,7 @@ describe('assertPatternConflictFree', () => {
       await closureRepo.save((resource ? builder.withResourceId(resource.id) : builder).build());
     }
 
-    function withHours(params: ConflictCheckParams, tuesday: BusinessHours['tuesday']) {
+    function withHours(params: SpecParams, tuesday: BusinessHours['tuesday']) {
       return { ...params, businessHours: { ...BUSINESS_HOURS, tuesday } };
     }
 
@@ -1001,7 +842,7 @@ describe('assertPatternConflictFree', () => {
       // `first` is closed on the second occurrence, which is still accepted because `second` is open.
       await closeFullDay(1, first);
 
-      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 3));
+      const plan = await check(deps, buildParams(buildService('AUTO_ANY'), 3));
 
       expect(plan.map((resource) => resource.id)).toEqual([first.id, second.id, first.id]);
     });
@@ -1011,7 +852,7 @@ describe('assertPatternConflictFree', () => {
       occupy(a, occurrenceStart(0));
       await closeFullDay(0, b);
 
-      const plan = await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 2));
+      const plan = await check(deps, buildParams(buildService('AUTO_ANY'), 2));
 
       expect(plan[0].id).toBe(c.id);
     });
@@ -1026,7 +867,7 @@ describe('assertPatternConflictFree', () => {
       );
 
       await expect(
-        assertPatternConflictFree(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
+        check(deps, buildParams(buildService('CUSTOMER_CHOICE'), 8, [room.id])),
       ).resolves.toEqual(expect.any(Array));
     });
 
@@ -1260,7 +1101,7 @@ describe('assertPatternConflictFree', () => {
         // 22:00 in Sao Paulo is 01:00 UTC on the NEXT calendar day. The closure is on the
         // tenant-local date, so it must still catch the occurrence.
         const start = new Date('2031-03-05T01:00:00.000Z');
-        const params: ConflictCheckParams = {
+        const params: SpecParams = {
           ...buildParams(buildService('CUSTOMER_CHOICE'), 1, [room.id]),
           businessHours: { ...BUSINESS_HOURS, tuesday: { open: '09:00', close: '23:59' } },
           occurrences: [{ occurrenceStart: start, occurrenceStartLocalDate: '2031-03-04' }],
@@ -1290,14 +1131,14 @@ describe('assertPatternConflictFree', () => {
 
       it.each([3, 90])('loads closures and openings once each for %i occurrences', async (n) => {
         await seedResources(1);
-        await assertPatternConflictFree(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), n));
+        await check(deps, buildParams(buildService('AUTO_FUNGIBLE_POOL'), n));
 
         expect(queryCounts()).toEqual(expectedCounts);
       });
 
       it.each([1, 5])('loads them once each for %i considered resources', async (n) => {
         await seedResources(n);
-        await assertPatternConflictFree(deps, buildParams(buildService('AUTO_ANY'), 20));
+        await check(deps, buildParams(buildService('AUTO_ANY'), 20));
 
         expect(queryCounts()).toEqual(expectedCounts);
       });
@@ -1343,5 +1184,237 @@ describe('assertPatternConflictFree', () => {
         expect(expectedRefused).toHaveLength(2);
       });
     });
+  });
+
+  // TD49 Story 0 — a flat service with several requirements: every requirement must be satisfiable
+  // in every occurrence, decided from one lock call and one overlap query.
+  describe('bundle (several requirements)', () => {
+    function buildBundle(
+      requirements: ResourceRequirement[] = [
+        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'CUSTOMER_CHOICE' }),
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+      ],
+    ): Service {
+      return new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBookingModel('APPOINTMENT')
+        .withResourceRequirements(requirements)
+        .build();
+    }
+
+    async function seedBundle(roomCount = 1) {
+      const [staff] = await seedResources(1, 0, ResourceType.STAFF);
+      const rooms = await seedResources(roomCount, 0, ResourceType.ROOM);
+      return { staff, rooms };
+    }
+
+    async function refusedStarts(params: SpecParams): Promise<Date[]> {
+      const error = await checkBundle(deps, params).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+      return (error as RecurringBookingScheduleConflictError).conflicts.map(
+        (conflict) => conflict.occurrenceStart,
+      );
+    }
+
+    it('assigns one resource per requirement to every occurrence', async () => {
+      const { staff, rooms } = await seedBundle();
+
+      const plan = await checkBundle(deps, buildParams(buildBundle(), 5, [staff.id]));
+
+      expect(plan).toHaveLength(5);
+      expect(
+        plan.every(
+          (resources) => resources.map((r) => r.id).join() === `${staff.id},${rooms[0].id}`,
+        ),
+      ).toBe(true);
+    });
+
+    it('refuses the whole term when only the staff member is busy in the 5th occurrence', async () => {
+      const { staff } = await seedBundle();
+      occupy(staff, occurrenceStart(4));
+
+      const starts = await refusedStarts(buildParams(buildBundle(), 6, [staff.id]));
+
+      expect(starts).toEqual([occurrenceStart(4)]);
+    });
+
+    it('refuses the whole term when only the room is busy in the 5th occurrence', async () => {
+      const { staff, rooms } = await seedBundle();
+      occupy(rooms[0], occurrenceStart(4));
+
+      const starts = await refusedStarts(buildParams(buildBundle(), 6, [staff.id]));
+
+      expect(starts).toEqual([occurrenceStart(4)]);
+    });
+
+    it('reports every colliding occurrence, whichever requirement collided', async () => {
+      const { staff, rooms } = await seedBundle();
+      occupy(staff, occurrenceStart(1));
+      occupy(rooms[0], occurrenceStart(3));
+
+      const starts = await refusedStarts(buildParams(buildBundle(), 5, [staff.id]));
+
+      expect(starts).toEqual([occurrenceStart(1), occurrenceStart(3)]);
+    });
+
+    it('locks every considered resource once and runs one overlap query', async () => {
+      const { staff } = await seedBundle(2);
+      const lockSpy = jest.spyOn(tenantLock, 'lockResources');
+      const overlapSpy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
+
+      await checkBundle(deps, buildParams(buildBundle(), 8, [staff.id]));
+
+      expect(lockSpy).toHaveBeenCalledTimes(1);
+      expect(lockSpy.mock.calls[0][1]).toHaveLength(3);
+      expect(overlapSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets an automatic requirement use another free resource of its type', async () => {
+      const { staff, rooms } = await seedBundle(2);
+      occupy(rooms[0], occurrenceStart(2));
+      occupy(rooms[1], occurrenceStart(3));
+
+      const plan = await checkBundle(deps, buildParams(buildBundle(), 5, [staff.id]));
+
+      expect(plan[2][1].id).toBe(rooms[1].id);
+      expect(plan[3][1].id).toBe(rooms[0].id);
+    });
+
+    it('refuses an occurrence where every room is closed that day (hours are checked per requirement)', async () => {
+      const { staff, rooms } = await seedBundle();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT)
+          .withDate(occurrenceLocalDate(2))
+          .withResourceId(rooms[0].id)
+          .build(),
+      );
+
+      const error = await checkBundle(deps, buildParams(buildBundle(), 4, [staff.id])).catch(
+        (caught: unknown) => caught,
+      );
+
+      expect(error).toBeInstanceOf(RecurringBookingScheduleConflictError);
+      expect((error as RecurringBookingScheduleConflictError).conflicts).toEqual([
+        { occurrenceStart: occurrenceStart(2), reason: 'CLOSED' },
+      ]);
+    });
+
+    it('holds, checks and locks a NONE location requirement like any other', async () => {
+      const [staff] = await seedResources(1, 0, ResourceType.STAFF);
+      const [location] = await seedResources(1, 0, ResourceType.LOCATION);
+      const service = buildBundle([
+        ResourceRequirement.create({ type: ResourceType.LOCATION, selectionMode: 'NONE' }),
+        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'CUSTOMER_CHOICE' }),
+      ]);
+      occupy(location, occurrenceStart(2));
+
+      const starts = await refusedStarts(buildParams(service, 4, [staff.id]));
+
+      expect(starts).toEqual([occurrenceStart(2)]);
+    });
+
+    it('never gives two requirements of one type the same resource in an occurrence', async () => {
+      const rooms = await seedResources(2, 0, ResourceType.ROOM);
+      const service = buildBundle([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+      ]);
+
+      const plan = await checkBundle(deps, buildParams(service, 3));
+
+      for (const [first, second] of plan) expect(first.id).not.toBe(second.id);
+      expect(new Set(plan.flat().map((r) => r.id))).toEqual(new Set(rooms.map((r) => r.id)));
+    });
+
+    it("never lets another tenant's occupancy block the term", async () => {
+      const { staff, rooms } = await seedBundle();
+      occupy(staff, occurrenceStart(1), { tenantId: OTHER_TENANT });
+      occupy(rooms[0], occurrenceStart(2), { tenantId: OTHER_TENANT });
+
+      await expect(
+        checkBundle(deps, buildParams(buildBundle(), 4, [staff.id])),
+      ).resolves.toHaveLength(4);
+    });
+
+    it('requires a pick for the customer-chosen requirement', async () => {
+      await seedBundle();
+
+      await expect(checkBundle(deps, buildParams(buildBundle(), 3))).rejects.toThrow(
+        BookingResourceSelectionRequiredError,
+      );
+    });
+
+    // The batched verdict must equal resolving and checking each occurrence on its own, the way a
+    // one-off booking of the same bundle does.
+    describe.each([
+      ['no collision', []],
+      ['the staff member busy in the 4th occurrence', [{ of: 'staff', index: 3 }]],
+      ['the room busy in the 2nd occurrence', [{ of: 'room', index: 1 }]],
+      [
+        'both busy, in different occurrences',
+        [
+          { of: 'staff', index: 0 },
+          { of: 'room', index: 4 },
+        ],
+      ],
+    ] as const)('parity with the per-occurrence bundle booking: %s', (_name, busy) => {
+      it('accepts and rejects exactly what a one-off booking of each occurrence does', async () => {
+        const { staff, rooms } = await seedBundle();
+        for (const { of, index } of busy) {
+          occupy(of === 'staff' ? staff : rooms[0], occurrenceStart(index));
+        }
+        const service = buildBundle();
+        const params = buildParams(service, 5, [staff.id]);
+
+        const batched = await checkBundle(deps, params).then(
+          () => true,
+          (error: unknown) => {
+            if (error instanceof RecurringBookingScheduleConflictError) return false;
+            throw error;
+          },
+        );
+
+        expect(batched).toBe(await oneOffBundleAccepts(service, params, staff.id));
+      });
+    });
+
+    async function oneOffBundleAccepts(
+      service: Service,
+      params: SpecParams,
+      staffId: string,
+    ): Promise<boolean> {
+      const slotConflictService = new BookingSlotConflictService(occupancyRepo, tenantLock);
+      try {
+        for (const { occurrenceStart: scheduledAt } of params.occurrences) {
+          const lineId = uuidv7();
+          const resolved = await resolveBookingLinesResourceCandidates({
+            resourceRepo,
+            availabilityService: deps.availabilityService,
+            occupancyRepo,
+            tenantId: TENANT,
+            scheduledAt,
+            timezone: TIMEZONE,
+            lines: [{ lineId, serviceId: service.id, durationMinsAtBooking: DURATION_MINUTES }],
+            serviceMap: new Map([[service.id, service]]),
+            resourceSelections: [
+              {
+                serviceId: service.id,
+                legIndex: null,
+                resourceType: ResourceType.STAFF,
+                resourceId: staffId,
+              },
+            ],
+            lockResources: (resourceIds) => tenantLock.lockResources(TENANT, resourceIds),
+          });
+          await slotConflictService.assertSlotFree(TENANT, resolved.get(lineId)!.candidates);
+        }
+        return true;
+      } catch (error) {
+        if (error instanceof BookingSlotUnavailableError) return false;
+        if (error instanceof BookingBundlePartiallyUnavailableError) return false;
+        throw error;
+      }
+    }
   });
 });

@@ -26,6 +26,7 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import {
   RecurringBookingScheduleConflictError,
+  RecurringBookingScheduleIneligibleServiceError,
   RecurringBookingScheduleNotFoundError,
   RecurringBookingScheduleNotPendingApprovalError,
 } from '../../domain/errors/recurring-booking-schedule.error';
@@ -223,6 +224,37 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
     expect(result.occurrenceCount).toBe(5);
   });
 
+  it('materializes a bundle: the stored pick plus the resolved resource, both held in every occurrence', async () => {
+    const equipment = new ResourceBuilder()
+      .withTenantId(TENANT)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
+    await resourceRepo.save(equipment);
+    const bundle = new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+      ])
+      .withBookingPolicy({ recurrenceEligible: true, defaultApprovalMode: 'MANUAL_APPROVAL' })
+      .build();
+    await serviceRepo.save(bundle);
+    serviceId = bundle.id;
+    const schedule = pendingSchedule();
+
+    const result = await approve(schedule.id);
+
+    expect(result.occurrenceCount).toBe(5);
+    const windows = await occupancyRepo.findActiveWindows(
+      TENANT,
+      [resourceId, equipment.id],
+      new Date(0),
+      new Date('2100-01-01T00:00:00Z'),
+    );
+    expect(windows.filter((w) => w.resourceId === resourceId)).toHaveLength(5);
+    expect(windows.filter((w) => w.resourceId === equipment.id)).toHaveLength(5);
+  });
+
   describe('refusals', () => {
     it('throws not-found for an unknown schedule', async () => {
       await expect(approve('00000000-0000-7000-8000-0000000000aa')).rejects.toThrow(
@@ -312,6 +344,43 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
       const schedule = pendingSchedule();
 
       await expect(approve(schedule.id)).rejects.toThrow(CustomerPhoneNotSetError);
+    });
+
+    it('refuses the approval, creating nothing, when the service no longer has recurrence enabled', async () => {
+      const switchedOff = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ])
+        .withBookingPolicy({ recurrenceEligible: false, defaultApprovalMode: 'MANUAL_APPROVAL' })
+        .build();
+      await serviceRepo.save(switchedOff);
+      serviceId = switchedOff.id;
+      const schedule = pendingSchedule();
+
+      await expect(approve(schedule.id)).rejects.toThrow(
+        RecurringBookingScheduleIneligibleServiceError,
+      );
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    it('refuses the approval when the service no longer yields the policy the schedule was accepted under', async () => {
+      const nowAutomatic = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .withBookingPolicy({ recurrenceEligible: true, defaultApprovalMode: 'MANUAL_APPROVAL' })
+        .build();
+      await serviceRepo.save(nowAutomatic);
+      serviceId = nowAutomatic.id;
+      // Accepted as FIXED_ASSIGNMENT (a customer-chosen room), then the manager made the room automatic.
+      const schedule = pendingSchedule();
+
+      await expect(approve(schedule.id)).rejects.toThrow(
+        RecurringBookingScheduleIneligibleServiceError,
+      );
+      expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
     });
 
     it('throws when the service no longer exists in the tenant', async () => {

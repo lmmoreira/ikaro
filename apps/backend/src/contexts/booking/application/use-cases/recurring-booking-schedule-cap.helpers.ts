@@ -20,8 +20,8 @@ export async function assertUnderCap(
   params: CapCheckParams,
 ): Promise<void> {
   if (params.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-    // A FIXED_ASSIGNMENT request names exactly one resource (the request schema enforces it), so
-    // this issues a single query.
+    // One query per CUSTOMER_CHOICE pick of the service (a single one for a one-requirement service);
+    // the picked resources are already locked (TD49 Story 0).
     const counts = await Promise.all(
       params.resourceIds.map((resourceId) =>
         scheduleRepo.countActiveByResource(params.tenantId, resourceId),

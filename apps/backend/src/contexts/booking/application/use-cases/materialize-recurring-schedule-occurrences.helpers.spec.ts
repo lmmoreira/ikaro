@@ -1,3 +1,4 @@
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -74,7 +75,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
 
   function run(
     overrides: {
-      resources?: ReturnType<typeof room>[];
+      resources?: ReturnType<typeof room>[][];
       serviceOverride?: ReturnType<typeof service>;
       occurrences?: RecurrenceOccurrence[];
       approvedByStaffId?: string | null;
@@ -92,7 +93,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
         schedule: schedule(),
         service: usedService,
         occurrences: overrides.occurrences ?? OCCURRENCES,
-        resources: overrides.resources ?? OCCURRENCES.map(() => room('Sala A')),
+        resources: overrides.resources ?? OCCURRENCES.map(() => [room('Sala A')]),
         approvedByStaffId: overrides.approvedByStaffId ?? null,
       },
     );
@@ -169,7 +170,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
     const resources = [room('Sala A'), room('Sala B'), room('Sala A')];
     const assignSpy = jest.spyOn(occupancyRepo, 'assignMany');
 
-    await run({ resources });
+    await run({ resources: resources.map((r) => [r]) });
 
     const [tenantId, assignments, lockState, holdExpiresAt] = assignSpy.mock.calls[0];
     expect(tenantId).toBe(TENANT);
@@ -199,7 +200,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
 
     await run({
       serviceOverride: service(15),
-      resources: [turnover, noTurnover, turnover],
+      resources: [[turnover], [noTurnover], [turnover]],
     });
 
     const windows = assignSpy.mock.calls[0][1].map(
@@ -218,7 +219,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
 
   it('writes the occupancy rows to the repository the conflict check reads', async () => {
     const sala = room('Sala A');
-    const resources = OCCURRENCES.map(() => sala);
+    const resources = OCCURRENCES.map(() => [sala]);
 
     await run({ resources });
 
@@ -252,6 +253,38 @@ describe('materializeRecurringScheduleOccurrences', () => {
     await expect(run()).rejects.toThrow(CustomerPhoneNotSetError);
     expect(insertSpy).not.toHaveBeenCalled();
     expect(assignSpy).not.toHaveBeenCalled();
+  });
+
+  it('holds one resource per requirement of a bundle, as bundle members, in one assignment per occurrence', async () => {
+    const assignSpy = jest.spyOn(occupancyRepo, 'assignMany');
+    const bundle = new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withPrice(Money.from(200, 'BRL'))
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'CUSTOMER_CHOICE' }),
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+      ])
+      .build();
+    const staff = new ResourceBuilder()
+      .withTenantId(TENANT)
+      .withType(ResourceType.STAFF)
+      .withRefId(uuidv7())
+      .withName('Ana')
+      .build();
+    const sala = room('Sala A');
+
+    await run({ serviceOverride: bundle, resources: OCCURRENCES.map(() => [staff, sala]) });
+
+    const [, assignments] = assignSpy.mock.calls[0];
+    expect(assignments).toHaveLength(OCCURRENCES.length);
+    for (const assignment of assignments) {
+      expect(
+        assignment.candidates.map((c) => [c.resourceId, c.selectionMode, c.isBundleMember]),
+      ).toEqual([
+        [staff.id, 'CUSTOMER_CHOICE', true],
+        [sala.id, 'AUTO_ANY', true],
+      ]);
+    }
   });
 
   it('creates nothing for a term without occurrences', async () => {

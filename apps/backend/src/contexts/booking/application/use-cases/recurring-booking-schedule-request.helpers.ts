@@ -1,18 +1,17 @@
-import { BookingServiceResourceTypeUnavailableError } from '../../domain/errors/booking-domain.error';
 import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import {
   RecurringBookingScheduleConflictError,
-  RecurringBookingScheduleIneligibleServiceError,
   RecurringScheduleOccurrenceConflict,
 } from '../../domain/errors/recurring-booking-schedule.error';
-import { RequestRecurringBookingScheduleResourceAssignmentInput } from '../../domain/recurring-booking-schedule.aggregate';
 import { RecurrenceOccurrence, RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import { Resource } from '../../domain/resource.aggregate';
-import { ResourceRequirement } from '../../domain/resource-requirement';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
-import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
+import {
+  IResourceOccupancyRepository,
+  ResourceOccupancyWindow,
+} from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
@@ -22,18 +21,12 @@ import {
   HoursEvaluation,
   loadHoursScheduleData,
 } from './recurring-booking-schedule-hours.helpers';
-import {
-  resolveEligibleResources,
-  resolveRequirementResources,
-} from './resource-requirement-resolution.helpers';
+import { ConsideredRequirement } from './recurring-considered-resources.helpers';
 import {
   findCombinedRefusals,
   findOccupiedRefusals,
 } from './recurring-occurrence-occupancy.helpers';
-import { isDegenerateService } from './availability-resource-scope.helpers';
-import { planOccurrenceResources } from './recurring-occurrence-resource-plan.helpers';
-import { effectiveRequirement } from './recurring-service-requirement.helpers';
-import { ResolutionContext } from './resource-resolution-context.helpers';
+import { planBundleOccurrences } from './recurring-occurrence-resource-plan.helpers';
 
 // Platform default hold when Service.bookingPolicy.manualHoldMinutes is null — matches
 // booking-request.helpers.ts's own DEFAULT_MANUAL_HOLD_MINUTES (docs/02-DOMAIN_MODEL.md); kept as
@@ -55,59 +48,6 @@ export function resolveApprovalStatus(policy: ServiceBookingPolicyProps): {
   return { status, approvalHoldExpiresAt };
 }
 
-// Eligibility rules locked in during M23-S04 story-discovery (2026-09-27): single-resource
-// services only (no bundle/leg recurrence), and the requirement's own selectionMode must match
-// the requested assignmentPolicy (CUSTOMER_CHOICE ↔ FIXED_ASSIGNMENT, AUTO_ANY/AUTO_FUNGIBLE_POOL
-// ↔ RESOLVE_PER_OCCURRENCE). TD49-S03 adds the default ("degenerate") shape — no requirement, or
-// the unrestricted LOCATION row the M22 backfill stored with mode NONE — which is held against the
-// tenant's single LOCATION and is therefore RESOLVE_PER_OCCURRENCE only; NONE matches nothing else.
-export function assertServiceEligible(
-  service: Service,
-  assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE',
-): void {
-  if (service.bookingModel !== 'APPOINTMENT') {
-    throw new RecurringBookingScheduleIneligibleServiceError('not-appointment');
-  }
-  if (!service.bookingPolicy.recurrenceEligible) {
-    throw new RecurringBookingScheduleIneligibleServiceError('recurrence-not-enabled');
-  }
-  // A recurring request carries no pickup address to snapshot onto the occurrences, so a service
-  // that needs one can never be materialized.
-  if (service.requiresPickupAddress) {
-    throw new RecurringBookingScheduleIneligibleServiceError('requires-pickup-address');
-  }
-  if (service.legs !== null || service.resourceRequirements.length > 1) {
-    throw new RecurringBookingScheduleIneligibleServiceError('legged-or-bundled');
-  }
-  const requirement = effectiveRequirement(service);
-  if (requirement.requiredQuantity !== 1) {
-    throw new RecurringBookingScheduleIneligibleServiceError('legged-or-bundled');
-  }
-  const automaticModes = isDegenerateService(service)
-    ? ['AUTO_ANY', 'AUTO_FUNGIBLE_POOL', 'NONE']
-    : ['AUTO_ANY', 'AUTO_FUNGIBLE_POOL'];
-  const expectedModes =
-    assignmentPolicy === 'FIXED_ASSIGNMENT' ? ['CUSTOMER_CHOICE'] : automaticModes;
-  if (!expectedModes.includes(requirement.selectionMode)) {
-    throw new RecurringBookingScheduleIneligibleServiceError('selection-mode-mismatch');
-  }
-}
-
-export function buildResourceAssignments(
-  service: Service,
-  assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE',
-  resourceIds: string[],
-): RequestRecurringBookingScheduleResourceAssignmentInput[] {
-  if (assignmentPolicy !== 'FIXED_ASSIGNMENT') return [];
-  const requirement = effectiveRequirement(service);
-  return resourceIds.map((resourceId) => ({
-    resourceId,
-    resourceType: requirement.type,
-    requirementId: null,
-    requiredQuantityPosition: null,
-  }));
-}
-
 export interface ConflictCheckDeps {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
@@ -121,8 +61,6 @@ export interface ConflictCheckParams {
   tenantId: string;
   timezone: string;
   businessHours: BusinessHours;
-  assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
-  resourceIds: string[];
   recurrence: RecurrenceRule;
   service: Service;
   startsOn: string;
@@ -131,95 +69,107 @@ export interface ConflictCheckParams {
 }
 
 // Checks every occurrence of the term, atomically, before either status branch commits (UC-070
-// A1), in a number of queries independent of the occurrence count: resolve the resources once,
-// lock them once, then (1) working hours and closures — the same rule availability applies — and
-// (2) resource occupancy via a single overlap query, deciding per occurrence in memory. Both
-// always run, and every affected occurrence is reported with its reason in one refusal, so the
-// customer can fix the pattern in one round. Accepts and rejects exactly what resolving and
-// checking each occurrence on its own (resolveBookingLinesResourceCandidates + assertSlotFree
-// + isWindowFree) would. Returns the resource each occurrence is assigned to, in occurrence order
-// (the plan the materialization step persists).
+// A1), in a number of queries independent of the occurrence count and of the number of
+// requirements: the caller has resolved and locked the considered resources once
+// (recurring-considered-resources.helpers.ts), then this runs (1) working hours and closures — the
+// same rule availability applies — and (2) resource occupancy via a single overlap query, deciding
+// per occurrence and per requirement in memory. Both always run, and every affected occurrence is
+// reported with its reason in one refusal, so the customer can fix the pattern in one round. An
+// occurrence is refused when ANY requirement is unsatisfied. Accepts and rejects exactly what
+// resolving and checking each occurrence on its own (resolveBookingLinesResourceCandidates +
+// assertSlotFree + isWindowFree) would. Returns, per occurrence in order, the resource assigned to
+// each requirement (the plan the materialization step persists).
 export async function assertPatternConflictFree(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
-): Promise<Resource[]> {
+  considered: ConsideredRequirement[],
+): Promise<Resource[][]> {
   if (params.occurrences.length === 0) return [];
-  const requirement = effectiveRequirement(params.service);
-  const resources = await resolveConsideredResources(deps, params, requirement);
-  await deps.tenantLock.lockResources(
-    params.tenantId,
-    resources.map((resource) => resource.id),
-  );
-  const anyFreeResourceSuffices = requirement.selectionMode !== 'CUSTOMER_CHOICE';
-  const hours = await findHoursRefusals(deps, params, resources, anyFreeResourceSuffices);
-  const occupancy = await findOccupancyRefusals(deps, params, resources, anyFreeResourceSuffices);
-  // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
-  const unavailableWindows = [...occupancy.conflictingWindows, ...hours.unavailable];
-  const conflicts = mergeConflicts(hours.conflicts, [
-    ...occupancy.refusals,
-    ...(anyFreeResourceSuffices
-      ? findCombinedRefusals({
-          occurrences: params.occurrences,
-          resources,
-          unavailable: unavailableWindows,
-        })
-      : []),
-  ]);
+  const { conflicts, unavailableWindows } = await collectConflicts(deps, params, considered);
   if (conflicts.length > 0) throw new RecurringBookingScheduleConflictError(conflicts);
 
   // The same pass that accepted the term also decides which resource each occurrence gets, so the
   // materialization that follows resolves nothing (recurring-occurrence-resource-plan.helpers.ts).
-  return planOccurrenceResources(deps.occupancyRepo, {
+  return planBundleOccurrences(deps.occupancyRepo, {
     tenantId: params.tenantId,
     timezone: params.timezone,
-    selectionMode: requirement.selectionMode,
-    resources,
     occurrences: params.occurrences,
     unavailableWindows,
+    requirements: considered.map(({ requirement, resources }) => ({
+      selectionMode: requirement.selectionMode,
+      resources,
+    })),
   });
 }
 
-function findOccupancyRefusals(
+// Hours and occupancy refusals merged into one list, plus every (resource, occurrence) pair that
+// cannot be assigned.
+async function collectConflicts(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
-  resources: Resource[],
-  anyFreeResourceSuffices: boolean,
-): ReturnType<typeof findOccupiedRefusals> {
-  return findOccupiedRefusals({
+  considered: ConsideredRequirement[],
+): Promise<{
+  conflicts: RecurringScheduleOccurrenceConflict[];
+  unavailableWindows: ResourceOccupancyWindow[];
+}> {
+  const hours = await findHoursRefusals(deps, params, considered);
+  const occupancy = await findOccupiedRefusals({
     occupancyRepo: deps.occupancyRepo,
     availabilityService: deps.availabilityService,
     tenantId: params.tenantId,
     occurrences: params.occurrences,
     durationMinutes: params.recurrence.durationMinutes,
     bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
-    resources,
-    anyFreeResourceSuffices,
+    groups: considered,
   });
+  // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
+  const unavailableWindows = [...occupancy.conflictingWindows, ...hours.unavailable];
+  const conflicts = mergeConflicts(hours.conflicts, [
+    ...occupancy.refusals,
+    ...considered
+      .filter((group) => group.anyFreeResourceSuffices)
+      .flatMap((group) =>
+        findCombinedRefusals({
+          occurrences: params.occurrences,
+          resources: group.resources,
+          unavailable: unavailableWindows,
+        }),
+      ),
+  ]);
+  return { conflicts, unavailableWindows };
 }
 
+// One schedule load for every considered resource, then one pure pass per requirement: an
+// occurrence is closed when any requirement cannot be served, and the first reason found names it.
 async function findHoursRefusals(
   deps: ConflictCheckDeps,
   params: ConflictCheckParams,
-  resources: Resource[],
-  anyOpenResourceSuffices: boolean,
+  considered: ConsideredRequirement[],
 ): Promise<HoursEvaluation> {
+  const resourceIds = [...new Set(considered.flatMap((group) => group.resources.map((r) => r.id)))];
   const schedule = await loadHoursScheduleData(
     deps,
     params.tenantId,
-    resources.map((resource) => resource.id),
+    resourceIds,
     params.startsOn,
     params.endsOn,
   );
-  return evaluateHours({
-    availabilityService: deps.availabilityService,
-    businessHours: params.businessHours,
-    schedule,
-    resources,
-    anyOpenResourceSuffices,
-    occurrences: params.occurrences,
-    durationMinutes: params.recurrence.durationMinutes,
-    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
-  });
+  const evaluations = considered.map((group) =>
+    evaluateHours({
+      availabilityService: deps.availabilityService,
+      businessHours: params.businessHours,
+      schedule,
+      resources: group.resources,
+      anyOpenResourceSuffices: group.anyFreeResourceSuffices,
+      occurrences: params.occurrences,
+      durationMinutes: params.recurrence.durationMinutes,
+      bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
+    }),
+  );
+  return {
+    conflicts: evaluations.flatMap((evaluation) => evaluation.conflicts),
+    unavailable: evaluations.flatMap((evaluation) => evaluation.unavailable),
+  };
 }
 
 // One entry per occurrence, ordered by occurrenceStart; when an occurrence is refused for hours
@@ -236,39 +186,4 @@ function mergeConflicts(
   return [...byStart.values()].sort(
     (a, b) => a.occurrenceStart.getTime() - b.occurrenceStart.getTime(),
   );
-}
-
-// The resources whose availability decides an occurrence. FIXED_ASSIGNMENT: the caller's pick,
-// validated by the same rules a one-off booking applies. AUTO_ANY and AUTO_FUNGIBLE_POOL: every
-// eligible resource, since any free one satisfies the occurrence (resolveRequirementResources
-// narrows a pool to its free units, exactly as it does for AUTO_ANY).
-async function resolveConsideredResources(
-  deps: ConflictCheckDeps,
-  params: ConflictCheckParams,
-  requirement: ResourceRequirement,
-): Promise<Resource[]> {
-  const ctx: ResolutionContext = {
-    resourceRepo: deps.resourceRepo,
-    availabilityService: deps.availabilityService,
-    occupancyRepo: deps.occupancyRepo,
-    tenantId: params.tenantId,
-    timezone: params.timezone,
-    resourceCache: new Map(),
-    activeResourcesByType: new Map(),
-    excludeBookingLineIds: [],
-  };
-  if (params.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-    return resolveRequirementResources(
-      requirement,
-      ctx,
-      params.resourceIds,
-      params.occurrences[0].occurrenceStart,
-      null,
-    );
-  }
-  const eligible = await resolveEligibleResources(requirement, ctx);
-  if (eligible.length === 0) {
-    throw new BookingServiceResourceTypeUnavailableError(requirement.type);
-  }
-  return eligible;
 }

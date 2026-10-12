@@ -690,7 +690,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | requirement_id | UUID | NULLABLE — FK (tenant_id, requirement_id) → `service_resource_requirements` |
 | resource_id | UUID | NOT NULL — FK (tenant_id, resource_id, resource_type) → `resources` |
 | resource_type | VARCHAR(20) | NOT NULL |
-| required_quantity_position | INT | NULLABLE — reserved for a fungible `requiredQuantity > 1` requirement; always `null` today, because eligibility requires `requiredQuantity = 1`; `requirement_id` is also written as `null` today (`buildResourceAssignments()`). `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` starts populating both |
+| required_quantity_position | INT | NULLABLE — reserved for a fungible `requiredQuantity > 1` requirement; always `null`, because eligibility requires `requiredQuantity = 1`. `requirement_id` is always written as `null` too (`buildResourceAssignments()`): a service save replaces its requirement rows, so the FK could not follow them (TD49 Story 0); a row identifies its requirement by `resource_type`, and only `CUSTOMER_CHOICE` requirements get a row |
 | assigned_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **PK** | (tenant_id, recurring_schedule_id, resource_id) | |
 

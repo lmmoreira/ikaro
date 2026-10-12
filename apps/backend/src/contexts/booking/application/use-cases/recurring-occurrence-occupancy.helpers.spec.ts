@@ -53,8 +53,7 @@ describe('findOccupiedRefusals', () => {
       occurrences: OCCURRENCES,
       durationMinutes: 60,
       bufferAfterMinutes: options.bufferAfterMinutes ?? 0,
-      resources,
-      anyFreeResourceSuffices: options.anyFreeResourceSuffices ?? false,
+      groups: [{ resources, anyFreeResourceSuffices: options.anyFreeResourceSuffices ?? false }],
     });
   }
 
@@ -166,6 +165,86 @@ describe('findOccupiedRefusals', () => {
     const result = await check([a]);
 
     expect(result.refusals).toEqual([]);
+  });
+
+  describe('several requirements (a bundle)', () => {
+    function checkGroups(groups: { resources: Resource[]; anyFreeResourceSuffices: boolean }[]) {
+      return findOccupiedRefusals({
+        occupancyRepo,
+        availabilityService: new AvailabilityService(),
+        tenantId: TENANT,
+        occurrences: OCCURRENCES,
+        durationMinutes: 60,
+        bufferAfterMinutes: 0,
+        groups,
+      });
+    }
+
+    it('refuses an occurrence when only one of the requirements is unsatisfied', async () => {
+      const [staff, sala] = [room('Ana'), room('Sala A')];
+      occupy(sala, OCCURRENCES[1].occurrenceStart);
+
+      const result = await checkGroups([
+        { resources: [staff], anyFreeResourceSuffices: false },
+        { resources: [sala], anyFreeResourceSuffices: true },
+      ]);
+
+      expect(result.refusals.map((r) => r.occurrenceStart)).toEqual([
+        OCCURRENCES[1].occurrenceStart,
+      ]);
+    });
+
+    it('does not let a busy resource of one requirement count against another requirement', async () => {
+      const [staff, salaA, salaB] = [room('Ana'), room('Sala A'), room('Sala B')];
+      occupy(salaA, OCCURRENCES[0].occurrenceStart);
+
+      const result = await checkGroups([
+        { resources: [staff], anyFreeResourceSuffices: false },
+        { resources: [salaA, salaB], anyFreeResourceSuffices: true },
+      ]);
+
+      expect(result.refusals).toEqual([]);
+    });
+
+    it('lists an occurrence once when both requirements collide in it', async () => {
+      const [staff, sala] = [room('Ana'), room('Sala A')];
+      occupy(staff, OCCURRENCES[2].occurrenceStart);
+      occupy(sala, OCCURRENCES[2].occurrenceStart);
+
+      const result = await checkGroups([
+        { resources: [staff], anyFreeResourceSuffices: false },
+        { resources: [sala], anyFreeResourceSuffices: false },
+      ]);
+
+      expect(result.refusals.map((r) => r.occurrenceStart)).toEqual([
+        OCCURRENCES[2].occurrenceStart,
+      ]);
+    });
+
+    it('asks for every resource of every requirement in a single overlap query', async () => {
+      const [staff, salaA, salaB] = [room('Ana'), room('Sala A'), room('Sala B')];
+      const spy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
+
+      await checkGroups([
+        { resources: [staff], anyFreeResourceSuffices: false },
+        { resources: [salaA, salaB], anyFreeResourceSuffices: true },
+      ]);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy.mock.calls[0][1]).toHaveLength(OCCURRENCES.length * 3);
+    });
+
+    it('asks for a resource shared by two requirements once per occurrence', async () => {
+      const sala = room('Sala A');
+      const spy = jest.spyOn(occupancyRepo, 'findConflictingWindows');
+
+      await checkGroups([
+        { resources: [sala], anyFreeResourceSuffices: true },
+        { resources: [sala], anyFreeResourceSuffices: true },
+      ]);
+
+      expect(spy.mock.calls[0][1]).toHaveLength(OCCURRENCES.length);
+    });
   });
 });
 

@@ -182,8 +182,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
           startTime: '10:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: nextWeekday(2),
         endsOn: addDays(nextWeekday(2), 28),
       })
@@ -214,8 +213,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
           startTime: '15:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: nextWeekday(4),
         endsOn: addDays(nextWeekday(4), 14),
       })
@@ -243,8 +241,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
           startTime: '11:00',
           durationMinutes: 60,
         },
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: nextWeekday(3),
         endsOn: addDays(nextWeekday(3), 28),
       })
@@ -309,8 +306,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             startTime,
             durationMinutes: 60,
           },
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [resourceId],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
           startsOn,
           endsOn: addDays(startsOn, 28),
         })
@@ -478,7 +474,6 @@ describe('RecurringBookingScheduleController (integration)', () => {
         startTime: '09:00',
         durationMinutes: 30,
       },
-      assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       startsOn: nextWeekday(4),
       endsOn: addDays(nextWeekday(4), 28),
     };
@@ -550,8 +545,10 @@ describe('RecurringBookingScheduleController (integration)', () => {
     ...body
   }: {
     serviceId: string;
-    assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
-    resourceIds?: string[];
+    resourceSelections?: {
+      resourceType: 'ROOM' | 'LOCATION' | 'STAFF' | 'EQUIPMENT';
+      resourceId: string;
+    }[];
     daysOfWeek?: string[];
     endsOn?: string;
     startTime?: string;
@@ -583,8 +580,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const res = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
       });
 
       expect(res.status).toBe(409);
@@ -604,8 +600,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
       }).expect(201);
 
       expect(body.status).toBe('ACTIVE');
@@ -642,7 +637,6 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
           const { body } = await postFridayPattern({
             serviceId,
-            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
           }).expect(201);
 
           expect(body.status).toBe('ACTIVE');
@@ -669,7 +663,6 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
           const res = await postFridayPattern({
             serviceId,
-            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
           });
 
           expect(res.status).toBe(409);
@@ -684,21 +677,22 @@ describe('RecurringBookingScheduleController (integration)', () => {
         },
       );
 
-      it('refuses FIXED_ASSIGNMENT for a default-shape service with 422 and persists nothing', async () => {
+      it('ignores a pick sent for a default-shape service: RESOLVE_PER_OCCURRENCE, no assignment row', async () => {
         const serviceId = await seedDefault(shapes[0]);
 
-        const res = await postFridayPattern({
+        const { body } = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [locationId],
-        });
+          resourceSelections: [{ resourceType: 'LOCATION', resourceId: locationId }],
+        }).expect(201);
 
-        expect(res.status).toBe(422);
-        expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE');
+        const saved = await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .findOneByOrFail({ tenantId, id: body.id as string });
+        expect(saved.assignmentPolicy).toBe('RESOLVE_PER_OCCURRENCE');
         expect(
           await ds
-            .getRepository(RecurringBookingScheduleEntity)
-            .count({ where: { tenantId, serviceId } }),
+            .getRepository(RecurringBookingScheduleResourceAssignmentEntity)
+            .count({ where: { tenantId, recurringScheduleId: body.id as string } }),
         ).toBe(0);
       });
     });
@@ -707,9 +701,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const serviceId = await seedService('AUTO_CONFIRM', 'AUTO_ANY');
       await seedOccupancy(resourceId, fridayOccurrence(2));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        409,
-      );
+      await postFridayPattern({ serviceId }).expect(409);
 
       expect(
         await ds
@@ -730,7 +722,6 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       }).expect(201);
 
       expect(body.status).toBe('ACTIVE');
@@ -792,16 +783,14 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
         await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [busy],
+          resourceSelections: [{ resourceType: type, resourceId: busy }],
         }).expect(409);
         expect(await scheduleCount(serviceId)).toBe(0);
 
         const free = await saveResource(type);
         const { body } = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [free],
+          resourceSelections: [{ resourceType: type, resourceId: free }],
         }).expect(201);
 
         expect(body.status).toBe('ACTIVE');
@@ -817,15 +806,12 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await saveResource(ResourceType.EQUIPMENT);
       await occupyEveryActive(ResourceType.EQUIPMENT, fridayOccurrence(2));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        409,
-      );
+      await postFridayPattern({ serviceId }).expect(409);
       expect(await scheduleCount(serviceId)).toBe(0);
 
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       }).expect(201);
 
       expect(body.status).toBe('ACTIVE');
@@ -840,9 +826,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await saveResource(ResourceType.STAFF, { isActive: false });
       await occupyEveryActive(ResourceType.STAFF, fridayOccurrence(1));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        409,
-      );
+      await postFridayPattern({ serviceId }).expect(409);
 
       expect(await scheduleCount(serviceId)).toBe(0);
     });
@@ -857,15 +841,12 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await seedOccupancy(poolA, fridayOccurrence(2));
       await seedOccupancy(poolB, fridayOccurrence(2));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        409,
-      );
+      await postFridayPattern({ serviceId }).expect(409);
       expect(await scheduleCount(serviceId)).toBe(0);
 
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId, resourceId: poolB });
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       }).expect(201);
 
       expect(body.status).toBe('ACTIVE');
@@ -881,16 +862,13 @@ describe('RecurringBookingScheduleController (integration)', () => {
       await seedOccupancy(poolA, fridayOccurrence(2));
       await seedOccupancy(poolB, fridayOccurrence(2));
 
-      await postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }).expect(
-        409,
-      );
+      await postFridayPattern({ serviceId }).expect(409);
       expect(await scheduleCount(serviceId)).toBe(0);
 
       // Whichever unit is left free, the term is accepted — it no longer depends on the lowest id.
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId, resourceId: poolA });
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
       }).expect(201);
       expect(await scheduleCount(serviceId)).toBe(1);
 
@@ -912,11 +890,106 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [inactive],
+        resourceSelections: [{ resourceType: 'STAFF', resourceId: inactive }],
       }).expect(422);
 
       expect(await scheduleCount(serviceId)).toBe(0);
+    });
+
+    // TD49 Story 0 — a staff member the customer picks plus a room resolved per occurrence.
+    describe('bundle (staff CUSTOMER_CHOICE + room AUTO_ANY)', () => {
+      async function seedBundle(): Promise<{ serviceId: string; staff: string; room: string }> {
+        const serviceId = await seedService('AUTO_CONFIRM', 'CUSTOMER_CHOICE', {
+          resourceType: ResourceType.STAFF,
+        });
+        const staff = await saveResource(ResourceType.STAFF);
+        const room = await saveResource(ResourceType.ROOM);
+        const requirement = new ServiceResourceRequirementEntityBuilder()
+          .withTenantId(tenantId)
+          .withServiceId(serviceId)
+          .withResourceType(ResourceType.ROOM)
+          .withSelectionMode('AUTO_ANY')
+          .build();
+        await ds.getRepository(ServiceResourceRequirementEntity).save(requirement);
+        // Restricted to the one room so the other tests' rooms never take part.
+        await ds
+          .getRepository(ServiceResourceRequirementPoolEntity)
+          .save(
+            new ServiceResourceRequirementPoolEntityBuilder()
+              .withTenantId(tenantId)
+              .withRequirementId(requirement.id)
+              .withResourceId(room)
+              .build(),
+          );
+        return { serviceId, staff, room };
+      }
+
+      it('creates the schedule, stores only the chosen staff member and holds both resources in every occurrence', async () => {
+        const { serviceId, staff, room } = await seedBundle();
+
+        const { body } = await postFridayPattern({
+          serviceId,
+          resourceSelections: [{ resourceType: 'STAFF', resourceId: staff }],
+        }).expect(201);
+
+        const saved = await ds
+          .getRepository(RecurringBookingScheduleEntity)
+          .findOneByOrFail({ tenantId, id: body.id as string });
+        expect(saved.assignmentPolicy).toBe('FIXED_ASSIGNMENT');
+        const rows = await ds
+          .getRepository(RecurringBookingScheduleResourceAssignmentEntity)
+          .find({ where: { tenantId, recurringScheduleId: body.id as string } });
+        expect(rows.map((row) => [row.resourceId, row.resourceType, row.requirementId])).toEqual([
+          [staff, ResourceType.STAFF, null],
+        ]);
+        const held = (resourceId: string) =>
+          ds
+            .getRepository(ResourceOccupancyEntity)
+            .count({ where: { tenantId, resourceId, lockState: 'COMMITTED' } });
+        expect(await held(staff)).toBe(8); // eight Fridays, both ends of the seven-week term
+        expect(await held(room)).toBe(8);
+      });
+
+      it('rejects with 409 and persists nothing when only the room is busy in the 5th occurrence', async () => {
+        const { serviceId, staff, room } = await seedBundle();
+        await seedOccupancy(room, fridayOccurrence(4));
+
+        const res = await postFridayPattern({
+          serviceId,
+          resourceSelections: [{ resourceType: 'STAFF', resourceId: staff }],
+        });
+
+        expect(res.status).toBe(409);
+        expect(res.body.conflicts).toEqual([
+          { occurrenceStart: fridayOccurrence(4).toISOString(), reason: 'OCCUPIED' },
+        ]);
+        expect(await scheduleCount(serviceId)).toBe(0);
+        expect(
+          await ds
+            .getRepository(ResourceOccupancyEntity)
+            .count({ where: { tenantId, resourceId: staff } }),
+        ).toBe(0);
+      });
+
+      it('rejects with 409 when only the staff member is busy in the 5th occurrence', async () => {
+        const { serviceId, staff } = await seedBundle();
+        await seedOccupancy(staff, fridayOccurrence(4), { resourceType: ResourceType.STAFF });
+
+        await postFridayPattern({
+          serviceId,
+          resourceSelections: [{ resourceType: 'STAFF', resourceId: staff }],
+        }).expect(409);
+
+        expect(await scheduleCount(serviceId)).toBe(0);
+      });
+
+      it('requires a pick for the staff requirement (422) and persists nothing', async () => {
+        const { serviceId } = await seedBundle();
+
+        await postFridayPattern({ serviceId }).expect(422);
+
+        expect(await scheduleCount(serviceId)).toBe(0);
+      });
     });
 
     it('a HOLD occupancy row blocks the occurrence, a REQUESTED row does not', async () => {
@@ -931,8 +1004,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [equipment],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: equipment }],
       }).expect(409);
 
       await ds.getRepository(ResourceOccupancyEntity).delete({ tenantId });
@@ -942,8 +1014,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       });
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [equipment],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: equipment }],
       }).expect(201);
 
       expect(body.status).toBe('ACTIVE');
@@ -966,13 +1037,11 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const blocked = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [withTurnover],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: withTurnover }],
       });
       const accepted = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [withoutTurnover],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: withoutTurnover }],
       });
 
       expect(blocked.status).toBe(409);
@@ -990,8 +1059,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [busy],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: busy }],
         daysOfWeek: OPEN_DAYS,
         endsOn: addDays(nextWeekday(5), 90),
       }).expect(409);
@@ -1000,8 +1068,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const free = await saveResource(ResourceType.EQUIPMENT);
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [free],
+        resourceSelections: [{ resourceType: 'EQUIPMENT', resourceId: free }],
         daysOfWeek: OPEN_DAYS,
         endsOn: addDays(nextWeekday(5), 90),
       }).expect(201);
@@ -1015,8 +1082,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const equipment = await saveResource(ResourceType.EQUIPMENT);
       const body = {
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
-        resourceIds: [equipment],
+        resourceSelections: [{ resourceType: 'EQUIPMENT' as const, resourceId: equipment }],
       };
 
       const [first, second] = await Promise.all([postFridayPattern(body), postFridayPattern(body)]);
@@ -1035,9 +1101,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       );
 
       const responses = await Promise.all(
-        serviceIds.map((serviceId) =>
-          postFridayPattern({ serviceId, assignmentPolicy: 'RESOLVE_PER_OCCURRENCE' }),
-        ),
+        serviceIds.map((serviceId) => postFridayPattern({ serviceId })),
       );
 
       expect(responses.map((response) => response.status)).toEqual([201, 201, 201, 201]);
@@ -1099,8 +1163,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       }).expect(409);
 
       expect(body.code).toBe('BOOKING_RECURRING_SCHEDULE_CONFLICT');
@@ -1117,8 +1180,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       }).expect(201);
       expect(await scheduleCount(serviceId)).toBe(1);
     });
@@ -1131,13 +1193,11 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const refused = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [closedRoom],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: closedRoom }],
       });
       const accepted = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [otherRoom],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: otherRoom }],
       });
 
       expect(refused.status).toBe(409);
@@ -1156,8 +1216,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const res = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       });
 
       expect(res.status).toBe(409);
@@ -1174,8 +1233,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       }).expect(409);
 
       expect(body.conflicts).toEqual([
@@ -1189,8 +1247,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
         startTime: '07:00',
         endsOn: fridayDate(2),
       }).expect(409);
@@ -1213,15 +1270,13 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const refused = await postFridayPattern({
         serviceId: runsPastClosing,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
         startTime: '17:00',
         endsOn: fridayDate(1),
       });
       const accepted = await postFridayPattern({
         serviceId: endsAtClosing,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
         startTime: '17:00',
         endsOn: fridayDate(1),
       });
@@ -1251,8 +1306,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
               startTime: '10:00',
               durationMinutes: 60,
             },
-            assignmentPolicy: 'FIXED_ASSIGNMENT',
-            resourceIds: [room],
+            resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
             startsOn: sunday,
             endsOn: sunday,
           });
@@ -1283,8 +1337,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const { body } = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       }).expect(409);
 
       expect(body.conflicts).toEqual([
@@ -1301,8 +1354,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
       const res = await postFridayPattern({
         serviceId,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [room],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
       });
 
       expect(res.status).toBe(201);
@@ -1336,8 +1388,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
             startTime: '10:00',
             durationMinutes: 60,
           },
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [room],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
           startsOn: sunday,
           endsOn: sunday,
         });
@@ -1365,8 +1416,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
               startTime: '15:00',
               durationMinutes: 60,
             },
-            assignmentPolicy: 'FIXED_ASSIGNMENT',
-            resourceIds: [room],
+            resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
             startsOn: nextWeekday(5),
           })
           .expect(400);
@@ -1379,8 +1429,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
         const { body } = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [room],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
           endsOn: addDays(nextWeekday(5), -7),
         }).expect(422);
 
@@ -1393,8 +1442,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
         const { body } = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [room],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
           endsOn: addDays(nextWeekday(5), 91),
         }).expect(422);
 
@@ -1412,15 +1460,13 @@ describe('RecurringBookingScheduleController (integration)', () => {
 
         const atMaximum = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [room],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: room }],
           endsOn: addDays(nextWeekday(5), 90),
         });
         const otherRoom = await newRoom();
         const sameDay = await postFridayPattern({
           serviceId,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [otherRoom],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: otherRoom }],
           endsOn: nextWeekday(5),
         });
 
@@ -1486,8 +1532,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const { body } = await post({
         serviceId,
         recurrence: TUESDAY_10,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: nextWeekday(2),
         endsOn: addDays(nextWeekday(2), 28),
       }).expect(422);
@@ -1503,8 +1548,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const { body } = await post({
         serviceId,
         recurrence: TUESDAY_10,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: nextWeekday(2),
         endsOn: addDays(nextWeekday(2), 28),
       }).expect(422);
@@ -1521,8 +1565,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const { body } = await post({
         serviceId,
         recurrence: EVERY_DAY,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: pastDate(5),
         endsOn: futureDate(10),
       }).expect(422);
@@ -1540,8 +1583,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
       const { body } = await post({
         serviceId,
         recurrence: TUESDAY_10,
-        assignmentPolicy: 'FIXED_ASSIGNMENT',
-        resourceIds: [resourceId],
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
         startsOn: wednesday,
         endsOn: wednesday,
       }).expect(422);
@@ -1575,8 +1617,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         const body = {
           serviceId,
           recurrence: TUESDAY_10,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [ownResourceId],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: ownResourceId }],
           startsOn: nextWeekday(2),
           endsOn: addDays(nextWeekday(2), 28),
         };
@@ -1614,8 +1655,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         const { body } = await post({
           serviceId,
           recurrence: TUESDAY_10,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [resourceId],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
           startsOn: nextWeekday(2),
           endsOn: addDays(nextWeekday(2), 28),
           renewsScheduleId: previous.id,
@@ -1659,8 +1699,7 @@ describe('RecurringBookingScheduleController (integration)', () => {
         const body = {
           serviceId,
           recurrence: TUESDAY_10,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceIds: [resourceId],
+          resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
           startsOn: nextWeekday(2),
           endsOn: addDays(nextWeekday(2), 28),
         };

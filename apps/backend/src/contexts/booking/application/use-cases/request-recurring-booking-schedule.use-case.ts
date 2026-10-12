@@ -4,22 +4,11 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import {
-  BookingCustomerNotFoundError,
-  BookingServiceNotInTenantError,
-} from '../../domain/errors/booking-domain.error';
-import {
-  RecurringBookingSchedule,
-  RequestRecurringBookingScheduleResourceAssignmentInput,
-} from '../../domain/recurring-booking-schedule.aggregate';
-import {
-  assertValidTerm,
-  RecurrenceOccurrence,
-  RecurrenceRule,
-} from '../../domain/recurrence-rule.helpers';
+import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
+import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
+import { assertValidTerm, RecurrenceRule } from '../../domain/recurrence-rule.helpers';
 import { Resource } from '../../domain/resource.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { Service } from '../../domain/service.aggregate';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
@@ -51,23 +40,30 @@ import { materializeRecurringScheduleOccurrences } from './materialize-recurring
 import { resolveApprovalMode } from './service-result.mapper';
 import { assertUnderCap } from './recurring-booking-schedule-cap.helpers';
 import {
-  assertPatternConflictFree,
   assertServiceEligible,
   buildResourceAssignments,
+} from './recurring-booking-schedule-eligibility.helpers';
+import {
+  assertPatternConflictFree,
+  ConflictCheckDeps,
   resolveApprovalStatus,
 } from './recurring-booking-schedule-request.helpers';
+import {
+  PreparedRecurringBookingScheduleRequest,
+  buildRequestedSchedule,
+  resolveRequestingCustomerId,
+} from './recurring-booking-schedule-request-build.helpers';
+import {
+  ConsideredRequirement,
+  resolveAndLockConsidered,
+} from './recurring-considered-resources.helpers';
+import {
+  deriveAssignmentPolicy,
+  effectiveRequirements,
+  pickCustomerChoices,
+  RecurringResourceSelection,
+} from './recurring-service-requirement.helpers';
 import { resolveStartableOccurrences } from './recurring-booking-schedule-window.helpers';
-
-interface PreparedRecurringBookingScheduleRequest {
-  service: Service;
-  // The service's maximum term in days — validated against endsOn in prepareRequest() and passed
-  // on to the aggregate, which enforces the same invariant.
-  maxTermDays: number;
-  occurrences: RecurrenceOccurrence[];
-  resourceAssignments: RequestRecurringBookingScheduleResourceAssignmentInput[];
-  status: 'ACTIVE' | 'PENDING_APPROVAL';
-  approvalHoldExpiresAt: Date | null;
-}
 
 export interface RequestRecurringBookingScheduleUseCaseInput {
   tenantId: string;
@@ -77,8 +73,9 @@ export interface RequestRecurringBookingScheduleUseCaseInput {
   recurrence: RecurrenceRule;
   startsOn: string;
   endsOn: string;
-  assignmentPolicy: 'FIXED_ASSIGNMENT' | 'RESOLVE_PER_OCCURRENCE';
-  resourceIds: string[];
+  // One entry per CUSTOMER_CHOICE requirement of the service; the assignment policy is derived from
+  // the service, never taken from the caller (TD49 Story 0).
+  resourceSelections: RecurringResourceSelection[];
   actorType: 'CUSTOMER' | 'STAFF';
   actorId: string;
   // Present only when a STAFF actor creates on the customer's behalf.
@@ -119,7 +116,10 @@ export class RequestRecurringBookingScheduleUseCase {
   async execute(
     input: RequestRecurringBookingScheduleUseCaseInput,
   ): Promise<RequestRecurringBookingScheduleUseCaseResult> {
-    const customerId = await this.resolveCustomerId(input);
+    const customerId = await resolveRequestingCustomerId(
+      { staffPort: this.staffPort, customerPort: this.customerPort },
+      input,
+    );
 
     // The save() call below must stay textually inside this callback — architecture-check's
     // transactional-save detector requires save() to be lexically nested in the
@@ -131,11 +131,20 @@ export class RequestRecurringBookingScheduleUseCase {
     // the same row lock, so this request either waits and sees the committed update or the other
     // write waits for this transaction, never a stale eligibility/policy read.
     const schedule = await this.txManager.run(async () => {
-      await this.lockForCapCheck(input);
+      // Lock order: the service, then every considered resource in one call, then the cap check —
+      // the resource lock is what makes the per-resource cap count safe against a concurrent
+      // request for another service that picks the same resource.
+      await this.tenantLock.lockService(input.tenantId, input.serviceId);
       const prepared = await this.prepareRequest(input, customerId);
-      await assertUnderCap(this.scheduleRepo, input);
-      const resourcePlan = await this.checkPatternConflict(input, prepared);
-      const built = this.buildSchedule(input, customerId, prepared);
+      const considered = await this.resolveAndLock(input, prepared);
+      await assertUnderCap(this.scheduleRepo, {
+        tenantId: input.tenantId,
+        serviceId: input.serviceId,
+        assignmentPolicy: prepared.assignmentPolicy,
+        resourceIds: prepared.resourceAssignments.map((assignment) => assignment.resourceId),
+      });
+      const resourcePlan = await this.checkPatternConflict(input, prepared, considered);
+      const built = buildRequestedSchedule(input, customerId, prepared);
       await this.scheduleRepo.save(built);
       // An AUTO_CONFIRM schedule is ACTIVE from the start, so its whole term becomes bookings in
       // this same transaction (UC-070 step 3); a PENDING_APPROVAL one waits for UC-071.
@@ -160,7 +169,7 @@ export class RequestRecurringBookingScheduleUseCase {
   ): Promise<PreparedRecurringBookingScheduleRequest> {
     const service = await this.serviceRepo.findByIdForUpdate(input.serviceId, input.tenantId);
     if (!service) throw new BookingServiceNotInTenantError(input.serviceId);
-    assertServiceEligible(service, input.assignmentPolicy);
+    assertServiceEligible(service);
 
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(input.tenantId);
     const policy = resolveApprovalMode(service.bookingPolicy, autoApproveEnabled);
@@ -176,54 +185,72 @@ export class RequestRecurringBookingScheduleUseCase {
       service,
     });
     const resourceAssignments = buildResourceAssignments(
-      service,
-      input.assignmentPolicy,
-      input.resourceIds,
+      pickCustomerChoices(effectiveRequirements(service), input.resourceSelections),
     );
 
     return {
       service,
       maxTermDays,
       occurrences,
+      assignmentPolicy: deriveAssignmentPolicy(service),
       resourceAssignments,
       status,
       approvalHoldExpiresAt,
     };
   }
 
+  private get conflictDeps(): ConflictCheckDeps {
+    return {
+      resourceRepo: this.resourceRepo,
+      availabilityService: this.availabilityService,
+      occupancyRepo: this.occupancyRepo,
+      closureRepo: this.closureRepo,
+      openingRepo: this.openingRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
+
+  // Resolves the resources that decide every requirement and locks them all in one call, before the
+  // cap is read (see execute()).
+  private resolveAndLock(
+    input: RequestRecurringBookingScheduleUseCaseInput,
+    prepared: PreparedRecurringBookingScheduleRequest,
+  ): Promise<ConsideredRequirement[]> {
+    return resolveAndLockConsidered(this.conflictDeps, {
+      tenantId: input.tenantId,
+      timezone: input.timezone,
+      service: prepared.service,
+      selections: input.resourceSelections,
+      firstOccurrenceStart: prepared.occurrences[0].occurrenceStart,
+    });
+  }
+
   private async checkPatternConflict(
     input: RequestRecurringBookingScheduleUseCaseInput,
     prepared: PreparedRecurringBookingScheduleRequest,
-  ): Promise<Resource[]> {
+    considered: ConsideredRequirement[],
+  ): Promise<Resource[][]> {
     const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
     return assertPatternConflictFree(
-      {
-        resourceRepo: this.resourceRepo,
-        availabilityService: this.availabilityService,
-        occupancyRepo: this.occupancyRepo,
-        closureRepo: this.closureRepo,
-        openingRepo: this.openingRepo,
-        tenantLock: this.tenantLock,
-      },
+      this.conflictDeps,
       {
         tenantId: input.tenantId,
         timezone: input.timezone,
         businessHours,
-        assignmentPolicy: input.assignmentPolicy,
-        resourceIds: input.resourceIds,
         recurrence: input.recurrence,
         service: prepared.service,
         startsOn: input.startsOn,
         endsOn: input.endsOn,
         occurrences: prepared.occurrences,
       },
+      considered,
     );
   }
 
   private async materialize(
     schedule: RecurringBookingSchedule,
     prepared: PreparedRecurringBookingScheduleRequest,
-    resources: Resource[],
+    resources: Resource[][],
   ): Promise<void> {
     await materializeRecurringScheduleOccurrences(
       {
@@ -240,54 +267,5 @@ export class RequestRecurringBookingScheduleUseCase {
         approvedByStaffId: null,
       },
     );
-  }
-
-  private buildSchedule(
-    input: RequestRecurringBookingScheduleUseCaseInput,
-    customerId: string,
-    prepared: PreparedRecurringBookingScheduleRequest,
-  ): RecurringBookingSchedule {
-    return RecurringBookingSchedule.request({
-      tenantId: input.tenantId,
-      customerId,
-      serviceId: input.serviceId,
-      recurrence: input.recurrence,
-      startsOn: input.startsOn,
-      endsOn: input.endsOn,
-      maxTermDays: prepared.maxTermDays,
-      assignmentPolicy: input.assignmentPolicy,
-      resourceAssignments: prepared.resourceAssignments,
-      status: prepared.status,
-      approvalHoldExpiresAt: prepared.approvalHoldExpiresAt,
-      createdByStaffId: input.actorType === 'STAFF' ? input.actorId : null,
-      correlationId: input.correlationId,
-    });
-  }
-
-  private async resolveCustomerId(
-    input: RequestRecurringBookingScheduleUseCaseInput,
-  ): Promise<string> {
-    if (input.actorType === 'CUSTOMER') return input.actorId;
-
-    // STAFF acting on the customer's behalf.
-    const staff = await this.staffPort.findActiveById(input.actorId, input.tenantId);
-    if (!staff) throw new BookingCustomerNotFoundError(input.actorId);
-    const customerId = input.bodyCustomerId;
-    if (!customerId) throw new BookingCustomerNotFoundError('missing');
-    const customer = await this.customerPort.findById(customerId, input.tenantId);
-    if (!customer) throw new BookingCustomerNotFoundError(customerId);
-    return customerId;
-  }
-
-  // FIXED_ASSIGNMENT is locked by assertPatternConflictFree()'s own lockResources() call
-  // (ITenantLockPort.lockResources(), acquired on the caller-chosen resourceIds); RESOLVE_PER_
-  // OCCURRENCE has no fixed resource to lock upfront, so it locks on serviceId instead — either
-  // lock also protects the cap check below atomically in the same transaction.
-  private async lockForCapCheck(input: RequestRecurringBookingScheduleUseCaseInput): Promise<void> {
-    if (input.assignmentPolicy === 'FIXED_ASSIGNMENT') {
-      await this.tenantLock.lockResources(input.tenantId, input.resourceIds);
-    } else {
-      await this.tenantLock.lockService(input.tenantId, input.serviceId);
-    }
   }
 }

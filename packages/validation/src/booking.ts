@@ -334,35 +334,30 @@ export const RecurrenceRuleSchema = z.object({
 // for FIXED_ASSIGNMENT that the BFF's copy silently lacked, letting an invalid request reach the
 // backend instead of being rejected consistently at the BFF boundary (bad-smell-audit finding,
 // same direct-reuse pattern as RecurrenceRuleSchema above).
-export const RequestRecurringBookingScheduleBodySchema = z
-  .object({
-    serviceId: z.uuid(),
-    recurrence: RecurrenceRuleSchema,
-    assignmentPolicy: z.enum(['FIXED_ASSIGNMENT', 'RESOLVE_PER_OCCURRENCE']),
-    // Exactly one resource — recurring schedules hold one resource per occurrence (bundle/multi-leg
-    // recurrence is out of scope, TD49 Stories 0 to 2). Required iff assignmentPolicy =
-    // FIXED_ASSIGNMENT; ignored otherwise, so a default-shape service, held against the tenant's
-    // location, sends none (TD49-S03).
-    resourceIds: z.array(z.uuid()).length(1).optional(),
-    startsOn: z.iso.date(),
-    // Required: a schedule is a fixed term, never open-ended. The upper bound (the service's
-    // maximum term) depends on the service, so the aggregate enforces it, not this schema.
-    endsOn: z.iso.date(),
-    // Present only when STAFF|MANAGER creates on a customer's behalf — CUSTOMER callers always
-    // act on their own customerId (taken from the JWT, never this field).
-    customerId: z.uuid().optional(),
-    // M23-S35 — the customer's previous schedule this request continues. Only a hint for the
-    // backend's renewal rules (same pattern, starting by the day after that schedule ends, skips
-    // the booking window); never stored, and a request that does not qualify is a new schedule.
-    renewsScheduleId: z.uuid().optional(),
-  })
-  .refine(
-    (body) => body.assignmentPolicy !== 'FIXED_ASSIGNMENT' || body.resourceIds?.length === 1,
-    {
-      message: 'resourceIds is required (exactly one) when assignmentPolicy is FIXED_ASSIGNMENT',
-      path: ['resourceIds'],
-    },
-  );
+export const RequestRecurringBookingScheduleBodySchema = z.object({
+  serviceId: z.uuid(),
+  recurrence: RecurrenceRuleSchema,
+  // TD49 Story 0 — one entry per CUSTOMER_CHOICE requirement of the service, keyed by resource type
+  // like a one-off booking's resourceSelections (consumed in requirement order when two requirements
+  // share a type). Entries for any other requirement are ignored; a service with no
+  // CUSTOMER_CHOICE requirement (the default shape, or only automatic requirements) sends none. The
+  // assignment policy is not part of the request: the server derives it from the service.
+  resourceSelections: z
+    .array(z.object({ resourceType: ResourceTypeSchema, resourceId: z.uuid() }))
+    .max(20)
+    .optional(),
+  startsOn: z.iso.date(),
+  // Required: a schedule is a fixed term, never open-ended. The upper bound (the service's
+  // maximum term) depends on the service, so the aggregate enforces it, not this schema.
+  endsOn: z.iso.date(),
+  // Present only when STAFF|MANAGER creates on a customer's behalf — CUSTOMER callers always
+  // act on their own customerId (taken from the JWT, never this field).
+  customerId: z.uuid().optional(),
+  // M23-S35 — the customer's previous schedule this request continues. Only a hint for the
+  // backend's renewal rules (same pattern, starting by the day after that schedule ends, skips
+  // the booking window); never stored, and a request that does not qualify is a new schedule.
+  renewsScheduleId: z.uuid().optional(),
+});
 
 // TD45 Story 1 — the backend DTO and the BFF query schema take the identical params (limit/offset
 // pass straight through), so it lives here once (bad-smell-audit BFF-5) rather than as two copies.
