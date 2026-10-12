@@ -79,7 +79,7 @@ export function useTmpSignedUrls(
     // discard every other path's already-successful result — Promise.all otherwise rejects the
     // whole batch on a single failure, silently dropping resolved URLs the "best-effort" comment
     // below implies should still apply (CodeRabbit review, PR #291).
-    Promise.all(
+    void Promise.all(
       tmpPaths.map(async (path) => {
         try {
           return [path, await generateHotsiteImageReadSignedUrl(path)] as const;
