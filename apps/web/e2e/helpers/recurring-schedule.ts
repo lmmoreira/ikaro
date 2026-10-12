@@ -3,7 +3,12 @@ import type { RecurringBookingScheduleListItem } from '@ikaro/types';
 import { TENANT_SLUG } from './booking-form';
 import { setBookingPolicy, setResourceRequirements } from './services';
 import { seedResource } from './booking-form/flow';
-import { seedFixedService, type SeededService } from './booking-form/seeds';
+import {
+  seedBundle,
+  seedFixedService,
+  type SeededBundle,
+  type SeededService,
+} from './booking-form/seeds';
 
 const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
 const TENANT_TIMEZONE = 'America/Sao_Paulo';
@@ -66,8 +71,8 @@ export async function seedDefaultShapeRecurringService(
   return service;
 }
 
-// A recurrence-enabled service that needs a staff member AND a room: a bundle, which cannot recur
-// yet (TD49 Stories 0 to 2), so the customer's form must not offer it.
+// A recurrence-enabled service that needs a staff member AND a room, both resolved by the system
+// (AUTO_ANY): a bundle with nothing for the customer to pick (TD49 Story 2, state D of prototype 13h).
 export async function seedBundleServiceWithRecurrenceOn(page: Page): Promise<SeededService> {
   const room = await seedResource(page, 'ROOM');
   const staff = await seedResource(page, 'STAFF');
@@ -81,6 +86,39 @@ export async function seedBundleServiceWithRecurrenceOn(page: Page): Promise<See
     defaultApprovalMode: 'AUTO_CONFIRM',
   });
   return service;
+}
+
+// TD49 Story 2 — a recurrence-enabled bundle: a customer-chosen staff member (two to choose from)
+// plus an automatic room of its own. Two staff members let a test hold the room with one of them
+// and ask for the other, so a conflict can come from the room alone.
+export type SeededRecurringBundle = SeededBundle;
+
+export async function seedRecurringBundle(
+  page: Page,
+  options: { readonly approvalMode?: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL' } = {},
+): Promise<SeededRecurringBundle> {
+  const bundle = await seedBundle(page, 'e2e-recorrencia-pacote');
+  await setBookingPolicy(page, bundle.service.serviceId, {
+    recurrenceEligible: true,
+    defaultApprovalMode: options.approvalMode ?? 'AUTO_CONFIRM',
+  });
+  return bundle;
+}
+
+/** Turns recurrence on for a service the shared seeds created with it off. */
+export async function enableRecurrence(page: Page, serviceId: string): Promise<void> {
+  await setBookingPolicy(page, serviceId, {
+    recurrenceEligible: true,
+    defaultApprovalMode: 'AUTO_CONFIRM',
+  });
+}
+
+/** Approves a pending schedule as the signed-in manager (what the staff queue will do). */
+export async function approveScheduleViaApi(page: Page, scheduleId: string): Promise<void> {
+  const res = await page.request.post(
+    `${WEB_URL}/v1/recurring-booking-schedules/${scheduleId}/approve`,
+  );
+  expect(res.ok(), `approve schedule ${scheduleId}: ${res.status()}`).toBe(true);
 }
 
 /** Ends a schedule as the signed-in customer, releasing the location the test held. */
@@ -113,6 +151,11 @@ export interface ScheduleTerm {
   readonly termDays?: number;
   /** Start times to try, in order; defaults to a working day in half-hour steps. */
   readonly startTimes?: readonly string[];
+  /** The picks of a service with customer-chosen requirements (TD49 Story 2). */
+  readonly resourceSelections?: readonly {
+    readonly resourceType: string;
+    readonly resourceId: string;
+  }[];
 }
 
 // A weekday schedule over a four-week term (about 20 occurrences — four pages of five), created
@@ -122,7 +165,12 @@ export async function createRecurringScheduleViaApi(
   serviceId: string,
   term: ScheduleTerm = {},
 ): Promise<CreatedSchedule> {
-  const { startsInDays = 5, termDays = 27, startTimes = CANDIDATE_START_TIMES } = term;
+  const {
+    startsInDays = 5,
+    termDays = 27,
+    startTimes = CANDIDATE_START_TIMES,
+    resourceSelections,
+  } = term;
   const failures: string[] = [];
   for (const startTime of startTimes) {
     const res = await page.request.post(`${WEB_URL}/v1/recurring-booking-schedules`, {
@@ -134,6 +182,7 @@ export async function createRecurringScheduleViaApi(
           startTime,
           durationMinutes: 30,
         },
+        ...(resourceSelections === undefined ? {} : { resourceSelections }),
         startsOn: tenantDate(startsInDays),
         endsOn: tenantDate(startsInDays + termDays),
       },
@@ -174,6 +223,8 @@ export interface FormPattern {
   readonly startTime: string;
   readonly startsOn: string;
   readonly endsOn: string;
+  /** The resources to pick, by id, in the groups of a service with customer-chosen requirements. */
+  readonly picks?: readonly string[];
 }
 
 // The action pane is rendered twice (after the content on mobile, beside it on desktop); the
@@ -214,6 +265,12 @@ export async function fillRecurringForm(page: Page, pattern: FormPattern): Promi
   const [hour, minute] = pattern.startTime.split(':') as [string, string];
   await chooseTimePart(page, 'new-schedule-time-hour', hour);
   await chooseTimePart(page, 'new-schedule-time-minute', minute);
+
+  for (const resourceId of pattern.picks ?? []) {
+    await page
+      .locator(`[data-testid="new-schedule-resource-option"][data-value="${resourceId}"]`)
+      .click();
+  }
 
   await pickFormDay(page, 'new-schedule-starts-on', pattern.startsOn);
   await pickFormDay(page, 'new-schedule-ends-on', pattern.endsOn);

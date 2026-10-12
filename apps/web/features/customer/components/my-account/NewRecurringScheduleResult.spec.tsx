@@ -12,7 +12,7 @@ import {
 const SERVICE = makeHotsiteService({ name: 'Sala Aurora', durationMinutes: 120 });
 const DRAFT: RecurringScheduleDraft = {
   serviceId: SERVICE.id,
-  resourceId: null,
+  resourceIds: [],
   daysOfWeek: ['tuesday'],
   startTime: '10:00',
   startsOn: '2026-08-18',

@@ -10,7 +10,6 @@ import { isValidRecurringHorizonDays } from './recurring-horizon';
 const RECURRENCE_REASON_KEY = {
   'not-appointment': 'politicasRecurrenceReasonNotAppointment',
   legs: 'politicasRecurrenceReasonLegs',
-  'several-requirements': 'politicasRecurrenceReasonSeveralRequirements',
   quantity: 'politicasRecurrenceReasonQuantity',
   'pickup-address': 'politicasRecurrenceReasonPickupAddress',
   'selection-mode': 'politicasRecurrenceReasonSelectionMode',

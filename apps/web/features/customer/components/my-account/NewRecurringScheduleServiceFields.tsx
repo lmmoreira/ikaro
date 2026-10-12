@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteServiceResourceOption, HotsiteServiceResponse } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import {
   Select,
@@ -62,21 +62,37 @@ export function ServiceField({
 }
 
 interface ResourceFieldProps {
-  readonly query: ReturnType<typeof useRecurringResourceOptions>;
+  /** Only the loading and error state of the shared options request. */
+  readonly query: Pick<ReturnType<typeof useRecurringResourceOptions>, 'isError' | 'isPending'>;
+  readonly title: string;
+  /** The options of this one requirement. */
+  readonly options: readonly HotsiteServiceResourceOption[];
   readonly resourceId: string | null;
   readonly required: boolean;
+  readonly requiredMessage: string;
+  readonly noOptionsMessage: string;
+  /** Distinguishes the groups of a bundle in test ids. */
+  readonly index?: number;
   readonly onChange: (resourceId: string) => void;
 }
 
-/** The resource a `CUSTOMER_CHOICE` service holds every week — one pill per option, first preselected. */
+/**
+ * The resource a `CUSTOMER_CHOICE` requirement holds every week — one pill per option, first
+ * preselected. A bundle renders one of these per requirement; a group that is loading, failed or
+ * has no options says so without touching the others.
+ */
 export function ResourceField({
   query,
+  title,
+  options,
   resourceId,
   required,
+  requiredMessage,
+  noOptionsMessage,
+  index = 0,
   onChange,
 }: ResourceFieldProps): React.JSX.Element {
   const tn = useTranslations('customer.recurringSchedules.new');
-  const resources = query.data ?? [];
 
   function renderChoice(): React.JSX.Element {
     if (query.isError) {
@@ -87,14 +103,18 @@ export function ResourceField({
       );
     }
     if (query.isPending) return <p className="text-sm text-gray-500">{tn('resourcesLoading')}</p>;
+    if (options.length === 0) {
+      return (
+        <p role="alert" data-testid="new-schedule-resource-empty" className="text-sm text-red-600">
+          {noOptionsMessage}
+        </p>
+      );
+    }
     return (
       <PillSelect
-        label={tn('fieldResource')}
+        label={title}
         value={resourceId ?? ''}
-        options={resources.map((resource) => ({
-          value: resource.resourceId,
-          label: resource.name,
-        }))}
+        options={options.map((resource) => ({ value: resource.resourceId, label: resource.name }))}
         onChange={onChange}
         testId="new-schedule-resource-option"
       />
@@ -102,14 +122,31 @@ export function ResourceField({
   }
 
   return (
-    <div data-testid="new-schedule-resource">
+    <div data-testid="new-schedule-resource" data-index={index}>
       {renderChoice()}
       {required && (
         <p role="alert" className="mt-1 text-xs text-red-600">
-          {tn('errorResourceRequired')}
+          {requiredMessage}
         </p>
       )}
       <p className="mt-1 text-xs text-gray-500">{tn('resourceHint')}</p>
+    </div>
+  );
+}
+
+interface AutoResourceLineProps {
+  readonly title: string;
+  readonly text: string;
+}
+
+/** A requirement the system resolves every week: nothing to choose, so a read-only line. */
+export function AutoResourceLine({ title, text }: AutoResourceLineProps): React.JSX.Element {
+  return (
+    <div data-testid="new-schedule-resource-auto">
+      <p className="mb-1 block text-sm font-semibold text-gray-900">{title}</p>
+      <p className="rounded-lg border border-dashed border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+        {text}
+      </p>
     </div>
   );
 }

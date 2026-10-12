@@ -763,6 +763,27 @@
         "resourceHint": "Este é o recurso que ficará reservado toda semana.",
         "resourcesLoading": "Carregando recursos…",
         "resourcesError": "Não foi possível carregar os recursos. Tente novamente.",
+        "resourceTitleNumbered": "{type} {number}",
+        "autoPoolLine": "Uma unidade livre é reservada a cada semana",
+        "autoAnyLine": {
+          "STAFF": "Escolhido automaticamente a cada semana, entre os profissionais livres",
+          "ROOM": "Escolhida automaticamente a cada semana, entre as salas livres",
+          "EQUIPMENT": "Escolhido automaticamente a cada semana, entre os equipamentos livres",
+          "LOCATION": "Escolhido automaticamente a cada semana, entre os locais livres"
+        },
+        "autoChosen": {
+          "STAFF": "Escolhido automaticamente",
+          "ROOM": "Escolhida automaticamente",
+          "EQUIPMENT": "Escolhido automaticamente",
+          "LOCATION": "Escolhido automaticamente"
+        },
+        "resourceNoOptions": {
+          "STAFF": "Nenhum profissional está disponível para este serviço no momento.",
+          "ROOM": "Nenhuma sala está disponível para este serviço no momento.",
+          "EQUIPMENT": "Nenhum equipamento está disponível para este serviço no momento.",
+          "LOCATION": "Nenhum local está disponível para este serviço no momento."
+        },
+        "bundleHint": "Se algum dos recursos não estiver livre em alguma data, a recorrência inteira não é criada.",
         "fieldWeekdays": "Dias da semana",
         "fieldStartTime": "Horário de início",
         "fieldDuration": "Duração",
@@ -1663,10 +1684,9 @@
       "politicasMaxAdvanceLabel": "Antecedência máxima (dias)",
       "politicasWhoHowCardTitle": "Quem e como reserva",
       "politicasRecurrenceLabel": "Permitir recorrência para clientes autenticados",
-      "politicasRecurrenceHint": "Este serviço ainda não aceita reserva recorrente: {reasons}. Hoje só aceitam recorrência serviços sem recursos ou com um único recurso. Você pode salvar mesmo assim; a opção só vale quando o serviço passar a atender essa regra. O aviso considera os recursos já salvos.",
+      "politicasRecurrenceHint": "Este serviço ainda não aceita reserva recorrente: {reasons}. Você pode salvar mesmo assim; a opção só vale quando o serviço passar a atender essa regra. O aviso considera os recursos já salvos.",
       "politicasRecurrenceReasonNotAppointment": "ele não é um serviço de agendamento",
       "politicasRecurrenceReasonLegs": "ele tem etapas",
-      "politicasRecurrenceReasonSeveralRequirements": "ele tem mais de um recurso (por exemplo, profissional e sala)",
       "politicasRecurrenceReasonQuantity": "ele precisa de mais de uma unidade de um recurso",
       "politicasRecurrenceReasonPickupAddress": "ele exige endereço de coleta",
       "politicasRecurrenceReasonSelectionMode": "o recurso exigido não está configurado para escolha do cliente nem automática",

@@ -60,7 +60,7 @@ test.describe('customer my-account: recurring reservation of a default-shape ser
     });
   }
 
-  test('the form offers a default-shape service but not a service that has recurrence on and needs staff plus a room', async ({
+  test('the form offers a default-shape service and a service that has recurrence on and needs staff plus a room', async ({
     page,
     browser,
   }) => {
@@ -75,7 +75,7 @@ test.describe('customer my-account: recurring reservation of a default-shape ser
 
       // A string name matches as a substring, so a name with regex characters stays literal.
       await expect(customer.page.getByRole('option', { name: offered.name })).toBeVisible();
-      await expect(customer.page.getByRole('option', { name: bundle.name })).toHaveCount(0);
+      await expect(customer.page.getByRole('option', { name: bundle.name })).toBeVisible();
     } finally {
       await customer.close();
     }

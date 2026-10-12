@@ -12,6 +12,11 @@ const room = (selectionMode: Requirement['selectionMode'], requiredQuantity = 1)
   selectionMode,
   requiredQuantity,
 });
+const staff = (selectionMode: Requirement['selectionMode']): Requirement => ({
+  type: 'STAFF',
+  selectionMode,
+  requiredQuantity: 1,
+});
 const location = (
   selectionMode: Requirement['selectionMode'],
   resourcePoolIds?: string[],
@@ -43,16 +48,59 @@ describe('recurrenceShapeBlockers', () => {
     ['one AUTO_ANY room', shape([room('AUTO_ANY')])],
     ['one AUTO_FUNGIBLE_POOL room', shape([room('AUTO_FUNGIBLE_POOL')])],
     ['an AUTO_ANY location', shape([location('AUTO_ANY')])],
+    // A bundle: every requirement is checked, as the backend does (TD49 Story 2).
+    [
+      'a staff + room bundle, both customer-chosen',
+      shape([staff('CUSTOMER_CHOICE'), room('CUSTOMER_CHOICE')]),
+    ],
+    [
+      'a staff + room bundle, one chosen and one automatic',
+      shape([staff('CUSTOMER_CHOICE'), room('AUTO_ANY')]),
+    ],
+    [
+      'a staff + room bundle, both automatic',
+      shape([staff('AUTO_ANY'), room('AUTO_FUNGIBLE_POOL')]),
+    ],
+    [
+      'two customer-chosen staff requirements',
+      shape([staff('CUSTOMER_CHOICE'), staff('CUSTOMER_CHOICE')]),
+    ],
+    ['an older location + staff service', shape([location('NONE'), staff('CUSTOMER_CHOICE')])],
+    [
+      'three requirements',
+      shape([staff('CUSTOMER_CHOICE'), room('CUSTOMER_CHOICE'), room('AUTO_FUNGIBLE_POOL')]),
+    ],
   ])('lets %s recur', (_label, input) => {
     expect(recurrenceShapeBlockers(input)).toEqual([]);
   });
 
   it.each<[string, RecurrenceShape, RecurrenceBlocker[]]>([
     ['a service with legs', shape([], { hasLegs: true }), ['legs']],
+    // A bundle is eligible only when each of its requirements is; one bad requirement refuses it.
     [
-      'two requirements (staff + room)',
-      shape([{ type: 'STAFF', selectionMode: 'AUTO_ANY', requiredQuantity: 1 }, room('AUTO_ANY')]),
-      ['several-requirements'],
+      'a bundle with a requirement of quantity 2',
+      shape([staff('CUSTOMER_CHOICE'), room('AUTO_FUNGIBLE_POOL', 2)]),
+      ['quantity'],
+    ],
+    [
+      'a bundle with a NONE room (NONE is for the unrestricted location only)',
+      shape([staff('CUSTOMER_CHOICE'), room('NONE')]),
+      ['selection-mode'],
+    ],
+    [
+      'a bundle with a NONE location restricted to a pool',
+      shape([location('NONE', ['r1']), staff('CUSTOMER_CHOICE')]),
+      ['selection-mode'],
+    ],
+    [
+      'a legged bundle',
+      shape([staff('CUSTOMER_CHOICE'), room('AUTO_ANY')], { hasLegs: true }),
+      ['legs'],
+    ],
+    [
+      'a bundle that needs a pickup address',
+      shape([staff('CUSTOMER_CHOICE'), room('AUTO_ANY')], { requiresPickupAddress: true }),
+      ['pickup-address'],
     ],
     ['a requirement of quantity 2', shape([room('AUTO_FUNGIBLE_POOL', 2)]), ['quantity']],
     [

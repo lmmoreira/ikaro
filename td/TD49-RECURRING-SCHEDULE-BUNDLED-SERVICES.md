@@ -201,7 +201,7 @@ Make the steps that run after a schedule is accepted bundle-aware. Materializati
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 2 — Bundle-aware customer recurring-schedule form
+## Story 2 — Bundle-aware customer recurring-schedule form ✅ Done
 
 > Re-scoped at `/story-discovery` (2026-10-12). The first draft also covered the staff approval queue and customer-side resource lines. The queue belongs to M23-S13 (not built; its bundle details are now written into that story), and customers never see a schedule's resources, so the customer list and detail do not change.
 

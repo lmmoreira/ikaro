@@ -819,13 +819,14 @@
             <label style="display:block;margin:.5rem 0"><input type="checkbox" checked> Permitir recorrência para clientes autenticados</label>
             <!-- TD49-S03 / UC-055 step 3: advisory only, never blocks saving. Shown when the LAST-SAVED service cannot recur (it is computed from the saved
                  resource requirements, not from unsaved edits in the Recursos tab). One line per reason, in this order of priority; several can apply.
-                 Reasons: service has stages (legs) · needs two or more resources · a resource requirement needs more than one unit · requires a pickup
-                 address ("Coleta e Entrega") · the customer chooses the duration · the required resource is not the unrestricted location.
-                 Hidden when the service qualifies (no requirement, only the default location, or one single-unit requirement). Same rule as the
+                 Reasons: service has stages (legs) · a resource requirement needs more than one unit · requires a pickup address ("Coleta e Entrega") ·
+                 the customer chooses the duration · a requirement's mode cannot be resolved per occurrence (NONE on anything but the unrestricted
+                 location). Having several resources is NOT a reason since TD49 Story 2: a bundle can recur.
+                 Hidden when the service qualifies (no requirement, only the default location, or single-unit requirements). Same rule as the
                  customer form's filter, minus the recurrence toggle itself. -->
             <p class="form-hint" id="recurrence-hint" role="note" style="margin:.25rem 0 .75rem 1.5rem;opacity:.85;border-left:3px solid #f59e0b;padding-left:.625rem;">
-              Este serviço ainda não aceita reserva recorrente: ele tem mais de um recurso (por exemplo, profissional e sala).
-              Hoje só aceitam recorrência serviços sem recursos ou com um único recurso. Você pode salvar mesmo assim; a opção só vale quando o serviço passar a atender essa regra.
+              Este serviço ainda não aceita reserva recorrente: ele exige endereço de coleta.
+              Você pode salvar mesmo assim; a opção só vale quando o serviço passar a atender essa regra.
               O aviso considera os recursos já salvos.
             </p>
             <div class="form-group" style="margin:.25rem 0 .75rem 1.5rem;"><label class="form-label" for="recurring-horizon">Duração máxima de uma reserva recorrente</label><div class="input-suffix-group"><input id="recurring-horizon" class="form-input input-with-suffix" type="number" min="1" max="180" step="1" value="60" placeholder="90"><span class="input-suffix">dias</span></div><p class="form-hint">Em branco, vale o padrão de 90 dias (máximo 180). Aplica-se também a reservas criadas pela equipe. Só pode ser editado com a recorrência habilitada.</p></div>

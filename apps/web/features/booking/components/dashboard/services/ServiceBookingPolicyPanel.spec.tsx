@@ -260,7 +260,8 @@ describe('ServiceBookingPolicyPanel', () => {
       expect(screen.queryByTestId('policy-recurrence-hint')).toBeNull();
     });
 
-    it('names a second resource and keeps saving enabled', () => {
+    // TD49 Story 2: a bundle can recur, so a second resource is no longer a reason.
+    it('is absent for a staff + room bundle that can recur', () => {
       renderWithIntl(
         <PolicyPanelWithAction
           serviceId="svc-1"
@@ -278,8 +279,29 @@ describe('ServiceBookingPolicyPanel', () => {
         />,
       );
 
+      expect(screen.queryByTestId('policy-recurrence-hint')).toBeNull();
+    });
+
+    it('still names a requirement of quantity two inside a bundle and keeps saving enabled', () => {
+      renderWithIntl(
+        <PolicyPanelWithAction
+          serviceId="svc-1"
+          initialPolicy={{ ...BASE_POLICY, recurrenceEligible: true }}
+          resourceRequirements={[
+            {
+              type: 'STAFF',
+              selectionMode: 'AUTO_ANY',
+              resourcePoolIds: null,
+              requiredQuantity: 1,
+            },
+            { type: 'ROOM', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 2 },
+          ]}
+          onDirtyChange={vi.fn()}
+        />,
+      );
+
       expect(screen.getByTestId('policy-recurrence-hint').textContent).toContain(
-        'mais de um recurso',
+        'mais de uma unidade',
       );
       expect(screen.getByTestId('policy-save').hasAttribute('disabled')).toBe(false);
     });

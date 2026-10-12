@@ -15,11 +15,17 @@ import { useRecurrenceText } from './use-recurrence-text';
 interface NewRecurringScheduleReviewProps {
   readonly service: HotsiteServiceResponse;
   readonly draft: RecurringScheduleDraft;
-  /** The chosen resource's name, for a `CUSTOMER_CHOICE` service. */
-  readonly resourceName: string | null;
+  /** One row per resource of the bundle: the picked name, or that the system chooses it. */
+  readonly resources: readonly ReviewResource[];
   readonly submitting: boolean;
   readonly onConfirm: () => void;
   readonly onBack: () => void;
+}
+
+export interface ReviewResource {
+  readonly key: string;
+  readonly label: string;
+  readonly value: string;
 }
 
 interface FactProps {
@@ -45,7 +51,7 @@ function Fact({ label, value, testId }: FactProps): React.JSX.Element {
 export function NewRecurringScheduleReview({
   service,
   draft,
-  resourceName,
+  resources,
   submitting,
   onConfirm,
   onBack,
@@ -94,9 +100,14 @@ export function NewRecurringScheduleReview({
 
       <dl className="divide-y divide-gray-100 rounded-xl border border-gray-100 bg-white px-4">
         <Fact label={tn('labelService')} value={service.name} testId="review-service" />
-        {resourceName !== null && (
-          <Fact label={tn('labelResource')} value={resourceName} testId="review-resource" />
-        )}
+        {resources.map((resource, index) => (
+          <Fact
+            key={resource.key}
+            label={resource.label}
+            value={resource.value}
+            testId={index === 0 ? 'review-resource' : `review-resource-${index}`}
+          />
+        ))}
         <Fact label={tn('labelPattern')} value={pattern} testId="review-pattern" />
         <Fact
           label={tn('labelTime')}
