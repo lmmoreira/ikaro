@@ -143,7 +143,7 @@ Let a flat multi-requirement service be requested as a recurring schedule, rejec
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 1 — Materialization, approval and management for bundle schedules
+## Story 1 — Materialization, approval and management for bundle schedules ✅ Done
 
 > Re-scoped 2026-10-10. The first draft assumed a later generation job that raises UC-073 exceptions. That does not exist: M23-S05 materializes the whole term once (at creation for `AUTO_CONFIRM`, at approval otherwise) and a failure refuses the whole request or approval (UC-070 A1, UC-071 A3); M23-S08 made an occurrence an ordinary linked booking and removed the schedule-side exception path.
 
