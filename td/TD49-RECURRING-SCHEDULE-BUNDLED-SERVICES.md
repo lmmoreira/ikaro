@@ -84,7 +84,7 @@ Playwright cannot be run for cluster states that need a server fault or a seeded
 | Legged service | never offered in the form | covered by the unit filter table (Story 3); no E2E |
 | Staff creation, renewal, Agenda menu | re-run the eligibility scenarios above against the staff form, `initialDraft` and the menu | M23-S19, S22, S40, each in its own E2E |
 
-## Story 0 — Bundled-recurrence domain and contract model
+## Story 0 — Bundled-recurrence domain and contract model ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** L
@@ -136,7 +136,7 @@ Let a flat multi-requirement service be requested as a recurring schedule, rejec
   - [ ] Parity: the batched bundle verdict equals the one-off bundle resolution for the same seeded occupancy
   - [ ] Assignment rows exist only for `CUSTOMER_CHOICE` picks and carry `resource_type`; `requirement_id` and `required_quantity_position` stay `null` (decision 6)
 - Integration:
-  - [ ] `POST /recurring-booking-schedules` for a staff + room service returns 201 and persists both assignment rows; a real occupancy row on only one requirement's resource in the 5th occurrence returns 409 with nothing persisted
+  - [ ] `POST /recurring-booking-schedules` for a staff + room service returns 201, persists the `CUSTOMER_CHOICE` pick's assignment row (decision 6) and holds both resources; a real occupancy row on only one requirement's resource in the 5th occurrence returns 409 with nothing persisted
 - Tenant isolation:
   - [ ] Another tenant's occupancy never blocks the request
 - E2E: none — covered by Story 2
