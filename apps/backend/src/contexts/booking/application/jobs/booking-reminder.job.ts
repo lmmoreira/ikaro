@@ -1,21 +1,14 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderDue } from '../../domain/commands/booking-reminder-due.command';
 import { BookingReminderDueToday } from '../../domain/commands/booking-reminder-due-today.command';
-import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-
-const WINDOW_START = '06:00';
-const WINDOW_END = '06:29';
+import { BookingDayReminderJobBase } from './booking-day-reminder-job.base';
+import { REMINDER_WINDOW } from './tenant-local-window';
+import { WindowedTenant } from './windowed-tenant.job';
 
 interface ReminderData extends Record<string, unknown> {
   bookingId: string;
@@ -35,27 +28,11 @@ type ReminderCtor<T> = new (
 ) => T;
 
 @Injectable()
-export class BookingReminderJob {
-  constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
-    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
-    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
-    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {}
+export class BookingReminderJob extends BookingDayReminderJobBase {
+  protected readonly window = REMINDER_WINDOW;
+  protected readonly label = 'Booking reminder';
 
-  async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.tenantPort.findAllActive();
-
-    for (const tenant of tenants) {
-      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-      if (localHHMM < WINDOW_START || localHHMM > WINDOW_END) continue;
-
-      await this.processTenant(tenant, now);
-    }
-  }
-
-  private async processTenant(tenant: { id: string; timezone: string }, now: Date): Promise<void> {
+  protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
     const correlationId = uuidv7();
     const localToday = utcDateToLocalDate(now, tenant.timezone);
     const localTomorrow = DateTime.fromISO(localToday, { zone: tenant.timezone })
@@ -92,9 +69,9 @@ export class BookingReminderJob {
     // mid-run crash then retries only this tenant's un-committed facts as no-op conflicts
     // on the next run, leaving every other tenant's already-committed rows untouched.
     await this.txManager.run(async () => {
-      for (const reminder of [...tomorrowReminders, ...todayReminders]) {
-        await this.outboxPublisher.publish(reminder);
-      }
+      await mapSequentially([...tomorrowReminders, ...todayReminders], (reminder) =>
+        this.outboxPublisher.publish(reminder),
+      );
     });
   }
 
@@ -143,13 +120,11 @@ export class BookingReminderJob {
     localDate: string,
     ReminderCtor: ReminderCtor<T>,
   ): Promise<T[]> {
-    const reminders: T[] = [];
-    for (const booking of bookings) {
+    return mapSequentially(bookings, async (booking) => {
       const { email, name } = await this.resolveRecipient(booking, tenantId);
       const data = this.buildReminderData(booking, email, name);
-      reminders.push(new ReminderCtor(tenantId, correlationId, data, localDate));
-    }
-    return reminders;
+      return new ReminderCtor(tenantId, correlationId, data, localDate);
+    });
   }
 
   private buildReminderData(booking: Booking, email: string, name: string): ReminderData {

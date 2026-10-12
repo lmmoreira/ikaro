@@ -200,4 +200,23 @@ describe('AdminScheduleReminderJob', () => {
     );
     expect((tenantBEvent?.data as unknown as DigestEventData).totalBookingsToday).toBe(0);
   });
+
+  it('processes every tenant, then fails the run so the trigger message is retried', async () => {
+    tenantPort.seed([
+      { id: TENANT_IN, timezone: 'UTC' },
+      { id: TENANT_OUT, timezone: 'UTC' },
+    ]);
+    jest
+      .spyOn(bookingRepo, 'findAllByTenant')
+      .mockRejectedValueOnce(new Error('first tenant read failed'));
+
+    await expect(job.run(NOW_IN)).rejects.toThrow(
+      `Admin schedule reminder failed for tenant(s): ${TENANT_IN}`,
+    );
+
+    const digests = outboxPublisher.published.filter(
+      (e) => e.eventName === 'AdminDailyScheduleReminder',
+    );
+    expect(digests.map((e) => e.tenantId)).toEqual([TENANT_OUT]);
+  });
 });

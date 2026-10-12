@@ -1,68 +1,48 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { AdminDailyScheduleReminder } from '../../domain/commands/admin-daily-schedule-reminder.command';
-import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-
-const WINDOW_START = '06:00';
-const WINDOW_END = '06:29';
+import { BookingDayReminderJobBase } from './booking-day-reminder-job.base';
+import { REMINDER_WINDOW } from './tenant-local-window';
+import { WindowedTenant } from './windowed-tenant.job';
 
 @Injectable()
-export class AdminScheduleReminderJob {
-  constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
-    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
-    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
-    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {}
+export class AdminScheduleReminderJob extends BookingDayReminderJobBase {
+  protected readonly window = REMINDER_WINDOW;
+  protected readonly label = 'Admin schedule reminder';
 
-  async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.tenantPort.findAllActive();
+  protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
+    const correlationId = uuidv7();
+    const localToday = utcDateToLocalDate(now, tenant.timezone);
+    const todayStart = DateTime.fromISO(localToday, { zone: tenant.timezone })
+      .startOf('day')
+      .toUTC()
+      .toJSDate();
+    const todayEnd = DateTime.fromISO(localToday, { zone: tenant.timezone })
+      .endOf('day')
+      .toUTC()
+      .toJSDate();
 
-    for (const tenant of tenants) {
-      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-      if (localHHMM < WINDOW_START || localHHMM > WINDOW_END) continue;
+    const todayBookings = await this.bookingRepo.findAllByTenant(tenant.id, {
+      status: [BookingStatus.APPROVED],
+      scheduledAfter: todayStart,
+      scheduledBefore: todayEnd,
+    });
 
-      const correlationId = uuidv7();
-      const localToday = utcDateToLocalDate(now, tenant.timezone);
-      const todayStart = DateTime.fromISO(localToday, { zone: tenant.timezone })
-        .startOf('day')
-        .toUTC()
-        .toJSDate();
-      const todayEnd = DateTime.fromISO(localToday, { zone: tenant.timezone })
-        .endOf('day')
-        .toUTC()
-        .toJSDate();
+    const bookingsToday = await Promise.all(
+      todayBookings.map((b) => this.buildDigestBooking(b, tenant.id)),
+    );
 
-      const todayBookings = await this.bookingRepo.findAllByTenant(tenant.id, {
-        status: [BookingStatus.APPROVED],
-        scheduledAfter: todayStart,
-        scheduledBefore: todayEnd,
-      });
+    const reminder = new AdminDailyScheduleReminder(tenant.id, correlationId, {
+      localDate: localToday,
+      bookingsToday,
+      totalBookingsToday: bookingsToday.length,
+    });
 
-      const bookingsToday = await Promise.all(
-        todayBookings.map((b) => this.buildDigestBooking(b, tenant.id)),
-      );
-
-      const reminder = new AdminDailyScheduleReminder(tenant.id, correlationId, {
-        localDate: localToday,
-        bookingsToday,
-        totalBookingsToday: bookingsToday.length,
-      });
-
-      // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
-      await this.txManager.run(() => this.outboxPublisher.publish(reminder));
-    }
+    // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
+    await this.txManager.run(() => this.outboxPublisher.publish(reminder));
   }
 
   private async buildDigestBooking(
