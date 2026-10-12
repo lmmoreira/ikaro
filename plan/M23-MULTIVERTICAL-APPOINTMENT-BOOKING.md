@@ -1670,7 +1670,7 @@ Retire the Pause capability end to end so the state machine, the API and the doc
 
 ---
 
-### M23-S21 — Renewal reminder email for an ending recurring schedule
+### M23-S21 — Renewal reminder email for an ending recurring schedule ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts (the settings field, decided at discovery 2026-10-12)
 **Complexity:** L
