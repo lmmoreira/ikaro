@@ -1,37 +1,17 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { DateTime } from 'luxon';
-import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
-import {
-  ITransactionManager,
-  TRANSACTION_MANAGER,
-} from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { AdminDailyScheduleReminder } from '../../domain/commands/admin-daily-schedule-reminder.command';
-import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
-import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-import { REMINDER_WINDOW, WindowedTenant, WindowedTenantJob } from './tenant-local-window';
+import { BookingDayReminderJobBase } from './booking-day-reminder-job.base';
+import { REMINDER_WINDOW } from './tenant-local-window';
+import { WindowedTenant } from './windowed-tenant.job';
 
 @Injectable()
-export class AdminScheduleReminderJob extends WindowedTenantJob {
+export class AdminScheduleReminderJob extends BookingDayReminderJobBase {
   protected readonly window = REMINDER_WINDOW;
   protected readonly label = 'Admin schedule reminder';
-
-  constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
-    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
-    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
-    @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {
-    super();
-  }
-
-  protected findTenants(): Promise<WindowedTenant[]> {
-    return this.tenantPort.findAllActive();
-  }
 
   protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
     const correlationId = uuidv7();

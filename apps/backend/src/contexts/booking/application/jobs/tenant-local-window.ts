@@ -52,32 +52,3 @@ export async function forEachTenantInWindow<T extends { id: string; timezone: st
     throw new Error(`${options.label} failed for tenant(s): ${failed.join(', ')}`);
   }
 }
-
-export interface WindowedTenant {
-  id: string;
-  timezone: string;
-}
-
-// The shape every per-tenant, local-time-window cron job shares: list the tenants, run the work for
-// each one that is inside its window, and fail the run after every tenant was tried (see
-// forEachTenantInWindow). A job supplies only what differs: its window, its log label, where its
-// tenants come from and what it does for one tenant.
-export abstract class WindowedTenantJob {
-  protected readonly logger = new AppLogger(this.constructor.name);
-
-  protected abstract readonly window: LocalTimeWindow;
-  protected abstract readonly label: string;
-  protected abstract findTenants(): Promise<WindowedTenant[]>;
-  protected abstract processTenant(tenant: WindowedTenant, now: Date): Promise<void>;
-
-  async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.findTenants();
-    await forEachTenantInWindow(
-      tenants,
-      now,
-      this.window,
-      { logger: this.logger, label: this.label },
-      (tenant) => this.processTenant(tenant, now),
-    );
-  }
-}

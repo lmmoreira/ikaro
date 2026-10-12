@@ -14,7 +14,8 @@ import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
-import { REMINDER_WINDOW, WindowedTenant, WindowedTenantJob } from './tenant-local-window';
+import { REMINDER_WINDOW } from './tenant-local-window';
+import { WindowedTenant, WindowedTenantJob } from './windowed-tenant.job';
 
 // UC-070 (M23-S21): one renewal reminder per ending recurring schedule, in each tenant's own
 // 06:00–06:29 window (the same window BookingReminderJob uses). It matches the exact date
@@ -28,17 +29,13 @@ export class RecurringScheduleRenewalReminderJob extends WindowedTenantJob {
   protected readonly label = 'Renewal reminder';
 
   constructor(
-    @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
+    @Inject(BOOKING_PLATFORM_PORT) tenantPort: IBookingPlatformPort,
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
   ) {
-    super();
-  }
-
-  protected findTenants(): Promise<WindowedTenant[]> {
-    return this.tenantPort.findAllActive();
+    super(tenantPort);
   }
 
   protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
