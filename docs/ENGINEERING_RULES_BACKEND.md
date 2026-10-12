@@ -182,6 +182,9 @@ A context with no audit handler yet adds a small `extends AuditLogHandlerBase` c
 4. Batch the transaction **per tenant, not per event and not for the whole run**: one `txManager.run()` wrapping all of one tenant's publishes. A mid-run crash then retries only that tenant's un-committed facts as no-op `dedup_key` conflicts on the next run — every other tenant's already-committed rows are untouched.
 5. See `contexts/booking/application/jobs/booking-reminder.job.ts`, `admin-schedule-reminder.job.ts`, and `contexts/loyalty/application/jobs/notify-expiring-points.job.ts` for the reference shape, and their `.integration.spec.ts` siblings for the real-outbox dedup proof (two overlapping runs → one row).
 
+6. **A `Command` with a consumer still gets a Pub/Sub topic and a subscription.** The outbox relay publishes it like any event, so the consumer's `subscribe()` call site puts it in `pubsub-catalog.json`: regenerate and commit the catalog (`pnpm --filter @ikaro/infra-scripts run pubsub-catalog`), open the PR with `infra-app-mix-ok`, and after merge dispatch `foundation-deploy.yml` with `apply=true`. Without that apply the Command cannot be published and the reminder silently never goes out; nothing in CI fails (M23-S21 first assumed a `Command` needed no Foundation apply).
+7. **Where the rule lives.** A pure rule whose inputs include tenant configuration or the tenant's local date (a lead time, a window) and that only application code calls (the job, a service) belongs in `application/`, not `domain/`; an aggregate does not hold those inputs, and `domain/` is for rules the aggregate or other domain code itself uses (M23-S21: `recurring-schedule-renewal.rules.ts` moved from `domain/` to `application/services/` for this reason).
+
 ---
 
 
