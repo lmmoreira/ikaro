@@ -23,4 +23,5 @@ export enum NotificationTemplateKey {
   RECURRING_SCHEDULE_ENDED_CUSTOMER = 'recurring-schedule-ended-customer',
   RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER = 'recurring-schedule-ended-by-staff-customer',
   AVAILABILITY_ALERT_MATCHED_CUSTOMER = 'availability-alert-matched-customer',
+  RECURRING_SCHEDULE_RENEWAL_DUE_CUSTOMER = 'recurring-schedule-renewal-due-customer',
 }

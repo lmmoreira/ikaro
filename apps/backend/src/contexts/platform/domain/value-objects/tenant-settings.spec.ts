@@ -19,6 +19,22 @@ describe('TenantSettings', () => {
         maxSubmissionsPerIpPerDay: 3,
       });
     });
+
+    it('backfills the renewal reminder lead time for a tenant created before M23-S21', () => {
+      const legacyProps = new TenantSettingsPropsBuilder().build();
+      delete (legacyProps.booking as Partial<typeof legacyProps.booking>)
+        .recurringRenewalReminderDays;
+
+      expect(TenantSettings.reconstitute(legacyProps).booking.recurringRenewalReminderDays).toBe(7);
+    });
+
+    it('keeps a tenant that turned the reminder off at 0', () => {
+      const props = new TenantSettingsPropsBuilder()
+        .withBooking({ recurringRenewalReminderDays: 0 })
+        .build();
+
+      expect(TenantSettings.reconstitute(props).booking.recurringRenewalReminderDays).toBe(0);
+    });
   });
 
   describe('default()', () => {
@@ -36,6 +52,7 @@ describe('TenantSettings', () => {
       expect(settings.booking.serviceBufferMinutes).toBe(60);
       expect(settings.booking.slotGranularityMinutes).toBe(30);
       expect(settings.booking.welcomeStaffScreenDays).toBe(14);
+      expect(settings.booking.recurringRenewalReminderDays).toBe(7);
       expect(settings.businessHours.timezone).toBe('America/Sao_Paulo');
       expect(settings.businessHours.monday).toEqual({ open: '09:00', close: '18:00' });
       expect(settings.businessHours.sunday).toBeNull();

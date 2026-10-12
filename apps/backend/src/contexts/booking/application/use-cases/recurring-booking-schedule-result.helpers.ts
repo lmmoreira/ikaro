@@ -9,6 +9,7 @@ export type RecurringBookingScheduleResult = RecurringBookingScheduleListItem;
 export function toRecurringBookingScheduleResult(
   schedule: RecurringBookingSchedule,
   serviceName: string,
+  renewable: boolean,
 ): RecurringBookingScheduleResult {
   return {
     id: schedule.id,
@@ -26,5 +27,6 @@ export function toRecurringBookingScheduleResult(
       resourceId: assignment.resourceId,
     })),
     approvalHoldExpiresAt: schedule.approvalHoldExpiresAt?.toISOString() ?? null,
+    renewable,
   };
 }

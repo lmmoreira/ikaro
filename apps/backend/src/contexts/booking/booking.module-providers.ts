@@ -24,10 +24,12 @@ import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/rep
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
 import { ExpireRecurringBookingScheduleApprovalsJob } from './application/jobs/expire-recurring-schedule-approvals.job';
+import { RecurringScheduleRenewalReminderJob } from './application/jobs/recurring-schedule-renewal-reminder.job';
 import { ExpireAvailabilityAlertsJob } from './application/jobs/expire-availability-alerts.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
 import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
+import { RecurringScheduleRenewalReminderTriggerHandler } from './infrastructure/events/recurring-schedule-renewal-reminder-trigger.handler';
 import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
 import { availabilityAlertMatchingProviders } from './availability-alert-matching.module-providers';
 import { AdminScheduleReminderTriggerHandler } from './infrastructure/events/admin-schedule-reminder-trigger.handler';
@@ -97,6 +99,7 @@ import { CancelAvailabilityAlertUseCase } from './application/use-cases/cancel-a
 import { RecordAvailabilityAlertOutcomeUseCase } from './application/use-cases/record-availability-alert-outcome.use-case';
 import { BookingSlotConflictService } from './application/services/booking-slot-conflict.service';
 import { BookingQuoteService } from './application/services/booking-quote.service';
+import { RecurringScheduleRenewalService } from './application/services/recurring-schedule-renewal.service';
 import { BookingIntakeValidationService } from './application/services/booking-intake-validation.service';
 import { PhotoExistenceService } from './application/services/photo-existence.service';
 import { BookingCustomerAdapter } from './infrastructure/cross-context/booking-customer.adapter';
@@ -156,16 +159,19 @@ export const bookingModuleProviders: Provider[] = [
   AvailabilityService,
   BookingReminderJob,
   ExpireRecurringBookingScheduleApprovalsJob,
+  RecurringScheduleRenewalReminderJob,
   ExpireAvailabilityAlertsJob,
   AdminScheduleReminderJob,
   ResourceOccupancyRetentionPurgeJob,
   BookingReminderTriggerHandler,
   ExpireRecurringScheduleApprovalsTriggerHandler,
+  RecurringScheduleRenewalReminderTriggerHandler,
   ExpireAvailabilityAlertsTriggerHandler,
   AdminScheduleReminderTriggerHandler,
   ResourceOccupancyRetentionPurgeTriggerHandler,
   BookingSlotConflictService,
   BookingQuoteService,
+  RecurringScheduleRenewalService,
   BookingIntakeValidationService,
   PhotoExistenceService,
   ActivateServiceUseCase,

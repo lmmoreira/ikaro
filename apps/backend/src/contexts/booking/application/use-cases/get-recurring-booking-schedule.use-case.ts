@@ -5,6 +5,7 @@ import {
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
 import {
   RecurringBookingScheduleResult,
   toRecurringBookingScheduleResult,
@@ -28,6 +29,7 @@ export class GetRecurringBookingScheduleUseCase {
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    private readonly renewalService: RecurringScheduleRenewalService,
   ) {}
 
   async execute(
@@ -44,6 +46,7 @@ export class GetRecurringBookingScheduleUseCase {
         `Service ${schedule.serviceId} of recurring schedule ${schedule.id} not found`,
       );
     }
-    return toRecurringBookingScheduleResult(schedule, service.name);
+    const renewableIds = await this.renewalService.findRenewableIds(input.tenantId, [schedule]);
+    return toRecurringBookingScheduleResult(schedule, service.name, renewableIds.has(schedule.id));
   }
 }

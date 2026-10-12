@@ -45,6 +45,7 @@ function buildTenant(): TenantSettingsResponse {
         serviceBufferMinutes: 60,
         slotGranularityMinutes: 30,
         welcomeStaffScreenDays: 14,
+        recurringRenewalReminderDays: 7,
       },
       businessHours: {
         timezone: 'America/Sao_Paulo',

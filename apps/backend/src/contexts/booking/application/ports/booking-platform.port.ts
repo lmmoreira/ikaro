@@ -18,6 +18,13 @@ export interface TenantBookingWindow {
   maxBookingAdvanceDays: number;
 }
 
+// M23-S21: what the renewal window needs from the tenant — its calendar (timezone) and the
+// lead time `settings.booking.recurringRenewalReminderDays` (0 = no reminder, no active window).
+export interface RecurringRenewalTenantSettings {
+  timezone: string;
+  reminderDays: number;
+}
+
 // M23-S07: what the availability-alert matching needs to compute real availability for a tenant.
 export interface AvailabilityAlertTenantContext {
   businessHours: BusinessHours;
@@ -61,4 +68,6 @@ export interface IBookingPlatformPort {
   // from the tenant settings and the hotsite's BOOKING_CTA picker (`datePickerType` defaults to
   // 'carousel' and `carouselDays` to 14 — the defaults the public booking page itself applies).
   getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext>;
+  // M23-S21: the tenant's timezone and renewal lead time, for the reminder job and the list's `renewable`.
+  getRecurringRenewalSettings(tenantId: string): Promise<RecurringRenewalTenantSettings>;
 }

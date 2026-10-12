@@ -11,6 +11,7 @@ const VALID: BookingSettings = {
   serviceBufferMinutes: 60,
   slotGranularityMinutes: 30,
   welcomeStaffScreenDays: 14,
+  recurringRenewalReminderDays: 7,
 };
 
 function expectCode(booking: BookingSettings, code: string): void {
@@ -113,6 +114,26 @@ describe('BookingSettingsValidator', () => {
     expectCode(
       { ...VALID, welcomeStaffScreenDays },
       PlatformErrorCode.SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID,
+    );
+  });
+
+  it.each([0, 7, 30])(
+    'accepts recurringRenewalReminderDays of %s (0 turns the reminder off)',
+    (days) => {
+      expect(() =>
+        BookingSettingsValidator.validate({ ...VALID, recurringRenewalReminderDays: days }),
+      ).not.toThrow();
+    },
+  );
+
+  it.each([
+    ['a non-integer value', 7.5],
+    ['a negative value', -1],
+    ['a value above 30', 31],
+  ])('rejects recurringRenewalReminderDays with %s', (_label, recurringRenewalReminderDays) => {
+    expectCode(
+      { ...VALID, recurringRenewalReminderDays },
+      PlatformErrorCode.SETTINGS_BOOKING_RECURRING_RENEWAL_REMINDER_DAYS_INVALID,
     );
   });
 });

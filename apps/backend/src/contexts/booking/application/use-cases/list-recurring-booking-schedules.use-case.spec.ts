@@ -2,6 +2,10 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
+import { RecurringBookingScheduleBuilder } from '../../../../test/builders/booking/index';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { ListRecurringBookingSchedulesUseCase } from './list-recurring-booking-schedules.use-case';
@@ -48,6 +52,8 @@ function schedule(
 describe('ListRecurringBookingSchedulesUseCase', () => {
   let repo: InMemoryRecurringBookingScheduleRepository;
   let serviceRepo: InMemoryServiceRepository;
+  let platform: InMemoryBookingPlatformPort;
+  let renewalService: RecurringScheduleRenewalService;
   let useCase: ListRecurringBookingSchedulesUseCase;
 
   beforeEach(async () => {
@@ -56,7 +62,9 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     await serviceRepo.save(
       new ServiceBuilder().withId('service-1').withTenantId(TENANT).withName('Sala Aurora').build(),
     );
-    useCase = new ListRecurringBookingSchedulesUseCase(repo, serviceRepo);
+    platform = new InMemoryBookingPlatformPort();
+    renewalService = new RecurringScheduleRenewalService(platform, repo);
+    useCase = new ListRecurringBookingSchedulesUseCase(repo, serviceRepo, renewalService);
   });
 
   it("maps each item's serviceName from the service", async () => {
@@ -100,7 +108,11 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     await otherTenantRepo.save(
       new ServiceBuilder().withId('service-1').withTenantId(OTHER_TENANT).withName('Outro').build(),
     );
-    const isolated = new ListRecurringBookingSchedulesUseCase(repo, otherTenantRepo);
+    const isolated = new ListRecurringBookingSchedulesUseCase(
+      repo,
+      otherTenantRepo,
+      renewalService,
+    );
     repo.seed(schedule('customer-a'));
 
     await expect(isolated.execute({ tenantId: TENANT, ...PAGE })).rejects.toThrow(
@@ -212,5 +224,76 @@ describe('ListRecurringBookingSchedulesUseCase', () => {
     const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
 
     expect(result.pagination.total).toBe(1);
+  });
+  describe('renewable (M23-S21)', () => {
+    const TIMEZONE = 'America/Sao_Paulo';
+    const today = () => todayInTimezone(TIMEZONE);
+    const seedRenewalCase = (
+      endsInDays: number,
+      status: 'ACTIVE' | 'ENDED' | 'PENDING_APPROVAL' | 'CANCELLED',
+    ) =>
+      new RecurringBookingScheduleBuilder()
+        .withTenantId(TENANT)
+        .withCustomerId(`customer-${status}-${endsInDays}`)
+        .withServiceId('service-1')
+        .withTerm(addDaysUTC(today(), endsInDays - 60), addDaysUTC(today(), endsInDays))
+        .withStatus(status)
+        .build();
+
+    beforeEach(() => {
+      platform.seedRecurringRenewalSettings(TENANT, { timezone: TIMEZONE, reminderDays: 7 });
+    });
+
+    it('reports renewable for a schedule inside the lead time and for an ended one, and for nothing else', async () => {
+      const inside = seedRenewalCase(3, 'ACTIVE');
+      const boundary = seedRenewalCase(7, 'ACTIVE');
+      const later = seedRenewalCase(8, 'ACTIVE');
+      const ended = seedRenewalCase(-20, 'ENDED');
+      const pending = seedRenewalCase(3, 'PENDING_APPROVAL');
+      const cancelled = seedRenewalCase(3, 'CANCELLED');
+      [inside, boundary, later, ended, pending, cancelled].forEach((s) => repo.seed(s));
+
+      const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+      const renewable = new Map(result.items.map((i) => [i.id, i.renewable]));
+      expect(renewable.get(inside.id)).toBe(true);
+      expect(renewable.get(boundary.id)).toBe(true);
+      expect(renewable.get(later.id)).toBe(false);
+      expect(renewable.get(ended.id)).toBe(true);
+      expect(renewable.get(pending.id)).toBe(false);
+      expect(renewable.get(cancelled.id)).toBe(false);
+    });
+
+    it('reports not renewable once the customer already holds a successor schedule', async () => {
+      const ending = seedRenewalCase(3, 'ACTIVE');
+      const successor = new RecurringBookingScheduleBuilder()
+        .withTenantId(TENANT)
+        .withCustomerId(ending.customerId)
+        .withServiceId('service-1')
+        .withTerm(ending.endsOn, addDaysUTC(ending.endsOn, 60))
+        .build();
+      [ending, successor].forEach((s) => repo.seed(s));
+
+      const result = await useCase.execute({
+        tenantId: TENANT,
+        ...PAGE,
+        customerId: ending.customerId,
+      });
+
+      expect(result.items.find((i) => i.id === ending.id)?.renewable).toBe(false);
+    });
+
+    it('empties the running-schedule window when the tenant turned the reminder off', async () => {
+      platform.seedRecurringRenewalSettings(TENANT, { timezone: TIMEZONE, reminderDays: 0 });
+      const running = seedRenewalCase(1, 'ACTIVE');
+      const ended = seedRenewalCase(-5, 'ENDED');
+      [running, ended].forEach((s) => repo.seed(s));
+
+      const result = await useCase.execute({ tenantId: TENANT, ...PAGE });
+
+      const renewable = new Map(result.items.map((i) => [i.id, i.renewable]));
+      expect(renewable.get(running.id)).toBe(false);
+      expect(renewable.get(ended.id)).toBe(true);
+    });
   });
 });

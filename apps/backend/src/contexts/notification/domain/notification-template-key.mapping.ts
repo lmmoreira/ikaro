@@ -188,6 +188,19 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
     recipientType: 'customer',
     variables: ['bookingUrl', 'contactName', 'matchingWindow', 'serviceName'],
   },
+  [NotificationTemplateKey.RECURRING_SCHEDULE_RENEWAL_DUE_CUSTOMER]: {
+    eventName: 'RecurringScheduleRenewalDue',
+    recipientType: 'customer',
+    variables: [
+      'contactName',
+      'endsOn',
+      'localTime',
+      'renewalUrl',
+      'serviceName',
+      'tenantName',
+      'weekdays',
+    ],
+  },
 } as const satisfies Record<NotificationTemplateKey, NotificationTemplateKeyMapping>;
 
 // The variables object a use case must supply for one or more templates: every placeholder of each

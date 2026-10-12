@@ -21,6 +21,7 @@ import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { RequestRecurringBookingScheduleUseCase } from '../../application/use-cases/request-recurring-booking-schedule.use-case';
+import { RecurringScheduleRenewalService } from '../../application/services/recurring-schedule-renewal.service';
 import { ListRecurringBookingSchedulesUseCase } from '../../application/use-cases/list-recurring-booking-schedules.use-case';
 import { GetRecurringBookingScheduleUseCase } from '../../application/use-cases/get-recurring-booking-schedule.use-case';
 import { EndRecurringBookingScheduleUseCase } from '../../application/use-cases/end-recurring-booking-schedule.use-case';
@@ -35,6 +36,7 @@ const ENDS_ON = addDaysUTC(STARTS_ON, 28);
 
 describe('RecurringBookingScheduleController', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
+  let renewalService: RecurringScheduleRenewalService;
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
   let customerPort: InMemoryBookingCustomerPort;
@@ -53,6 +55,7 @@ describe('RecurringBookingScheduleController', () => {
     customerPort = new InMemoryBookingCustomerPort();
     const staffPort = new InMemoryBookingStaffPort();
     const platformPort = new InMemoryBookingPlatformPort();
+    renewalService = new RecurringScheduleRenewalService(platformPort, scheduleRepo);
     bookingRepo = new InMemoryBookingRepository(eventBus);
     const tx = new InMemoryTransactionManager();
     const tenantLock = new InMemoryTenantLock();
@@ -115,8 +118,8 @@ describe('RecurringBookingScheduleController', () => {
         tx,
         new AvailabilityService(),
       ),
-      new ListRecurringBookingSchedulesUseCase(scheduleRepo, serviceRepo),
-      new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo),
+      new ListRecurringBookingSchedulesUseCase(scheduleRepo, serviceRepo, renewalService),
+      new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
       new ApproveRecurringBookingScheduleUseCase(
         scheduleRepo,
@@ -276,7 +279,7 @@ describe('RecurringBookingScheduleController', () => {
         otherCtx,
         undefined as never,
         undefined as never,
-        new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo),
+        new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService),
         undefined as never,
         undefined as never,
         undefined as never,

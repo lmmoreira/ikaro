@@ -2,7 +2,11 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
+import { RecurringBookingScheduleBuilder } from '../../../../test/builders/booking/index';
+import { addDaysUTC, todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { GetRecurringBookingScheduleUseCase } from './get-recurring-booking-schedule.use-case';
@@ -49,6 +53,8 @@ function schedule(
 describe('GetRecurringBookingScheduleUseCase', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let serviceRepo: InMemoryServiceRepository;
+  let platform: InMemoryBookingPlatformPort;
+  let renewalService: RecurringScheduleRenewalService;
   let useCase: GetRecurringBookingScheduleUseCase;
 
   beforeEach(async () => {
@@ -57,7 +63,9 @@ describe('GetRecurringBookingScheduleUseCase', () => {
     await serviceRepo.save(
       new ServiceBuilder().withId(SERVICE_ID).withTenantId(TENANT).withName('Sala Aurora').build(),
     );
-    useCase = new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo);
+    platform = new InMemoryBookingPlatformPort();
+    renewalService = new RecurringScheduleRenewalService(platform, scheduleRepo);
+    useCase = new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService);
   });
 
   it("returns the owner's schedule in the list-item shape, with the service name", async () => {
@@ -70,7 +78,7 @@ describe('GetRecurringBookingScheduleUseCase', () => {
       customerId: 'customer-a',
     });
 
-    expect(result).toEqual(toRecurringBookingScheduleResult(own, 'Sala Aurora'));
+    expect(result).toEqual(toRecurringBookingScheduleResult(own, 'Sala Aurora', false));
     expect(result.serviceName).toBe('Sala Aurora');
   });
 
@@ -129,10 +137,32 @@ describe('GetRecurringBookingScheduleUseCase', () => {
     await otherTenantServices.save(
       new ServiceBuilder().withId(SERVICE_ID).withTenantId(OTHER_TENANT).withName('Outro').build(),
     );
-    const isolated = new GetRecurringBookingScheduleUseCase(scheduleRepo, otherTenantServices);
+    const isolated = new GetRecurringBookingScheduleUseCase(
+      scheduleRepo,
+      otherTenantServices,
+      renewalService,
+    );
 
     await expect(isolated.execute({ scheduleId: own.id, tenantId: TENANT })).rejects.toThrow(
       'Service service-1',
     );
+  });
+  it('reports renewable for an ended schedule, in the same shape as the list', async () => {
+    const ended = new RecurringBookingScheduleBuilder()
+      .withTenantId(TENANT)
+      .withCustomerId('customer-a')
+      .withServiceId(SERVICE_ID)
+      .withTerm('2026-01-01', addDaysUTC(todayInTimezone('America/Sao_Paulo'), -5))
+      .withStatus('ENDED')
+      .build();
+    scheduleRepo.seed(ended);
+
+    const result = await useCase.execute({
+      scheduleId: ended.id,
+      tenantId: TENANT,
+      customerId: 'customer-a',
+    });
+
+    expect(result.renewable).toBe(true);
   });
 });

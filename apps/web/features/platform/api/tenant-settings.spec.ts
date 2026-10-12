@@ -48,6 +48,7 @@ const tenantSettingsResponse = {
       serviceBufferMinutes: 60,
       slotGranularityMinutes: 30,
       welcomeStaffScreenDays: 21,
+      recurringRenewalReminderDays: 14,
     },
     businessHours: {
       timezone: 'America/Sao_Paulo',
