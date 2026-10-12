@@ -200,14 +200,31 @@ describe('RecurringScheduleRenewalReminderJob', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps going with the other tenants when one tenant fails', async () => {
+  it('processes every tenant, then fails the run so the trigger message is retried', async () => {
     seed('customer-b', IN_SEVEN_DAYS, { tenantId: TENANT_B });
     jest
       .spyOn(platform, 'getRecurringRenewalSettings')
       .mockRejectedValueOnce(new Error('tenant A lookup failed'));
 
+    await expect(job.run(NOW_IN)).rejects.toThrow(
+      `Renewal reminder failed for tenant(s): ${TENANT_A}`,
+    );
+
+    // The healthy tenant was still processed before the run failed.
+    expect(renewals().map((e) => e.tenantId)).toEqual([TENANT_B]);
+  });
+
+  it('re-runs cleanly after a failure and sends each reminder once', async () => {
+    const due = seed('customer-a', IN_SEVEN_DAYS);
+    jest
+      .spyOn(platform, 'getRecurringRenewalSettings')
+      .mockRejectedValueOnce(new Error('tenant A lookup failed'));
+
+    await expect(job.run(NOW_IN)).rejects.toThrow();
     await expect(job.run(NOW_IN)).resolves.toBeUndefined();
 
-    expect(renewals().map((e) => e.tenantId)).toEqual([TENANT_B]);
+    expect(renewals().map((e) => (e.data as unknown as RenewalData).recurringScheduleId)).toEqual([
+      due.id,
+    ]);
   });
 });

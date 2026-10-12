@@ -43,25 +43,37 @@ export class RecurringScheduleRenewalReminderJob {
 
   async run(now: Date = new Date()): Promise<void> {
     const tenants = await this.tenantPort.findAllActive();
-    await mapSequentially(tenants, (tenant) => this.processTenantSafely(tenant, now));
+    const due = tenants.filter((tenant) => {
+      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
+      return localHHMM >= WINDOW_START && localHHMM <= WINDOW_END;
+    });
+
+    const outcomes = await mapSequentially(due, (tenant) => this.processTenantSafely(tenant, now));
+    const failed = outcomes.filter((outcome) => outcome.failed).map((outcome) => outcome.tenantId);
+    // Every tenant has been processed by now, so one failure never starves the others. The failure
+    // itself must still reach the subscription: a tenant is only inside its window for one cron
+    // tick a day, so a swallowed error would cost that tenant the reminder. Throwing nacks the
+    // message and Pub/Sub redelivers it, and a re-run re-derives the same dedup keys, so it cannot
+    // double-send (same shape as AvailabilityAlertSweepJob).
+    if (failed.length > 0) {
+      throw new Error(`Renewal reminder failed for tenant(s): ${failed.join(', ')}`);
+    }
   }
 
-  // One tenant's failure is logged and must not stop the others; a retry within the window
-  // re-derives the same dedup keys, so it cannot double-send.
   private async processTenantSafely(
     tenant: { id: string; timezone: string },
     now: Date,
-  ): Promise<void> {
-    const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-    if (localHHMM < WINDOW_START || localHHMM > WINDOW_END) return;
+  ): Promise<{ tenantId: string; failed: boolean }> {
     try {
       await this.processTenant(tenant, now);
+      return { tenantId: tenant.id, failed: false };
     } catch (err) {
       this.logger.error(
-        'Renewal reminder run failed for a tenant — will retry on the next tick',
+        'Renewal reminder run failed for a tenant — the run will be retried',
         err instanceof Error ? err.stack : String(err),
         { tenantId: tenant.id },
       );
+      return { tenantId: tenant.id, failed: true };
     }
   }
 
