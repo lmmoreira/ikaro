@@ -16,6 +16,8 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 - **Focus:** Efficiency and task management for STAFF and MANAGER roles. The "Somente Gerente" section (Recursos, Equipe, Configurações, Hotsite) covers UC-025 through UC-031 (staff/settings/hotsite management) and UC-044 through UC-049 (resource management, `M21-S04`) — not listed in earlier revisions of this doc, added here for completeness.
 - **Route protection:** `apps/web/proxy.ts` reads the JWT from the `httpOnly` cookie; redirects to `/dashboard/login` if missing or if role is not `STAFF`/`MANAGER`. A separate check further restricts `/dashboard/{settings,team,hotsite,resources}` to `MANAGER` only (STAFF hitting these is redirected to `/dashboard`, not to login — a soft redirect, not an auth failure). `/dashboard/resources` added `M21-S04` (Resource Management dashboard — matches the backend/BFF's own MANAGER-only restriction, `docs/14-API_CONTRACTS.md` § Resource Management).
 - **Layout:** there is no single shared layout for `/dashboard/**` — `apps/web/app/dashboard/layout.tsx` is a bare passthrough (`return <>{children}</>`). Each top-level section owns its own `layout.tsx` (`bookings/`, `hotsite/`, `loyalty/`, `schedule/`, `services/`, `settings/`, `team/`, `leads/` as of `M20-S10`, `resources/` as of `M21-S04`) that independently reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`/`getAccessToken()`, calls the shared `loadDashboardShellContext(token, payload)` (`apps/web/shells/dashboard/model/dashboard-shell-context.ts`), and renders `<DashboardShell>`. **Updated (`M13-S15`):** the JWT payload was enriched to carry `tenantName`/`userName`/`locale` directly (see `JwtIssuerService`) specifically so shells never need a separate profile/tenant-info fetch — `buildDashboardShellContext`/`loadDashboardShellContext` read these fields straight off the decoded token, with no extra API call. **Corrected (`M20-S10`, story-discovery 2026-08-27):** this doc previously (incorrectly) described a single shared `app/dashboard/layout.tsx` doing this work — it never did; the per-section duplication above is the real, longstanding pattern.
+- **Booking detail, no-show (UC-074, M23-S27):** `features/booking/components/dashboard/bookings/` holds the status-aware detail page — `BookingNoShowBanner`, `NoShowSheet` (STAFF | MANAGER, after the appointment's end), `CorrectNoShowSheet` (MANAGER only, correction to `COMPLETED`) and `BookingStatusHistory` (the `booking_status_transitions` card). The staff reschedule and complete flows live beside them (`RescheduleBookingPage`, `MarkCompleteBookingPage`).
+- **Not built yet (M23 stories still open):** the "+ Novo" menu on the Agenda and the dashboard "Novo agendamento" flow (S40, UC-108), the recurrence-request queue/approval detail (S13, UC-071) and the "Exceções de Agenda" manager worklist (S14, UC-073/077). This section is updated when each ships.
 - **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
   - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade, plus Leads when the `LEAD_FORM` module is enabled — `leadFormEnabled`, `M20-S10`), and a "Somente Gerente" section (Recursos, Equipe, Configurações, Hotsite — `Recursos` added `M21-S04`) shown only when `role === 'MANAGER'`.
@@ -29,6 +31,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 - **Focus:** Personal booking history and loyalty for the `CUSTOMER` role.
 - **Route protection:** `apps/web/proxy.ts` extends the same file with a check for `/{slug}/my-account/**` — redirects to `/{slug}/login` if the JWT is missing/expired, if the role is not `CUSTOMER` (staff must not reach the customer area), or if the JWT's `tenantSlug` does not match the `[slug]` path segment.
 - **Layout:** `apps/web/app/[slug]/my-account/layout.tsx` (server component) reads `{ tenantId, tenantSlug, tenantName, userName, role, locale }` from the JWT via `cookies()`, and renders `<CustomerShell>`. **Updated (`M13-S15`/`M13-S16`):** as with the staff shell, the JWT carries `tenantName`/`userName` directly — no separate fetch needed for the shell itself. `GET /api/customers/me` (the proxy route added in `M13-S42`) is real and still used directly by `BookingForm.tsx`/`InformationCompletionPrompt.tsx` (public hotsite components that need the full customer profile, e.g. for the information-completion prompt) — not by this layout. The **public hotsite's** `HotsiteAuthBar` itself no longer calls `/api/customers/me` directly; it calls `GET /api/session` (see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §6), a thin same-origin proxy to the BFF's `GET /auth/session` — the BFF endpoint owns the staff-vs-customer branching, not web.
+- **Routes (M23):** `/{slug}/my-account/bookings/[id]/reschedule` ("Reagendar", date and time only — M23-S30), `/{slug}/my-account/recurring-schedules` (list), `…/new` (create, and "Renovar" when opened with `?renewFrom=<scheduleId>`, which pre-fills the form and sends `renewsScheduleId` — M23-S17/S22), `…/[id]` (detail) and `…/[id]/end` (confirm end — M23-S12). `HomeDashboard` is the Início page. Not built yet: the availability-alerts management pages (S43) and the Início "Recorrências"/"Avisos" tiles (S41).
 - **Key component (`apps/web/features/customer/components/`):**
   - `CustomerShell.tsx` — `'use client'`: topbar (tenant brand + "+ Novo ▾" desktop menu ("Agendamento" → the booking flow, "Reserva recorrente" → the recurring-reservation form) + avatar dropdown with "Sair"/"Site Ikaro"), a desktop-only horizontal tab nav (Início | Agendamentos | Fidelidade, `≥1024px`), a `main-content` slot, and a mobile-only bottom nav with the same three tabs (`<1024px`).
 
@@ -115,15 +118,16 @@ apps/web/
 │   ├── auth/
 │   ├── booking/
 │   │   ├── api/
-│   │   ├── components/
+│   │   ├── components/     (dashboard/{bookings,resources,schedule,services}/ and public/ — the booking flow)
 │   │   ├── hooks/
 │   │   ├── model/
 │   │   ├── schedule/       (view-preference persistence, API layer — M13-S21)
 │   │   ├── services/       (form validation, hooks, API layer — M13-S22/23/24)
-│   │   └── utils/
+│   │   └── types/
 │   ├── customer/
 │   │   ├── api.ts / api.server.ts   (flat files, not an api/ folder)
-│   │   ├── components/
+│   │   ├── booking-navigation.ts, booking-sections.ts, recurring-schedule-model.ts   (flat files)
+│   │   ├── components/     (CustomerShell, NewReservationMenu, my-account/ …)
 │   │   └── hooks/
 │   ├── loyalty/
 │   ├── platform/

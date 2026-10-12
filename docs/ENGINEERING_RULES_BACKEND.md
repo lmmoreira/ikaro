@@ -141,7 +141,7 @@ Relocated to `docs/ANTI_PATTERNS.md`'s "LIKE/ILIKE pattern escaping for user-sup
 
 ## Aggregate domain events → outbox (repo auto-flush)
 
-The 4 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
+The 7 event-emitting aggregates (`Booking`, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, `Staff`, `Tenant`, `LeadFormSubmission`) never have their events flushed by a use case. Instead, each aggregate's TypeORM repository drains `clearDomainEvents()` into the outbox as the last step of `save()`, inside the same ambient transaction as the business write (TD24-S02, D6):
 
 ```ts
 // end of save(), after the entity write — inside the ambient transaction

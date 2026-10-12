@@ -59,26 +59,7 @@ Confirmed to recur twice with the identical root cause and symptom:
 
 ### Integration app helpers — mandatory default overrides
 
-Every integration app helper that imports a module with a network-calling adapter must default-override that adapter's token with an in-memory stub **before** the caller's overrides run (caller wins):
-
-```ts
-let builder = Test.createTestingModule({ imports: [..., BookingModule] })
-  .overrideProvider(EVENT_BUS).useValue(routingBus)
-  .overrideProvider(STORAGE_SERVICE).useValue(new InMemoryStorageService()); // default
-
-for (const { provide, useValue } of overrideProviders) {
-  builder = builder.overrideProvider(provide).useValue(useValue); // caller wins
-}
-```
-
-Current helpers and required default overrides:
-
-| Helper | Default override |
-|---|---|
-| `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` |
-| `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` |
-
-When adding a new shared module with a network-calling adapter, update every helper that imports it.
+Every integration app helper that imports a module with a network-calling adapter must default-override that adapter's token with an in-memory stub **before** the caller's overrides run (caller wins). The code pattern, the current per-helper override table and the `EVENT_BUS`/`OUTBOX_PUBLISHER` dual-token rule live once, in `docs/08-TESTING_STRATEGY.md` (§ Integration app helpers — mandatory default overrides for network-calling adapters); when adding a new shared module with a network-calling adapter, update every helper that imports it.
 
 ### Reuse the shared Nest cache test module
 

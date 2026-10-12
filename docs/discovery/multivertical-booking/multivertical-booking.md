@@ -1,5 +1,7 @@
 # Discovery: Multi-Vertical Scheduling
 
+> **Superseded in part (M23-S20, 2026-09-29):** private recurring reservations are fixed-term and created once — there is **no Pause**. Any mention below of a `PAUSED` status, a pause action, a `RecurringBookingSchedulePaused` event or a rolling horizon describes the original exploration only. Canonical behaviour: `docs/04-USE_CASES.md` UC-070/071, `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Recurring Reservations. (The `RecurringEnrollment` aggregate for classes, M24, has its own `PAUSED` status — a different thing.)
+
 **Status:** Discovery — exploratory. Nothing here is committed to a milestone; no `UC-XXX` numbers are consumed by this document.
 **Companion doc:** `multivertical-booking_USECASES.md` — candidate use cases derived from this model, for completeness-checking.
 **Companion doc:** `multivertical-booking_DATA_MODEL.md` — the physical schema (tables, constraints, migration ordering) this model implies, plus gaps found while translating it into real DDL.

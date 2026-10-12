@@ -107,6 +107,30 @@ Recipe from a real incident (M17-S27, 2026-07-24): a tenant hotsite manifest loo
    ```
 7. **Verify a migrate-job replay actually ran fresh**, not a no-op, by reading its own execution logs: `"N migrations are new migrations must be executed"` means it replayed; `"No migrations are pending"` means nothing happened and the reset didn't take.
 
+## Pub/Sub and scheduled jobs
+
+Naming (from `infra/terraform/modules/pubsub` and `modules/scheduler`): a topic is `ikaro-<topic>`, each consumer's push subscription is `ikaro-<topic>-<consumer>`, its dead-letter topic is `ikaro-<topic>-<consumer>-dlq` and the operator pull subscription on it is `ikaro-<topic>-<consumer>-dlq-inspect`. Cloud Scheduler jobs are `ikaro-cron-*`. The authoritative topic and consumer list is `infra/terraform/pubsub-catalog.json`.
+
+### A scheduled job did not run
+
+1. List the jobs and their last attempt: `gcloud scheduler jobs list --project=<project> --location=<region>` (the `ikaro-cron-*` jobs; one per `cron-*` topic, defined in `modules/scheduler`'s `locals.jobs`).
+2. Fire one manually: `gcloud scheduler jobs run ikaro-cron-reminders --project=<project> --location=<region>`. The `POST /cron/*` routes on the backend are the **local/manual dev path only** (`InternalApiGuard`); in staging and production use the Scheduler job, not the route.
+3. A tick fans out to every consumer of its topic — `cron-reminders` (every 30 min) drives five: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep` and `recurring-schedule-approval-expiry`. You cannot trigger one consumer alone; each is idempotent (inbox claim), so re-running a tick is safe.
+4. Some consumers only act inside a tenant-local window (the availability-alert sweep runs 06:30–06:59 tenant time — `docs/27-BUSINESS_LOGIC_REFERENCE.md`), so a manual tick outside the window correctly does nothing.
+
+### A message landed in a dead-letter topic
+
+Push subscriptions retry with backoff (10 s → 600 s) and dead-letter after 5 delivery attempts; messages are kept 7 days. DLQs are alert-only — application code never reads them.
+
+1. Inspect without consuming for good: `gcloud pubsub subscriptions pull ikaro-<topic>-<consumer>-dlq-inspect --project=<project> --limit=5` (add `--auto-ack` only when you are done with the message).
+2. Find the failing handler's log by `correlationId` / `eventId` in Cloud Logging, fix the cause, then redeliver by re-publishing the message body to the original topic with the attributes the publisher sets: `gcloud pubsub topics publish ikaro-<topic> --message='<body from the DLQ message>' --attribute=eventName=<topic>,tenantId=<tenant uuid>` (`publish()` in `gcp-pubsub-event-bus.adapter.ts` also forwards trace-context attributes, which a manual replay can omit). Consumers dedupe on `eventId` via `shared.inbox`: a replay of an event whose first attempt actually succeeded is a no-op, and one whose attempt failed is retried.
+
+### A new topic is not receiving / delivering
+
+A new Pub/Sub topic is not publishable until the Foundation workflow has been applied (`apply=true`, manual, from `main`) — no CI check notices when that step is skipped. Verify with `gcloud pubsub topics get-iam-policy ikaro-<topic> --project=<project>` that the publisher and subscriber grants exist; mechanics and the PR-splitting rules are in `infra/terraform/README.md` (§ Gotchas and the "Adding..." table).
+
+---
+
 ### Simulate an incident (verify alerts)
 
 Validated procedure from M17-S35's live acceptance-criteria run against real staging (2026-08-09) — use this whenever a story adds/changes an alert policy in `infra/terraform/modules/monitoring` and needs live proof it actually fires, not just a clean `terraform apply`.

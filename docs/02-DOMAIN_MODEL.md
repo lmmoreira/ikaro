@@ -24,6 +24,11 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 - `Service` (root) — tenant-scoped
 - `ScheduleClosure` (root) — tenant-scoped
 - `ScheduleOpening` (root) — tenant-scoped; opens a normally-closed day as a specific-date exception
+- `Resource` (root) — tenant-scoped; the person/room/equipment a booking occupies (M21)
+- `ServiceBookingIntakeSchema` — versioned intake questions for a `Service` (M22/M23-S02)
+- `RecurringBookingSchedule` (root) — a fixed-term recurring private reservation (M23, UC-070/071)
+- `AvailabilityAlert` (root) — a customer's "tell me when this opens" request (M23, UC-072/076)
+- `FutureCommitmentException` (root) — a worklist entry for a booking affected by a resource deactivation (M23, UC-073/077)
 
 ---
 
@@ -700,7 +705,7 @@ RecurringBookingSchedule {
 
 **Entities within:**
 - `AvailabilityAlert` (root)
-- `AvailabilityAlertNotificationAttempt` (child — notification history, deduplicated per matching window)
+- `AvailabilityAlertNotificationAttempt` (child — notification history, deduplicated per matching window; carries the outcome, `attemptCount` and a redacted `lastError` — columns in `docs/13-DATABASE_SCHEMA.md`)
 
 **Properties:**
 ```
@@ -777,7 +782,8 @@ FutureCommitmentException {
 
 **Key Methods:**
 - `FutureCommitmentException.raise(sourceType, sourceId, affectedType, affectedId, alternatives)` (UC-073)
-- `resolve(staffId, resolutionType, reason)` / `dismiss(staffId, reason)` (UC-077) — the booking change itself is applied by the resolving use case in the same transaction, never by this aggregate.
+- `refreshAlternatives(alternatives)` — replaces the suggested alternatives of an `OPEN` entry (throws once resolved or dismissed).
+- `resolve(staffId, resolutionType, reason, correlationId)` / `dismiss(staffId, reason, correlationId)` (UC-077) — the booking change itself is applied by the resolving use case in the same transaction, never by this aggregate.
 
 ---
 
@@ -1239,23 +1245,31 @@ Domain events represent significant business occurrences that other contexts may
 
 ### **Booking Context Events**
 
+Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogHandler` per context, M23-S36) — omitted from the Consumers column for brevity. Payloads and the authoritative consumer list per event: `docs/03-DOMAIN_EVENTS.md` and `infra/terraform/pubsub-catalog.json`.
+
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `BookingRequested` | New booking submitted (1..N lines) | Notification Context |
-| `BookingApproved` | Admin approves booking | Notification Context |
-| `BookingRejected` | Admin rejects booking | Notification Context |
+| `BookingApproved` | Admin approves booking, or staff create a booking directly in `APPROVED` on a customer's behalf (UC-108 — no `BookingRequested` is raised) | Notification Context |
+| `BookingRejected` | Admin rejects booking | Notification Context; Booking Context (`availability-alert-matching`) |
 | `BookingInfoRequested` | Admin requests more info (PENDING → INFO_REQUESTED) | Notification Context |
 | `BookingInfoSubmitted` | Customer / guest responds to an info request (INFO_REQUESTED → PENDING) | Notification Context |
-| `BookingCancelled` | Customer/admin cancels booking | Notification Context |
-| `BookingCompleted` | Staff marks booking complete | Notification Context, **Loyalty Context** (only Booking event Loyalty cares about) |
+| `BookingCancelled` | Customer/admin cancels booking (also each occurrence when a recurring schedule is ended) | Notification Context; Booking Context (`availability-alert-matching`) |
+| `BookingRescheduled` | Customer/admin moves a booking to a new slot (UC-069) | Notification Context; Booking Context (`availability-alert-matching`) |
+| `BookingCompleted` | Staff marks booking complete, or a manager corrects a `NO_SHOW` to `COMPLETED` (UC-074) | **Loyalty Context** (`complete-booking-loyalty-effects` — the only Booking event Loyalty cares about); no Notification consumer |
+| `BookingNoShow` | Staff marks an `APPROVED` booking as a no-show after its end time (UC-074) | Notification Context (customer email) |
+| `RecurringBookingScheduleCreated` / `…ApprovalRequested` / `…Rejected` / `…Ended` | Recurring-schedule lifecycle (UC-070, UC-071) | Notification Context |
+| `AvailabilityAlertCreated` / `…Updated` / `…Cancelled` / `…Expired` | Availability-alert lifecycle (UC-072, UC-076) | none besides `audit-log` |
+| `AvailabilityAlertMatched` | A date becomes selectable for an alert (UC-072 step 3) | Notification Context (customer email) |
+| `FutureCommitmentExceptionRaised` / `…Resolved` / `…Dismissed` | Future-commitment worklist (UC-073, UC-077) | none besides `audit-log` (the manager/customer notifications are M23-S23, not built) |
 
-> Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) — see `docs/05-BOUNDED_CONTEXTS.md`.
+> Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) and `TenantProvisioned` (published by Platform Context) to create the tenant's location resource — see `docs/05-BOUNDED_CONTEXTS.md`.
 
 ### **Loyalty Context Events**
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
-| `ServicePointsEarned` | `BookingCompleted` consumed → one `LoyaltyEntry` inserted per `BookingLine` (one event per line) | Notification Context |
+| `ServicePointsEarned` | `BookingCompleted` consumed → one `LoyaltyEntry` inserted per `BookingLine`, **one event per booking** (`eventVersion = 2`, lists every line) | Notification Context |
 | `PointsExpiringSoon` | Weekly cron (Mondays) finds entries whose `expires_at` falls in the **next 7 days** — forward-looking warning | Notification Context |
 
 ### **Staff Context Events**
@@ -1263,14 +1277,19 @@ Domain events represent significant business occurrences that other contexts may
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `StaffInvited` | New staff member invited (UC-028) or first MANAGER created during tenant provisioning (M04-S06) | Notification Context (invitation email) |
+| `StaffActivated` | MANAGER reactivates a deactivated staff member (UC-031) | `audit-log` only |
 | `StaffDeactivated` | MANAGER deactivates a staff member (UC-029) | **Booking Context** (UC-048, cascades to the wrapping `STAFF`-type `Resource` — added M21 Cluster 1; first real consumer of this event) |
 
-### **Notification Context Events**
+### **Platform Context Events**
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
-| `EmailSent` | Email successfully sent | Audit (optional) |
-| `EmailFailed` | Email delivery failed | Retry queue |
+| `TenantProvisioned` | A new tenant is provisioned (UC-024) | Staff Context (first MANAGER), Booking Context (location resource), Notification Context (default template seed) |
+| `LeadFormSubmissionReceived` | A visitor submits a hotsite lead form (M20) | `audit-log` only |
+
+### **Notification Context Events**
+
+None. `EmailSent` / `EmailFailed` were never implemented as domain events — delivery outcomes are recorded in `NotificationLog` (see `docs/03-DOMAIN_EVENTS.md`).
 
 ---
 
@@ -1331,7 +1350,7 @@ APPROVED        -> COMPLETED | CANCELLED | NO_SHOW
 COMPLETED       -> (terminal)
 REJECTED        -> (terminal)
 CANCELLED       -> (terminal)
-NO_SHOW         -> (terminal)
+NO_SHOW         -> COMPLETED   (manager correction only; otherwise terminal)
 ```
 
 > A booking materialized from a `RecurringBookingSchedule` (M23-S05) is created directly in `APPROVED` — the schedule was vetted once when it became `ACTIVE`, so each occurrence skips the `PENDING` review; from `APPROVED` it follows the same transitions as any other booking.

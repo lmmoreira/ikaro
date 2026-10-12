@@ -24,7 +24,7 @@ The deployed region and repository are defined in Terraform. The current applica
 | GitHub Actions | PR gates, deployment, promotion, rollback, maintenance | `.github/workflows/*.yml` |
 | pnpm workspaces | Dependency and task orchestration | `pnpm-workspace.yaml`, root `package.json` |
 | SonarCloud | Differential quality/coverage gate | workflow configuration and Sonar project settings |
-| Snyk / repository scanners | Dependency, container, and IaC analysis | workflow configuration |
+| Snyk / repository scanners | Dependency, container, and IaC analysis (Snyk SCA runs only in the weekly scheduled scan, not the per-PR gate; Gitleaks, Trivy and Checkov gate each PR) | workflow configuration |
 | architecture-check / ESLint | Repository-specific architecture invariants | `packages/architecture-check/`, ESLint configs |
 
 ## Observability

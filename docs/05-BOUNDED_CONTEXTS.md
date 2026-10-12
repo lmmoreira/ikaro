@@ -67,15 +67,19 @@ Notification Context subscribes:
 │  ┌───────────────────────────────────────────────────────────────────┐ │
 │  │                      BOOKING CONTEXT  (Core)                      │ │
 │  │  Aggregates: Booking (root + BookingLine), Service,               │ │
-│  │             ScheduleClosure, ScheduleOpening, Resource (M21)      │ │
+│  │             ScheduleClosure, ScheduleOpening, Resource,           │ │
+│  │             RecurringBookingSchedule, AvailabilityAlert,          │ │
+│  │             FutureCommitmentException (M21-M23)                   │ │
 │  │  Published: BookingRequested, BookingApproved, BookingRejected,   │ │
-│  │             BookingInfoRequested, BookingInfoSubmitted,            │ │
+│  │             BookingInfoRequested, BookingInfoSubmitted,           │ │
 │  │             BookingCompleted, BookingCancelled, BookingRescheduled,│ │
-│  │             BookingReminderDue, BookingReminderDueToday,           │ │
-│  │             AdminDailyScheduleReminder                             │ │
-│  │  Consumes:  StaffDeactivated (Staff Context, M21)                  │ │
+│  │             BookingNoShow, RecurringBookingSchedule*,             │ │
+│  │             AvailabilityAlert*, FutureCommitmentException*,       │ │
+│  │             BookingReminderDue(Today) / AdminDailyScheduleReminder│ │
+│  │             (commands, not events)                                │ │
+│  │  Consumes:  StaffDeactivated (Staff), TenantProvisioned (Platform)│ │
 │  └──────────┬──────────────────────────────────────────┬─────────────┘ │
-│             │ BookingCompleted only                    │ all events     │
+│             │ BookingCompleted only                    │ most events    │
 │             ▼                                          ▼               │
 │  ┌──────────────────────┐              ┌───────────────────────────┐  │
 │  │   LOYALTY CONTEXT    │              │   NOTIFICATION CONTEXT    │  │
@@ -103,8 +107,11 @@ Notification Context subscribes:
 │  │                      │  │                    │  │    Config     │  │
 │  │  No published events │  │  Published:        │  │               │  │
 │  │  (passive context)   │  │  - StaffInvited    │  │  Published:   │  │
-│  └──────────────────────┘  │  - StaffDeactivated│  │  - TenantProv.│ │
-│                             └────────────────────┘  └───────────────┘ │
+│  └──────────────────────┘  │  - StaffActivated  │  │  - TenantProv.│ │
+│                             │  - StaffDeactivated│  │  - LeadForm-  │ │
+│                             └────────────────────┘  │    Submission-│ │
+│                                                      │    Received   │ │
+│                                                      └───────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -118,7 +125,7 @@ Notification Context subscribes:
 
 **Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every item tagged `(M21 Cluster N)` for `N ≥ 2` below belongs to the Multi-Vertical Scheduling epic and does not exist in code yet — see `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exception: `(M21 Cluster 1)`/`(M21)`-tagged items are fully shipped** — the `Resource` aggregate (`M21-S01`/`S02`), `ScheduleClosure`/`ScheduleOpening`'s resource-scoping (`M21-S03`), and the `StaffDeactivated` cascade consumer (`M21-S01`/`S06`) are all live; see `plan/M21-MULTIVERTICAL-FOUNDATION.md` and `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md`. Untagged content in this section is live MVP behavior.
+> **Build status (as of M23):** the `Resource` aggregate and resource-scoped scheduling (M21), `Service.resourceRequirements`/`legs`, the availability engine and `resource_occupancy` (M22), and the appointment-family extensions of M23 — resource resolution, variable duration, intake/attendees, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, no-show — are **live**. M23 stories still open (S13, S14, S19, S21, S23, S40, S41, S43) are listed in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`. ⚠️ **PLANNED, NOT YET BUILT:** everything tagged `(M24 Cluster 4)` (classes/sessions, waitlists, in-person payments, `RecurringEnrollment`, `ClassAccessContract`) and `TenantSchedulingBootstrapped` / the onboarding bootstrap (UC-075, moved to M24-S21) — see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. Untagged content in this section is live MVP behavior.
 
 **Owned Aggregates:**
 - `Booking` (root) — a customer visit; parent of 1..N `BookingLine` child entities (tenant-scoped). The Booking aggregate enforces ≥1 line, snapshots line fields at request time, and computes `totalPrice` / `totalDurationMins` from its lines.
@@ -126,6 +133,9 @@ Notification Context subscribes:
 - `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped); optionally scoped to one `Resource` (M21 Cluster 1).
 - `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`; optionally scoped to one `Resource` (M21 Cluster 1).
 - `Resource` — generic bookable unit (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`), tenant-scoped. **Added M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).** A `STAFF`-type resource wraps an existing `Staff` row by reference; every tenant gets exactly one active `LOCATION` resource by migration backfill. See `docs/02-DOMAIN_MODEL.md` § Booking Context.
+- `RecurringBookingSchedule` — a fixed-term recurring private reservation (`PENDING_APPROVAL`/`ACTIVE`/`CANCELLED`/`ENDED`); its occurrences are ordinary bookings linked by `recurringScheduleId`. **M23 Cluster 3** (UC-070/071).
+- `AvailabilityAlert` — a customer's "tell me when this opens" request, with an append-only notification-attempt history. **M23 Cluster 3** (UC-072/076).
+- `FutureCommitmentException` — a manager-owned worklist entry for a future booking affected by a resource deactivation (`OPEN`/`RESOLVED`/`DISMISSED`). **M23 Cluster 3** (UC-073/077).
 
 **Responsibilities:**
 - Accept booking requests (guest & authenticated customers) for a specific tenant
@@ -143,17 +153,17 @@ Notification Context subscribes:
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
 - `BookingRequested` → consumed by **Notification only**
 - `BookingApproved` → consumed by **Notification only**
-- `BookingRejected` → consumed by Notification
+- `BookingRejected` → consumed by Notification and by Booking's own `availability-alert-matching`
 - `BookingInfoRequested` (PENDING → INFO_REQUESTED) → consumed by Notification
 - `BookingInfoSubmitted` (INFO_REQUESTED → PENDING) → consumed by Notification
-- `BookingCompleted` → consumed by **Loyalty** (inserts LoyaltyEntry per line) and **Notification**
-- `BookingCancelled` → consumed by Notification
-- `BookingRescheduled` → consumed by Notification
-- Cron-emitted reminder events: `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
+- `BookingCompleted` → consumed by **Loyalty** (inserts LoyaltyEntry per line); **no Notification consumer** (a customer with an account gets the `ServicePointsEarned` email instead)
+- `BookingCancelled` → consumed by Notification and by Booking's own `availability-alert-matching`
+- `BookingRescheduled` → consumed by Notification and by Booking's own `availability-alert-matching`
+- Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
 - `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended` (M23 Cluster 3) → consumed by Notification
-- `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; rest have no consumers in MVP
-- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → `Raised`/`Resolved` consumed by Notification
-- `TenantSchedulingBootstrapped` (M23 Cluster 3) → no consumers in MVP
+- `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; the rest only by the shared `audit-log` consumer
+- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer today; the manager alert (`Raised`) and customer message (`Resolved`) are M23-S23, not built
+- `TenantSchedulingBootstrapped` (UC-075, planned — M24-S21) → **no event class exists yet**
 - `BookingNoShow` (M23 Cluster 3) → shared `audit-log` consumer (M23-S36), Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
 - `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
 - `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
@@ -165,9 +175,11 @@ Notification Context subscribes:
 
 **Consumed Events:**
 - `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
+- `TenantProvisioned` (Platform Context) → creates the tenant's `LOCATION` resource (`create-tenant-location-resource`)
+- Its own `BookingCancelled`/`BookingRejected`/`BookingRescheduled` (`availability-alert-matching`, M23-S07) and the `cron-reminders` trigger (alert sweep/expiry, recurring-schedule approval expiry)
 
 **Dependencies:**
-- **Input:** Requires Customer data (optional), Staff data (optional) to validate - all tenant-scoped. Consumes `StaffDeactivated` (see above).
+- **Input:** Requires Customer data (optional), Staff data (optional) and Platform settings (booking window, business hours, hotsite booking picker) to validate - all tenant-scoped, read through the existing cross-context adapters (`booking-customer`, `booking-staff`, `booking-platform`; `architecture-policy.json` is the authority, including the `get-staff` edge used for actor names). Consumes `StaffDeactivated` and `TenantProvisioned` (see above).
 - **Output:** Publishes tenant-scoped events
 
 **Tech Stack:**
@@ -284,10 +296,10 @@ TENANT B (completely separate):
 **Published Events:**
 - None currently — audit/retry state is tracked on the `NotificationLog` entity itself, not via published domain events. (`EmailSent`/`EmailFailed` event classes do not exist in code.)
 
-**Consumed Events:**
-- All events from Booking Context
-- All events from Loyalty Context
-- (Future: Staff, Customer context events)
+**Consumed Events** (the authoritative list is `infra/terraform/pubsub-catalog.json`; each is a named consumer, not a catch-all):
+- Booking: `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingNoShow`, `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended`, `AvailabilityAlertMatched`, and the reminder/daily-schedule commands. **Not** `BookingCompleted`.
+- Loyalty: `ServicePointsEarned`, `PointsExpiringSoon`.
+- Staff: `StaffInvited`. Platform: `TenantProvisioned` (seeds the default templates).
 
 **Event-to-Email Mapping:**
 ```
@@ -300,7 +312,15 @@ BookingRejected → Email: Customer "Your booking was declined. Reason: [reason]
 
 BookingInfoRequested → Email: Customer "We need: [info]. Please reply."
 
-BookingCompleted → Email: Customer "Thanks for your wash!"
+BookingNoShow → Email: Customer (no-show notice; never shows the staff-entered reason)
+
+RecurringBookingScheduleCreated / ApprovalRequested / Rejected / Ended → Emails: Customer and/or staff for the recurring-schedule lifecycle
+
+AvailabilityAlertMatched → Email: Customer "A slot opened up for [service]" (with a link into the booking page)
+
+StaffInvited → Email: Invitee, with the login link
+
+TenantProvisioned → (no email) seeds the tenant's default notification templates
 
 BookingCancelled → Email #1: Customer "Cancellation confirmed"
                  → Email #2: Admin "[name] cancelled booking"
@@ -319,7 +339,7 @@ PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points 
 ```
 
 **Dependencies:**
-- **Input:** Event stream from all contexts (decoupled via event bus)
+- **Input:** The event streams listed under Consumed Events (decoupled via event bus), plus cross-context reads of booking projections, customer/staff contact data and platform settings through the existing adapters (`notification-booking`, `-customer`, `-staff`, `-platform`); it also reports the availability-alert email outcome back to Booking
 - **Output:** Calls Brevo (prod) / Mailhog (local) API
 
 **Tech Stack:**
@@ -422,11 +442,11 @@ Same Person, Multiple Tenants:
 > `StaffDeactivated` is consumed by **Booking Context** (UC-048, added M21 Cluster 1) to cascade-deactivate a `STAFF`-type `Resource` — Staff Context itself remains unaware of this; it just publishes the event.
 
 **Consumed Events:**
-- None
+- `TenantProvisioned` (Platform Context) → creates the tenant's first MANAGER `Staff` row and publishes `StaffInvited` (M04-S06)
 
 **Dependencies:**
-- **Input:** None
-- **Output:** `StaffDeactivated` consumed by Booking Context (see above)
+- **Input:** `TenantProvisioned` (see above)
+- **Output:** `StaffDeactivated` consumed by Booking Context (see above); `StaffInvited` consumed by Notification
 
 **Tenant Isolation Guarantees:**
 - ✓ Cannot view other tenant's staff
@@ -646,11 +666,11 @@ If two contexts represent the same real-world data, each owns its own copy. Data
 
 | Context | Owns | Reads | Watches |
 |---------|------|-------|---------|
-| Booking | Bookings, Services, ScheduleClosures, BookingLines | — | — |
+| Booking | Bookings, BookingLines, Services, ScheduleClosures, ScheduleOpenings, Resources, RecurringBookingSchedules, AvailabilityAlerts, FutureCommitmentExceptions | Customer, Staff, Platform settings (via the `booking-*` cross-context adapters) | `StaffDeactivated`, `TenantProvisioned`, its own cancel/reject/reschedule events and the `cron-reminders` trigger |
 | Customer | Customers | — | — |
-| Staff | Staff members | — | — |
+| Staff | Staff members | — | `TenantProvisioned` (creates the first MANAGER) |
 | Loyalty | LoyaltyEntry (append-only, insert only) | Customer, Booking (via events) | `BookingCompleted` only — inserts one `LoyaltyEntry` per line; idempotent on `UNIQUE(tenant_id, booking_line_id)` |
-| Notification | NotificationTemplates, NotificationLogs | — | All events from all contexts |
+| Notification | NotificationTemplates, NotificationLogs | Booking projections, Customer, Staff, Platform settings (via the `notification-*` adapters) | A named list of Booking, Loyalty, Staff and Platform events (see the Notification section; not `BookingCompleted`) |
 | Platform | Tenants, HotsiteConfigs | — | — |
 
 ### **Consistency Model:**
@@ -663,9 +683,9 @@ Example:
 1. Booking Context: Booking transitions APPROVED → COMPLETED (strong)
 2. Booking publishes: BookingCompleted event
 3. Loyalty Context asynchronously: receives event, inserts one `LoyaltyEntry` per `BookingLine` (idempotent on `(tenant_id, booking_line_id)`)
-4. Notification Context: Sends confirmation email
+4. Notification Context: (no consumer of `BookingCompleted`; the customer email is triggered by Loyalty's `ServicePointsEarned`)
 
-If Loyalty or Notification fails, event retried. Booking already committed.
+If Loyalty fails, the event is retried. Booking already committed.
 ```
 
 ---
@@ -749,11 +769,12 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
+- `TenantProvisioned` → consumed by **Staff** (first MANAGER), **Booking** (the tenant's location resource) and **Notification** (default-template seed), plus the shared `audit-log` consumer
 - `LeadFormSubmissionReceived` → consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an explicitly deferred fast-follow
 
 > Staff invite/deactivate (UC-025/UC-028) and their `StaffInvited`/`StaffDeactivated` events are owned by the **Staff Context** (§5), not Platform — Platform only hosts the tenant/hotsite/chatbot/lead-form aggregates listed above.
 
-**Consumed Events:** none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/04-USE_CASES.md` UC-033.
+**Consumed Events:** none — Platform is the source for its own data (it only *publishes* `TenantProvisioned`). The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/04-USE_CASES.md` UC-033.
 
 **Dependencies:**
 - **Output:** All other contexts read `tenant_id` and `tenants.settings` from here (via repository, not API)

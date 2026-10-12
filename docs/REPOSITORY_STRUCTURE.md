@@ -75,16 +75,19 @@ apps/backend/src/shared/
 ├── ports/            # IEventBus, IRepository<T> — no barrel index.ts (ESLint enforced)
 ├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
-├── value-objects/    # Email, PhoneNumber, Address, HexColor, Timezone, TimeOfDay, Slug, CountryCode, SeoTitle, SeoDescription
+├── value-objects/    # Email, PhoneNumber, Address, Money, HexColor, Timezone, TimeOfDay, CalendarDate, Slug, CountryCode, SeoTitle, SeoDescription
+│                     # (plus the plain-type files business-hours.vo.ts and tenant-settings-data.ts — interfaces, not VO classes)
 ├── utils/            # deepMerge, startOfDayUTC, endOfDayUTC, todayUTC, todayInTimezone, localDateTimeToUTCIso,
-│                     # utcDateToLocalDate, utcDateToLocalHHMM, getUtcWeekDayName
+│                     # utcDateToLocalDate, utcDateToLocalHHMM, getUtcWeekDayName, plus calendar-date.ts (addDaysUTC, addMonthsUTC,
+│                     # localDayBounds*), escapeLikePattern, escapeHtml, redact-email/storage-path-for-logging, text-normalization —
+│                     # `ls apps/backend/src/shared/utils/` is the authoritative list
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
 ├── observability/    # Logger, OTel tracer, structured log helpers
 ├── http/             # Pagination DTOs, RFC 9457 ProblemDetail base type
 ├── guards/           # role guards used by more than one context
 ├── decorators/       # cross-cutting decorators (e.g. @Public())
 ├── filters/          # cross-cutting exception filters (RFC 9457 error filter)
-├── infrastructure/   # transaction manager, typeorm helpers, cross-cutting adapters
+├── infrastructure/   # transaction manager, typeorm helpers, cross-cutting adapters, audit-log/ (AuditLogHandlerBase), outbox/, inbox/, cache/
 └── database/         # data-source.ts, seed.ts
 ```
 
@@ -105,7 +108,7 @@ apps/bff/src/
 │   ├── loyalty/              # domain slice
 │   ├── platform/             # domain slice: hotsite, tenant settings, manifest
 │   ├── staff/                # domain slice
-│   └── uploads/              # technical slice only if the signed-url flow is genuinely shared
+│   └── uploads/              # NOT a current slice — would exist only if the signed-url flow became genuinely shared
 ├── shared/                   # cross-cutting transport and infra helpers only
 ├── config/
 ├── health/

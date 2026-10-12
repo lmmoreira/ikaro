@@ -16,7 +16,7 @@ import { InMemoryResourceRepository } from '../../../../test/repositories/bookin
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
-import { nextWeekday } from '../../../../test/utils/date-helpers';
+import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { FULL_WEEK_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { AvailabilityAlert } from '../../domain/availability-alert.aggregate';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
@@ -33,9 +33,12 @@ const CORRELATION_ID = 'corr-match-1';
 const TZ = FULL_WEEK_BUSINESS_HOURS.timezone;
 const DAY_MS = 86_400_000;
 
-// The next Monday and Tuesday (UTC weekday — the tenant's hours are the same date locally).
+// The next Monday and the Tuesday right after it (UTC weekday — the tenant's hours are the same
+// date locally). Tuesday is derived from Monday, never from its own nextWeekday(2): two independent
+// nextWeekday() calls are not ordered relative to each other (on a Monday, the next Tuesday is
+// tomorrow and the next Monday is a week away).
 const monday = nextWeekday(1);
-const tuesday = nextWeekday(2);
+const tuesday = addDays(monday, 1);
 const farMonday = nextWeekday(1, 4);
 
 const at = (date: string, hhmm: string): Date => new Date(localDateTimeToUTCIso(date, hhmm, TZ));

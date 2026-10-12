@@ -107,7 +107,7 @@ These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also t
 PENDING        → INFO_REQUESTED | APPROVED | REJECTED | CANCELLED
 INFO_REQUESTED → PENDING (customer responded) | APPROVED | REJECTED | CANCELLED
 APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Cluster 3 (UC-074, M23-S09)
-COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal)
+COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal; NO_SHOW → COMPLETED by manager correction only)
 ```
 
 `NO_SHOW` (`docs/04-USE_CASES.md` UC-074) is reachable only from `APPROVED`, after the appointment's end time; only a manager can correct it, and only to `COMPLETED`. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
@@ -370,7 +370,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | CI failure / pre-PR | `docs/CI_TRAPS.md` |
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
 | Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
-| Resource-scoped scheduling / availability computation (M21+) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability (plus the Database/migration and Implement-a-UC rows) |
+| Booking scheduling logic: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § the matching `Booking — …` section (+ DB/migration, UC rows) |
 | Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |

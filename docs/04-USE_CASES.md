@@ -84,7 +84,7 @@ UC-XXX: [Use Case Name]
   4. Customer selects preferred date/time.
   5. Customer optionally uploads car photos.
   6. Customer clicks "Submit". The UI sends only `serviceIds`, `scheduledAt`, `pickupAddress?`, and `beforeServicePhotoUrls?`.
-  7. Backend validates slot (same rules as UC-001). Reads `contactEmail`, `contactName`, `contactPhone` from the Customer record (identified by JWT `sub`). Uses `Customer.defaultAddress` as `contactAddress`. If `pickupAddress` is absent from the request, falls back to `Customer.defaultAddress`; if that is also null and a service requires pickup, returns `400 missing-pickup-address`.
+  7. Backend validates slot (same rules as UC-001). Reads `contactEmail`, `contactName`, `contactPhone` from the Customer record (identified by JWT `sub`). Uses `Customer.defaultAddress` as `contactAddress`. If `pickupAddress` is absent from the request, falls back to `Customer.defaultAddress`; if that is also null and a service requires pickup, returns `400 BOOKING_PICKUP_ADDRESS_REQUIRED`.
   8. System creates `Booking` with `status = PENDING`, `type = CUSTOMER`, `customerId` linked. `contactEmail`, `contactName`, `contactPhone` set from Customer record. `Booking.contactAddress` set from `Customer.defaultAddress` (may be null). `Booking.pickupAddress` set from the resolved pickup address (request body takes precedence over profile default).
   9. System publishes `BookingRequested` event (envelope `tenantId`; `data.lines[]` ≥ 1; `data.pickupAddress` if applicable).
   10. System displays: "Solicitação enviada. Veja seus agendamentos no seu perfil."
@@ -94,7 +94,7 @@ UC-XXX: [Use Case Name]
   - Same A1–A8 as UC-001 (invalid services, slot unavailable, invalid pickup address, etc.).
   - **A9: Customer has no defaultAddress and selects pickup service** → pickup address field shown empty; customer must fill it in manually.
   - **A10: Customer views past bookings** → System shows COMPLETED / CANCELLED history with each booking's line list and pickup address if applicable.
-  - **A11: Customer has no phone set on their profile** → System returns `422 customer-phone-not-set`. UI prompts the customer to update their profile (`PATCH /customers/me`) before booking. In practice this is handled proactively by the post-login flow (UC-021 A3); this 422 is a defensive backend check.
+  - **A11: Customer has no phone set on their profile** → System returns `422 BOOKING_CUSTOMER_PHONE_NOT_SET`. UI prompts the customer to update their profile (`PATCH /customers/me`) before booking. In practice this is handled proactively by the post-login flow (UC-021 A3); this 422 is a defensive backend check.
 
 - **Postconditions:** Booking created with ≥ 1 lines (and `pickupAddress` if applicable), linked to customer. `type = CUSTOMER`. No loyalty effect yet.
 - **Events Triggered:** `BookingRequested`
@@ -241,7 +241,7 @@ UC-XXX: [Use Case Name]
 
 - **Alternative Flows:**
   - **A1: Inside cancellation window (APPROVED bookings only)** → System shows error: "Cancelamentos devem ser feitos com pelo menos `tenants.settings.booking.cancellationWindowHours` horas de antecedência."
-  - **A2: Booking is COMPLETED, REJECTED, or CANCELLED** → System shows error: "Este agendamento não pode ser cancelado."
+  - **A2: Booking is COMPLETED, REJECTED, CANCELLED, or NO_SHOW** → System shows error: "Este agendamento não pode ser cancelado."
 
 - **Postconditions:** Booking is CANCELLED. Customer receives cancellation confirmation email. Admin notified.
 - **Events Triggered:** `BookingCancelled`
@@ -250,7 +250,7 @@ UC-XXX: [Use Case Name]
 
 ### **UC-008: Admin Cancels or Reschedules Booking**
 
-- **Actor:** STAFF | MANAGER
+- **Actor:** STAFF | MANAGER ("Admin" in the title and steps below means one of these two roles — there is no `ADMIN` JWT role)
 - **Preconditions:** Booking is APPROVED, PENDING, or INFO_REQUESTED
 - **Trigger:** Admin clicks "Cancel" or "Reschedule" in dashboard
 - **Endpoint (cancel):** `PATCH /v1/bookings/:id/cancel` — this UC's admin path, but the guard is actually `@Roles('CUSTOMER', 'MANAGER', 'STAFF')` on the same shared endpoint (BFF dispatches to backend `/cancel-admin` for STAFF/MANAGER, `/cancel-customer` for CUSTOMER — see UC-007 for the customer-facing half of this same route)
@@ -1146,7 +1146,7 @@ Returns:
 
 ### **UC-069: Customer Reschedules an Appointment or Reservation**
 
-- **Actor:** Customer, or audited staff acting for the customer
+- **Actor:** Customer, or STAFF | MANAGER acting for the customer (audited)
 - **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`). Same customer/staff role-dispatch pattern as UC-007/UC-008's `PATCH /bookings/:id/cancel`: the BFF forwards to the backend's `reschedule-customer` route for a `CUSTOMER`-role JWT, `reschedule-admin` for `STAFF`/`MANAGER` — two backend use cases, one public path.
 - **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant cancellationWindowHours` — there is no separate tenant-level reschedule default; UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
 - **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
@@ -1168,7 +1168,7 @@ Returns:
 
 ### **UC-070: Customer (or Staff) Manages a Recurring Private Reservation Schedule**
 
-- **Actor:** Authenticated customer, or Staff acting on their behalf
+- **Actor:** Authenticated customer, or STAFF | MANAGER acting on their behalf
 - **Endpoint:** `POST /recurring-booking-schedules`, `POST /recurring-booking-schedules/:id/end`
 - **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055) and is an `APPOINTMENT` service with no `legs` and `requiresPickupAddress = false`, whose resource requirements (none, one, or several) all have `requiredQuantity = 1` and can be resolved per occurrence: mode `CUSTOMER_CHOICE`, `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, or `NONE` only on the unrestricted `LOCATION` (see `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`). Shapes: (1) **no resource requirement**, or exactly one unrestricted `LOCATION` requirement with mode `NONE` (the older stored form of the same default) — the default "degenerate" shape, booked against the tenant's single location (TD49-S03); (2) **one** explicit requirement; (3) a **bundle**: two or more such requirements (staff + room, an older location + staff service) — every requirement is checked and held in every occurrence (TD49 Story 0). The caller does not choose the assignment policy: the server derives it from the service — `FIXED_ASSIGNMENT` when any requirement is `CUSTOMER_CHOICE` (the request carries one `resourceSelections` entry per such requirement, keyed by resource type; the others are resolved per occurrence), otherwise `RESOLVE_PER_OCCURRENCE`. Guest bookings are not eligible. A requirement of quantity above 1, or `legs`, **cannot recur**: A7. The customer form still offers only shapes (1) and (2) until `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` Story 2 gives it a picker per requirement; the API already accepts a bundle.
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern with an explicit end date.
@@ -1809,7 +1809,7 @@ Returns:
 ### **UC-104: Staff Manually Creates an Enrollment on a Customer's Behalf**
 
 - **Actor:** STAFF | MANAGER
-- **Endpoint:** `POST /class-session-bookings` / `POST /recurring-enrollments` with `createdByStaff: true`
+- **Endpoint:** `POST /class-session-bookings` / `POST /recurring-enrollments` with `createdByStaff: true` *(planned — M24 Cluster 4; not built yet, no controller exists in the backend or BFF)*
 - **Preconditions:** Customer exists and is eligible through a qualifying contract or the service's pay-per-class policy. Staff cannot bypass the same eligibility/capacity checks self-service applies.
 - **Trigger:** Staff creates a booking or enrollment on behalf of a customer (e.g. a phone request).
 - **Main Flow:**

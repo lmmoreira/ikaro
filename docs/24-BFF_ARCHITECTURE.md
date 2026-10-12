@@ -23,12 +23,12 @@ The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) th
 apps/bff/src/
 ├── features/
 │   ├── auth/                 ← technical slice: OAuth, JWT issuance, tenant selection
-│   ├── booking/              ← domain slice: bookings, schedule, services, attachments
+│   ├── booking/              ← domain slice: bookings, schedule, services, resources, recurring schedules, availability alerts, scheduling exceptions, attachments
 │   ├── customer/             ← domain slice
 │   ├── loyalty/              ← domain slice
 │   ├── platform/             ← domain slice: hotsite, tenant settings, manifest
 │   ├── staff/                ← domain slice
-│   └── uploads/              ← technical slice only if the signed-url flow is genuinely shared
+│   └── (no uploads/ slice today — it would exist only if the signed-url flow became genuinely shared)
 ├── shared/                   ← cross-cutting transport and infra helpers only
 ├── config/
 ├── health/
@@ -363,45 +363,51 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /auth/staff-tenants` | JWT | No | STAFF \| MANAGER |
 | `POST /auth/switch-staff-tenant` | JWT | No | STAFF \| MANAGER |
 | `GET /auth/session` | JWT | No (X-Tenant-Slug forwarded if given, `TenantGuard`-checked) | any (branches on JWT role internally) |
-| `GET /platform/manifest/:slug` | No | No (slug is the path param) | — |
-| `GET /services` (public) | No | X-Tenant-Slug | — |
+| `POST /auth/dev-login` | No (dev only) | No | — |
+| `GET /public/platform/manifest/:slug` | No | No (slug is the path param) | — |
+| `GET /public/platform/published-hotsites` | No | No | — |
+| `GET /public/platform/chatbot/status`, `POST /public/platform/chatbot/messages` | No | X-Tenant-Slug | — |
+| `GET /public/platform/lead-form/:slug`, `POST /public/platform/lead-form/:slug/submissions` | No | X-Tenant-Slug | — |
+| `GET /public/services` | No | X-Tenant-Slug | — |
+| `GET /public/services/:id/resource-options`, `/quote`, `/intake-schema` | No | X-Tenant-Slug | — |
 | `GET /services` (authenticated, includes inactive) | JWT | No | STAFF \| MANAGER |
-| `GET /services/:id` | JWT | No | STAFF \| MANAGER |
-| `POST /services` | JWT | No | STAFF \| MANAGER |
-| `PATCH /services/:id` | JWT | No | STAFF \| MANAGER |
-| `DELETE /services/:id` (deactivate) | JWT | No | STAFF \| MANAGER |
-| `PATCH /services/:id/activate` | JWT | No | STAFF \| MANAGER |
-| `GET /schedule/availability` | No | X-Tenant-Slug | — |
-| `POST /bookings` | No (guest) or JWT | X-Tenant-Slug | — |
+| `GET /services/:id`, `GET /services/:id/edit-view`, `GET /services/:id/intake-schema` | JWT | No | STAFF \| MANAGER |
+| `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` (deactivate), `PATCH /services/:id/activate` | JWT | No | STAFF \| MANAGER |
+| `PATCH /services/:id/resource-requirements`, `PUT /services/:id/legs`, `PATCH /services/:id/booking-policy`, `POST /services/:id/intake-schema` | JWT | No | STAFF \| MANAGER |
+| `GET /schedule/availability`, `GET /schedule/availability/summary` | No | X-Tenant-Slug | — |
+| `GET /schedule/day-grid` | JWT | No | MANAGER |
+| `GET`/`POST /schedule/closures`, `DELETE /schedule/closures/:id`; `GET`/`POST /schedule/openings`, `DELETE /schedule/openings/:id` | JWT | No | STAFF \| MANAGER |
+| `POST /bookings` | No (guest) or JWT | X-Tenant-Slug | — (public) |
+| `POST /bookings/authenticated` | JWT | No | CUSTOMER |
+| `POST /bookings/staff` (UC-108) | JWT | No | STAFF \| MANAGER |
+| `POST /bookings/attachments/signed-url` | No | No | — (public) |
 | `GET /bookings` | JWT | No | STAFF \| MANAGER \| CUSTOMER (own only) |
 | `GET /bookings/:id` | JWT | No | STAFF \| MANAGER \| CUSTOMER (own only, else 404) |
-| `PATCH /bookings/:id/cancel` | JWT | No | CUSTOMER \| STAFF \| MANAGER |
-| `PATCH /bookings/:id/approve` | JWT | No | STAFF \| MANAGER |
-| `PATCH /bookings/:id/reject` | JWT | No | STAFF \| MANAGER |
-| `PATCH /bookings/:id/request-info` | JWT | No | STAFF \| MANAGER |
+| `PATCH /bookings/:id/cancel`, `PATCH /bookings/:id/reschedule` | JWT | No | CUSTOMER \| STAFF \| MANAGER |
+| `PATCH /bookings/:id/approve`, `/reject`, `/request-info`, `/complete` | JWT | No | STAFF \| MANAGER |
 | `PATCH /bookings/:id/submit-info` | JWT | No | CUSTOMER |
-| `PATCH /bookings/:id/submit-info/guest` | No (guest token in query) | No | — |
-| `GET /bookings/:id/guest` | No (guest token in query) | No | — |
-| `PATCH /bookings/:id/reschedule` | JWT | No | CUSTOMER \| STAFF \| MANAGER |
-| `PATCH /bookings/:id/complete` | JWT | No | STAFF \| MANAGER |
-| `GET /customers/me` | JWT | No | CUSTOMER |
-| `PATCH /customers/me` | JWT | No | CUSTOMER |
-| `GET /customers` (search) | JWT | No | STAFF \| MANAGER |
-| `GET /customers/:customerId/loyalty` (composite) | JWT | No | STAFF \| MANAGER |
-| `GET /loyalty/balance` | JWT | No | CUSTOMER |
-| `GET /loyalty/entries` | JWT | No | CUSTOMER |
-| `GET /loyalty/redemptions` | JWT | No | CUSTOMER |
+| `PATCH /bookings/:id/submit-info/guest`, `GET /bookings/:id/guest` (BFF-only) | No (guest token in query) | No | — |
+| `POST /bookings/:id/no-show` | JWT | No | STAFF \| MANAGER |
+| `POST /bookings/:id/no-show/correct` | JWT | No | MANAGER |
+| `GET /recurring-booking-schedules`, `GET /recurring-booking-schedules/:id`, `POST /recurring-booking-schedules`, `POST /recurring-booking-schedules/:id/end` | JWT | No | CUSTOMER \| STAFF \| MANAGER (own only for CUSTOMER) |
+| `POST /recurring-booking-schedules/:id/approve`, `/reject` | JWT | No | STAFF \| MANAGER |
+| `POST /availability-alerts`, `GET /availability-alerts`, `GET`/`PATCH`/`DELETE /availability-alerts/:id` | JWT | No | CUSTOMER |
+| `GET /scheduling-exceptions`, `POST /scheduling-exceptions/resolve`, `POST /scheduling-exceptions/dismiss` | JWT | No | MANAGER |
+| `GET /resources`, `GET /resources/staff-options` (BFF-only), `GET /resources/:id`, `POST /resources`, `PATCH /resources/:id`, `DELETE /resources/:id`, `POST /resources/:id/reactivate` | JWT | No | MANAGER |
+| `GET /customers/me`, `PATCH /customers/me`, `GET /customers/tenants` | JWT | No | CUSTOMER |
+| `GET /customers` (search), `GET /customers/:customerId` | JWT | No | STAFF \| MANAGER |
+| `GET /customers/:customerId/loyalty` (composite) and its `/balance`, `/entries`, `/redemptions` sub-routes | JWT | No | STAFF \| MANAGER |
+| `GET /loyalty/balance`, `/loyalty/entries`, `/loyalty/redemptions` | JWT | No | CUSTOMER |
 | `POST /loyalty/redeem` | JWT | No | STAFF \| MANAGER |
 | `GET /tenants/settings` | JWT | No | STAFF \| MANAGER |
-| `PATCH /tenants/settings` | JWT | No | MANAGER |
-| `PATCH /tenants` (rename) | JWT | No | MANAGER |
-| `GET /staff` | JWT | No | MANAGER |
-| `GET /staff/:id` | JWT | No | MANAGER |
-| `POST /staff/invite` | JWT | No | MANAGER |
-| `PATCH /staff/:id` | JWT | No | MANAGER |
-| `PATCH /staff/:id/deactivate` | JWT | No | MANAGER |
-| `PATCH /staff/:id/activate` | JWT | No | MANAGER |
-| `POST /cron/*` | OIDC (Cloud Scheduler) | No | — |
+| `PATCH /tenants/settings`, `PATCH /tenants` (rename), `GET /tenants/chatbot/cap-status` | JWT | No | MANAGER |
+| `GET`/`PATCH /tenants/hotsite`, `POST /tenants/hotsite/{publish,unpublish}`, hotsite image/gallery routes | JWT | No | MANAGER |
+| `GET /tenants/lead-form/config` | JWT | No | MANAGER |
+| `GET /tenants/lead-form/status`, `/submissions`, `/submissions/filter-options`, `/submissions/:id` | JWT | No | STAFF \| MANAGER |
+| `GET /staff`, `GET /staff/:id`, `POST /staff/invite`, `PATCH /staff/:id`, `PATCH /staff/:id/deactivate`, `PATCH /staff/:id/activate` | JWT | No | MANAGER |
+| `GET /staff/me` | JWT | No | STAFF \| MANAGER |
+
+> **No cron routes in the BFF.** The `/cron/*` trigger endpoints live in the backend (`InternalApiGuard`, local/manual path only); in production Cloud Scheduler publishes straight to the `cron-*` Pub/Sub topics. All routes above sit under the global `/v1` prefix (`main.ts`). Authoritative source: the `*.controller.ts` files under `apps/bff/src/features/`.
 
 > **Guest booking:** `POST /bookings` is callable without a JWT when the body includes `guestInfo`. The BFF detects the absence of a Bearer token and passes the request through as a guest booking. Tenant identification comes from `X-Tenant-Slug`.
 

@@ -59,7 +59,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     } | null
     scheduledAt:       ISO8601                                // start of the slot
     totalDurationMins: number                                 // SUM(lines.durationMinsAtBooking)
-    totalPrice:        { amount: number, currency: string }   // SUM(lines.priceAtBooking)
+    totalPrice:        { amount: string, currency: string }   // SUM(lines.priceAtBooking); every Money `amount` in these payloads is a 2-decimal string, e.g. "50.00"
     requiresPickup:    boolean                                // true if any line has requiresPickupAddressAtBooking=true
     pickupAddress: {                                          // non-null when requiresPickup=true
       street: string, number: string, complement: string | null,
@@ -70,7 +70,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
         lineId:                          string
         serviceId:                       string
         serviceNameAtBooking:            string               // point-in-time name; may differ from current Service.name
-        priceAtBooking:                  { amount: number, currency: string }
+        priceAtBooking:                  { amount: string, currency: string }
         durationMinsAtBooking:           number
         pointsValueAtBooking:            number
         requiresPickupAddressAtBooking:  boolean
@@ -98,12 +98,12 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     contactEmail:          string
     contactName:           string
     approvedSlot:        { startTime: ISO8601, endTime: ISO8601 }   // = [scheduledAt, scheduledAt + totalDurationMins)
-    totalPrice:          { amount: number, currency: string }
+    totalPrice:          { amount: string, currency: string }
     lineSummary: [                                                   // ≥ 1
       {
         serviceId:            string
         serviceNameAtBooking: string               // point-in-time name for email display
-        priceAtBooking:       { amount: number, currency: string }
+        priceAtBooking:       { amount: string, currency: string }
       }
     ]
     approvedBy:          string    // staff id
@@ -132,6 +132,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
   ```
 - **Consumers:**
   - **Notification Context** → email to customer/guest: "Your booking was not approved. Reason: [reason]"
+  - **Booking Context** (`availability-alert-matching`, M23-S07) → the freed window is offered to matching availability alerts (see `AvailabilityAlertMatched`)
 
 ---
 
@@ -191,20 +192,20 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
       street: string, number: string, complement: string | null,
       neighborhood: string, city: string, state: string, zipCode: string
     } | null
-    totalPrice:              { amount: number, currency: string }   // quoted total (sum of priceAtBooking)
-    totalActualPrice:        { amount: number, currency: string }   // charged total (sum of actualPriceCharged)
+    totalPrice:              { amount: string, currency: string }   // quoted total (sum of priceAtBooking)
+    totalActualPrice:        { amount: string, currency: string }   // charged total (sum of actualPriceCharged)
     lines: [                                // ≥ 1 — the full set of completed lines
       {
         lineId:               string
         serviceId:            string
-        priceAtBooking:       { amount: number, currency: string }  // quoted price for this line
-        actualPriceCharged:   { amount: number, currency: string }  // what was actually charged (may differ)
+        priceAtBooking:       { amount: string, currency: string }  // quoted price for this line
+        actualPriceCharged:   { amount: string, currency: string }  // what was actually charged (may differ)
         pointsValueAtBooking: number        // becomes the resulting LoyaltyEntry.points (unaffected by price)
       }
     ]
     discountByPoints: {                     // present only when a loyalty discount was applied (UC-009 A6)
       pointsUsed:     number
-      amountDeducted: { amount: number, currency: string }
+      amountDeducted: { amount: string, currency: string }
     } | null
   }
   ```
@@ -232,16 +233,17 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
       {
         serviceId:            string
         serviceNameAtBooking: string
-        priceAtBooking:       { amount: number, currency: string }
+        priceAtBooking:       { amount: string, currency: string }
       }
     ]
-    totalPrice:       { amount: number, currency: string }
+    totalPrice:       { amount: string, currency: string }
     cancelledByScheduleEnd: boolean   // additive (M23-S28), false by default; true only for the occurrences cancelled when a recurring schedule is ended
   }
   ```
 - **Consumers:**
   - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total), plus the reason when the business cancelled and gave one
   - **Notification Context** → email to admin: `"Agendamento cancelado"` — whether the customer or the business cancelled, the reason when the business gave one (a customer's own cancellation carries none), booking summary
+  - **Booking Context** (`availability-alert-matching`, M23-S07) → the freed window is offered to matching availability alerts (see `AvailabilityAlertMatched`)
   - Neither email is sent when `cancelledByScheduleEnd = true`: ending a recurring schedule sends the one `RecurringBookingScheduleEnded` email instead of one cancellation email per occurrence (M23-S28). The audit-log consumer still records every occurrence cancel.
 
 > Loyalty Context does NOT consume this event. A booking cannot reach `COMPLETED` and then be cancelled (the state machine forbids it), so no `LoyaltyEntry` rows are ever affected by a cancellation.
@@ -267,15 +269,16 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
       {
         serviceId:            string
         serviceNameAtBooking: string
-        priceAtBooking:       { amount: number, currency: string }
+        priceAtBooking:       { amount: string, currency: string }
       }
     ]
-    totalPrice:        { amount: number, currency: string }
+    totalPrice:        { amount: string, currency: string }
   }
   ```
 - **Consumers:**
   - **Notification Context** → email to customer/guest: `"Seu agendamento foi reagendado"` — old date/time, new date/time, services, total
   - **Notification Context** → email to admin: `"Agendamento reagendado"` — booking summary with old and new slot, and whether the customer or the business rescheduled (`isBusiness`)
+  - **Booking Context** (`availability-alert-matching`, M23-S07) → the vacated window is offered to matching availability alerts (see `AvailabilityAlertMatched`)
 
 > Loyalty Context does NOT consume this event — loyalty is unaffected by rescheduling.
 
@@ -429,6 +432,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** audit-log-only subscriber (M23-S08) — no business consumer yet.
 
 #### **TenantSchedulingBootstrapped**
+> ⚠️ **Planned, not built:** UC-075 moved to M24-S21; no event class or Pub/Sub topic exists yet.
+
 - **Trigger:** UC-075 (preset bootstrap commits).
 - **State change:** Tenant's initial `Resource`/`Service` graph created in one transaction (SESSION-preset templates arrive once Cluster 4 ships).
 - **Data:** `{ tenantId, presetId, serviceIds: string[], resourceIds: string[] }`
@@ -441,6 +446,8 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** the shared booking `audit-log` consumer (M23-S36); the retryable customer email through the Notification Context (M23-S25, consumer `notification`, tenant locale, never shows `reason`). Loyalty does **not** award completion points for this event. A manager's correction of a no-show to `COMPLETED` publishes `BookingCompleted`, not `BookingNoShow` again.
 
 ---
+
+> ⚠️ **Planned, not built:** none of the Cluster 4 events below (`ClassSession*`, `WaitlistPromoted`, `InPersonPayment*`) has an event class or a Pub/Sub topic yet.
 
 > **M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions).** `ClassSession` and `ClassSessionBooking` are full `AggregateRoot`s whose events are drained through the transactional outbox, matching the existing `Booking` pattern — delivery failure never rolls back the committed booking state.
 
@@ -503,6 +510,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ### **Loyalty Events** (Loyalty Context)
 
 #### **ServicePointsEarned**
+- **Event version:** `eventVersion = 2` (booking-scoped payload with `lines`).
 - **Trigger:** Loyalty Context inserted a `LoyaltyEntry` after consuming `BookingCompleted`. One event is published **per booking** — a booking with 3 lines inserts 3 entries and produces one `ServicePointsEarned` event listing all 3. **Extended by M24 Cluster 4:** also fires after consuming `ClassSessionBookingCompleted` — exactly one event per class-session completion (no "lines" concept for that family; `loyalty_entries.class_session_booking_id` is set instead of `booking_id`/`booking_line_id`, per `CHK_loyalty_entries_source_exclusive`, `docs/13-DATABASE_SCHEMA.md`).
 - **State change:** new row in `loyalty_entries` + `loyalty_balances.current_points` incremented. Both writes are in one transaction. Idempotent against replay via `shared.inbox` (early-exit) + `UNIQUE(tenant_id, booking_line_id)` (appointment) or `UNIQUE(tenant_id, class_session_booking_id)` (class, M24 Cluster 4) as the hard guard on the entry insert.
 - **Data (booking-scoped — one event per booking, not per line):**
@@ -638,7 +646,7 @@ Customer clicks "Cancel"
 - **Trigger:** Two sources:
   1. MANAGER invites a new team member (UC-028)
   2. M04-S06 `TenantProvisionedHandler` creates the first MANAGER staff during tenant provisioning
-- **State change:** A new `Staff` row is created with `isActive = false` (pending first login via Google OAuth)
+- **State change:** A new `Staff` row is created with `isActive = true` and `googleOAuthId = null` — `googleOAuthId IS NULL` is what marks the invite as pending the first Google OAuth login (`Staff.invite` / `Staff.inviteFromProvisioning`)
 - **Data:**
   ```json
   {
@@ -694,7 +702,9 @@ Customer clicks "Cancel"
   ```
   (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.)
 - **Consumers:**
-  - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=false`) + publishes `StaffInvited`
+  - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=true`, `googleOAuthId=null` until first login) + publishes `StaffInvited`
+  - Booking context (`booking` consumer, `create-tenant-location-resource`) → creates the tenant's `LOCATION` resource
+  - Notification context (`notification-template-seed` consumer) → seeds the tenant's default notification templates
 - **Design note:** `invitedBy` in the downstream `StaffInvited` event is set to `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'` because no human actor exists yet at provisioning time.
 
 ---
@@ -711,7 +721,7 @@ Customer clicks "Cancel"
   ```
   (`tenantId`/`eventId`/`occurredAt`/`correlationId` are the envelope's own fields, not part of `data`. Deliberately thin — the submitted content itself, e.g. name/email/answers, is never carried in the event payload, matching how other PII-bearing events in this codebase keep bulk content out of the envelope and readable only via the aggregate's own row.)
 - **Consumers:** `audit-log` (`PlatformAuditLogHandler` → `LogDomainEventUseCase`, `platform` context) — a placeholder that only logs the envelope fields, added in M20-S16 purely to give the event a real Pub/Sub topic (see Outbox note below) and folded into the shared audit-log consumer by M23-S36. A real notification/webhook consumer to the manager is still the obvious fast-follow, still explicitly deferred — `docs/04-USE_CASES.md` UC-037–UC-043 Non-Goals.
-- **Outbox note:** `LeadFormSubmission`'s repository joins the transactional-outbox pattern (`shared.outbox`, TD24-S02) to deliver this event — the 4th aggregate repository (alongside `Booking`/`Staff`/`Tenant`) to drain `clearDomainEvents()` into the outbox, following the exact same pattern.
+- **Outbox note:** `LeadFormSubmission`'s repository joins the transactional-outbox pattern (`shared.outbox`, TD24-S02) to deliver this event — it drains `clearDomainEvents()` into the outbox exactly like the other event-emitting aggregates' repositories (see Transactional outbox below).
 
 ---
 
@@ -721,7 +731,7 @@ Customer clicks "Cancel"
 - **Delivery semantics:** at-least-once. **All consumers MUST be idempotent** (deduplicate by `eventId`).
 - **Every domain event has an `audit-log` consumer (M23-S36).** Each context owns one thin `<Context>AuditLogHandler` (`BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler`) (each extends `AuditLogHandlerBase`, which owns the constructor, logger and `handle()`) that subscribes with `<Event>.name` and `LogDomainEventUseCase.CONSUMER_NAME` (`audit-log`) and calls the shared `LogDomainEventUseCase` (`src/shared/application/use-cases/`). It claims the `eventId` in `shared.inbox` and writes one log line with the envelope fields only (`eventId`, `eventName`, `tenantId`, `occurredAt`, `correlationId`) — never `data`, which can carry customer contact details. It is not a persisted audit trail. It is also what gives every event a real Pub/Sub topic, so a new `DomainEvent` class must be added to its context's handler: `architecture-check`'s `domain-event-audit-coverage` detector fails CI otherwise. Commands (`BookingReminderDue` and the other `domain/commands/` classes), `cron-*` triggers and `dead-letter` are not domain events and get no `audit-log` subscription. Other consumers (`notification`, loyalty, `availability-alert-matching`, …) subscribe separately and are unaffected.
 - **Ordering:** not guaranteed across events. Consumers MUST tolerate out-of-order delivery (e.g. `BookingCompleted` arriving before `BookingApproved` should be rejected with a retry, not crash).
-- **Transactional outbox (`shared.outbox` + relay, TD24):** event publication for aggregate-driven events is transactional with the state change that produced it — the 4 event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) drain `clearDomainEvents()` into `shared.outbox` inside the same transaction as the business write (TD24-S02). A relay then delivers each row via Pub/Sub — inline immediately after commit on the happy path, with a scheduled sweep (`SKIP LOCKED`, every 5 min) as the durability guarantee if the inline attempt fails or the process crashes between commit and publish. End-to-end guarantee: **at-least-once delivery, exactly-once effect for idempotency-safe consumers** — dedup at both edges (`dedup_key` producer-side via `UNIQUE` + `ON CONFLICT DO NOTHING`, `eventId` consumer-side via `shared.inbox`). One documented exception: notification's multi-recipient dispatch can still resend to already-successful recipients after a partial batch failure (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, open). The 4 cron-published `Command` classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system goes through the same durable path now. See `docs/03-DOMAIN_EVENTS.md` for the full design and `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for the table shapes.
+- **Transactional outbox (`shared.outbox` + relay, TD24):** event publication for aggregate-driven events is transactional with the state change that produced it — the 7 event-emitting aggregates' repositories (`Booking`, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, `Staff`, `Tenant`, `LeadFormSubmission`) drain `clearDomainEvents()` into `shared.outbox` inside the same transaction as the business write (TD24-S02). A relay then delivers each row via Pub/Sub — inline immediately after commit on the happy path, with a scheduled sweep (`SKIP LOCKED`, every 5 min) as the durability guarantee if the inline attempt fails or the process crashes between commit and publish. End-to-end guarantee: **at-least-once delivery, exactly-once effect for idempotency-safe consumers** — dedup at both edges (`dedup_key` producer-side via `UNIQUE` + `ON CONFLICT DO NOTHING`, `eventId` consumer-side via `shared.inbox`). One documented exception: notification's multi-recipient dispatch can still resend to already-successful recipients after a partial batch failure (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, open). The 4 cron-published `Command` classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system goes through the same durable path now. See `docs/03-DOMAIN_EVENTS.md` for the full design and `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for the table shapes.
 
 ---
 

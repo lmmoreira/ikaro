@@ -96,7 +96,7 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
 - **Driving Adapters (Input):**
   - REST Controllers (NestJS).
   - Internal Event Listeners.
-  - **Scheduled Tasks (Cron Jobs):** Triggers for daily reminders (6 AM) and loyalty expiration checks.
+  - **Scheduled Tasks (Cron Jobs):** Cloud Scheduler publishes to `cron-*` Pub/Sub topics (full list and consumers: `infra/terraform/pubsub-catalog.json`). Consumers include booking and admin-schedule reminders, loyalty expiry and its warning, the availability-alert sweep and expiry, recurring-schedule approval expiry, the outbox relay, and the chatbot, lead-form and resource-occupancy retention purges.
   - CLI Commands.
 - **Driven Adapters (Output):**
   - `PostgresBookingRepository` (TypeORM/Prisma).
