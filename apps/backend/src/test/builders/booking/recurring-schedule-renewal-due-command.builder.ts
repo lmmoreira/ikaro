@@ -6,10 +6,10 @@ export class RecurringScheduleRenewalDueCommandBuilder {
   private recurringScheduleId = 'bbbbbbbb-0021-4000-8000-000000000001';
   private customerId = 'cccccccc-0021-4000-8000-000000000001';
   private serviceId = 'ssssssss-0021-4000-8000-000000000001';
-  private daysOfWeek = ['tuesday', 'thursday'];
-  private startTime = '10:00';
-  private startsOn = '2026-08-01';
-  private endsOn = '2026-10-19';
+  private readonly daysOfWeek = ['tuesday', 'thursday'];
+  private readonly startTime = '10:00';
+  private readonly startsOn = '2026-08-01';
+  private readonly endsOn = '2026-10-19';
   private localDate = '2026-10-12';
 
   withTenantId(tenantId: string): this {

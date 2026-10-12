@@ -11,7 +11,7 @@ export class RecurringBookingScheduleBuilder {
   private startsOn = '2026-09-01';
   private endsOn = '2026-11-24';
   private status: RecurringBookingScheduleStatus = 'ACTIVE';
-  private daysOfWeek: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday')[] = [
+  private readonly daysOfWeek: ('monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday')[] = [
     'tuesday',
     'thursday',
   ];
@@ -31,10 +31,18 @@ export class RecurringBookingScheduleBuilder {
     return this;
   }
 
-  withTerm(startsOn: string, endsOn: string): this {
+  withStartsOn(startsOn: string): this {
     this.startsOn = startsOn;
+    return this;
+  }
+
+  withEndsOn(endsOn: string): this {
     this.endsOn = endsOn;
     return this;
+  }
+
+  withTerm(startsOn: string, endsOn: string): this {
+    return this.withStartsOn(startsOn).withEndsOn(endsOn);
   }
 
   withStatus(status: RecurringBookingScheduleStatus): this {
