@@ -787,7 +787,7 @@ Create `RecurringBookingSchedule` (+ `RecurringBookingScheduleResourceAssignment
 - Unit:
   - [ ] Request rejects a conflicting future pattern before either status branch commits
   - [ ] Request rejects past the 50-per-resource/service cap
-  - [ ] Request rejects a bundle/multi-leg service (recurrence is single-resource-only for this story)
+  - [ ] Request rejects a bundle/multi-leg service (recurrence is single-resource-only for this story) *(Superseded for bundles by `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` Story 0: a flat multi-requirement service is accepted; a service with legs, or a requirement of quantity above 1, is still refused.)*
   - [ ] Skip/reschedule/pause/end reject on a non-`ACTIVE` schedule where applicable
   - [ ] `recurrence-rule.helpers.spec.ts`: weekly pattern across multiple `daysOfWeek`, horizon boundary (`recurringHorizonDays` null vs. set), `endsOn` interaction with the horizon
 - Integration:
@@ -1314,7 +1314,7 @@ Add `recurringHorizonDays: number | null` to both type declarations (no runtime/
 
 ### M23-S17 — Customer creates a recurring private reservation — pattern builder, review and outcome screens ✅ Done
 
-  - ⚠️ Gaps: (1) the web service filter omits `assertServiceEligible`'s selection-mode and pickup-address checks; (2) the mobile E2E covers the empty Agendamentos tab only (the with-bookings case is unit-tested); (3) default-location and multi-requirement services cannot recur — all tracked in TD49 (Story 3 and Stories 0–2), 2026-10-10
+  - ⚠️ Gaps: (1) the web service filter omits `assertServiceEligible`'s selection-mode and pickup-address checks; (2) the mobile E2E covers the empty Agendamentos tab only (the with-bookings case is unit-tested); (3) default-location and multi-requirement services cannot recur — all tracked in TD49 (Story 3 and Stories 0–2), 2026-10-10. **Gaps (1) and (3) are closed** by TD49 Stories 0–3 (the form's filter now mirrors the backend, default-location and bundle services can recur); gap (2) is still open
 
 **Agent:** frontend-ts
 **Complexity:** L
@@ -1348,7 +1348,7 @@ Add the customer-side creation flow for a recurring private reservation: a patte
 7. **Fixed term, end date required.** The customer always chooses an end date, up to the service's maximum term (`recurringHorizonDays`, 90 by default — read from the service the form already loads, see decision I); the date picker's latest selectable date is `startsOn` + the term, and the review step shows "até dd/mm". The prototype files `13`, `13b` and `13e` gain the end-date field as part of this story's Files (a journey change, done inside this story, not now).
 8. **Validation** (only rules the backend really enforces): at least one weekday; `endsOn` required, not before `startsOn` (equal is allowed) and not later than `startsOn` + the maximum term (`RecurringBookingScheduleInvalidDateRangeError`); exactly one resource for `FIXED_ASSIGNMENT`. The client applies the same rules and shows the existing `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` message for the date rule.
 9. **Transport and tenant.** A `bffClient` mutation (React Query) inside `features/customer`; `tenantId` only from `useTenant()`; no raw `fetch()`. "Today" (the earliest start date) is computed in the tenant's timezone, never the browser clock.
-10. **Bundled services cannot recur from the form** (the API has accepted them since TD49 Story 0), so no multi-resource picker is drawn or built — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` Story 2.
+10. **Bundled services cannot recur from the form** (the API has accepted them since TD49 Story 0), so no multi-resource picker is drawn or built — `td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` Story 2. *(Superseded: TD49 Story 2 shipped the picker. The form now offers a bundle with one pick group per `CUSTOMER_CHOICE` requirement and an info line for each automatic one.)*
 11. **Reusable by staff.** M23-S19 (staff creating on a customer's behalf) reuses the service filter, the request-body builder, the validation and the outcome mapper, so keep them as pure functions with no `CustomerShell` or my-account imports; where they live is M23-S19's decision D.
 12. **The occurrence list comes from M23-S18.** `06b` (and `06d`) render the `409` body's list of `{ occurrenceStart, reason }` with `reason` one of `OCCUPIED`, `CLOSED` or `OUTSIDE_HOURS`, a single payload that M23-S18 owns; this story adds no backend or BFF change. Suggesting an alternative resource (shown by the original discovery prototype) is a much larger feature and is not part of this story.
 
@@ -1546,7 +1546,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
    | network / `5xx` | `#falha` — the typed pattern is preserved |
 6. **Transport and tenant.** A `bffClient` mutation inside `features/booking`; `tenantId` only from `useTenant()`; no raw `fetch()`.
 7. **Ownership.** The created schedule belongs to the chosen customer, so it appears in that customer's own recurring-reservations list (M23-S12) and they can manage it.
-8. **Out of scope:** variable-duration services and bundled services (`td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md`), as in the customer flow.
+8. **Out of scope:** variable-duration services, as in the customer flow. Bundled services are **in scope**: the API accepts them (TD49 Story 0) and the form reuses the customer form's per-requirement picks (TD49 Story 2, `plan/journey/customer/prototypes/minha-conta/13h-nova-recorrencia-pacote.html`), through the same `recurring-requirements.ts` / `recurring-schedule-form.ts` model.
 
 **Decisions left for this story's `/story-discovery`:**
 - **A. Approval on a staff-created schedule (a business rule).** Today `createdByStaffId` is only stored: the status still comes from the service's approval policy, so a staff-created schedule for a manual-approval service lands in `PENDING_APPROVAL` and staff would approve their own request. `09c #aguardando` draws that behavior. If staff creation should skip approval, this story gains a small backend change (the request use case and aggregate, plus `docs/02` and `docs/04`); if not, no backend work.

@@ -22,8 +22,8 @@ export function tenantDate(daysAhead: number): string {
 }
 
 // M23-S12 — a fixed-duration service that accepts recurring schedules, seeded by a signed-in
-// manager `page`. Recurrence needs a single-resource service (no bundle or leg), and the policy
-// flag is off by default. The service gets its own room in a fungible pool, which matches the
+// manager `page`. Recurrence needs a service without legs and with every requirement of quantity 1
+// (a bundle qualifies, see `seedRecurringBundle`), and the policy flag is off by default. The service gets its own room in a fungible pool, which matches the
 // RESOLVE_PER_OCCURRENCE policy the schedules are created with and keeps one test's occurrences
 // from ever taking another test's slot.
 export interface SeededRecurringService extends SeededService {

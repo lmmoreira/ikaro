@@ -2,11 +2,11 @@
 
 ## Status
 - **Type**: Technical Debt / Product Scope (Booking — recurrence)
-- **Priority**: High (raised 2026-10-10 — see the Addendum: with M23-S17 shipped, a recurring reservation can be requested only for a service with exactly one explicit, non-`NONE` resource requirement, which excludes the platform's default service shape as well as bundles)
+- **Priority**: High (raised 2026-10-10). Done: with M23-S17 shipped, a recurring reservation could be requested only for a service with exactly one explicit, non-`NONE` resource requirement, which excluded the platform's default service shape as well as bundles. Stories 0–3 lifted both limits
 - **Context**: apps/backend — booking context (`RecurringBookingSchedule`); apps/bff — booking feature; apps/web — customer "Minha Conta" and the staff approval queue; packages/validation
 - **Created**: 2026-09-29
 - **Discovered**: a question raised while implementing TD45-S0 (PR #532) — "what if a service has a staff and a room?" — traced to M23-S04's explicit single-resource-only scope cut
-- **Decision status**: **Re-opened 2026-10-10 and widened to the whole recurrence-eligibility flow** (the owner asked for one TD covering every service shape that cannot recur today). The original "not to be started until every M23 story is ✅ Done" sequencing is superseded: M23-S17 shipped on 2026-10-10 and exposed that the limit blocks real use, not only bundles. Story 3 (the default-location case) and Story 0 (bundles) share one open design question, the policy model, so their `/story-discovery` should decide it once. Every story still begins with `/story-discovery`.
+- **Decision status**: **✅ Done (2026-10-12): Stories 0, 1, 2 and 3 are all merged.** Re-opened 2026-10-10 and widened to the whole recurrence-eligibility flow (the owner asked for one TD covering every service shape that cannot recur today); the original "not to be started until every M23 story is ✅ Done" sequencing was superseded when M23-S17 shipped. Still unsupported by design, with no TD opened: a service with `legs`, a requirement of quantity above 1, and a customer-chosen duration. Still open, owned by the stories that consume the model: the staff creation form and queue (M23-S13, M23-S19).
 - **Related**: M23-S04 (`plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md`, scope bullet + its "Request rejects a bundle/multi-leg service" acceptance criterion), M23-S05, M23-S12, M23-S13, M23-S17, M23-S18, TD45-S0, UC-070 / UC-071 / UC-073, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Two-layer creation-time conflict check
 
 ## Problem
