@@ -1,3 +1,4 @@
+import type { ResourceType } from './enums';
 import type { Pagination } from './pagination';
 
 export type RecurringScheduleWeekday =
@@ -16,6 +17,11 @@ export interface RecurrenceRule {
 // One recurring schedule as the backend returns it (UC-070/UC-071): an item of
 // GET /recurring-booking-schedules and the body of GET /recurring-booking-schedules/:id.
 // `serviceName` is the service's current name (the schedule only stores its id).
+export interface RecurringScheduleResourceAssignment {
+  resourceType: ResourceType;
+  resourceId: string;
+}
+
 export interface RecurringBookingScheduleListItem {
   id: string;
   customerId: string;
@@ -29,6 +35,11 @@ export interface RecurringBookingScheduleListItem {
   // The current resource assignments: one entry for FIXED_ASSIGNMENT, empty for RESOLVE_PER_OCCURRENCE.
   // Optional so a consumer that reads an older response (a rolling deploy) still type-checks.
   resourceIds?: string[];
+  // The same stored picks with their resource type (TD49 Story 1): only the CUSTOMER_CHOICE
+  // requirements of the service, so a bundle lists its fixed staff member but not the room an
+  // AUTO_* requirement resolves per occurrence (that one varies and lives on the occurrence
+  // bookings). Optional for the same rolling-deploy reason as resourceIds.
+  resourceAssignments?: RecurringScheduleResourceAssignment[];
   approvalHoldExpiresAt: string | null;
 }
 

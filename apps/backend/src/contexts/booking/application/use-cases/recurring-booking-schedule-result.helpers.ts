@@ -21,6 +21,10 @@ export function toRecurringBookingScheduleResult(
     status: schedule.status,
     assignmentPolicy: schedule.assignmentPolicy,
     resourceIds: schedule.resourceAssignments.map((assignment) => assignment.resourceId),
+    resourceAssignments: schedule.resourceAssignments.map((assignment) => ({
+      resourceType: assignment.resourceType,
+      resourceId: assignment.resourceId,
+    })),
     approvalHoldExpiresAt: schedule.approvalHoldExpiresAt?.toISOString() ?? null,
   };
 }

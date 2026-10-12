@@ -255,6 +255,50 @@ describe('ApproveRecurringBookingScheduleUseCase', () => {
     expect(windows.filter((w) => w.resourceId === equipment.id)).toHaveLength(5);
   });
 
+  it('refuses a bundle approval, creating nothing, when only the resolved requirement has no free resource', async () => {
+    const equipment = new ResourceBuilder()
+      .withTenantId(TENANT)
+      .withType(ResourceType.EQUIPMENT)
+      .build();
+    await resourceRepo.save(equipment);
+    const bundle = new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withResourceRequirements([
+        ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'CUSTOMER_CHOICE' }),
+        ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
+      ])
+      .withBookingPolicy({ recurrenceEligible: true, defaultApprovalMode: 'MANUAL_APPROVAL' })
+      .build();
+    await serviceRepo.save(bundle);
+    serviceId = bundle.id;
+    const schedule = pendingSchedule();
+    const taken = new Date(`${addDaysUTC(STARTS_ON, 7)}T13:00:00.000Z`); // 10:00 local
+    occupancyRepo.seed(TENANT, 'other-line', {
+      resourceId: equipment.id,
+      resourceType: ResourceType.EQUIPMENT,
+      resourceName: 'Projetor',
+      legIndex: null,
+      quantityPosition: null,
+      selectionMode: 'AUTO_ANY',
+      isBundleMember: false,
+      gapMinutes: null,
+      gapSource: null,
+      startsAt: taken,
+      endsAt: new Date(taken.getTime() + 60 * 60_000),
+    });
+
+    await expect(approve(schedule.id)).rejects.toThrow(RecurringBookingScheduleConflictError);
+
+    expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    const windows = await occupancyRepo.findActiveWindows(
+      TENANT,
+      [resourceId],
+      new Date(0),
+      new Date('2100-01-01T00:00:00Z'),
+    );
+    expect(windows).toHaveLength(0);
+  });
+
   describe('refusals', () => {
     it('throws not-found for an unknown schedule', async () => {
       await expect(approve('00000000-0000-7000-8000-0000000000aa')).rejects.toThrow(

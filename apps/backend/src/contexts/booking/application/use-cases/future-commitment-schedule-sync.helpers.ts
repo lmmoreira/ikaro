@@ -72,10 +72,15 @@ async function syncOne(
     );
     const lineIds = remaining.flatMap((b) => b.lines.map((l) => l.lineId));
     const assignments = await deps.occupancyRepo.findAssignmentsByBookingLines(tenantId, lineIds);
-    // Every future occurrence must now sit on the new resource — not merely none on the old one: an
+    // Every future occurrence must now hold the new resource — not merely none on the old one: an
     // earlier reassign (another request) may have left some of them elsewhere, and a single
-    // assignment cannot describe a schedule scattered over several resources.
-    if (assignments.some((a) => a.resourceId !== toResourceId)) return;
+    // assignment cannot describe a schedule scattered over several resources. Only the new
+    // resource is looked at: a bundle occurrence also holds its other requirements' resources
+    // (staff + room), which say nothing about this assignment.
+    const onTarget = new Set(
+      assignments.filter((a) => a.resourceId === toResourceId).map((a) => a.bookingLineId),
+    );
+    if (lineIds.some((lineId) => !onTarget.has(lineId))) return;
 
     schedule.reassignResource(fromResourceId, toResourceId);
     await deps.scheduleRepo.save(schedule);
