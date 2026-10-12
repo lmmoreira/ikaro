@@ -6,16 +6,16 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { utcDateToLocalHHMM, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { AppLogger } from '../../../../shared/observability/app-logger';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderDue } from '../../domain/commands/booking-reminder-due.command';
 import { BookingReminderDueToday } from '../../domain/commands/booking-reminder-due-today.command';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-
-const WINDOW_START = '06:00';
-const WINDOW_END = '06:29';
+import { forEachTenantInWindow, REMINDER_WINDOW } from './tenant-local-window';
 
 interface ReminderData extends Record<string, unknown> {
   bookingId: string;
@@ -36,6 +36,8 @@ type ReminderCtor<T> = new (
 
 @Injectable()
 export class BookingReminderJob {
+  private readonly logger = new AppLogger(BookingReminderJob.name);
+
   constructor(
     @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
@@ -47,12 +49,13 @@ export class BookingReminderJob {
   async run(now: Date = new Date()): Promise<void> {
     const tenants = await this.tenantPort.findAllActive();
 
-    for (const tenant of tenants) {
-      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-      if (localHHMM < WINDOW_START || localHHMM > WINDOW_END) continue;
-
-      await this.processTenant(tenant, now);
-    }
+    await forEachTenantInWindow(
+      tenants,
+      now,
+      REMINDER_WINDOW,
+      { logger: this.logger, label: 'Booking reminder' },
+      (tenant) => this.processTenant(tenant, now),
+    );
   }
 
   private async processTenant(tenant: { id: string; timezone: string }, now: Date): Promise<void> {
@@ -92,9 +95,9 @@ export class BookingReminderJob {
     // mid-run crash then retries only this tenant's un-committed facts as no-op conflicts
     // on the next run, leaving every other tenant's already-committed rows untouched.
     await this.txManager.run(async () => {
-      for (const reminder of [...tomorrowReminders, ...todayReminders]) {
-        await this.outboxPublisher.publish(reminder);
-      }
+      await mapSequentially([...tomorrowReminders, ...todayReminders], (reminder) =>
+        this.outboxPublisher.publish(reminder),
+      );
     });
   }
 
@@ -143,13 +146,11 @@ export class BookingReminderJob {
     localDate: string,
     ReminderCtor: ReminderCtor<T>,
   ): Promise<T[]> {
-    const reminders: T[] = [];
-    for (const booking of bookings) {
+    return mapSequentially(bookings, async (booking) => {
       const { email, name } = await this.resolveRecipient(booking, tenantId);
       const data = this.buildReminderData(booking, email, name);
-      reminders.push(new ReminderCtor(tenantId, correlationId, data, localDate));
-    }
-    return reminders;
+      return new ReminderCtor(tenantId, correlationId, data, localDate);
+    });
   }
 
   private buildReminderData(booking: Booking, email: string, name: string): ReminderData {

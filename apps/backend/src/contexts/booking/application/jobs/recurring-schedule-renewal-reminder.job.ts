@@ -6,11 +6,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import {
-  addDaysUTC,
-  utcDateToLocalDate,
-  utcDateToLocalHHMM,
-} from '../../../../shared/utils/calendar-date';
+import { addDaysUTC, utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { RecurringScheduleRenewalDue } from '../../domain/commands/recurring-schedule-renewal-due.command';
 import { isRenewalReminderDue } from '../services/recurring-schedule-renewal.rules';
@@ -19,9 +15,7 @@ import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
-
-const WINDOW_START = '06:00';
-const WINDOW_END = '06:29';
+import { forEachTenantInWindow, REMINDER_WINDOW } from './tenant-local-window';
 
 // UC-070 (M23-S21): one renewal reminder per ending recurring schedule, in each tenant's own
 // 06:00–06:29 window (the same window BookingReminderJob uses). It matches the exact date
@@ -43,38 +37,13 @@ export class RecurringScheduleRenewalReminderJob {
 
   async run(now: Date = new Date()): Promise<void> {
     const tenants = await this.tenantPort.findAllActive();
-    const due = tenants.filter((tenant) => {
-      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-      return localHHMM >= WINDOW_START && localHHMM <= WINDOW_END;
-    });
-
-    const outcomes = await mapSequentially(due, (tenant) => this.processTenantSafely(tenant, now));
-    const failed = outcomes.filter((outcome) => outcome.failed).map((outcome) => outcome.tenantId);
-    // Every tenant has been processed by now, so one failure never starves the others. The failure
-    // itself must still reach the subscription: a tenant is only inside its window for one cron
-    // tick a day, so a swallowed error would cost that tenant the reminder. Throwing nacks the
-    // message and Pub/Sub redelivers it, and a re-run re-derives the same dedup keys, so it cannot
-    // double-send (same shape as AvailabilityAlertSweepJob).
-    if (failed.length > 0) {
-      throw new Error(`Renewal reminder failed for tenant(s): ${failed.join(', ')}`);
-    }
-  }
-
-  private async processTenantSafely(
-    tenant: { id: string; timezone: string },
-    now: Date,
-  ): Promise<{ tenantId: string; failed: boolean }> {
-    try {
-      await this.processTenant(tenant, now);
-      return { tenantId: tenant.id, failed: false };
-    } catch (err) {
-      this.logger.error(
-        'Renewal reminder run failed for a tenant — the run will be retried',
-        err instanceof Error ? err.stack : String(err),
-        { tenantId: tenant.id },
-      );
-      return { tenantId: tenant.id, failed: true };
-    }
+    await forEachTenantInWindow(
+      tenants,
+      now,
+      REMINDER_WINDOW,
+      { logger: this.logger, label: 'Renewal reminder' },
+      (tenant) => this.processTenant(tenant, now),
+    );
   }
 
   private async processTenant(tenant: { id: string; timezone: string }, now: Date): Promise<void> {

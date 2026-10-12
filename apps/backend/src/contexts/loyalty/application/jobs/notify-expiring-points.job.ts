@@ -6,6 +6,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import { utcDateString } from '../../../../shared/utils/calendar-date';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import { PointsExpiringSoon } from '../../domain/commands/points-expiring-soon.command';
 import { LoyaltyEntry } from '../../domain/loyalty-entry.aggregate';
 import { ILoyaltyPlatformPort, LOYALTY_PLATFORM_PORT } from '../ports/loyalty-platform.port';
@@ -41,13 +42,11 @@ export class NotifyExpiringPointsJob {
     if (entries.length === 0) return { customersNotified: 0 };
 
     const groupsByTenant = this.groupByTenant(entries);
-    let customersNotified = 0;
+    const counts = await mapSequentially([...groupsByTenant], ([tenantId, tenantGroups]) =>
+      this.processTenant(tenantId, tenantGroups, correlationId, runDate),
+    );
 
-    for (const [tenantId, tenantGroups] of groupsByTenant) {
-      customersNotified += await this.processTenant(tenantId, tenantGroups, correlationId, runDate);
-    }
-
-    return { customersNotified };
+    return { customersNotified: counts.reduce((sum, count) => sum + count, 0) };
   }
 
   /** Publishes PointsExpiringSoon for one tenant's qualifying customer groups, returning the count notified. */
@@ -81,9 +80,7 @@ export class NotifyExpiringPointsJob {
 
     // One transaction per tenant-batch (see booking-reminder.job.ts for the rationale).
     await this.txManager.run(async () => {
-      for (const event of toPublish) {
-        await this.outboxPublisher.publish(event);
-      }
+      await mapSequentially(toPublish, (event) => this.outboxPublisher.publish(event));
     });
 
     return toPublish.length;

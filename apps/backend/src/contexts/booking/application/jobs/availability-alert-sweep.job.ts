@@ -1,16 +1,14 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { AppLogger } from '../../../../shared/observability/app-logger';
-import { utcDateToLocalHHMM } from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { MatchAvailabilityAlertsUseCase } from '../use-cases/match-availability-alerts.use-case';
+import { ALERT_SWEEP_WINDOW, isInLocalWindow } from './tenant-local-window';
 
 // The local-morning window in which a tenant is swept — after BookingReminderJob's 06:00–06:29
 // window. The cron-reminders trigger fires every 30 minutes, so exactly one tick lands inside it:
 // once per tenant per day, with no "last run" state to store.
-const WINDOW_START = '06:30';
-const WINDOW_END = '06:59';
 
 interface TenantSweepOutcome {
   tenantId: string;
@@ -41,10 +39,9 @@ export class AvailabilityAlertSweepJob {
 
   async run(now: Date = new Date()): Promise<AvailabilityAlertSweepJobResult> {
     const tenants = await this.tenantPort.findAllActive();
-    const due = tenants.filter((tenant) => {
-      const localHHMM = utcDateToLocalHHMM(now, tenant.timezone);
-      return localHHMM >= WINDOW_START && localHHMM <= WINDOW_END;
-    });
+    const due = tenants.filter((tenant) =>
+      isInLocalWindow(now, tenant.timezone, ALERT_SWEEP_WINDOW),
+    );
 
     const outcomes = await mapSequentially(due, (tenant) => this.sweepTenant(tenant.id, now));
     const failed = outcomes.filter((outcome) => outcome.failed).map((outcome) => outcome.tenantId);

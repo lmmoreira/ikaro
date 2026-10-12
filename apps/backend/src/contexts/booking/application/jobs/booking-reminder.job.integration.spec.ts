@@ -148,8 +148,11 @@ describe('BookingReminderJob (integration, TD24-S03 cron double-send fix)', () =
     );
 
     // The healthy tenant is iterated first (insertion order) and commits; the crashing tenant's
-    // transaction throws and propagates out of run() once its turn comes.
-    await expect(crashingJob.run(NOW_IN)).rejects.toThrow('simulated mid-run crash');
+    // transaction rolls back and run() fails after every tenant was tried, naming the tenant, so the
+    // trigger message is redelivered.
+    await expect(crashingJob.run(NOW_IN)).rejects.toThrow(
+      `Booking reminder failed for tenant(s): ${crashingTenantId}`,
+    );
 
     const rowsAfterCrash = await ds.getRepository(OutboxEventEntity).find();
     const healthyRowsAfterCrash = rowsAfterCrash.filter((r) => r.tenantId === healthyTenantId);

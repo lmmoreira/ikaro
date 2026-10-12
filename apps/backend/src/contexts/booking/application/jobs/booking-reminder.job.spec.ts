@@ -313,4 +313,28 @@ describe('BookingReminderJob', () => {
     expect(eventsB).toHaveLength(1);
     expect(eventsA[0].correlationId).not.toBe(eventsB[0].correlationId);
   });
+
+  it('processes every tenant, then fails the run so the trigger message is retried', async () => {
+    tenantPort.seed([
+      { id: TENANT_IN, timezone: 'UTC' },
+      { id: TENANT_OUT, timezone: 'UTC' },
+    ]);
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_OUT)
+      .withStatus(BookingStatus.APPROVED)
+      .withScheduledAt(TOMORROW)
+      .withLines([new BookingLineBuilder().build()])
+      .build();
+    await bookingRepo.save(booking);
+    jest
+      .spyOn(bookingRepo, 'findAllByTenant')
+      .mockRejectedValueOnce(new Error('first tenant read failed'));
+
+    await expect(job.run(NOW_IN)).rejects.toThrow(
+      `Booking reminder failed for tenant(s): ${TENANT_IN}`,
+    );
+
+    const delivered = outboxPublisher.published.filter((e) => e.eventName === 'BookingReminderDue');
+    expect(delivered.map((e) => e.tenantId)).toEqual([TENANT_OUT]);
+  });
 });
