@@ -145,7 +145,12 @@ Let a flat multi-requirement service be requested as a recurring schedule, rejec
 
 ## Story 1 — Materialization, approval and management for bundle schedules
 
-> Re-scoped 2026-10-10. The first draft assumed a later generation job that raises UC-073 exceptions. That does not exist: M23-S05 materializes the whole term once (at creation for `AUTO_CONFIRM`, at approval otherwise) and a failure refuses the whole request or approval (UC-070 A1, UC-071 A3); M23-S08 made an occurrence an ordinary linked booking and removed the schedule-side exception path. Confirm the remaining scope at discovery; it may shrink further.
+> Re-scoped 2026-10-10. The first draft assumed a later generation job that raises UC-073 exceptions. That does not exist: M23-S05 materializes the whole term once (at creation for `AUTO_CONFIRM`, at approval otherwise) and a failure refuses the whole request or approval (UC-070 A1, UC-071 A3); M23-S08 made an occurrence an ordinary linked booking and removed the schedule-side exception path.
+
+**Decisions locked at discovery (2026-10-12):**
+1. **Story 0 already delivered most of the code.** On `main` (#589): multi-resource materialization (`buildCandidates` holds one resource per requirement, with `isBundleMember`), the approval re-check (`assertServiceEligible`, derived-policy check, lock, whole-term conflict check) and the creation-time bundle integration test. This story is therefore: the reassign sync fix, the read-shape change, the bundle approval / end / skip / reschedule proofs (a code fix only where a proof fails) and the docs.
+2. **Read shape:** `resourceIds` stays. Add `resourceAssignments?: { resourceType, resourceId }[]` to `RecurringBookingScheduleListItem` with the stored `CUSTOMER_CHOICE` picks only. `AUTO_*` requirements have no schedule-level resource (it varies per occurrence); Story 2 reads those from the occurrence bookings. Additive in `@ikaro/types`; the BFF is a pass-through (types only, no endpoint change).
+3. **Reassign sync rule:** the schedule's pick follows a reassign once every future occurrence's line holds an assignment on `toResourceId`. Other resources in a bundle booking are ignored.
 
 **Agent:** backend-ts
 **Complexity:** M
@@ -158,30 +163,40 @@ Make the steps that run after a schedule is accepted bundle-aware. Materializati
 
 **Backend use case steps:** materialization — for the whole term: plan every requirement's resource per occurrence → insert the bookings and every occupancy row in bulk; approval — re-run the all-requirements check, refuse the whole approval on any failure, otherwise materialize; end / skip / reschedule — the existing booking operations on a bundle booking.
 **Backend HTTP surface:** none new — reuses `POST /recurring-booking-schedules`, its approve / reject routes and the end route.
-**BFF endpoint spec:** none — no BFF change.
+**BFF endpoint spec:** none — types only (`resourceAssignments` passes through), no endpoint change.
 **New migration / i18n keys / env vars / feature flags:** none.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts`, `approve-recurring-booking-schedule.use-case.ts` and `recurring-occurrence-occupancy.helpers.ts` (+ specs) (modify)
+- `packages/types/src/recurring-booking-schedule.dto.ts` and `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-result.helpers.ts` (+ spec) (modify — `resourceAssignments`, decision 2)
+- `apps/backend/http/booking/recurring-booking-schedules.http` (modify — response notes), `docs/14-API_CONTRACTS.md` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule-approval.controller.integration.spec.ts` and `recurring-booking-schedule.controller.integration.spec.ts` (modify — the bundle integration scenarios below)
+- `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts`, `approve-recurring-booking-schedule.use-case.ts` and `recurring-occurrence-occupancy.helpers.ts` (+ specs) (modify only where a proof fails; Story 0 already generalized them)
 - `apps/backend/src/contexts/booking/application/use-cases/end-recurring-booking-schedule.use-case.ts` (+ spec) (modify only if the bundle proof fails)
 - `apps/backend/src/contexts/booking/application/use-cases/future-commitment-schedule-sync.helpers.ts` (+ spec) (modify — the reassign sync compares only the schedule's own resources)
 - `apps/backend/src/contexts/booking/application/use-cases/list-recurring-booking-schedules.use-case.ts` and `get-recurring-booking-schedule.use-case.ts` (+ specs) (modify — return every assignment with its requirement)
-- `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/04-USE_CASES.md` (modify)
+- `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/04-USE_CASES.md` (modify — UC-070/071 state that a bundle is supported end to end)
 
 **Acceptance criteria — product:**
 - [ ] Occurrences of an approved or auto-confirmed bundle schedule appear as normal bookings holding every required resource.
 - [ ] If a required resource stops being available between a request and its approval, the approval is refused as a whole and the schedule stays pending, exactly as for a single resource.
 - [ ] Skipping, rescheduling or ending a bundle occurrence releases every resource it held.
+- [ ] The schedule read exposes the stored picks by resource type (`resourceAssignments`).
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] Materialization resolves fixed picks and auto requirements together and creates all resource assignments and occupancy rows for every occurrence
-  - [ ] The approval re-check fails the whole approval when any requirement is unsatisfied in any occurrence, and creates nothing
-  - [ ] End / skip / reschedule release or move every resource of the occurrence's booking
+  - [ ] The approval re-check fails the whole approval when only the room is busy in an occurrence, and creates nothing; both-free approval materializes both resources
+  - [ ] Reassign sync: swaps the pick when the booking also holds an unrelated second resource; leaves it alone when an occurrence is scattered onto a third resource
+  - [ ] `toRecurringBookingScheduleResult` returns `resourceAssignments` with the resource type of each stored pick
 - Integration:
-  - [ ] A real staff + room schedule generates bookings with both `resource_occupancy` rows per occurrence; an approval where the staff member became busy is refused with no partial occupancy
+  - [ ] Approve a `MANUAL_APPROVAL` staff + room schedule: both `resource_occupancy` rows per occurrence
+  - [ ] Approval after the staff member became busy: 409, schedule still pending, no partial occupancy
+  - [ ] Ending the schedule releases both rows of every future occurrence
+  - [ ] Cancelling one occurrence releases its two rows and leaves the others
+  - [ ] Rescheduling one occurrence keeps the pinned staff pick and moves both rows
+  - [ ] A bundle reassign through the exceptions flow updates the schedule's assignment
 - Tenant isolation:
-  - [ ] Generation and management never touch another tenant's schedules or occupancy
+  - [ ] Generation, approval, end and sync never touch another tenant's schedules or occupancy
 - E2E: none — covered by Story 2
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
