@@ -5,6 +5,7 @@ import {
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
 import {
   RecurringBookingScheduleResult,
   toRecurringBookingScheduleResult,
@@ -28,6 +29,7 @@ export class ListRecurringBookingSchedulesUseCase {
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    private readonly renewalService: RecurringScheduleRenewalService,
   ) {}
 
   async execute(
@@ -46,6 +48,7 @@ export class ListRecurringBookingSchedulesUseCase {
       [...new Set(items.map((s) => s.serviceId))],
       input.tenantId,
     );
+    const renewableIds = await this.renewalService.findRenewableIds(input.tenantId, items);
     const nameById = new Map(services.map((svc) => [svc.id, svc.name]));
     return {
       items: items.map((s) => {
@@ -53,7 +56,7 @@ export class ListRecurringBookingSchedulesUseCase {
         if (serviceName === undefined) {
           throw new Error(`Service ${s.serviceId} of recurring schedule ${s.id} not found`);
         }
-        return toRecurringBookingScheduleResult(s, serviceName);
+        return toRecurringBookingScheduleResult(s, serviceName, renewableIds.has(s.id));
       }),
       pagination: {
         limit: input.limit,

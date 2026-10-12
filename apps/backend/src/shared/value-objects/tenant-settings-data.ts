@@ -17,6 +17,7 @@ export interface BookingSettings {
   serviceBufferMinutes: number;
   slotGranularityMinutes: 15 | 30 | 60;
   welcomeStaffScreenDays: number;
+  recurringRenewalReminderDays: number;
 }
 
 export interface LocalizationSettings {

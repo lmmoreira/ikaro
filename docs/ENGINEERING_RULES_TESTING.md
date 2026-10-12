@@ -100,6 +100,10 @@ Two test files per controller: `.spec.ts` (unit) + `.component.spec.ts` (compone
 ---
 
 
+
+### A spec that reads the real clock must not assert one fixed "earliest" time
+
+A spec that lets the code under test read the real clock and then asserts an exact earliest start (`'14:00'`) passes most of the week and fails when it is run inside the window it describes, for example on a Monday between 14:00 and 15:00 local, when that day's earlier slot has already gone. Pass the clock in (`sweep(now)`), or assert the property the test is about (the start lies inside the 14:00–16:00 window) instead of one slot. A failing unit spec blocks the pre-push hook for everyone who pushes in that hour (`match-availability-alerts.use-case.spec.ts`, M23-S21).
 ## Cloudflare Turnstile's test sitekey never renders an interactive iframe
 
 Relocated to `docs/CI_TRAPS.md`'s "Cloudflare Turnstile's test sitekey never renders an interactive iframe" entry (2026-09-20, TD41) — this is a test-execution nuance, not a code anti-pattern, so it lives with the other CI/E2E traps `/pre-pr` and `/story-discovery` sessions actually consult; the M20-S09 precedent and the wait-on-hidden-input fix are there.

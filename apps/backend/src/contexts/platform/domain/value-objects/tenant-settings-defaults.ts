@@ -23,6 +23,7 @@ export const DEFAULT_BOOKING_SETTINGS: BookingSettings = {
   serviceBufferMinutes: 60,
   slotGranularityMinutes: 30,
   welcomeStaffScreenDays: 14,
+  recurringRenewalReminderDays: 7,
 };
 
 export const DEFAULT_BUSINESS_INFO_SETTINGS: BusinessInfo = {

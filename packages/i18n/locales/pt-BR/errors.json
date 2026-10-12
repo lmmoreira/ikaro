@@ -167,6 +167,7 @@
   "PLATFORM_SETTINGS_BOOKING_SERVICE_BUFFER_INVALID": "O intervalo entre serviços deve estar entre 0 e 120 minutos.",
   "PLATFORM_SETTINGS_BOOKING_SLOT_GRANULARITY_INVALID": "O intervalo de horários deve ser 15, 30 ou 60 minutos.",
   "PLATFORM_SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID": "O período de exibição da tela de boas-vindas deve estar entre 1 e 90 dias.",
+  "PLATFORM_SETTINGS_BOOKING_RECURRING_RENEWAL_REMINDER_DAYS_INVALID": "O lembrete de renovação deve ser de 0 a 30 dias.",
   "PLATFORM_SETTINGS_TIMEZONE_INVALID": "O fuso horário informado é inválido.",
   "PLATFORM_SETTINGS_BUSINESS_HOURS_FORMAT_INVALID": "O horário de funcionamento deve estar no formato HH:MM.",
   "PLATFORM_SETTINGS_BUSINESS_HOURS_ORDER_INVALID": "O horário de fechamento deve ser depois do horário de abertura.",

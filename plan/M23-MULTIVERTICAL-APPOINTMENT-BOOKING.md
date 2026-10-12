@@ -1670,7 +1670,7 @@ Retire the Pause capability end to end so the state machine, the API and the doc
 
 ---
 
-### M23-S21 — Renewal reminder email for an ending recurring schedule
+### M23-S21 — Renewal reminder email for an ending recurring schedule ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts (the settings field, decided at discovery 2026-10-12)
 **Complexity:** L
@@ -1683,7 +1683,7 @@ A fixed-term recurring schedule ends by itself, and a customer who still wants t
 
 **Decisions already made (state as fact, do not re-derive):**
 1. **Only `ACTIVE` schedules with a future end are reminded**, matched by exact local date (`endsOn = localToday + leadDays`), not "within N days" — that is what makes the job idempotent without new state.
-2. **Recipient = the schedule's customer**, resolved through `IBookingCustomerPort` before the outbox transaction opens (reads before `txManager.run()`), exactly as `BookingReminderJob` does. A schedule created by staff on the customer's behalf still reminds the customer.
+2. **Recipient = the schedule's customer.** *(Amended during implementation, 2026-10-12.)* The Command carries ids and the schedule's pattern, and the notification use case resolves the customer, service and tenant formats through the existing `resolveRecurringScheduleContext` (the M23-S28 convention: no e-mail address or name in the outbox, and a customer who no longer exists is skipped in the use case instead of the job). The job still reads everything it needs before `txManager.run()` opens. A schedule created by staff on the customer's behalf still reminds the customer.
 3. **A Command, not a domain event** (TD24-S03): the reminder changes no state, so it is not an event; `docs/03-DOMAIN_EVENTS.md` gets a new entry in its Commands section.
 4. **Email only**, in the customer's locale, via the standard notification-template mechanism (`NotificationTemplateKey`, both locale files, a migration seeding the global default rows plus the existing-tenants backfill).
 5. **The email link is a deep link** to `/{slug}/my-account/recurring-schedules/new?renewFrom=<recurringScheduleId>`, built the way the other notification links are built (check the existing reminder use case for the URL helper); M23-S22 owns the page that receives it.

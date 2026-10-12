@@ -16,6 +16,7 @@ function buildValues(): SettingsFormValues {
     maxBookingAdvanceDays: '60',
     slotGranularityMinutes: '30',
     welcomeStaffScreenDays: '14',
+    recurringRenewalReminderDays: '7',
     loyaltyExpiryDays: '180',
     loyaltyExpiryWarningDays: '15',
     loyaltyEnableNotifications: true,
@@ -69,6 +70,35 @@ describe('SettingsBookingSection', () => {
     // keystrokes — a single fireEvent.change is the reliable way to assert one resulting value.
     fireEvent.change(cancellationInput, { target: { value: '5' } });
     expect(onFieldChange).toHaveBeenCalledWith('cancellationWindowHours', '5');
+  });
+
+  it('renders the renewal reminder lead time and reports a change', () => {
+    const onFieldChange = vi.fn();
+    renderWithIntl(
+      <SettingsBookingSection
+        values={buildValues()}
+        fieldErrors={{}}
+        onFieldChange={onFieldChange}
+      />,
+    );
+
+    const input = screen.getByTestId('settings-recurring-renewal-reminder-days');
+    expect(input).toHaveValue(7);
+
+    fireEvent.change(input, { target: { value: '0' } });
+    expect(onFieldChange).toHaveBeenCalledWith('recurringRenewalReminderDays', '0');
+  });
+
+  it('shows the renewal reminder error under its own field', () => {
+    renderWithIntl(
+      <SettingsBookingSection
+        values={buildValues()}
+        fieldErrors={{ recurringRenewalReminderDays: 'Informe um valor de 0 a 30 dias.' }}
+        onFieldChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText('Informe um valor de 0 a 30 dias.')).toBeInTheDocument();
   });
 
   it('toggles the auto-approve switch via onFieldChange', async () => {

@@ -2,6 +2,7 @@ import {
   ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
+  RecurringRenewalTenantSettings,
   TenantBookingWindow,
   TenantBusinessHoursAndLocale,
 } from '../../contexts/booking/application/ports/booking-platform.port';
@@ -14,6 +15,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
   private readonly bookingWindowByTenant = new Map<string, TenantBookingWindow>();
   private readonly alertContextByTenant = new Map<string, AvailabilityAlertTenantContext>();
+  private readonly renewalSettingsByTenant = new Map<string, RecurringRenewalTenantSettings>();
 
   seed(tenants: ActiveTenantInfo[]): void {
     this.tenants.push(...tenants);
@@ -35,12 +37,17 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.alertContextByTenant.set(tenantId, value);
   }
 
+  seedRecurringRenewalSettings(tenantId: string, value: RecurringRenewalTenantSettings): void {
+    this.renewalSettingsByTenant.set(tenantId, value);
+  }
+
   clear(): void {
     this.tenants.length = 0;
     this.businessHoursAndLocaleByTenant.clear();
     this.autoApproveEnabledByTenant.clear();
     this.alertContextByTenant.clear();
     this.bookingWindowByTenant.clear();
+    this.renewalSettingsByTenant.clear();
   }
 
   async findAllActive(): Promise<ActiveTenantInfo[]> {
@@ -85,6 +92,18 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
         maxBookingAdvanceDays: 90,
       },
     );
+  }
+
+  getRecurringRenewalSettings(tenantId: string): Promise<RecurringRenewalTenantSettings> {
+    return Promise.resolve(
+      this.renewalSettingsByTenant.get(tenantId) ?? this.defaultRenewalSettings(tenantId),
+    );
+  }
+
+  // The tenant's seeded timezone when it was seeded through seed(), the platform default otherwise.
+  private defaultRenewalSettings(tenantId: string): RecurringRenewalTenantSettings {
+    const tenant = this.tenants.find((t) => t.id === tenantId);
+    return { timezone: tenant?.timezone ?? 'America/Sao_Paulo', reminderDays: 7 };
   }
 
   getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {

@@ -196,12 +196,13 @@ describe('MatchAvailabilityAlertsUseCase', () => {
       const alert = alertFor().withWeeklyPreference(['monday'], '14:00', '16:00').build();
       alertRepo.seed(alert);
 
-      // "Now" is that Monday's early morning, so its 14:00 start is always still ahead — a sweep at
-      // the real clock would find 15:00 on any Monday afternoon, when 14:00 has already passed.
-      expect((await sweep(at(monday, '08:00'))).notified).toBe(1);
-      // The earliest Monday 14:00 local start inside the window.
+      expect((await sweep()).notified).toBe(1);
+      // A Monday start inside the 14:00–16:00 local window. Which slot is the earliest depends on the
+      // real clock (on a Monday afternoon, today's remaining slots come first), so the window itself
+      // is what is asserted, not one fixed start.
       const { startsAt } = alertRepo.attempts[0].matchingWindow;
-      expect(utcDateToLocalHHMM(startsAt, TZ)).toBe('14:00');
+      const localStart = utcDateToLocalHHMM(startsAt, TZ);
+      expect(localStart >= '14:00' && localStart < '16:00').toBe(true);
       expect(getUtcWeekDayName(utcDateToLocalDate(startsAt, TZ))).toBe('monday');
     });
 

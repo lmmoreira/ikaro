@@ -63,10 +63,12 @@ import { SendRecurringScheduleCreatedNotificationUseCase } from './application/u
 import { SendRecurringScheduleApprovalRequestedNotificationUseCase } from './application/use-cases/send-recurring-schedule-approval-requested-notification/send-recurring-schedule-approval-requested-notification.use-case';
 import { SendRecurringScheduleRejectedNotificationUseCase } from './application/use-cases/send-recurring-schedule-rejected-notification/send-recurring-schedule-rejected-notification.use-case';
 import { SendRecurringScheduleEndedNotificationUseCase } from './application/use-cases/send-recurring-schedule-ended-notification/send-recurring-schedule-ended-notification.use-case';
+import { SendRecurringScheduleRenewalNotificationUseCase } from './application/use-cases/send-recurring-schedule-renewal-notification/send-recurring-schedule-renewal-notification.use-case';
 import { RecurringScheduleCreatedNotificationHandler } from './infrastructure/events/recurring-schedule-created.handler';
 import { RecurringScheduleApprovalRequestedNotificationHandler } from './infrastructure/events/recurring-schedule-approval-requested.handler';
 import { RecurringScheduleRejectedNotificationHandler } from './infrastructure/events/recurring-schedule-rejected.handler';
 import { RecurringScheduleEndedNotificationHandler } from './infrastructure/events/recurring-schedule-ended.handler';
+import { RecurringScheduleRenewalNotificationHandler } from './infrastructure/events/recurring-schedule-renewal.handler';
 import { SendAvailabilityAlertMatchedEmailUseCase } from './application/use-cases/send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
 import { SendAvailabilityAlertMatchedNotificationUseCase } from './application/use-cases/send-availability-alert-matched-notification/send-availability-alert-matched-notification.use-case';
 import { AvailabilityAlertMatchedNotificationHandler } from './infrastructure/events/availability-alert-matched.handler';
@@ -134,6 +136,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendRecurringScheduleApprovalRequestedNotificationUseCase,
     SendRecurringScheduleRejectedNotificationUseCase,
     SendRecurringScheduleEndedNotificationUseCase,
+    SendRecurringScheduleRenewalNotificationUseCase,
     SendAvailabilityAlertMatchedEmailUseCase,
     SendAvailabilityAlertMatchedNotificationUseCase,
     StaffInvitedHandler,
@@ -153,6 +156,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     RecurringScheduleApprovalRequestedNotificationHandler,
     RecurringScheduleRejectedNotificationHandler,
     RecurringScheduleEndedNotificationHandler,
+    RecurringScheduleRenewalNotificationHandler,
     AvailabilityAlertMatchedNotificationHandler,
     DeadLetterHandler,
   ],

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, LessThan, LessThanOrEqual, Repository } from 'typeorm';
+import { EntityManager, In, LessThan, LessThanOrEqual, Repository } from 'typeorm';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
@@ -115,6 +115,44 @@ export class TypeOrmRecurringBookingScheduleRepository implements IRecurringBook
       order: { endsOn: 'ASC', id: 'ASC' },
     });
     return entities.map((e) => toDomain(e, []));
+  }
+
+  async findActiveEndingOn(tenantId: string, endsOn: string): Promise<RecurringBookingSchedule[]> {
+    const entities = await this.repo.find({
+      where: { tenantId, status: 'ACTIVE', endsOn },
+      order: { id: 'ASC' },
+    });
+    return entities.map((e) => toDomain(e, []));
+  }
+
+  async findSuccessorScheduleIds(
+    tenantId: string,
+    schedules: readonly RecurringBookingSchedule[],
+  ): Promise<Set<string>> {
+    if (schedules.length === 0) return new Set();
+    // Narrowed in SQL by customer and service (the (tenant_id, customer_id, ...) lookup), paired
+    // with each schedule in memory: a customer holds a handful of schedules, so the batch stays small.
+    const candidates = await this.repo.find({
+      where: {
+        tenantId,
+        status: In(['ACTIVE', 'PENDING_APPROVAL']),
+        customerId: In([...new Set(schedules.map((s) => s.customerId))]),
+        serviceId: In([...new Set(schedules.map((s) => s.serviceId))]),
+      },
+    });
+    return new Set(
+      schedules
+        .filter((schedule) =>
+          candidates.some(
+            (other) =>
+              other.id !== schedule.id &&
+              other.customerId === schedule.customerId &&
+              other.serviceId === schedule.serviceId &&
+              other.startsOn >= schedule.endsOn,
+          ),
+        )
+        .map((schedule) => schedule.id),
+    );
   }
 
   async save(schedule: RecurringBookingSchedule): Promise<void> {

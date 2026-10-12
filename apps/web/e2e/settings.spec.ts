@@ -58,6 +58,43 @@ test.describe('tenant settings management (MANAGER)', () => {
     await expect(page.getByTestId('settings-loyalty-expiry')).toHaveValue('200');
   });
 
+  test('saves the recurring-reservation renewal reminder lead time and shows it after a reload (M23-S21)', async ({
+    page,
+  }) => {
+    await goToSettings(page);
+
+    const field = page.getByTestId('settings-recurring-renewal-reminder-days');
+    await expect(field).toHaveValue(
+      String(originalSettings.booking.recurringRenewalReminderDays ?? 7),
+    );
+
+    await field.fill('5');
+    await page.getByTestId('settings-submit-desktop').click();
+    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('5');
+  });
+
+  test('turns the renewal reminder off with 0 and refuses a value above 30 (M23-S21)', async ({
+    page,
+  }) => {
+    await goToSettings(page);
+
+    const field = page.getByTestId('settings-recurring-renewal-reminder-days');
+    await field.fill('31');
+    await page.getByTestId('settings-submit-desktop').click();
+    await expect(page.getByTestId('settings-recurring-renewal-reminder-days-error')).toBeVisible();
+    await expect(page.getByTestId('settings-saved-banner')).toBeHidden();
+
+    await field.fill('0');
+    await page.getByTestId('settings-submit-desktop').click();
+    await expect(page.getByTestId('settings-saved-banner')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('settings-recurring-renewal-reminder-days')).toHaveValue('0');
+  });
+
   test('auto-fills street/city/state from a valid CEP', async ({ page }) => {
     await goToSettings(page);
 

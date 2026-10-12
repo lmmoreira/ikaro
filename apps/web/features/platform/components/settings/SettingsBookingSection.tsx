@@ -100,6 +100,17 @@ export function SettingsBookingSection({
           onChange={(value) => onFieldChange('welcomeStaffScreenDays', value)}
         />
       </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <SuffixNumberField
+          id="settings-recurring-renewal-reminder-days"
+          label={t('recurringRenewalReminderLabel')}
+          hint={t('recurringRenewalReminderHint')}
+          suffix={t('daysSuffix')}
+          value={values.recurringRenewalReminderDays}
+          error={fieldErrors.recurringRenewalReminderDays}
+          onChange={(value) => onFieldChange('recurringRenewalReminderDays', value)}
+        />
+      </div>
     </SectionCard>
   );
 }

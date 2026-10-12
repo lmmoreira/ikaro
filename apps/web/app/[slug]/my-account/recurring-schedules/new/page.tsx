@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { parseRecurringRenewalLink, RECURRING_RENEWAL_PARAM } from '@ikaro/types';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { fetchCustomerRecurringScheduleOrNull } from '@/features/booking/api/recurring-booking-schedules.server';
 import {
@@ -35,9 +35,13 @@ export default async function NewRecurringScheduleRoute({
 
   // A link that cannot be honored (unknown, someone else's, pending, cancelled, a service that no
   // longer allows recurrence) opens the blank form with a notice, never an error page.
-  const schedule = z.uuid().safeParse(renewFrom).success
-    ? await fetchCustomerRecurringScheduleOrNull(await getAccessToken(), renewFrom, slug)
-    : null;
+  const scheduleId = parseRecurringRenewalLink(
+    new URLSearchParams({ [RECURRING_RENEWAL_PARAM]: renewFrom }),
+  );
+  const schedule =
+    scheduleId === null
+      ? null
+      : await fetchCustomerRecurringScheduleOrNull(await getAccessToken(), scheduleId, slug);
   const rawTimezone = (await fetchManifest(slug)).localization.timezone;
   const today = toISODateInTimezone(new Date(), isValidTimezone(rawTimezone) ? rawTimezone : 'UTC');
   const draft = schedule === null ? null : buildRenewalDraft(schedule, services, today);

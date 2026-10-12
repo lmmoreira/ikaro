@@ -31,6 +31,7 @@ function buildTenant(overrides?: Partial<TenantSettingsResponse>): TenantSetting
         serviceBufferMinutes: 60,
         slotGranularityMinutes: 30,
         welcomeStaffScreenDays: 14,
+        recurringRenewalReminderDays: 7,
       },
       businessHours: {
         timezone: 'America/Sao_Paulo',
@@ -102,6 +103,7 @@ describe('toSettingsFormValues', () => {
     expect(values.maxBookingAdvanceDays).toBe('60');
     expect(values.slotGranularityMinutes).toBe('30');
     expect(values.welcomeStaffScreenDays).toBe('14');
+    expect(values.recurringRenewalReminderDays).toBe('7');
     expect(values.loyaltyExpiryWarningDays).toBe('15');
     expect(values.loyaltyEnableNotifications).toBe(true);
     expect(values.loyaltyNotificationMinPoints).toBe('10');
@@ -121,6 +123,31 @@ describe('toSettingsFormValues', () => {
     });
 
     expect(values.welcomeStaffScreenDays).toBe('14');
+  });
+
+  it('defaults recurringRenewalReminderDays to 7 when absent (matches backend reconstitute())', () => {
+    const tenant = buildTenant();
+    const bookingWithoutReminder = { ...tenant.settings.booking };
+    delete bookingWithoutReminder.recurringRenewalReminderDays;
+    const values = toSettingsFormValues({
+      ...tenant,
+      settings: { ...tenant.settings, booking: bookingWithoutReminder },
+    });
+
+    expect(values.recurringRenewalReminderDays).toBe('7');
+  });
+
+  it('keeps a reminder that was turned off (0) instead of falling back to 7', () => {
+    const tenant = buildTenant();
+    const values = toSettingsFormValues({
+      ...tenant,
+      settings: {
+        ...tenant.settings,
+        booking: { ...tenant.settings.booking, recurringRenewalReminderDays: 0 },
+      },
+    });
+
+    expect(values.recurringRenewalReminderDays).toBe('0');
   });
 
   it('strips the +55 prefix from socialLinks.whatsapp the same way as the main phone', () => {
@@ -182,6 +209,7 @@ describe('validateSettingsForm', () => {
       maxBookingAdvanceDays: 60,
       slotGranularityMinutes: 30,
       welcomeStaffScreenDays: 14,
+      recurringRenewalReminderDays: 7,
     });
     expect(normalized?.settings.loyalty).toEqual({
       expiryDays: 180,
@@ -474,6 +502,38 @@ describe('validateSettingsForm', () => {
       expect(errors.maxBookingAdvanceDays).toBe('errors.maxBookingAdvanceDaysInvalid');
       expect(normalized).toBeNull();
     });
+
+    it.each(['0', '30'])(
+      'accepts recurringRenewalReminderDays of %s',
+      (recurringRenewalReminderDays) => {
+        const { errors, normalized } = validateSettingsForm(
+          validValues({ recurringRenewalReminderDays }),
+          BR,
+          t,
+        );
+
+        expect(errors).toEqual({});
+        expect(normalized?.settings.booking?.recurringRenewalReminderDays).toBe(
+          Number(recurringRenewalReminderDays),
+        );
+      },
+    );
+
+    it.each(['-1', '31', '2.5', ''])(
+      'rejects recurringRenewalReminderDays of "%s" (outside 0..30 or not a whole number)',
+      (recurringRenewalReminderDays) => {
+        const { errors, normalized } = validateSettingsForm(
+          validValues({ recurringRenewalReminderDays }),
+          BR,
+          t,
+        );
+
+        expect(errors.recurringRenewalReminderDays).toBe(
+          'errors.recurringRenewalReminderDaysInvalid',
+        );
+        expect(normalized).toBeNull();
+      },
+    );
 
     it('rejects welcomeStaffScreenDays outside 1..90', () => {
       const { errors, normalized } = validateSettingsForm(

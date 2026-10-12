@@ -37,6 +37,7 @@ export const BookingSettingsSchema = z
     serviceBufferMinutes: z.number().int().min(0).max(120),
     slotGranularityMinutes: z.union([z.literal(15), z.literal(30), z.literal(60)]),
     welcomeStaffScreenDays: z.number().int().min(1).max(90),
+    recurringRenewalReminderDays: z.number().int().min(0).max(30),
   })
   .partial();
 

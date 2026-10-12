@@ -18,6 +18,7 @@ function baseValues(): SettingsFormValues {
     maxBookingAdvanceDays: '60',
     slotGranularityMinutes: '30',
     welcomeStaffScreenDays: '14',
+    recurringRenewalReminderDays: '7',
     loyaltyExpiryDays: '180',
     loyaltyExpiryWarningDays: '15',
     loyaltyEnableNotifications: true,

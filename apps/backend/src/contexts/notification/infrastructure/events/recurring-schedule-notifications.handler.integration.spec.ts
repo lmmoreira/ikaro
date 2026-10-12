@@ -11,6 +11,7 @@ import {
   RecurringBookingScheduleCreatedEventBuilder,
   RecurringBookingScheduleEndedEventBuilder,
   RecurringBookingScheduleRejectedEventBuilder,
+  RecurringScheduleRenewalDueCommandBuilder,
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
@@ -246,6 +247,25 @@ describe('Story: recurring-schedule events → Notification emails (integration)
     const logs = await logsFor(tenantA.tenantId, event.eventId);
     expect(logs.map((l) => l.notificationType)).toEqual([notificationType]);
     expect(dispatcher.dispatched.map((m) => m.to)).toEqual([tenantA.customerEmail]);
+  });
+
+  it('RecurringScheduleRenewalDue → one renewal email, and a redelivery sends nothing more (M23-S21)', async () => {
+    const command = aim(
+      new RecurringScheduleRenewalDueCommandBuilder().withTenantId(tenantA.tenantId).build(),
+      tenantA,
+    );
+
+    await eventBus.publish(command);
+    await eventBus.publish(command);
+
+    const logs = await logsFor(tenantA.tenantId, command.eventId);
+    expect(logs.map((l) => l.notificationType)).toEqual([
+      'recurring-schedule-renewal-due-customer',
+    ]);
+    expect(dispatcher.dispatched.map((m) => m.to)).toEqual([tenantA.customerEmail]);
+    expect(dispatcher.dispatched[0].body).toContain(
+      `renewFrom=${command.data.recurringScheduleId}`,
+    );
   });
 
   it('replaying the same event sends nothing more', async () => {

@@ -12,6 +12,7 @@ import {
   ActiveTenantInfo,
   AvailabilityAlertTenantContext,
   IBookingPlatformPort,
+  RecurringRenewalTenantSettings,
   TenantBookingWindow,
   TenantBusinessHoursAndLocale,
 } from '../../application/ports/booking-platform.port';
@@ -74,6 +75,14 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     const tenant = await this.getTenantById.execute({ tenantId });
     const { minBookingAdvanceHours, maxBookingAdvanceDays } = tenant.settings.booking;
     return { minBookingAdvanceHours, maxBookingAdvanceDays };
+  }
+
+  async getRecurringRenewalSettings(tenantId: string): Promise<RecurringRenewalTenantSettings> {
+    const tenant = await this.getTenantById.execute({ tenantId });
+    return {
+      timezone: tenant.settings.businessHours.timezone,
+      reminderDays: tenant.settings.booking.recurringRenewalReminderDays,
+    };
   }
 
   async getAvailabilityAlertContext(tenantId: string): Promise<AvailabilityAlertTenantContext> {

@@ -53,6 +53,7 @@ export interface SettingsFormValues {
   readonly maxBookingAdvanceDays: string;
   readonly slotGranularityMinutes: string;
   readonly welcomeStaffScreenDays: string;
+  readonly recurringRenewalReminderDays: string;
   readonly loyaltyExpiryDays: string;
   readonly loyaltyExpiryWarningDays: string;
   readonly loyaltyEnableNotifications: boolean;
@@ -78,6 +79,7 @@ export interface SettingsFormErrors {
   maxBookingAdvanceDays?: string;
   slotGranularityMinutes?: string;
   welcomeStaffScreenDays?: string;
+  recurringRenewalReminderDays?: string;
   loyaltyExpiryDays?: string;
   loyaltyExpiryWarningDays?: string;
   loyaltyNotificationMinPoints?: string;
@@ -171,6 +173,7 @@ export function toSettingsFormValues(tenant: TenantSettingsResponse): SettingsFo
     maxBookingAdvanceDays: String(settings.booking.maxBookingAdvanceDays),
     slotGranularityMinutes: String(settings.booking.slotGranularityMinutes),
     welcomeStaffScreenDays: String(settings.booking.welcomeStaffScreenDays ?? 14),
+    recurringRenewalReminderDays: String(settings.booking.recurringRenewalReminderDays ?? 7),
     loyaltyExpiryDays: String(settings.loyalty.expiryDays),
     loyaltyExpiryWarningDays: String(settings.loyalty.expiryWarningDays),
     loyaltyEnableNotifications: settings.loyalty.enableNotifications,

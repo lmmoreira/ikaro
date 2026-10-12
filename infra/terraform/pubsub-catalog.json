@@ -173,6 +173,12 @@
     ]
   },
   {
+    "event": "RecurringScheduleRenewalDue",
+    "consumers": [
+      "notification"
+    ]
+  },
+  {
     "event": "ServicePointsEarned",
     "consumers": [
       "audit-log",
@@ -251,7 +257,8 @@
       "availability-alert-sweep",
       "booking-admin-schedule-reminder",
       "booking-reminder",
-      "recurring-schedule-approval-expiry"
+      "recurring-schedule-approval-expiry",
+      "recurring-schedule-renewal-reminder"
     ]
   },
   {
