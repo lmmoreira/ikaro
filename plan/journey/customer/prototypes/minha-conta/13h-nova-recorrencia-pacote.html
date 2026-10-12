@@ -104,6 +104,17 @@
       - Dois requisitos CUSTOMER_CHOICE do MESMO tipo (ex.: dois profissionais): os grupos são numerados ("Profissional 1", "Profissional 2")
         — estado B. As escolhas seguem a ordem dos requisitos (TD49 Story 0, decisão 2).
       - Cada grupo é obrigatório: sem escolha, o erro aparece sob o grupo e o envio é bloqueado (estado C).
+    COMPOSIÇÕES QUE O SERVIDOR ACEITA E O QUE O FORMULÁRIO MOSTRA (todo requisito tem quantidade 1; sem legs, sem endereço de coleta):
+      | Requisitos do serviço                                              | Formulário                                                    | Política derivada       |
+      | nenhum, ou só o local padrão (NONE)                                | nenhum campo de recurso (tela 13)                             | RESOLVE_PER_OCCURRENCE  |
+      | 1 CUSTOMER_CHOICE                                                  | 1 grupo (tela 13)                                             | FIXED_ASSIGNMENT        |
+      | 1 AUTO_ANY / AUTO_FUNGIBLE_POOL                                    | nenhum campo (tela 13)                                        | RESOLVE_PER_OCCURRENCE  |
+      | vários, alguns CUSTOMER_CHOICE e outros automáticos                | 1 grupo por CUSTOMER_CHOICE + 1 linha por automático (A, E, G)| FIXED_ASSIGNMENT        |
+      | vários, todos CUSTOMER_CHOICE                                      | 1 grupo por requisito (A2); tipo repetido → numerados (B)     | FIXED_ASSIGNMENT        |
+      | vários, todos automáticos                                          | só linhas informativas (D)                                    | RESOLVE_PER_OCCURRENCE  |
+      | local padrão (NONE) + outros                                       | o local não aparece (F); os demais como acima                 | pelos demais            |
+      Fora do que o formulário oferece, de propósito: legs (itinerário), endereço de coleta, quantidade acima de 1, duração escolhida pelo cliente
+      (só da web: a duração aqui é somente leitura), serviço sem recorrência habilitada e serviço que não é de agendamento (APPOINTMENT).
     DATA:
       GET /public/services/:id/resource-options  → { requirements: [{ serviceId, resourceType, selectionMode: "CUSTOMER_CHOICE", requiredQuantity, options }] }
         (já existe; devolve um item por requisito CUSTOMER_CHOICE — um grupo de escolha por item)
@@ -203,41 +214,157 @@
           <p class="meta">Todas as reservas do período são verificadas e criadas de uma vez, com todos os recursos do serviço, e o horário fica garantido até a data final. Você pode pular, reagendar ou encerrar a recorrência quando quiser.</p>
         </div>
 
-        <!-- ESTADO B — dois requisitos com escolha do cliente do MESMO tipo: os grupos são numerados, na ordem do serviço -->
+        <!-- Variantes de composição do serviço (ver o resumo no comentário do topo) -->
+        <div class="panel" id="duas-escolhas">
+          <span class="tag-proposal">Estado A2 · profissional + sala, os dois escolhidos pelo cliente</span>
+          <div class="card">
+            <div class="field">
+              <span class="form-label">Profissional</span>
+              <label class="choice on"><input type="radio" name="a2-staff" checked> Marina Alves</label>
+              <label class="choice"><input type="radio" name="a2-staff"> Rafael Costa</label>
+              <p class="field-hint">Este profissional fica reservado toda semana.</p>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Sala</span>
+              <label class="choice on"><input type="radio" name="a2-room" checked> Sala Aurora</label>
+              <label class="choice"><input type="radio" name="a2-room"> Sala Horizonte</label>
+              <p class="field-hint">Esta sala fica reservada toda semana.</p>
+            </div>
+          </div>
+          <p class="meta">Todos os requisitos são de escolha do cliente: um grupo para cada, na ordem do serviço. A política é FIXED_ASSIGNMENT e o pedido leva duas escolhas.</p>
+        </div>
+
         <div class="panel" id="mesmo-tipo">
-          <span class="tag-proposal">Estado B · dois profissionais</span>
+          <span class="tag-proposal">Estado B · dois profissionais (mesmo tipo)</span>
           <div class="card">
             <div class="field">
               <span class="form-label">Profissional 1</span>
-              <label class="choice on"><input type="radio" name="staff-1" checked> Marina Alves</label>
-              <label class="choice"><input type="radio" name="staff-1"> Rafael Costa</label>
+              <label class="choice on"><input type="radio" name="b-staff-1" checked> Marina Alves</label>
+              <label class="choice"><input type="radio" name="b-staff-1"> Rafael Costa</label>
             </div>
             <div class="field" style="margin-bottom:0;">
               <span class="form-label">Profissional 2</span>
-              <label class="choice"><input type="radio" name="staff-2"> Marina Alves</label>
-              <label class="choice on"><input type="radio" name="staff-2" checked> Rafael Costa</label>
+              <label class="choice"><input type="radio" name="b-staff-2"> Marina Alves</label>
+              <label class="choice on"><input type="radio" name="b-staff-2" checked> Rafael Costa</label>
               <p class="field-hint">As escolhas seguem a ordem do serviço: o 1º profissional, depois o 2º.</p>
             </div>
           </div>
+          <p class="meta">Quando um tipo se repete, os grupos ganham número. Sem repetição, o título é só o tipo (Profissional, Sala, Equipamento).</p>
         </div>
 
-        <!-- ESTADO C — o envio é bloqueado até cada grupo ter uma escolha -->
         <div class="panel" id="sem-escolha">
           <span class="tag-proposal">Estado C · falta escolher</span>
           <div class="card">
             <div class="field" style="margin-bottom:0;">
               <span class="form-label">Profissional</span>
-              <label class="choice"><input type="radio" name="staff-c"> Marina Alves</label>
-              <label class="choice"><input type="radio" name="staff-c"> Rafael Costa</label>
-              <p class="field-error" role="alert">Escolha o profissional para continuar.</p>
+              <label class="choice"><input type="radio" name="c-staff"> Marina Alves</label>
+              <label class="choice"><input type="radio" name="c-staff"> Rafael Costa</label>
+              <p class="field-error" role="alert">Escolha o profissional.</p>
             </div>
           </div>
+          <p class="meta">Cada grupo é obrigatório: o erro aparece sob o grupo que está sem escolha e o botão "Revisar" não avança.</p>
+        </div>
+
+        <div class="panel" id="tudo-automatico">
+          <span class="tag-proposal">Estado D · tudo automático (profissional e sala escolhidos pelo sistema)</span>
+          <div class="card">
+            <div class="field">
+              <span class="form-label">Profissional</span>
+              <div class="readonly-value">Escolhido automaticamente a cada semana, entre os profissionais livres</div>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Sala</span>
+              <div class="readonly-value">Escolhida automaticamente a cada semana, entre as salas livres</div>
+              <p class="field-hint">Se faltar profissional ou sala livre em alguma data, a recorrência inteira não é criada.</p>
+            </div>
+          </div>
+          <p class="meta">Nenhum requisito pede escolha do cliente: não há grupos, só linhas informativas, e nenhuma opção é buscada. A política é RESOLVE_PER_OCCURRENCE e o pedido não leva escolhas.</p>
+        </div>
+
+        <div class="panel" id="equipamento-pool">
+          <span class="tag-proposal">Estado E · profissional escolhido + equipamento de um conjunto de unidades</span>
+          <div class="card">
+            <div class="field">
+              <span class="form-label">Profissional</span>
+              <label class="choice on"><input type="radio" name="e-staff" checked> Marina Alves</label>
+              <label class="choice"><input type="radio" name="e-staff"> Rafael Costa</label>
+              <p class="field-hint">Este profissional fica reservado toda semana.</p>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Equipamento</span>
+              <div class="readonly-value">Uma unidade livre é reservada a cada semana</div>
+              <p class="field-hint">Qualquer unidade do conjunto serve; o sistema escolhe.</p>
+            </div>
+          </div>
+          <p class="meta">Requisito AUTO_FUNGIBLE_POOL (qualquer unidade livre): informativo, como o automático, sem grupo.</p>
+        </div>
+
+        <div class="panel" id="local-profissional">
+          <span class="tag-proposal">Estado F · serviço antigo "local + profissional"</span>
+          <div class="card">
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Profissional</span>
+              <label class="choice on"><input type="radio" name="f-staff" checked> Marina Alves</label>
+              <label class="choice"><input type="radio" name="f-staff"> Rafael Costa</label>
+              <p class="field-hint">Este profissional fica reservado toda semana.</p>
+            </div>
+          </div>
+          <p class="meta">O local do estabelecimento (requisito NONE, o mesmo para todo mundo) continua sendo conferido e reservado em cada data, mas não aparece no formulário nem na revisão: não há nada para escolher nem para informar.</p>
+        </div>
+
+        <div class="panel" id="tres-requisitos">
+          <span class="tag-proposal">Estado G · três requisitos (profissional, sala e equipamento)</span>
+          <div class="card">
+            <div class="field">
+              <span class="form-label">Profissional</span>
+              <label class="choice on"><input type="radio" name="g-staff" checked> Marina Alves</label>
+              <label class="choice"><input type="radio" name="g-staff"> Rafael Costa</label>
+              <p class="field-hint">Este profissional fica reservado toda semana.</p>
+            </div>
+            <div class="field">
+              <span class="form-label">Sala</span>
+              <label class="choice on"><input type="radio" name="g-room" checked> Sala Aurora</label>
+              <label class="choice"><input type="radio" name="g-room"> Sala Horizonte</label>
+              <p class="field-hint">Esta sala fica reservada toda semana.</p>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Equipamento</span>
+              <div class="readonly-value">Uma unidade livre é reservada a cada semana</div>
+            </div>
+          </div>
+          <p class="meta">Não há limite de requisitos além de quantidade 1 em cada um: um grupo para cada requisito de escolha do cliente, uma linha para cada automático, na ordem do serviço.</p>
+        </div>
+
+        <div class="panel" id="opcoes">
+          <span class="tag-proposal">Estado H · carregando, erro e sem opções</span>
+          <div class="card">
+            <div class="field">
+              <span class="form-label">Profissional</span>
+              <p class="field-hint">Carregando recursos…</p>
+            </div>
+            <div class="field">
+              <span class="form-label">Profissional (erro ao carregar)</span>
+              <p class="field-error" role="alert">Não foi possível carregar os recursos. Tente novamente.</p>
+            </div>
+            <div class="field" style="margin-bottom:0;">
+              <span class="form-label">Sala (sem opções)</span>
+              <p class="field-error" role="alert">Nenhuma sala está disponível para este serviço no momento.</p>
+              <p class="field-hint">Com um grupo sem opções, "Revisar" fica desativado: não há como montar o pedido.</p>
+            </div>
+          </div>
+          <p class="meta">Cada grupo carrega a sua lista; uma falha ou lista vazia em um grupo bloqueia o avanço sem esconder os outros. Os textos de carregando e erro são os do campo único de hoje.</p>
         </div>
 
         <div class="proto-only">
           <strong>Variantes (só no protótipo):</strong><br>
-          <a href="#mesmo-tipo">B · dois do mesmo tipo</a>
+          <a href="#duas-escolhas">A2 · dois de escolha</a>
+          <a href="#mesmo-tipo">B · mesmo tipo</a>
           <a href="#sem-escolha">C · falta escolher</a>
+          <a href="#tudo-automatico">D · tudo automático</a>
+          <a href="#equipamento-pool">E · conjunto de unidades</a>
+          <a href="#local-profissional">F · local + profissional</a>
+          <a href="#tres-requisitos">G · três requisitos</a>
+          <a href="#opcoes">H · carregando / erro / sem opções</a>
           <a href="13b-nova-recorrencia-revisar.html#pacote">Revisar (pacote)</a>
         </div>
 

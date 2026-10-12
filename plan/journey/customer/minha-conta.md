@@ -149,7 +149,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `07i-cancelar-aviso-erro.html` | Falha ao cancelar (rede / 5xx) — o aviso continua ativo, com "Tentar novamente" | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar (`#pacote`: variante com uma linha por recurso) | UC-070 | M23-S17 / TD49-S02 | ✅ Criado (M23-S17); variante de pacote ❓ Gap (TD49-S02) |
-| `13h-nova-recorrencia-pacote.html` | Nova reserva recorrente — serviço com mais de um recurso (profissional + sala): um grupo de escolha por requisito, estados B (dois do mesmo tipo, numerados) e C (falta escolher) | UC-070 | TD49-S02 | ❓ Gap (TD49-S02) |
+| `13h-nova-recorrencia-pacote.html` | Nova reserva recorrente — serviço com mais de um recurso (profissional + sala): um grupo de escolha por requisito de escolha do cliente e uma linha informativa por automático; cobre todas as composições aceitas pelo servidor (A/A2, B mesmo tipo numerado, C falta escolher, D tudo automático, E conjunto de unidades, F local + profissional, G três requisitos, H carregando/erro/sem opções) | UC-070 | TD49-S02 | ❓ Gap (TD49-S02) |
 | `13c-nova-recorrencia-sucesso.html` | Recorrência criada (ACTIVE) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `13d-nova-recorrencia-limite.html` | Erro — limite de recorrências ativas (409 A4) | UC-070 A4 | M23-S17 | ✅ Criado (M23-S17) |
 | `13f-renovar-recorrencia.html` | Renovar — formulário pré-preenchido (A) e aviso de reserva não encontrada sobre o formulário em branco (B, não é uma tela) | UC-070 | M23-S22 | ✅ Criado (M23-S22) |
