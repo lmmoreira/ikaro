@@ -3,7 +3,7 @@
 **Status:** Live — reflects the shipped `code`-driven pattern
 **Audience:** Frontend developers, API consumers, AI agents
 **Standard:** RFC 9457 Problem Details for HTTP APIs
-**Last Updated:** 2026-09-29
+**Last Updated:** 2026-10-12
 
 ---
 
@@ -80,6 +80,7 @@ This document is the error-response *reference*. The canonical code catalog is `
 | **404** | Not Found | Resource does not exist in the current tenant |
 | **409** | Conflict | Slot/state conflict — e.g. overlapping booking, invalid state transition |
 | **413** | Payload Too Large | File upload exceeds size limit |
+| **422** | Unprocessable Entity | Request is well-formed but a domain rule rejects it — e.g. an availability alert's criteria, a recurring schedule's term, a required resource selection or intake answer |
 | **429** | Too Many Requests | Rate limit / per-session quota exceeded |
 | **500** | Internal Server Error | Unhandled exception |
 | **503** | Service Unavailable | Backend unreachable or timed out (BFF-originated) |
@@ -97,7 +98,7 @@ Every code is namespaced `<ORIGIN>_<REASON>` (upper snake case). Full catalog: `
 | `STAFF_*` | `apps/backend/src/contexts/staff/` |
 | `LOYALTY_*` | `apps/backend/src/contexts/loyalty/` |
 | `PLATFORM_*` | `apps/backend/src/contexts/platform/` |
-| `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*` | Shared value objects, `apps/backend/src/shared/value-objects/` — reused by whichever context calls the VO |
+| `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*`, `CALENDAR_DATE_*` | Shared value objects, `apps/backend/src/shared/value-objects/` — reused by whichever context calls the VO |
 | `BFF_*` | BFF-originated conditions (guest-token failures, guard rejections, tenant-not-registered checks) — `apps/bff/src/shared/` |
 | `AUTH_*` | Auth/role framework fallback, shared by backend and BFF |
 | `GENERIC_*` | VO-less Zod validation rules (no domain VO behind the rule) |

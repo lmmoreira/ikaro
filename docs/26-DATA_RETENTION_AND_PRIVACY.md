@@ -30,9 +30,30 @@ Images placed on a tenant's public hotsite (branding, hero/CTA backgrounds, gall
 
 This is deliberate: a featured gallery image is a *copy* of the original booking photo, made at the moment an admin features it, and does not depend on the source booking's own private-bucket copy. Deleting the private booking photo (via the retention rule above) never affects an image already featured on the hotsite.
 
+## Booking-context personal data added by M21–M23 (database rows)
+
+The multi-vertical scheduling work added tables that hold personal data. This table records **what the code enforces today**; where it says "no rule", no retention or deletion rule exists in code and the policy is an open product/legal decision (owner: the M17-S51 LGPD lifecycle work) — do not read the absence of a rule as a decision to keep the data forever or to delete it.
+
+| Data (table) | What it holds | Retention enforced in code today |
+|---|---|---|
+| `booking_attendees` | Names of the people attending a booking, an `is_minor` flag, optional link to a customer — **can contain a minor's name** | No rule. Highest sensitivity of the set |
+| Booking intake answers (`bookings.intake_answers`, jsonb; the versioned questions in `service_booking_intake_schema`) | Free-form answers to tenant-defined questions (may include health, vehicle or other personal details), consent version and timestamp | No rule |
+| `recurring_booking_schedules` (+ resource assignments) | A customer's standing weekly pattern, term, preferences | No rule (`ENDED`/`CANCELLED` rows are kept) |
+| `availability_alerts`, `availability_alert_notification_attempts` | A customer's wanted dates/windows and email-delivery outcome (redacted last error) | Finished alerts are deleted once their `expiresAt` is more than **90 days** in the past (`AVAILABILITY_ALERT_RETENTION_DAYS`, `expire-availability-alerts.job.ts`) |
+| `booking_status_transitions` | Who (staff id) changed a booking's status and a free-text reason (e.g. the staff-entered no-show reason) | No rule |
+| `booking_quote_revisions` | Price snapshots of a booking's quote over reschedules | No rule |
+| `future_commitment_exceptions` | A manager's worklist entry about an affected booking and its resolution reason | No rule |
+| `resource_occupancy` | Which resource was occupied when, per booking | Purged **90 days after `ends_at`** (`resource-occupancy-retention-purge.job.ts`) |
+| `bookings.created_by_staff_id` / guest contact fields on staff-created bookings (UC-108) | The staff member who created a booking for a guest, plus the guest's name, phone and email | Follows the booking row — no rule |
+| `shared.outbox` / `shared.inbox` | Event envelopes (may carry contact details, e.g. `BookingNoShow`) | Swept after `OUTBOX_RETENTION_DAYS` / `INBOX_RETENTION_DAYS` (default 14) |
+
+Chatbot, lead-form and loyalty retention are enforced by their own jobs (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`, the loyalty expiry cron) and are described with those features; they are not repeated here.
+
+---
+
 ## What this stub does not yet cover
 
 The following are explicitly deferred to M17-S51:
-- What happens to this data (and everything else) when a customer requests export or deletion
+- What happens to this data (and everything else, including the rows listed above) when a customer requests export or deletion
 - What happens to a tenant's data when they leave the platform
 - How the 7-day database backup window (M17-S13) interacts with a deletion that already happened

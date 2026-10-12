@@ -84,7 +84,7 @@ flowchart TD
     Saving -->|"422 criteria"| Err["✅ 16b / 16g / 16i erro de validação<br/>(intervalo · semanal · período no passado)"]
     Saving -->|"409 cap (10 ativos)"| Cap["✅ 16e limite — leva a Meus avisos"]
     Saving -->|"422 ineligible service"| Inel["✅ 16f serviço sem aviso"]
-    Cap --> Lista["Meus avisos<br/>(minha-conta 07, M23-S12)"]
+    Cap --> Lista["Meus avisos<br/>(minha-conta 07, M23-S43 — not built yet)"]
 ```
 
 - The criteria travel as **query parameters on the button's link** (`serviceId`, `preferredResourceId` only when a flat service has exactly one resource pick, `durationMinutes`; **no participant count**), so the only thing a login round-trip must preserve is the destination URL, with its query string.

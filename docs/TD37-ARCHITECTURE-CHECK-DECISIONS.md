@@ -16,4 +16,4 @@ Each detector has permanent positive/negative fixtures, reports a file and line 
 
 ## Rollout
 
-The initial CI invocation is report-only with `continue-on-error: true`. Promotion to blocking and then to a required check are separate changes after a burn-in period, matching TD37's three-phase rollout.
+The initial CI invocation was report-only with `continue-on-error: true`, matching TD37's three-phase rollout (report-only → blocking → required check). It has since been promoted: the `architecture-check` job in `.github/workflows/pr-quality.yml` runs the detector suite's own tests and then `pnpm architecture-check` as blocking steps.

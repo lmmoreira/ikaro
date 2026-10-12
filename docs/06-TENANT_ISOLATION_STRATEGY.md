@@ -58,11 +58,12 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 - It stays in the `platform` schema — not a new bounded context — precisely because every consumer of this data is already a Platform Context use case; splitting it out would require a new cross-context Port+Adapter with no corresponding decoupling benefit, since there is no second context on the other side of that boundary.
 - Not an audit table: upserted (never appended), no history kept — a periodically-refreshed live-status cache of the vendor's own balance, not a ledger. Exists specifically so `GET /public/platform/chatbot/status` (called on every widget mount, public and unauthenticated) never has to call the vendor's API live on that hot path.
 
-### **Documented exemption: system-wide retention/expiry cron jobs (`loyalty.loyalty_entries`, `platform.chatbot_sessions`/`chatbot_messages`)**
+### **Documented exemption: system-wide retention/expiry cron jobs (`loyalty.loyalty_entries`, `platform.chatbot_sessions`/`chatbot_messages`, `booking.resource_occupancy`, `platform.lead_form_submissions`)**
 
 - A third, different category from both above: the tables themselves **are** ordinary tenant-scoped business data (loyalty point entries, real chatbot conversation content) — every business-facing read/write against them still filters by `tenant_id`, no exception. The exemption is narrow and applies only to a system-actor cron job's own bounded set of sweep queries — one or more queries, each finding or deleting rows past a time-based threshold, across every tenant, in one pass — by design, since the whole point of the job is a platform-wide sweep, not a per-tenant one.
 - Precedent: `ILoyaltyEntryRepository.findExpiringBefore(date)` (the loyalty-expiry cron, UC-016) reads across all tenants with no `tenant_id` filter, then groups the results by `tenantId:customerId` in the job itself before writing any tenant-scoped decrement.
 - `ChatbotRetentionPurgeJob` (UC-035, M19-S07) follows the same shape: `IChatbotMessageRepository.deleteOlderThan(cutoff)` and `IChatbotSessionRepository.deleteOrphanedStartedBefore(cutoff)` both delete across all tenants in one statement, matching UC-035's own acceptance criteria ("across all tenants in one pass").
+- `ResourceOccupancyRetentionPurgeJob` (M22) calls `IResourceOccupancyRepository.deleteOlderThan(cutoff)` — one unscoped delete of `booking.resource_occupancy` rows well past their window, across every tenant, with no `tenant_id` predicate. `LeadFormRetentionPurgeJob` (UC-043) does the same for expired `platform.lead_form_submissions` (`deleteExpired`). Both are served by standalone indexes (see `docs/13-DATABASE_SCHEMA.md`).
 - What makes this safe despite crossing tenant boundaries: (1) the actor is always "System (Cloud Scheduler)", never a request carrying tenant context that could leak into another tenant's data; (2) the operation is a pure time-based sweep (an age comparison), never a lookup keyed by any tenant-supplied identifier; (3) the job's own output (an entry, a session, a message) never crosses back into a response to any tenant or customer — it's deleted or aggregated, not returned. Contrast with a genuine violation: a query filtering by a caller-supplied `id` with no `tenant_id` check, which *would* leak cross-tenant data into a response.
 
 ---
@@ -82,7 +83,9 @@ All events emitted by the system include the `tenant_id`.
 
 ---
 
-## 4. Resource Isolation
+## 4. Infrastructure Resource Isolation
+
+> Storage, logs and branding. Not related to the Booking context's `Resource` aggregate (people/rooms/equipment) — that one's tenant scoping follows the ordinary row-level rules in §2.
 
 - **File Storage:** Photos are stored in paths prefixed by the tenant: `/storage/tenant_a/bookings/photo_1.jpg`.
 - **Logs & Metrics:** Every log entry and Prometheus metric includes a `tenant_id` label for granular monitoring and debugging.
@@ -115,7 +118,7 @@ All events emitted by the system include the `tenant_id`.
 
 ---
 
-## 4. Timezone Handling (Single Tenant Timezone Model)
+## 6. Timezone Handling (Single Tenant Timezone Model)
 
 ### **Principle: One Timezone per Tenant**
 - Each tenant operates in **exactly one timezone**

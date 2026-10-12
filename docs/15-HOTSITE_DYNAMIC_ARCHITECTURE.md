@@ -434,6 +434,10 @@ The hotsite lives inside the same `apps/web/` Next.js app as the dashboard, sepa
 ```
 https://<ikaro-domain>/autowash-pro          → app/[slug]/page.tsx
 https://<ikaro-domain>/autowash-pro/booking  → app/[slug]/booking/page.tsx
+https://<ikaro-domain>/autowash-pro/booking/availability-alert → app/[slug]/booking/availability-alert/page.tsx (M23-S31)
+https://<ikaro-domain>/autowash-pro/lead-form → app/[slug]/lead-form/page.tsx
+https://<ikaro-domain>/autowash-pro/login    → app/[slug]/login/page.tsx
+https://<ikaro-domain>/autowash-pro/my-account/* → app/[slug]/my-account/ (customer shell — docs/16)
 https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 ```
 
@@ -510,6 +514,16 @@ export default async function HotsitePage({
   );
 }
 ```
+
+### Booking flow architecture (`/[slug]/booking`, M22–M23)
+
+The booking page is a hotsite page (it uses `--ba-*` branding and `BrandHeader`), but its flow is driven by a **step engine**, not a fixed form. `BookingForm` (and `BookingFormWithDeepLink`, which reads the availability-alert email's query string client-side while the server page keeps ignoring `searchParams`) composes the steps in `features/booking/components/public/`; the pure step logic lives in `features/booking/model/booking-steps.ts`.
+
+- **Step list is computed from the chosen services.** `DEFAULT_BOOKING_STEPS` is `services → availability → personal → confirmation`. The engine inserts, per the basket: a `duration` step (`VariableDurationStep`) for a `CUSTOMER_SELECTED` duration policy, one `picker:<serviceId>:<legIndex>` step per `CUSTOMER_CHOICE` resource requirement or leg (`ResourcePickerStep` / `ResourcePicker`; `LegItineraryStep` for a multi-leg journey), and an `intake` step (`IntakeAnswersStep`, `IntakeAttendeesList`) when a service has an active intake schema.
+- **Data comes from the public read APIs** (BFF `GET /v1/public/services`, `/public/services/:id/resource-options`, `/quote` and `/intake-schema`, plus the requirement-aware `GET /v1/schedule/availability` — `docs/14-API_CONTRACTS.md`), fetched by the booking page and its step components; the submit payload is built by `model/booking-payload.ts` and posted to `POST /v1/bookings` (guest) or `/v1/bookings/authenticated`.
+- **Outcome:** `BookingSubmittedDetails` is the success box (booking details, who/what/when).
+- **Availability alert ("Avise-me quando abrir"):** a button on the calendar step links to `/[slug]/booking/availability-alert`, a page of the booking flow (`AvailabilityAlertPage`, `AvailabilityAlertShell`, `NewAvailabilityAlertForm`). With no session it shows `AvailabilityAlertLoginGate`; the alert email's deep link (M23-S44) returns the customer to the booking page with the window pre-selected.
+- **Branding boundary:** these components render under the hotsite tree and may read `--ba-*`; the staff reschedule/no-show and the customer `my-account` screens that reuse some of the same pickers must stay on the fixed SaaS palette (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2).
 
 ### Unpublished state (M12-S08)
 

@@ -427,6 +427,44 @@ The match event reaches Pub/Sub through the outbox relay, so the email follows t
 
 ---
 
+## Booking — No-Show and Its Correction (M23-S09, S25, S26, S27)
+
+### Why this exists
+
+An appointment the customer never showed up for must not stay `APPROVED` forever, must not award loyalty points, and must be fixable when staff marked it by mistake. `NO_SHOW` is a terminal status with exactly one way out: a manager's correction to `COMPLETED`. UC-074 (`docs/04-USE_CASES.md`) holds the scenario; this section holds the rules the code enforces, so they need not be re-derived from `Booking.markNoShow()` / `correctNoShow()` (`booking.aggregate.ts`).
+
+### Marking a no-show — `markNoShow(actor, correlationId, reason?, now)`
+
+Checks run in this order, which fixes the error precedence:
+
+1. The booking is already terminal (`COMPLETED`, `REJECTED`, `CANCELLED`, `NO_SHOW`) → `409` `BOOKING_ALREADY_TERMINAL`.
+2. It is not `APPROVED` (`PENDING`, `INFO_REQUESTED`) → `422` `BOOKING_INVALID_TRANSITION`.
+3. `now` is before the appointment's end, `scheduledAt + totalDurationMins` → `422` `BOOKING_NOT_YET_ENDED` (the error carries the end time).
+
+On success the status moves to `NO_SHOW`, a `booking_status_transitions` row is appended (actor, optional free-text reason — M23-S26), and `BookingNoShow` is published. `STAFF` and `MANAGER` may mark; the optional `reason` is normalized (trimmed, blank → `null`) and is **never shown to the customer**.
+
+### What the event does and does not trigger
+
+- **Notification** (`notification` consumer, M23-S25): one retryable customer email in the tenant's locale. The payload carries what the email needs (`customerId`, `contactEmail`, `contactName`, `scheduledAt`, `lineSummary`).
+- **Audit log** (shared `audit-log` consumer, M23-S36).
+- **Loyalty: nothing.** No points are awarded for a no-show; `BookingNoShow` is not a `BookingCompleted`.
+- **Availability alerts: nothing.** A no-show happens after the appointment's end, so no future window is released (only cancel, reject and reschedule feed `availability-alert-matching`).
+
+### Correcting a no-show — `correctNoShow(actor, correlationId, reason)`
+
+`MANAGER` only, and only to `COMPLETED`. The booking must currently be `NO_SHOW` (anything else → `InvalidBookingTransition`). It reuses the normal completion path (`applyCompletion`) with the **booked** prices, no after-photos, no admin notes and no loyalty discount, so the published `BookingCompleted` is a valid payload for Loyalty, which awards the service points **exactly once, here** (idempotent on the booking line). The correction appends its own transition row with the required reason; the earlier `NO_SHOW` row is never edited.
+
+### The history the UI shows
+
+`booking_status_transitions` is append-only; the dashboard's `BookingStatusHistory` card and the customer's no-show detail read it (`statusHistory` on the booking read). It is written for **every** status transition from M23-S26 on, with no backfill, so bookings that changed status earlier have no rows.
+
+### Known limitations
+
+- A no-show cannot be reverted to `APPROVED`; the only correction is to `COMPLETED`.
+- Because the reason is staff-entered free text it is excluded from the customer email by design — do not add it to the template.
+
+---
+
 ## Other bounded contexts
 
 Not yet written. Add a section here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

@@ -179,7 +179,7 @@ One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
 | **INDEX** | (tenant_id, submitted_at DESC) | Paginated Leads Submissions list (UC-041), the tenant-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, conversation_date)` layer-1 cap index), and UC-041's `submittedFrom`/`submittedTo` date-range filter (M20-S12, `docs/14-API_CONTRACTS.md`) — a plain range scan on `submitted_at` already served by this same index, no new index needed |
 | **INDEX** | (tenant_id, ip_address, submitted_at) | Per-IP-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, client_ip, conversation_date)` layer-2 cap index) |
 | **INDEX** | (tenant_id, expires_at) | Per-tenant `expires_at` range queries — not the retention purge itself (see standalone index below); this composite serves any future tenant-scoped expiry lookup |
-| **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_chatbot_messages_created_at` |
+| **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_platform_chatbot_messages_created_at` |
 
 ### `platform.lead_form_submission_question_refs`
 
@@ -259,6 +259,8 @@ Owned by: **Staff Context** (`src/contexts/staff/`)
 | name | VARCHAR(255) | NULLABLE — single field, not split first/last |
 | role | VARCHAR(50) | NOT NULL — 'MANAGER', 'STAFF' |
 | is_active | BOOLEAN | NOT NULL DEFAULT true — staff rows are provisioned active from creation; `google_oauth_id IS NULL` signals "pending invite", not `is_active` (`CLAUDE.md` §2 invariant 6) |
+| invited_by | UUID | NULLABLE — the inviting MANAGER's staff id, or `SYSTEM_ACTOR_ID` for the first MANAGER created at tenant provisioning (migration `1748000000001`) |
+| deactivated_by | UUID | NULLABLE — the deactivating MANAGER's staff id; cleared on reactivation (migration `1748000000001`) |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | **UNIQUE** | (tenant_id, google_oauth_id) | Per-tenant unique — this is what *allows* the same person to have separate active rows at multiple tenants, not what prevents it (staff are multi-tenant, same shape as customers) |
@@ -293,7 +295,7 @@ A booking is the parent of one or more `booking_lines`. All service-level detail
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL |
-| status | VARCHAR(30) | NOT NULL DEFAULT 'PENDING' — PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED |
+| status | VARCHAR(30) | NOT NULL DEFAULT 'PENDING' — PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW |
 | type | VARCHAR(20) | NOT NULL CHECK IN ('GUEST','CUSTOMER') |
 | customer_id | UUID | NULLABLE — no FK (cross-context ref to `customer.customers`) |
 | contact_email | VARCHAR(255) | NOT NULL |
@@ -818,6 +820,8 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 
 ---
 
+> ⚠️ **Planned, not built:** every `(M24 Cluster 4)` table below — and the forward-looking columns it adds to existing tables (`loyalty_entries.class_session_booking_id`, `CHK_loyalty_entries_source_exclusive`, the `class_session_booking_id` FK and unique index on `booking_quote_revisions`) — has no migration or entity yet. `resource_occupancy.class_session_id` is the only part already in the schema.
+
 ### `booking.class_schedule_templates` / `booking.class_schedule_template_slots` (M24 Cluster 4)
 
 > Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
@@ -1291,7 +1295,7 @@ The event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission
 
 ### Consume-side: shared inbox (TD24-S04)
 
-Every event/command consumer — the 16 domain-event handlers and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `docs/03-DOMAIN_EVENTS.md` for the full design.
+Every event/command consumer — each domain-event handler (including the per-context `audit-log` handlers: `LogDomainEventUseCase` claims with `tryClaim`) and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `docs/03-DOMAIN_EVENTS.md` for the full design.
 
 **Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `docs/03-DOMAIN_EVENTS.md`.
 
@@ -1299,7 +1303,7 @@ Every event/command consumer — the 16 domain-event handlers and `create-initia
 
 ## Indexing Strategy
 
-Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
+Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_platform_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
 ```sql
 -- Booking context

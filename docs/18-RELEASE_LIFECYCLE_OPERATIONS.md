@@ -31,15 +31,15 @@ This document provides a step-by-step operational guide for the entire lifecycle
    - Build Docker images for Backend and Frontend.
    - Push to Private Registry.
    - Run Database Migrations in the Staging environment.
-   - Perform a **Rolling Update** to the Staging container platform.
-3. **Smoke Test:** Automated check of `/health/ready` and basic login flow.
+   - Deploy a new **Cloud Run revision** to Staging (`deploy-staging.yml`).
+3. **Smoke Test:** Automated check of the health routes only — `/v1/health/ready` on the BFF (Staging reaches it through the web app's `/v1` gateway; Production calls the BFF host directly) and `/api/health/ready` on the web app. There is no login-flow check.
 
 ### **Step 4: Promotion to Production**
 1. **UAT:** (Optional) User Acceptance Testing in Staging.
-2. **Promotion:** Triggered via a GitHub Action "Release to Production".
+2. **Promotion:** Triggered manually via the GitHub Action **"App — Production Promote Pipeline"** (`deploy-production.yml`, `workflow_dispatch`). Input `image_sha` is optional — blank promotes whatever SHA Staging currently runs; `smoke_tenant_slug` optionally adds a real-tenant public read to the smoke test. The only gated job (`environment: production`, required reviewer) is `migrate-and-deploy`; `validate-and-summarize` runs before it and `smoke` after.
    - **No New Build:** The *exact same* Docker image from Staging is used.
    - **Production Migrations:** Run migrations against the Prod DB.
-   - **Blue/Green or Rolling Update:** Deploy to the Production platform.
+   - **Cloud Run revisions:** the deploy creates a new revision and points `latestRevision` traffic at it; the previous revisions stay available for rollback (the 5 most recent per service are retained).
 3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. Status as of 2026-08-08: dashboard, uptime checks, and most alert policies are live in staging; the 3 `error_rate_5xx` policies were blocked by an MQL type bug (PR #333) and are pending that fix's staging apply.
 
 ---
@@ -50,7 +50,7 @@ When a critical bug is found in Production:
 
 1. **Branch:** `fix/<short-description>` from `main`.
 2. **Fix:** Implement the fix + a regression test.
-3. **Fast-Track PR:** PR requires "Emergency" label (prioritized review).
+3. **Fast-Track PR:** ask for prioritized review in the PR description. (No workflow, PR template or label gate enforces an "Emergency" label — it is a convention only.)
 4. **CI Bypass:** (NEVER allowed) All tests must still pass.
 5. **Immediate Deploy:** Once merged to `main`, it deploys to Staging, then is promoted to Production immediately after a quick smoke test.
 
@@ -69,12 +69,12 @@ When a critical bug is found in Production:
 If a deployment causes a regression:
 
 ### **Automated Rollback**
-The container platform (GCP Cloud Run) is configured to automatically rollback if health checks fail during the first 5 minutes of a rolling update.
+There is no timed auto-rollback. A new Cloud Run revision that fails its startup probe (about 180 s: 18 failures × 10 s) never becomes ready, so it does not receive traffic and the previous revision keeps serving. A revision that is already serving and degrades later is **not** rolled back automatically — use the manual rollback below.
 
 ### **Manual Rollback**
-1. **GitHub Action:** "Rollback Production".
+1. **GitHub Action:** **"App — Production Emergency Rollback"** (`rollback-production.yml`, `workflow_dispatch`). Inputs: `service` (`backend`, `bff`, `web` or all three) and `revision` (optional — blank sends traffic back to each service's previous revision; or name an exact Cloud Run revision). Gated by the `production` environment approval.
 2. **Process:** 
-   - Reverts the container image to the previous tag.
+   - An instant Cloud Run **traffic shift** to the chosen earlier revision — no rebuild and no image change. It is per service, not a guaranteed cross-service consistent state; see the workflow's header comment and `docs/RUNBOOKS.md`.
    - **Note on Migrations:** If the deployment included a breaking database migration, the rollback must be handled with extreme care (Expand/Contract pattern is preferred to avoid this).
 
 ---

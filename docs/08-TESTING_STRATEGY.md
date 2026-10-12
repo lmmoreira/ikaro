@@ -6,7 +6,7 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 
 **Three non-negotiable rules:**
 1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
-2. Tests are co-located with source: `booking.entity.spec.ts` lives next to `booking.entity.ts`.
+2. Tests are co-located with source: `booking.spec.ts` lives next to `booking.aggregate.ts`.
 3. No `.skip()`, `.only()`, or `setTimeout()` in any test file — CI blocks the merge. `.skip()`/`.only()` are CI-enforced via ESLint (`jest/no-disabled-tests`/`jest/no-focused-tests`, `vitest/no-disabled-tests`/`vitest/no-focused-tests`, TD37-S15); `setTimeout` in a test body has no dedicated detector yet.
 4. **A new or changed Playwright spec must actually be run** (`npx playwright test`) against the real dev stack before it's considered done. Inspecting rendered HTML with `curl` or reasoning from the source code is not a substitute — it cannot catch wrong-page selectors, timezone-parsing mismatches, or formatting differences (e.g. capitalization) that only show up when the real browser renders the real app. TD02-S09's `localization.spec.ts` shipped with 3 such bugs that only surfaced once the suite was actually executed.
 
@@ -21,7 +21,7 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 | Frontend components | **React Testing Library** | Tests behaviour, not implementation |
 | HTTP integration | **Supertest** | NestJS-native HTTP testing |
 | Real DB / Pub/Sub | **Testcontainers** | Ephemeral containers per test suite, no shared state |
-| API contract | **Spectral** | OpenAPI linting — validates spec consistency in CI |
+| API contract | **Spectral** *(planned — not implemented)* | OpenAPI linting — validates spec consistency in CI |
 | E2E | **Playwright** | Full browser automation, cross-context flows |
 | In-memory fakes | **Manual** | Hand-written in-memory adapters (see §In-Memory Adapters) |
 | Frontend API mocking | **MSW (Mock Service Worker)** | Intercepts BFF calls in browser and Vitest |
@@ -69,7 +69,7 @@ describe('<ClassName> / <methodName>()')
 
 ### Example — Booking aggregate state machine
 ```typescript
-// src/contexts/booking/domain/entities/booking.entity.spec.ts
+// src/contexts/booking/domain/booking.spec.ts
 
 describe('Booking / approveBooking()', () => {
   it('should transition PENDING to APPROVED and emit BookingApproved', () => {
@@ -127,7 +127,7 @@ describe('Booking state machine', () => {
     },
   );
 
-  const terminalStates = ['COMPLETED', 'REJECTED', 'CANCELLED'];
+  const terminalStates = ['COMPLETED', 'REJECTED', 'CANCELLED']; // NO_SHOW is excluded: a manager can correct it to COMPLETED
   test.each(terminalStates)(
     'terminal: %s cannot transition to any state',
     (state) => {
@@ -385,6 +385,8 @@ describe('LoyaltyEventConsumer — idempotency', () => {
 ---
 
 ## Layer 4 — Contract Tests (Spectral)
+
+> ⚠️ **Not implemented:** there is no `docs/api/openapi.yaml`, no `.spectral.yml` and no Spectral step in any workflow. API contracts live in `docs/14-API_CONTRACTS.md` and the shared Zod/DTO schemas (`@ikaro/validation`, `@ikaro/types`). The rest of this layer describes the original design intent.
 
 **Scope:** The OpenAPI spec at `docs/api/openapi.yaml` is validated against Spectral rules in CI.
 
@@ -738,7 +740,7 @@ UC-008 (admin reschedules) produces a `BookingRescheduled` event and requires it
 ### Domain unit test — aggregate
 
 ```typescript
-// src/contexts/booking/domain/entities/booking.entity.spec.ts
+// src/contexts/booking/domain/booking.spec.ts
 
 describe('Booking / rescheduleBooking()', () => {
   it('should update scheduledAt and emit BookingRescheduled when APPROVED', () => {
@@ -880,7 +882,7 @@ describe('RescheduleBookingUseCase', () => {
 | Type check passes | `tsc --noEmit` | Block merge |
 | All tests pass (100%) | Jest / Vitest | Block merge |
 | Coverage ≥ 80% on **changed code** | SonarCloud (differential) | Block merge |
-| OpenAPI spec valid | Spectral | Block merge |
+| OpenAPI spec valid | Spectral *(planned — not implemented)* | — |
 | Security scan clean | Gitleaks | Block merge |
 
 > Coverage is **differential** (changed files only), not a global project threshold. SonarCloud computes this on the PR diff. The Jest/Vitest coverage report feeds into SonarCloud.
@@ -923,9 +925,8 @@ describe('RescheduleBookingUseCase', () => {
 ```
 src/contexts/booking/
 ├── domain/
-│   ├── entities/
-│   │   ├── booking.entity.ts
-│   │   └── booking.entity.spec.ts          ← domain unit test
+│   ├── booking.aggregate.ts
+│   ├── booking.spec.ts                     ← domain unit test
 │   └── services/
 │       ├── availability.service.ts
 │       └── availability.service.spec.ts    ← domain unit test
@@ -1080,11 +1081,11 @@ for (const { provide, useValue } of overrideProviders) {
 
 **When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token. See the consolidated table below (after the `EVENT_BUS`/`OUTBOX_PUBLISHER` section) for the current per-helper override list, including `STORAGE_SERVICE`.
 
-**Root cause gotcha — `useExisting` vs `useClass`:** if the shared module uses `useExisting` to register the adapter (`providers: [Adapter, { provide: TOKEN, useExisting: Adapter }]`), overriding the token in tests only removes the alias — the standalone `Adapter` class is still instantiated. Always use `useClass` in shared module providers so that overriding the token is sufficient to suppress instantiation.
+**Root cause gotcha — `useExisting` vs `useClass`:** register the adapter with `useClass`, never `useExisting`, or overriding the token in tests leaves the standalone class instantiated. Full explanation and before/after: `docs/ANTI_PATTERNS.md` (the `useExisting` row); CI-enforced by the `di-alias` detector.
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 
-Since the event-emitting aggregates' repositories (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) drain domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+Since every event-emitting aggregate's repository (7 today — see `docs/03-DOMAIN_EVENTS.md` § Event Publishing & Consumption, the Transactional outbox bullet) drains domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
 
 ```ts
 const routingBus = new RoutingInMemoryEventBus();
@@ -1136,8 +1137,6 @@ Options: `dispatcher` (required), `configure` (override providers), `extraModule
 const noOpXxxHandler = { onModuleInit: () => undefined, handle: async () => undefined };
 configure: (b) => b.overrideProvider(XxxHandler).useValue(noOpXxxHandler)
 ```
-
-Canonical example: `booking-requested.handler.integration.spec.ts` suppresses `StaffInvitedHandler`.
 
 ### Idempotency baseline drain (mandatory — provisioning noise)
 

@@ -6,8 +6,8 @@ This document describes the workflow topology that exists in the repository. Wor
 
 Two workflows provide the main PR gates:
 
-- `.github/workflows/pr-quality.yml` — formatting, linting, architecture/policy checks, dependency and security analysis, and other static quality gates.
-- `.github/workflows/pr-tests.yml` — package builds and the applicable unit, component, integration, and E2E suites.
+- `.github/workflows/pr-quality.yml` ("PR — Quality Gates") — formatting, linting, architecture/policy checks, the `pubsub-catalog` and `env-contract` checks, the infra PR-shape guards (`no-infra-app-mix`, `no-foundation-plus-other-infra-mix`), and other static quality gates. See `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § 5.
+- `.github/workflows/pr-tests.yml` ("PR — Quality And Security") — the applicable unit, component, integration, and E2E suites, plus SonarCloud, dependency review, Gitleaks, Trivy, Checkov, and the `all-checks-passed` aggregate.
 
 Additional path-scoped validation:
 
@@ -51,7 +51,9 @@ They do not exchange Terraform outputs automatically. Apply ordering and manuall
 
 ## Scheduled maintenance
 
-`.github/workflows/weekly-jobs.yml` contains repository maintenance that is intentionally time-based rather than part of every PR.
+`.github/workflows/weekly-jobs.yml` contains repository maintenance that is intentionally time-based rather than part of every PR (including the weekly Snyk scan).
+
+`.github/workflows/infra-deploy.yml` also has a weekly cron (Monday 09:30 UTC) that runs Terraform drift detection (`drift-staging`, `drift-prod`).
 
 ## SonarCloud and coverage
 

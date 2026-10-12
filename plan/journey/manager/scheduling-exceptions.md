@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER  
 **Goal:** Review and explicitly resolve — one by one or many at once — future bookings affected by a resource change nobody reviewed per-session  
 **UCs covered:** UC-073 (System raises), UC-077 (Manager resolves)  
-**Status:** ❓ Gap — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF: `M23-S08`; this frontend: `M23-S14`. Customer/manager notifications for the worklist: `M23-S23`.
+**Status:** Draft — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend, `M23-S14`, is not built yet (❓ Gap on the web side). Customer/manager notifications for the worklist: `M23-S23`.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
 

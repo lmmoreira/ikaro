@@ -2,7 +2,7 @@
 
 **Status:** Phase 2 - Technical Architecture  
 **Audience:** Backend developers, AI agents, database teams  
-**Last Updated:** 2026-06-10
+**Last Updated:** 2026-10-12
 
 ---
 
@@ -86,6 +86,8 @@ Controls booking lifecycle and rules.
 | `classAllowsReschedule` | boolean | false | — | — | (M24 Cluster 4, UC-102) Whether a skipped recurring-enrollment occurrence may be rescheduled to a same-service replacement session ("reposição") instead of a plain skip. |
 | `classRescheduleWindowDays` | integer | — | 1 | 90 | (M24 Cluster 4) How far ahead a replacement session may be picked when `classAllowsReschedule = true`. |
 | `classMaxReschedulesPerCycle` | integer | null | 1 | — | (M24 Cluster 4) Optional cap on reschedules per cycle (a "cycle" is the calendar month containing the skipped occurrence, unless the service overrides it). `null`/unset = unlimited. |
+
+> ⚠️ **Planned, not built:** the five `class*` keys above (M24 Cluster 4) are not in `BookingSettings` (`tenant-settings-data.ts`), the defaults or `booking-settings.validator.ts` yet.
 
 **Example:**
 ```json
@@ -237,7 +239,7 @@ Country, currency, language, and regional preferences.
 
 **Validation Rules:**
 - `countryCode` must be a 2-letter alpha code (case-insensitive)
-- `currency` must be a valid ISO 4217 code
+- `currency` must be a non-empty string (an ISO 4217 code by convention — the validator does not check the code against the ISO list)
 - `currencySymbol` must be 1–3 characters
 - `language` must be a non-empty string (the backend validates nothing more; the shipped values are `pt-BR` and `en`)
 - `decimalPlaces` must be 0–8

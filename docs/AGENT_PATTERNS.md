@@ -129,7 +129,7 @@ export interface ApproveXxxDto {
 }
 ```
 
-Canonical examples: `approve-booking.dto.ts`, `cancel-booking-as-customer.dto.ts`
+Canonical examples: `approve-booking.dto.ts`, `cancel-booking-as-admin.dto.ts`
 
 ---
 
@@ -174,7 +174,7 @@ export class GetXxxUseCase {
 }
 ```
 
-Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get-customer-profile.use-case.ts`
+Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get-customer-by-id.use-case.ts`
 
 ---
 
@@ -409,10 +409,10 @@ Do not search for these — they exist at the paths below.
 |------|-------|---------|
 | `in-memory-transaction-manager.ts` | `InMemoryTransactionManager` | All unit + controller specs |
 | `in-memory-event-bus.ts` | `InMemoryEventBus` | Unit specs; integration app override |
-| `in-memory-customer-profile.port.ts` | `InMemoryCustomerProfilePort` | Booking context unit specs |
+| `in-memory-booking-customer.port.ts` | `InMemoryBookingCustomerPort` | Booking context unit specs |
 | `in-memory-notification-dispatcher.ts` | `InMemoryNotificationDispatcher` | Notification unit specs |
 | `in-memory-notification-staff.port.ts` | `InMemoryNotificationStaffPort` | Notification unit specs |
-| `in-memory-notification-tenant.port.ts` | `InMemoryNotificationTenantPort` | Notification unit specs |
+| `in-memory-notification-platform.port.ts` | `InMemoryNotificationPlatformPort` | Notification unit specs |
 | `in-memory-booking-availability.ts` | `InMemoryBookingAvailability` | Booking unit specs |
 | `in-memory-cache.port.ts` | `InMemoryCachePort` | Any `CachingXxxRepository` unit spec — `.has(key)` for state assertions, `failNextGet/Set/Del(err)` for error-path tests |
 
@@ -791,73 +791,37 @@ Canonical example: `apps/backend/src/contexts/customer/infrastructure/controller
 
 ## Notification Context Patterns
 
-### 21. Notification Use Case — admin email via shared utility
+### 21. Notification Use Case — dispatch through `BaseNotificationUseCase`
 
-All notification use cases that dispatch to managers must call `dispatchAdminEmailToManagers()` from `notification-log.helper.ts`. Never implement a private `sendAdminEmail` method — duplicating 18+ lines across two use cases breaches the SonarCloud 3% CPD gate.
+Every notification use case extends `BaseNotificationUseCase` (`notification/application/use-cases/base-notification.use-case.ts`) and sends through its dispatch methods; the per-recipient inbox claim, the `NotificationLog` row (sent or failed) and the redelivery behaviour live there once. Never implement a private `sendAdminEmail` method — duplicating that flow in each use case is the smell this pattern exists to prevent.
+
+- One recipient (a customer or guest): `dispatchTemplates(templates, dto, to, variables)`.
+- Several recipients (the tenant's managers): fetch the manager emails through the staff port, then `dispatchTemplatesToMany(templates, dto, emails, variables)`. It claims one inbox row per `(eventId, template, recipient)`, so a redelivery re-sends only to the recipient(s) that failed, continues past a single failure, and throws once at the end so Pub/Sub redelivers.
 
 ```typescript
-// src/contexts/notification/application/use-cases/send-booking-xxx-notification/send-booking-xxx-notification.use-case.ts
-import {
-  dispatchAdminEmailToManagers,
-  saveNotificationLog,
-} from '../../utils/notification-log.helper';
-
-// inside execute():
-if (!existingAdmin) {
-  adminEmailSent = await dispatchAdminEmailToManagers(
-    {
-      staffPort: this.staffPort,
-      dispatcher: this.dispatcher,
-      logRepo: this.logRepo,
-      txManager: this.txManager,
-    },
-    {
-      tenantId: dto.tenantId,
-      eventId: dto.eventId,
-      notificationType: ADMIN_NOTIFICATION_TYPE,
-      subject: 'Agendamento xxx',
-      templateKey: 'booking-xxx-admin',
-      data: { /* event-specific fields */ },
-    },
-  );
-}
+// inside execute(), after finding the templates and calling localizeTemplates():
+const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
+if (managerEmails.length === 0) return { adminEmailSent: false };
+const adminEmailSent = await this.dispatchTemplatesToMany(
+  adminTemplates,
+  { tenantId: dto.tenantId, eventId: dto.eventId, correlationId: dto.correlationId },
+  managerEmails,
+  variables, // typed TemplateVariables<typeof TRIGGER> — see pattern #22
+);
 ```
 
-`dispatchAdminEmailToManagers` fetches manager emails, fans out `dispatcher.dispatch()` in parallel, saves the log, and returns `boolean` (false when no managers).
-
-Canonical example: `apps/backend/src/contexts/notification/application/utils/notification-log.helper.ts`
+Canonical example: `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case.ts` (a manager-only email: `getManagerEmails()` → `localizeTemplates()` → variables typed as `TemplateVariables<typeof TRIGGER>` → `dispatchTemplatesToMany()`).
 
 ---
 
-### 22. SMTP Adapter Spec — one describe per template case
+### 22. Notification variables — a contract spec, and specs that render the shipped copy
 
-Every `case` in the SMTP adapter's `render()` switch must have its own `describe` block in the adapter spec. Missing cases leave the adapter lines uncovered even when use-case specs are complete — SonarCloud flags the adapter file.
+`NotificationTemplate.render()` turns any variable nobody supplied into `''`, so a mismatch between a template and the use case that fills it fails nothing and logs nothing — the email just comes out blank in that place (M23-S37 audited all 22 shipped templates and found several blank-variable defects of exactly this kind). Two rules keep it from coming back:
 
-For templates with conditional rendering (nullable fields, boolean flags), add one `it()` per branch:
+- **Declare the variables once.** Each `NotificationTemplateKey` entry in `notification-template-key.mapping.ts` lists its `variables`; the contract spec (`notification-template-key.mapping.spec.ts`) fails when an entry's variables differ from the placeholders actually present in the shipped template, in either language. A use case's variables object is typed against its entry.
+- **Render the real copy in specs.** A use-case spec that feeds a hand-typed stand-in template can never catch a missing variable. Build the template from the shipped localized copy (see `notification-emails.handler.integration.spec.ts`) and assert on the rendered subject and body, including one `it()` per conditional branch (nullable field, boolean flag) the template renders.
 
-```typescript
-describe('booking-xxx-admin', () => {
-  it('renders subject and body', () => {
-    const result = adapter.render('booking-xxx-admin', { contactName: 'Ana', ... });
-    expect(result.subject).toContain('...');
-    expect(result.html).toContain('Ana');
-  });
-
-  it('renders isBusiness=false variant', () => {
-    const result = adapter.render('booking-xxx-admin', { isBusiness: false, ... });
-    expect(result.html).toContain('...');
-  });
-
-  it('renders without reason when reason is null', () => {
-    const result = adapter.render('booking-xxx-admin', { reason: null, ... });
-    expect(result.html).not.toContain('Motivo:');
-  });
-});
-```
-
-**Rule:** count the `if`/ternary branches inside the template render logic; each branch needs one `it()`.
-
-Canonical example: `apps/backend/src/contexts/notification/infrastructure/delivery/smtp-email.adapter.spec.ts`
+Canonical examples: `apps/backend/src/contexts/notification/domain/notification-template-key.mapping.spec.ts`, `apps/backend/src/contexts/notification/infrastructure/events/notification-emails.handler.integration.spec.ts`
 
 ---
 
