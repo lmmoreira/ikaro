@@ -21,9 +21,11 @@ export function isInLocalWindow(now: Date, timezone: string, window: LocalTimeWi
 // Runs `work` for every tenant that is inside its local window, one after another. A failure never
 // stops the tenants after it, but it is not swallowed either: with one tick a day inside the window,
 // a logged-and-ignored error would cost that tenant the whole day. So the failures are collected and
-// the run throws once at the end, which nacks the trigger message and lets Pub/Sub redeliver it
-// inside the window. A re-run is safe because the Commands the jobs publish carry deterministic
-// dedup keys (docs/ENGINEERING_RULES_BACKEND.md § Adding a cron-published event).
+// the run throws once at the end, which nacks the trigger message and lets Pub/Sub redeliver it.
+// The re-run checks the window against the clock at redelivery, so a redelivery that arrives after
+// the window has closed skips the failed tenant: this makes a retry possible, not guaranteed. A
+// re-run is safe because the Commands the jobs publish carry deterministic dedup keys
+// (docs/ENGINEERING_RULES_BACKEND.md § Adding a cron-published event).
 export async function forEachTenantInWindow<T extends { id: string; timezone: string }>(
   tenants: readonly T[],
   now: Date,
