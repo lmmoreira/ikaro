@@ -1,6 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
-import { AppLogger } from '../../../../shared/observability/app-logger';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import {
   ITransactionManager,
@@ -15,7 +14,7 @@ import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
-import { forEachTenantInWindow, REMINDER_WINDOW } from './tenant-local-window';
+import { REMINDER_WINDOW, WindowedTenant, WindowedTenantJob } from './tenant-local-window';
 
 // UC-070 (M23-S21): one renewal reminder per ending recurring schedule, in each tenant's own
 // 06:00–06:29 window (the same window BookingReminderJob uses). It matches the exact date
@@ -24,8 +23,9 @@ import { forEachTenantInWindow, REMINDER_WINDOW } from './tenant-local-window';
 // overlapping tick cannot send twice. N is the tenant's `recurringRenewalReminderDays`; 0 turns
 // the reminder off. A customer who already holds a successor schedule is not reminded.
 @Injectable()
-export class RecurringScheduleRenewalReminderJob {
-  private readonly logger = new AppLogger(RecurringScheduleRenewalReminderJob.name);
+export class RecurringScheduleRenewalReminderJob extends WindowedTenantJob {
+  protected readonly window = REMINDER_WINDOW;
+  protected readonly label = 'Renewal reminder';
 
   constructor(
     @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
@@ -33,20 +33,15 @@ export class RecurringScheduleRenewalReminderJob {
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {}
-
-  async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.tenantPort.findAllActive();
-    await forEachTenantInWindow(
-      tenants,
-      now,
-      REMINDER_WINDOW,
-      { logger: this.logger, label: 'Renewal reminder' },
-      (tenant) => this.processTenant(tenant, now),
-    );
+  ) {
+    super();
   }
 
-  private async processTenant(tenant: { id: string; timezone: string }, now: Date): Promise<void> {
+  protected findTenants(): Promise<WindowedTenant[]> {
+    return this.tenantPort.findAllActive();
+  }
+
+  protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
     const { reminderDays } = await this.tenantPort.getRecurringRenewalSettings(tenant.id);
     if (reminderDays <= 0) return;
 

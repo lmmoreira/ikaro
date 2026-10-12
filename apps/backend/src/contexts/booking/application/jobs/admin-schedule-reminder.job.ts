@@ -7,17 +7,17 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
-import { AppLogger } from '../../../../shared/observability/app-logger';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { AdminDailyScheduleReminder } from '../../domain/commands/admin-daily-schedule-reminder.command';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-import { forEachTenantInWindow, REMINDER_WINDOW } from './tenant-local-window';
+import { REMINDER_WINDOW, WindowedTenant, WindowedTenantJob } from './tenant-local-window';
 
 @Injectable()
-export class AdminScheduleReminderJob {
-  private readonly logger = new AppLogger(AdminScheduleReminderJob.name);
+export class AdminScheduleReminderJob extends WindowedTenantJob {
+  protected readonly window = REMINDER_WINDOW;
+  protected readonly label = 'Admin schedule reminder';
 
   constructor(
     @Inject(BOOKING_PLATFORM_PORT) private readonly tenantPort: IBookingPlatformPort,
@@ -25,21 +25,15 @@ export class AdminScheduleReminderJob {
     @Inject(BOOKING_CUSTOMER_PORT) private readonly customerProfilePort: IBookingCustomerPort,
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-  ) {}
-
-  async run(now: Date = new Date()): Promise<void> {
-    const tenants = await this.tenantPort.findAllActive();
-
-    await forEachTenantInWindow(
-      tenants,
-      now,
-      REMINDER_WINDOW,
-      { logger: this.logger, label: 'Admin schedule reminder' },
-      (tenant) => this.processTenant(tenant, now),
-    );
+  ) {
+    super();
   }
 
-  private async processTenant(tenant: { id: string; timezone: string }, now: Date): Promise<void> {
+  protected findTenants(): Promise<WindowedTenant[]> {
+    return this.tenantPort.findAllActive();
+  }
+
+  protected async processTenant(tenant: WindowedTenant, now: Date): Promise<void> {
     const correlationId = uuidv7();
     const localToday = utcDateToLocalDate(now, tenant.timezone);
     const todayStart = DateTime.fromISO(localToday, { zone: tenant.timezone })
