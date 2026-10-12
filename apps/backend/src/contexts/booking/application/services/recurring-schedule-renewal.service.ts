@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { todayInTimezone } from '../../../../shared/utils/calendar-date';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { isRenewalOffered } from '../../domain/recurring-schedule-renewal';
+import { isRenewalOffered } from './recurring-schedule-renewal.rules';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import {
   IRecurringBookingScheduleRepository,

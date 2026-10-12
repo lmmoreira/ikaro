@@ -1,4 +1,4 @@
-import { isRenewalOffered, isRenewalReminderDue } from './recurring-schedule-renewal';
+import { isRenewalOffered, isRenewalReminderDue } from './recurring-schedule-renewal.rules';
 
 const TODAY = '2026-10-12';
 

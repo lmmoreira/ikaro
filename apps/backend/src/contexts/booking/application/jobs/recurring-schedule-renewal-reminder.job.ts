@@ -13,7 +13,7 @@ import {
 } from '../../../../shared/utils/calendar-date';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { RecurringScheduleRenewalDue } from '../../domain/commands/recurring-schedule-renewal-due.command';
-import { isRenewalReminderDue } from '../../domain/recurring-schedule-renewal';
+import { isRenewalReminderDue } from '../services/recurring-schedule-renewal.rules';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import {
   IRecurringBookingScheduleRepository,

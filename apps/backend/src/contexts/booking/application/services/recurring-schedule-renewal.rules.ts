@@ -1,5 +1,5 @@
-import { addDaysUTC } from '../../../shared/utils/calendar-date';
-import { RecurringBookingScheduleStatus } from './recurring-booking-schedule.types';
+import { addDaysUTC } from '../../../../shared/utils/calendar-date';
+import { RecurringBookingScheduleStatus } from '../../domain/recurring-booking-schedule.types';
 
 // M23-S21 (docs/27 § Renewal window and reminder). N is `settings.booking.recurringRenewalReminderDays`:
 // 0 turns the reminder off and empties the window of a running schedule. Dates are tenant-local
