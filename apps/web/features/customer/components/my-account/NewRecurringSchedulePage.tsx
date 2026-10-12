@@ -128,13 +128,13 @@ export function NewRecurringSchedulePage({
   const bundle = isBundleForm(service);
   // The review lists every resource: the picked one by name, an automatic one as such. A lone
   // automatic requirement is not listed (it never had a row).
-  const reviewResources = visibleRequirementLines(service).flatMap((line, position) => {
+  const reviewResources = visibleRequirementLines(service).flatMap((line) => {
     if (!isChoiceLine(line)) {
       return bundle
         ? [
             {
-              key: `auto-${position}`,
-              label: text.title(line, bundle),
+              key: `auto-${line.type}`,
+              label: text.bundleTitle(line),
               value: text.autoChosen(line),
             },
           ]
@@ -148,7 +148,13 @@ export function NewRecurringSchedulePage({
             ?.name;
     return name === undefined
       ? []
-      : [{ key: `choice-${line.choiceIndex}`, label: text.title(line, bundle), value: name }];
+      : [
+          {
+            key: `choice-${line.type}`,
+            label: bundle ? text.bundleTitle(line) : text.singleTitle(),
+            value: name,
+          },
+        ];
   });
 
   function handleReview(): void {

@@ -97,12 +97,12 @@ export function ResourceFields({
 
   return (
     <>
-      {visibleRequirementLines(service).map((line, position) => {
+      {visibleRequirementLines(service).map((line) => {
         if (!isChoiceLine(line)) {
           return bundle ? (
             <AutoResourceLine
-              key={`auto-${position}`}
-              title={text.title(line, bundle)}
+              key={`auto-${line.type}`}
+              title={text.bundleTitle(line)}
               text={text.autoLine(line)}
             />
           ) : null;
@@ -110,13 +110,15 @@ export function ResourceFields({
         const picked = draft.resourceIds[line.choiceIndex] ?? null;
         return (
           <ResourceField
-            key={`choice-${line.choiceIndex}`}
+            key={`choice-${line.type}`}
             query={picks.query}
-            title={text.title(line, bundle)}
+            title={bundle ? text.bundleTitle(line) : text.singleTitle()}
             options={picks.options === undefined ? [] : optionsForChoice(picks.options, line)}
             resourceId={picked}
             required={showRequired && picked === null}
-            requiredMessage={text.requiredMessage(line, bundle)}
+            requiredMessage={
+              bundle ? text.bundleRequiredMessage(line) : text.singleRequiredMessage()
+            }
             noOptionsMessage={text.noOptionsMessage(line)}
             index={line.choiceIndex}
             onChange={(resourceId) =>
