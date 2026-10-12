@@ -127,6 +127,12 @@
       "body": "<p>Olá, {{contactName}}!</p><p>Sua recorrência de {{serviceName}} foi encerrada por <strong>{{tenantName}}</strong>.</p><p>Os horários futuros foram cancelados.</p>"
     }
   },
+  "RecurringScheduleRenewalDue": {
+    "customer": {
+      "subject": "Sua reserva recorrente termina em {{endsOn}}",
+      "body": "<p>Olá, {{contactName}}!</p><p>Sua reserva recorrente em <strong>{{tenantName}}</strong> termina em <strong>{{endsOn}}</strong>.</p><p><strong>Serviço:</strong> {{serviceName}}</p><p><strong>Dias:</strong> {{weekdays}} às {{localTime}}</p><p>Quer manter o seu horário? Renove em poucos cliques, com os mesmos dias e horário já preenchidos.</p><p><a href=\"{{renewalUrl}}\">Renovar minha reserva</a></p>"
+    }
+  },
   "AvailabilityAlertMatched": {
     "customer": {
       "subject": "Abriu uma vaga para {{serviceName}}",

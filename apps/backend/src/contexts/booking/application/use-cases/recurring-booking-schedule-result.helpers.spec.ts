@@ -42,7 +42,7 @@ describe('toRecurringBookingScheduleResult', () => {
   it('maps every field of the wire shape, including the service name', () => {
     const s = schedule('ACTIVE');
 
-    expect(toRecurringBookingScheduleResult(s, 'Sala Aurora')).toEqual({
+    expect(toRecurringBookingScheduleResult(s, 'Sala Aurora', true)).toEqual({
       id: s.id,
       customerId: 'customer-a',
       serviceId: 'service-1',
@@ -60,19 +60,24 @@ describe('toRecurringBookingScheduleResult', () => {
       resourceIds: ['res-1'],
       resourceAssignments: [{ resourceType: ResourceType.ROOM, resourceId: 'res-1' }],
       approvalHoldExpiresAt: null,
+      renewable: true,
     });
   });
 
   it('has no resource ids when the resource is resolved per occurrence', () => {
     const s = schedule('ACTIVE', 'RESOLVE_PER_OCCURRENCE');
 
-    const result = toRecurringBookingScheduleResult(s, 'Sala Aurora');
+    const result = toRecurringBookingScheduleResult(s, 'Sala Aurora', false);
     expect(result.resourceIds).toEqual([]);
     expect(result.resourceAssignments).toEqual([]);
   });
 
   it('serializes the approval-hold expiry as an ISO string for a pending schedule', () => {
-    const result = toRecurringBookingScheduleResult(schedule('PENDING_APPROVAL'), 'Sala Aurora');
+    const result = toRecurringBookingScheduleResult(
+      schedule('PENDING_APPROVAL'),
+      'Sala Aurora',
+      false,
+    );
 
     expect(result.status).toBe('PENDING_APPROVAL');
     expect(result.approvalHoldExpiresAt).toBe('2099-01-01T00:00:00.000Z');

@@ -36,6 +36,7 @@ export interface TenantBookingSettings {
   serviceBufferMinutes: number;
   slotGranularityMinutes: 15 | 30 | 60;
   welcomeStaffScreenDays?: number;
+  recurringRenewalReminderDays?: number;
 }
 
 export interface TenantLocalizationSettings {

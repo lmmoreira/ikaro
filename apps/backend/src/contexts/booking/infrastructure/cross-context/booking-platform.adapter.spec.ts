@@ -189,6 +189,15 @@ describe('BookingPlatformAdapter', () => {
       });
     });
 
+    it("getRecurringRenewalSettings returns the tenant's timezone and renewal reminder lead time (M23-S21)", async () => {
+      const tenant = await seedTenant(45);
+
+      expect(await adapter.getRecurringRenewalSettings(tenant.id)).toEqual({
+        timezone: tenant.settings.businessHours.timezone,
+        reminderDays: tenant.settings.booking.recurringRenewalReminderDays,
+      });
+    });
+
     it('calendar mode: the selectable window is maxBookingAdvanceDays, whatever carouselDays says', async () => {
       const tenant = await seedTenant(90);
       await seedPicker(tenant.id, { datePickerType: 'calendar', carouselDays: 14 }, 90);

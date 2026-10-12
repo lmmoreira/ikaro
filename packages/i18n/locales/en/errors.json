@@ -167,6 +167,7 @@
   "PLATFORM_SETTINGS_BOOKING_SERVICE_BUFFER_INVALID": "The buffer between services must be between 0 and 120 minutes.",
   "PLATFORM_SETTINGS_BOOKING_SLOT_GRANULARITY_INVALID": "The time slot interval must be 15, 30, or 60 minutes.",
   "PLATFORM_SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID": "The welcome screen display period must be between 1 and 90 days.",
+  "PLATFORM_SETTINGS_BOOKING_RECURRING_RENEWAL_REMINDER_DAYS_INVALID": "The renewal reminder must be 0 to 30 days.",
   "PLATFORM_SETTINGS_TIMEZONE_INVALID": "The timezone provided is invalid.",
   "PLATFORM_SETTINGS_BUSINESS_HOURS_FORMAT_INVALID": "The business hours must be in HH:MM format.",
   "PLATFORM_SETTINGS_BUSINESS_HOURS_ORDER_INVALID": "The closing time must be after the opening time.",

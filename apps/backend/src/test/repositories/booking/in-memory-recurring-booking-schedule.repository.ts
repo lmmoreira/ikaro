@@ -80,6 +80,38 @@ export class InMemoryRecurringBookingScheduleRepository implements IRecurringBoo
     );
   }
 
+  findActiveEndingOn(tenantId: string, endsOn: string): Promise<RecurringBookingSchedule[]> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (s) => s.tenantId === tenantId && s.status === 'ACTIVE' && s.endsOn === endsOn,
+      ),
+    );
+  }
+
+  findSuccessorScheduleIds(
+    tenantId: string,
+    schedules: readonly RecurringBookingSchedule[],
+  ): Promise<Set<string>> {
+    const others = Array.from(this.store.values()).filter(
+      (s) => s.tenantId === tenantId && (s.status === 'ACTIVE' || s.status === 'PENDING_APPROVAL'),
+    );
+    return Promise.resolve(
+      new Set(
+        schedules
+          .filter((schedule) =>
+            others.some(
+              (other) =>
+                other.id !== schedule.id &&
+                other.customerId === schedule.customerId &&
+                other.serviceId === schedule.serviceId &&
+                other.startsOn >= schedule.endsOn,
+            ),
+          )
+          .map((schedule) => schedule.id),
+      ),
+    );
+  }
+
   async save(schedule: RecurringBookingSchedule): Promise<void> {
     this.store.set(schedule.id, schedule);
     await drainDomainEvents(schedule, this.outboxPublisher);

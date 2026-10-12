@@ -1788,6 +1788,35 @@ describe('RecurringBookingScheduleController (integration)', () => {
       });
     });
 
+    it('carries `renewable` on the list and the by-id read: an ENDED schedule yes, a running one far from its end no (M23-S21)', async () => {
+      const ended = await ds
+        .getRepository(RecurringBookingScheduleEntity)
+        .save(
+          new RecurringBookingScheduleEntityBuilder()
+            .withTenantId(tenantId)
+            .withCustomerId(CUSTOMER_ID)
+            .withServiceId(serviceId)
+            .withStatus('ENDED')
+            .build(),
+        );
+
+      const { body: list } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      const { body: one } = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${ended.id}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const byId = new Map(
+        list.items.map((i: { id: string; renewable: boolean }) => [i.id, i.renewable]),
+      );
+      expect(byId.get(ended.id)).toBe(true);
+      expect(byId.get(scheduleId)).toBe(false);
+      expect(one.renewable).toBe(true);
+    });
+
     it('GET /:id lets STAFF and MANAGER read any schedule of the tenant', async () => {
       for (const role of ['STAFF', 'MANAGER'] as const) {
         const { body } = await request(app.getHttpServer())

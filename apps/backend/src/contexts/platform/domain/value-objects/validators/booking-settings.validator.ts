@@ -13,6 +13,7 @@ export class BookingSettingsValidator {
     BookingSettingsValidator.validateServiceBuffer(booking);
     BookingSettingsValidator.validateSlotGranularity(booking);
     BookingSettingsValidator.validateWelcomeStaffScreenDays(booking);
+    BookingSettingsValidator.validateRecurringRenewalReminderDays(booking);
   }
 
   private static validateCancellationWindow(booking: BookingSettings): void {
@@ -78,6 +79,17 @@ export class BookingSettingsValidator {
         'booking.welcomeStaffScreenDays must be between 1 and 90',
         PlatformErrorCode.SETTINGS_BOOKING_WELCOME_STAFF_SCREEN_DAYS_INVALID,
         'booking.welcomeStaffScreenDays',
+      );
+    }
+  }
+
+  private static validateRecurringRenewalReminderDays(booking: BookingSettings): void {
+    const { recurringRenewalReminderDays: days } = booking;
+    if (!Number.isInteger(days) || days < 0 || days > 30) {
+      throw new TenantSettingsValidationError(
+        'booking.recurringRenewalReminderDays must be between 0 and 30',
+        PlatformErrorCode.SETTINGS_BOOKING_RECURRING_RENEWAL_REMINDER_DAYS_INVALID,
+        'booking.recurringRenewalReminderDays',
       );
     }
   }

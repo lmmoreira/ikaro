@@ -232,6 +232,43 @@ describe('TenantSettingsController (integration)', () => {
     expect(body.settings.loyalty.expiryDays).toBe(365);
   });
 
+  it('returns 200, persists the renewal reminder lead time (0 turns it off) and returns the default 7 on GET (M23-S21)', async () => {
+    const { body: before } = await request(app.getHttpServer())
+      .get('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .expect(200);
+    expect(before.settings.booking.recurringRenewalReminderDays).toBe(7);
+
+    const { body } = await request(app.getHttpServer())
+      .patch('/tenants/settings')
+      .set('X-Tenant-ID', tenantId)
+      .set('X-Actor-Role', 'MANAGER')
+      .send({ settings: { booking: { recurringRenewalReminderDays: 0 } } })
+      .expect(200);
+
+    expect(body.settings.booking.recurringRenewalReminderDays).toBe(0);
+    const row = await ds.getRepository(TenantEntity).findOne({ where: { id: tenantId } });
+    expect(row!.settings.booking.recurringRenewalReminderDays).toBe(0);
+  });
+
+  it.each([-1, 31, 2.5])(
+    'returns 400 for a renewal reminder lead time of %s and leaves the stored value alone (M23-S21)',
+    async (recurringRenewalReminderDays) => {
+      const { body } = await request(app.getHttpServer())
+        .patch('/tenants/settings')
+        .set('X-Tenant-ID', tenantId)
+        .set('X-Actor-Role', 'MANAGER')
+        .send({ settings: { booking: { recurringRenewalReminderDays } } })
+        .expect(400);
+
+      expect(body.status).toBe(400);
+      expect(body.violations).toEqual([
+        expect.objectContaining({ field: 'settings.booking.recurringRenewalReminderDays' }),
+      ]);
+    },
+  );
+
   it('returns 400 when the body has no settings field (name moved to PATCH /tenants)', async () => {
     const { body } = await request(app.getHttpServer())
       .patch('/tenants/settings')

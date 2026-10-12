@@ -35,5 +35,14 @@ export interface IRecurringBookingScheduleRepository {
   findPendingApprovalExpired(tenantId: string, now: Date): Promise<RecurringBookingSchedule[]>;
   // ACTIVE schedules whose last day (endsOn, a tenant-local calendar date) is before localToday.
   findActiveEndedBefore(tenantId: string, localToday: string): Promise<RecurringBookingSchedule[]>;
+  // M23-S21: ACTIVE schedules whose last day (endsOn) is exactly this tenant-local date.
+  findActiveEndingOn(tenantId: string, endsOn: string): Promise<RecurringBookingSchedule[]>;
+  // M23-S21: the ids, among these schedules, that already have a successor — another ACTIVE or
+  // PENDING_APPROVAL schedule of the same customer for the same service starting on or after the
+  // schedule's endsOn. One tenant-scoped read for the whole batch, never one per schedule.
+  findSuccessorScheduleIds(
+    tenantId: string,
+    schedules: readonly RecurringBookingSchedule[],
+  ): Promise<Set<string>>;
   save(schedule: RecurringBookingSchedule): Promise<void>;
 }

@@ -159,7 +159,7 @@ Notification Context subscribes:
 - `BookingCompleted` → consumed by **Loyalty** (inserts LoyaltyEntry per line); **no Notification consumer** (a customer with an account gets the `ServicePointsEarned` email instead)
 - `BookingCancelled` → consumed by Notification and by Booking's own `availability-alert-matching`
 - `BookingRescheduled` → consumed by Notification and by Booking's own `availability-alert-matching`
-- Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder` → all consumed by Notification
+- Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `RecurringScheduleRenewalDue` (M23-S21, the renewal reminder for an ending recurring schedule) → all consumed by Notification
 - `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended` (M23 Cluster 3) → consumed by Notification
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; the rest only by the shared `audit-log` consumer
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer today; the manager alert (`Raised`) and customer message (`Resolved`) are M23-S23, not built
@@ -332,6 +332,8 @@ BookingReminderDue → Email: Customer/guest "Reminder: your appointment is tomo
 BookingReminderDueToday → Email: Customer/guest "Reminder: your appointment is today at [time]"
 
 AdminDailyScheduleReminder → Email: Admin "Today's schedule: [X] appointments, see details below"
+
+RecurringScheduleRenewalDue → Email: Customer "Your recurring reservation ends on [date]", with a link that opens the pre-filled renewal form
 
 ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit."
 

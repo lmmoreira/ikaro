@@ -41,6 +41,11 @@ export interface RecurringBookingScheduleListItem {
   // bookings). Optional for the same rolling-deploy reason as resourceIds.
   resourceAssignments?: RecurringScheduleResourceAssignment[];
   approvalHoldExpiresAt: string | null;
+  // Whether the customer can renew it now (M23-S21): an ACTIVE schedule inside the tenant's renewal
+  // window or an ENDED one, with no successor. Computed server-side; a customer cannot read the
+  // tenant settings the window comes from. Optional so a consumer reading an older response (a
+  // rolling deploy) still type-checks.
+  renewable?: boolean;
 }
 
 export interface RecurringBookingScheduleListResponse {

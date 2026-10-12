@@ -160,6 +160,7 @@ export class TenantSettings {
       booking: {
         ...props.booking,
         welcomeStaffScreenDays: props.booking.welcomeStaffScreenDays ?? 14,
+        recurringRenewalReminderDays: props.booking.recurringRenewalReminderDays ?? 7,
       },
     });
   }

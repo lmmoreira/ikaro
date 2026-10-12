@@ -127,6 +127,12 @@
       "body": "<p>Hello, {{contactName}}!</p><p>Your recurring schedule for {{serviceName}} was ended by <strong>{{tenantName}}</strong>.</p><p>The future appointments were cancelled.</p>"
     }
   },
+  "RecurringScheduleRenewalDue": {
+    "customer": {
+      "subject": "Your recurring reservation ends on {{endsOn}}",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your recurring reservation at <strong>{{tenantName}}</strong> ends on <strong>{{endsOn}}</strong>.</p><p><strong>Service:</strong> {{serviceName}}</p><p><strong>Days:</strong> {{weekdays}} at {{localTime}}</p><p>Want to keep your spot? Renew it in a few clicks, with the same days and time already filled in.</p><p><a href=\"{{renewalUrl}}\">Renew my reservation</a></p>"
+    }
+  },
   "AvailabilityAlertMatched": {
     "customer": {
       "subject": "A slot opened up for {{serviceName}}",
