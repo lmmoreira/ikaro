@@ -136,6 +136,59 @@ describe('syncRecurringScheduleAssignments', () => {
     expect(stored.resourceAssignments.map((a) => a.resourceId)).toEqual([source.id]);
   });
 
+  describe('a bundle schedule (staff pick + room per occurrence)', () => {
+    it('swaps the pick although every occurrence also holds an unrelated room', async () => {
+      const schedule = fixedSchedule();
+      const room = await world.addResource('Sala bundle');
+      const service = await world.addService();
+      await world.addBooking({
+        service,
+        resource: target,
+        alsoHeld: [room],
+        recurringScheduleId: schedule.id,
+      });
+      await world.addBooking({
+        service,
+        resource: target,
+        alsoHeld: [room],
+        recurringScheduleId: schedule.id,
+      });
+
+      await sync([
+        { recurringScheduleId: schedule.id, fromResourceId: source.id, toResourceId: target.id },
+      ]);
+
+      const stored = (await scheduleRepo.findById(schedule.id, TENANT_ID))!;
+      expect(stored.resourceAssignments.map((a) => a.resourceId)).toEqual([target.id]);
+    });
+
+    it('leaves the pick alone when an occurrence is scattered onto a third resource', async () => {
+      const schedule = fixedSchedule();
+      const room = await world.addResource('Sala bundle');
+      const third = await world.addResource('Sala 3');
+      const service = await world.addService();
+      await world.addBooking({
+        service,
+        resource: target,
+        alsoHeld: [room],
+        recurringScheduleId: schedule.id,
+      });
+      await world.addBooking({
+        service,
+        resource: third,
+        alsoHeld: [room],
+        recurringScheduleId: schedule.id,
+      });
+
+      await sync([
+        { recurringScheduleId: schedule.id, fromResourceId: source.id, toResourceId: target.id },
+      ]);
+
+      const stored = (await scheduleRepo.findById(schedule.id, TENANT_ID))!;
+      expect(stored.resourceAssignments.map((a) => a.resourceId)).toEqual([source.id]);
+    });
+  });
+
   it('ignores a schedule that is no longer ACTIVE', async () => {
     const schedule = fixedSchedule();
     schedule.end('corr-sync-1', [], 'CUSTOMER');

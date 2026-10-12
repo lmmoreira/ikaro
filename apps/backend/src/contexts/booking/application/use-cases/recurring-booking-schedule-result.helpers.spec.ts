@@ -58,6 +58,7 @@ describe('toRecurringBookingScheduleResult', () => {
       status: 'ACTIVE',
       assignmentPolicy: 'FIXED_ASSIGNMENT',
       resourceIds: ['res-1'],
+      resourceAssignments: [{ resourceType: ResourceType.ROOM, resourceId: 'res-1' }],
       approvalHoldExpiresAt: null,
     });
   });
@@ -65,7 +66,9 @@ describe('toRecurringBookingScheduleResult', () => {
   it('has no resource ids when the resource is resolved per occurrence', () => {
     const s = schedule('ACTIVE', 'RESOLVE_PER_OCCURRENCE');
 
-    expect(toRecurringBookingScheduleResult(s, 'Sala Aurora').resourceIds).toEqual([]);
+    const result = toRecurringBookingScheduleResult(s, 'Sala Aurora');
+    expect(result.resourceIds).toEqual([]);
+    expect(result.resourceAssignments).toEqual([]);
   });
 
   it('serializes the approval-hold expiry as an ISO string for a pending schedule', () => {

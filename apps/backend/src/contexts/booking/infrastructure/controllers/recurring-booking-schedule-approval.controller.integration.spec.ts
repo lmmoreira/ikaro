@@ -4,13 +4,17 @@ import { DataSource } from 'typeorm';
 
 import {
   BookingEntityBuilder,
+  BookingLineEntityBuilder,
+  BookingLineResourceAssignmentEntityBuilder,
   ResourceEntityBuilder,
+  ResourceOccupancyEntityBuilder,
   ScheduleClosureEntityBuilder,
   ServiceEntityBuilder,
   ServiceResourceRequirementEntityBuilder,
   ServiceResourceRequirementPoolEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
@@ -18,6 +22,8 @@ import { ExpireRecurringBookingScheduleApprovalsJob } from '../../application/jo
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { BookingEntity } from '../entities/booking.entity';
+import { BookingStatusTransitionEntity } from '../entities/booking-status-transition.entity';
+import { FutureCommitmentExceptionEntity } from '../entities/future-commitment-exception.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
@@ -88,6 +94,8 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
 
   afterAll(async () => {
     for (const id of [tenantId, otherTenantId]) {
+      await ds.getRepository(FutureCommitmentExceptionEntity).delete({ tenantId: id });
+      await ds.getRepository(BookingStatusTransitionEntity).delete({ tenantId: id });
       await ds
         .getRepository(RecurringBookingScheduleResourceAssignmentEntity)
         .delete({ tenantId: id });
@@ -331,6 +339,301 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
 
       expect(res.status).toBe(403);
       expect((await scheduleRow(pending.id)).status).toBe('PENDING_APPROVAL');
+    });
+  });
+
+  // TD49 Story 1 — a staff member the customer picks plus a room resolved per occurrence: the
+  // schedule is approved, managed and ended with both resources held in every occurrence.
+  describe('bundle (staff CUSTOMER_CHOICE + room AUTO_ANY)', () => {
+    const MANAGER_ID = '30000000-0000-4000-8000-000000000702';
+
+    async function saveResource(type: ResourceType, forTenantId = tenantId): Promise<string> {
+      const resource = new ResourceEntityBuilder()
+        .withTenantId(forTenantId)
+        .withType(type)
+        .withName(`Recurso ${uuidv7()}`)
+        .withRefId(type === ResourceType.STAFF ? uuidv7() : null)
+        .build();
+      await ds.getRepository(ResourceEntity).save(resource);
+      return resource.id;
+    }
+
+    async function seedBundle() {
+      const service = await ds
+        .getRepository(ServiceEntity)
+        .save(
+          new ServiceEntityBuilder()
+            .withTenantId(tenantId)
+            .withName('Estúdio + instrutor')
+            .withRecurrenceEligible(true)
+            .withDefaultApprovalMode('MANUAL_APPROVAL')
+            .withBufferAfterMinutes(0)
+            .build(),
+        );
+      await ds
+        .getRepository(ServiceResourceRequirementEntity)
+        .save(
+          new ServiceResourceRequirementEntityBuilder()
+            .withTenantId(tenantId)
+            .withServiceId(service.id)
+            .withResourceType(ResourceType.STAFF)
+            .withSelectionMode('CUSTOMER_CHOICE')
+            .build(),
+        );
+      const room = await saveResource(ResourceType.ROOM);
+      const roomRequirement = new ServiceResourceRequirementEntityBuilder()
+        .withTenantId(tenantId)
+        .withServiceId(service.id)
+        .withResourceType(ResourceType.ROOM)
+        .withSelectionMode('AUTO_ANY')
+        .build();
+      await ds.getRepository(ServiceResourceRequirementEntity).save(roomRequirement);
+      // Restricted to the one room so no other test's room takes part.
+      await ds
+        .getRepository(ServiceResourceRequirementPoolEntity)
+        .save(
+          new ServiceResourceRequirementPoolEntityBuilder()
+            .withTenantId(tenantId)
+            .withRequirementId(roomRequirement.id)
+            .withResourceId(room)
+            .build(),
+        );
+      const staff = await saveResource(ResourceType.STAFF);
+      return { serviceId: service.id, staff, room };
+    }
+
+    async function requestBundle(bundle: { serviceId: string; staff: string }): Promise<string> {
+      const res = await request(app.getHttpServer())
+        .post('/recurring-booking-schedules')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .send({
+          serviceId: bundle.serviceId,
+          recurrence: {
+            frequency: 'WEEKLY',
+            daysOfWeek: ['tuesday'],
+            startTime: '10:00',
+            durationMinutes: 60,
+          },
+          resourceSelections: [{ resourceType: 'STAFF', resourceId: bundle.staff }],
+          startsOn: STARTS_ON,
+          endsOn: ENDS_ON,
+        })
+        .expect(201);
+      return res.body.id as string;
+    }
+
+    // An existing booking that holds `resourceId` from `startsAt` for an hour.
+    async function seedBusy(resourceId: string, type: ResourceType, startsAt: Date): Promise<void> {
+      const service = await ds
+        .getRepository(ServiceEntity)
+        .save(new ServiceEntityBuilder().withTenantId(tenantId).build());
+      const booking = await ds
+        .getRepository(BookingEntity)
+        .save(new BookingEntityBuilder().withTenantId(tenantId).build());
+      const line = await ds
+        .getRepository(BookingLineEntity)
+        .save(
+          new BookingLineEntityBuilder()
+            .withTenantId(tenantId)
+            .withBookingId(booking.id)
+            .withServiceId(service.id)
+            .build(),
+        );
+      const assignment = await ds
+        .getRepository(BookingLineResourceAssignmentEntity)
+        .save(
+          new BookingLineResourceAssignmentEntityBuilder()
+            .withTenantId(tenantId)
+            .withBookingLineId(line.lineId)
+            .withResourceId(resourceId)
+            .withResourceType(type)
+            .build(),
+        );
+      await ds.getRepository(ResourceOccupancyEntity).save(
+        new ResourceOccupancyEntityBuilder()
+          .withTenantId(tenantId)
+          .withResourceId(resourceId)
+          .withResourceType(type)
+          .withBookingLineResourceAssignmentId(assignment.id)
+          .withLockState('COMMITTED')
+          .withStartsAt(startsAt)
+          .withEndsAt(new Date(startsAt.getTime() + 3_600_000))
+          .build(),
+      );
+    }
+
+    const occupancyOf = (resourceId: string, forTenantId = tenantId) =>
+      ds.getRepository(ResourceOccupancyEntity).find({
+        where: { tenantId: forTenantId, resourceId },
+        order: { startsAt: 'ASC' },
+      });
+
+    // The resources a set of bookings currently occupies (the live projection).
+    const occupiedBy = async (bookingIds: string[]): Promise<string[]> => {
+      const rows: { resource_id: string }[] = await ds.query(
+        `SELECT ro.resource_id
+           FROM booking.resource_occupancy ro
+           JOIN booking.booking_line_resource_assignments bla
+             ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+           JOIN booking.booking_lines bl
+             ON bl.tenant_id = bla.tenant_id AND bl.line_id = bla.booking_line_id
+          WHERE ro.tenant_id = $1 AND bl.booking_id = ANY($2)
+          ORDER BY ro.resource_id`,
+        [tenantId, bookingIds],
+      );
+      return rows.map((r) => r.resource_id);
+    };
+
+    async function approvedBundle() {
+      const bundle = await seedBundle();
+      const id = await requestBundle(bundle);
+      await decide(id, 'approve').expect(200);
+      const bookings = (await bookingsOf(id)).sort(
+        (a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime(),
+      );
+      return { ...bundle, id, bookings };
+    }
+
+    it('approving holds both resources in every occurrence and the read lists the stored pick by type', async () => {
+      const bundle = await seedBundle();
+      const id = await requestBundle(bundle);
+      expect(await occupancyOf(bundle.room)).toHaveLength(0);
+
+      const { body } = await decide(id, 'approve').expect(200);
+
+      expect(body).toEqual({ id, status: 'ACTIVE', occurrenceCount: 5 });
+      const staffRows = await occupancyOf(bundle.staff);
+      const roomRows = await occupancyOf(bundle.room);
+      expect(staffRows).toHaveLength(5);
+      expect(roomRows).toHaveLength(5);
+      expect([...staffRows, ...roomRows].every((o) => o.lockState === 'COMMITTED')).toBe(true);
+
+      const read = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${id}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      expect(read.body.resourceAssignments).toEqual([
+        { resourceType: 'STAFF', resourceId: bundle.staff },
+      ]);
+      expect(read.body.resourceIds).toEqual([bundle.staff]);
+    });
+
+    it('refuses the whole approval when the staff member became busy while it waited, holding nothing', async () => {
+      const bundle = await seedBundle();
+      const id = await requestBundle(bundle);
+      await seedBusy(
+        bundle.staff,
+        ResourceType.STAFF,
+        new Date(`${addDays(STARTS_ON, 14)}T13:00:00.000Z`),
+      );
+
+      const res = await decide(id, 'approve').expect(409);
+
+      expect(res.body.code).toBe('BOOKING_RECURRING_SCHEDULE_CONFLICT');
+      expect(await bookingsOf(id)).toHaveLength(0);
+      expect((await scheduleRow(id)).status).toBe('PENDING_APPROVAL');
+      expect(await occupancyOf(bundle.room)).toHaveLength(0);
+      expect(await occupancyOf(bundle.staff)).toHaveLength(1); // only the seeded one
+    });
+
+    it('ending the schedule releases both resources of every future occurrence', async () => {
+      const bundle = await approvedBundle();
+
+      await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${bundle.id}/end`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      expect(await occupancyOf(bundle.staff)).toHaveLength(0);
+      expect(await occupancyOf(bundle.room)).toHaveLength(0);
+    });
+
+    it("never lets another tenant's actor end it or touch its occupancy", async () => {
+      const bundle = await approvedBundle();
+
+      await request(app.getHttpServer())
+        .post(`/recurring-booking-schedules/${bundle.id}/end`)
+        .set(actorHeaders(otherTenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(404);
+
+      expect(await occupancyOf(bundle.staff)).toHaveLength(5);
+      expect(await occupancyOf(bundle.room)).toHaveLength(5);
+      expect(await occupancyOf(bundle.staff, otherTenantId)).toHaveLength(0);
+    });
+
+    it('cancelling one occurrence releases its two rows and leaves the others held', async () => {
+      const bundle = await approvedBundle();
+      const victim = bundle.bookings[0];
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${victim.id}/cancel-admin`)
+        .set(actorHeaders(tenantId, MANAGER_ID, 'MANAGER'))
+        .send({ reason: 'Instrutor indisponível nesta data' })
+        .expect(200);
+
+      expect(await occupiedBy([victim.id])).toEqual([]);
+      expect(await occupancyOf(bundle.staff)).toHaveLength(4);
+      expect(await occupancyOf(bundle.room)).toHaveLength(4);
+    });
+
+    it('rescheduling one occurrence keeps the pinned staff member and moves both rows', async () => {
+      const bundle = await approvedBundle();
+      const target = bundle.bookings[0];
+      const newStart = new Date(target.scheduledAt.getTime() + 2 * 3_600_000);
+
+      await request(app.getHttpServer())
+        .patch(`/bookings/${target.id}/reschedule-admin`)
+        .set(actorHeaders(tenantId, MANAGER_ID, 'MANAGER'))
+        .send({ scheduledAt: newStart.toISOString() })
+        .expect(200);
+
+      expect((await occupiedBy([target.id])).sort()).toEqual([bundle.room, bundle.staff].sort());
+      for (const resourceId of [bundle.staff, bundle.room]) {
+        const rows = await occupancyOf(resourceId);
+        expect(rows).toHaveLength(5);
+        expect(rows.filter((o) => o.startsAt.getTime() === newStart.getTime())).toHaveLength(1);
+      }
+    });
+
+    it('a bulk reassign of the staff pick moves the schedule assignment with it', async () => {
+      const bundle = await approvedBundle();
+      const replacement = await saveResource(ResourceType.STAFF);
+      const manager = actorHeaders(tenantId, MANAGER_ID, 'MANAGER');
+      await request(app.getHttpServer())
+        .delete(`/resources/${bundle.staff}`)
+        .set(manager)
+        .expect(204);
+      const { body: open } = await request(app.getHttpServer())
+        .get('/scheduling-exceptions')
+        .set(manager)
+        .expect(200);
+      const entries = (open.items as { id: string; affectedId: string }[]).filter((e) =>
+        bundle.bookings.some((b) => b.id === e.affectedId),
+      );
+      expect(entries).toHaveLength(5);
+
+      const { body } = await request(app.getHttpServer())
+        .post('/scheduling-exceptions/resolve')
+        .set(manager)
+        .send({
+          exceptionIds: entries.map((e) => e.id),
+          resolutionType: 'REASSIGN',
+          target: { resourceId: replacement },
+        })
+        .expect(200);
+
+      expect((body.results as { outcome: string }[]).map((r) => r.outcome)).toEqual(
+        Array(5).fill('RESOLVED'),
+      );
+      expect(await occupancyOf(replacement)).toHaveLength(5);
+      expect(await occupancyOf(bundle.room)).toHaveLength(5);
+      const read = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${bundle.id}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      expect(read.body.resourceAssignments).toEqual([
+        { resourceType: 'STAFF', resourceId: replacement },
+      ]);
     });
   });
 

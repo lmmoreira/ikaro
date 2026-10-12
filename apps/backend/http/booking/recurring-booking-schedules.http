@@ -129,7 +129,8 @@ X-Actor-Role: CUSTOMER
 ###
 
 ### Customer reads one of their own schedules by id (M23-S42) — the same item as in the list, with
-### "serviceName". 404 BOOKING_RECURRING_SCHEDULE_NOT_FOUND for another customer's schedule or
+### "serviceName". "resourceIds" / "resourceAssignments" carry the stored CUSTOMER_CHOICE picks only
+### (TD49 Story 1): a bundle lists its fixed staff member, not an AUTO_* requirement's resource. 404 BOOKING_RECURRING_SCHEDULE_NOT_FOUND for another customer's schedule or
 ### another tenant's (a read does not reveal that it exists; ending someone else's stays 403).
 GET {{baseUrl}}/recurring-booking-schedules/{{scheduleId}}
 X-Tenant-ID: {{tenantId}}

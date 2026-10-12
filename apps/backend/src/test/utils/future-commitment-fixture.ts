@@ -26,6 +26,8 @@ export const FCE_OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
 export interface SeedBookingOptions {
   service: Service;
   resource: Resource;
+  // Further resources the same line holds (a bundle booking: staff + room).
+  alsoHeld?: Resource[];
   status?: BookingStatus;
   startsInHours?: number;
   durationMins?: number;
@@ -133,21 +135,19 @@ export class FutureCommitmentFixture {
     await this.occupancyRepo.assign(
       tenantId,
       lineId,
-      [
-        {
-          resourceId: options.resource.id,
-          resourceType: options.resource.type,
-          resourceName: options.resource.name,
-          legIndex: null,
-          quantityPosition: null,
-          startsAt,
-          endsAt,
-          selectionMode: 'AUTO_ANY',
-          isBundleMember: false,
-          gapMinutes: null,
-          gapSource: null,
-        },
-      ],
+      [options.resource, ...(options.alsoHeld ?? [])].map((held) => ({
+        resourceId: held.id,
+        resourceType: held.type,
+        resourceName: held.name,
+        legIndex: null,
+        quantityPosition: null,
+        startsAt,
+        endsAt,
+        selectionMode: 'AUTO_ANY' as const,
+        isBundleMember: options.alsoHeld !== undefined,
+        gapMinutes: null,
+        gapSource: null,
+      })),
       options.lockState ?? 'COMMITTED',
       null,
     );

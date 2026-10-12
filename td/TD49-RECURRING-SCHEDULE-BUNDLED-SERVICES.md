@@ -169,11 +169,10 @@ Make the steps that run after a schedule is accepted bundle-aware. Materializati
 **Files to create/modify:**
 - `packages/types/src/recurring-booking-schedule.dto.ts` and `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-result.helpers.ts` (+ spec) (modify — `resourceAssignments`, decision 2)
 - `apps/backend/http/booking/recurring-booking-schedules.http` (modify — response notes), `docs/14-API_CONTRACTS.md` (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule-approval.controller.integration.spec.ts` and `recurring-booking-schedule.controller.integration.spec.ts` (modify — the bundle integration scenarios below)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/recurring-booking-schedule-approval.controller.integration.spec.ts` (modify — the bundle integration scenarios below, the read check included)
 - `apps/backend/src/contexts/booking/application/use-cases/materialize-recurring-schedule-occurrences.helpers.ts`, `approve-recurring-booking-schedule.use-case.ts` and `recurring-occurrence-occupancy.helpers.ts` (+ specs) (modify only where a proof fails; Story 0 already generalized them)
 - `apps/backend/src/contexts/booking/application/use-cases/end-recurring-booking-schedule.use-case.ts` (+ spec) (modify only if the bundle proof fails)
 - `apps/backend/src/contexts/booking/application/use-cases/future-commitment-schedule-sync.helpers.ts` (+ spec) (modify — the reassign sync compares only the schedule's own resources)
-- `apps/backend/src/contexts/booking/application/use-cases/list-recurring-booking-schedules.use-case.ts` and `get-recurring-booking-schedule.use-case.ts` (+ specs) (modify — return every assignment with its requirement)
 - `docs/27-BUSINESS_LOGIC_REFERENCE.md`, `docs/04-USE_CASES.md` (modify — UC-070/071 state that a bundle is supported end to end)
 
 **Acceptance criteria — product:**
