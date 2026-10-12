@@ -239,7 +239,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
             setView({ view: 'tabs' });
             return;
           }
-          handlePublish(previewDraft, leadFormConfig ?? undefined);
+          void handlePublish(previewDraft, leadFormConfig ?? undefined);
         }}
         isPublishing={isPublishing}
       />

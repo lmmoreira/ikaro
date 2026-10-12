@@ -131,7 +131,7 @@ export class InMemoryLeadFormSubmissionRepository implements ILeadFormSubmission
         labels.add(answer.questionLabel);
       }
     }
-    return [...labels].sort();
+    return [...labels].sort((a, b) => a.localeCompare(b));
   }
 
   async findById(id: string, tenantId: string): Promise<LeadFormSubmission | null> {
