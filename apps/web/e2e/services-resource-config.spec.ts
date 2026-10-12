@@ -133,8 +133,9 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('policy-recurrence-eligible')).toBeChecked();
   });
 
-  // TD49-S03 / UC-055 step 3 — the advisory hint under the recurrence toggle, never blocking.
-  test('a service that needs staff plus a room shows why it cannot recur yet, and still saves', async ({
+  // TD49-S03 / UC-055 step 3 — the advisory hint under the recurrence toggle, never blocking. Since
+  // TD49 Story 2 a service with several resources can recur, so saving them raises no hint.
+  test('a service that needs a room plus equipment shows no recurrence hint, and the toggle saves', async ({
     page,
   }) => {
     const service = await seedService(page);
@@ -151,9 +152,9 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('service-desktop-tab-action').click();
     await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
 
-    // The hint follows the save in the same session, without a reload.
+    // Two resources are no reason any more, in the same session and without a reload.
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
-    await expect(page.getByTestId('policy-recurrence-hint')).toContainText('mais de um recurso');
+    await expect(page.getByTestId('policy-recurrence-hint')).toBeHidden();
 
     await page.getByTestId('policy-recurrence-eligible').click();
     await expect(page.getByTestId('service-desktop-tab-action')).toBeEnabled();

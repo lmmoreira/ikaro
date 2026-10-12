@@ -763,7 +763,6 @@
         "resourceHint": "Este é o recurso que ficará reservado toda semana.",
         "resourcesLoading": "Carregando recursos…",
         "resourcesError": "Não foi possível carregar os recursos. Tente novamente.",
-        "resourceTitleNumbered": "{type} {number}",
         "autoPoolLine": "Uma unidade livre é reservada a cada semana",
         "autoAnyLine": {
           "STAFF": "Escolhido automaticamente a cada semana, entre os profissionais livres",

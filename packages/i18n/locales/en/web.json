@@ -763,7 +763,6 @@
         "resourceHint": "This is the resource that will be held every week.",
         "resourcesLoading": "Loading resources…",
         "resourcesError": "Could not load the resources. Please try again.",
-        "resourceTitleNumbered": "{type} {number}",
         "autoPoolLine": "One free unit is reserved every week",
         "autoAnyLine": {
           "STAFF": "Chosen automatically every week, among the free professionals",

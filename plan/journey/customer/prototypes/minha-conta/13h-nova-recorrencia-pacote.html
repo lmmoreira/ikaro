@@ -101,8 +101,8 @@
         (Profissional, Sala, Equipamento — as mesmas chaves booking.resourcePicker.sectionTitle.*). O primeiro item de cada grupo vem
         selecionado (como na 13). Requisitos AUTO_ANY / AUTO_FUNGIBLE_POOL / NONE não ganham grupo: aparecem só como uma linha
         informativa, somente leitura ("escolhida automaticamente").
-      - Dois requisitos CUSTOMER_CHOICE do MESMO tipo (ex.: dois profissionais): os grupos são numerados ("Profissional 1", "Profissional 2")
-        — estado B. As escolhas seguem a ordem dos requisitos (TD49 Story 0, decisão 2).
+      - Um serviço tem no máximo UM requisito por tipo de recurso (índice único no banco), então o tipo identifica o requisito: dois
+        profissionais, por exemplo, não existem num mesmo serviço e os grupos nunca precisam de número.
       - Cada grupo é obrigatório: sem escolha, o erro aparece sob o grupo e o envio é bloqueado (estado C).
     COMPOSIÇÕES QUE O SERVIDOR ACEITA E O QUE O FORMULÁRIO MOSTRA (todo requisito tem quantidade 1; sem legs, sem endereço de coleta):
       | Requisitos do serviço                                              | Formulário                                                    | Política derivada       |
@@ -110,7 +110,7 @@
       | 1 CUSTOMER_CHOICE                                                  | 1 grupo (tela 13)                                             | FIXED_ASSIGNMENT        |
       | 1 AUTO_ANY / AUTO_FUNGIBLE_POOL                                    | nenhum campo (tela 13)                                        | RESOLVE_PER_OCCURRENCE  |
       | vários, alguns CUSTOMER_CHOICE e outros automáticos                | 1 grupo por CUSTOMER_CHOICE + 1 linha por automático (A, E, G)| FIXED_ASSIGNMENT        |
-      | vários, todos CUSTOMER_CHOICE                                      | 1 grupo por requisito (A2); tipo repetido → numerados (B)     | FIXED_ASSIGNMENT        |
+      | vários, todos CUSTOMER_CHOICE                                      | 1 grupo por requisito (A2)                                    | FIXED_ASSIGNMENT        |
       | vários, todos automáticos                                          | só linhas informativas (D)                                    | RESOLVE_PER_OCCURRENCE  |
       | local padrão (NONE) + outros                                       | o local não aparece (F); os demais como acima                 | pelos demais            |
       Fora do que o formulário oferece, de propósito: legs (itinerário), endereço de coleta, quantidade acima de 1, duração escolhida pelo cliente
@@ -119,7 +119,7 @@
       GET /public/services/:id/resource-options  → { requirements: [{ serviceId, resourceType, selectionMode: "CUSTOMER_CHOICE", requiredQuantity, options }] }
         (já existe; devolve um item por requisito CUSTOMER_CHOICE — um grupo de escolha por item)
       POST /recurring-booking-schedules
-        Body: { serviceId, recurrence, resourceSelections: [{ resourceType: "STAFF", resourceId }, ...] (um por requisito CUSTOMER_CHOICE, na ordem do serviço),
+        Body: { serviceId, recurrence, resourceSelections: [{ resourceType: "STAFF", resourceId }, ...] (um por requisito CUSTOMER_CHOICE, com o tipo do recurso),
                 startsOn, endsOn }
         O servidor deriva a política: FIXED_ASSIGNMENT quando algum requisito é CUSTOMER_CHOICE (pacote misto incluído), senão RESOLVE_PER_OCCURRENCE.
         Um conflito em QUALQUER requisito recusa a recorrência inteira (409, nada é criado); a tela de conflito é a mesma 06b — a lista de datas
@@ -234,24 +234,6 @@
           <p class="meta">Todos os requisitos são de escolha do cliente: um grupo para cada, na ordem do serviço. A política é FIXED_ASSIGNMENT e o pedido leva duas escolhas.</p>
         </div>
 
-        <div class="panel" id="mesmo-tipo">
-          <span class="tag-proposal">Estado B · dois profissionais (mesmo tipo)</span>
-          <div class="card">
-            <div class="field">
-              <span class="form-label">Profissional 1</span>
-              <label class="choice on"><input type="radio" name="b-staff-1" checked> Marina Alves</label>
-              <label class="choice"><input type="radio" name="b-staff-1"> Rafael Costa</label>
-            </div>
-            <div class="field" style="margin-bottom:0;">
-              <span class="form-label">Profissional 2</span>
-              <label class="choice"><input type="radio" name="b-staff-2"> Marina Alves</label>
-              <label class="choice on"><input type="radio" name="b-staff-2" checked> Rafael Costa</label>
-              <p class="field-hint">As escolhas seguem a ordem do serviço: o 1º profissional, depois o 2º.</p>
-            </div>
-          </div>
-          <p class="meta">Quando um tipo se repete, os grupos ganham número. Sem repetição, o título é só o tipo (Profissional, Sala, Equipamento).</p>
-        </div>
-
         <div class="panel" id="sem-escolha">
           <span class="tag-proposal">Estado C · falta escolher</span>
           <div class="card">
@@ -358,7 +340,6 @@
         <div class="proto-only">
           <strong>Variantes (só no protótipo):</strong><br>
           <a href="#duas-escolhas">A2 · dois de escolha</a>
-          <a href="#mesmo-tipo">B · mesmo tipo</a>
           <a href="#sem-escolha">C · falta escolher</a>
           <a href="#tudo-automatico">D · tudo automático</a>
           <a href="#equipamento-pool">E · conjunto de unidades</a>

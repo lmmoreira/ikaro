@@ -148,27 +148,23 @@ describe('ResourceFields', () => {
 
   it('writes the pick into its own slot and keeps the other groups', async () => {
     const service = makeHotsiteService({
-      resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('STAFF')],
+      resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('ROOM')],
     });
     fetchServiceResourceOptions.mockResolvedValue({
       requirements: [
-        entry(service.id, 'STAFF', [
-          { resourceId: 'a', name: 'Marina' },
-          { resourceId: 'b', name: 'Rafael' },
+        entry(service.id, 'ROOM', [
+          { resourceId: 'r1', name: 'Sala Aurora' },
+          { resourceId: 'r2', name: 'Sala Horizonte' },
         ]),
-        entry(service.id, 'STAFF', [
-          { resourceId: 'a', name: 'Marina' },
-          { resourceId: 'b', name: 'Rafael' },
-        ]),
+        entry(service.id, 'STAFF', [{ resourceId: 's1', name: 'Marina' }]),
       ],
     });
     const onChange = vi.fn();
-    renderHarness({ service, draft: { ...DRAFT, resourceIds: ['a', 'a'] }, onChange });
+    renderHarness({ service, draft: { ...DRAFT, resourceIds: ['s1', 'r1'] }, onChange });
 
-    const second = await screen.findByRole('radiogroup', { name: 'Profissional 2' });
-    fireEvent.click(second.querySelector('[data-value="b"]')!);
+    fireEvent.click(await screen.findByRole('radio', { name: 'Sala Horizonte' }));
 
-    expect(onChange).toHaveBeenCalledWith({ resourceIds: ['a', 'b'] });
+    expect(onChange).toHaveBeenCalledWith({ resourceIds: ['s1', 'r2'] });
   });
 
   it('asks for the missing pick of the group that has none', async () => {

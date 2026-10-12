@@ -111,42 +111,18 @@ describe('requirement lines', () => {
       resourceRequirements: [
         choiceRequirement('STAFF'),
         autoRequirement('ROOM'),
-        choiceRequirement('STAFF'),
+        choiceRequirement('EQUIPMENT'),
         storedLocationRequirement(),
       ],
     },
   );
 
-  it('positions the choice requirements and numbers a type that repeats', () => {
+  it('positions the customer-chosen requirements among all of them', () => {
     expect(requirementLines(bundle)).toEqual([
-      {
-        type: 'STAFF',
-        selectionMode: 'CUSTOMER_CHOICE',
-        choiceIndex: 0,
-        choiceOfTypeIndex: 0,
-        typeNumber: 1,
-      },
-      {
-        type: 'ROOM',
-        selectionMode: 'AUTO_ANY',
-        choiceIndex: null,
-        choiceOfTypeIndex: null,
-        typeNumber: null,
-      },
-      {
-        type: 'STAFF',
-        selectionMode: 'CUSTOMER_CHOICE',
-        choiceIndex: 1,
-        choiceOfTypeIndex: 1,
-        typeNumber: 2,
-      },
-      {
-        type: 'LOCATION',
-        selectionMode: 'NONE',
-        choiceIndex: null,
-        choiceOfTypeIndex: null,
-        typeNumber: null,
-      },
+      { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', choiceIndex: 0 },
+      { type: 'ROOM', selectionMode: 'AUTO_ANY', choiceIndex: null },
+      { type: 'EQUIPMENT', selectionMode: 'CUSTOMER_CHOICE', choiceIndex: 1 },
+      { type: 'LOCATION', selectionMode: 'NONE', choiceIndex: null },
     ]);
     expect(choiceRequirements(bundle).map((line) => line.choiceIndex)).toEqual([0, 1]);
   });
@@ -167,8 +143,8 @@ describe('requirement lines', () => {
     expect(isBundleForm(eligibleService())).toBe(false);
   });
 
-  it('reads the options entry of the same type in order', () => {
-    const entry = (resourceType: 'STAFF' | 'ROOM', names: string[]) => ({
+  it("reads the options entry of the requirement's resource type", () => {
+    const entry = (resourceType: 'STAFF' | 'EQUIPMENT', names: string[]) => ({
       serviceId: 's',
       legIndex: null,
       resourceType,
@@ -176,11 +152,12 @@ describe('requirement lines', () => {
       requiredQuantity: 1,
       options: names.map((name) => ({ resourceId: name, name })),
     });
-    const options = [entry('STAFF', ['a', 'b']), entry('STAFF', ['c'])];
-    const [first, second] = choiceRequirements(bundle);
-    expect(optionsForChoice(options, first).map((o) => o.name)).toEqual(['a', 'b']);
-    expect(optionsForChoice(options, second).map((o) => o.name)).toEqual(['c']);
-    expect(optionsForChoice([], first)).toEqual([]);
+    // The server may list the entries in any order; the type finds the right one.
+    const options = [entry('EQUIPMENT', ['e']), entry('STAFF', ['a', 'b'])];
+    const [staff, equipment] = choiceRequirements(bundle);
+    expect(optionsForChoice(options, staff).map((o) => o.name)).toEqual(['a', 'b']);
+    expect(optionsForChoice(options, equipment).map((o) => o.name)).toEqual(['e']);
+    expect(optionsForChoice([], staff)).toEqual([]);
   });
 });
 
@@ -371,7 +348,7 @@ describe('buildCreateRequest', () => {
     expect(body).not.toHaveProperty('resourceIds');
   });
 
-  it('sends one selection per CUSTOMER_CHOICE requirement of a bundle, in requirement order', () => {
+  it('sends one selection per CUSTOMER_CHOICE requirement of a bundle, keyed by its resource type', () => {
     const bundle = eligibleService(
       {},
       {
@@ -387,19 +364,6 @@ describe('buildCreateRequest', () => {
     ).toEqual([
       { resourceType: 'STAFF', resourceId: 'staff-1' },
       { resourceType: 'EQUIPMENT', resourceId: 'equip-1' },
-    ]);
-  });
-
-  it('keeps two same-type picks in the order of their requirements', () => {
-    const twoStaff = eligibleService(
-      {},
-      { resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('STAFF')] },
-    );
-    expect(
-      buildCreateRequest(draft({ resourceIds: ['first', 'second'] }), twoStaff).resourceSelections,
-    ).toEqual([
-      { resourceType: 'STAFF', resourceId: 'first' },
-      { resourceType: 'STAFF', resourceId: 'second' },
     ]);
   });
 

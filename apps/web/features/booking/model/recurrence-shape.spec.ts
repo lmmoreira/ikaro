@@ -61,10 +61,6 @@ describe('recurrenceShapeBlockers', () => {
       'a staff + room bundle, both automatic',
       shape([staff('AUTO_ANY'), room('AUTO_FUNGIBLE_POOL')]),
     ],
-    [
-      'two customer-chosen staff requirements',
-      shape([staff('CUSTOMER_CHOICE'), staff('CUSTOMER_CHOICE')]),
-    ],
     ['an older location + staff service', shape([location('NONE'), staff('CUSTOMER_CHOICE')])],
     [
       'three requirements',

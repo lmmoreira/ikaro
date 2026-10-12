@@ -99,7 +99,7 @@ describe('buildRenewalDraft', () => {
         '2026-10-01',
       );
 
-    it('pre-fills each pick from the stored assignment of its resource type', () => {
+    it('pre-fills each pick from the stored assignment of its resource type, whatever the order', () => {
       expect(
         renewing({
           resourceAssignments: [
@@ -115,25 +115,6 @@ describe('buildRenewalDraft', () => {
         renewing({ resourceAssignments: [{ resourceType: 'STAFF', resourceId: 'staff-1' }] })
           ?.resourceIds,
       ).toEqual(['staff-1', null]);
-    });
-
-    it('matches two same-type requirements to the stored picks in order', () => {
-      const twoStaff = eligibleService({
-        resourceRequirements: [choiceRequirement('STAFF'), choiceRequirement('STAFF')],
-      });
-      const draft = buildRenewalDraft(
-        schedule({
-          serviceId: twoStaff.id,
-          assignmentPolicy: 'FIXED_ASSIGNMENT',
-          resourceAssignments: [
-            { resourceType: 'STAFF', resourceId: 'first' },
-            { resourceType: 'STAFF', resourceId: 'second' },
-          ],
-        }),
-        [twoStaff],
-        '2026-10-01',
-      );
-      expect(draft?.resourceIds).toEqual(['first', 'second']);
     });
 
     it('stays eligible for renewal', () => {

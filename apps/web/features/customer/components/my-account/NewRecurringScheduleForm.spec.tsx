@@ -230,16 +230,6 @@ describe('NewRecurringScheduleForm — resource requirements', () => {
     );
   });
 
-  it('B: numbers the groups when a type repeats', async () => {
-    fetchServiceResourceOptions.mockResolvedValue({
-      requirements: [entry('STAFF', ['Marina', 'Rafael']), entry('STAFF', ['Marina', 'Rafael'])],
-    });
-    renderBundle(withRequirements([choiceRequirement('STAFF'), choiceRequirement('STAFF')]));
-
-    expect(await screen.findByRole('radiogroup', { name: 'Profissional 1' })).toBeInTheDocument();
-    expect(screen.getByRole('radiogroup', { name: 'Profissional 2' })).toBeInTheDocument();
-  });
-
   it('writes a pick into its own slot and keeps the others', async () => {
     fetchServiceResourceOptions.mockResolvedValue({
       requirements: [entry('STAFF', ['Marina', 'Rafael']), entry('ROOM', ['Sala Aurora'])],

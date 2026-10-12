@@ -4,8 +4,7 @@ import type { ResourceRequirementLine } from '@/features/booking/model/recurring
 /**
  * The wording of one resource requirement in the creation flow (TD49 Story 2): its title, the
  * line for an automatic one and the messages of a pick group. A single requirement keeps the plain
- * "Recurso" wording; in a bundle every requirement is titled by its resource type, numbered when
- * the type repeats ("Profissional 1", "Profissional 2").
+ * "Recurso" wording; in a bundle every requirement is titled by its resource type.
  */
 export function useRequirementText() {
   const tr = useTranslations('booking.resourcePicker');
@@ -13,11 +12,7 @@ export function useRequirementText() {
 
   return {
     title(line: ResourceRequirementLine, bundle: boolean): string {
-      if (!bundle) return tn('fieldResource');
-      const type = tr(`sectionTitle.${line.type}`);
-      return line.typeNumber === null
-        ? type
-        : tn('resourceTitleNumbered', { type, number: line.typeNumber });
+      return bundle ? tr(`sectionTitle.${line.type}`) : tn('fieldResource');
     },
     /** The read-only line of a requirement the system resolves every week. */
     autoLine(line: ResourceRequirementLine): string {

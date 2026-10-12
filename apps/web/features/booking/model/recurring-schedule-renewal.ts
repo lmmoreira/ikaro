@@ -8,7 +8,7 @@ import { isRecurrenceEligibleService } from './recurring-service-eligibility';
 
 /**
  * The previous schedule's picks, matched to the service's `CUSTOMER_CHOICE` requirements by resource
- * type and order (the first stored STAFF pick fills the first STAFF requirement, and so on). A
+ * type (a service has one requirement per type, so the stored pick of that type is the one). A
  * response from before `resourceAssignments` existed only has `resourceIds`, which is enough for a
  * single choice. A pick the form no longer offers is replaced by its first option there.
  */
@@ -21,13 +21,10 @@ function renewalPicks(
   if (stored === undefined) {
     return choices.map((_, index) => (index === 0 ? (schedule.resourceIds?.[0] ?? null) : null));
   }
-  const taken = new Map<string, number>();
-  return choices.map((choice) => {
-    const sameType = stored.filter((assignment) => assignment.resourceType === choice.type);
-    const position = taken.get(choice.type) ?? 0;
-    taken.set(choice.type, position + 1);
-    return sameType[position]?.resourceId ?? null;
-  });
+  return choices.map(
+    (choice) =>
+      stored.find((assignment) => assignment.resourceType === choice.type)?.resourceId ?? null,
+  );
 }
 
 /**

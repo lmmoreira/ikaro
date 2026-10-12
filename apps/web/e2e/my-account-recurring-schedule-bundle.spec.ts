@@ -96,12 +96,11 @@ test.describe('customer my-account: recurring reservation of a bundle (TD49-S02,
       });
       await desktopPane(customer.page).getByTestId('new-schedule-review').click();
 
-      await expect(customer.page.getByTestId('review-resource')).toContainText(
-        bundle.staffs[1]!.name,
-      );
-      await expect(customer.page.getByTestId('review-resource-1')).toContainText(
-        'Escolhida automaticamente',
-      );
+      // Rows follow the service's requirement order, which the server does not promise: read
+      // the review as a whole.
+      const review = customer.page.getByTestId('new-schedule-review');
+      await expect(review).toContainText(bundle.staffs[1]!.name);
+      await expect(review).toContainText('Escolhida automaticamente');
     } finally {
       await customer.close();
     }

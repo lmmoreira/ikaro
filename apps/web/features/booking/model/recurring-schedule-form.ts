@@ -172,15 +172,15 @@ export function earliestStartDate(now: Date, timezone: string): string {
 /**
  * The exact `POST /recurring-booking-schedules` body. The server derives the assignment policy from
  * the service, so the body only carries the customer's picks for the `CUSTOMER_CHOICE`
- * requirements, one entry each, keyed by that requirement's resource type and in the service's
- * requirement order (the backend matches same-type entries in that order; TD49 Story 0 and 2).
+ * requirements, one entry each, keyed by that requirement's resource type (a flat service has one
+ * requirement per type, so the type identifies it; TD49 Story 0 and 2).
  */
 export function buildCreateRequest(
   draft: RecurringScheduleDraft,
   service: HotsiteServiceResponse,
   renewsScheduleId?: string,
 ): CreateRecurringBookingScheduleRequest {
-  // All picks or none: a missing pick would shift the later same-type ones into its slot.
+  // All picks or none: the request never carries a partial set.
   const picks = choiceRequirements(service).map((line) => ({
     resourceType: line.type,
     resourceId: draft.resourceIds[line.choiceIndex] ?? null,
