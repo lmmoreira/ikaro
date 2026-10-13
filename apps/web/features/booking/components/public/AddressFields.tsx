@@ -1,12 +1,11 @@
 'use client';
 
-import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { Address, HotsiteAddressSpec } from '@ikaro/types';
 import type { AddressLookup } from '@/shared/lib/address/address-lookup.port';
 import { viaCepAddressLookup } from '@/shared/lib/address/viacep-address-lookup.adapter';
-import { digitsOnly } from '@/shared/utils/digits-only';
+import { useAddressLookup } from '@/features/booking/hooks/useAddressLookup';
 import { AddressTextField } from './AddressTextField';
 
 interface AddressFieldsProps {
@@ -29,37 +28,12 @@ export function AddressFields({
   hasError = false,
 }: AddressFieldsProps): React.JSX.Element {
   const t = useTranslations('booking.address');
-  const [isLookingUp, setIsLookingUp] = useState(false);
-  const [lookupFailed, setLookupFailed] = useState(false);
-  const lookupSeqRef = useRef(0);
-
-  async function handleZipCodeChange(zipCode: string) {
-    onChange({ ...value, zipCode });
-    setLookupFailed(false);
-
-    if (addressSpec.lookupService !== 'viacep') return;
-    const digits = digitsOnly(zipCode);
-    if (digits.length !== 8) return;
-
-    const seq = ++lookupSeqRef.current;
-    setIsLookingUp(true);
-
-    try {
-      const result = await addressLookup.lookup(digits);
-      if (seq !== lookupSeqRef.current) return;
-
-      if (!result) {
-        setLookupFailed(true);
-        return;
-      }
-
-      onChange({ ...value, zipCode, ...result });
-    } catch {
-      if (seq === lookupSeqRef.current) setLookupFailed(true);
-    } finally {
-      if (seq === lookupSeqRef.current) setIsLookingUp(false);
-    }
-  }
+  const { isLookingUp, lookupFailed, changeZipCode } = useAddressLookup({
+    value,
+    onChange,
+    addressSpec,
+    addressLookup,
+  });
 
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-6">
@@ -68,7 +42,7 @@ export function AddressFields({
           id={`${idPrefix}-zip-code`}
           label={addressSpec.postalLabel}
           value={value.zipCode}
-          onChange={handleZipCodeChange}
+          onChange={changeZipCode}
           placeholder={addressSpec.postalPlaceholder}
           required={required}
           hasError={required && hasError}

@@ -10,7 +10,7 @@ import type {
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import type { PickerUnit } from '@/features/booking/model/booking-steps';
-import { findPick } from '@/features/booking/model/resource-picks';
+import { describePickerUnit } from '@/features/booking/model/resource-picker-copy';
 import { summarizeSelection } from '@/features/booking/model/selection-totals';
 import { ResourcePicker, type ResourcePickerStatus } from './ResourcePicker';
 
@@ -56,22 +56,20 @@ export function ResourcePickerStep({
   const tc = useTranslations('common');
   const tb = useTranslations('booking');
   const { formatMoney } = useFormatting();
-  const unitRequirements = requirements.filter(
-    (req) => req.serviceId === unit.serviceId && (req.legIndex ?? null) === unit.legIndex,
-  );
-  const [first] = unitRequirements;
-  const isLeg = unit.legName !== null && unit.legIndex !== null;
-  const flatHeading =
-    unitRequirements.length === 1 && first
-      ? t(`headingSingle.${first.resourceType}`)
-      : t('headingMulti');
-  const heading = isLeg ? (unit.legName ?? '') : flatHeading;
-  const legTotal = service.legs?.length ?? 0;
-  const subtitle = isLeg
-    ? `${service.name} · ${t('legSubtitle', { index: (unit.legIndex ?? 0) + 1, total: legTotal })}`
+  const {
+    requirements: unitRequirements,
+    heading: unitHeading,
+    leg,
+    allPicked,
+  } = describePickerUnit(unit, service, requirements, picks);
+  let heading = t('headingMulti');
+  if (unitHeading.kind === 'leg') heading = unitHeading.name;
+  else if (unitHeading.kind === 'single') heading = t(`headingSingle.${unitHeading.resourceType}`);
+  const subtitle = leg
+    ? `${service.name} · ${t('legSubtitle', { index: leg.index, total: leg.total })}`
     : undefined;
   const totals = summarizeSelection([service]);
-  const summaryLine = isLeg
+  const summaryLine = leg
     ? undefined
     : t('serviceLine', {
         name: service.name,
@@ -82,10 +80,6 @@ export function ResourcePickerStep({
           ? tb('summary.durationToChoose')
           : formatDuration(totals.durationMinutes),
       });
-  const allPicked =
-    unitRequirements.length > 0 &&
-    unitRequirements.every((req) => findPick(picks, req) !== undefined);
-
   return (
     <div data-testid="step-resource-picker" data-unit={unit.key}>
       <ResourcePicker

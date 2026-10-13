@@ -26,6 +26,10 @@ export interface IntakeValidation {
   readonly count: number;
 }
 
+export function newAttendeeDraft(): AttendeeDraft {
+  return { id: crypto.randomUUID(), name: '', isMinor: false };
+}
+
 export function emptyIntakeAnswers(): IntakeAnswersValue {
   return { answers: {}, participantCount: '', attendees: [], consentAccepted: false };
 }
@@ -87,6 +91,24 @@ function buildAttendees(value: IntakeAnswersValue): BookingAttendeeInput[] {
   return value.attendees
     .filter((row) => row.name.trim() !== '')
     .map((row) => ({ name: row.name.trim(), isMinor: row.isMinor }));
+}
+
+/**
+ * The intake as staff send it (UC-108 A7): a form left entirely blank sends nothing, so no intake
+ * is stored; otherwise whatever was filled in is sent as is, and the consent only when ticked.
+ */
+export function buildOptionalIntakeRequestFields(
+  schema: ServiceIntakeSchemaVersion,
+  value: IntakeAnswersValue,
+): BookingFlowRequestFields | null {
+  const { consentAccepted, ...fields } = buildIntakeRequestFields(schema, value);
+  const isBlank =
+    Object.keys(fields.intakeAnswers ?? {}).length === 0 &&
+    fields.participantCount === undefined &&
+    fields.attendees === undefined &&
+    !value.consentAccepted;
+  if (isBlank) return null;
+  return value.consentAccepted ? { ...fields, consentAccepted } : fields;
 }
 
 export function buildIntakeRequestFields(

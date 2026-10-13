@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { CustomerProfileResponse, HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
+import type {
+  CustomerProfileResponse,
+  HotsiteAddressSpec,
+  HotsiteServiceResponse,
+} from '@ikaro/types';
 import { getHotsiteCustomerProfile } from '@/features/platform/hotsite/api/customers';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import type { BookingDeepLinkSeed } from '@/features/booking/model/booking-deep-link';
@@ -36,11 +40,19 @@ function useCustomerProfile(slug: string) {
   return { customerProfile, setCustomerProfile };
 }
 
+// A 401 sends the customer to the business's login page and back to the booking page afterwards.
+function useLoginRedirect(slug: string): () => void {
+  const router = useRouter();
+  return () => {
+    const returnTo = encodeURIComponent(`/${slug}/booking`);
+    router.push(`/${slug}/login?returnTo=${returnTo}`);
+  };
+}
+
 // The hotsite's booking form: the shared core (useBookingFormCore) plus what only the hotsite
 // does — the customer's own profile as the pickup default, the guest or authenticated submit, and
 // a 401 that goes to the business's login page.
 export function useBookingFormController({ slug, services, addressSpec, seed = null }: Params) {
-  const router = useRouter();
   const locale = useResolvedLocale();
   const { customerProfile, setCustomerProfile } = useCustomerProfile(slug);
   const core = useBookingFormCore({
@@ -48,10 +60,7 @@ export function useBookingFormController({ slug, services, addressSpec, seed = n
     services,
     seed,
     defaultAddress: customerProfile?.defaultAddress,
-    onLogin: () => {
-      const returnTo = encodeURIComponent(`/${slug}/booking`);
-      router.push(`/${slug}/login?returnTo=${returnTo}`);
-    },
+    onLogin: useLoginRedirect(slug),
   });
   const { selections, formData, flow } = core;
 
@@ -68,9 +77,7 @@ export function useBookingFormController({ slug, services, addressSpec, seed = n
     resourcePicks: core.resourceSelections,
     durationMinutes: selections.duration?.minutes,
     intakeFields:
-      formData.intakeSchema === null
-        ? null
-        : buildIntakeRequestFields(formData.intakeSchema, selections.intake),
+      formData.intakeSchema && buildIntakeRequestFields(formData.intakeSchema, selections.intake),
     locale,
     steps: flow.steps,
     resolveInvalidPickerStep: core.resolveInvalidPickerStep,

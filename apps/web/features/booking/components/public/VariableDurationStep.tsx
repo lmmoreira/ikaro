@@ -1,13 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
-import { useServiceQuote } from '@/features/booking/hooks/useServiceQuote';
+import { useServiceRateText } from '@/features/booking/hooks/useServicePriceText';
+import { useVariableDurationStep } from '@/features/booking/hooks/useVariableDurationStep';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
-import { durationOptions } from '@/features/booking/model/duration-options';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { ErrorAlert } from './ErrorAlert';
@@ -42,16 +41,10 @@ function RateHint({
   readonly service: HotsiteServiceResponse;
 }): React.JSX.Element | null {
   const t = useTranslations('booking');
-  const { formatMoney } = useFormatting();
+  const perUnit = useServiceRateText(service);
   const { bookingPolicy: policy } = service;
-  if (policy.pricePerIncrementAmount === null) return null;
+  if (perUnit === null) return null;
 
-  const rate = formatMoney(policy.pricePerIncrementAmount);
-  const minutes = policy.pricingIncrementMinutes ?? 60;
-  const perUnit =
-    minutes === 60
-      ? t('serviceSelection.ratePerHour', { rate })
-      : t('serviceSelection.ratePerIncrement', { rate, minutes });
   return (
     <p className="text-sm opacity-75" style={{ color: 'var(--ba-text)' }}>
       {policy.durationMinMinutes === null
@@ -78,37 +71,17 @@ export function VariableDurationStep({
   const t = useTranslations('booking');
   const tc = useTranslations('common');
   const { formatMoney } = useFormatting();
-  const options = durationOptions(service);
-  const { state, retry } = useServiceQuote(slug, service.id, duration?.minutes ?? null);
-  const first = options[0];
   const {
     durationMinMinutes: min,
     durationMaxMinutes: max,
     durationIncrementMinutes: step,
   } = service.bookingPolicy;
-
-  // The step opens already valid on the minimum — unless it was reopened by an error, which must
-  // be answered with a deliberate new choice, never silently replaced.
-  useEffect(() => {
-    if (duration === null && error === null && first !== undefined) onChooseDuration(first);
-  }, [duration, error, first, onChooseDuration]);
-
-  useEffect(() => {
-    if (
-      duration &&
-      state.status === 'ready' &&
-      state.quote.durationMinutes === duration.minutes &&
-      duration.quotedAmount !== state.quote.price.amount
-    ) {
-      onQuoted(duration.minutes, state.quote.price.amount);
-    }
-  }, [duration, state, onQuoted]);
-
-  const canContinue =
-    duration !== null &&
-    duration.quotedAmount !== null &&
-    state.status === 'ready' &&
-    state.quote.durationMinutes === duration.minutes;
+  const {
+    options,
+    quote: state,
+    retryQuote: retry,
+    canContinue,
+  } = useVariableDurationStep({ slug, service, duration, error, onChooseDuration, onQuoted });
 
   return (
     <div data-testid="step-variable-duration">

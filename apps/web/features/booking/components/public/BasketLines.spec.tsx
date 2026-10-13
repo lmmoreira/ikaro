@@ -4,7 +4,8 @@ import { describe, expect, it } from 'vitest';
 import type { HotsiteServiceLeg, HotsiteServiceResponse } from '@ikaro/types';
 import { composeBasket, type ChosenDuration } from '@/features/booking/model/basket-lines';
 import { choiceRequirement, makeHotsiteService, renderWithIntl } from '@/test-utils';
-import { BasketLines, useBasketTotalText } from './BasketLines';
+import { useBasketTotalText } from '@/features/booking/hooks/useBasketText';
+import { BasketLines } from './BasketLines';
 
 // 12:00Z is 09:00 in the default test tenant timezone (America/Sao_Paulo).
 const SLOT = new Date('2026-06-15T12:00:00.000Z');

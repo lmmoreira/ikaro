@@ -3,31 +3,12 @@
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { BasketComposition, BasketLine } from '@/features/booking/model/basket-lines';
+import { useBasketLinePrice } from '@/features/booking/hooks/useBasketText';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { LegItineraryStep } from './LegItineraryStep';
 
 const textStyle: React.CSSProperties = { color: 'var(--ba-text)' };
-
-/** "R$ 390,00 — 3h 15min", or the "from" floor while a per-time line has no quote yet. */
-export function useBasketTotalText(basket: BasketComposition): string {
-  const t = useTranslations('booking');
-  const { formatMoney } = useFormatting();
-  return basket.isFloor
-    ? `${t('summary.fromAmount', { amount: formatMoney(basket.amount) })} — ${t('summary.durationToChoose')}`
-    : `${formatMoney(basket.amount)} — ${formatDuration(basket.durationMinutes)}`;
-}
-
-function useLinePrice(): (line: BasketLine) => string {
-  const t = useTranslations('booking');
-  const { formatMoney } = useFormatting();
-  return (line) => {
-    if (line.priceFormatted !== null) return line.priceFormatted;
-    return line.isFloor
-      ? t('summary.fromAmount', { amount: formatMoney(line.amount) })
-      : formatMoney(line.amount);
-  };
-}
 
 // A line's own window — shown only for a basket with a journey, whose timeline already carries
 // times, so the other lines need theirs to be read in sequence.
@@ -84,7 +65,7 @@ interface BasketLinesProps {
 // Confirmation step (the success box renders the same lines from the booking response).
 export function BasketLines({ basket, variant }: BasketLinesProps): React.JSX.Element {
   const t = useTranslations('booking.legs');
-  const priceOf = useLinePrice();
+  const priceOf = useBasketLinePrice();
 
   return (
     <ul className="mb-4 flex flex-col gap-2" data-testid="basket-lines">

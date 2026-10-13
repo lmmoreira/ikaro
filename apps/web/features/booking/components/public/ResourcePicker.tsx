@@ -2,11 +2,8 @@
 
 import type React from 'react';
 import { useTranslations } from 'next-intl';
-import type {
-  HotsiteServiceResourceOptionsRequirement,
-  ResourceSelectionItem,
-  ResourceType,
-} from '@ikaro/types';
+import type { HotsiteServiceResourceOptionsRequirement, ResourceSelectionItem } from '@ikaro/types';
+import { pickHintOf, resourceInitials } from '@/features/booking/model/resource-picker-copy';
 import { findPick } from '@/features/booking/model/resource-picks';
 import { ErrorAlert } from './ErrorAlert';
 
@@ -25,15 +22,6 @@ interface ResourcePickerProps {
   ) => void;
   readonly onRetry: () => void;
   readonly reselectMessage: string | null;
-}
-
-function initials(name: string): string {
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('');
 }
 
 interface SectionProps {
@@ -80,7 +68,7 @@ function PickerSection({ requirement, pickedId, onPick }: SectionProps): React.J
                 className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full font-bold text-white"
                 style={{ backgroundColor: 'var(--ba-primary)' }}
               >
-                {initials(option.name)}
+                {resourceInitials(option.name)}
               </span>
               <span className="font-semibold" style={{ color: 'var(--ba-text)' }}>
                 {option.name}
@@ -97,9 +85,8 @@ function pickHint(
   t: ReturnType<typeof useTranslations>,
   requirements: readonly HotsiteServiceResourceOptionsRequirement[],
 ): string {
-  const types = new Set<ResourceType>(requirements.map((req) => req.resourceType));
-  const [only] = [...types];
-  return requirements.length === 1 && only ? t(`pickHintSingle.${only}`) : t('pickHintMulti');
+  const hint = pickHintOf(requirements);
+  return hint.scope === 'single' ? t(`pickHintSingle.${hint.resourceType}`) : t('pickHintMulti');
 }
 
 // One generic picker for every resource type and service type: a section (radio group) per

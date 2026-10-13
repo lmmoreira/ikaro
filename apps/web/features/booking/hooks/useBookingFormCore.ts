@@ -178,6 +178,37 @@ function useLeaveServicesStep(state: FormState, params: BookingFormCoreParams) {
   };
 }
 
+type FormSelections = FormState['selections'];
+
+// The handlers that keep the selections and the flow's errors consistent: changing a choice clears
+// the errors that belonged to the previous one.
+function formHandlers(selections: FormSelections, flow: FormState['flow']) {
+  return {
+    toggleService: (serviceId: string) => {
+      selections.toggleService(serviceId);
+      flow.clearErrors();
+    },
+    pick: (requirement: HotsiteServiceResourceOptionsRequirement, resourceId: string) => {
+      selections.setPicks(
+        setPick(selections.picks, toResourceSelectionItem(requirement, resourceId)),
+      );
+      flow.clearErrors();
+    },
+    chooseDuration: (minutes: number) => {
+      selections.chooseDuration(minutes);
+      flow.setError('duration', null);
+    },
+    selectDate: (date: string) => {
+      selections.selectDate(date);
+      flow.setError('availability', null);
+    },
+    selectSlot: (slot: Parameters<FormSelections['selectSlot']>[0]) => {
+      selections.selectSlot(slot);
+      flow.setError('availability', null);
+    },
+  };
+}
+
 // What the hotsite and the staff booking flows share: the selections, the step list, the picker
 // recovery, the pickup default, the error routing and the handlers that keep them consistent.
 // Each flow adds its own submit and its own source of the customer (useBookingFormController,
@@ -202,27 +233,6 @@ export function useBookingFormCore(params: BookingFormCoreParams) {
     resolveInvalidPickerStep: pickerRecovery.resolveInvalidPickerStep,
     onRoute,
     leaveServicesStep,
-    toggleService: (serviceId: string) => {
-      selections.toggleService(serviceId);
-      flow.clearErrors();
-    },
-    pick: (requirement: HotsiteServiceResourceOptionsRequirement, resourceId: string) => {
-      selections.setPicks(
-        setPick(selections.picks, toResourceSelectionItem(requirement, resourceId)),
-      );
-      flow.clearErrors();
-    },
-    chooseDuration: (minutes: number) => {
-      selections.chooseDuration(minutes);
-      flow.setError('duration', null);
-    },
-    selectDate: (date: string) => {
-      selections.selectDate(date);
-      flow.setError('availability', null);
-    },
-    selectSlot: (slot: Parameters<typeof selections.selectSlot>[0]) => {
-      selections.selectSlot(slot);
-      flow.setError('availability', null);
-    },
+    ...formHandlers(selections, flow),
   };
 }

@@ -2,21 +2,14 @@
 
 import type React from 'react';
 import { useTranslations } from 'next-intl';
-import type { BasketLeg, ResourceLabel } from '@/features/booking/model/basket-lines';
+import type { BasketLeg } from '@/features/booking/model/basket-lines';
+import { useResourceLabelText } from '@/features/booking/hooks/useBasketText';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 
 interface LegItineraryStepProps {
   /** The journey's legs, already laid out from the line's own start (see `composeBasket`). */
   readonly legs: readonly BasketLeg[];
-}
-
-function useLabelText(): (label: ResourceLabel) => string {
-  const t = useTranslations('booking.legs');
-  return (label) =>
-    label.kind === 'chosen'
-      ? t('chosen', { name: label.name })
-      : t(`autoAssigned.${label.type as 'STAFF' | 'ROOM' | 'EQUIPMENT'}`);
 }
 
 function ReservedSummary({ legs }: LegItineraryStepProps): React.JSX.Element | null {
@@ -53,7 +46,7 @@ function ReservedSummary({ legs }: LegItineraryStepProps): React.JSX.Element | n
 export function LegItineraryStep({ legs }: LegItineraryStepProps): React.JSX.Element {
   const t = useTranslations('booking.legs');
   const { formatTime } = useFormatting();
-  const labelText = useLabelText();
+  const labelText = useResourceLabelText();
 
   return (
     <div data-testid="leg-itinerary">
