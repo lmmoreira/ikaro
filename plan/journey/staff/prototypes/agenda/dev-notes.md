@@ -419,13 +419,22 @@ export interface CompleteBookingResponse {
 
 **Rules the screen shows:** the booking is created `APPROVED` (no waiting state, no manager alert, the customer or guest gets the confirmation e-mail); slots inside the tenant's minimum notice are offered (marked with a dot) because the backend skips that one rule for staff, while past dates and dates beyond the maximum advance stay blocked; the guest option is disabled for a recurrence because a recurrence needs an account.
 
-**Reuse and the styling boundary:** the step list and error routing are the public flow's own (`resolveBookingSteps()`, `resolveBookingSubmitErrorRoute()`); only the presentation is the dashboard's — the public step components use the business's `--ba-*` tokens and the dashboard must not. Precedent: `variant="dashboard"` on `AvailabilityCarousel` / `SlotPicker` (staff reschedule). Reuse is a requirement of M23-S40: logic is shared and never copied, each step gets a hotsite and a dashboard view over it (a `variant` prop or a logic/view split, chosen per component in the discovery table), and the public page must not change. Wrapping the staff page to define `--ba-*` is rejected (it breaks the styling boundary).
+**Reuse and the styling boundary (revised 2026-10-13, M23-S40 discovery):** the staff shell has its own design system and takes no tenant branding. **Share logic, never markup**: the model, the flow/selection/form-data/quote hooks and an extracted controller core are the public flow's own; every step view is the dashboard's, built on `shared/components/ui/`. `variant="dashboard"` stays only on `ErrorAlert`, `SlotPicker` and `AvailabilityCarousel` (the staff-reschedule precedent); no new variant is added. Wrapping the staff page to define `--ba-*` is rejected. The full per-component table is in `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` § M23-S40.
+
+**The steps are not fixed at three.** `resolveStaffBookingSteps()` is the public `resolveBookingSteps()` minus the `personal` step: services (with the pickup address when a service needs it), then one resource-picker step per requirement that needs a choice (one per leg for a legged service), a duration step for a customer-selected duration, date and time, intake (skippable for staff), and the confirmation (a legged service lists its itinerary). `10` draws the simplest basket; the other steps are the dashboard skin of the public prototypes' states (`customer/prototypes/book-a-service/`) and are not drawn here. A pickup address for a new contact is typed on the Services step; for a registered customer it is pre-filled from `GET /v1/customers/:id` (`defaultAddress`) and editable.
+
+**Chooser details:** the initial list is the first page of `GET /customers` (alphabetical — the backend has no recency order), so it is headed "Clientes", not "Clientes recentes" as drawn in `09`; the 5-character minimum applies only once a term is typed. A registered customer travels as `?customerId=` in the URL; a guest contact stays in memory only. The date step always uses the carousel, with `minBookingAdvanceHours = 0` (the existing components apply the notice client-side) and the dot on slots inside the notice. "Recorrência" is not in the menu until M23-S19 ships.
 
 **Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). Prefer extracting a shared floating-filter shell over a third copy.
 
 **Error → screen map (`POST /recurring-booking-schedules/:id/approve|reject`):** `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve) → `#conflito`, with the same `conflicts[{ occurrenceStart, reason }]` list creation returns; `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` → `#expirada`; `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (approve) → `#telefone`; network/5xx → `#falha`.
 
 **File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/dashboard/bookings/` — `NewMenu`, `CustomerChooserStep`, `NewBookingForStaffPage`, `NewBookingSummaryCard`, `NewBookingOutcome` and the `new-booking/` step views; routes `apps/web/app/dashboard/bookings/new/page.tsx` and `new/booking/page.tsx`; `useStaffBookingFormController` over an extracted `useBookingFormCore`; the `booking-route.ts` exclusion of `new` | ❓ Gap — M23-S40 |
+
 
 | File | Status |
 |---|---|
