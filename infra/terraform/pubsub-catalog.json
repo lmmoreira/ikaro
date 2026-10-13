@@ -115,6 +115,13 @@
     ]
   },
   {
+    "event": "BookingResourceReassigned",
+    "consumers": [
+      "audit-log",
+      "notification"
+    ]
+  },
+  {
     "event": "FutureCommitmentExceptionDismissed",
     "consumers": [
       "audit-log"
@@ -175,6 +182,13 @@
   {
     "event": "RecurringScheduleRenewalDue",
     "consumers": [
+      "notification"
+    ]
+  },
+  {
+    "event": "ResourceDeactivationImpactRaised",
+    "consumers": [
+      "audit-log",
       "notification"
     ]
   },

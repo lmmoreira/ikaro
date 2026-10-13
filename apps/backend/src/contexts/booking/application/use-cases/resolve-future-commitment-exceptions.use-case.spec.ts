@@ -7,7 +7,9 @@ import {
   FCE_TENANT_ID as TENANT_ID,
   FutureCommitmentFixture,
 } from '../../../../test/utils/future-commitment-fixture';
+import { DomainEvent } from '../../../../shared/domain/domain-event';
 import { BookingStatus } from '../../domain/booking.aggregate';
+import { BookingResourceReassigned } from '../../domain/events/booking-resource-reassigned.event';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -22,6 +24,7 @@ const CORRELATION_ID = 'corr-resolve-1';
 describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   let world: FutureCommitmentFixture;
   let useCase: ResolveFutureCommitmentExceptionsUseCase;
+  let published: DomainEvent[];
 
   // Only Date is faked, pinned to 09:00 in the tenant timezone: the AUTO tie-break compares the
   // workload of the booking's local calendar day, so "+48h" and "+51h" must fall on the same day
@@ -42,7 +45,12 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         'hrtime',
       ],
     });
-    world = new FutureCommitmentFixture();
+    published = [];
+    world = new FutureCommitmentFixture({
+      publish: async (event) => {
+        published.push(event as DomainEvent);
+      },
+    });
     useCase = new ResolveFutureCommitmentExceptionsUseCase(
       world.exceptionRepo,
       world.bookingRepo,
@@ -200,6 +208,93 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       expect(untouched.scheduledAt.getTime()).toBe(scheduledAt);
       expect(untouched.status).toBe(BookingStatus.APPROVED);
       expect(untouched.clearDomainEvents()).toHaveLength(0);
+    });
+
+    describe('customer notification event (M23-S23)', () => {
+      const reassigned = () =>
+        published.filter(
+          (e): e is BookingResourceReassigned => e instanceof BookingResourceReassigned,
+        );
+
+      it('records one BookingResourceReassigned per moved booking, naming the resource when it is disclosed', async () => {
+        const source = await world.addResource('Sala 1');
+        const target = await world.addResource('Sala 2');
+        const service = await world.addService();
+        const first = await world.addBooking({ service, resource: source, startsInHours: 48 });
+        const second = await world.addBooking({ service, resource: source, startsInHours: 72 });
+        const entryIds = await raiseFor(source.id);
+        published.length = 0;
+
+        const { results } = await resolve({
+          exceptionIds: entryIds,
+          resolutionType: 'REASSIGN',
+          target: { resourceId: target.id },
+          reason: 'Internal: room closed for repairs',
+        });
+
+        expect(results.map((r) => r.outcome)).toEqual(['RESOLVED', 'RESOLVED']);
+        const events = reassigned();
+        expect(events.map((e) => e.data.bookingId).sort()).toEqual([first.id, second.id].sort());
+        for (const event of events) {
+          expect(event.data.newResourceName).toBe('Sala 2');
+          expect(event.data.reassignedBy).toBe(STAFF_ID);
+          expect(event.correlationId).toBe(CORRELATION_ID);
+          expect(JSON.stringify(event.data)).not.toContain('repairs');
+        }
+        expect(published.some((e) => e.eventName === 'BookingRescheduled')).toBe(false);
+      });
+
+      it('leaves the resource name out for a fungible-pool requirement', async () => {
+        const source = await world.addResource('Sala 1');
+        const target = await world.addResource('Sala 2');
+        const service = await world.addService(
+          ResourceType.ROOM,
+          null,
+          TENANT_ID,
+          'AUTO_FUNGIBLE_POOL',
+        );
+        await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        published.length = 0;
+
+        await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'REASSIGN',
+          target: { resourceId: target.id },
+        });
+
+        expect(reassigned()).toHaveLength(1);
+        expect(reassigned()[0].data.newResourceName).toBeNull();
+      });
+
+      it('records nothing for an entry that stays open', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        published.length = 0;
+
+        const { results } = await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'REASSIGN',
+          target: { mode: 'AUTO' },
+        });
+
+        expect(results[0].outcome).toBe('STILL_OPEN');
+        expect(reassigned()).toHaveLength(0);
+      });
+
+      it('records nothing for KEEP', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        published.length = 0;
+
+        await resolve({ exceptionIds: [entryId], resolutionType: 'KEEP' });
+
+        expect(reassigned()).toHaveLength(0);
+      });
     });
 
     it('with AUTO picks the least-loaded free resource of the same type', async () => {

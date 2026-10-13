@@ -21,6 +21,8 @@ import { SendBookingRejectedNotificationUseCase } from './application/use-cases/
 import { SendBookingInfoRequestedNotificationUseCase } from './application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case';
 import { SendBookingInfoSubmittedNotificationUseCase } from './application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case';
 import { SendBookingCancelledNotificationUseCase } from './application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case';
+import { SendBookingResourceReassignedNotificationUseCase } from './application/use-cases/send-booking-resource-reassigned-notification/send-booking-resource-reassigned-notification.use-case';
+import { SendResourceDeactivationImpactNotificationUseCase } from './application/use-cases/send-resource-deactivation-impact-notification/send-resource-deactivation-impact-notification.use-case';
 import { SendBookingNoShowNotificationUseCase } from './application/use-cases/send-booking-no-show-notification/send-booking-no-show-notification.use-case';
 import { SendBookingRescheduledNotificationUseCase } from './application/use-cases/send-booking-rescheduled-notification/send-booking-rescheduled-notification.use-case';
 import { SendServicePointsEarnedNotificationUseCase } from './application/use-cases/send-service-points-earned-notification/send-service-points-earned-notification.use-case';
@@ -47,6 +49,8 @@ import { BookingRejectedHandler } from './infrastructure/events/booking-rejected
 import { BookingInfoRequestedHandler } from './infrastructure/events/booking-info-requested.handler';
 import { BookingInfoSubmittedHandler } from './infrastructure/events/booking-info-submitted.handler';
 import { BookingCancelledHandler } from './infrastructure/events/booking-cancelled.handler';
+import { BookingResourceReassignedHandler } from './infrastructure/events/booking-resource-reassigned.handler';
+import { ResourceDeactivationImpactHandler } from './infrastructure/events/resource-deactivation-impact.handler';
 import { BookingNoShowHandler } from './infrastructure/events/booking-no-show.handler';
 import { BookingRescheduledHandler } from './infrastructure/events/booking-rescheduled.handler';
 import { ServicePointsEarnedHandler } from './infrastructure/events/service-points-earned.handler';
@@ -126,6 +130,8 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendBookingInfoSubmittedNotificationUseCase,
     SendBookingCancelledNotificationUseCase,
     SendBookingNoShowNotificationUseCase,
+    SendBookingResourceReassignedNotificationUseCase,
+    SendResourceDeactivationImpactNotificationUseCase,
     SendBookingRescheduledNotificationUseCase,
     SendServicePointsEarnedNotificationUseCase,
     SendBookingReminderDueNotificationUseCase,
@@ -147,6 +153,8 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     BookingInfoSubmittedHandler,
     BookingCancelledHandler,
     BookingNoShowHandler,
+    BookingResourceReassignedHandler,
+    ResourceDeactivationImpactHandler,
     BookingRescheduledHandler,
     ServicePointsEarnedHandler,
     BookingReminderHandler,

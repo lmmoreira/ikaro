@@ -3,7 +3,6 @@ import { localDayBoundsUTC } from '../../../../shared/utils/calendar-date';
 import { Booking } from '../../domain/booking.aggregate';
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
 import { Resource } from '../../domain/resource.aggregate';
-import { ResourceGap } from '../../domain/resource-gap-source';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import {
@@ -14,7 +13,12 @@ import {
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { ITenantLockPort } from '../ports/tenant-lock.port';
-import { findRequirementForAssignment, isInPool } from './future-commitment-alternatives.helpers';
+import {
+  findRequirementForAssignment,
+  isInPool,
+  requirementsDiscloseResource,
+} from './future-commitment-alternatives.helpers';
+import { Retarget, recordedGap, retargetedWindow } from './resource-reassignment-window.helpers';
 
 export type ReassignTarget = { resourceId: string } | { mode: 'AUTO' };
 
@@ -42,10 +46,17 @@ export interface ReassignBookingParams {
 // requirement's pool, not already one of this booking's resources, and free at every affected
 // window (excluding the booking's own lines). Must be called inside the caller's txManager.run():
 // it takes advisory locks, then deletes and re-inserts occupancy rows.
+export interface ReassignBookingResult {
+  targetResourceId: string;
+  targetResourceName: string;
+  // True only when the customer is meant to see which resource now serves the booking.
+  disclosesResource: boolean;
+}
+
 export async function reassignBookingResource(
   deps: ReassignBookingDeps,
   params: ReassignBookingParams,
-): Promise<{ targetResourceId: string }> {
+): Promise<ReassignBookingResult> {
   const { occupancyRepo } = deps;
   const { tenantId, booking, sourceResourceId } = params;
 
@@ -58,7 +69,7 @@ export async function reassignBookingResource(
     );
   }
 
-  const candidates = await loadCandidates(deps, params, rows, affected);
+  const { candidates, disclosesResource } = await loadCandidates(deps, params, rows, affected);
   await deps.tenantLock.lockResources(
     tenantId,
     candidates.map((c) => c.id),
@@ -80,7 +91,7 @@ export async function reassignBookingResource(
     sourceResourceId,
     chosen,
   );
-  return { targetResourceId: chosen.id };
+  return { targetResourceId: chosen.id, targetResourceName: chosen.name, disclosesResource };
 }
 
 async function loadCandidates(
@@ -88,29 +99,31 @@ async function loadCandidates(
   params: ReassignBookingParams,
   allRows: BookingLineOccupancyRow[],
   affected: BookingLineOccupancyRow[],
-): Promise<Resource[]> {
+): Promise<{ candidates: Resource[]; disclosesResource: boolean }> {
   const { tenantId, booking, serviceMap, sourceResourceId, target } = params;
   const type = affected[0].resourceType;
   const linesById = new Map(booking.lines.map((l) => [l.lineId, l]));
-  const pools = affected.map(
-    (row) =>
-      findRequirementForAssignment(
-        serviceMap.get(linesById.get(row.bookingLineId)?.serviceId ?? ''),
-        row.legIndex,
-        type,
-      )?.resourcePoolIds ?? null,
+  const requirements = affected.map((row) =>
+    findRequirementForAssignment(
+      serviceMap.get(linesById.get(row.bookingLineId)?.serviceId ?? ''),
+      row.legIndex,
+      type,
+    ),
   );
+  const pools = requirements.map((r) => r?.resourcePoolIds ?? null);
+  const disclosesResource = requirementsDiscloseResource(requirements);
   const alreadyOnBooking = new Set(allRows.map((r) => r.resourceId));
 
   if ('resourceId' in target) {
     const resource = await deps.resourceRepo.findById(target.resourceId, tenantId);
     assertValidExplicitTarget(resource, type, pools, alreadyOnBooking, sourceResourceId);
-    return [resource!];
+    return { candidates: [resource!], disclosesResource };
   }
   const active = await deps.resourceRepo.findByTenant(tenantId, { type, isActive: true });
-  return active.filter(
+  const candidates = active.filter(
     (r) => !alreadyOnBooking.has(r.id) && pools.every((pool) => isInPool(pool, r.id)),
   );
+  return { candidates, disclosesResource };
 }
 
 function assertValidExplicitTarget(
@@ -129,52 +142,6 @@ function assertValidExplicitTarget(
   if (!pools.every((pool) => isInPool(pool, resource.id))) {
     throw invalid('the resource is outside the service requirement pool');
   }
-}
-
-// A row moved to another resource keeps its start but not its gap: the trailing buffer/turnover
-// is re-derived from the TARGET resource (M18-S10), exactly as booking creation derives it, so the
-// held window — and the origin shown to the manager — describe the resource actually holding it.
-interface RetargetedWindow {
-  endsAt: Date;
-  gap: ResourceGap | null;
-}
-type Retarget = (row: BookingLineOccupancyRow, target: Resource) => RetargetedWindow;
-
-function retargetedWindow(
-  availabilityService: AvailabilityService,
-  params: ReassignBookingParams,
-  row: BookingLineOccupancyRow,
-  target: Resource,
-): RetargetedWindow {
-  const { booking, serviceMap } = params;
-  const line = booking.lines.find((l) => l.lineId === row.bookingLineId);
-  const service = line ? serviceMap.get(line.serviceId) : undefined;
-  if (!line || !service) return { endsAt: row.endsAt, gap: recordedGap(row) };
-
-  if (row.legIndex !== null) {
-    // A leg's trailing gap is the target resource's own turnover (the transition between legs is a
-    // static service value that never depends on the resource). The leg's own work interval is the
-    // persisted one — editing a service's legs later does not touch existing bookings, so the
-    // current leg definition must not be used to rebuild it. A row with no recorded gap is taken as
-    // having none folded into its end (a row written before the gap was recorded that held a
-    // turnover is therefore held a little longer, never shorter).
-    const gap = availabilityService.resolveFlatGap(0, target.turnoverMinutes);
-    const rawEnd = row.endsAt.getTime() - (row.gapMinutes ?? 0) * 60_000;
-    return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };
-  }
-
-  const isLastLine = booking.lines.at(-1)?.lineId === line.lineId;
-  const gap = isLastLine
-    ? availabilityService.resolveFlatGap(service.bufferAfterMinutes ?? 0, target.turnoverMinutes)
-    : null;
-  const rawEnd = row.startsAt.getTime() + line.durationMinsAtBooking * 60_000;
-  return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };
-}
-
-function recordedGap(row: BookingLineOccupancyRow): ResourceGap | null {
-  return row.gapMinutes !== null && row.gapSource !== null
-    ? { minutes: row.gapMinutes, source: row.gapSource }
-    : null;
 }
 
 async function filterFreeCandidates(

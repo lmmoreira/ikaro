@@ -14,6 +14,7 @@
     "reasonLabel": "Motivo:",
     "pickupAddressLabel": "Endereço de retirada:",
     "rescheduledByCustomer": "Reagendado pelo cliente.",
-    "rescheduledByBusiness": "Reagendado pelo estabelecimento."
+    "rescheduledByBusiness": "Reagendado pelo estabelecimento.",
+    "newResourceLabel": "Novo recurso:"
   }
 }

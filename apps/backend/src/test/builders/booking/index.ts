@@ -11,6 +11,8 @@ export { ServiceClassResourcePoolEntityBuilder } from './service-class-resource-
 export { ServiceBookingIntakeSchemaEntityBuilder } from './service-booking-intake-schema-entity.builder';
 export { BookingQuoteRevisionEntityBuilder } from './booking-quote-revision-entity.builder';
 export { BookingNoShowEventBuilder } from './booking-no-show-event.builder';
+export { BookingResourceReassignedEventBuilder } from './booking-resource-reassigned-event.builder';
+export { ResourceDeactivationImpactRaisedEventBuilder } from './resource-deactivation-impact-raised-event.builder';
 export { BookingStatusTransitionEntityBuilder } from './booking-status-transition-entity.builder';
 export { RecurringBookingScheduleBuilder } from './recurring-booking-schedule.builder';
 export { RecurringScheduleRenewalDueCommandBuilder } from './recurring-schedule-renewal-due-command.builder';

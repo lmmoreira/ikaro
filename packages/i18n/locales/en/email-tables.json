@@ -14,6 +14,7 @@
     "reasonLabel": "Reason:",
     "pickupAddressLabel": "Pickup address:",
     "rescheduledByCustomer": "Rescheduled by the customer.",
-    "rescheduledByBusiness": "Rescheduled by the business."
+    "rescheduledByBusiness": "Rescheduled by the business.",
+    "newResourceLabel": "New resource:"
   }
 }

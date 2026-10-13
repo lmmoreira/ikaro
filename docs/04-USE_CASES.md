@@ -1324,7 +1324,7 @@ Returns:
 - **Main Flow:**
   1. Manager reviews the impact and any safe alternatives on an open worklist item.
   2. Manager explicitly chooses: keep, reassign (same time, another resource — an explicit target or "any free one"), reschedule (a manager-chosen new time, applied immediately; a confirmed booking only, one entry at a time), or cancel. Keep, reassign, cancel and dismiss can be applied to many entries at once.
-  3. System records the decision, actor and reason after the chosen change commits. The customer hears about the result through the resulting booking event's email (`BookingCancelled`, `BookingRescheduled`, or, for a reassign, `BookingResourceReassigned` — M23-S23, one email per moved booking); no notification outcome is recorded.
+  3. System records the decision, actor and reason after the chosen change commits. The customer hears about the result through the resulting booking event's email (`BookingCancelled`, `BookingRescheduled`, or, for a reassign, `BookingResourceReassigned`, one email per moved booking); no notification outcome is recorded.
 - **Alternative Flows:**
   - **A1: A proposed reassignment/reschedule becomes unavailable at commit (race)** → Revalidated at commit time; if now unavailable, the worklist stays open and the original commitment remains intact. A bulk action is best-effort per booking: each is its own transaction, the ones that fail stay `OPEN` and are reported back, the rest are resolved.
   - **A2: Item is genuinely resolved or non-impacting** → Manager may dismiss it with a reason, instead of choosing one of the four actions above.

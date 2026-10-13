@@ -443,16 +443,12 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** M23-S08 ships an audit-log consumer only. **No Notification consumer, by design** (M23-S23): one `Raised` per affected booking would send a manager one email per booking, so the manager alert hangs on `ResourceDeactivationImpactRaised` below.
 
 #### **ResourceDeactivationImpactRaised**
-> ⚠️ **Planned, not built (M23-S23).**
-
 - **Trigger:** the shared raise step (`RaiseFutureCommitmentExceptionsForResourceUseCase`, UC-047 and the UC-048 cascade) has raised its worklist entries and at least one booking is affected. Published once per deactivation, never when no booking is affected, through `OUTBOX_PUBLISHER` inside the deactivation transaction (a non-aggregate event).
 - **State change:** none beyond the entries `FutureCommitmentExceptionRaised` already records.
 - **Data:** `{ resourceId, resourceName, affectedCount }` — `affectedCount` is the number of live affected bookings (refreshed entries included).
 - **Consumers:** audit-log subscriber, and the Notification Context: one email to every manager, in the tenant's language, naming the resource and the number of bookings that need a decision, linking to the dashboard (`${FRONTEND_URL}/dashboard`).
 
 #### **BookingResourceReassigned**
-> ⚠️ **Planned, not built (M23-S23).**
-
 - **Trigger:** UC-077 REASSIGN — a manager moves a booking to another resource at the same time. Recorded by `Booking.recordResourceReassigned()` and drained through the outbox on the booking's `save()`. The time, price and status do not change, so no `BookingRescheduled` is published.
 - **State change:** none on the booking.
 - **Data:** `{ bookingId, customerId: string | null, contactEmail, contactName, slot, lineSummary, reassignedBy, newResourceName: string | null }` — `newResourceName` is set only when every affected line's requirement discloses the resource (`CUSTOMER_CHOICE`, `AUTO_ANY`), otherwise `null` (UC-062/063). There is no `reason`: the manager's note is internal.
@@ -462,7 +458,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-077 (manager keeps, reassigns, reschedules, or cancels).
 - **State change:** `status → RESOLVED`.
 - **Data:** `{ exceptionId, resolutionType, resolvedByStaffId, affectedType, affectedId }`
-- **Consumers:** M23-S08 ships an audit-log consumer only. The customer-facing detail comes from the resulting booking event (`BookingCancelled`, `BookingRescheduled`); a reassign's customer message comes from `BookingResourceReassigned` (M23-S23, planned). No Notification consumer on `Resolved` itself.
+- **Consumers:** M23-S08 ships an audit-log consumer only. The customer-facing detail comes from the resulting booking event (`BookingCancelled`, `BookingRescheduled`); a reassign's customer message comes from `BookingResourceReassigned` (M23-S23). No Notification consumer on `Resolved` itself.
 
 #### **FutureCommitmentExceptionDismissed**
 - **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item).

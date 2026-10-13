@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { RoutingInMemoryEventBus } from '../../../../test/infrastructure/routing-in-memory-event-bus';
 import { TenantEntityBuilder } from '../../../../test/builders/platform/tenant-entity.builder';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
@@ -24,9 +25,10 @@ const MANAGER_ID = '20000000-0000-4000-8000-000000000710';
 describe('SchedulingExceptionController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
+  let eventBus: RoutingInMemoryEventBus;
 
   beforeAll(async () => {
-    ({ app, ds } = await createBookingIntegrationApp());
+    ({ app, ds, eventBus } = await createBookingIntegrationApp());
     // The booking repository reads the tenant's currency from the real tenant row.
     await ds
       .getRepository(TenantEntity)
@@ -34,6 +36,10 @@ describe('SchedulingExceptionController (integration)', () => {
         new TenantEntityBuilder().withId(TENANT_A).withSlug(`fce-tenant-a-${TENANT_A}`).build(),
         new TenantEntityBuilder().withId(TENANT_B).withSlug(`fce-tenant-b-${TENANT_B}`).build(),
       ]);
+  });
+
+  beforeEach(() => {
+    eventBus.published.length = 0;
   });
 
   afterEach(async () => {
@@ -116,6 +122,45 @@ describe('SchedulingExceptionController (integration)', () => {
       expect(entries[0].alternatives).toEqual([{ resourceId: free.id, resourceName: 'Sala 2' }]);
     });
 
+    it('publishes one ResourceDeactivationImpactRaised for the whole deactivation, not one per booking', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      const service = await seedService(ds, TENANT_A);
+      for (const startsInHours of [24, 48, 72]) {
+        await seedFutureBooking(ds, {
+          tenantId: TENANT_A,
+          serviceId: service.id,
+          resource: source,
+          startsInHours,
+        });
+      }
+
+      await deactivate(source.id);
+
+      const impacts = eventBus.published.filter(
+        (e) => e.eventName === 'ResourceDeactivationImpactRaised',
+      );
+      expect(impacts).toHaveLength(1);
+      expect(impacts[0].tenantId).toBe(TENANT_A);
+      expect(impacts[0].data).toEqual({
+        resourceId: source.id,
+        resourceName: 'Sala 1',
+        affectedCount: 3,
+      });
+      expect(
+        eventBus.published.filter((e) => e.eventName === 'FutureCommitmentExceptionRaised'),
+      ).toHaveLength(3);
+    });
+
+    it('publishes no impact summary for a resource with no future bookings', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+
+      await deactivate(source.id);
+
+      expect(
+        eventBus.published.filter((e) => e.eventName === 'ResourceDeactivationImpactRaised'),
+      ).toHaveLength(0);
+    });
+
     it('raises nothing for a resource with no future bookings', async () => {
       const source = await seedResource(ds, TENANT_A, 'Sala 1');
 
@@ -191,6 +236,54 @@ describe('SchedulingExceptionController (integration)', () => {
       }
       const stillOpen = await openEntries();
       expect(stillOpen.map((e) => e.affectedId)).toEqual([bookings[1].bookingId]);
+    });
+
+    it('publishes BookingResourceReassigned for each moved booking only, under the booking’s tenant', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      const target = await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const bookings = [];
+      for (const startsInHours of [24, 48, 72]) {
+        bookings.push(
+          await seedFutureBooking(ds, {
+            tenantId: TENANT_A,
+            serviceId: service.id,
+            resource: source,
+            startsInHours,
+          }),
+        );
+      }
+      // Sala 2 is busy exactly when the middle booking happens, so that one stays OPEN.
+      await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: target,
+        startsInHours: 48,
+      });
+      await deactivate(source.id);
+      const entries = await openEntries();
+      eventBus.published.length = 0;
+
+      await resolve({
+        exceptionIds: entries.map((e) => e.id),
+        resolutionType: 'REASSIGN',
+        target: { resourceId: target.id },
+        reason: 'internal note about the closure',
+      }).expect(200);
+
+      const reassigned = eventBus.published.filter(
+        (e) => e.eventName === 'BookingResourceReassigned',
+      );
+      expect(reassigned.map((e) => e.data['bookingId']).sort()).toEqual(
+        [bookings[0].bookingId, bookings[2].bookingId].sort(),
+      );
+      for (const event of reassigned) {
+        expect(event.tenantId).toBe(TENANT_A);
+        expect(event.data['newResourceName']).toBe('Sala 2');
+        expect(event.data['reassignedBy']).toBe(MANAGER_ID);
+        expect(JSON.stringify(event.data)).not.toContain('internal note');
+      }
+      expect(eventBus.published.some((e) => e.eventName === 'BookingRescheduled')).toBe(false);
     });
 
     it('with AUTO gives each booking a free resource of the same type', async () => {

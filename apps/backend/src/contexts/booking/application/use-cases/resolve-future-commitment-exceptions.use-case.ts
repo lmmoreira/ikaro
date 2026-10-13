@@ -147,7 +147,11 @@ export class ResolveFutureCommitmentExceptionsUseCase {
           );
         } else if (resolutionType === 'REASSIGN') {
           const moved = await this.reassign(input, exception, booking!);
-          if (moved) reassigned.push(moved);
+          // The time did not change, so no BookingRescheduled: this event is what tells the
+          // customer (M23-S23). Saved here, inside the callback, with the occupancy move.
+          booking!.recordResourceReassigned(staffId, correlationId, moved.newResourceName);
+          await this.bookingRepo.save(booking!);
+          if (moved.occurrence) reassigned.push(moved.occurrence);
         } else if (resolutionType === 'RESCHEDULE') {
           await this.reschedule(input, booking!);
         }
@@ -194,28 +198,34 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     input: ResolveFutureCommitmentExceptionsUseCaseInput,
     exception: FutureCommitmentException,
     booking: Booking,
-  ): Promise<ReassignedOccurrence | null> {
-    const { targetResourceId } = await reassignBookingResource(
-      {
-        resourceRepo: this.resourceRepo,
-        occupancyRepo: this.occupancyRepo,
-        tenantLock: this.tenantLock,
-        availabilityService: this.availabilityService,
-      },
-      {
-        tenantId: input.tenantId,
-        booking,
-        serviceMap: await this.loadServiceMap(booking, input.tenantId),
-        sourceResourceId: exception.sourceId,
-        target: input.target ?? { mode: 'AUTO' },
-        timezone: input.timezone,
-      },
-    );
-    if (!booking.recurringScheduleId) return null;
+  ): Promise<{ occurrence: ReassignedOccurrence | null; newResourceName: string | null }> {
+    const { targetResourceId, targetResourceName, disclosesResource } =
+      await reassignBookingResource(
+        {
+          resourceRepo: this.resourceRepo,
+          occupancyRepo: this.occupancyRepo,
+          tenantLock: this.tenantLock,
+          availabilityService: this.availabilityService,
+        },
+        {
+          tenantId: input.tenantId,
+          booking,
+          serviceMap: await this.loadServiceMap(booking, input.tenantId),
+          sourceResourceId: exception.sourceId,
+          target: input.target ?? { mode: 'AUTO' },
+          timezone: input.timezone,
+        },
+      );
+    // UC-062/063: the customer is told the new resource's name only when the requirement shows it.
+    const newResourceName = disclosesResource ? targetResourceName : null;
+    if (!booking.recurringScheduleId) return { occurrence: null, newResourceName };
     return {
-      recurringScheduleId: booking.recurringScheduleId,
-      fromResourceId: exception.sourceId,
-      toResourceId: targetResourceId,
+      occurrence: {
+        recurringScheduleId: booking.recurringScheduleId,
+        fromResourceId: exception.sourceId,
+        toResourceId: targetResourceId,
+      },
+      newResourceName,
     };
   }
 

@@ -1,4 +1,7 @@
-import { ResourceRequirement } from '../../domain/resource-requirement';
+import {
+  ResourceRequirement,
+  ResourceRequirementSelectionMode,
+} from '../../domain/resource-requirement';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
@@ -27,6 +30,21 @@ export function findRequirementForAssignment(
       ? service.resourceRequirements
       : (service.legs?.find((leg) => leg.legIndex === legIndex)?.resourceRequirements ?? []);
   return requirements.find((r) => r.type === type) ?? null;
+}
+
+// UC-062/063 — a customer sees a resource's identity only when its requirement lets them choose it
+// or shows the automatic pick. A fungible pool (AUTO_FUNGIBLE_POOL), NONE, or a requirement the
+// service no longer declares (null) keeps it hidden; a booking discloses it only when every
+// affected assignment does.
+const DISCLOSING_SELECTION_MODES: ReadonlySet<ResourceRequirementSelectionMode> = new Set([
+  'CUSTOMER_CHOICE',
+  'AUTO_ANY',
+]);
+
+export function requirementsDiscloseResource(
+  requirements: (ResourceRequirement | null)[],
+): boolean {
+  return requirements.every((r) => r !== null && DISCLOSING_SELECTION_MODES.has(r.selectionMode));
 }
 
 // A null/empty pool means "any active resource of the type" — the same convention the resolver
