@@ -53,6 +53,30 @@ export interface AuthenticatedBookingRequest extends BookingFlowRequestFields {
   beforeServicePhotoUrls?: string[];
 }
 
+// M23-S39/S40 (UC-108) — body of `POST /bookings/staff`. It is the guest booking body minus
+// `beforeServicePhotoUrls` (the staff flow collects no photos) plus exactly one way to say who the
+// booking is for: a customer of the tenant, or the contact of a person who is not in the system.
+export interface StaffBookingBaseRequest extends BookingFlowRequestFields {
+  scheduledAt: string; // ISO-8601 datetime
+  serviceIds: string[];
+  pickupAddress?: Address;
+  notes?: string;
+}
+
+export interface StaffBookingForCustomerRequest extends StaffBookingBaseRequest {
+  customerId: string;
+}
+
+export interface StaffBookingForGuestRequest extends StaffBookingBaseRequest {
+  contactEmail: string;
+  contactName: string;
+  contactPhone: string;
+  contactAddress?: Address;
+}
+
+export type CreateBookingByStaffRequest =
+  StaffBookingForCustomerRequest | StaffBookingForGuestRequest;
+
 // One leg's resolved schedule/resource entry on a legged-service booking line.
 export interface BookingLineItineraryLegResponse {
   legIndex: number;

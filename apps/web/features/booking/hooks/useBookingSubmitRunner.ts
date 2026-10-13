@@ -28,10 +28,7 @@ export interface BookingSubmitRunner {
   readonly run: (submit: (slot: AvailableSlot) => Promise<BookingResponse>) => Promise<void>;
 }
 
-async function routeSubmitError(
-  err: unknown,
-  params: BookingSubmitRunnerParams,
-): Promise<boolean> {
+async function routeSubmitError(err: unknown, params: BookingSubmitRunnerParams): Promise<boolean> {
   const route = resolveBookingSubmitErrorRoute(err, params.locale);
   const invalidPicker = route.target === 'picker' ? await params.resolveInvalidPickerStep() : null;
   const resolved = resolveErrorStep(route, params.steps, params.locale, invalidPicker);

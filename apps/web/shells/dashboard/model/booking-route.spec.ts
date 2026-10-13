@@ -7,7 +7,7 @@ import {
   fetchStaffBookingDetail,
 } from '@/features/booking/api/booking.server';
 import { loadBookingDetailRouteData } from './booking-route.server';
-import { matchBookingDetailRoute } from './booking-route';
+import { isBookingCreateRoute, matchBookingDetailRoute } from './booking-route';
 
 vi.mock('next/navigation', () => ({
   notFound: vi.fn(() => {
@@ -54,6 +54,19 @@ describe('booking-route', () => {
       action: 'reschedule',
     });
     expect(matchBookingDetailRoute('/dashboard/bookings')).toBeNull();
+  });
+
+  it('does not read the static "new" segment as a booking id', () => {
+    expect(matchBookingDetailRoute('/dashboard/bookings/new')).toBeNull();
+    expect(matchBookingDetailRoute('/dashboard/bookings/new/booking')).toBeNull();
+  });
+
+  it('recognises the new-booking routes and nothing else', () => {
+    expect(isBookingCreateRoute('/dashboard/bookings/new')).toBe(true);
+    expect(isBookingCreateRoute('/dashboard/bookings/new/booking')).toBe(true);
+    expect(isBookingCreateRoute('/dashboard/bookings/newest')).toBe(false);
+    expect(isBookingCreateRoute('/dashboard/bookings/booking-1')).toBe(false);
+    expect(isBookingCreateRoute('/dashboard/bookings')).toBe(false);
   });
 
   it('returns null for an unknown sub-action path', () => {

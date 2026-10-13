@@ -46,6 +46,9 @@ const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
     statusInfoRequested: 'Aguardando info',
     statusApproved: 'Aprovado',
   },
+  'dashboard.newBooking': {
+    pageTitle: 'Novo agendamento',
+  },
   'dashboard.resourcesPage': {
     createPageTitle: 'Novo recurso',
     editPageTitle: 'Editar recurso',
@@ -406,6 +409,20 @@ describe('Topbar', () => {
       '/dashboard/schedule?weekStart=2026-06-29&date=2026-06-29',
     );
   });
+
+  it.each(['/dashboard/bookings/new', '/dashboard/bookings/new/booking'])(
+    'titles the staff new-booking route %s and links back to the agenda, never as a booking id',
+    (pathname) => {
+      vi.mocked(usePathname).mockReturnValue(pathname);
+      render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Novo agendamento');
+      expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute(
+        'href',
+        '/dashboard/bookings',
+      );
+    },
+  );
 
   it('shows the action title and back link on nested booking routes', () => {
     vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/booking-123/complete');

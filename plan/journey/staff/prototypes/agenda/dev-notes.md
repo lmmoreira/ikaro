@@ -433,7 +433,7 @@ export interface CompleteBookingResponse {
 
 | File | Status |
 |---|---|
-| `apps/web/features/booking/components/dashboard/bookings/` — `NewMenu`, `CustomerChooserStep`, `NewBookingForStaffPage`, `NewBookingSummaryCard`, `NewBookingOutcome` and the `new-booking/` step views; routes `apps/web/app/dashboard/bookings/new/page.tsx` and `new/booking/page.tsx`; `useStaffBookingFormController` over an extracted `useBookingFormCore`; the `booking-route.ts` exclusion of `new` | ❓ Gap — M23-S40 |
+| `apps/web/features/booking/components/dashboard/bookings/` — `NewMenu`, `CustomerChooserStep`, `NewBookingForStaffPage`, `NewBookingSummaryCard`, `NewBookingOutcome` and the `new-booking/` step views; routes `apps/web/app/dashboard/bookings/new/page.tsx` and `new/booking/page.tsx`; `useStaffBookingFormController` over an extracted `useBookingFormCore`; the `booking-route.ts` exclusion of `new` | ✅ Created — M23-S40 |
 
 
 | File | Status |

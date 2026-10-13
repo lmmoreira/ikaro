@@ -133,9 +133,9 @@ Folder: `staff/prototypes/agenda/`
 | `05c-reschedule-success.html` | Reschedule confirmed inline state | UC-008 Alt A1 | — | ✅ Criado |
 | `08-recurring-schedule-approval.html` | Detail of a recurring-schedule request — details centred, action panel on the right (desktop) / bottom action bar (mobile), approve and reject confirmation sheets. Same shell as `01-booking-detail.html` | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
 | `08b-recurring-approval-result.html` | Inline result states of the detail page (banner on top, data kept, action panel swapped, as in `04b`): approved, rejected, 409 conflict list, 409 already decided/expired, 422 customer has no phone, network/5xx | UC-071 | M23-S13 | ❓ Gap (M23 Cluster 3) |
-| `09-escolher-cliente.html` | **Shared customer chooser** for everything staff creates on a customer's behalf (`?tipo=agendamento` or `recorrencia`): *Cliente cadastrado* (search by name, e-mail or phone; recent; no result; search error) and *Novo contato* (name, phone, e-mail, all required → guest booking; disabled for a recurrence) | UC-108, UC-070 | M23-S40 · M23-S19 | ❓ Gap (M23 Cluster 3) |
-| `10-novo-agendamento.html` | Novo agendamento — the public flow's steps in the dashboard skin (the public step engine: services, a picker per requirement that needs a choice — per leg for a legged service —, duration, date/time, intake, confirm; the step count depends on the basket and there is no personal step; "Passo 1 de 3" is the simplest case), summary and actions in the right pane; staff see slots inside the minimum notice. The picker, duration, intake, pickup and itinerary steps are built as dashboard views of the public steps, not drawn here (decided 2026-10-13) | UC-108 | M23-S40 | ❓ Gap (M23 Cluster 3) |
-| `10b-novo-agendamento-resultado.html` | Inline outcomes: created `APPROVED`, 409 slot taken, outside the window, customer without phone, customer not found, network/5xx | UC-108 | M23-S40 | ❓ Gap (M23 Cluster 3) |
+| `09-escolher-cliente.html` | **Shared customer chooser** for everything staff creates on a customer's behalf (`?tipo=agendamento` or `recorrencia`): *Cliente cadastrado* (search by name, e-mail or phone; recent; no result; search error) and *Novo contato* (name, phone, e-mail, all required → guest booking; disabled for a recurrence) | UC-108, UC-070 | M23-S40 · M23-S19 | ✅ Criado — M23-S40 (the Recorrência mode is consumed by M23-S19) |
+| `10-novo-agendamento.html` | Novo agendamento — the public flow's steps in the dashboard skin (the public step engine: services, a picker per requirement that needs a choice — per leg for a legged service —, duration, date/time, intake, confirm; the step count depends on the basket and there is no personal step; "Passo 1 de 3" is the simplest case), summary and actions in the right pane; staff see slots inside the minimum notice. The picker, duration, intake, pickup and itinerary steps are built as dashboard views of the public steps, not drawn here (decided 2026-10-13) | UC-108 | M23-S40 | ✅ Criado — M23-S40 |
+| `10b-novo-agendamento-resultado.html` | Inline outcomes: created `APPROVED`, 409 slot taken, outside the window, customer without phone, customer not found, network/5xx | UC-108 | M23-S40 | ✅ Criado — M23-S40 |
 | `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recurso, dias, horário, período) para o cliente escolhido | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, falha, cliente não encontrado | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
 | `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ✅ Criado |
@@ -205,16 +205,16 @@ flowchart TD
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Agenda["/dashboard/bookings<br/>Agenda — botão '+ Novo'<br/>(00-agenda)"] -->|"menu: Agendamento"| Quem["❓ GAP: escolher o cliente<br/>Cliente cadastrado | Novo contato<br/>(09-escolher-cliente)"]
+    Agenda["/dashboard/bookings<br/>Agenda — botão '+ Novo'<br/>(00-agenda)"] -->|"menu: Agendamento"| Quem["escolher o cliente<br/>Cliente cadastrado | Novo contato<br/>(09-escolher-cliente)"]
     Agenda -->|"menu: Recorrência"| Quem
-    Quem -->|"Agendamento + continuar"| Passos["❓ GAP: passos do fluxo público no dashboard<br/>(10-novo-agendamento)"]
+    Quem -->|"Agendamento + continuar"| Passos["passos do fluxo público no dashboard<br/>(10-novo-agendamento)"]
     Quem -->|"Recorrência + continuar (só cliente cadastrado)"| Padrao["❓ GAP: padrão da recorrência<br/>(09b)"]
     Passos -->|"'Criar agendamento'"| Envio(("POST /bookings/staff"))
-    Envio -->|"201 APPROVED"| Ok["❓ GAP: (10b #criado)"]
-    Envio -->|"409 horário ocupado"| Oc["❓ GAP: (10b #ocupado)"]
-    Envio -->|"422 fora do prazo"| Jan["❓ GAP: (10b #janela)"]
-    Envio -->|"422 sem telefone / 404 cliente"| Cli["❓ GAP: (10b #telefone, #cliente)"]
-    Envio -->|"rede/5xx"| Fal["❓ GAP: (10b #falha)"]
+    Envio -->|"201 APPROVED"| Ok["(10b #criado)"]
+    Envio -->|"409 horário ocupado"| Oc["(10b #ocupado)"]
+    Envio -->|"422 fora do prazo"| Jan["(10b #janela)"]
+    Envio -->|"422 sem telefone / 404 cliente"| Cli["(10b #telefone, #cliente)"]
+    Envio -->|"rede/5xx"| Fal["(10b #falha)"]
     Oc -->|"'Escolher outra data'"| Passos
     Jan -->|"'Escolher outra data'"| Passos
 ```

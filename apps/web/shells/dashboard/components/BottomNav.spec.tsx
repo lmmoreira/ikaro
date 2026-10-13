@@ -56,6 +56,14 @@ describe('BottomNav', () => {
       'the resource create route (fixed action bar owns the bottom edge)',
       '/dashboard/resources/new',
     ],
+    [
+      'the staff new-booking chooser (fixed action bar owns the bottom edge)',
+      '/dashboard/bookings/new',
+    ],
+    [
+      'the staff new-booking steps (fixed action bar owns the bottom edge)',
+      '/dashboard/bookings/new/booking',
+    ],
     ['the resource detail route (fixed Save bar owns the bottom edge)', '/dashboard/resources/r-1'],
     [
       'the resource deactivate route (fixed action bar owns the bottom edge)',

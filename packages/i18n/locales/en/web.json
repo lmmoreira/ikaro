@@ -2140,6 +2140,102 @@
       "closeMenu": "Close menu",
       "todayPrefix": "Today,",
       "defaultTitle": "Dashboard"
+    },
+    "newBooking": {
+      "pageTitle": "New booking",
+      "menu": {
+        "trigger": "+ New",
+        "items": {
+          "agendamento": {
+            "label": "Booking",
+            "hint": "A one-off booking for a customer who phoned or wrote"
+          }
+        }
+      },
+      "chooser": {
+        "heading": "Who is the booking for?",
+        "description": "Choose the customer the booking will be created for, or enter the contact of someone who is not registered.",
+        "tabs": {
+          "registered": "Registered customer",
+          "guest": "New contact"
+        },
+        "recurrenceNeedsAccount": "A recurrence needs a customer with an account — someone who is not registered can only have one-off bookings.",
+        "searchLabel": "Search customer",
+        "searchPlaceholder": "Name, e-mail or phone",
+        "searchHint": "Type at least {min} characters. The phone can be typed in any format.",
+        "searchError": "Could not search customers. Check your connection and try again.",
+        "retry": "Try again",
+        "resultsHeading": "Results",
+        "listHeading": "Customers",
+        "noResult": "No customer found for “{term}”. If the person is not registered yet, use New contact.",
+        "empty": "There are no registered customers yet. Use New contact.",
+        "noPhone": "no phone",
+        "guestName": "Name",
+        "guestPhone": "Phone",
+        "guestEmail": "E-mail",
+        "guestRequired": "Name, phone and e-mail are required.",
+        "guestNote": "The e-mail receives the booking confirmation. It is recorded as a guest booking: no loyalty points and no account history.",
+        "footerHint": "Someone who is not registered goes under New contact. In the next step you build the booking.",
+        "continue": "Continue"
+      },
+      "booking": {
+        "change": "Change",
+        "registeredTag": "registered customer",
+        "guestTag": "new contact"
+      },
+      "steps": {
+        "servicesHint": "Only appointment services are listed (classes have their own flow). When a service needs a resource to be chosen, one more step appears here.",
+        "retry": "Try again",
+        "slotsLabel": "Available times",
+        "noticeLegend": "• Inside the business's minimum notice ({hours} h). Only staff can book these times; a customer does not see them.",
+        "intakeOptional": "Everything is optional for staff: continue with what the customer told you."
+      },
+      "summary": {
+        "heading": "Summary",
+        "client": "Customer",
+        "services": "Services",
+        "noServices": "Choose the services",
+        "dateTime": "Date and time",
+        "dateTimePending": "Choose the date and time",
+        "chosenResource": "with {name}",
+        "total": "Total"
+      },
+      "actions": {
+        "next": "Continue",
+        "back": "Back"
+      },
+      "confirm": {
+        "heading": "Confirm the booking",
+        "whatHappens": "What happens",
+        "whatHappensBody": "The booking is created already approved and holds the time. The customer (or the e-mail entered, for a guest) receives a confirmation e-mail.",
+        "create": "Create booking",
+        "creating": "Creating…"
+      },
+      "outcome": {
+        "createdTitle": "Booking created",
+        "createdBody": "{when}. It is already approved and holds the time. {name} receives a confirmation e-mail.",
+        "viewBooking": "View booking",
+        "createAnother": "Create another",
+        "backToAgenda": "Back to the agenda",
+        "chooseOtherDate": "Choose another date",
+        "chooseOtherCustomer": "Choose another customer",
+        "retry": "Try again",
+        "window": {
+          "title": "Date outside the allowed range",
+          "body": "The date is in the past or beyond the maximum booking advance. Choose another date."
+        },
+        "phone": {
+          "title": "{name} has no phone registered",
+          "body": "The booking needs a contact phone. Ask the customer to add one, or register them as a new contact."
+        },
+        "customerNotFound": {
+          "title": "Customer not found",
+          "body": "We could not find this customer in this business, so nothing was created."
+        },
+        "generic": {
+          "title": "Could not create the booking"
+        }
+      }
     }
   }
 }

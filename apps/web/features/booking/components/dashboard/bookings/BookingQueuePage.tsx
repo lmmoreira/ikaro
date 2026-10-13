@@ -21,6 +21,7 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { BookingCard } from './BookingCard';
 import { BookingQueueSection } from './BookingQueueSection';
+import { NewMenu } from './NewMenu';
 
 export interface BookingQueuePageProps {
   readonly initialActionNeeded?: StaffBookingListResponse;
@@ -146,6 +147,10 @@ export function BookingQueuePage({
       />
 
       <div className="p-4">
+        <div className="mb-4 flex justify-end">
+          <NewMenu />
+        </div>
+
         {approveError && (
           <Card className="mb-6 border-red-200 bg-red-50/80">
             <CardContent className="p-4 text-sm text-red-700">{approveError}</CardContent>

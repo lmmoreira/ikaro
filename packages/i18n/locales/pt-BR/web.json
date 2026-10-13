@@ -2140,6 +2140,102 @@
       "closeMenu": "Fechar menu",
       "todayPrefix": "Hoje,",
       "defaultTitle": "Dashboard"
+    },
+    "newBooking": {
+      "pageTitle": "Novo agendamento",
+      "menu": {
+        "trigger": "+ Novo",
+        "items": {
+          "agendamento": {
+            "label": "Agendamento",
+            "hint": "Reserva avulsa para um cliente que ligou ou escreveu"
+          }
+        }
+      },
+      "chooser": {
+        "heading": "Para quem é a reserva?",
+        "description": "Escolha o cliente em nome de quem a reserva será criada, ou informe o contato de quem ainda não tem cadastro.",
+        "tabs": {
+          "registered": "Cliente cadastrado",
+          "guest": "Novo contato"
+        },
+        "recurrenceNeedsAccount": "Uma recorrência exige um cliente com conta — quem ainda não tem cadastro só pode ter reservas avulsas.",
+        "searchLabel": "Buscar cliente",
+        "searchPlaceholder": "Nome, e-mail ou telefone",
+        "searchHint": "Digite pelo menos {min} caracteres. O telefone pode ser digitado em qualquer formato.",
+        "searchError": "Não foi possível buscar clientes. Verifique sua conexão e tente novamente.",
+        "retry": "Tentar novamente",
+        "resultsHeading": "Resultados",
+        "listHeading": "Clientes",
+        "noResult": "Nenhum cliente encontrado para “{term}”. Se a pessoa ainda não tem cadastro, use Novo contato.",
+        "empty": "Ainda não há clientes cadastrados. Use Novo contato.",
+        "noPhone": "sem telefone",
+        "guestName": "Nome",
+        "guestPhone": "Telefone",
+        "guestEmail": "E-mail",
+        "guestRequired": "Nome, telefone e e-mail são obrigatórios.",
+        "guestNote": "O e-mail recebe a confirmação do agendamento. Fica registrado como reserva de convidado: sem pontos de fidelidade e sem histórico de conta.",
+        "footerHint": "Quem ainda não tem cadastro entra em Novo contato. No próximo passo você monta o agendamento.",
+        "continue": "Continuar"
+      },
+      "booking": {
+        "change": "Trocar",
+        "registeredTag": "cliente cadastrado",
+        "guestTag": "novo contato"
+      },
+      "steps": {
+        "servicesHint": "Só aparecem serviços de agendamento (aulas e turmas têm fluxo próprio). Quando um serviço exige escolher um recurso, um passo a mais aparece aqui.",
+        "retry": "Tentar novamente",
+        "slotsLabel": "Horários disponíveis",
+        "noticeLegend": "• Dentro do aviso mínimo do negócio ({hours} h). Só a equipe pode marcar esses horários; um cliente não os vê.",
+        "intakeOptional": "Tudo é opcional para a equipe: continue com o que o cliente informou."
+      },
+      "summary": {
+        "heading": "Resumo",
+        "client": "Cliente",
+        "services": "Serviços",
+        "noServices": "Escolha os serviços",
+        "dateTime": "Data e hora",
+        "dateTimePending": "Escolha a data e o horário",
+        "chosenResource": "com {name}",
+        "total": "Total"
+      },
+      "actions": {
+        "next": "Continuar",
+        "back": "Voltar"
+      },
+      "confirm": {
+        "heading": "Confirmar o agendamento",
+        "whatHappens": "O que acontece",
+        "whatHappensBody": "A reserva é criada já aprovada e ocupa o horário. O cliente (ou o e-mail informado, se for convidado) recebe um e-mail de confirmação.",
+        "create": "Criar agendamento",
+        "creating": "Criando…"
+      },
+      "outcome": {
+        "createdTitle": "Agendamento criado",
+        "createdBody": "{when}. Já está aprovado e ocupa o horário. {name} recebe um e-mail de confirmação.",
+        "viewBooking": "Ver agendamento",
+        "createAnother": "Criar outro",
+        "backToAgenda": "Voltar à agenda",
+        "chooseOtherDate": "Escolher outra data",
+        "chooseOtherCustomer": "Escolher outro cliente",
+        "retry": "Tentar novamente",
+        "window": {
+          "title": "Data fora do prazo permitido",
+          "body": "A data está no passado ou além do prazo máximo de agendamento. Escolha outra data."
+        },
+        "phone": {
+          "title": "{name} não tem telefone cadastrado",
+          "body": "A reserva precisa de um telefone de contato. Peça ao cliente para cadastrá-lo, ou registre-o como novo contato."
+        },
+        "customerNotFound": {
+          "title": "Cliente não encontrado",
+          "body": "Não encontramos este cliente neste negócio, então nada foi criado."
+        },
+        "generic": {
+          "title": "Não foi possível criar o agendamento"
+        }
+      }
     }
   }
 }

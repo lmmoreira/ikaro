@@ -195,6 +195,25 @@ beforeEach(() => {
   mockUseUpcoming.mockReturnValue({ data: emptyList() });
 });
 
+describe('BookingQueuePage — "+ Novo" menu', () => {
+  it('has exactly one create button above the queue', () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.getAllByTestId('new-menu-trigger')).toHaveLength(1);
+  });
+
+  it('opens the menu with the Agendamento entry', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByTestId('new-menu-trigger'));
+
+    expect(screen.getByTestId('new-menu-item')).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/new?tipo=agendamento',
+    );
+  });
+});
+
 describe('BookingQueuePage — section titles', () => {
   it('renders the action-needed section heading', () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
