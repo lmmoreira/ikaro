@@ -1838,7 +1838,7 @@ Because a recurring schedule is fixed-term, a customer who wants to continue cre
 
 ---
 
-### M23-S23 — Notifications for the future-commitment worklist: manager alert on a resource deactivation, customer message on a reassign
+### M23-S23 — Notifications for the future-commitment worklist: manager alert on a resource deactivation, customer message on a reassign ✅ Done
 
 **Agent:** `backend-ts`
 **Complexity:** M
