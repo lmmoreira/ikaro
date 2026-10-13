@@ -162,7 +162,7 @@ Notification Context subscribes:
 - Cron-emitted reminder **commands** (not domain events — `booking/domain/commands/`): `BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `RecurringScheduleRenewalDue` (M23-S21, the renewal reminder for an ending recurring schedule) → all consumed by Notification
 - `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended` (M23 Cluster 3) → consumed by Notification
 - `AvailabilityAlertCreated`/`Updated`/`Cancelled`/`Expired`/`Matched` (M23 Cluster 3) → `Matched` consumed by Notification; the rest only by the shared `audit-log` consumer
-- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer today; the manager alert (`Raised`) and customer message (`Resolved`) are M23-S23, not built
+- `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer, by design. M23-S23 (planned, not built) adds two events instead: `ResourceDeactivationImpactRaised` (one manager alert per deactivation) and `BookingResourceReassigned` (customer message on a reassign), each consumed by Notification and the shared `audit-log` consumer
 - `TenantSchedulingBootstrapped` (UC-075, planned — M24-S21) → **no event class exists yet**
 - `BookingNoShow` (M23 Cluster 3) → shared `audit-log` consumer (M23-S36), Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
 - `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification

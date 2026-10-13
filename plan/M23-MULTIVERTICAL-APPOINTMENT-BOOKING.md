@@ -1857,14 +1857,18 @@ Two notifications, one story because both extend S08's events and both need new 
 
 **Decisions already made (state as fact, do not re-derive):**
 1. **Recipients:** managers via `INotificationStaffPort.getManagerEmails()` and `dispatchTemplatesToMany` (as `BookingRescheduled`'s admin email does); the customer via the booking's own `contactEmail`. No email to the manager for their own reassign or resolve.
-2. **Templates:** two new `NotificationTemplateKey`s — `RESOURCE_DEACTIVATION_IMPACT_ADMIN = 'resource-deactivation-impact-admin'` and `BOOKING_RESOURCE_REASSIGNED_CUSTOMER = 'booking-resource-reassigned-customer'` — following the 7-step checklist in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (enum, `notification-template-key.mapping.ts`, both `notifications.json`, a migration seeding the global rows **and** backfilling every existing tenant, the use cases extending `BaseNotificationUseCase` with `localizeTemplates()`, handlers, `notification.module.ts`).
+2. **Templates:** two new `NotificationTemplateKey`s — `RESOURCE_DEACTIVATION_IMPACT_ADMIN = 'resource-deactivation-impact-admin'` and `BOOKING_RESOURCE_REASSIGNED_CUSTOMER = 'booking-resource-reassigned-customer'` — following the 7-step checklist in `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type (enum, `notification-template-key.mapping.ts`, both `notifications.json`, a migration seeding the global rows **and** backfilling every existing tenant by the tenant's language (copy `1748500000032-AddBookingNoShowCustomerTemplate.ts`, no-op `down`), the use cases extending `BaseNotificationUseCase` with `localizeTemplates()`, handlers, `notification.module.ts`). **The reassign email is ONE template key, not two:** its sentence is constant ("your booking time is unchanged; it is now served by a different resource"), and the optional name is `{{newResourceLine}} = labelledLine(lines.newResourceLabel, newResourceName)` — `''` when the name is `null`, "New resource: X" when disclosed — with the label in `email-tables.json` (`managerEmailLines`, both locales), exactly like the cancel email's `reasonLine`. `newResourceLine` goes in the mapping's `variables` (the mapping spec compares them with the placeholders). A name is passed through `escapeHtml`.
+   - **Email language (decided at discovery):** the tenant's, from `getTenantInfo().locale` — `Booking` carries no customer language, and a tenant's language is set once at provisioning and is read-only.
+   - **The manager email's link (decided at discovery):** `${FRONTEND_URL}/dashboard` (same `FRONTEND_URL` config the info-submitted email uses), because M23-S14's page does not exist yet; S14 switches it to `/dashboard/scheduling-exceptions` in its own change. Never a deep link before the page ships.
 3. **The per-entry `FutureCommitmentExceptionRaised` / `Resolved` / `Dismissed` events get no Notification consumer.** `Resolved` needs none: its customer-facing effect is the resulting booking event (`BookingCancelled`, `BookingRescheduled`, or S23's `BookingResourceReassigned`).
-4. **Devops (playbook, "new Pub/Sub topic" row): 1 PR + 1 Foundation apply.** Two new topics (`ResourceDeactivationImpactRaised`, `BookingResourceReassigned`), each with a real `subscribe()` consumer in this same PR, `pubsub-catalog.json` regenerated, `infra-app-mix-ok` label plus a PR-body note. After PR1 merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve the `staging-foundation` and `production-foundation` Environments, then confirm `gcloud pubsub topics get-iam-policy` on **each** new topic shows the expected publisher binding in both projects (nothing in CI fails if this is skipped).
+4. **Devops (playbook, "new Pub/Sub topic" row): 1 PR + 1 Foundation apply.** Two new topics (`ResourceDeactivationImpactRaised`, `BookingResourceReassigned`), each with a real `subscribe()` consumer in this same PR **and a line in `BookingAuditLogHandler`** (the `domain-event-audit-coverage` detector fails CI without it, so each topic has two subscriptions: `audit-log` and `notification`), `pubsub-catalog.json` regenerated, `infra-app-mix-ok` label plus a PR-body note. After PR1 merges and its `envs/*` apply runs: dispatch `foundation-deploy.yml` with `apply=true` from `main`, review both plans, approve the `staging-foundation` and `production-foundation` Environments, then confirm `gcloud pubsub topics get-iam-policy` on **each** new topic shows the expected publisher binding in both projects (nothing in CI fails if this is skipped).
 
-**Decisions left for `/story-discovery` (business decisions, not code questions):**
-- **Email locale:** `BookingRescheduled`'s customer email uses the tenant's locale today; M23-S21 proposes the customer's own. Which rule does the reassign email follow?
-- **The manager email's link target:** the worklist page is M23-S14's. If this story ships first, a deep link to `/dashboard/scheduling-exceptions` is dead — link to the dashboard root until S14 lands, or sequence this story after S14?
-- **Cancel/reschedule resolutions:** confirm the existing `BookingCancelled` / `BookingRescheduled` customer emails read correctly when the *reason* is a resource going away (`reason` is the manager's free text today).
+5. **One email per moved booking, never per customer (decided at discovery, 2026-10-13).** A customer whose 12 recurring occurrences are all moved gets 12 emails; a per-customer summary would need a batch event published after the resolve loop and was rejected as extra machinery.
+6. **`affectedCount` = the raise step's `raisedCount`** — every live affected booking, including one whose open entry was only refreshed. The manager who deactivated the resource is also alerted (decision 1 excludes managers only for their own reassign or resolve).
+7. **Cancel/reschedule resolutions need no change (checked at discovery):** `BookingCancelled`'s customer email shows the reason only when the business cancelled (the resolve-CANCEL case), and `BookingRescheduled`'s never shows `adminNotes`. The reassign email never carries the manager's `reason` (an internal note, as in M23-S25); the event has no `reason` field.
+8. **Disclosure computed in the move helper:** `reassignBookingResource()` also returns the target's `name` and a `disclosesResource` flag — true only when **every** affected row's requirement (`findRequirementForAssignment`) is `CUSTOMER_CHOICE` or `AUTO_ANY`; `AUTO_FUNGIBLE_POOL` and `NONE` give `newResourceName = null`.
+9. **Publish paths:** `BookingResourceReassigned` goes through `Booking.recordResourceReassigned()` and the booking repo's `drainDomainEvents`; `ResourceDeactivationImpactRaised` is a non-aggregate event published by the raise use case through `OUTBOX_PUBLISHER` inside the caller's transaction (the use case opens no transaction of its own).
+10. **UC-077 step 3 "notification outcome" is not built here** — the docs are reworded to what ships (a reassign emails the customer; a deactivation alerts the managers); no outcome is recorded.
 
 **Backend use case steps:**
 1. **`Booking.recordResourceReassigned(...)`** and the `BookingResourceReassigned` event; S08's targeted-move path calls it and persists through `bookingRepo.save()` inside its own `txManager.run()` callback.
@@ -1873,7 +1877,7 @@ Two notifications, one story because both extend S08's events and both need new 
 
 **Backend HTTP surface:** none.
 **BFF endpoint spec:** none.
-**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the two global default template rows and copying them to every existing tenant; `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for both keys; no env var, no feature flag.
+**New migration / i18n keys / env vars / feature flags:** a notification-context migration inserting the two global default template rows and copying them to every existing tenant; `packages/i18n/locales/{pt-BR,en}/notifications.json` entries for both keys and a `newResourceLabel` in `email-tables.json`; no env var, no feature flag.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/events/booking-resource-reassigned.event.ts`, `resource-deactivation-impact-raised.event.ts` (+ specs), and their builders in `src/test/builders/booking/` (new)
@@ -1883,14 +1887,17 @@ Two notifications, one story because both extend S08's events and both need new 
 - `apps/backend/src/contexts/notification/application/use-cases/send-resource-deactivation-impact-notification/`, `send-booking-resource-reassigned-notification/` (+ specs) (new)
 - `apps/backend/src/contexts/notification/infrastructure/events/resource-deactivation-impact.handler.ts`, `booking-resource-reassigned.handler.ts` (+ specs) (new); `notification.module.ts` (modify)
 - `apps/backend/src/contexts/notification/infrastructure/migrations/<timestamp>-AddFutureCommitmentWorklistTemplates.ts` (new)
-- `packages/i18n/locales/{pt-BR,en}/notifications.json` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/events/booking-audit-log.handler.ts` (+ spec) (modify — one `subscribe` line per new event)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-reassignment.helpers.ts` (+ spec) (modify — returns the target's name and `disclosesResource`)
+- `packages/i18n/locales/{pt-BR,en}/notifications.json`, `email-tables.json` (modify)
 - `infra/terraform/pubsub-catalog.json` (regenerated)
-- `docs/03-DOMAIN_EVENTS.md`, `docs/05-BOUNDED_CONTEXTS.md` (modify — the two new events and their Notification consumers; the `Raised` consumer note S08 left)
+- `docs/03-DOMAIN_EVENTS.md`, `docs/05-BOUNDED_CONTEXTS.md`, `docs/04-USE_CASES.md`, `docs/02-DOMAIN_MODEL.md` (modify — the two new events and their Notification consumers; the `Raised`/`Resolved` consumer notes S08 left; drop the "not built" wording once shipped)
 
 **Acceptance criteria — product:**
 - [ ] When a resource with future bookings is deactivated, every manager receives one email that names the resource and how many bookings need a decision — not one per booking.
 - [ ] A customer whose booking a manager moved to another resource receives an email saying the time is unchanged; it names the new resource only when that resource is meant to be visible to customers.
-- [ ] A bulk reassign of several bookings emails each affected customer once.
+- [ ] Each moved booking emails its customer once; a bulk reassign of several bookings sends one email per booking (a customer with several moved bookings gets one for each).
+- [ ] The reassign email never shows the manager's reason, and the manager alert links to the dashboard.
 - [ ] Deactivating a resource with no future bookings sends nothing.
 
 **Acceptance criteria — technical:**
@@ -1899,6 +1906,9 @@ Two notifications, one story because both extend S08's events and both need new 
   - [ ] `Booking.recordResourceReassigned` adds the event; `newResourceName` is `null` for an `AUTO_FUNGIBLE_POOL` line and set for `CUSTOMER_CHOICE` / `AUTO_ANY`
   - [ ] Both notification use cases render both locales and dispatch to the right recipients; `NotificationTemplateKey` ↔ mapping parity spec passes
   - [ ] Both handlers call exactly one use case and rethrow on failure
+  - [ ] Disclosure (negative guarantees): `reassignBookingResource` gives `disclosesResource = true` only for `CUSTOMER_CHOICE` / `AUTO_ANY` and `false` for `AUTO_FUNGIBLE_POOL` / `NONE` (and for a mix where one row does not disclose); the reassign email body contains no manager `reason`; `newResourceLine` is `''` for a `null` name and HTML-escaped otherwise
+  - [ ] The manager email's link is `${FRONTEND_URL}/dashboard`; the mapping spec passes with `newResourceLine` in `variables`
+  - [ ] `BookingAuditLogHandler` subscribes to both new events (`domain-event-audit-coverage` stays green)
 - Integration:
   - [ ] Deactivating a real resource with several real bookings results in exactly one manager email (in-memory dispatcher), not several
   - [ ] A real reassign through S08's resolve produces one customer email per moved booking
@@ -1909,7 +1919,7 @@ Two notifications, one story because both extend S08's events and both need new 
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-**Self-dry-run findings:** no blockers. One deviation from the request as first phrased ("a manager alert on `FutureCommitmentExceptionRaised`"): alerting per entry would spam managers, so the alert hangs on a new per-deactivation summary event published by S08's raise step (decided above, with the rejected alternative recorded). The reassign email's resource-name disclosure follows the existing UC-062/063 rule; the tenant-locale vs customer-locale question and the dead-link risk before S14 are left for discovery as business decisions.
+**Self-dry-run findings:** no blockers. One deviation from the request as first phrased ("a manager alert on `FutureCommitmentExceptionRaised`"): alerting per entry would spam managers, so the alert hangs on a new per-deactivation summary event published by S08's raise step (decided above, with the rejected alternative recorded). The reassign email's resource-name disclosure follows the existing UC-062/063 rule; the tenant-locale and dead-link questions were settled at discovery (decisions 2, 5–10 above).
 
 ---
 
