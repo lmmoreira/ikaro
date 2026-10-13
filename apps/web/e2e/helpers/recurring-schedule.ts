@@ -233,15 +233,23 @@ export function desktopPane(page: Page): Locator {
   return page.getByTestId('action-pane-desktop');
 }
 
-// A day is picked from the shadcn Calendar popover: open the field, walk to the day's month with
-// the shared "next month" button, click the day cell by its data-day.
-async function pickFormDay(page: Page, fieldTestId: string, isoDate: string): Promise<void> {
-  await page.getByTestId(fieldTestId).click();
+// The shared Calendar popover (shadcn, react-day-picker) is already open: walk to the day's month
+// with its "next month" button, found by its accessible name because the shared primitive carries
+// no test id (that one belongs to the public booking calendar), then click the day cell by its
+// data-day. Without the walk a day outside the month the popover opens on is never reached, which
+// only shows when "today + N days" crosses a month boundary.
+export async function pickCalendarDay(page: Page, isoDate: string): Promise<void> {
   const cell = page.locator(`[data-day="${isoDate}"] button`);
   for (let step = 0; step < 6 && !(await cell.isVisible()); step += 1) {
-    await page.getByTestId('calendar-next-month').click();
+    await page.getByRole('button', { name: 'Go to the Next Month' }).click();
   }
   await cell.click();
+}
+
+// A day is picked from the shadcn Calendar popover: open the field, then pick the day.
+async function pickFormDay(page: Page, fieldTestId: string, isoDate: string): Promise<void> {
+  await page.getByTestId(fieldTestId).click();
+  await pickCalendarDay(page, isoDate);
 }
 
 async function chooseTimePart(page: Page, testId: string, value: string): Promise<void> {
