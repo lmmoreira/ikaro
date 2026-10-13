@@ -138,6 +138,12 @@ Extract one cleanup helper covering every fixture tenant in FK-safe order; call 
 **TD08 AUD-045 precedent, PR #484, 2026-09-16:** a 3-tenant fixture's `afterAll` only cleaned 2 tenants' child rows; the third's FK violation aborted cleanup, and the reused CI container carried that into a later run, which failed a content assertion instead. Passed 3/3 locally; failed 2/2 on CI before the fix.
 
 
+## An E2E helper that picks a date N days ahead must navigate months until the day cell is visible
+
+The shared calendar opens on the current month and has no `calendar-next-month` test id. A helper that clicks `[data-day="<iso>"] button` directly works only while the target date falls in the month on screen, so the suite stays green for most of the month and turns red the first time a CI run lands within N days of a month end (M23-S23, 2026-10-13: the recurring-reservation specs failed on 1 Nov, and the cause looked unrelated to the PR under test).
+
+**Fix:** one shared helper (`pickCalendarDay` in `apps/web/e2e/helpers/recurring-schedule.ts`) clicks the next-month button until the cell is visible (a bounded loop, never unbounded), and every spec uses it. Match the button by an accessible name that accepts both shipped languages (`/^(Go to the Next Month|Ir para o próximo mês)$/`), because the name follows the calendar's locale. A spec never clicks a `data-day` cell directly. When a date-dependent E2E fails in CI but not on the author's machine, check the calendar date before anything else.
+
 ## An E2E test that computes "today" itself must match the app's own tenant-timezone computation, not the runner's system clock
 
 **This app resolves "today" as `Intl.DateTimeFormat('en-CA', { timeZone: businessHours.timezone }).format(new Date())` (tenant-local, e.g. `America/Sao_Paulo`) — a naive UTC/local "today" (`new Date().toISOString().slice(0, 10)`, or a day-offset helper anchored to the runner's own clock) diverges from it for a real ~3-hour window every single day** (00:00–03:00 UTC, when UTC's calendar date is already a day ahead of São Paulo's). A fixture built on the wrong "today" doesn't fail loudly — it silently lands on a date the app itself doesn't consider "today," making any assertion about today-specific behavior (a scroll-to-now marker, a same-day badge, a cancellation-window boundary) meaningless rather than red.
