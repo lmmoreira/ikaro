@@ -284,6 +284,29 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         expect(reassigned()).toHaveLength(0);
       });
 
+      it("never records an event for another tenant's entry (tenant isolation)", async () => {
+        const source = await world.addResource('Sala 1');
+        const target = await world.addResource('Sala 2');
+        const service = await world.addService();
+        await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        published.length = 0;
+
+        const { results } = await resolve({
+          tenantId: FCE_OTHER_TENANT_ID,
+          exceptionIds: [entryId],
+          resolutionType: 'REASSIGN',
+          target: { resourceId: target.id },
+        });
+
+        expect(results[0]).toMatchObject({
+          outcome: 'STILL_OPEN',
+          errorCode: BookingErrorCode.EXCEPTION_NOT_FOUND,
+        });
+        expect(reassigned()).toHaveLength(0);
+        expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+      });
+
       it('records nothing for KEEP', async () => {
         const source = await world.addResource('Sala 1');
         const service = await world.addService();
