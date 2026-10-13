@@ -352,9 +352,13 @@ flowchart TD
   E --> F{open entry for the same impact?}
   F -- yes --> G[update its alternatives]
   F -- no --> H[create entry, publish Raised]
+  G --> I[publish ResourceDeactivationImpactRaised once, when raisedCount greater than 0]
+  H --> I
 ```
 
 One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`, `APPROVED`); a `REQUESTED` lock state is never a real commitment. The `(tenant_id, source_type, source_id, affected_type, affected_id) WHERE status = 'OPEN'` partial unique index is the DB-level guarantee that a repeat trigger updates instead of duplicating. Recurring schedules get no entry of their own: each materialized occurrence is a booking and is covered like any other. A resource with no future bookings raises nothing.
+
+**Manager alert (M23-S23).** The raise step also publishes one `ResourceDeactivationImpactRaised` (`{resourceId, resourceName, affectedCount}`, `affectedCount` = `raisedCount`, so a refreshed open entry counts) through `OUTBOX_PUBLISHER` inside the caller's transaction, only when `raisedCount > 0`. The Notification context consumes it and emails every manager once, the deactivating manager included, with a link to `${FRONTEND_URL}/dashboard` in the tenant's language. The per-entry `Raised` events keep the audit-log consumer only, so 11 affected bookings are one email, not 11.
 
 ### Resolve (best-effort per booking)
 
@@ -363,7 +367,7 @@ One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`
 | Choice | Effect |
 |---|---|
 | KEEP | Entry resolved, booking unchanged |
-| REASSIGN | Same window, another resource: validated (active, same type, inside the pool, free excluding the booking's own lines) then released and re-assigned; `AUTO` takes the least-loaded free candidate; a bundle's other resources are untouched; no `BookingRescheduled` |
+| REASSIGN | Same window, another resource: validated (active, same type, inside the pool, free excluding the booking's own lines) then released and re-assigned; `AUTO` takes the least-loaded free candidate; a bundle's other resources are untouched; no `BookingRescheduled`. Each moved booking records `BookingResourceReassigned` (M23-S23) on the same `save()`, and the customer gets one email per booking saying the time is unchanged. The new resource's name is included only when **every** affected requirement is `CUSTOMER_CHOICE` or `AUTO_ANY` (`AUTO_FUNGIBLE_POOL` and `NONE` give `null`); the manager's reason is never included |
 | RESCHEDULE | One entry only, `APPROVED` booking only; `RescheduleBookingUseCase`'s logic (`rescheduleBookingInTransaction`) composed in the same transaction, the resource re-resolved fresh at the new time. A `CUSTOMER_CHOICE` booking whose chosen resource is the deactivated one cannot re-resolve and stays `OPEN` — REASSIGN or CANCEL it instead |
 | CANCEL | The same staff cancellation `CancelBookingAsAdminUseCase` performs (`Booking.cancel` as staff, then `releaseBookingOccupancy`), in the entry's own transaction |
 
