@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import type {
   Address,
   AvailableSlot,
@@ -17,15 +16,11 @@ import {
   buildGuestBookingPayload,
   type BookingPayloadSelections,
 } from '@/features/booking/model/booking-payload';
-import {
-  resolveBookingSubmitErrorRoute,
-  resolveErrorStep,
-  type BookingStepId,
-  type ResolvedErrorStep,
-} from '@/features/booking/model/booking-steps';
+import type { BookingStepId, ResolvedErrorStep } from '@/features/booking/model/booking-steps';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
 import type { BookingSubmissionStatus } from '../components/public/ConfirmationStep';
+import { useBookingSubmitRunner } from './useBookingSubmitRunner';
 
 interface UseBookingSubmissionParams {
   readonly slug: string;
@@ -104,37 +99,19 @@ async function submitBooking(
   );
 }
 
-async function routeSubmitError(
-  err: unknown,
-  params: UseBookingSubmissionParams,
-): Promise<boolean> {
-  const route = resolveBookingSubmitErrorRoute(err, params.locale);
-  const invalidPicker = route.target === 'picker' ? await params.resolveInvalidPickerStep() : null;
-  const resolved = resolveErrorStep(route, params.steps, params.locale, invalidPicker);
-  params.onRoute(resolved);
-  return resolved.kind === 'step' && resolved.stepId === 'confirmation';
-}
-
-// Extracted from BookingForm (TD37-S5A) — the submission flow (payload building, error-route
-// resolution and the status it drives) is a self-contained concern, unrelated to step
-// navigation or field rendering. Where an error lands is decided by booking-steps.ts.
+// Extracted from BookingForm (TD37-S5A) — the hotsite's submission: resolve the customer profile,
+// build the guest or authenticated payload and send it. The status it drives and where an error
+// lands are the shared runner's (useBookingSubmitRunner, booking-steps.ts).
 export function useBookingSubmission(
   params: UseBookingSubmissionParams,
 ): UseBookingSubmissionResult {
-  const [status, setStatus] = useState<BookingSubmissionStatus>('idle');
-  const [booking, setBooking] = useState<BookingResponse | null>(null);
+  const { status, booking, run } = useBookingSubmitRunner(params);
 
   async function handleSubmit(): Promise<void> {
-    if (!params.selectedSlot) return;
-    setStatus('submitting');
-    params.onSubmitStart();
-    try {
+    await run(async (slot) => {
       const resolvedProfile = await resolveCustomerProfileForSubmit(params);
-      setBooking(await submitBooking(params, resolvedProfile, params.selectedSlot));
-      setStatus('success');
-    } catch (err) {
-      setStatus((await routeSubmitError(err, params)) ? 'error' : 'idle');
-    }
+      return submitBooking(params, resolvedProfile, slot);
+    });
   }
 
   return { status, booking, handleSubmit };
