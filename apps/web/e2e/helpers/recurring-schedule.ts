@@ -233,15 +233,28 @@ export function desktopPane(page: Page): Locator {
   return page.getByTestId('action-pane-desktop');
 }
 
-// A day is picked from the shadcn Calendar popover: open the field, walk to the day's month with
-// the shared "next month" button, click the day cell by its data-day.
-async function pickFormDay(page: Page, fieldTestId: string, isoDate: string): Promise<void> {
-  await page.getByTestId(fieldTestId).click();
+// The shared Calendar popover (shadcn, react-day-picker) is already open: walk to the day's month
+// with its "next month" button, found by its accessible name because the shared primitive carries
+// no test id (that one belongs to the public booking calendar), then click the day cell by its
+// data-day. Without the walk a day outside the month the popover opens on is never reached, which
+// only shows when "today + N days" crosses a month boundary. The name is matched in both shipped
+// languages: today the label stays in English even on the pt-BR tenant (the primitive hands
+// DayPicker a date-fns locale, which carries no labels), and this keeps the helper working if the
+// library's own localized labels are ever wired in.
+const NEXT_MONTH_BUTTON = /^(Go to the Next Month|Ir para o próximo mês)$/;
+
+export async function pickCalendarDay(page: Page, isoDate: string): Promise<void> {
   const cell = page.locator(`[data-day="${isoDate}"] button`);
   for (let step = 0; step < 6 && !(await cell.isVisible()); step += 1) {
-    await page.getByTestId('calendar-next-month').click();
+    await page.getByRole('button', { name: NEXT_MONTH_BUTTON }).click();
   }
   await cell.click();
+}
+
+// A day is picked from the shadcn Calendar popover: open the field, then pick the day.
+async function pickFormDay(page: Page, fieldTestId: string, isoDate: string): Promise<void> {
+  await page.getByTestId(fieldTestId).click();
+  await pickCalendarDay(page, isoDate);
 }
 
 async function chooseTimePart(page: Page, testId: string, value: string): Promise<void> {

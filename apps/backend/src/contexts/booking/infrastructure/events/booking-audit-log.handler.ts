@@ -12,12 +12,14 @@ import { BookingCompleted } from '../../domain/events/booking-completed.event';
 import { BookingInfoRequested } from '../../domain/events/booking-info-requested.event';
 import { BookingInfoSubmitted } from '../../domain/events/booking-info-submitted.event';
 import { BookingNoShow } from '../../domain/events/booking-no-show.event';
+import { BookingResourceReassigned } from '../../domain/events/booking-resource-reassigned.event';
 import { BookingRejected } from '../../domain/events/booking-rejected.event';
 import { BookingRequested } from '../../domain/events/booking-requested.event';
 import { BookingRescheduled } from '../../domain/events/booking-rescheduled.event';
 import { FutureCommitmentExceptionDismissed } from '../../domain/events/future-commitment-exception-dismissed.event';
 import { FutureCommitmentExceptionRaised } from '../../domain/events/future-commitment-exception-raised.event';
 import { FutureCommitmentExceptionResolved } from '../../domain/events/future-commitment-exception-resolved.event';
+import { ResourceDeactivationImpactRaised } from '../../domain/events/resource-deactivation-impact-raised.event';
 import { RecurringBookingScheduleApprovalRequested } from '../../domain/events/recurring-booking-schedule-approval-requested.event';
 import { RecurringBookingScheduleCreated } from '../../domain/events/recurring-booking-schedule-created.event';
 import { RecurringBookingScheduleEnded } from '../../domain/events/recurring-booking-schedule-ended.event';
@@ -90,6 +92,11 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
     );
+    this.eventBus.subscribe(
+      BookingResourceReassigned.name,
+      (event) => this.handle(event),
+      LogDomainEventUseCase.CONSUMER_NAME,
+    );
   }
 
   private subscribeAvailabilityAlertEvents(): void {
@@ -133,6 +140,11 @@ export class BookingAuditLogHandler extends AuditLogHandlerBase {
     );
     this.eventBus.subscribe(
       FutureCommitmentExceptionDismissed.name,
+      (event) => this.handle(event),
+      LogDomainEventUseCase.CONSUMER_NAME,
+    );
+    this.eventBus.subscribe(
+      ResourceDeactivationImpactRaised.name,
       (event) => this.handle(event),
       LogDomainEventUseCase.CONSUMER_NAME,
     );

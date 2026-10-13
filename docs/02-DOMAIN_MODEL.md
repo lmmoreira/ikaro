@@ -1262,7 +1262,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | `RecurringBookingScheduleCreated` / `…ApprovalRequested` / `…Rejected` / `…Ended` | Recurring-schedule lifecycle (UC-070, UC-071) | Notification Context |
 | `AvailabilityAlertCreated` / `…Updated` / `…Cancelled` / `…Expired` | Availability-alert lifecycle (UC-072, UC-076) | none besides `audit-log` |
 | `AvailabilityAlertMatched` | A date becomes selectable for an alert (UC-072 step 3) | Notification Context (customer email) |
-| `FutureCommitmentExceptionRaised` / `…Resolved` / `…Dismissed` | Future-commitment worklist (UC-073, UC-077) | none besides `audit-log` (the manager/customer notifications are M23-S23, not built) |
+| `FutureCommitmentExceptionRaised` / `…Resolved` / `…Dismissed` | Future-commitment worklist (UC-073, UC-077) | `audit-log` only, by design; the manager alert and the customer message hang on `ResourceDeactivationImpactRaised` and `BookingResourceReassigned` (M23-S23) |
 
 > Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) and `TenantProvisioned` (published by Platform Context) to create the tenant's location resource — see `docs/05-BOUNDED_CONTEXTS.md`.
 

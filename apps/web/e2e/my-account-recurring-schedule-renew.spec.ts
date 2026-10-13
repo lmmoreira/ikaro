@@ -8,6 +8,7 @@ import {
   desktopPane,
   listMySchedules,
   NEW_SCHEDULE_PATH,
+  pickCalendarDay,
   seedRecurrenceEligibleService,
   tenantDate,
 } from './helpers/recurring-schedule';
@@ -69,12 +70,7 @@ test.describe('customer my-account: renewing a recurring reservation (M23-S22, U
 
       await customer.page.goto(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
       await customer.page.getByTestId('new-schedule-ends-on').click();
-      const endsOn = tenantDate(RENEWAL_STARTS_IN + 13);
-      const cell = customer.page.locator(`[data-day="${endsOn}"] button`);
-      for (let step = 0; step < 6 && !(await cell.isVisible()); step += 1) {
-        await customer.page.getByTestId('calendar-next-month').click();
-      }
-      await cell.click();
+      await pickCalendarDay(customer.page, tenantDate(RENEWAL_STARTS_IN + 13));
 
       await desktopPane(customer.page).getByTestId('new-schedule-review').click();
       await desktopPane(customer.page).getByTestId('new-schedule-confirm').click();
@@ -132,12 +128,7 @@ test.describe('customer my-account: renewing a recurring reservation (M23-S22, U
 
       await customer.page.goto(`${NEW_SCHEDULE_PATH}?renewFrom=${schedule.id}`);
       await customer.page.getByTestId('new-schedule-ends-on').click();
-      const endsOn = tenantDate(RENEWAL_STARTS_IN + 13);
-      const cell = customer.page.locator(`[data-day="${endsOn}"] button`);
-      for (let step = 0; step < 6 && !(await cell.isVisible()); step += 1) {
-        await customer.page.getByTestId('calendar-next-month').click();
-      }
-      await cell.click();
+      await pickCalendarDay(customer.page, tenantDate(RENEWAL_STARTS_IN + 13));
       await desktopPane(customer.page).getByTestId('new-schedule-review').click();
       await desktopPane(customer.page).getByTestId('new-schedule-confirm').click();
 

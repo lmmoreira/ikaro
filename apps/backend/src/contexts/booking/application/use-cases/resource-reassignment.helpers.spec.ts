@@ -10,7 +10,10 @@ import {
 } from '../../../../test/utils/future-commitment-fixture';
 import { FutureCommitmentExceptionReassignTargetInvalidError } from '../../domain/errors/future-commitment-exception.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { ResourceRequirement } from '../../domain/resource-requirement';
+import {
+  ResourceRequirement,
+  ResourceRequirementSelectionMode,
+} from '../../domain/resource-requirement';
 import { ServiceLeg } from '../../domain/service-leg';
 import { ResourceType } from '../../domain/resource.types';
 import { reassignBookingResource } from './resource-reassignment.helpers';
@@ -33,7 +36,9 @@ describe('reassignBookingResource', () => {
 
   // A booking whose one line needs a room AND a piece of equipment (a bundle), with one occupancy
   // row on each — plus, optionally, a second room unit.
-  async function seedBundle(options: { secondRoomUnit?: boolean } = {}) {
+  async function seedBundle(
+    options: { secondRoomUnit?: boolean; roomMode?: ResourceRequirementSelectionMode } = {},
+  ) {
     const room = await world.addResource('Sala 1');
     const equipment = await world.addResource('Projetor', ResourceType.EQUIPMENT);
     const otherRoom = options.secondRoomUnit ? await world.addResource('Sala 9') : null;
@@ -43,7 +48,7 @@ describe('reassignBookingResource', () => {
       .withResourceRequirements([
         ResourceRequirement.create({
           type: ResourceType.ROOM,
-          selectionMode: 'AUTO_ANY',
+          selectionMode: options.roomMode ?? 'AUTO_ANY',
           requiredQuantity: options.secondRoomUnit ? 2 : 1,
         }),
         ResourceRequirement.create({ type: ResourceType.EQUIPMENT, selectionMode: 'AUTO_ANY' }),
@@ -125,6 +130,67 @@ describe('reassignBookingResource', () => {
     expect(moved.startsAt).toEqual(kept.startsAt);
     expect(moved.endsAt).toEqual(kept.endsAt);
     expect(kept.resourceName).toBe('Projetor');
+  });
+
+  it("returns the target's name and discloses it when the customer chose or is shown the resource", async () => {
+    const modes: ResourceRequirementSelectionMode[] = ['CUSTOMER_CHOICE', 'AUTO_ANY'];
+    for (const roomMode of modes) {
+      world = new FutureCommitmentFixture();
+      const { booking, service, room } = await seedBundle({ roomMode });
+      const target = await world.addResource('Sala 2');
+
+      const result = await reassignBookingResource(deps(), {
+        tenantId: TENANT_ID,
+        booking,
+        serviceMap: new Map([[service.id, service]]),
+        sourceResourceId: room.id,
+        target: { resourceId: target.id },
+        timezone: TIMEZONE,
+      });
+
+      expect(result).toEqual({
+        targetResourceId: target.id,
+        targetResourceName: 'Sala 2',
+        disclosesResource: true,
+      });
+    }
+  });
+
+  it('does not disclose the target for a fungible pool or a requirement with no selection', async () => {
+    const modes: ResourceRequirementSelectionMode[] = ['AUTO_FUNGIBLE_POOL', 'NONE'];
+    for (const roomMode of modes) {
+      world = new FutureCommitmentFixture();
+      const { booking, service, room } = await seedBundle({ roomMode });
+      const target = await world.addResource('Sala 2');
+
+      const result = await reassignBookingResource(deps(), {
+        tenantId: TENANT_ID,
+        booking,
+        serviceMap: new Map([[service.id, service]]),
+        sourceResourceId: room.id,
+        target: { resourceId: target.id },
+        timezone: TIMEZONE,
+      });
+
+      expect(result.disclosesResource).toBe(false);
+      expect(result.targetResourceName).toBe('Sala 2');
+    }
+  });
+
+  it('does not disclose when the service no longer declares the requirement', async () => {
+    const { booking, room } = await seedBundle();
+    const target = await world.addResource('Sala 2');
+
+    const result = await reassignBookingResource(deps(), {
+      tenantId: TENANT_ID,
+      booking,
+      serviceMap: new Map(),
+      sourceResourceId: room.id,
+      target: { resourceId: target.id },
+      timezone: TIMEZONE,
+    });
+
+    expect(result.disclosesResource).toBe(false);
   });
 
   it('locks the candidate resources before checking them', async () => {

@@ -5,6 +5,7 @@ import {
 } from '../../../../test/utils/future-commitment-fixture';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { FutureCommitmentExceptionRaised } from '../../domain/events/future-commitment-exception-raised.event';
+import { ResourceDeactivationImpactRaised } from '../../domain/events/resource-deactivation-impact-raised.event';
 import { ResourceType } from '../../domain/resource.types';
 
 const CORRELATION_ID = 'corr-raise-1';
@@ -188,8 +189,76 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
       correlationId: CORRELATION_ID,
     });
 
-    expect(published).toHaveLength(1);
-    expect(published[0]).toBeInstanceOf(FutureCommitmentExceptionRaised);
+    const raised = published.filter((e) => e instanceof FutureCommitmentExceptionRaised);
+    expect(raised).toHaveLength(1);
+  });
+
+  describe('ResourceDeactivationImpactRaised', () => {
+    function observedWorld() {
+      const published: unknown[] = [];
+      const observed = new FutureCommitmentFixture({
+        publish: async (event) => {
+          published.push(event);
+        },
+      });
+      return { observed, published };
+    }
+
+    it('is published once per deactivation with the resource and the affected count', async () => {
+      const { observed, published } = observedWorld();
+      const resource = await observed.addResource('Sala 1');
+      const service = await observed.addService();
+      await observed.addBooking({ service, resource, startsInHours: 24 });
+      await observed.addBooking({ service, resource, startsInHours: 48 });
+      await observed.addBooking({ service, resource, startsInHours: 72 });
+
+      await observed.raise.execute({
+        tenantId: TENANT_ID,
+        resourceId: resource.id,
+        correlationId: CORRELATION_ID,
+      });
+
+      const impacts = published.filter((e) => e instanceof ResourceDeactivationImpactRaised);
+      expect(impacts).toHaveLength(1);
+      const impact = impacts[0] as ResourceDeactivationImpactRaised;
+      expect(impact.tenantId).toBe(TENANT_ID);
+      expect(impact.correlationId).toBe(CORRELATION_ID);
+      expect(impact.data).toEqual({
+        resourceId: resource.id,
+        resourceName: 'Sala 1',
+        affectedCount: 3,
+      });
+    });
+
+    it('is not published when no booking is affected', async () => {
+      const { observed, published } = observedWorld();
+      const resource = await observed.addResource('Sala 1');
+
+      await observed.raise.execute({
+        tenantId: TENANT_ID,
+        resourceId: resource.id,
+        correlationId: CORRELATION_ID,
+      });
+
+      expect(published).toHaveLength(0);
+    });
+
+    it('is not published when every impacted booking is already terminal', async () => {
+      const { observed, published } = observedWorld();
+      const resource = await observed.addResource('Sala 1');
+      const service = await observed.addService();
+      await observed.addBooking({ service, resource, status: BookingStatus.CANCELLED });
+
+      await observed.raise.execute({
+        tenantId: TENANT_ID,
+        resourceId: resource.id,
+        correlationId: CORRELATION_ID,
+      });
+
+      expect(published.filter((e) => e instanceof ResourceDeactivationImpactRaised)).toHaveLength(
+        0,
+      );
+    });
   });
 
   it('does not read another tenant’s bookings (tenant isolation)', async () => {

@@ -1,5 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
+import { ResourceNotFoundError } from '../../domain/errors/resource.error';
+import { ResourceDeactivationImpactRaised } from '../../domain/events/resource-deactivation-impact-raised.event';
 import { FutureCommitmentAlternative } from '../../domain/future-commitment-exception.types';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import {
@@ -44,7 +47,9 @@ const LIVE_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
 // UC-073 — the shared raise step for a resource deactivation, called from INSIDE the transaction of
 // both DeactivateResourceUseCase (UC-047) and CascadeStaffDeactivationUseCase (UC-048), after the
 // resource is saved. It never opens a transaction of its own and never changes a booking: it only
-// records one worklist entry per affected booking, with its advisory alternatives.
+// records one worklist entry per affected booking, with its advisory alternatives — and one
+// ResourceDeactivationImpactRaised for the whole deactivation, which is what alerts the managers
+// (the per-booking entries would send one email each, M23-S23).
 @Injectable()
 export class RaiseFutureCommitmentExceptionsForResourceUseCase {
   constructor(
@@ -56,6 +61,7 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
     @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
+    @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
   async execute(
@@ -96,7 +102,27 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
         correlationId,
       }),
     );
+    await this.publishImpact(tenantId, resourceId, bookings.length, correlationId);
     return { raisedCount: bookings.length };
+  }
+
+  // Published through the outbox on the caller's transaction (no repository drains it: it is not an
+  // aggregate event), so it commits or rolls back with the deactivation and the entries.
+  private async publishImpact(
+    tenantId: string,
+    resourceId: string,
+    affectedCount: number,
+    correlationId: string,
+  ): Promise<void> {
+    const resource = await this.resourceRepo.findById(resourceId, tenantId);
+    if (!resource) throw new ResourceNotFoundError(resourceId);
+    await this.outboxPublisher.publish(
+      new ResourceDeactivationImpactRaised(tenantId, correlationId, {
+        resourceId,
+        resourceName: resource.name,
+        affectedCount,
+      }),
+    );
   }
 
   // Ordered by the booking's own start — the manager's deadline for each entry.

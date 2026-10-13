@@ -138,5 +138,17 @@
       "subject": "Abriu uma vaga para {{serviceName}}",
       "body": "<p>Olá, {{contactName}}!</p><p>Abriu uma vaga para <strong>{{serviceName}}</strong>, o serviço que você pediu para acompanharmos.</p><p><strong>Disponível a partir de:</strong> {{matchingWindow}}</p><p>As vagas são preenchidas por ordem de chegada, então agende logo. Este aviso já foi utilizado.</p><p><a href=\"{{bookingUrl}}\">Abrir a página de agendamento</a></p>"
     }
+  },
+  "ResourceDeactivationImpactRaised": {
+    "admin": {
+      "subject": "Reservas precisam de decisão: {{resourceName}} foi desativado(a)",
+      "body": "<p>{{resourceName}} não está mais disponível.</p><p>Reservas futuras que precisam de uma decisão: <strong>{{affectedCount}}</strong>.</p><p>Nada foi alterado nas reservas: escolha manter, trocar o recurso, reagendar ou cancelar cada uma.</p><p><a href=\"{{dashboardLink}}\">Abrir o painel</a></p>"
+    }
+  },
+  "BookingResourceReassigned": {
+    "customer": {
+      "subject": "O recurso do seu agendamento mudou, mas o horário continua o mesmo",
+      "body": "<p>Olá, {{contactName}}!</p><p>Seu agendamento de {{serviceNames}} em {{localDate}} às {{localTime}} continua confirmado no mesmo horário, mas agora será atendido por outro recurso.</p>{{newResourceLine}}<p>Se tiver dúvidas, responda este e-mail para falar com {{tenantName}}.</p>"
+    }
   }
 }

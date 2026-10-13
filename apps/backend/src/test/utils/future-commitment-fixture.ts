@@ -14,7 +14,10 @@ import { InMemoryResourceRepository } from '../repositories/booking/in-memory-re
 import { InMemoryServiceRepository } from '../repositories/booking/in-memory-service.repository';
 import { RaiseFutureCommitmentExceptionsForResourceUseCase } from '../../contexts/booking/application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
 import { Booking, BookingStatus } from '../../contexts/booking/domain/booking.aggregate';
-import { ResourceRequirement } from '../../contexts/booking/domain/resource-requirement';
+import {
+  ResourceRequirement,
+  ResourceRequirementSelectionMode,
+} from '../../contexts/booking/domain/resource-requirement';
 import { Resource } from '../../contexts/booking/domain/resource.aggregate';
 import { ResourceType } from '../../contexts/booking/domain/resource.types';
 import { ResourceOccupancyLockState } from '../../contexts/booking/domain/resource-occupancy-lock-state';
@@ -40,7 +43,7 @@ export interface SeedBookingOptions {
 // share: every repository is the real InMemoryXxx double, wired the same way the module wires the
 // real ones, so a spec exercises the actual raise/resolve logic end to end without a database.
 export class FutureCommitmentFixture {
-  readonly bookingRepo = new InMemoryBookingRepository();
+  readonly bookingRepo: InMemoryBookingRepository;
   readonly serviceRepo = new InMemoryServiceRepository();
   readonly resourceRepo = new InMemoryResourceRepository();
   readonly occupancyRepo = new InMemoryResourceOccupancyRepository();
@@ -48,8 +51,10 @@ export class FutureCommitmentFixture {
   readonly tenantLock = new InMemoryTenantLock();
   readonly raise: RaiseFutureCommitmentExceptionsForResourceUseCase;
 
-  // Pass an outbox publisher to observe the events the worklist aggregate drains on save().
+  // Pass an outbox publisher to observe the events the worklist and booking aggregates drain on
+  // save(), and the impact summary the raise step publishes.
   constructor(outboxPublisher?: IOutboxPublisher) {
+    this.bookingRepo = new InMemoryBookingRepository(outboxPublisher);
     this.exceptionRepo = new InMemoryFutureCommitmentExceptionRepository(outboxPublisher);
     this.raise = new RaiseFutureCommitmentExceptionsForResourceUseCase(
       this.bookingRepo,
@@ -58,6 +63,7 @@ export class FutureCommitmentFixture {
       this.occupancyRepo,
       this.exceptionRepo,
       this.tenantLock,
+      outboxPublisher ?? { publish: async () => {} },
     );
   }
 
@@ -93,6 +99,7 @@ export class FutureCommitmentFixture {
     type: ResourceType = ResourceType.ROOM,
     pool: string[] | null = null,
     tenantId: string = FCE_TENANT_ID,
+    selectionMode: ResourceRequirementSelectionMode = 'AUTO_ANY',
   ): Promise<Service> {
     const service = new ServiceBuilder()
       .withTenantId(tenantId)
@@ -100,7 +107,7 @@ export class FutureCommitmentFixture {
       .withBufferAfterMinutes(0)
       .withName('Sessão')
       .withResourceRequirements([
-        ResourceRequirement.create({ type, selectionMode: 'AUTO_ANY', resourcePoolIds: pool }),
+        ResourceRequirement.create({ type, selectionMode, resourcePoolIds: pool }),
       ])
       .build();
     await this.serviceRepo.save(service);

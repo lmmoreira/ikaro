@@ -30,6 +30,7 @@ import { BookingInfoRequested } from './events/booking-info-requested.event';
 import { BookingInfoSubmitted } from './events/booking-info-submitted.event';
 import { BookingNoShow } from './events/booking-no-show.event';
 import { BookingRequested } from './events/booking-requested.event';
+import { BookingResourceReassigned } from './events/booking-resource-reassigned.event';
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
 import {
@@ -854,6 +855,31 @@ export class Booking extends AggregateRoot {
 
     this.addDomainEvent(
       this.buildRescheduledEvent(actorId, newScheduledAt, correlationId, isBusiness, previousSlot),
+    );
+  }
+
+  // UC-077 REASSIGN (M23-S23) — the booking's occupancy moved to another resource at the same
+  // window, so nothing on the aggregate changes; this only records the fact so the customer hears
+  // about it. The caller persists through bookingRepo.save(), which drains the event.
+  recordResourceReassigned(
+    actorId: string,
+    correlationId: string,
+    newResourceName: string | null,
+  ): void {
+    const endsAt = new Date(
+      this.props.scheduledAt.getTime() + this.props.totalDurationMins * 60_000,
+    );
+    this.addDomainEvent(
+      new BookingResourceReassigned(this.props.tenantId, correlationId, {
+        bookingId: this.props.id,
+        customerId: this.props.customerId,
+        contactEmail: this.props.contactEmail.address,
+        contactName: this.props.contactName,
+        slot: { startTime: this.props.scheduledAt.toISOString(), endTime: endsAt.toISOString() },
+        lineSummary: this.lineSummaryPayload(),
+        reassignedBy: actorId,
+        newResourceName,
+      }),
     );
   }
 

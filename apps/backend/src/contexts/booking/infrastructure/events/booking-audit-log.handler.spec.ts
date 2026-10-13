@@ -15,6 +15,8 @@ import { BookingNoShowEventBuilder } from '../../../../test/builders/booking/boo
 import { BookingRejectedEventBuilder } from '../../../../test/builders/booking/booking-rejected-event.builder';
 import { BookingRequestedEventBuilder } from '../../../../test/builders/booking/booking-requested-event.builder';
 import { BookingRescheduledEventBuilder } from '../../../../test/builders/booking/booking-rescheduled-event.builder';
+import { BookingResourceReassignedEventBuilder } from '../../../../test/builders/booking/booking-resource-reassigned-event.builder';
+import { ResourceDeactivationImpactRaisedEventBuilder } from '../../../../test/builders/booking/resource-deactivation-impact-raised-event.builder';
 import { FutureCommitmentExceptionDismissedEventBuilder } from '../../../../test/builders/booking/future-commitment-exception-dismissed-event.builder';
 import { FutureCommitmentExceptionRaisedEventBuilder } from '../../../../test/builders/booking/future-commitment-exception-raised-event.builder';
 import { FutureCommitmentExceptionResolvedEventBuilder } from '../../../../test/builders/booking/future-commitment-exception-resolved-event.builder';
@@ -49,6 +51,8 @@ const EVENT_BUILDERS: Record<string, () => Envelope> = {
   BookingInfoSubmitted: () =>
     new BookingInfoSubmittedEventBuilder().withTenantId(TENANT_ID).build(),
   BookingNoShow: () => new BookingNoShowEventBuilder().withTenantId(TENANT_ID).build(),
+  BookingResourceReassigned: () =>
+    new BookingResourceReassignedEventBuilder().withTenantId(TENANT_ID).build(),
   BookingRejected: () => new BookingRejectedEventBuilder().withTenantId(TENANT_ID).build(),
   BookingRequested: () => new BookingRequestedEventBuilder().withTenantId(TENANT_ID).build(),
   BookingRescheduled: () => new BookingRescheduledEventBuilder().withTenantId(TENANT_ID).build(),
@@ -58,6 +62,8 @@ const EVENT_BUILDERS: Record<string, () => Envelope> = {
     new FutureCommitmentExceptionRaisedEventBuilder().withTenantId(TENANT_ID).build(),
   FutureCommitmentExceptionResolved: () =>
     new FutureCommitmentExceptionResolvedEventBuilder().withTenantId(TENANT_ID).build(),
+  ResourceDeactivationImpactRaised: () =>
+    new ResourceDeactivationImpactRaisedEventBuilder().withTenantId(TENANT_ID).build(),
   RecurringBookingScheduleApprovalRequested: () =>
     new RecurringBookingScheduleApprovalRequestedEventBuilder().withTenantId(TENANT_ID).build(),
   RecurringBookingScheduleCreated: () =>
@@ -82,7 +88,7 @@ describe('BookingAuditLogHandler', () => {
     handler = new BookingAuditLogHandler(useCase as unknown as LogDomainEventUseCase, eventBus);
   });
 
-  it('subscribes to exactly the 21 booking domain event(s), all with the audit-log consumer name', () => {
+  it('subscribes to exactly the 23 booking domain event(s), all with the audit-log consumer name', () => {
     handler.onModuleInit();
 
     expect(eventBus.subscriptions.map((s) => s.eventName).sort()).toEqual([...EVENT_NAMES].sort());

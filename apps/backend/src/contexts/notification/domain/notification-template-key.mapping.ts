@@ -201,6 +201,23 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
       'weekdays',
     ],
   },
+  [NotificationTemplateKey.RESOURCE_DEACTIVATION_IMPACT_ADMIN]: {
+    eventName: 'ResourceDeactivationImpactRaised',
+    recipientType: 'admin',
+    variables: ['affectedCount', 'dashboardLink', 'resourceName'],
+  },
+  [NotificationTemplateKey.BOOKING_RESOURCE_REASSIGNED_CUSTOMER]: {
+    eventName: 'BookingResourceReassigned',
+    recipientType: 'customer',
+    variables: [
+      'contactName',
+      'localDate',
+      'localTime',
+      'newResourceLine',
+      'serviceNames',
+      'tenantName',
+    ],
+  },
 } as const satisfies Record<NotificationTemplateKey, NotificationTemplateKeyMapping>;
 
 // The variables object a use case must supply for one or more templates: every placeholder of each
