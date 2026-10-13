@@ -1566,7 +1566,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
 - `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleCustomerStep.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaff.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/dashboard/bookings/NewRecurringScheduleForStaffResult.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — wire the "Recorrência" item of M23-S40's "+ Novo" menu to the new route and the customer chooser; the real Agenda component today, not the `agenda/` folder M23-S13's plan names)
+- `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` (+ spec) (modify — wire the "Recorrência" item of M23-S40's "+ Novo" menu to the new route and the customer chooser, and remove S40's hide of that item (S40 renders the menu with Agendamento only until this story ships); the real Agenda component today, not the `agenda/` folder M23-S13's plan names)
 - `apps/web/shells/dashboard/model/topbar-route.ts` (+ spec) and `apps/web/shells/dashboard/components/BottomNav.tsx` (+ spec) (modify — title and hide-on-drilldown for the new route); `Sidebar.tsx` and `apps/web/proxy.ts` only if decision C picks a new section
 - The mutation hook and its fetcher, beside M23-S13's recurring fetcher module (paths per what M23-S13 and M23-S17 ship — confirm at discovery, not stated from memory)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
@@ -1586,7 +1586,7 @@ Give staff (`STAFF` and `MANAGER`) a way to create a recurring private reservati
   - [ ] The submit sends the exact `POST` body including `customerId` for both policies (`FIXED_ASSIGNMENT` with exactly one `resourceIds` entry, `RESOLVE_PER_OCCURRENCE` with none)
   - [ ] The outcome mapper lands every status/code in decision 5 on its panel, including the `404` customer-not-found
   - [ ] `NewRecurringScheduleForStaffResult` renders each of the six outcomes with its own copy in both locales
-  - [ ] the "+ Novo" menu (M23-S40) offers "Recorrência" to both `STAFF` and `MANAGER`, and the Topbar resolves a title for the new route
+  - [ ] the "+ Novo" menu (M23-S40) offers "Recorrência" to both `STAFF` and `MANAGER` (S40 hides the item until this story ships, so this story removes the hide), and the Topbar resolves a title for the new route
 - Integration: n/a — web stories have no integration tier; the backend `POST` and `GET /customers` are covered by M23-S04 and the customer context
 - Tenant isolation: n/a — client-side; the hook takes `tenantId` only from `useTenant()` and the search goes through the existing tenant-scoped endpoint
 - E2E:
@@ -3237,7 +3237,7 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 **Description:**
 Give staff one place to create something for a customer who phoned or messaged.
 
-- **"+ Novo" menu.** One button above the Agenda queue opens a small menu: **Agendamento** (this story) and **Recorrência** (M23-S19). A future kind of "create on a customer's behalf" is a new menu item, never a second button.
+- **"+ Novo" menu.** One button above the Agenda queue opens a small menu: **Agendamento** (this story) and **Recorrência** (M23-S19). A future kind of "create on a customer's behalf" is a new menu item, never a second button. *(Decided 2026-10-13.)* **Until M23-S19 ships, "Recorrência" is not rendered** (the menu then has the one item, Agendamento); M23-S19 removes that hide and wires the item to its route. The eligible-service filter (since TD49: a single requirement, the default shape, or a flat bundle) belongs to M23-S19's form and is not this story's concern.
 - **Customer chooser (`CustomerChooserStep`).** Shared first step, two modes: **Cliente cadastrado** — search by name, email or phone (debounced, minimum 5 characters, recent customers when empty), pick a row, "Continuar"; and **Novo contato** — name, phone and email, all required, which makes a guest booking. For "Recorrência" the *Novo contato* mode is disabled with the reason (a recurrence needs an account, UC-070). States: recent list, no result, search failed.
 - **Booking steps (`/dashboard/bookings/new`).** The same steps the public flow computes for the chosen services — services, resource picker, duration, date and time, intake — in the dashboard layout: the form in the centre, a **summary card and the actions on the right**, a bottom action bar on mobile ("Criar agendamento", "Voltar"). The chosen person stays visible at the top with a "Trocar" link. The calendar offers dates inside the minimum-notice window (the backend allows them for staff), and never past dates or dates beyond the maximum advance.
 - **Pickup address (decided at M23-S39 discovery, 2026-10-10).** When a chosen service requires pickup, the address step is pre-filled from the chosen customer's `defaultAddress`, as on the public booking page, and staff can edit it. For a **Novo contato** (guest) booking there is nothing to pre-fill: staff types it, and the backend refuses a pickup-required service without one.
@@ -3259,7 +3259,7 @@ Give staff one place to create something for a customer who phoned or messaged.
 - `apps/web/e2e/` helper under `helpers/booking/` and one spec (new)
 
 **Acceptance criteria — product:**
-- [ ] The Agenda shows one "+ Novo" button whose menu offers Agendamento and Recorrência.
+- [ ] The Agenda shows one "+ Novo" button whose menu offers Agendamento, and Recorrência once M23-S19 has shipped (hidden before that).
 - [ ] Staff can find an existing customer by name, email or phone and continue; the guest option takes name, phone and email, all required.
 - [ ] After choosing "Recorrência", the guest option is disabled with a reason.
 - [ ] Staff complete the same steps a customer would (services, resource, duration, date and time, intake) and the booking is created `APPROVED`; the confirmation shows the booking details.
@@ -3278,6 +3278,7 @@ Give staff one place to create something for a customer who phoned or messaged.
 - E2E:
   - [ ] Playwright: staff opens "+ Novo → Agendamento", picks a seeded customer, books a seeded service in a free slot, and sees the booking `APPROVED` in the Agenda
   - [ ] Playwright: the guest path with a typed contact
+  - [ ] Playwright: the "+ Novo" menu offers only Agendamento while M23-S19 is unshipped (TD49's coverage plan assigns the Agenda-menu scenario to this story); once S19 has shipped, S19's own E2E covers the Recorrência item
   - [ ] The existing public booking-flow Playwright specs still pass unmodified
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
