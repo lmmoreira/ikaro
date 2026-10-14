@@ -48,9 +48,10 @@ flowchart TD
 
 | Call | When | Roles |
 |---|---|---|
+| `GET /v1/scheduling-exceptions/count` | **New in `M23-S14`:** the sidebar badge (`{ count }` of open entries); cached 60 s | MANAGER |
 | `GET /v1/scheduling-exceptions?status=OPEN` | Worklist page load (UC-073's output) — each item carries the booking summary and the stored alternatives | MANAGER |
 | `POST /v1/scheduling-exceptions/resolve` | Manager reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` (`KEEP` exists in the API but this page never sends it) | MANAGER |
-| `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page** (kept for the API; see the 2026-10-14 decision above) | MANAGER |
+| `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page for `RESOURCE_DEACTIVATION` entries** (kept for the API and for future source types; see the 2026-10-14 decision above) | MANAGER |
 
 Full request/response shapes: `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions.
 

@@ -28,7 +28,7 @@ Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The side
 
 ## Why no Manter / Dispensar (decided 2026-10-14)
 
-The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave the booking untouched on a **deactivated** resource, where nobody can perform it (it has no column in the Horários day grid, and a deactivated staff member no longer works there). So neither is a real outcome and the page offers only **Reatribuir, Reagendar, Cancelar**. The backend `KEEP` choice and `POST /dismiss` (`M23-S08`) are not called from here. A resource deactivated by mistake is fixed by reactivating it, and reactivation must close that resource's open entries (`M23-S45`) so the list can always be emptied.
+The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave the booking untouched on a **deactivated** resource, where nobody can perform it (it has no column in the Horários day grid, and a deactivated staff member no longer works there). So neither is a real outcome and the page offers only **Reatribuir, Reagendar, Cancelar**. The backend `KEEP` choice and `POST /dismiss` (`M23-S08`) are not called from here. A resource deactivated by mistake is fixed by reactivating it, and reactivation closes that resource's open entries (`M23-S45`, related, not blocking). This applies to `RESOURCE_DEACTIVATION` entries only: a future trigger (an hours reduction, a closure) can leave the booking performable, and "Manter" returns for that source type — which is why the backend `KEEP` and `/dismiss` stay.
 
 ## File map (❓ none exist yet)
 
@@ -53,6 +53,8 @@ Component names are proposals for `M23-S14`'s discovery to confirm.
 ## BFF calls (live since `M23-S08` — contract per `docs/14-API_CONTRACTS.md`)
 
 ```
+GET /v1/scheduling-exceptions/count        (NEW at S14 — MANAGER) → { count: number }   the sidebar badge
+
 GET /v1/scheduling-exceptions?status=OPEN
   Header: Authorization: Bearer {jwt}   (MANAGER)
   Response: { items: [{ id, sourceType, sourceId, affectedType, affectedId, status, alternatives: [{ resourceId, resourceName }],
@@ -110,7 +112,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 
 - **Selecting "everything from this resource from a time"** is drawn as a per-group "Selecionar todos" only; a free "a partir de …" filter is a proposal, not decided (see the journey's open questions).
 - **The new components (`BulkActionBar`, `BulkResultList`, the two sheets, `SchedulingExceptionReschedulePage`) do not exist**, so their unhappy-path variants are tagged ⚠ in `index.html`.
-- **Decided at `M23-S14`'s discovery (2026-10-14):** the badge count comes from the page's own list hook (60-second cache, MANAGER only, no new endpoint); a `booking: null` entry renders a minimal "Reserva indisponível" card (not drawn); the alternatives line shows at most two names then "e mais N"; the group header is "<nome> ficou indisponível" for both the resource and the staff case; a customer-chosen deactivated resource cannot be rescheduled (`STILL_OPEN`, reason suggests reassign or cancel).
+- **Decided at `M23-S14`'s discovery (2026-10-14):** the badge count comes from a dedicated `GET /scheduling-exceptions/count` (`{ count }`, MANAGER-only, 60-second cache) so a page load never pulls the whole list; "Selecionar todos" on a group of more than 100 sends sequential batches of 100 (the resolve endpoint's cap) and merges the results; a `booking: null` entry renders a minimal "Reserva indisponível" card (not drawn); the alternatives line shows at most two names then "e mais N"; the group header is "<nome> ficou indisponível" for both the resource and the staff case; a customer-chosen deactivated resource cannot be rescheduled (`STILL_OPEN`, reason suggests reassign or cancel).
 - **The "Reservas a resolver" nav item is drawn** (sidebar below "Agenda" + mobile "Mais" sheet, with an open-count badge); where the count comes from (the list's total vs a separate count call) is for `M23-S14`'s discovery. `M23-S14` also adds the route-registry entries.
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 
