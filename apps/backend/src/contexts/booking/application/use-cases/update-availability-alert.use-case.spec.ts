@@ -21,6 +21,7 @@ import {
   BookingDurationOutOfRangeError,
   BookingServiceNotInTenantError,
 } from '../../domain/errors/booking-domain.error';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { UpdateAvailabilityAlertUseCase } from './update-availability-alert.use-case';
 
@@ -91,6 +92,7 @@ describe('UpdateAvailabilityAlertUseCase', () => {
       resourceRepo,
       new InMemoryTransactionManager(),
       new BookingQuoteService(),
+      new AvailabilityAlertResultAssembler(serviceRepo, resourceRepo, alertRepo),
     );
     defaultService = new ServiceBuilder().withTenantId(TENANT).build();
     await serviceRepo.save(defaultService);

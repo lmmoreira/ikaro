@@ -12,7 +12,7 @@ import {
   alertSecondaryButtonStyle,
 } from './availability-alert-styles';
 
-// "Meus avisos" (M23-S12). The cap message points there; the route resolves once S12 lands.
+// "Meus avisos" (M23-S43): the cap message points there so the customer can cancel an alert.
 export function myAlertsPath(slug: string): string {
   return `/${slug}/my-account/alerts`;
 }

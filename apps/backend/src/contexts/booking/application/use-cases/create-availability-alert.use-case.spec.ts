@@ -15,6 +15,7 @@ import {
   AvailabilityAlertCriteriaInvalidError,
   AvailabilityAlertIneligibleServiceError,
 } from '../../domain/errors/availability-alert.error';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   BookingDurationOutOfRangeError,
@@ -99,6 +100,7 @@ describe('CreateAvailabilityAlertUseCase', () => {
       new InMemoryTenantLock(),
       new InMemoryTransactionManager(),
       new BookingQuoteService(),
+      new AvailabilityAlertResultAssembler(serviceRepo, resourceRepo, alertRepo),
     );
   });
 

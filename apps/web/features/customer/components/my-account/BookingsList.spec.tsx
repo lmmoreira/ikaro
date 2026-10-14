@@ -11,6 +11,8 @@ vi.mock('next-intl', () => ({
         title: 'Meus Agendamentos',
         recurringEntryTitle: 'Reservas recorrentes',
         recurringEntryActive: '{count} ativas',
+        alertsEntryTitle: 'Meus avisos',
+        alertsEntryActive: '{count} ativos',
         sectionUpcoming: 'Próximos ({count})',
         sectionPending: 'Pendentes ({count})',
         sectionHistory: 'Histórico ({count})',
@@ -94,7 +96,14 @@ describe('BookingsList mobile "+ Novo" menu', () => {
     ['with bookings', [makeItem({ status: 'APPROVED' })]],
     ['with no bookings', []],
   ])('is in the page header, hidden from lg up, %s', (_label, bookings) => {
-    render(<BookingsList bookings={bookings} recurringSummary={null} tenantSlug="lavacar-bh" />);
+    render(
+      <BookingsList
+        bookings={bookings}
+        recurringSummary={null}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
 
     expect(screen.getByTestId('mobile-new-menu').className).toContain('lg:hidden');
     fireEvent.click(screen.getByTestId('new-menu-trigger'));
@@ -115,7 +124,14 @@ describe('BookingsList', () => {
       makeItem({ status: 'COMPLETED', scheduledAt: '2026-06-05T09:00:00.000Z' }),
     ];
 
-    render(<BookingsList bookings={bookings} recurringSummary={null} tenantSlug="lavacar-bh" />);
+    render(
+      <BookingsList
+        bookings={bookings}
+        recurringSummary={null}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
 
     expect(screen.getByText('Meus Agendamentos')).toBeInTheDocument();
     expect(screen.getByText('Próximos (1)')).toBeInTheDocument();
@@ -128,6 +144,7 @@ describe('BookingsList', () => {
       <BookingsList
         bookings={[makeItem({ status: 'PENDING' })]}
         recurringSummary={null}
+        alertsSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -138,7 +155,14 @@ describe('BookingsList', () => {
   });
 
   it('shows the empty state when there are no bookings at all', () => {
-    render(<BookingsList bookings={[]} recurringSummary={null} tenantSlug="lavacar-bh" />);
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
 
     expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fazer agendamento' })).toHaveAttribute(
@@ -148,7 +172,14 @@ describe('BookingsList', () => {
   });
 
   it('no longer renders a points strip (points live on Início and Fidelidade)', () => {
-    render(<BookingsList bookings={[]} recurringSummary={null} tenantSlug="lavacar-bh" />);
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
 
     expect(screen.queryByText(/pts/)).not.toBeInTheDocument();
     expect(screen.queryByText(/pontos ativos/)).not.toBeInTheDocument();
@@ -161,6 +192,7 @@ describe('BookingsList', () => {
       <BookingsList
         bookings={[]}
         recurringSummary={{ hasAny: true, activeCount: 2 }}
+        alertsSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -177,6 +209,7 @@ describe('BookingsList', () => {
       <BookingsList
         bookings={[]}
         recurringSummary={{ hasAny: true, activeCount: 0 }}
+        alertsSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -189,6 +222,7 @@ describe('BookingsList', () => {
       <BookingsList
         bookings={[]}
         recurringSummary={{ hasAny: false, activeCount: 0 }}
+        alertsSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
@@ -201,11 +235,70 @@ describe('BookingsList', () => {
       <BookingsList
         bookings={[makeItem({ status: 'PENDING' })]}
         recurringSummary={null}
+        alertsSummary={null}
         tenantSlug="lavacar-bh"
       />,
     );
 
     expect(screen.queryByTestId('recurring-entry-row')).not.toBeInTheDocument();
+    expect(screen.getByText('Pendentes (1)')).toBeInTheDocument();
+  });
+
+  it('shows the "Meus avisos" entry row with the active count when the customer has any alert', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={{ hasAny: true, activeCount: 3 }}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.getByTestId('alerts-entry-row')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/alerts',
+    );
+    expect(screen.getByTestId('alerts-entry-count')).toHaveTextContent('3 ativos');
+  });
+
+  it('still shows the alerts row when every alert is finished (count 0)', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={{ hasAny: true, activeCount: 0 }}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.getByTestId('alerts-entry-count')).toHaveTextContent('0 ativos');
+  });
+
+  it('hides the alerts row when the customer has no alert', () => {
+    render(
+      <BookingsList
+        bookings={[]}
+        recurringSummary={null}
+        alertsSummary={{ hasAny: false, activeCount: 0 }}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('alerts-entry-row')).not.toBeInTheDocument();
+  });
+
+  it('hides the alerts row and still renders the tab when the alerts read failed (null)', () => {
+    render(
+      <BookingsList
+        bookings={[makeItem({ status: 'PENDING' })]}
+        recurringSummary={{ hasAny: true, activeCount: 1 }}
+        alertsSummary={null}
+        tenantSlug="lavacar-bh"
+      />,
+    );
+
+    expect(screen.queryByTestId('alerts-entry-row')).not.toBeInTheDocument();
+    expect(screen.getByTestId('recurring-entry-row')).toBeInTheDocument();
     expect(screen.getByText('Pendentes (1)')).toBeInTheDocument();
   });
 });

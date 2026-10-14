@@ -38,6 +38,11 @@ export interface AvailabilityAlertResponse {
   status: AvailabilityAlertStatus;
   expiresAt: string;
   createdAt: string;
+  // M23-S43: read-side additions. `notifiedAt` is when the alert was notified (set once its email
+  // is SENT), null until then.
+  serviceName: string;
+  preferredResourceName: string | null;
+  notifiedAt: string | null;
 }
 
 export interface AvailabilityAlertListResponse {

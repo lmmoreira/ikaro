@@ -11,6 +11,8 @@ export interface ListResourcesFilter {
 export interface IResourceRepository {
   findByTenant(tenantId: string, filter: ListResourcesFilter): Promise<Resource[]>;
   findById(id: string, tenantId: string): Promise<Resource | null>;
+  // One tenant-scoped read for a set of ids (a missing or foreign id is simply absent).
+  findByIds(ids: string[], tenantId: string): Promise<Resource[]>;
   findByRefId(refId: string, tenantId: string): Promise<Resource | null>;
   save(resource: Resource): Promise<void>;
 }

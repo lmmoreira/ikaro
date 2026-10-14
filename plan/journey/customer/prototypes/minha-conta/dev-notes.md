@@ -139,9 +139,9 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 
 ---
 
-## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072, UC-076 availability alerts ❓ GAP, not yet built)
+## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072 creation ✅ M23-S31, UC-076 alerts management ✅ built by M23-S43)
 
-> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts (UC-072, UC-076) are still unimplemented scope promoted from `docs/discovery/multivertical-booking/`. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
+> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts management (UC-076) is shipped too (M23-S43); the scope was promoted from `docs/discovery/multivertical-booking/`. A cancelled alert is gone for the customer: the list, the detail and the Agendamentos row never show it. A `409` on cancel (notified or expired meanwhile) returns to the list, where the alert already sits under Histórico — there is no separate screen for it. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules / Availability Alerts.
 
 ### Overview
 
@@ -155,16 +155,16 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ✅ Done | M23-S17 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ✅ Done (M23-S12) — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
 | `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ✅ Done (M23-S12) — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
-| `apps/web/app/[slug]/my-account/alerts/page.tsx` | ❓ Gap | M23-S43 |
-| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ❓ Gap — detail page (central detail + action pane) | M23-S43 |
-| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ❓ Gap — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/page.tsx` (+ `loading.tsx` = `07c`, `error.tsx` = `07d`) | ✅ Done (M23-S43) | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ✅ Done (M23-S43) — detail page (central detail + action pane) | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ✅ Done (M23-S43) — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
 | `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result, the page container, and the shared `NewReservationMenu`) | ✅ Done | M23-S17 |
 | `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` | ✅ Done (M23-S12 reads and end, M23-S17 create) | M23-S12 / S17 |
-| `apps/web/features/booking/api/availability-alerts.server.ts` / `.ts` | ❓ Gap | M23-S43 |
+| `apps/web/features/booking/api/availability-alerts.server.ts` / `.ts` | ✅ Done (M23-S43 list, by-id, summary and cancel; M23-S31 create) | M23-S43 |
 | `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` (incl. `.new.*`) and `customer.newMenu.*` | ✅ Done | M23-S12 / S17 |
-| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.alerts.*` | ❓ Gap | M23-S43 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.alerts.*` | ✅ Done (M23-S43) | M23-S43 |
 
 > Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
 

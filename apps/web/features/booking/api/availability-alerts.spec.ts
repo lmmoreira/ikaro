@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { AvailabilityAlertResponse, CreateAvailabilityAlertRequest } from '@ikaro/types';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import { ApiError } from '@/shared/lib/api/errors';
-import { createAvailabilityAlert } from './availability-alerts';
+import { cancelAvailabilityAlertAsCustomer, createAvailabilityAlert } from './availability-alerts';
 
 // One shared MockAdapter per file — see public.spec.ts for why a second one would orphan this one.
 const mock = new MockAdapter(bffClient);
@@ -31,6 +31,9 @@ const created: AvailabilityAlertResponse = {
   status: 'ACTIVE',
   expiresAt: '2026-11-05T15:00:00.000Z',
   createdAt: '2026-10-06T15:00:00.000Z',
+  serviceName: 'Massagem relaxante',
+  preferredResourceName: null,
+  notifiedAt: null,
 };
 
 describe('createAvailabilityAlert', () => {
@@ -52,6 +55,31 @@ describe('createAvailabilityAlert', () => {
     await expect(createAvailabilityAlert(request)).rejects.toMatchObject({
       status: 409,
       data: { code: 'BOOKING_ALERT_CAP_REACHED' },
+    });
+  });
+});
+
+describe('cancelAvailabilityAlertAsCustomer', () => {
+  afterEach(() => mock.reset());
+
+  it('sends DELETE to /availability-alerts/:id', async () => {
+    mock.onDelete(`/availability-alerts/${created.id}`).reply(200, {
+      id: created.id,
+      status: 'CANCELLED',
+    });
+
+    await expect(cancelAvailabilityAlertAsCustomer(created.id)).resolves.toBeUndefined();
+    expect(mock.history.delete?.[0]?.url).toBe(`/availability-alerts/${created.id}`);
+  });
+
+  it('throws an ApiError carrying the problem code on a 409 (notified or expired meanwhile)', async () => {
+    mock
+      .onDelete(`/availability-alerts/${created.id}`)
+      .reply(409, { code: 'BOOKING_ALERT_NOT_EDITABLE' });
+
+    await expect(cancelAvailabilityAlertAsCustomer(created.id)).rejects.toMatchObject({
+      status: 409,
+      data: { code: 'BOOKING_ALERT_NOT_EDITABLE' },
     });
   });
 });

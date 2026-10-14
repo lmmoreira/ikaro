@@ -28,6 +28,9 @@ const baseAlert: AvailabilityAlertResponse = {
   status: 'ACTIVE',
   expiresAt: '2026-11-05T15:00:00.000Z',
   createdAt: '2026-10-06T15:00:00.000Z',
+  serviceName: 'Massagem relaxante',
+  preferredResourceName: null,
+  notifiedAt: null,
 };
 
 describe('AvailabilityAlertSaved', () => {

@@ -61,7 +61,7 @@ Content-Type: application/json
 
 ###
 
-### List my alerts (newest first, history included)
+### List my alerts (newest first, history included). Each item also carries serviceName, preferredResourceName (null without a preferred resource) and notifiedAt (null until its email is SENT) — M23-S43
 GET {{baseUrl}}/availability-alerts
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{customerId}}

@@ -61,6 +61,9 @@ const created: AvailabilityAlertResponse = {
   status: 'ACTIVE',
   expiresAt: '2099-11-05T15:00:00.000Z',
   createdAt: '2099-10-06T15:00:00.000Z',
+  serviceName: 'Massagem relaxante',
+  preferredResourceName: null,
+  notifiedAt: null,
 };
 
 function renderForm(

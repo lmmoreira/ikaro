@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
 **UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule still running waits for `M23-S21`/`M23-S41`) · UC-076 (❓ Gap — M23 Cluster 3, availability alerts: list/cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
-**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is partly built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`/`S22`, alert creation `M23-S31` in the booking flow; the alerts management pages `M23-S43` and the Início tiles `M23-S41` are not) and the M24 Cluster 4 extension is not, see the ❓ GAP sections in `dev-notes.md`.
+**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is partly built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`/`S22`, alert creation `M23-S31` in the booking flow; the alerts management pages `M23-S43` are too; the Início tiles `M23-S41` are not) and the M24 Cluster 4 extension is not, see the ❓ GAP sections in `dev-notes.md`.
 
 ## Flow
 
@@ -138,14 +138,14 @@ Folder: `customer/prototypes/minha-conta/`
 | `06b-reserva-recorrente-erro.html` | Erro — conflito de padrão futuro, com as ocorrências em conflito | UC-070 A1 | M23-S17 | ✅ Criado (M23-S17) |
 | `06c-recorrente-em-analise.html` | Solicitação recorrente pendente de aprovação | UC-070 (MANUAL_APPROVAL branch) | M23-S17 | ✅ Criado (M23-S12 — o detalhe de uma recorrência em análise; M23-S17 a reaproveita logo após criar) |
 | `06d-reserva-recorrente-erro-horario.html` | Erro — ocorrências fora do horário ou em dia fechado (decidido em M23-S18: recusa na criação; a API já devolve a lista) | UC-070 A1 | M23-S17 (constrói a tela) | ✅ Criado (M23-S17) |
-| `07-availability-alert.html` | Meus avisos — lista e cancelar aviso de disponibilidade (sem editar por enquanto) (sem botão de criar: a criação sempre parte do fluxo de agendamento); entrada: link "Meus avisos" em Agendamentos (`01`) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07d-avisos-erro.html` | Meus avisos — erro ao carregar, com "Tentar novamente" | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07f-aviso-detalhe.html` | Detalhe do aviso ativo — detalhe central + painel de ações ("Cancelar aviso"), mesmo padrão de `02-agendamento-detail` | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07g-aviso-detalhe-historico.html` | Detalhe de um aviso já avisado/expirado — somente leitura, sem cancelar | UC-076 A1 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07h-cancelar-aviso.html` | Confirmar o cancelamento do aviso — detalhe central + painel de ações, mesmo padrão de `03-cancel-confirm` | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07i-cancelar-aviso-erro.html` | Falha ao cancelar (rede / 5xx) — o aviso continua ativo, com "Tentar novamente" | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
+| `07-availability-alert.html` | Meus avisos — lista e cancelar aviso de disponibilidade (sem editar por enquanto) (sem botão de criar: a criação sempre parte do fluxo de agendamento); entrada: link "Meus avisos" em Agendamentos (`01`) | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07d-avisos-erro.html` | Meus avisos — erro ao carregar, com "Tentar novamente" | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07f-aviso-detalhe.html` | Detalhe do aviso ativo — detalhe central + painel de ações ("Cancelar aviso"), mesmo padrão de `02-agendamento-detail` | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07g-aviso-detalhe-historico.html` | Detalhe de um aviso já avisado/expirado — somente leitura, sem cancelar | UC-076 A1 | M23-S43 | ✅ Done (M23-S43) |
+| `07h-cancelar-aviso.html` | Confirmar o cancelamento do aviso — detalhe central + painel de ações, mesmo padrão de `03-cancel-confirm` | UC-076 | M23-S43 | ✅ Done (M23-S43) |
+| `07i-cancelar-aviso-erro.html` | Falha ao cancelar (rede / 5xx) — o aviso continua ativo, com "Tentar novamente" | UC-076 | M23-S43 | ✅ Done (M23-S43) |
 | `13-nova-recorrencia.html` | Nova reserva recorrente — padrão (serviço, recurso, dias, horário, período) | UC-070 | M23-S17 | ✅ Criado (M23-S17) |
 | `13b-nova-recorrencia-revisar.html` | Nova reserva recorrente — revisar e confirmar (`#pacote`: variante com uma linha por recurso) | UC-070 | M23-S17 / TD49-S02 | ✅ Criado (M23-S17); variante de pacote ✅ Criado (TD49-S02) |
 | `13h-nova-recorrencia-pacote.html` | Nova reserva recorrente — serviço com mais de um recurso (profissional + sala): um grupo de escolha por requisito de escolha do cliente e uma linha informativa por automático; cobre todas as composições aceitas pelo servidor (A/A2, C falta escolher, D tudo automático, E conjunto de unidades, F local + profissional, G três requisitos, H carregando/erro/sem opções) | UC-070 | TD49-S02 | ✅ Criado (TD49-S02) |
@@ -242,7 +242,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 - [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive offer state from a local 24-hour calculation.
 - [x] **The canonical persistence/domain names are `Service`, `ClassScheduleTemplate`, `ClassSessionBooking`, and `RecurringEnrollment`.** `ClassType`/`Enrollment` are BFF read-model labels only, never aggregates.
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (recurring reservations ✅ built; availability alerts ❓ Gap)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (recurring reservations ✅ built; availability alerts management ✅ built by M23-S43)
 
 > Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and "Meus avisos" — the manager of the customer's availability alerts (UC-076, `M23-S12`). Alert **creation** is not here: it is a page of the booking flow (UC-072, `M23-S31`, `customer/book-a-service.md` § Availability alert page). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 >
@@ -252,9 +252,9 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["❓ GAP: /{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07d)"]
-    Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
-    AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
+    Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["/{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07d)"]
+    Avisos -->|"Toca um aviso"| AvisoDetalhe[".../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
+    AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar[".../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
     Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["/{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]
     Lista -->|"topbar '+ Novo ▾' → 'Reserva recorrente' (any my-account screen; mobile: the same menu in the page)"| Padrao[".../recurring-schedules/new<br/>Padrão (13-nova-recorrencia)"]
     Lista -->|"'Renovar' (encerrada ou terminando) ou link do e-mail de aviso"| Renovar[".../recurring-schedules/new?renewFrom=id<br/>Pré-preenchido (13f-renovar-recorrencia)"]
@@ -297,7 +297,7 @@ POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` r
 
 ### Availability alerts — management only (UC-076)
 
-"Meus avisos" (`07`) lists the customer's alerts (active first, then notified / expired / cancelled history), and opens an alert's detail page, from whose action pane an active one is cancelled through a confirmation page (the same detail → cancel pattern as a booking; editing is not in the UI yet — the API supports it, a customer who wants different criteria cancels and creates a new alert). There is **no create button**: an alert is created from the booking flow's calendar step, on a page of that flow in the tenant's branding (`customer/book-a-service.md` § Availability alert page, screens `book-a-service/16*`). When the 10-alert cap is hit, that page links here so the customer can cancel one.
+"Meus avisos" (`07`) lists the customer's alerts (active first, then notified / expired history; a cancelled alert is gone), and opens an alert's detail page, from whose action pane an active one is cancelled through a confirmation page (the same detail → cancel pattern as a booking; editing is not in the UI yet — the API supports it, a customer who wants different criteria cancels and creates a new alert). There is **no create button**: an alert is created from the booking flow's calendar step, on a page of that flow in the tenant's branding (`customer/book-a-service.md` § Availability alert page, screens `book-a-service/16*`). When the 10-alert cap is hit, that page links here so the customer can cancel one.
 
 **Open questions / gaps:**
 - [x] Stories exist: `M23-S12` (recurring reservations: list, detail, end, and the Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — in the booking flow, see `customer/book-a-service.md`), `M23-S17` (creation flow, this prototype's `13*`/`06b`/`06c`), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload — backend, and it lands before `M23-S05`; `06d` is now the chosen UI for it, built in `M23-S17`). Each still begins with `/story-discovery`.

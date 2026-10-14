@@ -44,6 +44,10 @@ export class AutoLocationResourceRepository implements IResourceRepository {
     return location?.id === id ? location : null;
   }
 
+  async findByIds(ids: string[], tenantId: string): Promise<Resource[]> {
+    return this.inner.findByIds(ids, tenantId);
+  }
+
   async findByRefId(refId: string, tenantId: string): Promise<Resource | null> {
     return this.inner.findByRefId(refId, tenantId);
   }

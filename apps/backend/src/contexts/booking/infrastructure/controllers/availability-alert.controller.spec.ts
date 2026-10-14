@@ -8,6 +8,7 @@ import { InMemoryAvailabilityAlertRepository } from '../../../../test/repositori
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { TenantSettings } from '../../../platform/domain/value-objects/tenant-settings.vo';
+import { AvailabilityAlertResultAssembler } from '../../application/services/availability-alert-result.assembler';
 import { BookingQuoteService } from '../../application/services/booking-quote.service';
 import { CancelAvailabilityAlertUseCase } from '../../application/use-cases/cancel-availability-alert.use-case';
 import { CreateAvailabilityAlertUseCase } from '../../application/use-cases/create-availability-alert.use-case';
@@ -43,6 +44,7 @@ describe('AvailabilityAlertController', () => {
   const buildController = (actorId: string): AvailabilityAlertController => {
     const tx = new InMemoryTransactionManager();
     const resourceRepo = new InMemoryResourceRepository();
+    const assembler = new AvailabilityAlertResultAssembler(serviceRepo, resourceRepo, alertRepo);
     const ctx = new RequestContextBuilder()
       .withTenantId(TENANT_ID)
       .withSettings(TenantSettings.default('America/Manaus').toJSON())
@@ -59,15 +61,17 @@ describe('AvailabilityAlertController', () => {
         new InMemoryTenantLock(),
         tx,
         new BookingQuoteService(),
+        assembler,
       ),
-      new ListAvailabilityAlertsUseCase(alertRepo),
-      new GetAvailabilityAlertUseCase(alertRepo),
+      new ListAvailabilityAlertsUseCase(alertRepo, assembler),
+      new GetAvailabilityAlertUseCase(alertRepo, assembler),
       new UpdateAvailabilityAlertUseCase(
         alertRepo,
         serviceRepo,
         resourceRepo,
         tx,
         new BookingQuoteService(),
+        assembler,
       ),
       new CancelAvailabilityAlertUseCase(alertRepo, tx),
     );
@@ -116,7 +120,12 @@ describe('AvailabilityAlertController', () => {
 
     it('maps the per-customer cap to 409', async () => {
       for (let i = 0; i < 10; i++) {
-        alertRepo.seed(new AvailabilityAlertBuilder().withCustomerId(CUSTOMER_ID).build());
+        alertRepo.seed(
+          new AvailabilityAlertBuilder()
+            .withServiceId(eligibleServiceId)
+            .withCustomerId(CUSTOMER_ID)
+            .build(),
+        );
       }
 
       expect(await statusOf(controller.create(weeklyBody(eligibleServiceId)))).toBe(409);
@@ -125,9 +134,17 @@ describe('AvailabilityAlertController', () => {
 
   describe('list()', () => {
     it("returns only the caller's alerts", async () => {
-      const own = new AvailabilityAlertBuilder().withCustomerId(CUSTOMER_ID).build();
+      const own = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
       alertRepo.seed(own);
-      alertRepo.seed(new AvailabilityAlertBuilder().withCustomerId(OTHER_CUSTOMER_ID).build());
+      alertRepo.seed(
+        new AvailabilityAlertBuilder()
+          .withServiceId(eligibleServiceId)
+          .withCustomerId(OTHER_CUSTOMER_ID)
+          .build(),
+      );
 
       const result = await controller.list();
 
@@ -138,6 +155,7 @@ describe('AvailabilityAlertController', () => {
   describe('get()', () => {
     it("returns the caller's own alert, whatever its status", async () => {
       const expired = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
         .withCustomerId(CUSTOMER_ID)
         .withStatus('EXPIRED')
         .build();
@@ -149,7 +167,10 @@ describe('AvailabilityAlertController', () => {
     });
 
     it("maps another customer's alert to 404", async () => {
-      const foreign = new AvailabilityAlertBuilder().withCustomerId(OTHER_CUSTOMER_ID).build();
+      const foreign = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(OTHER_CUSTOMER_ID)
+        .build();
       alertRepo.seed(foreign);
 
       expect(await statusOf(controller.get(foreign.id))).toBe(404);
@@ -163,6 +184,7 @@ describe('AvailabilityAlertController', () => {
   describe('update()', () => {
     it("changes the caller's own alert", async () => {
       const own = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
         .withCustomerId(CUSTOMER_ID)
         .withServiceId(eligibleServiceId)
         .build();
@@ -174,7 +196,10 @@ describe('AvailabilityAlertController', () => {
     });
 
     it("maps another customer's alert to 404", async () => {
-      const foreign = new AvailabilityAlertBuilder().withCustomerId(OTHER_CUSTOMER_ID).build();
+      const foreign = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(OTHER_CUSTOMER_ID)
+        .build();
       alertRepo.seed(foreign);
 
       expect(await statusOf(controller.update(foreign.id, { durationMinutes: 45 }))).toBe(404);
@@ -182,6 +207,7 @@ describe('AvailabilityAlertController', () => {
 
     it('maps a read-only (notified) alert to 409', async () => {
       const notified = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
         .withCustomerId(CUSTOMER_ID)
         .withServiceId(eligibleServiceId)
         .withStatus('NOTIFIED')
@@ -192,7 +218,10 @@ describe('AvailabilityAlertController', () => {
     });
 
     it('maps a criteria mix to 422', async () => {
-      const own = new AvailabilityAlertBuilder().withCustomerId(CUSTOMER_ID).build();
+      const own = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
       alertRepo.seed(own);
 
       expect(await statusOf(controller.update(own.id, { weekdays: ['monday'] }))).toBe(422);
@@ -201,14 +230,20 @@ describe('AvailabilityAlertController', () => {
 
   describe('cancel()', () => {
     it("cancels the caller's own alert", async () => {
-      const own = new AvailabilityAlertBuilder().withCustomerId(CUSTOMER_ID).build();
+      const own = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
       alertRepo.seed(own);
 
       await expect(controller.cancel(own.id)).resolves.toEqual({ id: own.id, status: 'CANCELLED' });
     });
 
     it("maps another customer's alert to 404", async () => {
-      const foreign = new AvailabilityAlertBuilder().withCustomerId(OTHER_CUSTOMER_ID).build();
+      const foreign = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
+        .withCustomerId(OTHER_CUSTOMER_ID)
+        .build();
       alertRepo.seed(foreign);
 
       expect(await statusOf(controller.cancel(foreign.id))).toBe(404);
@@ -216,6 +251,7 @@ describe('AvailabilityAlertController', () => {
 
     it('maps an expired alert to 409', async () => {
       const expired = new AvailabilityAlertBuilder()
+        .withServiceId(eligibleServiceId)
         .withCustomerId(CUSTOMER_ID)
         .withStatus('EXPIRED')
         .build();

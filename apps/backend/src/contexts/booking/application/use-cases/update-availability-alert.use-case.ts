@@ -12,6 +12,7 @@ import {
 } from '../ports/availability-alert-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
   assertAlertDuration,
@@ -19,7 +20,6 @@ import {
   AvailabilityAlertCriteriaFields,
   AvailabilityAlertResult,
   hasCriteriaFields,
-  toAvailabilityAlertResult,
   toCriteriaPatch,
 } from './availability-alert-input.helpers';
 
@@ -47,6 +47,7 @@ export class UpdateAvailabilityAlertUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly quoteService: BookingQuoteService,
+    private readonly resultAssembler: AvailabilityAlertResultAssembler,
   ) {}
 
   async execute(
@@ -74,7 +75,7 @@ export class UpdateAvailabilityAlertUseCase {
     // body. Nothing is persisted or published until save(), so a refusal here discards the edit.
     await this.assertAgainstService(alert, input);
     await this.txManager.run(() => this.alertRepo.save(alert));
-    return toAvailabilityAlertResult(alert);
+    return this.resultAssembler.assembleOne(input.tenantId, alert);
   }
 
   // The alert's service is loaded once, and only when the request touches something it governs:
