@@ -142,7 +142,6 @@ Folder: `customer/prototypes/minha-conta/`
 | `07b-avisos-vazio.html` | Meus avisos — vazio (orienta a usar "Avise-me quando abrir" ao agendar) | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07c-avisos-carregando.html` | Meus avisos — carregando | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07d-avisos-erro.html` | Meus avisos — erro ao carregar, com "Tentar novamente" | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
-| `07e-aviso-nao-editavel.html` | Cancelar recusado porque o aviso já foi notificado/expirou (409 `BOOKING_ALERT_NOT_EDITABLE`) | UC-076 A1 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07f-aviso-detalhe.html` | Detalhe do aviso ativo — detalhe central + painel de ações ("Cancelar aviso"), mesmo padrão de `02-agendamento-detail` | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07g-aviso-detalhe-historico.html` | Detalhe de um aviso já avisado/expirado — somente leitura, sem cancelar | UC-076 A1 | M23-S43 | ❓ Gap (M23 Cluster 3) |
 | `07h-cancelar-aviso.html` | Confirmar o cancelamento do aviso — detalhe central + painel de ações, mesmo padrão de `03-cancel-confirm` | UC-076 | M23-S43 | ❓ Gap (M23 Cluster 3) |
@@ -253,7 +252,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["❓ GAP: /{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07e)"]
+    Agendamentos["/{slug}/my-account/bookings<br/>Agendamentos (real, shipped)"] -->|"Card 'Meus avisos'"| Avisos["❓ GAP: /{slug}/my-account/alerts<br/>Meus avisos (07 / 07b–07d)"]
     Avisos -->|"Toca um aviso"| AvisoDetalhe["❓ GAP: .../alerts/[id]<br/>Detalhe (07f / 07g histórico)"]
     AvisoDetalhe -->|"'Cancelar aviso' (ativo)"| AvisoCancelar["❓ GAP: .../alerts/[id]/cancel<br/>Confirmação (07h / 07i erro)"]
     Agendamentos -->|"Card 'Reservas recorrentes'"| Lista["/{slug}/my-account/recurring-schedules<br/>Lista (14-recorrentes-lista / 14b vazia)"]

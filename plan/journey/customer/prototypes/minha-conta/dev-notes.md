@@ -192,7 +192,6 @@ Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entr
 | `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S43 |
 | `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S43 |
 | `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S43 |
-| `07e-aviso-nao-editavel.html` | `409 BOOKING_ALERT_NOT_EDITABLE` on cancel (already notified or expired, reached from `07h`) — the list refreshes, the alert moves to history | same, error | M23-S43 |
 | `07f-aviso-detalhe.html` | Alert detail (ACTIVE) — central detail + action pane with "Cancelar aviso"; same layout as `02-agendamento-detail` | `/{slug}/my-account/alerts/[id]` | M23-S43 |
 | `07g-aviso-detalhe-historico.html` | Alert detail (NOTIFIED / EXPIRED) — read-only, no cancel action | same, history | M23-S43 |
 | `07h-cancelar-aviso.html` | Cancel confirmation — central detail + action pane; same layout as `03-cancel-confirm`, `DELETE /availability-alerts/:id` | `/{slug}/my-account/alerts/[id]/cancel` | M23-S43 |

@@ -50,7 +50,7 @@
     COMPONENT: CancelAvailabilityAlertPage  (GAP — M23-S12)
     PAGE:       apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx  (GAP — M23-S12) — same pattern as my-account/bookings/[id]/cancel (03-cancel-confirm)
     ACTION:     DELETE /availability-alerts/:id  → 200 { id, status: "CANCELLED" } → back to the list 07 (idempotent on an already-cancelled alert)
-                409 BOOKING_ALERT_NOT_EDITABLE (notified / expired in the meantime) → 07e
+                409 BOOKING_ALERT_NOT_EDITABLE (notified / expired in the meantime) → the list 07 (refreshed; the alert now shows under Histórico)
     SCENARIO:   DELETE failed (network / 5xx) — the alert stays active; "Tentar novamente" repeats the cancel.
   -->
 
