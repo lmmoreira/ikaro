@@ -3360,7 +3360,7 @@ The Início tab (`/{slug}/my-account`) shows two tiles today, Pontos and Agendam
 - **The "about to end" window is not computed in the browser.** The lead time is a tenant setting (`recurringRenewalReminderDays`, default 7, 0 turns it off) and a customer cannot read tenant settings. The window is applied on the server and exposed once, as the boolean `renewable` on the schedule list item (M23-S21); this story consumes it and adds no backend or BFF code. Only the day count shown on the card is computed in the browser.
 - **The card needs a name to show**: `serviceName` on the list item (M23-S42).
 - **All four tiles link** (decided 2026-10-14, following the prototype); the new tiles render only above zero.
-- **Layout:** the tiles use the prototype's auto-fit grid (`minmax(7.5rem, 1fr)`) instead of today's fixed two columns, so a third or fourth tile wraps naturally; with neither new tile the page looks as today.
+- **Layout:** the tiles use an auto-fit grid (`minmax(10rem, 1fr)`) instead of today's fixed two columns, so a third or fourth tile wraps naturally; with neither new tile the page looks as today. The prototype draws stacked tiles with a 7.5rem minimum, but the real tiles are icon-beside-text rows, which need 10rem to keep their labels ("Agendamentos", "Recorrências") from clipping (decided at implementation, 2026-10-14).
 - **Order:** greeting, tiles, loyalty expiry strip, "Renovar" card, "Próximos agendamentos".
 - **One card at most**, never a list of cards: Início is a glance, and the list page is the place for detail.
 - **No new i18n key for the button**: the card reuses `customer.recurringSchedules.renewAction`; new `customer.home` keys cover only the two tile labels and values (with plurals), the card's single and multi-schedule titles, and the "hoje"/"amanhã"/"em N dias" wording.
@@ -3379,7 +3379,7 @@ The Início tab (`/{slug}/my-account`) shows two tiles today, Pontos and Agendam
 - `apps/web/features/customer/recurring-schedule-model.ts` (+ spec) (modify — `offersRenewal` takes the schedule and reads `renewable`)
 - `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` and `RecurringScheduleDetail.tsx` (+ specs) (modify — "Renovar" on an active schedule that is `renewable`)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify — same change)
-- `apps/web/e2e/my-account-home-widgets.spec.ts` (new — Playwright; the existing home spec is `apps/web/e2e/my-account-bookings.spec.ts`), and `apps/web/e2e/my-account-recurring-schedules.spec.ts` (modify — the active-row "Renovar")
+- `apps/web/e2e/my-account-home-widgets.spec.ts` (new — Playwright; the existing home spec is `apps/web/e2e/my-account-bookings.spec.ts`) (it also covers the active-row "Renovar" on the recurring list, on the same seeded schedule, instead of a second edit to `my-account-recurring-schedules.spec.ts`)
 - Stale-reference sweep at ship time: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (the Início tiles are no longer "not built yet"), `plan/journey/customer/prototypes/minha-conta/dev-notes.md` (the known-limitation note on the active "Renovar") and the matching journey entry
 
 **Acceptance criteria — product:**
