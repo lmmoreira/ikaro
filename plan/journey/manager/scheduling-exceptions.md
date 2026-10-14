@@ -62,7 +62,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 |---|---|---|---|
 | `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
 | `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ❓ GAP |
-| `01c-reatribuir.html` | Reassign target: a resource or "any free one", mandatory reason | UC-077 | ❓ GAP |
+| `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a stored alternative labelled "livre em N de M reservas"; optional reason | UC-077 | ❓ GAP |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ❓ GAP |
 | `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ❓ GAP |
 | `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ❓ GAP |
@@ -74,6 +74,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` still begins with `/story-discovery`.
 - [x] Reassign, reschedule, bulk and the "no entry per schedule" rules were decided in `M23-S08` and are drawn here (2026-09-30).
 - [x] Nav placement — a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with a count badge; in "Mais" on mobile) is now drawn in the shell; recheck at `M23-S14`'s discovery.
-- [x] Slot source for `01e` — the existing staff availability endpoint via the staff reschedule picker (proposal, confirm at discovery).
+- [x] Slot source for `01e` — the existing staff availability endpoint; the route reuses the staff `RescheduleBookingPage` with an injected confirm (decided at `M23-S14`'s discovery, 2026-10-14).
+- [x] `M23-S45` (reactivation closes the open entries) is related to this page but not blocking it.
 - [ ] **Selecting "all from this resource from a time":** the prototype draws a per-resource "Selecionar todos" control; a free time filter ("a partir de …") is a proposal, not decided.
 - [ ] **A `PENDING` / `INFO_REQUESTED` booking** has no Reagendar (only a confirmed booking can be rescheduled); how the manager moves such a booking's time is the normal approval flow, not this screen.

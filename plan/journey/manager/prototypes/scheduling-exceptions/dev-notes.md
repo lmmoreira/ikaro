@@ -15,7 +15,7 @@ The first pass drew bare pages with bespoke inline CSS and no shell. The screens
 | Group header + "Selecionar todos" | `BookingQueueSection`'s header (`text-xs font-bold uppercase tracking-wider text-gray-400`, a line, the count) | "Selecionar todos" is the only addition. |
 | Reassign / cancel | `.bottom-sheet` + `.sheet-backdrop` (modal on desktop) with `.btn-primary` / `.btn-danger` / `.btn-secondary`, `.form-label` / `.form-input` | Same sheet as the manager overflow menu and `03g-correct-no-show.html`. |
 | Reschedule | **Staff reschedule screen** (`05-reschedule.html`): `AvailabilityCarousel` + `SlotPicker` `variant="dashboard"`, `shared/reschedule-picker.css`, the `detail-layout` + sticky aside + `mobile-action-bar` | **Resolves the open slot-source question:** `GET /v1/schedule/availability?date=…&serviceIds=…`, duration frozen at the booking's `totalDurationMins`. Only the submit differs: `POST /scheduling-exceptions/resolve` with `RESCHEDULE`, not `PATCH /bookings/:id/reschedule`. |
-| Selection bar | The fixed `mobile-action-bar` pattern (staff detail screens); on desktop it clears the 15rem sidebar | The one new piece of CSS; a candidate for `shared/components` only if a second screen needs it. |
+| Selection bar | The fixed `mobile-action-bar` pattern (staff detail screens), **offset above the mobile bottom nav** (the Settings/Hotsite action-bar precedent — the nav is never hidden); on desktop it clears the 15rem sidebar | The one new piece of CSS; a candidate for `shared/components` only if a second screen needs it. |
 | Banners, empty and loading states | `banner-ok` / `banner-error` (agenda `10b`) | |
 | Nav | New MANAGER-only **"Reservas a resolver"** item right below "Agenda" (rendered only for the MANAGER role, in the main nav group), with an open-count badge; first item of the mobile "Mais" sheet because the bottom nav is already full | Real `Sidebar.tsx` `MANAGER_NAV_KEYS` is `resources, team, settings, hotsite`; the new item is not a `MANAGER_NAV_KEYS` entry — it sits in the main group and is shown only to MANAGER. **Naming:** the user-facing label is "Reservas a resolver" everywhere (nav, page title, empty state); "exception" survives only in code, route and API. |
 
@@ -41,7 +41,9 @@ The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/CancelSheet.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReschedulePanel.tsx` (composes the existing carousel + slot picker) | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionReschedulePage.tsx` (thin wrapper: renders the existing `RescheduleBookingPage` with a resolve-based confirm) | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` (modify: injected confirm action + post-success behavior, defaults unchanged) | ❓ Gap |
+| `apps/web/app/dashboard/scheduling-exceptions/[exceptionId]/reschedule/page.tsx`, `layout.tsx`, `page.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` | ❓ Gap |
 | `apps/web/features/booking/api/scheduling-exceptions.ts` (React Query hooks) | ❓ Gap |
 | `apps/bff/http/bookings/scheduling-exceptions.http` | ❓ Gap (`M23-S08`) |
@@ -67,7 +69,7 @@ POST /v1/scheduling-exceptions/resolve            (bulk-only — a single entry 
 POST /v1/scheduling-exceptions/dismiss      (exists in the API; NOT called by this page — see § Why no Manter / Dispensar)
 ```
 
-**Slot source for `01e`:** the existing `GET /v1/schedule/availability?date=…&serviceIds=…` the staff reschedule screen already calls (proposal; `M23-S14`'s discovery must confirm it can be called for a specific booking's services and, for a resource-bound booking, its resource selections).
+**Slot source for `01e` (decided at discovery, 2026-10-14):** the existing `GET /v1/schedule/availability?date=…&serviceIds=…` via `fetchBookingAvailability`, exactly as the staff reschedule page does it; `serviceIds` come from the booking detail the route's server page loads. The confirm is the only difference: `POST /scheduling-exceptions/resolve` with `RESCHEDULE`, not `PATCH /bookings/:id/reschedule` (which would move the booking but leave the entry open).
 
 ## Screen: SchedulingExceptionWorklistPage (`/dashboard/scheduling-exceptions`)
 
@@ -78,17 +80,17 @@ Cards are the queue's `BookingCard` shape, grouped by the unavailable resource w
 - Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 compromissos"), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
 - Each row: checkbox, date/time and service names, contact name, the current resource, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
 - **Reagendar is enabled only for a confirmed booking** and only when exactly one entry is in play (disabled with a tooltip in a row that is pending, and in the bulk bar).
-- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar"; it replaces the bottom nav on mobile. A hint in the bar says Reagendar is one entry at a time.
+- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar"; on mobile it sits above the bottom nav, which stays. A hint in the bar says Reagendar is one entry at a time.
 
 **States:** loading (`01i`) → list / empty (`01h`) / fetch error (`01j`).
 
 ## Screen: ReassignSheet (`01c`)
 
-Choose the target: "Qualquer profissional livre (automático)" (`{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' stored alternatives (a resource that is busy at one of the selected times is listed with the conflict, not hidden). A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
+Choose the target: "Qualquer profissional livre (automático)" (`{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' stored alternatives, each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
 
-## Screen: ReschedulePanel (`01e`)
+## Screen: reschedule route (`01e`)
 
-One confirmed booking only. The manager picks a new time from the available slots; the booking changes immediately and the customer is notified by the existing reschedule email. An optional note becomes the reschedule's admin note. There is no "offer options and wait for the customer" flow.
+The existing staff `RescheduleBookingPage`, parametrized (see the file map). One confirmed booking only. The manager picks a new time from the available slots; the booking changes immediately and the customer is notified by the existing reschedule email. An optional note becomes the reschedule's admin note. There is no "offer options and wait for the customer" flow.
 
 ## Screen: BulkResultList (`01d`)
 
@@ -107,8 +109,8 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 ## Known limitations
 
 - **Selecting "everything from this resource from a time"** is drawn as a per-group "Selecionar todos" only; a free "a partir de …" filter is a proposal, not decided (see the journey's open questions).
-- **The new components (`BulkActionBar`, `BulkResultList`, the three sheets, `ReschedulePanel`) do not exist**, so their unhappy-path variants are tagged ⚠ in `index.html`.
-- **The slot source for `01e` is a proposal** (the staff availability endpoint) — see the BFF calls note above.
+- **The new components (`BulkActionBar`, `BulkResultList`, the two sheets, `SchedulingExceptionReschedulePage`) do not exist**, so their unhappy-path variants are tagged ⚠ in `index.html`.
+- **Decided at `M23-S14`'s discovery (2026-10-14):** the badge count comes from the page's own list hook (60-second cache, MANAGER only, no new endpoint); a `booking: null` entry renders a minimal "Reserva indisponível" card (not drawn); the alternatives line shows at most two names then "e mais N"; the group header is "<nome> ficou indisponível" for both the resource and the staff case; a customer-chosen deactivated resource cannot be rescheduled (`STILL_OPEN`, reason suggests reassign or cancel).
 - **The "Reservas a resolver" nav item is drawn** (sidebar below "Agenda" + mobile "Mais" sheet, with an open-count badge); where the count comes from (the list's total vs a separate count call) is for `M23-S14`'s discovery. `M23-S14` also adds the route-registry entries.
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 

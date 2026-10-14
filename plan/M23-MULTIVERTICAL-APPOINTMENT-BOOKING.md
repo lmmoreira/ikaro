@@ -30,8 +30,8 @@
 | 2 | M23-S25 | Customer email on a no-show — `BookingNoShow` → Notification (UC-074 step 3) |
 | 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
-| 2 | M23-S14 | Manager "Reservas a resolver" worklist frontend (UC-073/077) |
-| 2 | M23-S45 | Reactivating a resource closes that resource's open "Reservas a resolver" entries (UC-049; backend-only; ships with or before S14) |
+| 2 | M23-S14 | Manager "Reservas a resolver" worklist (frontend + a small backend/BFF read addition; UC-073/077) |
+| 2 | M23-S45 | Reactivating a resource closes that resource's open "Reservas a resolver" entries (UC-049; backend-only; related to S14, not blocking) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -117,7 +117,6 @@ graph TD
   S07 --> S12
   S08 --> S14
   S08 --> S45
-  S45 --> S14
   S09 --> S25
   S09 --> S26
   S05 --> S26
@@ -1077,44 +1076,85 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 ---
 
-### M23-S14 — Manager "Reservas a resolver" worklist frontend
+### M23-S14 — Manager "Reservas a resolver" worklist (frontend, with a small backend/BFF read addition)
 
-**Agent:** `frontend-ts`
-**Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions
-**Dependencies:** M23-S08 (BFF endpoints — the bulk `POST /scheduling-exceptions/resolve` and `/dismiss`, which take `exceptionIds[]`; the per-id routes no longer exist), **M23-S45** (reactivating a resource closes its open entries — the page offers no Manter/Dispensar, so without S45 the list could not be emptied after a mistaken deactivation; ships with or before this story)
-**Pattern:** plain composition — the entry is the real queue card (`BookingCard.tsx`'s shape, via an extracted `BookingCardShell`), the actions are the shared bottom sheet, and Reagendar composes the staff reschedule screen's `AvailabilityCarousel` + `SlotPicker` (`variant="dashboard"`); no new pattern.
-**Prototype references:** `plan/journey/manager/scheduling-exceptions.md`, `plan/journey/manager/prototypes/scheduling-exceptions/01-exception-worklist.html`, `dev-notes.md`. Shell, card, sheet and reschedule-picker reuse: `dev-notes.md` § Design system.
+**Agent:** `frontend-ts` (plus a small `backend-ts` / `bff-ts` slice — see Backend HTTP surface; one PR)
+**Complexity:** L
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (incl. § Dashboard section routes must be shell-wrapped), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (Future commitment worklist — Resolve), `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives, `docs/ENGINEERING_RULES_SHARED.md` § A value one app produces and another parses
+**Dependencies:** M23-S08 (✅ Done — the bulk `POST /scheduling-exceptions/resolve` and `/dismiss`, the list read). **Related, not blocking:** M23-S45 (reactivating a resource closes its open entries) — independent code; it only matters for the "deactivated by mistake, then reactivated" case, which is a nuisance in the current development stage, not a reason to order the work.
+**Pattern:** plain composition — the entry is the real queue card (`BookingCard.tsx`'s shape, via an extracted `BookingCardShell`), the actions use the existing `BookingActionSheetShell` dialog, and Reagendar is its own route that **reuses the existing staff `RescheduleBookingPage`** (parametrized: the confirm action and the post-success behavior are injected); no new named pattern.
+**Prototype references:** `plan/journey/manager/scheduling-exceptions.md`, `plan/journey/manager/prototypes/scheduling-exceptions/01-exception-worklist.html`, `dev-notes.md` (§ Design system, § Data and component reuse, § Why no Manter / Dispensar). Discovery done 2026-10-14 (decisions below).
 
 **Description:**
-Build the manager worklist page from the relocated prototype — list open exceptions, drill into impact + alternatives, choose reassign/reschedule/cancel. **Bulk (decided in M23-S08):** the manager can select one or many entries (for example all open entries of one resource from a chosen time) and reassign them to one target resource or to "any free one" (`AUTO`) or cancel them in one action; the result is per entry (`RESOLVED` or `STILL_OPEN`), so the page shows which ones moved and which stayed open. Reschedule is one entry at a time and only for a confirmed (`APPROVED`) booking: the manager picks the new time and it applies immediately. **Prototype pass done (2026-09-30), redrawn inside the real dashboard shell on 2026-10-14** (the first pass had no shell and bespoke CSS): `plan/journey/manager/prototypes/scheduling-exceptions/` now draws the list (`01`), the selection and bulk bar (`01b`), the reassign target choice (`01c`), the per-entry result (`01d`), the single direct reschedule (`01e`), cancel (`01f`) and the empty, loading, load-error and submit-error states (`01h`–`01k`); its `dev-notes.md` lists the proposed components. Open for this story's discovery: confirm the slots in `01e` come from the existing `GET /v1/schedule/availability` the staff reschedule screen uses (proposed; the submit still goes to `POST /scheduling-exceptions/resolve` with `RESCHEDULE`), where the "Reservas a resolver" badge count comes from, and whether a free "a partir de …" time filter is wanted next to the per-group "Selecionar todos" (recommendation: leave it out of the MVP). Add a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with an open-count badge) — rendered only for the MANAGER role inside the main nav group — and put it first in the mobile "Mais" sheet (the bottom nav is already full). "Exceção" stays the code/route/API term (`/scheduling-exceptions`); it is never shown to the user. Redrawn 2026-10-14 to match the real queue card (`dev-notes.md` § Data and component reuse): the list item needs `booking.isCustomer` and `booking.totalPrice` added to `GET /scheduling-exceptions` (a small read-only backend + BFF addition, no migration — or drop the badge and the price), and the card layout should be extracted into a shared `BookingCardShell` rather than adding a fourth variant to `BookingCard`; both for this story's discovery to confirm. No per-entry detail page: every decision is made from the list (the card links to the existing booking detail). **No Manter / Dispensar (decided 2026-10-14):** a booking on a deactivated resource has nobody to perform it, so the page offers only reassign, reschedule and cancel; the backend `KEEP` and `/dismiss` stay unused by this UI (`dev-notes.md` § Why no Manter / Dispensar). A resource deactivated by mistake is fixed by reactivating it, which must close its open entries — a `M23-S45`, which this page ships with or after.
+A MANAGER-only page `/dashboard/scheduling-exceptions`, titled **"Reservas a resolver"** ("exceção" stays the code/route/API term and is never shown to the user), listing every `OPEN` entry raised when a resource (or its staff member) was deactivated. One card per affected future booking, drawn like the Agenda queue's real card; grouped by the unavailable resource (the entry's `sourceId`, header "<nome> ficou indisponível" for both the resource and the staff case — the data cannot tell them apart). The manager can **reassign** (to one resource or "any free one" = `AUTO`) or **cancel** one or many entries at once, and **reschedule** one `APPROVED` entry at a time. The result is per entry (`RESOLVED` / `STILL_OPEN` with the reason), shown in place of the list with a way back. There is **no Manter and no Dispensar**: a booking on a deactivated resource has nobody to perform it (`dev-notes.md` § Why no Manter / Dispensar); the backend `KEEP` choice and `POST /dismiss` stay but this page never calls them.
+
+**Decisions locked at discovery (2026-10-14):**
+1. **Scope:** the two fields the card needs (`booking.isCustomer`, `booking.totalPrice`) and the scheduling-exception types in `@ikaro/types` are added in this same PR (no separate backend story). `isCustomer` = `booking.customerId !== null`; `totalPrice` is built like `list-bookings.use-case.ts`'s `{ amount, currency }`.
+2. **Types:** the BFF's local `scheduling-exceptions.types.ts` interfaces move to a new `packages/types/src/scheduling-exception.dto.ts` (exported from `index.ts`); the BFF and the web import them from `@ikaro/types` (`ikaro-types-drift` detector, CLAUDE.md §8).
+3. **Card:** extract a presentational `BookingCardShell` (stretched link + `Card` + name/pills/service/time-price rows + an `actions` slot) from `BookingCard.tsx`; `BookingCard` and `SchedulingExceptionRow` both use it. No fourth `BookingCard` variant. `BookingCard`'s own behavior and spec stay unchanged (regression-pinned).
+4. **Reschedule is a route that reuses the existing staff reschedule page,** `/dashboard/scheduling-exceptions/[exceptionId]/reschedule`. `RescheduleBookingPage` (carousel, slot picker, `SlotConflictAlert`, notes, the action rail, the `409` handling) is refactored to receive its **confirm action** (today hard-wired to `useRescheduleBooking` → `PATCH /bookings/:id/reschedule`) and its **post-success behavior** (today `RescheduleSuccessView`) as props, with its current behavior as the default; the bookings route keeps passing nothing. The exceptions route passes a confirm that calls `POST /scheduling-exceptions/resolve` with `resolutionType: 'RESCHEDULE'`, one id, `scheduledAt`, optional reason (the backend composes the same `rescheduleBookingInTransaction`, so the booking ends up identical), and returns to the list. The server page loads the `OPEN` entry (404 when missing or no longer `OPEN`) and the booking detail (`serviceIds` from its lines). Slots come from the existing `GET /v1/schedule/availability` via `fetchBookingAvailability`. The existing booking-reschedule page must not call the old endpoint here: a plain `PATCH /bookings/:id/reschedule` would move the booking but leave the entry `OPEN`. A `409`/`STILL_OPEN` shows the reason. A booking whose customer chose the deactivated resource cannot be re-resolved (`docs/27`): it stays `STILL_OPEN` and the message tells the manager to reassign or cancel instead.
+5. **Navigation:** a MANAGER-only "Reservas a resolver" item right below "Agenda" in the sidebar's main group (rendered only for `role === 'MANAGER'`, active on `startsWith`), first item of the manager section in `MoreSheet` (the bottom nav is full), and the new route wired into every shell registry a sibling section has: `proxy.ts` `MANAGER_ONLY_ROUTES`, `BottomNav.tsx`'s hide-on-drilldown matcher (the reschedule route hides it, the list does not), `topbar-route.ts` (`PAGE_TITLE_KEYS` + the reschedule back link/title), a new `shells/dashboard/model/scheduling-exception-route.ts` (like `resource-route.ts`), and a sibling `layout.tsx` (shell-wrapped, `docs/16`).
+6. **Badge:** the sidebar item shows the number of `OPEN` entries (only when above zero), from the same `useSchedulingExceptions` React Query hook the page uses (60-second `staleTime`, enabled only for MANAGER) — no new endpoint.
+7. **Selection bar:** fixed, sitting **above** the mobile bottom nav (the Settings/Hotsite action-bar precedent); the nav is never hidden. Desktop: clears the 15rem sidebar. `Reagendar` is never in the bar (one entry at a time).
+8. **Reassign sheet** (on `BookingActionSheetShell`): "Qualquer recurso livre" (`{ mode: 'AUTO' }`) is the default; below it the union of the selected entries' stored `alternatives`, each labelled "livre em N de M reservas". A resource missing from an entry's alternatives is simply not compatible with it — the data has no "ocupado" reasons, so none are shown. Optional reason.
+9. **Cancel sheet:** confirm, optional reason (included in the customers' e-mail).
+10. **`booking: null`** (the booking cannot be read): a minimal "Reserva indisponível" card, no checkbox, no actions.
+11. **Alternatives line:** "Alternativa(s): <nome>, <nome> e mais N" — at most two names.
+12. **"Selecionar todos"** is per group only; the free "a partir de …" time filter is out of the MVP.
+13. **Controls:** a native `<input type="checkbox">` styled like `ResourceFilterMenu`'s (no checkbox primitive exists); the sheets are `BookingActionSheetShell`; buttons/badges/cards are the `shared/components/ui` primitives.
+
+**Backend HTTP surface:** extends the existing `GET /scheduling-exceptions` item: `booking` gains `isCustomer: boolean` and `totalPrice: { amount, currency }`. Read-only, no migration, no new route; `POST /resolve` and `/dismiss` unchanged.
+**BFF endpoint spec:** pass-through unchanged (`SchedulingExceptionsController`); only its response types now come from `@ikaro/types`.
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. i18n (both locales, same commit): `dashboard.nav.schedulingExceptions` ("Reservas a resolver"), a new `dashboard.schedulingExceptionsPage` namespace (group header, count, "Selecionar todos", info line, alternatives line, empty/loading/load-error/submit-error copy, bar labels, sheet titles/labels/submit labels, result summary "N reserva(s) resolvida(s) · M continua(m) aberta(s)", "Reserva indisponível"), and the `STILL_OPEN` reasons rendered through the existing error-code translation (`errors.json`; every code the resolve can return must resolve to a message, with the generic fallback).
 
 **Files to create/modify:**
-- `apps/web/app/dashboard/scheduling-exceptions/page.tsx` (new — thin)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (+ spec) (new — the queue-card entry with its checkbox, info line and actions)
-- `apps/web/features/booking/components/dashboard/bookings/BookingCardShell.tsx` (+ spec) (new — extracted from `BookingCard.tsx`) and `BookingCard.tsx` (modify — uses the shell)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx`, `CancelSheet.tsx` (+ specs) (new)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReschedulePanel.tsx` (+ spec) (new — composes the existing carousel + slot picker)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` (+ spec) (new)
-- `apps/web/features/booking/api/scheduling-exceptions.ts` (new — React Query hooks)
-- `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add a MANAGER-only "Reservas a resolver" item below "Agenda")
-- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.nav.schedulingExceptions` + a new `dashboard.schedulingExceptionsPage` namespace, verified against the real file structure at implementation time, same pattern M21-S04 already established)
+- `apps/backend/src/contexts/booking/application/use-cases/list-future-commitment-exceptions.use-case.ts` (+ `.spec.ts`) (modify — the two fields)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/scheduling-exception.controller.integration.spec.ts` (modify)
+- `packages/types/src/scheduling-exception.dto.ts` (new) and `packages/types/src/index.ts` (modify — export)
+- `apps/bff/src/features/booking/scheduling-exceptions.types.ts` (modify — re-export from `@ikaro/types`) and `scheduling-exceptions.controller.ts` (+ `.spec.ts`) (modify — imports)
+- `apps/bff/http/bookings/scheduling-exceptions.http` and `apps/backend/http/booking/scheduling-exceptions.http` (modify — the new fields in the sample response)
+- `apps/web/app/dashboard/scheduling-exceptions/layout.tsx`, `page.tsx` (new — thin) and `[exceptionId]/reschedule/page.tsx` (new — thin)
+- `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx`, `SchedulingExceptionRow.tsx`, `BulkActionBar.tsx`, `ReassignSheet.tsx`, `CancelSheet.tsx`, `BulkResultList.tsx` (+ a `.spec.tsx` each) (new)
+- `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionReschedulePage.tsx` (+ spec) (new — a thin wrapper that renders `RescheduleBookingPage` with the resolve-based confirm)
+- `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` (+ its existing spec) (modify — injected confirm action and post-success behavior, defaults unchanged)
+- `apps/web/features/booking/components/dashboard/bookings/BookingCardShell.tsx` (+ spec) (new) and `BookingCard.tsx` (modify — uses the shell)
+- `apps/web/features/booking/api/scheduling-exceptions.ts` (+ spec) (new — fetchers via `bffClient`; the reschedule route's server fetch via `bffServerFetch`) and `apps/web/features/booking/hooks/useSchedulingExceptions.ts`, `useSchedulingExceptionMutations.ts` (+ specs) (new — query key `['scheduling-exceptions', tenantId, …]`; a mutation invalidates it plus `['bookings', tenantId]` and `['schedule', 'day-grid', tenantId]`)
+- `apps/web/shells/dashboard/components/Sidebar.tsx`, `MoreSheet.tsx`, `BottomNav.tsx` (+ specs) (modify), `apps/web/shells/dashboard/model/topbar-route.ts` (modify), `apps/web/shells/dashboard/model/scheduling-exception-route.ts` (+ spec) (new), `apps/web/proxy.ts` (+ spec if present) (modify — `MANAGER_ONLY_ROUTES`)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — keys above)
+- `apps/web/e2e/scheduling-exceptions.spec.ts` (new) and, if needed, a small helper under `apps/web/e2e/helpers/booking/` to seed bookings on a resource and deactivate it
+- Docs in the same change: `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions (the two fields), `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (the nav item, the route, the shell registries), `plan/journey/manager/scheduling-exceptions.md`, `plan/journey/manager/prototypes/scheduling-exceptions/dev-notes.md` and `plan/journey/manager/use-cases.md` (flip every `❓ GAP` to built)
 
 **Acceptance criteria — product:**
-- [ ] Manager sees "Reservas a resolver" in the sidebar and the open worklist matching the prototype's flow.
-- [ ] Manager reassigns, reschedules or cancels one or many entries; the list updates without a full page reload and shows which entries of a bulk action stayed open.
+- [ ] A MANAGER sees "Reservas a resolver" in the sidebar (below "Agenda", with the open count when above zero) and in "Mais" on mobile; a STAFF user sees neither, and the URL is denied to them.
+- [ ] The list shows each open entry like the Agenda's card (name, Cliente/Visitante and status pills, service, date/time, `price · duration`, the deactivated resource and its alternatives), grouped by the unavailable resource, and the card opens the booking detail.
+- [ ] The manager reassigns or cancels one or many entries; the list shows which ones moved and which stayed open, with the reason.
+- [ ] The manager reschedules one confirmed booking from a slot picker on its own screen; a pending booking has no Reagendar.
+- [ ] The empty, loading, load-error and whole-request-error states match the prototype; a whole-request error changes nothing and keeps the selection.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] Worklist renders open entries with impact/alternatives per fixture, grouped by the unavailable resource, each card showing the Cliente/Visitante and status pills and `price · duration` like the queue card, and linking to the booking detail
-  - [ ] The sheets submit the correct resolution type, and a multi-selection sends every selected id; Reagendar is absent for a pending booking and from the bulk bar
-  - [ ] A bulk result with a `STILL_OPEN` entry is shown as such
-- Integration: n/a
-- Tenant isolation: n/a — client-side
-- E2E:
-  - [ ] Playwright: manager resolves a real seeded exception end-to-end
+- Unit (web, Vitest):
+  - [ ] `SchedulingExceptionWorklistPage`: groups by `sourceId` with the "<nome> ficou indisponível" header; "Selecionar todos" selects only its group; the bar appears with ≥1 selected and shows the count
+  - [ ] `SchedulingExceptionRow`: pills (Cliente/Visitante, Confirmada/Pendente), time/price row, alternatives line (none / one / three → "e mais 1"), the link to `/dashboard/bookings/{affectedId}`; Reagendar absent for a non-`APPROVED` booking; a `booking: null` entry renders "Reserva indisponível" with no checkbox and no actions
+  - [ ] `BulkActionBar`: only Reatribuir and Cancelar; a hint that Reagendar is one at a time *(negative guarantee: no Reagendar, Manter or Dispensar in the bar — own test)*
+  - [ ] `ReassignSheet`: "Qualquer recurso livre" is the default and sends `{ mode: 'AUTO' }`; picking a resource sends `{ resourceId }`; the "livre em N de M" labels are computed from the stored alternatives; every selected id is sent
+  - [ ] `CancelSheet` submits `CANCEL`; `SchedulingExceptionReschedulePage` submits `RESCHEDULE` with exactly one id and `scheduledAt` and returns to the list; the picker is fed `serviceIds` from the booking detail
+  - [ ] `RescheduleBookingPage` **with no injected props behaves exactly as today** (existing spec unchanged: `PATCH /bookings/:id/reschedule`, `RescheduleSuccessView`) *(regression pin — own test)*
+  - [ ] `BulkResultList`: a `STILL_OPEN` entry is shown with its translated reason and keeps its actions; every `errorCode` the resolve can return renders a message (generic fallback)
+  - [ ] `BookingCardShell`: renders the slot content; **`BookingCard` is unchanged in output for all three variants** *(regression pin — own test)*
+  - [ ] `Sidebar`: MANAGER sees the item right below "Agenda" with the count; STAFF does not; `MoreSheet` lists it first for MANAGER only
+  - [ ] Route model: `matchSchedulingExceptionRoute`, `BottomNav` hidden on the reschedule route but not the list, `topbar-route` title/back label for both, `proxy.ts` treats the section as manager-only
+  - [ ] Hooks: query keys carry `tenantId`; a mutation invalidates the three keys; the badge hook is disabled for STAFF
+- Unit/Integration (backend + BFF):
+  - [ ] `ListFutureCommitmentExceptionsUseCase` returns `booking.isCustomer` (customer vs guest) and `booking.totalPrice` (`amount` number + `currency`); both are absent only when `booking` is `null`
+  - [ ] Controller integration: the list response carries the two fields end to end; the BFF returns them unchanged
+- Tenant isolation:
+  - [ ] Tenant B's MANAGER calling `GET /scheduling-exceptions` never sees tenant A's entries or their bookings' price/customer flag
+- E2E (Playwright, each seeds a booking on a resource through the existing helpers and then deactivates the resource, which raises the entries; fixed-slot fixtures use the retry-on-conflict pattern):
+  - [ ] Manager bulk-reassigns two entries to "any free one": both leave the list, the badge disappears, the bookings are on another resource
+  - [ ] Manager bulk-cancels entries: they leave the list and the bookings are `CANCELLED`
+  - [ ] Manager reschedules one confirmed booking on the reschedule route: the entry leaves the list and the booking has the new time
+  - [ ] STAFF has no sidebar item, and `/dashboard/scheduling-exceptions` is denied
+  - [ ] Empty state when there is nothing open
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -3645,7 +3685,7 @@ A customer who gets "a slot opened up" lands on the booking page with the alert'
 **Agent:** backend-ts
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` (UC-047, UC-049, UC-073, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (Future commitment worklist — Raise / Resolve), `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Transactions, § A lock only orders callers, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
-**Dependencies:** M23-S08 (✅ Done — the entries, the `DISMISSED` state, `lockResources` in the raise step). **Must ship with or before M23-S14**, whose page offers no Manter/Dispensar and so relies on this to be emptiable.
+**Dependencies:** M23-S08 (✅ Done — the entries, the `DISMISSED` state, `lockResources` in the raise step). **Related to M23-S14, not blocking:** S14's page offers no Manter/Dispensar, so this is what empties the list after a resource is deactivated by mistake and reactivated. Independent code; either can merge first.
 **Pattern:** plain composition — reuses the aggregate's existing `dismiss()`; no new status, event, topic or resolution type.
 
 **Discovered:** 2026-10-14, while redrawing the M23-S14 prototypes — asked what "Manter" is for.
@@ -3670,7 +3710,7 @@ Decisions baked in:
 **Backend HTTP surface:** reuses `POST /resources/:id/reactivate` — response and status unchanged.
 **BFF endpoint spec:** none — the BFF controller is a pass-through and already forwards `X-Actor-ID`.
 **New migration / i18n keys / env vars / feature flags:** one data-only backfill migration (see the open item below); no schema change, no i18n keys, env vars or flags.
-**Open for this story's discovery:** whether the backfill migration is needed. `M23-S08` and `POST /resources/:id/reactivate` are already merged, so a resource reactivated earlier may carry stale OPEN entries. Default: include a backfill that dismisses OPEN entries whose source resource is currently active, unless `docs/DEFINITION_OF_DONE.md`'s pre-production exception applies (it depends on whether any real environment has ever run `M23-S08`).
+**Open for this story's discovery:** whether the backfill migration is needed. `M23-S08` and `POST /resources/:id/reactivate` are already merged, so a resource reactivated earlier may carry stale OPEN entries. Default: include a backfill that dismisses OPEN entries whose source resource is currently active, unless `docs/DEFINITION_OF_DONE.md`'s pre-production exception applies (it depends on whether any real environment has ever run `M23-S08`). The project is in a development stage with no live managers or staff, so the exception probably applies and the backfill is likely unnecessary — confirm against `plan/M17-CLOUD-DEPLOY.md`'s go-live status.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/use-cases/reactivate-resource.use-case.ts` (+ `.spec.ts`) (modify)

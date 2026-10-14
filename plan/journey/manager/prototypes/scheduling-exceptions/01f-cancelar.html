@@ -54,17 +54,16 @@
     .sidebar-nav-item.active .nav-count { background: white; color: #2563eb; }
 
     /* Selection bar — fixed, like the staff mobile-action-bar; on desktop it clears the 15rem sidebar */
-    .select-bar { display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; background: white; border-top: 1px solid var(--ba-secondary); box-shadow: 0 -2px 8px rgba(0,0,0,0.06); padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0)); flex-direction: column; gap: 0.5rem; }
+    .select-bar { display: none; position: fixed; left: 0; right: 0; bottom: calc(3.75rem + env(safe-area-inset-bottom, 0)); z-index: 19; background: white; border-top: 1px solid var(--ba-secondary); box-shadow: 0 -2px 8px rgba(0,0,0,0.06); padding: 0.75rem 1rem calc(0.75rem + env(safe-area-inset-bottom, 0)); flex-direction: column; gap: 0.5rem; }
     .select-bar.on { display: flex; }
     .select-bar .count { font-weight: 700; font-size: 0.9375rem; color: var(--ba-text); }
     .select-bar .hint { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); }
     .select-bar .acts { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .select-bar .acts .btn-primary { flex: 1 1 100%; text-align: center; padding: 0.625rem 0.5rem; font-size: 0.875rem; }
     .select-bar .acts .btn-secondary { flex: 1; text-align: center; padding: 0.625rem 0.5rem; font-size: 0.875rem; }
-    body.has-bar .bottom-nav { display: none !important; }
-    body.has-bar .main-content { padding-bottom: 9.5rem; }
+    body.has-bar .main-content { padding-bottom: 13rem; }
     @media (min-width: 1024px) {
-      .select-bar { left: 15rem; flex-direction: row; align-items: center; padding: 0.75rem 1.5rem; gap: 1rem; }
+      .select-bar { left: 15rem; bottom: 0; flex-direction: row; align-items: center; padding: 0.75rem 1.5rem; gap: 1rem; }
       .select-bar .acts { margin-left: auto; flex-wrap: nowrap; }
       .select-bar .acts .btn-primary { flex: none; width: auto; padding: 0.375rem 0.875rem; }
       .select-bar .acts .btn-secondary { flex: none; padding: 0.375rem 0.875rem; }
@@ -216,7 +215,7 @@
             </div>
             <p class="qsvc">Lavagem Simples</p>
             <div class="qrow3"><span>Quinta-feira, 13 de agosto · 10:00</span><span>R$ 60,00 · 30min</span></div>
-            <p class="qinfo">Box 2 desativado · <span class="alt">Alternativa: Box 1 está livre neste horário</span></p>
+            <p class="qinfo">Box 2 desativado · <span class="alt">Alternativas: Box 1, Box 3</span></p>
             <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Reatribuir</a><a href="01e-reagendar.html" class="qbtn outline">Reagendar</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
           </div>
         </div>
@@ -229,7 +228,7 @@
             </div>
             <p class="qsvc">Polimento Completo</p>
             <div class="qrow3"><span>Sexta-feira, 14 de agosto · 11:00</span><span>R$ 250,00 · 2h</span></div>
-            <p class="qinfo">Box 2 desativado · <span class="alt">Alternativa: Box 1 está livre neste horário</span></p>
+            <p class="qinfo">Box 2 desativado · <span class="alt">Alternativa: Box 1</span></p>
             <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Reatribuir</a><a href="01e-reagendar.html" class="qbtn outline">Reagendar</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
           </div>
         </div>
@@ -247,7 +246,7 @@
           </div>
         </div>
         <div class="qsec">
-          <h2>Walace foi desativado</h2>
+          <h2>Walace ficou indisponível</h2>
           <div class="line"></div>
           <span class="count">1 reserva</span>
           <button type="button" class="link-btn" onclick="selectGroup('B')">Selecionar todos</button>
@@ -261,7 +260,7 @@
             </div>
             <p class="qsvc">Lavagem Simples</p>
             <div class="qrow3"><span>Segunda-feira, 17 de agosto · 14:00</span><span>R$ 60,00 · 30min</span></div>
-            <p class="qinfo">Walace desativado · <span class="alt">Alternativa: Rafael está livre neste horário</span></p>
+            <p class="qinfo">Walace desativado · <span class="alt">Alternativa: Rafael</span></p>
             <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Reatribuir</a><a href="01e-reagendar.html" class="qbtn outline">Reagendar</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
           </div>
         </div>
