@@ -31,6 +31,7 @@
 | 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
 | 2 | M23-S14 | Manager "Reservas a resolver" worklist frontend (UC-073/077) |
+| 2 | M23-S45 | Reactivating a resource closes that resource's open "Reservas a resolver" entries (UC-049; backend-only; ships with or before S14) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -115,6 +116,8 @@ graph TD
   S06 --> S12
   S07 --> S12
   S08 --> S14
+  S08 --> S45
+  S45 --> S14
   S09 --> S25
   S09 --> S26
   S05 --> S26
@@ -1079,19 +1082,19 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions
-**Dependencies:** M23-S08 (BFF endpoints — the bulk `POST /scheduling-exceptions/resolve` and `/dismiss`, which take `exceptionIds[]`; the per-id routes no longer exist)
+**Dependencies:** M23-S08 (BFF endpoints — the bulk `POST /scheduling-exceptions/resolve` and `/dismiss`, which take `exceptionIds[]`; the per-id routes no longer exist), **M23-S45** (reactivating a resource closes its open entries — the page offers no Manter/Dispensar, so without S45 the list could not be emptied after a mistaken deactivation; ships with or before this story)
 **Pattern:** plain composition — the entry is the agenda queue's `.booking-card`, the actions are the shared bottom sheet, and Reagendar composes the staff reschedule screen's `AvailabilityCarousel` + `SlotPicker` (`variant="dashboard"`); no new pattern.
 **Prototype references:** `plan/journey/manager/scheduling-exceptions.md`, `plan/journey/manager/prototypes/scheduling-exceptions/01-exception-worklist.html`, `dev-notes.md`. Shell, card, sheet and reschedule-picker reuse: `dev-notes.md` § Design system.
 
 **Description:**
-Build the manager worklist page from the relocated prototype — list open exceptions, drill into impact + alternatives, choose keep/reassign/reschedule/cancel or dismiss. **Bulk (decided in M23-S08):** the manager can select one or many entries (for example all open entries of one resource from a chosen time) and reassign them to one target resource or to "any free one" (`AUTO`), cancel, keep or dismiss them in one action; the result is per entry (`RESOLVED` or `STILL_OPEN`), so the page shows which ones moved and which stayed open. Reschedule is one entry at a time and only for a confirmed (`APPROVED`) booking: the manager picks the new time and it applies immediately. **Prototype pass done (2026-09-30), redrawn inside the real dashboard shell on 2026-10-14** (the first pass had no shell and bespoke CSS): `plan/journey/manager/prototypes/scheduling-exceptions/` now draws the list (`01`), the selection and bulk bar (`01b`), the reassign target choice (`01c`), the per-entry result (`01d`), the single direct reschedule (`01e`), cancel (`01f`), dismiss (`01g`) and the empty, loading, load-error and submit-error states (`01h`–`01k`); its `dev-notes.md` lists the proposed components. Open for this story's discovery: confirm the slots in `01e` come from the existing `GET /v1/schedule/availability` the staff reschedule screen uses (proposed; the submit still goes to `POST /scheduling-exceptions/resolve` with `RESCHEDULE`), where the "Reservas a resolver" badge count comes from, and whether a free "a partir de …" time filter is wanted next to the per-group "Selecionar todos" (recommendation: leave it out of the MVP). Add a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with an open-count badge) — rendered only for the MANAGER role inside the main nav group — and put it first in the mobile "Mais" sheet (the bottom nav is already full). "Exceção" stays the code/route/API term (`/scheduling-exceptions`); it is never shown to the user. No per-entry detail page: every decision is made from the list.
+Build the manager worklist page from the relocated prototype — list open exceptions, drill into impact + alternatives, choose reassign/reschedule/cancel. **Bulk (decided in M23-S08):** the manager can select one or many entries (for example all open entries of one resource from a chosen time) and reassign them to one target resource or to "any free one" (`AUTO`) or cancel them in one action; the result is per entry (`RESOLVED` or `STILL_OPEN`), so the page shows which ones moved and which stayed open. Reschedule is one entry at a time and only for a confirmed (`APPROVED`) booking: the manager picks the new time and it applies immediately. **Prototype pass done (2026-09-30), redrawn inside the real dashboard shell on 2026-10-14** (the first pass had no shell and bespoke CSS): `plan/journey/manager/prototypes/scheduling-exceptions/` now draws the list (`01`), the selection and bulk bar (`01b`), the reassign target choice (`01c`), the per-entry result (`01d`), the single direct reschedule (`01e`), cancel (`01f`) and the empty, loading, load-error and submit-error states (`01h`–`01k`); its `dev-notes.md` lists the proposed components. Open for this story's discovery: confirm the slots in `01e` come from the existing `GET /v1/schedule/availability` the staff reschedule screen uses (proposed; the submit still goes to `POST /scheduling-exceptions/resolve` with `RESCHEDULE`), where the "Reservas a resolver" badge count comes from, and whether a free "a partir de …" time filter is wanted next to the per-group "Selecionar todos" (recommendation: leave it out of the MVP). Add a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with an open-count badge) — rendered only for the MANAGER role inside the main nav group — and put it first in the mobile "Mais" sheet (the bottom nav is already full). "Exceção" stays the code/route/API term (`/scheduling-exceptions`); it is never shown to the user. No per-entry detail page: every decision is made from the list. **No Manter / Dispensar (decided 2026-10-14):** a booking on a deactivated resource has nobody to perform it, so the page offers only reassign, reschedule and cancel; the backend `KEEP` and `/dismiss` stay unused by this UI (`dev-notes.md` § Why no Manter / Dispensar). A resource deactivated by mistake is fixed by reactivating it, which must close its open entries — a `M23-S45`, which this page ships with or after.
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/scheduling-exceptions/page.tsx` (new — thin)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` (+ spec) (new)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (+ spec) (new — the `.booking-card` entry with its checkbox and actions)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` (+ spec) (new)
-- `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx`, `CancelSheet.tsx`, `DismissSheet.tsx` (Dispensar and Manter) (+ specs) (new)
+- `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx`, `CancelSheet.tsx` (+ specs) (new)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReschedulePanel.tsx` (+ spec) (new — composes the existing carousel + slot picker)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` (+ spec) (new)
 - `apps/web/features/booking/api/scheduling-exceptions.ts` (new — React Query hooks)
@@ -1100,7 +1103,7 @@ Build the manager worklist page from the relocated prototype — list open excep
 
 **Acceptance criteria — product:**
 - [ ] Manager sees "Reservas a resolver" in the sidebar and the open worklist matching the prototype's flow.
-- [ ] Manager resolves or dismisses one or many entries; the list updates without a full page reload and shows which entries of a bulk action stayed open.
+- [ ] Manager reassigns, reschedules or cancels one or many entries; the list updates without a full page reload and shows which entries of a bulk action stayed open.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -3617,5 +3620,70 @@ A customer who gets "a slot opened up" lands on the booking page with the alert'
   - [ ] Playwright: an invalid link shows the plain booking flow
   - [ ] Playwright: a link to a day with no availability shows the existing "Nenhum horário disponível" box
 - [ ] The production build shows `/[slug]/booking` rendering unchanged: `ƒ` (dynamic) like every route, because of the root layout's `force-dynamic` (checked locally, 2026-10-10)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S45 — Reactivating a resource closes that resource's open "Reservas a resolver" entries
+
+**Agent:** backend-ts
+**Complexity:** S
+**Docs to load:** `docs/04-USE_CASES.md` (UC-047, UC-049, UC-073, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (Future commitment worklist — Raise / Resolve), `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Transactions, § A lock only orders callers, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
+**Dependencies:** M23-S08 (✅ Done — the entries, the `DISMISSED` state, `lockResources` in the raise step). **Must ship with or before M23-S14**, whose page offers no Manter/Dispensar and so relies on this to be emptiable.
+**Pattern:** plain composition — reuses the aggregate's existing `dismiss()`; no new status, event, topic or resolution type.
+
+**Discovered:** 2026-10-14, while redrawing the M23-S14 prototypes — asked what "Manter" is for.
+**Root cause:** `reactivate-resource.use-case.ts:34-72` never reads or writes `future_commitment_exceptions`. UC-049 step 3 ("does not … silently alter existing commitments") protects the *bookings*; it was never meant to leave the worklist entries OPEN. After a mistaken deactivation + reactivation, every entry stays OPEN on a resource that is active again, and S14's page (reassign / reschedule / cancel only) cannot clear them without moving or cancelling healthy bookings.
+
+**Description:**
+When a MANAGER reactivates a resource (UC-049), in the **same transaction** as the reactivation the system closes every still-`OPEN` entry whose `sourceType = 'RESOURCE_DEACTIVATION'` and `sourceId` is that resource: `exception.dismiss(<reactivating manager's staffId>, 'RESOURCE_REACTIVATED', correlationId)`. Entries already `RESOLVED` or `DISMISSED` are untouched (their booking was already moved or cancelled). Bookings are never changed. If the resource is deactivated again later, the raise step creates fresh entries (the partial unique index only covers `OPEN`). A STAFF-wrapper resource whose Staff row is still inactive is still rejected before anything is closed (existing check), so a failed reactivation closes nothing.
+
+Decisions baked in:
+1. Reuse `dismiss()` and `FutureCommitmentExceptionDismissed` — it already has its audit-log subscription, so no new event or topic and no schema migration.
+2. Take `tenantLock.lockResources(tenantId, [resourceId])` first, the same primitive the raise step uses, so reactivate and a concurrent deactivate are ordered.
+3. Read the OPEN entries with **one batched `FOR UPDATE` query ordered by `id`** (a new repository method), so a manager resolving an entry at the same moment cannot both see it OPEN.
+4. `save()` each entry textually inside the `txManager.run()` callback (`transactional-save` detector).
+5. No notification — the manager was alerted at deactivation (M23-S23) and the badge simply drops.
+
+**Backend use case steps:**
+1. `ReactivateResourceUseCase` input gains `staffId` and `correlationId` (the controller passes `ctx.actorId` and `ctx.correlationId`, like `deactivate`).
+2. Existing checks (resource exists; STAFF wrapper's Staff active) stay first and unchanged.
+3. Inside `txManager.run`: the existing staff re-check under the tenant-staff lock → `lockResources` → `exceptionRepo.findOpenBySourceForUpdate(tenantId, 'RESOURCE_DEACTIVATION', resourceId)` → `dismiss(...)` + `save` each → `resourceRepo.save(resource)`.
+4. Result unchanged (`{ id, isActive: true }`).
+
+**Backend HTTP surface:** reuses `POST /resources/:id/reactivate` — response and status unchanged.
+**BFF endpoint spec:** none — the BFF controller is a pass-through and already forwards `X-Actor-ID`.
+**New migration / i18n keys / env vars / feature flags:** one data-only backfill migration (see the open item below); no schema change, no i18n keys, env vars or flags.
+**Open for this story's discovery:** whether the backfill migration is needed. `M23-S08` and `POST /resources/:id/reactivate` are already merged, so a resource reactivated earlier may carry stale OPEN entries. Default: include a backfill that dismisses OPEN entries whose source resource is currently active, unless `docs/DEFINITION_OF_DONE.md`'s pre-production exception applies (it depends on whether any real environment has ever run `M23-S08`).
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/reactivate-resource.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/application/ports/future-commitment-exception-repository.port.ts` (modify — `findOpenBySourceForUpdate`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-future-commitment-exception.repository.ts` (+ `.repository.spec.ts`, `.repository.integration.spec.ts`) (modify)
+- `apps/backend/src/test/repositories/booking/in-memory-future-commitment-exception.repository.ts` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — pass `staffId`/`correlationId`)
+- `apps/backend/src/contexts/booking/infrastructure/migrations/<next>-CloseWorklistEntriesOfActiveResources.ts` (new — see the open item)
+- `apps/backend/http/booking/resources.http` (modify — a note on the reactivate block)
+- `docs/04-USE_CASES.md` (UC-049 step 3 and postconditions, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (worklist section) (modify)
+
+**Acceptance criteria — product:**
+- [ ] After a manager reactivates a resource, its open "Reservas a resolver" entries disappear from the list and the nav badge count drops.
+- [ ] The bookings themselves are unchanged (same status, time, resource).
+- [ ] A resource deactivated again afterwards raises fresh entries.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Reactivating closes every OPEN entry of that resource with `DISMISSED`, reason `RESOURCE_REACTIVATED`, `resolvedByStaffId` = the manager
+  - [ ] An already `RESOLVED`/`DISMISSED` entry is not touched and publishes no event *(negative guarantee, own test)*
+  - [ ] A STAFF wrapper whose Staff is inactive is rejected and closes nothing *(negative guarantee, own test)*
+  - [ ] Zero OPEN entries: reactivation behaves exactly as before
+- Integration:
+  - [ ] `findOpenBySourceForUpdate` returns only OPEN rows of that source, ordered by `id`; `POST /resources/:id/reactivate` closes them and writes the `FutureCommitmentExceptionDismissed` outbox rows
+  - [ ] A rollback of the reactivation (forced failure after the close) leaves the entries OPEN
+  - [ ] The backfill migration closes OPEN entries of an already-active resource and leaves those of an inactive one
+- Tenant isolation:
+  - [ ] Reactivating tenant A's resource never closes tenant B's entries
+- E2E: none — covered by unit/integration (the page that shows the result is M23-S14's E2E)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
