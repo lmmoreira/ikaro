@@ -3220,7 +3220,7 @@ Add the server side of UC-108. A staff member books a one-off appointment for so
 
 ---
 
-### M23-S40 — Staff "+ Novo" menu on the Agenda, the shared customer chooser and the dashboard "Novo agendamento" flow (UC-108)
+### M23-S40 — Staff "+ Novo" menu on the Agenda, the shared customer chooser and the dashboard "Novo agendamento" flow (UC-108) ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** L
