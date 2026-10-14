@@ -440,6 +440,16 @@ Of the slots that match, the **earliest** becomes the alert's `matching_window`.
 
 The match event reaches Pub/Sub through the outbox relay, so the email follows the match by the relay's next run. The Notification consumer sends one email to the alert's customer (the service, the start of the window that opened, and a link to the hotsite booking page, `/{slug}/booking?serviceId=…&date=YYYY-MM-DD`, plus `durationMinutes` and `resourceId` when the alert has them; the date is the tenant-local day of the window, and the booking page seeds the service, duration, date and resource from it — M23-S44) and reports the result to the Booking context through a port, not an event: `PENDING → SENT`, or `FAILED` when a send throws. On a failure the consumer records it and rethrows, so Pub/Sub redelivers (5 deliveries, 10 s to 600 s backoff); every try increments `attempt_count`, a later success sets `SENT` and clears `last_error`, and the alert stays `NOTIFIED` throughout, so a failed email never causes a second match. `FAILED` with a count below 5 means still retrying; at 5 it was dead-lettered. A customer or service that no longer exists is logged and acknowledged, leaving the row `PENDING`.
 
+### The customer's view of an alert (M23-S43)
+
+The customer's "Meus avisos" pages (`/{slug}/my-account/alerts`) and the Agendamentos entry row follow three rules that the status column alone does not give:
+
+- **A cancelled alert is gone.** The list, the Agendamentos row and its active count never show it, and its detail page is a `404`. The server keeps the row for 90 days like any finished alert.
+- **`notifiedAt` is the match moment.** The backend sets it to the `attempted_at` of the alert's `SENT` EMAIL attempt (the latest one), `null` when there is none. That row is written when the match is recorded, so it is not the exact send time. A `NOTIFIED` alert with no `SENT` attempt shows "Avisado" without a time, never "Expirado".
+- **An `ACTIVE` alert past its `expiresAt` reads as expired.** The aggregate refuses to cancel or edit it (`409 BOOKING_ALERT_NOT_EDITABLE`) while its stored status is still `ACTIVE`, until the expiry job runs. The web read resolves it to `EXPIRED` up front (`withEffectiveStatus`), so it sits under "Histórico" and offers no "Cancelar aviso". A `409` on cancel still sends the customer to the list, where the alert already shows as finished.
+
+The list is the caller's 100 most recent alerts (`docs/14-API_CONTRACTS.md`). Service and resource names are read in one batched, tenant-scoped query per response (never per row).
+
 ### Known limitations
 
 - A booking window shortened *after* an alert was created never un-notifies anything; an alert simply waits for the new, smaller window.

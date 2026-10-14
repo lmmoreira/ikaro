@@ -3451,7 +3451,7 @@ The BFF stays a thin proxy for all three. **Shared types (decided 2026-10-09):**
 
 ---
 
-### M23-S43 — Customer "Minha Conta": availability alerts management — list, detail and cancel
+### M23-S43 — Customer "Minha Conta": availability alerts management — list, detail and cancel ✅ Done
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** L
