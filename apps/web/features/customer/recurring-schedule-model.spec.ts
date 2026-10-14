@@ -155,11 +155,15 @@ describe('recurringScheduleRenewPath', () => {
 
 describe('offersRenewal', () => {
   it.each([
-    ['ENDED', true],
-    ['ACTIVE', false],
-    ['PENDING_APPROVAL', false],
-    ['CANCELLED', false],
-  ] as const)('%s → %s', (status, expected) => {
-    expect(offersRenewal(status)).toBe(expected);
+    ['ENDED', undefined, true],
+    ['ENDED', false, true],
+    ['ACTIVE', true, true],
+    ['ACTIVE', false, false],
+    // A response from before the server sent the flag (rolling deploy): not renewable.
+    ['ACTIVE', undefined, false],
+    ['PENDING_APPROVAL', true, false],
+    ['CANCELLED', true, false],
+  ] as const)('%s with renewable %s → %s', (status, renewable, expected) => {
+    expect(offersRenewal({ status, renewable })).toBe(expected);
   });
 });

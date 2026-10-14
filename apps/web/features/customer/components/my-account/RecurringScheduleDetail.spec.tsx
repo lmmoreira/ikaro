@@ -118,10 +118,22 @@ describe('RecurringScheduleDetail — ACTIVE', () => {
     expect(screen.queryByText(/perReservation/)).not.toBeInTheDocument();
   });
 
-  it('offers no "Renovar" on a running schedule (it waits for the server flag)', () => {
-    renderDetail(makeSchedule(), page);
+  it.each([false, undefined])(
+    'offers no "Renovar" on a running schedule the server does not flag renewable (%s)',
+    (renewable) => {
+      renderDetail(makeSchedule({ renewable }), page);
 
-    expect(screen.queryByTestId('renew-schedule-button')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('renew-schedule-button')).not.toBeInTheDocument();
+    },
+  );
+
+  it('offers "Renovar" on a running schedule the server flags renewable, opening the pre-filled form', () => {
+    renderDetail(makeSchedule({ id: 'sched-7', renewable: true }), page);
+
+    expect(screen.getAllByTestId('renew-schedule-button')[0]).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=sched-7',
+    );
   });
 
   it('has no resource row (the schedule item carries none)', () => {

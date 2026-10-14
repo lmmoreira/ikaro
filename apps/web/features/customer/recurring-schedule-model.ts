@@ -56,9 +56,16 @@ export function recurringScheduleRenewPath(tenantSlug: string, scheduleId: strin
   return `${recurringScheduleNewPath(tenantSlug)}?renewFrom=${scheduleId}`;
 }
 
-/** The "Renovar" action is offered on an ended schedule only; a running one waits for the server's `renewable` flag. */
-export function offersRenewal(status: RecurringScheduleStatus): boolean {
-  return status === 'ENDED';
+/**
+ * The "Renovar" action: always on an ended schedule, and on a running one only when the server
+ * flags it `renewable` (it is inside the tenant's renewal window — a setting the customer cannot
+ * read). A missing flag, from an older response during a rolling deploy, counts as not renewable.
+ */
+export function offersRenewal(
+  schedule: Pick<RecurringBookingScheduleListItem, 'status' | 'renewable'>,
+): boolean {
+  if (schedule.status === 'ENDED') return true;
+  return schedule.status === 'ACTIVE' && schedule.renewable === true;
 }
 
 /** The detail page, optionally on a given occurrence page — page 1 stays the bare URL. */
