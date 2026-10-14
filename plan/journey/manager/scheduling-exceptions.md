@@ -56,11 +56,11 @@ Full request/response shapes: `docs/14-API_CONTRACTS.md` § Future Commitment Ex
 
 ## Prototype
 
-Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/discovery/multivertical-booking/prototype/manager-12-exception-worklist.html`, reworked on 2026-09-30 for the `M23-S08` decisions above, and **redrawn on 2026-10-14** inside the real dashboard shell (sidebar, topbar, bottom nav, `.booking-card`, shared bottom sheet, the staff reschedule picker) after the first pass turned out to be bare pages with bespoke CSS.
+Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/discovery/multivertical-booking/prototype/manager-12-exception-worklist.html`, reworked on 2026-09-30 for the `M23-S08` decisions above, and **redrawn on 2026-10-14** inside the real dashboard shell (sidebar, topbar, bottom nav, the real queue card, shared bottom sheet, the staff reschedule picker) after the first pass turned out to be bare pages with bespoke CSS.
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `01-exception-worklist.html` | Worklist — one `.booking-card` per affected booking, grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
+| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
 | `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ❓ GAP |
 | `01c-reatribuir.html` | Reassign target: a resource or "any free one", mandatory reason | UC-077 | ❓ GAP |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ❓ GAP |

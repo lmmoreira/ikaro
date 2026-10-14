@@ -11,8 +11,8 @@ The first pass drew bare pages with bespoke inline CSS and no shell. The screens
 | Need | Reused from | Notes |
 |---|---|---|
 | Shell: topbar, `dashboard-layout`, sidebar, bottom nav + "Mais" sheet | `shared/tokens.css`, `staff/.../agenda/00-agenda.html` | Drill-down screens (`01d`, `01e`) use the back-arrow topbar and hide the bottom nav, as `10-novo-agendamento.html` does. |
-| One entry | `.booking-card` + `.list-avatar` + `.status-badge` (`status-approved`, `status-pending`) | Same card as the "Precisa de ação" queue; only a leading checkbox is new. |
-| Group header + "Selecionar todos" | `.day-group-header` (agenda) | |
+| One entry | **The real queue card** — `apps/web/features/booking/components/dashboard/bookings/BookingCard.tsx`: `Card` `p-4`; row 1 name + two pill `Badge`s (Cliente/Visitante, then the status); row 2 service names; row 3 date/time left and `price · duration` right; small (`size="sm"`) left-aligned `Button`s; the whole card is a stretched `<Link>` to the booking detail with the buttons above it (`z-20`) | The prototype CSS (`.qcard`, `.qbadge`, `.qbtn`) mirrors that component, **not** `tokens.css`' `.booking-card`, which is the older avatar-and-right-hand-buttons shape of `staff/.../agenda/00-agenda.html` and no longer matches the app. New on top: a leading checkbox, one info line ("Box 2 desativado · Alternativa: …") and the selected state (`border-blue-500 bg-blue-50/60`, the card's own `emphasized` style). |
+| Group header + "Selecionar todos" | `BookingQueueSection`'s header (`text-xs font-bold uppercase tracking-wider text-gray-400`, a line, the count) | "Selecionar todos" is the only addition. |
 | Reassign / cancel | `.bottom-sheet` + `.sheet-backdrop` (modal on desktop) with `.btn-primary` / `.btn-danger` / `.btn-secondary`, `.form-label` / `.form-input` | Same sheet as the manager overflow menu and `03g-correct-no-show.html`. |
 | Reschedule | **Staff reschedule screen** (`05-reschedule.html`): `AvailabilityCarousel` + `SlotPicker` `variant="dashboard"`, `shared/reschedule-picker.css`, the `detail-layout` + sticky aside + `mobile-action-bar` | **Resolves the open slot-source question:** `GET /v1/schedule/availability?date=…&serviceIds=…`, duration frozen at the booking's `totalDurationMins`. Only the submit differs: `POST /scheduling-exceptions/resolve` with `RESCHEDULE`, not `PATCH /bookings/:id/reschedule`. |
 | Selection bar | The fixed `mobile-action-bar` pattern (staff detail screens); on desktop it clears the 15rem sidebar | The one new piece of CSS; a candidate for `shared/components` only if a second screen needs it. |
@@ -20,6 +20,11 @@ The first pass drew bare pages with bespoke inline CSS and no shell. The screens
 | Nav | New MANAGER-only **"Reservas a resolver"** item right below "Agenda" (rendered only for the MANAGER role, in the main nav group), with an open-count badge; first item of the mobile "Mais" sheet because the bottom nav is already full | Real `Sidebar.tsx` `MANAGER_NAV_KEYS` is `resources, team, settings, hotsite`; the new item is not a `MANAGER_NAV_KEYS` entry — it sits in the main group and is shown only to MANAGER. **Naming:** the user-facing label is "Reservas a resolver" everywhere (nav, page title, empty state); "exception" survives only in code, route and API. |
 
 Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The sidebar here also lists "Recursos", which the older shell prototypes (`agenda/10`) omit but the real `Sidebar.tsx` has.
+
+## Data and component reuse for the card (decided 2026-10-14)
+
+- **Two fields are missing from the shipped list response:** the Cliente/Visitante badge needs `booking.isCustomer` and the price needs `booking.totalPrice` (`StaffBookingCardResponse` already has both — the queue card reads them). `M23-S08`'s `GET /scheduling-exceptions` returns neither. The prototype draws both, as the queue does, so `M23-S14` needs a small backend + BFF addition to the list item (read-only; no migration — both come from the booking). Alternative if that is rejected at discovery: draw the card without the badge and the price.
+- **Do not add a fourth variant to `BookingCard`.** It has three fixed variants (`action-needed`, `today`, `upcoming`) with fixed actions and takes a `StaffBookingCardResponse`. Preferred: extract a presentational `BookingCardShell` (stretched link + `Card` + name/badges/service/time-price rows + an `actions` slot) used by both `BookingCard` and `SchedulingExceptionRow`, which keeps the layout in one place. `SchedulingExceptionRow` adds the checkbox, the info line and its own buttons. To confirm at `M23-S14`'s discovery (it touches an existing, tested component).
 
 ## Why no Manter / Dispensar (decided 2026-10-14)
 
@@ -31,7 +36,8 @@ The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave
 |---|---|
 | `apps/web/app/dashboard/scheduling-exceptions/page.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (composes `BookingCardShell`) | ❓ Gap |
+| `apps/web/features/booking/components/dashboard/bookings/BookingCardShell.tsx` (extracted from `BookingCard.tsx`) | ❓ Gap (modify `BookingCard.tsx` to use it) |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/CancelSheet.tsx` | ❓ Gap |
@@ -48,7 +54,9 @@ Component names are proposals for `M23-S14`'s discovery to confirm.
 GET /v1/scheduling-exceptions?status=OPEN
   Header: Authorization: Bearer {jwt}   (MANAGER)
   Response: { items: [{ id, sourceType, sourceId, affectedType, affectedId, status, alternatives: [{ resourceId, resourceName }],
-                        createdAt, booking: { contactName, scheduledAt, totalDurationMins, serviceNames, status, resourceName } }] }
+                        createdAt, booking: { contactName, scheduledAt, totalDurationMins, serviceNames, status, resourceName,
+                                              isCustomer, totalPrice }   -- isCustomer + totalPrice are NEW (see § Data and component reuse)
+                      }] }
 
 POST /v1/scheduling-exceptions/resolve            (bulk-only — a single entry is a list of one)
   Body: { exceptionIds: string[] (1–100), resolutionType: 'KEEP'|'REASSIGN'|'RESCHEDULE'|'CANCEL', reason?: string,
@@ -65,7 +73,7 @@ POST /v1/scheduling-exceptions/dismiss      (exists in the API; NOT called by th
 
 **Files:** `01-exception-worklist.html` (baseline), `01b-selecionados.html`.
 
-Cards are `.booking-card`s, grouped by the unavailable resource with `.day-group-header`. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Cancelar** (secondary). There is deliberately no Manter / Dispensar — see § Why no Manter / Dispensar.
+Cards are the queue's `BookingCard` shape, grouped by the unavailable resource with `BookingQueueSection`'s header. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Cancelar** (secondary). There is deliberately no Manter / Dispensar — see § Why no Manter / Dispensar.
 
 - Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 compromissos"), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
 - Each row: checkbox, date/time and service names, contact name, the current resource, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
