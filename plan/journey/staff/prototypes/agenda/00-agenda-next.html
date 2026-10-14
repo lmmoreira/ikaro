@@ -3,141 +3,102 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agenda — próxima semana — BeloAuto</title>
+  <title>Agenda — próxima janela — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
-  <style>
-    /* ── Week strip ────────────────────────────────── */
-    .week-nav {
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 0.5rem 1rem; background: white;
-      border-bottom: 1px solid var(--ba-secondary);
-    }
-    .week-nav-btn {
-      display: flex; align-items: center; justify-content: center;
-      width: 2rem; height: 2rem; border-radius: var(--ba-radius);
-      border: 1.5px solid var(--ba-secondary); background: white;
-      cursor: pointer; color: var(--ba-text); font-size: 1.125rem;
-      text-decoration: none; line-height: 1;
-    }
-    .week-nav-btn:hover { background: var(--ba-secondary); }
-    .week-nav-btn.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
-    .week-nav-month { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+  <style>    .qsec { display: flex; align-items: center; gap: 0.5rem; margin: 1.25rem 0 0.75rem; }
+    .qsec h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 0; }
+    .qsec .line { flex: 1; height: 1px; background: #e5e7eb; }
+    .qsec .count { font-size: 0.6875rem; font-weight: 700; color: #9ca3af; }
+    .qwrap { position: relative; margin-bottom: 0.75rem; }
+    .qlink { position: absolute; inset: 0; z-index: 10; border-radius: 0.5rem; }
+    .qcard { background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 1rem; transition: box-shadow .15s; }
+    .qwrap:hover .qcard { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .qcard.selected { border-color: #3b82f6; background: rgba(239,246,255,0.6); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qrow1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .qname { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .qtext { font-size: 0.875rem; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qchk { position: relative; z-index: 20; width: 1.125rem; height: 1.125rem; flex-shrink: 0; accent-color: #2563eb; cursor: pointer; }
+    .qbadges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; flex-shrink: 0; }
+    .qbadge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600; }
+    .b-cust { background: #dbeafe; color: #1e40af; }
+    .b-guest { background: #fef3c7; color: #92400e; }
+    .b-ok { background: #dcfce7; color: #166534; }
+    .b-pend { background: #fef9c3; color: #854d0e; }
+    .b-done { background: #f1f5f9; color: #475569; }
+    .qsvc { font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qrow3 { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #4b5563; }
+    .qinfo { font-size: 0.75rem; color: #6b7280; margin: 0.375rem 0 0; }
+    .qinfo .alt { color: #15803d; }
+    .qinfo .none { color: #92400e; }
+    .qinfo.open { color: #b91c1c; font-weight: 600; }
+    .qactions { position: relative; z-index: 20; display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .qbtn { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; text-decoration: none; cursor: pointer; background: #2563eb; color: white; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qbtn:hover { opacity: 0.9; }
+    .qwrap.info .qcard { border-left: 3px solid #2563eb; }
+    .qwrap.upcoming .qcard { opacity: 0.7; }
+    .qwrap.upcoming:hover .qcard { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qwrap.upcoming.emph .qcard { opacity: 1; border-color: #3b82f6; background: rgba(239,246,255,0.6); }
+    .b-info { background: #dbeafe; color: #1e40af; }
+    .b-recur { background: #ccfbf1; color: #0f766e; }
+    .qempty { font-size: 0.875rem; color: #9ca3af; }
+    .qsection { margin-bottom: 1.5rem; }
 
-    .week-strip {
-      display: flex;
-      justify-content: space-evenly;
-      padding: 0.875rem 0.5rem 0.625rem;
-    }
-
-    .week-day {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.25rem;
-      padding: 0.5rem 0.625rem;
-      border-radius: 0.625rem;
-      cursor: pointer;
-      flex: 1;
-      text-decoration: none;
-      border: 1.5px solid transparent;
-      transition: background 0.15s;
-    }
-    .week-day:hover { background: var(--ba-secondary); }
-    .week-day.today {
-      background: var(--ba-primary);
-      border-color: var(--ba-primary);
-    }
-    .week-day-label {
-      font-size: 0.6875rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: rgba(17,24,39,0.45);
-    }
-    .week-day.today .week-day-label { color: rgba(255,255,255,0.75); }
-    .week-day-number {
-      font-size: 1rem;
-      font-weight: 700;
-      color: var(--ba-text);
-      line-height: 1;
-    }
-    .week-day.today .week-day-number { color: white; }
-    .week-day-dot {
-      width: 0.375rem;
-      height: 0.375rem;
-      border-radius: 9999px;
-      background: var(--ba-primary);
-    }
-    .week-day.today .week-day-dot { background: rgba(255,255,255,0.8); }
-    .week-day-dot.empty { background: transparent; }
-
-    /* ── Day group header ──────────────────────────── */
-    .day-group-header {
-      display: flex;
-      align-items: center;
-      gap: 0.625rem;
-      padding: 0.875rem 0 0.5rem;
-    }
-    .day-group-label {
-      font-size: 0.75rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      color: rgba(17,24,39,0.4);
-      white-space: nowrap;
-    }
-    .day-group-line {
-      flex: 1;
-      height: 1px;
-      background: var(--ba-secondary);
-    }
-    .day-group-count {
-      font-size: 0.6875rem;
-      font-weight: 700;
-      color: rgba(17,24,39,0.35);
-      white-space: nowrap;
-    }
+    /* WeekNav — mirrors apps/web/shells/dashboard/components/WeekNav.tsx */
+    .wk { background: white; }
+    .wk-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 0.5rem 1rem; }
+    .wk-chev { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 0.25rem; border: 1px solid #e5e7eb; background: white; color: #374151; cursor: pointer; text-decoration: none; }
+    .wk-chev:hover { background: #f3f4f6; }
+    .wk-month { font-size: 0.875rem; font-weight: 600; color: #1f2937; }
+    .wk-strip { display: flex; justify-content: space-evenly; overflow-x: auto; padding: 0.5rem 0.25rem; }
+    .wk-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; min-width: 2.5rem; border-radius: 0.625rem; padding: 0.5rem 0.375rem; border: none; background: none; cursor: pointer; color: #1f2937; font-family: inherit; }
+    .wk-day:hover { background: #f3f4f6; }
+    .wk-day .wd { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: #9ca3af; }
+    .wk-day .dn { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .wk-day .dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: transparent; }
+    .wk-day.act .dot { background: #2563eb; }
+    .wk-day.today { background: #2563eb; color: white; }
+    .wk-day.today .wd { color: #dbeafe; }
+    .wk-day.today.act .dot, .wk-day.sel.act .dot { background: rgba(255,255,255,0.8); }
+    .wk-day.sel { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .wk-day.sel .wd { color: #e5e7eb; }
+    .new-row { display: flex; justify-content: flex-end; margin-bottom: 1rem; position: relative; }
+    .new-btn { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 1rem; border-radius: 0.375rem; background: #2563eb; color: white; border: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .new-menu { display: none; position: absolute; right: 0; top: calc(100% + 0.25rem); width: 16rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.375rem; box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 0.25rem; z-index: 35; }
+    .new-menu.open { display: block; }
+    .new-menu a { display: block; padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; }
+    .new-menu a:hover { background: #f9fafb; }
+    .new-menu strong { display: block; font-size: 0.875rem; color: #111827; }
+    .new-menu span { display: block; font-size: 0.75rem; color: #6b7280; }
+    .bottom-nav-item.active { color: #2563eb; }
   </style>
 </head>
 <body>
 
   <!--
-    COMPONENT: BookingQueuePage
-    FILE:       apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx  (EXISTS)
-    PAGE:       apps/web/app/dashboard/bookings/page.tsx  (EXISTS)
-    ROUTE:      /dashboard/bookings?week=2026-06-21  (or equivalent week-offset param)
-    AUTH:       JWT cookie, STAFF or MANAGER role
+    COMPONENT: BookingQueuePage  (EXISTS)  — apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx
+    PAGE:      apps/web/app/dashboard/bookings/page.tsx   ROUTE: /dashboard/bookings   AUTH: STAFF or MANAGER
 
-    Same urgency-grouped structure as 00-agenda.html — see that file's HTML comment for the
-    full rationale (Queue scope decision, resolved 2026-06-16, agenda.md). This screen exists
-    only to demonstrate the "próxima semana" (›) week-nav control from 00-agenda.html; it is
-    NOT a different IA — same 3 sections, same grouping rule, just a different week's example
-    data so the reviewer can see the week-strip dots/highlight change when navigating forward.
+    THIS FILE IS AN EXACT COPY OF WHAT SHIPS TODAY (redrawn 2026-10-14 after the first version had drifted: avatars, a single status badge, price in the
+    service line and a "Ver detalhes" button that the real card does not have). Anything planned but not built lives in 00c-agenda-s13.html, not here.
+    Pieces, each from the real code:
+      - Topbar / Sidebar / BottomNav / MoreSheet: apps/web/shells/dashboard/components/* (Leads shows only when the LEAD_FORM module is on — not drawn for this tenant)
+      - WeekNav (shells/dashboard/components/WeekNav.tsx): month label + chevrons, then a strip of `welcomeStaffScreenDays` days (default 14, scrolls on mobile).
+        Today = filled blue, a picked day = near-black, a dot = the day has a booking. Picking a day filters "Próximos dias" to it (click again to clear).
+      - NewMenu: ONE item today ("Agendamento"); "Recorrência" is added by M23-S19.
+      - BookingQueueSection + BookingCard (3 variants): "Precisa de ação" (PENDING + INFO_REQUESTED, any date, button Aprovar — a 409 sends the manager to the
+        detail with ?conflict=1) · "Hoje — confirmados" (time only, button Marcar concluído) · "Próximos dias — confirmados" (read-only, dimmed).
+        The whole card is a link to the booking detail; the buttons sit above it. INFO_REQUESTED has a blue left border.
+    BFF: GET /bookings?status=PENDING,INFO_REQUESTED&from&to · GET /bookings?status=APPROVED&date=today · GET /bookings?status=APPROVED&from=tomorrow
 
-      1. "Precisa de ação"  — ALL PENDING + INFO_REQUESTED bookings, any date, sorted by
-                               scheduledAt ASC. BFF: GET /bookings?status=PENDING,INFO_REQUESTED
-      2. "Hoje"              — APPROVED bookings scheduled for today only. Empty in this
-                               example because "hoje" (16 jun) is in the PREVIOUS week when
-                               viewing this screen — there is no "today" inside next week's
-                               range, so this section is omitted here (see note below).
-      3. "Próximos dias"     — APPROVED bookings for future days within the displayed week.
-                               BFF: GET /bookings?status=APPROVED&from=<week-start>
-
-    MOBILE  (<1024px): topbar + booking cards + bottom tab nav
-    DESKTOP (≥1024px): sidebar + main with page title in topbar
-    Active tab: "Agenda" (first item in nav).
+    STATE: the NEXT window (25 ago – 7 set) — reached with the › chevron. Today is outside the window, so there is NO "Hoje" section
+    (BookingQueuePage renders it only when todayInWindow), and "Próximos dias" starts at the window's first day instead of tomorrow.
+    The › chevron keeps paging further, and ‹ comes back here: only these two windows are drawn.
   -->
 
-  <!-- Prototype banner -->
-  <div style="
-    background: #fef3c7; border-bottom: 1px solid #d97706;
-    padding: 0.375rem 1rem; font-size: 0.8125rem;
-    text-align: center; color: #92400e;
-  ">
-    Protótipo — Agenda, semana de 21–27 de junho. Mesma estrutura por urgência de 00-agenda.html (decisão "Queue scope", agenda.md).
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
   </div>
 
-  <!-- TOP BAR -->
   <div class="dashboard-topbar">
     <div class="topbar-brand">
       <div class="topbar-logo-mark">B</div>
@@ -146,14 +107,12 @@
     <h1 class="topbar-page-title">Agenda</h1>
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
-      <span class="topbar-date">Hoje, 16 de junho de 2026</span>
+      <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
     </div>
   </div>
 
-  <!-- LAYOUT -->
   <div class="dashboard-layout">
 
-    <!-- Sidebar — desktop only -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <div class="sidebar-logo">B</div>
@@ -162,56 +121,43 @@
           <p class="sidebar-tenant-slug">@beloauto</p>
         </div>
       </div>
-
       <nav class="sidebar-nav" style="margin-top: 0.5rem;">
-        <a class="sidebar-nav-item active" href="../agenda/00-agenda.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-          </svg>
+        <a class="sidebar-nav-item active" href="00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
           Agenda
         </a>
         <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
           Horários
         </a>
         <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
           Serviços
         </a>
         <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
           Fidelidade
         </a>
       </nav>
-
       <p class="sidebar-section-label">Somente Gerente</p>
       <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Recursos
+        </a>
         <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           Equipe
         </a>
         <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           Configurações
         </a>
         <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-          </svg>
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
           Hotsite
         </a>
       </nav>
-
       <div class="sidebar-footer">
         <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
         <div style="min-width: 0;">
@@ -219,224 +165,142 @@
           <span class="role-badge role-badge-manager">Gerente</span>
         </div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
-          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
       </div>
     </aside>
 
-    <!-- MAIN CONTENT -->
     <main class="main-content">
+      <div class="wk" data-testid="week-nav">
+        <div class="wk-head">
+          <a class="wk-chev" href="00-agenda.html" aria-label="Período anterior"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></a>
+          <span class="wk-month">Agosto 2026</span>
+          <button type="button" class="wk-chev" aria-label="Próximo período" title="Próximo período (janela não desenhada)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+        <div class="wk-strip"><button type="button" class="wk-day" data-date="2026-08-25" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Ter</span><span class="dn">25</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-26" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qua</span><span class="dn">26</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-27" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qui</span><span class="dn">27</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-28" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sex</span><span class="dn">28</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-29" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sáb</span><span class="dn">29</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-30" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Dom</span><span class="dn">30</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-31" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Seg</span><span class="dn">31</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-01" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Ter</span><span class="dn">1</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-02" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qua</span><span class="dn">2</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-09-03" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qui</span><span class="dn">3</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-04" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sex</span><span class="dn">4</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-05" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sáb</span><span class="dn">5</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-06" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Dom</span><span class="dn">6</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-09-07" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Seg</span><span class="dn">7</span><span class="dot"></span></button></div>
+      </div>
+
       <div class="dashboard-body">
-
-        <!--
-          WEEK STRIP — horizontal "this week at a glance" overview, not a filter.
-          Dots = day has any agendamento (pending or approved). No "today" pill in this
-          week — 16 jun (hoje) is in the previous week — so the strip shows plain highlight-free
-          days; clicking a day jumps to "Próximos dias" (approximation — see agenda.md open
-          questions on week-strip click targets).
-        -->
-        <!-- Week navigation -->
-        <div class="week-nav">
-          <a class="week-nav-btn" href="00-agenda.html" title="Semana anterior">‹</a>
-          <span class="week-nav-month">junho 2026</span>
-          <button class="week-nav-btn disabled" title="Próxima semana">›</button>
+        <div class="new-row">
+          <button type="button" class="new-btn" id="new-btn" aria-haspopup="menu" onclick="toggleNew()">+ Novo</button>
+          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a></div>
         </div>
 
-        <div class="week-strip">
-          <a class="week-day" href="#group-proximos">
-            <span class="week-day-label">Dom</span>
-            <span class="week-day-number">21</span>
-            <span class="week-day-dot empty"></span>
-          </a>
-          <a class="week-day" href="#group-acao">
-            <span class="week-day-label">Seg</span>
-            <span class="week-day-number">22</span>
-            <span class="week-day-dot"></span>
-          </a>
-          <a class="week-day" href="#group-proximos">
-            <span class="week-day-label">Ter</span>
-            <span class="week-day-number">23</span>
-            <span class="week-day-dot"></span>
-          </a>
-          <a class="week-day" href="#group-acao">
-            <span class="week-day-label">Qua</span>
-            <span class="week-day-number">24</span>
-            <span class="week-day-dot"></span>
-          </a>
-          <a class="week-day" href="#group-proximos">
-            <span class="week-day-label">Qui</span>
-            <span class="week-day-number">25</span>
-            <span class="week-day-dot empty"></span>
-          </a>
-          <a class="week-day" href="#group-proximos">
-            <span class="week-day-label">Sex</span>
-            <span class="week-day-number">26</span>
-            <span class="week-day-dot empty"></span>
-          </a>
-          <a class="week-day" href="#group-proximos">
-            <span class="week-day-label">Sáb</span>
-            <span class="week-day-number">27</span>
-            <span class="week-day-dot empty"></span>
-          </a>
-        </div>
-
-        <!--
-          COMPONENT: BookingQueuePage (EXISTS) — renders the 3 urgency sections inline.
-        -->
-
-        <!-- ── PRECISA DE AÇÃO (PENDING + INFO_REQUESTED, qualquer dia) ── -->
-        <div class="day-group-header" id="group-acao">
-          <span class="day-group-label">Precisa de ação</span>
-          <span class="day-group-line"></span>
-          <span class="day-group-count">2 agendamentos</span>
-        </div>
-
-        <!-- Card 1 — PENDING: Carlos Mendes — Seg 22/jun 10:00 -->
-        <a href="01-booking-detail.html" style="text-decoration: none; display: block;">
-          <div class="booking-card">
-            <div class="booking-card-header">
-              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#0891b2;">CM</div>
-              <div class="booking-card-info">
-                <p class="booking-card-name">Carlos Mendes</p>
-                <p class="booking-card-meta">Polimento Completo · R$ 220,00</p>
-                <p class="booking-card-meta">Seg, 22 de junho · 10:00 · 1 h</p>
-              </div>
-              <span class="status-badge status-pending">Pendente</span>
-            </div>
-            <div class="booking-card-actions">
-              <a href="02-approve-success.html" class="btn-primary" onclick="event.stopPropagation()">Aprovar</a>
-              <a href="01-booking-detail.html" class="btn-secondary" onclick="event.stopPropagation()">Ver detalhes</a>
-            </div>
-          </div>
-        </a>
-
-        <!-- Card 2 — INFO_REQUESTED: Beatriz Souza — Qua 24/jun 14:30 -->
-        <a href="01-booking-detail.html" style="text-decoration: none; display: block;">
-          <div class="booking-card" style="border-left: 3px solid var(--ba-primary);">
-            <div class="booking-card-header">
-              <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#7c3aed;">BS</div>
-              <div class="booking-card-info">
-                <p class="booking-card-name">Beatriz Souza</p>
-                <p class="booking-card-meta">Lavagem Simples · R$ 60,00</p>
-                <p class="booking-card-meta">Qua, 24 de junho · 14:30 · 30 min</p>
-              </div>
-              <span class="status-badge status-info">Aguard. info</span>
-            </div>
-            <div class="booking-card-actions">
-              <a href="02-approve-success.html" class="btn-primary" onclick="event.stopPropagation()">Aprovar</a>
-              <a href="01-booking-detail.html" class="btn-secondary" onclick="event.stopPropagation()">Ver detalhes</a>
-            </div>
-          </div>
-        </a>
-
-        <!--
-          "Hoje" section omitted — "hoje" (16 jun) does not fall inside this displayed week
-          (21–27 jun), so there is nothing to show here. In production this section simply
-          does not render when the displayed week excludes the current date.
-        -->
-
-        <!-- ── PRÓXIMOS DIAS (APPROVED futuros — só leitura, nada a fazer ainda) ── -->
-        <div class="day-group-header" id="group-proximos">
-          <span class="day-group-label">Próximos dias — confirmados</span>
-          <span class="day-group-line"></span>
-          <span class="day-group-count">1 agendamento</span>
-        </div>
-
-        <!-- Read-only row — no quick actions, no "Ver detalhes" link: nothing to do until the day arrives -->
-        <div class="booking-card" style="opacity: 0.7;">
-          <div class="booking-card-header">
-            <div class="list-avatar" style="width:2.25rem;height:2.25rem;font-size:0.8125rem;flex-shrink:0;background:#b45309;">LP</div>
-            <div class="booking-card-info">
-              <p class="booking-card-name">Luiza Prado</p>
-              <p class="booking-card-meta">Lavagem Completa · R$ 120,00</p>
-              <p class="booking-card-meta">Ter, 23 de junho · 09:00 · 1 h</p>
-            </div>
-            <span class="status-badge status-approved">Aprovado</span>
+        <section class="qsection" id="sec-action">
+          <div class="qsec" style="margin-top:0;"><h2 id="sec-action-title">Precisa de ação</h2><div class="line"></div><span class="count" id="sec-action-count">1 agendamento</span></div>
+        <div class="qwrap">
+          <a class="qlink" href="01-booking-detail.html" aria-label="Ver detalhes do agendamento de Marcos Teles"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Marcos Teles</span></span><div class="qbadges"><span class="qbadge b-guest">Visitante</span><span class="qbadge b-pend">Pendente</span></div></div>
+            <p class="qsvc">Lavagem Completa</p>
+            <div class="qrow3"><span>Quarta-feira, 26 de agosto · 10:00</span><span>R$ 120,00 · 1h</span></div>
+            <div class="qactions"><a href="02-approve-success.html" class="qbtn">Aprovar</a></div>
           </div>
         </div>
+        </section>
+        <section class="qsection" id="sec-upcoming">
+          <div class="qsec" style="margin-top:0;"><h2 id="sec-upcoming-title">Próximos dias — confirmados</h2><div class="line"></div><span class="count" id="sec-upcoming-count">2 agendamentos</span></div>
+        <div class="qwrap upcoming" data-date="2026-08-31">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Helena Duarte"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Helena Duarte</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Lavagem Simples</p>
+            <div class="qrow3"><span>Segunda-feira, 31 de agosto · 09:00</span><span>R$ 60,00 · 30min</span></div>
+            
+          </div>
+        </div>
+        <div class="qwrap upcoming" data-date="2026-09-03">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Rafael Nunes"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Rafael Nunes</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Polimento Completo</p>
+            <div class="qrow3"><span>Quinta-feira, 3 de setembro · 14:00</span><span>R$ 250,00 · 2h</span></div>
+            
+          </div>
+        </div>
+        <p class="qempty" id="sec-upcoming-empty" style="display:none;">Nenhum agendamento confirmado para o dia selecionado.</p>
+        </section>
 
       </div>
     </main>
 
-  </div><!-- /.dashboard-layout -->
+  </div>
 
-  <!-- BOTTOM NAV — mobile only -->
   <nav class="bottom-nav">
-    <a class="bottom-nav-item active" href="../agenda/00-agenda.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
+    <a class="bottom-nav-item active" href="00-agenda.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
       Agenda
     </a>
     <a class="bottom-nav-item" href="../horarios/00-schedule.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
       Horários
     </a>
     <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
       Serviços
     </a>
     <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
       Fidelidade
     </a>
     <button class="bottom-nav-item" onclick="openSheet()">
-      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>
-      </svg>
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
       Mais
     </button>
   </nav>
 
-  <!-- Bottom sheet — manager-only items -->
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
   <div class="bottom-sheet" id="manager-sheet">
     <div class="bottom-sheet-handle"></div>
     <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Recursos
+    </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Equipe
     </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
       Configurações
     </a>
     <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-      </svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       Hotsite
     </a>
     <div style="padding: 0.75rem 1.25rem; border-top: 1px solid var(--ba-secondary); margin-top: 0.25rem;">
       <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-        </svg>
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         Sair
       </a>
     </div>
   </div>
 
+
   <script>
-    function openSheet() {
-      document.getElementById('manager-sheet').classList.add('open');
-      document.getElementById('sheet-backdrop').classList.add('open');
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+    function toggleNew(force) {
+      var m = document.getElementById('new-menu');
+      var open = typeof force === 'boolean' ? force : !m.classList.contains('open');
+      m.classList.toggle('open', open);
     }
-    function closeSheet() {
-      document.getElementById('manager-sheet').classList.remove('open');
-      document.getElementById('sheet-backdrop').classList.remove('open');
+    document.addEventListener('click', function (e) { if (!e.target.closest('#new-btn') && !e.target.closest('#new-menu')) toggleNew(false); });
+    /* WeekNav day pick: filters the "Próximos dias" cards to that day (BookingQueuePage selectedDate); click again to clear. */
+    var picked = null;
+    function pickDay(btn) {
+      var d = btn.dataset.date;
+      picked = picked === d ? null : d;
+      document.querySelectorAll('.wk-day').forEach(function (b) { var on = b.dataset.date === picked; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); });
+      var cards = document.querySelectorAll('#sec-upcoming .qwrap');
+      var shown = 0;
+      cards.forEach(function (c) { var ok = !picked || c.dataset.date === picked; c.style.display = ok ? '' : 'none'; c.classList.toggle('emph', !!picked && ok); if (ok) shown++; });
+      var title = document.getElementById('sec-upcoming-title');
+      title.textContent = picked ? 'Próximos dias — ' + picked.slice(8, 10) + '/' + picked.slice(5, 7) : 'Próximos dias — confirmados';
+      document.getElementById('sec-upcoming-count').textContent = shown ? shown + (shown === 1 ? ' agendamento' : ' agendamentos') : '';
+      var empty = document.getElementById('sec-upcoming-empty');
+      if (empty) empty.style.display = shown ? 'none' : 'block';
     }
   </script>
 

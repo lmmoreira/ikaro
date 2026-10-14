@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda — M23-S13 (planejado) — BeloAuto</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>    .qsec { display: flex; align-items: center; gap: 0.5rem; margin: 1.25rem 0 0.75rem; }
+    .qsec h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 0; }
+    .qsec .line { flex: 1; height: 1px; background: #e5e7eb; }
+    .qsec .count { font-size: 0.6875rem; font-weight: 700; color: #9ca3af; }
+    .qwrap { position: relative; margin-bottom: 0.75rem; }
+    .qlink { position: absolute; inset: 0; z-index: 10; border-radius: 0.5rem; }
+    .qcard { background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 1rem; transition: box-shadow .15s; }
+    .qwrap:hover .qcard { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .qcard.selected { border-color: #3b82f6; background: rgba(239,246,255,0.6); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qrow1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .qname { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .qtext { font-size: 0.875rem; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qchk { position: relative; z-index: 20; width: 1.125rem; height: 1.125rem; flex-shrink: 0; accent-color: #2563eb; cursor: pointer; }
+    .qbadges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; flex-shrink: 0; }
+    .qbadge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600; }
+    .b-cust { background: #dbeafe; color: #1e40af; }
+    .b-guest { background: #fef3c7; color: #92400e; }
+    .b-ok { background: #dcfce7; color: #166534; }
+    .b-pend { background: #fef9c3; color: #854d0e; }
+    .b-done { background: #f1f5f9; color: #475569; }
+    .qsvc { font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qrow3 { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #4b5563; }
+    .qinfo { font-size: 0.75rem; color: #6b7280; margin: 0.375rem 0 0; }
+    .qinfo .alt { color: #15803d; }
+    .qinfo .none { color: #92400e; }
+    .qinfo.open { color: #b91c1c; font-weight: 600; }
+    .qactions { position: relative; z-index: 20; display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .qbtn { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; text-decoration: none; cursor: pointer; background: #2563eb; color: white; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qbtn:hover { opacity: 0.9; }
+    .qwrap.info .qcard { border-left: 3px solid #2563eb; }
+    .qwrap.upcoming .qcard { opacity: 0.7; }
+    .qwrap.upcoming:hover .qcard { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qwrap.upcoming.emph .qcard { opacity: 1; border-color: #3b82f6; background: rgba(239,246,255,0.6); }
+    .b-info { background: #dbeafe; color: #1e40af; }
+    .b-recur { background: #ccfbf1; color: #0f766e; }
+    .qempty { font-size: 0.875rem; color: #9ca3af; }
+    .qsection { margin-bottom: 1.5rem; }
+
+    /* WeekNav — mirrors apps/web/shells/dashboard/components/WeekNav.tsx */
+    .wk { background: white; }
+    .wk-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 0.5rem 1rem; }
+    .wk-chev { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 0.25rem; border: 1px solid #e5e7eb; background: white; color: #374151; cursor: pointer; text-decoration: none; }
+    .wk-chev:hover { background: #f3f4f6; }
+    .wk-month { font-size: 0.875rem; font-weight: 600; color: #1f2937; }
+    .wk-strip { display: flex; justify-content: space-evenly; overflow-x: auto; padding: 0.5rem 0.25rem; }
+    .wk-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; min-width: 2.5rem; border-radius: 0.625rem; padding: 0.5rem 0.375rem; border: none; background: none; cursor: pointer; color: #1f2937; font-family: inherit; }
+    .wk-day:hover { background: #f3f4f6; }
+    .wk-day .wd { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: #9ca3af; }
+    .wk-day .dn { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .wk-day .dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: transparent; }
+    .wk-day.act .dot { background: #2563eb; }
+    .wk-day.today { background: #2563eb; color: white; }
+    .wk-day.today .wd { color: #dbeafe; }
+    .wk-day.today.act .dot, .wk-day.sel.act .dot { background: rgba(255,255,255,0.8); }
+    .wk-day.sel { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .wk-day.sel .wd { color: #e5e7eb; }
+    .new-row { display: flex; justify-content: flex-end; margin-bottom: 1rem; position: relative; }
+    .new-btn { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 1rem; border-radius: 0.375rem; background: #2563eb; color: white; border: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .new-menu { display: none; position: absolute; right: 0; top: calc(100% + 0.25rem); width: 16rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.375rem; box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 0.25rem; z-index: 35; }
+    .new-menu.open { display: block; }
+    .new-menu a { display: block; padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; }
+    .new-menu a:hover { background: #f9fafb; }
+    .new-menu strong { display: block; font-size: 0.875rem; color: #111827; }
+    .new-menu span { display: block; font-size: 0.75rem; color: #6b7280; }
+    .bottom-nav-item.active { color: #2563eb; }
+    .filter-fab-wrap { position: fixed; bottom: 5.5rem; right: 1rem; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; }
+    @media (min-width: 1024px) { .filter-fab-wrap { bottom: 1.5rem; right: 1.5rem; } }
+    .filter-fab { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 0.875rem; border-radius: 9999px; border: 1px solid rgba(37,99,235,0.2); background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; }
+    .filter-fab .count { background: white; color: #2563eb; border-radius: 9999px; font-size: 0.6875rem; padding: 0 0.375rem; display: none; }
+    .filter-popover { display: none; width: min(19rem, calc(100vw - 2rem)); border-radius: 1rem; border: 1px solid var(--ba-secondary); background: white; box-shadow: 0 20px 45px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 0.75rem; }
+    .filter-popover.open { display: block; }
+    .filter-popover-header { padding: 0.75rem 1rem; }
+    .filter-popover-header p.title { font-size: 0.875rem; font-weight: 600; color: #111827; margin: 0; }
+    .filter-popover-header p.desc { font-size: 0.75rem; color: #6b7280; margin: 0.2rem 0 0; }
+    .filter-popover-options { max-height: 20rem; overflow-y: auto; padding: 0.375rem 0.5rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .filter-group-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9ca3af; padding: 0.5rem 0.5rem 0.25rem; }
+    .filter-option { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; border-radius: 0.75rem; cursor: pointer; }
+    .filter-option:hover { background: #f9fafb; }
+    .filter-option input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .filter-option span { font-size: 0.8125rem; font-weight: 500; color: #111827; flex: 1; }
+    .filter-option em { font-style: normal; font-size: 0.6875rem; font-weight: 700; color: #9ca3af; }
+    .filter-popover-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; }
+    .filter-popover-footer button { border: none; background: none; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.5rem; }
+    .filter-popover-footer button.ghost { color: #6b7280; }
+    .filter-popover-footer button.outline { color: var(--ba-text); border: 1px solid var(--ba-secondary); }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: BookingQueuePage — PLANNED TARGET OF M23-S13 (UC-071)        NOT BUILT YET
+
+    The same screen as 00-agenda.html (the live page) PLUS the three things M23-S13 adds. When S13 ships, fold this file's differences back into
+    00-agenda.html (S13's mark-done step) and delete this file — 00-agenda.html must always equal what is deployed.
+      1. A "Recorrência" card in "Precisa de ação": a recurring-schedule request in PENDING_APPROVAL, teal pill, "Decidir até HH:mm" (the 30-minute
+         approval hold). NO quick "Aprovar": one decision creates every occurrence, so it always goes through 08-recurring-schedule-approval.html.
+         BFF: GET /recurring-booking-schedules?status=PENDING_APPROVAL. It sorts first because it expires first.
+      2. The floating "Filtrar agenda" balloon (same trigger + popover shape as Horários' ResourceFilterMenu / ScheduleStatusFilterMenu): shows/hides
+         Precisa de ação → Agendamentos | Recorrências, Confirmados → Hoje | Próximos dias. Default everything visible; "Padrão" resets.
+      3. (Not S13 — M23-S19) the "Recorrência" entry of "+ Novo", tagged in red, because 09/09b/09c prototype that flow.
+    The card, week strip, sections and shell are identical to the live page.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo-mark">B</div>
+      <span class="topbar-tenant-name">BeloAuto Demo</span>
+    </div>
+    <h1 class="topbar-page-title">Agenda</h1>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div>
+          <p class="sidebar-tenant-name">BeloAuto Demo</p>
+          <p class="sidebar-tenant-slug">@beloauto</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item active" href="00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div style="min-width: 0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="wk" data-testid="week-nav">
+        <div class="wk-head">
+          <button type="button" class="wk-chev" aria-label="Período anterior" title="Período anterior (janela não desenhada)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></button>
+          <span class="wk-month">Agosto 2026</span>
+          <a class="wk-chev" href="00-agenda-next.html" aria-label="Próximo período"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></a>
+        </div>
+        <div class="wk-strip"><button type="button" class="wk-day today act" data-date="2026-08-11" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Ter</span><span class="dn">11</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-12" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qua</span><span class="dn">12</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-13" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qui</span><span class="dn">13</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-14" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sex</span><span class="dn">14</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-15" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sáb</span><span class="dn">15</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-16" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Dom</span><span class="dn">16</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-17" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Seg</span><span class="dn">17</span><span class="dot"></span></button><button type="button" class="wk-day act" data-date="2026-08-18" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Ter</span><span class="dn">18</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-19" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qua</span><span class="dn">19</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-20" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Qui</span><span class="dn">20</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-21" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sex</span><span class="dn">21</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-22" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Sáb</span><span class="dn">22</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-23" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Dom</span><span class="dn">23</span><span class="dot"></span></button><button type="button" class="wk-day" data-date="2026-08-24" aria-pressed="false" onclick="pickDay(this)"><span class="wd">Seg</span><span class="dn">24</span><span class="dot"></span></button></div>
+      </div>
+
+      <div class="dashboard-body">
+        <div class="new-row">
+          <button type="button" class="new-btn" id="new-btn" aria-haspopup="menu" onclick="toggleNew()">+ Novo</button>
+          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a><a role="menuitem" href="09-escolher-cliente.html?tipo=recorrencia#recentes"><strong>Recorrência <em style="font-style:normal;color:#b91c1c;font-size:0.6875rem;">(M23-S19)</em></strong><span>Uma reserva que se repete toda semana, em nome de um cliente</span></a></div>
+        </div>
+
+        <section class="qsection" id="sec-action">
+          <div class="qsec" style="margin-top:0;"><h2 id="sec-action-title">Precisa de ação</h2><div class="line"></div><span class="count" id="sec-action-count">4 agendamentos · 1 recorrência</span></div>
+        <div class="qwrap recur" data-kind="recurring">
+          <a class="qlink" href="08-recurring-schedule-approval.html" aria-label="Ver pedido de recorrência de Ana Costa"></a>
+          <div class="qcard" style="border-left:3px solid #0f766e;">
+            <div class="qrow1"><span class="qname"><span class="qtext">Ana Costa</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-recur">Recorrência</span></div></div>
+            <p class="qsvc">Sala Aurora · toda terça · 10:00–12:00</p>
+            <div class="qrow3"><span>19 ago → 11 nov · 13 reservas</span><span></span></div>
+            <p class="qinfo" style="color:#92400e;font-weight:600;">Decidir até 09:30</p>
+            <div class="qactions"><a href="08-recurring-schedule-approval.html" class="qbtn">Ver pedido</a></div>
+          </div>
+        </div>
+        <div data-kind="booking" class="qwrap">
+          <a class="qlink" href="01-booking-detail.html" aria-label="Ver detalhes do agendamento de João Silva"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">João Silva</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-pend">Pendente</span></div></div>
+            <p class="qsvc">Lavagem Simples</p>
+            <div class="qrow3"><span>Hoje · 10:00</span><span>R$ 60,00 · 30min</span></div>
+            <div class="qactions"><a href="02-approve-success.html" class="qbtn">Aprovar</a></div>
+          </div>
+        </div>
+        <div data-kind="booking" class="qwrap">
+          <a class="qlink" href="01-booking-detail.html" aria-label="Ver detalhes do agendamento de Maria Oliveira"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Maria Oliveira</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-pend">Pendente</span></div></div>
+            <p class="qsvc">Polimento Completo</p>
+            <div class="qrow3"><span>Hoje · 11:00</span><span>R$ 250,00 · 2h</span></div>
+            <div class="qactions"><a href="02-approve-success.html" class="qbtn">Aprovar</a></div>
+          </div>
+        </div>
+        <div data-kind="booking" class="qwrap info">
+          <a class="qlink" href="01-booking-detail.html" aria-label="Ver detalhes do agendamento de Carlos Andrade"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Carlos Andrade</span></span><div class="qbadges"><span class="qbadge b-guest">Visitante</span><span class="qbadge b-info">Aguardando info</span></div></div>
+            <p class="qsvc">Lavagem com Coleta</p>
+            <div class="qrow3"><span>Hoje · 14:00</span><span>R$ 90,00 · 45min</span></div>
+            <div class="qactions"><a href="02-approve-success.html" class="qbtn">Aprovar</a></div>
+          </div>
+        </div>
+        <div data-kind="booking" class="qwrap">
+          <a class="qlink" href="01-booking-detail.html" aria-label="Ver detalhes do agendamento de Fernanda Costa"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Fernanda Costa</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-pend">Pendente</span></div></div>
+            <p class="qsvc">Higienização Interna</p>
+            <div class="qrow3"><span>Amanhã · 09:00</span><span>R$ 180,00 · 1h30</span></div>
+            <div class="qactions"><a href="02-approve-success.html" class="qbtn">Aprovar</a></div>
+          </div>
+        </div>
+        </section>
+        <div id="block-today">
+        <section class="qsection" id="sec-today">
+          <div class="qsec" style="margin-top:0;"><h2 id="sec-today-title">Hoje — confirmados</h2><div class="line"></div><span class="count" id="sec-today-count">1 agendamento</span></div>
+        <div class="qwrap">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Paulo Mendes"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Paulo Mendes</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Lavagem Simples</p>
+            <div class="qrow3"><span>16:00</span><span>R$ 60,00 · 30min</span></div>
+            <div class="qactions"><a href="04-mark-complete.html" class="qbtn">Marcar concluído</a></div>
+          </div>
+        </div>
+        </section>
+        </div>
+        <div id="block-upcoming">
+        <section class="qsection" id="sec-upcoming">
+          <div class="qsec" style="margin-top:0;"><h2 id="sec-upcoming-title">Próximos dias — confirmados</h2><div class="line"></div><span class="count" id="sec-upcoming-count">3 agendamentos</span></div>
+        <div class="qwrap upcoming" data-date="2026-08-13">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Ricardo Alves"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Ricardo Alves</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Lavagem Completa</p>
+            <div class="qrow3"><span>Quinta-feira, 13 de agosto · 09:00</span><span>R$ 120,00 · 1h</span></div>
+            
+          </div>
+        </div>
+        <div class="qwrap upcoming" data-date="2026-08-14">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Luciana Prado"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Luciana Prado</span></span><div class="qbadges"><span class="qbadge b-guest">Visitante</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Higienização Interna</p>
+            <div class="qrow3"><span>Sexta-feira, 14 de agosto · 15:00</span><span>R$ 180,00 · 1h30</span></div>
+            
+          </div>
+        </div>
+        <div class="qwrap upcoming" data-date="2026-08-18">
+          <a class="qlink" href="03-booking-detail-approved.html" aria-label="Ver detalhes do agendamento de Sandra Rocha"></a>
+          <div class="qcard">
+            <div class="qrow1"><span class="qname"><span class="qtext">Sandra Rocha</span></span><div class="qbadges"><span class="qbadge b-cust">Cliente</span><span class="qbadge b-ok">Aprovado</span></div></div>
+            <p class="qsvc">Lavagem Simples</p>
+            <div class="qrow3"><span>Terça-feira, 18 de agosto · 10:30</span><span>R$ 60,00 · 30min</span></div>
+            
+          </div>
+        </div>
+<p class="qempty" id="sec-upcoming-empty" style="display:none;">Nenhum agendamento confirmado para o dia selecionado.</p>        </section>
+        </div>
+        <div class="queue-empty" id="queue-empty" style="display:none;text-align:center;padding:2rem 1rem;"><p class="qempty">Nada para mostrar com o filtro atual.</p><button type="button" class="qbtn" style="margin-top:0.75rem;" onclick="resetFilter()">Limpar filtro</button></div>
+
+      </div>
+    </main>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item active" href="00-agenda.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="../horarios/00-schedule.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+    <button class="bottom-nav-item" onclick="openSheet()">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Mais
+    </button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Recursos
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Equipe
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Hotsite
+    </a>
+    <div style="padding: 0.75rem 1.25rem; border-top: 1px solid var(--ba-secondary); margin-top: 0.25rem;">
+      <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </a>
+    </div>
+  </div>
+
+  <!-- Floating filter balloon — synced to Horários' ResourceFilterMenu / ScheduleStatusFilterMenu shape -->
+  <div class="filter-fab-wrap" id="filter-wrap">
+    <div class="filter-popover" id="filter-popover">
+      <div class="filter-popover-header">
+        <p class="title">Mostrar na agenda</p>
+        <p class="desc">Marque o que deve aparecer na lista.</p>
+      </div>
+      <div class="filter-popover-options">
+        <p class="filter-group-label">Precisa de ação</p>
+        <label class="filter-option"><input type="checkbox" data-filter="booking" checked><span>Agendamentos</span><em>4</em></label>
+        <label class="filter-option"><input type="checkbox" data-filter="recurring" checked><span>Recorrências</span><em>1</em></label>
+        <p class="filter-group-label">Confirmados</p>
+        <label class="filter-option"><input type="checkbox" data-filter="hoje" checked><span>Hoje</span><em>1</em></label>
+        <label class="filter-option"><input type="checkbox" data-filter="proximos" checked><span>Próximos dias</span><em>1</em></label>
+      </div>
+      <div class="filter-popover-footer">
+        <button type="button" class="ghost" onclick="resetFilter()">Padrão</button>
+        <button type="button" class="outline" onclick="toggleFilter(false)">Fechar</button>
+      </div>
+    </div>
+    <button type="button" class="filter-fab" id="filter-fab" aria-haspopup="menu" aria-expanded="false" onclick="toggleFilter()">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtrar agenda <span class="count" id="filter-count"></span>
+    </button>
+  </div>
+
+
+  <script>
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+    function toggleNew(force) {
+      var m = document.getElementById('new-menu');
+      var open = typeof force === 'boolean' ? force : !m.classList.contains('open');
+      m.classList.toggle('open', open);
+    }
+    document.addEventListener('click', function (e) { if (!e.target.closest('#new-btn') && !e.target.closest('#new-menu')) toggleNew(false); });
+    /* WeekNav day pick: filters the "Próximos dias" cards to that day (BookingQueuePage selectedDate); click again to clear. */
+    var picked = null;
+    function pickDay(btn) {
+      var d = btn.dataset.date;
+      picked = picked === d ? null : d;
+      document.querySelectorAll('.wk-day').forEach(function (b) { var on = b.dataset.date === picked; b.classList.toggle('sel', on); b.setAttribute('aria-pressed', on); });
+      var cards = document.querySelectorAll('#sec-upcoming .qwrap');
+      var shown = 0;
+      cards.forEach(function (c) { var ok = !picked || c.dataset.date === picked; c.style.display = ok ? '' : 'none'; c.classList.toggle('emph', !!picked && ok); if (ok) shown++; });
+      var title = document.getElementById('sec-upcoming-title');
+      title.textContent = picked ? 'Próximos dias — ' + picked.slice(8, 10) + '/' + picked.slice(5, 7) : 'Próximos dias — confirmados';
+      document.getElementById('sec-upcoming-count').textContent = shown ? shown + (shown === 1 ? ' agendamento' : ' agendamentos') : '';
+      var empty = document.getElementById('sec-upcoming-empty');
+      if (empty) empty.style.display = shown ? 'none' : 'block';
+    }
+
+    var boxes = document.querySelectorAll('[data-filter]');
+    function toggleFilter(force) {
+      var pop = document.getElementById('filter-popover');
+      var open = typeof force === 'boolean' ? force : !pop.classList.contains('open');
+      pop.classList.toggle('open', open);
+      document.getElementById('filter-fab').setAttribute('aria-expanded', open);
+    }
+    function applyFilter() {
+      var on = {};
+      boxes.forEach(function (b) { on[b.dataset.filter] = b.checked; });
+      var n = { booking: 0, recurring: 0 };
+      document.querySelectorAll('#sec-action [data-kind]').forEach(function (el) {
+        el.style.display = on[el.dataset.kind] ? '' : 'none';
+        if (on[el.dataset.kind]) n[el.dataset.kind]++;
+      });
+      document.getElementById('sec-action').style.display = (n.booking + n.recurring) ? '' : 'none';
+      document.getElementById('block-today').style.display = on.hoje ? '' : 'none';
+      document.getElementById('block-upcoming').style.display = on.proximos ? '' : 'none';
+      var parts = [];
+      if (n.booking) parts.push(n.booking + (n.booking === 1 ? ' agendamento' : ' agendamentos'));
+      if (n.recurring) parts.push(n.recurring + (n.recurring === 1 ? ' recorrência' : ' recorrências'));
+      document.getElementById('sec-action-count').textContent = parts.join(' · ');
+      var hidden = Array.prototype.filter.call(boxes, function (b) { return !b.checked; }).length;
+      var c = document.getElementById('filter-count');
+      c.style.display = hidden ? 'inline' : 'none';
+      c.textContent = hidden;
+      var any = (n.booking + n.recurring) || on.hoje || on.proximos;
+      document.getElementById('queue-empty').style.display = any ? 'none' : 'block';
+    }
+    function resetFilter() { boxes.forEach(function (b) { b.checked = true; }); applyFilter(); }
+    boxes.forEach(function (b) { b.addEventListener('change', applyFilter); });
+    applyFilter();
+  </script>
+
+</body>
+</html>

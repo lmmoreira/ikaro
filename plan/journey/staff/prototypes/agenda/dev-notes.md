@@ -277,6 +277,18 @@ After any successful action, **the admin stays on the detail page**. Do not call
 
 ---
 
+## Queue screens redrawn to match the shipped page (2026-10-14)
+
+`00-agenda.html` and `00-agenda-next.html` had drifted from `BookingQueuePage` (avatar on the card, one status badge, price inside the service line, a "Ver detalhes" button, a strip that was not a real `WeekNav`, a sidebar without "Recursos", a two-item "+ Novo" menu, and the unbuilt M23-S13 parts mixed in). They now mirror the code, and **they must stay an exact copy of what is deployed**:
+
+- **Card** = `BookingCard.tsx`: name + two pills (Cliente/Visitante, then the status), service line, date/time left and `price · duration` right, one small button, the whole card links to the detail (`z-20` buttons above the link). Variants: `action-needed` (Aprovar; `INFO_REQUESTED` has a blue left border), `today` (time only, Marcar concluído), `upcoming` (dimmed, no button). The prototype CSS (`.qcard`, `.qbadge`, `.qbtn`) mirrors the component's Tailwind classes; `tokens.css`' `.booking-card` is the older shape and is not used on these screens.
+- **`WeekNav`**: month label ("Agosto 2026") + chevrons, a strip of `welcomeStaffScreenDays` days (default 14, scrolls on mobile); today = filled blue, a picked day = near-black with a ring, a dot = the day has a booking. Picking a day filters "Próximos dias" (title "Próximos dias — dd/mm", cards emphasized); picking it again clears it. The ‹ chevron of the first window and the › of the second are not drawn (only two windows exist).
+- **Shell**: sidebar and "Mais" sheet list Recursos, Equipe, Configurações, Hotsite under "Somente Gerente"; "Leads" appears only when the LEAD_FORM module is on, so it is not drawn for this tenant.
+- **`00c-agenda-s13.html`** is the planned target of `M23-S13` (and the "Recorrência" entry of `M23-S19`): the same screen plus the recurrence card, the "Filtrar agenda" balloon and the second "+ Novo" item. When S13 ships, fold the difference into `00-agenda.html` and delete the `00c` file.
+- **Not yet re-checked against the code:** the other screens in this folder (`01`–`10b`) — a separate pass; `01-booking-detail.html` and `03-…` may carry the same kind of drift.
+
+---
+
 ## WeekNav — shared week navigation row
 
 **File:** `apps/web/shells/dashboard/components/WeekNav.tsx` (✅ Exists — shared with horarios `SchedulePage`, as originally planned)
@@ -401,11 +413,11 @@ export interface CompleteBookingResponse {
 > Everything above this line is shipped, as is the UC-074 section below (M23-S27). The rest below is new, unimplemented scope. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 **Prototype screens (revised 2026-10-08):**
-- `00-agenda.html` (extended) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.
+- `00c-agenda-s13.html` (the planned target; `00-agenda.html` is the exact shipped page) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.
 - `08-recurring-schedule-approval.html` — rebuilt on `01-booking-detail.html`'s `detail-layout` (details centred, action panel right on desktop, fixed action bar on mobile, bottom nav hidden). Approve and reject each open a confirmation sheet. Reject has **no reason field** — `POST …/reject` takes no body.
 - `08b-recurring-approval-result.html` — the detail page in its decided/failed states (`#aprovada`, `#recusada`, `#conflito`, `#expirada`, `#telefone`, `#falha`) — result banner on top of the centre column, the request data kept visible, the right-hand action panel (mobile bar) swapped to "Voltar à agenda" or, when the request is still pending, to retry/reject. Same convention as `01c`/`04b`/`05c`. `09` and `09b` follow the create-form convention of `servicos/02` (form in the centre, action panel on the right, fixed action bar on mobile), and `09c` follows the inline-state convention too: the staff-creation outcomes are banners over a recap of the pattern with an action panel, not a separate result page.
 
-**"+ Novo" menu (added 2026-10-08):** one button above the queue (`00-agenda.html`) opening a menu — *Agendamento* (UC-108, M23-S39/S40) and *Recorrência* (UC-070, M23-S19). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
+**"+ Novo" menu (added 2026-10-08):** one button above the queue opening a menu — *Agendamento* (UC-108, M23-S39/S40, live: in `00-agenda.html`) and *Recorrência* (UC-070, M23-S19, planned: only in `00c-agenda-s13.html`, tagged). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
 
 ### Staff creates a booking on a customer's behalf — `09`, `10`, `10b` (UC-108, M23-S39 backend/BFF + M23-S40 frontend)
 

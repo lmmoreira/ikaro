@@ -104,7 +104,7 @@ flowchart TD
 - [ ] **Notification on approve** — `BookingApproved` event triggers email to customer. Confirm the "email enviado" note in the success banner is accurate for the MVP notification flow.
 - [ ] **INFO_REQUESTED → PENDING re-entry** — UC-005 Alt flow A2 (customer submits info) is handled in `customer/` and `guest/` journeys. Confirm: does the booking return to the PENDING queue automatically when the customer responds, or must staff re-find it manually?
 - [x] **Queue surfacing of APPROVED bookings** — **Resolved 2026-06-16** by the "Hoje" and "Próximos dias" sections above — see `00-agenda.html`.
-- [ ] **Week-strip click target for future days** — clicking any future day-pill jumps to the single "Próximos dias" section (not split per-day), so a future PENDING booking (which lives in "Precisa de ação" instead) won't actually be visible at that anchor. This is a known approximation in the prototype — decide whether production needs real per-day filtering/highlighting or whether this is acceptable.
+- [x] **Week-strip click target for future days** — **Resolved by the shipped page (redrawn 2026-10-14):** picking a day in `WeekNav` filters the "Próximos dias — confirmados" section to that day (title becomes "Próximos dias — dd/mm", cards are emphasized; clicking the day again clears it). It does not touch "Precisa de ação" (PENDING bookings of any date stay there).
 - [ ] **Mark-complete UX** — per-line `actualPriceCharged` override: inline editable fields next to each line (as shown in UC-009's doc example), or a separate "review charges" step before confirming? Photo upload — does it reuse the same upload component as the guest/customer "before" photos (UC-001 step 8)?
 - [x] **Reschedule calendar reuse** — does `RescheduleBookingPage` reuse the guest/customer booking flow's `AvailabilityCarousel` + `SlotPicker` (UC-011), or does staff need a simplified version? — **Resolved.** Confirmed reused; reschedule duration is frozen at the existing booking's `totalDurationMins` (no basket/duration recompute) (`M13-S19`).
 - [x] **Admin cancel reason validation** — backend `CancelBookingAsAdminBody.reason` is optional with no minimum length (unlike UC-004 Reject's required ≥10 chars). — **Resolved.** Genuinely optional, no minimum length, confirmed against `CancelBookingAsAdminBody` (`M13-S19`).
@@ -117,13 +117,14 @@ Folder: `staff/prototypes/agenda/`
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
 | `index.html` | Navigation hub + validation checklist | — | — | ✅ Criado |
-| `00-agenda.html` | Booking queue — "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje" → "Próximos dias". **M23-S13 extends it:** recurrence-request cards in "Precisa de ação" + the floating "Filtrar agenda" balloon + "+ Nova recorrência" | UC-071, UC-070 | M125-S03 · M23-S13 · M23-S19 | ✅ Criado (base) · ❓ Gap (M23 extension) |
+| `00-agenda.html` | Booking queue — an **exact copy of the shipped page** (redrawn 2026-10-14 after drifting): `WeekNav`, "+ Novo" (Agendamento only), "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje — confirmados" → "Próximos dias — confirmados", real `BookingCard` | UC-003, UC-008, UC-009 | M13-S19 | ✅ Criado |
+| `00c-agenda-s13.html` | Booking queue — **planned target of M23-S13**: the same screen plus the "Recorrência" card, the "Filtrar agenda" balloon and the "Recorrência" entry of "+ Novo" (M23-S19). Folded into `00-agenda.html` and deleted when S13 ships | UC-071, UC-070 | M23-S13 · M23-S19 | ❓ Gap (M23 extension) |
 | `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado |
 | `01b-slot-conflict.html` | Slot conflict error + adjacent slot picker | UC-003 Alt A1 | M125-S05 | ✅ Criado |
 | `01c-reject-success.html` | Reject success inline state (actionState = 'rejected') | UC-004 | M125-S05 | ✅ Criado |
 | `01d-info-success.html` | Info-request success inline state (actionState = 'info-requested') | UC-005 | M125-S05 | ✅ Criado |
 | `02-approve-success.html` | Approval success (prototype page; production = inline) | UC-003 | M125-S05 | ✅ Criado |
-| `00-agenda-next.html` | Booking queue — next-week view (week-nav demo pair with `00-agenda.html`) | — | — | ✅ Criado |
+| `00-agenda-next.html` | Booking queue — the next `welcomeStaffScreenDays` window (reached with ›): no "Hoje" section, "Próximos dias" starts at the window's first day | — | — | ✅ Criado |
 | `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions) | UC-008, UC-009 | — | ✅ Criado |
 | `03b-cancel-success.html` | Cancel success inline state, triggered from `03-booking-detail-approved.html` | UC-008 | — | ✅ Criado |
 | `04-mark-complete.html` | Mark complete flow | UC-009 | — | ✅ Criado |
@@ -163,7 +164,7 @@ Folder: `staff/prototypes/agenda/`
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Fila["/dashboard/bookings<br/>Agenda — 'Precisa de ação'<br/>cards 'Recorrência' + balão 'Filtrar agenda'<br/>(00-agenda)"] -->|"'Ver pedido'"| Pedido["❓ GAP: detalhe do pedido<br/>(08-recurring-schedule-approval)"]
+    Fila["/dashboard/bookings<br/>Agenda — 'Precisa de ação'<br/>cards 'Recorrência' + balão 'Filtrar agenda'<br/>(00c-agenda-s13)"] -->|"'Ver pedido'"| Pedido["❓ GAP: detalhe do pedido<br/>(08-recurring-schedule-approval)"]
     Pedido -->|"'Aprovar recorrência' → confirmar"| ApAprova(("POST …/approve"))
     Pedido -->|"'Recusar' → confirmar"| ApRecusa(("POST …/reject"))
     ApAprova -->|"200"| R1["❓ GAP: aprovada (08b #aprovada)"]
@@ -248,7 +249,7 @@ flowchart TD
 - [x] **Recurring queue placement — decided 2026-10-08:** recurrence requests fold into the existing "Precisa de ação" block (not a tab, not a separate route), distinguished by badge and filterable through the "Filtrar agenda" balloon. The detail route is proposed as `/dashboard/bookings/recurring/:scheduleId`.
 - [ ] **Filter persistence.** Reset on reload (drawn) or remembered per user — decide at `M23-S13`'s `/story-discovery`, following whatever Horários' filters do.
 - [ ] **Merged-queue paging.** Bookings and recurrence requests come from two endpoints (`GET /bookings` and the paginated `GET /recurring-booking-schedules?status=PENDING_APPROVAL`); how they are merged and sorted, and whether recurrences page through `pagination.hasMore`, is locked at `M23-S13`'s discovery.
-- [ ] **Week strip.** Its day links jump to "Hoje" / "Próximos dias"; when those blocks are filtered out the links need a fallback (do nothing, or switch the block back on).
+- [ ] **Week strip with the "Filtrar agenda" balloon (M23-S13).** Picking a day filters "Próximos dias"; when that block is filtered out by the balloon the pick has nothing to act on — decide at S13 whether it does nothing or switches the block back on.
 - [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
 - [x] **Customer and manager e-mails — shipped in `M23-S28` (corrected 2026-10-08; this bullet used to say nobody is notified).** The customer is e-mailed when a schedule becomes `ACTIVE` (at creation for an `AUTO_CONFIRM` service, at approval otherwise), when it is rejected, when the request expires, and when it is ended. Managers get an alert when a `MANUAL_APPROVAL` request is waiting. `08` and `08b` therefore say "Ana recebe um e-mail". `09b` still never promises one — revisit at `M23-S19`.
 - [ ] **Route.** Proposed `/dashboard/bookings/recurring/new`; a brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles.
