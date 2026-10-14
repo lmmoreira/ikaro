@@ -196,6 +196,19 @@ describe.each([
   );
 });
 
+describe('RecurringScheduleDetail — ENDED and already renewed', () => {
+  it('offers no "Renovar" once the server drops the renewable flag (a successor exists)', () => {
+    renderDetail(makeSchedule({ status: 'ENDED', renewable: false }), {
+      items: [makeBooking('b1', 'COMPLETED')],
+      total: 1,
+      page: 1,
+      limit: 5,
+    });
+
+    expect(screen.queryByTestId('renew-schedule-button')).not.toBeInTheDocument();
+  });
+});
+
 describe('RecurringScheduleDetail — PENDING_APPROVAL', () => {
   it('renders the under-review view and reads no bookings', () => {
     renderDetail(

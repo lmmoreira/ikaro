@@ -155,8 +155,11 @@ describe('recurringScheduleRenewPath', () => {
 
 describe('offersRenewal', () => {
   it.each([
+    ['ENDED', true, true],
+    // A response from before the server sent the flag (rolling deploy): offered, as it was.
     ['ENDED', undefined, true],
-    ['ENDED', false, true],
+    // The customer already renewed it: the server drops the flag.
+    ['ENDED', false, false],
     ['ACTIVE', true, true],
     ['ACTIVE', false, false],
     // A response from before the server sent the flag (rolling deploy): not renewable.

@@ -204,6 +204,25 @@ describe('RecurringScheduleList — "Renovar"', () => {
     );
   });
 
+  it('offers none on an ended schedule the server no longer flags renewable (already renewed)', () => {
+    render(
+      <RecurringScheduleList
+        tenantSlug="lavacar"
+        schedules={[
+          makeSchedule({ id: 'e-yes', status: 'ENDED', renewable: true }),
+          makeSchedule({ id: 'e-renewed', status: 'ENDED', renewable: false }),
+        ]}
+      />,
+    );
+
+    const actions = screen.getAllByTestId('renew-schedule-action');
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=e-yes',
+    );
+  });
+
   it('offers it on an active schedule the server flags renewable, and on no other active one', () => {
     render(
       <RecurringScheduleList

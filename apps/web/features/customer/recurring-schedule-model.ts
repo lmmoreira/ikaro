@@ -57,14 +57,16 @@ export function recurringScheduleRenewPath(tenantSlug: string, scheduleId: strin
 }
 
 /**
- * The "Renovar" action: always on an ended schedule, and on a running one only when the server
- * flags it `renewable` (it is inside the tenant's renewal window — a setting the customer cannot
- * read). A missing flag, from an older response during a rolling deploy, counts as not renewable.
+ * The "Renovar" action, following the server's `renewable` flag (an active schedule inside the
+ * tenant's renewal window — a setting the customer cannot read — or an ended one, in both cases only
+ * while the customer has no successor schedule). A running schedule needs the flag to be true; an
+ * ended one is offered unless the flag is false, so an older response without the flag (a rolling
+ * deploy) keeps showing it as it did before the flag existed.
  */
 export function offersRenewal(
   schedule: Pick<RecurringBookingScheduleListItem, 'status' | 'renewable'>,
 ): boolean {
-  if (schedule.status === 'ENDED') return true;
+  if (schedule.status === 'ENDED') return schedule.renewable !== false;
   return schedule.status === 'ACTIVE' && schedule.renewable === true;
 }
 
