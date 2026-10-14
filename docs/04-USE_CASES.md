@@ -1304,12 +1304,12 @@ Returns:
 - **Preconditions:** Customer owns at least one availability alert for the tenant (an active one to edit or cancel; a finished one is still readable as history).
 - **Trigger:** Customer opens "Meus avisos."
 - **Main Flow:**
-  1. Customer opens "Meus avisos" and views their active alerts.
-  2. Customer opens an alert's detail page and cancels it from the action pane, after a confirmation page — the same pattern as cancelling a booking (`bookings/[id]` → `bookings/[id]/cancel`). *(Editing criteria or expiry is supported by the API — `PATCH /availability-alerts/:id` — but not offered in the UI yet; to change criteria the customer cancels and creates a new alert from the booking flow, M23-S12.)*
+  1. Customer opens "Meus avisos" and views their alerts: the active ones first, then the notified and expired ones as history. A cancelled alert is no longer shown to the customer (list, count and detail alike).
+  2. Customer opens an alert's detail page and cancels it from the action pane, after a confirmation page — the same pattern as cancelling a booking (`bookings/[id]` → `bookings/[id]/cancel`). *(Editing criteria or expiry is supported by the API — `PATCH /availability-alerts/:id` — but not offered in the UI yet; to change criteria the customer cancels and creates a new alert from the booking flow, M23-S31.)*
   3. System expires alerts automatically and sends at most one deduplicated notification per matching availability window.
 - **Alternative Flows:**
   - **A2: Edit that sets an invalid duration** → On a `CUSTOMER_SELECTED` service, a `PATCH` that sets `durationMinutes` to an out-of-range value, or clears it with `null`, is refused with `BOOKING_DURATION_OUT_OF_RANGE` (M23-S34); a `PATCH` that does not send `durationMinutes` is not re-validated.
-  - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead. Finished alerts (notified, expired, cancelled) are deleted automatically 90 days after their expiry date (M23-S06).
+  - **A1: Alert already notified or expired** → Remains visible as history but cannot be edited/reactivated; customer creates a new alert instead. An `ACTIVE` alert whose `expiresAt` has passed counts as expired before the expiry job runs: the customer views show it as history, and a cancel or edit of it is refused with `409 BOOKING_ALERT_NOT_EDITABLE` (M23-S43). A `409` on cancel returns the customer to the list, where the alert already sits under history. Finished alerts (notified, expired, cancelled) are deleted automatically 90 days after their expiry date (M23-S06).
 - **Postconditions:** Alerts remain non-reserving customer intent; every notification attempt is auditable. An alert is never auto-cancelled just because the customer's underlying need was met through a different channel — independent intents by design.
 - **Events Triggered:** `AvailabilityAlertUpdated`/`AvailabilityAlertCancelled`/`AvailabilityAlertExpired`.
 
