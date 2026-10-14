@@ -437,7 +437,7 @@ npx @stoplight/spectral-cli lint docs/api/openapi.yaml --fail-severity warn
 1. Copy the gitignored env files from the main checkout: `apps/backend/.env`, `apps/bff/.env`, `apps/web/.env.local` (a worktree has none). `docker compose` infra (Postgres/Pub/Sub/GCS/MailHog) is shared and usually already up; check `git`-tracked migrations are applied (`typeorm migration:show`).
 2. `pnpm dev` from the worktree root (detached, logging to a file); wait until ports 3000 (web), 3001 (backend) and 3002 (BFF) are listening.
 3. Export the two keys the helpers require, read from `apps/bff/.env` (there is no `.env.playwright.local`): `INTERNAL_API_KEY`, `WEB_INTERNAL_KEY`; then `npx playwright test e2e/<spec>.ts --reporter=list`.
-4. Stop the stack by PID, then **revert what `next dev` generated**: `git checkout apps/web/next-env.d.ts` and delete `apps/web/AGENTS.md` / `apps/web/CLAUDE.md` — never commit them.
+4. Stop the stack by PID, then delete the files `next dev` generated, `apps/web/AGENTS.md` / `apps/web/CLAUDE.md` — never commit them.
 
 **The shared infra is the developer's own dev database.** Step 1's shared Postgres volume holds whatever the developer has been working with, and an E2E run writes tenants' resources, staff, services and bookings into it (the specs deactivate what they create but do not delete it), and applies any new migration to it. When that matters, or when CI parity is the goal, run an isolated, throw-away stack instead:
 1. `docker compose -p ikaro-e2e -f docker/docker-compose.yml up -d` — a different project name gives its own volume, so the dev data is untouched. Ports are shared, so stop the dev stack first.
