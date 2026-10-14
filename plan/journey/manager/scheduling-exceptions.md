@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER  
 **Goal:** Review and explicitly resolve — one by one or many at once — future bookings affected by a resource change nobody reviewed per-session  
 **UCs covered:** UC-073 (System raises), UC-077 (Manager resolves)  
-**Status:** Draft — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend, `M23-S14`, is not built yet (❓ Gap on the web side). Customer/manager notifications for the worklist: `M23-S23`.
+**Status:** Draft — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend, `M23-S14`, is not built yet (❓ Gap on the web side). Prototypes redrawn 2026-10-14 inside the real dashboard shell, reusing the agenda's cards, sheets and the staff reschedule picker (`dev-notes.md` § Design system). Customer/manager notifications for the worklist: `M23-S23`.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
 
@@ -56,15 +56,15 @@ Full request/response shapes: `docs/14-API_CONTRACTS.md` § Future Commitment Ex
 
 ## Prototype
 
-Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/discovery/multivertical-booking/prototype/manager-12-exception-worklist.html`, reworked on 2026-09-30 for the `M23-S08` decisions above.
+Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/discovery/multivertical-booking/prototype/manager-12-exception-worklist.html`, reworked on 2026-09-30 for the `M23-S08` decisions above, and **redrawn on 2026-10-14** inside the real dashboard shell (sidebar, topbar, bottom nav, `.booking-card`, shared bottom sheet, the staff reschedule picker) after the first pass turned out to be bare pages with bespoke CSS.
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `01-exception-worklist.html` | Worklist — one card per affected booking, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
+| `01-exception-worklist.html` | Worklist — one `.booking-card` per affected booking, grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
 | `01b-selecionados.html` | Two entries ticked, bulk action bar (Reagendar disabled: one at a time) | UC-077 | ❓ GAP |
 | `01c-reatribuir.html` | Reassign target: a resource or "any free one", mandatory reason | UC-077 | ❓ GAP |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ❓ GAP |
-| `01e-reagendar.html` | Pick a new time for one confirmed booking — applies immediately | UC-077 | ❓ GAP |
+| `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ❓ GAP |
 | `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ❓ GAP |
 | `01g-dispensar.html` | Dismiss with a mandatory reason (keep is the same panel, reason optional) | UC-077 A2 | ❓ GAP |
 | `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ❓ GAP |
@@ -74,6 +74,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` still begins with `/story-discovery`.
 - [x] Reassign, reschedule, bulk and the "no entry per schedule" rules were decided in `M23-S08` and are drawn here (2026-09-30).
-- [ ] Nav placement — a new MANAGER-only sidebar item ("Exceções"), as `M23-S14` states, is drawn as a default to recheck at that story's discovery.
+- [x] Nav placement — a new MANAGER-only sidebar item ("Exceções", after "Recursos", with a count badge) is now drawn in the shell; recheck at `M23-S14`'s discovery.
+- [x] Slot source for `01e` — the existing staff availability endpoint via the staff reschedule picker (proposal, confirm at discovery).
 - [ ] **Selecting "all from this resource from a time":** the prototype draws a per-resource "Selecionar todos" control; a free time filter ("a partir de …") is a proposal, not decided.
 - [ ] **A `PENDING` / `INFO_REQUESTED` booking** has no Reagendar (only a confirmed booking can be rescheduled); how the manager moves such a booking's time is the normal approval flow, not this screen.
