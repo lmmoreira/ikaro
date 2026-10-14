@@ -47,6 +47,11 @@
     .renew-card-meta { font-size: 0.8125rem; opacity: 0.6; color: var(--ba-text); margin-top: 0.125rem; }
     .renew-card .btn-primary { font-size: 0.8125rem; padding: 0.4375rem 0.875rem; text-decoration: none; white-space: nowrap; }
     body.proto-empty .conditional { display: none !important; }
+    .renew-many { display: none; }
+    body.proto-many .renew-one { display: none; }
+    body.proto-many .renew-many { display: inline; }
+    .renew-card .btn-primary.renew-many { display: none; }
+    body.proto-many .renew-card .btn-primary.renew-many { display: inline-block; }
 
     /* ── List items ── */
     .list-item {
@@ -121,11 +126,15 @@
     TENANT CONFIG (drives module visibility):
       tenant.features.scheduling = true   → mostra seção Agendamentos + opção "Novo agendamento"
       tenant.features.loyalty    = true   → mostra stat de pontos
+      Os quatro tiles levam a uma página: Pontos → Fidelidade (04), Agendamentos → lista (01),
+        e os dois condicionais abaixo (decidido no /story-discovery de M23-S41, 2026-10-14).
       Tiles "Recorrências" e "Avisos" (.conditional): só aparecem com contagem > 0 — quem não tem nenhum não vê mudança;
         tenant sem o recurso (serviço sem recorrência / sem alertas) nunca os vê. Cada tile leva à sua lista (14 / 07).
-      Cartão "Renovar" (.conditional): só quando uma recorrência ATIVA termina dentro da janela do aviso por e-mail (M23-S21);
-        mostra a que termina primeiro; com várias, "N reservas terminando" → lista. "Renovar" abre 13f (M23-S22).
-      Não é parte de M23-S12: história futura (depende de S12 e S22).
+      Cartão "Renovar" (.conditional): só quando uma recorrência ATIVA está com renewable=true (janela do aviso por e-mail, M23-S21);
+        mostra a que termina primeiro ("termina em N dias"; "hoje" com 0, "amanhã" com 1); com várias, "N reservas terminando"
+        e o botão leva à lista (14) em vez de abrir 13f. "Renovar" abre 13f (M23-S22). Fica depois da faixa de pontos a expirar
+        e antes de "Próximos agendamentos".
+      Faz parte de M23-S41 (depende de S12, S21, S22, S42, S43).
   -->
 
   <!-- Prototype banner -->
@@ -139,6 +148,11 @@
     <label style="font-weight:600;cursor:pointer;">
       <input type="checkbox" onchange="document.body.classList.toggle('proto-empty', this.checked)">
       ver como cliente sem recorrências nem avisos
+    </label>
+    &nbsp;|&nbsp;
+    <label style="font-weight:600;cursor:pointer;">
+      <input type="checkbox" onchange="document.body.classList.toggle('proto-many', this.checked)">
+      ver várias terminando
     </label>
   </div>
 
@@ -309,10 +323,17 @@
             <path d="m17 2 4 4-4 4"/><path d="M3 11v-1a4 4 0 0 1 4-4h14"/><path d="m7 22-4-4 4-4"/><path d="M21 13v1a4 4 0 0 1-4 4H3"/>
           </svg>
           <div class="renew-card-info">
-            <div class="renew-card-title">Sala Horizonte termina em 7 dias</div>
-            <div class="renew-card-meta">Toda sexta · 16:00–18:00 · até 29 ago</div>
+            <div class="renew-card-title">
+              <span class="renew-one">Sala Horizonte termina em 7 dias</span>
+              <span class="renew-many">2 reservas terminando</span>
+            </div>
+            <div class="renew-card-meta">
+              <span class="renew-one">Toda sexta · 16:00–18:00 · até 29 ago</span>
+              <span class="renew-many">A primeira termina em 7 dias</span>
+            </div>
           </div>
-          <a class="btn-primary" href="../customer/prototypes/minha-conta/13f-renovar-recorrencia.html">Renovar</a>
+          <a class="btn-primary renew-one" href="../customer/prototypes/minha-conta/13f-renovar-recorrencia.html">Renovar</a>
+          <a class="btn-primary renew-many" href="../customer/prototypes/minha-conta/14-recorrentes-lista.html">Ver reservas</a>
         </div>
 
         <!-- ── PRÓXIMOS AGENDAMENTOS (tenant.features.scheduling) ─── -->
