@@ -97,7 +97,10 @@ export function AvailabilityAlertDetail({
     if (alert.status === 'ACTIVE') {
       return <DetailRow label={t('labelActiveUntil')} value={formatDate(expiresAt)} />;
     }
-    if (alert.status === 'NOTIFIED' && alert.notifiedAt !== null) {
+    if (alert.status === 'NOTIFIED') {
+      if (alert.notifiedAt === null) {
+        return <DetailRow label={t('labelNotifiedAt')} value={t('notified')} />;
+      }
       const notifiedAt = new Date(alert.notifiedAt);
       return (
         <DetailRow

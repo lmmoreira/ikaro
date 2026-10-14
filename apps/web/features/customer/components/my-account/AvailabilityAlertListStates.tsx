@@ -10,9 +10,7 @@ export function AvailabilityAlertListSkeleton(): React.JSX.Element {
   return (
     <div className="w-full" data-testid="alerts-loading">
       <h1 className="text-lg font-bold text-gray-900">{t('title')}</h1>
-      <p role="status" className="mt-6 text-sm text-gray-500">
-        {t('loading')}
-      </p>
+      <output className="mt-6 block text-sm text-gray-500">{t('loading')}</output>
     </div>
   );
 }

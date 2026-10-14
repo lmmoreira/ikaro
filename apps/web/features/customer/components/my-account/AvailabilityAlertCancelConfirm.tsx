@@ -62,6 +62,9 @@ export function AvailabilityAlertCancelConfirm({
   }
 
   const details = text.durationAndPeople(alert);
+  let confirmLabel = t('cancelConfirm');
+  if (isSubmitting) confirmLabel = t('cancelConfirming');
+  else if (failed) confirmLabel = t('retry');
 
   function renderActionPane(): React.JSX.Element {
     return (
@@ -74,7 +77,7 @@ export function AvailabilityAlertCancelConfirm({
           disabled={isSubmitting}
           className="rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60"
         >
-          {isSubmitting ? t('cancelConfirming') : failed ? t('retry') : t('cancelConfirm')}
+          {confirmLabel}
         </button>
         <button
           type="button"

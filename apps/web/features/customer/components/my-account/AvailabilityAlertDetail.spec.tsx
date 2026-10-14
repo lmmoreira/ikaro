@@ -93,6 +93,19 @@ describe('AvailabilityAlertDetail', () => {
     expect(screen.getByText('labelExpiredOn')).toBeInTheDocument();
   });
 
+  it('never calls a notified alert "expired" when its send time is unknown', () => {
+    render(
+      <AvailabilityAlertDetail
+        alert={makeAlert({ status: 'NOTIFIED', notifiedAt: null })}
+        tenantSlug="vitta"
+      />,
+    );
+
+    expect(screen.getByText('labelNotifiedAt')).toBeInTheDocument();
+    expect(screen.getByText('notified')).toBeInTheDocument();
+    expect(screen.queryByText('labelExpiredOn')).not.toBeInTheDocument();
+  });
+
   it('lists the resource and the duration only when the alert has them', () => {
     const { rerender } = render(
       <AvailabilityAlertDetail

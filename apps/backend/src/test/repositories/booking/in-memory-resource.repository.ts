@@ -20,8 +20,8 @@ export class InMemoryResourceRepository implements IResourceRepository {
     return this.store.find((r) => r.id === id && r.tenantId === tenantId) ?? null;
   }
 
-  async findByIds(ids: string[], tenantId: string): Promise<Resource[]> {
-    return this.store.filter((r) => r.tenantId === tenantId && ids.includes(r.id));
+  findByIds(ids: string[], tenantId: string): Promise<Resource[]> {
+    return Promise.resolve(this.store.filter((r) => r.tenantId === tenantId && ids.includes(r.id)));
   }
 
   async findByRefId(refId: string, tenantId: string): Promise<Resource | null> {
