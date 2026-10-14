@@ -4,6 +4,7 @@ import {
   FCE_TENANT_ID as TENANT_ID,
   FutureCommitmentFixture,
 } from '../../../../test/utils/future-commitment-fixture';
+import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ListFutureCommitmentExceptionsUseCase } from './list-future-commitment-exceptions.use-case';
 
@@ -60,7 +61,30 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
       serviceNames: [service.name],
       status: 'PENDING',
       resourceName: 'Sala 1',
+      isCustomer: false,
+      totalPrice: { amount: 100, currency: 'BRL' },
     });
+  });
+
+  it("flags a registered customer's booking and carries its total price (the queue card's pills and price)", async () => {
+    const source = await world.addResource('Sala 1');
+    const service = await world.addService();
+    await world.addBooking({
+      service,
+      resource: source,
+      customerId: '00000000-0000-7000-8000-0000000000c1',
+      totalPrice: Money.from(250.5, 'BRL'),
+    });
+    await world.addBooking({ service, resource: source, startsInHours: 72 });
+    await raiseFor(source.id);
+
+    const { items } = await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' });
+
+    expect(items[0].booking).toMatchObject({
+      isCustomer: true,
+      totalPrice: { amount: 250.5, currency: 'BRL' },
+    });
+    expect(items[1].booking).toMatchObject({ isCustomer: false });
   });
 
   it('filters by status', async () => {

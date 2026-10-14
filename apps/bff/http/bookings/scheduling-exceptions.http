@@ -41,6 +41,12 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
+### The sidebar badge — how many entries are still OPEN: { "count": 3 } (M23-S14)
+GET {{bffUrl}}/v1/scheduling-exceptions/count
+Authorization: Bearer {{managerToken}}
+
+###
+
 ### ERROR — unknown status → 400
 GET {{bffUrl}}/v1/scheduling-exceptions?status=DONE
 Authorization: Bearer {{managerToken}}
@@ -49,6 +55,12 @@ Authorization: Bearer {{managerToken}}
 
 ### ERROR — STAFF → 403
 GET {{bffUrl}}/v1/scheduling-exceptions
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — STAFF on the count → 403
+GET {{bffUrl}}/v1/scheduling-exceptions/count
 Authorization: Bearer {{staffToken}}
 
 ###

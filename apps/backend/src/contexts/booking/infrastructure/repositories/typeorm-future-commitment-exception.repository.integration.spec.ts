@@ -172,6 +172,22 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
     });
   });
 
+  describe('countByTenant', () => {
+    it('counts only the tenant’s rows in the given status', async () => {
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      const closed = new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build();
+      await save(closed);
+      closed.dismiss(STAFF_ID, 'x', 'corr-1');
+      await save(closed);
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_B).build());
+
+      expect(await repo.countByTenant(TENANT_A, { status: 'OPEN' })).toBe(2);
+      expect(await repo.countByTenant(TENANT_A)).toBe(3);
+      expect(await repo.countByTenant(TENANT_B, { status: 'OPEN' })).toBe(1);
+    });
+  });
+
   describe('findByIdForUpdate', () => {
     it('refuses to run outside a transaction', async () => {
       await expect(repo.findByIdForUpdate(uuidv7(), TENANT_A)).rejects.toThrow(

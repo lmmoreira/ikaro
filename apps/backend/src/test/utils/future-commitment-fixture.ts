@@ -1,4 +1,5 @@
 import { uuidv7 } from '../../shared/domain/uuid-v7';
+import { Money } from '../../shared/value-objects/money';
 import { IOutboxPublisher } from '../../shared/ports/outbox-publisher.port';
 import { InMemoryTenantLock } from '../infrastructure/in-memory-tenant-lock';
 import {
@@ -37,6 +38,9 @@ export interface SeedBookingOptions {
   lockState?: ResourceOccupancyLockState;
   recurringScheduleId?: string | null;
   tenantId?: string;
+  // A registered customer's booking; omitted = a guest booking.
+  customerId?: string | null;
+  totalPrice?: Money;
 }
 
 // The in-memory world the worklist specs (raise, list, resolve, and the two deactivation triggers)
@@ -136,6 +140,9 @@ export class FutureCommitmentFixture {
       .withTotalDurationMins(durationMins)
       .withLines([line])
       .withRecurringScheduleId(options.recurringScheduleId ?? null)
+      .withType(options.customerId ? 'CUSTOMER' : 'GUEST')
+      .withCustomerId(options.customerId ?? null)
+      .withTotalPrice(options.totalPrice ?? Money.from(100, 'BRL'))
       .build();
     await this.bookingRepo.save(booking);
 

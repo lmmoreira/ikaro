@@ -28,6 +28,9 @@ export interface FutureCommitmentExceptionBookingSummary {
   serviceNames: string[];
   status: string;
   resourceName: string | null;
+  // true = a registered customer's booking; false = a guest (the queue card's Cliente/Visitante pill).
+  isCustomer: boolean;
+  totalPrice: { amount: number; currency: string };
 }
 
 export interface FutureCommitmentExceptionListItem {
@@ -103,6 +106,11 @@ function toBookingSummary(
     serviceNames: booking.lines.map((l) => l.serviceNameAtBooking),
     status: booking.status,
     resourceName,
+    isCustomer: booking.customerId !== null,
+    totalPrice: {
+      amount: booking.totalPrice.amount.toNumber(),
+      currency: booking.totalPrice.currency,
+    },
   };
 }
 

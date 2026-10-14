@@ -78,6 +78,37 @@ describe('SchedulingExceptionsController (component)', () => {
     });
   });
 
+  describe('GET /v1/scheduling-exceptions/count', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/scheduling-exceptions/count');
+      expect(res.status).toBe(401);
+    });
+
+    it.each([
+      ['STAFF', makeStaffJwt],
+      ['CUSTOMER', makeCustomerJwt],
+    ])('returns 403 for %s (MANAGER-only)', async (_role, makeJwt) => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/scheduling-exceptions/count')
+        .set('Authorization', `Bearer ${makeJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+    });
+
+    it('MANAGER JWT → 200 with the backend count', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ count: 3 });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/scheduling-exceptions/count')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ count: 3 });
+      expect(backendHttpService.get).toHaveBeenCalledWith('/scheduling-exceptions/count');
+    });
+  });
+
   describe('POST /v1/scheduling-exceptions/resolve', () => {
     const body = { exceptionIds: [ID_A], resolutionType: 'KEEP' };
 
