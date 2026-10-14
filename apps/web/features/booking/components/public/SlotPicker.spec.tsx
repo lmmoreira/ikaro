@@ -28,6 +28,55 @@ describe('SlotPicker', () => {
     vi.mocked(fetchAvailability).mockReset();
   });
 
+  it('marks, without hiding, a slot inside the notice window the staff flow asks about', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [
+        { startsAt: '2026-06-15T09:00:00.000Z', endsAt: '2026-06-15T09:30:00.000Z' },
+        { startsAt: '2026-06-15T15:00:00.000Z', endsAt: '2026-06-15T15:30:00.000Z' },
+      ],
+    });
+
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+        noticeMarkerHours={2}
+        variant="dashboard"
+      />,
+    );
+
+    const slots = await screen.findAllByTestId('time-slot');
+    expect(slots).toHaveLength(2);
+    expect(slots[0]!.querySelector('[data-testid="within-notice-dot"]')).not.toBeNull();
+    expect(slots[1]!.querySelector('[data-testid="within-notice-dot"]')).toBeNull();
+  });
+
+  it('marks nothing by default, so the hotsite is unchanged', async () => {
+    vi.mocked(fetchAvailability).mockResolvedValue({
+      date: '2026-06-15',
+      available: true,
+      slots: [{ startsAt: '2026-06-15T09:00:00.000Z', endsAt: '2026-06-15T09:30:00.000Z' }],
+    });
+
+    renderWithIntl(
+      <SlotPicker
+        slug="lavacar-beloauto"
+        serviceIds={['svc-1']}
+        date="2026-06-15"
+        selectedSlot={null}
+        onSelectSlot={vi.fn()}
+      />,
+    );
+
+    await screen.findAllByTestId('time-slot');
+    expect(screen.queryByTestId('within-notice-dot')).not.toBeInTheDocument();
+  });
+
   it('shows a loading message while fetching', () => {
     vi.mocked(fetchAvailability).mockReturnValue(new Promise(() => {}));
 

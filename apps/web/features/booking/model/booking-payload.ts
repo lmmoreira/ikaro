@@ -19,7 +19,7 @@ export interface BookingPayloadSelections {
   readonly intakeFields: BookingFlowRequestFields | null;
 }
 
-function buildFlowFields(selections: BookingPayloadSelections): BookingFlowRequestFields {
+export function buildFlowFields(selections: BookingPayloadSelections): BookingFlowRequestFields {
   const resourceSelections = orderPicks(selections.resourcePicks, selections.serviceIds);
   return {
     ...(resourceSelections.length > 0 ? { resourceSelections } : {}),

@@ -6,7 +6,7 @@ import ptBRMessages from '@ikaro/i18n/locales/pt-BR/web.json';
 import enMessages from '@ikaro/i18n/locales/en/web.json';
 import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
-import type { HotsiteServiceResponse } from '@ikaro/types';
+import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
 
 // getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
@@ -51,6 +51,20 @@ export const hotsiteServiceBookingDefaults: Pick<
     recurringHorizonDays: null,
     availabilityAlertEligible: false,
   },
+};
+
+// The Brazilian address format (CEP, bairro required, ViaCEP lookup) the booking forms are built from.
+export const BR_ADDRESS_SPEC: HotsiteAddressSpec = {
+  postalLabel: 'CEP',
+  postalPlaceholder: '00000-000',
+  stateLabel: 'UF',
+  requireNeighborhood: true,
+  neighborhoodLabel: 'Bairro',
+  streetLabel: 'Rua',
+  numberLabel: 'Número',
+  complementLabel: 'Complemento',
+  cityLabel: 'Cidade',
+  lookupService: 'viacep',
 };
 
 // The inline error of one intake question (its data-testid is static; the key rides in data-field-key).

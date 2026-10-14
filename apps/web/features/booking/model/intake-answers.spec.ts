@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
 import {
   buildIntakeRequestFields,
+  buildOptionalIntakeRequestFields,
   emptyIntakeAnswers,
   validateIntake,
   type IntakeAnswersValue,
@@ -119,6 +120,48 @@ describe('buildIntakeRequestFields', () => {
       filled({ answers: { goal: 'x', equipment: true, stale: 'old' } }),
     );
     expect(fields.intakeAnswers).not.toHaveProperty('stale');
+  });
+
+  it('sends nothing for a blank staff intake, and the consent only when ticked', () => {
+    const schema = makeSchema();
+
+    expect(buildOptionalIntakeRequestFields(schema, emptyIntakeAnswers())).toBeNull();
+
+    const answered = buildOptionalIntakeRequestFields(
+      schema,
+      filled({ answers: { goal: ' perder peso ' }, consentAccepted: false }),
+    );
+    expect(answered).toMatchObject({
+      intakeSchemaVersion: 2,
+      intakeAnswers: { goal: 'perder peso' },
+    });
+    expect(answered).not.toHaveProperty('consentAccepted');
+
+    const consented = buildOptionalIntakeRequestFields(
+      schema,
+      filled({ answers: {}, consentAccepted: true }),
+    );
+    expect(consented).toMatchObject({ consentAccepted: true, intakeAnswers: {} });
+  });
+
+  it('keeps a staff participant count or attendee even without answers', () => {
+    const schema = makeSchema({ participantCountRequired: true, requiresNamedAttendees: true });
+
+    const fields = buildOptionalIntakeRequestFields(
+      schema,
+      filled({
+        answers: {},
+        consentAccepted: false,
+        participantCount: '2',
+        attendees: [{ id: 'r1', name: 'Ana', isMinor: false }],
+      }),
+    );
+
+    expect(fields).toMatchObject({
+      participantCount: 2,
+      attendees: [{ name: 'Ana', isMinor: false }],
+    });
+    expect(fields).not.toHaveProperty('consentAccepted');
   });
 
   it('adds participantCount and trimmed attendees only when the schema asks for them', () => {

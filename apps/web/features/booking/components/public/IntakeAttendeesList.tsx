@@ -2,7 +2,7 @@
 
 import type React from 'react';
 import { useTranslations } from 'next-intl';
-import type { AttendeeDraft } from '@/features/booking/model/intake-answers';
+import { newAttendeeDraft, type AttendeeDraft } from '@/features/booking/model/intake-answers';
 import {
   INTAKE_ERROR_CHIP_CLASS,
   INTAKE_ERROR_CHIP_STYLE,
@@ -93,9 +93,7 @@ export function IntakeAttendeesList({
         data-testid="intake-add-attendee"
         className="cursor-pointer border px-3.5 py-2 text-sm"
         style={secondaryButton}
-        onClick={() =>
-          onChange([...attendees, { id: crypto.randomUUID(), name: '', isMinor: false }])
-        }
+        onClick={() => onChange([...attendees, newAttendeeDraft()])}
       >
         {t('addAttendee')}
       </button>

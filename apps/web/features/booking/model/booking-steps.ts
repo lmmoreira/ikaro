@@ -94,6 +94,20 @@ export function resolveBookingSteps(input: ResolveBookingStepsInput): BookingSte
   ];
 }
 
+/**
+ * What a flow shows before Step 1 is left (`initial`) and how it builds the final list (`resolve`).
+ * The public flow's plan is the default; the staff flow passes its own (it has no personal step).
+ */
+export interface BookingStepPlan {
+  readonly initial: readonly BookingStepId[];
+  readonly resolve: (input: ResolveBookingStepsInput) => BookingStepId[];
+}
+
+export const PUBLIC_BOOKING_STEP_PLAN: BookingStepPlan = {
+  initial: DEFAULT_BOOKING_STEPS,
+  resolve: resolveBookingSteps,
+};
+
 export type BookingErrorTarget = BookingStepId | 'picker' | 'login';
 
 export interface BookingSubmitErrorRoute {

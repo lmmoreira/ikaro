@@ -3,9 +3,7 @@
 import type React from 'react';
 import { useTranslations } from 'next-intl';
 import type { HotsiteServiceResponse } from '@ikaro/types';
-import { formatDuration } from '@/shared/lib/formatting/format-duration';
-import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { isPerTimeService } from '@/features/booking/model/selection-totals';
+import { useServicePriceText } from '@/features/booking/hooks/useServicePriceText';
 
 interface ServiceCardProps {
   readonly service: HotsiteServiceResponse;
@@ -27,31 +25,23 @@ function cardStyle(isSelected: boolean, isUnavailable: boolean): React.CSSProper
   };
 }
 
-// A per-time service shows its rate and duration range instead of a fixed price and duration; the
-// rate is formatted in the tenant's currency, never a hard-coded one.
 function PriceAndDuration({
   service,
 }: {
   readonly service: HotsiteServiceResponse;
 }): React.JSX.Element {
-  const t = useTranslations('booking');
-  const { formatMoney } = useFormatting();
-  const { bookingPolicy: policy } = service;
+  const text = useServicePriceText(service);
 
-  if (!isPerTimeService(service) || policy.pricePerIncrementAmount === null) {
+  if (text.kind === 'fixed') {
     return (
       <>
         <p className="font-semibold" style={{ color: 'var(--ba-primary)' }}>
-          {service.price.formatted}
+          {text.price}
         </p>
-        <p className="opacity-75">{formatDuration(service.durationMinutes)}</p>
+        <p className="opacity-75">{text.duration}</p>
       </>
     );
   }
-
-  const rate = formatMoney(policy.pricePerIncrementAmount);
-  const minutes = policy.pricingIncrementMinutes ?? 60;
-  const hasRange = policy.durationMinMinutes !== null && policy.durationMaxMinutes !== null;
   return (
     <>
       <p
@@ -59,16 +49,11 @@ function PriceAndDuration({
         style={{ color: 'var(--ba-primary)' }}
         data-testid="service-rate"
       >
-        {minutes === 60
-          ? t('serviceSelection.ratePerHour', { rate })
-          : t('serviceSelection.ratePerIncrement', { rate, minutes })}
+        {text.rate}
       </p>
-      {hasRange && (
+      {text.durationRange && (
         <p className="opacity-75" data-testid="service-duration-range">
-          {t('serviceSelection.durationRange', {
-            min: formatDuration(policy.durationMinMinutes ?? 0),
-            max: formatDuration(policy.durationMaxMinutes ?? 0),
-          })}
+          {text.durationRange}
         </p>
       )}
     </>

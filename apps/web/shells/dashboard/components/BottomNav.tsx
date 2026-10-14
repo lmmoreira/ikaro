@@ -5,7 +5,10 @@ import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { Calendar, Clock, Wrench, Star, MoreHorizontal } from 'lucide-react';
 import { cn } from '@/shared/utils/cn';
-import { matchBookingDetailRoute } from '@/shells/dashboard/model/booking-route';
+import {
+  isBookingCreateRoute,
+  matchBookingDetailRoute,
+} from '@/shells/dashboard/model/booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from '@/shells/dashboard/model/resource-route';
 import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
@@ -43,6 +46,7 @@ export function BottomNav({
   // class) so the two don't overlap.
   if (
     isBookingDetail ||
+    isBookingCreateRoute(pathname) ||
     isServiceDetailAction ||
     isServiceCreateRoute(pathname) ||
     isLoyaltyDetail ||

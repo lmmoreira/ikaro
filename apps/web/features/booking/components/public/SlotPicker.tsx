@@ -18,6 +18,8 @@ interface SlotPickerProps {
   readonly resourceSelections?: readonly ResourceSelectionItem[];
   readonly durationMinutes?: number;
   readonly minBookingAdvanceHours?: number;
+  /** Marks (does not hide) a slot starting inside this many hours — the staff flow's notice dot. */
+  readonly noticeMarkerHours?: number;
   readonly variant?: 'hotsite' | 'dashboard';
 }
 
@@ -30,6 +32,7 @@ export function SlotPicker({
   resourceSelections,
   durationMinutes,
   minBookingAdvanceHours = 0,
+  noticeMarkerHours = 0,
   variant = 'hotsite',
 }: SlotPickerProps): React.JSX.Element {
   const t = useTranslations('booking');
@@ -137,11 +140,24 @@ export function SlotPicker({
             }}
           >
             {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
+            {isWithinNotice(slot, noticeMarkerHours) && (
+              <span
+                aria-hidden="true"
+                data-testid="within-notice-dot"
+                className="ml-1.5 inline-block h-1.5 w-1.5 rounded-full bg-amber-500"
+              />
+            )}
           </button>
         );
       })}
     </div>
   );
+}
+
+// A slot that starts inside the business's minimum notice: only staff can book it (the backend
+// skips that one rule for them), so the staff flow marks it with a dot.
+function isWithinNotice(slot: AvailableSlot, noticeMarkerHours: number): boolean {
+  return noticeMarkerHours > 0 && !isSlotBookable(slot.startsAt, new Date(), noticeMarkerHours);
 }
 
 function getSlotButtonClassName(isSelected: boolean, isDashboardVariant: boolean): string {

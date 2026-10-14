@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type React from 'react';
-import { z } from 'zod';
 import type {
   AvailableSlot,
   HotsiteAddressSpec,
@@ -12,6 +11,7 @@ import type {
   ResourceSelectionItem,
 } from '@ikaro/types';
 import type { ChosenDuration } from '@/features/booking/model/basket-lines';
+import { findContactError } from '@/features/booking/model/contact-validation';
 import type { PersonalInfoValue } from '@/features/booking/model/personal-info';
 import { AddressFields } from './AddressFields';
 import { BookingSummaryCard } from './BookingSummaryCard';
@@ -37,8 +37,6 @@ interface PersonalInfoStepProps {
   readonly onNext: () => void;
   readonly onBack: () => void;
 }
-
-const EMAIL_SCHEMA = z.email();
 
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
@@ -71,10 +69,10 @@ export function PersonalInfoStep({
 
   function validate(v: PersonalInfoValue): FieldError | null {
     if (hideContactFields) return null;
-    if (!v.contactName.trim()) return { field: 'name', message: t('personalInfo.nameRequired') };
-    if (!EMAIL_SCHEMA.safeParse(v.contactEmail).success)
-      return { field: 'email', message: t('personalInfo.emailRequired') };
-    if (!v.contactPhone.trim()) return { field: 'phone', message: t('personalInfo.phoneRequired') };
+    const field = findContactError(v);
+    if (field === 'name') return { field, message: t('personalInfo.nameRequired') };
+    if (field === 'email') return { field, message: t('personalInfo.emailRequired') };
+    if (field === 'phone') return { field, message: t('personalInfo.phoneRequired') };
     return null;
   }
 

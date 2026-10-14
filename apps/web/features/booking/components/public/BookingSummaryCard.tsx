@@ -10,7 +10,8 @@ import type {
 } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { composeBasket, type ChosenDuration } from '@/features/booking/model/basket-lines';
-import { BasketLines, useBasketTotalText } from './BasketLines';
+import { useBasketTotalText } from '@/features/booking/hooks/useBasketText';
+import { BasketLines } from './BasketLines';
 
 interface BookingSummaryCardProps {
   readonly services: readonly HotsiteServiceResponse[];

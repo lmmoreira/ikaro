@@ -3,9 +3,9 @@
 import { useCallback, useMemo, useState } from 'react';
 import type { HotsiteServiceResponse } from '@ikaro/types';
 import {
-  DEFAULT_BOOKING_STEPS,
-  resolveBookingSteps,
+  PUBLIC_BOOKING_STEP_PLAN,
   type BookingStepId,
+  type BookingStepPlan,
 } from '@/features/booking/model/booking-steps';
 
 interface UseBookingFlowParams {
@@ -13,6 +13,8 @@ interface UseBookingFlowParams {
   /** False until the customer has left Step 1: the list is the default four steps until then. */
   readonly resolved: boolean;
   readonly hasIntake: boolean;
+  /** The step list this flow builds; the public plan unless a flow (the staff one) has its own. */
+  readonly stepPlan?: BookingStepPlan;
 }
 
 export interface StepError {
@@ -56,13 +58,12 @@ export function useBookingFlow({
   selectedServices,
   resolved,
   hasIntake,
+  stepPlan = PUBLIC_BOOKING_STEP_PLAN,
 }: UseBookingFlowParams): BookingFlow {
   const steps = useMemo<readonly BookingStepId[]>(
     () =>
-      resolved
-        ? resolveBookingSteps({ services: selectedServices, hasIntake })
-        : DEFAULT_BOOKING_STEPS,
-    [resolved, selectedServices, hasIntake],
+      resolved ? stepPlan.resolve({ services: selectedServices, hasIntake }) : stepPlan.initial,
+    [resolved, selectedServices, hasIntake, stepPlan],
   );
   const [stepId, setStepId] = useState<BookingStepId>('services');
   const { errors, setError, clearErrors } = useStepErrors();

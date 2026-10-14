@@ -1,5 +1,5 @@
 import { useTranslations } from 'next-intl';
-import { matchBookingDetailRoute } from './booking-route';
+import { isBookingCreateRoute, matchBookingDetailRoute } from './booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
@@ -36,6 +36,7 @@ interface TopbarRouteContext {
   readonly servicesT: ReturnType<typeof useTranslations>;
   readonly teamT: ReturnType<typeof useTranslations>;
   readonly bookingT: ReturnType<typeof useTranslations>;
+  readonly newBookingT: ReturnType<typeof useTranslations>;
   readonly resourcesT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }
@@ -67,6 +68,15 @@ function resolveBookingTitleAndBackLink(
       ? '/dashboard/bookings'
       : `/dashboard/bookings/${bookingRouteMatch.bookingId}`);
   return { pageTitle, backHref, backLabel: commonBackLabel };
+}
+
+function resolveBookingCreateTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
+  if (!isBookingCreateRoute(ctx.pathname)) return null;
+  return {
+    pageTitle: ctx.newBookingT('pageTitle'),
+    backHref: '/dashboard/bookings',
+    backLabel: ctx.dashboardT('nav.bookings'),
+  };
 }
 
 function resolveServiceTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
@@ -155,6 +165,7 @@ function resolveResourceTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackL
 
 function resolveSectionTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
   return (
+    resolveBookingCreateTitleAndBackLink(ctx) ??
     resolveServiceTitleAndBackLink(ctx) ??
     resolveTeamTitleAndBackLink(ctx) ??
     resolveResourceTitleAndBackLink(ctx)
