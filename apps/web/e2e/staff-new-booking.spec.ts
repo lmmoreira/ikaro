@@ -6,6 +6,7 @@ import {
   chooseRegisteredCustomer,
   chooseServiceInSteps,
   createStaffBookingOnFirstFreeSlot,
+  heldResourceIds,
   openNewBookingMenu,
   seedCustomerForStaffBooking,
   seedPlainService,
@@ -111,9 +112,10 @@ test.describe('staff new booking (UC-108)', () => {
 
       await page.locator(`[data-resource-id="${seeded.resourceIds[0]}"]`).click();
       await staffStepNext(page).click();
-      await createStaffBookingOnFirstFreeSlot(page);
+      const booking = await createStaffBookingOnFirstFreeSlot(page);
 
       await expect(page.getByTestId('outcome-banner-title')).toHaveText('Agendamento criado');
+      expect(await heldResourceIds(page, booking)).toEqual([seeded.resourceIds[0]]);
     } finally {
       await deactivateService(page, seeded.serviceId);
       for (const id of seeded.resourceIds) await deactivateResource(page, id);
@@ -147,9 +149,13 @@ test.describe('staff new booking (UC-108)', () => {
       await expect(staffStepNext(page)).toBeDisabled();
       await page.locator(`[data-resource-id="${seeded.roomIds[0]}"]`).click();
       await staffStepNext(page).click();
-      await createStaffBookingOnFirstFreeSlot(page);
+      const booking = await createStaffBookingOnFirstFreeSlot(page);
 
       await expect(page.getByTestId('outcome-banner-title')).toHaveText('Agendamento criado');
+      const held = await heldResourceIds(page, booking);
+      expect(held).toEqual(expect.arrayContaining([seeded.staffIds[0], seeded.roomIds[0]]));
+      expect(held).not.toContain(seeded.staffIds[1]);
+      expect(held).not.toContain(seeded.roomIds[1]);
     } finally {
       await deactivateService(page, seeded.serviceId);
       for (const id of [...seeded.staffIds, ...seeded.roomIds]) await deactivateResource(page, id);
@@ -181,9 +187,15 @@ test.describe('staff new booking (UC-108)', () => {
       await page.locator(`[data-resource-id="${journey.equipments[0]!.id}"]`).click();
       await staffStepNext(page).click();
 
-      await createStaffBookingOnFirstFreeSlot(page);
+      const booking = await createStaffBookingOnFirstFreeSlot(page);
 
       await expect(page.getByTestId('outcome-banner-title')).toHaveText('Agendamento criado');
+      const held = await heldResourceIds(page, booking);
+      expect(held).toEqual(
+        expect.arrayContaining([journey.staffs[0]!.id, journey.equipments[0]!.id]),
+      );
+      expect(held).not.toContain(journey.staffs[1]!.id);
+      expect(held).not.toContain(journey.equipments[1]!.id);
     } finally {
       await deactivateService(page, journey.service.serviceId);
       for (const id of journey.resourceIds) await deactivateResource(page, id);

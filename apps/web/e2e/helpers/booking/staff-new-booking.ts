@@ -1,6 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
+import type { StaffBookingListResponse } from '@ikaro/types';
 import { completeCustomerProfile } from '../customer';
 import { loginAsCustomer, uniqueTestEmail } from '../auth';
+import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 import { openFirstDayWithSlots, seedResource } from '../booking-form/flow';
 import { createService, makeUniqueServiceName, setResourceRequirements } from '../services';
 
@@ -119,13 +121,40 @@ export async function chooseServiceInSteps(page: Page, serviceId: string): Promi
   await staffStepNext(page).click();
 }
 
+export interface CreatedStaffBooking {
+  readonly bookingId: string;
+  readonly date: string;
+}
+
+async function createdBookingId(page: Page): Promise<string> {
+  const href = await page.getByRole('link', { name: 'Ver agendamento' }).getAttribute('href');
+  const bookingId = href?.split('/').pop();
+  if (!bookingId) throw new Error(`the outcome links to no booking: ${href}`);
+  return bookingId;
+}
+
+// The ids of the resources the booking holds, read the way the Agenda reads them: from the staff
+// list for the booking's day, as the staff member who is logged in on this page.
+export async function heldResourceIds(page: Page, booking: CreatedStaffBooking): Promise<string[]> {
+  const res = await page.request.get(
+    `${BFF_URL}/bookings?status=APPROVED&date=${booking.date}&limit=100`,
+    { headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! } },
+  );
+  expect(res.ok()).toBe(true);
+  const body = (await res.json()) as StaffBookingListResponse;
+  const card = body.items.find((item) => item.bookingId === booking.bookingId);
+  expect(card, 'the created booking is on its day in the staff list').toBeDefined();
+  return card!.assignedResources.map((resource) => resource.resourceId);
+}
+
 const MAX_SLOT_ATTEMPTS = 6;
 
 // Chooses the first free slot and creates the booking. A slot that another test took between the
 // availability read and the submit comes back as the date step with a banner (`step2-error`); the
-// next slot is then tried — the shared tenant makes this race possible, never likely.
-export async function createStaffBookingOnFirstFreeSlot(page: Page): Promise<void> {
-  await openFirstDayWithSlots(page);
+// next slot is then tried — the shared tenant makes this race possible, never likely. Returns the
+// created booking's id and the day it was booked on.
+export async function createStaffBookingOnFirstFreeSlot(page: Page): Promise<CreatedStaffBooking> {
+  const date = await openFirstDayWithSlots(page);
   for (let attempt = 0; attempt < MAX_SLOT_ATTEMPTS; attempt += 1) {
     await page.getByTestId('time-slot').nth(attempt).click();
     await staffStepNext(page).click();
@@ -135,7 +164,7 @@ export async function createStaffBookingOnFirstFreeSlot(page: Page): Promise<voi
     const created = page.getByTestId('outcome-banner-title');
     const conflict = page.getByTestId('step2-error');
     await expect(created.or(conflict)).toBeVisible();
-    if (await created.isVisible()) return;
+    if (await created.isVisible()) return { bookingId: await createdBookingId(page), date };
     await expect(page.getByTestId('time-slot').nth(attempt + 1)).toBeVisible();
   }
   throw new Error(`no free slot after ${MAX_SLOT_ATTEMPTS} attempts`);
