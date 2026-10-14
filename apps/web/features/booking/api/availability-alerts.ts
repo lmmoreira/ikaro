@@ -9,3 +9,10 @@ export async function createAvailabilityAlert(
   const res = await bffClient.post<AvailabilityAlertResponse>('/availability-alerts', payload);
   return res.data;
 }
+
+// DELETE /availability-alerts/:id (UC-076) — the customer cancels their own ACTIVE alert.
+// Idempotent on an already-cancelled one; `409 BOOKING_ALERT_NOT_EDITABLE` when it was notified or
+// expired in the meantime.
+export async function cancelAvailabilityAlertAsCustomer(alertId: string): Promise<void> {
+  await bffClient.delete(`/availability-alerts/${alertId}`);
+}

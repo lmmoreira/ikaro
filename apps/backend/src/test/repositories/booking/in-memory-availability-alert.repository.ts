@@ -113,6 +113,25 @@ export class InMemoryAvailabilityAlertRepository implements IAvailabilityAlertRe
     return Promise.resolve(true);
   }
 
+  findSentAtByAlertIds(tenantId: string, alertIds: string[]): Promise<Map<string, Date>> {
+    const sentAt = new Map<string, Date>();
+    for (const attempt of this.attempts) {
+      if (
+        attempt.tenantId !== tenantId ||
+        !alertIds.includes(attempt.alertId) ||
+        attempt.channel !== 'EMAIL' ||
+        attempt.outcome !== 'SENT'
+      ) {
+        continue;
+      }
+      const current = sentAt.get(attempt.alertId);
+      if (current === undefined || attempt.attemptedAt > current) {
+        sentAt.set(attempt.alertId, attempt.attemptedAt);
+      }
+    }
+    return Promise.resolve(sentAt);
+  }
+
   async save(alert: AvailabilityAlert): Promise<void> {
     this.store.set(alert.id, alert);
     const attempt = alert.takePendingAttempt();

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { QueryFailedError, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import {
   IResourceRepository,
@@ -37,6 +37,12 @@ export class TypeOrmResourceRepository implements IResourceRepository {
   async findById(id: string, tenantId: string): Promise<Resource | null> {
     const entity = await this.repo.findOne({ where: { id, tenantId } });
     return entity ? this.toDomain(entity) : null;
+  }
+
+  async findByIds(ids: string[], tenantId: string): Promise<Resource[]> {
+    if (ids.length === 0) return [];
+    const entities = await this.repo.find({ where: { tenantId, id: In(ids) } });
+    return entities.map((e) => this.toDomain(e));
   }
 
   async findByRefId(refId: string, tenantId: string): Promise<Resource | null> {

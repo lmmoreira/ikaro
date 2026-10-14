@@ -39,5 +39,9 @@ export interface IAvailabilityAlertRepository {
     outcome: Exclude<AvailabilityAlertAttemptOutcome, 'PENDING'>,
     errorMessage: string | null,
   ): Promise<boolean>;
+  // M23-S43: when each alert was notified — the `attempted_at` of its EMAIL attempt whose outcome
+  // is SENT (the match moment the email was built for), one tenant-scoped read for a set of alerts.
+  // An alert with no SENT attempt (never matched, or its email still pending or failed) is absent.
+  findSentAtByAlertIds(tenantId: string, alertIds: string[]): Promise<Map<string, Date>>;
   save(alert: AvailabilityAlert): Promise<void>;
 }

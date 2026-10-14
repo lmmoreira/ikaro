@@ -91,9 +91,23 @@ export interface AvailabilityAlertResult {
   status: 'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXPIRED';
   expiresAt: string;
   createdAt: string;
+  serviceName: string;
+  preferredResourceName: string | null;
+  notifiedAt: string | null;
 }
 
-export function toAvailabilityAlertResult(alert: AvailabilityAlert): AvailabilityAlertResult {
+// What the read side adds to the aggregate's own fields (M23-S43): names resolved in batches by
+// AvailabilityAlertResultAssembler, and when the alert's email was sent.
+export interface AvailabilityAlertResultExtras {
+  serviceName: string;
+  preferredResourceName: string | null;
+  notifiedAt: Date | null;
+}
+
+export function toAvailabilityAlertResult(
+  alert: AvailabilityAlert,
+  extras: AvailabilityAlertResultExtras,
+): AvailabilityAlertResult {
   const criteria = alert.criteria;
   const isRange = criteria.criteriaType === 'ONE_TIME_RANGE';
   return {
@@ -112,5 +126,8 @@ export function toAvailabilityAlertResult(alert: AvailabilityAlert): Availabilit
     status: alert.status,
     expiresAt: alert.expiresAt.toISOString(),
     createdAt: alert.createdAt.toISOString(),
+    serviceName: extras.serviceName,
+    preferredResourceName: extras.preferredResourceName,
+    notifiedAt: extras.notifiedAt?.toISOString() ?? null,
   };
 }

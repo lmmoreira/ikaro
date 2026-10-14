@@ -21,6 +21,9 @@ const mockAlert: AvailabilityAlertResponse = {
   status: 'ACTIVE',
   expiresAt: '2026-11-04T12:00:00.000Z',
   createdAt: '2026-10-05T12:00:00.000Z',
+  serviceName: 'Massagem relaxante',
+  preferredResourceName: null,
+  notifiedAt: null,
 };
 
 describe('AvailabilityAlertsController', () => {

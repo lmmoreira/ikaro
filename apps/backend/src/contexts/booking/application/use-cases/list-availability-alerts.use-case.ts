@@ -3,10 +3,8 @@ import {
   AVAILABILITY_ALERT_REPOSITORY,
   IAvailabilityAlertRepository,
 } from '../ports/availability-alert-repository.port';
-import {
-  AvailabilityAlertResult,
-  toAvailabilityAlertResult,
-} from './availability-alert-input.helpers';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
+import { AvailabilityAlertResult } from './availability-alert-input.helpers';
 
 // The most recent alerts returned, history included. The per-customer cap bounds the active ones;
 // the rest is read-only history (UC-076 A1), so a fixed ceiling keeps the list bounded.
@@ -27,6 +25,7 @@ export class ListAvailabilityAlertsUseCase {
   constructor(
     @Inject(AVAILABILITY_ALERT_REPOSITORY)
     private readonly alertRepo: IAvailabilityAlertRepository,
+    private readonly resultAssembler: AvailabilityAlertResultAssembler,
   ) {}
 
   async execute(
@@ -37,6 +36,6 @@ export class ListAvailabilityAlertsUseCase {
       input.customerId,
       LIST_AVAILABILITY_ALERTS_LIMIT,
     );
-    return { items: alerts.map(toAvailabilityAlertResult) };
+    return { items: await this.resultAssembler.assemble(input.tenantId, alerts) };
   }
 }

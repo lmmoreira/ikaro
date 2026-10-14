@@ -128,6 +128,20 @@ export class TypeOrmAvailabilityAlertRepository implements IAvailabilityAlertRep
     return affected === 1;
   }
 
+  async findSentAtByAlertIds(tenantId: string, alertIds: string[]): Promise<Map<string, Date>> {
+    if (alertIds.length === 0) return new Map();
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const rows = (await manager.query(
+      `SELECT "alert_id" AS "alertId", MAX("attempted_at") AS "sentAt"
+         FROM "booking"."availability_alert_notification_attempts"
+        WHERE "tenant_id" = $1 AND "alert_id" = ANY($2::uuid[])
+          AND "channel" = 'EMAIL' AND "outcome" = 'SENT'
+        GROUP BY "alert_id"`,
+      [tenantId, alertIds],
+    )) as { alertId: string; sentAt: Date }[];
+    return new Map(rows.map((row) => [row.alertId, row.sentAt]));
+  }
+
   async save(alert: AvailabilityAlert): Promise<void> {
     const manager = getActiveEntityManager();
     if (manager) {

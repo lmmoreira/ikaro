@@ -69,7 +69,7 @@ Content-Type: application/json
 
 ###
 
-### My alerts → 200 { items }
+### My alerts → 200 { items } — each item also carries serviceName, preferredResourceName and notifiedAt (M23-S43)
 GET {{bffUrl}}/v1/availability-alerts
 Authorization: Bearer {{customerToken}}
 

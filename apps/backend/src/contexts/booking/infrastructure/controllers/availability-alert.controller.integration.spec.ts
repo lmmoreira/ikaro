@@ -128,9 +128,18 @@ describe('AvailabilityAlertController (integration)', () => {
     roomA = room.id;
   });
 
+  // The attempts reference their alert (composite FK), so they go first.
+  const deleteAlerts = async (tenantId: string): Promise<void> => {
+    await ds.query(
+      'DELETE FROM "booking"."availability_alert_notification_attempts" WHERE "tenant_id" = $1',
+      [tenantId],
+    );
+    await ds.getRepository(AvailabilityAlertEntity).delete({ tenantId });
+  };
+
   afterAll(async () => {
     for (const tenantId of [tenantA, tenantB]) {
-      await ds.getRepository(AvailabilityAlertEntity).delete({ tenantId });
+      await deleteAlerts(tenantId);
       await ds.getRepository(ServiceResourceRequirementEntity).delete({ tenantId });
       await ds.getRepository(ResourceEntity).delete({ tenantId });
       await ds.getRepository(ServiceEntity).delete({ tenantId });
@@ -140,8 +149,8 @@ describe('AvailabilityAlertController (integration)', () => {
   });
 
   beforeEach(async () => {
-    await ds.getRepository(AvailabilityAlertEntity).delete({ tenantId: tenantA });
-    await ds.getRepository(AvailabilityAlertEntity).delete({ tenantId: tenantB });
+    await deleteAlerts(tenantA);
+    await deleteAlerts(tenantB);
   });
 
   it('POST /availability-alerts persists the alert and GET returns it', async () => {
@@ -166,6 +175,55 @@ describe('AvailabilityAlertController (integration)', () => {
       .set(as(tenantA, CUSTOMER_A))
       .expect(200);
     expect(list.items.map((item: { id: string }) => item.id)).toEqual([created.id]);
+  });
+
+  it('returns the service name, the preferred resource name and when the alert was notified (M23-S43)', async () => {
+    const service = await ds.getRepository(ServiceEntity).findOneByOrFail({ id: serviceA });
+    const room = await ds.getRepository(ResourceEntity).findOneByOrFail({ id: roomA });
+    const { body: created } = await request(app.getHttpServer())
+      .post('/availability-alerts')
+      .set(as(tenantA, CUSTOMER_A))
+      .send({ ...weeklyBody(serviceA), preferredResourceId: roomA })
+      .expect(201);
+    expect(created).toMatchObject({
+      serviceName: service.name,
+      preferredResourceName: room.name,
+      notifiedAt: null,
+    });
+
+    // One FAILED attempt and one SENT attempt for different windows: only the SENT one counts.
+    const alertId = created.id as string;
+    await ds
+      .getRepository(AvailabilityAlertEntity)
+      .update({ tenantId: tenantA, id: alertId }, { status: 'NOTIFIED' });
+    const attempt = (window: string, outcome: string, attemptedAt: string): Promise<unknown> =>
+      ds.query(
+        `INSERT INTO "booking"."availability_alert_notification_attempts"
+           ("id", "tenant_id", "alert_id", "matching_window", "channel", "attempted_at", "outcome")
+         VALUES (gen_random_uuid(), $1, $2, $3::tstzrange, 'EMAIL', $4, $5)`,
+        [tenantA, alertId, window, attemptedAt, outcome],
+      );
+    await attempt(
+      '[2030-01-01 10:00+00,2030-01-01 11:00+00)',
+      'FAILED',
+      '2030-01-01T12:00:00.000Z',
+    );
+    await attempt('[2030-01-02 10:00+00,2030-01-02 11:00+00)', 'SENT', '2030-01-02T12:00:00.000Z');
+
+    const { body: byId } = await request(app.getHttpServer())
+      .get(`/availability-alerts/${alertId}`)
+      .set(as(tenantA, CUSTOMER_A))
+      .expect(200);
+    expect(byId).toMatchObject({ notifiedAt: '2030-01-02T12:00:00.000Z' });
+    const { body: list } = await request(app.getHttpServer())
+      .get('/availability-alerts')
+      .set(as(tenantA, CUSTOMER_A))
+      .expect(200);
+    expect(list.items.find((item: { id: string }) => item.id === alertId)).toMatchObject({
+      serviceName: service.name,
+      preferredResourceName: room.name,
+      notifiedAt: '2030-01-02T12:00:00.000Z',
+    });
   });
 
   it('GET /availability-alerts/:id returns the alert by id, a closed one too, and 403 for staff', async () => {

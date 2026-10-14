@@ -85,12 +85,12 @@ export async function listMyAlerts(page: Page): Promise<AvailabilityAlertRespons
 }
 
 // One ONE_TIME_RANGE alert created straight through the API — used to fill the per-customer cap
-// of 10 without driving the form ten times.
+// of 10 without driving the form ten times, and to give "Meus avisos" (M23-S43) a real alert.
 export async function createAlertViaApi(
   page: Page,
   serviceId: string,
   index: number,
-): Promise<void> {
+): Promise<AvailabilityAlertResponse> {
   const start = new Date(Date.now() + (3 + index) * 86_400_000);
   const end = new Date(start.getTime() + 3_600_000);
   const res = await page.request.post(`${WEB_URL}/v1/availability-alerts`, {
@@ -102,4 +102,5 @@ export async function createAlertViaApi(
     },
   });
   expect(res.status(), `create alert ${index}: ${await res.text()}`).toBe(201);
+  return (await res.json()) as AvailabilityAlertResponse;
 }

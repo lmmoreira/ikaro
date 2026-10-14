@@ -1,5 +1,6 @@
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { withAuthRedirect } from '@/features/customer/api.server';
+import { fetchAlertsSummary } from '@/features/booking/api/availability-alerts.server';
 import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchRecurringSummary } from '@/features/booking/api/recurring-booking-schedules.server';
 import { BookingsList } from '@/features/customer/components/my-account/BookingsList';
@@ -14,14 +15,20 @@ export default async function MyAccountBookingsPage({
   const { slug } = await params;
   const token = await getAccessToken();
 
-  // The recurring summary only feeds an optional entry row and resolves to null on any failure, so
-  // it can never block the tab; the bookings read handles an expired session.
-  const [bookings, recurringSummary] = await Promise.all([
+  // The recurring and alerts summaries only feed optional entry rows and resolve to null on any
+  // failure, so they can never block the tab; the bookings read handles an expired session.
+  const [bookings, recurringSummary, alertsSummary] = await Promise.all([
     withAuthRedirect(fetchCustomerBookings(token), slug),
     fetchRecurringSummary(token),
+    fetchAlertsSummary(token),
   ]);
 
   return (
-    <BookingsList bookings={bookings.items} recurringSummary={recurringSummary} tenantSlug={slug} />
+    <BookingsList
+      bookings={bookings.items}
+      recurringSummary={recurringSummary}
+      alertsSummary={alertsSummary}
+      tenantSlug={slug}
+    />
   );
 }

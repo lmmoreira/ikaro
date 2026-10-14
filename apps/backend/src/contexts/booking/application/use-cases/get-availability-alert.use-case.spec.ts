@@ -1,7 +1,10 @@
-import { AvailabilityAlertBuilder } from '../../../../test/builders/booking/index';
+import { AvailabilityAlertBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryAvailabilityAlertRepository } from '../../../../test/repositories/booking/in-memory-availability-alert.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { AvailabilityAlertNotFoundError } from '../../domain/errors/availability-alert.error';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
 import { GetAvailabilityAlertUseCase } from './get-availability-alert.use-case';
 
 const TENANT = '00000000-0000-7000-8000-000000000001';
@@ -12,10 +15,25 @@ const OTHER_CUSTOMER = '00000000-0000-7000-8000-000000000003';
 describe('GetAvailabilityAlertUseCase', () => {
   let alertRepo: InMemoryAvailabilityAlertRepository;
   let useCase: GetAvailabilityAlertUseCase;
+  let serviceId: string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     alertRepo = new InMemoryAvailabilityAlertRepository(new InMemoryEventBus());
-    useCase = new GetAvailabilityAlertUseCase(alertRepo);
+    const serviceRepo = new InMemoryServiceRepository();
+    const service = new ServiceBuilder()
+      .withTenantId(TENANT)
+      .withName('Massagem relaxante')
+      .build();
+    await serviceRepo.save(service);
+    serviceId = service.id;
+    useCase = new GetAvailabilityAlertUseCase(
+      alertRepo,
+      new AvailabilityAlertResultAssembler(
+        serviceRepo,
+        new InMemoryResourceRepository(),
+        alertRepo,
+      ),
+    );
   });
 
   it.each(['ACTIVE', 'NOTIFIED', 'EXPIRED', 'CANCELLED'] as const)(
@@ -23,6 +41,7 @@ describe('GetAvailabilityAlertUseCase', () => {
     async (status) => {
       const alert = new AvailabilityAlertBuilder()
         .withTenantId(TENANT)
+        .withServiceId(serviceId)
         .withCustomerId(CUSTOMER)
         .withStatus(status)
         .build();
@@ -34,7 +53,13 @@ describe('GetAvailabilityAlertUseCase', () => {
         customerId: CUSTOMER,
       });
 
-      expect(result).toMatchObject({ id: alert.id, status });
+      expect(result).toMatchObject({
+        id: alert.id,
+        status,
+        serviceName: 'Massagem relaxante',
+        preferredResourceName: null,
+        notifiedAt: null,
+      });
     },
   );
 

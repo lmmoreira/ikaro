@@ -4,10 +4,8 @@ import {
   AVAILABILITY_ALERT_REPOSITORY,
   IAvailabilityAlertRepository,
 } from '../ports/availability-alert-repository.port';
-import {
-  AvailabilityAlertResult,
-  toAvailabilityAlertResult,
-} from './availability-alert-input.helpers';
+import { AvailabilityAlertResultAssembler } from '../services/availability-alert-result.assembler';
+import { AvailabilityAlertResult } from './availability-alert-input.helpers';
 
 export interface GetAvailabilityAlertUseCaseInput {
   alertId: string;
@@ -25,6 +23,7 @@ export class GetAvailabilityAlertUseCase {
   constructor(
     @Inject(AVAILABILITY_ALERT_REPOSITORY)
     private readonly alertRepo: IAvailabilityAlertRepository,
+    private readonly resultAssembler: AvailabilityAlertResultAssembler,
   ) {}
 
   async execute(
@@ -34,6 +33,6 @@ export class GetAvailabilityAlertUseCase {
     if (alert?.customerId !== input.customerId) {
       throw new AvailabilityAlertNotFoundError(input.alertId);
     }
-    return toAvailabilityAlertResult(alert);
+    return this.resultAssembler.assembleOne(input.tenantId, alert);
   }
 }
