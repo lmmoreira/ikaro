@@ -27,7 +27,10 @@ import { deactivateService } from './helpers/services';
 
 async function openCreatedBooking(page: Page): Promise<void> {
   await page.getByRole('link', { name: 'Ver agendamento' }).click();
-  await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Aprovado');
+  await expect(page.getByTestId('booking-detail-page')).toBeVisible();
+  // Created already APPROVED: the triage actions are gone and the lifecycle ones are there.
+  await expect(page.getByRole('button', { name: 'Aprovar' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Marcar não compareceu' })).toBeVisible();
 }
 
 test.describe('staff new booking (UC-108)', () => {
