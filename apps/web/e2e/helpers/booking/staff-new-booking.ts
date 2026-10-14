@@ -1,8 +1,8 @@
 import { expect, type Locator, type Page } from '@playwright/test';
 import { completeCustomerProfile } from '../customer';
 import { loginAsCustomer, uniqueTestEmail } from '../auth';
-import { openFirstDayWithSlots } from '../booking-form/flow';
-import { createService, makeUniqueServiceName } from '../services';
+import { openFirstDayWithSlots, seedResource } from '../booking-form/flow';
+import { createService, makeUniqueServiceName, setResourceRequirements } from '../services';
 
 // M23-S40 (UC-108) — the staff "+ Novo → Agendamento" flow, driven through the real UI. Each step
 // has two copies of its action rail in the DOM (desktop aside and mobile bar, one hidden by CSS),
@@ -43,6 +43,39 @@ export async function seedPlainService(page: Page): Promise<{ serviceId: string;
     isActive: true,
   });
   return { serviceId: service.serviceId, name: service.name };
+}
+
+export interface SeededStaffAndRoomService {
+  readonly serviceId: string;
+  readonly staffIds: readonly string[];
+  readonly roomIds: readonly string[];
+}
+
+// One service that asks for two things to be chosen — a staff member and a room — each from its
+// own freshly created pair, so the picker step must show two sections.
+export async function seedStaffAndRoomChoiceService(
+  page: Page,
+): Promise<SeededStaffAndRoomService> {
+  const staffs = [await seedResource(page, 'STAFF'), await seedResource(page, 'STAFF')];
+  const rooms = [await seedResource(page, 'ROOM'), await seedResource(page, 'ROOM')];
+  const service = await createService(page, {
+    name: makeUniqueServiceName('e2e-staff-sala'),
+    description: 'Serviço de teste M23-S40',
+    priceAmount: 120,
+    durationMinutes: 60,
+    loyaltyPointsValue: 5,
+    requiresPickupAddress: false,
+    isActive: true,
+  });
+  await setResourceRequirements(page, service.serviceId, [
+    { type: 'STAFF', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: staffs.map((r) => r.id) },
+    { type: 'ROOM', selectionMode: 'CUSTOMER_CHOICE', resourcePoolIds: rooms.map((r) => r.id) },
+  ]);
+  return {
+    serviceId: service.serviceId,
+    staffIds: staffs.map((r) => r.id),
+    roomIds: rooms.map((r) => r.id),
+  };
 }
 
 export async function openNewBookingMenu(page: Page): Promise<void> {

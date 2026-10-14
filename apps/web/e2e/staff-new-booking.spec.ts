@@ -9,6 +9,7 @@ import {
   openNewBookingMenu,
   seedCustomerForStaffBooking,
   seedPlainService,
+  seedStaffAndRoomChoiceService,
   STAFF_TENANT_SLUG,
   startNewBooking,
   staffStepNext,
@@ -17,6 +18,7 @@ import {
   MANAGER_EMAIL,
   openFirstDayWithSlots,
   seedChoiceService,
+  seedJourney,
   stepIndicator,
 } from './helpers/booking-form';
 import { deactivateService } from './helpers/services';
@@ -115,6 +117,76 @@ test.describe('staff new booking (UC-108)', () => {
     } finally {
       await deactivateService(page, seeded.serviceId);
       for (const id of seeded.resourceIds) await deactivateResource(page, id);
+    }
+  });
+
+  test('a service asking for a staff member and a room shows both choices on one step', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, STAFF_TENANT_SLUG);
+    const seeded = await seedStaffAndRoomChoiceService(page);
+    const customerEmail = await seedCustomerForStaffBooking(page);
+    await loginAsStaff(page, MANAGER_EMAIL, STAFF_TENANT_SLUG);
+
+    try {
+      await startNewBooking(page);
+      await chooseRegisteredCustomer(page, customerEmail);
+      await chooseServiceInSteps(page, seeded.serviceId);
+
+      await expect(stepIndicator(page, 2, 4)).toBeVisible();
+      await expect(page.getByTestId('picker-section')).toHaveCount(2);
+      await expect(
+        page.locator('[data-testid="picker-section"][data-resource-type="STAFF"]'),
+      ).toHaveCount(1);
+      await expect(
+        page.locator('[data-testid="picker-section"][data-resource-type="ROOM"]'),
+      ).toHaveCount(1);
+
+      // Both are required: one pick alone does not let staff go on.
+      await page.locator(`[data-resource-id="${seeded.staffIds[0]}"]`).click();
+      await expect(staffStepNext(page)).toBeDisabled();
+      await page.locator(`[data-resource-id="${seeded.roomIds[0]}"]`).click();
+      await staffStepNext(page).click();
+      await createStaffBookingOnFirstFreeSlot(page);
+
+      await expect(page.getByTestId('outcome-banner-title')).toHaveText('Agendamento criado');
+    } finally {
+      await deactivateService(page, seeded.serviceId);
+      for (const id of [...seeded.staffIds, ...seeded.roomIds]) await deactivateResource(page, id);
+    }
+  });
+
+  test('a journey of legs asks for the choices leg by leg, then books the whole itinerary', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, STAFF_TENANT_SLUG);
+    const journey = await seedJourney(page);
+    const customerEmail = await seedCustomerForStaffBooking(page);
+    await loginAsStaff(page, MANAGER_EMAIL, STAFF_TENANT_SLUG);
+
+    try {
+      await startNewBooking(page);
+      await chooseRegisteredCustomer(page, customerEmail);
+      await chooseServiceInSteps(page, journey.service.serviceId);
+
+      // Services, the Massagem staff pick, the Relaxamento equipment pick, date and confirmation.
+      await expect(stepIndicator(page, 2, 5)).toBeVisible();
+      await expect(page.getByTestId('picker-heading')).toContainText('Massagem');
+      await expect(staffStepNext(page)).toBeDisabled();
+      await page.locator(`[data-resource-id="${journey.staffs[0]!.id}"]`).click();
+      await staffStepNext(page).click();
+
+      await expect(stepIndicator(page, 3, 5)).toBeVisible();
+      await expect(page.getByTestId('picker-heading')).toContainText('Relaxamento');
+      await page.locator(`[data-resource-id="${journey.equipments[0]!.id}"]`).click();
+      await staffStepNext(page).click();
+
+      await createStaffBookingOnFirstFreeSlot(page);
+
+      await expect(page.getByTestId('outcome-banner-title')).toHaveText('Agendamento criado');
+    } finally {
+      await deactivateService(page, journey.service.serviceId);
+      for (const id of journey.resourceIds) await deactivateResource(page, id);
     }
   });
 
