@@ -20,7 +20,7 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Trigger(("Resource deactivated<br/>(directly, or its staff member deactivated)")) -->|"UC-073"| Raise["System creates one idempotent<br/>worklist entry per affected booking"]
-    Raise --> List["❓ GAP: /dashboard/scheduling-exceptions<br/>Compromissos a resolver (01-exception-worklist)"]
+    Raise --> List["❓ GAP: /dashboard/scheduling-exceptions<br/>Reservas a resolver (01-exception-worklist)"]
 
     List -->|"Loading / error / empty"| States["01h vazio · 01i carregando · 01j erro ao carregar"]
     List -->|"Ticks one or more entries"| Bulk["01b selection + bulk action bar"]
@@ -74,7 +74,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` still begins with `/story-discovery`.
 - [x] Reassign, reschedule, bulk and the "no entry per schedule" rules were decided in `M23-S08` and are drawn here (2026-09-30).
-- [x] Nav placement — a new MANAGER-only sidebar item ("Exceções", after "Recursos", with a count badge) is now drawn in the shell; recheck at `M23-S14`'s discovery.
+- [x] Nav placement — a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with a count badge; in "Mais" on mobile) is now drawn in the shell; recheck at `M23-S14`'s discovery.
 - [x] Slot source for `01e` — the existing staff availability endpoint via the staff reschedule picker (proposal, confirm at discovery).
 - [ ] **Selecting "all from this resource from a time":** the prototype draws a per-resource "Selecionar todos" control; a free time filter ("a partir de …") is a proposal, not decided.
 - [ ] **A `PENDING` / `INFO_REQUESTED` booking** has no Reagendar (only a confirmed booking can be rescheduled); how the manager moves such a booking's time is the normal approval flow, not this screen.

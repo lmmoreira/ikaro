@@ -17,7 +17,7 @@ The first pass drew bare pages with bespoke inline CSS and no shell. The screens
 | Reschedule | **Staff reschedule screen** (`05-reschedule.html`): `AvailabilityCarousel` + `SlotPicker` `variant="dashboard"`, `shared/reschedule-picker.css`, the `detail-layout` + sticky aside + `mobile-action-bar` | **Resolves the open slot-source question:** `GET /v1/schedule/availability?date=…&serviceIds=…`, duration frozen at the booking's `totalDurationMins`. Only the submit differs: `POST /scheduling-exceptions/resolve` with `RESCHEDULE`, not `PATCH /bookings/:id/reschedule`. |
 | Selection bar | The fixed `mobile-action-bar` pattern (staff detail screens); on desktop it clears the 15rem sidebar | The one new piece of CSS; a candidate for `shared/components` only if a second screen needs it. |
 | Banners, empty and loading states | `banner-ok` / `banner-error` (agenda `10b`) | |
-| Nav | New MANAGER-only "Exceções" item under "Somente Gerente" (after "Recursos"), with an open-count badge; also in the mobile "Mais" sheet | Real `Sidebar.tsx` `MANAGER_NAV_KEYS` is `resources, team, settings, hotsite`; the prototype adds the new item after `resources`. |
+| Nav | New MANAGER-only **"Reservas a resolver"** item right below "Agenda" (rendered only for the MANAGER role, in the main nav group), with an open-count badge; first item of the mobile "Mais" sheet because the bottom nav is already full | Real `Sidebar.tsx` `MANAGER_NAV_KEYS` is `resources, team, settings, hotsite`; the new item is not a `MANAGER_NAV_KEYS` entry — it sits in the main group and is shown only to MANAGER. **Naming:** the user-facing label is "Reservas a resolver" everywhere (nav, page title, empty state); "exception" survives only in code, route and API. |
 
 Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The sidebar here also lists "Recursos", which the older shell prototypes (`agenda/10`) omit but the real `Sidebar.tsx` has.
 
@@ -101,7 +101,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 - **Selecting "everything from this resource from a time"** is drawn as a per-group "Selecionar todos" only; a free "a partir de …" filter is a proposal, not decided (see the journey's open questions).
 - **The new components (`BulkActionBar`, `BulkResultList`, the three sheets, `ReschedulePanel`) do not exist**, so their unhappy-path variants are tagged ⚠ in `index.html`.
 - **The slot source for `01e` is a proposal** (the staff availability endpoint) — see the BFF calls note above.
-- **The "Exceções" nav item is drawn** (sidebar + mobile "Mais" sheet, with an open-count badge); where the count comes from (the list's total vs a separate count call) is for `M23-S14`'s discovery. `M23-S14` also adds the route-registry entries.
+- **The "Reservas a resolver" nav item is drawn** (sidebar below "Agenda" + mobile "Mais" sheet, with an open-count badge); where the count comes from (the list's total vs a separate count call) is for `M23-S14`'s discovery. `M23-S14` also adds the route-registry entries.
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 
 ## Open questions / gaps

@@ -30,7 +30,7 @@
 | 2 | M23-S25 | Customer email on a no-show — `BookingNoShow` → Notification (UC-074 step 3) |
 | 2 | M23-S26 | Append every booking status transition to `booking_status_transitions` (no backfill) |
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
-| 2 | M23-S14 | Manager "Exceções de Agenda" worklist frontend (UC-073/077) |
+| 2 | M23-S14 | Manager "Reservas a resolver" worklist frontend (UC-073/077) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -1074,7 +1074,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 ---
 
-### M23-S14 — Manager "Exceções de Agenda" worklist frontend
+### M23-S14 — Manager "Reservas a resolver" worklist frontend
 
 **Agent:** `frontend-ts`
 **Complexity:** M
@@ -1084,7 +1084,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 **Prototype references:** `plan/journey/manager/scheduling-exceptions.md`, `plan/journey/manager/prototypes/scheduling-exceptions/01-exception-worklist.html`, `dev-notes.md`. Shell, card, sheet and reschedule-picker reuse: `dev-notes.md` § Design system.
 
 **Description:**
-Build the manager worklist page from the relocated prototype — list open exceptions, drill into impact + alternatives, choose keep/reassign/reschedule/cancel or dismiss. **Bulk (decided in M23-S08):** the manager can select one or many entries (for example all open entries of one resource from a chosen time) and reassign them to one target resource or to "any free one" (`AUTO`), cancel, keep or dismiss them in one action; the result is per entry (`RESOLVED` or `STILL_OPEN`), so the page shows which ones moved and which stayed open. Reschedule is one entry at a time and only for a confirmed (`APPROVED`) booking: the manager picks the new time and it applies immediately. **Prototype pass done (2026-09-30), redrawn inside the real dashboard shell on 2026-10-14** (the first pass had no shell and bespoke CSS): `plan/journey/manager/prototypes/scheduling-exceptions/` now draws the list (`01`), the selection and bulk bar (`01b`), the reassign target choice (`01c`), the per-entry result (`01d`), the single direct reschedule (`01e`), cancel (`01f`), dismiss (`01g`) and the empty, loading, load-error and submit-error states (`01h`–`01k`); its `dev-notes.md` lists the proposed components. Open for this story's discovery: confirm the slots in `01e` come from the existing `GET /v1/schedule/availability` the staff reschedule screen uses (proposed; the submit still goes to `POST /scheduling-exceptions/resolve` with `RESCHEDULE`), where the "Exceções" badge count comes from, and whether a free "a partir de …" time filter is wanted next to the per-group "Selecionar todos" (recommendation: leave it out of the MVP). Add a new MANAGER-only sidebar item ("Exceções", after "Recursos", with an open-count badge) to the sidebar and the mobile "Mais" sheet. No per-entry detail page: every decision is made from the list.
+Build the manager worklist page from the relocated prototype — list open exceptions, drill into impact + alternatives, choose keep/reassign/reschedule/cancel or dismiss. **Bulk (decided in M23-S08):** the manager can select one or many entries (for example all open entries of one resource from a chosen time) and reassign them to one target resource or to "any free one" (`AUTO`), cancel, keep or dismiss them in one action; the result is per entry (`RESOLVED` or `STILL_OPEN`), so the page shows which ones moved and which stayed open. Reschedule is one entry at a time and only for a confirmed (`APPROVED`) booking: the manager picks the new time and it applies immediately. **Prototype pass done (2026-09-30), redrawn inside the real dashboard shell on 2026-10-14** (the first pass had no shell and bespoke CSS): `plan/journey/manager/prototypes/scheduling-exceptions/` now draws the list (`01`), the selection and bulk bar (`01b`), the reassign target choice (`01c`), the per-entry result (`01d`), the single direct reschedule (`01e`), cancel (`01f`), dismiss (`01g`) and the empty, loading, load-error and submit-error states (`01h`–`01k`); its `dev-notes.md` lists the proposed components. Open for this story's discovery: confirm the slots in `01e` come from the existing `GET /v1/schedule/availability` the staff reschedule screen uses (proposed; the submit still goes to `POST /scheduling-exceptions/resolve` with `RESCHEDULE`), where the "Reservas a resolver" badge count comes from, and whether a free "a partir de …" time filter is wanted next to the per-group "Selecionar todos" (recommendation: leave it out of the MVP). Add a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with an open-count badge) — rendered only for the MANAGER role inside the main nav group — and put it first in the mobile "Mais" sheet (the bottom nav is already full). "Exceção" stays the code/route/API term (`/scheduling-exceptions`); it is never shown to the user. No per-entry detail page: every decision is made from the list.
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/scheduling-exceptions/page.tsx` (new — thin)
@@ -1095,11 +1095,11 @@ Build the manager worklist page from the relocated prototype — list open excep
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReschedulePanel.tsx` (+ spec) (new — composes the existing carousel + slot picker)
 - `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` (+ spec) (new)
 - `apps/web/features/booking/api/scheduling-exceptions.ts` (new — React Query hooks)
-- `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add "Exceções" to `MANAGER_NAV_KEYS`)
+- `apps/web/shells/dashboard/components/Sidebar.tsx` (modify — add a MANAGER-only "Reservas a resolver" item below "Agenda")
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — `dashboard.nav.schedulingExceptions` + a new `dashboard.schedulingExceptionsPage` namespace, verified against the real file structure at implementation time, same pattern M21-S04 already established)
 
 **Acceptance criteria — product:**
-- [ ] Manager sees "Exceções" in the sidebar and the open worklist matching the prototype's flow.
+- [ ] Manager sees "Reservas a resolver" in the sidebar and the open worklist matching the prototype's flow.
 - [ ] Manager resolves or dismisses one or many entries; the list updates without a full page reload and shows which entries of a bulk action stayed open.
 
 **Acceptance criteria — technical:**
