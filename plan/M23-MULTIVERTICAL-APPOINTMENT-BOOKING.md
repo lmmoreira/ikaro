@@ -3453,12 +3453,12 @@ The BFF stays a thin proxy for all three. **Shared types (decided 2026-10-09):**
 
 ### M23-S43 — Customer "Minha Conta": availability alerts management — list, detail and cancel
 
-**Agent:** `frontend-ts`
-**Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Availability Alerts, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
+**Complexity:** L
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer shell), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Availability Alerts, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/13-DATABASE_SCHEMA.md` § `availability_alert_notification_attempts`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure
 **Dependencies:** M23-S12 (the shared `AccountListRow`, the Agendamentos entry-row pattern and the topbar back-link usage), M23-S42 (`GET /availability-alerts/:id`), M23-S31 (✅ Done — alert creation and the client alerts module), M23-S06, M23-S07 (the alerts BFF)
 **Pattern:** plain composition — reuses M23-S12's `AccountListRow`; the cancel confirmation follows the booking cancel page and the team `deactivate` page; no named pattern applies.
-**Prototype references:** `plan/journey/customer/prototypes/minha-conta/07-availability-alert.html` (list), `07b-avisos-vazio.html` (empty), `07c-avisos-carregando.html` (loading), `07d-avisos-erro.html` (load error), `07e-aviso-nao-editavel.html` (cancel refused, `409`), `07f-aviso-detalhe.html` (active detail), `07g-aviso-detalhe-historico.html` (notified or expired detail), `07h-cancelar-aviso.html` (cancel confirmation), `07i-cancelar-aviso-erro.html` (cancel failure), the "Meus avisos" entry row on `01-minha-conta.html`, and `dev-notes.md`. Alert creation is not here — it is the booking flow's page (M23-S31, `book-a-service/16*`).
+**Prototype references:** `plan/journey/customer/prototypes/minha-conta/07-availability-alert.html` (list), `07b-avisos-vazio.html` (empty), `07c-avisos-carregando.html` (loading), `07d-avisos-erro.html` (load error), `07f-aviso-detalhe.html` (active detail), `07g-aviso-detalhe-historico.html` (notified or expired detail), `07h-cancelar-aviso.html` (cancel confirmation), `07i-cancelar-aviso-erro.html` (cancel failure), the "Meus avisos" entry row on `01-minha-conta.html`, and `dev-notes.md`. Alert creation is not here — it is the booking flow's page (M23-S31, `book-a-service/16*`).
 
 **Description:**
 The customer sees and cancels their availability alerts (UC-076). The management surface only: no create control (creation starts in the booking flow) and no edit in the UI yet (`PATCH /availability-alerts/:id` exists from M23-S06 and is not used here).
@@ -3466,22 +3466,29 @@ The customer sees and cancels their availability alerts (UC-076). The management
 **Decided at discovery (2026-10-09):**
 1. **List** (`/{slug}/my-account/alerts`): `GET /availability-alerts` (the 100 most recent, history included), active alerts first, then "Histórico". Rows are M23-S12's `AccountListRow`: the title is the link to the detail page, an active alert has a red inline "Cancelar aviso" and a green "Ativo" badge, a history row has only the title link (to `07g`) and its "Avisado" or "Expirado" badge. Loading, empty and load-error states are `07c`, `07b` and `07d`.
 2. **Detail** (`.../alerts/[id]`): reads `GET /availability-alerts/:id` (M23-S42), never the list. A missing or foreign id is a `404`. An active alert is `07f` with a "Cancelar aviso" action in its pane; a notified or expired one is `07g`, read-only.
-3. **Cancel** (`.../alerts/[id]/cancel`): a dedicated confirmation page (`07h`), never an inline panel; `DELETE /availability-alerts/:id`. A network or `5xx` failure is `07i` (the alert stays active, with "Tentar novamente"); a `409 BOOKING_ALERT_NOT_EDITABLE` (notified or expired in the meantime) is `07e`.
+3. **Cancel** (`.../alerts/[id]/cancel`): a dedicated confirmation page (`07h`), never an inline panel; `DELETE /availability-alerts/:id`. A network or `5xx` failure is `07i` (the alert stays active, with "Tentar novamente"); a `409 BOOKING_ALERT_NOT_EDITABLE` (notified or expired in the meantime) sends the customer to the list (`router.push`, then `router.refresh()`), where the alert already sits under "Histórico" as "Avisado" or "Expirado" — no banner and no separate state (decided 2026-10-14: the history row already says what happened, so the prototype's `07e` banner variant is dropped).
 4. **Agendamentos tab:** a "Meus avisos" entry row, only when the customer has any alert in any status, with the active count as a badge, linking to the list; the count read is optional and its failure never blocks the tab.
 5. **i18n namespace** is `customer.alerts`, both locale files in the same change.
-6. **Journey docs:** the same commit flips the `❓ Gap` markers of `07` to `07i` in `minha-conta.md` and `dev-notes.md`.
+6. **Journey docs:** the same commit flips the `❓ Gap` markers of `07` to `07i` (except `07e`, removed) in `minha-conta.md` and `dev-notes.md`, marks the file-table rows Done, and removes `07e-aviso-nao-editavel.html` with its rows and its `index.html` link (a prototype restructure: ask whether a `/docs-audit` baseline is wanted first, `CLAUDE.md` §15).
+7. **The alert item gains three fields (discovered 2026-10-14: the prototypes show the service name, the resource name and the time the customer was notified, and `AvailabilityAlertResponse` carries none of them):** `serviceName: string`, `preferredResourceName: string | null` and `notifiedAt: string | null` (ISO-8601 UTC). `notifiedAt` is the `attempted_at` of the alert's `SENT` EMAIL attempt (`availability_alert_notification_attempts`), `null` when there is none. Names come from one batched, tenant-scoped read per response (the service repository's `findByIds` and the resource equivalent, never one per row), with no fallback, since the composite foreign keys guarantee both rows exist. The attempts are read once per response too, through the existing attempt repository port. `toAvailabilityAlertResult` stays the single mapper behind the list, the by-id read and the update response, so the shapes cannot drift. The additions are additive and read-only.
+8. **Customer email in the detail info box:** the same source as the "Aviso criado" page's `{email}`; if that source is not available on a server page, the box says "enviamos um e-mail" without the address.
 
-**Backend HTTP surface:** none — reuses `GET /availability-alerts`, `GET /availability-alerts/:id` (M23-S42) and `DELETE /availability-alerts/:id`.
-**BFF endpoint spec:** none.
+**Backend HTTP surface:** extends the item returned by `GET /availability-alerts`, `GET /availability-alerts/:id` and the `PATCH /availability-alerts/:id` response with `serviceName`, `preferredResourceName` and `notifiedAt`; `DELETE` is unchanged.
+**BFF endpoint spec:** none new — the BFF stays a thin proxy; its alert item type moves to the shared `AvailabilityAlertResponse` in `@ikaro/types`, extended with the three fields.
 **New migration / i18n keys / env vars / feature flags:** i18n keys under `customer.alerts` in `packages/i18n/locales/pt-BR/web.json` and `en/web.json`; no migration, env var or flag.
 
 **Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/` — the alert result mapper (`toAvailabilityAlertResult`) and the list, get and update use cases (+ specs) (modify — inject the service and resource read ports and the notification-attempt port; batch-read names and `SENT` attempts; the exact files are located at implementation, the three use cases already share the mapper)
+- `packages/types/src/availability-alert.dto.ts` (modify — `serviceName`, `preferredResourceName`, `notifiedAt` on `AvailabilityAlertResponse`)
+- `apps/bff/src/features/booking/availability-alerts.controller.ts` (+ specs) (modify only if it declares its own item type; otherwise untouched)
+- `apps/backend/http/booking/availability-alerts.http`, `apps/bff/http/bookings/availability-alerts.http` (modify — response comments)
+- `docs/14-API_CONTRACTS.md` (modify — the response-item line; already updated at discovery)
 - `apps/web/app/[slug]/my-account/alerts/page.tsx` (new)
 - `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` (new — a server component)
 - `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` (new)
 - `apps/web/features/customer/components/my-account/AvailabilityAlertList.tsx` (+ spec) (new)
 - `apps/web/features/customer/components/my-account/AvailabilityAlertDetail.tsx` (+ spec) (new — the active and the history variants)
-- `apps/web/features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` (+ spec) (new — also the `07e` and `07i` states)
+- `apps/web/features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` (+ spec) (new — also the `07i` state; a `409` redirects to the list)
 - `apps/web/features/customer/components/my-account/BookingsList.tsx` (+ spec) (modify — the "Meus avisos" entry row, beside M23-S12's)
 - `apps/web/app/[slug]/my-account/bookings/page.tsx` (modify — the optional alerts read)
 - `apps/web/features/booking/api/availability-alerts.server.ts` (+ spec) (new — list and get-by-id with `bffServerFetch`)
@@ -3493,25 +3500,30 @@ The customer sees and cancels their availability alerts (UC-076). The management
 **Acceptance criteria — product:**
 - [ ] A customer sees their alerts, active ones first and the rest under "Histórico", each with its badge; a history row has no cancel action.
 - [ ] A customer opens an alert from its title (finished alerts stay for 90 days after expiry) and sees its detail; a notified or expired alert is read-only.
-- [ ] A customer cancels an active alert from its detail through a confirmation page and sees it leave the active list; a failure keeps the alert active and offers a retry; an alert that closed in the meantime shows the "não está mais ativo" state.
+- [ ] A customer cancels an active alert from its detail through a confirmation page and sees it leave the active list; a failure keeps the alert active and offers a retry; an alert that was notified or expired in the meantime lands the customer on the list with that alert under "Histórico".
+- [ ] Every alert row and detail shows the service name and, when set, the resource name; a notified alert shows when the email was sent.
 - [ ] The Agendamentos tab shows "Meus avisos" with the active count only when the customer has any alert; if that read fails the tab still renders.
 - [ ] There is no create or edit control for alerts here.
 
 **Acceptance criteria — technical:**
 - Unit:
+  - [ ] the alert result mapper spec: `serviceName`, `preferredResourceName` (set and `null`) and `notifiedAt` (with a `SENT` attempt, with none, and with a `FAILED`/`PENDING` one only) are carried, and list, by-id and update produce the same shape
+  - [ ] the list use case spec: names and attempts are read once for the page, not once per row
   - [ ] `AvailabilityAlertList.spec.tsx`: active and history rows with their badges and actions, the empty, loading and error states, and no create control (negative guarantee, own test)
   - [ ] `AvailabilityAlertDetail.spec.tsx`: an active alert shows the cancel action; a notified and an expired one render none (negative guarantee, own test)
-  - [ ] `AvailabilityAlertCancelConfirm.spec.tsx`: the confirm call, the `409` state and the failure state keep the alert active
+  - [ ] `AvailabilityAlertCancelConfirm.spec.tsx`: the confirm call, the `409` redirect to the list (with a refresh) and the failure state that keeps the alert active
   - [ ] `BookingsList.spec.tsx`: the "Meus avisos" row shows only when the customer has any alert, with the active count; absent when the data is absent
   - [ ] the bookings page: a failed alerts read leaves the tab rendering
   - [ ] `availability-alerts.spec.ts`: the cancel call
-- Integration: n/a — web stories have no integration tier
-- Tenant isolation: n/a — client-side; server-side isolation is covered by M23-S06 and M23-S42
-- E2E (every route is touched):
+- Integration:
+  - [ ] `availability-alert.controller.integration.spec.ts`: list and by-id return the three new fields for a seeded alert, including a notified one with a `SENT` attempt and an alert with a preferred resource
+- Tenant isolation:
+  - [ ] another tenant's service or resource name never resolves on an alert (the batch reads are tenant-scoped); the existing S06/S42 cross-customer and cross-tenant `404` tests still pass
+- E2E (every route is touched; `createAlertViaApi` moves from `availability-alert.spec.ts` into `helpers/availability-alert.ts` so both specs share it):
   - [ ] Playwright, `/{slug}/my-account/alerts`: a customer with a real alert (created through the booking flow helper) sees it in the list and opens its detail
   - [ ] Playwright, `.../alerts/[id]/cancel`: the customer cancels it through the confirmation page and sees it leave the active list
   - [ ] Playwright: a customer with no alert sees the empty state, and the Agendamentos tab has no "Meus avisos" row
-  - [ ] Notified and expired detail (`07g`) and the load-error and loading states are covered at the unit level only (they cannot be produced through the product in a test)
+  - [ ] Notified and expired detail (`07g`), the `409` redirect and the load-error and loading states are covered at the unit level only (they cannot be produced through the product in a test)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
