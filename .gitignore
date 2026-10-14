@@ -66,3 +66,5 @@ crash.*.log
 # Python — infra/terraform/.checkov/custom_checks (M17-S14)
 __pycache__/
 *.pyc
+
+apps/web/next-env.d.ts
