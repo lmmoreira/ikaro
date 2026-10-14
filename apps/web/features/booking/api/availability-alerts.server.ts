@@ -1,6 +1,9 @@
 import { notFound, redirect } from 'next/navigation';
 import type { AvailabilityAlertListResponse, AvailabilityAlertResponse } from '@ikaro/types';
-import { isVisibleAlert } from '@/features/booking/model/availability-alert-status';
+import {
+  isVisibleAlert,
+  withEffectiveStatus,
+} from '@/features/booking/model/availability-alert-status';
 import { bffServerFetch } from '@/shared/lib/api/bff-server';
 import { assertOk, CustomerFetchError } from '@/shared/lib/api/errors';
 
@@ -11,7 +14,8 @@ export async function fetchCustomerAvailabilityAlerts(
 ): Promise<AvailabilityAlertListResponse> {
   const res = await bffServerFetch(token, '/availability-alerts');
   await assertOk(res, CustomerFetchError);
-  return res.json() as Promise<AvailabilityAlertListResponse>;
+  const list = (await res.json()) as AvailabilityAlertListResponse;
+  return { ...list, items: list.items.map((alert) => withEffectiveStatus(alert)) };
 }
 
 export interface AlertsSummary {
@@ -47,7 +51,7 @@ export async function fetchCustomerAvailabilityAlertOrRedirect(
   try {
     const res = await bffServerFetch(token, `/availability-alerts/${alertId}`);
     await assertOk(res, CustomerFetchError);
-    const alert = (await res.json()) as AvailabilityAlertResponse;
+    const alert = withEffectiveStatus((await res.json()) as AvailabilityAlertResponse);
     // A cancelled alert no longer exists for the customer.
     if (!isVisibleAlert(alert)) notFound();
     return alert;

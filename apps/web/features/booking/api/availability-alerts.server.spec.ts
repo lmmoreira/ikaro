@@ -74,6 +74,19 @@ describe('fetchAlertsSummary', () => {
     await expect(fetchAlertsSummary('token')).resolves.toEqual({ hasAny: true, activeCount: 0 });
   });
 
+  it('does not count an ACTIVE alert whose expiry has passed — the backend refuses to cancel it', async () => {
+    bffServerFetch.mockResolvedValue(
+      jsonResponse({
+        items: [
+          { ...alert('ACTIVE'), expiresAt: '2020-01-01T00:00:00.000Z' },
+          { ...alert('ACTIVE'), expiresAt: '2999-01-01T00:00:00.000Z' },
+        ],
+      }),
+    );
+
+    await expect(fetchAlertsSummary('token')).resolves.toEqual({ hasAny: true, activeCount: 1 });
+  });
+
   it('does not count a cancelled alert — it no longer exists for the customer', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse({ items: [alert('CANCELLED')] }));
 
@@ -114,6 +127,15 @@ describe('fetchCustomerAvailabilityAlertOrRedirect', () => {
       fetchCustomerAvailabilityAlertOrRedirect('token', 'abc', 'vitta'),
     ).resolves.toEqual(alert('EXPIRED'));
     expect(bffServerFetch).toHaveBeenCalledWith('token', '/availability-alerts/abc');
+  });
+
+  it('reads an ACTIVE alert past its expiry as EXPIRED, matching the backend cancel rule', async () => {
+    const stale = { ...alert('ACTIVE'), expiresAt: '2020-01-01T00:00:00.000Z' };
+    bffServerFetch.mockResolvedValue(jsonResponse(stale));
+
+    await expect(
+      fetchCustomerAvailabilityAlertOrRedirect('token', 'abc', 'vitta'),
+    ).resolves.toMatchObject({ status: 'EXPIRED' });
   });
 
   it('is a 404 for an unknown or foreign id', async () => {
