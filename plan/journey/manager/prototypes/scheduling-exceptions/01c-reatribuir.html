@@ -192,7 +192,7 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('João Silva')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="booking-card selected" data-card="e2">
           <div class="booking-card-header">
@@ -206,7 +206,7 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('Maria Oliveira')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="booking-card" data-card="e3">
           <div class="booking-card-header">
@@ -220,7 +220,7 @@
             </div>
             <span class="status-badge status-pending">Pendente</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><button type="button" class="btn-secondary" onclick="openRow('Ana Costa')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="day-group-header">
           <span class="day-group-label">Walace foi desativado</span>
@@ -240,15 +240,13 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('Carlos Lima')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
   <div class="select-bar" id="select-bar">
     <div><span class="count" id="sel-count">0 selecionados</span><br><span class="hint">Reagendar é um compromisso por vez — use o botão da linha.</span></div>
     <div class="acts">
       <a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a>
       <a href="01f-cancelar.html" class="btn-secondary">Cancelar</a>
-      <a href="01g-dispensar.html?acao=manter" class="btn-secondary">Manter</a>
-      <a href="01g-dispensar.html" class="btn-secondary">Dispensar</a>
     </div>
   </div>
 
@@ -357,15 +355,6 @@
       var all = ids.every(function (id) { return document.querySelector('.chk[data-id=' + id + ']').checked; });
       ids.forEach(function (id) { document.querySelector('.chk[data-id=' + id + ']').checked = !all; });
       refresh();
-    }
-    function openRow(name) {
-      document.getElementById('row-name').textContent = name;
-      document.getElementById('row-sheet').classList.add('open');
-      document.getElementById('row-backdrop').classList.add('open');
-    }
-    function closeRow() {
-      document.getElementById('row-sheet').classList.remove('open');
-      document.getElementById('row-backdrop').classList.remove('open');
     }
     refresh();
   </script>

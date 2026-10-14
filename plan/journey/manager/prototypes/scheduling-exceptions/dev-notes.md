@@ -13,13 +13,17 @@ The first pass drew bare pages with bespoke inline CSS and no shell. The screens
 | Shell: topbar, `dashboard-layout`, sidebar, bottom nav + "Mais" sheet | `shared/tokens.css`, `staff/.../agenda/00-agenda.html` | Drill-down screens (`01d`, `01e`) use the back-arrow topbar and hide the bottom nav, as `10-novo-agendamento.html` does. |
 | One entry | `.booking-card` + `.list-avatar` + `.status-badge` (`status-approved`, `status-pending`) | Same card as the "Precisa de ação" queue; only a leading checkbox is new. |
 | Group header + "Selecionar todos" | `.day-group-header` (agenda) | |
-| Reassign / cancel / dismiss-keep | `.bottom-sheet` + `.sheet-backdrop` (modal on desktop) with `.btn-primary` / `.btn-danger` / `.btn-secondary`, `.form-label` / `.form-input` | Same sheet as the manager overflow menu and `03g-correct-no-show.html`. |
+| Reassign / cancel | `.bottom-sheet` + `.sheet-backdrop` (modal on desktop) with `.btn-primary` / `.btn-danger` / `.btn-secondary`, `.form-label` / `.form-input` | Same sheet as the manager overflow menu and `03g-correct-no-show.html`. |
 | Reschedule | **Staff reschedule screen** (`05-reschedule.html`): `AvailabilityCarousel` + `SlotPicker` `variant="dashboard"`, `shared/reschedule-picker.css`, the `detail-layout` + sticky aside + `mobile-action-bar` | **Resolves the open slot-source question:** `GET /v1/schedule/availability?date=…&serviceIds=…`, duration frozen at the booking's `totalDurationMins`. Only the submit differs: `POST /scheduling-exceptions/resolve` with `RESCHEDULE`, not `PATCH /bookings/:id/reschedule`. |
 | Selection bar | The fixed `mobile-action-bar` pattern (staff detail screens); on desktop it clears the 15rem sidebar | The one new piece of CSS; a candidate for `shared/components` only if a second screen needs it. |
 | Banners, empty and loading states | `banner-ok` / `banner-error` (agenda `10b`) | |
 | Nav | New MANAGER-only **"Reservas a resolver"** item right below "Agenda" (rendered only for the MANAGER role, in the main nav group), with an open-count badge; first item of the mobile "Mais" sheet because the bottom nav is already full | Real `Sidebar.tsx` `MANAGER_NAV_KEYS` is `resources, team, settings, hotsite`; the new item is not a `MANAGER_NAV_KEYS` entry — it sits in the main group and is shown only to MANAGER. **Naming:** the user-facing label is "Reservas a resolver" everywhere (nav, page title, empty state); "exception" survives only in code, route and API. |
 
 Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The sidebar here also lists "Recursos", which the older shell prototypes (`agenda/10`) omit but the real `Sidebar.tsx` has.
+
+## Why no Manter / Dispensar (decided 2026-10-14)
+
+The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave the booking untouched on a **deactivated** resource, where nobody can perform it (it has no column in the Horários day grid, and a deactivated staff member no longer works there). So neither is a real outcome and the page offers only **Reatribuir, Reagendar, Cancelar**. The backend `KEEP` choice and `POST /dismiss` (`M23-S08`) are not called from here. A resource deactivated by mistake is fixed by reactivating it, and reactivation must close that resource's open entries (`M23-S45`) so the list can always be emptied.
 
 ## File map (❓ none exist yet)
 
@@ -31,7 +35,6 @@ Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The side
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/CancelSheet.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/DismissSheet.tsx` (Dispensar and Manter) | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReschedulePanel.tsx` (composes the existing carousel + slot picker) | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` | ❓ Gap |
 | `apps/web/features/booking/api/scheduling-exceptions.ts` (React Query hooks) | ❓ Gap |
@@ -53,9 +56,7 @@ POST /v1/scheduling-exceptions/resolve            (bulk-only — a single entry 
           scheduledAt?: string                          (RESCHEDULE only — exactly one id, APPROVED booking) }
   Response 200: { results: [{ exceptionId, outcome: 'RESOLVED' | 'STILL_OPEN', errorCode? }] }
 
-POST /v1/scheduling-exceptions/dismiss
-  Body: { exceptionIds: string[], reason: string }
-  Response 200: { results: [...] }   (same shape)
+POST /v1/scheduling-exceptions/dismiss      (exists in the API; NOT called by this page — see § Why no Manter / Dispensar)
 ```
 
 **Slot source for `01e`:** the existing `GET /v1/schedule/availability?date=…&serviceIds=…` the staff reschedule screen already calls (proposal; `M23-S14`'s discovery must confirm it can be called for a specific booking's services and, for a resource-bound booking, its resource selections).
@@ -64,12 +65,12 @@ POST /v1/scheduling-exceptions/dismiss
 
 **Files:** `01-exception-worklist.html` (baseline), `01b-selecionados.html`.
 
-Cards are `.booking-card`s, grouped by the unavailable resource with `.day-group-header`. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Outras ações** (sheet: Manter / Cancelar / Dispensar).
+Cards are `.booking-card`s, grouped by the unavailable resource with `.day-group-header`. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Cancelar** (secondary). There is deliberately no Manter / Dispensar — see § Why no Manter / Dispensar.
 
 - Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 compromissos"), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
 - Each row: checkbox, date/time and service names, contact name, the current resource, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
 - **Reagendar is enabled only for a confirmed booking** and only when exactly one entry is in play (disabled with a tooltip in a row that is pending, and in the bulk bar).
-- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar · Manter · Dispensar"; it replaces the bottom nav on mobile. A hint in the bar says Reagendar is one entry at a time.
+- Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar"; it replaces the bottom nav on mobile. A hint in the bar says Reagendar is one entry at a time.
 
 **States:** loading (`01i`) → list / empty (`01h`) / fetch error (`01j`).
 
@@ -88,7 +89,6 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 **Validation:**
 | Field | Rule | Error message |
 |---|---|---|
-| Dismiss reason | required (min 1) | "Informe o motivo para dispensar." |
 | Reassign / cancel reason | optional | — |
 | Reschedule new time | required, one option picked | "Escolha um novo horário." |
 

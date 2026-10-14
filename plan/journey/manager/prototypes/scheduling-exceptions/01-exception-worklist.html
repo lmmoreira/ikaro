@@ -94,7 +94,7 @@
     and the same card-with-actions shape as the "Precisa de ação" queue. The only new things are the leading checkbox, the fixed selection bar
     (same fixed-bar pattern as .mobile-action-bar) and the "Reservas a resolver" item right below "Agenda" (MANAGER-only, with an open-entries count).
     One card = one affected future booking. Grouped by the resource that became unavailable (the entry's sourceId).
-    Row actions: Reatribuir (primary) · Reagendar (APPROVED only) · Outras ações (sheet: Manter / Cancelar / Dispensar).
+    Row actions: Reatribuir (primary) · Reagendar (APPROVED only) · Cancelar. There is deliberately NO Manter / Dispensar: a booking on a deactivated resource has nobody to perform it, so the only outcomes are move, reschedule or cancel.
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
@@ -197,7 +197,7 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('João Silva')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="booking-card" data-card="e2">
           <div class="booking-card-header">
@@ -211,7 +211,7 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('Maria Oliveira')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="booking-card" data-card="e3">
           <div class="booking-card-header">
@@ -225,7 +225,7 @@
             </div>
             <span class="status-badge status-pending">Pendente</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><button type="button" class="btn-secondary" onclick="openRow('Ana Costa')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
         <div class="day-group-header">
           <span class="day-group-label">Walace foi desativado</span>
@@ -245,24 +245,14 @@
             </div>
             <span class="status-badge status-approved">Confirmada</span>
           </div>
-          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><button type="button" class="btn-secondary" onclick="openRow('Carlos Lima')">Outras ações</button></div>
+          <div class="booking-card-actions"><a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a><a href="01e-reagendar.html" class="btn-secondary">Reagendar</a><a href="01f-cancelar.html" class="btn-secondary">Cancelar</a></div>
         </div>
 
-  <div class="sheet-backdrop" id="row-backdrop" onclick="closeRow()"></div>
-  <div class="bottom-sheet" id="row-sheet">
-    <div class="bottom-sheet-handle"></div>
-    <p class="bottom-sheet-label" id="row-name">Reserva</p>
-    <a class="bottom-sheet-item" href="01g-dispensar.html?acao=manter">Manter como está</a>
-    <a class="bottom-sheet-item" href="01f-cancelar.html" style="color:#dc2626;">Cancelar reserva</a>
-    <a class="bottom-sheet-item" href="01g-dispensar.html">Dispensar aviso</a>
-  </div>
   <div class="select-bar" id="select-bar">
     <div><span class="count" id="sel-count">0 selecionados</span><br><span class="hint">Reagendar é um compromisso por vez — use o botão da linha.</span></div>
     <div class="acts">
       <a href="01c-reatribuir.html" class="btn-primary">Reatribuir</a>
       <a href="01f-cancelar.html" class="btn-secondary">Cancelar</a>
-      <a href="01g-dispensar.html?acao=manter" class="btn-secondary">Manter</a>
-      <a href="01g-dispensar.html" class="btn-secondary">Dispensar</a>
     </div>
   </div>
 
@@ -351,15 +341,6 @@
       var all = ids.every(function (id) { return document.querySelector('.chk[data-id=' + id + ']').checked; });
       ids.forEach(function (id) { document.querySelector('.chk[data-id=' + id + ']').checked = !all; });
       refresh();
-    }
-    function openRow(name) {
-      document.getElementById('row-name').textContent = name;
-      document.getElementById('row-sheet').classList.add('open');
-      document.getElementById('row-backdrop').classList.add('open');
-    }
-    function closeRow() {
-      document.getElementById('row-sheet').classList.remove('open');
-      document.getElementById('row-backdrop').classList.remove('open');
     }
     refresh();
   </script>

@@ -12,6 +12,8 @@
 > - **Reassign** = same time, another resource (an explicit one, or "any free one"). **Reschedule** = a manager-chosen new time, applied immediately, for a confirmed (`APPROVED`) booking and **one entry at a time** (the customer is notified by the existing reschedule email). There is no "offer options and wait for the customer" flow.
 > - **Reassign, cancel, keep and dismiss work on many entries at once**, best-effort: each booking is its own transaction, the ones that could not be done stay open and are reported back.
 > - Sending the manager an alert and telling the customer about a reassign is `M23-S23`, not this screen.
+>
+> **Decided for the UI on 2026-10-14:** the screen offers only **Reatribuir, Reagendar and Cancelar**. There is no "Manter" and no "Dispensar": a booking on a deactivated resource has nobody to perform it, so leaving it as it is is not a real outcome. The backend `KEEP` choice and `POST /dismiss` (shipped in `M23-S08`) stay but this page does not call them. A resource deactivated by mistake is fixed by reactivating it, and **reactivation must close that resource's open entries** (`M23-S45`) — otherwise the list could never be emptied without moving or cancelling healthy bookings.
 
 ## Flow
 
@@ -28,14 +30,12 @@ flowchart TD
 
     Bulk -->|"Reatribuir"| Reassign["01c choose target: a resource or 'any free one'"]
     Bulk -->|"Cancelar"| Cancel["01f confirm cancellation + notify customers"]
-    Bulk -->|"Manter / Dispensar"| Dismiss["01g reason (mandatory to dismiss)"]
 
     Reassign --> Result["01d per-entry result:<br/>resolved / still open"]
     Cancel --> Result
-    Dismiss --> Result
     Reschedule --> Resolved["Entry → RESOLVED"]
     Result -->|"Whole request failed"| SubmitError["01k error — nothing changed, retry"]
-    Result --> Done["Resolved entries → RESOLVED / DISMISSED,<br/>the rest stay OPEN"]
+    Result --> Done["Resolved entries → RESOLVED,<br/>the rest stay OPEN"]
 ```
 
 ## Pages referenced
@@ -49,8 +49,8 @@ flowchart TD
 | Call | When | Roles |
 |---|---|---|
 | `GET /v1/scheduling-exceptions?status=OPEN` | Worklist page load (UC-073's output) — each item carries the booking summary and the stored alternatives | MANAGER |
-| `POST /v1/scheduling-exceptions/resolve` | Manager keeps/reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` | MANAGER |
-| `POST /v1/scheduling-exceptions/dismiss` | Manager dismisses one or many non-impacting entries (`exceptionIds[]`, reason required) | MANAGER |
+| `POST /v1/scheduling-exceptions/resolve` | Manager reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` (`KEEP` exists in the API but this page never sends it) | MANAGER |
+| `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page** (kept for the API; see the 2026-10-14 decision above) | MANAGER |
 
 Full request/response shapes: `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions.
 
@@ -61,12 +61,11 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `01-exception-worklist.html` | Worklist — one `.booking-card` per affected booking, grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
-| `01b-selecionados.html` | Two entries ticked, bulk action bar (Reagendar disabled: one at a time) | UC-077 | ❓ GAP |
+| `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ❓ GAP |
 | `01c-reatribuir.html` | Reassign target: a resource or "any free one", mandatory reason | UC-077 | ❓ GAP |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ❓ GAP |
 | `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ❓ GAP |
 | `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ❓ GAP |
-| `01g-dispensar.html` | Dismiss with a mandatory reason (keep is the same panel, reason optional) | UC-077 A2 | ❓ GAP |
 | `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ❓ GAP |
 | `01k-erro-enviar.html` | The whole request failed — nothing changed | UC-077 | ❓ GAP |
 
