@@ -5,6 +5,8 @@ import { Address } from '../../../../shared/value-objects/address';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
+import { FutureCommitmentExceptionBuilder } from '../../../../test/builders/booking/future-commitment-exception.builder';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -29,6 +31,7 @@ describe('GetBookingByIdUseCase', () => {
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let staffPort: InMemoryBookingStaffPort;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: GetBookingByIdUseCase;
 
   beforeEach(() => {
@@ -38,6 +41,7 @@ describe('GetBookingByIdUseCase', () => {
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     staffPort = new InMemoryBookingStaffPort();
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
     useCase = new GetBookingByIdUseCase(
       repo,
       storageService,
@@ -46,7 +50,68 @@ describe('GetBookingByIdUseCase', () => {
       new InMemoryTransactionManager(),
       transitionRepo,
       staffPort,
+      exceptionRepo,
     );
+  });
+
+  describe('hasOpenException (M23-S46)', () => {
+    it('is null unless the caller asked for it, and never queries the worklist then', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      const lookup = jest.spyOn(exceptionRepo, 'findOpenAffectedBookingIds');
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+      });
+
+      expect(result.hasOpenException).toBeNull();
+      expect(lookup).not.toHaveBeenCalled();
+    });
+
+    it('is true for a booking with an open entry and false for one without', async () => {
+      const marked = new BookingBuilder().withTenantId(TENANT_A).build();
+      const plain = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(marked);
+      await repo.save(plain);
+      exceptionRepo.seed(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(marked.id)
+          .build(),
+      );
+      const ask = (bookingId: string) =>
+        useCase.execute({
+          bookingId,
+          tenantId: TENANT_A,
+          cancellationWindowHours: 48,
+          includeOpenException: true,
+        });
+
+      expect((await ask(marked.id)).hasOpenException).toBe(true);
+      expect((await ask(plain.id)).hasOpenException).toBe(false);
+    });
+
+    it('is false once the entry is no longer open', async () => {
+      const booking = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(booking);
+      const entry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .build();
+      entry.dismiss('staff-1', 'reason', 'corr-1');
+      exceptionRepo.seed(entry);
+
+      const result = await useCase.execute({
+        bookingId: booking.id,
+        tenantId: TENANT_A,
+        cancellationWindowHours: 48,
+        includeOpenException: true,
+      });
+
+      expect(result.hasOpenException).toBe(false);
+    });
   });
 
   describe('STAFF/MANAGER role', () => {

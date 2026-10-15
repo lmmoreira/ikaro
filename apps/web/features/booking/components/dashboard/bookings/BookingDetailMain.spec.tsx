@@ -7,6 +7,7 @@ import { BookingDetailMain } from './BookingDetailMain';
 
 function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBookingDetailResponse {
   return {
+    hasOpenException: false,
     bookingId: 'b-1',
     status: 'PENDING',
     scheduledAt: '2026-06-16T10:00:00.000Z',

@@ -210,6 +210,59 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
       );
       expect(result).toHaveLength(1);
     });
+
+    it('adds the affected-row predicates when asked for one booking’s entries (M23-S46)', async () => {
+      ormRepo.find.mockResolvedValue([]);
+
+      await repo.findByTenant(TENANT_ID, {
+        status: 'OPEN',
+        affectedType: 'BOOKING',
+        affectedId: 'booking-1',
+      });
+
+      expect(ormRepo.find).toHaveBeenCalledWith({
+        where: {
+          tenantId: TENANT_ID,
+          status: 'OPEN',
+          affectedType: 'BOOKING',
+          affectedId: 'booking-1',
+        },
+        order: { createdAt: 'DESC', id: 'DESC' },
+      });
+    });
+  });
+
+  describe('findOpenAffectedBookingIds (M23-S46)', () => {
+    it('returns an empty set without querying for an empty input', async () => {
+      const result = await repo.findOpenAffectedBookingIds(TENANT_ID, []);
+
+      expect(result.size).toBe(0);
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('reads only the OPEN BOOKING entries of the tenant for the given ids, in one query', async () => {
+      ormRepo.find.mockResolvedValue([
+        new FutureCommitmentExceptionEntityBuilder()
+          .withTenantId(TENANT_ID)
+          .withAffectedId('booking-1')
+          .build(),
+      ]);
+
+      const result = await repo.findOpenAffectedBookingIds(TENANT_ID, ['booking-1', 'booking-2']);
+
+      expect(ormRepo.find).toHaveBeenCalledTimes(1);
+      const arg = ormRepo.find.mock.calls[0][0] as {
+        select: unknown;
+        where: Record<string, unknown>;
+      };
+      expect(arg.select).toEqual({ affectedId: true });
+      expect(arg.where).toMatchObject({
+        tenantId: TENANT_ID,
+        status: 'OPEN',
+        affectedType: 'BOOKING',
+      });
+      expect([...result]).toEqual(['booking-1']);
+    });
   });
 
   describe('save', () => {

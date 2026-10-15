@@ -21,6 +21,11 @@ import {
 } from '@/features/booking/model/booking-no-show';
 import { useTenant } from '@/providers/tenant-provider';
 import { BookingStatusHistory } from './BookingStatusHistory';
+import {
+  bookingNeedsDecision,
+  buildBookingRefreshedHandler,
+} from '@/features/booking/model/booking-decision';
+import { BookingDecisionBanner } from './BookingDecisionBanner';
 import { BookingDetailAsideCard } from './BookingDetailAsideCard';
 import { BookingDetailMain } from './BookingDetailMain';
 import { BookingDetailMainBanner, type BookingDetailActionState } from './BookingDetailMainBanner';
@@ -122,6 +127,8 @@ export function BookingDetailPage({
     };
   }, [booking.scheduledAt, initialActionState, serviceIds, t, tenantSlug]);
 
+  const handleBookingRefreshed = buildBookingRefreshedHandler({ setBooking, setActionState });
+
   const handleApprove = buildApproveHandler({
     bookingId: booking.bookingId,
     scheduledAt: booking.scheduledAt,
@@ -171,6 +178,11 @@ export function BookingDetailPage({
             onRetryCorrect={() => setSheetState('correct-no-show')}
           />
 
+          <BookingDecisionBanner
+            needsDecision={bookingNeedsDecision(booking)}
+            canDecide={role === 'MANAGER'}
+          />
+
           {actionState === 'slot-conflict' && (
             <SlotConflictAlert
               requestedAt={booking.scheduledAt}
@@ -201,6 +213,8 @@ export function BookingDetailPage({
               backHref={backHref}
               noShowAvailableAt={noShowAvailableAt}
               canCorrectNoShow={role === 'MANAGER'}
+              canDecide={role === 'MANAGER'}
+              onBookingRefreshed={handleBookingRefreshed}
               onOpenNoShow={() => setSheetState('no-show')}
               onOpenCorrectNoShow={() => setSheetState('correct-no-show')}
               onBackWithoutApprove={() => {

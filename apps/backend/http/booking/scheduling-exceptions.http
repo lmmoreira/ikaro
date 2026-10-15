@@ -50,6 +50,17 @@ X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
+###
+
+### The open entries of ONE booking, with their alternatives (M23-S46) — the booking detail's
+### decision panel. Normally one entry, several when the booking holds several deactivated
+### resources. An unknown, other-tenant or unmarked booking returns { "items": [] }, never a 404.
+GET {{baseUrl}}/scheduling-exceptions/by-booking/{{bookingId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — resolve one or many entries (UC-077)
 # ─────────────────────────────────────────────────────────────────────────────

@@ -597,7 +597,7 @@ Nothing above is built; the screens are the reference for a "full staff booking 
 
 ### UC-073 / UC-077 — A booking that needs a decision is marked — `00d`, `03j`, `03k` (M23-S46)
 
-Added 2026-10-15, after the M23-S14 live test ("a booking in Reservas a resolver should not look like any other"). **Decided: the booking stays in the queue and is marked — never hidden** (it is still a real commitment, STAFF cannot open the manager-only worklist, and the queue and the Agenda share `GET /bookings`). No new route and no new component family: one badge in the existing queue card and one banner on the existing detail page.
+**Built by `M23-S46` (2026-10-15).** Added 2026-10-15, after the M23-S14 live test ("a booking in Reservas a resolver should not look like any other"). **Decided: the booking stays in the queue and is marked — never hidden** (it is still a real commitment, STAFF cannot open the manager-only worklist, and the queue and the Agenda share `GET /bookings`). No new route and no new component family: one badge in the existing queue card and one banner on the existing detail page.
 
 | File | Screen | Notes |
 |---|---|---|

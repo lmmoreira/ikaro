@@ -6,7 +6,9 @@ import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { bookingNeedsDecision } from '@/features/booking/model/booking-decision';
 import { BookingActionPanel } from './BookingActionPanel';
+import { BookingDecisionPanel } from './BookingDecisionPanel';
 import type { BookingDetailActionState } from './BookingDetailMainBanner';
 
 function BackToAgendaActionsCard({
@@ -42,6 +44,10 @@ interface BookingDetailAsideCardProps {
   // UC-074: the appointment's end time (tenant timezone) while it has not passed, else null.
   readonly noShowAvailableAt: string | null;
   readonly canCorrectNoShow: boolean;
+  // M23-S46: a manager gets the decision panel on a booking with an open "Reservas a resolver" entry.
+  readonly canDecide: boolean;
+  // The booking as the server has it after a resolve from the decision panel.
+  readonly onBookingRefreshed: (fresh: StaffBookingDetailResponse) => void;
   readonly onOpenNoShow: () => void;
   readonly onOpenCorrectNoShow: () => void;
   readonly onBackWithoutApprove: () => void;
@@ -61,6 +67,8 @@ export function BookingDetailAsideCard({
   backHref,
   noShowAvailableAt,
   canCorrectNoShow,
+  canDecide,
+  onBookingRefreshed,
   onOpenNoShow,
   onOpenCorrectNoShow,
   onBackWithoutApprove,
@@ -101,6 +109,18 @@ export function BookingDetailAsideCard({
           </Button>
         </CardContent>
       </Card>
+    );
+  }
+
+  // M23-S46: while the booking has an open "Reservas a resolver" entry none of its normal actions
+  // show — a manager gets the decision panel (the worklist's own actions, for this booking), STAFF
+  // gets nothing (the banner tells them to ask a manager).
+  if (bookingNeedsDecision(booking)) {
+    if (!canDecide) return null;
+    return (
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0">
+        <BookingDecisionPanel booking={booking} onBookingRefreshed={onBookingRefreshed} />
+      </div>
     );
   }
 

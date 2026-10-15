@@ -89,6 +89,7 @@ export class BookingController {
         requestingCustomerId: actorType === 'CUSTOMER' ? actorId : undefined,
         tenantBookingWindow: this.tenantBookingWindow(),
         includeStatusHistory: actorType === 'STAFF',
+        includeOpenException: actorType === 'STAFF',
       })
       .catch(mapBookingError);
   }

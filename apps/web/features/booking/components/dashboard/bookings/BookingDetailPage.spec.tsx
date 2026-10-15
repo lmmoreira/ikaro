@@ -10,6 +10,29 @@ import { getBooking } from '@/features/booking/api/booking';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { BookingDetailPage } from './BookingDetailPage';
 
+const freshStatus = vi.hoisted(() => ({ value: 'APPROVED' as 'APPROVED' | 'CANCELLED' }));
+
+vi.mock('./BookingDecisionPanel', () => ({
+  BookingDecisionPanel: ({
+    booking,
+    onBookingRefreshed,
+  }: {
+    booking: StaffBookingDetailResponse;
+    onBookingRefreshed: (fresh: StaffBookingDetailResponse) => void;
+  }) => (
+    <div data-testid="booking-decision-panel">
+      <button
+        type="button"
+        onClick={() =>
+          onBookingRefreshed({ ...booking, hasOpenException: false, status: freshStatus.value })
+        }
+      >
+        resolve-and-refresh
+      </button>
+    </div>
+  ),
+}));
+
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
@@ -62,6 +85,7 @@ vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
 
 function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBookingDetailResponse {
   return {
+    hasOpenException: false,
     bookingId: 'b-1',
     status: 'PENDING',
     scheduledAt: '2026-06-16T10:00:00.000Z',
@@ -632,5 +656,69 @@ describe('BookingDetailPage', () => {
 
       expect(await screen.findByTestId('booking-no-show-correct-error')).toBeInTheDocument();
     });
+  });
+});
+
+describe('BookingDetailPage — needs a decision (M23-S46)', () => {
+  function renderMarked(role: 'STAFF' | 'MANAGER', hasOpenException = true) {
+    return renderWithIntl(
+      <TenantProvider tenantId="t-1" tenantSlug="lavacar-bh" role={role}>
+        <BookingDetailPage
+          booking={makeBooking({ status: 'APPROVED', hasOpenException })}
+          tenantSlug="lavacar-bh"
+        />
+      </TenantProvider>,
+    );
+  }
+
+  beforeEach(() => {
+    freshStatus.value = 'APPROVED';
+  });
+
+  it('shows the banner and the decision panel — and none of the normal actions — to a manager', () => {
+    renderMarked('MANAGER');
+
+    expect(screen.getByTestId('booking-decision-banner')).toBeInTheDocument();
+    expect(screen.getByText(/Escolha como resolver/)).toBeInTheDocument();
+    expect(screen.getByTestId('booking-decision-panel')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
+  });
+
+  it('shows STAFF the banner with the ask-a-manager hint, no panel and no actions', () => {
+    renderMarked('STAFF');
+
+    expect(screen.getByTestId('booking-decision-banner')).toBeInTheDocument();
+    expect(screen.getByText(/Peça a um gerente para resolver/)).toBeInTheDocument();
+    expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
+  });
+
+  it('shows no banner and the normal actions for a booking without an open entry', () => {
+    renderMarked('MANAGER', false);
+
+    expect(screen.queryByTestId('booking-decision-banner')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+  });
+
+  it('after a reassign the page shows the refreshed booking: no banner, no panel, the normal actions back', async () => {
+    const user = userEvent.setup();
+    renderMarked('MANAGER');
+
+    await user.click(screen.getByRole('button', { name: 'resolve-and-refresh' }));
+
+    expect(screen.queryByTestId('booking-decision-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+  });
+
+  it('after a cancel the page shows the cancelled state with the way back to the agenda', async () => {
+    const user = userEvent.setup();
+    freshStatus.value = 'CANCELLED';
+    renderMarked('MANAGER');
+
+    await user.click(screen.getByRole('button', { name: 'resolve-and-refresh' }));
+
+    expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 });

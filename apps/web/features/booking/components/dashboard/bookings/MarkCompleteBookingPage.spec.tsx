@@ -39,6 +39,7 @@ vi.mock('@/shells/dashboard/components/topbar-status-context', () => ({
 
 function makeBooking(): StaffBookingDetailResponse {
   return {
+    hasOpenException: false,
     bookingId: 'b-1',
     status: 'APPROVED',
     scheduledAt: '2026-06-16T10:00:00.000Z',

@@ -4,6 +4,10 @@ import {
   BookingResourceAssignmentSummary,
   IBookingRepository,
 } from '../ports/booking-repository.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 import { ListBookingsDto } from '../dtos/list-bookings.dto';
 import { Booking } from '../../domain/booking.aggregate';
 import { localDateEndUTC, localDateStartUTC } from '../../../../shared/utils/calendar-date';
@@ -52,6 +56,9 @@ export interface BookingListItem {
   // resource-scoped scheduling) — display-only, always shown regardless of any client-side
   // filter state (TD44-S2 round 3). Empty for a booking with no resource requirements.
   assignedResources: readonly BookingResourceAssignmentSummary[];
+  // M23-S46 — the booking has an open "Reservas a resolver" entry: a view of current data, never
+  // stored. Always false for a customer-scoped list (staff-only information, never looked up).
+  hasOpenException: boolean;
 }
 
 export interface ListBookingsUseCaseResult {
@@ -61,7 +68,11 @@ export interface ListBookingsUseCaseResult {
 
 @Injectable()
 export class ListBookingsUseCase {
-  constructor(@Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository) {}
+  constructor(
+    @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+  ) {}
 
   async execute(input: ListBookingsUseCaseInput): Promise<ListBookingsUseCaseResult> {
     const { tenantId, customerId, cancellationWindowHours } = input;
@@ -77,9 +88,24 @@ export class ListBookingsUseCase {
         offset: input.offset,
       });
 
+    // One lookup for the whole page (an empty page makes none). A customer's own list never carries
+    // the marker, so it is not queried at all.
+    const openExceptionIds: ReadonlySet<string> =
+      customerId === undefined && items.length > 0
+        ? await this.exceptionRepo.findOpenAffectedBookingIds(
+            tenantId,
+            items.map((b) => b.id),
+          )
+        : new Set();
+
     return {
       items: items.map((b) =>
-        this.toListItem(b, cancellationWindowHours, resourceAssignmentsByBookingId.get(b.id) ?? []),
+        this.toListItem(
+          b,
+          cancellationWindowHours,
+          resourceAssignmentsByBookingId.get(b.id) ?? [],
+          openExceptionIds.has(b.id),
+        ),
       ),
       pagination: {
         limit: input.limit,
@@ -94,6 +120,7 @@ export class ListBookingsUseCase {
     booking: Booking,
     cancellationWindowHours: number,
     assignedResources: readonly BookingResourceAssignmentSummary[],
+    hasOpenException: boolean,
   ): BookingListItem {
     return {
       id: booking.id,
@@ -121,6 +148,7 @@ export class ListBookingsUseCase {
       createdAt: booking.createdAt.toISOString(),
       cancellableUntil: booking.cancellableUntilIso(cancellationWindowHours),
       assignedResources,
+      hasOpenException,
     };
   }
 }

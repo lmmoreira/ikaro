@@ -18,6 +18,14 @@ describe('BookingStatusBannerIcon', () => {
     expect(container.querySelectorAll('line')).toHaveLength(2);
   });
 
+  it('renders an orange background with an alert-triangle icon for the warning variant (M23-S46)', () => {
+    const { container } = render(<BookingStatusBannerIcon variant="warning" />);
+
+    expect(container.querySelector('.bg-orange-600')).not.toBeNull();
+    expect(container.querySelector('path')).not.toBeNull();
+    expect(container.querySelectorAll('line')).toHaveLength(2);
+  });
+
   it('renders a blue background with an info icon for the info variant', () => {
     const { container } = render(<BookingStatusBannerIcon variant="info" />);
 

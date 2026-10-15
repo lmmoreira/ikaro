@@ -4,6 +4,7 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 import {
   countOpenSchedulingExceptions,
   listOpenSchedulingExceptions,
+  listOpenSchedulingExceptionsForBooking,
   resolveSchedulingExceptions,
 } from './scheduling-exceptions';
 
@@ -20,6 +21,18 @@ describe('listOpenSchedulingExceptions', () => {
 
     expect(result).toEqual({ items: [] });
     expect(mock.history.get[0].params).toEqual({ status: 'OPEN' });
+  });
+});
+
+describe('listOpenSchedulingExceptionsForBooking (M23-S46)', () => {
+  it('calls the by-booking route for that booking only, never the whole list', async () => {
+    mock.onGet('/scheduling-exceptions/by-booking/b-1').reply(200, { items: [] });
+
+    const result = await listOpenSchedulingExceptionsForBooking('b-1');
+
+    expect(result).toEqual({ items: [] });
+    expect(mock.history.get).toHaveLength(1);
+    expect(mock.history.get[0].url).toBe('/scheduling-exceptions/by-booking/b-1');
   });
 });
 

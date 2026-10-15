@@ -21,6 +21,7 @@ flowchart TD
     CardClick --> Detail["/dashboard/bookings/[id]<br/>Booking Detail"]
 
     Detail --> StatusBranch{"Status?"}
+    Detail -->|"has an open 'Reservas a resolver' entry (M23-S46)"| Marked["🆕 banner 'Precisa de decisão' (03j / 03k):<br/>MANAGER → decision panel Reatribuir · Reagendar · Cancelar<br/>STAFF → 'Peça a um gerente', no actions<br/>(see manager/scheduling-exceptions.md)"]
 
     StatusBranch -->|"PENDING / INFO_REQUESTED"| ActionChoice{"Ação"}
 
@@ -146,9 +147,9 @@ Folder: `staff/prototypes/agenda/`
 | `03h-booking-detail-completed.html` | Read-only COMPLETED detail with the "Cobrança" card (quoted, discount, charged, points), after photos and internal notes; same `?forma=` cards | UC-009 | — | ❓ Gap (2026-10-15) |
 | `03i-booking-detail-cancelled.html` | Read-only CANCELLED detail with the "Cancelamento" card (who, when, why); same `?forma=` cards | UC-008 | — | ❓ Gap (2026-10-15) |
 | `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ✅ Criado |
-| `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado (não construído) |
-| `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado (não construído) |
-| `03k-booking-detail-precisa-decisao-staff.html` | O mesmo aviso para a equipe: sem link e sem painel de decisão (a ação é do gerente), "Peça a um gerente para resolver" | UC-073 · UC-077 | M23-S46 | ✅ Criado (não construído) |
+| `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
+| `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado |
+| `03k-booking-detail-precisa-decisao-staff.html` | O mesmo aviso para a equipe: sem link e sem painel de decisão (a ação é do gerente), "Peça a um gerente para resolver" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 

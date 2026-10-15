@@ -192,6 +192,7 @@ describe('buildTimelineEvents', () => {
 
   it('includes bookings only for the selected date, sorted with closures/openings first at the same start time', () => {
     const booking: StaffBookingCardResponse = {
+      hasOpenException: false,
       bookingId: 'booking-1',
       status: BOOKING_STATUS.APPROVED,
       scheduledAt: '2026-08-17T12:00:00.000Z', // 09:00 America/Sao_Paulo
@@ -304,6 +305,7 @@ describe('buildTimelineEvents', () => {
       overrides: Partial<StaffBookingCardResponse> = {},
     ): StaffBookingCardResponse {
       return {
+        hasOpenException: false,
         bookingId: 'booking-1',
         status: BOOKING_STATUS.APPROVED,
         scheduledAt: '2026-08-17T12:00:00.000Z', // 09:00 America/Sao_Paulo

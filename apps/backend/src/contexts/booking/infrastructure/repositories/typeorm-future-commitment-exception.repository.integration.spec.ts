@@ -187,6 +187,109 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
     });
   });
 
+  describe('findByTenant for one booking (M23-S46)', () => {
+    it('returns only the OPEN entries of that booking, scoped by tenant', async () => {
+      const bookingId = uuidv7();
+      const first = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(bookingId)
+        .build();
+      const second = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(bookingId)
+        .build();
+      const closed = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(bookingId)
+        .build();
+      await save(first);
+      await save(second);
+      await save(closed);
+      closed.dismiss(STAFF_ID, 'x', 'corr-1');
+      await save(closed);
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      await save(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_B)
+          .withAffectedId(bookingId)
+          .build(),
+      );
+
+      const found = await repo.findByTenant(TENANT_A, {
+        status: 'OPEN',
+        affectedType: 'BOOKING',
+        affectedId: bookingId,
+      });
+
+      expect(found.map((e) => e.id).sort()).toEqual([first.id, second.id].sort());
+    });
+  });
+
+  describe('findOpenAffectedBookingIds (M23-S46)', () => {
+    it('returns only bookings with an OPEN BOOKING entry, tenant-scoped', async () => {
+      const marked = uuidv7();
+      const resolved = uuidv7();
+      const plain = uuidv7();
+      await save(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(marked)
+          .build(),
+      );
+      const closed = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(resolved)
+        .build();
+      await save(closed);
+      closed.dismiss(STAFF_ID, 'x', 'corr-1');
+      await save(closed);
+
+      const ids = await repo.findOpenAffectedBookingIds(TENANT_A, [marked, resolved, plain]);
+
+      expect([...ids]).toEqual([marked]);
+    });
+
+    it('never sees another tenant’s entry, and an empty input returns an empty set', async () => {
+      const bookingId = uuidv7();
+      await save(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(bookingId)
+          .build(),
+      );
+
+      expect((await repo.findOpenAffectedBookingIds(TENANT_B, [bookingId])).size).toBe(0);
+      expect((await repo.findOpenAffectedBookingIds(TENANT_A, [])).size).toBe(0);
+    });
+
+    // The marker is looked up for every queue page, so it must be answered from an index, never by
+    // reading every historical row of the tenant. seqscan is switched off for the transaction
+    // because a tiny test table would otherwise (rightly) be scanned: the point is that a usable
+    // index EXISTS for the exact predicate the repository issues.
+    it('is answered from an index, not a sequential scan', async () => {
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      const runner = dataSource.createQueryRunner();
+      await runner.connect();
+      try {
+        await runner.startTransaction();
+        await runner.query('SET LOCAL enable_seqscan = off');
+        const plan = (await runner.query(
+          `EXPLAIN SELECT affected_id FROM booking.future_commitment_exceptions
+            WHERE tenant_id = $1 AND status = 'OPEN' AND affected_type = 'BOOKING'
+              AND affected_id = ANY($2::uuid[])`,
+          [TENANT_A, [uuidv7(), uuidv7()]],
+        )) as { 'QUERY PLAN': string }[];
+        await runner.rollbackTransaction();
+
+        const text = plan.map((row) => row['QUERY PLAN']).join('\n');
+        expect(text).not.toContain('Seq Scan');
+        expect(text).toMatch(/IDX_booking_fce_tenant_affected|UQ_booking_fce_open_impact/);
+      } finally {
+        await runner.release();
+      }
+    });
+  });
+
   describe('countByTenant', () => {
     it('counts only the tenant’s rows in the given status', async () => {
       await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());

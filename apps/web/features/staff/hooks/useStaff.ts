@@ -52,11 +52,12 @@ export function useDeactivateStaff() {
   return useMutation({
     mutationFn: (id: string) => deactivateStaff(id),
     // Deactivating a staff member deactivates their resource, which raises "Reservas a resolver"
-    // entries for their future bookings.
+    // entries for their future bookings, which mark those bookings in the booking queue (M23-S46).
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
         queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] }),
       ]),
   });
 }

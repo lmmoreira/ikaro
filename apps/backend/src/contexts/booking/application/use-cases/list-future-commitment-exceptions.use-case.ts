@@ -28,6 +28,8 @@ import { computeBookingAlternatives } from './future-commitment-alternatives.hel
 export interface ListFutureCommitmentExceptionsUseCaseInput {
   tenantId: string;
   status?: FutureCommitmentExceptionStatus;
+  // M23-S46 — only the entries about this booking (the booking detail's decision panel).
+  affectedBookingId?: string;
 }
 
 // The Booking context's own summary of the affected booking — no Customer-context call. The
@@ -78,7 +80,12 @@ export class ListFutureCommitmentExceptionsUseCase {
     input: ListFutureCommitmentExceptionsUseCaseInput,
   ): Promise<ListFutureCommitmentExceptionsUseCaseResult> {
     const { tenantId } = input;
-    const exceptions = await this.exceptionRepo.findByTenant(tenantId, { status: input.status });
+    const exceptions = await this.exceptionRepo.findByTenant(tenantId, {
+      status: input.status,
+      ...(input.affectedBookingId
+        ? { affectedType: 'BOOKING' as const, affectedId: input.affectedBookingId }
+        : {}),
+    });
 
     const bookingIds = [
       ...new Set(exceptions.filter((e) => e.affectedType === 'BOOKING').map((e) => e.affectedId)),

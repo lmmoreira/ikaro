@@ -16,6 +16,17 @@ export async function listOpenSchedulingExceptions(): Promise<SchedulingExceptio
   return res.data;
 }
 
+// M23-S46 — the open entries of ONE booking, with their alternatives: what the booking detail's
+// decision panel needs, without loading and recomputing the whole worklist.
+export async function listOpenSchedulingExceptionsForBooking(
+  bookingId: string,
+): Promise<SchedulingExceptionListResponse> {
+  const res = await bffClient.get<SchedulingExceptionListResponse>(
+    `/scheduling-exceptions/by-booking/${bookingId}`,
+  );
+  return res.data;
+}
+
 // The sidebar badge — a count query on the backend, never the list.
 export async function countOpenSchedulingExceptions(): Promise<number> {
   const res = await bffClient.get<SchedulingExceptionCountResponse>('/scheduling-exceptions/count');
