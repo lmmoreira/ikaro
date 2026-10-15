@@ -3376,7 +3376,7 @@ Give staff one place to create something for a customer who phoned or messaged.
 
 ---
 
-### M23-S41 — Customer Início: "Recorrências" and "Avisos" tiles (only when above zero), a "Renovar" card for a recurring schedule about to end, and "Renovar" on an active schedule about to end
+### M23-S41 — Customer Início: "Recorrências" and "Avisos" tiles (only when above zero), a "Renovar" card for a recurring schedule about to end, and "Renovar" on an active schedule about to end ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
