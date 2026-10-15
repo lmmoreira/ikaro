@@ -156,7 +156,7 @@ test.describe('M23-S14 — Reservas a resolver', () => {
     }
   });
 
-  test('the card opens the booking detail', async ({ page }) => {
+  test('the card opens the booking detail and back returns to the worklist', async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
     const seed = await seedWorklistEntries(page, [{ approve: true }]);
     const [booking] = seed.bookings;
@@ -166,7 +166,12 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       const group = groupOf(page, seed.source.name);
       await group.getByRole('link', { name: /Ver detalhes do agendamento/ }).click();
 
-      await expect(page).toHaveURL(`/dashboard/bookings/${booking.bookingId}`);
+      const returnTo = encodeURIComponent('/dashboard/scheduling-exceptions');
+      await expect(page).toHaveURL(`/dashboard/bookings/${booking.bookingId}?returnTo=${returnTo}`);
+
+      // The back arrow returns to the worklist, not to the booking queue.
+      await page.getByTestId('topbar-back-button').click();
+      await expect(page).toHaveURL('/dashboard/scheduling-exceptions');
     } finally {
       await seed.cleanup();
     }

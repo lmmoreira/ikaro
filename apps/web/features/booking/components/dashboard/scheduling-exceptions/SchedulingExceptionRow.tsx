@@ -15,9 +15,12 @@ import {
   isReschedulable,
   summarizeAlternatives,
 } from '@/features/booking/model/scheduling-exception-view';
+import { appendReturnTo } from '@/features/booking/model/booking-navigation';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingCardShell } from '@/features/booking/components/dashboard/bookings/BookingCardShell';
+
+const WORKLIST_HREF = '/dashboard/scheduling-exceptions';
 
 export type SchedulingExceptionRowOutcome =
   { readonly kind: 'resolved' } | { readonly kind: 'open'; readonly reason: string };
@@ -190,7 +193,8 @@ export function SchedulingExceptionRow({
 
   return (
     <BookingCardShell
-      href={`/dashboard/bookings/${item.affectedId}`}
+      // returnTo makes the detail page's back arrow come back here, not to the booking queue.
+      href={appendReturnTo(`/dashboard/bookings/${item.affectedId}`, WORKLIST_HREF)}
       linkAriaLabel={t('viewBookingAria', { name: booking.contactName })}
       name={booking.contactName}
       leading={checkbox}

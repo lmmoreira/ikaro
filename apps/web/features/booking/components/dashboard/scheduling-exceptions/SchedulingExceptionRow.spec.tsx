@@ -60,7 +60,10 @@ describe('SchedulingExceptionRow', () => {
 
     expect(
       screen.getByRole('link', { name: 'Ver detalhes do agendamento de João Silva' }),
-    ).toHaveAttribute('href', '/dashboard/bookings/bk-exc-9');
+    ).toHaveAttribute(
+      'href',
+      '/dashboard/bookings/bk-exc-9?returnTo=%2Fdashboard%2Fscheduling-exceptions',
+    );
   });
 
   it('offers Reatribuir, Reagendar (a link to the entry’s reschedule route) and Cancelar for a confirmed booking', async () => {
