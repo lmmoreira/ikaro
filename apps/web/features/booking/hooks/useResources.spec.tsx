@@ -150,6 +150,19 @@ describe('useDeactivateResource', () => {
   });
 });
 
+describe('useDeactivateResource cache', () => {
+  it('invalidates the Reservas a resolver worklist and its badge count', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const clientWrapper = ({ children }: { readonly children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useDeactivateResource(), { wrapper: clientWrapper });
+    act(() => result.current.mutate('r-1'));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['scheduling-exceptions', 't-1'] });
+  });
+});
+
 describe('useReactivateResource', () => {
   it('mutates successfully', async () => {
     const { result } = renderHook(() => useReactivateResource(), { wrapper });

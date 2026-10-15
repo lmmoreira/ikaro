@@ -102,3 +102,16 @@ describe('useDeactivateStaff', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
 });
+
+describe('useDeactivateStaff cache', () => {
+  it('invalidates the Reservas a resolver worklist and its badge count', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const clientWrapper = ({ children }: { readonly children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useDeactivateStaff(), { wrapper: clientWrapper });
+    act(() => result.current.mutate('s-1'));
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['scheduling-exceptions', 't-1'] });
+  });
+});

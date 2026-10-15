@@ -51,7 +51,13 @@ export function useDeactivateStaff() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (id: string) => deactivateStaff(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
+    // Deactivating a staff member deactivates their resource, which raises "Reservas a resolver"
+    // entries for their future bookings.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['staff', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+      ]),
   });
 }
 
