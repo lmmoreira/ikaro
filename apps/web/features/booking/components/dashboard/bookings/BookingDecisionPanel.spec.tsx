@@ -201,10 +201,15 @@ describe('BookingDecisionPanel (M23-S46)', () => {
     expect(screen.getByRole('button', { name: 'Cancelar agendamento' })).toBeDisabled();
   });
 
-  it('says so when the booking could not be reloaded after a resolve', () => {
+  // The resolve went through but the booking could not be reloaded, so every entry on screen is
+  // stale: no action may stay clickable (a second click would act on state that no longer exists).
+  it('says so and offers no action when the booking could not be reloaded after a resolve', () => {
     setDecision({ refreshFailed: true });
     renderPanel();
 
     expect(screen.getByRole('alert')).toHaveTextContent('Recarregue a página');
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('reassign-sheet')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('cancel-sheet')).not.toBeInTheDocument();
   });
 });

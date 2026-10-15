@@ -18,6 +18,25 @@ interface BookingDecisionPanelProps {
   readonly onBookingRefreshed: (fresh: StaffBookingDetailResponse) => void;
 }
 
+// What replaces the panel when a resolve succeeded but the booking could not be reloaded.
+function RefreshFailedPanel(): React.JSX.Element {
+  const t = useTranslations('dashboard.bookingDetail');
+  return (
+    <div className="space-y-2" data-testid="booking-decision-panel">
+      <p className="text-xs font-bold uppercase tracking-[0.07em] text-orange-700">
+        {t('decisionPanelTitle')}
+      </p>
+      <Card className="border-orange-200">
+        <CardContent className="p-4">
+          <p role="alert" className="text-sm text-red-700">
+            {t('decisionRefreshError')}
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // M23-S46 (MANAGER only) — what the booking detail offers instead of its normal actions while the
 // booking has an open "Reservas a resolver" entry: the worklist's own three actions, for this one
 // booking. Reatribuir is per entry (a target is valid for one source resource only), Cancelar and
@@ -31,6 +50,10 @@ export function BookingDecisionPanel({
   const router = useRouter();
   const decision = useBookingDecision({ bookingId: booking.bookingId, onBookingRefreshed });
   const { entries, sheet } = decision;
+
+  // The resolve went through but the booking could not be reloaded: every entry shown here is
+  // stale, so no action is offered (a second click would act on state that no longer exists).
+  if (decision.refreshFailed) return <RefreshFailedPanel />;
 
   // Nothing matches (resolved elsewhere a moment ago): there is nothing left to decide here.
   if (!decision.isLoading && !decision.isError && entries.length === 0) return null;
@@ -115,12 +138,6 @@ export function BookingDecisionPanel({
             >
               {t('cancelBookingAction')}
             </Button>
-          )}
-
-          {decision.refreshFailed && (
-            <p role="alert" className="text-sm text-red-700">
-              {t('decisionRefreshError')}
-            </p>
           )}
 
           <p className="text-xs leading-5 text-gray-500">{t('decisionPanelHint')}</p>

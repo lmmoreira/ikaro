@@ -1,11 +1,11 @@
 import { BOOKING_STATUS, type StaffBookingDetailResponse } from '@ikaro/types';
 
 // The statuses a "Reservas a resolver" entry is raised for (a future commitment still waiting).
-const DECIDABLE_STATUSES: readonly string[] = [
+const DECIDABLE_STATUSES: ReadonlySet<string> = new Set([
   BOOKING_STATUS.PENDING,
   BOOKING_STATUS.INFO_REQUESTED,
   BOOKING_STATUS.APPROVED,
-];
+]);
 
 interface RefreshedHandlerSetters {
   readonly setBooking: (booking: StaffBookingDetailResponse) => void;
@@ -30,5 +30,5 @@ export function buildBookingRefreshedHandler({
 export function bookingNeedsDecision(
   booking: Pick<StaffBookingDetailResponse, 'hasOpenException' | 'status'>,
 ): boolean {
-  return booking.hasOpenException && DECIDABLE_STATUSES.includes(booking.status);
+  return booking.hasOpenException && DECIDABLE_STATUSES.has(booking.status);
 }
