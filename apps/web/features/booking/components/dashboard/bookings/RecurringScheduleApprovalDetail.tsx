@@ -1,12 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Badge } from '@/shared/components/ui/badge';
-import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
-import { ApiError } from '@/shared/lib/api/errors';
 import { useStaffCustomer } from '@/features/customer/hooks/useStaffCustomer';
 import { RECURRING_SCHEDULE_STATUS_CLASSES } from '@/features/booking/model/recurring-schedule-display';
 import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
@@ -33,6 +29,8 @@ import {
 } from '@/features/booking/model/recurring-approval-outcome';
 import { RecurringApprovalActions } from './RecurringApprovalActions';
 import { RecurringApprovalBanner } from './RecurringApprovalBanner';
+import { RecurringApprovalLoadError } from './RecurringApprovalLoadError';
+import { RecurringDecisionExplainer } from './RecurringDecisionExplainer';
 import { RecurringDecisionSheet } from './RecurringDecisionSheet';
 import { RecurringScheduleRequestSummary } from './RecurringScheduleRequestSummary';
 
@@ -94,21 +92,11 @@ export function RecurringScheduleApprovalDetail({
   }
 
   if (scheduleQuery.isError || !schedule) {
-    const notFound = scheduleQuery.error instanceof ApiError && scheduleQuery.error.status === 404;
     return (
-      <div className="space-y-3 p-4" data-testid="recurring-approval-error">
-        <p className="text-sm text-red-700">{notFound ? t('notFound') : t('loadError')}</p>
-        <div className="flex gap-2">
-          {notFound ? null : (
-            <Button type="button" variant="outline" onClick={() => void scheduleQuery.refetch()}>
-              {t('retry')}
-            </Button>
-          )}
-          <Button asChild variant="ghost">
-            <Link href={AGENDA_HREF}>{t('backToAgenda')}</Link>
-          </Button>
-        </div>
-      </div>
+      <RecurringApprovalLoadError
+        error={scheduleQuery.error}
+        onRetry={() => void scheduleQuery.refetch()}
+      />
     );
   }
 
@@ -187,30 +175,11 @@ export function RecurringScheduleApprovalDetail({
           />
 
           {canDecide ? (
-            <div className="space-y-2" data-testid="recurring-what-happens">
-              <p className="text-xs font-bold uppercase tracking-[0.07em] text-gray-400">
-                {t('whatHappens')}
-              </p>
-              <Card>
-                <CardContent className="space-y-3 p-4 text-sm leading-6 text-gray-600">
-                  <p>{t('noneCreatedYet')}</p>
-                  <p>{t('decisionCoversAll')}</p>
-                  {holdExpired ? null : (
-                    <p>
-                      <strong className="text-gray-900">{t('approveLabel')}</strong>{' '}
-                      {t('approveExplain', { count: maxCount })}
-                    </p>
-                  )}
-                  <p>
-                    <strong className="text-gray-900">{t('rejectLabel')}</strong>{' '}
-                    {t('rejectExplain', { name: customerName })}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {t('emailNotice', { name: customerName })}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
+            <RecurringDecisionExplainer
+              customerName={customerName}
+              maxCount={maxCount}
+              holdExpired={holdExpired}
+            />
           ) : null}
         </div>
 
