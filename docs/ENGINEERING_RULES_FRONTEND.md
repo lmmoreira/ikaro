@@ -164,3 +164,24 @@ The root layout sets `export const dynamic = 'force-dynamic'` (`apps/web/app/lay
 - On a dynamic route `useSearchParams` is available during the server render, so the component that reads it renders with the real query string and a `Suspense` fallback is never shown. The boundary is still worth keeping, with the plain component as its fallback: Next client-renders everything up to the nearest boundary on a prerendered route and fails the production build without one, so it keeps the route correct if the layout ever stops forcing dynamic rendering.
 - Live booking data (availability, quotes, resource options) is fetched in the browser through `bffClient` and is never cached by Next.
 - The caching model in full — the Data Cache that is in effect, the Full Route Cache that is not, and how on-demand revalidation uses tags — is `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 6 Manifest Caching.
+
+## A mutation that changes server state owned by another feature must invalidate that feature's query keys — and the E2E must navigate client-side to see it
+
+**React Query keys are per feature (`['resources', tenantId]`, `['scheduling-exceptions', tenantId]`), and a mutation only refreshes the keys it names.** Deactivating a resource also creates "Reservas a resolver" entries and changes the sidebar badge, but `useDeactivateResource` only invalidated `['resources', tenantId]`: the manager deactivated a room, kept navigating, opened the worklist and saw an empty list and no badge until F5. The cached empty answer from the earlier visit was served as-is.
+
+- **For every mutation, list what else the same request changes on the server** (rows another feature reads, counts, grouped lists) and invalidate those keys in `onSuccess`: `Promise.all([queryClient.invalidateQueries({ queryKey: [...] }), ...])`. `useDeactivateResource` and `useDeactivateStaff` now also invalidate `['scheduling-exceptions', tenantId]`; `useResolveSchedulingExceptions` invalidates the bookings and day-grid keys it moves.
+- **The key prefix is the contract.** Invalidate the feature's prefix (`['scheduling-exceptions', tenantId]`), not one concrete child key, so a later `count` or `list` sibling is covered.
+- **A mutation whose side effect lands asynchronously (an event, a cascade) can only be refreshed best-effort at `onSuccess`.** `useDeactivateStaff` raises its entries through the staff cascade event; if that lags, the next focus or mount refetch picks it up. Say so in the hook's comment instead of assuming it is synchronous.
+- **Unit-test it with a query client you own** (`vi.spyOn(queryClient, 'invalidateQueries')`, then `toHaveBeenCalledWith({ queryKey: [...] })`), and **prove it end to end in Playwright by navigating client-side**: open the dependent page first (so its empty result is cached), click through the sidebar to the mutating page, mutate, click back. A `page.goto` reloads the document and throws the cache away, so it can never catch this bug. See `apps/web/e2e/scheduling-exceptions.spec.ts` ("without a reload"); removing the invalidation makes it fail.
+
+Real incident: M23-S14, 2026-10-15 (found by the manager while testing, not by any spec).
+
+## A detail page opened from a list must carry `?returnTo=` so its back arrow returns to that list
+
+**The booking detail's back arrow goes to `/dashboard/bookings` (the queue) unless the URL carries `?returnTo=<a /dashboard/ path>`.** The Reservas a resolver card linked to `/dashboard/bookings/{id}` without it, so a manager who opened a booking from the worklist landed in the booking queue on back — the wrong place in the middle of a triage flow.
+
+- **Build the link with `appendReturnTo(path, returnTo)` from `features/booking/model/booking-navigation.ts`** (the loyalty tabs and the schedule timeline already do); the destination validates it with `resolveReturnTo`, which only accepts a path starting `/dashboard/`.
+- **Every list or card that opens a booking detail from somewhere other than the queue passes its own path.** The topbar back link, the aside's "Voltar" card and the reschedule/complete child routes all read the same value.
+- **Cover it in the E2E that opens the detail:** click `topbar-back-button` and assert the URL is the list you came from, not just that the detail opened.
+
+Real incident: M23-S14, 2026-10-15.

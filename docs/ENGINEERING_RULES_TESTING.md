@@ -231,3 +231,9 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 ## On a customer account or dashboard detail page every action exists twice — scope an E2E click to `action-pane-desktop`
 
 **The action pane is rendered once for mobile (`action-pane-mobile`, `lg:hidden`) and once for desktop (`action-pane-desktop`, `hidden lg:block`), with identical `data-testid`s inside both.** At Playwright's default desktop viewport the mobile copy is `display: none`, so `getByTestId('…').first()` resolves to the hidden one and `click()` waits for visibility until it times out. Chain from the pane: `page.getByTestId('action-pane-desktop').getByTestId('end-schedule-confirm').click()` (as `my-account-detail-cancel.spec.ts` already does for the cancel button). A list that is rendered only once (an occurrence row's skip link) does not need this.
+
+## An E2E that asserts a tenant-wide number (a sidebar badge, a total) races with parallel specs on the shared tenant — assert how it moved, not what it is
+
+**The Reservas a resolver badge counts every open entry of the tenant, and other specs in the same run raise and close entries on that tenant.** An exact `toHaveText(String(openBefore))` before and `openBefore - 2` after passes alone and flakes in CI. Assert a bound the spec itself guarantees: `>= 2` before, and `<= openBefore - 2` after (`expect.poll` with a helper that reads the badge, 0 when it is hidden). Find the spec's own rows by a name it created (a fresh room name), never by position or total. A helper that leaves rows behind must clean them up: `seedWorklistEntries().cleanup()` cancels the bookings still active on the shared rooms before deactivating them, so entries do not pile up on the tenant.
+
+Related: when the point of the spec is that a *cache* is refreshed, navigate client-side (see `docs/ENGINEERING_RULES_FRONTEND.md` § A mutation that changes server state owned by another feature must invalidate that feature's query keys).

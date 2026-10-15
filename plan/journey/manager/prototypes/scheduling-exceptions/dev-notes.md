@@ -87,7 +87,7 @@ Cards are the queue's `BookingCard` shape, grouped by the unavailable resource w
 
 ## Screen: ReassignSheet (`01c`)
 
-Choose the target: "Qualquer profissional livre (automático)" (`{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' stored alternatives, each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
+Choose the target: "Qualquer profissional livre (automático)" (`{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' current alternatives (recomputed on every read of an open entry, so a resource reactivated or a slot freed since the entry was raised shows up), each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
 
 ## Screen: reschedule route (`01e`)
 
@@ -112,10 +112,12 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 - **Selecting "everything from this resource from a time"** is drawn as a per-group "Selecionar todos" only; a free "a partir de …" filter is a proposal, not decided (see the journey's open questions).
 - **Decided at `M23-S14`'s discovery (2026-10-14):** the badge count comes from a dedicated `GET /scheduling-exceptions/count` (`{ count }`, MANAGER-only, 60-second cache) so a page load never pulls the whole list; "Selecionar todos" on a group of more than 100 sends sequential batches of 100 (the resolve endpoint's cap) and merges the results; a `booking: null` entry renders a minimal "Reserva indisponível" card (not drawn); the alternatives line shows at most two names then "e mais N"; the group header is "<nome> ficou indisponível" for both the resource and the staff case; a customer-chosen deactivated resource cannot be rescheduled (`STILL_OPEN`, reason suggests reassign or cancel).
 - **The "Reservas a resolver" nav item is built** (sidebar below "Agenda" + mobile "Mais" sheet, with the open-count badge from `GET /scheduling-exceptions/count`); the route is wired into `proxy.ts`, `BottomNav`, `topbar-route` and its own `layout.tsx`.
+- **Back navigation (built):** the card opens `/dashboard/bookings/{id}?returnTo=/dashboard/scheduling-exceptions`, so the detail page's back arrow returns to the worklist, not to the booking queue.
+- **Reactivating the original resource does not close its entries yet** (the entry stays open until `M23-S45`, which closes the reactivated resource's own entries); until then the manager uses Reagendar or Cancelar. Reactivating a *different* resource does show it as an alternative on the next read.
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 
 ## Open questions / gaps
 
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications).
 - [x] Nav placement and the count badge: built as drawn (below "Agenda", MANAGER only; first item of the mobile "Mais" sheet).
-- [ ] The alternatives shown are stored at raise time and are advisory; the real check happens when the manager confirms (a race leaves the entry open, `01d`).
+- [x] The alternatives are advisory and recomputed on every read of an open entry (stored only for closed ones); the real check still happens when the manager confirms (a race leaves the entry open, `01d`). An entry with none shows "Sem alternativa compatível — reagende ou cancele" and its **Reatribuir is disabled** (in the bulk bar too, when no selected entry has one); Reagendar and Cancelar stay.

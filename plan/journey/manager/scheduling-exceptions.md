@@ -50,7 +50,7 @@ flowchart TD
 | Call | When | Roles |
 |---|---|---|
 | `GET /v1/scheduling-exceptions/count` | **New in `M23-S14`:** the sidebar badge (`{ count }` of open entries); cached 60 s | MANAGER |
-| `GET /v1/scheduling-exceptions?status=OPEN` | Worklist page load (UC-073's output) — each item carries the booking summary and the stored alternatives | MANAGER |
+| `GET /v1/scheduling-exceptions?status=OPEN` | Worklist page load (UC-073's output) — each item carries the booking summary and, for an open entry, the alternatives recomputed on that read (compatible and free now) | MANAGER |
 | `POST /v1/scheduling-exceptions/resolve` | Manager reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` (`KEEP` exists in the API but this page never sends it) | MANAGER |
 | `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page for `RESOURCE_DEACTIVATION` entries** (kept for the API and for future source types; see the 2026-10-14 decision above) | MANAGER |
 
@@ -62,9 +62,9 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ✅ Built |
+| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row (Reatribuir disabled; Reagendar and Cancelar stay) and a pending row (no Reagendar); a card opens the booking detail, whose back arrow returns here | UC-073, UC-077 | ✅ Built |
 | `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ✅ Built |
-| `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a stored alternative labelled "livre em N de M reservas"; optional reason | UC-077 | ✅ Built |
+| `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a resource from the entries' current alternatives labelled "livre em N de M reservas"; optional reason | UC-077 | ✅ Built |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ✅ Built |
 | `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ✅ Built |
 | `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ✅ Built |

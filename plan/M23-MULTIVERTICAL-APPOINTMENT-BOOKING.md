@@ -3710,6 +3710,7 @@ Decisions baked in:
 3. Read the OPEN entries with **one batched `FOR UPDATE` query ordered by `id`** (a new repository method), so a manager resolving an entry at the same moment cannot both see it OPEN.
 4. `save()` each entry textually inside the `txManager.run()` callback (`transactional-save` detector).
 5. No notification — the manager was alerted at deactivation (M23-S23) and the badge simply drops.
+6. It never touches `alternatives`: the worklist read recomputes an `OPEN` entry's alternatives on every request (M23-S14), so reactivating a *different* resource already shows up there. This story only closes the reactivated resource's **own** entries.
 
 **Backend use case steps:**
 1. `ReactivateResourceUseCase` input gains `staffId` and `correlationId` (the controller passes `ctx.actorId` and `ctx.correlationId`, like `deactivate`).

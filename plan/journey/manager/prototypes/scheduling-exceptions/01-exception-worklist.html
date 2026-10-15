@@ -45,6 +45,7 @@
     .qactions { position: relative; z-index: 20; display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
     .qbtn { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; text-decoration: none; cursor: pointer; background: #2563eb; color: white; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
     .qbtn:hover { opacity: 0.9; }
+    .qbtn:disabled { opacity: 0.45; cursor: not-allowed; }
     .qbtn.outline { background: white; color: #111827; border-color: #e5e7eb; }
     .qbtn.outline:hover { background: #f3f4f6; opacity: 1; }
     .link-btn { background: none; border: none; padding: 0; font: inherit; font-size: 0.75rem; font-weight: 600; color: #2563eb; cursor: pointer; white-space: nowrap; }
@@ -251,7 +252,7 @@
             <p class="qsvc">Lavagem Completa</p>
             <div class="qrow3"><span>Sábado, 15 de agosto · 09:00</span><span>R$ 120,00 · 1h</span></div>
             <p class="qinfo">Box 2 desativado · <span class="none">Sem alternativa compatível — reagende ou cancele</span></p>
-            <div class="qactions"><a href="01c-reatribuir.html" class="qbtn">Reatribuir</a><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
+            <div class="qactions"><button type="button" class="qbtn" disabled title="Sem alternativa compatível">Reatribuir</button><a href="01f-cancelar.html" class="qbtn outline">Cancelar</a></div>
           </div>
         </div>
         <div class="qsec">
