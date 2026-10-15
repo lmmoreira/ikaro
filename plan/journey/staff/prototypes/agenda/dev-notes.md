@@ -600,9 +600,11 @@ Added 2026-10-15, after the M23-S14 live test ("a booking in Reservas a resolver
 
 | File | Screen | Notes |
 |---|---|---|
-| `00d-agenda-precisa-decisao.html` | The queue with the pill on three cards, one per section | The pill sits after the status badge; the card, its stretched link and its actions are unchanged. The manager sidebar also shows "Reservas a resolver" below "Agenda" (shipped in M23-S14; the older screens do not draw it) |
-| `03j-booking-detail-precisa-decisao.html` | Approved detail with the banner (MANAGER) | Banner above "Cliente"; the button opens `manager/prototypes/scheduling-exceptions/01-exception-worklist.html` |
+| `00d-agenda-precisa-decisao.html` | The queue with the pill on three cards, one per section | The pill sits after the status badge; the card and its stretched link are unchanged, but the quick actions ("Aprovar", "Marcar concluído") are **not shown** on a marked card. The manager sidebar also shows "Reservas a resolver" below "Agenda" (shipped in M23-S14; the older screens do not draw it) |
+| `03j-booking-detail-precisa-decisao.html` | Approved detail with the banner (MANAGER) | Banner above "Cliente"; **no action buttons** (no desktop action panel, no mobile action bar, no cancel / no-show sheets); the button opens `manager/prototypes/scheduling-exceptions/01-exception-worklist.html` |
 | `03k-booking-detail-precisa-decisao-staff.html` | The same banner for STAFF | No link: the route is manager-only (`proxy.ts`) |
+
+**No actions while the decision is pending (decided 2026-10-15):** a booking that needs a decision shows no action buttons, neither the queue card's quick actions nor the detail's panel (Marcar concluído, Marcar não compareceu, Reagendar, Cancelar, and Aprovar / Rejeitar for a pending one). Why: nothing closes a worklist entry when a booking is cancelled, rescheduled or completed through the normal booking actions, so doing it from the detail would leave the entry open on a booking that no longer needs it; and "Marcar não compareceu" is refused by the backend until the appointment has ended anyway. Every action is taken in "Reservas a resolver" (Reatribuir, Reagendar, Cancelar), which closes the entry in the same step. This only hides buttons: the backend endpoints still accept the calls, and a guard or an auto-close on those use cases is a separate decision.
 
 **Data:** `hasOpenException: boolean` on `StaffBookingCardResponse` (queue) and `StaffBookingDetailResponse` (detail); `true` when the booking has an `OPEN` worklist entry. Customer responses never carry it.
 
@@ -613,5 +615,5 @@ Added 2026-10-15, after the M23-S14 live test ("a booking in Reservas a resolver
 - ⚠ **The shipped `BookingStatusBannerIcon` has only `success`, `danger` and `info`:** the implementation adds a `warning` variant (orange circle, alert-triangle icon) — this is in the story's file list.
 - ⚠ **The pill is a plain badge, not a link** (the card is one stretched link to the detail); the banner is the only place that links to the worklist.
 - ⚠ **Role switch:** `03j` vs `03k` is two files for the prototype; in production the role comes from the JWT. `03k` inherits the base screen's sidebar, which still lists the manager-only section; the real STAFF sidebar does not.
-- ⚠ **The base screens `00-agenda.html` and `01`/`03` were not redrawn by this change** (their own redraw is tracked separately); `00d`/`03j`/`03k` are derived from `00-agenda.html` and `03-booking-detail-approved.html` as committed.
+- ⚠ **The base screens were not redrawn by this change:** `00d` is derived from `00-agenda.html`, and `03j` / `03k` from `03-booking-detail-approved.html` as redrawn by M23-S47's prototype work (the resources card and the `?forma=` shapes come from there). If that screen changes again, regenerate `03j` / `03k`.
 - ⚠ **Pending booking:** the banner is drawn on an approved booking (`03j`); a `PENDING` or `INFO_REQUESTED` detail gets the same banner above its triage panel (same markup).

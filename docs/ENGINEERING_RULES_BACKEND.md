@@ -419,3 +419,13 @@ Real incident: M23-S14, 2026-10-15 (live testing: "I enabled Sky and I still see
 - **Any other batch existence check shaped "for each of these N inputs, does a matching row exist"** gets the same treatment: `LATERAL ... LIMIT 1` (or `EXISTS` only when you have confirmed the plan), never a join whose only selective predicate is a range operator.
 
 Real incident: M23-S14, 2026-10-15 (the worklist read made this query run on every page load instead of once per deactivation). The callers that share it — booking creation, resolve, the recurring-pattern check — got the same speed-up; their integration specs (`typeorm-resource-occupancy.repository.integration.spec.ts`) pin the behavior.
+
+## A marker or derived record about a booking goes stale when the booking changes through a path that does not know about it — list every action that changes the booking and close or gate each one
+
+**The "Reservas a resolver" entry is a record about a booking, but only the resolve and dismiss flows and a resource reactivation close it.** Cancelling, rescheduling, completing or marking no-show through the normal booking actions never touches the worklist, so the entry stays `OPEN` on a booking that no longer needs a decision. It showed up while deciding what a booking that "needs a decision" may do on its detail page (M23-S46), not in a test.
+
+- **When a story adds a flag, an entry or any record derived from a booking's state, list every use case that changes the booking** (approve, reject, cancel as customer or staff, reschedule, complete, no-show and its correction, expiry) **and decide for each one: close the record in the same transaction, or refuse the action while the record is open.** Leaving it undecided is the bug.
+- **Hiding a button is not a gate.** The endpoint still accepts the call; if the invariant matters, enforce it in the use case.
+- **Prefer closing over refusing when the action is legitimate** and its outcome makes the record meaningless (a cancelled booking needs no decision); prefer refusing when the action would make the decision harder (completing a booking whose resource is gone).
+
+Real incident: M23-S14/S46, 2026-10-15; the open decision is recorded in `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Known gap — a booking changed outside the worklist.
