@@ -3,6 +3,7 @@ import { loginAsStaff } from './helpers/auth';
 import { deactivateResource, getResourceRow, reactivateResource } from './helpers/booking';
 import { MANAGER_EMAIL, TENANT_SLUG } from './helpers/booking-form';
 import {
+  findBookingCard,
   readBookedStarts,
   readBookingDetail,
   readOpenWorklistCount,
@@ -72,6 +73,14 @@ test.describe('M23-S14 — Reservas a resolver', () => {
         const detail = await readBookingDetail(page, booking.bookingId);
         expect(detail.status).toBe('APPROVED');
         expect(new Date(detail.scheduledAt).getTime()).toBe(new Date(booking.startsAt).getTime());
+
+        // The staff list (the Agenda block's resource line) shows the room the booking is on now,
+        // not the deactivated one it left: the assignment audit table keeps both rows.
+        const card = await findBookingCard(page, booking.bookingId, booking.startsAt);
+        const rooms = (card?.assignedResources ?? [])
+          .filter((r) => r.resourceType === 'ROOM')
+          .map((r) => r.resourceId);
+        expect(rooms).toEqual([seed.alternative.id]);
       }
     } finally {
       await seed.cleanup();
@@ -201,6 +210,36 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       await page.getByTestId('sidebar-nav-scheduling-exceptions').click();
       await expect(groupOf(page, seed.source.name)).toBeVisible();
       await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(1);
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('reactivating the resource clears its entries and the badge without a reload', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    // The seed deactivates the source room, which raises the entries.
+    const seed = await seedWorklistEntries(page, [{ approve: true }]);
+
+    try {
+      await page.goto('/dashboard/scheduling-exceptions');
+      await expect(groupOf(page, seed.source.name)).toBeVisible();
+      await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(1);
+      const badgeBefore = await badgeCount(page);
+
+      // Client-side navigation only: a full reload would hide a stale cache.
+      await page.getByTestId('sidebar-nav-resources').click();
+      await getResourceRow(page, seed.source.name)
+        .getByTestId('resource-row-reactivate-button')
+        .click();
+      await expect(getResourceRow(page, seed.source.name)).toContainText('Ativo');
+
+      await page.getByTestId('sidebar-nav-scheduling-exceptions').click();
+      await expect(groupOf(page, seed.source.name)).toHaveCount(0);
+      // Closing this room's entries lowers the tenant-wide badge by at least one (parallel specs
+      // may also have changed it, so only the bound is asserted).
+      await expect.poll(() => badgeCount(page)).toBeLessThanOrEqual(badgeBefore - 1);
     } finally {
       await seed.cleanup();
     }

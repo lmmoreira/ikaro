@@ -77,6 +77,12 @@ export function useReactivateResource() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (id: string) => reactivateResource(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
+    // Reactivating a resource closes its open "Reservas a resolver" entries in the same request
+    // (M23-S45), so the worklist and its sidebar badge are stale from this moment on.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+      ]),
   });
 }

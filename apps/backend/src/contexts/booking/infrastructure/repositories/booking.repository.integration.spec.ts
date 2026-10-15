@@ -4,7 +4,9 @@ import { createTestDataSource } from '../../../../test/test-datasource';
 import {
   BookingBuilder,
   BookingLineInputBuilder,
+  BookingLineResourceAssignmentEntityBuilder,
   RecurringBookingScheduleEntityBuilder,
+  ResourceEntityBuilder,
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
@@ -16,6 +18,8 @@ import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingLine } from '../../domain/booking-line.entity';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
+import { ResourceEntity } from '../entities/resource.entity';
+import { ResourceType } from '../../domain/resource.types';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
@@ -330,6 +334,157 @@ describe('TypeOrmBookingRepository (integration)', () => {
 
       expect(await repo.findByIds([other.id], tenantId)).toEqual([]);
       expect(await repo.findByIds([], tenantId)).toEqual([]);
+    });
+  });
+
+  describe('assigned resources of a listed booking', () => {
+    // The assignments table is append-only: a reassign adds a row and keeps the old one, so the
+    // list must show only the latest row of each slot (line + resource type + leg + quantity).
+    async function seedRooms(count: number, type = ResourceType.ROOM): Promise<ResourceEntity[]> {
+      return dataSource.getRepository(ResourceEntity).save(
+        Array.from({ length: count }, () =>
+          new ResourceEntityBuilder()
+            .withTenantId(TENANT_A)
+            .withType(type)
+            .withName(`Recurso ${uuidv7().slice(-8)}`)
+            .build(),
+        ),
+      );
+    }
+
+    // The line must reference the seeded service (FK), which the builder's random default does not.
+    function bookingWithOneLine(): { booking: Booking; lineId: string } {
+      const lineId = uuidv7();
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withLines([
+          BookingLine.reconstitute({
+            lineId,
+            bookingId: 'placeholder',
+            tenantId: TENANT_A,
+            serviceId: SERVICE_ID,
+            serviceNameAtBooking: 'Lavagem Completa',
+            priceAtBooking: Money.from(150, 'BRL'),
+            durationMinsAtBooking: 60,
+            pointsValueAtBooking: 10,
+            requiresPickupAddressAtBooking: false,
+            actualPriceCharged: null,
+          }),
+        ])
+        .build();
+      return { booking, lineId };
+    }
+
+    // Idempotent, so it is safe in a `finally` even when the setup stopped half way. Children go
+    // before parents: assignments, then the line, then the booking, then the resources.
+    async function cleanup(bookingId: string, lineId: string, resourceIds: string[]) {
+      await dataSource
+        .getRepository(BookingLineResourceAssignmentEntity)
+        .delete({ tenantId: TENANT_A, bookingLineId: lineId });
+      await dataSource.getRepository(BookingLineEntity).delete({ tenantId: TENANT_A, lineId });
+      await dataSource.getRepository(BookingEntity).delete(bookingId);
+      if (resourceIds.length > 0) {
+        await dataSource.getRepository(ResourceEntity).delete(resourceIds);
+      }
+    }
+
+    const assignment = (
+      lineId: string,
+      room: ResourceEntity,
+      options: { assignedAt?: string; legIndex?: number; id?: string } = {},
+    ) => {
+      const builder = new BookingLineResourceAssignmentEntityBuilder()
+        .withTenantId(TENANT_A)
+        .withBookingLineId(lineId)
+        .withResourceId(room.id)
+        .withResourceType(room.type)
+        .withResourceNameAtAssignment(room.name);
+      if (options.assignedAt) builder.withAssignedAt(new Date(options.assignedAt));
+      if (options.legIndex !== undefined) builder.withLegIndex(options.legIndex);
+      if (options.id) builder.withId(options.id);
+      return builder.build();
+    };
+
+    async function listedResourceIds(bookingId: string): Promise<string[]> {
+      const page = await repo.findAllByTenantPaginated(TENANT_A, { limit: 25, offset: 0 });
+      return (page.resourceAssignmentsByBookingId.get(bookingId) ?? []).map((r) => r.resourceId);
+    }
+
+    it('lists only the resource a booking was reassigned to, not the one it left', async () => {
+      const { booking, lineId } = bookingWithOneLine();
+      const [oldRoom, newRoom] = await seedRooms(2);
+      try {
+        await repo.save(booking);
+        await dataSource
+          .getRepository(BookingLineResourceAssignmentEntity)
+          .save([
+            assignment(lineId, oldRoom, { assignedAt: '2026-10-01T10:00:00Z' }),
+            assignment(lineId, newRoom, { assignedAt: '2026-10-02T10:00:00Z' }),
+          ]);
+
+        expect(await listedResourceIds(booking.id)).toEqual([newRoom.id]);
+      } finally {
+        await cleanup(booking.id, lineId, [oldRoom.id, newRoom.id]);
+      }
+    });
+
+    it('keeps one resource per slot when a booking has several legs', async () => {
+      const { booking, lineId } = bookingWithOneLine();
+      const [first, second] = await seedRooms(2);
+      try {
+        await repo.save(booking);
+        await dataSource
+          .getRepository(BookingLineResourceAssignmentEntity)
+          .save([
+            assignment(lineId, first, { legIndex: 0 }),
+            assignment(lineId, second, { legIndex: 1 }),
+          ]);
+
+        expect((await listedResourceIds(booking.id)).sort()).toEqual([first.id, second.id].sort());
+      } finally {
+        await cleanup(booking.id, lineId, [first.id, second.id]);
+      }
+    });
+
+    it('keeps one resource per required type on a bundled line (all with a null leg)', async () => {
+      const { booking, lineId } = bookingWithOneLine();
+      const [room] = await seedRooms(1, ResourceType.ROOM);
+      const [equipment] = await seedRooms(1, ResourceType.EQUIPMENT);
+      try {
+        await repo.save(booking);
+        await dataSource
+          .getRepository(BookingLineResourceAssignmentEntity)
+          .save([assignment(lineId, room), assignment(lineId, equipment)]);
+
+        expect((await listedResourceIds(booking.id)).sort()).toEqual(
+          [room.id, equipment.id].sort(),
+        );
+      } finally {
+        await cleanup(booking.id, lineId, [room.id, equipment.id]);
+      }
+    });
+
+    it('picks the same row when two assignments of a slot share a timestamp (the higher id wins)', async () => {
+      const { booking, lineId } = bookingWithOneLine();
+      const [loser, winner] = await seedRooms(2);
+      const sameInstant = '2026-10-02T10:00:00Z';
+      try {
+        await repo.save(booking);
+        await dataSource.getRepository(BookingLineResourceAssignmentEntity).save([
+          assignment(lineId, winner, {
+            assignedAt: sameInstant,
+            id: '00000000-0000-7000-8000-0000000000f2',
+          }),
+          assignment(lineId, loser, {
+            assignedAt: sameInstant,
+            id: '00000000-0000-7000-8000-0000000000f1',
+          }),
+        ]);
+
+        expect(await listedResourceIds(booking.id)).toEqual([winner.id]);
+      } finally {
+        await cleanup(booking.id, lineId, [loser.id, winner.id]);
+      }
     });
   });
 

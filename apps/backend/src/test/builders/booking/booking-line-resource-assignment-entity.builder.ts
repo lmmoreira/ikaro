@@ -11,7 +11,7 @@ export class BookingLineResourceAssignmentEntityBuilder {
   private legIndex: number | null = null;
   private quantityPosition: number | null = null;
   private resourceNameAtAssignment = 'Localização Principal';
-  private readonly assignedAt = new Date('2026-01-01T00:00:00Z');
+  private assignedAt = new Date('2026-01-01T00:00:00Z');
 
   withId(id: string): this {
     this.id = id;
@@ -50,6 +50,11 @@ export class BookingLineResourceAssignmentEntityBuilder {
 
   withQuantityPosition(quantityPosition: number | null): this {
     this.quantityPosition = quantityPosition;
+    return this;
+  }
+
+  withAssignedAt(assignedAt: Date): this {
+    this.assignedAt = assignedAt;
     return this;
   }
 

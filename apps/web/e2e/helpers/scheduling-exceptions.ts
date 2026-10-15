@@ -242,8 +242,9 @@ export async function findBookingCard(
 }
 
 // Where a resource is booked right now, from the day grid (the live occupancy of each active
-// resource). The staff queue's `assignedResources` is NOT used to prove a reassign: it reads the
-// immutable assignment audit table, which keeps every resource a booking ever had.
+// resource) — the proof of WHEN the booking occupies it. `assignedResources` on the staff list
+// answers a different question (which resource, by name) and keeps only the latest row of each
+// slot of the immutable assignment audit table.
 export async function readBookedStarts(
   page: Page,
   resourceId: string,
