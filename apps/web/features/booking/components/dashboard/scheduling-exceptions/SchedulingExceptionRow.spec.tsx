@@ -147,6 +147,18 @@ describe('SchedulingExceptionRow', () => {
       ).toBeInTheDocument();
     });
 
+    it('disables Reatribuir when none is stored, and keeps Reagendar and Cancelar', () => {
+      renderWithIntl(
+        <SchedulingExceptionRow
+          item={makeSchedulingException({ alternatives: [] })}
+          {...handlers()}
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled();
+    });
+
     it('lists at most two alternatives and counts the rest', () => {
       const alternatives = ['Box 1', 'Box 3', 'Box 4', 'Box 5'].map((resourceName, i) => ({
         resourceId: `r${i}`,

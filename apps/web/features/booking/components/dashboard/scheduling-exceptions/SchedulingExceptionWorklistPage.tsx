@@ -156,6 +156,9 @@ export function SchedulingExceptionWorklistPage(): React.JSX.Element {
       {liveSelection.length > 0 ? (
         <BulkActionBar
           count={liveSelection.length}
+          reassignDisabled={
+            !items.some((i) => liveSelection.includes(i.id) && i.alternatives.length > 0)
+          }
           onReassign={() => actions.openSheet('reassign', liveSelection)}
           onCancel={() => actions.openSheet('cancel', liveSelection)}
         />

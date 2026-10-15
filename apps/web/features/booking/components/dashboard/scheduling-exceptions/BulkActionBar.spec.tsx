@@ -18,6 +18,15 @@ describe('BulkActionBar', () => {
     expect(screen.getByText('1 selecionada')).toBeInTheDocument();
   });
 
+  it('disables Reatribuir when no selected entry has an alternative', () => {
+    renderWithIntl(
+      <BulkActionBar count={2} reassignDisabled onReassign={vi.fn()} onCancel={vi.fn()} />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeEnabled();
+  });
+
   it('runs Reatribuir and Cancelar', async () => {
     const user = userEvent.setup();
     const onReassign = vi.fn();

@@ -139,7 +139,14 @@ function RowActions({ item, onReassign, onCancel }: RowActionsProps): React.JSX.
   return (
     <>
       {onReassign ? (
-        <Button type="button" size="sm" onClick={() => onReassign(item.id)}>
+        // Nothing compatible is free for this slot, so a reassignment could only fail: the row
+        // already says "Sem alternativa compatível" and offers Reagendar / Cancelar instead.
+        <Button
+          type="button"
+          size="sm"
+          disabled={item.alternatives.length === 0}
+          onClick={() => onReassign(item.id)}
+        >
           {t('reassign')}
         </Button>
       ) : null}

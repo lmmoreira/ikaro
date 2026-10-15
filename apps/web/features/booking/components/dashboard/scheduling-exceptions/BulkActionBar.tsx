@@ -5,6 +5,8 @@ import { Button } from '@/shared/components/ui/button';
 
 interface BulkActionBarProps {
   readonly count: number;
+  // No selected entry has a compatible resource to move to: Reatribuir could only fail.
+  readonly reassignDisabled?: boolean;
   readonly onReassign: () => void;
   readonly onCancel: () => void;
 }
@@ -14,6 +16,7 @@ interface BulkActionBarProps {
 // once — Reagendar is one booking at a time, so it lives on the row and is never in this bar.
 export function BulkActionBar({
   count,
+  reassignDisabled = false,
   onReassign,
   onCancel,
 }: BulkActionBarProps): React.JSX.Element {
@@ -29,7 +32,13 @@ export function BulkActionBar({
         <p className="text-xs text-gray-500">{t('rescheduleOneAtATime')}</p>
       </div>
       <div className="flex gap-2 lg:ml-auto">
-        <Button type="button" size="sm" className="flex-1 lg:flex-none" onClick={onReassign}>
+        <Button
+          type="button"
+          size="sm"
+          className="flex-1 lg:flex-none"
+          disabled={reassignDisabled}
+          onClick={onReassign}
+        >
           {t('reassign')}
         </Button>
         <Button
