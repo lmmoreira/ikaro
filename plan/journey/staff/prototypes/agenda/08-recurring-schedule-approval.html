@@ -234,14 +234,13 @@
               <div class="kv" data-v="pacote"><span>Profissional</span><span>Resolvido a cada ocorrência</span></div>
               <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
               <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
-              <div class="kv"><span>Reservas</span><span>13</span></div>
-              <div class="kv"><span>Solicitado</span><span>Hoje às 09:00</span></div>
+              <div class="kv"><span>Reservas</span><span>Até 13</span></div>
             </div>
 
             <p class="detail-section-label">O que acontece</p>
             <div class="card" style="font-size:0.875rem;line-height:1.55;margin-bottom:1.25rem;">
               <p><strong>Nenhuma reserva foi criada ainda.</strong> A decisão vale para o padrão inteiro, não por semana.</p>
-              <p style="margin-top:0.5rem;"><strong>Aprovar</strong> repete a verificação de horário e ocupação e cria as 13 reservas de uma vez, já confirmadas. Se alguma deixou de ser possível, nada é criado e a lista de datas em conflito aparece aqui.</p>
+              <p style="margin-top:0.5rem;"><strong>Aprovar</strong> repete a verificação de horário e ocupação e cria as reservas do período (até 13) de uma vez, já confirmadas; as datas que já começaram não entram. Se alguma deixou de ser possível, nada é criado e a lista de datas em conflito aparece aqui.</p>
               <p style="margin-top:0.5rem;"><strong>Recusar</strong> não cria nada e não pode ser desfeito. Ana pode enviar um novo pedido quando quiser.</p>
               <p style="margin-top:0.5rem;opacity:0.65;">Ana recebe um email com o resultado.</p>
             </div>
@@ -264,7 +263,7 @@
               </button>
               <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1rem 0;">
               <p style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); line-height: 1.5;">
-                Uma única decisão para as 13 reservas. Depois de aprovada, cada ocorrência é confirmada sem nova revisão.
+                Uma única decisão para as reservas do período. Depois de aprovada, cada ocorrência é confirmada sem nova revisão.
               </p>
             </div>
           </div>
@@ -294,7 +293,7 @@
     <p class="bottom-sheet-label">Aprovar recorrência</p>
     <div style="padding: 0 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0));">
       <p style="font-size: 0.875rem; opacity: 0.65; color: var(--ba-text); margin-bottom: 1rem;">
-        As 13 reservas de Ana Costa (19 ago → 11 nov, toda terça 10:00–12:00) serão criadas e confirmadas de uma vez, depois de repetirmos a verificação de horário e ocupação.
+        As reservas de Ana Costa (19 ago → 11 nov, toda terça 10:00–12:00, até 13) serão criadas e confirmadas de uma vez, sem as datas que já começaram,, depois de repetirmos a verificação de horário e ocupação.
       </p>
       <div style="display: flex; gap: 0.75rem;">
         <button class="btn-secondary" onclick="closeSheet('approve')" style="flex: 1;">Voltar</button>

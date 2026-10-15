@@ -569,3 +569,27 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 - ⚠ **Role switch in `03f`** is a hash toggle for the prototype; in production the role comes from the JWT.
 - ⚠ **The `NO_SHOW` web status display** (label, colour, icon in `booking-status.ts`, `BookingStatusIcon.tsx`, `schedule-page-controller-result.ts`) shipped with `M23-S09`, not with the UI story.
 - ⚠ **Deviations from the drawn screens (M23-S27):** the sheets' dismiss button reads "Cancelar" (the existing sheets' key) instead of "Voltar"; the history timestamp reads "{date} às {time}" instead of "hoje às HH:mm"; the `correcting` state of `dev-notes` is the open sheet (`sheetState = 'correct-no-show'`), not an `actionState`.
+
+## Full booking detail — what the page must show (audit of 2026-10-15)
+
+The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `simples`) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
+
+| Card (screen) | Fields | Where the data is today |
+|---|---|---|
+| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none |
+| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not |
+| Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | **Needs backend + BFF** — on the aggregate, not in the detail response |
+| Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | **Needs backend + BFF** (`intake`, `consentAcceptedAt`) |
+| Observações do cliente | `notes` | Backend detail has it; **the BFF staff mapper drops it** |
+| Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
+| Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
+| Notas internas (`03h`, `?forma=completo`) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
+| Cobrança (`03h`) | Quoted total, points discount, charged total, points earned, after photos | In the DTO (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `afterServicePhotoUrls`); **the read-only page does not render them** |
+| Cancelamento / Rejeição (`03i`) | Who, when, reason | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
+| Duração escolhida (service line note) | Chosen duration of a variable-duration service | Already in the line (`durationMinsAtBooking`); the page does not say it was a choice |
+
+Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+
+- ⚠ **Prototype mechanics:** `?forma=` is a query parameter (not a hash) because `03f` already uses the hash for its role switch. The service name on the line changes per shape for illustration only.
+- ⚠ **Photos label** in `01`/`03` is now "Fotos enviadas pelo cliente" (was "do veículo", a car-wash leftover).
+- ⚠ **`08` data sources:** customer name from `GET /customers/:customerId`; resource names resolved from the tenant resource list using `resourceAssignments` (ids only); which rows to draw from the service's `resourceRequirements`; "Até N" computed from the pattern; the real count comes from the approve response's `occurrenceCount` (`08b #aprovada-parcial`).

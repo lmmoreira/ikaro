@@ -119,13 +119,13 @@ Folder: `staff/prototypes/agenda/`
 | `index.html` | Navigation hub + validation checklist | — | — | ✅ Criado |
 | `00-agenda.html` | Booking queue — an **exact copy of the shipped page** (redrawn 2026-10-14 after drifting): `WeekNav`, "+ Novo" (Agendamento only), "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje — confirmados" → "Próximos dias — confirmados", real `BookingCard` | UC-003, UC-008, UC-009 | M13-S19 | ✅ Criado |
 | `00c-agenda-s13.html` | Booking queue — **planned target of M23-S13**: the same screen plus the "Recorrência" card, the "Filtrar agenda" balloon and the "Recorrência" entry of "+ Novo" (M23-S19). Folded into `00-agenda.html` and deleted when S13 ships | UC-071, UC-070 | M23-S13 · M23-S19 | ❓ Gap (M23 extension) |
-| `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado |
+| `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets. **Redrawn 2026-10-15** with the new cards (resources, itinerary, participants, intake, notes, addresses, origin) switched by `?forma=` — the new cards are ❓ Gap, see "Full booking detail" below | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado (base) · ❓ Gap (new cards) |
 | `01b-slot-conflict.html` | Slot conflict error + adjacent slot picker | UC-003 Alt A1 | M125-S05 | ✅ Criado |
 | `01c-reject-success.html` | Reject success inline state (actionState = 'rejected') | UC-004 | M125-S05 | ✅ Criado |
 | `01d-info-success.html` | Info-request success inline state (actionState = 'info-requested') | UC-005 | M125-S05 | ✅ Criado |
 | `02-approve-success.html` | Approval success (prototype page; production = inline) | UC-003 | M125-S05 | ✅ Criado |
 | `00-agenda-next.html` | Booking queue — the next `welcomeStaffScreenDays` window (reached with ›): no "Hoje" section, "Próximos dias" starts at the window's first day | — | — | ✅ Criado |
-| `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions) | UC-008, UC-009 | — | ✅ Criado |
+| `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions); same `?forma=` cards as `01` | UC-008, UC-009 | — | ✅ Criado (base) · ❓ Gap (new cards) |
 | `03b-cancel-success.html` | Cancel success inline state, triggered from `03-booking-detail-approved.html` | UC-008 | — | ✅ Criado |
 | `04-mark-complete.html` | Mark complete flow | UC-009 | — | ✅ Criado |
 | `04b-complete-success.html` | Completion confirmed inline state | UC-009 | — | ✅ Criado |
@@ -144,9 +144,31 @@ Folder: `staff/prototypes/agenda/`
 | `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ✅ Criado |
 | `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ✅ Criado |
 | `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ✅ Criado |
+| `03h-booking-detail-completed.html` | Read-only COMPLETED detail with the "Cobrança" card (quoted, discount, charged, points), after photos and internal notes; same `?forma=` cards | UC-009 | — | ❓ Gap (2026-10-15) |
+| `03i-booking-detail-cancelled.html` | Read-only CANCELLED detail with the "Cancelamento" card (who, when, why); same `?forma=` cards | UC-008 | — | ❓ Gap (2026-10-15) |
 | `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ✅ Criado |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
+
+### Full booking detail — what the page must show (audit of 2026-10-15)
+
+The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `simples`) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
+
+| Card (screen) | Fields | Where the data is today |
+|---|---|---|
+| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none |
+| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not |
+| Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | **Needs backend + BFF** — on the aggregate, not in the detail response |
+| Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | **Needs backend + BFF** (`intake`, `consentAcceptedAt`) |
+| Observações do cliente | `notes` | Backend detail has it; **the BFF staff mapper drops it** |
+| Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
+| Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
+| Notas internas (`03h`, `?forma=completo`) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
+| Cobrança (`03h`) | Quoted total, points discount, charged total, points earned, after photos | In the DTO (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `afterServicePhotoUrls`); **the read-only page does not render them** |
+| Cancelamento / Rejeição (`03i`) | Who, when, reason | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
+| Duração escolhida (service line note) | Chosen duration of a variable-duration service | Already in the line (`durationMinsAtBooking`); the page does not say it was a choice |
+
+Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (❓ Gap, not yet built — except UC-074 no-show, ✅ Criado by M23-S27)
 
@@ -252,6 +274,8 @@ flowchart TD
 - [x] **Entry point — decided 2026-10-08:** a single **"+ Novo"** button above the Agenda queue opens a small menu with **Agendamento** and **Recorrência**; both start at the same customer picker (`09`) and use the same two-column form layout. A second button is never added for the next kind of "create on a customer's behalf". "Recorrência" is UC-070 (staff variant, `M23-S19`).
 - [x] **Staff creates a one-off booking for someone who calls or messages — decided 2026-10-08, now UC-108 with stories `M23-S39` (backend/BFF, `POST /bookings/staff`) and `M23-S40` (frontend).** Locked: (1) a person who is not in the system is booked as a **guest** (name, phone and e-mail all required) because a `Customer` needs a Google account — no model change; (2) the booking is created **directly `APPROVED`**, `createdByStaffId` recorded, no manager alert, the customer gets the confirmation e-mail; (3) availability, closures and conflicts are enforced as for a customer, the **minimum notice is not** (a same-day phone booking works; past dates and the maximum advance still are); (4) one shared **customer chooser** (`09`) is the first step of both "Agendamento" and "Recorrência"; (5) the booking steps are the public flow's step engine in a dashboard skin (the public steps use the business's `--ba-*` tokens, which the dashboard may not). Decided at `M23-S40`'s discovery (2026-10-13): the click-on-an-empty-slot shortcut in Horários, pre-registering a customer without a Google account (a bigger model change) and the guest cancel link are out of scope for S40; the staff shell uses its own design system with no tenant branding, the steps share the public flow's logic but not its markup, the picker/duration/intake/pickup steps are dashboard views of the public steps, and "Recorrência" stays out of the menu until `M23-S19` ships.
 - [x] **Recurring queue placement — decided 2026-10-08:** recurrence requests fold into the existing "Precisa de ação" block (not a tab, not a separate route), distinguished by badge and filterable through the "Filtrar agenda" balloon. The detail route is proposed as `/dashboard/bookings/recurring/:scheduleId`.
+- [ ] **`08` data (audit of 2026-10-15).** The schedule read carries `customerId` only, so the detail loads the customer (`GET /customers/:customerId`) for name, e-mail and the "cliente autenticada" line; there is no `createdAt` on the schedule, so the "Solicitado" row was dropped (the "Decidir até" banner is what matters); there is no occurrence count before approval, so the page says "Até N", computed from the pattern. **Approval can create fewer than N (M23-S35):** occurrences that started while the request waited are dropped, and the approve response's `occurrenceCount` is the number to show (`08b #aprovada-parcial`). New outcomes: `#passada` (`422 BOOKING_SCHEDULED_IN_PAST`, every date already gone) and `#inelegivel` (`422 BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE`); both leave the request pending with only "Recusar" useful. Resource rows are labelled by resource type (`#simples`/`#um`/`#pacote`).
+- [ ] **Link from a booking to its recurrence.** `01`/`03`'s "Origem" card links to `/dashboard/bookings/recurring/:id` (S13's detail). That screen is drawn for a pending request; for an `ACTIVE`/`ENDED` schedule it would need a read-only variant (or the link is plain text). Decide at S13's `/story-discovery`.
 - [ ] **Filter persistence.** Reset on reload (drawn) or remembered per user — decide at `M23-S13`'s `/story-discovery`, following whatever Horários' filters do.
 - [ ] **Merged-queue paging.** Bookings and recurrence requests come from two endpoints (`GET /bookings` and the paginated `GET /recurring-booking-schedules?status=PENDING_APPROVAL`); how they are merged and sorted, and whether recurrences page through `pagination.hasMore`, is locked at `M23-S13`'s discovery.
 - [ ] **Week strip with the "Filtrar agenda" balloon (M23-S13).** Picking a day filters "Próximos dias"; when that block is filtered out by the balloon the pick has nothing to act on — decide at S13 whether it does nothing or switches the block back on.

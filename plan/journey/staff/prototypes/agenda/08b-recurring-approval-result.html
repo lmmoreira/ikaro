@@ -75,7 +75,9 @@
     .when { display: none; }
     body[data-state="aprovada"] .when-aprovada, body[data-state="recusada"] .when-recusada,
     body[data-state="conflito"] .when-conflito, body[data-state="telefone"] .when-telefone,
-    body[data-state="falha"] .when-falha, body[data-state="expirada"] .when-expirada { display: block; }
+    body[data-state="falha"] .when-falha, body[data-state="expirada"] .when-expirada,
+    body[data-state="aprovada-parcial"] .when-aprovada-parcial, body[data-state="passada"] .when-passada,
+    body[data-state="inelegivel"] .when-inelegivel { display: block; }
     .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
     .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
     .banner-neutral { background: #f9fafb; border-color: #d1d5db; color: #374151; }
@@ -104,6 +106,12 @@
       #telefone   422 BOOKING_CUSTOMER_PHONE_NOT_SET — banner vermelho; o pedido segue pendente
       #falha      rede / 5xx — banner vermelho; nada mudou
       #expirada   409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL — já decidido / prazo de 30 min acabou; só "Voltar à agenda"
+      #aprovada-parcial  200 approve — M23-S35: ocorrências que já começaram enquanto o pedido esperava NÃO são criadas; a resposta traz o
+                          occurrenceCount real (aqui 12 de 13). O texto usa o número devolvido, nunca o do padrão.
+      #passada    422 BOOKING_SCHEDULED_IN_PAST — todas as datas do período já passaram quando alguém aprovou (redesenhado 2026-10-15); nada foi
+                  criado, o pedido segue pendente e só resta recusar
+      #inelegivel 422 BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE — o serviço foi editado e não aceita mais recorrência (ou a forma dos
+                  recursos mudou); nada foi criado, o pedido segue pendente e só resta recusar
   -->
 
   <!-- Prototype banner -->
@@ -226,6 +234,10 @@
               <p class="t">Recorrência aprovada</p>
               <p class="d">Criamos as 13 reservas de 19 ago a 11 nov, todas já confirmadas e na agenda. Ana Costa recebe um e-mail avisando.</p>
             </div>
+            <div class="banner banner-ok when when-aprovada-parcial">
+              <p class="t">Recorrência aprovada — 12 de 13 reservas criadas</p>
+              <p class="d">Criamos 12 reservas, de 26 ago a 11 nov, todas já confirmadas e na agenda. A de 19 ago já tinha começado quando você aprovou e não foi criada. Ana Costa recebe um e-mail avisando.</p>
+            </div>
             <div class="banner banner-neutral when when-recusada">
               <p class="t">Recorrência recusada</p>
               <p class="d">Nenhuma reserva foi criada. Ana Costa recebe um e-mail avisando e pode enviar um novo pedido quando quiser.</p>
@@ -241,6 +253,14 @@
             <div class="banner banner-error when when-telefone">
               <p class="t">Ana Costa não tem telefone cadastrado</p>
               <p class="d">As reservas precisam de um telefone de contato, então nada foi criado e o pedido continua aguardando decisão. Peça à cliente para cadastrar o telefone e aprove de novo antes das 09:30, ou recuse o pedido.</p>
+            </div>
+            <div class="banner banner-error when when-passada">
+              <p class="t">Todas as datas deste pedido já passaram</p>
+              <p class="d">O pedido esperou além da primeira data, então não há nenhuma reserva a criar. Nada foi criado e o pedido continua aguardando decisão: recuse-o e peça à cliente para enviar um novo.</p>
+            </div>
+            <div class="banner banner-error when when-inelegivel">
+              <p class="t">Este serviço não aceita mais reserva recorrente</p>
+              <p class="d">O serviço foi alterado depois do pedido (a recorrência foi desligada ou a forma dos recursos mudou). Nada foi criado e o pedido continua aguardando decisão: recuse-o ou ajuste o serviço e aprove de novo antes das 09:30.</p>
             </div>
             <div class="banner banner-error when when-falha">
               <p class="t">Não foi possível concluir a decisão</p>
@@ -263,17 +283,16 @@
             <p class="detail-section-label">Recorrência pedida</p>
             <div class="card" style="padding: 0.25rem 1rem; margin-bottom: 1.25rem;">
               <div class="kv"><span>Serviço</span><span>Reserva de sala</span></div>
-              <div class="kv"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv"><span>Sala</span><span>Sala Aurora</span></div>
               <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
               <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
-              <div class="kv"><span>Reservas</span><span>13</span></div>
-              <div class="kv"><span>Solicitado</span><span>Hoje às 09:00</span></div>
+              <div class="kv"><span>Reservas</span><span>Até 13</span></div>
             </div>
 
             <p class="detail-section-label">O que acontece</p>
             <div class="card" style="font-size:0.875rem;line-height:1.55;margin-bottom:1.25rem;">
               <p><strong>Nenhuma reserva foi criada ainda.</strong> A decisão vale para o padrão inteiro, não por semana.</p>
-              <p style="margin-top:0.5rem;"><strong>Aprovar</strong> repete a verificação de horário e ocupação e cria as 13 reservas de uma vez, já confirmadas. Se alguma deixou de ser possível, nada é criado e a lista de datas em conflito aparece aqui.</p>
+              <p style="margin-top:0.5rem;"><strong>Aprovar</strong> repete a verificação de horário e ocupação e cria as reservas do período (até 13) de uma vez, já confirmadas; as datas que já começaram não entram. Se alguma deixou de ser possível, nada é criado e a lista de datas em conflito aparece aqui.</p>
               <p style="margin-top:0.5rem;"><strong>Recusar</strong> não cria nada e não pode ser desfeito. Ana pode enviar um novo pedido quando quiser.</p>
               <p style="margin-top:0.5rem;opacity:0.65;">Ana recebe um email com o resultado.</p>
             </div>
@@ -283,9 +302,15 @@
           <!-- ── RIGHT: action panel (desktop only) ─────────────── -->
           <div class="detail-aside">
             <!-- decided: no more actions -->
-            <div class="card when when-aprovada when-recusada when-expirada">
+            <div class="card when when-aprovada when-aprovada-parcial when-recusada when-expirada">
               <p style="font-size: 0.875rem; opacity: 0.6; color: var(--ba-text); margin-bottom: 1rem; line-height: 1.5;">Este pedido não tem mais ações disponíveis.</p>
               <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center;">Voltar à agenda</a>
+            </div>
+            <!-- still pending and unfixable by retrying: only reject (or back) -->
+            <div class="card when when-passada when-inelegivel" style="padding: 1.25rem;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
+              <a href="08-recurring-schedule-approval.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Recusar</a>
+              <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
             <!-- still pending: actions stay -->
             <div class="card when when-conflito when-telefone when-falha" style="padding: 1.25rem;">
@@ -304,8 +329,12 @@
 
   <!-- MOBILE ACTION BAR — swapped per state, like 04b -->
   <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
-    <div class="when when-aprovada when-recusada when-expirada">
+    <div class="when when-aprovada when-aprovada-parcial when-recusada when-expirada">
       <a href="00-agenda.html" class="btn-primary" style="display: block; text-align: center;">Voltar à agenda</a>
+    </div>
+    <div class="when when-passada when-inelegivel">
+      <a href="08-recurring-schedule-approval.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Recusar</a>
+      <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
     </div>
     <div class="when when-conflito when-telefone when-falha">
       <a href="08-recurring-schedule-approval.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Tentar aprovar de novo</a>
@@ -317,7 +346,7 @@
   </div>
 
   <script>
-    var STATES = ['aprovada','recusada','conflito','telefone','falha','expirada'];
+    var STATES = ['aprovada','aprovada-parcial','recusada','conflito','telefone','passada','inelegivel','falha','expirada'];
     function applyState() {
       var h = location.hash.replace('#','');
       document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'aprovada';

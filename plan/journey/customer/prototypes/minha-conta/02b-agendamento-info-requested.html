@@ -61,6 +61,22 @@
       resize: vertical; min-height: 96px; color: var(--ba-text); background: white;
     }
     .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+  
+    /* Full booking detail (redraw 2026-10-15) — shape variants switched by ?forma= */
+    [hidden] { display: none !important; }
+    .fx-kv { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.9375rem; color: var(--ba-text); }
+    .fx-kv:last-child { border-bottom: none; }
+    .fx-kv > span:first-child { opacity: 0.6; flex-shrink: 0; }
+    .fx-kv > span:last-child { font-weight: 600; text-align: right; }
+    .fx-kv small { display: block; font-weight: 400; font-size: 0.75rem; opacity: 0.6; margin-top: 0.125rem; }
+    .fx-tag { display: inline-block; font-size: 0.6875rem; font-weight: 600; padding: 0.0625rem 0.4375rem; border-radius: 9999px; background: var(--ba-secondary); color: var(--ba-text); margin-left: 0.375rem; vertical-align: middle; }
+    .fx-note { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); margin: -0.75rem 0 1.25rem; line-height: 1.5; }
+    .fx-bar { font-size: 0.75rem; padding: 0.375rem 1rem; background: #f1f5f9; border-bottom: 1px solid #cbd5e1; color: #334155; text-align: center; line-height: 1.9; }
+    .fx-bar a { color: #1d4ed8; font-weight: 600; text-decoration: none; margin: 0 0.25rem; }
+    .fx-bar a.on { text-decoration: underline; }
+    .fx-step { display: flex; gap: 0.75rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); color: var(--ba-text); }
+    .fx-step:last-child { border-bottom: none; }
+    .fx-step b { width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--ba-primary); color: #fff; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
   </style>
 </head>
 <body>
@@ -75,6 +91,7 @@
   -->
 
   <!-- TOP BAR -->
+  <div class="fx-bar">Forma do agendamento (?forma=): <a href="?forma=simples" data-f="simples">simples</a> · <a href="?forma=recurso" data-f="recurso">recurso</a> · <a href="?forma=pacote" data-f="pacote">pacote</a> · <a href="?forma=trajeto" data-f="trajeto">trajeto</a> · <a href="?forma=formulario" data-f="formulario">formulario</a> · <a href="?forma=retirada" data-f="retirada">retirada</a> · <a href="?forma=recorrente" data-f="recorrente">recorrente</a> · <a href="?forma=equipe" data-f="equipe">equipe</a> · <a href="?forma=completo" data-f="completo">completo</a></div>
   <div class="dashboard-topbar" style="position:relative;">
     <span style="
       position:absolute;left:50%;transform:translateX(-50%);
@@ -172,7 +189,7 @@
         <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
           <div class="service-line">
             <div>
-              <div class="service-name">Polimento Completo + Higienização</div>
+              <div class="service-name" id="svc-name">Polimento Completo + Higienização</div>
               <div class="service-duration">180 min</div>
             </div>
             <span class="service-price">R$ 350,00</span>
@@ -183,7 +200,51 @@
           </div>
         </div>
 
-        <!-- Secondary: cancel -->
+        <p class="section-label" data-v="recurso pacote completo recorrente">Recursos</p>
+            <div class="card" data-v="recurso pacote completo recorrente" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-kv" data-v="recurso pacote completo recorrente"><span>Sala</span><span>Sala Aurora</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Equipamento</span><span>Projetor 2</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Cadeiras</span><span>Do conjunto</span></div>
+            </div>
+            <p class="fx-note" data-v="recurso pacote completo recorrente">O que você escolheu e o que o estabelecimento atribuiu. Sem requisito de recurso, o cartão não aparece.</p>
+
+            <p class="section-label" data-v="trajeto">Trajeto</p>
+            <div class="card" data-v="trajeto" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida · 09:00 — 09:40</span></div></div>
+              <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio · 09:40 — 11:10</span></div></div>
+              <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta · 11:10 — 11:50</span></div></div>
+            </div>
+
+            <p class="section-label" data-v="formulario completo">Participantes</p>
+            <div class="card" data-v="formulario completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-kv" data-v="formulario completo"><span>Participantes</span><span>3</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Maria Souza</span><span>Você</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Pedro Souza</span><span>Menor de idade</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Ana Souza</span><span>Participante</span></div>
+            </div>
+
+            <p class="section-label" data-v="formulario completo">Suas respostas</p>
+            <div class="card" data-v="formulario completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-kv" data-v="formulario completo"><span>Nível de experiência</span><span>Iniciante</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Tem alguma restrição física?</span><span>Sim</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Observações de saúde</span><span>Dor no joelho direito</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Termo de responsabilidade</span><span>Aceito em 10/06/2026 às 14:02</span></div>
+            </div>
+            <p class="fx-note" data-v="formulario completo">As respostas que você deu ao reservar. Aqui não se edita; para mudar algo, fale com o estabelecimento.</p>
+
+            <p class="section-label" data-v="retirada completo">Endereço</p>
+            <div class="card" data-v="retirada completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-kv" data-v="retirada completo"><span>Retirada do veículo</span><span>Rua das Flores, 120 — Pinheiros, São Paulo/SP, 05422-000</span></div>
+            </div>
+
+            <p class="section-label" data-v="recorrente completo">Origem</p>
+            <div class="card" data-v="recorrente completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+              <div class="fx-kv" data-v="recorrente completo"><span>Reserva recorrente</span><span>Toda terça, 10:00 <a href="06-reserva-recorrente.html" style="color:var(--ba-primary);">Ver recorrência</a></span></div>
+            </div>
+            <p class="fx-note" data-v="recorrente completo">Quando o agendamento é uma ocorrência de uma reserva recorrente, liga à página da recorrência (a volta preserva a página das ocorrências).</p>
+
+            <!-- Secondary: cancel -->
         <a href="03-cancel-confirm.html" class="btn-danger"
            style="display:block;text-align:center;width:100%;padding:0.8125rem;opacity:0.8;">
           Cancelar solicitação
@@ -193,5 +254,19 @@
     </main>
   </div>
 
+
+  <script>
+    /* Shape variants via ?forma= (prototype only). Default: simples. See the header comment. */
+    (function () {
+      var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};
+      var q = new URLSearchParams(location.search).get('forma') || 'simples';
+      if (!(q in NAMES)) q = 'simples';
+      document.querySelectorAll('[data-v]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
+      });
+      var n = document.getElementById('svc-name'); if (n) n.textContent = NAMES[q];
+      document.querySelectorAll('[data-f]').forEach(function (a) { if (a.getAttribute('data-f') === q) a.className = 'on'; });
+    })();
+  </script>
 </body>
 </html>
