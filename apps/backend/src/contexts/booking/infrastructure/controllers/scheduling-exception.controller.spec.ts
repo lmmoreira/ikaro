@@ -37,6 +37,9 @@ describe('SchedulingExceptionController', () => {
         world.exceptionRepo,
         world.bookingRepo,
         world.resourceRepo,
+        world.serviceRepo,
+        world.occupancyRepo,
+        tx,
       ),
       new CountFutureCommitmentExceptionsUseCase(world.exceptionRepo),
       new ResolveFutureCommitmentExceptionsUseCase(

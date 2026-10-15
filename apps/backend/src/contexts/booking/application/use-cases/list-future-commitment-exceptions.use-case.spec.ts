@@ -4,6 +4,7 @@ import {
   FCE_TENANT_ID as TENANT_ID,
   FutureCommitmentFixture,
 } from '../../../../test/utils/future-commitment-fixture';
+import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ListFutureCommitmentExceptionsUseCase } from './list-future-commitment-exceptions.use-case';
@@ -20,6 +21,9 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
       world.exceptionRepo,
       world.bookingRepo,
       world.resourceRepo,
+      world.serviceRepo,
+      world.occupancyRepo,
+      new InMemoryTransactionManager(),
     );
   });
 
@@ -74,6 +78,38 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
     await raiseFor(source.id);
     alternative.deactivate();
     await world.resourceRepo.save(alternative);
+
+    const { items } = await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' });
+
+    expect(items[0].alternatives).toEqual([]);
+  });
+
+  it('offers a resource reactivated after the entry was raised (alternatives are recomputed, not stored)', async () => {
+    const source = await world.addResource('Sala 1');
+    const later = await world.addResource('Sala 2');
+    later.deactivate();
+    await world.resourceRepo.save(later);
+    const service = await world.addService();
+    await world.addBooking({ service, resource: source, startsInHours: 24 });
+    await raiseFor(source.id);
+    expect(
+      (await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' })).items[0].alternatives,
+    ).toEqual([]);
+
+    later.reactivate();
+    await world.resourceRepo.save(later);
+
+    const { items } = await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' });
+    expect(items[0].alternatives).toEqual([{ resourceId: later.id, resourceName: 'Sala 2' }]);
+  });
+
+  it('drops an alternative that another booking has taken at that time since the entry was raised', async () => {
+    const source = await world.addResource('Sala 1');
+    const alternative = await world.addResource('Sala 2');
+    const service = await world.addService();
+    await world.addBooking({ service, resource: source, startsInHours: 24 });
+    await raiseFor(source.id);
+    await world.addBooking({ service, resource: alternative, startsInHours: 24 });
 
     const { items } = await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' });
 
