@@ -1,8 +1,9 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { StaffEntityBuilder } from '../../../../test/builders/staff/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
 import { Staff } from '../../domain/staff.aggregate';
 import { StaffEntity } from '../entities/staff.entity';
@@ -136,6 +137,21 @@ describe('TypeOrmStaffRepository', () => {
     ormRepo.count.mockResolvedValue(2);
     const result = await repo.countActiveManagersByTenant('tenant-1');
     expect(result).toBe(2);
+  });
+
+  it('locks the active manager rows in id order inside a transaction and counts them', async () => {
+    const query = jest.fn().mockResolvedValue([{ id: 'a' }, { id: 'b' }]);
+
+    const result = await runWithEntityManager({ query } as unknown as EntityManager, () =>
+      repo.countActiveManagersByTenant('tenant-1'),
+    );
+
+    expect(result).toBe(2);
+    expect(query).toHaveBeenCalledTimes(1);
+    const [sql, params] = query.mock.calls[0];
+    expect(sql).toMatch(/ORDER BY id\s+FOR UPDATE/);
+    expect(params).toEqual(['tenant-1']);
+    expect(ormRepo.count).not.toHaveBeenCalled();
   });
 
   it('save maps domain to entity and calls repo.save with string email', async () => {

@@ -423,6 +423,37 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(409);
     });
 
+    it('two managers deactivating each other at the same time: one wins, the other gets 409, no deadlock (M23-S48)', async () => {
+      const tenantId = '10000000-0000-4000-8000-000000000111';
+      const [first, second] = ['a', 'b'].map((suffix) =>
+        new StaffEntityBuilder()
+          .withTenantId(tenantId)
+          .withEmail(`race-mgr-${suffix}-s48@lavacar.com.br`)
+          .withRole('MANAGER')
+          .withGoogleOAuthId(`google-race-mgr-${suffix}-s48`)
+          .withIsActive(true)
+          .build(),
+      );
+      await ds.getRepository(StaffEntity).delete({ tenantId });
+      await ds.getRepository(StaffEntity).save([first, second]);
+
+      const deactivate = (target: StaffEntity, actor: StaffEntity) =>
+        request(app.getHttpServer())
+          .patch(`/staff/${target.id}/deactivate`)
+          .set(actorHeaders(tenantId, actor.id));
+      const [one, other] = await Promise.all([
+        deactivate(second, first),
+        deactivate(first, second),
+      ]);
+
+      expect([one.status, other.status].sort()).toEqual([200, 409]);
+      const active = await ds
+        .getRepository(StaffEntity)
+        .count({ where: { tenantId, role: 'MANAGER', isActive: true } });
+      expect(active).toBe(1);
+      await ds.getRepository(StaffEntity).delete({ tenantId });
+    });
+
     it('tenant isolation: returns 404 for staff belonging to another tenant', async () => {
       const staffEntity = new StaffEntityBuilder()
         .withTenantId(TENANT_B)
