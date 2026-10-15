@@ -32,6 +32,7 @@
 | 3 | M23-S27 | Staff no-show and manager correction UI — action, sheets, status history and the customer no-show detail (UC-074) |
 | 2 | M23-S14 | Manager "Reservas a resolver" worklist (frontend + a small backend/BFF read addition; UC-073/077) |
 | 2 | M23-S45 | Reactivating a resource closes that resource's open "Reservas a resolver" entries (UC-049; backend-only; related to S14, not blocking) |
+| 2 | M23-S46 | A booking with an open "Reservas a resolver" entry is marked in the staff queue and on its detail ("Precisa de decisão" pill + banner; `hasOpenException` on the list and by-id items; related to S14/S45) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -3762,5 +3763,86 @@ Decisions baked in:
 - Tenant isolation:
   - [ ] Reactivating tenant A's resource never closes tenant B's entries
 - E2E: none — covered by unit/integration (the page that shows the result is M23-S14's E2E)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S46 — A booking with an open "Reservas a resolver" entry says so: a "Precisa de decisão" pill in the staff queue and a banner on the booking detail
+
+**Agent:** `frontend-ts` (plus a small `backend-ts` / `bff-ts` slice — see Backend HTTP surface; one PR)
+**Complexity:** M
+**Docs to load:** `docs/14-API_CONTRACTS.md` (§ Bookings list and by-id, § Future Commitment Exceptions), `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions and mapper extraction, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Booking — Future-Commitment Worklist, incl. "Read"), `docs/ENGINEERING_RULES_FRONTEND.md` (§ A mutation that changes server state owned by another feature must invalidate that feature's query keys), `docs/ENGINEERING_RULES_BACKEND.md` (§ Backend read use cases for cross-context access — the lookup stays inside the Booking context), `docs/ENGINEERING_RULES_SHARED.md` (§ Authoring new i18n UI copy keys), `docs/ENGINEERING_RULES_TESTING.md`, `plan/journey/README.md` (§ 15 hard stop before any prototype change)
+**Dependencies:** M23-S08 (✅ Done — the entries and `UQ_booking_fce_open_impact`), M23-S14 (✅ Done — the worklist page, the shared `BookingCardShell`, the cache invalidations), M23-S45 (✅ Done — reactivation closes a resource's own entries, which is what clears the marker).
+**Pattern:** plain composition — one batched set-membership lookup enriches a page (the same shape as the `assignedResources` batch in `findAllByTenantPaginated`), the BFF mapper passes one boolean, and the web adds one badge to the existing `BookingCardShell` badges slot and one banner component next to the existing detail banners. No new endpoint, aggregate, event, status or migration.
+
+**Discovered:** 2026-10-15, while live-testing M23-S14 ("when a booking goes to Reservas a resolver, shouldn't it disappear from the bookings screen?"). **Decided the same day: the booking stays in the queue and is marked** — not hidden. Hiding was rejected because the booking is still a real commitment (a `PENDING` one still awaits approval, an `APPROVED` one still happens, possibly today), STAFF cannot open the manager-only worklist and would lose sight of a booking happening today, and the queue and the Agenda share `GET /bookings`, so a hide would need a queue-only filter flag plus cache invalidation in both directions on every deactivate, reactivate, resolve and dismiss.
+
+**Description:**
+Today a booking that was raised into "Reservas a resolver" (a future `PENDING`, `INFO_REQUESTED` or `APPROVED` booking on a deactivated resource) looks like any other in the staff queue (`/dashboard/bookings`: "Ação necessária", "Hoje", "Próximos") and on its detail page. A manager scanning the queue cannot tell it needs a decision, and a STAFF member has no hint at all. This story makes the state explicit.
+
+- **The flag.** `hasOpenException: boolean` on `StaffBookingCardResponse` and `StaffBookingDetailResponse` (`@ikaro/types`): `true` when the booking is the `affected_id` of at least one `OPEN` `future_commitment_exceptions` row with `affected_type = 'BOOKING'`. It is a view of current data, never stored on the booking. It is never present on a customer response (the BFF customer mappers do not map it).
+- **One lookup per page, no migration.** `IFutureCommitmentExceptionRepository.findOpenAffectedBookingIds(tenantId, bookingIds): Promise<ReadonlySet<string>>` runs `WHERE tenant_id = $1 AND status = 'OPEN' AND affected_type = 'BOOKING' AND affected_id = ANY($2)`. `UQ_booking_fce_open_impact` is a partial unique index over the `OPEN` rows that leads with `tenant_id` (M23-S14 pinned an Index Only Scan on it for the badge count), so the lookup reads only the tenant's open entries — a worklist the manager is meant to empty. An empty page skips the query. `ListBookingsUseCase` and `GetBookingByIdUseCase` (one id, same method) gain the repository; both stay inside the Booking context, so no cross-context port.
+- **Queue card.** `BookingCard` (the card all three queue sections render, built on `BookingCardShell`) adds a "Precisa de decisão" pill (amber, an alert icon) to its badges slot when the flag is `true`, for any actor. The pill is a plain badge, not a link: the card is already one stretched link to the detail, and the detail carries the action. A card without the flag renders exactly as today.
+- **Detail banner.** `BookingDecisionBanner` (new, rendered by `BookingDetailMain` with the other status banners) appears when the flag is `true`: title "Esta reserva precisa de uma decisão", body "O recurso desta reserva foi desativado. Reatribua, reagende ou cancele em Reservas a resolver." For a MANAGER it carries a link "Abrir Reservas a resolver" to `/dashboard/scheduling-exceptions`; for STAFF the body ends "Peça a um gerente para resolver." and there is no link (the route is manager-only, `proxy.ts`).
+- **Freshness (the S14 lesson).** The flag lives in the `['bookings', tenantId]` caches, so every mutation that raises, closes or resolves an entry must invalidate that prefix: `useResolveSchedulingExceptions` already does; `useDeactivateResource`, `useDeactivateStaff` and `useReactivateResource` gain `['bookings', tenantId]` next to `['scheduling-exceptions', tenantId]`. The queue is server-rendered per request and then handed to React Query, so a client-side navigation back to it would otherwise show the pre-deactivation list.
+- **Unchanged on purpose:** the Agenda blocks, the customer app, the bookings filters (no "needs decision" filter), the worklist page.
+
+Decisions baked in (do not re-derive at discovery):
+1. Keep and mark; never hide (reasons above).
+2. The pill is shown to every staff actor; only the banner's link is manager-only.
+3. The pill is not interactive; the detail banner is the single place that links to the worklist.
+4. The flag is computed on read from `OPEN` entries; nothing is written to the booking, and no event, topic, status or migration is added.
+5. Copy is pt-BR first with an `en` twin in the same commit; no hard-coded strings.
+
+**Backend use case steps:**
+1. `ListBookingsUseCase.execute`: after `findAllByTenantPaginated`, if the page has items, call `exceptionRepo.findOpenAffectedBookingIds(tenantId, items.map(b => b.id))`; map each item with `hasOpenException = set.has(id)`.
+2. `GetBookingByIdUseCase.execute`: after loading the booking, `findOpenAffectedBookingIds(tenantId, [id])`; return `hasOpenException`.
+3. `TypeOrmFutureCommitmentExceptionRepository.findOpenAffectedBookingIds`: the single parameterised query above through `this.repo` (tenant-scoped); empty input returns an empty set without querying.
+4. `InMemoryFutureCommitmentExceptionRepository.findOpenAffectedBookingIds` mirrors it for the unit tests.
+
+**Backend HTTP surface:** reuses `GET /bookings` and `GET /bookings/:id` (`booking.controller.ts`) — the response items gain `hasOpenException`; no new route, so no new `.http` block (the existing blocks' sample responses gain the field).
+**BFF endpoint spec:** reuses the staff `GET /bookings` and `GET /bookings/:id` (MANAGER and STAFF); `bookings.mapper.ts` maps `hasOpenException` into the staff card and the staff detail; the customer mappers are untouched. `bookings.types.ts` and `@ikaro/types` agree (the `ikaro-types-drift` detector).
+**Prototype references:** `plan/journey/staff/agenda.md` and `plan/journey/staff/prototypes/agenda/` (the booking queue card and the booking detail screens). No prototype draws the pill or the banner yet: `/story-discovery` must resolve this per `.copilot/context.md` §15 (run `/docs-audit` for the journey first, then add the two states to the journey doc, `use-cases.md` and the prototype screens) before any component is written.
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. i18n (both locales, same commit): `dashboard.bookingCard.needsDecision` ("Precisa de decisão" / "Needs a decision") and, under `dashboard.bookingDetail`, `needsDecisionTitle`, `needsDecisionBody`, `needsDecisionStaffHint`, `needsDecisionLink`.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/ports/future-commitment-exception-repository.port.ts` (modify — `findOpenAffectedBookingIds`)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-future-commitment-exception.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — the lookup, and an `EXPLAIN` test pinning the index like M23-S14's count)
+- `apps/backend/src/test/repositories/booking/in-memory-future-commitment-exception.repository.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/list-bookings.use-case.ts` (+ `.spec.ts`) and `get-booking-by-id.use-case.ts` (+ `.spec.ts`) (modify)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — end-to-end flag, tenant isolation)
+- `packages/types/src/booking.dto.ts` (modify — `StaffBookingCardResponse`, `StaffBookingDetailResponse`)
+- `apps/bff/src/features/booking/bookings.mapper.ts` (+ `.spec.ts`), `bookings.types.ts` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/BookingCard.tsx` (+ `.spec.tsx`) (modify), `BookingDecisionBanner.tsx` (+ `.spec.tsx`) (new), `BookingDetailMain.tsx` (+ `.spec.tsx`) (modify)
+- `apps/web/features/booking/hooks/useResources.ts` (+ `.spec.tsx`), `apps/web/features/staff/hooks/useStaff.ts` (+ `.spec.tsx`) (modify — also invalidate `['bookings', tenantId]`)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — keys above)
+- `apps/web/e2e/scheduling-exceptions.spec.ts` (modify — the scenarios below) and, if needed, `apps/web/e2e/helpers/scheduling-exceptions.ts`
+- Docs in the same change: `docs/14-API_CONTRACTS.md` (the field on the list and by-id items), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Read: the marker), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md` and the prototype `dev-notes.md` (per §15, after the audit)
+
+**Acceptance criteria — product:**
+- [ ] A booking with an open "Reservas a resolver" entry shows a "Precisa de decisão" pill on its card in the staff queue, in "Ação necessária", "Hoje" and "Próximos", for a MANAGER and for STAFF; it stays in the queue.
+- [ ] The booking detail shows the banner: a MANAGER sees a link that opens "Reservas a resolver"; STAFF sees the same message with "peça a um gerente" and no link.
+- [ ] The marker appears without a page reload after a resource (or staff member) with future bookings is deactivated, and disappears after the manager resolves the entry (reassign, reschedule, cancel) or reactivates the resource.
+- [ ] A booking without an open entry looks exactly as it does today; the Agenda, the customer app and the worklist page are unchanged.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `ListBookingsUseCase`: `hasOpenException` is `true` only for bookings that are the `affected_id` of an `OPEN` entry; a `RESOLVED` or `DISMISSED` entry does not mark; an empty page makes no lookup; one lookup per page, not per item
+  - [ ] `GetBookingByIdUseCase`: the flag for a marked and an unmarked booking
+  - [ ] `findOpenAffectedBookingIds` (in-memory and TypeORM specs): only `OPEN`, only `affected_type = 'BOOKING'`, tenant-scoped, empty input returns an empty set
+  - [ ] BFF `bookings.mapper`: the staff card and staff detail carry the flag; **the customer mappers do not** *(negative guarantee, own test)*
+  - [ ] `BookingCard`: pill present when the flag is `true` and absent otherwise; **the card is unchanged in output when the flag is `false` or absent, for all three queue variants** *(regression pin, own test)*
+  - [ ] `BookingDecisionBanner`: MANAGER sees the link to `/dashboard/scheduling-exceptions`; STAFF sees the hint and **no link** *(negative guarantee, own test)*; renders nothing when the flag is `false`
+  - [ ] `useDeactivateResource`, `useDeactivateStaff`, `useReactivateResource` invalidate `['bookings', tenantId]` as well as `['scheduling-exceptions', tenantId]`
+- Integration:
+  - [ ] Repository: `findOpenAffectedBookingIds` against Postgres, including the `EXPLAIN` test that the lookup is answered from `UQ_booking_fce_open_impact` with sequential scan disabled
+  - [ ] Controller: after a resource with a future booking is deactivated, `GET /bookings` and `GET /bookings/:id` carry `hasOpenException: true` for that booking and `false` for another; after the entry is resolved (and after the resource is reactivated) both are `false`
+- Tenant isolation:
+  - [ ] Tenant B's caller never gets `hasOpenException: true` for tenant A's booking, and `findOpenAffectedBookingIds(tenantB, [tenantA's booking id])` returns an empty set
+- E2E (Playwright, seeding through the existing `seedWorklistEntries` helper):
+  - [ ] Manager: deactivate a resource with a confirmed booking from the Resources screen, navigate client-side to `/dashboard/bookings`: the card shows the pill; open it, the banner and its link show; follow the link and reassign it; back in the queue the booking is still there and the pill is gone — all without a reload
+  - [ ] STAFF: sees the pill on the card and the banner on the detail with no link
+  - [ ] Reactivating the resource removes the pill (the S45 path)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
