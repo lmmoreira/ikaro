@@ -3,7 +3,10 @@ import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-m
 import { InMemoryBookingStaffPort } from '../../../../test/infrastructure/in-memory-booking-staff.port';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
-import { ResourceBuilder } from '../../../../test/builders/booking/index';
+import {
+  FutureCommitmentExceptionBuilder,
+  ResourceBuilder,
+} from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
 import { FutureCommitmentFixture } from '../../../../test/utils/future-commitment-fixture';
 import { CreateResourceUseCase } from '../../application/use-cases/create-resource.use-case';
@@ -17,17 +20,23 @@ import { ResourceType } from '../../domain/resource.types';
 import { ResourceController } from './resource.controller';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
+const MANAGER_ID = '00000000-0000-7000-8000-000000000077';
 
 describe('ResourceController', () => {
   let repo: InMemoryResourceRepository;
   let staffPort: InMemoryBookingStaffPort;
   let controller: ResourceController;
+  let world: FutureCommitmentFixture;
 
   beforeEach(() => {
-    const world = new FutureCommitmentFixture();
+    world = new FutureCommitmentFixture();
     repo = world.resourceRepo;
     staffPort = new InMemoryBookingStaffPort();
-    const ctx = new RequestContextBuilder().withTenantId(TENANT_ID).build();
+    const ctx = new RequestContextBuilder()
+      .withTenantId(TENANT_ID)
+      .withActorId(MANAGER_ID)
+      .withCorrelationId('corr-reactivate')
+      .build();
     const tx = new InMemoryTransactionManager();
     const tenantLock = new InMemoryTenantLock();
     const staffWrapValidation = new StaffWrapValidationService(staffPort, repo);
@@ -37,7 +46,7 @@ describe('ResourceController', () => {
       new GetResourceByIdUseCase(repo),
       new UpdateResourceUseCase(repo, staffWrapValidation, tx, tenantLock),
       new DeactivateResourceUseCase(repo, tx, world.raise),
-      new ReactivateResourceUseCase(repo, staffPort, tx, tenantLock),
+      new ReactivateResourceUseCase(repo, staffPort, tx, tenantLock, world.exceptionRepo),
       new ListResourcesUseCase(repo),
     );
   });
@@ -214,6 +223,22 @@ describe('ResourceController', () => {
 
       const result = await controller.reactivate(resource.id);
       expect(result.isActive).toBe(true);
+    });
+
+    it("passes the caller's actor id and correlation id to the use case, which records them on the closed entry", async () => {
+      const resource = new ResourceBuilder().withTenantId(TENANT_ID).build();
+      resource.deactivate();
+      await repo.save(resource);
+      const entry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_ID)
+        .withSourceId(resource.id)
+        .build();
+      world.exceptionRepo.seed(entry);
+
+      await controller.reactivate(resource.id);
+
+      expect(entry.status).toBe('DISMISSED');
+      expect(entry.resolvedByStaffId).toBe(MANAGER_ID);
     });
 
     it('maps ResourceAlreadyActiveError to 409', async () => {

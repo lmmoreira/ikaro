@@ -11,10 +11,16 @@ import { ResourceType } from '../../domain/resource.types';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 
 export interface ReactivateResourceUseCaseInput {
   id: string;
   tenantId: string;
+  staffId: string;
+  correlationId: string;
 }
 
 export interface ReactivateResourceUseCaseResult {
@@ -29,6 +35,8 @@ export class ReactivateResourceUseCase {
     @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
   ) {}
 
   async execute(input: ReactivateResourceUseCaseInput): Promise<ReactivateResourceUseCaseResult> {
@@ -51,8 +59,9 @@ export class ReactivateResourceUseCase {
       if (!staff) throw new ResourceStaffNotFoundError(staffRefId);
     }
 
-    // Config-only, no event published — descoped during story discovery (2026-09-01): see
-    // docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox (M20-S16 precedent).
+    // The resource itself publishes no event (descoped during story discovery, 2026-09-01: see
+    // docs/ENGINEERING_RULES_BACKEND.md § Aggregate domain events → outbox, M20-S16 precedent);
+    // the worklist entries closed below each record their own FutureCommitmentExceptionDismissed.
     resource.reactivate();
 
     await this.txManager.run(async () => {
@@ -63,6 +72,20 @@ export class ReactivateResourceUseCase {
         await this.tenantLock.lockTenantStaff(input.tenantId, staffRefId);
         const staff = await this.staffPort.findActiveById(staffRefId, input.tenantId);
         if (!staff) throw new ResourceStaffNotFoundError(staffRefId);
+      }
+      // Same primitive as the raise step, taken after the staff lock (the cascade path takes them
+      // in the same order), so a concurrent deactivate of this resource is ordered against us.
+      await this.tenantLock.lockResources(input.tenantId, [input.id]);
+      // UC-049/UC-077 A3: the deactivation's still-OPEN entries have nothing left to resolve.
+      // One batched row lock so a manager resolving one at the same moment cannot also see it OPEN.
+      const openEntries = await this.exceptionRepo.findOpenBySourceForUpdate(
+        input.tenantId,
+        'RESOURCE_DEACTIVATION',
+        input.id,
+      );
+      for (const entry of openEntries) {
+        entry.dismiss(input.staffId, 'RESOURCE_REACTIVATED', input.correlationId);
+        await this.exceptionRepo.save(entry);
       }
       await this.resourceRepo.save(resource);
     });

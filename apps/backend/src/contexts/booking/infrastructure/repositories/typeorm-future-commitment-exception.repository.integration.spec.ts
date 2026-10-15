@@ -211,4 +211,94 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
       expect(found).toBeNull();
     });
   });
+
+  describe('findOpenBySourceForUpdate', () => {
+    const SOURCE_ID = uuidv7();
+
+    it('refuses to run outside a transaction', async () => {
+      await expect(
+        repo.findOpenBySourceForUpdate(TENANT_A, 'RESOURCE_DEACTIVATION', SOURCE_ID),
+      ).rejects.toThrow('active transaction');
+    });
+
+    it('returns only the OPEN rows of that source and tenant, ordered by id', async () => {
+      const open = [
+        new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).withSourceId(SOURCE_ID),
+        new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).withSourceId(SOURCE_ID),
+        new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).withSourceId(SOURCE_ID),
+      ].map((b) => b.build());
+      const dismissed = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withSourceId(SOURCE_ID)
+        .build();
+      dismissed.dismiss(STAFF_ID, 'done', 'corr-1');
+      const otherSource = new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build();
+      const otherTenant = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_B)
+        .withSourceId(SOURCE_ID)
+        .build();
+      for (const e of [...open, dismissed, otherSource, otherTenant]) await save(e);
+
+      const found = await txManager.run(() =>
+        repo.findOpenBySourceForUpdate(TENANT_A, 'RESOURCE_DEACTIVATION', SOURCE_ID),
+      );
+
+      expect(found.map((e) => e.id)).toEqual(open.map((e) => e.id).sort());
+    });
+
+    it('serializes against a concurrent resolver: the entry is seen already closed once the resolver commits', async () => {
+      const exception = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withSourceId(SOURCE_ID)
+        .build();
+      await save(exception);
+      const order: string[] = [];
+
+      const resolver = txManager.run(async () => {
+        const locked = (await repo.findByIdForUpdate(exception.id, TENANT_A))!;
+        order.push('resolver-locked');
+        await new Promise((resolve) => setTimeout(resolve, 150));
+        locked.resolve(STAFF_ID, 'KEEP', null, 'corr-1');
+        await repo.save(locked);
+        order.push('resolver-committing');
+      });
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const reactivation = txManager.run(async () => {
+        const open = await repo.findOpenBySourceForUpdate(
+          TENANT_A,
+          'RESOURCE_DEACTIVATION',
+          SOURCE_ID,
+        );
+        order.push(`reactivation-saw-${open.length}-open`);
+      });
+      await Promise.all([resolver, reactivation]);
+
+      expect(order).toEqual(['resolver-locked', 'resolver-committing', 'reactivation-saw-0-open']);
+    });
+
+    it('leaves the entries OPEN when the transaction rolls back after closing them', async () => {
+      const exception = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withSourceId(SOURCE_ID)
+        .build();
+      await save(exception);
+
+      await expect(
+        txManager.run(async () => {
+          const [entry] = await repo.findOpenBySourceForUpdate(
+            TENANT_A,
+            'RESOURCE_DEACTIVATION',
+            SOURCE_ID,
+          );
+          entry.dismiss(STAFF_ID, 'RESOURCE_REACTIVATED', 'corr-rollback');
+          await repo.save(entry);
+          throw new Error('forced failure after the close');
+        }),
+      ).rejects.toThrow('forced failure');
+
+      const reloaded = (await repo.findById(exception.id, TENANT_A))!;
+      expect(reloaded.status).toBe('OPEN');
+      expect(reloaded.resolutionReason).toBeNull();
+    });
+  });
 });

@@ -107,7 +107,9 @@ export class ResourceController {
   reactivate(
     @Param('id', CanonicalParseUUIDPipe) id: string,
   ): Promise<ReactivateResourceUseCaseResult> {
-    const { tenantId } = this.ctx;
-    return this.reactivateResource.execute({ id, tenantId }).catch(mapBookingError);
+    const { tenantId, actorId, correlationId } = this.ctx;
+    return this.reactivateResource
+      .execute({ id, tenantId, staffId: actorId!, correlationId })
+      .catch(mapBookingError);
   }
 }

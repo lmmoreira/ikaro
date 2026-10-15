@@ -10,7 +10,10 @@ import {
   FutureCommitmentExceptionImpact,
   IFutureCommitmentExceptionRepository,
 } from '../../application/ports/future-commitment-exception-repository.port';
-import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
+import {
+  FutureCommitmentException,
+  FutureCommitmentExceptionSourceType,
+} from '../../domain/future-commitment-exception.aggregate';
 import { FutureCommitmentExceptionEntity } from '../entities/future-commitment-exception.entity';
 import { toDomain, toEntity } from './typeorm-future-commitment-exception.mapper';
 
@@ -37,6 +40,23 @@ export class TypeOrmFutureCommitmentExceptionRepository implements IFutureCommit
       lock: { mode: 'pessimistic_write' },
     });
     return entity ? toDomain(entity) : null;
+  }
+
+  async findOpenBySourceForUpdate(
+    tenantId: string,
+    sourceType: FutureCommitmentExceptionSourceType,
+    sourceId: string,
+  ): Promise<FutureCommitmentException[]> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findOpenBySourceForUpdate must be called inside an active transaction');
+    }
+    const entities = await manager.find(FutureCommitmentExceptionEntity, {
+      where: { tenantId, sourceType, sourceId, status: 'OPEN' },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return entities.map(toDomain);
   }
 
   // Runs inside the raise transaction (after lockResources), so it reads through the ambient
