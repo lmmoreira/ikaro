@@ -125,6 +125,29 @@ describe('persistRequestedBooking', () => {
     expect(lockBookingModelsSpy).toHaveBeenCalledWith([service.id], TENANT_A);
   });
 
+  it('locks the service rows before it takes any resource lock (M23-S48)', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+    await serviceRepo.save(service);
+    const order: string[] = [];
+    const lockBookingModels = serviceRepo.lockBookingModels.bind(serviceRepo);
+    jest.spyOn(serviceRepo, 'lockBookingModels').mockImplementation((ids, tenantId) => {
+      order.push('service-rows');
+      return lockBookingModels(ids, tenantId);
+    });
+    jest.spyOn(slotConflictService, 'lockResources').mockImplementation(async () => {
+      order.push('resource-locks');
+    });
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withLines([new BookingLineBuilder().withServiceId(service.id).build()])
+      .build();
+
+    await run(booking, new Map([[service.id, service]]));
+
+    expect(order[0]).toBe('service-rows');
+    expect(order).toContain('resource-locks');
+  });
+
   it('saves the booking once every locked service matches its pre-transaction snapshot', async () => {
     const service = new ServiceBuilder().withTenantId(TENANT_A).build();
     await serviceRepo.save(service);
