@@ -4,11 +4,11 @@ import { useTranslations } from 'next-intl';
 import type { RecurringBookingScheduleListItem } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { useRecurrenceText } from '@/features/customer/components/my-account/use-recurrence-text';
-import { NewRecurringScheduleConflictList } from '@/features/customer/components/my-account/NewRecurringScheduleConflictList';
+import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import { maxOccurrenceCount } from '@/features/booking/model/recurring-approval';
 import type { DecisionOutcome } from '@/features/booking/model/recurring-approval-outcome';
 import { BookingStatusBannerIcon, type BannerVariant } from './BookingStatusBannerIcon';
+import { RecurringConflictList } from './RecurringConflictList';
 
 interface RecurringApprovalBannerProps {
   readonly outcome: DecisionOutcome | null;
@@ -17,7 +17,7 @@ interface RecurringApprovalBannerProps {
   readonly customerName: string;
   // Whether the request is still waiting for a decision (shows the deadline banner).
   readonly isPending: boolean;
-  // Still pending, but its 30-minute hold has passed: it can no longer be approved, only rejected.
+  // Still pending, but its hold has passed: it can no longer be approved, only rejected.
   readonly holdExpired: boolean;
 }
 
@@ -36,6 +36,13 @@ const TONE_CLASSES: Record<BannerVariant, { card: string; title: string; body: s
     card: 'border-blue-200 bg-blue-50/80',
     title: 'text-blue-700',
     body: 'text-blue-700/90',
+  },
+  // Not used by an approval outcome today; the shared banner icon has the variant, so the table
+  // must cover it.
+  warning: {
+    card: 'border-orange-200 bg-orange-50/80',
+    title: 'text-orange-700',
+    body: 'text-orange-700/90',
   },
 };
 
@@ -81,7 +88,7 @@ export function RecurringApprovalBanner({
 }: RecurringApprovalBannerProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.recurringApproval');
   const { formatTime } = useFormatting();
-  const { formatDateKey } = useRecurrenceText();
+  const { formatDateKey } = useRecurrenceDescription();
   const holdTime = schedule.approvalHoldExpiresAt
     ? formatTime(new Date(schedule.approvalHoldExpiresAt))
     : null;
@@ -149,7 +156,7 @@ export function RecurringApprovalBanner({
           body={t('conflictBody')}
         >
           {outcome.conflicts.length > 0 ? (
-            <NewRecurringScheduleConflictList
+            <RecurringConflictList
               conflicts={outcome.conflicts}
               durationMinutes={schedule.recurrence.durationMinutes}
               title={t('conflictListTitle')}

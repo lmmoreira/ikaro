@@ -40,7 +40,8 @@ function booking(id: string, name: string): StaffBookingCardResponse {
     totalDurationMins: 60,
     isCustomer: true,
     assignedResources: [],
-  } as StaffBookingCardResponse;
+    hasOpenException: false,
+  };
 }
 
 function recurrence(id: string): RecurringBookingScheduleListItem {

@@ -7,7 +7,7 @@ import { Badge } from '@/shared/components/ui/badge';
 import { Button } from '@/shared/components/ui/button';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useStaffCustomer } from '@/features/customer/hooks/useStaffCustomer';
-import { useRecurrenceText } from '@/features/customer/components/my-account/use-recurrence-text';
+import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import {
   isApprovalHoldExpired,
   maxOccurrenceCount,
@@ -27,7 +27,7 @@ export function RecurringScheduleCard({ schedule }: RecurringScheduleCardProps):
   const t = useTranslations('dashboard.bookingQueue');
   const typeT = useTranslations('dashboard.bookingCard');
   const { formatTime } = useFormatting();
-  const { recurrenceLine, formatDateKey } = useRecurrenceText();
+  const { patternLine, formatDateKey } = useRecurrenceDescription();
   // The schedule carries only the customer's id; a card whose read is pending or failed still
   // works, it just names the customer generically.
   const customer = useStaffCustomer(schedule.customerId);
@@ -50,7 +50,7 @@ export function RecurringScheduleCard({ schedule }: RecurringScheduleCardProps):
             </Badge>
           </>
         }
-        serviceLine={`${schedule.serviceName} · ${recurrenceLine(schedule.recurrence)}`}
+        serviceLine={`${schedule.serviceName} · ${patternLine(schedule.recurrence)}`}
         timeLabel={t('recurrenceTerm', {
           start: formatDateKey(schedule.startsOn),
           end: formatDateKey(schedule.endsOn),

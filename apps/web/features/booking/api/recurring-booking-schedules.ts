@@ -11,8 +11,8 @@ import { bffClient } from '@/shared/lib/api/bff-client';
 // The BFF caps `limit` at 100. A pending request holds a 30-minute approval slot and then expires,
 // so the queue is short and one page covers any real tenant.
 const PENDING_SCHEDULES_PAGE_SIZE = 100;
-// Circuit breaker against a runaway loop (a corrupted `hasMore`), at 5,000 requests, far beyond any
-// real queue. Hitting it throws rather than returning a shorter list: a queue that silently omits
+// Circuit breaker against a runaway loop (a corrupted `hasMore`): 50 requests of 100 rows, i.e.
+// 5,000 pending requests, far beyond any real queue. Hitting it throws rather than returning a shorter list: a queue that silently omits
 // requests is worse than one that fails visibly (the same rule as `listAllPages` for bookings).
 const PENDING_SCHEDULES_MAX_PAGES = 50;
 

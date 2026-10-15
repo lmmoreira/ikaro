@@ -8,8 +8,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { ApiError } from '@/shared/lib/api/errors';
 import { useStaffCustomer } from '@/features/customer/hooks/useStaffCustomer';
-import { RECURRING_SCHEDULE_STATUS_CLASSES } from '@/features/customer/recurring-schedule-model';
-import { useRecurrenceText } from '@/features/customer/components/my-account/use-recurrence-text';
+import { RECURRING_SCHEDULE_STATUS_CLASSES } from '@/features/booking/model/recurring-schedule-display';
+import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import {
   useAllResourceNames,
   useApproveRecurringSchedule,
@@ -58,7 +58,7 @@ export function RecurringScheduleApprovalDetail({
   scheduleId,
 }: RecurringScheduleApprovalDetailProps): React.JSX.Element {
   const t = useTranslations('dashboard.recurringApproval');
-  const { recurrenceLine, formatDateKey } = useRecurrenceText();
+  const { patternLine, formatDateKey } = useRecurrenceDescription();
   const scheduleQuery = useRecurringScheduleForStaff(scheduleId);
   const schedule = scheduleQuery.data;
   const customerQuery = useStaffCustomer(schedule?.customerId);
@@ -152,7 +152,7 @@ export function RecurringScheduleApprovalDetail({
             start: formatDateKey(schedule.startsOn),
             end: formatDateKey(schedule.endsOn),
           }),
-          pattern: recurrenceLine(schedule.recurrence),
+          pattern: patternLine(schedule.recurrence),
           count: maxCount,
         })
       : t('rejectSheetBody', { name: customerName });

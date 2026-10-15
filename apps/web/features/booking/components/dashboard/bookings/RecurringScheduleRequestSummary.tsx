@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import type { CustomerProfileResponse, RecurringBookingScheduleListItem } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
-import { useRecurrenceText } from '@/features/customer/components/my-account/use-recurrence-text';
+import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import {
   maxOccurrenceCount,
   type RecurringResourceRow,
@@ -56,7 +56,7 @@ export function RecurringScheduleRequestSummary({
 }: RecurringScheduleRequestSummaryProps): React.JSX.Element {
   const t = useTranslations('dashboard.recurringApproval');
   const { formatDate, formatTime } = useFormatting();
-  const { recurrenceLine, formatDateKey } = useRecurrenceText();
+  const { patternLine, formatDateKey } = useRecurrenceDescription();
   const createdAt = schedule.createdAt ? new Date(schedule.createdAt) : null;
 
   return (
@@ -110,7 +110,7 @@ export function RecurringScheduleRequestSummary({
                 }
               />
             ))}
-            <SummaryRow label={t('rowPattern')} value={recurrenceLine(schedule.recurrence)} />
+            <SummaryRow label={t('rowPattern')} value={patternLine(schedule.recurrence)} />
             <SummaryRow
               label={t('rowPeriod')}
               value={t('periodRange', {
