@@ -41,6 +41,28 @@ export async function fetchRecurringSummary(token: string): Promise<RecurringSum
   }
 }
 
+/**
+ * The Início tab's "Recorrências" tile and "Renovar" card: only the customer's running schedules,
+ * asked for by status so ended and cancelled history never crowds them out of the page. Optional by
+ * design, so a failed read resolves to `null` (no tile, no card) and Início itself never breaks.
+ */
+export async function fetchActiveRecurringSchedules(
+  token: string,
+): Promise<RecurringBookingScheduleListItem[] | null> {
+  try {
+    const query = new URLSearchParams({
+      status: 'ACTIVE',
+      limit: String(CUSTOMER_SCHEDULES_LIMIT),
+    });
+    const res = await bffServerFetch(token, `/recurring-booking-schedules?${query}`);
+    await assertOk(res, CustomerFetchError);
+    const { items } = (await res.json()) as RecurringBookingScheduleListResponse;
+    return items;
+  } catch {
+    return null;
+  }
+}
+
 async function fetchCustomerRecurringSchedule(
   token: string,
   scheduleId: string,

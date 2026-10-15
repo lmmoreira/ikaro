@@ -138,7 +138,7 @@ function ScheduleDetailBody({
             </Link>
           </>
         )}
-        {offersRenewal(schedule.status) && (
+        {offersRenewal(schedule) && (
           <Link
             href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
             data-testid="renew-schedule-button"

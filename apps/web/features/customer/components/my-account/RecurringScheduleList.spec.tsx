@@ -130,7 +130,7 @@ describe('RecurringScheduleList', () => {
     expect(screen.getByText('cancelledNote')).toBeInTheDocument();
   });
 
-  it('renders an inline action only on the ended row — the running one has none yet', () => {
+  it('renders an inline action only on the ended row — a running one without the flag has none', () => {
     render(
       <RecurringScheduleList
         tenantSlug="lavacar"
@@ -183,7 +183,7 @@ describe('RecurringScheduleList', () => {
 });
 
 describe('RecurringScheduleList — "Renovar"', () => {
-  it('offers it on an ended schedule only, linking to the pre-filled creation form', () => {
+  it('offers it on an ended schedule, linking to the pre-filled creation form', () => {
     render(
       <RecurringScheduleList
         tenantSlug="lavacar"
@@ -201,6 +201,46 @@ describe('RecurringScheduleList — "Renovar"', () => {
     expect(actions[0]).toHaveAttribute(
       'href',
       '/lavacar/my-account/recurring-schedules/new?renewFrom=e1',
+    );
+  });
+
+  it('offers none on an ended schedule the server no longer flags renewable (already renewed)', () => {
+    render(
+      <RecurringScheduleList
+        tenantSlug="lavacar"
+        schedules={[
+          makeSchedule({ id: 'e-yes', status: 'ENDED', renewable: true }),
+          makeSchedule({ id: 'e-renewed', status: 'ENDED', renewable: false }),
+        ]}
+      />,
+    );
+
+    const actions = screen.getAllByTestId('renew-schedule-action');
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=e-yes',
+    );
+  });
+
+  it('offers it on an active schedule the server flags renewable, and on no other active one', () => {
+    render(
+      <RecurringScheduleList
+        tenantSlug="lavacar"
+        schedules={[
+          makeSchedule({ id: 'a-yes', status: 'ACTIVE', renewable: true }),
+          makeSchedule({ id: 'a-no', status: 'ACTIVE', renewable: false }),
+          makeSchedule({ id: 'a-missing', status: 'ACTIVE' }),
+          makeSchedule({ id: 'p1', status: 'PENDING_APPROVAL', renewable: true }),
+        ]}
+      />,
+    );
+
+    const actions = screen.getAllByTestId('renew-schedule-action');
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAttribute(
+      'href',
+      '/lavacar/my-account/recurring-schedules/new?renewFrom=a-yes',
     );
   });
 });

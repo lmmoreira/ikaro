@@ -19,6 +19,7 @@ vi.mock('next/navigation', () => ({ redirect, notFound }));
 
 import { CustomerFetchError } from '@/shared/lib/api/errors';
 import {
+  fetchActiveRecurringSchedules,
   fetchCustomerRecurringScheduleOrNull,
   fetchCustomerRecurringScheduleOrRedirect,
   fetchCustomerRecurringSchedules,
@@ -96,6 +97,34 @@ describe('fetchRecurringSummary', () => {
   it('does not redirect to login on an expired session — the bookings read owns that', async () => {
     bffServerFetch.mockResolvedValue(jsonResponse(null, false, 401));
     await expect(fetchRecurringSummary('token')).resolves.toBeNull();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+});
+
+describe('fetchActiveRecurringSchedules', () => {
+  it('asks the BFF for the running schedules only, up to 100, and returns the items', async () => {
+    const items = [schedule('ACTIVE'), schedule('ACTIVE')];
+    bffServerFetch.mockResolvedValue(jsonResponse({ items }));
+    await expect(fetchActiveRecurringSchedules('token')).resolves.toEqual(items);
+    expect(bffServerFetch).toHaveBeenCalledWith(
+      'token',
+      '/recurring-booking-schedules?status=ACTIVE&limit=100',
+    );
+  });
+
+  it('resolves to null on a failed response instead of throwing (Início must keep rendering)', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse(null, false, 500));
+    await expect(fetchActiveRecurringSchedules('token')).resolves.toBeNull();
+  });
+
+  it('resolves to null on a network error', async () => {
+    bffServerFetch.mockRejectedValue(new Error('network down'));
+    await expect(fetchActiveRecurringSchedules('token')).resolves.toBeNull();
+  });
+
+  it('does not redirect to login on an expired session — the bookings read owns that', async () => {
+    bffServerFetch.mockResolvedValue(jsonResponse(null, false, 401));
+    await expect(fetchActiveRecurringSchedules('token')).resolves.toBeNull();
     expect(redirect).not.toHaveBeenCalled();
   });
 });

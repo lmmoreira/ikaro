@@ -89,7 +89,7 @@ function ScheduleSection({
                 ...(detail === null ? [] : [detail]),
               ]}
               actions={
-                offersRenewal(schedule.status) ? (
+                offersRenewal(schedule) ? (
                   <Link
                     href={recurringScheduleRenewPath(tenantSlug, schedule.id)}
                     data-testid="renew-schedule-action"

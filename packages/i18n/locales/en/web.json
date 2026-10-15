@@ -498,7 +498,15 @@
       "bookingsTotal": "{count} total",
       "expiryStrip": "{points} pts expire on {date}",
       "upcomingTitle": "Upcoming bookings",
-      "viewAll": "View all bookings →"
+      "viewAll": "View all bookings →",
+      "recurring": "Recurring",
+      "recurringValue": "{count} active",
+      "alerts": "Alerts",
+      "alertsValue": "{count} active",
+      "renewTitle": "{service} ends {days, plural, =0 {today} =1 {tomorrow} other {in # days}}",
+      "renewTitleMany": "{count} reservations ending",
+      "renewMetaMany": "The first one ends {days, plural, =0 {today} =1 {tomorrow} other {in # days}}",
+      "renewViewAll": "View reservations"
     },
     "bookings": {
       "title": "My Bookings",

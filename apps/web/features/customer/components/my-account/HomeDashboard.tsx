@@ -2,19 +2,36 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Calendar, Star } from 'lucide-react';
-import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
+import { Bell, Calendar, Repeat, Star } from 'lucide-react';
+import type {
+  CustomerBookingListItem,
+  CustomerLoyaltyBalanceResponse,
+  RecurringBookingScheduleListItem,
+} from '@ikaro/types';
+import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { alertListPath } from '../../alert-model';
 import { countActiveBookings, selectHomePreview } from '../../booking-sections';
+import { selectRenewalCandidate } from '../../home-widgets';
+import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { NewReservationMenu } from '../NewReservationMenu';
 import { BookingEmptyState } from './BookingEmptyState';
 import { BookingListItem } from './BookingListItem';
+import { HomeCountTile } from './HomeCountTile';
+import { HomeRenewalCard } from './HomeRenewalCard';
 
 interface HomeDashboardProps {
   readonly bookings: readonly CustomerBookingListItem[];
   readonly loyaltyBalance: CustomerLoyaltyBalanceResponse;
   readonly userName: string | null;
   readonly tenantSlug: string;
+  /**
+   * The customer's running recurring schedules; `null` when that optional read failed (no
+   * "Recorrências" tile, no "Renovar" card).
+   */
+  readonly recurringSchedules: readonly RecurringBookingScheduleListItem[] | null;
+  /** How many availability alerts are active; `null` when that optional read failed (no tile). */
+  readonly activeAlertCount: number | null;
 }
 
 export function HomeDashboard({
@@ -22,10 +39,17 @@ export function HomeDashboard({
   loyaltyBalance,
   userName,
   tenantSlug,
+  recurringSchedules,
+  activeAlertCount,
 }: HomeDashboardProps): React.JSX.Element {
   const t = useTranslations('customer.home');
-  const { formatDate } = useFormatting();
+  const { formatDate, timezone } = useFormatting();
   const preview = selectHomePreview(bookings);
+  const recurringCount = recurringSchedules?.length ?? 0;
+  const renewal =
+    recurringSchedules === null
+      ? null
+      : selectRenewalCandidate(recurringSchedules, toISODateInTimezone(new Date(), timezone));
 
   return (
     <div className="w-full">
@@ -33,35 +57,45 @@ export function HomeDashboard({
         <h1 className="text-lg font-bold text-gray-900">{t('greeting', { name: userName })}</h1>
       )}
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
-        <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100">
+      <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3">
+        <HomeCountTile
+          href={`/${tenantSlug}/my-account/loyalty`}
+          label={t('points')}
+          value={t('pointsValue', { points: loyaltyBalance.currentPoints })}
+          valueTestId="home-points-value"
+          iconBackground="bg-amber-100"
+          icon={
             <Star className="h-[18px] w-[18px] fill-amber-500 text-amber-500" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[0.6875rem] font-semibold text-gray-500">{t('points')}</p>
-            <p
-              data-testid="home-points-value"
-              className="text-[1.1875rem] font-bold leading-tight text-gray-900"
-            >
-              {t('pointsValue', { points: loyaltyBalance.currentPoints })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50">
-            <Calendar className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-[0.6875rem] font-semibold text-gray-500">{t('bookings')}</p>
-            <p
-              data-testid="home-bookings-value"
-              className="text-[1.1875rem] font-bold leading-tight text-gray-900"
-            >
-              {t('bookingsTotal', { count: countActiveBookings(bookings) })}
-            </p>
-          </div>
-        </div>
+          }
+        />
+        <HomeCountTile
+          href={`/${tenantSlug}/my-account/bookings`}
+          label={t('bookings')}
+          value={t('bookingsTotal', { count: countActiveBookings(bookings) })}
+          valueTestId="home-bookings-value"
+          iconBackground="bg-blue-50"
+          icon={<Calendar className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />}
+        />
+        {recurringCount > 0 && (
+          <HomeCountTile
+            href={recurringScheduleListPath(tenantSlug)}
+            label={t('recurring')}
+            value={t('recurringValue', { count: recurringCount })}
+            valueTestId="home-recurring-value"
+            iconBackground="bg-blue-50"
+            icon={<Repeat className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />}
+          />
+        )}
+        {activeAlertCount !== null && activeAlertCount > 0 && (
+          <HomeCountTile
+            href={alertListPath(tenantSlug)}
+            label={t('alerts')}
+            value={t('alertsValue', { count: activeAlertCount })}
+            valueTestId="home-alerts-value"
+            iconBackground="bg-blue-50"
+            icon={<Bell className="h-[18px] w-[18px] text-blue-600" aria-hidden="true" />}
+          />
+        )}
       </div>
 
       {loyaltyBalance.nextExpiryDate !== null && loyaltyBalance.nextExpiryPoints !== null && (
@@ -75,6 +109,8 @@ export function HomeDashboard({
           })}
         </Link>
       )}
+
+      {renewal !== null && <HomeRenewalCard selection={renewal} tenantSlug={tenantSlug} />}
 
       <section className="mt-6">
         <h2 className="text-sm font-semibold text-gray-500">{t('upcomingTitle')}</h2>

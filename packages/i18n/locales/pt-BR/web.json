@@ -498,7 +498,15 @@
       "bookingsTotal": "{count} total",
       "expiryStrip": "{points} pts expiram em {date}",
       "upcomingTitle": "Próximos agendamentos",
-      "viewAll": "Ver todos os agendamentos →"
+      "viewAll": "Ver todos os agendamentos →",
+      "recurring": "Recorrências",
+      "recurringValue": "{count, plural, one {# ativa} other {# ativas}}",
+      "alerts": "Avisos",
+      "alertsValue": "{count, plural, one {# ativo} other {# ativos}}",
+      "renewTitle": "{service} termina {days, plural, =0 {hoje} =1 {amanhã} other {em # dias}}",
+      "renewTitleMany": "{count} reservas terminando",
+      "renewMetaMany": "A primeira termina {days, plural, =0 {hoje} =1 {amanhã} other {em # dias}}",
+      "renewViewAll": "Ver reservas"
     },
     "bookings": {
       "title": "Meus Agendamentos",

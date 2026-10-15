@@ -1,10 +1,15 @@
 // @vitest-environment jsdom
 import { fireEvent, render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
-import type { CustomerBookingListItem, CustomerLoyaltyBalanceResponse } from '@ikaro/types';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type {
+  CustomerBookingListItem,
+  CustomerLoyaltyBalanceResponse,
+  RecurringBookingScheduleListItem,
+} from '@ikaro/types';
 import { HomeDashboard } from './HomeDashboard';
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'pt-BR',
   useTranslations: (namespace: string) => {
     const translations: Record<string, Record<string, string>> = {
       'customer.home': {
@@ -16,6 +21,17 @@ vi.mock('next-intl', () => ({
         expiryStrip: '{points} pts expiram em {date}',
         upcomingTitle: 'Próximos agendamentos',
         viewAll: 'Ver todos os agendamentos →',
+        recurring: 'Recorrências',
+        recurringValue: '{count} ativas',
+        alerts: 'Avisos',
+        alertsValue: '{count} ativos',
+        renewTitle: '{service} termina em {days} dias',
+        renewTitleMany: '{count} reservas terminando',
+        renewMetaMany: 'A primeira termina em {days} dias',
+        renewViewAll: 'Ver reservas',
+      },
+      'customer.recurringSchedules': {
+        renewAction: 'Renovar',
       },
       'customer.newMenu': {
         label: 'Novo',
@@ -59,6 +75,7 @@ vi.mock('@/shared/lib/formatting/use-formatting', () => ({
     formatTime: (date: Date) => date.toISOString().slice(11, 16),
     formatDateLong: () => 'Sábado, 20 de junho',
     formatDate: (date: Date) => date.toISOString().slice(0, 10),
+    timezone: 'America/Sao_Paulo',
   }),
 }));
 
@@ -103,13 +120,48 @@ function makeItem(overrides: Partial<CustomerBookingListItem> = {}): CustomerBoo
   };
 }
 
-function renderHome(bookings: CustomerBookingListItem[], userName: string | null = 'João Silva') {
+function makeSchedule(
+  overrides: Partial<RecurringBookingScheduleListItem> = {},
+): RecurringBookingScheduleListItem {
+  return {
+    id: 'sched-1',
+    customerId: 'c1',
+    serviceId: 's1',
+    serviceName: 'Sala Horizonte',
+    recurrence: {
+      frequency: 'WEEKLY',
+      daysOfWeek: ['friday'],
+      startTime: '16:00',
+      durationMinutes: 120,
+    },
+    startsOn: '2026-06-01',
+    endsOn: '2026-08-29',
+    status: 'ACTIVE',
+    assignmentPolicy: 'FIXED_ASSIGNMENT',
+    approvalHoldExpiresAt: null,
+    renewable: false,
+    ...overrides,
+  };
+}
+
+interface RenderOptions {
+  readonly userName?: string | null;
+  readonly recurringSchedules?: readonly RecurringBookingScheduleListItem[] | null;
+  readonly activeAlertCount?: number | null;
+}
+
+function renderHome(
+  bookings: CustomerBookingListItem[],
+  { userName = 'João Silva', recurringSchedules = [], activeAlertCount = 0 }: RenderOptions = {},
+) {
   return render(
     <HomeDashboard
       bookings={bookings}
       loyaltyBalance={balance}
       userName={userName}
       tenantSlug="lavacar-bh"
+      recurringSchedules={recurringSchedules}
+      activeAlertCount={activeAlertCount}
     />,
   );
 }
@@ -121,7 +173,7 @@ describe('HomeDashboard', () => {
   });
 
   it('omits the greeting when userName is null', () => {
-    renderHome([], null);
+    renderHome([], { userName: null });
     expect(screen.queryByText(/Olá/)).not.toBeInTheDocument();
   });
 
@@ -177,5 +229,124 @@ describe('HomeDashboard', () => {
       'href',
       '/lavacar-bh/my-account/recurring-schedules/new',
     );
+  });
+});
+
+describe('HomeDashboard — the tiles', () => {
+  it('links Pontos to the loyalty page and Agendamentos to the bookings list', () => {
+    renderHome([]);
+
+    expect(screen.getByTestId('home-points-value').closest('a')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/loyalty',
+    );
+    expect(screen.getByTestId('home-bookings-value').closest('a')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/bookings',
+    );
+  });
+
+  it('shows neither extra tile nor the card for a customer with no schedules and no alerts (negative guarantee)', () => {
+    renderHome([]);
+
+    expect(screen.queryByText('Recorrências')).not.toBeInTheDocument();
+    expect(screen.queryByText('Avisos')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-recurring-value')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-alerts-value')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-renewal-card')).not.toBeInTheDocument();
+    // Pontos, Agendamentos and the booking preview are all still there.
+    expect(screen.getByTestId('home-points-value')).toBeInTheDocument();
+    expect(screen.getByTestId('home-bookings-value')).toBeInTheDocument();
+    expect(screen.getByText('Nenhum agendamento ainda')).toBeInTheDocument();
+  });
+
+  it('shows the Recorrências tile with the active count, linking to the recurring list', () => {
+    renderHome([], { recurringSchedules: [makeSchedule({ id: 'a' }), makeSchedule({ id: 'b' })] });
+
+    expect(screen.getByTestId('home-recurring-value')).toHaveTextContent('2 ativas');
+    expect(screen.getByTestId('home-recurring-value').closest('a')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules',
+    );
+  });
+
+  it('shows the Avisos tile with the active count, linking to the alerts list', () => {
+    renderHome([], { activeAlertCount: 3 });
+
+    expect(screen.getByTestId('home-alerts-value')).toHaveTextContent('3 ativos');
+    expect(screen.getByTestId('home-alerts-value').closest('a')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/alerts',
+    );
+  });
+
+  it('hides only the tile of a failed read — the other tile and the page still render', () => {
+    renderHome([], { recurringSchedules: null, activeAlertCount: 2 });
+
+    expect(screen.queryByTestId('home-recurring-value')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('home-renewal-card')).not.toBeInTheDocument();
+    expect(screen.getByTestId('home-alerts-value')).toBeInTheDocument();
+
+    renderHome([], { recurringSchedules: [makeSchedule()], activeAlertCount: null });
+
+    expect(screen.getAllByTestId('home-recurring-value')).toHaveLength(1);
+    expect(screen.getAllByTestId('home-alerts-value')).toHaveLength(1);
+    expect(screen.getAllByTestId('home-points-value')).toHaveLength(2);
+  });
+});
+
+describe('HomeDashboard — the "Renovar" card', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    // 2026-08-22 12:00 in São Paulo.
+    vi.setSystemTime(new Date('2026-08-22T15:00:00.000Z'));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('shows no card while no running schedule is flagged renewable', () => {
+    renderHome([], { recurringSchedules: [makeSchedule({ renewable: false })] });
+
+    expect(screen.getByTestId('home-recurring-value')).toBeInTheDocument();
+    expect(screen.queryByTestId('home-renewal-card')).not.toBeInTheDocument();
+  });
+
+  it('shows the card for the renewable schedule, with the days left in the tenant timezone', () => {
+    renderHome([], { recurringSchedules: [makeSchedule({ id: 'sched-7', renewable: true })] });
+
+    expect(screen.getByTestId('home-renewal-title')).toHaveTextContent(
+      'Sala Horizonte termina em 7 dias',
+    );
+    expect(screen.getByTestId('home-renewal-action')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules/new?renewFrom=sched-7',
+    );
+  });
+
+  it('says how many are ending, and links to the list, when several are renewable', () => {
+    renderHome([], {
+      recurringSchedules: [
+        makeSchedule({ id: 'a', renewable: true, endsOn: '2026-08-25' }),
+        makeSchedule({ id: 'b', renewable: true, endsOn: '2026-08-29' }),
+      ],
+    });
+
+    expect(screen.getByTestId('home-renewal-title')).toHaveTextContent('2 reservas terminando');
+    expect(screen.getByTestId('home-renewal-action')).toHaveAttribute(
+      'href',
+      '/lavacar-bh/my-account/recurring-schedules',
+    );
+  });
+
+  it('sits after the loyalty expiry strip and before the upcoming bookings', () => {
+    renderHome([], { recurringSchedules: [makeSchedule({ renewable: true })] });
+
+    const strip = screen.getByRole('link', { name: '12 pts expiram em 2026-08-15' });
+    const card = screen.getByTestId('home-renewal-card');
+    const upcoming = screen.getByText('Próximos agendamentos');
+    expect(strip.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(card.compareDocumentPosition(upcoming) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
