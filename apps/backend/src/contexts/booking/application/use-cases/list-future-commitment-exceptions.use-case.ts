@@ -132,32 +132,41 @@ export class ListFutureCommitmentExceptionsUseCase {
     const result = new Map<string, FutureCommitmentAlternative[]>();
     await this.txManager.run(async () => {
       await mapSequentially([...bySource], async ([sourceId, entries]) => {
-        const wanted = new Set(entries.map((e) => e.affectedId));
-        const impacts = (
-          await this.occupancyRepo.findFutureBookingImpactsByResource(
-            tenantId,
-            sourceId,
-            new Date(),
-          )
-        ).filter((i) => wanted.has(i.bookingId));
-        const withImpacts = new Set(impacts.map((i) => i.bookingId));
-        const alternatives =
-          impacts.length === 0
-            ? new Map<string, FutureCommitmentAlternative[]>()
-            : await computeBookingAlternatives({
-                tenantId,
-                resourceId: sourceId,
-                bookings: [...withImpacts].flatMap((id) => bookings.get(id) ?? []),
-                impacts,
-                serviceRepo: this.serviceRepo,
-                resourceRepo: this.resourceRepo,
-                occupancyRepo: this.occupancyRepo,
-              });
+        const alternatives = await this.alternativesForSource(
+          tenantId,
+          sourceId,
+          entries,
+          bookings,
+        );
         // A booking with no live occupancy left on the source has nothing to move: no alternatives.
         for (const e of entries) result.set(e.id, alternatives.get(e.affectedId) ?? []);
       });
     });
     return result;
+  }
+
+  private async alternativesForSource(
+    tenantId: string,
+    sourceId: string,
+    entries: readonly FutureCommitmentException[],
+    bookings: ReadonlyMap<string, Booking>,
+  ): Promise<Map<string, FutureCommitmentAlternative[]>> {
+    const wanted = new Set(entries.map((e) => e.affectedId));
+    const impacts = (
+      await this.occupancyRepo.findFutureBookingImpactsByResource(tenantId, sourceId, new Date())
+    ).filter((i) => wanted.has(i.bookingId));
+    if (impacts.length === 0) return new Map();
+
+    const withImpacts = new Set(impacts.map((i) => i.bookingId));
+    return computeBookingAlternatives({
+      tenantId,
+      resourceId: sourceId,
+      bookings: [...withImpacts].flatMap((id) => bookings.get(id) ?? []),
+      impacts,
+      serviceRepo: this.serviceRepo,
+      resourceRepo: this.resourceRepo,
+      occupancyRepo: this.occupancyRepo,
+    });
   }
 }
 

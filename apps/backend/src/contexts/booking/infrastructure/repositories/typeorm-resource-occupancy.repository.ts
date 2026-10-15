@@ -25,6 +25,33 @@ import {
   upsertBookingLineResourceAssignments,
 } from './typeorm-resource-occupancy.write-queries';
 
+// Positions (1-based, WITH ORDINALITY) of the input windows that overlap a live occupancy row.
+const CONFLICTING_WINDOWS_SQL = `
+WITH candidates AS (
+  SELECT * FROM unnest($2::uuid[], $3::timestamptz[], $4::timestamptz[])
+    WITH ORDINALITY AS c(resource_id, starts_at, ends_at, position)
+)
+SELECT c.position
+FROM candidates c
+CROSS JOIN LATERAL (
+  SELECT 1
+  FROM booking.resource_occupancy ro
+  LEFT JOIN booking.booking_line_resource_assignments bla
+    ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
+  WHERE ro.tenant_id = $1
+    AND ro.resource_id = c.resource_id
+    AND ro.lock_state IN ('HOLD', 'COMMITTED')
+    AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange(c.starts_at, c.ends_at, '[)')
+    AND (
+      $5::uuid[] IS NULL
+      OR bla.booking_line_id IS NULL
+      OR NOT (bla.booking_line_id = ANY($5::uuid[]))
+    )
+  LIMIT 1
+) conflict
+ORDER BY c.position
+`;
+
 interface ConflictRow {
   position: string;
 }
@@ -67,40 +94,13 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
     if (windows.length === 0) return [];
     const manager = this.requireActiveManager();
 
-    const rows: ConflictRow[] = await manager.query(
-      `
-      WITH candidates AS (
-        SELECT * FROM unnest($2::uuid[], $3::timestamptz[], $4::timestamptz[])
-          WITH ORDINALITY AS c(resource_id, starts_at, ends_at, position)
-      )
-      SELECT c.position
-      FROM candidates c
-      CROSS JOIN LATERAL (
-        SELECT 1
-        FROM booking.resource_occupancy ro
-        LEFT JOIN booking.booking_line_resource_assignments bla
-          ON bla.tenant_id = ro.tenant_id AND bla.id = ro.booking_line_resource_assignment_id
-        WHERE ro.tenant_id = $1
-          AND ro.resource_id = c.resource_id
-          AND ro.lock_state IN ('HOLD', 'COMMITTED')
-          AND tstzrange(ro.starts_at, ro.ends_at, '[)') && tstzrange(c.starts_at, c.ends_at, '[)')
-          AND (
-            $5::uuid[] IS NULL
-            OR bla.booking_line_id IS NULL
-            OR NOT (bla.booking_line_id = ANY($5::uuid[]))
-          )
-        LIMIT 1
-      ) conflict
-      ORDER BY c.position
-      `,
-      [
-        tenantId,
-        windows.map((w) => w.resourceId),
-        windows.map((w) => w.startsAt),
-        windows.map((w) => w.endsAt),
-        excludeBookingLineIds ?? null,
-      ],
-    );
+    const rows: ConflictRow[] = await manager.query(CONFLICTING_WINDOWS_SQL, [
+      tenantId,
+      windows.map((w) => w.resourceId),
+      windows.map((w) => w.startsAt),
+      windows.map((w) => w.endsAt),
+      excludeBookingLineIds ?? null,
+    ]);
 
     return rows.map((row) => windows[Number(row.position) - 1]);
   }
