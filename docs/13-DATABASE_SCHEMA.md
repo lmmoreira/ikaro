@@ -754,8 +754,8 @@ Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together
 | status | VARCHAR(20) | NOT NULL DEFAULT 'OPEN' — CHECK IN ('OPEN', 'RESOLVED', 'DISMISSED') |
 | owner_staff_id | UUID | NULLABLE |
 | resolution_type | VARCHAR(20) | NULLABLE — CHECK IN ('KEEP', 'REASSIGN', 'RESCHEDULE', 'CANCEL') when set |
-| resolution_reason | TEXT | NULLABLE |
-| resolved_by_staff_id | UUID | NULLABLE |
+| resolution_reason | TEXT | NULLABLE — the manager's reason, or a system code on a system dismissal: `RESOURCE_REACTIVATED`, `BOOKING_NO_LONGER_ACTIVE`, `RESOURCE_NO_LONGER_USED` (M23-S48) |
+| resolved_by_staff_id | UUID | NULLABLE — null while `OPEN` and for a system dismissal (M23-S48) |
 | resolved_at | TIMESTAMPTZ | NULLABLE |
 | notification_outcome | VARCHAR(30) | NULLABLE |
 | alternatives | JSONB | NOT NULL DEFAULT '[]' — advisory `{ resourceId, resourceName }[]` computed at raise time and kept for closed entries; the worklist read recomputes it for `OPEN` ones (M23-S14); always revalidated at resolve time (M23-S08) |

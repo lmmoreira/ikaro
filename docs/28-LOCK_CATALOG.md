@@ -70,7 +70,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Protects:** the read-then-insert of resource occupancy. Two requests that both read a unit as free must not both take it, and a request choosing among interchangeable units must lock every candidate before reading (`resource-candidate-locking.helpers.ts`, M23-S32). Also orders a deactivation's impact read against a booking inserting occupancy on that resource.
 - **Why advisory + a constraint:** the ids are sorted by the adapter (so overlapping sets cannot cross); the GIST exclusion M4-1 remains the authoritative backstop.
 - **Level:** L3.
-- **Not taken today by:** cancel, reject and end-recurring (they only release occupancy). See H4.
+- **Also taken by (M23-S48):** every change that frees or moves a booking's occupancy — cancel (customer, staff), reject, end of a recurring schedule, the worklist's CANCEL (`saveTerminalBookingsInTransaction`), and approve and both reschedules, which add the resources the booking holds before the move to the same single call. A deactivation's raise and a cancel therefore meet on this lock.
 - **Precedent:** M22-S03, M23-S32.
 
 #### A4 — `lockService(tenantId, serviceId)` — key `service:{tenantId}:{serviceId}`
@@ -95,7 +95,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 #### R2 — Service rows, batched, `serviceRepo.lockBookingModels(ids)` (`ORDER BY id`)
 - **Taken by:** one-off booking creation (`lockAndVerifyServiceModels` in `booking-request.helpers.ts`).
 - **Protects:** a service's `bookingModel` cannot change while its first booking is being created (UC-056 immutable-after-history). Re-checks the fresh model against the pre-transaction snapshot.
-- **Level:** L2. **In booking creation it runs after A3** (`booking-request.helpers.ts:276` then `:286`), the reverse of the recurring request (see H1).
+- **Level:** L2. Booking creation takes it before A3, the same order as the recurring request (M23-S48, was the reverse: hazard H1).
 - **Precedent:** M22-S01, PR #479 (the first version lacked `ORDER BY` and was caught in review).
 
 #### R3 — Tenant row, `tenantRepo.findByIdForUpdate` (bypasses `CachingTenantRepository`)
@@ -108,13 +108,14 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 #### R4 — Future-commitment exception rows
 - **`findByIdForUpdate`:** `ResolveFutureCommitmentExceptionsUseCase.lockOpenEntry`, `DismissFutureCommitmentExceptionsUseCase`. Two managers acting on one entry: the second waits, then sees it closed.
 - **`findOpenBySourceForUpdate`:** `ReactivateResourceUseCase`. Batched, `ORDER BY id`. A reactivation closing a resource's own entries cannot race a manager resolving one.
-- **Level:** L4. **`resolve` takes it before A3 in its REASSIGN and RESCHEDULE branches, the reverse of reactivate (H2).**
+- **`findOpenByAffectedForUpdate` (M23-S48):** the terminal helper (`saveTerminalBookingsInTransaction`) and approve/reschedule. One batched query for the booking(s), `ORDER BY id`. A cancel closing a booking's entries cannot race a manager resolving one.
+- **Level:** L4. The worklist's resolve takes A3 before it for CANCEL and RESCHEDULE; REASSIGN takes no A3 first because its lock set (the candidate targets) never contains the deactivated source (H2).
 - **Precedent:** M23-S08, M23-S45.
 
 #### R5 — Active managers of a tenant, `countActiveManagersByTenant`
 - **Taken by:** `DeactivateStaffUseCase`, `UpdateStaffProfileUseCase`.
 - **Protects:** the last-active-manager guard. Locks every active MANAGER row of the tenant (`FOR UPDATE` cannot be combined with `COUNT`, so ids are selected and counted in code).
-- **Level:** none of the above; it only touches `staff.staff`. **The query has no `ORDER BY`** (H3).
+- **Level:** none of the above; it only touches `staff.staff`. The query has `ORDER BY id` since M23-S48 (H3).
 
 ### Queue lease (M3)
 
@@ -145,11 +146,12 @@ The meaning of the unique constraints is taken from their names and `docs/13-DAT
 |---|---|
 | `OpenScheduleUseCase` | R3 → A1 (resource-scoped openings only) |
 | `CloseScheduleUseCase`, `RemoveScheduleOpeningUseCase` | A1 |
-| One-off booking creation | A3 (candidates, one call) → R2 |
-| `ApproveBookingUseCase` | A3 → booking `save` → occupancy |
-| Reschedule (`rescheduleBookingInTransaction`) | A3 → booking `save` → occupancy |
-| Reassign (worklist) | R4 → A3 → occupancy |
-| Resolve CANCEL (worklist) | R4 → booking `save` → occupancy release |
+| One-off booking creation | R2 → A3 (candidates, one call) → booking `save` |
+| `ApproveBookingUseCase` | A3 (candidates + the resources it holds now, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
+| Reschedule, staff or customer | A3 (candidates + the resources it holds now, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
+| Reassign (worklist) | R4 → A3 (candidate targets only) → occupancy |
+| Resolve CANCEL (worklist) | A3 (the booking's resources) → R4 → booking `save` → occupancy release → dismiss sibling entries |
+| Resolve RESCHEDULE (worklist) | A3 (the booking's resources, the entry's source and the candidates, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
 | `ReactivateResourceUseCase` | A2 → A3 → R4 → resource `save` |
 | `CascadeStaffDeactivationUseCase` | A2 → resource `save` → raise (A3 → impact read → entry inserts) |
 | Raise (`RaiseFutureCommitmentExceptionsForResource`) | A3 → impact read |
@@ -157,7 +159,7 @@ The meaning of the unique constraints is taken from their names and `docs/13-DAT
 | `ApproveRecurringBookingScheduleUseCase` | A4 → A3 |
 | `CreateAvailabilityAlertUseCase` | A5 → R1 |
 | `DeactivateStaffUseCase`, `UpdateStaffProfileUseCase` | R5 → staff `save` |
-| Cancel, reject, end-recurring | booking `save` → occupancy release (**no lock yet**, see H4) |
+| Cancel (customer, staff), reject, end-recurring | A3 (everything the booking(s) hold, read again after the lock) → R4 (one batched query) → booking `save` → occupancy release → dismiss every entry |
 
 ---
 
@@ -165,10 +167,10 @@ The meaning of the unique constraints is taken from their names and `docs/13-DAT
 
 | ID | Hazard | Status |
 |---|---|---|
-| H1 | **Service row versus resource order is inverted.** One-off booking creation takes A3 then R2; the recurring request takes A4 → R1 → A3. A one-off booking holding resource R and waiting on service row S can deadlock with a recurring request holding S and waiting on R. Postgres aborts one with `40P01`. | **Unverified**, open; to be fixed in M23-S48 (service rows before resources in one-off creation, with a concurrent test). |
-| H2 | **Resolve versus reactivate.** Resolve REASSIGN/RESCHEDULE take the entry (R4) then resource locks (A3); reactivate takes A3 then R4. The cycle needs the failing resolve case (a `CUSTOMER_CHOICE` pinned to the deactivated resource); reassign locks only candidate targets. | **Unverified**, open; to be fixed in M23-S48 (resolve RESCHEDULE locks the full resource set before the entry). |
-| H3 | `countActiveManagersByTenant` locks manager rows with no `ORDER BY`; two concurrent deactivations rely on identical scan order. | Low; open; to be fixed in M23-S48 (`ORDER BY id`). |
-| H4 | Cancel, reject and end-recurring take no resource lock, so a stale future-commitment entry can be inserted by a concurrent raise. | Open; to be fixed in M23-S48 (A3 → R4 → booking `save`). Update this row and §4 when it merges. |
+| H1 | **Service row versus resource order is inverted.** One-off booking creation takes A3 then R2; the recurring request takes A4 → R1 → A3. A one-off booking holding resource R and waiting on service row S can deadlock with a recurring request holding S and waiting on R. Postgres aborts one with `40P01`. | **Closed in M23-S48:** one-off creation locks the service rows before it resolves candidates (call order pinned by a unit test). Not reproduced as a race before or after. |
+| H2 | **Resolve versus reactivate.** Resolve REASSIGN/RESCHEDULE take the entry (R4) then resource locks (A3); reactivate takes A3 then R4. The cycle needs the failing resolve case (a `CUSTOMER_CHOICE` pinned to the deactivated resource); reassign locks only candidate targets. | **Closed in M23-S48:** RESCHEDULE locks the full resource set before the entry row; an integration test shows it waits for a held source-resource lock without holding the entry row, and a unit test pins that REASSIGN never asks for the source. |
+| H3 | `countActiveManagersByTenant` locks manager rows with no `ORDER BY`; two concurrent deactivations rely on identical scan order. | **Closed in M23-S48** (`ORDER BY id`). An integration test deactivates two managers at once: one wins, the other gets 409, no deadlock. |
+| H4 | Cancel, reject and end-recurring take no resource lock, so a stale future-commitment entry can be inserted by a concurrent raise. | **Closed in M23-S48** (A3 → R4 → booking `save`); cancel racing a deactivation, and cancel racing the worklist's CANCEL, are covered by integration tests. |
 | H5 | **No `lock_timeout` or `statement_timeout` anywhere in the backend** (search over `*.ts` and infra found none). A deadlock is detected by Postgres after `deadlock_timeout` and one side fails with `40P01`, which no code maps; a merely slow holder (a raise over a resource with many bookings, a long `end-recurring`) makes others wait without bound. | Open; tracked as story M23-S49 (`SET LOCAL lock_timeout` in the lock adapter and a `40P01` mapping). |
 
 ---
