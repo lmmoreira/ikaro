@@ -17,6 +17,8 @@ interface RecurringApprovalBannerProps {
   readonly customerName: string;
   // Whether the request is still waiting for a decision (shows the deadline banner).
   readonly isPending: boolean;
+  // Still pending, but its 30-minute hold has passed: it can no longer be approved, only rejected.
+  readonly holdExpired: boolean;
 }
 
 const TONE_CLASSES: Record<BannerVariant, { card: string; title: string; body: string }> = {
@@ -75,6 +77,7 @@ export function RecurringApprovalBanner({
   schedule,
   customerName,
   isPending,
+  holdExpired,
 }: RecurringApprovalBannerProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.recurringApproval');
   const { formatTime } = useFormatting();
@@ -86,6 +89,16 @@ export function RecurringApprovalBanner({
 
   if (outcome === null) {
     if (!isPending || holdTime === null) return null;
+    if (holdExpired) {
+      return (
+        <div
+          data-testid="recurring-hold-expired-banner"
+          className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+        >
+          <strong>{t('holdExpiredTitle', { time: holdTime })}</strong> {t('holdExpiredBody')}
+        </div>
+      );
+    }
     return (
       <div
         data-testid="recurring-hold-banner"

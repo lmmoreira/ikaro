@@ -63,7 +63,7 @@ function schedule(
     status: 'PENDING_APPROVAL',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
     resourceAssignments: [{ resourceType: 'ROOM', resourceId: 'room-1' }],
-    approvalHoldExpiresAt: '2026-08-11T12:30:00.000Z',
+    approvalHoldExpiresAt: '2099-08-11T12:30:00.000Z',
     createdAt: '2026-08-11T12:00:00.000Z',
     ...overrides,
   };
@@ -397,6 +397,68 @@ describe('RecurringScheduleApprovalDetail — approving', () => {
 
     expect(screen.getByRole('button', { name: 'Aprovar recorrência' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Recusar' })).toBeDisabled();
+  });
+});
+
+describe('RecurringScheduleApprovalDetail — a request whose hold has passed', () => {
+  const EXPIRED_HOLD = '2020-01-01T12:30:00.000Z';
+
+  it('says the deadline passed and offers only "Recusar" (the expiry job has not cancelled it yet)', () => {
+    ready(schedule({ approvalHoldExpiresAt: EXPIRED_HOLD }));
+
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    expect(screen.getByTestId('recurring-hold-expired-banner')).toHaveTextContent(
+      'O prazo para decidir terminou às 09:30.',
+    );
+    expect(screen.queryByTestId('recurring-hold-banner')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aprovar/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recusar' })).toBeEnabled();
+    // The "what happens" card no longer promises an approval that cannot happen.
+    expect(screen.getByTestId('recurring-what-happens')).not.toHaveTextContent(
+      'cria as reservas do período',
+    );
+  });
+
+  it('lets staff reject it, which clears the request', async () => {
+    ready(schedule({ approvalHoldExpiresAt: EXPIRED_HOLD }));
+    rejectMutateAsync.mockResolvedValue({ id: 'sched-1', status: 'CANCELLED' });
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    await decideReject();
+
+    expect(rejectMutateAsync).toHaveBeenCalledWith('sched-1');
+    expect(await screen.findByTestId('recurring-outcome-rejected')).toBeInTheDocument();
+  });
+
+  it('does not strand staff after a refused approval: the re-read shows it is still pending and expired, so Recusar stays', async () => {
+    // The approval is attempted while the page still thinks the hold is running; the backend
+    // answers 409 not-pending, and the re-read then shows the request is still PENDING_APPROVAL.
+    approveMutateAsync.mockImplementation(() => {
+      ready(schedule({ approvalHoldExpiresAt: EXPIRED_HOLD }));
+      return Promise.reject(problem(409, 'BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL'));
+    });
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    await decideApprove();
+
+    expect(await screen.findByTestId('recurring-hold-expired-banner')).toBeInTheDocument();
+    expect(screen.queryByTestId('recurring-outcome-not-pending')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Recusar' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /Aprovar/ })).not.toBeInTheDocument();
+  });
+
+  it('still treats a "not pending" refusal as someone else having decided when the request is no longer pending', async () => {
+    approveMutateAsync.mockImplementation(() => {
+      ready(schedule({ status: 'CANCELLED', approvalHoldExpiresAt: null }));
+      return Promise.reject(problem(409, 'BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL'));
+    });
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    await decideApprove();
+
+    expect(await screen.findByTestId('recurring-outcome-not-pending')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Aprovar|Recusar/ })).not.toBeInTheDocument();
   });
 });
 

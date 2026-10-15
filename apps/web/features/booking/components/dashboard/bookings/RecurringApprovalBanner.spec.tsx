@@ -24,18 +24,19 @@ function schedule(
     endsOn: '2026-11-10',
     status: 'PENDING_APPROVAL',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
-    approvalHoldExpiresAt: '2026-08-11T12:30:00.000Z',
+    approvalHoldExpiresAt: '2099-08-11T12:30:00.000Z',
     ...overrides,
   };
 }
 
-function renderBanner(outcome: DecisionOutcome | null, isPending = true) {
+function renderBanner(outcome: DecisionOutcome | null, isPending = true, holdExpired = false) {
   return renderWithIntl(
     <RecurringApprovalBanner
       outcome={outcome}
       schedule={schedule()}
       customerName="Ana Costa"
       isPending={isPending}
+      holdExpired={holdExpired}
     />,
   );
 }
@@ -62,10 +63,21 @@ describe('RecurringApprovalBanner — no decision yet', () => {
         schedule={schedule({ approvalHoldExpiresAt: null })}
         customerName="Ana Costa"
         isPending
+        holdExpired={false}
       />,
     );
 
     expect(container).toBeEmptyDOMElement();
+  });
+
+  it('says the deadline has passed, and that only rejecting is left, once the hold expired', () => {
+    renderBanner(null, true, true);
+
+    const banner = screen.getByTestId('recurring-hold-expired-banner');
+    expect(banner).toHaveTextContent('O prazo para decidir terminou às 09:30.');
+    expect(banner).toHaveTextContent('Não é mais possível aprovar este pedido');
+    expect(banner).toHaveTextContent('Recuse-o');
+    expect(screen.queryByTestId('recurring-hold-banner')).not.toBeInTheDocument();
   });
 });
 

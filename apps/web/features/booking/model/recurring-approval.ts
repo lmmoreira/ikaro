@@ -6,6 +6,23 @@ import type {
 } from '@ikaro/types';
 import { addDaysToDateKey, getWeekdayKey } from '@/features/booking/schedule/date-utils';
 
+/**
+ * A request still `PENDING_APPROVAL` whose 30-minute hold has passed. The backend already refuses
+ * to approve it (`409 …NOT_PENDING_APPROVAL`), but only the periodic expiry job turns it into
+ * `CANCELLED`, so until that job runs it keeps coming back in the queue — for good where the job is
+ * not running (local development). Rejecting it still works, so the screen offers exactly that.
+ */
+export function isApprovalHoldExpired(
+  schedule: Pick<RecurringBookingScheduleListItem, 'status' | 'approvalHoldExpiresAt'>,
+  now: number = Date.now(),
+): boolean {
+  return (
+    schedule.status === 'PENDING_APPROVAL' &&
+    schedule.approvalHoldExpiresAt !== null &&
+    new Date(schedule.approvalHoldExpiresAt).getTime() <= now
+  );
+}
+
 /** The staff screen for one recurring-schedule request (M23-S13); the Agenda card and M23-S47's "Origem" link both lead here. */
 export function recurringScheduleStaffPath(scheduleId: string): string {
   return `/dashboard/bookings/recurring/${scheduleId}`;

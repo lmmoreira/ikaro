@@ -28,7 +28,7 @@ function schedule(
     endsOn: '2026-11-10',
     status: 'PENDING_APPROVAL',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
-    approvalHoldExpiresAt: '2026-08-11T12:30:00.000Z',
+    approvalHoldExpiresAt: '2099-08-11T12:30:00.000Z',
     ...overrides,
   };
 }
@@ -54,6 +54,18 @@ describe('RecurringScheduleCard', () => {
     renderWithIntl(<RecurringScheduleCard schedule={schedule()} />);
 
     expect(screen.getByText('Decidir até 09:30')).toBeInTheDocument();
+  });
+
+  it('says "Prazo encerrado" instead of a deadline once the hold has passed, and still leads to the screen', () => {
+    renderWithIntl(
+      <RecurringScheduleCard
+        schedule={schedule({ approvalHoldExpiresAt: '2020-01-01T12:30:00.000Z' })}
+      />,
+    );
+
+    expect(screen.getByTestId('recurring-card-deadline')).toHaveTextContent('Prazo encerrado');
+    expect(screen.queryByText(/Decidir até/)).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ver pedido' })).toBeInTheDocument();
   });
 
   it('omits the deadline line when the request has none', () => {

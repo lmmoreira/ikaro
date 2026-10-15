@@ -20,6 +20,7 @@ import {
 } from '@/features/booking/hooks/useRecurringSchedules';
 import {
   buildResourceRows,
+  isApprovalHoldExpired,
   maxOccurrenceCount,
   type RecurringResourceRow,
 } from '@/features/booking/model/recurring-approval';
@@ -114,7 +115,12 @@ export function RecurringScheduleApprovalDetail({
   const customer = customerQuery.data;
   const customerName = customer?.name ?? t('customerFallbackName');
   const isPending = schedule.status === 'PENDING_APPROVAL';
-  const settled = isSettledOutcome(outcome);
+  const holdExpired = isApprovalHoldExpired(schedule);
+  // A "not pending" refusal on a request that the re-read shows is STILL pending with a passed hold
+  // is not someone else's decision: the expiry job simply has not cancelled it yet. It stays on
+  // screen as an expired request that can be rejected, instead of a dead end.
+  const shownOutcome = holdExpired && outcome?.kind === 'notPending' ? null : outcome;
+  const settled = isSettledOutcome(shownOutcome);
   // Decidable only while the schedule is still pending and no decision settled it in this session.
   const canDecide = isPending && !settled;
   const maxCount = maxOccurrenceCount(schedule);
@@ -165,10 +171,11 @@ export function RecurringScheduleApprovalDetail({
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="space-y-4">
           <RecurringApprovalBanner
-            outcome={outcome}
+            outcome={shownOutcome}
             schedule={schedule}
             customerName={customerName}
             isPending={isPending}
+            holdExpired={holdExpired}
           />
 
           <RecurringScheduleRequestSummary
@@ -188,10 +195,12 @@ export function RecurringScheduleApprovalDetail({
                 <CardContent className="space-y-3 p-4 text-sm leading-6 text-gray-600">
                   <p>{t('noneCreatedYet')}</p>
                   <p>{t('decisionCoversAll')}</p>
-                  <p>
-                    <strong className="text-gray-900">{t('approveLabel')}</strong>{' '}
-                    {t('approveExplain', { count: maxCount })}
-                  </p>
+                  {holdExpired ? null : (
+                    <p>
+                      <strong className="text-gray-900">{t('approveLabel')}</strong>{' '}
+                      {t('approveExplain', { count: maxCount })}
+                    </p>
+                  )}
                   <p>
                     <strong className="text-gray-900">{t('rejectLabel')}</strong>{' '}
                     {t('rejectExplain', { name: customerName })}
@@ -210,8 +219,8 @@ export function RecurringScheduleApprovalDetail({
             <RecurringApprovalActions
               backHref={AGENDA_HREF}
               canDecide={canDecide}
-              canApprove={canRetryApproval(outcome)}
-              isRetry={isApprovalRetry(outcome)}
+              canApprove={canRetryApproval(shownOutcome) && !holdExpired}
+              isRetry={isApprovalRetry(shownOutcome)}
               isSubmitting={isSubmitting}
               settledNote={isPending || settled ? t('noMoreActions') : t('readOnlyNote')}
               onApprove={() => setSheet('approve')}

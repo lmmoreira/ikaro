@@ -9,6 +9,7 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useStaffCustomer } from '@/features/customer/hooks/useStaffCustomer';
 import { useRecurrenceText } from '@/features/customer/components/my-account/use-recurrence-text';
 import {
+  isApprovalHoldExpired,
   maxOccurrenceCount,
   recurringScheduleStaffPath,
 } from '@/features/booking/model/recurring-approval';
@@ -64,10 +65,15 @@ export function RecurringScheduleCard({ schedule }: RecurringScheduleCardProps):
         className="mb-3 border-l-[3px] border-l-teal-700 transition-shadow hover:shadow-md"
       >
         {schedule.approvalHoldExpiresAt ? (
-          <p className="mt-2 text-xs font-semibold text-amber-800">
-            {t('recurrenceDecideBy', {
-              time: formatTime(new Date(schedule.approvalHoldExpiresAt)),
-            })}
+          <p
+            className={`mt-2 text-xs font-semibold ${isApprovalHoldExpired(schedule) ? 'text-red-700' : 'text-amber-800'}`}
+            data-testid="recurring-card-deadline"
+          >
+            {isApprovalHoldExpired(schedule)
+              ? t('recurrenceHoldExpired')
+              : t('recurrenceDecideBy', {
+                  time: formatTime(new Date(schedule.approvalHoldExpiresAt)),
+                })}
           </p>
         ) : null}
       </BookingCardShell>

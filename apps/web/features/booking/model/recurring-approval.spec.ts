@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { RecurringBookingScheduleListItem, ResourceRequirementItem } from '@ikaro/types';
 import {
   buildResourceRows,
+  isApprovalHoldExpired,
   maxOccurrenceCount,
   sortByDecisionDeadline,
 } from './recurring-approval';
@@ -64,6 +65,38 @@ describe('maxOccurrenceCount', () => {
 
   it('is zero when no listed weekday falls inside the term', () => {
     expect(maxOccurrenceCount(schedule({ startsOn: '2026-08-19', endsOn: '2026-08-20' }))).toBe(0);
+  });
+});
+
+describe('isApprovalHoldExpired', () => {
+  const now = new Date('2026-10-15T12:00:00.000Z').getTime();
+
+  it('is true for a pending request whose hold has passed, even by a second', () => {
+    expect(
+      isApprovalHoldExpired(schedule({ approvalHoldExpiresAt: '2026-10-15T11:59:59.000Z' }), now),
+    ).toBe(true);
+  });
+
+  it('is true exactly at the deadline (the backend refuses approval at "<= now")', () => {
+    expect(
+      isApprovalHoldExpired(schedule({ approvalHoldExpiresAt: '2026-10-15T12:00:00.000Z' }), now),
+    ).toBe(true);
+  });
+
+  it('is false while the hold is still running', () => {
+    expect(
+      isApprovalHoldExpired(schedule({ approvalHoldExpiresAt: '2026-10-15T12:00:01.000Z' }), now),
+    ).toBe(false);
+  });
+
+  it('is false for a request with no deadline or one that is not pending', () => {
+    expect(isApprovalHoldExpired(schedule({ approvalHoldExpiresAt: null }), now)).toBe(false);
+    expect(
+      isApprovalHoldExpired(
+        schedule({ status: 'ACTIVE', approvalHoldExpiresAt: '2026-10-15T11:00:00.000Z' }),
+        now,
+      ),
+    ).toBe(false);
   });
 });
 
