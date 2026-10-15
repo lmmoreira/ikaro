@@ -719,12 +719,13 @@ Returns:
 - **Main Flow:**
   1. Admin reactivates the resource.
   2. Admin confirms its working hours/eligibility are still correct (via UC-046 if changes are needed).
-  3. System sets `isActive = true` — available only for future availability calculations. It does not recreate cancelled sessions or silently alter existing commitments.
+  3. System sets `isActive = true` — available only for future availability calculations. It does not recreate cancelled sessions or alter any booking. In the same transaction it closes every still-`OPEN` UC-073 worklist entry raised by this resource's deactivation (`DISMISSED`, reason `RESOURCE_REACTIVATED`, resolved by the reactivating manager); entries already `RESOLVED` or `DISMISSED` are untouched.
 - **Alternative Flows:**
   - **A1: Working hours/eligible-service setup is incomplete** → Admin must complete it (UC-046) before the resource can be selected for new work.
   - **A2: Resource not found, belongs to another tenant, or is already active** → `404 Not Found` / `409 Conflict`.
-- **Postconditions:** Future bookings may use the resource according to its current configuration.
-- **Events Triggered:** None (config-only, matching UC-045/046/047 — no consumer exists yet)
+  - **A3: STAFF-wrapper resource whose Staff row is still inactive** → rejected before anything is closed; no worklist entry changes.
+- **Postconditions:** Future bookings may use the resource according to its current configuration. The resource has no open "Reservas a resolver" entries from its earlier deactivation; a later deactivation raises fresh ones. No booking changed.
+- **Events Triggered:** `FutureCommitmentExceptionDismissed` once per entry closed (M23-S45; audit-log consumer only, no notification). The reactivation itself publishes nothing.
 
 ---
 
@@ -1328,6 +1329,7 @@ Returns:
 - **Alternative Flows:**
   - **A1: A proposed reassignment/reschedule becomes unavailable at commit (race)** → Revalidated at commit time; if now unavailable, the worklist stays open and the original commitment remains intact. A bulk action is best-effort per booking: each is its own transaction, the ones that fail stay `OPEN` and are reported back, the rest are resolved.
   - **A2: Item is genuinely resolved or non-impacting** → Manager may dismiss it with a reason, instead of choosing one of the four actions above.
+  - **A3: The source resource is reactivated (UC-049)** → The system dismisses every still-`OPEN` entry of that resource itself (reason `RESOURCE_REACTIVATED`); no manager action and no booking change.
 - **Postconditions:** No future commitment is silently moved or invalidated.
 - **Events Triggered:** `FutureCommitmentExceptionResolved`/`Dismissed` and any resulting booking event.
 

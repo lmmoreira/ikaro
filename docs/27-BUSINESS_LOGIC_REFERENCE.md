@@ -373,6 +373,15 @@ One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`
 
 After a REASSIGN batch, a `FIXED_ASSIGNMENT` schedule's assignment row is swapped to the new resource only when no future non-terminal linked booking is left on the old one **and** every moved occurrence landed on the same new resource (an `AUTO` batch can scatter them); otherwise it stays as the record of what was requested. This step is best-effort and runs after the reassigns have committed — a failure is logged, never turned into a failed resolve.
 
+### Close on reactivation (M23-S45)
+
+Reactivating the resource (UC-049) closes the entries its deactivation raised, so a deactivation made by mistake leaves nothing to clear by hand. In the reactivation's transaction, after the STAFF-wrapper re-check: `lockResources([resourceId])` (the same primitive the raise step takes, so reactivate and a concurrent deactivate are ordered), then one `FOR UPDATE` read of the `OPEN` entries with `sourceType = 'RESOURCE_DEACTIVATION'` and that `sourceId`, ordered by `id`, then `dismiss(<reactivating manager>, 'RESOURCE_REACTIVATED')` and `save()` on each, then the resource `save()`.
+
+- Entries already `RESOLVED` or `DISMISSED` are untouched; bookings are never changed.
+- A reactivation rejected for an inactive Staff row closes nothing.
+- No notification: the manager was alerted at deactivation and the badge simply drops. Each close records `FutureCommitmentExceptionDismissed`, which only the audit-log consumer reads.
+- A later deactivation raises fresh entries, since the partial unique index covers `OPEN` only.
+
 ### Known limitation
 
 A booking whose resolver read the resource as active just before its deactivation commits, and which inserts after the raise step ran, is not caught. `lockResources` narrows the window; it does not close it.

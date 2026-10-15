@@ -3689,7 +3689,7 @@ A customer who gets "a slot opened up" lands on the booking page with the alert'
 
 **Agent:** backend-ts
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` (UC-047, UC-049, UC-073, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (Future commitment worklist — Raise / Resolve), `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Transactions, § A lock only orders callers, `docs/DEFINITION_OF_DONE.md` § Migration history — pre-production exception
+**Docs to load:** `docs/04-USE_CASES.md` (UC-047, UC-049, UC-073, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Booking — Future-Commitment Worklist, incl. "Close on reactivation"), `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, § Transactions, § A lock only orders callers
 **Dependencies:** M23-S08 (✅ Done — the entries, the `DISMISSED` state, `lockResources` in the raise step). **Related to M23-S14, not blocking:** S14's page offers no Manter/Dispensar, so this is what empties the list after a resource is deactivated by mistake and reactivated. Independent code; either can merge first.
 **Pattern:** plain composition — reuses the aggregate's existing `dismiss()`; no new status, event, topic or resolution type.
 
@@ -3714,18 +3714,15 @@ Decisions baked in:
 
 **Backend HTTP surface:** reuses `POST /resources/:id/reactivate` — response and status unchanged.
 **BFF endpoint spec:** none — the BFF controller is a pass-through and already forwards `X-Actor-ID`.
-**New migration / i18n keys / env vars / feature flags:** one data-only backfill migration (see the open item below); no schema change, no i18n keys, env vars or flags.
-**Open for this story's discovery:** whether the backfill migration is needed. `M23-S08` and `POST /resources/:id/reactivate` are already merged, so a resource reactivated earlier may carry stale OPEN entries. Default: include a backfill that dismisses OPEN entries whose source resource is currently active, unless `docs/DEFINITION_OF_DONE.md`'s pre-production exception applies (it depends on whether any real environment has ever run `M23-S08`). The project is in a development stage with no live managers or staff, so the exception probably applies and the backfill is likely unnecessary — confirm against `plan/M17-CLOUD-DEPLOY.md`'s go-live status.
-
+**New migration / i18n keys / env vars / feature flags:** none. No backfill migration (decided at story-discovery, 2026-10-15): staging has run M23-S08 and may hold a few stale OPEN entries on active resources, but there are no live managers; they can be dismissed by hand on staging.
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/application/use-cases/reactivate-resource.use-case.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/booking/application/ports/future-commitment-exception-repository.port.ts` (modify — `findOpenBySourceForUpdate`)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-future-commitment-exception.repository.ts` (+ `.repository.spec.ts`, `.repository.integration.spec.ts`) (modify)
 - `apps/backend/src/test/repositories/booking/in-memory-future-commitment-exception.repository.ts` (modify)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — pass `staffId`/`correlationId`)
-- `apps/backend/src/contexts/booking/infrastructure/migrations/<next>-CloseWorklistEntriesOfActiveResources.ts` (new — see the open item)
-- `apps/backend/http/booking/resources.http` (modify — a note on the reactivate block)
-- `docs/04-USE_CASES.md` (UC-049 step 3 and postconditions, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (worklist section) (modify)
+- `apps/backend/http/booking/resources.http` (modify — a note on the reactivate block; done at discovery)
+- `docs/04-USE_CASES.md` (UC-049, UC-077), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Close on reactivation) (modify — done at discovery)
 
 **Acceptance criteria — product:**
 - [ ] After a manager reactivates a resource, its open "Reservas a resolver" entries disappear from the list and the nav badge count drops.
@@ -3738,10 +3735,11 @@ Decisions baked in:
   - [ ] An already `RESOLVED`/`DISMISSED` entry is not touched and publishes no event *(negative guarantee, own test)*
   - [ ] A STAFF wrapper whose Staff is inactive is rejected and closes nothing *(negative guarantee, own test)*
   - [ ] Zero OPEN entries: reactivation behaves exactly as before
+  - [ ] Lock order: the STAFF re-check, then `lockResources`, then the batched read, then the saves (assert call order in the spec)
+  - [ ] The controller passes `ctx.actorId` and `ctx.correlationId` to the use case (controller spec)
 - Integration:
   - [ ] `findOpenBySourceForUpdate` returns only OPEN rows of that source, ordered by `id`; `POST /resources/:id/reactivate` closes them and writes the `FutureCommitmentExceptionDismissed` outbox rows
   - [ ] A rollback of the reactivation (forced failure after the close) leaves the entries OPEN
-  - [ ] The backfill migration closes OPEN entries of an already-active resource and leaves those of an inactive one
 - Tenant isolation:
   - [ ] Reactivating tenant A's resource never closes tenant B's entries
 - E2E: none — covered by unit/integration (the page that shows the result is M23-S14's E2E)

@@ -204,6 +204,7 @@ X-Actor-Role: MANAGER
 ###
 
 ### Reactivate a resource
+# Also dismisses (reason RESOURCE_REACTIVATED) the resource's still-OPEN worklist entries (M23-S45).
 POST {{baseUrl}}/resources/{{resourceId}}/reactivate
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
