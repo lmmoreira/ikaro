@@ -9,6 +9,7 @@ import { createNotificationIntegrationApp } from '../../../../test/utils/notific
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/service-entity.builder';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
 import { BookingEntity } from '../../../booking/infrastructure/entities/booking.entity';
+import { FutureCommitmentExceptionEntity } from '../../../booking/infrastructure/entities/future-commitment-exception.entity';
 import { BookingLineEntity } from '../../../booking/infrastructure/entities/booking-line.entity';
 import { BookingStatusTransitionEntity } from '../../../booking/infrastructure/entities/booking-status-transition.entity';
 import { ServiceEntity } from '../../../booking/infrastructure/entities/service.entity';
@@ -49,6 +50,7 @@ const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
   BookingStatusTransitionEntity,
+  FutureCommitmentExceptionEntity,
   ServiceEntity,
   ServiceResourceRequirementEntity,
   ServiceResourceRequirementPoolEntity,
