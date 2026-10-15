@@ -72,8 +72,22 @@ describe('SchedulingExceptionController (integration)', () => {
       affectedId: string;
       sourceId: string;
       alternatives: { resourceId: string; resourceName: string }[];
-      booking: { contactName: string; resourceName: string | null; serviceNames: string[] } | null;
+      booking: {
+        contactName: string;
+        resourceName: string | null;
+        serviceNames: string[];
+        isCustomer: boolean;
+        totalPrice: { amount: number; currency: string };
+      } | null;
     }[];
+  }
+
+  async function openCount(tenantId = TENANT_A): Promise<number> {
+    const { body } = await request(app.getHttpServer())
+      .get('/scheduling-exceptions/count')
+      .set(as(tenantId))
+      .expect(200);
+    return (body as { count: number }).count;
   }
 
   const resolve = (body: Record<string, unknown>, tenantId = TENANT_A) =>
@@ -118,6 +132,9 @@ describe('SchedulingExceptionController (integration)', () => {
         contactName: 'Ana Souza',
         resourceName: 'Sala 1',
         serviceNames: ['Sessão'],
+        // A guest booking at the seed's default price: the queue card's Visitante pill and price.
+        isCustomer: false,
+        totalPrice: { amount: 100, currency: expect.any(String) },
       });
       expect(entries[0].alternatives).toEqual([{ resourceId: free.id, resourceName: 'Sala 2' }]);
     });
@@ -167,6 +184,31 @@ describe('SchedulingExceptionController (integration)', () => {
       await deactivate(source.id);
 
       expect(await openEntries()).toEqual([]);
+    });
+  });
+
+  describe('GET /scheduling-exceptions/count', () => {
+    it('matches the open list and drops as entries are closed', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      for (const startsInHours of [24, 48, 72]) {
+        await seedFutureBooking(ds, {
+          tenantId: TENANT_A,
+          serviceId: service.id,
+          resource: source,
+          startsInHours,
+        });
+      }
+      await deactivate(source.id);
+      const entries = await openEntries();
+
+      expect(await openCount()).toBe(entries.length);
+      expect(await openCount()).toBe(3);
+
+      await resolve({ exceptionIds: [entries[0].id], resolutionType: 'CANCEL' }).expect(200);
+
+      expect(await openCount()).toBe(2);
     });
   });
 
@@ -525,8 +567,13 @@ describe('SchedulingExceptionController (integration)', () => {
         .post('/scheduling-exceptions/dismiss')
         .set(as(TENANT_A, 'STAFF'))
         .send({ exceptionIds: [MANAGER_ID], reason: 'x' });
+      const counted = await request(app.getHttpServer())
+        .get('/scheduling-exceptions/count')
+        .set(as(TENANT_A, 'STAFF'));
 
-      expect([list.status, resolved.status, dismissed.status]).toEqual([403, 403, 403]);
+      expect([list.status, resolved.status, dismissed.status, counted.status]).toEqual([
+        403, 403, 403, 403,
+      ]);
     });
 
     it('returns 400 when REASSIGN has no target', async () => {
@@ -559,6 +606,7 @@ describe('SchedulingExceptionController (integration)', () => {
       const [entry] = await openEntries();
 
       expect(await openEntries(TENANT_B)).toEqual([]);
+      expect(await openCount(TENANT_B)).toBe(0);
       const resolved = await resolve(
         { exceptionIds: [entry.id], resolutionType: 'CANCEL' },
         TENANT_B,

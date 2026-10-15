@@ -41,6 +41,15 @@ X-Actor-ID: {{managerId}}
 X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
+###
+
+### How many entries are still OPEN — the sidebar badge (M23-S14): { "count": 3 }
+GET {{baseUrl}}/scheduling-exceptions/count
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — resolve one or many entries (UC-077)
 # ─────────────────────────────────────────────────────────────────────────────

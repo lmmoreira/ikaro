@@ -13,6 +13,7 @@ const MANAGER_ONLY_ROUTES = [
   '/dashboard/team',
   '/dashboard/hotsite',
   '/dashboard/resources',
+  '/dashboard/scheduling-exceptions',
 ];
 
 function isManagerOnlyRoute(pathname: string): boolean {

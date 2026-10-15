@@ -66,6 +66,10 @@ describe('BottomNav', () => {
     ],
     ['the resource detail route (fixed Save bar owns the bottom edge)', '/dashboard/resources/r-1'],
     [
+      'the "Reservas a resolver" reschedule drill-down (the reschedule action bar owns the bottom edge)',
+      '/dashboard/scheduling-exceptions/exc-1/reschedule',
+    ],
+    [
       'the resource deactivate route (fixed action bar owns the bottom edge)',
       '/dashboard/resources/r-1/deactivate',
     ],
@@ -78,15 +82,15 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/team');
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
-
-    expect(screen.getByText('Mais')).toBeInTheDocument();
-  });
-
-  it('still renders on the resources list page (FAB sits above the nav, no fixed bar)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources');
+  it.each([
+    ['the team list page (FAB sits above the nav, no fixed bar)', '/dashboard/team'],
+    ['the resources list page (FAB sits above the nav, no fixed bar)', '/dashboard/resources'],
+    [
+      'the "Reservas a resolver" list (its selection bar sits above the nav, which stays)',
+      '/dashboard/scheduling-exceptions',
+    ],
+  ])('still renders on %s', (_label, pathname) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Mais')).toBeInTheDocument();

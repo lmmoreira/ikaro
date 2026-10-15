@@ -14,6 +14,7 @@ export * from './booking-deep-link';
 export * from './recurring-renewal-link';
 export * from './availability-alert.dto';
 export * from './recurring-booking-schedule.dto';
+export * from './scheduling-exception.dto';
 export * from './loyalty.dto';
 export * from './tenant.dto';
 export * from './hotsite';

@@ -20,6 +20,16 @@ export async function createResource(
   return readJson(res, 'create resource');
 }
 
+export async function reactivateResource(page: Page, resourceId: string): Promise<void> {
+  const res = await page.request.post(`${BFF_URL}/resources/${resourceId}/reactivate`, {
+    data: {},
+    headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },
+  });
+  if (!res.ok()) {
+    throw new Error(`reactivate resource failed: ${res.status()} ${await res.text()}`);
+  }
+}
+
 export async function deactivateResource(page: Page, resourceId: string): Promise<void> {
   const res = await page.request.delete(`${BFF_URL}/resources/${resourceId}`, {
     headers: { 'X-Web-Internal-Key': WEB_INTERNAL_KEY! },

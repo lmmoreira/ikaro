@@ -9,6 +9,7 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => {
     const map: Record<string, string> = {
       'nav.leads': 'Leads',
+      'nav.schedulingExceptions': 'Reservas a resolver',
       'nav.resources': 'Recursos',
       'nav.team': 'Equipe',
       'nav.settings': 'Configurações',
@@ -18,6 +19,10 @@ vi.mock('next-intl', () => ({
     };
     return map[key] ?? key;
   },
+}));
+
+vi.mock('@/features/booking/hooks/useSchedulingExceptions', () => ({
+  useOpenSchedulingExceptionsCount: () => ({ data: 2 }),
 }));
 
 const STAFF = 'STAFF' as const;
@@ -209,5 +214,57 @@ describe('MoreSheet', () => {
 
     const panel = screen.getByTestId('more-sheet-panel');
     expect(panel).not.toHaveAttribute('inert');
+  });
+
+  it('lists "Reservas a resolver" first in the manager section, with the open count', () => {
+    render(
+      <MoreSheet
+        open={true}
+        onClose={vi.fn()}
+        tenantSlug="lavacar-bh"
+        role={MANAGER}
+        leadFormEnabled={false}
+      />,
+    );
+
+    const items = screen.getAllByRole('link').map((a) => a.textContent);
+    expect(items[0]).toContain('Reservas a resolver');
+    expect(screen.getByTestId('more-sheet-scheduling-exceptions')).toHaveAttribute(
+      'href',
+      '/dashboard/scheduling-exceptions',
+    );
+    expect(screen.getByTestId('scheduling-exceptions-badge')).toHaveTextContent('2');
+  });
+
+  it('does not list "Reservas a resolver" for a STAFF user with the lead form on', () => {
+    render(
+      <MoreSheet
+        open={true}
+        onClose={vi.fn()}
+        tenantSlug="lavacar-bh"
+        role={STAFF}
+        leadFormEnabled={true}
+      />,
+    );
+
+    expect(screen.queryByText('Reservas a resolver')).not.toBeInTheDocument();
+  });
+
+  it('closes the sheet when the item is chosen', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    render(
+      <MoreSheet
+        open={true}
+        onClose={onClose}
+        tenantSlug="lavacar-bh"
+        role={MANAGER}
+        leadFormEnabled={false}
+      />,
+    );
+
+    await user.click(screen.getByTestId('more-sheet-scheduling-exceptions'));
+
+    expect(onClose).toHaveBeenCalled();
   });
 });

@@ -31,6 +31,15 @@ interface RescheduleBookingPageProps {
   readonly timezone: string;
   readonly backHref: string;
   readonly agendaHref: string;
+  // Both default to the staff booking reschedule (PATCH /bookings/:id/reschedule + the success
+  // view). The "Reservas a resolver" route injects its own confirm (resolve → RESCHEDULE, which
+  // also closes the entry) and what happens after, and signals a taken slot by throwing an
+  // ApiError 409 exactly as the default path does.
+  readonly confirmReschedule?: (input: {
+    readonly startsAt: string;
+    readonly adminNotes?: string;
+  }) => Promise<void>;
+  readonly onRescheduled?: () => void;
 }
 
 export function RescheduleBookingPage({
@@ -40,6 +49,8 @@ export function RescheduleBookingPage({
   timezone,
   backHref,
   agendaHref,
+  confirmReschedule,
+  onRescheduled,
 }: RescheduleBookingPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
   const locale = useResolvedLocale();
@@ -81,14 +92,20 @@ export function RescheduleBookingPage({
     setError(null);
 
     try {
-      await rescheduleBookingMutation.mutateAsync({
-        id: booking.bookingId,
-        body: {
-          scheduledAt: startsAt,
-          ...(adminNotes.trim() ? { adminNotes: adminNotes.trim() } : {}),
-        },
-      });
+      const notes = adminNotes.trim() || undefined;
+      if (confirmReschedule) {
+        await confirmReschedule({ startsAt, adminNotes: notes });
+      } else {
+        await rescheduleBookingMutation.mutateAsync({
+          id: booking.bookingId,
+          body: { scheduledAt: startsAt, ...(notes ? { adminNotes: notes } : {}) },
+        });
+      }
       setTopbarBookingStatus?.(BOOKING_STATUS.APPROVED);
+      if (onRescheduled) {
+        onRescheduled();
+        return;
+      }
       setLastReschedule({ from: booking.scheduledAt, to: startsAt });
       setRescheduled(true);
     } catch (err) {

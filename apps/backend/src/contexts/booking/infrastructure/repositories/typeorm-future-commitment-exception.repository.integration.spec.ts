@@ -187,6 +187,47 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
     });
   });
 
+  describe('countByTenant', () => {
+    it('counts only the tenant’s rows in the given status', async () => {
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      const closed = new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build();
+      await save(closed);
+      closed.dismiss(STAFF_ID, 'x', 'corr-1');
+      await save(closed);
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_B).build());
+
+      expect(await repo.countByTenant(TENANT_A, { status: 'OPEN' })).toBe(2);
+      expect(await repo.countByTenant(TENANT_A)).toBe(3);
+      expect(await repo.countByTenant(TENANT_B, { status: 'OPEN' })).toBe(1);
+    });
+
+    // The sidebar badge runs this on every dashboard page, so it must be answered from an index and
+    // never by reading every historical row of the tenant. The partial unique index over the OPEN
+    // rows (tenant_id first) serves it. seqscan is switched off for the transaction because a tiny
+    // test table would otherwise (rightly) be scanned: the point is that a usable index EXISTS.
+    it('is answered from the partial index over the OPEN rows', async () => {
+      await save(new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build());
+      const runner = dataSource.createQueryRunner();
+      await runner.connect();
+      try {
+        await runner.startTransaction();
+        await runner.query('SET LOCAL enable_seqscan = off');
+        const plan = (await runner.query(
+          'EXPLAIN SELECT COUNT(1) FROM booking.future_commitment_exceptions WHERE tenant_id = $1 AND status = $2',
+          [TENANT_A, 'OPEN'],
+        )) as { 'QUERY PLAN': string }[];
+        await runner.rollbackTransaction();
+
+        const text = plan.map((row) => row['QUERY PLAN']).join('\n');
+        expect(text).toContain('Index Only Scan');
+        expect(text).toContain('UQ_booking_fce_open_impact');
+      } finally {
+        await runner.release();
+      }
+    });
+  });
+
   describe('findByIdForUpdate', () => {
     it('refuses to run outside a transaction', async () => {
       await expect(repo.findByIdForUpdate(uuidv7(), TENANT_A)).rejects.toThrow(

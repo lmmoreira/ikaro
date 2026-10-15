@@ -1,5 +1,6 @@
 'use client';
 
+import { Fragment } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -18,6 +19,7 @@ import {
 import { Avatar, AvatarFallback } from '@/shared/components/ui/avatar';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
+import { SchedulingExceptionsSidebarItem } from './SchedulingExceptionsNavItem';
 import { getInitials } from '@/shared/utils/initials';
 
 interface SidebarProps {
@@ -79,16 +81,19 @@ export function Sidebar({
 
       {/* Main nav */}
       <nav className="mt-2 flex flex-col gap-0.5 px-2">
-        {mainNavKeys.map(({ href, labelKey, Icon }) => (
-          <Link
-            key={href}
-            href={href}
-            data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
-            className={navItemClass(pathname.startsWith(href))}
-          >
-            <Icon className="h-4 w-4 shrink-0" />
-            {t(labelKey)}
-          </Link>
+        {mainNavKeys.map(({ href, labelKey, Icon }, index) => (
+          <Fragment key={href}>
+            <Link
+              href={href}
+              data-testid={href === LEADS_NAV_ITEM.href ? 'sidebar-nav-leads' : undefined}
+              className={navItemClass(pathname.startsWith(href))}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              {t(labelKey)}
+            </Link>
+            {/* "Reservas a resolver": MANAGER only, right below "Agenda" (M23-S14) */}
+            {index === 0 && role === 'MANAGER' ? <SchedulingExceptionsSidebarItem /> : null}
+          </Fragment>
         ))}
       </nav>
 

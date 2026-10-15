@@ -18,6 +18,7 @@ import { AVAILABILITY_ALERT_REPOSITORY } from './application/ports/availability-
 import { FUTURE_COMMITMENT_EXCEPTION_REPOSITORY } from './application/ports/future-commitment-exception-repository.port';
 import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
 import { ListFutureCommitmentExceptionsUseCase } from './application/use-cases/list-future-commitment-exceptions.use-case';
+import { CountFutureCommitmentExceptionsUseCase } from './application/use-cases/count-future-commitment-exceptions.use-case';
 import { ResolveFutureCommitmentExceptionsUseCase } from './application/use-cases/resolve-future-commitment-exceptions.use-case';
 import { DismissFutureCommitmentExceptionsUseCase } from './application/use-cases/dismiss-future-commitment-exceptions.use-case';
 import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/repositories/typeorm-future-commitment-exception.repository';
@@ -242,6 +243,7 @@ export const bookingModuleProviders: Provider[] = [
   ...availabilityAlertMatchingProviders,
   RaiseFutureCommitmentExceptionsForResourceUseCase,
   ListFutureCommitmentExceptionsUseCase,
+  CountFutureCommitmentExceptionsUseCase,
   ResolveFutureCommitmentExceptionsUseCase,
   DismissFutureCommitmentExceptionsUseCase,
   BookingAuditLogHandler,

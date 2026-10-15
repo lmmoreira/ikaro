@@ -8,4 +8,4 @@ export { mintGuestToken } from './mint-guest-token';
 export { submitGuestInfoDirectly } from './submit-guest-info-directly';
 export { createEndedApprovedBooking, createNoShowBooking } from './no-show';
 export { getResourceRow } from './resource-locators';
-export { createResource, deactivateResource } from './resource-api';
+export { createResource, deactivateResource, reactivateResource } from './resource-api';

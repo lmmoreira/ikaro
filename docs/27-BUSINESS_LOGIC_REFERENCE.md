@@ -360,6 +360,14 @@ One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`
 
 **Manager alert (M23-S23).** The raise step also publishes one `ResourceDeactivationImpactRaised` (`{resourceId, resourceName, affectedCount}`, `affectedCount` = `raisedCount`, so a refreshed open entry counts) through `OUTBOX_PUBLISHER` inside the caller's transaction, only when `raisedCount > 0`. The Notification context consumes it and emails every manager once, the deactivating manager included, with a link to `${FRONTEND_URL}/dashboard` in the tenant's language. The per-entry `Raised` events keep the audit-log consumer only, so 11 affected bookings are one email, not 11.
 
+### Read (the worklist and its badge, M23-S14)
+
+`GET /scheduling-exceptions` returns the entries with a booking summary (`contactName`, `scheduledAt`, `serviceNames`, `resourceName`, `isCustomer`, `totalPrice`) built from the Booking context alone. For an **`OPEN`** entry the `alternatives` are **recomputed on every read**, not read from the stored snapshot: one `computeBookingAlternatives` call per deactivated resource (the same helper the raise step uses, in one read-only transaction), so a resource reactivated, or a slot freed by a cancellation, since the entry was raised shows up. A `RESOLVED`/`DISMISSED` entry keeps what was stored. A booking with no live occupancy left on the source gets no alternatives. The UI disables **Reatribuir** for an entry with none (the bulk bar, when no selected entry has one); Reagendar and Cancelar stay.
+
+`findConflictingWindows` (the batched "which of these resource/time windows are taken" check behind the alternatives, REASSIGN and recurring-pattern checks) probes `EX_booking_resource_occupancy_locked_window` once per window through a `LATERAL ... LIMIT 1` subquery. As a plain join the planner could pick a sequential scan over every retained row: on 70k occupancy rows that took 0.3 s for 300 windows and 12 s for 6000, against 6 ms and 0.12 s with the per-window probe.
+
+`GET /scheduling-exceptions/count` (`{ count }`, `OPEN` entries of the tenant, MANAGER only) feeds the sidebar badge and is served by the partial unique index over the `OPEN` rows (an Index Only Scan, pinned by an `EXPLAIN` test); the badge query never computes alternatives. The web client refreshes the list and the count after a resolve and after a resource or staff deactivation.
+
 ### Resolve (best-effort per booking)
 
 `resolve` takes 1–100 entry ids and one choice. **Each entry runs in its own transaction**, so a booking whose alternative was taken in the meantime stays `OPEN` and is reported (`STILL_OPEN`) while the rest resolve.
