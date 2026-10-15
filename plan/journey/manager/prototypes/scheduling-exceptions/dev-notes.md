@@ -116,7 +116,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 - **Reactivating the original resource does not close its entries yet** (the entry stays open until `M23-S45`, which closes the reactivated resource's own entries); until then the manager uses Reagendar or Cancelar. Reactivating a *different* resource does show it as an alternative on the next read.
 - **Reagendar cannot work on a booking whose customer chose the deactivated resource** (the reschedule keeps that pick); the row still shows the link and the error is the only feedback. Hiding it needs a per-item flag, not decided.
 - **Time and resource cannot be changed together:** with a customer-chosen resource and no free alternative at that time, only Cancelar is left. Not decided.
-- **A booking that needs a decision shows no action buttons on its queue card or its detail** (see `staff/prototypes/agenda/dev-notes.md` § "UC-073 / UC-077 — A booking that needs a decision is marked"): this page is where it is resolved.
+- **A booking that needs a decision shows none of its normal action buttons on its queue card or its detail** (see `staff/prototypes/agenda/dev-notes.md` § "UC-073 / UC-077 — A booking that needs a decision is marked"). It can be resolved here, in bulk, or one at a time from the MANAGER's decision panel on the booking's own detail (`03j`), which reuses this page's `ReassignSheet`, `CancelSheet` and reschedule route (M23-S46; the reschedule route's own `returnTo` decides where the manager lands afterwards).
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 
 ## Open questions / gaps

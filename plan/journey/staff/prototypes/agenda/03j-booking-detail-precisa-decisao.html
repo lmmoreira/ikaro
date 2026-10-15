@@ -76,7 +76,6 @@
     .fx-step { display: flex; gap: 0.75rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); color: var(--ba-text); }
     .fx-step:last-child { border-bottom: none; }
     .fx-step b { width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--ba-primary); color: #fff; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-      @media (min-width: 1024px) { .detail-layout { grid-template-columns: minmax(0, 1fr) !important; } }
     .nav-count { margin-left: auto; font-size: 0.6875rem; font-weight: 700; background: #dc2626; color: white; border-radius: 9999px; padding: 0.0625rem 0.4375rem; }
 </style>
 </head>
@@ -94,7 +93,13 @@
     BookingDetailPage branches its action panel by booking.status. This file documents
     the APPROVED branch only (UC-008, UC-009).
 
-    ACTIONS (bottom of page on mobile / right panel on desktop):
+    M23-S46 — DECISION PANEL: this booking has an OPEN "Reservas a resolver" entry, so the usual actions
+    (Marcar concluído, Marcar não compareceu, Aprovar/Rejeitar) are NOT shown. The panel offers only
+    Reatribuir · Reagendar (APPROVED only) · Cancelar, the same three actions and flows as the worklist
+    (ReassignSheet / RescheduleSheet / CancelSheet reused, scoped to this one booking). Each closes the entry.
+    Links below open the worklist prototypes; in production the sheets open over this page.
+
+    ACTIONS of the normal APPROVED branch (not drawn here; bottom of page on mobile / right panel on desktop):
       UC-009: Marcar concluído → 04-mark-complete.html       (full screen, not a sheet — per-line price + photos + notes)
       UC-008 A1: Reagendar     → 05-reschedule.html           (full screen — calendar)
       UC-008: Cancelar         → inline bottom sheet (this page) → PATCH /bookings/:id/cancel-admin { reason? }
@@ -113,7 +118,7 @@
     padding: 0.375rem 1rem; font-size: 0.8125rem;
     text-align: center; color: #92400e;
   ">
-    Protótipo — detalhe de um agendamento que precisa de decisão (M23-S46, UC-073/UC-077): visão do gerente. Sem botões de ação: tudo se resolve em Reservas a resolver.
+    Protótipo — detalhe de um agendamento que precisa de decisão (M23-S46, UC-073/UC-077): visão do gerente. O painel de decisão (Reatribuir, Reagendar, Cancelar) substitui as ações normais da reserva.
   </div>
 
   <div class="fx-bar">Forma do agendamento (?forma=): <a href="?forma=simples" data-f="simples">simples</a> · <a href="?forma=recurso" data-f="recurso">recurso</a> · <a href="?forma=pacote" data-f="pacote">pacote</a> · <a href="?forma=trajeto" data-f="trajeto">trajeto</a> · <a href="?forma=formulario" data-f="formulario">formulario</a> · <a href="?forma=retirada" data-f="retirada">retirada</a> · <a href="?forma=recorrente" data-f="recorrente">recorrente</a> · <a href="?forma=equipe" data-f="equipe">equipe</a> · <a href="?forma=completo" data-f="completo">completo</a></div>
@@ -213,7 +218,7 @@
       </div>
     </aside>
 
-    <main class="main-content" style="padding-bottom: 2rem;">
+    <main class="main-content" style="padding-bottom: 8rem;">
       <div class="dashboard-body">
         <div class="detail-layout">
 
@@ -237,13 +242,9 @@
                 <p style="font-weight: 700; font-size: 1rem; color: #c2410c; margin-bottom: 0.375rem;">
                   Esta reserva precisa de uma decisão
                 </p>
-                <p style="font-size: 0.875rem; color: #c2410c; opacity: 0.9; line-height: 1.5; margin-bottom: 0.75rem;">
-                  O recurso desta reserva foi desativado. Reatribua, reagende ou cancele em Reservas a resolver; até a decisão, as ações da reserva ficam lá.
+                <p style="font-size: 0.875rem; color: #c2410c; opacity: 0.9; line-height: 1.5; margin-bottom: 0;">
+                  O recurso desta reserva foi desativado. Escolha como resolver: reatribuir a outro recurso, reagendar ou cancelar.
                 </p>
-                <a class="btn-secondary" href="../../../manager/prototypes/scheduling-exceptions/01-exception-worklist.html"
-                   style="display: inline-flex; align-items: center; text-decoration: none; padding: 0.5rem 0.875rem; font-size: 0.8125rem;">
-                  Abrir Reservas a resolver
-                </a>
               </div>
             </div>
 
@@ -377,11 +378,52 @@
 
           </div><!-- /.detail-main -->
 
+          <!-- ── RIGHT: decision panel (desktop only) — replaces the normal action panel (M23-S46) ── -->
+          <div class="detail-aside">
+            <div class="card" style="padding: 1.25rem; border-color: #fdba74;">
+              <p style="font-size: 0.8125rem; font-weight: 700; color: #c2410c; margin-bottom: 1rem;">
+                Decisão
+              </p>
+              <a href="../../../manager/prototypes/scheduling-exceptions/01c-reatribuir.html" class="btn-primary"
+                 style="display: block; text-align: center; margin-bottom: 0.625rem;">
+                Reatribuir
+              </a>
+              <a href="../../../manager/prototypes/scheduling-exceptions/01e-reagendar.html" class="btn-secondary"
+                 style="display: block; text-align: center; margin-bottom: 0.625rem;">
+                Reagendar
+              </a>
+              <a href="../../../manager/prototypes/scheduling-exceptions/01f-cancelar.html" class="btn-secondary"
+                 style="display: block; text-align: center;">
+                Cancelar agendamento
+              </a>
+              <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1rem 0;">
+              <p style="font-size: 0.75rem; opacity: 0.5; color: var(--ba-text); line-height: 1.5;">
+                As mesmas três ações de Reservas a resolver, para esta reserva. Resolver fecha a pendência. O cliente é avisado por email.
+              </p>
+            </div>
+          </div>
+
         </div><!-- /.detail-layout -->
       </div>
     </main>
 
   </div><!-- /.dashboard-layout -->
+
+  <!-- ═══ MOBILE DECISION BAR (replaces the normal action bar) ═══ -->
+  <div class="mobile-action-bar" style="
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid #fdba74;
+    padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0));
+    display: flex; flex-direction: column; gap: 0.625rem;
+    z-index: 20;
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.06);
+  ">
+    <a href="../../../manager/prototypes/scheduling-exceptions/01c-reatribuir.html" class="btn-primary" style="text-align: center;">Reatribuir</a>
+    <div style="display: flex; gap: 0.625rem;">
+      <a href="../../../manager/prototypes/scheduling-exceptions/01e-reagendar.html" class="btn-secondary" style="flex: 1; text-align: center;">Reagendar</a>
+      <a href="../../../manager/prototypes/scheduling-exceptions/01f-cancelar.html" class="btn-secondary" style="flex: 1; text-align: center;">Cancelar</a>
+    </div>
+  </div>
 
 
 
