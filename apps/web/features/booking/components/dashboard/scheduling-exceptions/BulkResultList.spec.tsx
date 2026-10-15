@@ -92,16 +92,32 @@ describe('BulkResultList', () => {
     expect(h.onCancel).toHaveBeenCalledWith('exc-2');
   });
 
-  it('reports the entries never sent after a later batch failed, counting them as still open', () => {
+  it('shows every unprocessed booking as its own open row, with a reason and its actions', () => {
     renderList({
       results: [{ exceptionId: 'exc-1', outcome: 'RESOLVED' }],
-      notProcessed: ['exc-2', 'exc-3'],
+      notProcessed: ['exc-2'],
     });
 
-    expect(screen.getByText('1 reserva resolvida · 2 continuam abertas')).toBeInTheDocument();
+    // The unsent ids are counted apart: the failed request may have partly applied.
+    expect(screen.getByText('1 reserva resolvida')).toBeInTheDocument();
     expect(screen.getByTestId('scheduling-exceptions-not-processed')).toHaveTextContent(
-      '2 reservas não foram processadas e continuam abertas',
+      '1 reserva não foi processada',
     );
+    const reason = screen.getByTestId('still-open-reason');
+    expect(reason).toHaveTextContent('Continua aberta: a solicitação falhou antes de terminar');
+    expect(screen.getByText('Maria Oliveira')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reatribuir' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeInTheDocument();
+  });
+
+  it('counts every unprocessed booking in the section total; an id missing from the snapshot is skipped', () => {
+    renderList({
+      results: [{ exceptionId: 'exc-1', outcome: 'RESOLVED' }],
+      notProcessed: ['exc-2', 'exc-not-in-snapshot'],
+    });
+
+    expect(screen.getByText('3 reservas')).toBeInTheDocument();
+    expect(screen.getAllByTestId('still-open-reason')).toHaveLength(1);
   });
 
   it('a result with everything resolved shows no "still open" part', () => {

@@ -170,6 +170,13 @@ export async function seedWorklistEntries(
   if (autoAny) {
     const card = await findBookingCard(page, bookings[0].bookingId, bookings[0].startsAt);
     const landedOn = card?.assignedResources.map((r) => r.resourceId) ?? [];
+    // Deactivating the wrong room raises no entry for this booking and the spec would time out far
+    // from the cause, so an unidentifiable room fails the seed right here.
+    if (!landedOn.includes(first.id) && !landedOn.includes(second.id)) {
+      throw new Error(
+        `the AUTO_ANY booking landed on neither seeded room (saw ${landedOn.join(', ') || 'none'})`,
+      );
+    }
     if (landedOn.includes(second.id)) [source, alternative] = [second, first];
   }
 
@@ -181,6 +188,15 @@ export async function seedWorklistEntries(
     alternative,
     bookings,
     cleanup: async () => {
+      // A booking still active on the alternative room would raise a fresh open entry when the room
+      // is deactivated, and those pile up on the shared tenant: cancel what is left first (a booking
+      // a spec already cancelled just answers with an error, which is fine).
+      for (const booking of bookings) {
+        await page.request.patch(`${BFF_URL}/bookings/${booking.bookingId}/cancel`, {
+          data: {},
+          headers: internalHeaders(),
+        });
+      }
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, alternative.id);
     },

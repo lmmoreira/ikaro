@@ -20,7 +20,7 @@ export interface SchedulingExceptionSheet {
 
 export interface SchedulingExceptionResultView {
   readonly results: readonly SchedulingExceptionResultItem[];
-  // Ids never sent because a later batch failed as a whole request — they stay open.
+  // The ids of the failed batch and of every later one; the refreshed list is the source of truth.
   readonly notProcessed: readonly string[];
   // The entries as they were when the action was sent (the list refreshes underneath).
   readonly itemsById: ReadonlyMap<string, SchedulingExceptionItem>;

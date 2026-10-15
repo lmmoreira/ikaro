@@ -14,6 +14,15 @@ import {
 
 const STAFF_EMAIL = 'funcionario@lavacar.com.br';
 
+// The sidebar badge's number (0 when it is hidden). It counts the whole tenant, which parallel specs
+// also change, so a spec only asserts how it moved relative to what it did, never an exact value.
+const badgeCount = async (page: Page): Promise<number> => {
+  const badge = page
+    .getByTestId('sidebar-nav-scheduling-exceptions')
+    .getByTestId('scheduling-exceptions-badge');
+  return (await badge.count()) > 0 ? Number(await badge.textContent()) : 0;
+};
+
 const groupOf = (page: Page, resourceName: string): Locator =>
   page.getByTestId('scheduling-exceptions-group').filter({ hasText: `${resourceName} ficou` });
 
@@ -33,11 +42,7 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       await expect(group).toContainText('2 reservas');
       // The sidebar badge counts the open entries (a count query, not the list).
       await expect(page.getByTestId('sidebar-nav-scheduling-exceptions')).toBeVisible();
-      await expect(
-        page
-          .getByTestId('sidebar-nav-scheduling-exceptions')
-          .getByTestId('scheduling-exceptions-badge'),
-      ).toHaveText(String(openBefore));
+      await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(2);
 
       await group.getByRole('button', { name: 'Selecionar todos' }).click();
       const bar = page.getByTestId('scheduling-exceptions-bulk-bar');
@@ -53,12 +58,10 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       await result.getByRole('button', { name: 'Voltar à lista' }).click();
 
       await expect(groupOf(page, seed.source.name)).toHaveCount(0);
-      await expect(
-        page
-          .getByTestId('sidebar-nav-scheduling-exceptions')
-          .getByTestId('scheduling-exceptions-badge'),
-      ).toHaveText(String(openBefore - 2));
-      expect(await readOpenWorklistCount(page)).toBe(openBefore - 2);
+      // This spec closed two entries, so the tenant-wide count is at least two lower (other specs
+      // running in parallel may also have closed or opened some).
+      await expect.poll(() => badgeCount(page)).toBeLessThanOrEqual(openBefore - 2);
+      expect(await readOpenWorklistCount(page)).toBeLessThanOrEqual(openBefore - 2);
 
       // Same time, another resource: both bookings now occupy the alternative room at exactly
       // their original times, and they are still confirmed.

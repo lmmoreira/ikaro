@@ -38,6 +38,31 @@ export interface UpcomingBookingCardProps extends BookingCardBaseProps {
 export type BookingCardProps =
   ActionNeededBookingCardProps | TodayBookingCardProps | UpcomingBookingCardProps;
 
+// "Marcar concluído" on today's card, "Aprovar" on an action-needed one, nothing on an upcoming one.
+function renderActions(
+  props: BookingCardProps,
+  approvalPending: boolean,
+  t: (key: 'markCompleted' | 'approve') => string,
+): React.ReactNode {
+  if (props.variant === 'today') {
+    return (
+      <Button asChild size="sm">
+        <Link href={`/dashboard/bookings/${props.booking.bookingId}/complete`}>
+          {t('markCompleted')}
+        </Link>
+      </Button>
+    );
+  }
+  if (props.variant === 'action-needed') {
+    return (
+      <Button type="button" size="sm" disabled={approvalPending} onClick={props.onApprove}>
+        {t('approve')}
+      </Button>
+    );
+  }
+  return null;
+}
+
 function BookingCardInner(props: BookingCardProps): React.JSX.Element {
   const { booking, variant, emphasized = false } = props;
   const t = useTranslations('dashboard.bookingCard');
@@ -52,17 +77,6 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
     : 'bg-amber-100 text-amber-800';
 
   const timeLabel = variant === 'today' ? formatTime(scheduledAt) : whenLabel(scheduledAt);
-
-  const actions =
-    variant === 'today' ? (
-      <Button asChild size="sm">
-        <Link href={`/dashboard/bookings/${booking.bookingId}/complete`}>{t('markCompleted')}</Link>
-      </Button>
-    ) : variant === 'action-needed' ? (
-      <Button type="button" size="sm" disabled={approvalPending} onClick={props.onApprove}>
-        {t('approve')}
-      </Button>
-    ) : null;
 
   return (
     <BookingCardShell
@@ -82,7 +96,7 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
       serviceLine={booking.serviceNames.join(', ')}
       timeLabel={timeLabel}
       priceLabel={`${formatMoney(booking.totalPrice.amount)} · ${formatDuration(booking.totalDurationMins)}`}
-      actions={actions}
+      actions={renderActions(props, approvalPending, t)}
       className={[
         'mb-3 transition-shadow',
         booking.status === 'INFO_REQUESTED' ? 'border-l-[3px] border-l-blue-600' : '',

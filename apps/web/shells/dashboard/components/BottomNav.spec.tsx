@@ -82,22 +82,15 @@ describe('BottomNav', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('still renders on the team list page (FAB sits above the nav, no fixed bar)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/team');
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
-
-    expect(screen.getByText('Mais')).toBeInTheDocument();
-  });
-
-  it('still renders on the "Reservas a resolver" list (its selection bar sits above the nav, which stays)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/scheduling-exceptions');
-    render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
-
-    expect(screen.getByText('Mais')).toBeInTheDocument();
-  });
-
-  it('still renders on the resources list page (FAB sits above the nav, no fixed bar)', () => {
-    vi.mocked(usePathname).mockReturnValue('/dashboard/resources');
+  it.each([
+    ['the team list page (FAB sits above the nav, no fixed bar)', '/dashboard/team'],
+    ['the resources list page (FAB sits above the nav, no fixed bar)', '/dashboard/resources'],
+    [
+      'the "Reservas a resolver" list (its selection bar sits above the nav, which stays)',
+      '/dashboard/scheduling-exceptions',
+    ],
+  ])('still renders on %s', (_label, pathname) => {
+    vi.mocked(usePathname).mockReturnValue(pathname);
     render(<BottomNav role={MANAGER} leadFormEnabled={false} onOpenSheet={vi.fn()} />);
 
     expect(screen.getByText('Mais')).toBeInTheDocument();

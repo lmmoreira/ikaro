@@ -11,7 +11,9 @@ export const RESOLVE_BATCH_SIZE = 100;
 
 export interface BatchedResolveResult {
   readonly results: readonly SchedulingExceptionResultItem[];
-  // Ids that were never sent because a later batch failed as a whole request. They stay open.
+  // The ids of the batch that failed as a whole request and of every later batch (never sent).
+  // The failed batch may have partly applied before the error — each entry runs in its own
+  // transaction on the server — so the refreshed list is the source of truth for these ids.
   readonly notProcessed: readonly string[];
 }
 
