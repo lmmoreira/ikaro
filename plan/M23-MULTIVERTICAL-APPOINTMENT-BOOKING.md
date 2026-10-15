@@ -3794,6 +3794,7 @@ Decisions baked in (do not re-derive at discovery):
 3. The pill is not interactive; the detail banner is the single place that links to the worklist.
 4. The flag is computed on read from `OPEN` entries; nothing is written to the booking, and no event, topic, status or migration is added.
 5. Copy is pt-BR first with an `en` twin in the same commit; no hard-coded strings.
+6. Colours (drawn in the prototypes): the pill is `bg-orange-100 text-orange-800`; the banner is `border-orange-200 bg-orange-50/80` with `text-orange-700` text and an orange icon circle. The shipped `BookingStatusBannerIcon` has no orange variant, so it gains a `warning` variant (orange `bg-orange-600` circle, alert-triangle icon).
 
 **Backend use case steps:**
 1. `ListBookingsUseCase.execute`: after `findAllByTenantPaginated`, if the page has items, call `exceptionRepo.findOpenAffectedBookingIds(tenantId, items.map(b => b.id))`; map each item with `hasOpenException = set.has(id)`.
@@ -3803,7 +3804,7 @@ Decisions baked in (do not re-derive at discovery):
 
 **Backend HTTP surface:** reuses `GET /bookings` and `GET /bookings/:id` (`booking.controller.ts`) — the response items gain `hasOpenException`; no new route, so no new `.http` block (the existing blocks' sample responses gain the field).
 **BFF endpoint spec:** reuses the staff `GET /bookings` and `GET /bookings/:id` (MANAGER and STAFF); `bookings.mapper.ts` maps `hasOpenException` into the staff card and the staff detail; the customer mappers are untouched. `bookings.types.ts` and `@ikaro/types` agree (the `ikaro-types-drift` detector).
-**Prototype references:** `plan/journey/staff/agenda.md` and `plan/journey/staff/prototypes/agenda/` (the booking queue card and the booking detail screens). No prototype draws the pill or the banner yet: `/story-discovery` must resolve this per `.copilot/context.md` §15 (run `/docs-audit` for the journey first, then add the two states to the journey doc, `use-cases.md` and the prototype screens) before any component is written.
+**Prototype references:** `plan/journey/staff/agenda.md`, `plan/journey/staff/prototypes/agenda/00d-agenda-precisa-decisao.html` (the queue with the pill on three cards), `03j-booking-detail-precisa-decisao.html` (the banner, MANAGER) and `03k-booking-detail-precisa-decisao-staff.html` (the banner, STAFF), with `dev-notes.md` § "UC-073 / UC-077 — A booking that needs a decision is marked". Drawn 2026-10-15 (after a clean journey baseline check); read them before writing components, and use the exact colours and copy there.
 **New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. i18n (both locales, same commit): `dashboard.bookingCard.needsDecision` ("Precisa de decisão" / "Needs a decision") and, under `dashboard.bookingDetail`, `needsDecisionTitle`, `needsDecisionBody`, `needsDecisionStaffHint`, `needsDecisionLink`.
 
 **Files to create/modify:**
@@ -3815,10 +3816,11 @@ Decisions baked in (do not re-derive at discovery):
 - `packages/types/src/booking.dto.ts` (modify — `StaffBookingCardResponse`, `StaffBookingDetailResponse`)
 - `apps/bff/src/features/booking/bookings.mapper.ts` (+ `.spec.ts`), `bookings.types.ts` (modify)
 - `apps/web/features/booking/components/dashboard/bookings/BookingCard.tsx` (+ `.spec.tsx`) (modify), `BookingDecisionBanner.tsx` (+ `.spec.tsx`) (new), `BookingDetailMain.tsx` (+ `.spec.tsx`) (modify)
+- `apps/web/features/booking/components/dashboard/bookings/BookingStatusBannerIcon.tsx` (+ `.spec.tsx` if present) (modify — a `warning` variant)
 - `apps/web/features/booking/hooks/useResources.ts` (+ `.spec.tsx`), `apps/web/features/staff/hooks/useStaff.ts` (+ `.spec.tsx`) (modify — also invalidate `['bookings', tenantId]`)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — keys above)
 - `apps/web/e2e/scheduling-exceptions.spec.ts` (modify — the scenarios below) and, if needed, `apps/web/e2e/helpers/scheduling-exceptions.ts`
-- Docs in the same change: `docs/14-API_CONTRACTS.md` (the field on the list and by-id items), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Read: the marker), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md` and the prototype `dev-notes.md` (per §15, after the audit)
+- Docs in the same change: `docs/14-API_CONTRACTS.md` (the field on the list and by-id items), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Read: the marker), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md` and the prototype `dev-notes.md` (already updated with the three prototype screens; flip the story status there when built)
 
 **Acceptance criteria — product:**
 - [ ] A booking with an open "Reservas a resolver" entry shows a "Precisa de decisão" pill on its card in the staff queue, in "Ação necessária", "Hoje" and "Próximos", for a MANAGER and for STAFF; it stays in the queue.

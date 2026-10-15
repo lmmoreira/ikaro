@@ -569,3 +569,25 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 - ⚠ **Role switch in `03f`** is a hash toggle for the prototype; in production the role comes from the JWT.
 - ⚠ **The `NO_SHOW` web status display** (label, colour, icon in `booking-status.ts`, `BookingStatusIcon.tsx`, `schedule-page-controller-result.ts`) shipped with `M23-S09`, not with the UI story.
 - ⚠ **Deviations from the drawn screens (M23-S27):** the sheets' dismiss button reads "Cancelar" (the existing sheets' key) instead of "Voltar"; the history timestamp reads "{date} às {time}" instead of "hoje às HH:mm"; the `correcting` state of `dev-notes` is the open sheet (`sheetState = 'correct-no-show'`), not an `actionState`.
+
+### UC-073 / UC-077 — A booking that needs a decision is marked — `00d`, `03j`, `03k` (M23-S46)
+
+Added 2026-10-15, after the M23-S14 live test ("a booking in Reservas a resolver should not look like any other"). **Decided: the booking stays in the queue and is marked — never hidden** (it is still a real commitment, STAFF cannot open the manager-only worklist, and the queue and the Agenda share `GET /bookings`). No new route and no new component family: one badge in the existing queue card and one banner on the existing detail page.
+
+| File | Screen | Notes |
+|---|---|---|
+| `00d-agenda-precisa-decisao.html` | The queue with the pill on three cards, one per section | The pill sits after the status badge; the card, its stretched link and its actions are unchanged. The manager sidebar also shows "Reservas a resolver" below "Agenda" (shipped in M23-S14; the older screens do not draw it) |
+| `03j-booking-detail-precisa-decisao.html` | Approved detail with the banner (MANAGER) | Banner above "Cliente"; the button opens `manager/prototypes/scheduling-exceptions/01-exception-worklist.html` |
+| `03k-booking-detail-precisa-decisao-staff.html` | The same banner for STAFF | No link: the route is manager-only (`proxy.ts`) |
+
+**Data:** `hasOpenException: boolean` on `StaffBookingCardResponse` (queue) and `StaffBookingDetailResponse` (detail); `true` when the booking has an `OPEN` worklist entry. Customer responses never carry it.
+
+**Copy (pt-BR first, `en` twin in the same commit):** pill "Precisa de decisão"; banner title "Esta reserva precisa de uma decisão"; body "O recurso desta reserva foi desativado. Reatribua, reagende ou cancele em Reservas a resolver." (MANAGER, with the "Abrir Reservas a resolver" button) or "O recurso desta reserva foi desativado. Peça a um gerente para resolver." (STAFF, no button).
+
+**Known limitations of this prototype:**
+- ⚠ **Colour:** the pill is orange (`#ffedd5` / `#9a3412` → Tailwind `bg-orange-100 text-orange-800`) so it is not confused with the yellow "Pendente" or the amber "Visitante"; the banner is the same family (`#fff7ed` border `#fdba74`, icon `#ea580c`, text `#c2410c`).
+- ⚠ **The shipped `BookingStatusBannerIcon` has only `success`, `danger` and `info`:** the implementation adds a `warning` variant (orange circle, alert-triangle icon) — this is in the story's file list.
+- ⚠ **The pill is a plain badge, not a link** (the card is one stretched link to the detail); the banner is the only place that links to the worklist.
+- ⚠ **Role switch:** `03j` vs `03k` is two files for the prototype; in production the role comes from the JWT. `03k` inherits the base screen's sidebar, which still lists the manager-only section; the real STAFF sidebar does not.
+- ⚠ **The base screens `00-agenda.html` and `01`/`03` were not redrawn by this change** (their own redraw is tracked separately); `00d`/`03j`/`03k` are derived from `00-agenda.html` and `03-booking-detail-approved.html` as committed.
+- ⚠ **Pending booking:** the banner is drawn on an approved booking (`03j`); a `PENDING` or `INFO_REQUESTED` detail gets the same banner above its triage panel (same markup).
