@@ -75,7 +75,8 @@
     .when { display: none; }
     body[data-state="criada"] .when-criada, body[data-state="aguardando"] .when-aguardando,
     body[data-state="conflito"] .when-conflito, body[data-state="limite"] .when-limite,
-    body[data-state="cliente"] .when-cliente, body[data-state="falha"] .when-falha { display: block; }
+    body[data-state="cliente"] .when-cliente, body[data-state="falha"] .when-falha,
+    body[data-state="telefone"] .when-telefone { display: block; }
     .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
     .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
     .banner-warn { background: #fffbeb; border-color: #fcd34d; color: #92400e; }
@@ -105,9 +106,20 @@
       #aguardando  201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
                    fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
       #conflito    409 BOOKING_RECURRING_SCHEDULE_CONFLICT (lista conflicts[{ occurrenceStart, reason: OCCUPIED|CLOSED|OUTSIDE_HOURS }], M23-S18)
-      #limite      409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED
+      #limite      409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED — sem lista; o limite é de 50 recorrências ativas POR RECURSO ESCOLHIDO (grupo
+                   CUSTOMER_CHOICE) ou POR SERVIÇO (serviço sem escolha, com requisitos automáticos ou o local padrão), então o texto não nomeia
+                   um recurso nem manda "escolher outro recurso" (um serviço sem escolha não tem outro)
       #cliente     404 BOOKING_CUSTOMER_NOT_FOUND (customerId ausente, desconhecido, ou autor não é equipe ativa)
-      #falha       erro de rede / 5xx — o padrão digitado é preservado
+      #telefone    422 BOOKING_CUSTOMER_PHONE_NOT_SET (UC-070 A12) — serviço de confirmação automática para um cliente sem telefone no cadastro;
+                   nada é criado. A equipe não consegue corrigir o telefone daqui: volta e escolhe outro cliente ou avisa o cliente
+      #falha       erro de rede / 5xx — o padrão digitado é preservado. Também cai aqui o que o formulário não deveria deixar acontecer
+                   (422 BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE, 422 BOOKING_RESOURCE_SELECTION_REQUIRED)
+    NÃO estão aqui, de propósito — são recusas do PADRÃO e voltam ao formulário (09b), como a 13e do cliente: 422 INVALID_DATE_RANGE, TERM_EXCEEDED
+      e 400 de data final ausente (09b #erros), 422 BOOKING_SCHEDULED_IN_PAST (09b #recusa) e 422 NO_OCCURRENCES (09b #sem-ocorrencia).
+      A equipe é isenta de BOOKING_TOO_SOON / BOOKING_TOO_FAR_AHEAD (UC-070 A10), então essas duas nunca chegam aqui.
+    FORMA DO SERVIÇO no resumo (?forma=simples|padrao|pacote, só do protótipo): um serviço de pacote lista UMA linha por requisito — o recurso
+      escolhido pelo nome e "escolhida automaticamente a cada ocorrência" para um requisito automático; o serviço sem requisito não tem linha de recurso.
+      Num conflito de pacote o 409 só traz { occurrenceStart, reason }; não diz qual requisito colidiu, então o texto é o mesmo para qualquer forma.
     E-mails (M23-S28, já entregue): a cliente recebe e-mail quando a recorrência fica ATIVA (criação automática ou aprovação),
     quando é recusada e quando o pedido expira; os gerentes recebem um alerta quando um pedido fica aguardando aprovação.
   -->
@@ -238,7 +250,7 @@
             </div>
             <div class="banner banner-error when when-conflito">
               <p class="t">Não foi possível criar esta recorrência</p>
-              <p class="d">Sala Aurora já tem um compromisso conflitante em pelo menos uma ocorrência futura deste padrão — nada foi criado.</p>
+              <p class="d">Pelo menos uma ocorrência deste padrão não está disponível — um horário já reservado ou fora do funcionamento. Nada foi criado.</p>
               <div style="margin-top:0.625rem;">
                 <div class="conflict-row"><strong>25 de agosto · 10:00–12:00</strong> — Já reservado <span style="opacity:.6">(OCCUPIED)</span></div>
                 <div class="conflict-row"><strong>22 de setembro · 10:00–12:00</strong> — Fechado <span style="opacity:.6">(CLOSED)</span></div>
@@ -246,7 +258,11 @@
             </div>
             <div class="banner banner-error when when-limite">
               <p class="t">Limite de reservas recorrentes atingido</p>
-              <p class="d">O limite de 50 recorrências ativas para a Sala Aurora foi atingido, então nada foi criado. Encerre uma recorrência ativa desta sala, ou escolha outro recurso para este padrão.</p>
+              <p class="d">O limite de recorrências ativas foi atingido, então nada foi criado. Encerre uma recorrência ativa que não é mais usada, ou altere o padrão.</p>
+            </div>
+            <div class="banner banner-error when when-telefone">
+              <p class="t">Ana Costa não tem telefone cadastrado</p>
+              <p class="d">As reservas precisam de um telefone de contato, então nada foi criado. Peça à cliente para cadastrar o telefone na conta dela e crie a recorrência de novo, ou escolha outra cliente.</p>
             </div>
             <div class="banner banner-error when when-cliente">
               <p class="t">Cliente não encontrado</p>
@@ -269,8 +285,10 @@
 
             <p class="detail-section-label">Recorrência</p>
             <div class="card" style="padding: 0.25rem 1rem; margin-bottom: 1.25rem;">
-              <div class="kv"><span>Serviço</span><span>Reserva de sala</span></div>
-              <div class="kv"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv"><span>Serviço</span><span id="svc-name">Reserva de sala</span></div>
+              <div class="kv" data-forma="simples"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv" data-forma="pacote" hidden><span>Profissional</span><span>Dr. Paulo</span></div>
+              <div class="kv" data-forma="pacote" hidden><span>Sala</span><span>escolhida automaticamente a cada ocorrência</span></div>
               <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
               <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
               <div class="kv"><span>Reservas</span><span>13</span></div>
@@ -290,7 +308,7 @@
               <a href="09b-nova-recorrencia-padrao.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Alterar padrão</a>
               <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
             </div>
-            <div class="card when when-cliente" style="padding: 1.25rem;">
+            <div class="card when when-cliente when-telefone" style="padding: 1.25rem;">
               <p style="font-size: 0.8125rem; font-weight: 700; color: var(--ba-text); margin-bottom: 1rem;">Ações</p>
               <a href="09-escolher-cliente.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Escolher outro cliente</a>
               <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
@@ -313,20 +331,33 @@
       <a href="09b-nova-recorrencia-padrao.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Alterar padrão</a>
       <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
     </div>
-    <div class="when when-cliente">
+    <div class="when when-cliente when-telefone">
       <a href="09-escolher-cliente.html" class="btn-primary" style="display: block; text-align: center; margin-bottom: 0.625rem;">Escolher outro cliente</a>
       <a href="00-agenda.html" class="btn-secondary" style="display: block; text-align: center;">Voltar à agenda</a>
     </div>
   </div>
 
   <script>
-    var STATES = ['criada','aguardando','conflito','limite','cliente','falha'];
+    var STATES = ['criada','aguardando','conflito','limite','cliente','telefone','falha'];
+    var FORMAS = ['simples','padrao','pacote'];
+    var SERVICE_NAMES = { simples: 'Reserva de sala', padrao: 'Lavagem completa', pacote: 'Consulta com sala' };
+    function forma() {
+      var f = new URLSearchParams(location.search).get('forma');
+      return FORMAS.indexOf(f) >= 0 ? f : 'simples';
+    }
     function applyState() {
       var h = location.hash.replace('#','');
       document.body.dataset.state = STATES.indexOf(h) >= 0 ? h : 'criada';
+      var f = forma();
+      // padrao: a service without a resource requirement has no resource row at all
+      document.querySelectorAll('[data-forma]').forEach(function (el) { el.hidden = el.dataset.forma !== f; });
+      document.getElementById('svc-name').textContent = SERVICE_NAMES[f];
     }
     window.addEventListener('hashchange', applyState); applyState();
-    document.getElementById('proto-nav').innerHTML = STATES.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
+    document.getElementById('proto-nav').innerHTML =
+      STATES.map(function (x) { return '<a href="' + location.search + '#' + x + '">' + x + '</a>'; }).join(' · ') +
+      ' &nbsp;|&nbsp; forma do serviço: ' +
+      FORMAS.map(function (x) { return '<a href="?forma=' + x + location.hash + '">' + x + '</a>'; }).join(' · ');
   </script>
 
 </body>

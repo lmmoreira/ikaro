@@ -8,6 +8,7 @@
   <style>
     /* Hide bottom nav — detail is a drill-down; back arrow replaces tab nav on mobile */
     .bottom-nav { display: none !important; }
+    [hidden] { display: none !important; }
 
     /* Desktop two-column layout inside main content */
     .detail-layout {
@@ -32,106 +33,76 @@
       .mobile-action-bar { display: none !important; }
     }
 
-    /* Section header inside detail */
-    .detail-section-label {
-      font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
-      text-transform: uppercase; color: rgba(17,24,39,0.4);
-      margin-bottom: 0.625rem;
-    }
-
-    /* Service line rows */
-    .service-line {
-      display: flex; align-items: center; gap: 0.5rem;
-      padding: 0.625rem 0;
-      border-bottom: 1px solid var(--ba-secondary);
-    }
-    .service-line:last-child { border-bottom: none; }
-    .service-line-name { flex: 1; font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
-    .service-line-meta { text-align: right; font-size: 0.8125rem; color: var(--ba-text); }
-    .service-line-price { font-weight: 700; color: var(--ba-primary); }
-    .service-line-pts   { font-size: 0.75rem; opacity: 0.55; margin-top: 0.125rem; }
-
-    /* Photo grid */
-    .photo-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 0.5rem;
-    }
-    .photo-thumb {
-      aspect-ratio: 1;
-      background: var(--ba-secondary);
-      border-radius: var(--ba-radius);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; opacity: 0.5; color: var(--ba-text);
-      overflow: hidden;
-    }
-
     .badge-recurring { background: #ccfbf1; color: #0f766e; }
-    .kv { display: flex; justify-content: space-between; gap: 1rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); font-size: 0.9375rem; }
-    .kv:last-child { border-bottom: none; }
-    .kv span:first-child { opacity: 0.6; }
-    .kv span:last-child { font-weight: 600; text-align: right; }
-
-    .when { display: none; }
-    body[data-state="aprovada"] .when-aprovada, body[data-state="recusada"] .when-recusada,
-    body[data-state="conflito"] .when-conflito, body[data-state="telefone"] .when-telefone,
-    body[data-state="falha"] .when-falha, body[data-state="expirada"] .when-expirada { display: block; }
-    .banner { border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem; border: 1px solid; }
-    .banner-ok { background: #f0fdf4; border-color: #86efac; color: #15803d; }
-    .banner-neutral { background: #f9fafb; border-color: #d1d5db; color: #374151; }
-    .banner-error { background: #fef2f2; border-color: #fca5a5; color: #dc2626; }
-    .banner p.t { font-weight: 700; font-size: 1rem; margin-bottom: 0.375rem; }
-    .banner p.d { font-size: 0.875rem; line-height: 1.5; }
-    .conflict-row { padding: 0.5rem 0; border-top: 1px solid #fecaca; font-size: 0.875rem; }
 
     /* Bottom sheet overrides */
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
 
-  
-    .row { display: flex; align-items: center; gap: 0.75rem; padding: 0.875rem 0; border-bottom: 1px solid var(--ba-secondary); text-decoration: none; color: var(--ba-text); }
-    .row:last-child { border: 0; }
     .meta { font-size: 0.8rem; opacity: 0.6; margin-top: 0.15rem; }
-    .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 1.25rem 0 0.5rem; }
     .step-label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.5; margin: 0 0 0.25rem; }
     .field { margin-bottom: 1.125rem; }
     .field-hint { font-size: 0.8125rem; opacity: 0.6; margin-top: 0.25rem; }
+    .field-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.25rem; }
     .chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
     .chip { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.4375rem 0.75rem; border: 1px solid var(--ba-secondary); border-radius: 999px; font-size: 0.875rem; background: white; cursor: pointer; }
     .chip.on { border-color: var(--ba-primary); background: #eff6ff; }
     .choice { display: flex; align-items: center; gap: 0.625rem; padding: 0.75rem 0.875rem; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); background: white; margin-bottom: 0.5rem; cursor: pointer; }
     .choice.on { border-color: var(--ba-primary); background: #eff6ff; }
+    .choice.invalid { border-color: #fca5a5; }
     .readonly-value { padding: 0.625rem 0.75rem; border: 1px dashed var(--ba-secondary); border-radius: var(--ba-radius); background: #fafafa; font-size: 0.875rem; }
+    .group-title { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.375rem; display: block; }
     .notice { background: #fffbeb; border: 1px solid #fde68a; border-radius: var(--ba-radius); padding: 1rem; margin-top: 1rem; }
     .notice-error { background: #fef2f2; border-color: #fca5a5; }
     .customer-chip { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; }
+    .skeleton { height: 2.5rem; border-radius: var(--ba-radius); background: linear-gradient(90deg, #f3f4f6, #e5e7eb, #f3f4f6); margin-bottom: 0.5rem; }
+    .inline-retry { font-size: 0.8125rem; margin-left: 0.5rem; }
+    .btn-primary.is-disabled { opacity: 0.45; pointer-events: none; }
     .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
     .proto-only a { margin-right: 0.75rem; }
-  
-    .proto-only { margin-top: 1.5rem; padding: 0.875rem; border: 1px dashed #9ca3af; border-radius: var(--ba-radius); font-size: 0.8125rem; color: #4b5563; }
-    .proto-only a { margin-right: 0.75rem; }
-    .row.selected { background: #eff6ff; }
-    .state { display: none; }
-    body[data-state="recentes"] .st-recentes, body[data-state="sem-resultado"] .st-sem-resultado, body[data-state="falha"] .st-falha { display: block; }
   </style>
 </head>
-<body data-state="aprovada">
+<body data-variant="simples">
 
   <!--
     COMPONENT: NewRecurringScheduleForStaff
-    PAGE:       apps/web/app/dashboard/bookings/recurring/new/page.tsx  (GAP — M23-S19, rota proposta)
+    PAGE:       apps/web/app/dashboard/bookings/recurring/new/page.tsx  (GAP — M23-S19, rota a confirmar na discovery)
+    ENTRADA:    menu "+ Novo" da Agenda → "Recorrência" → seletor de cliente compartilhado (09-escolher-cliente, ?tipo=recorrencia, M23-S40)
+                → esta tela com ?customerId=. NÃO existe um passo de cliente próprio desta história.
     UC cobertos: UC-070 (staff variant)
+
+    ESTA TELA TEM VARIANTES (hash do protótipo; padrão #simples). Cada uma é uma forma de serviço que o servidor aceita
+    (TD49 Story 0/3) e que o formulário do cliente já mostra (customer/prototypes/minha-conta/13, 13g, 13h):
+      #simples          1 requisito CUSTOMER_CHOICE → um campo "Recurso" (como a tela 13 do cliente)
+      #padrao           serviço sem requisito de recurso (ou só o local padrão) → NENHUM campo de recurso (TD49 Story 3)
+      #pacote           pacote: 1 CUSTOMER_CHOICE (profissional) + 1 automático (sala) → um grupo + uma linha informativa (13h A)
+      #pacote-duas      pacote com dois CUSTOMER_CHOICE (profissional e sala) → dois grupos (13h A2)
+      #pacote-falta     um grupo sem escolha → erro sob o grupo, "Criar recorrência" bloqueado (13h C)
+      #opcoes           opções de um grupo carregando / com erro / vazias → bloqueia sem esconder os outros grupos (13h H)
+      #erros            validação antes do envio: dia da semana e data final além do prazo (13e A, A3)
+      #recusa           primeira ocorrência no passado (422 BOOKING_SCHEDULED_IN_PAST), acima do formulário, padrão mantido (13e A4)
+      #sem-ocorrencia   nenhum dia escolhido cai no período (422 BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES) (13e A5)
+      #sem-servicos     nenhum serviço tem recorrência habilitada (13g A)
+      #sem-elegivel     há serviços com recorrência habilitada, mas nenhum pode recorrer (13g B)
+
+    REGRAS (as mesmas do cliente — o filtro, o modelo e a validação são UM só código em features/booking/model/):
+      - Serviços oferecidos: recurrenceEligible, APPOINTMENT, sem legs, sem endereço de coleta, todo requisito com quantidade 1 e modo
+        CUSTOMER_CHOICE / AUTO_ANY / AUTO_FUNGIBLE_POOL (ou NONE só no local padrão), e duração NÃO escolhida pelo cliente.
+      - Um grupo "Recurso" por requisito CUSTOMER_CHOICE, na ordem do serviço; o primeiro item vem selecionado; requisito automático = só uma
+        linha informativa. Um serviço tem no máximo um requisito por tipo, então o título do grupo é o tipo (Profissional, Sala, Equipamento).
+      - Tudo-ou-nada: todos os grupos têm escolha ou nada é enviado; uma ocorrência que falha em QUALQUER requisito recusa a recorrência inteira.
+      - A EQUIPE É ISENTA da antecedência mínima e do máximo de dias (UC-070 A10) — "Começa em" aceita hoje —, mas nunca do passado.
+      - Duração é somente leitura. Serviço de duração escolhida pelo cliente fica fora, como no fluxo do cliente.
     DATA:
-      Lista de serviços: endpoint já existente do BFF (booking/services). NÃO há filtro no servidor por recorrência — o cliente filtra por
-        recurrenceEligible = true, bookingModel = APPOINTMENT, sem legs e com exatamente 1 resourceRequirement (replica assertServiceEligible).
+      Serviços: endpoint já existente. Opções de recurso por serviço: GET /public/services/:id/resource-options (uma entrada por requisito CUSTOMER_CHOICE).
       POST /recurring-booking-schedules
         Body: { customerId, serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
-                resourceSelections?: [{ resourceType, resourceId }] (um por requisito CUSTOMER_CHOICE; a política é derivada pelo servidor), startsOn, endsOn }  — endsOn OBRIGATÓRIO, no máximo startsOn + prazo máximo do serviço (90 dias por padrão); todas as reservas do período são verificadas e criadas de uma vez
-        customerId é obrigatório quando o autor é STAFF|MANAGER (o backend responde 404 BOOKING_CUSTOMER_NOT_FOUND se faltar ou não existir).
+                resourceSelections?: [{ resourceType, resourceId }] (um por requisito CUSTOMER_CHOICE; a política é derivada pelo servidor),
+                startsOn, endsOn }  — endsOn OBRIGATÓRIO, no máximo startsOn + prazo máximo do serviço (90 dias por padrão)
+        customerId é obrigatório para STAFF|MANAGER (404 BOOKING_CUSTOMER_NOT_FOUND se faltar ou não existir).
         Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
-      Os campos e as regras são os mesmos do fluxo do cliente (customer/prototypes/minha-conta/13-nova-recorrencia.html).
-      O campo "Recurso" só aparece quando o serviço exige escolha (CUSTOMER_CHOICE → FIXED_ASSIGNMENT); duração é somente leitura.
-    Estrutura: formulário no centro, painel de ações à direita (barra fixa no mobile), como servicos/02.
+    Estrutura: formulário no centro, painel de ações à direita (barra fixa no mobile), criação direta (sem passo de revisão — decidido em
+      2026-10-15: a equipe conhece o padrão e o servidor confere todas as ocorrências no envio).
   -->
 
   <!-- Prototype banner -->
@@ -140,7 +111,7 @@
     padding: 0.375rem 1rem; font-size: 0.8125rem;
     text-align: center; color: #92400e;
   ">
-    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente. 
+    Protótipo — UC-070 — recorrência criada pela equipe em nome de um cliente. Variante: <span id="proto-nav"></span>
   </div>
 
   <!-- TOP BAR — back arrow replaces brand on mobile -->
@@ -161,7 +132,7 @@
     <h1 class="topbar-page-title">Nova recorrência</h1>
 
     <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
-      
+
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
       <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
     </div>
@@ -252,29 +223,117 @@
           <div class="card customer-chip" style="margin-top:1rem;">
             <div class="list-avatar">AC</div>
             <div style="flex:1;"><strong>Ana Costa</strong><p class="meta">ana@email.com · a recorrência será criada em nome dela</p></div>
-            <a href="09-escolher-cliente.html" style="font-size:0.8125rem;">Trocar cliente</a>
+            <a href="09-escolher-cliente.html?tipo=recorrencia" style="font-size:0.8125rem;">Trocar cliente</a>
           </div>
 
-          <div class="card" style="margin-top:1rem;">
+          <!-- ── Pattern refused above the form (13e A4 / A5): pattern kept ─────────────── -->
+          <div class="notice notice-error" data-v="recusa" role="alert">
+            <strong>O primeiro horário já passou</strong>
+            <p class="meta">A primeira reserva deste padrão cairia num horário que já começou. Escolha uma data de início a partir de hoje — o restante do padrão foi mantido.</p>
+          </div>
+          <div class="notice notice-error" data-v="sem-ocorrencia" role="alert">
+            <strong>Nenhum dia escolhido cai neste período</strong>
+            <p class="meta">Nenhum dos dias da semana selecionados cai entre as datas de início e de término. Ajuste os dias ou o período — o restante do padrão foi mantido.</p>
+          </div>
+
+          <!-- ── Empty states (13g): no form, only the explanation ──────────────────────── -->
+          <div class="card" data-v="sem-servicos" style="margin-top:1rem;padding:1.5rem;text-align:center;">
+            <p style="font-weight:700;margin-bottom:0.375rem;">Nenhum serviço permite reserva recorrente no momento.</p>
+            <p class="meta" style="margin-bottom:1rem;">A recorrência é ativada no editor de cada serviço, em Serviços. Enquanto isso, você pode fazer um agendamento avulso para Ana Costa.</p>
+            <a href="../servicos/01-servicos-list.html" class="btn-secondary" style="display:inline-block;padding:0.625rem 1rem;margin-right:0.5rem;">Ver serviços</a>
+            <a href="09-escolher-cliente.html?tipo=agendamento" class="btn-primary" style="display:inline-block;padding:0.625rem 1rem;">Fazer um agendamento</a>
+          </div>
+          <div class="card" data-v="sem-elegivel" style="margin-top:1rem;padding:1.5rem;text-align:center;">
+            <p style="font-weight:700;margin-bottom:0.375rem;">Os serviços com recorrência ainda não aceitam reserva recorrente.</p>
+            <p class="meta" style="margin-bottom:1rem;">Há serviços com a recorrência ativada, mas nenhum atende à regra (por exemplo, tem itinerário, endereço de coleta ou duração escolhida pelo cliente). O editor do serviço mostra o motivo. Enquanto isso, você pode fazer um agendamento avulso.</p>
+            <a href="../servicos/01-servicos-list.html" class="btn-secondary" style="display:inline-block;padding:0.625rem 1rem;margin-right:0.5rem;">Ver serviços</a>
+            <a href="09-escolher-cliente.html?tipo=agendamento" class="btn-primary" style="display:inline-block;padding:0.625rem 1rem;">Fazer um agendamento</a>
+          </div>
+
+          <!-- ── The form ───────────────────────────────────────────────────────────────── -->
+          <div class="card" data-form style="margin-top:1rem;">
             <div class="field">
               <label class="form-label" for="service">Serviço</label>
-              <select class="form-input" id="service">
+              <select class="form-input" id="service" data-v="simples recusa sem-ocorrencia erros">
                 <option>Sala Aurora — 2 horas · R$ 100,00</option>
                 <option>Sala de reunião — 1 hora · R$ 60,00 (requer aprovação)</option>
+              </select>
+              <select class="form-input" id="service-padrao" data-v="padrao">
+                <option>Lavagem completa — 1 hora · R$ 80,00</option>
+                <option>Polimento — 2 horas · R$ 150,00 (requer aprovação)</option>
+              </select>
+              <select class="form-input" id="service-pacote" data-v="pacote pacote-duas pacote-falta opcoes">
+                <option>Consulta com sala — 1 hora · R$ 150,00</option>
+                <option>Sessão de fisioterapia — 1 hora · R$ 120,00 (requer aprovação)</option>
               </select>
               <p class="field-hint">Só aparecem serviços que permitem reserva recorrente.</p>
             </div>
 
-            <div class="field">
+            <!-- Resource: one requirement, chosen by the customer's side (13) -->
+            <div class="field" data-v="simples recusa sem-ocorrencia erros">
               <span class="form-label">Recurso</span>
               <label class="choice on"><input type="radio" name="resource" checked> Sala Aurora</label>
               <label class="choice"><input type="radio" name="resource"> Sala Horizonte</label>
               <p class="field-hint">Este é o recurso que ficará reservado toda semana.</p>
             </div>
 
+            <!-- Default shape: no resource field at all (TD49 Story 3) — the tenant's location is checked and held, nothing to choose -->
+            <div class="field" data-v="padrao">
+              <p class="field-hint" style="margin-top:0;">Este serviço não precisa de um recurso para escolher — só o horário e o período abaixo.</p>
+            </div>
+
+            <!-- Bundle (13h A): Profissional chosen, Sala automatic -->
+            <div class="field" data-v="pacote">
+              <span class="group-title">Profissional</span>
+              <label class="choice on"><input type="radio" name="staff-a" checked> Dr. Paulo</label>
+              <label class="choice"><input type="radio" name="staff-a"> Dra. Lia</label>
+              <p class="field-hint">Este profissional fica reservado toda semana.</p>
+            </div>
+            <div class="field" data-v="pacote">
+              <span class="group-title">Sala</span>
+              <div class="readonly-value">Sala — escolhida automaticamente a cada ocorrência</div>
+              <p class="field-hint">Uma sala livre é escolhida em cada data; se nenhuma estiver livre em alguma data, nada é criado.</p>
+            </div>
+
+            <!-- Bundle (13h A2): two groups -->
+            <div class="field" data-v="pacote-duas">
+              <span class="group-title">Profissional</span>
+              <label class="choice on"><input type="radio" name="staff-b" checked> Dr. Paulo</label>
+              <label class="choice"><input type="radio" name="staff-b"> Dra. Lia</label>
+            </div>
+            <div class="field" data-v="pacote-duas">
+              <span class="group-title">Sala</span>
+              <label class="choice on"><input type="radio" name="room-b" checked> Sala Aurora</label>
+              <label class="choice"><input type="radio" name="room-b"> Sala Horizonte</label>
+              <p class="field-hint">Os dois ficam reservados toda semana.</p>
+            </div>
+
+            <!-- Bundle (13h C): a group without a pick -->
+            <div class="field" data-v="pacote-falta">
+              <span class="group-title">Profissional</span>
+              <label class="choice invalid"><input type="radio" name="staff-c"> Dr. Paulo</label>
+              <label class="choice invalid"><input type="radio" name="staff-c"> Dra. Lia</label>
+              <p class="field-error">Escolha um profissional.</p>
+            </div>
+            <div class="field" data-v="pacote-falta">
+              <span class="group-title">Sala</span>
+              <label class="choice on"><input type="radio" name="room-c" checked> Sala Aurora</label>
+              <label class="choice"><input type="radio" name="room-c"> Sala Horizonte</label>
+            </div>
+
+            <!-- Bundle (13h H): one group failed to load, another has no options; the rest stays visible -->
+            <div class="field" data-v="opcoes">
+              <span class="group-title">Profissional</span>
+              <p class="field-error" style="margin-top:0;">Não foi possível carregar os profissionais. <a class="inline-retry" href="#opcoes">Tentar de novo</a></p>
+            </div>
+            <div class="field" data-v="opcoes">
+              <span class="group-title">Sala</span>
+              <p class="field-hint" style="margin-top:0;">Nenhuma sala disponível para este serviço. Um gerente pode ajustar os recursos do serviço em Serviços.</p>
+            </div>
+
             <div class="field">
               <span class="form-label">Dias da semana</span>
-              <div class="chips">
+              <div class="chips" id="weekdays">
                 <label class="chip"><input type="checkbox"> Seg</label>
                 <label class="chip on"><input type="checkbox" checked> Ter</label>
                 <label class="chip"><input type="checkbox"> Qua</label>
@@ -283,6 +342,7 @@
                 <label class="chip"><input type="checkbox"> Sáb</label>
                 <label class="chip"><input type="checkbox"> Dom</label>
               </div>
+              <p class="field-error" data-v="erros">Escolha pelo menos um dia da semana.</p>
             </div>
 
             <div class="field">
@@ -298,20 +358,22 @@
             <div class="field">
               <label class="form-label" for="starts-on">Começa em</label>
               <input class="form-input" id="starts-on" type="date" value="2026-08-18">
+              <p class="field-hint">A equipe pode começar a partir de hoje, mesmo dentro da antecedência mínima do serviço. Datas passadas não são aceitas.</p>
             </div>
 
             <div class="field" style="margin-bottom:0;">
               <label class="form-label" for="ends-on">Termina em</label>
               <input class="form-input" id="ends-on" type="date" value="2026-11-11" min="2026-08-18" max="2026-11-16" required>
               <p class="field-hint">Escolha até quando a reserva se repete — no máximo 90 dias, até 16 nov. Depois disso a cliente pode renovar.</p>
+              <p class="field-error" data-v="erros">A data final passa do limite de 90 dias (até 16 nov). Escolha uma data anterior — depois a cliente pode renovar.</p>
             </div>
           </div>
 
-          <div class="notice">
+          <div class="notice" data-form>
             <strong>Como funciona</strong>
-            <p class="meta">Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. A recorrência fica na conta de Ana Costa, que poderá pular, reagendar ou encerrar.</p>
+            <p class="meta">Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. <span data-v="pacote pacote-duas pacote-falta opcoes">Em um serviço com mais de um recurso, todos precisam estar livres em todas as datas. </span>A recorrência fica na conta de Ana Costa, que poderá pular, reagendar ou encerrar, e ela recebe um e-mail quando a recorrência ficar ativa.</p>
+            <p class="meta" data-v="simples recusa sem-ocorrencia erros padrao" style="margin-top:0.5rem;">Se o serviço exigir aprovação (marcado "requer aprovação"), o pedido espera uma decisão em <strong>Precisa de ação</strong> na Agenda — o horário fica protegido enquanto isso.</p>
           </div>
-
 
             <div class="proto-only">
               <strong>Simular resultado (só no protótipo):</strong><br>
@@ -319,6 +381,7 @@
               <a href="09c-nova-recorrencia-resultado.html#aguardando">Aguardando aprovação</a>
               <a href="09c-nova-recorrencia-resultado.html#conflito">Conflito</a>
               <a href="09c-nova-recorrencia-resultado.html#limite">Limite</a>
+              <a href="09c-nova-recorrencia-resultado.html#telefone">Cliente sem telefone</a>
               <a href="09c-nova-recorrencia-resultado.html#cliente">Cliente não encontrado</a>
               <a href="09c-nova-recorrencia-resultado.html#falha">Falha</a>
             </div>
@@ -326,10 +389,10 @@
 
           <div class="detail-aside">
             <div class="card" style="padding:1.25rem;">
-              <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Criar recorrência</a>
-              <a href="09-escolher-cliente.html" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Voltar</a>
+              <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" data-submit data-form style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">Criar recorrência</a>
+              <a href="09-escolher-cliente.html?tipo=recorrencia" class="btn-secondary" style="display:block;text-align:center;padding:0.75rem;">Voltar</a>
               <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:1rem 0;">
-              <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;">Verificamos todas as ocorrências do período antes de criar; se alguma não estiver disponível, nada é criado.</p>
+              <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);line-height:1.5;" data-form>Verificamos todas as ocorrências do período antes de criar; se alguma não estiver disponível, nada é criado.</p>
             </div>
           </div>
         </div><!-- /.detail-layout -->
@@ -339,9 +402,34 @@
   </div><!-- /.dashboard-layout -->
 
   <div class="mobile-action-bar" style="position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.875rem 1rem calc(0.875rem + env(safe-area-inset-bottom, 0)); z-index: 20; box-shadow: 0 -2px 8px rgba(0,0,0,0.06);">
-    <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Criar recorrência</a>
-    <a href="09-escolher-cliente.html" class="btn-secondary" style="display:block;text-align:center;">Voltar</a>
+    <a href="09c-nova-recorrencia-resultado.html#criada" class="btn-primary" data-submit data-form style="display:block;text-align:center;margin-bottom:.625rem;">Criar recorrência</a>
+    <a href="09-escolher-cliente.html?tipo=recorrencia" class="btn-secondary" style="display:block;text-align:center;">Voltar</a>
   </div>
+
+  <script>
+    var VARIANTS = ['simples','padrao','pacote','pacote-duas','pacote-falta','opcoes','erros','recusa','sem-ocorrencia','sem-servicos','sem-elegivel'];
+    var NO_FORM = ['sem-servicos','sem-elegivel'];       // the explanation replaces the form and the submit button
+    var BLOCKED = ['pacote-falta','opcoes'];             // the form shows but "Criar recorrência" cannot be pressed
+    function applyVariant() {
+      var h = location.hash.replace('#','');
+      var v = VARIANTS.indexOf(h) >= 0 ? h : 'simples';
+      document.body.dataset.variant = v;
+      document.querySelectorAll('[data-v]').forEach(function (el) {
+        el.hidden = el.dataset.v.split(' ').indexOf(v) < 0;
+      });
+      document.querySelectorAll('[data-form]').forEach(function (el) { el.hidden = NO_FORM.indexOf(v) >= 0; });
+      document.querySelectorAll('[data-submit]').forEach(function (el) { el.classList.toggle('is-disabled', BLOCKED.indexOf(v) >= 0); });
+      var chips = document.querySelectorAll('#weekdays .chip');
+      chips.forEach(function (chip, i) {
+        var on = v === 'erros' ? false : (v === 'sem-ocorrencia' ? i === 6 : i === 1);   // sem-ocorrencia: only Sunday, outside the term
+        chip.classList.toggle('on', on); chip.querySelector('input').checked = on;
+      });
+      document.getElementById('ends-on').value = v === 'erros' ? '2026-12-20' : (v === 'sem-ocorrencia' ? '2026-08-20' : (v === 'recusa' ? '2026-10-20' : '2026-11-11'));
+      document.getElementById('starts-on').value = v === 'recusa' ? '2026-08-04' : '2026-08-18';
+    }
+    window.addEventListener('hashchange', applyVariant); applyVariant();
+    document.getElementById('proto-nav').innerHTML = VARIANTS.map(function (x) { return '<a href="#' + x + '">' + x + '</a>'; }).join(' · ');
+  </script>
 
 </body>
 </html>
