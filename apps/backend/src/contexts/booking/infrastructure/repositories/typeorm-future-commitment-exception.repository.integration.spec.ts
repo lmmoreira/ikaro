@@ -11,6 +11,21 @@ const TENANT_A = uuidv7();
 const TENANT_B = uuidv7();
 const STAFF_ID = uuidv7();
 
+// Polls until some backend is parked on a row lock, pausing inside Postgres (pg_sleep) so no
+// test-side timer is involved. Bounded: a lock wait that never appears fails the test instead of
+// hanging it.
+async function waitForBlockedRowLock(dataSource: DataSource): Promise<void> {
+  for (let attempt = 0; attempt < 500; attempt++) {
+    const [{ waiting }] = await dataSource.query<{ waiting: number }[]>(
+      `SELECT count(*)::int AS waiting FROM pg_stat_activity
+        WHERE datname = current_database() AND wait_event_type = 'Lock'`,
+    );
+    if (waiting > 0) return;
+    await dataSource.query('SELECT pg_sleep(0.01)');
+  }
+  throw new Error('no transaction ever blocked on the row lock');
+}
+
 describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
   let dataSource: DataSource;
   let txManager: TypeOrmTransactionManager;
@@ -253,16 +268,21 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
         .build();
       await save(exception);
       const order: string[] = [];
+      let resolverHasLock!: () => void;
+      const resolverLocked = new Promise<void>((resolve) => (resolverHasLock = resolve));
+      let releaseResolver!: () => void;
+      const resolverReleased = new Promise<void>((resolve) => (releaseResolver = resolve));
 
       const resolver = txManager.run(async () => {
         const locked = (await repo.findByIdForUpdate(exception.id, TENANT_A))!;
         order.push('resolver-locked');
-        await new Promise((resolve) => setTimeout(resolve, 150));
+        resolverHasLock();
+        await resolverReleased;
         locked.resolve(STAFF_ID, 'KEEP', null, 'corr-1');
         await repo.save(locked);
         order.push('resolver-committing');
       });
-      await new Promise((resolve) => setTimeout(resolve, 30));
+      await resolverLocked;
       const reactivation = txManager.run(async () => {
         const open = await repo.findOpenBySourceForUpdate(
           TENANT_A,
@@ -271,6 +291,8 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
         );
         order.push(`reactivation-saw-${open.length}-open`);
       });
+      await waitForBlockedRowLock(dataSource);
+      releaseResolver();
       await Promise.all([resolver, reactivation]);
 
       expect(order).toEqual(['resolver-locked', 'resolver-committing', 'reactivation-saw-0-open']);

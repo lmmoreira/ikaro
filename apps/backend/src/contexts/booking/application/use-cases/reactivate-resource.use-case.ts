@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { mapSequentially } from '../../../../shared/utils/sequential';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -83,10 +84,10 @@ export class ReactivateResourceUseCase {
         'RESOURCE_DEACTIVATION',
         input.id,
       );
-      for (const entry of openEntries) {
+      await mapSequentially(openEntries, async (entry) => {
         entry.dismiss(input.staffId, 'RESOURCE_REACTIVATED', input.correlationId);
         await this.exceptionRepo.save(entry);
-      }
+      });
       await this.resourceRepo.save(resource);
     });
 
