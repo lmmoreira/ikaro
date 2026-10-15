@@ -3,13 +3,12 @@
 import type { RefObject } from 'react';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse } from '@ikaro/types';
-import { ChevronDown, Filter } from 'lucide-react';
-import { Button } from '@/shared/components/ui/button';
-import { cn } from '@/shared/utils/cn';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useSelectableResources } from '@/features/booking/schedule/useSelectableResources';
 import { RESOURCE_FILTER_MAX_SELECTED } from '@/features/booking/schedule/schedule-page-interaction-handlers';
+import { FilterCheckboxOption } from '../FilterCheckboxOption';
+import { FloatingFilterMenu } from '../FloatingFilterMenu';
 
 interface ResourceOptionsListProps {
   readonly isLoading: boolean;
@@ -45,26 +44,14 @@ function ResourceOptionsList({
     <>
       {resources.map((resource) => {
         const isChecked = selectedResourceIdSet.has(resource.id);
-        const isDisabled = !isChecked && selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED;
         return (
-          <label
+          <FilterCheckboxOption
             key={resource.id}
-            className={cn(
-              'flex items-center gap-3 rounded-xl px-2 py-2 transition-colors',
-              isDisabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-gray-50',
-            )}
-          >
-            <input
-              type="checkbox"
-              checked={isChecked}
-              disabled={isDisabled}
-              onChange={() => onToggleResource(resource.id)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="min-w-0 flex-1 text-sm font-medium text-gray-900">
-              {resource.name}
-            </span>
-          </label>
+            label={resource.name}
+            checked={isChecked}
+            disabled={!isChecked && selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED}
+            onChange={() => onToggleResource(resource.id)}
+          />
         );
       })}
     </>
@@ -81,8 +68,8 @@ interface ResourceFilterMenuProps {
   readonly onClose: () => void;
 }
 
-// MANAGER-only floating filter (M21 Cluster 1) — mirrors ScheduleStatusFilterMenu's own
-// trigger+popover shape exactly, stacked just above it so both can be open independently.
+// MANAGER-only floating filter (M21 Cluster 1) — the same FloatingFilterMenu shell as
+// ScheduleStatusFilterMenu, stacked just above it so both can be open independently.
 // Checking zero resources means the tenant-wide default (today's exact behavior, unchanged);
 // checking one or more shows those resources' own closures/openings in addition to the
 // tenant-wide ones, which always apply regardless of what's checked here.
@@ -101,77 +88,51 @@ export function ResourceFilterMenu({
   const { resources, isLoading, isError, error } = useSelectableResources();
 
   return (
-    <div
-      ref={containerRef}
-      className="fixed bottom-44 right-4 z-30 w-fit max-w-[calc(100vw-2rem)] lg:bottom-24 lg:right-6"
+    <FloatingFilterMenu
+      containerRef={containerRef}
+      open={open}
+      onToggleOpen={onToggleOpen}
+      onReset={onReset}
+      onClose={onClose}
+      triggerLabel={t('resourceFilterTrigger')}
+      title={t('resourceFilterMenuTitle')}
+      description={t('resourceFilterMenuDescription')}
+      resetLabel={t('resourceFilterReset')}
+      doneLabel={t('resourceFilterDone')}
+      positionClassName="bottom-44 right-4 lg:bottom-24 lg:right-6"
     >
-      <Button
-        type="button"
-        aria-label={t('resourceFilterTrigger')}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={onToggleOpen}
-        className="h-auto w-fit justify-between rounded-full border border-blue-500/20 bg-blue-600 px-3 py-2.5 text-left text-white shadow-lg hover:bg-blue-600/90"
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <Filter className="h-4 w-4 shrink-0" />
-          <span className="truncate text-sm font-semibold leading-tight">
-            {t('resourceFilterTrigger')}
-          </span>
-        </div>
-        <ChevronDown
-          className={cn('h-4 w-4 shrink-0 transition-transform', open && 'rotate-180')}
-        />
-      </Button>
-
-      {open ? (
-        <div className="absolute bottom-full right-0 mb-3 overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl">
-          <div className="px-4 py-3">
-            <p className="text-sm font-semibold text-gray-900">{t('resourceFilterMenuTitle')}</p>
-            <p className="mt-1 text-xs text-gray-500">{t('resourceFilterMenuDescription')}</p>
+      {isError ? (
+        <p
+          data-testid="resource-filter-error"
+          className="px-4 py-3 text-sm text-red-600 border-y border-gray-100"
+        >
+          {resolveErrorMessageFromApiError(error, locale)}
+        </p>
+      ) : (
+        <>
+          <div
+            data-testid="resource-filter-options"
+            className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2"
+          >
+            <ResourceOptionsList
+              isLoading={isLoading}
+              resources={resources}
+              selectedResourceIdSet={selectedResourceIdSet}
+              onToggleResource={onToggleResource}
+              loadingLabel={commonT('loading')}
+              emptyLabel={t('resourceFilterEmpty')}
+            />
           </div>
-          {isError ? (
+          {selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED ? (
             <p
-              data-testid="resource-filter-error"
-              className="px-4 py-3 text-sm text-red-600 border-y border-gray-100"
+              data-testid="resource-filter-max-reached"
+              className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500"
             >
-              {resolveErrorMessageFromApiError(error, locale)}
+              {t('resourceFilterMaxReached', { max: RESOURCE_FILTER_MAX_SELECTED })}
             </p>
-          ) : (
-            <>
-              <div
-                data-testid="resource-filter-options"
-                className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2"
-              >
-                <ResourceOptionsList
-                  isLoading={isLoading}
-                  resources={resources}
-                  selectedResourceIdSet={selectedResourceIdSet}
-                  onToggleResource={onToggleResource}
-                  loadingLabel={commonT('loading')}
-                  emptyLabel={t('resourceFilterEmpty')}
-                />
-              </div>
-              {selectedResourceIdSet.size >= RESOURCE_FILTER_MAX_SELECTED ? (
-                <p
-                  data-testid="resource-filter-max-reached"
-                  className="border-b border-gray-100 px-4 py-2 text-xs text-gray-500"
-                >
-                  {t('resourceFilterMaxReached', { max: RESOURCE_FILTER_MAX_SELECTED })}
-                </p>
-              ) : null}
-            </>
-          )}
-          <div className="flex items-center justify-between gap-2 px-4 py-3">
-            <Button type="button" variant="ghost" size="sm" onClick={onReset}>
-              {t('resourceFilterReset')}
-            </Button>
-            <Button type="button" variant="outline" size="sm" onClick={onClose}>
-              {t('resourceFilterDone')}
-            </Button>
-          </div>
-        </div>
-      ) : null}
-    </div>
+          ) : null}
+        </>
+      )}
+    </FloatingFilterMenu>
   );
 }

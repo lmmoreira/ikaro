@@ -10,6 +10,8 @@ import { FormattingContext } from '@/shared/lib/formatting/formatting-context';
 const mockUseActionNeeded = vi.fn();
 const mockUseToday = vi.fn();
 const mockUseUpcoming = vi.fn();
+const mockUsePendingRecurrences = vi.fn();
+const refetchRecurrences = vi.fn();
 const approveBookingMutateAsync = vi.fn().mockResolvedValue(undefined);
 const routerPush = vi.fn();
 
@@ -26,6 +28,24 @@ vi.mock('next-intl', () => ({
         emptyToday: 'Nenhum agendamento confirmado para hoje.',
         emptyUpcomingFiltered: 'Nenhum agendamento confirmado para o dia selecionado.',
         emptyUpcoming: 'Nenhum agendamento confirmado nos próximos dias.',
+        recurrenceCount: '{count} recorrência(s)',
+        countJoin: '{bookings} · {recurrences}',
+        recurrencesLoadError: 'Não foi possível carregar os pedidos de recorrência.',
+        recurrencesRetry: 'Tentar de novo',
+        filterTrigger: 'Filtrar agenda',
+        filterMenuTitle: 'Mostrar na agenda',
+        filterMenuDescription: 'Marque o que deve aparecer na lista.',
+        filterGroupActionNeeded: 'Precisa de ação',
+        filterGroupConfirmed: 'Confirmados',
+        filterOptionBookings: 'Agendamentos',
+        filterOptionRecurrences: 'Recorrências',
+        filterOptionToday: 'Hoje',
+        filterOptionUpcoming: 'Próximos dias',
+        filterReset: 'Padrão',
+        filterDone: 'Fechar',
+        filterHiddenCount: '{count} ocultas',
+        filterAllHidden: 'Tudo está oculto pelo filtro.',
+        filterClear: 'Limpar filtro',
       },
     };
     return (key: string, params?: Record<string, unknown>) => {
@@ -50,6 +70,22 @@ vi.mock('@/features/booking/hooks/useBookings', () => ({
   useActionNeededBookings: (...args: unknown[]) => mockUseActionNeeded(...args),
   useTodayBookings: (...args: unknown[]) => mockUseToday(...args),
   useUpcomingBookings: (...args: unknown[]) => mockUseUpcoming(...args),
+}));
+
+vi.mock('@/features/booking/hooks/useRecurringSchedules', () => ({
+  usePendingRecurringSchedules: (...args: unknown[]) => mockUsePendingRecurrences(...args),
+}));
+
+vi.mock('@/providers/tenant-provider', () => ({
+  useTenant: () => ({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
+}));
+
+vi.mock('./RecurringScheduleCard', () => ({
+  RecurringScheduleCard: ({ schedule }: { schedule: { id: string; serviceName: string } }) => (
+    <div data-testid="recurring-card" data-id={schedule.id}>
+      {schedule.serviceName}
+    </div>
+  ),
 }));
 
 vi.mock('@/features/booking/hooks/useBookingMutations', () => ({
@@ -190,6 +226,12 @@ const DEFAULT_PROPS = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  globalThis.window.localStorage.clear();
+  mockUsePendingRecurrences.mockReturnValue({
+    data: [],
+    isError: false,
+    refetch: refetchRecurrences,
+  });
   mockUseActionNeeded.mockReturnValue({ data: emptyList() });
   mockUseToday.mockReturnValue({ data: emptyList() });
   mockUseUpcoming.mockReturnValue({ data: emptyList() });
@@ -337,6 +379,246 @@ describe('BookingQueuePage — card rendering', () => {
     mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
     expect(screen.queryByText('Nenhum agendamento precisa de ação.')).not.toBeInTheDocument();
+  });
+});
+
+function makeRecurrence(id: string, serviceName: string, holdExpiresAt: string | null) {
+  return {
+    id,
+    customerId: `cust-${id}`,
+    serviceId: 'svc-1',
+    serviceName,
+    recurrence: {
+      frequency: 'WEEKLY' as const,
+      daysOfWeek: ['tuesday' as const],
+      startTime: '10:00',
+      durationMinutes: 120,
+    },
+    startsOn: '2026-07-07',
+    endsOn: '2026-09-29',
+    status: 'PENDING_APPROVAL' as const,
+    assignmentPolicy: 'FIXED_ASSIGNMENT' as const,
+    approvalHoldExpiresAt: holdExpiresAt,
+  };
+}
+
+function withRecurrences(items: ReturnType<typeof makeRecurrence>[]) {
+  mockUsePendingRecurrences.mockReturnValue({
+    data: items,
+    isError: false,
+    refetch: refetchRecurrences,
+  });
+}
+
+describe('BookingQueuePage — recurrence requests in "Precisa de ação"', () => {
+  it('renders no recurrence card and keeps the plain booking count when there are none (regression pin)', () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria', 'João']) });
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.queryByTestId('recurring-card')).not.toBeInTheDocument();
+    expect(screen.getByText('2 agendamento(s)')).toBeInTheDocument();
+    expect(screen.queryByText(/recorrência/)).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('booking-card')).toHaveLength(2);
+  });
+
+  it('pins the recurrence cards above the bookings, closest decision deadline first', () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    withRecurrences([
+      makeRecurrence('later', 'Sala B', '2026-06-26T13:00:00.000Z'),
+      makeRecurrence('sooner', 'Sala A', '2026-06-26T12:00:00.000Z'),
+    ]);
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    const order = screen
+      .getAllByTestId(/recurring-card|booking-card/)
+      .map((el) => el.dataset['id']);
+    expect(order).toEqual(['sooner', 'later', 'b-0']);
+  });
+
+  it('counts both kinds in the block header', () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria', 'João']) });
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.getByText('2 agendamento(s) · 1 recorrência(s)')).toBeInTheDocument();
+  });
+
+  it('counts only recurrences when there is no booking to act on', () => {
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.getByText('1 recorrência(s)')).toBeInTheDocument();
+    expect(screen.queryByText('Nenhum agendamento precisa de ação.')).not.toBeInTheDocument();
+  });
+
+  it('shows the requests whichever week the strip is on', async () => {
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Próximo período' }));
+
+    expect(screen.getByTestId('recurring-card')).toBeInTheDocument();
+  });
+
+  it('offers a retry when the pending requests could not be loaded', async () => {
+    mockUsePendingRecurrences.mockReturnValue({
+      data: undefined,
+      isError: true,
+      refetch: refetchRecurrences,
+    });
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.getByTestId('recurrences-load-error')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Tentar de novo' }));
+    expect(refetchRecurrences).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('BookingQueuePage — "Filtrar agenda" balloon', () => {
+  async function openBalloon() {
+    await userEvent.click(screen.getByRole('button', { name: 'Filtrar agenda' }));
+  }
+
+  it('starts with every block visible and no hidden-count badge', () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.getByTestId('recurring-card')).toBeInTheDocument();
+    expect(screen.getAllByTestId('booking-card')).toHaveLength(1);
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+    expect(screen.getByText('Próximos dias — confirmados')).toBeInTheDocument();
+    expect(screen.queryByTestId('floating-filter-hidden-count')).not.toBeInTheDocument();
+  });
+
+  it('hides the recurrences and keeps the bookings, and counts what is hidden', async () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Recorrências/ }));
+
+    expect(screen.queryByTestId('recurring-card')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('booking-card')).toHaveLength(1);
+    expect(screen.getByText('1 agendamento(s)')).toBeInTheDocument();
+    expect(screen.getByTestId('floating-filter-hidden-count')).toHaveTextContent('1');
+  });
+
+  it('hides the bookings and keeps the recurrences', async () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Agendamentos/ }));
+
+    expect(screen.getByTestId('recurring-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('booking-card')).not.toBeInTheDocument();
+  });
+
+  it('hides "Hoje" and "Próximos dias" independently of the action-needed block', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Hoje/ }));
+    expect(screen.queryByText('Hoje — confirmados')).not.toBeInTheDocument();
+    expect(screen.getByText('Próximos dias — confirmados')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Próximos dias/ }));
+    expect(screen.queryByText('Próximos dias — confirmados')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Precisa de ação' })).toBeInTheDocument();
+  });
+
+  it('drops the whole "Precisa de ação" block when both of its kinds are hidden', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Agendamentos/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Recorrências/ }));
+
+    expect(screen.queryByText('Nenhum agendamento precisa de ação.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Precisa de ação' })).not.toBeInTheDocument();
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+  });
+
+  it('shows the empty state with "Limpar filtro" when everything is hidden, and restores it', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+    for (const name of [/Agendamentos/, /Recorrências/, /Hoje/, /Próximos dias/]) {
+      await userEvent.click(screen.getByRole('checkbox', { name }));
+    }
+    expect(screen.getByTestId('agenda-all-hidden')).toBeInTheDocument();
+    expect(screen.getByText('Tudo está oculto pelo filtro.')).toBeInTheDocument();
+    expect(screen.queryByText('Hoje — confirmados')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Limpar filtro' }));
+
+    expect(screen.queryByTestId('agenda-all-hidden')).not.toBeInTheDocument();
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Precisa de ação' })).toBeInTheDocument();
+  });
+
+  it('"Padrão" shows every block again', async () => {
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Hoje/ }));
+    expect(screen.queryByText('Hoje — confirmados')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Padrão' }));
+
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+  });
+
+  it('remembers the choice after a remount (persisted per tenant)', async () => {
+    const first = render(<BookingQueuePage {...DEFAULT_PROPS} />);
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Próximos dias/ }));
+    first.unmount();
+
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    expect(screen.queryByText('Próximos dias — confirmados')).not.toBeInTheDocument();
+    expect(screen.getByText('Hoje — confirmados')).toBeInTheDocument();
+  });
+
+  it('feeds each option its own count', async () => {
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria', 'João', 'Ana']) });
+    mockUseToday.mockReturnValue({ data: makeList(['Paulo']) });
+    mockUseUpcoming.mockReturnValue({ data: makeUpcomingList() });
+    withRecurrences([makeRecurrence('r-1', 'Sala A', '2026-06-26T12:00:00.000Z')]);
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await openBalloon();
+
+    const rowOf = (name: RegExp) => screen.getByRole('checkbox', { name }).closest('label');
+    expect(rowOf(/Agendamentos/)).toHaveTextContent('3');
+    expect(rowOf(/Recorrências/)).toHaveTextContent('1');
+    expect(rowOf(/Hoje/)).toHaveTextContent('1');
+    expect(rowOf(/Próximos dias/)).toHaveTextContent('2');
+  });
+
+  it('keeps the picked day while "Próximos dias" is hidden, so it applies again when shown', async () => {
+    mockUseUpcoming.mockReturnValue({ data: makeUpcomingList() });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+    await userEvent.click(screen.getByRole('button', { name: '27' }));
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-selected-date', '2026-06-27');
+
+    await openBalloon();
+    await userEvent.click(screen.getByRole('checkbox', { name: /Próximos dias/ }));
+    // Hidden block: nothing to act on, and the pick is neither cleared nor moved.
+    expect(screen.queryByText(/Próximos dias — /)).not.toBeInTheDocument();
+    expect(screen.getByTestId('week-nav')).toHaveAttribute('data-selected-date', '2026-06-27');
+
+    await userEvent.click(screen.getByRole('checkbox', { name: /Próximos dias/ }));
+    expect(screen.getByText('Próximos dias — 27/06')).toBeInTheDocument();
   });
 });
 

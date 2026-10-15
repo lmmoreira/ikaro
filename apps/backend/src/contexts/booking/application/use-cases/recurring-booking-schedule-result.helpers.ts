@@ -27,6 +27,7 @@ export function toRecurringBookingScheduleResult(
       resourceId: assignment.resourceId,
     })),
     approvalHoldExpiresAt: schedule.approvalHoldExpiresAt?.toISOString() ?? null,
+    createdAt: schedule.createdAt.toISOString(),
     renewable,
   };
 }

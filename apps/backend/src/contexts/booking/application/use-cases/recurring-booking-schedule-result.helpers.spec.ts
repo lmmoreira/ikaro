@@ -60,6 +60,7 @@ describe('toRecurringBookingScheduleResult', () => {
       resourceIds: ['res-1'],
       resourceAssignments: [{ resourceType: ResourceType.ROOM, resourceId: 'res-1' }],
       approvalHoldExpiresAt: null,
+      createdAt: s.createdAt.toISOString(),
       renewable: true,
     });
   });
@@ -81,5 +82,14 @@ describe('toRecurringBookingScheduleResult', () => {
 
     expect(result.status).toBe('PENDING_APPROVAL');
     expect(result.approvalHoldExpiresAt).toBe('2099-01-01T00:00:00.000Z');
+  });
+
+  it('returns the creation time as an ISO-8601 UTC string, for any status', () => {
+    const pending = schedule('PENDING_APPROVAL');
+
+    const result = toRecurringBookingScheduleResult(pending, 'Sala Aurora', false);
+
+    expect(result.createdAt).toBe(pending.createdAt.toISOString());
+    expect(result.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/);
   });
 });

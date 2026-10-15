@@ -73,6 +73,10 @@ describe('BottomNav', () => {
       'the resource deactivate route (fixed action bar owns the bottom edge)',
       '/dashboard/resources/r-1/deactivate',
     ],
+    [
+      'the recurring-schedule approval screen (its fixed action bar owns the bottom edge)',
+      '/dashboard/bookings/recurring/s-1',
+    ],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(

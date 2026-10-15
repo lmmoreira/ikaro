@@ -1903,6 +1903,23 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(one.renewable).toBe(true);
     });
 
+    it('carries `createdAt` as an ISO-8601 UTC string on the list and the by-id read (M23-S13)', async () => {
+      const { body: list } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      const { body: one } = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${scheduleId}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const listed = list.items.find((i: { id: string }) => i.id === scheduleId);
+      expect(typeof one.createdAt).toBe('string');
+      expect(Number.isNaN(Date.parse(one.createdAt))).toBe(false);
+      expect(one.createdAt).toMatch(/Z$/);
+      expect(listed.createdAt).toBe(one.createdAt);
+    });
+
     it('GET /:id lets STAFF and MANAGER read any schedule of the tenant', async () => {
       for (const role of ['STAFF', 'MANAGER'] as const) {
         const { body } = await request(app.getHttpServer())
