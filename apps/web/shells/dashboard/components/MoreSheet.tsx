@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Boxes, Users, Settings, Globe, LogOut, FileText } from 'lucide-react';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { cn } from '@/shared/utils/cn';
+import { SchedulingExceptionsSheetItem } from './SchedulingExceptionsNavItem';
 
 interface MoreSheetProps {
   readonly open: boolean;
@@ -90,6 +91,7 @@ export function MoreSheet({
             </p>
 
             {/* Nav items */}
+            <SchedulingExceptionsSheetItem onClose={onClose} />
             {MANAGER_SHEET_ITEM_KEYS.map(({ href, labelKey, Icon }) => (
               <Link
                 key={href}

@@ -20,6 +20,10 @@ import {
   ResolveSchedulingExceptionsSchema,
 } from '../../application/dtos/scheduling-exception.dto';
 import {
+  CountFutureCommitmentExceptionsUseCase,
+  CountFutureCommitmentExceptionsUseCaseResult,
+} from '../../application/use-cases/count-future-commitment-exceptions.use-case';
+import {
   DismissFutureCommitmentExceptionsUseCase,
   DismissFutureCommitmentExceptionsUseCaseResult,
 } from '../../application/use-cases/dismiss-future-commitment-exceptions.use-case';
@@ -42,6 +46,7 @@ export class SchedulingExceptionController {
   constructor(
     private readonly ctx: RequestContext,
     private readonly listExceptions: ListFutureCommitmentExceptionsUseCase,
+    private readonly countExceptions: CountFutureCommitmentExceptionsUseCase,
     private readonly resolveExceptions: ResolveFutureCommitmentExceptionsUseCase,
     private readonly dismissExceptions: DismissFutureCommitmentExceptionsUseCase,
   ) {}
@@ -53,6 +58,13 @@ export class SchedulingExceptionController {
   ): Promise<ListFutureCommitmentExceptionsUseCaseResult> {
     const { tenantId } = this.ctx;
     return this.listExceptions.execute({ tenantId, status: query.status }).catch(mapBookingError);
+  }
+
+  // The sidebar badge: open entries only, a count query rather than the list.
+  @Get('count')
+  count(): Promise<CountFutureCommitmentExceptionsUseCaseResult> {
+    const { tenantId } = this.ctx;
+    return this.countExceptions.execute({ tenantId }).catch(mapBookingError);
   }
 
   @Post('resolve')

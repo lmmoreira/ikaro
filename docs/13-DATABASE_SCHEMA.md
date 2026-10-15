@@ -758,7 +758,7 @@ Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together
 | resolved_by_staff_id | UUID | NULLABLE |
 | resolved_at | TIMESTAMPTZ | NULLABLE |
 | notification_outcome | VARCHAR(30) | NULLABLE |
-| alternatives | JSONB | NOT NULL DEFAULT '[]' — advisory `{ resourceId, resourceName }[]` computed at raise time, always revalidated at resolve time (M23-S08) |
+| alternatives | JSONB | NOT NULL DEFAULT '[]' — advisory `{ resourceId, resourceName }[]` computed at raise time and kept for closed entries; the worklist read recomputes it for `OPEN` ones (M23-S14); always revalidated at resolve time (M23-S08) |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id, affected_type, affected_id) | |
 | **INDEX** | (tenant_id, owner_staff_id, status) | |

@@ -1,3 +1,4 @@
+import { Booking } from '../../domain/booking.aggregate';
 import {
   ResourceRequirement,
   ResourceRequirementSelectionMode,
@@ -8,8 +9,11 @@ import { Service } from '../../domain/service.aggregate';
 import { FutureCommitmentAlternative } from '../../domain/future-commitment-exception.types';
 import {
   IResourceOccupancyRepository,
+  ResourceBookingImpact,
   ResourceOccupancyWindow,
 } from '../ports/resource-occupancy-repository.port';
+import { IResourceRepository } from '../ports/resource-repository.port';
+import { IServiceRepository } from '../ports/service-repository.port';
 
 export interface TimeWindow {
   startsAt: Date;
@@ -118,4 +122,53 @@ function eligibleFor(request: AlternativesRequest, candidates: Resource[]): Reso
 
 function pairKey(requestKey: string, resourceId: string): string {
   return `${requestKey}|${resourceId}`;
+}
+
+export interface BookingAlternativesParams {
+  tenantId: string;
+  // The resource the bookings are being moved off.
+  resourceId: string;
+  bookings: Booking[];
+  // The bookings' live occupancy rows on `resourceId` (every row of every booking in `bookings`).
+  impacts: ResourceBookingImpact[];
+  serviceRepo: IServiceRepository;
+  resourceRepo: IResourceRepository;
+  occupancyRepo: IResourceOccupancyRepository;
+}
+
+// The compatible, currently free resources for each booking that sits on `resourceId`: the shared
+// step of the raise (stored on the entry) and of the worklist read (recomputed on every read, so
+// the list reflects a resource reactivated or a slot freed since). Needs an active transaction (the
+// occupancy port's contract); the caller owns it.
+export async function computeBookingAlternatives(
+  params: BookingAlternativesParams,
+): Promise<Map<string, FutureCommitmentAlternative[]>> {
+  const { tenantId, resourceId, bookings, impacts, serviceRepo, resourceRepo, occupancyRepo } =
+    params;
+  const type = impacts[0].resourceType;
+  const serviceIds = [...new Set(bookings.flatMap((b) => b.lines.map((l) => l.serviceId)))];
+  const services = new Map(
+    (await serviceRepo.findByIds(serviceIds, tenantId)).map((svc) => [svc.id, svc]),
+  );
+  const activeCandidates = (
+    await resourceRepo.findByTenant(tenantId, { type, isActive: true })
+  ).filter((r) => r.id !== resourceId);
+
+  const requests: AlternativesRequest[] = bookings.map((booking) => {
+    const rows = impacts.filter((i) => i.bookingId === booking.id);
+    const serviceByLine = new Map(booking.lines.map((l) => [l.lineId, l.serviceId]));
+    return {
+      key: booking.id,
+      windows: rows.map((r) => ({ startsAt: r.startsAt, endsAt: r.endsAt })),
+      pools: rows.map(
+        (r) =>
+          findRequirementForAssignment(
+            services.get(serviceByLine.get(r.bookingLineId) ?? ''),
+            r.legIndex,
+            type,
+          )?.resourcePoolIds ?? null,
+      ),
+    };
+  });
+  return computeAlternatives({ occupancyRepo, activeCandidates, tenantId, requests });
 }

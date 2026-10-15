@@ -28,6 +28,8 @@ const listResponse: SchedulingExceptionListResponse = {
         serviceNames: ['Sessão'],
         status: 'APPROVED',
         resourceName: 'Sala 1',
+        isCustomer: true,
+        totalPrice: { amount: 120, currency: 'BRL' },
       },
     },
   ],
@@ -55,6 +57,16 @@ describe('SchedulingExceptionsController', () => {
 
     expect(backendHttp.get).toHaveBeenCalledWith('/scheduling-exceptions', { status: 'OPEN' });
     expect(result).toEqual(listResponse);
+  });
+
+  it('GET /count asks the backend count route and returns it untouched', async () => {
+    const backendHttp = makeBackendHttp({ get: jest.fn().mockResolvedValue({ count: 4 }) });
+    const controller = new SchedulingExceptionsController(backendHttp);
+
+    const result = await controller.count();
+
+    expect(backendHttp.get).toHaveBeenCalledWith('/scheduling-exceptions/count');
+    expect(result).toEqual({ count: 4 });
   });
 
   it('POST /resolve forwards the whole body and returns the per-entry results untouched', async () => {

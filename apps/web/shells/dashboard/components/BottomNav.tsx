@@ -10,6 +10,7 @@ import {
   matchBookingDetailRoute,
 } from '@/shells/dashboard/model/booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from '@/shells/dashboard/model/resource-route';
+import { matchSchedulingExceptionRescheduleRoute } from '@/shells/dashboard/model/scheduling-exception-route';
 import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
 import { isTeamInviteRoute, matchTeamRoute } from '@/shells/dashboard/model/team-route';
 
@@ -38,6 +39,8 @@ export function BottomNav({
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;
   const isResourceDetailRoute = matchResourceRoute(pathname) !== null;
+  const isSchedulingExceptionReschedule =
+    matchSchedulingExceptionRescheduleRoute(pathname) !== null;
 
   // /dashboard/settings and /dashboard/hotsite are deliberately NOT in this list (unlike the
   // drill-down routes above) — they're top-level sections with no topbar back arrow, so hiding
@@ -53,7 +56,8 @@ export function BottomNav({
     isTeamInviteRoute(pathname) ||
     isTeamDetailRoute ||
     isResourceCreateRoute(pathname) ||
-    isResourceDetailRoute
+    isResourceDetailRoute ||
+    isSchedulingExceptionReschedule
   )
     return null;
 

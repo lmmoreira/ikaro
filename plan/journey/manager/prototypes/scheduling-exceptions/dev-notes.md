@@ -2,7 +2,7 @@
 
 ## Overview
 
-A MANAGER-only worklist at `/dashboard/scheduling-exceptions` for `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). The web page is not built yet (backend + BFF are live). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
+A MANAGER-only worklist at `/dashboard/scheduling-exceptions` for `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). Built in `M23-S14` (backend + BFF: `M23-S08`). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
 
 ## Design system — what the prototypes reuse (redrawn 2026-10-14)
 
@@ -30,25 +30,24 @@ Tenant/sample data is **BeloAuto Demo** (same as the shell prototypes). The side
 
 The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave the booking untouched on a **deactivated** resource, where nobody can perform it (it has no column in the Horários day grid, and a deactivated staff member no longer works there). So neither is a real outcome and the page offers only **Reatribuir, Reagendar, Cancelar**. The backend `KEEP` choice and `POST /dismiss` (`M23-S08`) are not called from here. A resource deactivated by mistake is fixed by reactivating it, and reactivation closes that resource's open entries (`M23-S45`, related, not blocking). This applies to `RESOURCE_DEACTIVATION` entries only: a future trigger (an hours reduction, a closure) can leave the booking performable, and "Manter" returns for that source type — which is why the backend `KEEP` and `/dismiss` stay.
 
-## File map (❓ none exist yet)
+## File map (✅ built — M23-S14)
 
 | File | Status |
 |---|---|
-| `apps/web/app/dashboard/scheduling-exceptions/page.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (composes `BookingCardShell`) | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/bookings/BookingCardShell.tsx` (extracted from `BookingCard.tsx`) | ❓ Gap (modify `BookingCard.tsx` to use it) |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/ReassignSheet.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/CancelSheet.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionReschedulePage.tsx` (thin wrapper: renders the existing `RescheduleBookingPage` with a resolve-based confirm) | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` (modify: injected confirm action + post-success behavior, defaults unchanged) | ❓ Gap |
-| `apps/web/app/dashboard/scheduling-exceptions/[exceptionId]/reschedule/page.tsx`, `layout.tsx`, `page.tsx` | ❓ Gap |
-| `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` | ❓ Gap |
-| `apps/web/features/booking/api/scheduling-exceptions.ts` (React Query hooks) | ❓ Gap |
-| `apps/bff/http/bookings/scheduling-exceptions.http` | ❓ Gap (`M23-S08`) |
-
-Component names are proposals for `M23-S14`'s discovery to confirm.
+| `apps/web/app/dashboard/scheduling-exceptions/layout.tsx`, `page.tsx` | ✅ Built (shell-wrapped; MANAGER-only via `proxy.ts`) |
+| `apps/web/app/dashboard/scheduling-exceptions/[exceptionId]/reschedule/page.tsx` | ✅ Built (server page: loads the open entry and the booking detail; 404 unless the booking is `APPROVED`) |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` (+ `SchedulingExceptionGroups.tsx`) | ✅ Built |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionRow.tsx` (composes `BookingCardShell`) | ✅ Built |
+| `apps/web/features/booking/components/dashboard/bookings/BookingCardShell.tsx` (extracted from `BookingCard.tsx`, which now uses it) | ✅ Built |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/BulkActionBar.tsx`, `ReassignSheet.tsx`, `CancelSheet.tsx`, `BulkResultList.tsx` | ✅ Built |
+| `apps/web/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionReschedulePage.tsx` (thin wrapper: the existing `RescheduleBookingPage` with a resolve-based confirm) | ✅ Built |
+| `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` (injected `confirmReschedule` + `onRescheduled`, defaults unchanged) | ✅ Built |
+| `apps/web/features/booking/api/scheduling-exceptions.ts` (+ `.server.ts`, `resolve-in-batches.ts`) | ✅ Built (fetchers; batches of 100) |
+| `apps/web/features/booking/hooks/useSchedulingExceptions.ts`, `useSchedulingExceptionActions.ts`, `useBookingWhenLabel.ts` | ✅ Built (React Query hooks) |
+| `apps/web/features/booking/model/scheduling-exception-view.ts`, `scheduling-exception-reschedule.ts` | ✅ Built (grouping, reassign choices; the `STILL_OPEN` → 409 adapter) |
+| `apps/web/shells/dashboard/components/SchedulingExceptionsNavItem.tsx`, `model/scheduling-exception-route.ts` (+ `Sidebar`, `MoreSheet`, `BottomNav`, `topbar-route` wiring) | ✅ Built |
+| `apps/bff/http/bookings/scheduling-exceptions.http`, `apps/backend/http/booking/scheduling-exceptions.http` | ✅ Built (count route added) |
+| `apps/web/e2e/scheduling-exceptions.spec.ts` (+ `e2e/helpers/scheduling-exceptions.ts`) | ✅ Built |
 
 ## BFF calls (live since `M23-S08` — contract per `docs/14-API_CONTRACTS.md`)
 
@@ -111,13 +110,12 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 ## Known limitations
 
 - **Selecting "everything from this resource from a time"** is drawn as a per-group "Selecionar todos" only; a free "a partir de …" filter is a proposal, not decided (see the journey's open questions).
-- **The new components (`BulkActionBar`, `BulkResultList`, the two sheets, `SchedulingExceptionReschedulePage`) do not exist**, so their unhappy-path variants are tagged ⚠ in `index.html`.
 - **Decided at `M23-S14`'s discovery (2026-10-14):** the badge count comes from a dedicated `GET /scheduling-exceptions/count` (`{ count }`, MANAGER-only, 60-second cache) so a page load never pulls the whole list; "Selecionar todos" on a group of more than 100 sends sequential batches of 100 (the resolve endpoint's cap) and merges the results; a `booking: null` entry renders a minimal "Reserva indisponível" card (not drawn); the alternatives line shows at most two names then "e mais N"; the group header is "<nome> ficou indisponível" for both the resource and the staff case; a customer-chosen deactivated resource cannot be rescheduled (`STILL_OPEN`, reason suggests reassign or cancel).
-- **The "Reservas a resolver" nav item is drawn** (sidebar below "Agenda" + mobile "Mais" sheet, with an open-count badge); where the count comes from (the list's total vs a separate count call) is for `M23-S14`'s discovery. `M23-S14` also adds the route-registry entries.
+- **The "Reservas a resolver" nav item is built** (sidebar below "Agenda" + mobile "Mais" sheet, with the open-count badge from `GET /scheduling-exceptions/count`); the route is wired into `proxy.ts`, `BottomNav`, `topbar-route` and its own `layout.tsx`.
 - **Not drawn:** a per-entry detail page (the story's earlier `[id]/page.tsx`); everything is decided from the list, so none is planned unless discovery finds a need.
 
 ## Open questions / gaps
 
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications).
-- [ ] Nav placement (after "Recursos" under "Somente Gerente") and the count badge are drawn as a default for `M23-S14`'s discovery to confirm.
+- [x] Nav placement and the count badge: built as drawn (below "Agenda", MANAGER only; first item of the mobile "Mais" sheet).
 - [ ] The alternatives shown are stored at raise time and are advisory; the real check happens when the manager confirms (a race leaves the entry open, `01d`).

@@ -10,6 +10,7 @@ import {
 } from '../../../../test/utils/future-commitment-fixture';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { BookingSlotConflictService } from '../../application/services/booking-slot-conflict.service';
+import { CountFutureCommitmentExceptionsUseCase } from '../../application/use-cases/count-future-commitment-exceptions.use-case';
 import { DismissFutureCommitmentExceptionsUseCase } from '../../application/use-cases/dismiss-future-commitment-exceptions.use-case';
 import { ListFutureCommitmentExceptionsUseCase } from '../../application/use-cases/list-future-commitment-exceptions.use-case';
 import { ResolveFutureCommitmentExceptionsUseCase } from '../../application/use-cases/resolve-future-commitment-exceptions.use-case';
@@ -36,7 +37,11 @@ describe('SchedulingExceptionController', () => {
         world.exceptionRepo,
         world.bookingRepo,
         world.resourceRepo,
+        world.serviceRepo,
+        world.occupancyRepo,
+        tx,
       ),
+      new CountFutureCommitmentExceptionsUseCase(world.exceptionRepo),
       new ResolveFutureCommitmentExceptionsUseCase(
         world.exceptionRepo,
         world.bookingRepo,
@@ -77,6 +82,14 @@ describe('SchedulingExceptionController', () => {
       const result = await controller.list({ status: 'OPEN' });
 
       expect(result.items.map((i) => i.id)).toEqual([entryId]);
+    });
+  });
+
+  describe('count()', () => {
+    it('counts the open entries of the caller tenant', async () => {
+      await raiseOne();
+
+      await expect(controller.count()).resolves.toEqual({ count: 1 });
     });
   });
 
@@ -127,13 +140,19 @@ describe('SchedulingExceptionController', () => {
       {
         execute: () => Promise.reject(new Error('unexpected')),
       } as unknown as ListFutureCommitmentExceptionsUseCase,
+      {
+        execute: () => Promise.reject(new Error('unexpected')),
+      } as unknown as CountFutureCommitmentExceptionsUseCase,
       {} as ResolveFutureCommitmentExceptionsUseCase,
       {} as DismissFutureCommitmentExceptionsUseCase,
     );
 
     const err = await failing.list({}).catch((e: unknown) => e);
+    const countErr = await failing.count().catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(Error);
     expect(err).not.toBeInstanceOf(HttpException);
+    expect(countErr).toBeInstanceOf(Error);
+    expect(countErr).not.toBeInstanceOf(HttpException);
   });
 });

@@ -28,7 +28,7 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
         TypeOrmFutureCommitmentExceptionRepository,
         {
           provide: getRepositoryToken(FutureCommitmentExceptionEntity),
-          useValue: { findOne: jest.fn(), find: jest.fn(), manager: {} },
+          useValue: { findOne: jest.fn(), find: jest.fn(), count: jest.fn(), manager: {} },
         },
         { provide: OUTBOX_PUBLISHER, useValue: outbox },
       ],
@@ -116,6 +116,28 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
       expect(manager.getRepository).toHaveBeenCalledWith(FutureCommitmentExceptionEntity);
       expect(txRepo.findOne).toHaveBeenCalled();
       expect(ormRepo.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('countByTenant', () => {
+    it('counts by tenant and status without loading rows', async () => {
+      ormRepo.count.mockResolvedValue(3);
+
+      const result = await repo.countByTenant(TENANT_ID, { status: 'OPEN' });
+
+      expect(result).toBe(3);
+      expect(ormRepo.count).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, status: 'OPEN' },
+      });
+      expect(ormRepo.find).not.toHaveBeenCalled();
+    });
+
+    it('omits the status predicate when none is given', async () => {
+      ormRepo.count.mockResolvedValue(0);
+
+      await repo.countByTenant(TENANT_ID);
+
+      expect(ormRepo.count).toHaveBeenCalledWith({ where: { tenantId: TENANT_ID } });
     });
   });
 

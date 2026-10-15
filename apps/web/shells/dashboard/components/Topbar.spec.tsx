@@ -18,6 +18,7 @@ const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
     'nav.schedule': 'Horários',
     'nav.services': 'Serviços',
     'nav.loyalty': 'Fidelidade',
+    'nav.schedulingExceptions': 'Reservas a resolver',
     'nav.team': 'Equipe',
     'nav.settings': 'Configurações',
     'nav.hotsite': 'Hotsite',
@@ -48,6 +49,10 @@ const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
   },
   'dashboard.newBooking': {
     pageTitle: 'Novo agendamento',
+  },
+  'dashboard.schedulingExceptionsPage': {
+    rescheduleTitle: 'Reagendar',
+    rescheduleBack: 'Reservas a resolver',
   },
   'dashboard.resourcesPage': {
     createPageTitle: 'Novo recurso',
@@ -170,6 +175,25 @@ describe('Topbar', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(title);
+  });
+
+  it('titles the "Reservas a resolver" list with no back link (a top-level page)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/scheduling-exceptions');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reservas a resolver');
+    expect(screen.queryByTestId('topbar-back-button')).not.toBeInTheDocument();
+  });
+
+  it('titles the entry reschedule route and links back to the list', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/scheduling-exceptions/exc-1/reschedule');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('link', { name: 'Reservas a resolver' })).toHaveAttribute(
+      'href',
+      '/dashboard/scheduling-exceptions',
+    );
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reagendar');
   });
 
   it.each([

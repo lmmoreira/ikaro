@@ -3,7 +3,6 @@ import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/out
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { ResourceDeactivationImpactRaised } from '../../domain/events/resource-deactivation-impact-raised.event';
-import { FutureCommitmentAlternative } from '../../domain/future-commitment-exception.types';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import {
   FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
@@ -17,11 +16,7 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
-import {
-  AlternativesRequest,
-  computeAlternatives,
-  findRequirementForAssignment,
-} from './future-commitment-alternatives.helpers';
+import { computeBookingAlternatives } from './future-commitment-alternatives.helpers';
 import { raiseFutureCommitmentException } from './future-commitment-exception-raise.helpers';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 
@@ -84,12 +79,15 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
     const bookings = await this.loadLiveBookings(impacts, tenantId);
     if (bookings.length === 0) return { raisedCount: 0 };
 
-    const alternatives = await this.computeAlternativesByBooking(
+    const alternatives = await computeBookingAlternatives({
       tenantId,
       resourceId,
       bookings,
       impacts,
-    );
+      serviceRepo: this.serviceRepo,
+      resourceRepo: this.resourceRepo,
+      occupancyRepo: this.occupancyRepo,
+    });
     // One after another on the caller's single transaction connection.
     await mapSequentially(bookings, (booking) =>
       raiseFutureCommitmentException(this.exceptionRepo, {
@@ -135,44 +133,5 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
     return bookings
       .filter((b) => LIVE_BOOKING_STATUSES.has(b.status))
       .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
-  }
-
-  private async computeAlternativesByBooking(
-    tenantId: string,
-    resourceId: string,
-    bookings: Booking[],
-    impacts: ResourceBookingImpact[],
-  ): Promise<Map<string, FutureCommitmentAlternative[]>> {
-    const type = impacts[0].resourceType;
-    const serviceIds = [...new Set(bookings.flatMap((b) => b.lines.map((l) => l.serviceId)))];
-    const services = new Map(
-      (await this.serviceRepo.findByIds(serviceIds, tenantId)).map((s) => [s.id, s]),
-    );
-    const activeCandidates = (
-      await this.resourceRepo.findByTenant(tenantId, { type, isActive: true })
-    ).filter((r) => r.id !== resourceId);
-
-    const requests: AlternativesRequest[] = bookings.map((booking) => {
-      const rows = impacts.filter((i) => i.bookingId === booking.id);
-      const serviceByLine = new Map(booking.lines.map((l) => [l.lineId, l.serviceId]));
-      return {
-        key: booking.id,
-        windows: rows.map((r) => ({ startsAt: r.startsAt, endsAt: r.endsAt })),
-        pools: rows.map(
-          (r) =>
-            findRequirementForAssignment(
-              services.get(serviceByLine.get(r.bookingLineId) ?? ''),
-              r.legIndex,
-              type,
-            )?.resourcePoolIds ?? null,
-        ),
-      };
-    });
-    return computeAlternatives({
-      occupancyRepo: this.occupancyRepo,
-      activeCandidates,
-      tenantId,
-      requests,
-    });
   }
 }

@@ -62,7 +62,13 @@ export function useDeactivateResource() {
   const { tenantId } = useTenant();
   return useMutation({
     mutationFn: (id: string) => deactivateResource(id),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
+    // Deactivating a resource raises one "Reservas a resolver" entry per future booking on it, in
+    // the same request, so the worklist and its sidebar badge are stale from this moment on.
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+      ]),
   });
 }
 

@@ -35,5 +35,7 @@ export interface IFutureCommitmentExceptionRepository {
     tenantId: string,
     filters?: FutureCommitmentExceptionFilters,
   ): Promise<FutureCommitmentException[]>;
+  // How many entries match — a count query, never a load (the sidebar badge polls it).
+  countByTenant(tenantId: string, filters?: FutureCommitmentExceptionFilters): Promise<number>;
   save(exception: FutureCommitmentException): Promise<void>;
 }

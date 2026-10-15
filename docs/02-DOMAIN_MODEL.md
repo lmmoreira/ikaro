@@ -768,7 +768,7 @@ FutureCommitmentException {
   resolvedByStaffId:     StaffId | null
   resolvedAt:            DateTime | null
   notificationOutcome:   String | null
-  alternatives:          { resourceId, resourceName }[]   -- advisory, computed at raise time; always revalidated at resolve time
+  alternatives:          { resourceId, resourceName }[]   -- advisory, computed at raise time (the worklist read recomputes it for OPEN entries); always revalidated at resolve time
   createdAt:             DateTime
 }
 ```

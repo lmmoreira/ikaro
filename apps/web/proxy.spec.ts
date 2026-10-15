@@ -143,6 +143,25 @@ describe('proxy', () => {
     expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard');
   });
 
+  it.each([
+    '/dashboard/scheduling-exceptions',
+    '/dashboard/scheduling-exceptions/exc-1/reschedule',
+  ])('redirects a STAFF token away from %s (manager-only)', async (path) => {
+    const response = await proxy(makeRequest(path, validStaffToken));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe('http://localhost:3000/dashboard');
+  });
+
+  it('passes through /dashboard/scheduling-exceptions with a valid MANAGER token', async () => {
+    const response = await proxy(
+      makeRequest('/dashboard/scheduling-exceptions', validManagerToken),
+    );
+
+    expect(response.status).not.toBe(307);
+    expect(response.headers.get('location')).toBeNull();
+  });
+
   it('passes through /dashboard/resources with a valid MANAGER token', async () => {
     const response = await proxy(makeRequest('/dashboard/resources', validManagerToken));
 

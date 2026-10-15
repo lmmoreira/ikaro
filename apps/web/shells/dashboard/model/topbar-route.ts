@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { isBookingCreateRoute, matchBookingDetailRoute } from './booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
+import { matchSchedulingExceptionRescheduleRoute } from './scheduling-exception-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
 
@@ -18,6 +19,7 @@ export const PAGE_TITLE_KEYS: ReadonlyArray<[string, string]> = [
   ['/dashboard/settings', 'nav.settings'],
   ['/dashboard/hotsite', 'nav.hotsite'],
   ['/dashboard/resources', 'nav.resources'],
+  ['/dashboard/scheduling-exceptions', 'nav.schedulingExceptions'],
 ];
 
 export interface TopbarRouteState {
@@ -38,6 +40,7 @@ interface TopbarRouteContext {
   readonly bookingT: ReturnType<typeof useTranslations>;
   readonly newBookingT: ReturnType<typeof useTranslations>;
   readonly resourcesT: ReturnType<typeof useTranslations>;
+  readonly schedulingExceptionsT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }
 
@@ -163,12 +166,26 @@ function resolveResourceTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackL
   return null;
 }
 
+// The reschedule drill-down of a "Reservas a resolver" entry; the list itself is a top-level page
+// (title from PAGE_TITLE_KEYS, no back link).
+function resolveSchedulingExceptionTitleAndBackLink(
+  ctx: TopbarRouteContext,
+): TitleAndBackLink | null {
+  if (!matchSchedulingExceptionRescheduleRoute(ctx.pathname)) return null;
+  return {
+    pageTitle: ctx.schedulingExceptionsT('rescheduleTitle'),
+    backHref: '/dashboard/scheduling-exceptions',
+    backLabel: ctx.schedulingExceptionsT('rescheduleBack'),
+  };
+}
+
 function resolveSectionTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
   return (
     resolveBookingCreateTitleAndBackLink(ctx) ??
     resolveServiceTitleAndBackLink(ctx) ??
     resolveTeamTitleAndBackLink(ctx) ??
-    resolveResourceTitleAndBackLink(ctx)
+    resolveResourceTitleAndBackLink(ctx) ??
+    resolveSchedulingExceptionTitleAndBackLink(ctx)
   );
 }
 

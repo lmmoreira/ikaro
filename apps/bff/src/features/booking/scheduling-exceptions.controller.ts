@@ -12,6 +12,7 @@ import {
 } from './scheduling-exceptions.schemas';
 import {
   SchedulingExceptionBulkResultResponse,
+  SchedulingExceptionCountResponse,
   SchedulingExceptionListResponse,
 } from './scheduling-exceptions.types';
 
@@ -31,6 +32,12 @@ export class SchedulingExceptionsController {
     query: ListSchedulingExceptionsQuery,
   ): Promise<SchedulingExceptionListResponse> {
     return this.backendHttp.get<SchedulingExceptionListResponse>('/scheduling-exceptions', query);
+  }
+
+  // The sidebar badge: a count query on the backend, never the whole list.
+  @Get('count')
+  count(): Promise<SchedulingExceptionCountResponse> {
+    return this.backendHttp.get<SchedulingExceptionCountResponse>('/scheduling-exceptions/count');
   }
 
   @Post('resolve')

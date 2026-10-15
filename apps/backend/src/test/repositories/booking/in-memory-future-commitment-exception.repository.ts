@@ -55,6 +55,14 @@ export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommi
     );
   }
 
+  countByTenant(tenantId: string, filters: FutureCommitmentExceptionFilters = {}): Promise<number> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter(
+        (e) => e.tenantId === tenantId && (!filters.status || e.status === filters.status),
+      ).length,
+    );
+  }
+
   async save(exception: FutureCommitmentException): Promise<void> {
     this.store.set(exception.id, exception);
     await drainDomainEvents(exception, this.outboxPublisher);
