@@ -226,8 +226,12 @@
 
             <p class="detail-section-label">Recorrência pedida</p>
             <div class="card" style="padding: 0.25rem 1rem; margin-bottom: 1.25rem;">
-              <div class="kv"><span>Serviço</span><span>Reserva de sala</span></div>
-              <div class="kv"><span>Recurso</span><span>Sala Aurora</span></div>
+              <div class="kv"><span>Serviço</span><span id="svc-name">Reserva de sala</span></div>
+              <!-- One row per resource requirement (TD49). Label = the requirement's resource type. -->
+              <div class="kv" data-v="um"><span>Sala</span><span>Sala Aurora</span></div>
+              <div class="kv" data-v="pacote"><span>Sala</span><span>Sala Aurora</span></div>
+              <div class="kv" data-v="pacote"><span>Equipamento</span><span>Projetor 2</span></div>
+              <div class="kv" data-v="pacote"><span>Profissional</span><span>Resolvido a cada ocorrência</span></div>
               <div class="kv"><span>Padrão</span><span>Toda terça · 10:00–12:00</span></div>
               <div class="kv"><span>Período</span><span>19 ago → 11 nov</span></div>
               <div class="kv"><span>Reservas</span><span>13</span></div>
@@ -316,6 +320,22 @@
   </div>
 
   <script>
+    /* Shape variants via hash (prototype only):
+       #simples = default shape, no requirement (no resource row)
+       #um      = one requirement (default view)
+       #pacote  = bundle: one row per requirement; CUSTOMER_CHOICE shows the picked resource,
+                  an automatic one shows "Resolvido a cada ocorrência" */
+    (function () {
+      var v = (location.hash || '#um').slice(1);
+      if (['simples', 'um', 'pacote'].indexOf(v) < 0) v = 'um';
+      document.querySelectorAll('[data-v]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-v').split(' ').indexOf(v) < 0;
+      });
+      document.getElementById('svc-name').textContent =
+        { simples: 'Aula experimental', um: 'Reserva de sala', pacote: 'Sala + projetor + técnico' }[v];
+    })();
+    window.addEventListener('hashchange', function () { location.reload(); });
+
     function openSheet(k) {
       document.getElementById(k + '-sheet').classList.add('open');
       document.getElementById(k + '-backdrop').classList.add('open');
