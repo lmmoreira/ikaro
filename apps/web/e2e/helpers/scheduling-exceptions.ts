@@ -42,6 +42,11 @@ export interface SeedOptions {
   // room of the pool, so a deactivated room can be re-resolved on a reschedule (a customer-chosen
   // one cannot — docs/27). Use AUTO_ANY with a single plan: the bookings would not share a room.
   readonly selection?: 'CUSTOMER_CHOICE' | 'AUTO_ANY';
+  // false: leave the source room active, so the spec deactivates it itself (through the UI).
+  readonly deactivateSource?: boolean;
+  // false: deactivate the alternative room BEFORE the source, so the entries are raised with no
+  // alternative at all (the spec can then reactivate it).
+  readonly alternativeActive?: boolean;
 }
 
 export interface WorklistSeed {
@@ -180,7 +185,8 @@ export async function seedWorklistEntries(
     if (landedOn.includes(second.id)) [source, alternative] = [second, first];
   }
 
-  await deactivateResource(page, source.id);
+  if (options.alternativeActive === false) await deactivateResource(page, alternative.id);
+  if (options.deactivateSource !== false) await deactivateResource(page, source.id);
 
   return {
     serviceId: service.serviceId,
@@ -198,7 +204,11 @@ export async function seedWorklistEntries(
         });
       }
       await deactivateService(page, service.serviceId);
-      await deactivateResource(page, alternative.id);
+      // Either room may already be inactive (a spec deactivated or never reactivated it), and
+      // deactivating an inactive resource answers with an error: only the end state matters.
+      for (const room of [alternative, source]) {
+        await deactivateResource(page, room.id).catch(() => undefined);
+      }
     },
   };
 }

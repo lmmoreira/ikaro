@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
+import { deactivateResource, getResourceRow, reactivateResource } from './helpers/booking';
 import { MANAGER_EMAIL, TENANT_SLUG } from './helpers/booking-form';
 import {
   readBookedStarts,
@@ -172,6 +173,64 @@ test.describe('M23-S14 — Reservas a resolver', () => {
       // The back arrow returns to the worklist, not to the booking queue.
       await page.getByTestId('topbar-back-button').click();
       await expect(page).toHaveURL('/dashboard/scheduling-exceptions');
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('a resource deactivated from the Resources screen shows in the worklist without a reload', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    // The room stays active here: this spec deactivates it through the UI, like a manager.
+    const seed = await seedWorklistEntries(page, [{ approve: true }], { deactivateSource: false });
+
+    try {
+      // Open the worklist first so its (empty for this room) result is what the cache holds.
+      await page.goto('/dashboard/scheduling-exceptions');
+      await expect(groupOf(page, seed.source.name)).toHaveCount(0);
+
+      // Client-side navigation only from here on: a full reload would hide a stale cache.
+      await page.getByTestId('sidebar-nav-resources').click();
+      await getResourceRow(page, seed.source.name)
+        .getByTestId('resource-row-deactivate-link')
+        .click();
+      await page.getByTestId('resource-deactivate-confirm-desktop').click();
+      await expect(page).toHaveURL('/dashboard/resources');
+
+      await page.getByTestId('sidebar-nav-scheduling-exceptions').click();
+      await expect(groupOf(page, seed.source.name)).toBeVisible();
+      await expect.poll(() => badgeCount(page)).toBeGreaterThanOrEqual(1);
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('the alternatives follow the real data: none, then a reactivated room, then none again', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    // The alternative room is already inactive when the entries are raised: nothing to offer.
+    const seed = await seedWorklistEntries(page, [{ approve: true }], { alternativeActive: false });
+    const [booking] = seed.bookings;
+
+    try {
+      await page.goto('/dashboard/scheduling-exceptions');
+      const card = cardOf(groupOf(page, seed.source.name), booking.contactName);
+      await expect(card).toContainText('Sem alternativa compatível');
+      await expect(card.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
+
+      // Reactivating the room makes it an alternative on the next read (not frozen at raise time).
+      await reactivateResource(page, seed.alternative.id);
+      await page.reload();
+      await expect(card).toContainText(seed.alternative.name);
+      await expect(card.getByRole('button', { name: 'Reatribuir' })).toBeEnabled();
+
+      // And a second deactivation in a row takes it away again.
+      await deactivateResource(page, seed.alternative.id);
+      await page.reload();
+      await expect(card).toContainText('Sem alternativa compatível');
+      await expect(card.getByRole('button', { name: 'Reatribuir' })).toBeDisabled();
     } finally {
       await seed.cleanup();
     }
