@@ -3807,7 +3807,7 @@ Decisions baked in:
 
 ---
 
-### M23-S46 — A booking with an open "Reservas a resolver" entry says so: a "Precisa de decisão" pill in the staff queue and a banner on the booking detail
+### M23-S46 — A booking with an open "Reservas a resolver" entry says so: a "Precisa de decisão" pill in the staff queue and a banner on the booking detail ✅ Done
 
 **Agent:** `frontend-ts` (plus a small `backend-ts` / `bff-ts` slice — see Backend HTTP surface; one PR)
 **Complexity:** L (the manager decision panel reuses the worklist's sheets on the booking detail and adds a by-booking read, a refetch and a `returnTo` on the reschedule route)
