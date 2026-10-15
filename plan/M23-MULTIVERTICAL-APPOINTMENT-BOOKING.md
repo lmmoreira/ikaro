@@ -3690,7 +3690,7 @@ A customer who gets "a slot opened up" lands on the booking page with the alert'
 
 ---
 
-### M23-S45 — Reactivating a resource closes that resource's open "Reservas a resolver" entries
+### M23-S45 — Reactivating a resource closes that resource's open "Reservas a resolver" entries ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** S
