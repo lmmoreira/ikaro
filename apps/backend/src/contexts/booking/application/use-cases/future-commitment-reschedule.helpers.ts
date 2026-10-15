@@ -1,14 +1,19 @@
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingScheduledInPastError } from '../../domain/errors/booking-domain.error';
 import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
+import { Service } from '../../domain/service.aggregate';
 import { IServiceRepository } from '../ports/service-repository.port';
+import { ITenantLockPort } from '../ports/tenant-lock.port';
+import { occupiedResourceIds } from './booking-exception-closing.helpers';
 import {
   rescheduleBookingInTransaction,
   RescheduleBookingInTransactionDeps,
 } from './reschedule-booking-in-transaction.helpers';
+import { lockRescheduleCandidateResources } from './reschedule-quote.helpers';
 
 export interface WorklistRescheduleDeps extends RescheduleBookingInTransactionDeps {
   serviceRepo: IServiceRepository;
+  tenantLock: ITenantLockPort;
 }
 
 export interface WorklistRescheduleParams {
@@ -19,6 +24,50 @@ export interface WorklistRescheduleParams {
   scheduledAt: string;
   exception: FutureCommitmentException;
   booking: Booking;
+}
+
+export async function loadServiceMap(
+  deps: WorklistRescheduleDeps,
+  booking: Booking,
+  tenantId: string,
+): Promise<Map<string, Service>> {
+  const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+  const services = await deps.serviceRepo.findByIds(serviceIds, tenantId);
+  return new Map(services.map((service) => [service.id, service]));
+}
+
+// The worklist's RESCHEDULE takes every resource lock it will need in one call BEFORE the entry
+// row lock: the booking's current resources, the entry's source resource and the candidates for
+// the new window. Reactivating the source resource takes the resource lock first and the entry
+// rows after, so the two meet in the same order (docs/28-LOCK_CATALOG.md § 2, hazard H2). The
+// entry and the booking are read unlocked only to know which resources to lock; the locks that
+// follow re-read them. The reschedule below asks for the same ids again, which it already holds.
+export async function lockRescheduleResourcesBeforeEntry(
+  deps: WorklistRescheduleDeps,
+  params: { tenantId: string; exceptionId: string; scheduledAt: string; timezone: string },
+): Promise<void> {
+  const { tenantId, exceptionId, scheduledAt, timezone } = params;
+  const entry = await deps.exceptionRepo.findById(exceptionId, tenantId);
+  if (!entry) return;
+  const booking = await deps.bookingRepo.findById(entry.affectedId, tenantId);
+  if (!booking) return;
+  const newScheduledAt = new Date(scheduledAt);
+  if (Number.isNaN(newScheduledAt.getTime()) || newScheduledAt <= new Date()) return;
+  const occupied = await occupiedResourceIds(deps.occupancyRepo, tenantId, [booking]);
+  await lockRescheduleCandidateResources({
+    resourceRepo: deps.resourceRepo,
+    availabilityService: deps.availabilityService,
+    occupancyRepo: deps.occupancyRepo,
+    slotConflictService: deps.slotConflictService,
+    booking,
+    serviceMap: await loadServiceMap(deps, booking, tenantId),
+    tenantId,
+    newScheduledAt,
+    timezone,
+    overrideSelections: [],
+    durationChange: undefined,
+    alsoLockResourceIds: [...occupied, entry.sourceId],
+  });
 }
 
 // The worklist's RESCHEDULE (UC-077). Booking.reschedule() refuses anything but an APPROVED
@@ -33,11 +82,9 @@ export async function rescheduleThroughWorklist(
   const newScheduledAt = new Date(params.scheduledAt);
   if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
-  const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-  const services = await deps.serviceRepo.findByIds(serviceIds, tenantId);
   await rescheduleBookingInTransaction(deps, {
     booking,
-    serviceMap: new Map(services.map((service) => [service.id, service])),
+    serviceMap: await loadServiceMap(deps, booking, tenantId),
     newScheduledAt,
     durationChange: undefined,
     overrideSelections: [],

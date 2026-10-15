@@ -89,14 +89,7 @@ export async function resolveBookingLinesResourceCandidates(
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const { scheduledAt, lines, serviceMap, resourceSelections = [] } = params;
   const ctx = buildResolutionContext(params);
-  await lockCandidateResources({
-    lines,
-    serviceMap,
-    resourceSelections,
-    ctx,
-    lockResources: params.lockResources,
-    alsoLockResourceIds: params.alsoLockResourceIds,
-  });
+  await lockWithContext(params, ctx);
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();
   let cursor = scheduledAt;
@@ -121,6 +114,29 @@ export async function resolveBookingLinesResourceCandidates(
   }
 
   return result;
+}
+
+// Only the lock step of the resolution above: every resource the lines can land on, in one call.
+// The worklist's reschedule runs it before it takes the entry row lock (docs/28-LOCK_CATALOG.md
+// § 2); the resolution that follows asks for the same ids again, which a transaction already holds.
+export function lockBookingLinesResourceCandidates(
+  params: ResolveBookingLinesResourceCandidatesParams,
+): Promise<void> {
+  return lockWithContext(params, buildResolutionContext(params));
+}
+
+function lockWithContext(
+  params: ResolveBookingLinesResourceCandidatesParams,
+  ctx: ResolutionContext,
+): Promise<void> {
+  return lockCandidateResources({
+    lines: params.lines,
+    serviceMap: params.serviceMap,
+    resourceSelections: params.resourceSelections ?? [],
+    ctx,
+    lockResources: params.lockResources,
+    alsoLockResourceIds: params.alsoLockResourceIds,
+  });
 }
 
 function buildResolutionContext(

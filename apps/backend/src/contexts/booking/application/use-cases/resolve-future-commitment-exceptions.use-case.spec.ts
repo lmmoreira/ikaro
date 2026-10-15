@@ -268,6 +268,28 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   });
 
   describe('REASSIGN', () => {
+    it('never asks for a lock on the deactivated source resource (M23-S48, docs/28 H2)', async () => {
+      const source = await world.addResource('Sala 1');
+      const target = await world.addResource('Sala 2');
+      const service = await world.addService();
+      await world.addBooking({ service, resource: source });
+      const [entryId] = await raiseFor(source.id);
+      const asked: string[] = [];
+      const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+      jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+        asked.push(...ids);
+        return lockResources(tenantId, ids);
+      });
+
+      await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'REASSIGN',
+        target: { resourceId: target.id },
+      });
+
+      expect(asked).not.toContain(source.id);
+    });
+
     it('moves the occupancy to the chosen resource at the same window and leaves the booking untouched', async () => {
       const source = await world.addResource('Sala 1');
       const target = await world.addResource('Sala 2');
@@ -542,6 +564,64 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   });
 
   describe('RESCHEDULE', () => {
+    describe('lock order (M23-S48, docs/28 H2)', () => {
+      async function setup() {
+        const source = await world.addResource('Sala 1');
+        await world.addResource('Sala 2');
+        const service = await world.addService();
+        await world.addBooking({ service, resource: source, startsInHours: 48 });
+        const [entryId] = await raiseFor(source.id);
+        return { source, entryId, newTime: new Date(Date.now() + 96 * 3_600_000).toISOString() };
+      }
+
+      it('takes the resource locks before the entry row lock', async () => {
+        const { entryId, newTime } = await setup();
+        const order: string[] = [];
+        const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+        jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+          order.push('lock-resources');
+          return lockResources(tenantId, ids);
+        });
+        const lockEntry = world.exceptionRepo.findByIdForUpdate.bind(world.exceptionRepo);
+        jest.spyOn(world.exceptionRepo, 'findByIdForUpdate').mockImplementation((id, tenantId) => {
+          order.push('lock-entry');
+          return lockEntry(id, tenantId);
+        });
+
+        await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: newTime,
+        });
+
+        expect(order.indexOf('lock-resources')).toBeGreaterThanOrEqual(0);
+        expect(order.indexOf('lock-resources')).toBeLessThan(order.indexOf('lock-entry'));
+      });
+
+      it('holds the entry resource and the old resources in the first lock call, and later calls only ask for ids already held', async () => {
+        const { source, entryId, newTime } = await setup();
+        const calls: string[][] = [];
+        const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+        jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+          calls.push([...ids]);
+          return lockResources(tenantId, ids);
+        });
+
+        await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: newTime,
+        });
+
+        expect(calls.length).toBeGreaterThan(1);
+        expect(calls[0]).toContain(source.id);
+        const held = new Set(calls[0]);
+        for (const later of calls.slice(1)) {
+          for (const id of later) expect(held.has(id)).toBe(true);
+        }
+      });
+    });
+
     it('moves an APPROVED booking to the chosen time and re-resolves its resource', async () => {
       const source = await world.addResource('Sala 1');
       const replacement = await world.addResource('Sala 2');

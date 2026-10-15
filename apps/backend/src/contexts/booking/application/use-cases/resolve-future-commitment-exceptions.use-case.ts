@@ -13,7 +13,6 @@ import {
 } from '../../domain/errors/future-commitment-exception.error';
 import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
 import { FutureCommitmentExceptionResolutionType } from '../../domain/future-commitment-exception.types';
-import { Service } from '../../domain/service.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import {
@@ -41,10 +40,12 @@ import {
   syncRecurringScheduleAssignments,
 } from './future-commitment-schedule-sync.helpers';
 import {
+  lockRescheduleResourcesBeforeEntry,
   rescheduleThroughWorklist,
   WorklistRescheduleDeps,
 } from './future-commitment-reschedule.helpers';
-import { ReassignTarget, reassignBookingResource } from './resource-reassignment.helpers';
+import { reassignThroughWorklist } from './future-commitment-reassign.helpers';
+import { ReassignTarget } from './resource-reassignment.helpers';
 import { TerminalBookingDeps } from './booking-exception-closing.helpers';
 import {
   cancelThroughWorklist,
@@ -139,25 +140,26 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     const { tenantId, staffId, correlationId, resolutionType } = input;
     try {
       await this.txManager.run(async () => {
-        // The resource locks come before the entry row lock for every path that frees the booking
-        // (docs/28-LOCK_CATALOG.md § 2), so a staff cancel racing this resolve cannot deadlock.
-        if (resolutionType === 'CANCEL') {
-          await lockResourcesBeforeEntry(this.closingDeps, exceptionId, tenantId);
-        }
+        await this.lockResourcesFirst(input, exceptionId);
         const exception = await this.lockOpenEntry(exceptionId, tenantId);
         const booking = await this.loadBookingFor(exception, resolutionType, tenantId);
 
         if (resolutionType === 'CANCEL') {
           await cancelThroughWorklist(this.closingDeps, input, exception, booking!);
         } else if (resolutionType === 'REASSIGN') {
-          const moved = await this.reassign(input, exception, booking!);
+          const moved = await reassignThroughWorklist(
+            this.worklistDeps,
+            input,
+            exception,
+            booking!,
+          );
           // The time did not change, so no BookingRescheduled: this event is what tells the
           // customer (M23-S23). Saved here, inside the callback, with the occupancy move.
           booking!.recordResourceReassigned(staffId, correlationId, moved.newResourceName);
           await this.bookingRepo.save(booking!);
           if (moved.occurrence) reassigned.push(moved.occurrence);
         } else if (resolutionType === 'RESCHEDULE') {
-          await rescheduleThroughWorklist(this.rescheduleDeps, {
+          await rescheduleThroughWorklist(this.worklistDeps, {
             ...input,
             scheduledAt: input.scheduledAt!,
             exception,
@@ -171,6 +173,27 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       return { exceptionId, outcome: 'RESOLVED' };
     } catch (err) {
       return this.outcomeOfFailure(err, input, exceptionId);
+    }
+  }
+
+  // The resource locks come before the entry row lock for every choice that frees or moves the
+  // booking (docs/28-LOCK_CATALOG.md § 2), so a cancel, a reschedule or a reactivation racing this
+  // resolve cannot deadlock with it. KEEP and REASSIGN take none here: REASSIGN's lock set never
+  // contains the deactivated source resource.
+  private async lockResourcesFirst(
+    input: ResolveFutureCommitmentExceptionsUseCaseInput,
+    exceptionId: string,
+  ): Promise<void> {
+    const { tenantId, resolutionType } = input;
+    if (resolutionType === 'CANCEL') {
+      await lockResourcesBeforeEntry(this.closingDeps, exceptionId, tenantId);
+    } else if (resolutionType === 'RESCHEDULE' && input.scheduledAt) {
+      await lockRescheduleResourcesBeforeEntry(this.worklistDeps, {
+        tenantId,
+        exceptionId,
+        scheduledAt: input.scheduledAt,
+        timezone: input.timezone,
+      });
     }
   }
 
@@ -201,7 +224,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     };
   }
 
-  private get rescheduleDeps(): WorklistRescheduleDeps {
+  private get worklistDeps(): WorklistRescheduleDeps {
     return {
       bookingRepo: this.bookingRepo,
       resourceRepo: this.resourceRepo,
@@ -211,6 +234,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       slotConflictService: this.slotConflictService,
       exceptionRepo: this.exceptionRepo,
       serviceRepo: this.serviceRepo,
+      tenantLock: this.tenantLock,
     };
   }
 
@@ -238,46 +262,5 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     const booking = await this.bookingRepo.findById(exception.affectedId, tenantId);
     if (!booking) throw new BookingNotFoundError(exception.affectedId);
     return booking;
-  }
-
-  private async reassign(
-    input: ResolveFutureCommitmentExceptionsUseCaseInput,
-    exception: FutureCommitmentException,
-    booking: Booking,
-  ): Promise<{ occurrence: ReassignedOccurrence | null; newResourceName: string | null }> {
-    const { targetResourceId, targetResourceName, disclosesResource } =
-      await reassignBookingResource(
-        {
-          resourceRepo: this.resourceRepo,
-          occupancyRepo: this.occupancyRepo,
-          tenantLock: this.tenantLock,
-          availabilityService: this.availabilityService,
-        },
-        {
-          tenantId: input.tenantId,
-          booking,
-          serviceMap: await this.loadServiceMap(booking, input.tenantId),
-          sourceResourceId: exception.sourceId,
-          target: input.target ?? { mode: 'AUTO' },
-          timezone: input.timezone,
-        },
-      );
-    // UC-062/063: the customer is told the new resource's name only when the requirement shows it.
-    const newResourceName = disclosesResource ? targetResourceName : null;
-    if (!booking.recurringScheduleId) return { occurrence: null, newResourceName };
-    return {
-      occurrence: {
-        recurringScheduleId: booking.recurringScheduleId,
-        fromResourceId: exception.sourceId,
-        toResourceId: targetResourceId,
-      },
-      newResourceName,
-    };
-  }
-
-  private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {
-    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-    const services = await this.serviceRepo.findByIds(serviceIds, tenantId);
-    return new Map(services.map((s) => [s.id, s]));
   }
 }

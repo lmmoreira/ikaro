@@ -73,6 +73,7 @@ describe('booking exception closing (integration)', () => {
     tenantB = await createTenant('closing-tenant-b');
     serviceIdA = await seedService(tenantA);
     serviceIdB = await seedService(tenantB);
+    await ensureLocation(tenantA);
   });
 
   afterAll(async () => {
@@ -90,6 +91,38 @@ describe('booking exception closing (integration)', () => {
       .build();
     await ds.getRepository(ServiceEntity).save(service);
     return service.id;
+  }
+
+  // A service with no resource requirement resolves against the tenant's LOCATION.
+  async function ensureLocation(tenantId: string): Promise<void> {
+    const existing = await ds
+      .getRepository(ResourceEntity)
+      .findOne({ where: { tenantId, type: ResourceType.LOCATION } });
+    if (existing) return;
+    await ds
+      .getRepository(ResourceEntity)
+      .save(
+        new ResourceEntityBuilder()
+          .withTenantId(tenantId)
+          .withType(ResourceType.LOCATION)
+          .withName('Localização Principal')
+          .build(),
+      );
+  }
+
+  // True when nobody holds a row lock on the entry: SELECT ... FOR UPDATE NOWAIT fails otherwise.
+  async function entryRowIsFree(id: string, tenantId: string): Promise<boolean> {
+    try {
+      await ds.transaction((manager) =>
+        manager.query(
+          `SELECT id FROM booking.future_commitment_exceptions WHERE id = $1 AND tenant_id = $2 FOR UPDATE NOWAIT`,
+          [id, tenantId],
+        ),
+      );
+      return true;
+    } catch {
+      return false;
+    }
   }
 
   async function seedResource(tenantId: string): Promise<string> {
@@ -257,12 +290,58 @@ describe('booking exception closing (integration)', () => {
       await waitForBlockedLock();
       expect(cancelled).toBe(false);
       expect(await entryStatus(entryIds[0], tenantA)).toBe('OPEN');
+      expect(await entryRowIsFree(entryIds[0], tenantA)).toBe(true);
 
       releaseHolder();
       await Promise.all([holder, cancel]);
 
       expect(cancelled).toBe(true);
       expect(await entryStatus(entryIds[0], tenantA)).toBe('DISMISSED');
+    });
+  });
+
+  describe('worklist reschedule lock order (docs/28 H2)', () => {
+    it('waits for a holder of the source resource lock without holding the entry row lock', async () => {
+      const resourceId = await seedResource(tenantA);
+      const { bookingId, entryIds } = await seedBooking(tenantA, [resourceId]);
+      let holderHasLock!: () => void;
+      const locked = new Promise<void>((resolveLock) => (holderHasLock = resolveLock));
+      let releaseHolder!: () => void;
+      const released = new Promise<void>((resolveRelease) => (releaseHolder = resolveRelease));
+      // What a reactivation of the source resource does first.
+      const holder = txManager.run(async () => {
+        await tenantLock.lockResources(tenantA, [resourceId]);
+        holderHasLock();
+        await released;
+      });
+      await locked;
+
+      let finished = false;
+      const reschedule = resolve
+        .execute({
+          tenantId: tenantA,
+          staffId: STAFF_ID,
+          actorRole: 'MANAGER',
+          correlationId: uuidv7(),
+          timezone: 'America/Sao_Paulo',
+          exceptionIds: [entryIds[0]],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: new Date(`${futureDate(8)}T15:00:00.000Z`).toISOString(),
+        })
+        .then((result) => {
+          finished = true;
+          return result;
+        });
+      await waitForBlockedLock();
+      expect(finished).toBe(false);
+      expect(await entryRowIsFree(entryIds[0], tenantA)).toBe(true);
+
+      releaseHolder();
+      const [, result] = await Promise.all([holder, reschedule]);
+
+      expect(result.results).toEqual([{ exceptionId: entryIds[0], outcome: 'RESOLVED' }]);
+      expect(await entryStatus(entryIds[0], tenantA)).toBe('RESOLVED');
+      expect(await openEntriesOf(bookingId, tenantA)).toEqual([]);
     });
   });
 
