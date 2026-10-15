@@ -23,6 +23,11 @@ flowchart TD
 
     Trigger(("Resource deactivated<br/>(directly, or its staff member deactivated)")) -->|"UC-073"| Raise["System creates one idempotent<br/>worklist entry per affected booking"]
     Raise --> List["✅ /dashboard/scheduling-exceptions<br/>Reservas a resolver (01-exception-worklist)"]
+    Raise -.->|"M23-S46: the booking is marked in the queue"| Detail["🆕 /dashboard/bookings/[id]<br/>decision panel (staff/03j): Reatribuir · Reagendar · Cancelar"]
+    List -->|"Click a card"| Detail
+    Detail -->|"Reatribuir / Cancelar"| Sheets["same ReassignSheet / CancelSheet,<br/>one booking"]
+    Detail -->|"Reagendar (approved only)"| Reschedule
+    Sheets --> Resolved
 
     List -->|"Loading / error / empty"| States["01h vazio · 01i carregando · 01j erro ao carregar"]
     List -->|"Ticks one or more entries"| Bulk["01b selection + bulk action bar"]
@@ -62,7 +67,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row (Reatribuir disabled; Reagendar and Cancelar stay) and a pending row (no Reagendar); a card opens the booking detail, whose back arrow returns here | UC-073, UC-077 | ✅ Built |
+| `01-exception-worklist.html` | Worklist (every card opens `staff/prototypes/agenda/03j-booking-detail-precisa-decisao.html`, the booking's detail with a decision panel offering the same three actions for that one booking, M23-S46) — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row (Reatribuir disabled; Reagendar and Cancelar stay) and a pending row (no Reagendar); a card opens the booking detail, whose back arrow returns here | UC-073, UC-077 | ✅ Built |
 | `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ✅ Built |
 | `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a resource from the entries' current alternatives labelled "livre em N de M reservas"; optional reason | UC-077 | ✅ Built |
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ✅ Built |

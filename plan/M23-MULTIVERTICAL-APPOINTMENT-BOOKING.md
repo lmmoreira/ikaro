@@ -3860,7 +3860,7 @@ Decisions baked in (do not re-derive at discovery):
 - `apps/web/features/booking/hooks/useResources.ts` (+ `.spec.tsx`), `apps/web/features/staff/hooks/useStaff.ts` (+ `.spec.tsx`) (modify — also invalidate `['bookings', tenantId]`)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — keys above)
 - `apps/web/e2e/scheduling-exceptions.spec.ts` (modify — the scenarios below) and, if needed, `apps/web/e2e/helpers/scheduling-exceptions.ts`
-- Docs in the same change: `docs/14-API_CONTRACTS.md` (the field on the list and by-id items), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Read: the marker), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md` and the prototype `dev-notes.md` (already updated with the three prototype screens; flip the story status there when built)
+- Docs in the same change: `docs/14-API_CONTRACTS.md` (the field on the list and by-id items), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Read: the marker), `docs/04-USE_CASES.md` (UC-077 step 2 already names the decision panel as a second entry point; flip nothing, just verify at build time), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md` and the prototype `dev-notes.md` (already updated with the three prototype screens; flip the story status there when built)
 
 **Acceptance criteria — product:**
 - [ ] A booking with an open "Reservas a resolver" entry shows a "Precisa de decisão" pill on its card in the staff queue, in "Ação necessária", "Hoje" and "Próximos", for a MANAGER and for STAFF; it stays in the queue.

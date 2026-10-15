@@ -21,6 +21,7 @@ flowchart TD
     CardClick --> Detail["/dashboard/bookings/[id]<br/>Booking Detail"]
 
     Detail --> StatusBranch{"Status?"}
+    Detail -->|"has an open 'Reservas a resolver' entry (M23-S46)"| Marked["🆕 banner 'Precisa de decisão' (03j / 03k):<br/>MANAGER → decision panel Reatribuir · Reagendar · Cancelar<br/>STAFF → 'Peça a um gerente', no actions<br/>(see manager/scheduling-exceptions.md)"]
 
     StatusBranch -->|"PENDING / INFO_REQUESTED"| ActionChoice{"Ação"}
 
