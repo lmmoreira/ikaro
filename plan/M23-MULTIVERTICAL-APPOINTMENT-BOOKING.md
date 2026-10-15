@@ -33,6 +33,7 @@
 | 2 | M23-S14 | Manager "Reservas a resolver" worklist (frontend + a small backend/BFF read addition; UC-073/077) |
 | 2 | M23-S45 | Reactivating a resource closes that resource's open "Reservas a resolver" entries (UC-049; backend-only; related to S14, not blocking) |
 | 2 | M23-S46 | A booking with an open "Reservas a resolver" entry is marked in the staff queue and on its detail ("Precisa de decisão" pill + banner; `hasOpenException` on the list and by-id items; related to S14/S45) |
+| 2 | M23-S47 | Full booking detail: resources, itinerary, participants, intake answers, notes, addresses, origin, charge and cancellation on the staff and customer detail (backend + BFF + web; same files as S46, never in one batch with it) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -3847,5 +3848,91 @@ Decisions baked in (do not re-derive at discovery):
   - [ ] Manager: deactivate a resource with a confirmed booking from the Resources screen, navigate client-side to `/dashboard/bookings`: the card shows the pill; open it, the banner and its link show; follow the link and reassign it; back in the queue the booking is still there and the pill is gone — all without a reload
   - [ ] STAFF: sees the pill on the card and the banner on the detail with no link
   - [ ] Reactivating the resource removes the pill (the S45 path)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S47 — Full booking detail: the staff and customer detail show the booking's resources, itinerary, participants, intake answers, notes, addresses, origin, charge and cancellation (backend + BFF + web)
+
+**Agent:** `frontend-ts` (plus `backend-ts` and `bff-ts` slices — see Backend HTTP surface; the discovery may split it into a backend/BFF PR and a web PR)
+**Complexity:** L
+**Docs to load:** `docs/14-API_CONTRACTS.md` (§ Bookings by-id, staff and customer), `docs/13-DATABASE_SCHEMA.md` (§ `booking_attendees`, `service_booking_intake_schema`, `resource_occupancy`), `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions and mapper extraction, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (§ Booking — resources and legs), `docs/ENGINEERING_RULES_BACKEND.md` (§ Transactions — the occupancy repository only works inside `txManager.run()`), `docs/ENGINEERING_RULES_SHARED.md` (§ Authoring new i18n UI copy keys), `docs/ENGINEERING_RULES_TESTING.md`, `plan/journey/README.md`
+**Dependencies:** M23-S27 (✅ Done — `statusHistory` and `IBookingStaffPort.findNamesByIds`), M23-S39/S40 (✅ Done — `createdByStaffId` and the staff-created booking), M23-S43/S44 (✅ Done). **File overlap, not a hard dependency:** M23-S46 edits the same files (`GetBookingByIdUseCase`, `bookings.mapper.ts`, `booking.dto.ts`, `BookingDetailMain.tsx`) to add `hasOpenException`; land it first or merge carefully, and never run the two in one `/run-batch`.
+**Pattern:** plain composition — the by-id read use case gains a few batched reads (occupancy rows, the intake schema version) and its result grows; the two BFF mappers expose different subsets; the web adds small read-only cards next to the existing ones. No new endpoint, aggregate, event, status or migration.
+
+**Discovered:** 2026-10-15, in an audit of the booking detail prototypes after TD49 and the M23 booking-shape work (`plan/journey/staff/agenda.md` § "Full booking detail"): the detail page shows nothing of the fields the booking flow now collects. M23-S40 decision 14 deferred "Criado por" to its own story; this is it.
+
+**Description:**
+Today a booking's detail page (staff `/dashboard/bookings/:id`, customer `/{slug}/my-account/bookings/:id`) shows customer/contact, date and time, the service lines with price and duration, photos, the info exchange and (staff) the status history. It does not show which resource was reserved, the leg itinerary of a legged service, the participants and their names, the intake answers and the consent, the customer's notes, the pickup address, whether the booking is an occurrence of a recurring schedule or was created by staff, what was charged, or who cancelled it and why. Prototypes `staff/prototypes/agenda/{01,03,03f,03h,03i}` and `customer/prototypes/minha-conta/{02,02b,02c,02f}` were redrawn on 2026-10-15 with every card, switched by `?forma=`; this story builds them. Verified against the code on 2026-10-15:
+
+- `GetBookingByIdUseCaseResult` already returns `notes`, `adminNotes`, `createdAt`, both addresses and the completion fields, but the BFF staff mapper (`toStaffBookingDetail`) drops `notes`, `adminNotes` and `createdAt`, and `StaffBookingDetailResponse` has no such fields. The web never renders `pickupAddress`, `contactAddress`, `totalActualPrice`, `discountPointsUsed`/`discountAmount` or `approvedAt` on the read-only page.
+- The aggregate holds `participantCount`, `attendees`, `intake` (`intakeSchemaVersion`, `intakeAnswers`, `consentAcceptedAt`, `consentVersion`), `recurringScheduleId`, `createdByStaffId`, `cancelledAt/By`, `cancellationReason`, `rejectedAt/By`; none is in the by-id result.
+- Resources and legs live in `resource_occupancy`, read through `IResourceOccupancyRepository.findOccupancyByBookingLines` (resource id, type, **name**, `legIndex`, `quantityPosition`, start, end). The by-id use case already calls it for the customer reschedule options, inside `txManager.run()` (the repository only works inside a transaction, reads included). The list read already resolves `assignedResources` through another path; the detail has none.
+- Intake labels: the schema is versioned and a new version never edits the old one (`ServiceBookingIntakeSchema`), and `IServiceIntakeSchemaRepository.findAllByServiceId` returns every version, so the questions' labels *as booked* are recoverable.
+- **Cancel and reject release the booking's `resource_occupancy` rows** (`releaseBookingOccupancy` in `cancel-booking-as-admin`, `cancel-booking-as-customer`, `reject-booking` and the schedule end), so a `CANCELLED` or `REJECTED` booking has no live resources to show.
+
+Decisions baked in (do not re-derive at discovery):
+1. **One backend read, two audiences.** `GET /bookings/:id` (the same backend use case) returns the new fields; the BFF staff and customer mappers expose different subsets. **Customer-visible:** resources, itinerary, participantCount and attendees, intake answers (the customer's own) with the consent date, notes, pickup address, `recurringScheduleId`, duration chosen. **Staff only:** `adminNotes`, `createdByStaffId` (as a name, resolved with the existing `IBookingStaffPort.findNamesByIds` — no new cross-context port), `createdAt`, `consentVersion`, and the cancellation/rejection actor. The customer never sees internal notes, "Criado por" or a no-show's internal reason (negative guarantees, own tests).
+2. **Resources and itinerary from the live occupancy rows**, grouped by booking line: one entry per `(resourceType, resource)` for a flat requirement; one entry per `legIndex` ordered by leg, with start and end, for a legged service. They are shown for a booking that still holds occupancy; **a `CANCELLED` or `REJECTED` booking shows no resources card** (the rows were released, and the response says nothing rather than guessing). Prototype `03i` already hides the resources and itinerary cards for a cancelled booking (fixed 2026-10-15).
+3. **"Chosen by the customer" vs "assigned by the system"** is derived the way `buildRescheduleOptions` and `deriveResourceSelectionsFromAssignments` already do: from the service's *current* `resourceRequirements` selection mode for that resource type. If the service no longer has that requirement, the entry carries no origin tag (never a wrong one). An `AUTO_FUNGIBLE_POOL` requirement has no individual item: the entry shows the pool and the reserved quantity (count of `quantityPosition` rows). The prototype copy "Do conjunto" is aligned with that at discovery.
+4. **Intake labels are resolved by version**, not by the active schema: each answer is returned as `{ fieldKey, label, type, value }` using the version the booking was made on (`findAllByServiceId`, pick `intakeSchemaVersion`); an answer whose key is missing from that version is returned with the key as its label. A staff-created booking has `consentAcceptedAt = null` and the card says "Não coletado — reserva da equipe".
+5. **Cancellation / rejection** are read from the aggregate's own fields (`cancelledAt/By`, `cancellationReason`, `rejectedAt/By`, `rejectionReason`), not rebuilt from `statusHistory`: the audit table has no backfill (M23-S26), the aggregate is authoritative for every booking. The actor is a customer when `cancelledBy` equals the booking's `customerId` (name = `contactName`), else a staff member resolved by `findNamesByIds`; unresolvable → a role label, the same rule as the status history.
+6. **Read-only completed charge card ("Cobrança")** uses fields already in the staff DTO (`totalPrice`, `discountPointsUsed`, `discountAmount`, `totalActualPrice`, points earned = sum of the lines' `pointsValueAtBooking`); no backend change for it. The customer's `02c` already shows its own summary; it gains nothing new there except the cards above.
+7. **Costs are bounded:** one occupancy read (already one per call for the reschedule options), one intake-schema read only when the booking has an intake, one `findNamesByIds` call only when a staff actor appears; no read when there is nothing to resolve. Customer reads skip the staff-only lookups.
+8. **Nothing is hidden by shape:** a booking with no resources, no participants, no intake, no notes and no addresses renders exactly as today (the cards simply do not appear), per the prototype's default `?forma=simples`.
+9. **Link to the recurrence.** "Origem" links to the staff recurrence page (M23-S13's `/dashboard/bookings/recurring/:id`) and, for the customer, to the existing recurring-schedule page with `returnTo`. S13's screen is drawn for a pending request; until it has a read-only variant for `ACTIVE`/`ENDED` schedules, the staff "Origem" row is plain text (no link). Decided at S13's discovery; this story only reads `recurringScheduleId`.
+10. **Copy is pt-BR first with an `en` twin in the same commit**; the web uses `@ikaro/types` only and the shadcn `Card` the sibling cards use (the `--ba-*` prototype palette is never copied into `apps/web/features/**`).
+
+**Backend use case steps:**
+1. `GetBookingByIdUseCase.execute`: after the booking load, load the occupancy rows for the booking's lines (inside `txManager.run()`, skipped for `CANCELLED`/`REJECTED`), the service map (`serviceRepo.findByIds`) for the selection modes, and — when `booking.intake` is set — the intake schema version through `IServiceIntakeSchemaRepository.findAllByServiceId` for the labels.
+2. A pure helper `booking-detail-resources.helpers.ts` builds `resources` (per line) and `itinerary` (per legged line) from the rows and the service requirements (decision 3), next to `booking-reschedule-options.helpers.ts`.
+3. Map the aggregate's `participantCount`, `attendees`, `intake` (labels per decision 4), `recurringScheduleId`, `createdByStaffId`, `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` into the result; resolve staff names for `createdByStaffId` and the cancel/reject actors in the same batched `findNamesByIds` call the status history already makes.
+4. The result stays one shape for both audiences; the audience subset is the BFF's job (decision 1).
+
+**Backend HTTP surface:** reuses `GET /bookings/:id` (`booking.controller.ts`) — the response gains the fields above; no new route, so no new `.http` block (the existing block's sample response gains them).
+**BFF endpoint spec:** reuses `GET /bookings/:id` for both audiences. `bookings.mapper.ts`: `toStaffBookingDetail` adds `notes`, `adminNotes`, `createdAt`, `createdByName`, per-line `resources`/`itinerary`, `participantCount`, `attendees`, `intake`, `recurringScheduleId`, `cancellation`/`rejection`; `toCustomerBookingDetail` adds only the customer-visible subset of decision 1. `BookingDetailResponse` in `bookings.types.ts` and the `@ikaro/types` DTOs agree (`ikaro-types-drift`).
+**Prototype references:** `plan/journey/staff/prototypes/agenda/01-booking-detail.html`, `03-booking-detail-approved.html`, `03f-booking-detail-no-show.html`, `03h-booking-detail-completed.html`, `03i-booking-detail-cancelled.html` (all with `?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`); `plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`, `02b-…`, `02c-…`, `02f-…` (same `?forma=`); field table in `plan/journey/staff/agenda.md` § "Full booking detail" and both `dev-notes.md`. Read them before writing components; use the copy there, not the `--ba-*` palette. `03h`/`03i` are new read-only states of the existing detail route, not new routes.
+**New migration / i18n keys / env vars / feature flags:** no migration (every field is already stored), no env var, no flag. i18n (both locales, same commit): the card titles and row labels under `dashboard.bookingDetail` (`resourcesSection`, `itinerarySection`, `participantsSection`, `intakeSection`, `notesSection`, `addressesSection`, `originSection`, `chargeSection`, `cancellationSection`, `rejectionSection`, `internalNotesSection`, and their row labels and tags) and the customer twins under the customer detail namespace.
+
+**Files to create/modify:**
+- `apps/backend/src/contexts/booking/application/use-cases/get-booking-by-id.use-case.ts` (+ `.spec.ts`) (modify — the result and the reads)
+- `apps/backend/src/contexts/booking/application/use-cases/booking-detail-resources.helpers.ts` (+ `.spec.ts`) (new)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — end-to-end fields, tenant isolation)
+- `apps/backend/http/booking/bookings.http` (modify — the sample response)
+- `packages/types/src/booking.dto.ts` (modify — `StaffBookingDetailResponse`, `CustomerBookingDetailResponse`, new `BookingLineResourceEntry`, `BookingDetailIntakeAnswer`, `BookingDetailAttendee`, `BookingActorRef`)
+- `apps/bff/src/features/booking/bookings.mapper.ts` (+ `.spec.ts`), `bookings.types.ts` (modify)
+- `apps/web/features/booking/components/dashboard/bookings/BookingDetailMain.tsx` (+ `.spec.tsx`) (modify) and new cards, each with its `.spec.tsx`: `BookingResourcesCard.tsx`, `BookingItineraryCard.tsx`, `BookingParticipantsCard.tsx`, `BookingIntakeCard.tsx`, `BookingAddressesCard.tsx`, `BookingOriginCard.tsx`, `BookingChargeCard.tsx`, `BookingCancellationCard.tsx`
+- `apps/web/features/customer/components/my-account/BookingDetailMain.tsx` (+ `.spec.tsx`) (modify — reuses the shared read-only cards where the markup is the same, else customer-slice twins)
+- `apps/web/features/booking/components/dashboard/bookings/BookingDetailAsideCard.tsx` (+ `.spec.tsx`) (modify — a `CANCELLED`/`REJECTED` booking gets the back-to-agenda panel it lacks today)
+- `packages/i18n/locales/{pt-BR,en}/web.json` (modify — keys above)
+- `apps/web/e2e/booking-detail.spec.ts` (new or modify the existing detail spec) and, if needed, `apps/web/e2e/helpers/booking/**`
+- Docs in the same change: `docs/14-API_CONTRACTS.md` (the by-id response), `docs/27-BUSINESS_LOGIC_REFERENCE.md` (what the detail shows and why a released booking shows no resources), `plan/journey/staff/agenda.md`, `plan/journey/staff/use-cases.md`, both `dev-notes.md` (flip the ❓ Gap rows to built), `plan/journey/customer/minha-conta.md`
+
+**Acceptance criteria — product:**
+- [ ] Staff opening a booking that has resources sees one row per requirement (name, and whether the customer chose it or the system assigned it); a legged service shows its itinerary in order with times; a pooled requirement shows the pool and quantity.
+- [ ] A booking with participants shows the quantity and each named participant (with the minor mark); one with an intake form shows the answers by question and the consent date, or "Não coletado — reserva da equipe" when staff created it.
+- [ ] Customer notes, pickup address and contact address, "Solicitado em", "Criado por" (staff-created) and the recurrence origin show on the staff detail; internal notes show to staff only.
+- [ ] A `COMPLETED` booking shows what was charged (quoted, points discount, total charged, points earned); a `CANCELLED` or `REJECTED` booking shows who, when and why, and has a way back to the Agenda.
+- [ ] The customer sees, on their own booking, the resources, itinerary, participants, their own answers and the consent date, notes, pickup address and recurrence link — never internal notes, "Criado por" or a no-show's internal reason.
+- [ ] A booking with none of these data renders exactly as today.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `booking-detail-resources.helpers`: flat requirement with a chosen resource and an auto-assigned one (origin tags), a fungible pool (quantity, no item), a legged line (ordered by `legIndex` with times), a service whose requirement no longer exists (no tag), no rows (empty)
+  - [ ] `GetBookingByIdUseCase`: fields for a booking with and without intake/attendees/recurrence; the occupancy read is skipped for `CANCELLED`/`REJECTED`; the intake schema is read only when the booking has an intake; labels come from the booked version, not the active one; an answer whose key is gone falls back to the key; staff names resolved in one call; the cancel actor is the customer when `cancelledBy` equals `customerId`
+  - [ ] BFF `bookings.mapper`: staff detail carries every field including `adminNotes` and `createdByName`; **the customer mapper never carries `adminNotes`, `createdByStaffId`/`createdByName`, `consentVersion` or the cancel/reject actor id** *(negative guarantee, own test)*
+  - [ ] Each new card: renders with data, **renders nothing when its data is empty** *(regression pin, own test per card)*; `BookingDetailMain` shows no new card for a booking with none of the data *(regression pin)*
+  - [ ] Customer `BookingDetailMain`: the cards for the customer-visible subset; no internal fields
+  - [ ] `BookingDetailAsideCard`: `CANCELLED`/`REJECTED` render the back-to-agenda panel
+- Integration:
+  - [ ] Controller: `GET /bookings/:id` returns resources, itinerary, participants, intake with labels from the booked version, recurrence id, creator and cancellation for seeded bookings of each shape; a cancelled booking returns no resources
+  - [ ] Controller: after the service's intake schema gets a new version, an older booking still shows the labels of its own version
+- Tenant isolation:
+  - [ ] Tenant B cannot read tenant A's booking detail (404); the occupancy, intake-schema and staff-name reads are tenant-scoped (a tenant B staff id never resolves a tenant A name)
+- E2E (Playwright):
+  - [ ] Staff opens a seeded booking with a bundle (chosen room + auto-assigned staff) and a participant list: the resources, participants and intake cards show; a plain booking shows none of them
+  - [ ] Customer opens the same booking: the customer subset shows, with no internal notes
+  - [ ] Staff opens a completed booking (charge card) and a cancelled one (cancellation card, resources absent)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean

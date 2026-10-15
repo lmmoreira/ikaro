@@ -271,11 +271,11 @@
 
 
   <script>
-    /* Shape variants via ?forma= (prototype only). Default: simples. See the header comment. */
+    /* Shape variants via ?forma= (prototype only). Default: completo (every card; a real booking shows only the cards that have data). See the header comment. */
     (function () {
       var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};
-      var q = new URLSearchParams(location.search).get('forma') || 'simples';
-      if (!(q in NAMES)) q = 'simples';
+      var q = new URLSearchParams(location.search).get('forma') || 'completo';
+      if (!(q in NAMES)) q = 'completo';
       document.querySelectorAll('[data-v]').forEach(function (el) {
         el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
       });

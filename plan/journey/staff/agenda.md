@@ -155,7 +155,7 @@ Folder: `staff/prototypes/agenda/`
 
 ### Full booking detail — what the page must show (audit of 2026-10-15)
 
-The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `simples`) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
+The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `completo` — every card; the real page shows only the cards that have data, `simples` is the bare booking) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
 
 | Card (screen) | Fields | Where the data is today |
 |---|---|---|
