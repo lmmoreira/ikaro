@@ -55,3 +55,16 @@ export interface SchedulingExceptionResultItem {
 export interface SchedulingExceptionBulkResultResponse {
   results: SchedulingExceptionResultItem[];
 }
+
+// An explicit resource, or AUTO: each booking gets the least-loaded free active resource of its type.
+export type SchedulingExceptionReassignTarget = { resourceId: string } | { mode: 'AUTO' };
+
+// POST /scheduling-exceptions/resolve — 1 to 100 ids per request (the caller batches larger
+// selections); RESCHEDULE takes exactly one id and a `scheduledAt`.
+export interface ResolveSchedulingExceptionsRequest {
+  exceptionIds: string[];
+  resolutionType: 'KEEP' | 'REASSIGN' | 'RESCHEDULE' | 'CANCEL';
+  reason?: string;
+  target?: SchedulingExceptionReassignTarget;
+  scheduledAt?: string;
+}

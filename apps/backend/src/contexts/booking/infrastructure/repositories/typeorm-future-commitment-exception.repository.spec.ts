@@ -126,7 +126,9 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
       const result = await repo.countByTenant(TENANT_ID, { status: 'OPEN' });
 
       expect(result).toBe(3);
-      expect(ormRepo.count).toHaveBeenCalledWith({ where: { tenantId: TENANT_ID, status: 'OPEN' } });
+      expect(ormRepo.count).toHaveBeenCalledWith({
+        where: { tenantId: TENANT_ID, status: 'OPEN' },
+      });
       expect(ormRepo.find).not.toHaveBeenCalled();
     });
 

@@ -71,10 +71,7 @@ export class TypeOrmFutureCommitmentExceptionRepository implements IFutureCommit
     return entities.map(toDomain);
   }
 
-  countByTenant(
-    tenantId: string,
-    filters: FutureCommitmentExceptionFilters = {},
-  ): Promise<number> {
+  countByTenant(tenantId: string, filters: FutureCommitmentExceptionFilters = {}): Promise<number> {
     return this.repo.count({
       where: { tenantId, ...(filters.status ? { status: filters.status } : {}) },
     });

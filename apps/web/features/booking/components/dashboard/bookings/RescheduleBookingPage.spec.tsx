@@ -275,3 +275,122 @@ describe('RescheduleBookingPage', () => {
     expect(mobileFooter?.querySelector('.rounded-lg.border')).not.toBeNull();
   });
 });
+
+describe('RescheduleBookingPage — injected confirm (the "Reservas a resolver" route)', () => {
+  const baseProps = {
+    tenantSlug: 'lavacar-bh',
+    maxBookingAdvanceDays: 90,
+    timezone: 'UTC',
+    backHref: '/dashboard/scheduling-exceptions',
+    agendaHref: '/dashboard/scheduling-exceptions',
+  };
+
+  async function pickSlotAndConfirm(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'choose date' }));
+    await user.click(screen.getByRole('button', { name: 'choose slot' }));
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+  }
+
+  it('uses the injected confirm instead of PATCH /bookings/:id/reschedule, then hands over to onRescheduled', async () => {
+    const user = userEvent.setup();
+    const confirmReschedule = vi.fn().mockResolvedValue(undefined);
+    const onRescheduled = vi.fn();
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        {...baseProps}
+        confirmReschedule={confirmReschedule}
+        onRescheduled={onRescheduled}
+      />,
+    );
+    await user.type(screen.getByRole('textbox'), 'Box 2 em manutenção');
+
+    await pickSlotAndConfirm(user);
+
+    expect(confirmReschedule).toHaveBeenCalledWith({
+      startsAt: '2026-06-17T10:00:00.000Z',
+      adminNotes: 'Box 2 em manutenção',
+    });
+    expect(rescheduleBookingMutateAsync).not.toHaveBeenCalled();
+    expect(onRescheduled).toHaveBeenCalledTimes(1);
+    // The default success view is replaced by whatever the injected hand-over does.
+    expect(screen.queryByText('Agendamento reagendado')).not.toBeInTheDocument();
+  });
+
+  it('sends no adminNotes when the notes are empty', async () => {
+    const user = userEvent.setup();
+    const confirmReschedule = vi.fn().mockResolvedValue(undefined);
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        {...baseProps}
+        confirmReschedule={confirmReschedule}
+      />,
+    );
+
+    await pickSlotAndConfirm(user);
+
+    expect(confirmReschedule).toHaveBeenCalledWith({
+      startsAt: '2026-06-17T10:00:00.000Z',
+      adminNotes: undefined,
+    });
+  });
+
+  it('still shows the default success view when only the confirm is injected', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        {...baseProps}
+        confirmReschedule={vi.fn().mockResolvedValue(undefined)}
+      />,
+    );
+
+    await pickSlotAndConfirm(user);
+
+    expect(await screen.findByText('Agendamento reagendado')).toBeInTheDocument();
+  });
+
+  it('keeps the conflict flow when the injected confirm throws a 409: it loads the alternative slots', async () => {
+    const user = userEvent.setup();
+    const onRescheduled = vi.fn();
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-17',
+      available: true,
+      slots: [{ startsAt: '2026-06-17T11:00:00.000Z', endsAt: '2026-06-17T11:30:00.000Z' }],
+    });
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        {...baseProps}
+        confirmReschedule={vi
+          .fn()
+          .mockRejectedValue(new ApiError(409, 'slot', { code: 'BOOKING_SLOT_UNAVAILABLE' }))}
+        onRescheduled={onRescheduled}
+      />,
+    );
+
+    await pickSlotAndConfirm(user);
+
+    expect(await screen.findByText('Horário não disponível')).toBeInTheDocument();
+    expect(fetchBookingAvailability).toHaveBeenCalled();
+    expect(onRescheduled).not.toHaveBeenCalled();
+  });
+
+  it('shows the translated message when the injected confirm fails with another code', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        {...baseProps}
+        confirmReschedule={vi
+          .fn()
+          .mockRejectedValue(new ApiError(422, 'past', { code: 'BOOKING_SCHEDULED_IN_PAST' }))}
+      />,
+    );
+
+    await pickSlotAndConfirm(user);
+
+    expect(await screen.findByText('O novo horário deve ser no futuro.')).toBeInTheDocument();
+  });
+});

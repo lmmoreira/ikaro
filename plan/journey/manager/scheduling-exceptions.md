@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER  
 **Goal:** Review and explicitly resolve — one by one or many at once — future bookings affected by a resource change nobody reviewed per-session  
 **UCs covered:** UC-073 (System raises), UC-077 (Manager resolves)  
-**Status:** Draft — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend, `M23-S14`, is not built yet (❓ Gap on the web side). Prototypes redrawn 2026-10-14 inside the real dashboard shell, reusing the agenda's cards, sheets and the staff reschedule picker (`dev-notes.md` § Design system). Customer/manager notifications for the worklist: `M23-S23`.
+**Status:** Built — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend shipped in `M23-S14` (✅). Prototypes redrawn 2026-10-14 inside the real dashboard shell, reusing the agenda's cards, sheets and the staff reschedule picker (`dev-notes.md` § Design system). Customer/manager notifications for the worklist: `M23-S23`.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
 
@@ -22,7 +22,7 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Trigger(("Resource deactivated<br/>(directly, or its staff member deactivated)")) -->|"UC-073"| Raise["System creates one idempotent<br/>worklist entry per affected booking"]
-    Raise --> List["❓ GAP: /dashboard/scheduling-exceptions<br/>Reservas a resolver (01-exception-worklist)"]
+    Raise --> List["✅ /dashboard/scheduling-exceptions<br/>Reservas a resolver (01-exception-worklist)"]
 
     List -->|"Loading / error / empty"| States["01h vazio · 01i carregando · 01j erro ao carregar"]
     List -->|"Ticks one or more entries"| Bulk["01b selection + bulk action bar"]
@@ -42,7 +42,8 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/scheduling-exceptions` | `SchedulingExceptionWorklistPage` | M23-S14 | ❓ GAP |
+| `/dashboard/scheduling-exceptions` | `SchedulingExceptionWorklistPage` | M23-S14 | ✅ Built |
+| `/dashboard/scheduling-exceptions/[exceptionId]/reschedule` | `SchedulingExceptionReschedulePage` (the staff `RescheduleBookingPage`) | M23-S14 | ✅ Built |
 
 ## BFF calls in this flow
 
@@ -61,14 +62,14 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ❓ GAP |
-| `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ❓ GAP |
-| `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a stored alternative labelled "livre em N de M reservas"; optional reason | UC-077 | ❓ GAP |
-| `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ❓ GAP |
-| `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ❓ GAP |
-| `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ❓ GAP |
-| `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ❓ GAP |
-| `01k-erro-enviar.html` | The whole request failed — nothing changed | UC-077 | ❓ GAP |
+| `01-exception-worklist.html` | Worklist — one card per affected booking (the real queue card's shape: name + Cliente/Visitante + status pills, service, date/time and price · duration, small buttons, the card links to the booking), grouped by the unavailable resource, per-row actions, a "no compatible alternative" row and a pending row (no Reagendar) | UC-073, UC-077 | ✅ Built |
+| `01b-selecionados.html` | Two entries ticked, bulk action bar (Reatribuir · Cancelar; Reagendar is one at a time) | UC-077 | ✅ Built |
+| `01c-reatribuir.html` | Reassign target: "Qualquer recurso livre" (default) or a stored alternative labelled "livre em N de M reservas"; optional reason | UC-077 | ✅ Built |
+| `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ✅ Built |
+| `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ✅ Built |
+| `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ✅ Built |
+| `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ✅ Built |
+| `01k-erro-enviar.html` | The whole request failed — nothing changed | UC-077 | ✅ Built |
 
 ## Open questions / gaps
 
