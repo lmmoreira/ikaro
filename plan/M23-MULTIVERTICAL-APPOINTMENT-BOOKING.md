@@ -35,6 +35,7 @@
 | 2 | M23-S46 | A booking with an open "Reservas a resolver" entry is marked in the staff queue and on its detail ("Precisa de decisão" pill + banner; `hasOpenException` on the list and by-id items; related to S14/S45) |
 | 2 | M23-S47 | Full booking detail: resources, itinerary, participants, intake answers, notes, addresses, origin, charge and cancellation on the staff and customer detail (backend + BFF + web; same files as S46, never in one batch with it) |
 | 2 | M23-S48 | Close a booking's stale "Reservas a resolver" entries in the same transaction when the booking no longer occupies the entry's resource (cancel, reject, reschedule, end of a recurring schedule; backend only, shared helpers and a lock order; UC-077; found in M23-S46 discovery, related to S08/S45, not blocking) |
+| 3 | M23-S49 | Bounded lock waits: a transaction-local `lock_timeout` and a retryable 503 for a lock timeout or a Postgres deadlock abort (backend-only; from the lock catalog hazard H5; depends on S48) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -4126,5 +4127,69 @@ Decisions baked in (do not re-derive at discovery):
   - [ ] A cancel in tenant B never closes tenant A's entry, and `findOpenByAffectedForUpdate(tenantB, 'BOOKING', [tenant A's booking id])` returns an empty list
 - E2E: none — backend only, no UI change; covered by the integration tests above
 - [ ] `docs/28-LOCK_CATALOG.md` updated in the same change (§ 3, § 4, H4)
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
+---
+
+### M23-S49 — A request waiting on a lock fails fast with a retryable error instead of hanging, and a Postgres deadlock abort stops surfacing as a 500
+
+**Agent:** backend-ts
+**Complexity:** M
+**Docs to load:** `docs/28-LOCK_CATALOG.md` (§ 1, § 2, hazard H5), `docs/ENGINEERING_RULES_BACKEND.md` (§ Transactions, § Choosing a race-condition primitive, § Event Handlers), `docs/ENGINEERING_RULES_SHARED.md` (§ Adding a new error — checklist), `docs/25-ERROR_CATALOG.md` (§ HTTP status codes, § Code Origins), `docs/ENGINEERING_RULES_TESTING.md`, `docs/08-TESTING_STRATEGY.md`
+**Dependencies:** M23-S48 (fixes the known lock-order inversions H1 to H4 and writes the lock catalog this story updates; without it, the timeout would turn latent deadlocks into user-visible 503s).
+**Pattern:** plain composition — one choke point. Every transaction already opens in `runInNewTransaction`, so the timeout is set there and the error is mapped there; no decorator, no per-lock change.
+
+**Discovered:** 2026-10-15, in M23-S48's `/story-discovery` lock sweep (`docs/28-LOCK_CATALOG.md` H5).
+**Root cause:** `apps/backend/src/shared/infrastructure/run-in-new-transaction.ts:28` opens every transaction without setting a `lock_timeout`; `typeorm-tenant-lock.adapter.ts:48` (`pg_advisory_xact_lock`) and every `FOR UPDATE` repository method wait for as long as the holder lives. Postgres does detect a true deadlock after `deadlock_timeout` and aborts one side with SQLSTATE `40P01`, but the backend's `ErrorFilter` (a thin subclass of `BaseErrorFilter` in `packages/nestjs-http`) has no mapping for it, so the caller gets a 500. A merely slow holder (a raise over a resource with many bookings, a long `end-recurring`) never raises an error at all; the waiter hangs until the HTTP client gives up.
+
+**Description:**
+Set a transaction-local lock timeout where every transaction is opened, and turn the two Postgres lock failures into one typed, retryable error with a clean HTTP response.
+
+- **Timeout.** Inside `runInNewTransaction`, as the first statement of the transaction, run `SELECT set_config('lock_timeout', $1, true)` with `'5000ms'` (`true` makes it local to the transaction, so it never leaks to the next user of a pooled connection; `SET LOCAL` cannot take a parameter). The value is a named constant in code, `DB_LOCK_TIMEOUT_MS = 5000`, not an environment variable: an env var would add an `env.validation.ts` entry and `infra/terraform` changes for a value with no known reason to differ per environment. The first integration test measures the longest legitimate lock-holding transaction in the suite (the raise and `end-recurring` cases from M23-S48) and the value is raised only if one of them needs more.
+- **Error.** `runInNewTransaction` catches a `QueryFailedError` whose driver code is `40P01` (deadlock detected) or `55P03` (lock not available, the timeout) and rethrows a typed `TransactionContentionError` (shared, no domain meaning), keeping the original as `cause`. Every other error is untouched. `ErrorFilter` maps it to HTTP **503** with a `Retry-After: 1` header and a new error code (origin prefix per `docs/25-ERROR_CATALOG.md` § Code Origins, in `packages/types/src/error-codes.ts`, translated in both locale files). No SQL text or lock key reaches the response.
+- **No automatic retry.** Use cases are not idempotent by default, so the story adds none; the client retries on the `Retry-After`. Event handlers already rethrow and Pub/Sub redelivers, which is the retry for background work.
+- **Observability.** One structured `warn` log per mapped error with `tenant_id`, `correlation.id` and the SQLSTATE, and the same as a span event. No new metric.
+- **Unchanged on purpose:** outbox claims (`SKIP LOCKED` never waits), statement execution time (`lock_timeout` bounds lock waits only), and every lock call site.
+
+Decisions baked in (do not re-derive at discovery):
+1. One choke point (`runInNewTransaction`), not a timeout per lock call and not a database-level default (`ALTER ROLE … SET lock_timeout`), which would hide the behavior from the code and from the tests.
+2. `set_config(..., true)`, transaction-local; never a session setting.
+3. A constant, not an env var; 503 + `Retry-After`, not 409 (409 means a business conflict) and not 500.
+4. No automatic retry in this story.
+
+**Backend use case steps:** none (cross-cutting infrastructure; no use case changes).
+**Backend HTTP surface:** none new; every endpoint can now return the 503 above, documented once in `docs/25-ERROR_CATALOG.md`.
+**BFF endpoint spec:** none. Discovery checks that the BFF forwards a backend 503 with its status, `Retry-After` and error code unchanged (it describes 503 as BFF-originated today); if it rewrites it, a small passthrough fix is in scope.
+**Prototype references:** none (no UI).
+**New migration / i18n keys / env vars / feature flags:** one error-code translation in `packages/i18n/locales/pt-BR/errors.json` and `.../en/errors.json` (same commit); no migration, env var or flag.
+
+**Files to create/modify:**
+- `apps/backend/src/shared/infrastructure/run-in-new-transaction.ts` (+ `.spec.ts`) (modify — the timeout and the mapping)
+- `apps/backend/src/shared/domain/transaction-contention.error.ts` (+ `.spec.ts`) (new — path matches the sibling shared errors; verify the exact folder at discovery)
+- `apps/backend/src/shared/filters/error.filter.ts` and/or `packages/nestjs-http/src/base-error.filter.ts` (+ specs, `error.filter.integration.spec.ts`) (modify — 503 and `Retry-After`; discovery picks the layer the other typed errors use)
+- `packages/types/src/error-codes.ts`, `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json` (modify)
+- `apps/backend/src/shared/infrastructure/run-in-new-transaction.integration.spec.ts` (new, Postgres)
+- Docs in the same change: `docs/28-LOCK_CATALOG.md` (§ 1 the timeout, H5 closed), `docs/25-ERROR_CATALOG.md` (the 503 row and the new code), `docs/ENGINEERING_RULES_BACKEND.md` (§ Transactions: the timeout and the retry contract)
+
+**Acceptance criteria — product:**
+- [ ] A request that would wait longer than the timeout for a lock a slow transaction holds returns 503 with `Retry-After` and a translated message within about the timeout, instead of hanging.
+- [ ] A request aborted by a Postgres deadlock returns the same 503, not a 500.
+- [ ] The transaction that holds the lock is not affected and commits normally.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `runInNewTransaction` runs `set_config('lock_timeout', …, true)` first, before the work, once per transaction
+  - [ ] SQLSTATE `40P01` and `55P03` become `TransactionContentionError` carrying the original as `cause`; any other `QueryFailedError` (for example a unique violation) passes through unchanged *(negative guarantee, own test)*
+  - [ ] `ErrorFilter` renders the error as 503, `Retry-After: 1`, the new code, with no SQL text in the body
+- Integration (Postgres):
+  - [ ] Advisory lock: a holder keeps `lockResources` for longer than the timeout; the second transaction fails with `TransactionContentionError` within the timeout plus a margin; the holder commits
+  - [ ] Row lock: the same with `serviceRepo.findByIdForUpdate` held by another transaction
+  - [ ] Deadlock: two transactions take two advisory keys in opposite orders; exactly one fails with `TransactionContentionError`, the other commits
+  - [ ] The timeout does not leak: after a transaction commits, the next transaction on the same pooled connection reads the server default for `lock_timeout` *(negative guarantee, own test)*
+  - [ ] A handler that hits the error rethrows it, so the message is redelivered and not swallowed
+- Tenant isolation:
+  - [ ] The mapped error body for a contention caused by tenant B's transaction contains no tenant B identifier, lock key or SQL
+- E2E: none — backend only, no UI change; covered by the integration tests above
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
