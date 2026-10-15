@@ -66,6 +66,20 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
     });
   });
 
+  it('stops offering an alternative that was deactivated after the entry was raised', async () => {
+    const source = await world.addResource('Sala 1');
+    const alternative = await world.addResource('Sala 2');
+    const service = await world.addService();
+    await world.addBooking({ service, resource: source, startsInHours: 24 });
+    await raiseFor(source.id);
+    alternative.deactivate();
+    await world.resourceRepo.save(alternative);
+
+    const { items } = await useCase.execute({ tenantId: TENANT_ID, status: 'OPEN' });
+
+    expect(items[0].alternatives).toEqual([]);
+  });
+
   it("flags a registered customer's booking and carries its total price (the queue card's pills and price)", async () => {
     const source = await world.addResource('Sala 1');
     const service = await world.addService();

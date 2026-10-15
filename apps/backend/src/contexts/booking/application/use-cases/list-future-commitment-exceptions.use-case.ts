@@ -72,9 +72,9 @@ export class ListFutureCommitmentExceptionsUseCase {
     );
     // One read of the tenant's resources (deactivated ones included — they are the entries'
     // sources), not one per distinct source: a tenant has tens of resources, not thousands.
-    const resourceNames = new Map(
-      (await this.resourceRepo.findByTenant(tenantId, {})).map((r) => [r.id, r.name]),
-    );
+    const resources = await this.resourceRepo.findByTenant(tenantId, {});
+    const resourceNames = new Map(resources.map((r) => [r.id, r.name]));
+    const activeResourceIds = new Set(resources.filter((r) => r.isActive).map((r) => r.id));
 
     const items = exceptions.map((e) => ({
       id: e.id,
@@ -83,7 +83,9 @@ export class ListFutureCommitmentExceptionsUseCase {
       affectedType: e.affectedType,
       affectedId: e.affectedId,
       status: e.status,
-      alternatives: e.alternatives,
+      // Stored at raise time, so a room deactivated since then (a second deactivation in a row) must
+      // stop being offered: the list only ever shows what is still active now.
+      alternatives: e.alternatives.filter((alt) => activeResourceIds.has(alt.resourceId)),
       createdAt: e.createdAt.toISOString(),
       booking: toBookingSummary(bookings.get(e.affectedId), resourceNames.get(e.sourceId) ?? null),
     }));
