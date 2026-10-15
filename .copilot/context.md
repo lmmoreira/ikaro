@@ -371,7 +371,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
 | Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
 | Booking scheduling logic: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § the matching `Booking — …` section (+ DB/migration, UC rows) |
-| Database / migration | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
+| Database / migration; a lock, a deadlock or a hung request | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` + `docs/ENGINEERING_RULES_BACKEND.md`; locks: `docs/28-LOCK_CATALOG.md` (every lock, its order, its business case) |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
 | Staff OAuth login / invite link | `docs/ENGINEERING_RULES_BACKEND.md` § Staff OAuth login URL format |
@@ -397,10 +397,10 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
 | `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22 and later) | `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
-| Starting a new discovery from an idea | `/create-discovery` — see `.claude/commands/create-discovery.md` |
-| Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` — see `.claude/commands/discovery-to-milestone.md` |
-| Creating a brand-new TD | `/create-td` — see `.claude/commands/create-td.md` |
-| Appending one new story to an already-existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` — see `.claude/commands/create-story.md` |
+| Starting a new discovery from an idea | `/create-discovery` |
+| Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` |
+| Creating a brand-new TD | `/create-td` |
+| Appending one new story to an already-existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` |
 | Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it instead of restating their own copy |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
