@@ -2,17 +2,21 @@ import { notFound } from 'next/navigation';
 import { SchedulingExceptionReschedulePage } from '@/features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionReschedulePage';
 import { findOpenSchedulingException } from '@/features/booking/api/scheduling-exceptions.server';
 import { getAccessToken } from '@/features/auth/get-access-token';
+import { resolveReturnTo } from '@/features/booking/model/booking-navigation';
 import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-route.server';
 import { fetchTenantSettings } from '@/features/platform/api/tenant-settings.server';
 
 interface SchedulingExceptionRescheduleRouteProps {
   readonly params: Promise<{ exceptionId: string }>;
+  readonly searchParams: Promise<{ returnTo?: string }>;
 }
 
 export default async function SchedulingExceptionRescheduleRoute({
   params,
+  searchParams,
 }: SchedulingExceptionRescheduleRouteProps): Promise<React.JSX.Element> {
   const { exceptionId } = await params;
+  const { returnTo } = await searchParams;
   const token = await getAccessToken();
 
   // Missing, already closed, unreadable or not confirmed (only an APPROVED booking can be
@@ -34,6 +38,7 @@ export default async function SchedulingExceptionRescheduleRoute({
       tenantSlug={tenantSlug}
       maxBookingAdvanceDays={settings?.settings.booking.maxBookingAdvanceDays ?? 90}
       timezone={settings?.settings.businessHours.timezone ?? 'America/Sao_Paulo'}
+      returnTo={resolveReturnTo(returnTo)}
     />
   );
 }

@@ -6,6 +6,7 @@ type BookingCard = StaffBookingListResponse['items'][number];
 
 function makeItem(bookingId: string): BookingCard {
   return {
+    hasOpenException: false,
     bookingId,
     status: 'APPROVED',
     scheduledAt: '2026-07-01T09:00:00.000Z',

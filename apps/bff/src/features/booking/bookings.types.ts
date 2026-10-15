@@ -81,6 +81,9 @@ export interface BookingListItem {
   // Which physical resource(s), if any, this booking's line(s) resolved to — display-only,
   // always present regardless of any client-side filter state (TD44-S2 round 3).
   assignedResources: BookingResourceAssignment[];
+  // M23-S46 — an open "Reservas a resolver" entry exists for this booking; always false on a
+  // customer-scoped list. Mapped into the staff card only, never into a customer response.
+  hasOpenException: boolean;
 }
 
 export interface BookingListResponse {
@@ -175,4 +178,7 @@ export interface BookingDetailResponse {
   pointsEarned: number | null;
   // Present only on the staff-facing read (M23-S27); the backend resolves the actor names.
   statusHistory: BookingStatusHistoryEntry[] | null;
+  // Present only on the staff-facing read (M23-S46): true when the booking has an open "Reservas a
+  // resolver" entry; null on a customer or loyalty read, which never queries the worklist.
+  hasOpenException: boolean | null;
 }

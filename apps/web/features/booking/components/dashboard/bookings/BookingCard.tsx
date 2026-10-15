@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { StaffBookingCardResponse } from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
@@ -38,12 +39,15 @@ export interface UpcomingBookingCardProps extends BookingCardBaseProps {
 export type BookingCardProps =
   ActionNeededBookingCardProps | TodayBookingCardProps | UpcomingBookingCardProps;
 
-// "Marcar concluído" on today's card, "Aprovar" on an action-needed one, nothing on an upcoming one.
+// "Marcar concluído" on today's card, "Aprovar" on an action-needed one, nothing on an upcoming one,
+// and nothing on a booking that needs a decision (M23-S46): its only actions are the decision ones,
+// taken from the detail or from "Reservas a resolver".
 function renderActions(
   props: BookingCardProps,
   approvalPending: boolean,
   t: (key: 'markCompleted' | 'approve') => string,
 ): React.ReactNode {
+  if (props.booking.hasOpenException) return null;
   if (props.variant === 'today') {
     return (
       <Button asChild size="sm">
@@ -91,6 +95,15 @@ function BookingCardInner(props: BookingCardProps): React.JSX.Element {
           >
             {statusLabel[booking.status] ?? booking.status}
           </Badge>
+          {booking.hasOpenException ? (
+            <Badge
+              data-testid="booking-needs-decision-pill"
+              className="shrink-0 gap-1 border-0 bg-orange-100 text-xs text-orange-800"
+            >
+              <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+              {t('needsDecision')}
+            </Badge>
+          ) : null}
         </>
       }
       serviceLine={booking.serviceNames.join(', ')}

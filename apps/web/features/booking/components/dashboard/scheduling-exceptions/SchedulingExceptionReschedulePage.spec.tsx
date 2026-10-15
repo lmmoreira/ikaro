@@ -35,7 +35,7 @@ vi.mock('@/features/booking/components/dashboard/bookings/RescheduleBookingPage'
 const booking = { bookingId: 'bk-1', status: 'APPROVED' } as StaffBookingDetailResponse;
 const props = () => captured.props as CapturedProps;
 
-function renderPage() {
+function renderPage(returnTo?: string | null) {
   render(
     <SchedulingExceptionReschedulePage
       exceptionId="exc-1"
@@ -43,6 +43,7 @@ function renderPage() {
       tenantSlug="lavacar"
       maxBookingAdvanceDays={90}
       timezone="America/Sao_Paulo"
+      returnTo={returnTo}
     />,
   );
 }
@@ -60,6 +61,27 @@ describe('SchedulingExceptionReschedulePage', () => {
     expect(props().booking).toBe(booking);
     expect(props().backHref).toBe('/dashboard/scheduling-exceptions');
     expect(props().agendaHref).toBe('/dashboard/scheduling-exceptions');
+  });
+
+  // Regression pin: opened without a return target (the worklist's own Reagendar), every
+  // destination is still the worklist, exactly as before M23-S46.
+  it('leads back, to the agenda and after a finished reschedule to the worklist when there is no returnTo', () => {
+    renderPage(null);
+
+    expect(props().backHref).toBe('/dashboard/scheduling-exceptions');
+    expect(props().agendaHref).toBe('/dashboard/scheduling-exceptions');
+    props().onRescheduled();
+    expect(push).toHaveBeenCalledWith('/dashboard/scheduling-exceptions');
+  });
+
+  // M23-S46 — the manager came from the booking detail's decision panel.
+  it('leads back, to the agenda and after a finished reschedule to the given returnTo', () => {
+    renderPage('/dashboard/bookings/bk-1');
+
+    expect(props().backHref).toBe('/dashboard/bookings/bk-1');
+    expect(props().agendaHref).toBe('/dashboard/bookings/bk-1');
+    props().onRescheduled();
+    expect(push).toHaveBeenCalledWith('/dashboard/bookings/bk-1');
   });
 
   it('confirms through the worklist resolve (RESCHEDULE, one id, the new time), never PATCH /bookings/:id/reschedule', async () => {

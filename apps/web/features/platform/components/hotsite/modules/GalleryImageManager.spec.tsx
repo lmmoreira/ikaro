@@ -368,6 +368,7 @@ describe('GalleryImageManager', () => {
     vi.mocked(listBookings).mockResolvedValue({
       items: [
         {
+          hasOpenException: false,
           bookingId: 'b-1',
           status: 'COMPLETED',
           scheduledAt: '2026-06-01T10:00:00.000Z',

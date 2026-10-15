@@ -113,5 +113,6 @@ describe('useDeactivateStaff cache', () => {
     act(() => result.current.mutate('s-1'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['scheduling-exceptions', 't-1'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
   });
 });

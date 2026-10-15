@@ -174,6 +174,64 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
     expect(items[1].booking).toBeNull();
   });
 
+  describe('affectedBookingId (M23-S46 — the booking detail’s decision panel)', () => {
+    it('returns only that booking’s OPEN entries, one per deactivated resource, with their alternatives', async () => {
+      const room = await world.addResource('Sala 1');
+      const projector = await world.addResource('Projetor 1');
+      const spareRoom = await world.addResource('Sala 2');
+      const service = await world.addService();
+      const bundle = await world.addBooking({
+        service,
+        resource: room,
+        alsoHeld: [projector],
+        startsInHours: 24,
+      });
+      const elsewhere = await world.addResource('Sala 3');
+      const other = await world.addBooking({ service, resource: elsewhere, startsInHours: 48 });
+      await raiseFor(room.id);
+      await raiseFor(projector.id);
+      await raiseFor(elsewhere.id);
+
+      const { items } = await useCase.execute({
+        tenantId: TENANT_ID,
+        status: 'OPEN',
+        affectedBookingId: bundle.id,
+      });
+
+      expect(items.map((i) => i.affectedId)).toEqual([bundle.id, bundle.id]);
+      expect(items.map((i) => i.sourceId).sort()).toEqual([room.id, projector.id].sort());
+      const roomEntry = items.find((i) => i.sourceId === room.id)!;
+      expect(roomEntry.alternatives).toContainEqual({
+        resourceId: spareRoom.id,
+        resourceName: 'Sala 2',
+      });
+      expect(items.some((i) => i.affectedId === other.id)).toBe(false);
+    });
+
+    it('returns an empty list for an unmarked booking and for another tenant’s caller', async () => {
+      const source = await world.addResource('Sala 1');
+      const untouched = await world.addResource('Sala 2');
+      const service = await world.addService();
+      const marked = await world.addBooking({ service, resource: source, startsInHours: 24 });
+      const plain = await world.addBooking({ service, resource: untouched, startsInHours: 48 });
+      await raiseFor(source.id);
+
+      const unmarked = await useCase.execute({
+        tenantId: TENANT_ID,
+        status: 'OPEN',
+        affectedBookingId: plain.id,
+      });
+      const otherTenant = await useCase.execute({
+        tenantId: FCE_OTHER_TENANT_ID,
+        status: 'OPEN',
+        affectedBookingId: marked.id,
+      });
+
+      expect(unmarked.items).toEqual([]);
+      expect(otherTenant.items).toEqual([]);
+    });
+  });
+
   it('never lists another tenant’s entries (tenant isolation)', async () => {
     const source = await world.addResource('Sala 1');
     const service = await world.addService();

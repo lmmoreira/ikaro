@@ -109,6 +109,52 @@ describe('SchedulingExceptionsController (component)', () => {
     });
   });
 
+  describe('GET /v1/scheduling-exceptions/by-booking/:bookingId (M23-S46)', () => {
+    const BOOKING_ID = '30000000-0000-4000-8000-0000000000b1';
+
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer()).get(
+        `/v1/scheduling-exceptions/by-booking/${BOOKING_ID}`,
+      );
+      expect(res.status).toBe(401);
+    });
+
+    it.each([
+      ['STAFF', makeStaffJwt],
+      ['CUSTOMER', makeCustomerJwt],
+    ])('returns 403 for %s (MANAGER-only)', async (_role, makeJwt) => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get(`/v1/scheduling-exceptions/by-booking/${BOOKING_ID}`)
+        .set('Authorization', `Bearer ${makeJwt(jwtService)}`);
+      expect(res.status).toBe(403);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('MANAGER JWT → 200, forwards the booking id to the backend', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.get.mockResolvedValueOnce({ items: [] });
+
+      const res = await request(app.getHttpServer())
+        .get(`/v1/scheduling-exceptions/by-booking/${BOOKING_ID}`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body).toEqual({ items: [] });
+      expect(backendHttpService.get).toHaveBeenCalledWith(
+        `/scheduling-exceptions/by-booking/${BOOKING_ID}`,
+      );
+    });
+
+    it('rejects a malformed booking id with 400', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .get('/v1/scheduling-exceptions/by-booking/not-a-uuid')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`);
+      expect(res.status).toBe(400);
+    });
+  });
+
   describe('POST /v1/scheduling-exceptions/resolve', () => {
     const body = { exceptionIds: [ID_A], resolutionType: 'KEEP' };
 

@@ -98,6 +98,7 @@ function makeBookingCard(
   overrides: Partial<StaffBookingCardResponse> = {},
 ): StaffBookingCardResponse {
   return {
+    hasOpenException: false,
     bookingId: '019f0ea9-eda7-7dad-9f4e-9f33f9fa5f44',
     status: 'APPROVED',
     scheduledAt: '2026-06-30T00:00:00.000Z',

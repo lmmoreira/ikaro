@@ -14,6 +14,9 @@ interface SchedulingExceptionReschedulePageProps {
   readonly tenantSlug: string;
   readonly maxBookingAdvanceDays: number;
   readonly timezone: string;
+  // Where back, "agenda" and a finished reschedule lead (M23-S46: the booking detail when the
+  // manager came from there); the worklist when the route was opened without one.
+  readonly returnTo?: string | null;
 }
 
 // The staff reschedule page itself, with one difference: the confirm goes through the worklist's
@@ -25,9 +28,11 @@ export function SchedulingExceptionReschedulePage({
   tenantSlug,
   maxBookingAdvanceDays,
   timezone,
+  returnTo = null,
 }: SchedulingExceptionReschedulePageProps): React.JSX.Element {
   const router = useRouter();
   const resolve = useResolveSchedulingExceptions();
+  const returnHref = returnTo ?? LIST_HREF;
 
   return (
     <RescheduleBookingPage
@@ -35,8 +40,8 @@ export function SchedulingExceptionReschedulePage({
       tenantSlug={tenantSlug}
       maxBookingAdvanceDays={maxBookingAdvanceDays}
       timezone={timezone}
-      backHref={LIST_HREF}
-      agendaHref={LIST_HREF}
+      backHref={returnHref}
+      agendaHref={returnHref}
       confirmReschedule={async ({ startsAt, adminNotes }) => {
         const outcome = await resolve.mutateAsync({
           exceptionIds: [exceptionId],
@@ -46,7 +51,7 @@ export function SchedulingExceptionReschedulePage({
         });
         assertEntryRescheduled(outcome, exceptionId);
       }}
-      onRescheduled={() => router.push(LIST_HREF)}
+      onRescheduled={() => router.push(returnHref)}
     />
   );
 }

@@ -160,6 +160,7 @@ describe('useDeactivateResource cache', () => {
     act(() => result.current.mutate('r-1'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['scheduling-exceptions', 't-1'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
   });
 });
 
@@ -181,5 +182,6 @@ describe('useReactivateResource cache', () => {
     act(() => result.current.mutate('r-1'));
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['scheduling-exceptions', 't-1'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['bookings', 't-1'] });
   });
 });

@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -16,6 +16,14 @@ import {
 } from '../../domain/future-commitment-exception.aggregate';
 import { FutureCommitmentExceptionEntity } from '../entities/future-commitment-exception.entity';
 import { toDomain, toEntity } from './typeorm-future-commitment-exception.mapper';
+
+function filterWhere(filters: FutureCommitmentExceptionFilters) {
+  return {
+    ...(filters.status ? { status: filters.status } : {}),
+    ...(filters.affectedType ? { affectedType: filters.affectedType } : {}),
+    ...(filters.affectedId ? { affectedId: filters.affectedId } : {}),
+  };
+}
 
 @Injectable()
 export class TypeOrmFutureCommitmentExceptionRepository implements IFutureCommitmentExceptionRepository {
@@ -85,16 +93,31 @@ export class TypeOrmFutureCommitmentExceptionRepository implements IFutureCommit
     filters: FutureCommitmentExceptionFilters = {},
   ): Promise<FutureCommitmentException[]> {
     const entities = await this.repo.find({
-      where: { tenantId, ...(filters.status ? { status: filters.status } : {}) },
+      where: { tenantId, ...filterWhere(filters) },
       order: { createdAt: 'DESC', id: 'DESC' },
     });
     return entities.map(toDomain);
   }
 
-  countByTenant(tenantId: string, filters: FutureCommitmentExceptionFilters = {}): Promise<number> {
-    return this.repo.count({
-      where: { tenantId, ...(filters.status ? { status: filters.status } : {}) },
+  async findOpenAffectedBookingIds(
+    tenantId: string,
+    bookingIds: readonly string[],
+  ): Promise<ReadonlySet<string>> {
+    if (bookingIds.length === 0) return new Set();
+    const rows = await this.repo.find({
+      select: { affectedId: true },
+      where: {
+        tenantId,
+        status: 'OPEN',
+        affectedType: 'BOOKING',
+        affectedId: In([...bookingIds]),
+      },
     });
+    return new Set(rows.map((r) => r.affectedId));
+  }
+
+  countByTenant(tenantId: string, filters: FutureCommitmentExceptionFilters = {}): Promise<number> {
+    return this.repo.count({ where: { tenantId, ...filterWhere(filters) } });
   }
 
   async save(exception: FutureCommitmentException): Promise<void> {

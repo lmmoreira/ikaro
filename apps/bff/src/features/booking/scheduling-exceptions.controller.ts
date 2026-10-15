@@ -1,5 +1,5 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query } from '@nestjs/common';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Roles } from '../../shared/decorators/roles.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import {
@@ -38,6 +38,17 @@ export class SchedulingExceptionsController {
   @Get('count')
   count(): Promise<SchedulingExceptionCountResponse> {
     return this.backendHttp.get<SchedulingExceptionCountResponse>('/scheduling-exceptions/count');
+  }
+
+  // M23-S46: the open entries of one booking (with alternatives) for the booking detail's decision
+  // panel, so the page never loads and recomputes the whole worklist to use one entry.
+  @Get('by-booking/:bookingId')
+  listForBooking(
+    @Param('bookingId', CanonicalParseUUIDPipe) bookingId: string,
+  ): Promise<SchedulingExceptionListResponse> {
+    return this.backendHttp.get<SchedulingExceptionListResponse>(
+      `/scheduling-exceptions/by-booking/${bookingId}`,
+    );
   }
 
   @Post('resolve')

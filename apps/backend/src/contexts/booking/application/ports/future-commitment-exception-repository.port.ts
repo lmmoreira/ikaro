@@ -11,6 +11,9 @@ export const FUTURE_COMMITMENT_EXCEPTION_REPOSITORY = Symbol(
 
 export interface FutureCommitmentExceptionFilters {
   status?: FutureCommitmentExceptionStatus;
+  // Both together: the entries about one affected row (M23-S46 — one booking's entries).
+  affectedType?: FutureCommitmentExceptionAffectedType;
+  affectedId?: string;
 }
 
 export interface FutureCommitmentExceptionImpact {
@@ -43,6 +46,12 @@ export interface IFutureCommitmentExceptionRepository {
     tenantId: string,
     filters?: FutureCommitmentExceptionFilters,
   ): Promise<FutureCommitmentException[]>;
+  // M23-S46 — which of these bookings have at least one OPEN entry (the "Precisa de decisão"
+  // marker), in one query for the whole page. An empty input returns an empty set without a query.
+  findOpenAffectedBookingIds(
+    tenantId: string,
+    bookingIds: readonly string[],
+  ): Promise<ReadonlySet<string>>;
   // How many entries match — a count query, never a load (the sidebar badge polls it).
   countByTenant(tenantId: string, filters?: FutureCommitmentExceptionFilters): Promise<number>;
   save(exception: FutureCommitmentException): Promise<void>;

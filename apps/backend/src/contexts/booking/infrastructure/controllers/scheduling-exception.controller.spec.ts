@@ -85,6 +85,19 @@ describe('SchedulingExceptionController', () => {
     });
   });
 
+  describe('listForBooking() (M23-S46)', () => {
+    it('returns only the open entries of that booking, for the caller tenant', async () => {
+      const { entryId } = await raiseOne();
+      const [entry] = await world.exceptionRepo.findByTenant(TENANT_ID);
+
+      const result = await controller.listForBooking(entry.affectedId);
+      const unmarked = await controller.listForBooking('00000000-0000-7000-8000-0000000000bb');
+
+      expect(result.items.map((i) => i.id)).toEqual([entryId]);
+      expect(unmarked.items).toEqual([]);
+    });
+  });
+
   describe('count()', () => {
     it('counts the open entries of the caller tenant', async () => {
       await raiseOne();

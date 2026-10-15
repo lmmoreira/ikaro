@@ -306,3 +306,186 @@ test.describe('M23-S14 — Reservas a resolver', () => {
     );
   });
 });
+
+// M23-S46 — a booking with an open "Reservas a resolver" entry says so in the staff queue and on its
+// detail, and a manager resolves it from the detail itself. Seeded like the worklist specs above.
+test.describe('M23-S46 — Precisa de decisão', () => {
+  const queueCardLink = (page: Page, contactName: string): Locator =>
+    page.getByRole('link', { name: `Ver detalhes do agendamento de ${contactName}` });
+
+  const queueCard = (page: Page, contactName: string): Locator =>
+    page.locator('div.relative').filter({ has: queueCardLink(page, contactName) });
+
+  test('a manager sees the marker after deactivating the room, then reassigns from the detail — no reload', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    // The room stays active here: this spec deactivates it through the UI, like a manager.
+    const seed = await seedWorklistEntries(page, [{ approve: true }], { deactivateSource: false });
+    const [booking] = seed.bookings;
+
+    try {
+      // Open the queue first so its (unmarked) result is what the cache holds.
+      await page.goto('/dashboard/bookings');
+      await expect(queueCardLink(page, booking.contactName)).toBeVisible();
+      await expect(
+        queueCard(page, booking.contactName).getByTestId('booking-needs-decision-pill'),
+      ).toHaveCount(0);
+
+      // Client-side navigation only from here on: a full reload would hide a stale cache.
+      await page.getByTestId('sidebar-nav-resources').click();
+      await getResourceRow(page, seed.source.name)
+        .getByTestId('resource-row-deactivate-link')
+        .click();
+      await page.getByTestId('resource-deactivate-confirm-desktop').click();
+      await expect(page).toHaveURL('/dashboard/resources');
+
+      await page.getByRole('link', { name: 'Agenda' }).first().click();
+      const card = queueCard(page, booking.contactName);
+      await expect(card.getByTestId('booking-needs-decision-pill')).toBeVisible();
+      // The booking stays in the queue, and its quick actions are gone.
+      await expect(card.getByRole('button')).toHaveCount(0);
+
+      await queueCardLink(page, booking.contactName).click();
+      await expect(page.getByTestId('booking-decision-banner')).toBeVisible();
+      const panel = page.getByTestId('booking-decision-panel');
+      await expect(panel).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Marcar concluído' })).toHaveCount(0);
+
+      await panel.getByRole('button', { name: 'Reatribuir' }).click();
+      await page
+        .getByRole('dialog')
+        .getByRole('button', { name: /^Reatribuir 1 reserva/ })
+        .click();
+
+      // The page shows the booking as the server has it: no banner, no panel, the normal actions.
+      await expect(page.getByTestId('booking-decision-banner')).toHaveCount(0);
+      await expect(page.getByTestId('booking-decision-panel')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Marcar concluído' })).toBeVisible();
+
+      // Back in the queue the booking is still there and the marker is gone.
+      await page.getByTestId('topbar-back-button').click();
+      await expect(queueCardLink(page, booking.contactName)).toBeVisible();
+      await expect(
+        queueCard(page, booking.contactName).getByTestId('booking-needs-decision-pill'),
+      ).toHaveCount(0);
+      expect((await readBookingDetail(page, booking.bookingId)).status).toBe('APPROVED');
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('a manager cancels a marked booking from the decision panel', async ({ page }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const seed = await seedWorklistEntries(page, [{ approve: true }]);
+    const [booking] = seed.bookings;
+
+    try {
+      await page.goto(`/dashboard/bookings/${booking.bookingId}`);
+      await page
+        .getByTestId('booking-decision-panel')
+        .getByRole('button', { name: 'Cancelar agendamento' })
+        .click();
+      const sheet = page.getByRole('dialog', { name: 'Cancelar 1 reserva?' });
+      await sheet.getByRole('textbox').fill('Sala fechada definitivamente');
+      await sheet.getByRole('button', { name: 'Cancelar 1 reserva' }).click();
+
+      await expect(page.getByTestId('booking-decision-panel')).toHaveCount(0);
+      await expect(page.getByRole('link', { name: 'Voltar à agenda' }).first()).toBeVisible();
+      expect((await readBookingDetail(page, booking.bookingId)).status).toBe('CANCELLED');
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('Reagendar from the decision panel returns to that booking with the new time', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    // AUTO_ANY: a booking whose customer chose the deactivated room cannot be re-resolved on a
+    // reschedule, so this one lets the system pick the room.
+    const seed = await seedWorklistEntries(page, [{ approve: true }], { selection: 'AUTO_ANY' });
+    const [booking] = seed.bookings;
+
+    try {
+      await page.goto(`/dashboard/bookings/${booking.bookingId}`);
+      await page
+        .getByTestId('booking-decision-panel')
+        .getByRole('button', { name: 'Reagendar' })
+        .click();
+      await expect(page).toHaveURL(
+        /\/dashboard\/scheduling-exceptions\/[^/]+\/reschedule\?returnTo=/,
+      );
+
+      await page.locator('[data-testid="day-option"]:not([disabled])').last().click();
+      await page.locator('[data-testid="time-slot"]').first().click();
+      await page.getByRole('button', { name: 'Reagendar' }).first().click();
+
+      // Back on this booking — not on the worklist — with the entry closed and the time moved.
+      await expect(page).toHaveURL(`/dashboard/bookings/${booking.bookingId}`);
+      await expect(page.getByTestId('booking-decision-banner')).toHaveCount(0);
+      const after = await readBookingDetail(page, booking.bookingId);
+      expect(new Date(after.scheduledAt).toISOString()).not.toBe(
+        new Date(booking.startsAt).toISOString(),
+      );
+    } finally {
+      await seed.cleanup();
+    }
+  });
+
+  test('STAFF sees the marker and the banner on the detail, with no decision panel and no actions', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const seed = await seedWorklistEntries(page, [{ approve: true }]);
+    const [booking] = seed.bookings;
+
+    try {
+      await loginAsStaff(page, STAFF_EMAIL, TENANT_SLUG);
+      await page.goto('/dashboard/bookings');
+      await expect(
+        queueCard(page, booking.contactName).getByTestId('booking-needs-decision-pill'),
+      ).toBeVisible();
+
+      await queueCardLink(page, booking.contactName).click();
+      await expect(page.getByTestId('booking-decision-banner')).toContainText(
+        'Peça a um gerente para resolver',
+      );
+      await expect(page.getByTestId('booking-decision-panel')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Marcar concluído' })).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Cancelar agendamento' })).toHaveCount(0);
+    } finally {
+      await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+      await seed.cleanup();
+    }
+  });
+
+  test('reactivating the room removes the marker from the queue without a reload', async ({
+    page,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const seed = await seedWorklistEntries(page, [{ approve: true }]);
+    const [booking] = seed.bookings;
+
+    try {
+      await page.goto('/dashboard/bookings');
+      await expect(
+        queueCard(page, booking.contactName).getByTestId('booking-needs-decision-pill'),
+      ).toBeVisible();
+
+      await page.getByTestId('sidebar-nav-resources').click();
+      await getResourceRow(page, seed.source.name)
+        .getByTestId('resource-row-reactivate-button')
+        .click();
+      await expect(getResourceRow(page, seed.source.name)).toContainText('Ativo');
+
+      await page.getByRole('link', { name: 'Agenda' }).first().click();
+      await expect(queueCardLink(page, booking.contactName)).toBeVisible();
+      await expect(
+        queueCard(page, booking.contactName).getByTestId('booking-needs-decision-pill'),
+      ).toHaveCount(0);
+    } finally {
+      await seed.cleanup();
+    }
+  });
+});

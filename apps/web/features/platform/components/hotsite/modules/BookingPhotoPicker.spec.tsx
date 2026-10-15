@@ -21,6 +21,7 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
 const LIST_RESPONSE: StaffBookingListResponse = {
   items: [
     {
+      hasOpenException: false,
       bookingId: 'b-1',
       status: 'COMPLETED',
       scheduledAt: '2026-06-01T10:00:00.000Z',

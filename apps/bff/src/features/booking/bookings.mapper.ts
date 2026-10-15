@@ -51,6 +51,8 @@ export function toStaffBookingCard(item: BookingListItem): StaffBookingCardRespo
       resourceType: r.resourceType,
       resourceName: r.resourceName,
     })),
+    // Same rollback note: an older backend response does not carry the marker yet.
+    hasOpenException: item.hasOpenException ?? false,
   };
 }
 
@@ -163,5 +165,6 @@ export function toStaffBookingDetail(
     completedAt: detail.completedAt,
     rejectionReason: detail.rejectionReason,
     statusHistory: detail.statusHistory ?? [],
+    hasOpenException: detail.hasOpenException ?? false,
   };
 }

@@ -554,6 +554,112 @@ describe('SchedulingExceptionController (integration)', () => {
     });
   });
 
+  describe('GET /scheduling-exceptions/by-booking/:bookingId and the hasOpenException marker (M23-S46)', () => {
+    async function markedAndPlain() {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      const untouched = await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const marked = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      const plain = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: untouched,
+        startsInHours: 48,
+      });
+      return { source, marked, plain };
+    }
+
+    const listBookings = (tenantId = TENANT_A) =>
+      request(app.getHttpServer()).get('/bookings').set(as(tenantId)).expect(200);
+
+    const getBooking = (id: string, tenantId = TENANT_A) =>
+      request(app.getHttpServer()).get(`/bookings/${id}`).set(as(tenantId)).expect(200);
+
+    it('returns the booking’s open entries with alternatives, and an empty list for an unmarked one', async () => {
+      const { source, marked, plain } = await markedAndPlain();
+      await deactivate(source.id);
+
+      const forMarked = await request(app.getHttpServer())
+        .get(`/scheduling-exceptions/by-booking/${marked.bookingId}`)
+        .set(as())
+        .expect(200);
+      const forPlain = await request(app.getHttpServer())
+        .get(`/scheduling-exceptions/by-booking/${plain.bookingId}`)
+        .set(as())
+        .expect(200);
+
+      expect(forMarked.body.items).toHaveLength(1);
+      expect(forMarked.body.items[0]).toMatchObject({
+        affectedId: marked.bookingId,
+        sourceId: source.id,
+        status: 'OPEN',
+      });
+      expect(forMarked.body.items[0].alternatives.length).toBeGreaterThan(0);
+      expect(forPlain.body.items).toEqual([]);
+    });
+
+    it('refuses STAFF and a malformed id, and never returns another tenant’s entries', async () => {
+      const { source, marked } = await markedAndPlain();
+      await deactivate(source.id);
+
+      await request(app.getHttpServer())
+        .get(`/scheduling-exceptions/by-booking/${marked.bookingId}`)
+        .set(as(TENANT_A, 'STAFF'))
+        .expect(403);
+      await request(app.getHttpServer())
+        .get('/scheduling-exceptions/by-booking/not-a-uuid')
+        .set(as())
+        .expect(400);
+      const otherTenant = await request(app.getHttpServer())
+        .get(`/scheduling-exceptions/by-booking/${marked.bookingId}`)
+        .set(as(TENANT_B))
+        .expect(200);
+      expect(otherTenant.body.items).toEqual([]);
+    });
+
+    it('marks the booking on GET /bookings and GET /bookings/:id for staff while the entry is open, and clears it once resolved', async () => {
+      const { source, marked, plain } = await markedAndPlain();
+      await deactivate(source.id);
+
+      const list = await listBookings();
+      const flag = (id: string) =>
+        (list.body.items as { id: string; hasOpenException: boolean }[]).find((b) => b.id === id)
+          ?.hasOpenException;
+      expect(flag(marked.bookingId)).toBe(true);
+      expect(flag(plain.bookingId)).toBe(false);
+      expect((await getBooking(marked.bookingId)).body.hasOpenException).toBe(true);
+      expect((await getBooking(plain.bookingId)).body.hasOpenException).toBe(false);
+
+      const [entry] = await openEntries();
+      await resolve({ exceptionIds: [entry.id], resolutionType: 'CANCEL' }).expect(200);
+
+      expect((await getBooking(marked.bookingId)).body.hasOpenException).toBe(false);
+      const after = await listBookings();
+      expect(
+        (after.body.items as { id: string; hasOpenException: boolean }[]).find(
+          (b) => b.id === marked.bookingId,
+        )?.hasOpenException,
+      ).toBe(false);
+    });
+
+    it('never marks tenant A’s booking for tenant B’s caller', async () => {
+      const { source, marked } = await markedAndPlain();
+      await deactivate(source.id);
+
+      await request(app.getHttpServer())
+        .get(`/bookings/${marked.bookingId}`)
+        .set(as(TENANT_B))
+        .expect(404);
+      const other = await listBookings(TENANT_B);
+      expect(other.body.items).toEqual([]);
+    });
+  });
+
   describe('access and validation', () => {
     it('returns 403 for STAFF on every route', async () => {
       const list = await request(app.getHttpServer())

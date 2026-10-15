@@ -161,6 +161,9 @@ export interface StaffBookingCardResponse {
   // Which physical resource(s), if any, this booking's line(s) resolved to — display-only,
   // always present regardless of any client-side filter state (TD44-S2 round 3).
   assignedResources: StaffBookingCardResourceAssignment[];
+  // M23-S46 — the booking has an open "Reservas a resolver" entry (a view of current data, never
+  // stored): the queue card shows the "Precisa de decisão" pill. Staff responses only.
+  hasOpenException: boolean;
 }
 
 export interface StaffBookingListResponse {
@@ -266,6 +269,10 @@ export interface StaffBookingDetailResponse {
 
   // M23-S27 — every status change of the booking, oldest first (staff-facing only).
   statusHistory: BookingStatusHistoryEntry[];
+
+  // M23-S46 — the booking has an open "Reservas a resolver" entry (a view of current data, never
+  // stored): the detail shows the "Precisa de decisão" banner and, for a manager, the decision panel.
+  hasOpenException: boolean;
 }
 
 export interface BookingRescheduleKeptPick {

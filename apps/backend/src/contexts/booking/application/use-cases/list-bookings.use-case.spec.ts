@@ -1,5 +1,9 @@
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
+import {
+  BookingBuilder,
+  FutureCommitmentExceptionBuilder,
+} from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { ListBookingsUseCase } from './list-bookings.use-case';
@@ -15,11 +19,105 @@ const defaultDto = { limit: 25, offset: 0, cancellationWindowHours: 48, timezone
 
 describe('ListBookingsUseCase', () => {
   let repo: InMemoryBookingRepository;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: ListBookingsUseCase;
 
   beforeEach(() => {
     repo = new InMemoryBookingRepository();
-    useCase = new ListBookingsUseCase(repo);
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
+    useCase = new ListBookingsUseCase(repo, exceptionRepo);
+  });
+
+  describe('hasOpenException (M23-S46)', () => {
+    it('is true only for a booking that is the affected row of an OPEN entry', async () => {
+      const marked = new BookingBuilder().withTenantId(TENANT_A).build();
+      const plain = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(marked);
+      await repo.save(plain);
+      exceptionRepo.seed(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(marked.id)
+          .build(),
+      );
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
+
+      expect(result.items.find((i) => i.id === marked.id)?.hasOpenException).toBe(true);
+      expect(result.items.find((i) => i.id === plain.id)?.hasOpenException).toBe(false);
+    });
+
+    it('does not mark a booking whose entry is RESOLVED or DISMISSED', async () => {
+      const resolved = new BookingBuilder().withTenantId(TENANT_A).build();
+      const dismissed = new BookingBuilder().withTenantId(TENANT_A).build();
+      await repo.save(resolved);
+      await repo.save(dismissed);
+      const resolvedEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(resolved.id)
+        .build();
+      resolvedEntry.resolve('staff-1', 'CANCEL', null, 'corr-1');
+      const dismissedEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(dismissed.id)
+        .build();
+      dismissedEntry.dismiss('staff-1', 'reason', 'corr-1');
+      exceptionRepo.seed(resolvedEntry);
+      exceptionRepo.seed(dismissedEntry);
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
+
+      expect(result.items.every((i) => i.hasOpenException === false)).toBe(true);
+    });
+
+    it('makes one lookup for the page, not one per item, and none for an empty page', async () => {
+      const lookup = jest.spyOn(exceptionRepo, 'findOpenAffectedBookingIds');
+      await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
+      await repo.save(new BookingBuilder().withTenantId(TENANT_A).build());
+
+      await useCase.execute({ ...defaultDto, tenantId: TENANT_A });
+      expect(lookup).toHaveBeenCalledTimes(1);
+
+      lookup.mockClear();
+      await useCase.execute({ ...defaultDto, tenantId: 'no-bookings-here' });
+      expect(lookup).not.toHaveBeenCalled();
+    });
+
+    it('never marks a booking for tenant B when the entry belongs to tenant A', async () => {
+      const bookingB = new BookingBuilder().withTenantId(TENANT_B).build();
+      await repo.save(bookingB);
+      exceptionRepo.seed(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(bookingB.id)
+          .build(),
+      );
+
+      const result = await useCase.execute({ ...defaultDto, tenantId: TENANT_B });
+
+      expect(result.items[0].hasOpenException).toBe(false);
+    });
+
+    it('does not look the marker up for a customer-scoped list', async () => {
+      const lookup = jest.spyOn(exceptionRepo, 'findOpenAffectedBookingIds');
+      const own = new BookingBuilder().withTenantId(TENANT_A).withCustomerId(CUSTOMER_ID).build();
+      await repo.save(own);
+      exceptionRepo.seed(
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(own.id)
+          .build(),
+      );
+
+      const result = await useCase.execute({
+        ...defaultDto,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+      });
+
+      expect(lookup).not.toHaveBeenCalled();
+      expect(result.items[0].hasOpenException).toBe(false);
+    });
   });
 
   describe('STAFF/MANAGER role', () => {

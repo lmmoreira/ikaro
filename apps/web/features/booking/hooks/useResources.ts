@@ -63,11 +63,13 @@ export function useDeactivateResource() {
   return useMutation({
     mutationFn: (id: string) => deactivateResource(id),
     // Deactivating a resource raises one "Reservas a resolver" entry per future booking on it, in
-    // the same request, so the worklist and its sidebar badge are stale from this moment on.
+    // the same request, so the worklist and its sidebar badge are stale from this moment on — and
+    // so is the "Precisa de decisão" marker on the booking queue (M23-S46).
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
         queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] }),
       ]),
   });
 }
@@ -78,11 +80,13 @@ export function useReactivateResource() {
   return useMutation({
     mutationFn: (id: string) => reactivateResource(id),
     // Reactivating a resource closes its open "Reservas a resolver" entries in the same request
-    // (M23-S45), so the worklist and its sidebar badge are stale from this moment on.
+    // (M23-S45), so the worklist and its sidebar badge are stale from this moment on — and so is
+    // the "Precisa de decisão" marker on the booking queue (M23-S46).
     onSuccess: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: ['resources', tenantId] }),
         queryClient.invalidateQueries({ queryKey: ['scheduling-exceptions', tenantId] }),
+        queryClient.invalidateQueries({ queryKey: ['bookings', tenantId] }),
       ]),
   });
 }
