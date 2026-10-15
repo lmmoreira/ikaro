@@ -52,18 +52,18 @@ export async function listPendingRecurringSchedules(): Promise<RecurringBookingS
         },
       },
     );
-    let added = 0;
     for (const item of res.data.items) {
       // Offset paging over a live table can repeat a row if one is created between two requests.
       if (!seen.has(item.id)) {
         seen.add(item.id);
         items.push(item);
-        added += 1;
       }
     }
-    // Done when the server says so, or when a page brings nothing new (an empty page, or one that
-    // only repeats rows already read), so a `hasMore` that never clears cannot loop.
-    if (!res.data.pagination.hasMore || added === 0) return items;
+    // Done when the server says so, or on an empty page: offsets only grow, so every later page is
+    // empty too and stopping loses nothing. A page that only repeats rows already read does NOT
+    // end the read, because pages after it can still hold unseen requests; a `hasMore` that never
+    // clears ends at the circuit breaker below, which fails loudly.
+    if (!res.data.pagination.hasMore || res.data.items.length === 0) return items;
   }
 
   throw new Error(

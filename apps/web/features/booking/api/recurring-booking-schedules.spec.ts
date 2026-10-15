@@ -160,16 +160,38 @@ describe('listPendingRecurringSchedules', () => {
     expect(mock.history['get']).toHaveLength(12);
   });
 
-  it('stops when a page only repeats rows already read, so a stuck hasMore cannot loop', async () => {
+  it('keeps reading past a page that only repeats rows already read, so later requests are not lost', async () => {
+    mock.onGet('/recurring-booking-schedules').reply((config) => {
+      const offset = (config.params as { offset: number }).offset;
+      const pages: Record<number, { ids: string[]; hasMore: boolean }> = {
+        0: { ids: ['s-1', 's-2'], hasMore: true },
+        100: { ids: ['s-1', 's-2'], hasMore: true }, // rows shifted by an insert: all repeats
+        200: { ids: ['s-3'], hasMore: false },
+      };
+      const page = pages[offset]!;
+      return [
+        200,
+        {
+          items: page.ids.map(pendingItem),
+          pagination: { limit: 100, offset, total: 3, hasMore: page.hasMore },
+        },
+      ];
+    });
+
+    const items = await listPendingRecurringSchedules();
+
+    expect(items.map((i) => i.id)).toEqual(['s-1', 's-2', 's-3']);
+    expect(mock.history['get']).toHaveLength(3);
+  });
+
+  it('fails loudly, not silently, when hasMore never clears on a page that never changes', async () => {
     mock.onGet('/recurring-booking-schedules').reply(200, {
       items: [pendingItem('s-1')],
       pagination: { limit: 100, offset: 0, total: 1, hasMore: true },
     });
 
-    const items = await listPendingRecurringSchedules();
-
-    expect(items.map((i) => i.id)).toEqual(['s-1']);
-    expect(mock.history['get']).toHaveLength(2);
+    await expect(listPendingRecurringSchedules()).rejects.toThrow(/exceeded 50 pages/);
+    expect(mock.history['get']).toHaveLength(50);
   });
 
   it('throws at the circuit breaker instead of returning a truncated queue', async () => {
