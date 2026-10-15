@@ -31,6 +31,14 @@ export interface IFutureCommitmentExceptionRepository {
     tenantId: string,
     impact: FutureCommitmentExceptionImpact,
   ): Promise<FutureCommitmentException | null>;
+  // Every still-OPEN entry raised by this source, locked (SELECT ... FOR UPDATE) and ordered by id
+  // so concurrent batch lockers acquire in the same order. A manager resolving one of them at the
+  // same moment must not both see it OPEN. Must be called inside an active transaction.
+  findOpenBySourceForUpdate(
+    tenantId: string,
+    sourceType: FutureCommitmentExceptionSourceType,
+    sourceId: string,
+  ): Promise<FutureCommitmentException[]>;
   findByTenant(
     tenantId: string,
     filters?: FutureCommitmentExceptionFilters,

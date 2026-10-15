@@ -5,7 +5,10 @@ import {
   FutureCommitmentExceptionImpact,
   IFutureCommitmentExceptionRepository,
 } from '../../../contexts/booking/application/ports/future-commitment-exception-repository.port';
-import { FutureCommitmentException } from '../../../contexts/booking/domain/future-commitment-exception.aggregate';
+import {
+  FutureCommitmentException,
+  FutureCommitmentExceptionSourceType,
+} from '../../../contexts/booking/domain/future-commitment-exception.aggregate';
 
 export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommitmentExceptionRepository {
   private readonly store = new Map<string, FutureCommitmentException>();
@@ -41,6 +44,24 @@ export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommi
           e.affectedType === impact.affectedType &&
           e.affectedId === impact.affectedId,
       ) ?? null,
+    );
+  }
+
+  findOpenBySourceForUpdate(
+    tenantId: string,
+    sourceType: FutureCommitmentExceptionSourceType,
+    sourceId: string,
+  ): Promise<FutureCommitmentException[]> {
+    return Promise.resolve(
+      Array.from(this.store.values())
+        .filter(
+          (e) =>
+            e.tenantId === tenantId &&
+            e.status === 'OPEN' &&
+            e.sourceType === sourceType &&
+            e.sourceId === sourceId,
+        )
+        .sort((a, b) => (a.id < b.id ? -1 : 1)),
     );
   }
 
