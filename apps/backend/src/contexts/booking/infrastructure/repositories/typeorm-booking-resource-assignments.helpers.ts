@@ -48,3 +48,20 @@ export function groupResourceAssignmentsByBookingId(
 
   return resourceAssignmentsByBookingId;
 }
+
+// booking_line_resource_assignments is append-only: a reassign (or a reschedule onto another
+// resource) adds a row and keeps the old one. Keep only the latest row of each slot (line + leg +
+// quantity position) — the resource a booking is on now, or was on when it ended. $1 = tenant id,
+// $2 = booking ids. Rows come back as ResourceAssignmentRow.
+export const LATEST_RESOURCE_ASSIGNMENTS_SQL = `
+  SELECT DISTINCT ON (blra.booking_line_id, blra.leg_index, blra.quantity_position)
+         bl.booking_id AS "bookingId",
+         blra.resource_id AS "resourceId",
+         blra.resource_type AS "resourceType",
+         blra.resource_name_at_assignment AS "resourceName"
+  FROM booking.booking_line_resource_assignments blra
+  JOIN booking.booking_lines bl
+    ON bl.line_id = blra.booking_line_id AND bl.tenant_id = blra.tenant_id
+  WHERE blra.tenant_id = $1 AND bl.booking_id = ANY($2::uuid[])
+  ORDER BY blra.booking_line_id, blra.leg_index, blra.quantity_position, blra.assigned_at DESC
+`;

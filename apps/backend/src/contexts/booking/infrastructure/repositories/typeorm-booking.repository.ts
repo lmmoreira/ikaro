@@ -41,6 +41,7 @@ import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-re
 import { toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
   groupByBookingId,
+  LATEST_RESOURCE_ASSIGNMENTS_SQL,
   groupResourceAssignmentsByBookingId,
   ResourceAssignmentRow,
 } from './typeorm-booking-resource-assignments.helpers';
@@ -203,23 +204,10 @@ export class TypeOrmBookingRepository implements IBookingRepository {
     entities: BookingEntity[],
     tenantId: string,
   ): Promise<Map<string, BookingResourceAssignmentSummary[]>> {
-    const bookingIds = entities.map((e) => e.id);
-    const rows = await this.resourceAssignmentRepo
-      .createQueryBuilder('blra')
-      .innerJoin(
-        BookingLineEntity,
-        'bl',
-        'bl.lineId = blra.bookingLineId AND bl.tenantId = blra.tenantId',
-      )
-      .select([
-        'bl.bookingId AS "bookingId"',
-        'blra.resourceId AS "resourceId"',
-        'blra.resourceType AS "resourceType"',
-        'blra.resourceNameAtAssignment AS "resourceName"',
-      ])
-      .where('blra.tenantId = :tenantId', { tenantId })
-      .andWhere('bl.bookingId IN (:...bookingIds)', { bookingIds })
-      .getRawMany<ResourceAssignmentRow>();
+    const rows: ResourceAssignmentRow[] = await this.resourceAssignmentRepo.query(
+      LATEST_RESOURCE_ASSIGNMENTS_SQL,
+      [tenantId, entities.map((e) => e.id)],
+    );
 
     return groupResourceAssignmentsByBookingId(rows);
   }

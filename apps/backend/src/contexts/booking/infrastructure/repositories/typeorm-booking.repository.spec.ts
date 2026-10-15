@@ -37,13 +37,7 @@ describe('TypeOrmBookingRepository', () => {
   let ormRepo: jest.Mocked<Repository<BookingEntity>>;
   let ormLineRepo: jest.Mocked<Repository<BookingLineEntity>>;
   let ormAttendeeRepo: jest.Mocked<Repository<BookingAttendeeEntity>>;
-  let mockResourceAssignmentQueryBuilder: {
-    innerJoin: jest.Mock;
-    select: jest.Mock;
-    where: jest.Mock;
-    andWhere: jest.Mock;
-    getRawMany: jest.Mock;
-  };
+  let mockResourceAssignmentQuery: jest.Mock;
   let mockUpdateBuilder: {
     update: jest.Mock;
     set: jest.Mock;
@@ -78,13 +72,7 @@ describe('TypeOrmBookingRepository', () => {
       createQueryBuilder: jest.fn().mockReturnValue(mockUpdateBuilder),
     };
 
-    mockResourceAssignmentQueryBuilder = {
-      innerJoin: jest.fn().mockReturnThis(),
-      select: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn().mockResolvedValue([]),
-    };
+    mockResourceAssignmentQuery = jest.fn().mockResolvedValue([]);
 
     const moduleRef = await Test.createTestingModule({
       providers: [
@@ -114,9 +102,7 @@ describe('TypeOrmBookingRepository', () => {
         },
         {
           provide: getRepositoryToken(BookingLineResourceAssignmentEntity),
-          useValue: {
-            createQueryBuilder: jest.fn().mockReturnValue(mockResourceAssignmentQueryBuilder),
-          },
+          useValue: { query: mockResourceAssignmentQuery },
         },
         { provide: TENANT_SETTINGS_PORT, useClass: InMemoryTenantSettingsPort },
         { provide: OUTBOX_PUBLISHER, useValue: new InMemoryEventBus() },
@@ -301,7 +287,7 @@ describe('TypeOrmBookingRepository', () => {
 
       expect(result).toEqual({ items: [], total: 0, resourceAssignmentsByBookingId: new Map() });
       expect(ormLineRepo.find).not.toHaveBeenCalled();
-      expect(mockResourceAssignmentQueryBuilder.getRawMany).not.toHaveBeenCalled();
+      expect(mockResourceAssignmentQuery).not.toHaveBeenCalled();
     });
 
     it('returns paginated items with total and loads lines in one query', async () => {
@@ -338,7 +324,7 @@ describe('TypeOrmBookingRepository', () => {
       ormLineRepo.find.mockResolvedValue([
         new BookingLineEntityBuilder().withBookingId(bookingId1).withTenantId(tenantId).build(),
       ]);
-      mockResourceAssignmentQueryBuilder.getRawMany.mockResolvedValue([
+      mockResourceAssignmentQuery.mockResolvedValue([
         {
           bookingId: bookingId1,
           resourceId: 'res-camila',
@@ -356,9 +342,12 @@ describe('TypeOrmBookingRepository', () => {
           resourceName: 'Camila Duarte',
         },
       ]);
-      expect(mockResourceAssignmentQueryBuilder.andWhere).toHaveBeenCalledWith(
-        'bl.bookingId IN (:...bookingIds)',
-        { bookingIds: [bookingId1] },
+      // One query for the whole page, keeping only the latest row of each slot (the assignments
+      // table is append-only): the SQL and the page's tenant and booking ids.
+      expect(mockResourceAssignmentQuery).toHaveBeenCalledTimes(1);
+      expect(mockResourceAssignmentQuery).toHaveBeenCalledWith(
+        expect.stringContaining('DISTINCT ON (blra.booking_line_id'),
+        [tenantId, [bookingId1]],
       );
     });
 
