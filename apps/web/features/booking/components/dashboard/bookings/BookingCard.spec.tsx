@@ -22,6 +22,7 @@ vi.mock('next-intl', () => ({
         approve: 'Aprovar',
         viewDetails: 'Ver detalhes',
         viewDetailsAriaLabel: 'Ver detalhes do agendamento de {name}',
+        needsDecision: 'Precisa de decisão',
       },
     };
     return (key: string, params?: Record<string, unknown>) => {
@@ -90,6 +91,7 @@ vi.mock('@/shared/components/ui/card', () => ({
 
 function makeBooking(overrides?: Partial<StaffBookingCardResponse>): StaffBookingCardResponse {
   return {
+    hasOpenException: false,
     bookingId: 'b-001',
     status: 'PENDING',
     scheduledAt: '2026-06-26T10:00:00.000Z',
@@ -210,6 +212,71 @@ describe('BookingCard — upcoming variant', () => {
   it('does NOT render any action buttons', () => {
     render(<BookingCard booking={makeBooking({ status: 'APPROVED' })} variant="upcoming" />);
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+  });
+});
+
+type QueueVariantProps =
+  | { variant: 'action-needed'; onApprove: () => void }
+  | { variant: 'today' }
+  | { variant: 'upcoming' };
+
+const QUEUE_VARIANTS: readonly [string, QueueVariantProps][] = [
+  ['action-needed', { variant: 'action-needed', onApprove: () => {} }],
+  ['today', { variant: 'today' }],
+  ['upcoming', { variant: 'upcoming' }],
+];
+
+// M23-S46 — a booking with an open "Reservas a resolver" entry stays in the queue and is marked.
+describe('BookingCard — needs-a-decision marker (M23-S46)', () => {
+  it.each(QUEUE_VARIANTS)(
+    'shows the "Precisa de decisão" pill on the %s variant and keeps the card a link to the detail',
+    (_name, variantProps) => {
+      render(<BookingCard booking={makeBooking({ hasOpenException: true })} {...variantProps} />);
+
+      const pill = screen.getByText('Precisa de decisão');
+      expect(pill.className).toContain('bg-orange-100');
+      expect(pill.className).toContain('text-orange-800');
+      expect(screen.getAllByRole('link')).toHaveLength(1);
+      expect(screen.getAllByRole('link')[0]).toHaveAttribute('href', '/dashboard/bookings/b-001');
+    },
+  );
+
+  it.each(QUEUE_VARIANTS)(
+    'shows no quick action on the %s variant while the decision is open',
+    (_name, variantProps) => {
+      render(<BookingCard booking={makeBooking({ hasOpenException: true })} {...variantProps} />);
+
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.queryByText('Marcar concluído')).not.toBeInTheDocument();
+    },
+  );
+
+  // Regression pin: a booking without the marker renders exactly as it did before the story.
+  it.each(QUEUE_VARIANTS)(
+    'renders the %s variant unchanged when the flag is false or absent',
+    (_name, variantProps) => {
+      const { container: withFalse } = render(
+        <BookingCard booking={makeBooking({ hasOpenException: false })} {...variantProps} />,
+      );
+      const absent = { ...makeBooking() } as Partial<StaffBookingCardResponse>;
+      delete absent.hasOpenException;
+      const { container: withAbsent } = render(
+        <BookingCard booking={absent as StaffBookingCardResponse} {...variantProps} />,
+      );
+
+      expect(screen.queryAllByText('Precisa de decisão')).toHaveLength(0);
+      expect(withAbsent.innerHTML).toBe(withFalse.innerHTML);
+    },
+  );
+
+  it('still shows the Aprovar and Marcar concluído actions on an unmarked booking', () => {
+    const { unmount } = render(
+      <BookingCard booking={makeBooking()} variant="action-needed" onApprove={() => {}} />,
+    );
+    expect(screen.getByRole('button', { name: 'Aprovar' })).toBeInTheDocument();
+    unmount();
+    render(<BookingCard booking={makeBooking()} variant="today" />);
+    expect(screen.getByText('Marcar concluído')).toBeInTheDocument();
   });
 });
 

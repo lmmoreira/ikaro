@@ -47,6 +47,19 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
+### The open entries of ONE booking, with their alternatives (M23-S46) — the booking detail's
+### decision panel. An unmarked booking returns { "items": [] }.
+GET {{bffUrl}}/v1/scheduling-exceptions/by-booking/{{bookingId}}
+Authorization: Bearer {{managerToken}}
+
+###
+
+### ERROR — STAFF on the by-booking read → 403
+GET {{bffUrl}}/v1/scheduling-exceptions/by-booking/{{bookingId}}
+Authorization: Bearer {{staffToken}}
+
+###
+
 ### ERROR — unknown status → 400
 GET {{bffUrl}}/v1/scheduling-exceptions?status=DONE
 Authorization: Bearer {{managerToken}}

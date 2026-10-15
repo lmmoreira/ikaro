@@ -6,6 +6,10 @@ import type { StaffBookingDetailResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { BookingDetailAsideCard } from './BookingDetailAsideCard';
 
+vi.mock('./BookingDecisionPanel', () => ({
+  BookingDecisionPanel: () => <div data-testid="booking-decision-panel" />,
+}));
+
 vi.mock('next/link', () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => (
     <a href={href}>{children}</a>
@@ -53,6 +57,7 @@ function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBook
     completedAt: null,
     rejectionReason: null,
     statusHistory: [],
+    hasOpenException: false,
     ...overrides,
   };
 }
@@ -64,6 +69,8 @@ function baseProps(overrides: Partial<Parameters<typeof BookingDetailAsideCard>[
     backHref: '/dashboard/bookings',
     noShowAvailableAt: null,
     canCorrectNoShow: false,
+    canDecide: false,
+    onBookingRefreshed: vi.fn(),
     onOpenNoShow: vi.fn(),
     onOpenCorrectNoShow: vi.fn(),
     onBackWithoutApprove: vi.fn(),
@@ -254,5 +261,88 @@ describe('BookingDetailAsideCard', () => {
         expect(screen.getByRole('button', { name: 'Corrigir para concluído' })).toBeEnabled();
       },
     );
+  });
+
+  // M23-S46 — a booking with an open "Reservas a resolver" entry.
+  describe('while the booking needs a decision', () => {
+    const marked = (status: StaffBookingDetailResponse['status']) =>
+      makeBooking({ status, hasOpenException: true });
+
+    it.each(['PENDING', 'INFO_REQUESTED', 'APPROVED'] as const)(
+      'gives a manager the decision panel and none of the normal actions on a %s booking',
+      (status) => {
+        renderWithIntl(
+          <BookingDetailAsideCard {...baseProps({ booking: marked(status), canDecide: true })} />,
+        );
+
+        expect(screen.getByTestId('booking-decision-panel')).toBeInTheDocument();
+        for (const name of [
+          'Aprovar',
+          'Rejeitar',
+          'Marcar concluído',
+          'Marcar não compareceu',
+          'Reagendar',
+          'Cancelar agendamento',
+        ]) {
+          expect(screen.queryByRole('button', { name })).not.toBeInTheDocument();
+        }
+      },
+    );
+
+    // Negative guarantee: STAFF gets neither the panel nor any action (the banner explains why).
+    it.each(['PENDING', 'APPROVED'] as const)(
+      'renders nothing at all for STAFF on a %s booking',
+      (status) => {
+        const { container } = renderWithIntl(
+          <BookingDetailAsideCard {...baseProps({ booking: marked(status), canDecide: false })} />,
+        );
+
+        expect(container).toBeEmptyDOMElement();
+      },
+    );
+
+    it('does not hide the transient outcome panels (approved, slot-conflict)', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            actionState: 'approved',
+            booking: marked('APPROVED'),
+            canDecide: true,
+          })}
+        />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+    });
+
+    it('shows the way back to the agenda on a booking that was just cancelled, even if an entry is still listed', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            actionState: 'cancelled',
+            booking: marked('CANCELLED'),
+            canDecide: true,
+          })}
+        />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
+      expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+    });
+
+    it('shows every normal action again for a booking without an open entry', () => {
+      renderWithIntl(
+        <BookingDetailAsideCard
+          {...baseProps({
+            booking: makeBooking({ status: 'APPROVED', hasOpenException: false }),
+            canDecide: true,
+          })}
+        />,
+      );
+
+      expect(screen.queryByTestId('booking-decision-panel')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Marcar concluído' })).toBeInTheDocument();
+    });
   });
 });

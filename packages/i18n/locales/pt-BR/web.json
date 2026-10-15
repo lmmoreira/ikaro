@@ -1841,7 +1841,8 @@
       "markCompleted": "Marcar concluído",
       "approve": "Aprovar",
       "viewDetails": "Ver detalhes",
-      "viewDetailsAriaLabel": "Ver detalhes do agendamento de {name}"
+      "viewDetailsAriaLabel": "Ver detalhes do agendamento de {name}",
+      "needsDecision": "Precisa de decisão"
     },
     "bookingDetail": {
       "title": "Detalhe do agendamento",
@@ -2000,6 +2001,13 @@
       "noShowErrorBody": "Verifique sua conexão e tente novamente. Nada foi alterado.",
       "noShowRetry": "Tentar novamente",
       "noShowReadOnlyNote": "Nenhuma ação disponível. Somente um gerente pode corrigir este registro.",
+      "needsDecisionTitle": "Esta reserva precisa de uma decisão",
+      "needsDecisionBody": "O recurso desta reserva foi desativado. Escolha como resolver: reatribuir a outro recurso, reagendar ou cancelar.",
+      "needsDecisionStaffHint": "O recurso desta reserva foi desativado e um gerente precisa decidir. Peça a um gerente para resolver.",
+      "decisionPanelTitle": "Decisão",
+      "decisionPanelHint": "As mesmas ações de Reservas a resolver, para esta reserva. Resolver fecha a pendência. O cliente é avisado por e-mail.",
+      "decisionPanelReassignNamed": "Reatribuir {resource}",
+      "decisionRefreshError": "Resolvido, mas não conseguimos recarregar a reserva. Recarregue a página.",
       "correctNoShowAction": "Corrigir para concluído",
       "correctNoShowNote": "Somente gerentes podem corrigir um não comparecimento. O agendamento volta a constar como concluído e o cliente recebe os pontos do serviço.",
       "correctSheetTitle": "Corrigir para concluído",

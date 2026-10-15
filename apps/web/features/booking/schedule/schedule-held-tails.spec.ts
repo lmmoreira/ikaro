@@ -9,6 +9,7 @@ const DATE_KEY = '2026-08-17';
 // 09:00–09:30 local (12:00Z–12:30Z).
 function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBookingCardResponse {
   return {
+    hasOpenException: false,
     bookingId: 'booking-1',
     status: BOOKING_STATUS.APPROVED,
     scheduledAt: '2026-08-17T12:00:00.000Z',

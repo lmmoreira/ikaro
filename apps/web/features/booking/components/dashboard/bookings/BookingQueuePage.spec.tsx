@@ -134,6 +134,7 @@ function emptyList(): StaffBookingListResponse {
 function makeList(names: string[]): StaffBookingListResponse {
   return {
     items: names.map((name, i) => ({
+      hasOpenException: false,
       bookingId: `b-${i}`,
       status: 'PENDING' as const,
       scheduledAt: '2026-06-26T10:00:00.000Z',
@@ -154,6 +155,7 @@ function makeUpcomingList(): StaffBookingListResponse {
   return {
     items: [
       {
+        hasOpenException: false,
         bookingId: 'b-27',
         status: 'APPROVED' as const,
         scheduledAt: '2026-06-27T10:00:00.000Z',
@@ -165,6 +167,7 @@ function makeUpcomingList(): StaffBookingListResponse {
         assignedResources: [],
       },
       {
+        hasOpenException: false,
         bookingId: 'b-28',
         status: 'APPROVED' as const,
         scheduledAt: '2026-06-28T10:00:00.000Z',

@@ -35,6 +35,7 @@ describe('toStaffBookingCard()', () => {
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
     assignedResources: [],
+    hasOpenException: false,
   };
 
   it('maps backend booking-list item fields to StaffBookingCardResponse', () => {
@@ -50,7 +51,20 @@ describe('toStaffBookingCard()', () => {
       totalDurationMins: 30,
       isCustomer: true,
       assignedResources: [],
+      hasOpenException: false,
     });
+  });
+
+  it('carries the open-entry marker on the staff card (M23-S46) and treats an older backend’s absence as false', () => {
+    expect(toStaffBookingCard({ ...backendItem, hasOpenException: true }).hasOpenException).toBe(
+      true,
+    );
+    expect(toStaffBookingCard({ ...backendItem, hasOpenException: false }).hasOpenException).toBe(
+      false,
+    );
+    const olderBackendItem: Partial<BookingListItem> = { ...backendItem };
+    delete olderBackendItem.hasOpenException;
+    expect(toStaffBookingCard(olderBackendItem as BookingListItem).hasOpenException).toBe(false);
   });
 
   it('maps every assigned resource, display-only and unrelated to any client filter (TD44-S2 round 3)', () => {
@@ -123,7 +137,14 @@ describe('toCustomerBookingListItem()', () => {
     createdAt: '2026-01-01T00:00:00.000Z',
     cancellableUntil: null,
     assignedResources: [],
+    hasOpenException: false,
   };
+
+  it('never maps the open-entry marker into a customer response, even when the backend sends true (M23-S46)', () => {
+    const result = toCustomerBookingListItem({ ...backendItem, hasOpenException: true });
+
+    expect(result).not.toHaveProperty('hasOpenException');
+  });
 
   it('maps backend booking-list item fields to CustomerBookingListItem, dropping contact info and formatted price', () => {
     const result = toCustomerBookingListItem(backendItem);
@@ -208,6 +229,7 @@ describe('toStaffBookingDetail()', () => {
     reschedule: null,
     pointsEarned: null,
     statusHistory: null,
+    hasOpenException: null,
   };
 
   it('maps backend booking detail fields and the given loyaltyBalance to StaffBookingDetailResponse', () => {
@@ -242,6 +264,7 @@ describe('toStaffBookingDetail()', () => {
       completedAt: null,
       rejectionReason: null,
       statusHistory: [],
+      hasOpenException: false,
     });
   });
 
@@ -278,6 +301,21 @@ describe('toStaffBookingDetail()', () => {
     const result = toStaffBookingDetail({ ...backendDetail, statusHistory }, null);
 
     expect(result.statusHistory).toEqual(statusHistory);
+  });
+
+  it('carries the open-entry marker on the staff detail, and an absent one reads as false (M23-S46)', () => {
+    expect(
+      toStaffBookingDetail({ ...backendDetail, hasOpenException: true }, null).hasOpenException,
+    ).toBe(true);
+    expect(
+      toStaffBookingDetail({ ...backendDetail, hasOpenException: null }, null).hasOpenException,
+    ).toBe(false);
+  });
+
+  it('never maps the open-entry marker into the customer detail (M23-S46)', () => {
+    const result = toCustomerBookingDetail({ ...backendDetail, hasOpenException: true });
+
+    expect(result).not.toHaveProperty('hasOpenException');
   });
 
   it('maps an absent status history to an empty list', () => {
@@ -422,6 +460,7 @@ describe('toBookingListResponse()', () => {
         createdAt: '2026-01-01T00:00:00.000Z',
         cancellableUntil: null,
         assignedResources: [],
+        hasOpenException: false,
       },
     ],
     pagination: { limit: 20, offset: 0, total: 1, hasMore: false },
@@ -494,6 +533,7 @@ describe('toCustomerBookingDetail()', () => {
     reschedule: null,
     pointsEarned: null,
     statusHistory: null,
+    hasOpenException: null,
   };
 
   it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
@@ -741,6 +781,7 @@ describe('toGuestBookingRead()', () => {
     reschedule: null,
     pointsEarned: null,
     statusHistory: null,
+    hasOpenException: null,
   };
 
   it('maps backend booking detail fields to GuestBookingReadResponse', () => {

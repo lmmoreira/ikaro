@@ -9,6 +9,7 @@ import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-te
 import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-memory-booking-customer.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import {
   BookingBuilder,
@@ -107,7 +108,10 @@ describe('BookingController', () => {
         repo,
         new InMemoryTransactionManager(),
       ),
-      listBookings: new ListBookingsUseCase(repo),
+      listBookings: new ListBookingsUseCase(
+        repo,
+        new InMemoryFutureCommitmentExceptionRepository(),
+      ),
       getBooking: new GetBookingByIdUseCase(
         repo,
         storageService,
@@ -116,6 +120,7 @@ describe('BookingController', () => {
         new InMemoryTransactionManager(),
         new InMemoryBookingStatusTransitionRepository(),
         new InMemoryBookingStaffPort(),
+        new InMemoryFutureCommitmentExceptionRepository(),
       ),
     });
 
@@ -243,7 +248,7 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
         ),
         makeStaffUseCase(new InMemoryBookingCustomerPort(), repoB),
-        new ListBookingsUseCase(repoB),
+        new ListBookingsUseCase(repoB, new InMemoryFutureCommitmentExceptionRepository()),
         new GetBookingByIdUseCase(
           repoB,
           storageService,
@@ -252,6 +257,7 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
       );
       const err = await ctrl
@@ -329,7 +335,7 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
         ),
         makeStaffUseCase(noPhonePort, repoC),
-        new ListBookingsUseCase(repoC),
+        new ListBookingsUseCase(repoC, new InMemoryFutureCommitmentExceptionRepository()),
         new GetBookingByIdUseCase(
           repoC,
           storageService,
@@ -338,6 +344,7 @@ describe('BookingController', () => {
           new InMemoryTransactionManager(),
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);

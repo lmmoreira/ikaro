@@ -18,6 +18,7 @@ const EMPTY_RESOURCE_NAME_BY_ID: ReadonlyMap<string, string> = new Map();
 
 function makeBooking(overrides: Partial<StaffBookingCardResponse> = {}): StaffBookingCardResponse {
   return {
+    hasOpenException: false,
     bookingId: 'booking-1',
     status: BOOKING_STATUS.APPROVED,
     scheduledAt: '2026-08-18T12:00:00.000Z',

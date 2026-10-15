@@ -4,11 +4,12 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Post,
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
 import { RequestContext } from '../../../../shared/request/request-context';
 import {
@@ -65,6 +66,20 @@ export class SchedulingExceptionController {
   count(): Promise<CountFutureCommitmentExceptionsUseCaseResult> {
     const { tenantId } = this.ctx;
     return this.countExceptions.execute({ tenantId }).catch(mapBookingError);
+  }
+
+  // M23-S46 — the open entries of ONE booking (normally one, several when the booking holds several
+  // deactivated resources) with their alternatives: what the booking detail's decision panel needs,
+  // without loading and recomputing the whole worklist. An unknown, other-tenant or unmarked
+  // booking is an empty list, never a 404.
+  @Get('by-booking/:bookingId')
+  listForBooking(
+    @Param('bookingId', CanonicalParseUUIDPipe) bookingId: string,
+  ): Promise<ListFutureCommitmentExceptionsUseCaseResult> {
+    const { tenantId } = this.ctx;
+    return this.listExceptions
+      .execute({ tenantId, status: 'OPEN', affectedBookingId: bookingId })
+      .catch(mapBookingError);
   }
 
   @Post('resolve')

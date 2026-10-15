@@ -4,11 +4,14 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { Money } from '../../../../shared/value-objects/money';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 import {
   BOOKING_STATUS_TRANSITION_REPOSITORY,
   IBookingStatusTransitionRepository,
@@ -18,6 +21,13 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  BookingAddressDetail,
+  BookingLineDetail,
+  toAddressDetail,
+  toLineDetail,
+  toMoneyDetail,
+} from './booking-detail.helpers';
 import { TenantBookingWindow } from './booking-window.helpers';
 import {
   BookingStatusHistoryEntryDetail,
@@ -28,7 +38,7 @@ import {
   buildRescheduleOptions,
 } from './booking-reschedule-options.helpers';
 
-type MoneyDetail = { amount: number; currency: string };
+export type { BookingAddressDetail, BookingLineDetail } from './booking-detail.helpers';
 
 export type GetBookingByIdUseCaseInput = {
   bookingId: string;
@@ -39,28 +49,11 @@ export type GetBookingByIdUseCaseInput = {
   // Staff-facing reads only (M23-S27): loads the booking's status history. Off by default so the
   // customer read and the loyalty adapter's read never touch the transitions table.
   includeStatusHistory?: boolean;
+  // Staff-facing reads only (M23-S46): looks up whether the booking has an open "Reservas a
+  // resolver" entry. Off by default so the customer read and the loyalty adapter's read never
+  // query the worklist.
+  includeOpenException?: boolean;
 };
-
-export interface BookingLineDetail {
-  lineId: string;
-  serviceId: string;
-  serviceNameAtBooking: string;
-  priceAtBooking: { amount: number; currency: string };
-  durationMinsAtBooking: number;
-  pointsValueAtBooking: number;
-  requiresPickupAddressAtBooking: boolean;
-  actualPriceCharged: { amount: number; currency: string } | null;
-}
-
-export interface BookingAddressDetail {
-  street: string;
-  number: string;
-  complement: string | null;
-  neighborhood: string | null;
-  city: string;
-  state: string;
-  zipCode: string;
-}
 
 export interface GetBookingByIdUseCaseResult {
   id: string;
@@ -101,6 +94,9 @@ export interface GetBookingByIdUseCaseResult {
   pointsEarned: number | null;
   // Oldest first; null unless the caller asked for it (includeStatusHistory).
   statusHistory: BookingStatusHistoryEntryDetail[] | null;
+  // M23-S46 — true when the booking has an OPEN worklist entry; null unless the caller asked for it
+  // (includeOpenException). A view of current data, never stored on the booking.
+  hasOpenException: boolean | null;
 }
 
 @Injectable()
@@ -115,6 +111,8 @@ export class GetBookingByIdUseCase {
     @Inject(BOOKING_STATUS_TRANSITION_REPOSITORY)
     private readonly transitionRepo: IBookingStatusTransitionRepository,
     @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
   ) {}
 
   async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
@@ -139,7 +137,19 @@ export class GetBookingByIdUseCase {
       ? await loadStatusHistory(this.transitionRepo, this.staffPort, booking)
       : null;
 
-    return this.toResult(booking, cancellationWindowHours, reschedule, statusHistory);
+    const hasOpenException = input.includeOpenException
+      ? (await this.exceptionRepo.findOpenAffectedBookingIds(tenantId, [booking.id])).has(
+          booking.id,
+        )
+      : null;
+
+    return this.toResult(
+      booking,
+      cancellationWindowHours,
+      reschedule,
+      statusHistory,
+      hasOpenException,
+    );
   }
 
   private async resolveRescheduleOptions(
@@ -170,48 +180,10 @@ export class GetBookingByIdUseCase {
     });
   }
 
-  private toAddressDetail(address: Booking['contactAddress']): BookingAddressDetail | null {
-    const addr = address?.toJSON() ?? null;
-    if (!addr) return null;
-    return {
-      street: addr.street,
-      number: addr.number,
-      complement: addr.complement ?? null,
-      neighborhood: addr.neighborhood ?? null,
-      city: addr.city,
-      state: addr.state,
-      zipCode: addr.zipCode,
-    };
-  }
-
-  private toMoneyDetail(money: Money | null): MoneyDetail | null {
-    if (!money) return null;
-    return {
-      amount: money.amount.toNumber(),
-      currency: money.currency,
-    };
-  }
-
   private signPhotoUrls(paths: string[]): Promise<string[]> {
     return Promise.all(
       paths.map(async (path) => (await this.storageService.generateReadSignedUrl(path)).signedUrl),
     );
-  }
-
-  private toLineDetail(l: Booking['lines'][number]): BookingLineDetail {
-    return {
-      lineId: l.lineId,
-      serviceId: l.serviceId,
-      serviceNameAtBooking: l.serviceNameAtBooking,
-      priceAtBooking: {
-        amount: l.priceAtBooking.amount.toNumber(),
-        currency: l.priceAtBooking.currency,
-      },
-      durationMinsAtBooking: l.durationMinsAtBooking,
-      pointsValueAtBooking: l.pointsValueAtBooking,
-      requiresPickupAddressAtBooking: l.requiresPickupAddressAtBooking,
-      actualPriceCharged: this.toMoneyDetail(l.actualPriceCharged),
-    };
   }
 
   private async toResult(
@@ -219,6 +191,7 @@ export class GetBookingByIdUseCase {
     cancellationWindowHours: number,
     reschedule: BookingRescheduleOptionsDetail | null,
     statusHistory: BookingStatusHistoryEntryDetail[] | null,
+    hasOpenException: boolean | null,
   ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
@@ -233,6 +206,7 @@ export class GetBookingByIdUseCase {
         reschedule,
       ),
       statusHistory,
+      hasOpenException,
     };
   }
 
@@ -241,7 +215,7 @@ export class GetBookingByIdUseCase {
     cancellationWindowHours: number,
     signedPhotoUrls: { beforeServicePhotoUrls: string[]; afterServicePhotoUrls: string[] },
     reschedule: BookingRescheduleOptionsDetail | null,
-  ): Omit<GetBookingByIdUseCaseResult, 'statusHistory'> {
+  ): Omit<GetBookingByIdUseCaseResult, 'statusHistory' | 'hasOpenException'> {
     return {
       id: booking.id,
       status: booking.status,
@@ -250,16 +224,16 @@ export class GetBookingByIdUseCase {
       contactName: booking.contactName,
       contactEmail: booking.contactEmail.address,
       contactPhone: booking.contactPhone.value,
-      contactAddress: this.toAddressDetail(booking.contactAddress),
+      contactAddress: toAddressDetail(booking.contactAddress),
       notes: booking.notes,
       scheduledAt: booking.scheduledAt.toISOString(),
       totalDurationMins: booking.totalDurationMins,
-      totalPrice: this.toMoneyDetail(booking.totalPrice)!,
-      totalActualPrice: this.toMoneyDetail(booking.totalActualPrice),
+      totalPrice: toMoneyDetail(booking.totalPrice)!,
+      totalActualPrice: toMoneyDetail(booking.totalActualPrice),
       discountPointsUsed: booking.discountPointsUsed,
-      discountAmount: this.toMoneyDetail(booking.discountAmount),
-      pickupAddress: this.toAddressDetail(booking.pickupAddress),
-      lines: booking.lines.map((l) => this.toLineDetail(l)),
+      discountAmount: toMoneyDetail(booking.discountAmount),
+      pickupAddress: toAddressDetail(booking.pickupAddress),
+      lines: booking.lines.map((l) => toLineDetail(l)),
       ...signedPhotoUrls,
       beforeServicePhotoPaths: booking.beforeServicePhotoUrls,
       afterServicePhotoPaths: booking.afterServicePhotoUrls,

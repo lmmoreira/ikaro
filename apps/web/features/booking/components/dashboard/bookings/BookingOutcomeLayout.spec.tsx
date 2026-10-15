@@ -7,6 +7,7 @@ import { BookingOutcomeLayout } from './BookingOutcomeLayout';
 
 function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBookingDetailResponse {
   return {
+    hasOpenException: false,
     bookingId: 'b-1',
     status: 'COMPLETED',
     scheduledAt: '2026-06-16T10:00:00.000Z',

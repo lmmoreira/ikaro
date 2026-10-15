@@ -87,6 +87,7 @@ function buildPlaceholderBooking(
     totalDurationMins: durationMins,
     isCustomer: false,
     assignedResources: [],
+    hasOpenException: false,
   };
 }
 

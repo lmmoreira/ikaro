@@ -10,6 +10,19 @@ import {
   FutureCommitmentExceptionSourceType,
 } from '../../../contexts/booking/domain/future-commitment-exception.aggregate';
 
+function matches(
+  e: FutureCommitmentException,
+  tenantId: string,
+  filters: FutureCommitmentExceptionFilters,
+): boolean {
+  return (
+    e.tenantId === tenantId &&
+    (!filters.status || e.status === filters.status) &&
+    (!filters.affectedType || e.affectedType === filters.affectedType) &&
+    (!filters.affectedId || e.affectedId === filters.affectedId)
+  );
+}
+
 export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommitmentExceptionRepository {
   private readonly store = new Map<string, FutureCommitmentException>();
 
@@ -71,16 +84,34 @@ export class InMemoryFutureCommitmentExceptionRepository implements IFutureCommi
   ): Promise<FutureCommitmentException[]> {
     return Promise.resolve(
       Array.from(this.store.values())
-        .filter((e) => e.tenantId === tenantId && (!filters.status || e.status === filters.status))
+        .filter((e) => matches(e, tenantId, filters))
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime() || (a.id < b.id ? 1 : -1)),
+    );
+  }
+
+  findOpenAffectedBookingIds(
+    tenantId: string,
+    bookingIds: readonly string[],
+  ): Promise<ReadonlySet<string>> {
+    const wanted = new Set(bookingIds);
+    return Promise.resolve(
+      new Set(
+        Array.from(this.store.values())
+          .filter(
+            (e) =>
+              e.tenantId === tenantId &&
+              e.status === 'OPEN' &&
+              e.affectedType === 'BOOKING' &&
+              wanted.has(e.affectedId),
+          )
+          .map((e) => e.affectedId),
+      ),
     );
   }
 
   countByTenant(tenantId: string, filters: FutureCommitmentExceptionFilters = {}): Promise<number> {
     return Promise.resolve(
-      Array.from(this.store.values()).filter(
-        (e) => e.tenantId === tenantId && (!filters.status || e.status === filters.status),
-      ).length,
+      Array.from(this.store.values()).filter((e) => matches(e, tenantId, filters)).length,
     );
   }
 

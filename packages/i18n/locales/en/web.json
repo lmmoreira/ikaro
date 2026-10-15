@@ -1841,7 +1841,8 @@
       "markCompleted": "Mark completed",
       "approve": "Approve",
       "viewDetails": "View details",
-      "viewDetailsAriaLabel": "View booking details for {name}"
+      "viewDetailsAriaLabel": "View booking details for {name}",
+      "needsDecision": "Needs a decision"
     },
     "bookingDetail": {
       "title": "Booking details",
@@ -2000,6 +2001,13 @@
       "noShowErrorBody": "Check your connection and try again. Nothing was changed.",
       "noShowRetry": "Try again",
       "noShowReadOnlyNote": "No actions available. Only a manager can correct this record.",
+      "needsDecisionTitle": "This booking needs a decision",
+      "needsDecisionBody": "This booking's resource was deactivated. Choose how to resolve it: reassign to another resource, reschedule or cancel.",
+      "needsDecisionStaffHint": "This booking's resource was deactivated and a manager has to decide. Ask a manager to resolve it.",
+      "decisionPanelTitle": "Decision",
+      "decisionPanelHint": "The same actions as Bookings to resolve, for this booking. Resolving closes the entry. The customer is notified by email.",
+      "decisionPanelReassignNamed": "Reassign {resource}",
+      "decisionRefreshError": "Resolved, but we could not reload the booking. Reload the page.",
       "correctNoShowAction": "Correct to completed",
       "correctNoShowNote": "Only managers can correct a no-show. The booking goes back to completed and the customer receives the service points.",
       "correctSheetTitle": "Correct to completed",

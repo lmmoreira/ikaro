@@ -3869,7 +3869,7 @@ Decisions baked in (do not re-derive at discovery):
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-future-commitment-exception.repository.ts` (+ `.spec.ts`, `.integration.spec.ts`) (modify — the lookup, and an `EXPLAIN` test pinning the index like M23-S14's count)
 - `apps/backend/src/test/repositories/booking/in-memory-future-commitment-exception.repository.ts` (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/list-bookings.use-case.ts` (+ `.spec.ts`) and `get-booking-by-id.use-case.ts` (+ `.spec.ts`) (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — end-to-end flag, tenant isolation)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/scheduling-exception.controller.integration.spec.ts` (modify — the by-booking read and the marker on `GET /bookings` and `GET /bookings/:id`, end to end, tenant isolation: it already has the deactivate-a-resource helpers)
 - `packages/types/src/booking.dto.ts` (modify — `StaffBookingCardResponse`, `StaffBookingDetailResponse`)
 - `apps/bff/src/features/booking/bookings.mapper.ts` (+ `.spec.ts`), `bookings.types.ts` (modify)
 - `apps/web/features/booking/components/dashboard/bookings/BookingCard.tsx` (+ `.spec.tsx`) (modify), `BookingDecisionBanner.tsx` (+ `.spec.tsx`) (new), `BookingDetailMain.tsx` (+ `.spec.tsx`) (modify), `BookingDetailAsideCard.tsx` (+ `.spec.tsx`) (modify — while `hasOpenException`: `BookingDecisionPanel` for a MANAGER, nothing for STAFF; after the transient `actionState` branches, before the status branches), `BookingDetailPage.tsx` (+ `.spec.tsx`) (modify — wires the panel's refetch result into `setBooking` / `actionState`), `BookingDecisionPanel.tsx` (+ `.spec.tsx`) (new — Reatribuir per entry / Cancelar / Reagendar over `useBookingOpenExceptions`, the shipped `ReassignSheet` and `CancelSheet`)
@@ -3912,7 +3912,7 @@ Decisions baked in (do not re-derive at discovery):
   - [ ] `reassignRequest` / `cancelRequest` (now exported) produce the same requests as before, and the worklist's `useSchedulingExceptionActions` spec still passes unchanged
   - [ ] `useDeactivateResource`, `useDeactivateStaff`, `useReactivateResource` invalidate `['bookings', tenantId]` as well as `['scheduling-exceptions', tenantId]`
 - Integration:
-  - [ ] Repository: `findOpenAffectedBookingIds` against Postgres, including the `EXPLAIN` test that the lookup is answered from `UQ_booking_fce_open_impact` with sequential scan disabled
+  - [ ] Repository: `findOpenAffectedBookingIds` against Postgres, including the `EXPLAIN` test that the lookup is answered from an index (`IDX_booking_fce_tenant_affected` or the partial unique index `UQ_booking_fce_open_impact`), never a sequential scan, with sequential scan disabled
   - [ ] Controller: `GET /scheduling-exceptions/by-booking/:bookingId` returns the booking's open entries with alternatives (two entries when two of its resources are deactivated, none after both are resolved)
   - [ ] Controller: after a resource with a future booking is deactivated, `GET /bookings` and `GET /bookings/:id` carry `hasOpenException: true` for that booking and `false` for another; after the entry is resolved (and after the resource is reactivated) both are `false`
 - Tenant isolation:
@@ -3922,7 +3922,7 @@ Decisions baked in (do not re-derive at discovery):
   - [ ] Manager: deactivate a resource with a confirmed booking from the Resources screen, navigate client-side to `/dashboard/bookings`: the card shows the pill; open it, the banner and the decision panel show; reassign it from the panel; back in the queue the booking is still there and the pill is gone — all without a reload
   - [ ] Manager: cancel a marked booking from the decision panel; the entry closes and the booking shows the cancelled state without a reload
   - [ ] Manager: Reagendar from the decision panel on an approved marked booking returns to that booking with the new time and no marker
-  - [ ] Manager: a booking with two open entries (two resources deactivated) shows two Reatribuir buttons; reassigning one leaves the other
+  - [ ] *(not an E2E: the seed helper books on one resource, so a two-entry booking cannot be seeded through the UI; covered by the `BookingDecisionPanel` unit spec and the by-booking use-case spec built on a bundle booking)* a booking with two open entries shows two Reatribuir buttons
   - [ ] STAFF: sees the pill on the card and the banner on the detail with no decision panel
   - [ ] On a booking that needs a decision, the queue card shows no quick action and the detail shows no normal action; after it is resolved they are back
   - [ ] Reactivating the resource removes the pill (the S45 path)

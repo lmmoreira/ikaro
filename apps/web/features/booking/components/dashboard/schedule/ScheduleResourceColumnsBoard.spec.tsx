@@ -229,6 +229,7 @@ describe('ScheduleResourceColumnsBoard', () => {
         selectedResourceIdSet={new Set(['res-camila'])}
         bookings={[
           {
+            hasOpenException: false,
             bookingId: 'booking-spillover',
             status: BOOKING_STATUS.APPROVED,
             scheduledAt: '2026-08-17T02:50:00.000Z', // 2026-08-16 local — the booking's own day
@@ -271,6 +272,7 @@ describe('ScheduleResourceColumnsBoard', () => {
 
   describe('held tail after a booking (M18-S10)', () => {
     const booking = {
+      hasOpenException: false,
       bookingId: 'booking-1',
       status: BOOKING_STATUS.APPROVED,
       scheduledAt: '2026-08-17T12:00:00.000Z', // 09:00 local

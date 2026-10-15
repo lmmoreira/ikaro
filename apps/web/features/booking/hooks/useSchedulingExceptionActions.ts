@@ -33,7 +33,7 @@ interface Options {
   readonly onResolved: () => void;
 }
 
-function reassignRequest(
+export function reassignRequest(
   ids: readonly string[],
   input: { target: SchedulingExceptionReassignTarget; reason?: string },
 ): ResolveSchedulingExceptionsRequest {
@@ -45,7 +45,7 @@ function reassignRequest(
   };
 }
 
-function cancelRequest(
+export function cancelRequest(
   ids: readonly string[],
   input: { reason?: string },
 ): ResolveSchedulingExceptionsRequest {
