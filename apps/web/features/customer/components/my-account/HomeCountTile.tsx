@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 
 interface HomeCountTileProps {
@@ -26,27 +27,26 @@ export function HomeCountTile({
   valueTestId,
 }: HomeCountTileProps): React.JSX.Element {
   return (
-    <Link
-      href={href}
-      className="flex items-center gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm hover:bg-gray-50"
-    >
-      <div
-        className={cn(
-          'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
-          iconBackground,
-        )}
-      >
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-[0.6875rem] font-semibold text-gray-500">{label}</p>
-        <p
-          data-testid={valueTestId}
-          className="text-[1.1875rem] font-bold leading-tight text-gray-900"
+    <Link href={href} className="group block rounded-xl">
+      <Card className="flex items-center gap-3 rounded-xl border-gray-100 bg-white p-3.5 group-hover:bg-gray-50">
+        <div
+          className={cn(
+            'flex h-9 w-9 shrink-0 items-center justify-center rounded-lg',
+            iconBackground,
+          )}
         >
-          {value}
-        </p>
-      </div>
+          {icon}
+        </div>
+        <div className="min-w-0">
+          <p className="text-[0.6875rem] font-semibold text-gray-500">{label}</p>
+          <p
+            data-testid={valueTestId}
+            className="text-[1.1875rem] font-bold leading-tight text-gray-900"
+          >
+            {value}
+          </p>
+        </div>
+      </Card>
     </Link>
   );
 }

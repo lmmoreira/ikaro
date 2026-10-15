@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Repeat } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { Card } from '@/shared/components/ui/card';
 import type { RenewalSelection } from '../../home-widgets';
 import {
   recurringScheduleListPath,
@@ -32,9 +33,9 @@ export function HomeRenewalCard({
   const { recurrenceLine, termText } = useRecurrenceText();
 
   return (
-    <div
+    <Card
       data-testid="home-renewal-card"
-      className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3.5"
+      className="mt-3 flex flex-wrap items-center gap-3 rounded-xl border-amber-200 bg-amber-50 px-4 py-3.5 shadow-none"
     >
       <Repeat className="h-[22px] w-[22px] shrink-0 text-amber-800" aria-hidden="true" />
       {selection.kind === 'one' ? (
@@ -83,6 +84,6 @@ export function HomeRenewalCard({
           </Link>
         </>
       )}
-    </div>
+    </Card>
   );
 }
