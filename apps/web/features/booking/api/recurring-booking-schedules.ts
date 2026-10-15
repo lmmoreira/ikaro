@@ -9,9 +9,12 @@ import type {
 import { bffClient } from '@/shared/lib/api/bff-client';
 
 // The BFF caps `limit` at 100. A pending request holds a 30-minute approval slot and then expires,
-// so the queue is short; the page cap only stops a corrupted `hasMore` from looping forever.
+// so the queue is short and one page covers any real tenant.
 const PENDING_SCHEDULES_PAGE_SIZE = 100;
-const PENDING_SCHEDULES_MAX_PAGES = 10;
+// Circuit breaker against a runaway loop (a corrupted `hasMore`), at 5,000 requests, far beyond any
+// real queue. Hitting it throws rather than returning a shorter list: a queue that silently omits
+// requests is worse than one that fails visibly (the same rule as `listAllPages` for bookings).
+const PENDING_SCHEDULES_MAX_PAGES = 50;
 
 // UC-070 — the signed-in customer requests a recurring schedule for themself (the customer id
 // comes from the JWT, never the body). 201 → ACTIVE, or PENDING_APPROVAL with the hold's end.
@@ -33,7 +36,7 @@ export async function endRecurringScheduleAsCustomer(scheduleId: string): Promis
 
 // UC-071 — every request waiting for a staff decision, newest first, all pages. Asked for by status
 // on the server (never filtered client-side), so the queue's pending requests are exactly the ones
-// the backend holds. Sequential on purpose: one page covers any real tenant.
+// the backend holds. Follows `pagination.hasMore` to the end, sequentially (one page is the norm).
 export async function listPendingRecurringSchedules(): Promise<RecurringBookingScheduleListItem[]> {
   const items: RecurringBookingScheduleListItem[] = [];
   const seen = new Set<string>();
@@ -49,17 +52,23 @@ export async function listPendingRecurringSchedules(): Promise<RecurringBookingS
         },
       },
     );
+    let added = 0;
     for (const item of res.data.items) {
       // Offset paging over a live table can repeat a row if one is created between two requests.
       if (!seen.has(item.id)) {
         seen.add(item.id);
         items.push(item);
+        added += 1;
       }
     }
-    if (!res.data.pagination.hasMore || res.data.items.length === 0) break;
+    // Done when the server says so, or when a page brings nothing new (an empty page, or one that
+    // only repeats rows already read), so a `hasMore` that never clears cannot loop.
+    if (!res.data.pagination.hasMore || added === 0) return items;
   }
 
-  return items;
+  throw new Error(
+    `listPendingRecurringSchedules: exceeded ${PENDING_SCHEDULES_MAX_PAGES} pages — refusing to return a silently truncated queue`,
+  );
 }
 
 // UC-071 — one schedule in the list-item shape, whatever its status (STAFF|MANAGER read any in the

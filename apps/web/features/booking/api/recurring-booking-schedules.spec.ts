@@ -141,6 +141,53 @@ describe('listPendingRecurringSchedules', () => {
     expect(mock.history['get']).toHaveLength(1);
   });
 
+  it('follows hasMore past ten pages, so a long queue is never cut short', async () => {
+    mock.onGet('/recurring-booking-schedules').reply((config) => {
+      const offset = (config.params as { offset: number }).offset;
+      const page = offset / 100;
+      return [
+        200,
+        {
+          items: [pendingItem(`s-${page}`)],
+          pagination: { limit: 100, offset, total: 12, hasMore: page < 11 },
+        },
+      ];
+    });
+
+    const items = await listPendingRecurringSchedules();
+
+    expect(items).toHaveLength(12);
+    expect(mock.history['get']).toHaveLength(12);
+  });
+
+  it('stops when a page only repeats rows already read, so a stuck hasMore cannot loop', async () => {
+    mock.onGet('/recurring-booking-schedules').reply(200, {
+      items: [pendingItem('s-1')],
+      pagination: { limit: 100, offset: 0, total: 1, hasMore: true },
+    });
+
+    const items = await listPendingRecurringSchedules();
+
+    expect(items.map((i) => i.id)).toEqual(['s-1']);
+    expect(mock.history['get']).toHaveLength(2);
+  });
+
+  it('throws at the circuit breaker instead of returning a truncated queue', async () => {
+    mock.onGet('/recurring-booking-schedules').reply((config) => {
+      const offset = (config.params as { offset: number }).offset;
+      return [
+        200,
+        {
+          items: [pendingItem(`s-${offset}`)],
+          pagination: { limit: 100, offset, total: 99999, hasMore: true },
+        },
+      ];
+    });
+
+    await expect(listPendingRecurringSchedules()).rejects.toThrow(/exceeded 50 pages/);
+    expect(mock.history['get']).toHaveLength(50);
+  });
+
   it('propagates a failure instead of returning a partial list', async () => {
     mock.onGet('/recurring-booking-schedules').reply(500);
 
