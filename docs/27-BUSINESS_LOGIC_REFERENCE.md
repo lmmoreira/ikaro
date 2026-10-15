@@ -368,6 +368,10 @@ One entry per affected booking, whatever its status (`PENDING`, `INFO_REQUESTED`
 
 `GET /scheduling-exceptions/count` (`{ count }`, `OPEN` entries of the tenant, MANAGER only) feeds the sidebar badge and is served by the partial unique index over the `OPEN` rows (an Index Only Scan, pinned by an `EXPLAIN` test); the badge query never computes alternatives. The web client refreshes the list and the count after a resolve and after a resource or staff deactivation.
 
+### Known gap — a booking changed outside the worklist
+
+Only the resolve and dismiss flows and a resource reactivation close an entry. Cancelling, rescheduling, completing or marking no-show through the normal booking actions (the detail page, the queue card) never touches the worklist, so the entry stays `OPEN` on a booking that no longer needs a decision (read from the use cases; not reproduced in the app). M23-S46 avoids it from the UI by showing no action buttons on a booking that has an open entry; the endpoints still accept the calls. A backend guard (refuse those actions while an entry is open) or an auto-close (resolve the entry in the same transaction) is an open decision. Related limits of the resolve actions: `RESCHEDULE` keeps a customer's chosen resource and cannot re-resolve one that is deactivated, and no action changes the time and the resource together.
+
 ### Resolve (best-effort per booking)
 
 `resolve` takes 1–100 entry ids and one choice. **Each entry runs in its own transaction**, so a booking whose alternative was taken in the meantime stays `OPEN` and is reported (`STILL_OPEN`) while the rest resolve.
