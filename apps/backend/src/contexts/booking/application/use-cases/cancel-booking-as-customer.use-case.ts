@@ -14,7 +14,15 @@ import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
-import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import {
+  saveTerminalBookingsInTransaction,
+  TerminalBookingDeps,
+} from './booking-exception-closing.helpers';
 export type CancelBookingAsCustomerUseCaseInput = {
   bookingId: string;
   tenantId: string;
@@ -35,7 +43,19 @@ export class CancelBookingAsCustomerUseCase {
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
+
+  private get closingDeps(): TerminalBookingDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      occupancyRepo: this.occupancyRepo,
+      exceptionRepo: this.exceptionRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
 
   async execute(
     input: CancelBookingAsCustomerUseCaseInput,
@@ -56,12 +76,11 @@ export class CancelBookingAsCustomerUseCase {
     booking.cancel({ type: 'CUSTOMER', id: customerId }, correlationId);
 
     await this.txManager.run(async () => {
-      await this.bookingRepo.save(booking);
-      await releaseBookingOccupancy(
-        this.occupancyRepo,
+      await saveTerminalBookingsInTransaction(this.closingDeps, {
         tenantId,
-        booking.lines.map((l) => l.lineId),
-      );
+        bookings: [booking],
+        correlationId,
+      });
     });
 
     return { bookingId: booking.id, status: booking.status };

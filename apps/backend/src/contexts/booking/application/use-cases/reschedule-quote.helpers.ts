@@ -118,6 +118,8 @@ export interface ResolveRescheduleCandidatesParams {
   timezone: string;
   overrideSelections: ResourceSelectionInput[];
   durationChange: RescheduleDurationChange | undefined;
+  // Resources the booking occupies before the move, locked with the candidates (M23-S48).
+  alsoLockResourceIds?: readonly string[];
 }
 
 // Shared by RescheduleBookingUseCase (admin) and RescheduleBookingAsCustomerUseCase — resolves the
@@ -146,6 +148,7 @@ export async function resolveRescheduleCandidates(
     serviceMap,
     resourceSelections,
     lockResources: (resourceIds) => slotConflictService.lockResources(tenantId, resourceIds),
+    alsoLockResourceIds: params.alsoLockResourceIds,
   });
 
   const allCandidates: ResourceOccupancyCandidate[] = [...candidatesByLine.values()].flatMap(

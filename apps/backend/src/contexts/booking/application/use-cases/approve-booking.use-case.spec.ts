@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
@@ -8,6 +9,7 @@ import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repo
 import {
   BookingBuilder,
   BookingLineBuilder,
+  FutureCommitmentExceptionBuilder,
   ResourceBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
@@ -50,6 +52,7 @@ describe('ApproveBookingUseCase', () => {
     let eventBus: InMemoryEventBus;
     let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
     let occupancyRepo: InMemoryResourceOccupancyRepository;
+    let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
     let useCase: ApproveBookingUseCase;
 
     beforeEach(() => {
@@ -58,6 +61,7 @@ describe('ApproveBookingUseCase', () => {
       bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
       fixtures = createAutoBookingResourceFixtures();
       occupancyRepo = new InMemoryResourceOccupancyRepository();
+      exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
         fixtures.serviceRepo,
@@ -66,6 +70,7 @@ describe('ApproveBookingUseCase', () => {
         new AvailabilityService(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
+        exceptionRepo,
       );
     });
 
@@ -81,6 +86,35 @@ describe('ApproveBookingUseCase', () => {
       expect(result.status).toBe(BookingStatus.APPROVED);
       expect(result.bookingId).toBe(booking.id);
       expect(result.approvedAt).toBeDefined();
+    });
+
+    it('closes the entries whose resource the booking no longer occupies and keeps the others (M23-S48)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      const locationId = fixtures.resourceRepo.ensureLocation(TENANT_A).id;
+      const keptEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .withSourceId(locationId)
+        .build();
+      const staleEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .build();
+      await exceptionRepo.save(keptEntry);
+      await exceptionRepo.save(staleEntry);
+
+      await useCase.execute({ bookingId: booking.id, ...ctx });
+
+      const kept = await exceptionRepo.findById(keptEntry.id, TENANT_A);
+      expect(kept?.status).toBe('OPEN');
+      const closed = await exceptionRepo.findById(staleEntry.id, TENANT_A);
+      expect(closed?.status).toBe('DISMISSED');
+      expect(closed?.resolutionReason).toBe('RESOURCE_NO_LONGER_USED');
+      expect(closed?.resolvedByStaffId).toBeNull();
     });
 
     it('transitions INFO_REQUESTED → APPROVED', async () => {

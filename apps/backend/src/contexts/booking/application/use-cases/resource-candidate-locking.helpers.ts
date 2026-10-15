@@ -25,14 +25,20 @@ export async function lockCandidateResources(params: {
   resourceSelections: ResourceSelectionInput[];
   ctx: ResolutionContext;
   lockResources: (resourceIds: string[]) => Promise<void>;
+  // Resources the booking occupies before this change moves it, locked in the same call so a
+  // deactivation raising on them is ordered against the move (M23-S48).
+  alsoLockResourceIds?: readonly string[];
 }): Promise<void> {
-  const { lines, serviceMap, resourceSelections, ctx } = params;
+  const { lines, serviceMap, resourceSelections, ctx, alsoLockResourceIds = [] } = params;
   const automatic = lines
     .flatMap((line) => requirementsOf(serviceMap.get(line.serviceId)))
     .filter((requirement) => requirement.selectionMode !== 'CUSTOMER_CHOICE');
-  if (automatic.length === 0) return;
+  if (automatic.length === 0 && alsoLockResourceIds.length === 0) return;
 
-  const resourceIds = new Set(resourceSelections.map((selection) => selection.resourceId));
+  const resourceIds = new Set([
+    ...resourceSelections.map((selection) => selection.resourceId),
+    ...alsoLockResourceIds,
+  ]);
   const eligible = await Promise.all(
     distinctRequirements(automatic).map((requirement) =>
       resolveEligibleResources(requirement, ctx),

@@ -4,9 +4,14 @@ import { Service } from '../../domain/service.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { IBookingRepository } from '../ports/booking-repository.port';
 import { IBookingQuoteRevisionRepository } from '../ports/booking-quote-revision-repository.port';
+import { IFutureCommitmentExceptionRepository } from '../ports/future-commitment-exception-repository.port';
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import {
+  dismissStaleExceptionsAfterMove,
+  occupiedResourceIds,
+} from './booking-exception-closing.helpers';
 import { ResourceSelectionInput } from './resource-occupancy.helpers';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
@@ -23,6 +28,7 @@ export interface RescheduleBookingInTransactionDeps {
   quoteRevisionRepo: IBookingQuoteRevisionRepository;
   availabilityService: AvailabilityService;
   slotConflictService: BookingSlotConflictService;
+  exceptionRepo: IFutureCommitmentExceptionRepository;
 }
 
 export interface RescheduleBookingInTransactionParams {
@@ -36,6 +42,8 @@ export interface RescheduleBookingInTransactionParams {
   staffId: string;
   correlationId: string;
   timezone: string;
+  // Entries the caller closes itself (the worklist's selected entry is RESOLVED by the manager).
+  excludeExceptionIds?: readonly string[];
 }
 
 // The staff reschedule's own write sequence (UC-069 A3), shared by RescheduleBookingUseCase and by
@@ -52,8 +60,7 @@ export async function rescheduleBookingInTransaction(
 ): Promise<QuoteRevisionResult | undefined> {
   const { booking, tenantId, staffId } = params;
   const previousTotalPrice = booking.totalPrice;
-
-  const candidatesByLine = await resolveRescheduleCandidates(toResolveParams(deps, params));
+  const { candidatesByLine, openExceptions } = await resolveAndLockExceptions(deps, params);
 
   booking.reschedule(
     staffId,
@@ -72,6 +79,13 @@ export async function rescheduleBookingInTransaction(
     'COMMITTED',
     null,
   );
+  await dismissStaleExceptionsAfterMove(deps, {
+    tenantId,
+    booking,
+    exceptions: openExceptions,
+    correlationId: params.correlationId,
+    excludeExceptionIds: params.excludeExceptionIds,
+  });
   return recordQuoteRevisionIfPriceChanged(
     deps.quoteRevisionRepo,
     tenantId,
@@ -81,6 +95,24 @@ export async function rescheduleBookingInTransaction(
     'STAFF',
     staffId,
   );
+}
+
+// Resource locks (the old resources included) first, then the booking's open entries (R4), both
+// before the booking row is written (docs/28-LOCK_CATALOG.md § 2).
+async function resolveAndLockExceptions(
+  deps: RescheduleBookingInTransactionDeps,
+  params: RescheduleBookingInTransactionParams,
+) {
+  const { booking, tenantId } = params;
+  const occupiedBefore = await occupiedResourceIds(deps.occupancyRepo, tenantId, [booking]);
+  const candidatesByLine = await resolveRescheduleCandidates({
+    ...toResolveParams(deps, params),
+    alsoLockResourceIds: [...occupiedBefore],
+  });
+  const openExceptions = await deps.exceptionRepo.findOpenByAffectedForUpdate(tenantId, 'BOOKING', [
+    booking.id,
+  ]);
+  return { candidatesByLine, openExceptions };
 }
 
 function toResolveParams(

@@ -1,10 +1,15 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  FutureCommitmentExceptionBuilder,
+} from '../../../../test/builders/booking/index';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
 import {
   RecurringBookingScheduleForbiddenError,
@@ -57,6 +62,7 @@ describe('EndRecurringBookingScheduleUseCase', () => {
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: EndRecurringBookingScheduleUseCase;
 
   beforeEach(() => {
@@ -65,11 +71,14 @@ describe('EndRecurringBookingScheduleUseCase', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
     useCase = new EndRecurringBookingScheduleUseCase(
       scheduleRepo,
       bookingRepo,
       occupancyRepo,
       new InMemoryTransactionManager(),
+      exceptionRepo,
+      new InMemoryTenantLock(),
     );
   });
 
@@ -249,5 +258,40 @@ describe('EndRecurringBookingScheduleUseCase', () => {
         actorRole: 'CUSTOMER',
       }),
     ).rejects.toThrow(RecurringBookingScheduleForbiddenError);
+  });
+
+  it('closes the open worklist entries of every occurrence it cancels (M23-S48)', async () => {
+    const schedule = activeSchedule();
+    scheduleRepo.seed(schedule);
+    const bookings = [7, 14].map((days) =>
+      new BookingBuilder()
+        .withTenantId(TENANT)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(`${futureDate(days)}T13:00:00.000Z`))
+        .withRecurringScheduleId(schedule.id)
+        .build(),
+    );
+    const entries = bookings.map((booking) =>
+      new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT)
+        .withAffectedId(booking.id)
+        .build(),
+    );
+    for (const booking of bookings) await bookingRepo.save(booking);
+    for (const entry of entries) await exceptionRepo.save(entry);
+
+    await useCase.execute({
+      scheduleId: schedule.id,
+      tenantId: TENANT,
+      correlationId: CORRELATION_ID,
+      actorId: 'customer-1',
+      actorRole: 'CUSTOMER',
+    });
+
+    for (const entry of entries) {
+      const closed = await exceptionRepo.findById(entry.id, TENANT);
+      expect(closed?.status).toBe('DISMISSED');
+      expect(closed?.resolvedByStaffId).toBeNull();
+    }
   });
 });

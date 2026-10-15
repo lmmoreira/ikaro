@@ -23,6 +23,10 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { RescheduleBookingDto } from '../dtos/reschedule-booking.dto';
 import { toResourceSelections } from './booking-request.mapper';
@@ -61,6 +65,8 @@ export class RescheduleBookingUseCase {
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly quoteService: BookingQuoteService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
   ) {}
 
   async execute(input: RescheduleBookingUseCaseInput): Promise<RescheduleBookingUseCaseResult> {
@@ -111,6 +117,7 @@ export class RescheduleBookingUseCase {
           quoteRevisionRepo: this.quoteRevisionRepo,
           availabilityService: this.availabilityService,
           slotConflictService: this.slotConflictService,
+          exceptionRepo: this.exceptionRepo,
         },
         {
           booking,

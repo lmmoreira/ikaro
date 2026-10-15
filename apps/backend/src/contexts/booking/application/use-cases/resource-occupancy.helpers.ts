@@ -68,6 +68,8 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   // Locks resources inside the caller's transaction (BookingSlotConflictService.lockResources).
   // Required, so a caller cannot forget it and silently lose the ordering of automatic selection.
   lockResources: (resourceIds: string[]) => Promise<void>;
+  // Resources the booking occupies before a reschedule or an approval moves it (M23-S48).
+  alsoLockResourceIds?: readonly string[];
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
@@ -93,6 +95,7 @@ export async function resolveBookingLinesResourceCandidates(
     resourceSelections,
     ctx,
     lockResources: params.lockResources,
+    alsoLockResourceIds: params.alsoLockResourceIds,
   });
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();

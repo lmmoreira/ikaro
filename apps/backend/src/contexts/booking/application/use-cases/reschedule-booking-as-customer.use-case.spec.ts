@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
@@ -5,7 +6,11 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
-import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  BookingLineBuilder,
+  FutureCommitmentExceptionBuilder,
+} from '../../../../test/builders/booking/index';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
 import { Money } from '../../../../shared/value-objects/money';
@@ -41,6 +46,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let quoteRevisionRepo: InMemoryBookingQuoteRevisionRepository;
   let eventBus: InMemoryEventBus;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: RescheduleBookingAsCustomerUseCase;
 
   beforeEach(() => {
@@ -49,6 +55,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
     fixtures = createAutoBookingResourceFixtures();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
     useCase = new RescheduleBookingAsCustomerUseCase(
       bookingRepo,
       fixtures.serviceRepo,
@@ -59,6 +66,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new BookingQuoteService(),
       new InMemoryTransactionManager(),
+      exceptionRepo,
     );
   });
 
@@ -92,6 +100,37 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       expect(result.status).toBe(BookingStatus.APPROVED);
       expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
       expect(result.quoteRevision).toBeUndefined();
+    });
+
+    it('closes the entries whose resource the booking no longer occupies and keeps the others (M23-S48)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+      const locationId = fixtures.resourceRepo.ensureLocation(TENANT_A).id;
+      const keptEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .withSourceId(locationId)
+        .build();
+      const staleEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .build();
+      await exceptionRepo.save(keptEntry);
+      await exceptionRepo.save(staleEntry);
+
+      await execute({ bookingId: booking.id });
+
+      const kept = await exceptionRepo.findById(keptEntry.id, TENANT_A);
+      expect(kept?.status).toBe('OPEN');
+      const closed = await exceptionRepo.findById(staleEntry.id, TENANT_A);
+      expect(closed?.status).toBe('DISMISSED');
+      expect(closed?.resolutionReason).toBe('RESOURCE_NO_LONGER_USED');
+      expect(closed?.resolvedByStaffId).toBeNull();
     });
 
     it('publishes BookingRescheduled with isBusiness=false and rescheduledBy=customerId', async () => {

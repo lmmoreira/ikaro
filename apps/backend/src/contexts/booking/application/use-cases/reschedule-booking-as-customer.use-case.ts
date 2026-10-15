@@ -10,6 +10,7 @@ import {
   RescheduleWindowExpiredError,
 } from '../../domain/errors/booking-domain.error';
 import { Booking } from '../../domain/booking.aggregate';
+import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
 import { RescheduleDurationChange } from '../../domain/booking.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
@@ -25,9 +26,17 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { toResourceSelections } from './booking-request.mapper';
 import { RescheduleBookingAsCustomerDto } from '../dtos/reschedule-booking-as-customer.dto';
+import {
+  dismissStaleExceptionsAfterMove,
+  occupiedResourceIds,
+} from './booking-exception-closing.helpers';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   QuoteRevisionResult,
@@ -73,6 +82,8 @@ export class RescheduleBookingAsCustomerUseCase {
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly quoteService: BookingQuoteService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
   ) {}
 
   async execute(
@@ -126,13 +137,17 @@ export class RescheduleBookingAsCustomerUseCase {
     durationChange: RescheduleDurationChange | undefined,
     input: RescheduleBookingAsCustomerUseCaseInput,
   ): Promise<QuoteRevisionResult | undefined> {
-    const { tenantId, customerId, correlationId } = input;
+    const { customerId, correlationId } = input;
     const previousTotalPrice = booking.totalPrice;
     let quoteRevision: QuoteRevisionResult | undefined;
 
     await this.txManager.run(async () => {
-      const candidatesByLine = await resolveRescheduleCandidates(
-        this.buildCandidatesParams(booking, serviceMap, newScheduledAt, durationChange, input),
+      const { candidatesByLine, openExceptions } = await this.resolveAndLockExceptions(
+        booking,
+        serviceMap,
+        newScheduledAt,
+        durationChange,
+        input,
       );
 
       booking.reschedule(
@@ -146,30 +161,59 @@ export class RescheduleBookingAsCustomerUseCase {
       await this.bookingRepo.save(booking);
 
       quoteRevision = await this.moveOccupancyAndRecordRevision(
-        booking,
-        candidatesByLine,
-        tenantId,
+        { booking, candidatesByLine, openExceptions },
+        input,
         previousTotalPrice,
-        customerId,
       );
     });
 
     return quoteRevision;
   }
 
-  private async moveOccupancyAndRecordRevision(
+  // Resource locks (the old resources included) first, then the booking's open entries, both before
+  // the booking row is written (docs/28-LOCK_CATALOG.md § 2).
+  private async resolveAndLockExceptions(
     booking: Booking,
-    candidatesByLine: Awaited<ReturnType<typeof resolveRescheduleCandidates>>,
-    tenantId: string,
+    serviceMap: Map<string, Service>,
+    newScheduledAt: Date,
+    durationChange: RescheduleDurationChange | undefined,
+    input: RescheduleBookingAsCustomerUseCaseInput,
+  ) {
+    const { tenantId } = input;
+    const occupiedBefore = await occupiedResourceIds(this.occupancyRepo, tenantId, [booking]);
+    const candidatesByLine = await resolveRescheduleCandidates({
+      ...this.buildCandidatesParams(booking, serviceMap, newScheduledAt, durationChange, input),
+      alsoLockResourceIds: [...occupiedBefore],
+    });
+    const openExceptions = await this.exceptionRepo.findOpenByAffectedForUpdate(
+      tenantId,
+      'BOOKING',
+      [booking.id],
+    );
+    return { candidatesByLine, openExceptions };
+  }
+
+  private async moveOccupancyAndRecordRevision(
+    moved: {
+      booking: Booking;
+      candidatesByLine: Awaited<ReturnType<typeof resolveRescheduleCandidates>>;
+      openExceptions: FutureCommitmentException[];
+    },
+    input: RescheduleBookingAsCustomerUseCaseInput,
     previousTotalPrice: Booking['totalPrice'],
-    customerId: string,
   ): Promise<QuoteRevisionResult | undefined> {
+    const { tenantId, customerId, correlationId } = input;
+    const { booking, candidatesByLine, openExceptions } = moved;
     await moveBookingLinesOccupancy(
       this.occupancyRepo,
       candidatesByLine,
       tenantId,
       'COMMITTED',
       null,
+    );
+    await dismissStaleExceptionsAfterMove(
+      { occupancyRepo: this.occupancyRepo, exceptionRepo: this.exceptionRepo },
+      { tenantId, booking, exceptions: openExceptions, correlationId },
     );
     return recordQuoteRevisionIfPriceChanged(
       this.quoteRevisionRepo,

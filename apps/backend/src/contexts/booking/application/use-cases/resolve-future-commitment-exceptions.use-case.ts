@@ -6,10 +6,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { Booking } from '../../domain/booking.aggregate';
 import { BookingDomainError } from '../../domain/errors/booking-domain-error.base';
-import {
-  BookingNotFoundError,
-  BookingScheduledInPastError,
-} from '../../domain/errors/booking-domain.error';
+import { BookingNotFoundError } from '../../domain/errors/booking-domain.error';
 import {
   FutureCommitmentExceptionAlreadyResolvedError,
   FutureCommitmentExceptionNotFoundError,
@@ -43,9 +40,17 @@ import {
   ReassignedOccurrence,
   syncRecurringScheduleAssignments,
 } from './future-commitment-schedule-sync.helpers';
-import { rescheduleBookingInTransaction } from './reschedule-booking-in-transaction.helpers';
+import {
+  rescheduleThroughWorklist,
+  WorklistRescheduleDeps,
+} from './future-commitment-reschedule.helpers';
 import { ReassignTarget, reassignBookingResource } from './resource-reassignment.helpers';
-import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import { TerminalBookingDeps } from './booking-exception-closing.helpers';
+import {
+  cancelThroughWorklist,
+  isRepeatedCancelOfCancelledBooking,
+  lockResourcesBeforeEntry,
+} from './future-commitment-cancel.helpers';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 
 export interface ResolveFutureCommitmentExceptionsUseCaseInput {
@@ -134,17 +139,16 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     const { tenantId, staffId, correlationId, resolutionType } = input;
     try {
       await this.txManager.run(async () => {
+        // The resource locks come before the entry row lock for every path that frees the booking
+        // (docs/28-LOCK_CATALOG.md § 2), so a staff cancel racing this resolve cannot deadlock.
+        if (resolutionType === 'CANCEL') {
+          await lockResourcesBeforeEntry(this.closingDeps, exceptionId, tenantId);
+        }
         const exception = await this.lockOpenEntry(exceptionId, tenantId);
         const booking = await this.loadBookingFor(exception, resolutionType, tenantId);
 
         if (resolutionType === 'CANCEL') {
-          booking!.cancel({ type: input.actorRole, id: staffId }, correlationId, input.reason);
-          await this.bookingRepo.save(booking!);
-          await releaseBookingOccupancy(
-            this.occupancyRepo,
-            tenantId,
-            booking!.lines.map((l) => l.lineId),
-          );
+          await cancelThroughWorklist(this.closingDeps, input, exception, booking!);
         } else if (resolutionType === 'REASSIGN') {
           const moved = await this.reassign(input, exception, booking!);
           // The time did not change, so no BookingRescheduled: this event is what tells the
@@ -153,7 +157,12 @@ export class ResolveFutureCommitmentExceptionsUseCase {
           await this.bookingRepo.save(booking!);
           if (moved.occurrence) reassigned.push(moved.occurrence);
         } else if (resolutionType === 'RESCHEDULE') {
-          await this.reschedule(input, booking!);
+          await rescheduleThroughWorklist(this.rescheduleDeps, {
+            ...input,
+            scheduledAt: input.scheduledAt!,
+            exception,
+            booking: booking!,
+          });
         }
 
         exception.resolve(staffId, resolutionType, input.reason ?? null, correlationId);
@@ -161,11 +170,48 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       });
       return { exceptionId, outcome: 'RESOLVED' };
     } catch (err) {
-      if (err instanceof BookingDomainError) {
-        return { exceptionId, outcome: 'STILL_OPEN', errorCode: err.code };
-      }
-      throw err;
+      return this.outcomeOfFailure(err, input, exceptionId);
     }
+  }
+
+  private async outcomeOfFailure(
+    err: unknown,
+    input: ResolveFutureCommitmentExceptionsUseCaseInput,
+    exceptionId: string,
+  ): Promise<FutureCommitmentExceptionResolutionOutcome> {
+    const { tenantId, resolutionType } = input;
+    const repeated = { err, resolutionType };
+    if (
+      await isRepeatedCancelOfCancelledBooking(this.closingDeps, repeated, exceptionId, tenantId)
+    ) {
+      return { exceptionId, outcome: 'RESOLVED' };
+    }
+    if (err instanceof BookingDomainError) {
+      return { exceptionId, outcome: 'STILL_OPEN', errorCode: err.code };
+    }
+    throw err;
+  }
+
+  private get closingDeps(): TerminalBookingDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      occupancyRepo: this.occupancyRepo,
+      exceptionRepo: this.exceptionRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
+
+  private get rescheduleDeps(): WorklistRescheduleDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      resourceRepo: this.resourceRepo,
+      occupancyRepo: this.occupancyRepo,
+      quoteRevisionRepo: this.quoteRevisionRepo,
+      availabilityService: this.availabilityService,
+      slotConflictService: this.slotConflictService,
+      exceptionRepo: this.exceptionRepo,
+      serviceRepo: this.serviceRepo,
+    };
   }
 
   // The row lock serializes two managers acting on the same entry: the second one waits, then sees
@@ -227,38 +273,6 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       },
       newResourceName,
     };
-  }
-
-  // Booking.reschedule() refuses anything but an APPROVED booking (InvalidBookingTransition), which
-  // surfaces as a per-entry STILL_OPEN with its own error code.
-  private async reschedule(
-    input: ResolveFutureCommitmentExceptionsUseCaseInput,
-    booking: Booking,
-  ): Promise<void> {
-    const newScheduledAt = new Date(input.scheduledAt!);
-    if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
-
-    await rescheduleBookingInTransaction(
-      {
-        bookingRepo: this.bookingRepo,
-        resourceRepo: this.resourceRepo,
-        occupancyRepo: this.occupancyRepo,
-        quoteRevisionRepo: this.quoteRevisionRepo,
-        availabilityService: this.availabilityService,
-        slotConflictService: this.slotConflictService,
-      },
-      {
-        booking,
-        serviceMap: await this.loadServiceMap(booking, input.tenantId),
-        newScheduledAt,
-        durationChange: undefined,
-        overrideSelections: [],
-        tenantId: input.tenantId,
-        staffId: input.staffId,
-        correlationId: input.correlationId,
-        timezone: input.timezone,
-      },
-    );
   }
 
   private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {

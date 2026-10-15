@@ -20,8 +20,16 @@ import {
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { ApproveBookingDto } from '../dtos/approve-booking.dto';
+import {
+  dismissStaleExceptionsAfterMove,
+  occupiedResourceIds,
+} from './booking-exception-closing.helpers';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
@@ -57,10 +65,12 @@ export class ApproveBookingUseCase {
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
   ) {}
 
   async execute(input: ApproveBookingUseCaseInput): Promise<ApproveBookingUseCaseResult> {
-    const { tenantId, staffId, correlationId } = input;
+    const { tenantId, staffId } = input;
 
     const booking = await this.bookingRepo.findById(input.bookingId, tenantId);
     if (!booking) throw new BookingNotFoundError(input.bookingId);
@@ -70,13 +80,41 @@ export class ApproveBookingUseCase {
     const scheduledAt = this.resolveScheduledAt(input, booking, isRescheduling);
     const serviceMap = await this.loadServiceMap(booking, tenantId);
 
+    await this.approveUnderLock(booking, serviceMap, scheduledAt, isRescheduling, input);
+
+    this.logger.log('Booking approved', { tenantId, bookingId: booking.id, staffId });
+
+    return {
+      bookingId: booking.id,
+      status: booking.status,
+      approvedAt: booking.approvedAt!.toISOString(),
+    };
+  }
+
+  // save() stays inside the txManager.run() callback — architecture-check's transactional-save
+  // detector reads the AST nesting, not the call graph.
+  private async approveUnderLock(
+    booking: Booking,
+    serviceMap: Map<string, Service>,
+    scheduledAt: Date,
+    isRescheduling: boolean,
+    input: ApproveBookingUseCaseInput,
+  ): Promise<void> {
+    const { tenantId, staffId, correlationId } = input;
     await this.txManager.run(async () => {
+      const occupiedBefore = await occupiedResourceIds(this.occupancyRepo, tenantId, [booking]);
       const candidatesByLine = await this.resolveAndCheckCandidates(
         booking,
         serviceMap,
         tenantId,
         scheduledAt,
         input.timezone,
+        [...occupiedBefore],
+      );
+      const openExceptions = await this.exceptionRepo.findOpenByAffectedForUpdate(
+        tenantId,
+        'BOOKING',
+        [booking.id],
       );
 
       booking.approve(
@@ -87,15 +125,11 @@ export class ApproveBookingUseCase {
       await this.bookingRepo.save(booking);
 
       await this.applyOccupancy(candidatesByLine, tenantId);
+      await dismissStaleExceptionsAfterMove(
+        { occupancyRepo: this.occupancyRepo, exceptionRepo: this.exceptionRepo },
+        { tenantId, booking, exceptions: openExceptions, correlationId },
+      );
     });
-
-    this.logger.log('Booking approved', { tenantId, bookingId: booking.id, staffId });
-
-    return {
-      bookingId: booking.id,
-      status: booking.status,
-      approvedAt: booking.approvedAt!.toISOString(),
-    };
   }
 
   private assertApprovable(booking: Booking): void {
@@ -136,6 +170,7 @@ export class ApproveBookingUseCase {
     tenantId: string,
     scheduledAt: Date,
     timezone: string,
+    alsoLockResourceIds: string[],
   ): Promise<Map<string, ResolvedLineCandidates>> {
     const lineInputs = booking.lines.map((line) => ({
       lineId: line.lineId,
@@ -161,6 +196,7 @@ export class ApproveBookingUseCase {
       serviceMap,
       resourceSelections,
       lockResources: (resourceIds) => this.slotConflictService.lockResources(tenantId, resourceIds),
+      alsoLockResourceIds,
     });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);

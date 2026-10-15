@@ -8,6 +8,7 @@ import {
   FutureCommitmentFixture,
 } from '../../../../test/utils/future-commitment-fixture';
 import { DomainEvent } from '../../../../shared/domain/domain-event';
+import { FutureCommitmentExceptionBuilder } from '../../../../test/builders/booking/index';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { BookingResourceReassigned } from '../../domain/events/booking-resource-reassigned.event';
 import { ResourceType } from '../../domain/resource.types';
@@ -172,6 +173,97 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         },
       ]);
       expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+    });
+    describe('sibling entries of the same booking (M23-S48)', () => {
+      // A booking whose second resource was deactivated at another time: a second OPEN entry about
+      // the same booking, which no cancel through the worklist used to touch.
+      async function addSiblingEntry(bookingId: string): Promise<string> {
+        const other = await world.addResource('Sala 2');
+        const sibling = new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_ID)
+          .withAffectedId(bookingId)
+          .withSourceId(other.id)
+          .build();
+        await world.exceptionRepo.save(sibling);
+        return sibling.id;
+      }
+
+      it('resolves the selected entry as the manager and dismisses the sibling as the system', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        const booking = await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        const siblingId = await addSiblingEntry(booking.id);
+
+        await resolve({ exceptionIds: [entryId], resolutionType: 'CANCEL', reason: 'closed' });
+
+        const selected = (await world.exceptionRepo.findById(entryId, TENANT_ID))!;
+        expect(selected.status).toBe('RESOLVED');
+        expect(selected.resolvedByStaffId).toBe(STAFF_ID);
+        const sibling = (await world.exceptionRepo.findById(siblingId, TENANT_ID))!;
+        expect(sibling.status).toBe('DISMISSED');
+        expect(sibling.resolutionReason).toBe('BOOKING_NO_LONGER_ACTIVE');
+        expect(sibling.resolvedByStaffId).toBeNull();
+      });
+
+      it('reports both ids of a bulk cancel as resolved, not the second as still open', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        const booking = await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        const siblingId = await addSiblingEntry(booking.id);
+
+        const { results } = await resolve({
+          exceptionIds: [entryId, siblingId],
+          resolutionType: 'CANCEL',
+        });
+
+        expect(results).toEqual([
+          { exceptionId: entryId, outcome: 'RESOLVED' },
+          { exceptionId: siblingId, outcome: 'RESOLVED' },
+        ]);
+        expect((await world.bookingRepo.findById(booking.id, TENANT_ID))!.status).toBe(
+          BookingStatus.CANCELLED,
+        );
+      });
+
+      it('still reports a closed entry as still open when its booking was not cancelled', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        const booking = await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        await resolve({ exceptionIds: [entryId], resolutionType: 'KEEP' });
+
+        const { results } = await resolve({ exceptionIds: [entryId], resolutionType: 'CANCEL' });
+
+        expect(results[0].outcome).toBe('STILL_OPEN');
+        expect((await world.bookingRepo.findById(booking.id, TENANT_ID))!.status).toBe(
+          BookingStatus.APPROVED,
+        );
+      });
+
+      it('takes the resource locks before the entry row lock', async () => {
+        const source = await world.addResource('Sala 1');
+        const service = await world.addService();
+        await world.addBooking({ service, resource: source });
+        const [entryId] = await raiseFor(source.id);
+        const order: string[] = [];
+        const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+        jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+          order.push('lock-resources');
+          return lockResources(tenantId, ids);
+        });
+        const lockEntry = world.exceptionRepo.findByIdForUpdate.bind(world.exceptionRepo);
+        jest.spyOn(world.exceptionRepo, 'findByIdForUpdate').mockImplementation((id, tenantId) => {
+          order.push('lock-entry');
+          return lockEntry(id, tenantId);
+        });
+
+        await resolve({ exceptionIds: [entryId], resolutionType: 'CANCEL' });
+
+        expect(order.indexOf('lock-resources')).toBeGreaterThanOrEqual(0);
+        expect(order.indexOf('lock-resources')).toBeLessThan(order.indexOf('lock-entry'));
+      });
     });
   });
 

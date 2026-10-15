@@ -12,6 +12,7 @@ import {
 } from '../../application/ports/future-commitment-exception-repository.port';
 import {
   FutureCommitmentException,
+  FutureCommitmentExceptionAffectedType,
   FutureCommitmentExceptionSourceType,
 } from '../../domain/future-commitment-exception.aggregate';
 import { FutureCommitmentExceptionEntity } from '../entities/future-commitment-exception.entity';
@@ -61,6 +62,24 @@ export class TypeOrmFutureCommitmentExceptionRepository implements IFutureCommit
     }
     const entities = await manager.find(FutureCommitmentExceptionEntity, {
       where: { tenantId, sourceType, sourceId, status: 'OPEN' },
+      order: { id: 'ASC' },
+      lock: { mode: 'pessimistic_write' },
+    });
+    return entities.map(toDomain);
+  }
+
+  async findOpenByAffectedForUpdate(
+    tenantId: string,
+    affectedType: FutureCommitmentExceptionAffectedType,
+    affectedIds: readonly string[],
+  ): Promise<FutureCommitmentException[]> {
+    const manager = getActiveEntityManager();
+    if (!manager) {
+      throw new Error('findOpenByAffectedForUpdate must be called inside an active transaction');
+    }
+    if (affectedIds.length === 0) return [];
+    const entities = await manager.find(FutureCommitmentExceptionEntity, {
+      where: { tenantId, affectedType, affectedId: In([...affectedIds]), status: 'OPEN' },
       order: { id: 'ASC' },
       lock: { mode: 'pessimistic_write' },
     });

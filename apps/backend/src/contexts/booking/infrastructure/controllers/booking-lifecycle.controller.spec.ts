@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -60,11 +61,14 @@ describe('BookingLifecycleController', () => {
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
         rejectBooking: new RejectBookingUseCase(
           repo,
           occupancyRepo,
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryTenantLock(),
         ),
         requestMoreInfo: new RequestMoreInfoUseCase(repo, new InMemoryTransactionManager()),
         submitBookingInfo: new SubmitBookingInfoUseCase(
@@ -185,8 +189,15 @@ describe('BookingLifecycleController', () => {
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepoB, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
-        new RejectBookingUseCase(bookingRepoB, occupancyRepoB, new InMemoryTransactionManager()),
+        new RejectBookingUseCase(
+          bookingRepoB,
+          occupancyRepoB,
+          new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryTenantLock(),
+        ),
         new RequestMoreInfoUseCase(bookingRepoB, new InMemoryTransactionManager()),
         new SubmitBookingInfoUseCase(
           bookingRepoB,
