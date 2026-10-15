@@ -1076,7 +1076,7 @@ Extend the existing 4-step guest/customer booking flow (`BookingForm`) with a co
 
 ---
 
-### M23-S14 — Manager "Reservas a resolver" worklist (frontend, with a small backend/BFF read addition)
+### M23-S14 — Manager "Reservas a resolver" worklist (frontend, with a small backend/BFF read addition) ✅ Done
 
 **Agent:** `frontend-ts` (plus a small `backend-ts` / `bff-ts` slice — see Backend HTTP surface; one PR)
 **Complexity:** L
