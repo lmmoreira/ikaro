@@ -108,20 +108,12 @@ export async function saveTerminalBookingsInTransaction(
   );
 }
 
-// Whether an entry of this source stops being relevant once the booking no longer occupies the
-// source resource. A new source type has to be decided here: the compiler stops at the default
-// branch until it is. A value read from the database that is not a known type is left open.
-function endsWhenSourceResourceIsFree(sourceType: FutureCommitmentExceptionSourceType): boolean {
-  switch (sourceType) {
-    case 'RESOURCE_DEACTIVATION':
-      return true;
-    default: {
-      const unhandled: never = sourceType;
-      void unhandled;
-      return false;
-    }
-  }
-}
+// Whether an entry of each source stops being relevant once the booking no longer occupies the
+// source resource. A new source type has to be added here: the compiler rejects the table until it
+// is. A value read from the database that is not a known type has no entry and is left open.
+const ENDS_WHEN_SOURCE_RESOURCE_IS_FREE: Record<FutureCommitmentExceptionSourceType, boolean> = {
+  RESOURCE_DEACTIVATION: true,
+};
 
 // After an approval or a reschedule moved the booking's occupancy: an entry whose source resource
 // the booking no longer occupies is obsolete; one it still occupies stays open. `exceptions` are
@@ -135,7 +127,7 @@ export async function dismissStaleExceptionsAfterMove(
   const occupied = await occupiedResourceIds(deps.occupancyRepo, tenantId, [booking]);
   const stale = exceptions.filter(
     (exception) =>
-      endsWhenSourceResourceIsFree(exception.sourceType) &&
+      ENDS_WHEN_SOURCE_RESOURCE_IS_FREE[exception.sourceType] &&
       !occupied.has(exception.sourceId) &&
       !excludeExceptionIds.includes(exception.id),
   );
