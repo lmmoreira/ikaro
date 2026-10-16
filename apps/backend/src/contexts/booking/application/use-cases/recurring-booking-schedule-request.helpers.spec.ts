@@ -28,10 +28,12 @@ import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import {
   assertPatternConflictFree,
   ConflictCheckDeps,
   ConflictCheckParams,
+  resolveApprovalStatus,
 } from './recurring-booking-schedule-request.helpers';
 import {
   lockConsideredResources,
@@ -1416,5 +1418,44 @@ describe('assertPatternConflictFree', () => {
         throw error;
       }
     }
+  });
+});
+
+describe('resolveApprovalStatus', () => {
+  const policy = (
+    defaultApprovalMode: 'AUTO_CONFIRM' | 'MANUAL_APPROVAL',
+    manualHoldMinutes: number | null = null,
+  ): ServiceBookingPolicyProps =>
+    ({ defaultApprovalMode, manualHoldMinutes }) as ServiceBookingPolicyProps;
+
+  it('keeps an AUTO_CONFIRM service ACTIVE with no approver, for either actor', () => {
+    for (const actor of ['CUSTOMER', 'STAFF'] as const) {
+      expect(resolveApprovalStatus(policy('AUTO_CONFIRM'), actor)).toEqual({
+        status: 'ACTIVE',
+        approvalHoldExpiresAt: null,
+        approvedByStaff: false,
+      });
+    }
+  });
+
+  it('holds a customer’s MANUAL_APPROVAL request for the service’s hold, defaulting to 30 minutes', () => {
+    const before = Date.now();
+    const withDefault = resolveApprovalStatus(policy('MANUAL_APPROVAL'), 'CUSTOMER');
+    const withOwn = resolveApprovalStatus(policy('MANUAL_APPROVAL', 10), 'CUSTOMER');
+
+    expect(withDefault.status).toBe('PENDING_APPROVAL');
+    expect(withDefault.approvedByStaff).toBe(false);
+    expect(withDefault.approvalHoldExpiresAt!.getTime()).toBeGreaterThanOrEqual(
+      before + 30 * 60_000,
+    );
+    expect(withOwn.approvalHoldExpiresAt!.getTime()).toBeLessThan(before + 11 * 60_000);
+  });
+
+  it('makes a staff member’s MANUAL_APPROVAL creation ACTIVE at once, with no hold (the staff member is the approver)', () => {
+    expect(resolveApprovalStatus(policy('MANUAL_APPROVAL', 10), 'STAFF')).toEqual({
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+      approvedByStaff: true,
+    });
   });
 });

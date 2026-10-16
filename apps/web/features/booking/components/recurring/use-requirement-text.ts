@@ -9,7 +9,7 @@ import type { ResourceRequirementLine } from '@/features/booking/model/recurring
  */
 export function useRequirementText() {
   const tr = useTranslations('booking.resourcePicker');
-  const tn = useTranslations('customer.recurringSchedules.new');
+  const tn = useTranslations('booking.recurringScheduleForm');
 
   return {
     singleTitle(): string {

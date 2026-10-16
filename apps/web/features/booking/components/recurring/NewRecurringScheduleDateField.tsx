@@ -7,7 +7,8 @@ import { Button } from '@/shared/components/ui/button';
 import { Calendar } from '@/shared/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/shared/components/ui/popover';
 import { localDateFromISO, toLocalISODate } from '@/shared/lib/formatting/calendar-day';
-import { useRecurrenceText } from './use-recurrence-text';
+import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { dateKeyToDate } from '@/features/booking/model/recurring-schedule-display';
 
 interface NewRecurringScheduleDateFieldProps {
   /** Static, so E2E can find the field; the error carries `${testId}-error` via `errorTestId`. */
@@ -33,8 +34,9 @@ export function NewRecurringScheduleDateField({
   error,
   onChange,
 }: NewRecurringScheduleDateFieldProps): React.JSX.Element {
-  const t = useTranslations('customer.recurringSchedules.new');
-  const { formatDateKey } = useRecurrenceText();
+  const t = useTranslations('booking.recurringScheduleForm');
+  const { formatDate } = useFormatting();
+  const formatDateKey = (dateKey: string): string => formatDate(dateKeyToDate(dateKey));
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(() => localDateFromISO(value || min));
   const labelId = `${testId}-label`;

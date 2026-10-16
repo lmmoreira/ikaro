@@ -90,7 +90,7 @@ export function ResourceFields({
   showRequired,
   onChange,
 }: ResourceFieldsProps): React.JSX.Element {
-  const tn = useTranslations('customer.recurringSchedules.new');
+  const tn = useTranslations('booking.recurringScheduleForm');
   const text = useRequirementText();
   const bundle = isBundleForm(service);
   const choices = choiceRequirements(service);

@@ -247,15 +247,16 @@ describe('BookingQueuePage — "+ Novo" menu', () => {
     expect(screen.getAllByTestId('new-menu-trigger')).toHaveLength(1);
   });
 
-  it('opens the menu with the Agendamento entry', async () => {
+  it('opens the menu with the Agendamento and Recorrência entries', async () => {
     render(<BookingQueuePage {...DEFAULT_PROPS} />);
 
     await userEvent.click(screen.getByTestId('new-menu-trigger'));
 
-    expect(screen.getByTestId('new-menu-item')).toHaveAttribute(
-      'href',
+    const items = screen.getAllByTestId('new-menu-item');
+    expect(items.map((item) => item.getAttribute('href'))).toEqual([
       '/dashboard/bookings/new?tipo=agendamento',
-    );
+      '/dashboard/bookings/new?tipo=recorrencia',
+    ]);
   });
 });
 

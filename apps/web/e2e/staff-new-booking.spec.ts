@@ -37,16 +37,14 @@ async function openCreatedBooking(page: Page): Promise<void> {
 }
 
 test.describe('staff new booking (UC-108)', () => {
-  test('the "+ Novo" menu offers only Agendamento until the recurrence flow ships', async ({
-    page,
-  }) => {
+  test('the "+ Novo" menu offers Agendamento and Recorrência', async ({ page }) => {
     await loginAsStaff(page, MANAGER_EMAIL, STAFF_TENANT_SLUG);
 
     await openNewBookingMenu(page);
 
-    await expect(page.getByTestId('new-menu-item')).toHaveCount(1);
-    await expect(page.getByTestId('new-menu-item')).toContainText('Agendamento');
-    await expect(page.getByTestId('new-menu')).not.toContainText('Recorrência');
+    await expect(page.getByTestId('new-menu-item')).toHaveCount(2);
+    await expect(page.getByTestId('new-menu-item').first()).toContainText('Agendamento');
+    await expect(page.getByTestId('new-menu-item').nth(1)).toContainText('Recorrência');
   });
 
   test('staff pick a registered customer, book a free slot and see the booking approved', async ({

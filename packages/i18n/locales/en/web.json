@@ -372,6 +372,69 @@
         "minute": "{label}: minute",
         "period": "{label}: period"
       }
+    },
+    "recurringScheduleForm": {
+      "fieldService": "Service",
+      "serviceHint": "Only services that allow recurring reservations are listed.",
+      "serviceOption": "{name} — {duration} · {price}",
+      "fieldResource": "Resource",
+      "resourceHint": "This is the resource that will be held every week.",
+      "resourcesLoading": "Loading resources…",
+      "resourcesError": "Could not load the resources. Please try again.",
+      "autoPoolLine": "One free unit is reserved every week",
+      "autoAnyLine": {
+        "STAFF": "Chosen automatically every week, among the free professionals",
+        "ROOM": "Chosen automatically every week, among the free rooms",
+        "EQUIPMENT": "Chosen automatically every week, among the free equipment",
+        "LOCATION": "Chosen automatically every week, among the free locations"
+      },
+      "autoChosen": {
+        "STAFF": "Chosen automatically",
+        "ROOM": "Chosen automatically",
+        "EQUIPMENT": "Chosen automatically",
+        "LOCATION": "Chosen automatically"
+      },
+      "resourceNoOptions": {
+        "STAFF": "No professional is available for this service right now.",
+        "ROOM": "No room is available for this service right now.",
+        "EQUIPMENT": "No equipment is available for this service right now.",
+        "LOCATION": "No location is available for this service right now."
+      },
+      "bundleHint": "If any of the resources is not free on a date, the whole recurrence is not created.",
+      "fieldWeekdays": "Days of the week",
+      "fieldStartTime": "Start time",
+      "fieldDuration": "Duration",
+      "durationFromService": "{duration} — set by the service",
+      "fieldStartsOn": "Starts on",
+      "fieldEndsOn": "Ends on",
+      "endsOnHint": "Choose how long the reservation repeats — at most {maxTermDays} days, until {latest}. You can renew after that.",
+      "errorWeekdayRequired": "Choose at least one day of the week.",
+      "errorStartTimeRequired": "Choose the start time.",
+      "errorStartDateRequired": "Choose the date the recurrence starts.",
+      "errorResourceRequired": "Choose a resource.",
+      "errorEndRequired": "Choose the date the recurrence ends.",
+      "errorEndBeforeStart": "The end date must not be before the start date.",
+      "errorTermExceeded": "The end date is past the {maxTermDays}-day limit (until {latest}). Choose an earlier date — you can renew afterwards.",
+      "reasonOCCUPIED": "Already booked",
+      "reasonCLOSED": "Closed",
+      "reasonOUTSIDE_HOURS": "Outside hours",
+      "reasonDetailOCCUPIED": "This time is already taken by another reservation.",
+      "reasonDetailCLOSED": "There is no service on this day.",
+      "reasonDetailOUTSIDE_HOURS": "This time is outside opening hours on this date.",
+      "occurrenceLine": "{date} · {from}–{to}",
+      "ariaHour": "Start time hour",
+      "ariaMinute": "Start time minute",
+      "ariaPeriod": "Start time period",
+      "datePlaceholder": "Pick a date",
+      "weekdayShort": {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "saturday": "Sat",
+        "sunday": "Sun"
+      }
     }
   },
   "hotsite": {
@@ -761,63 +824,22 @@
         "title": "New recurring reservation",
         "stepPattern": "Step 1 of 2 · Pattern",
         "stepReview": "Step 2 of 2 · Review",
-        "fieldService": "Service",
-        "serviceHint": "Only services that allow recurring reservations are listed.",
-        "serviceOption": "{name} — {duration} · {price}",
         "noServices": "No service allows recurring reservations right now.",
         "noServicesHint": "You can make a one-off booking whenever you like.",
         "noServicesEnabled": "The services that offer recurrence do not accept recurring reservations yet.",
         "noServicesEnabledHint": "Contact the business to find out more. In the meantime, you can make a one-off booking.",
         "noServicesCta": "Make a booking",
-        "fieldResource": "Resource",
-        "resourceHint": "This is the resource that will be held every week.",
-        "resourcesLoading": "Loading resources…",
-        "resourcesError": "Could not load the resources. Please try again.",
-        "autoPoolLine": "One free unit is reserved every week",
-        "autoAnyLine": {
-          "STAFF": "Chosen automatically every week, among the free professionals",
-          "ROOM": "Chosen automatically every week, among the free rooms",
-          "EQUIPMENT": "Chosen automatically every week, among the free equipment",
-          "LOCATION": "Chosen automatically every week, among the free locations"
-        },
-        "autoChosen": {
-          "STAFF": "Chosen automatically",
-          "ROOM": "Chosen automatically",
-          "EQUIPMENT": "Chosen automatically",
-          "LOCATION": "Chosen automatically"
-        },
-        "resourceNoOptions": {
-          "STAFF": "No professional is available for this service right now.",
-          "ROOM": "No room is available for this service right now.",
-          "EQUIPMENT": "No equipment is available for this service right now.",
-          "LOCATION": "No location is available for this service right now."
-        },
-        "bundleHint": "If any of the resources is not free on a date, the whole recurrence is not created.",
-        "fieldWeekdays": "Days of the week",
-        "fieldStartTime": "Start time",
-        "fieldDuration": "Duration",
-        "durationFromService": "{duration} — set by the service",
-        "fieldStartsOn": "Starts on",
-        "fieldEndsOn": "Ends on",
         "renewTitle": "Renew recurring reservation",
         "renewBannerTitle": "Renewing your reservation for {service}",
         "renewBannerBody": "{recurrence} · previous term: {start} → {end}. Adjust anything you like — nothing is booked until you confirm.",
         "renewNotFound": "We could not find the reservation you wanted to renew.",
         "renewNotFoundHint": "You can create a new recurring reservation below.",
-        "endsOnHint": "Choose how long the reservation repeats — at most {maxTermDays} days, until {latest}. You can renew after that.",
         "howTitle": "How it works",
         "howBody": "Every reservation in the period is checked and created at once, and the time is guaranteed until the end date. You can skip, reschedule or end the recurrence whenever you like.",
         "reviewButton": "Review",
         "cancelButton": "Cancel",
         "draftAside": "Choose the recurrence pattern. Nothing is reserved until you review and confirm.",
         "validationAside": "Fix the highlighted fields and try again. The pattern you built was kept.",
-        "errorWeekdayRequired": "Choose at least one day of the week.",
-        "errorStartTimeRequired": "Choose the start time.",
-        "errorStartDateRequired": "Choose the date the recurrence starts.",
-        "errorResourceRequired": "Choose a resource.",
-        "errorEndRequired": "Choose the date the recurrence ends.",
-        "errorEndBeforeStart": "The end date must not be before the start date.",
-        "errorTermExceeded": "The end date is past the {maxTermDays}-day limit (until {latest}). Choose an earlier date — you can renew afterwards.",
         "reviewTitle": "Review recurrence",
         "labelService": "Service",
         "labelResource": "Resource",
@@ -846,13 +868,6 @@
         "conflictLeadMixed": "Some occurrences of this pattern cannot be served — creation is blocked as a whole; no partial reservations were made.",
         "conflictListOccupied": "Conflicting occurrences",
         "conflictListMixed": "Affected occurrences",
-        "reasonOCCUPIED": "Already booked",
-        "reasonCLOSED": "Closed",
-        "reasonOUTSIDE_HOURS": "Outside hours",
-        "reasonDetailOCCUPIED": "This time is already taken by another reservation.",
-        "reasonDetailCLOSED": "There is no service on this day.",
-        "reasonDetailOUTSIDE_HOURS": "This time is outside opening hours on this date.",
-        "occurrenceLine": "{date} · {from}–{to}",
         "nextTitle": "What to do now",
         "conflictNextOccupied": "Choose another day or time for the recurrence, or try another resource.",
         "conflictNextMixed": "Choose another day or time, or adjust the period so it does not include the affected dates.",
@@ -866,11 +881,7 @@
         "failureTitle": "We could not send your request",
         "failureBody": "Nothing was created. Check your connection and try again — the pattern you built was kept.",
         "retryButton": "Try again",
-        "failureAside": "Nothing was created. The pattern you built was kept.",
-        "ariaHour": "Start time hour",
-        "ariaMinute": "Start time minute",
-        "ariaPeriod": "Start time period",
-        "datePlaceholder": "Pick a date"
+        "failureAside": "Nothing was created. The pattern you built was kept."
       },
       "createCta": "+ New recurring reservation",
       "renewAction": "Renew"
@@ -2414,6 +2425,10 @@
           "agendamento": {
             "label": "Booking",
             "hint": "A one-off booking for a customer who phoned or wrote"
+          },
+          "recorrencia": {
+            "label": "Recurrence",
+            "hint": "A reservation that repeats every week, on behalf of a customer"
           }
         }
       },
@@ -2509,6 +2524,74 @@
       "positionTopRight": "Top right",
       "positionBottomLeft": "Bottom left",
       "positionBottomRight": "Bottom right"
+    },
+    "newRecurring": {
+      "stepPattern": "Step 2 of 2 · Pattern",
+      "title": "New recurring reservation",
+      "customerNote": "{email} · the recurrence will be created on the customer’s behalf",
+      "changeCustomer": "Change customer",
+      "createButton": "Create recurrence",
+      "creating": "Creating…",
+      "backButton": "Back",
+      "asideDraft": "We check every occurrence of the period before creating; if any is unavailable, nothing is created.",
+      "asideValidation": "Fix the highlighted fields to create the recurrence.",
+      "howTitle": "How it works",
+      "howBody": "We check every occurrence of the period (opening hours, closures and other reservations); if any is unavailable, nothing is created. The recurrence lives in the customer’s account, where they can skip, reschedule or end it, and they get an e-mail when it becomes active.",
+      "howApproval": "Even if the service requires approval, a recurrence you create starts active: the team is the approver.",
+      "noServices": {
+        "none": "No service allows recurring reservations right now.",
+        "noneHint": "Recurrence is turned on in each service’s editor, under Services. Meanwhile you can make a one-off booking for {name}.",
+        "unavailable": "The services with recurrence turned on do not accept recurring reservations yet.",
+        "unavailableHint": "Some services have recurrence turned on, but none meets the rules (for example, it has an itinerary, a pickup address or a duration the customer chooses). The service editor shows the reason. Meanwhile you can make a one-off booking for {name}.",
+        "services": "View services",
+        "oneOff": "Make a booking"
+      },
+      "result": {
+        "created": {
+          "title": "Recurrence created for {name}",
+          "body": "We created the {count} reservations from {from} to {to}, and all of them already show in the agenda. The recurrence is already in {name}’s account, and they receive a confirmation e-mail.",
+          "aside": "The recurrence was recorded. There are no more actions on this request."
+        },
+        "conflict": {
+          "title": "This recurrence could not be created",
+          "body": "At least one occurrence of this pattern is not available — a time that is already booked or outside opening hours. Nothing was created.",
+          "list": "Dates that are not available",
+          "aside": "Change the pattern and try again — what you set up was kept."
+        },
+        "cap": {
+          "title": "Recurring reservation limit reached",
+          "body": "The limit of active recurrences was reached, so nothing was created. End an active recurrence that is no longer used, or change the pattern.",
+          "aside": "Change the pattern and try again — what you set up was kept."
+        },
+        "noPhone": {
+          "title": "{name} has no phone number on file",
+          "body": "Reservations need a contact phone, so nothing was created. Ask the customer to add their phone in their account and create the recurrence again, or choose another customer.",
+          "aside": "Nothing was created."
+        },
+        "notFound": {
+          "title": "Customer not found",
+          "body": "We did not find this customer in this business, so nothing was created.",
+          "aside": "Nothing was created."
+        },
+        "failure": {
+          "title": "The recurrence could not be created",
+          "body": "Nothing was created. Check your connection and try again — the pattern you set up was kept.",
+          "aside": "Change the pattern and try again — what you set up was kept."
+        },
+        "recap": {
+          "customer": "Customer",
+          "customerNote": "{email} · the recurrence is created on the customer’s behalf",
+          "service": "Service",
+          "pattern": "Pattern",
+          "period": "Period",
+          "periodValue": "{from} → {to}",
+          "count": "Reservations"
+        },
+        "changePattern": "Change pattern",
+        "chooseOther": "Choose another customer",
+        "backToAgenda": "Back to the agenda",
+        "createAnother": "Create another"
+      }
     }
   }
 }

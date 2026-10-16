@@ -86,6 +86,40 @@ describe('RecurringBookingSchedule.request', () => {
     expect(schedule.createdByStaffId).toBe('staff-1');
   });
 
+  // UC-070, M23-S19: a staff member creating the schedule for a service that needs manual approval
+  // is its approver, as in UC-108.
+  it('records the approving staff member and when, for an ACTIVE schedule a staff member approved by creating it', () => {
+    const before = Date.now();
+    const schedule = RecurringBookingSchedule.request(
+      requestOptions({ createdByStaffId: 'staff-1', approvedByStaffId: 'staff-1' }),
+    );
+
+    expect(schedule.status).toBe('ACTIVE');
+    expect(schedule.approvedByStaffId).toBe('staff-1');
+    expect(schedule.approvedAt!.getTime()).toBeGreaterThanOrEqual(before);
+    expect(schedule.domainEvents[0]).toBeInstanceOf(RecurringBookingScheduleCreated);
+  });
+
+  it('leaves the approver empty when nobody approved (AUTO_CONFIRM, even when staff created it)', () => {
+    const schedule = RecurringBookingSchedule.request(
+      requestOptions({ createdByStaffId: 'staff-1' }),
+    );
+    expect(schedule.approvedByStaffId).toBeNull();
+    expect(schedule.approvedAt).toBeNull();
+  });
+
+  it('never records an approver on a schedule that is still pending approval', () => {
+    const schedule = RecurringBookingSchedule.request(
+      requestOptions({
+        status: 'PENDING_APPROVAL',
+        approvalHoldExpiresAt: new Date('2026-09-02T00:00:00.000Z'),
+        approvedByStaffId: 'staff-1',
+      }),
+    );
+    expect(schedule.approvedByStaffId).toBeNull();
+    expect(schedule.approvedAt).toBeNull();
+  });
+
   it('stores zero resource assignments for RESOLVE_PER_OCCURRENCE', () => {
     const schedule = RecurringBookingSchedule.request(
       requestOptions({ assignmentPolicy: 'RESOLVE_PER_OCCURRENCE', resourceAssignments: [] }),

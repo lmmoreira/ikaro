@@ -77,6 +77,10 @@ describe('BottomNav', () => {
       'the recurring-schedule approval screen (its fixed action bar owns the bottom edge)',
       '/dashboard/bookings/recurring/s-1',
     ],
+    [
+      'the staff new-recurrence pattern page (its fixed action bar owns the bottom edge)',
+      '/dashboard/bookings/recurring/new',
+    ],
   ])('hides itself on %s', (_label, pathname) => {
     vi.mocked(usePathname).mockReturnValue(pathname);
     const { container } = render(

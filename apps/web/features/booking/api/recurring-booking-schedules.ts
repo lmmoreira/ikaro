@@ -28,6 +28,19 @@ export async function createRecurringScheduleAsCustomer(
   return res.data;
 }
 
+// UC-070 — a STAFF|MANAGER actor requests a recurring schedule on a customer's behalf: the same
+// endpoint, with the chosen customer in the body (`customerId`). A staff member is the approver, so
+// the answer is 201 ACTIVE whatever the service's approval policy.
+export async function createRecurringScheduleAsStaff(
+  body: CreateRecurringBookingScheduleRequest,
+): Promise<CreateRecurringBookingScheduleResponse> {
+  const res = await bffClient.post<CreateRecurringBookingScheduleResponse>(
+    '/recurring-booking-schedules',
+    body,
+  );
+  return res.data;
+}
+
 // UC-070 A2 — 200 → the schedule becomes CANCELLED and its future occurrence bookings are
 // cancelled (past ones are kept). Body-less; the schedule id is the only input.
 export async function endRecurringScheduleAsCustomer(scheduleId: string): Promise<void> {
