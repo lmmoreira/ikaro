@@ -4,10 +4,12 @@ import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
+import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
 import {
   RecurringBookingScheduleResult,
+  loadPickedResourceNames,
   toRecurringBookingScheduleResult,
 } from './recurring-booking-schedule-result.helpers';
 
@@ -29,6 +31,7 @@ export class GetRecurringBookingScheduleUseCase {
     @Inject(RECURRING_BOOKING_SCHEDULE_REPOSITORY)
     private readonly scheduleRepo: IRecurringBookingScheduleRepository,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     private readonly renewalService: RecurringScheduleRenewalService,
   ) {}
 
@@ -47,6 +50,16 @@ export class GetRecurringBookingScheduleUseCase {
       );
     }
     const renewableIds = await this.renewalService.findRenewableIds(input.tenantId, [schedule]);
-    return toRecurringBookingScheduleResult(schedule, service.name, renewableIds.has(schedule.id));
+    // A STAFF|MANAGER read (no customerId) also names the picked resources; a customer read never does.
+    const resourceNames =
+      input.customerId === undefined
+        ? await loadPickedResourceNames(this.resourceRepo, input.tenantId, [schedule])
+        : undefined;
+    return toRecurringBookingScheduleResult(
+      schedule,
+      service.name,
+      renewableIds.has(schedule.id),
+      resourceNames,
+    );
   }
 }

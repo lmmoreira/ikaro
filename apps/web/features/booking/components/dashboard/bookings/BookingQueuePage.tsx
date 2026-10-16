@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import type { StaffBookingListResponse } from '@ikaro/types';
 import { WeekNav } from '@/shells/dashboard/components/WeekNav';
 import { ApiError } from '@/shared/lib/api/errors';
+import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import {
   useActionNeededBookings,
@@ -13,13 +14,18 @@ import {
   useUpcomingBookings,
 } from '@/features/booking/hooks/useBookings';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
+import { useAgendaFilter } from '@/features/booking/hooks/useAgendaFilter';
+import { usePendingRecurringSchedules } from '@/features/booking/hooks/useRecurringSchedules';
+import { sortByDecisionDeadline } from '@/features/booking/model/recurring-approval';
 import { addDaysToDateKey } from '@/features/booking/schedule/date-utils';
 import { toLocalDate } from '@/features/booking/schedule/schedule-timeline';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { AgendaFilterMenu } from './AgendaFilterMenu';
 import { BookingCard } from './BookingCard';
+import { BookingQueueActionNeeded } from './BookingQueueActionNeeded';
 import { BookingQueueSection } from './BookingQueueSection';
 import { NewMenu } from './NewMenu';
 
@@ -46,6 +52,8 @@ export function BookingQueuePage({
   const { timezone } = useFormatting();
   const windowDays = welcomeStaffScreenDays;
   const approveBookingMutation = useApproveBooking();
+  const filter = useAgendaFilter();
+  const pendingRecurrences = usePendingRecurringSchedules();
 
   // The window is tracked as tenant-local YYYY-MM-DD keys end to end. Keys are compared as strings
   // (ISO dates sort lexically) and shifted with pure date-key arithmetic, so no key is ever
@@ -118,6 +126,13 @@ export function BookingQueuePage({
     );
   }, [selectedUpcomingDate, upcoming, timezone]);
 
+  // Recurrence requests are not tied to the week window (they have no appointment date), so every
+  // pending one shows whatever week the strip is on, closest decision deadline first.
+  const recurrences = useMemo(
+    () => sortByDecisionDeadline(pendingRecurrences.data ?? []),
+    [pendingRecurrences.data],
+  );
+
   const handleWindowPrev = () => {
     setSelectedDate(null);
     setWindowStartStr((w) => addDaysToDateKey(w, -windowDays));
@@ -157,28 +172,27 @@ export function BookingQueuePage({
           </Card>
         )}
 
-        <BookingQueueSection
-          title={t('actionNeededTitle')}
-          countLabel={
-            actionNeeded?.items.length
-              ? t('bookingCount', { count: actionNeeded.items.length })
-              : null
-          }
-          hasItems={!!actionNeeded?.items.length}
-          emptyMessage={t('emptyActionNeeded')}
-        >
-          {actionNeeded?.items.map((b) => (
-            <BookingCard
-              key={b.bookingId}
-              booking={b}
-              variant="action-needed"
-              onApprove={() => handleApproveBooking(b.bookingId)}
-              isApproving={approveBookingMutation.isPending}
-            />
-          ))}
-        </BookingQueueSection>
+        {filter.allHidden ? (
+          <div className="mb-6 flex flex-col items-start gap-2" data-testid="agenda-all-hidden">
+            <p className="text-sm text-gray-400">{t('filterAllHidden')}</p>
+            <Button type="button" variant="outline" size="sm" onClick={filter.reset}>
+              {t('filterClear')}
+            </Button>
+          </div>
+        ) : null}
 
-        {todayInWindow && (
+        <BookingQueueActionNeeded
+          bookings={actionNeeded?.items ?? []}
+          recurrences={recurrences}
+          showBookings={filter.isVisible('bookings')}
+          showRecurrences={filter.isVisible('recurrences')}
+          recurrencesFailed={pendingRecurrences.isError}
+          onRetryRecurrences={() => void pendingRecurrences.refetch()}
+          onApprove={handleApproveBooking}
+          isApproving={approveBookingMutation.isPending}
+        />
+
+        {todayInWindow && filter.isVisible('today') && (
           <BookingQueueSection
             title={t('todayTitle')}
             countLabel={
@@ -193,7 +207,7 @@ export function BookingQueuePage({
           </BookingQueueSection>
         )}
 
-        {upcomingVisible && (
+        {upcomingVisible && filter.isVisible('upcoming') && (
           <BookingQueueSection
             title={
               selectedUpcomingDate
@@ -219,6 +233,22 @@ export function BookingQueuePage({
           </BookingQueueSection>
         )}
       </div>
+
+      <AgendaFilterMenu
+        containerRef={filter.menuRef}
+        open={filter.menuOpen}
+        onToggleOpen={filter.toggleMenu}
+        hiddenOptions={filter.hiddenOptions}
+        counts={{
+          bookings: actionNeeded?.items.length ?? 0,
+          recurrences: recurrences.length,
+          today: todayData?.items.length ?? 0,
+          upcoming: upcoming?.items.length ?? 0,
+        }}
+        onToggleOption={filter.toggleOption}
+        onReset={filter.reset}
+        onClose={filter.closeMenu}
+      />
     </div>
   );
 }

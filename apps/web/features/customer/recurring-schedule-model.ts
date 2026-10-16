@@ -1,9 +1,13 @@
-import type {
-  RecurrenceRule,
-  RecurringBookingScheduleListItem,
-  RecurringScheduleStatus,
-  RecurringScheduleWeekday,
-} from '@ikaro/types';
+import type { RecurringBookingScheduleListItem, RecurringScheduleStatus } from '@ikaro/types';
+
+// The display helpers shared with the staff Agenda live in the booking slice, which owns the
+// schedule; the customer surfaces keep importing them from here.
+export {
+  RECURRING_SCHEDULE_STATUS_CLASSES,
+  dateKeyToDate,
+  recurrenceEndTime,
+  sortedWeekdays,
+} from '@/features/booking/model/recurring-schedule-display';
 
 // 5 to a page: a term can reach 180 days, so a schedule on several weekdays can hold well over a
 // hundred occurrences, and the customer must be able to reach any future one to skip or move it.
@@ -25,13 +29,6 @@ export function splitRecurringScheduleSections(
     ended: items.filter((s) => s.status === 'CANCELLED' || s.status === 'ENDED'),
   };
 }
-
-export const RECURRING_SCHEDULE_STATUS_CLASSES: Record<RecurringScheduleStatus, string> = {
-  PENDING_APPROVAL: 'bg-amber-100 text-amber-800',
-  ACTIVE: 'bg-green-100 text-green-800',
-  ENDED: 'bg-slate-100 text-slate-600',
-  CANCELLED: 'bg-gray-100 text-gray-500',
-};
 
 export function isTerminalRecurringSchedule(status: RecurringScheduleStatus): boolean {
   return status === 'CANCELLED' || status === 'ENDED';
@@ -92,36 +89,4 @@ export function parseOccurrencePage(raw: string | undefined): number {
 
 export function totalOccurrencePages(total: number, limit: number): number {
   return Math.max(1, Math.ceil(total / limit));
-}
-
-/** HH:mm + minutes → HH:mm (wraps past midnight). */
-export function recurrenceEndTime(
-  recurrence: Pick<RecurrenceRule, 'startTime' | 'durationMinutes'>,
-): string {
-  const [hours = 0, minutes = 0] = recurrence.startTime.split(':').map(Number);
-  const total = (hours * 60 + minutes + recurrence.durationMinutes) % (24 * 60);
-  const pad = (n: number): string => String(n).padStart(2, '0');
-  return `${pad(Math.floor(total / 60))}:${pad(total % 60)}`;
-}
-
-const WEEKDAY_ORDER: readonly RecurringScheduleWeekday[] = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
-
-/** The recurrence's weekdays, Monday first (the API keeps the order the customer picked them in). */
-export function sortedWeekdays(
-  days: readonly RecurringScheduleWeekday[],
-): RecurringScheduleWeekday[] {
-  return [...days].sort((a, b) => WEEKDAY_ORDER.indexOf(a) - WEEKDAY_ORDER.indexOf(b));
-}
-
-/** A `YYYY-MM-DD` key as a Date the formatting helpers (which pin a zone) show as that same day. */
-export function dateKeyToDate(dateKey: string): Date {
-  return new Date(`${dateKey}T12:00:00Z`);
 }
