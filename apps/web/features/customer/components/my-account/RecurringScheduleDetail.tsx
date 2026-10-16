@@ -160,7 +160,7 @@ function ScheduleDetailBody({
           </Link>
         )}
         <Link
-          href={listHref}
+          href={backHref}
           className="rounded-lg border border-gray-200 px-4 py-2.5 text-center text-sm font-semibold text-gray-700 hover:bg-gray-50"
         >
           {t('backButton')}

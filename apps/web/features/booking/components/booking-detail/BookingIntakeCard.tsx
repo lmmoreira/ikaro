@@ -6,6 +6,14 @@ import { Badge } from '@/shared/components/ui/badge';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingDetailRow, BookingDetailSection } from './BookingDetailSection';
 
+type Translate = ReturnType<typeof useTranslations<'booking.detailCards'>>;
+
+// A boolean answer reads "Sim" / "Não"; a free-text one is shown as written.
+function answerText(value: string | boolean, t: Translate): string {
+  if (typeof value !== 'boolean') return value;
+  return value ? t('answerYes') : t('answerNo');
+}
+
 interface BookingIntakeCardProps {
   // The staff shape carries the consent version; the customer shape does not.
   readonly intake: StaffBookingDetailIntake | CustomerBookingDetailIntake | null;
@@ -33,11 +41,7 @@ export function BookingIntakeCard({
     >
       {intake.answers.map((answer) => (
         <BookingDetailRow key={answer.fieldKey} label={answer.label}>
-          {typeof answer.value === 'boolean'
-            ? answer.value
-              ? t('answerYes')
-              : t('answerNo')
-            : answer.value}
+          {answerText(answer.value, t)}
         </BookingDetailRow>
       ))}
       {consentAt !== null && (

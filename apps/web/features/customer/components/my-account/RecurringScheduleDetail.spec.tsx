@@ -132,6 +132,19 @@ describe('RecurringScheduleDetail — back link', () => {
     );
     expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToBooking');
   });
+
+  it("points the action pane's back button (both layouts) at the booking, and at the list by default", () => {
+    const { unmount } = renderWithProbe('/beloauto/my-account/bookings/b-1');
+    for (const link of screen.getAllByRole('link', { name: 'backButton' })) {
+      expect(link).toHaveAttribute('href', '/beloauto/my-account/bookings/b-1');
+    }
+    unmount();
+
+    renderWithProbe();
+    for (const link of screen.getAllByRole('link', { name: 'backButton' })) {
+      expect(link).toHaveAttribute('href', '/beloauto/my-account/recurring-schedules');
+    }
+  });
 });
 
 describe('RecurringScheduleDetail — ACTIVE', () => {
