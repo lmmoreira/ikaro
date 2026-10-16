@@ -1391,7 +1391,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 
 ---
 
-### M18-S11 — Shared WeekNav month-range header for cross-month periods
+### M18-S11 — Shared WeekNav month-range header for cross-month periods ✅ Done
 
 **Agent:** web-ts
 **Complexity:** S
