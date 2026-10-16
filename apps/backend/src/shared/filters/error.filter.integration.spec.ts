@@ -7,6 +7,10 @@ import { InternalApiGuard } from '../guards/internal-api.guard';
 import { CorrelationMiddleware } from '../request/correlation.middleware';
 import { ErrorFilter } from './error.filter';
 import { testConfigModule } from '../../test/utils/test-config-module';
+import {
+  LOCK_NOT_AVAILABLE_SQLSTATE,
+  TransactionContentionError,
+} from '../infrastructure/transaction-contention.error';
 
 const INTERNAL_KEY = 'integ-error-filter-key-integ-error-filter-key';
 
@@ -16,6 +20,18 @@ class TestController {
   @Get('boom')
   boom(): never {
     throw new Error('database down');
+  }
+
+  // What runInNewTransaction throws when tenant B's transaction holds the lock this caller waits
+  // for: the driver error names tenant B's row and the SQL, none of which may reach the caller.
+  @Get('contention')
+  contention(): never {
+    throw new TransactionContentionError(
+      LOCK_NOT_AVAILABLE_SQLSTATE,
+      new Error(
+        'canceling statement due to lock timeout: SELECT * FROM booking.bookings WHERE tenant_id = tenant-b-7f3c',
+      ),
+    );
   }
 }
 
@@ -92,6 +108,19 @@ describe('ErrorFilter (integration — guard rejection + unhandled error)', () =
     expect(res.body).toMatchObject({ type: 'about:blank', title: 'Not Found', status: 404 });
     expect(res.body).toHaveProperty('detail');
     expect(res.body.correlationId).toMatch(/^[0-9a-f-]{36}$/);
+  });
+
+  it('a lock-contention failure is a retryable 503 with Retry-After and the contention code, and leaks no SQL, lock key or other tenant identifier (M23-S49)', async () => {
+    const res = await request(app.getHttpServer())
+      .get('/test-error-filter/contention')
+      .set('X-Internal-Key', INTERNAL_KEY);
+
+    expect(res.status).toBe(503);
+    expect(res.headers['retry-after']).toBe('1');
+    expect(res.headers['content-type']).toContain('application/problem+json');
+    expect(res.body.code).toBe('AUTH_TRANSACTION_CONTENTION');
+    expect(res.body.correlationId).toBe(res.headers['x-correlation-id']);
+    expect(JSON.stringify(res.body)).not.toMatch(/SELECT|booking\.bookings|tenant-b|lock timeout/i);
   });
 
   it('an unhandled controller exception in production mode returns a generic 500 with no stack trace', async () => {

@@ -111,7 +111,7 @@ describe('CachingTenantRepository', () => {
 
     const mockDataSource = {
       transaction: jest.fn(async (fn: (em: EntityManager) => Promise<void>) => {
-        const result = await fn({} as EntityManager);
+        const result = await fn({ query: jest.fn() } as unknown as EntityManager);
         expect(cache.has(`platform:tenant:${tenant.id}`)).toBe(true);
         return result;
       }),
@@ -132,7 +132,7 @@ describe('CachingTenantRepository', () => {
     cache.failNextDel(new Error('cache unavailable'));
     const mockDataSource = {
       transaction: jest.fn(async (fn: (em: EntityManager) => Promise<void>) =>
-        fn({} as EntityManager),
+        fn({ query: jest.fn() } as unknown as EntityManager),
       ),
     } as unknown as DataSource;
     const txManager = new TypeOrmTransactionManager(mockDataSource);

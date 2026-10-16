@@ -25,6 +25,8 @@ interface MinimalResponse {
 // subclass via the constructor; the logic itself must not be copy-pasted per app — that
 // duplication is what SonarCloud's new-code-duplication gate caught the first time this
 // was written twice as an interceptor.
+const SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS = '1';
+
 export abstract class BaseErrorFilter implements ExceptionFilter {
   // tracingPort defaults to defaultTracingPort (packages/observability's centralized singleton,
   // same convention as AppLogger) rather than going through NestJS DI — this class is never
@@ -55,6 +57,14 @@ export abstract class BaseErrorFilter implements ExceptionFilter {
       this.logErrorCode(exception, req);
       const problemBody = this.toProblemDetail(exception);
       const body = this.attachCorrelationId(problemBody, correlationId);
+      // A 503 is transient by definition here (a lock wait that timed out, a deadlock victim, an
+      // unreachable upstream) — tell the client when to try again. Set once in this shared filter,
+      // not per throw site, because the BFF re-throws a backend error as a plain HttpException,
+      // which carries no headers: the status and body cross that hop, a header set only in the
+      // backend would not (M23-S49).
+      if (exception.getStatus() === HttpStatus.SERVICE_UNAVAILABLE) {
+        res.set('Retry-After', SERVICE_UNAVAILABLE_RETRY_AFTER_SECONDS);
+      }
       res.status(exception.getStatus()).json(body);
       return;
     }

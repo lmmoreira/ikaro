@@ -230,5 +230,6 @@
   "AUTH_FORBIDDEN": "You don't have permission to perform this action.",
   "AUTH_TENANT_MISMATCH": "This request doesn't match your session's business.",
   "AUTH_INTERNAL_ERROR": "Something went wrong. Please try again.",
-  "AUTH_RATE_LIMITED": "Too many requests. Please try again shortly."
+  "AUTH_RATE_LIMITED": "Too many requests. Please try again shortly.",
+  "AUTH_TRANSACTION_CONTENTION": "The system is busy with another operation. Please try again in a moment."
 }

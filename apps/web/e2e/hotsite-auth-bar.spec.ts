@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { completeCustomerProfile } from './helpers/customer';
+import { gotoBookingPage } from './helpers/booking-form/goto';
 
 // HotsiteAuthBar resolves auth state client-side, after hydration, via /api/session (not
 // synchronously in server-rendered HTML — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6),
@@ -40,7 +41,7 @@ test.describe('M13-S42 — Hotsite auth bar', () => {
   });
 
   test('the auth bar also renders on the booking page', async ({ page }) => {
-    await page.goto('/ikaro/booking');
+    await gotoBookingPage(page, '/ikaro/booking');
 
     await expect(page.locator('[data-testid="hotsite-auth-bar"]')).toBeVisible();
   });
