@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test';
 import { loginAsCustomer, loginAsStaff, uniqueTestEmail } from './helpers/auth';
 import { seedJourney, findFirstSlot } from './helpers/booking-form';
 import {
+  approveBookingAsStaff,
   bookAsNewCustomer,
   cancelBookingInDashboard,
   createFreshApprovedBooking,
@@ -14,12 +15,13 @@ const TENANT_SLUG = 'lavacar-beloauto';
 const STAFF_EMAIL = 'admin@lavacar.com.br';
 const TIME_RANGE = /\d{2}:\d{2}\s+—\s+\d{2}:\d{2}/;
 
+// The addresses card is not listed: the seeded customer has a default address, which a customer
+// booking carries as its contact address, so that card legitimately shows for a plain booking.
 const NEW_CARD_TEST_IDS = [
   'booking-resources-card',
   'booking-itinerary-card',
   'booking-participants-card',
   'booking-intake-card',
-  'booking-addresses-card',
   'booking-cancellation-card',
   'booking-rejection-card',
 ];
@@ -59,6 +61,7 @@ test.describe('full booking detail (staff and customer)', () => {
     });
 
     try {
+      await approveBookingAsStaff(page, customer.bookingId, STAFF_EMAIL);
       await page.goto(`/dashboard/bookings/${customer.bookingId}`);
       const resources = page.getByTestId('booking-resources-card');
       await expect(resources).toContainText(seeded.room.name);
@@ -139,6 +142,7 @@ test.describe('full booking detail (staff and customer)', () => {
     });
 
     try {
+      await approveBookingAsStaff(page, customer.bookingId, STAFF_EMAIL);
       await page.goto(`/dashboard/bookings/${customer.bookingId}`);
       const itinerary = page.getByTestId('booking-itinerary-card');
       await expect(itinerary).toContainText('Sauna');
