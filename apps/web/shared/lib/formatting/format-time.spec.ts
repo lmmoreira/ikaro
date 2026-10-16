@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { formatDate, formatDateLong, formatMonthYear, formatTime } from './format-time';
+import {
+  formatDate,
+  formatDateLong,
+  formatMonthYear,
+  formatMonthYearRange,
+  formatTime,
+} from './format-time';
 
 describe('formatTime', () => {
   it('formats a UTC date as HH:mm in America/Sao_Paulo (24h)', () => {
@@ -72,5 +78,32 @@ describe('formatMonthYear', () => {
   it('capitalizes the first letter regardless of locale output', () => {
     const result = formatMonthYear(new Date('2026-06-16T00:00:00'), 'pt-BR');
     expect(result.charAt(0)).toBe(result.charAt(0).toUpperCase());
+  });
+});
+
+describe('formatMonthYearRange', () => {
+  const d = (iso: string): Date => new Date(`${iso}T00:00:00`);
+
+  it('keeps the single month label when the range stays in one month', () => {
+    expect(formatMonthYearRange(d('2026-10-05'), d('2026-10-18'), 'pt-BR')).toBe('Outubro 2026');
+    expect(formatMonthYearRange(d('2026-10-05'), d('2026-10-18'), 'en')).toBe('October 2026');
+  });
+
+  it('shows both months and one year when crossing a month in the same year', () => {
+    expect(formatMonthYearRange(d('2026-10-31'), d('2026-11-13'), 'pt-BR')).toBe(
+      'Outubro – Novembro 2026',
+    );
+    expect(formatMonthYearRange(d('2026-10-31'), d('2026-11-13'), 'en')).toBe(
+      'October – November 2026',
+    );
+  });
+
+  it('shows both years when crossing a year boundary', () => {
+    expect(formatMonthYearRange(d('2026-12-28'), d('2027-01-10'), 'pt-BR')).toBe(
+      'Dezembro 2026 – Janeiro 2027',
+    );
+    expect(formatMonthYearRange(d('2026-12-28'), d('2027-01-10'), 'en')).toBe(
+      'December 2026 – January 2027',
+    );
   });
 });

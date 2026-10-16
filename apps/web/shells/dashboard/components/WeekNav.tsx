@@ -51,10 +51,10 @@ export function WeekNav({
   dimmedDates,
 }: WeekNavProps): React.JSX.Element {
   const t = useTranslations('dashboard.weekNav');
-  const { formatMonthYear, formatWeekdayShort } = useFormatting();
+  const { formatMonthYearRange, formatWeekdayShort } = useFormatting();
   const days: Date[] = Array.from({ length: windowDays }, (_, i) => addDays(windowStart, i));
 
-  const monthLabel = formatMonthYear(windowStart);
+  const monthLabel = formatMonthYearRange(windowStart, days.at(-1) ?? windowStart);
 
   return (
     <div className="bg-white" data-testid="week-nav">

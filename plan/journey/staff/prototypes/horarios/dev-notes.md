@@ -89,7 +89,7 @@ type ScheduleState = {
 }
 ```
 
-**Week navigation:** `startOfWeek` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). Advancing a week = `startOfWeek + 7 days`. The time grid re-fetches when `startOfWeek` changes.
+**Week navigation:** `startOfWeek` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). The header label covers the whole visible week, so a week crossing a month reads `Outubro – Novembro 2026` (M18-S11, shared `WeekNav`). Advancing a week = `startOfWeek + 7 days`. The time grid re-fetches when `startOfWeek` changes.
 
 **Time grid:**
 - Show slots from `businessHours[dayOfWeek].open` to `businessHours[dayOfWeek].close`

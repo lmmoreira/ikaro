@@ -118,6 +118,7 @@ Folder: `staff/prototypes/agenda/`
 | File | Screen | UC | Story | Status |
 |---|---|---|---|---|
 | `index.html` | Navigation hub + validation checklist | — | — | ✅ Criado |
+| `00b-agenda-month-boundary.html` | Agenda whose 14-day window crosses a month: `WeekNav` shows `Outubro – Novembro 2026` (whole visible range; same month stays `Outubro 2026`) | UC-003 | M18-S11 | ✅ Criado |
 | `00-agenda.html` | Booking queue — an **exact copy of the shipped page** (redrawn 2026-10-14 after drifting): `WeekNav`, "+ Novo" (Agendamento only), "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje — confirmados" → "Próximos dias — confirmados", real `BookingCard` | UC-003, UC-008, UC-009 | M13-S19 | ✅ Criado |
 | `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets. **Redrawn 2026-10-15** with the new cards (resources, itinerary, participants, intake, notes, addresses, origin) switched by `?forma=` — the new cards are ✅ built (M23-S47), see "Full booking detail" below | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado (M23-S47) |
 | `01b-slot-conflict.html` | Slot conflict error + adjacent slot picker | UC-003 Alt A1 | M125-S05 | ✅ Criado |

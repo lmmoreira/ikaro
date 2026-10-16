@@ -15,7 +15,7 @@ flowchart TD
     Start(["Sidebar → Horários"]) --> Schedule["/dashboard/schedule<br/>Week calendar — APPROVED bookings<br/>+ closures + openings overlay"]
 
     Schedule --> WeekNav(("Navegar semana"))
-    WeekNav --> Schedule
+    WeekNav --> Schedule  %% o rótulo do mês cobre toda a semana visível: "Outubro – Novembro 2026" (M18-S11)
 
     Schedule --> ClickSlot(("Click em slot livre<br/>(dia aberto)"))
     ClickSlot --> ClosureSheet["ClosureFormSheet<br/>Bloquear período<br/>(UC-010a)"]
