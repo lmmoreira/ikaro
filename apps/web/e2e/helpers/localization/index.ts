@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { openFirstDayWithSlots } from '../booking-form';
+import { gotoBookingPage } from '../booking-form/goto';
 
 export interface LocalizationCase {
   readonly slug: string;
@@ -21,7 +22,7 @@ export async function runLocalizationCheck(page: Page, c: LocalizationCase): Pro
   // price-badge lives on the hotsite's ServiceListModule, not the booking flow's service cards.
   await expect(page.locator('[data-testid="price-badge"]').first()).toContainText(c.currencySymbol);
 
-  await page.goto(`/${c.slug}/booking`);
+  await gotoBookingPage(page, `/${c.slug}/booking`);
   await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
   // Step 1 → 2: service selection advances to the day/slot picker.

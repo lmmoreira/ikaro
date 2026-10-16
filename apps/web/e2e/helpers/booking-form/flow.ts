@@ -9,6 +9,7 @@ import { createService, makeUniqueServiceName, setResourceRequirements } from '.
 import { createResource } from '../booking/resource-api';
 import { uniqueTestEmail } from '../auth';
 import { inviteStaff } from '../staff';
+import { gotoBookingPage } from './goto';
 
 export const TENANT_SLUG = 'lavacar-beloauto';
 export const MANAGER_EMAIL = 'admin@lavacar.com.br';
@@ -20,7 +21,7 @@ export function serviceCard(page: Page, serviceId: string): Locator {
 export const nextButton = (page: Page): Locator => page.getByTestId('step-next');
 
 export async function openBooking(page: Page, slug = TENANT_SLUG): Promise<void> {
-  await page.goto(`/${slug}/booking`);
+  await gotoBookingPage(page, `/${slug}/booking`);
   await expect(page.getByTestId('step-service-selection')).toBeVisible();
 }
 

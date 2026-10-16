@@ -238,6 +238,10 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 
 Related: when the point of the spec is that a *cache* is refreshed, navigate client-side (see `docs/ENGINEERING_RULES_FRONTEND.md` § A mutation that changes server state owned by another feature must invalidate that feature's query keys).
 
+## An E2E that navigates to the public booking page goes through `gotoBookingPage()` — a bare `goto()` races with the streamed second copy of the wizard
+
+The booking page wraps its form in a Suspense boundary, so for a moment after `load` the hidden streaming segment (`<div hidden id="S:0">`) holds a second copy of the wizard beside the visible one, until React swaps it in. Playwright's strict mode throws at once on a locator that matches both (`strict mode violation: getByTestId('step-service-selection') resolved to 2 elements`), so the same spec passes or fails with the runner's speed. The page is fine; the test looked too early. Navigate with `gotoBookingPage(page, path)` (`apps/web/e2e/helpers/booking-form/goto.ts`), which waits until no hidden streaming segment is left. Do not paper over it with `.first()` or a retry: that hides a second element that should not be there. The first failure is in the trace's frame snapshot (look for `div#S:0[hidden]` next to the wizard), not in the error text.
+
 ## Concurrency tests — a tenant per scenario, deterministic first, and a test that passes without the lock is not coverage
 
 Where the strategy lives: `docs/08-TESTING_STRATEGY.md` § Concurrency Tests; the lock-to-test map: `docs/28-LOCK_CATALOG.md` § 3.1. The rules a new concurrency test follows:

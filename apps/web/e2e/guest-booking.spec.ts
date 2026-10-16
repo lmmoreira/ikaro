@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { navigateToStep3, openFirstDayWithSlots } from './helpers/booking-form';
+import { gotoBookingPage } from './helpers/booking-form/goto';
 
 test.describe('UC-001 — Guest booking golden path', () => {
   test('guest navigates from hotsite to booking form and submits successfully', async ({
@@ -11,7 +12,7 @@ test.describe('UC-001 — Guest booking golden path', () => {
     await expect(page.locator('#service-list')).toBeVisible();
 
     // Navigate to booking form — step 1 visible
-    await page.goto('/ikaro/booking');
+    await gotoBookingPage(page, '/ikaro/booking');
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     // Step 1 — select first service that does not require pickup address
@@ -51,7 +52,7 @@ test.describe('UC-001 — Booking form error paths', () => {
   });
 
   test('step 1: next button is disabled when no service is selected', async ({ page }) => {
-    await page.goto('/ikaro/booking');
+    await gotoBookingPage(page, '/ikaro/booking');
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     // step-next is disabled until at least one service is selected
@@ -69,7 +70,7 @@ test.describe('UC-001 — Booking form error paths', () => {
       });
     });
 
-    await page.goto('/ikaro/booking');
+    await gotoBookingPage(page, '/ikaro/booking');
     await page
       .locator('[data-testid="service-card"][data-requires-pickup="false"]')
       .first()
@@ -83,7 +84,7 @@ test.describe('UC-001 — Booking form error paths', () => {
   test('step 1: shows error when pickup-required service selected without address', async ({
     page,
   }) => {
-    await page.goto('/lavacar-beloauto/booking');
+    await gotoBookingPage(page, '/lavacar-beloauto/booking');
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     // Select Polimento — the only seeded service with requires_pickup_address = true
@@ -182,7 +183,7 @@ test.describe('UC-001 — Accessibility (axe)', () => {
   });
 
   test('booking form step 1 has no axe violations', async ({ page }) => {
-    await page.goto('/ikaro/booking');
+    await gotoBookingPage(page, '/ikaro/booking');
     await expect(page.locator('[data-testid="step-service-selection"]')).toBeVisible();
 
     const results = await new AxeBuilder({ page }).disableRules(['color-contrast']).analyze();
