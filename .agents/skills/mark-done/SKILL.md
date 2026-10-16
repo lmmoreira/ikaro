@@ -45,6 +45,8 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    > "You are on branch `<branch>`. This commit should go to main. Switch to main first, or confirm you want to commit here."
    Then stop and wait for confirmation before proceeding.
 
+   **If this session is isolated in a worktree** (the usual case right after `/pr-land`), the guard refuses every git command aimed at the main checkout, so steps 6–8 cannot run from there. Call `ExitWorktree` with `action: "keep"` first (it leaves the worktree and branch on disk and returns the session to the main checkout), run `git pull --ff-only origin main`, do steps 6–8 on `main`, and remove the worktree afterwards with the git commands in step 8a (which works from the main checkout). `action: "remove"` here would refuse after a squash merge (the commits are not ancestors of `main`) and cannot be used before the plan commit anyway. (M23-S14, 2026-10-15.)
+
 7. Stage only the plan file and commit:
 
    ```text

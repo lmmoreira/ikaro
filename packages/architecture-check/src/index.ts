@@ -24,6 +24,7 @@ export { checkErrorMapperCoverage } from './detectors/error-mappers';
 export type { ErrorMapperException } from './detectors/error-mappers';
 export { checkIkaroTypesDrift } from './detectors/ikaro-types-drift';
 export type { IkaroTypesDriftException } from './detectors/ikaro-types-drift';
+export { checkLockCatalogCoverage } from './detectors/lock-catalog-coverage';
 export { checkNoJestFnForRepositoryOrPortMocks } from './detectors/jest-fn-port-mock';
 export { checkOccupancyReleaseChokePoint } from './detectors/occupancy-release-choke-point';
 export { checkPrototypeChainSafety } from './detectors/prototype-chain';

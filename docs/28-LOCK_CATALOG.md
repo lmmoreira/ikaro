@@ -218,6 +218,6 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 3. Batch several locks of one kind into one call with a deterministic order.
 4. After acquiring, re-read the state the lock protects.
 5. A new advisory key is free to namespace; an existing live key never changes.
-6. Add the entry to §3, the sequence to §4, and any hazard to §5, in the same commit.
+6. Add the entry to §3, the sequence to §4, and any hazard to §5, in the same commit. `pnpm architecture-check` (`lock-catalog-coverage`) fails when a port's `lock*()` or `*ForUpdate()` method is not named in this file; it checks the name only, so the order and the test are still yours.
 7. Ship a concurrent integration test; a unit test with an in-memory double proves nothing about ordering.
 8. Name the test in § 3.1 and run the mutation check on it: remove the lock and watch it fail. A test that passes without the lock is not coverage (R1 is the example); if no test can tell, record that in § 3.1 and say why.
