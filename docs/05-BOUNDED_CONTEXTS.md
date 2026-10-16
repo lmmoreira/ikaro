@@ -671,7 +671,7 @@ If two contexts represent the same real-world data, each owns its own copy. Data
 | Booking | Bookings, BookingLines, Services, ScheduleClosures, ScheduleOpenings, Resources, RecurringBookingSchedules, AvailabilityAlerts, FutureCommitmentExceptions | Customer, Staff, Platform settings (via the `booking-*` cross-context adapters) | `StaffDeactivated`, `TenantProvisioned`, its own cancel/reject/reschedule events and the `cron-reminders` trigger |
 | Customer | Customers | — | — |
 | Staff | Staff members | — | `TenantProvisioned` (creates the first MANAGER) |
-| Loyalty | LoyaltyEntry (append-only, insert only) | Customer, Booking (via events) | `BookingCompleted` only — inserts one `LoyaltyEntry` per line; idempotent on `UNIQUE(tenant_id, booking_line_id)` |
+| Loyalty | LoyaltyEntry (append-only, insert only), LoyaltyBalance, LoyaltyRedemption (append-only) | Customer, Booking and Platform: events for completions, plus synchronous reads through three Port+Adapters (`loyalty-booking`, `loyalty-customer`, `loyalty-platform` in `contexts/loyalty/infrastructure/cross-context/`) | `BookingCompleted` only — inserts one `LoyaltyEntry` per line; idempotent on `UNIQUE(tenant_id, booking_line_id)` |
 | Notification | NotificationTemplates, NotificationLogs | Booking projections, Customer, Staff, Platform settings (via the `notification-*` adapters) | A named list of Booking, Loyalty, Staff and Platform events (see the Notification section; not `BookingCompleted`) |
 | Platform | Tenants, HotsiteConfigs | — | — |
 

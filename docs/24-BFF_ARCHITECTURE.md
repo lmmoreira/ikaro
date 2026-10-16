@@ -120,7 +120,7 @@ bffPublicFetch(path: string, init?: BffServerFetchInit): Promise<Response>
 
 Canonical callers:
 - guest/public server helpers such as `features/booking/api/public.server.ts`
-- future public Route Handlers that proxy guest-token or anonymous BFF reads
+- public Route Handlers that proxy anonymous BFF calls (`app/api/bookings/attachments/signed-url/route.ts`, `app/api/platform/lead-form/submissions/route.ts`) and `features/platform/api.server.ts`
 
 ### `bffClient` — client-only axios instance
 
@@ -139,7 +139,7 @@ React Query cache key shape: `[namespace, tenantId, ...params]` — `tenantId` a
 
 **File:** `apps/web/providers/tenant-provider.tsx`
 
-- Server layouts (`app/dashboard/(protected)/layout.tsx`, `app/[slug]/my-account/layout.tsx`) decode the JWT → extract `tenantId` and `tenantSlug` → wrap children in `<TenantProvider tenantId={...} tenantSlug={...}>`
+- Server layouts (each `app/dashboard/<section>/layout.tsx`, `app/[slug]/my-account/layout.tsx`) decode the JWT → extract `tenantId` and `tenantSlug` → wrap children in `<TenantProvider tenantId={...} tenantSlug={...}>`
 - Client hooks call `const { tenantId } = useTenant()` to scope React Query cache keys per tenant
 - Replaced the old `configureBffClient` / `getTenantId()` singleton (deleted M13-S17), which had a first-render race condition: the hook read `getTenantId()` during render but `useEffect` ran after mount, so the first render always had `tenantId = ''`
 
@@ -394,7 +394,7 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /recurring-booking-schedules`, `GET /recurring-booking-schedules/:id`, `POST /recurring-booking-schedules`, `POST /recurring-booking-schedules/:id/end` | JWT | No | CUSTOMER \| STAFF \| MANAGER (own only for CUSTOMER) |
 | `POST /recurring-booking-schedules/:id/approve`, `/reject` | JWT | No | STAFF \| MANAGER |
 | `POST /availability-alerts`, `GET /availability-alerts`, `GET`/`PATCH`/`DELETE /availability-alerts/:id` | JWT | No | CUSTOMER |
-| `GET /scheduling-exceptions`, `POST /scheduling-exceptions/resolve`, `POST /scheduling-exceptions/dismiss` | JWT | No | MANAGER |
+| `GET /scheduling-exceptions`, `GET /scheduling-exceptions/count` (sidebar badge), `GET /scheduling-exceptions/by-booking/:bookingId` (booking decision panel), `POST /scheduling-exceptions/resolve`, `POST /scheduling-exceptions/dismiss` | JWT | No | MANAGER |
 | `GET /resources`, `GET /resources/staff-options` (BFF-only), `GET /resources/:id`, `POST /resources`, `PATCH /resources/:id`, `DELETE /resources/:id`, `POST /resources/:id/reactivate` | JWT | No | MANAGER |
 | `GET /customers/me`, `PATCH /customers/me`, `GET /customers/tenants` | JWT | No | CUSTOMER |
 | `GET /customers` (search), `GET /customers/:customerId` | JWT | No | STAFF \| MANAGER |

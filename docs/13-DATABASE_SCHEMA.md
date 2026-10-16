@@ -39,7 +39,7 @@ All domain entities, value objects, and test factories that generate IDs must us
 ### 2. Cross-Schema FK Rules
 | Reference type | FK constraint? | Rule |
 |---|---|---|
-| `tenant_id` → `platform.tenants(id)` | ✅ Yes | Foundational exception — tenant must exist |
+| `tenant_id` → `platform.tenants(id)` | ⚠️ Only for tables in the `platform` schema (`hotsite_configs`, `chatbot_*`, `lead_form_*`) | The `booking`, `customer`, `staff`, `loyalty` and `notification` migrations store `tenant_id` as a plain NOT NULL UUID with **no** FK, the same as any other cross-schema reference. Tenant existence is guaranteed by the request context (the BFF rejects unknown tenants), not by the database. Adding the FKs would be a deliberate design change (cross-schema coupling vs. DB-level integrity), not a doc fix. |
 | Intra-context (same schema) | ✅ Yes | Always enforce referential integrity within a context |
 | Cross-context (different schemas) | ❌ No | Store UUID only. Integrity enforced at application level via events. |
 
@@ -47,7 +47,7 @@ This is a direct consequence of the Context Isolation Contract in `docs/05-BOUND
 
 ### 3. Audit Columns
 Every mutable table includes:
-- `tenant_id` UUID NOT NULL + FK → `platform.tenants(id)`
+- `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for `platform`-schema tables, see §2)
 - `created_at` TIMESTAMP WITH TIME ZONE DEFAULT now()
 - `updated_at` TIMESTAMP WITH TIME ZONE DEFAULT now() (mutable rows only)
 
@@ -231,7 +231,7 @@ Owned by: **Customer Context** (`src/contexts/customer/`)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | google_oauth_id | VARCHAR(255) | NOT NULL |
 | email | VARCHAR(255) | NOT NULL |
 | name | VARCHAR(255) | NOT NULL |
@@ -239,7 +239,7 @@ Owned by: **Customer Context** (`src/contexts/customer/`)
 | default_address | JSONB | NULLABLE — `{ street, number, complement, neighborhood, city, state, zipCode }`. Used only to pre-fill booking form. The booking stores its own copy. |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **INDEX** | (tenant_id, google_oauth_id) | Fast OAuth lookup |
+| **UNIQUE** | (tenant_id, google_oauth_id) — `UQ_customer_customers_tenant_oauth` | One row per Google account per tenant; also serves the OAuth lookup |
 
 > No UNIQUE on `google_oauth_id` alone — same person can be a customer in multiple tenants as separate rows.
 
@@ -253,11 +253,11 @@ Owned by: **Staff Context** (`src/contexts/staff/`)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | google_oauth_id | VARCHAR(255) | NULLABLE — set on first login (UC-025) |
 | email | VARCHAR(255) | NOT NULL |
 | name | VARCHAR(255) | NULLABLE — single field, not split first/last |
-| role | VARCHAR(50) | NOT NULL — 'MANAGER', 'STAFF' |
+| role | VARCHAR(20) | NOT NULL, CHECK IN ('MANAGER','STAFF') |
 | is_active | BOOLEAN | NOT NULL DEFAULT true — staff rows are provisioned active from creation; `google_oauth_id IS NULL` signals "pending invite", not `is_active` (`CLAUDE.md` §2 invariant 6) |
 | invited_by | UUID | NULLABLE — the inviting MANAGER's staff id, or `SYSTEM_ACTOR_ID` for the first MANAGER created at tenant provisioning (migration `1748000000001`) |
 | deactivated_by | UUID | NULLABLE — the deactivating MANAGER's staff id; cleared on reactivation (migration `1748000000001`) |
@@ -276,12 +276,12 @@ Owned by: **Booking Context** (`src/contexts/booking/`)
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | name | VARCHAR(255) | NOT NULL |
 | description | TEXT | |
 | price_amount | NUMERIC(10,2) | NOT NULL |
-| duration_minutes | INTEGER | NOT NULL. For a service with legs it is always the legs' span (sum of leg durations + every transition gap except the last leg's) — written by `Service.setLegs()`, recomputed by `Service.update()`, backfilled by migration `1748500000024` (M23-S11b); existing `booking_lines.duration_mins_at_booking` snapshots are unchanged |
-| loyalty_points_value | INTEGER | NOT NULL DEFAULT 0 |
+| duration_minutes | INTEGER | NOT NULL CHECK > 0. For a service with legs it is always the legs' span (sum of leg durations + every transition gap except the last leg's) — written by `Service.setLegs()`, recomputed by `Service.update()`, backfilled by migration `1748500000024` (M23-S11b); existing `booking_lines.duration_mins_at_booking` snapshots are unchanged |
+| loyalty_points_value | INTEGER | NOT NULL DEFAULT 0 CHECK >= 0 |
 | requires_pickup_address | BOOLEAN | NOT NULL DEFAULT false |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
@@ -356,11 +356,11 @@ One row per service unit. Snapshots from `booking.services` at request time — 
 | tenant_id | UUID | NOT NULL — denormalised for composite FK / tenant isolation |
 | service_id | UUID | NOT NULL — intra-context ref to `booking.services` |
 | service_name_at_booking | VARCHAR(255) | NOT NULL — snapshot of `services.name` at booking time |
-| price_at_booking_amount | NUMERIC(10,2) | NOT NULL CHECK >= 0 — snapshot of `services.price_amount` |
-| duration_mins_at_booking | INTEGER | NOT NULL CHECK > 0 — snapshot of `services.duration_minutes`, or of the customer's own submitted `durationMinutes` when the service's `duration_policy = 'CUSTOMER_SELECTED'` (M23-S02, locked at story-discovery — no separate column needed for the variable-duration case, this one is reused) |
-| points_value_at_booking | INTEGER | NOT NULL DEFAULT 0 CHECK >= 0 — snapshot of `services.loyalty_points_value` |
+| price_at_booking_amount | NUMERIC(10,2) | NOT NULL — non-negative is app-enforced (`Money`), no DB CHECK — snapshot of `services.price_amount` |
+| duration_mins_at_booking | INTEGER | NOT NULL — positive is app-enforced, no DB CHECK — snapshot of `services.duration_minutes`, or of the customer's own submitted `durationMinutes` when the service's `duration_policy = 'CUSTOMER_SELECTED'` (M23-S02, locked at story-discovery — no separate column needed for the variable-duration case, this one is reused) |
+| points_value_at_booking | INTEGER | NOT NULL DEFAULT 0 — non-negative is app-enforced, no DB CHECK — snapshot of `services.loyalty_points_value` |
 | requires_pickup_address_at_booking | BOOLEAN | NOT NULL DEFAULT false — snapshot of `services.requires_pickup_address` |
-| actual_price_charged_amount | NUMERIC(10,2) | NULLABLE CHECK >= 0 — null until COMPLETED; zero = waived |
+| actual_price_charged_amount | NUMERIC(10,2) | NULLABLE — non-negative is app-enforced, no DB CHECK — null until COMPLETED; zero = waived |
 | **FK (composite)** | (tenant_id, booking_id) → `booking.bookings(tenant_id, id)` | Tenant-safe |
 | **FK (composite)** | (tenant_id, service_id) → `booking.services(tenant_id, id)` | Intra-context |
 | **INDEX** | (tenant_id) | Tenant-scoped base filter |
@@ -435,7 +435,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | type | VARCHAR(20) | NOT NULL — CHECK IN ('LOCATION', 'STAFF', 'ROOM', 'EQUIPMENT') |
 | ref_id | UUID | NULLABLE — staffId when `type = 'STAFF'`; no FK (cross-context ref to `staff.staff`) |
 | name | VARCHAR(255) | NOT NULL |
@@ -757,7 +757,7 @@ Created by migration `1748500000026-CreateAvailabilityAlerts` (M23-S06) together
 | resolution_reason | TEXT | NULLABLE — the manager's reason, or a system code on a system dismissal: `RESOURCE_REACTIVATED`, `BOOKING_NO_LONGER_ACTIVE`, `RESOURCE_NO_LONGER_USED` (M23-S48) |
 | resolved_by_staff_id | UUID | NULLABLE — null while `OPEN` and for a system dismissal (M23-S48) |
 | resolved_at | TIMESTAMPTZ | NULLABLE |
-| notification_outcome | VARCHAR(30) | NULLABLE |
+| notification_outcome | VARCHAR(30) | NULLABLE — vestigial: no notification outcome is recorded (UC-077 step 3), the column is always NULL and is kept only until a cleanup migration drops it |
 | alternatives | JSONB | NOT NULL DEFAULT '[]' — advisory `{ resourceId, resourceName }[]` computed at raise time and kept for closed entries; the worklist read recomputes it for `OPEN` ones (M23-S14); always revalidated at resolve time (M23-S08) |
 | created_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **INDEX** | (tenant_id, affected_type, affected_id) | |
@@ -783,7 +783,7 @@ Append-only, source-exclusive across the two booking families (appointment resch
 | occurred_at | TIMESTAMPTZ | NOT NULL DEFAULT now() |
 | **CHECK** | `(booking_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND class_session_booking_id IS NOT NULL)` | Source-exclusive |
 | **UNIQUE** | (tenant_id, booking_id, revision_no) WHERE booking_id IS NOT NULL | Partial revision sequence per source |
-| **UNIQUE** | (tenant_id, class_session_booking_id, revision_no) WHERE class_session_booking_id IS NOT NULL | |
+| **UNIQUE** | (tenant_id, class_session_booking_id, revision_no) WHERE class_session_booking_id IS NOT NULL | **Not created yet** — migration `1748500000016` creates `class_session_booking_id` as a plain UUID with no FK and no unique; M24 adds both with `class_session_bookings` |
 
 ### `booking.booking_status_transitions` (M23 Cluster 3)
 
@@ -1056,7 +1056,7 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | customer_id | UUID | NOT NULL — no FK (cross-context ref to `customer.customers`) |
 | booking_id | UUID | NULLABLE (widened by M24 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
 | booking_line_id | UUID | NULLABLE (widened by M24 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
@@ -1068,8 +1068,9 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | **UNIQUE** | (tenant_id, booking_line_id) | Idempotency — replaying `BookingCompleted` is a no-op. Postgres permits multiple NULLs under a plain UNIQUE, so this keeps enforcing uniqueness only among non-null values once the column is nullable. |
 | **UNIQUE** | (tenant_id, class_session_booking_id) WHERE class_session_booking_id IS NOT NULL | Added M24 Cluster 4 — idempotency for `ClassSessionBookingCompleted` |
 | **CHECK** | `CHK_loyalty_entries_source_exclusive`: `(booking_id IS NOT NULL AND booking_line_id IS NOT NULL AND class_session_booking_id IS NULL) OR (booking_id IS NULL AND booking_line_id IS NULL AND class_session_booking_id IS NOT NULL)` | Added M24 Cluster 4 — source-exclusive across the two booking families |
-| **INDEX** | (tenant_id, customer_id, expires_at) | Active balance query |
-| **INDEX** | (tenant_id, customer_id, service_id, expires_at) | Per-service breakdown |
+| **INDEX** | (tenant_id) — `IDX_loyalty_entries_tenant_id` | Tenant base filter |
+| **INDEX** | (tenant_id, customer_id) — `IDX_loyalty_entries_tenant_customer` | A customer's entries |
+| **INDEX** | (tenant_id, customer_id, expires_at) — `IDX_loyalty_entries_tenant_customer_expires` | Active balance query |
 
 **Rules:**
 - INSERT only. No UPDATE, no DELETE.
@@ -1083,7 +1084,7 @@ One row per `(tenant_id, customer_id)`. Maintained as a running total: increment
 
 | Column | Type | Constraints |
 |--------|------|-------------|
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | customer_id | UUID | NOT NULL |
 | current_points | INT | NOT NULL DEFAULT 0, CHECK >= 0 |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
@@ -1103,7 +1104,7 @@ Append-only audit log of every redemption. Never updated or deleted.
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | customer_id | UUID | NOT NULL |
 | points_redeemed | INT | NOT NULL, CHECK > 0 |
 | points_per_currency_unit | INTEGER | NOT NULL DEFAULT 0 — conversion rate snapshot at redemption time |
@@ -1159,7 +1160,7 @@ Each row is a rendered template for one `(trigger_event, channel)` pair. Rows wi
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NULLABLE — NULL = global default; FK → `platform.tenants(id)` when set |
+| tenant_id | UUID | NULLABLE — NULL = global default; no FK (cross-schema, §2) |
 | trigger_event | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` enum value, e.g. `'booking-approved-customer'` |
 | channel | VARCHAR(20) | NOT NULL DEFAULT `'EMAIL'` — `'EMAIL'` now; `'SMS'`/`'WHATSAPP'` when those channels are built |
 | locale | VARCHAR(10) | NOT NULL DEFAULT `'pt-BR'` — seeded from `packages/i18n/locales/<locale>/notifications.json`, one row per `trigger_event × locale` (TD02-S10) |
@@ -1173,17 +1174,17 @@ Each row is a rendered template for one `(trigger_event, channel)` pair. Rows wi
 
 ### `notification.notification_logs`
 
-Audit trail of every notification send attempt. Pure audit — idempotency is handled by `shared.inbox`, not here.
+Audit trail of every notification send attempt. Consumer idempotency is handled by `shared.inbox`; this table additionally carries a UNIQUE so a replayed send for the same event, type and channel cannot log twice.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | event_id | UUID | NOT NULL — source domain event's `eventId` |
-| notification_type | VARCHAR(100) | NOT NULL — `NotificationTemplateKey` value |
+| notification_type | VARCHAR(64) | NOT NULL — `NotificationTemplateKey` value (the database column is 64; the TypeORM entity declares 100, which is harmless today because the longest key is 43 characters) |
 | channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
-| recipient_email | VARCHAR(255) | NOT NULL |
-| status | VARCHAR(20) | NOT NULL DEFAULT `'PENDING'` — `'PENDING'`, `'SENT'`, `'FAILED'` |
+| recipient_email | VARCHAR(255) | NOT NULL DEFAULT `''` |
+| status | VARCHAR(20) | NOT NULL DEFAULT `'PENDING'`, `CHK_notification_logs_status` CHECK IN (`'PENDING'`, `'SENT'`, `'FAILED'`) |
 | retry_count | SMALLINT | NOT NULL DEFAULT 0 |
 | error_message | TEXT | NULLABLE |
 | sent_at | TIMESTAMP WITH TIME ZONE | NULLABLE |
@@ -1191,6 +1192,7 @@ Audit trail of every notification send attempt. Pure audit — idempotency is ha
 | **INDEX** | (tenant_id) | Tenant-scoped queries |
 | **INDEX** | (tenant_id, status) | Retry queue / monitoring queries |
 | **INDEX** | (tenant_id, recipient_email) | All notifications sent to a recipient |
+| **UNIQUE** | (tenant_id, event_id, notification_type, channel) — `UQ_notification_logs_event_type_channel` | One log row per event, type and channel |
 
 ### `notification.processed_events` — never existed (TD24-S04, migration history squashed)
 

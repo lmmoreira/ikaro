@@ -100,7 +100,7 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
   - CLI Commands.
 - **Driven Adapters (Output):**
   - `PostgresBookingRepository` (TypeORM/Prisma).
-  - `AwsSesEmailSender`.
+  - `BrevoEmailAdapter` (production) and `MailhogEmailAdapter` (local), behind the `IEmailSender` port.
   - `GoogleCloudPhotoStorage`.
 
 ---
@@ -157,8 +157,8 @@ src/contexts/booking/
 ## Multi-Tenancy Enforcement
 
 The architecture enforces tenant isolation at the **Adapter Layer**:
-- **Persistence Adapter:** Every query automatically injects `WHERE tenant_id = current_tenant`.
-- **Controller Adapter:** A global `RequestInterceptor` extracts the `X-Tenant-ID` header and injects it into the request context.
+- **Persistence Adapter:** Nothing injects the tenant filter for you. Every repository method takes an explicit `tenantId` argument and writes `WHERE tenant_id = :tenantId` itself (no tenant-aware base class, subscriber or row-level security), which is why the multi-tenancy rule in `CLAUDE.md` §2 is a review and test obligation.
+- **Controller Adapter:** The global `RequestInterceptor` (`shared/request/request.interceptor.ts`) reads the `X-Tenant-ID` and `X-Actor-*` headers into the `RequestContext` (AsyncLocalStorage) and loads the tenant settings; `/health`, `/internal`, `/cron` and `/pubsub` bypass it.
 - **Security:** Use cases always require a `tenantId` parameter to ensure operations are scoped correctly.
 
 ---

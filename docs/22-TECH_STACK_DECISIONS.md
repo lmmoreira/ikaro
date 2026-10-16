@@ -14,7 +14,7 @@ This document defines the technology stack for Ikaro, a multi-tenant SaaS platfo
 - ✅ Robust: Every component proven at enterprise scale
 - ✅ Lean: Start at $50/month, not $300+
 - ✅ Future-proof: Scale to 1M users without code changes
-- ✅ Cloud-agnostic: Easy migration path to AWS/Azure
+- ✅ Portable where it is cheap (containers, standard Postgres, OpenTelemetry); the committed target is GCP only
 
 **Key Metrics:**
 - MVP Infrastructure Cost: $50-100/month
@@ -631,7 +631,7 @@ pubsub-emulator:
 
 ### Decision
 **Phase 1 (MVP):** GCP Cloud Run (serverless)  
-**Phase 2 (Year 2+):** Kubernetes (GKE/EKS/AKS) only if needed
+**Phase 2 (Year 2+):** Kubernetes (GKE) only if needed
 
 ### Why Cloud Run for MVP
 
@@ -1073,7 +1073,7 @@ terraform/
 ├── variables.tf            # Input variables
 ├── outputs.tf              # Output values
 ├── terraform.gcp.tfvars    # GCP-specific values
-├── terraform.aws.tfvars    # AWS-specific (future)
+├── terraform.aws.tfvars    # AWS-specific (NOT planned: GCP-only decision; kept as a design illustration)
 └── providers.tf            # Provider configuration
 ```
 
@@ -1155,7 +1155,7 @@ terraform apply -var-file=terraform.gcp.tfvars
 # Watch deployment
 terraform show
 
-# Add AWS (future)
+# Add AWS (illustration only: not planned, the project is GCP-only)
 terraform apply -var-file=terraform.aws.tfvars
 # Same resources, different provider
 ```
@@ -1233,7 +1233,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Cloud SQL db-f1-micro | $15 | 0.6 GB RAM, 100 GB storage |
 | Pub/Sub | $5 | 10K events/day |
 | Cloud Storage (media only) | $1 | Tenant photo uploads |
-| Cloud Scheduler | $1 | 2 cron jobs ($0.10/job/month) |
+| Cloud Scheduler | $1 | 8 cron jobs ($0.10/job/month) |
 | Secret Manager | $1 | 6 secrets |
 | **TOTAL** | **~$43/month** | Lean, production-ready |
 
@@ -1245,7 +1245,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Cloud SQL db-n1-standard-1 | $100 | 3.75 GB RAM, 500 GB storage |
 | Pub/Sub | $40 | 100K events/day |
 | Cloud Storage (media) | $10 | Growing photo library |
-| Cloud Scheduler | $1 | 2 cron jobs |
+| Cloud Scheduler | $1 | 8 cron jobs |
 | Secret Manager | $1 | 6 secrets |
 | **TOTAL** | **~$272/month** | Proven traffic |
 
@@ -1257,7 +1257,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Cloud SQL db-n1-standard-4 | $300 | 15 GB RAM, read replicas |
 | Pub/Sub | $100 | 500K events/day |
 | Cloud Storage (media) | $30 | Large photo library |
-| Cloud Scheduler | $1 | 2 cron jobs |
+| Cloud Scheduler | $1 | 8 cron jobs |
 | Secret Manager | $1 | 6 secrets |
 | **TOTAL** | **~$732/month** | Approaching scale |
 

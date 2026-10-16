@@ -13,7 +13,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/10-OBSERVABILITY_STRATEGY.md` § Local Development Setup.
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
-5. **Verify:** Run `pnpm test` and `pnpm lint` locally.
+5. **Verify:** Run `pnpm ci:fast` locally (lint, type-check, architecture-check and unit tests; the pre-push hook runs it too).
 
 ### **Step 2: The Pull Request (PR)**
 1. **Push:** Push to GitHub.
@@ -28,8 +28,8 @@ This document provides a step-by-step operational guide for the entire lifecycle
 ### **Step 3: Merge to Main & Staging**
 1. **Merge:** Once approved and CI is green, merge (Squash & Merge) into `main`.
 2. **CD Trigger (Staging):**
-   - Build Docker images for Backend and Frontend.
-   - Push to Private Registry.
+   - Build Docker images for the backend, BFF and web.
+   - Push to Artifact Registry.
    - Run Database Migrations in the Staging environment.
    - Deploy a new **Cloud Run revision** to Staging (`deploy-staging.yml`).
 3. **Smoke Test:** Automated check of the health routes only — `/v1/health/ready` on the BFF (Staging reaches it through the web app's `/v1` gateway; Production calls the BFF host directly) and `/api/health/ready` on the web app. There is no login-flow check.
@@ -40,7 +40,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
    - **No New Build:** The *exact same* Docker image from Staging is used.
    - **Production Migrations:** Run migrations against the Prod DB.
    - **Cloud Run revisions:** the deploy creates a new revision and points `latestRevision` traffic at it; the previous revisions stay available for rollback (the 5 most recent per service are retained).
-3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. Status as of 2026-08-08: dashboard, uptime checks, and most alert policies are live in staging; the 3 `error_rate_5xx` policies were blocked by an MQL type bug (PR #333) and are pending that fix's staging apply.
+3. **Verification:** No Grafana/Loki stack is deployed (see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner) — check Cloud Trace for latency/error spans and Cloud Logging for `ERROR`-level entries instead. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. The dashboard, uptime checks and alert policies, including the three `error_rate_5xx` policies (their MQL type bug is fixed and was live-verified in staging on 2026-08-09), are live in staging.
 
 ---
 
@@ -52,13 +52,13 @@ When a critical bug is found in Production:
 2. **Fix:** Implement the fix + a regression test.
 3. **Fast-Track PR:** ask for prioritized review in the PR description. (No workflow, PR template or label gate enforces an "Emergency" label — it is a convention only.)
 4. **CI Bypass:** (NEVER allowed) All tests must still pass.
-5. **Immediate Deploy:** Once merged to `main`, it deploys to Staging, then is promoted to Production immediately after a quick smoke test.
+5. **Deploy:** Once merged to `main` (when `apps/**` or `packages/**` changed), it deploys to Staging automatically. Production is a separate manual promotion (`deploy-production.yml`, required-reviewer approval); its smoke job runs after the deploy.
 
 ---
 
 ## 3. Configuration & Secrets Management
 
-- **Environment Variables:** All runtime config (DB URLs, API Keys) is stored in a **Secret Manager** (e.g., AWS Secrets Manager, GCP Secret Manager).
+- **Environment Variables:** All runtime config (DB URLs, API Keys) is stored in **GCP Secret Manager** (`infra/terraform/modules/secrets`).
 - **Injection:** Containers fetch secrets at startup. **NEVER** store secrets in `.env` files committed to the repo.
 - **Local:** Use `.env.local` (ignored by git) for local development secrets.
 
@@ -81,13 +81,8 @@ There is no timed auto-rollback. A new Cloud Run revision that fails its startup
 
 ## 5. Monitoring the Release
 
-> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. Status as of 2026-08-08: dashboard, uptime checks, and most alert policies are live in staging; the 3 `error_rate_5xx` policies were blocked by an MQL type bug (PR #333) and are pending that fix's staging apply.
+> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. The dashboard, uptime checks and alert policies, including the three `error_rate_5xx` policies (their MQL type bug is fixed and was live-verified in staging on 2026-08-09), are live in staging.
 
 During and after deployment, the team monitors:
 - **Success Rate / Latency (P99):** Cloud Trace (traces from the OTel SDK + collector sidecar, M17-S33/S34) — should remain > 99% success, P99 not increasing by more than 10%.
 - **Error Logs:** Cloud Logging for new `ERROR`-level entries; correlate via `correlationId` (also promoted to `logging.googleapis.com/trace`/`spanId` for trace↔log linking).
-
----
-
-**Status:** Phase 2 - Technical Architecture  
-**Validated:** Comprehensive lifecycle coverage.

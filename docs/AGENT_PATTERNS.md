@@ -381,7 +381,7 @@ Canonical example: `apps/backend/http/customer/customers.http`
 
 ### Test Utilities — Complete Reference
 
-Do not search for these — they exist at the paths below.
+These tables are **not exhaustive** — they show the common entries. `ls` the directory for the full set before writing a new double, builder or helper: `apps/backend/src/test/{builders/<ctx>,infrastructure,repositories,factories,utils}`. Builder contexts: `booking`, `customer`, `loyalty`, `notification`, `platform`, `shared`, `staff`; `infrastructure/` holds about 28 `InMemory*` port doubles and `repositories/` about 30 in-memory repositories (including `loyalty/`); `utils/` also has `loyalty-integration-app.ts` and `platform-integration-app.ts`; `factories/` also has `real-outbox-publisher.factory.ts`.
 
 #### Helpers (`apps/backend/src/test/utils/`)
 
@@ -413,7 +413,7 @@ Do not search for these — they exist at the paths below.
 | `in-memory-notification-dispatcher.ts` | `InMemoryNotificationDispatcher` | Notification unit specs |
 | `in-memory-notification-staff.port.ts` | `InMemoryNotificationStaffPort` | Notification unit specs |
 | `in-memory-notification-platform.port.ts` | `InMemoryNotificationPlatformPort` | Notification unit specs |
-| `in-memory-booking-availability.ts` | `InMemoryBookingAvailability` | Booking unit specs |
+| `in-memory-booking-availability.ts` | `InMemoryBookingAvailabilityPort` | Booking unit specs |
 | `in-memory-cache.port.ts` | `InMemoryCachePort` | Any `CachingXxxRepository` unit spec — `.has(key)` for state assertions, `failNextGet/Set/Del(err)` for error-path tests |
 
 #### InMemory repositories (`apps/backend/src/test/repositories/<ctx>/`)

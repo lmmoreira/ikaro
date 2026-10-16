@@ -72,7 +72,7 @@ Cross-cutting concerns ONLY. Domain objects and repositories are NEVER here, and
 
 ```text
 apps/backend/src/shared/
-├── ports/            # IEventBus, IRepository<T> — no barrel index.ts (ESLint enforced)
+├── ports/            # IEventBus, IOutboxRepository, ITransactionManager, ITriggerBus … (cross-cutting ports only; each context's repository ports live in its own application/ports/) — no barrel index.ts (ESLint enforced)
 ├── application/      # use-cases/log-domain-event.use-case.ts only — the shared audit-log consumer (M23-S36)
 ├── domain/           # AggregateRoot, DomainEvent, ValueObject base classes — no barrel index.ts
 ├── value-objects/    # Email, PhoneNumber, Address, Money, HexColor, Timezone, TimeOfDay, CalendarDate, Slug, CountryCode, SeoTitle, SeoDescription

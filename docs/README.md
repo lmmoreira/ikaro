@@ -41,7 +41,7 @@ These documents define the implementation, testing, and deployment strategies:
 - **What:** Trunk-Based Development, automated gates, and security scans.
 
 #### **10-OBSERVABILITY_STRATEGY.md**
-- **What:** Logging, Tracing (OTel), and Metrics (Prometheus/Grafana).
+- **What:** Logging, Tracing (OTel) and Metrics (OTel → Cloud Trace, Cloud Logging, Managed Prometheus).
 
 #### **11-ARCHITECTURE.md**
 - **What:** System diagram and Hexagonal Architecture deep-dive.

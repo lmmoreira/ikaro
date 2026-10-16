@@ -79,7 +79,6 @@ This document is the error-response *reference*. The canonical code catalog is `
 | **403** | Forbidden | Tenant mismatch or insufficient role |
 | **404** | Not Found | Resource does not exist in the current tenant |
 | **409** | Conflict | Slot/state conflict — e.g. overlapping booking, invalid state transition |
-| **413** | Payload Too Large | File upload exceeds size limit |
 | **422** | Unprocessable Entity | Request is well-formed but a domain rule rejects it — e.g. an availability alert's criteria, a recurring schedule's term, a required resource selection or intake answer |
 | **429** | Too Many Requests | Rate limit / per-session quota exceeded |
 | **500** | Internal Server Error | Unhandled exception |

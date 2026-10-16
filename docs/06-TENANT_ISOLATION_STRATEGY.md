@@ -29,7 +29,7 @@ We distinguish between two types of users to balance flexibility for customers a
 Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and cost-effectiveness, but enforces isolation through strict software patterns.
 
 ### **Logical Isolation (tenant_id)**
-- **Every Table:** Every single table in the database includes a `tenant_id` column.
+- **Every Table:** Every single table in the database includes a `tenant_id` column, except the documented exemptions below (`shared.inbox`, which carries none, and `platform.chatbot_provider_balance`, platform-operator data).
 - **Query Pattern:** Every query **MUST** include a `tenant_id` filter.
   ```sql
   -- CORRECT
@@ -42,7 +42,7 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 ### **The "Tenant Context" Flow**
 1. **Detection:** Tenant identity comes exclusively from the JWT/session cookie (post-TD35 — see `docs/24-BFF_ARCHITECTURE.md` § Request Lifecycle). The BFF reads `tenantId` from `req.user` and forwards it to the backend as the `X-Tenant-ID` header — the browser never sends a tenant header itself.
 2. **Injection:** The `RequestInterceptor` injects this ID into the Request Context.
-3. **Enforcement:** The Repository layer automatically appends the `tenant_id` to all database operations.
+3. **Enforcement:** By convention, not automatically: every repository method takes `tenantId` and filters on it explicitly, and use cases always receive it from the request context. There is no shared base class, subscriber or row-level security that adds it for you, so a missing `WHERE tenant_id` is a defect that only review, the composite `(tenant_id, id)` FKs and the tenant-isolation tests catch.
 
 ### **Documented exemption: transport infrastructure (`shared.outbox` / `shared.inbox`)**
 

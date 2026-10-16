@@ -231,20 +231,20 @@ BookingLine {
   - Validates calendar availability against the total duration.
   - Creates booking in `PENDING`.
   - Publishes `BookingRequested`.
-- `approveBooking()` → transitions `PENDING | INFO_REQUESTED → APPROVED`, publishes `BookingApproved` (event carries the line summary).
-- `rejectBooking(actor, reason)` → transitions `PENDING | INFO_REQUESTED → REJECTED`, publishes `BookingRejected`.
-- `requestMoreInfo(informationNeeded)` → `PENDING → INFO_REQUESTED`, publishes `BookingInfoRequested`.
+- `approve(actor, correlationId, scheduledAt?)` → transitions `PENDING | INFO_REQUESTED → APPROVED`, publishes `BookingApproved` (event carries the line summary).
+- `reject(actor, reason, correlationId)` → transitions `PENDING | INFO_REQUESTED → REJECTED`, publishes `BookingRejected`.
+- `requestMoreInfo(actor, message, correlationId)` → `PENDING → INFO_REQUESTED`, publishes `BookingInfoRequested`.
 - `submitInformation(payload)` → `INFO_REQUESTED → PENDING`, publishes `BookingInfoSubmitted`.
-- `completeBooking(afterServicePhotoUrls, adminNotes?, actualPrices?: Map<BookingLineId, Money>)`
+- `complete(actor, lineActualPrices: Map<lineId, Money>, afterPhotos, correlationId, adminNotes?, discountByPoints?)`
   → `APPROVED → COMPLETED`.
-  For each line: sets `actualPriceCharged = actualPrices[lineId] ?? priceAtBooking`.
+  For each line: sets `actualPriceCharged = lineActualPrices[lineId] ?? priceAtBooking`.
   Computes and caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   Stores photos. Publishes `BookingCompleted` **with the full line list including `actualPriceCharged`**.
-- `cancelBooking(actor, reason?)` → validates `tenants.settings.booking.cancellationWindowHours` rule, transitions to `CANCELLED`, publishes `BookingCancelled`.
+- `cancel(actor, correlationId, reason?, cancelledByScheduleEnd = false)` → transitions `PENDING | INFO_REQUESTED | APPROVED → CANCELLED`, publishes `BookingCancelled`. The aggregate does not check the cancellation window: the customer use case calls `isEligibleForCancellation()` first; staff cancels have no window.
 - Every status-changing method above (and `markNoShow` / `correctNoShow`) takes the acting `BookingActor` (`{ type: STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM, id }`) and records the transition — see *`Booking` — modified (M23 Cluster 3)* below. `BookingCancelled.isBusiness` is derived from the actor (`type !== CUSTOMER`), not passed in.
-- `isEligibleForCancellation(now)` → checks the cancellation-window rule.
-- `uploadBeforeServicePhotos(photoUrls)` → appends to `beforeServicePhotoUrls`.
-- `uploadAfterServicePhotos(photoUrls)` → appends to `afterServicePhotoUrls`.
+- `isEligibleForCancellation(cancellationWindowHours)` → `now < scheduledAt − window`; `cancellableUntil(hours)` returns that deadline. `isEligibleForReschedule(hours)` and `rescheduleEligibleUntil(hours)` are the customer-reschedule twins (UC-069), with the window resolved by the caller (`Service.rescheduleWindowHoursOverride ?? tenant default`).
+- `reschedule(actorId, newScheduledAt, correlationId, isBusiness, adminNotes?, durationChange?)` → `APPROVED` only; publishes `BookingRescheduled`.
+- Photos have no mutator methods: `beforeServicePhotoUrls` are set when the booking is requested and the after photos are passed to `complete()`.
 
 ---
 
@@ -1271,7 +1271,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `ServicePointsEarned` | `BookingCompleted` consumed → one `LoyaltyEntry` inserted per `BookingLine`, **one event per booking** (`eventVersion = 2`, lists every line) | Notification Context |
-| `PointsExpiringSoon` | Weekly cron (Mondays) finds entries whose `expires_at` falls in the **next 7 days** — forward-looking warning | Notification Context |
+| `PointsExpiringSoon` | Weekly cron (Mondays) finds entries whose `expires_at` falls within the next `loyalty.expiryWarningDays` (default 7, see `docs/21`) — forward-looking warning | Notification Context |
 
 ### **Staff Context Events**
 

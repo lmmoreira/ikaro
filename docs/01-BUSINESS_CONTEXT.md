@@ -287,10 +287,10 @@ Small car wash businesses face challenges:
 ## Technical Constraints & Decisions
 
 - **Architecture:** Hexagonal (ports & adapters) with DDD principles.
-- **Deployment:** **Docker-centric**. The entire platform must be containerized and deployable to any cloud (GCP, AWS, Azure) or on-premise.
+- **Deployment:** **Docker-centric**. The entire platform is containerized and runs on GCP Cloud Run (the committed, GCP-only target; see `docs/22-TECH_STACK_DECISIONS.md`).
 - **No Vendor Lock-in:** 
   - Strict use of standard PostgreSQL (no proprietary extensions).
-  - Observability using Open-Source standards (**Prometheus, Grafana, OpenTelemetry**).
+  - Observability using open standards: **OpenTelemetry** exported to Google Cloud Trace, Logging and Managed Service for Prometheus.
   - Infrastructure as Code (Terraform) focused on portable resources.
 - **Stack:** NestJS backend, React frontend, BFF gateway.
 - **Authentication:** Google OAuth 2.0 (standard implementation, not cloud-specific).

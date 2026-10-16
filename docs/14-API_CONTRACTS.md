@@ -6,7 +6,7 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md) for complete error reference.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** every endpoint/param tagged `(M21)` / `(M21 Cluster N)` throughout this doc (Service Extensions §1, Recurring Reservations/Availability Alerts/Future Commitment Exceptions §4, Classes & Sessions §4b, and the M21-tagged extensions to Reschedule/Availability/Services) belongs to the Multi-Vertical Scheduling epic — none of it exists in code yet, **except what M23 has since shipped: Recurring Reservations (create, list, get, end, approve, reject — M23-S04/S05/S18/S20/S42; `PATCH .../occurrences/...` was removed by M23-S08, an occurrence is its linked booking, listed via `GET /bookings?recurringScheduleId=`) and the Future Commitment Exceptions worklist (`/scheduling-exceptions`, M23-S08); Availability Alerts (create, list, get, edit, cancel — M23-S06/S42; the matching worker is M23-S07); the no-show routes (`POST /bookings/:id/no-show`, `/no-show/correct` — M23-S09) and staff-created bookings (`POST /bookings/staff` — M23-S39) are live too; the Tenant Onboarding Bootstrap (UC-075) moved to M24-S21 and is still planned; Classes & Sessions are still planned.** See `plan/M21-MULTIVERTICAL-FOUNDATION.md` through `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Exceptions — fully live:** Resource Management §4 (UC-044–UC-049), shipped in M21-S01 (backend/BFF) and M21-S04 (manager dashboard frontend); and the `resourceId` (M21 Cluster 1) param on the schedule closures/openings endpoints below, shipped in M21-S03. Untagged content in this doc is live MVP behavior — as are M22-tagged endpoints/params (Service Extensions — M22 Cluster 2 below), a separate milestone this banner doesn't cover, **shipped as of M22-S01/S02/S03/S05/S06 — `GET /schedule/day-grid` (UC-057) backend + BFF shipped in M22-S05; the manager-facing "Horários" bounded multi-resource column view that consumes it shipped in M22-S06.**
+> ⚠️ **PLANNED, NOT YET BUILT:** only the Tenant Onboarding Bootstrap (UC-075, `POST /onboarding/bootstrap`, moved to M24-S21) and §4b Classes & Sessions (M24 Cluster 4) — see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Everything else in this doc is live,** including every endpoint tagged M21, M22 or M23: Resource Management (UC-044–UC-049), Service Extensions (M22), `GET /schedule/day-grid` (UC-057), the `resourceId` param on schedule closures/openings, Recurring Reservations (an occurrence is its linked booking, listed via `GET /bookings?recurringScheduleId=`), the Future Commitment Exceptions worklist (`/scheduling-exceptions`), Availability Alerts, the no-show routes, and staff-created bookings (`POST /bookings/staff`). Untagged content is live MVP behavior.
 
 ---
 
@@ -446,7 +446,8 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
 - `GET /services/:id/edit-view` -> The Serviços edit page's composite read (STAFF|MANAGER; added M22-S04): `{ service: StaffServiceResponse, intakeSchema: ServiceIntakeSchemaResponse }` (`StaffServiceEditViewResponse`). BFF-only — it fans out to backend `GET /services/:id` and `GET /services/:id/intake-schema` so `apps/web` consumes one contract (`docs/24-BFF_ARCHITECTURE.md` § composite views). `404` if the service is not found or belongs to another tenant.
 - `POST /services` -> Create service (STAFF|MANAGER). Body includes `requiresPickupAddress: boolean` (default `false`), and, from M22 Cluster 2, `bookingModel: 'APPOINTMENT'|'SESSION'` (UC-056, default `APPOINTMENT`) and, when `bookingModel: 'SESSION'`, `classResourceSlots` (UC-056 step 3 — inert until M24).
 - `PATCH /services/:id` -> Update service details/price/duration/`requiresPickupAddress` (STAFF|MANAGER). From M22 Cluster 2, also accepts `bufferAfterMinutes` (UC-053) and `bookingModel` (UC-056, immutable once the service has booking history).
-- `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). Returns `204 No Content`.
+- `DELETE /services/:id` -> Deactivate service (STAFF|MANAGER). The BFF returns `204 No Content`; the backend itself answers `200`.
+- `PATCH /services/:id/activate` -> Reactivate a deactivated service (STAFF|MANAGER).
 
 ### **Service Extensions — M22 Cluster 2 (UC-050–056)**
 
@@ -1560,6 +1561,12 @@ Batch validation failure (Zod pipes) — `violations[]` instead of top-level `co
 | **401** | Unauthorized | Invalid/Expired JWT. |
 | **403** | Forbidden | Tenant mismatch or insufficient role. |
 | **404** | Not Found | Resource does not exist in the current tenant. |
+| **409** | Conflict | Slot/state conflict (overlapping booking, invalid transition). A recurring-schedule conflict also carries a `conflicts` list. |
+| **422** | Unprocessable Entity | Well-formed request a domain rule rejects (a closed day, a window, a required selection or intake answer). |
+| **429** | Too Many Requests | Rate limit / per-session quota. |
+| **503** | Service Unavailable | Transient: a lock wait or a deadlock abort. Always carries `Retry-After: 1`; nothing was written, so the client may retry. |
+
+Full status table and the `conflicts` extension: [25-ERROR_CATALOG.md](25-ERROR_CATALOG.md).
 
 ---
 

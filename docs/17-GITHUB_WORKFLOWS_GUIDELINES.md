@@ -8,7 +8,7 @@ Ikaro follows **Trunk-Based Development (TBD)** to ensure high velocity and prof
 
 ## 1. Branching Strategy
 
-We use a single long-lived branch: `main`. (The repo's default branch is `main`; "main" is not used.)
+We use a single long-lived branch: `main`. (The repo's default branch is `main`; `master` is not used.)
 
 ### **Feature Branches**
 - **Life Span:** Maximum 24-48 hours.
@@ -87,7 +87,20 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 - `no-infra-app-mix` — a PR touching Terraform and application code fails unless it carries the `infra-app-mix-ok` label. The label must already be on the PR **when CI first starts**: the check does not re-run on the `labeled` event. Details: `infra/terraform/README.md`.
 - `no-foundation-plus-other-infra-mix` — a PR may not change `foundation` together with any other Terraform root (hard fail, no label escape; the TD39 apply-order deadlock guard).
 
-**`architecture-check`** runs the detector suite's own tests (`pnpm --filter @ikaro/architecture-check test`) before the detectors themselves; detectors include `domain-event-audit-coverage` (every domain event needs an `audit-log` subscription).
+**`architecture-check`** runs the detector suite's own tests (`pnpm --filter @ikaro/architecture-check test`) before the detectors themselves; the detectors are listed below (run `pnpm architecture-check` locally; rule ids are what the failure message prints; their policy lives in `packages/architecture-check/architecture-policy.json`).
+
+| Rule id | What it enforces |
+|---|---|
+| `agent-context-file` | `.copilot/context.md` exists, its pointers resolve, no PR-number/ISO-date literals, each section within its budget (`agent-context-policy.json`), the `CLAUDE.md`/`AGENTS.md`/`gemini.md` symlinks agree |
+| `transactional-io`, `transactional-save` | no cross-service network I/O inside `txManager.run()`; every repository `save()` is textually inside the callback |
+| `unsafe-use-existing`, `reverse-di-alias`, `global-module-export-pairing` | DI: no `useExisting` alias of a class that is also its own provider; a `@Global()` module exports every token it provides |
+| `error-mapper-coverage`, `error-prototype-chain`, `vo-create-no-bare-error`, `shared-vo-error-mapper-coverage` | every domain error maps to a typed HTTP error; VOs throw typed errors, not `Error` |
+| `aggregate-primitive-vo`, `vo-construction-validation` | aggregate properties use the shared value objects; VO normalization is reachable from `create()` |
+| `use-case-result-naming`, `use-case-input-naming` | `execute()` types are named `{ClassName}Result` / `{ClassName}Input` |
+| `bff-controller-inline-type`, `ikaro-types-drift`, `closed-enum-registry` | BFF response types live in `.types.ts`; web and BFF interfaces agree with `@ikaro/types`; mirrored closed enums have identical members |
+| `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, `test-harness-registration`, `no-jest-fn-for-repository-or-port` | every entity has a builder defaulting to `uuidv7()`; integration helpers are registered; ports are faked with `InMemory*`, never `jest.fn()` |
+| `domain-event-audit-coverage` | every domain event has an `audit-log` subscription |
+| `lock-catalog-coverage`, `occupancy-release-choke-point` | every lock in the code is in `docs/28-LOCK_CATALOG.md`; occupancy is released only through the shared choke-point helper |
 
 **Snyk SCA is not part of the per-PR gate** — it runs only as a weekly scheduled scan (`weekly-jobs.yml`, every Monday, `--all-projects`), not as a required PR check. Removed from `pr-tests.yml` and from `main`'s required status checks 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s iterative bot-review rounds (each dependency-file-touching push re-ran a full-workspace scan). Trivy Image Scan still runs per-PR and substantially overlaps Snyk's coverage for any CVE that ends up in a built image.
 
@@ -96,7 +109,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 ## 6. Release Management
 
 - **Continuous Deployment:** Merges to `main` are automatically deployed to **Staging**.
-- **Production Promotion:** Staging is promoted to **Production** after a final automated smoke test and (optional) manual sign-off.
+- **Production Promotion:** Merges to `main` that change `apps/**` or `packages/**` deploy to Staging automatically. **Production** is promoted manually through `deploy-production.yml` (`workflow_dispatch`); its `migrate-and-deploy` job needs the `production` environment's required-reviewer approval, and the smoke test runs after the deploy.
 
 ---
 
@@ -243,8 +256,3 @@ For GCP identifiers used in CI (WIF provider resource paths, service-account ema
 - **Secrets:** WIF provider resource names (`WIF_PROVIDER_*`) and CI service-account emails (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`). None of these are bearer credentials by themselves — WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims regardless of who can read the value — but Secrets auto-redact in every log line, which is free hygiene against a future workflow accidentally echoing one during debugging. Matches Google's own `google-github-actions/auth@v2` reference examples, and this repo's own M17-S08 smoke test (which used temporary repo secrets for the same values, citing public-repo log redaction).
 - **Variables:** everything else non-identity-shaped — project IDs (`GCP_PROJECT_*`), region (`GCP_REGION`), registry host (`GAR_HOST`). These are already committed in plaintext elsewhere in this repo (`terraform.tfvars`, `plan/M17-CLOUD-DEPLOY.md`), so there's no hygiene benefit to hiding them, and being readable in logs helps debugging.
 - **Scope: repo-level, not environment-scoped**, for any value a PR-triggered `terraform plan`/`tf-planner` job needs — that job intentionally declares no `environment:` (so plans can run on every PR without an approval gate), and an environment-scoped secret/variable is invisible to a job that doesn't declare that environment. Established in M17-S23 — **and still violated once anyway, in M17-S24 (2026-07-21):** `IAM_ADMIN_USER`/`BREVO_SMTP_LOGIN` were both created as environment-scoped values despite this rule already being written down here, and resolved empty in every `plan-*`/`drift-*` job until caught and moved to repo-level. Knowing the rule exists isn't the same as checking a new addition against it — grep this section against every new Variable/Secret before creating it, don't rely on memory.
-
----
-
-**Status:** Phase 2 - Technical Architecture  
-**Validated:** Aligned with CI/CD and Testing Strategies.

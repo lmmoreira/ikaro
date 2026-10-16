@@ -688,7 +688,7 @@ Returns:
   - **A1: Resource is part of an active class-schedule-template bundle** (Cluster 4) → System ends/deactivates that template for future generation and lists any materialized future sessions for resolution.
   - **A2: Resource not found or belongs to another tenant** → `404 Not Found`.
 - **Postconditions:** Resource no longer offered for new bookings; existing history intact. Returns `204 No Content`.
-- **Events Triggered:** `FutureCommitmentExceptionRaised` (once per affected booking; none when there are none).
+- **Events Triggered:** `FutureCommitmentExceptionRaised` (once per affected booking; none when there are none) and one `ResourceDeactivationImpactRaised` for the deactivation as a whole (it drives the single manager email, M23-S23).
 
 ---
 
@@ -1254,7 +1254,7 @@ Returns:
   - **A1: The same unresolved impact already has an open worklist entry** → Update/reuse that entry; never create duplicate manager work.
   - **A2: No safe alternative exists** → The item remains open with an explicit "no compatible alternative" result; the manager reschedules or cancels in UC-077 (the dashboard disables **Reatribuir** for such an item — there is nothing to move to — and the API's `keep`/dismiss exist but are not offered, see UC-077's note).
 - **Postconditions:** Existing commitments are never silently invalidated or automatically moved; UC-077 is the only resolution flow.
-- **Events Triggered:** `FutureCommitmentExceptionRaised`.
+- **Events Triggered:** `FutureCommitmentExceptionRaised` per affected booking, and `ResourceDeactivationImpactRaised` once per deactivation (manager email only; see UC-047).
 
 ---
 

@@ -23,11 +23,11 @@ For a small startup, being **finance conscious** means maximizing the value of e
 |----------|------------------|------------------|------|
 | **Source Control** | GitHub Free/Team | $0 - $4/user | Industry standard, excellent free tier. |
 | **CI/CD** | GitHub Actions | $0 (Free minutes) | Generous free tier for private repos. |
-| **Quality/Security**| SonarCloud + Snyk | $0 (Free tiers) | Use "SaaS" free versions first. |
+| **Quality/Security**| SonarCloud + Snyk (weekly scan only) | $0 (Free tiers) | Use "SaaS" free versions first; Snyk runs weekly, not per PR, to stay inside its monthly test quota. |
 | **Compute** | GCP Cloud Run | $0 - $10 | Scale-to-zero. Only pay when users are active. |
 | **Database** | Managed Postgres (Small) | $15 - $30 | **Crucial:** Never self-host DB. Managed backups are worth the $15 premium. |
 | **Email** | Brevo | $0 (Free tier) | High deliverability for free (up to 3k-10k emails/mo). |
-| **Observability** | Self-hosted Prometheus/Grafana | ~$5 (Small VM/Volume) | Lower cost than DataDog/NewRelic. |
+| **Observability** | Google Cloud Trace, Logging and Monitoring, Managed Service for Prometheus | usage-based, ~$0 at MVP volume | No VM to run; no self-hosted Grafana or Prometheus exists (see `docs/10-OBSERVABILITY_STRATEGY.md`). |
 | **Total MVP Cost** | | **~$20 - $50** | A professional, scalable SaaS for the price of a dinner. |
 
 ---
@@ -39,10 +39,10 @@ Use "Serverless Containers" (GCP Cloud Run). If no one is using the app at 3 AM,
 
 ### **B. Development Environments**
 - **No permanent "Dev" server:** Developers run everything in **Docker locally**.
-- **Ephemeral Staging:** Spin up the Staging environment only when a PR is open, and shut it down after merge.
+- **Ephemeral Staging (idea, not implemented):** Staging is a persistent Terraform environment today; spinning it up only while a PR is open was considered and not built.
 
 ### **C. Managed Database vs. VPS**
-While a $5 VPS can run Postgres, an **RDS/Cloud SQL** instance (starting at ~$15) provides:
+While a $5 VPS can run Postgres, a **Cloud SQL** instance (starting at ~$15) provides:
 - Automatic Point-in-Time recovery (Backups).
 - Automatic security patches.
 - 99.9% availability.
