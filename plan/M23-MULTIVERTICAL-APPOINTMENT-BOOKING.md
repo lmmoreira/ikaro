@@ -4024,7 +4024,7 @@ Decisions baked in (do not re-derive at discovery):
 
 ---
 
-### M23-S48 — A booking's "Reservas a resolver" entries close in the same transaction when the booking no longer occupies the entry's resource (cancel, reject, reschedule, end of a recurring schedule)
+### M23-S48 — A booking's "Reservas a resolver" entries close in the same transaction when the booking no longer occupies the entry's resource (cancel, reject, reschedule, end of a recurring schedule) ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** L (three commits inside one PR: the closing helpers, then the three lock-order fixes H3, H1, H2; each with its own concurrent test)
