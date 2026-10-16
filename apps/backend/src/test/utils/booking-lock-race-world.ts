@@ -172,7 +172,7 @@ export function holdResourceLocks(
 // Keeps a transaction open after `acquire` took its lock (an advisory lock, or a row lock such as
 // SELECT ... FOR UPDATE) until `release()`.
 export function holdTransaction(
-  env: LockRaceEnv,
+  env: Pick<LockRaceEnv, 'txManager'>,
   acquire: () => Promise<unknown>,
 ): Promise<{ release: () => Promise<void> }> {
   return new Promise((resolveHeld, rejectHeld) => {

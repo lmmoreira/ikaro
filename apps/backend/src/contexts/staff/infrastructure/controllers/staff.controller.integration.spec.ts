@@ -18,6 +18,16 @@ import { InMemoryTenantSettingsPort } from '../../../../test/infrastructure/in-m
 import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.port';
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
+import { DeactivateStaffUseCase } from '../../application/use-cases/deactivate-staff.use-case';
+import { IStaffRepository, STAFF_REPOSITORY } from '../../application/ports/staff-repository.port';
+import { LastActiveManagerError } from '../../domain/errors/staff-domain.error';
+import { uuidv7 } from '../../../../shared/domain/uuid-v7';
+import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import {
+  databaseNow,
+  holdTransaction,
+  waitForBlockedLock,
+} from '../../../../test/utils/booking-lock-race-world';
 import { StaffEntity } from '../entities/staff.entity';
 import { StaffModule } from '../../staff.module';
 import { testConfigModule } from '../../../../test/utils/test-config-module';
@@ -423,7 +433,10 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(409);
     });
 
-    it('two managers deactivating each other at the same time: one wins, the other gets 409, no deadlock (M23-S48)', async () => {
+    // docs/28-LOCK_CATALOG.md R5. The first deactivation has locked the manager rows and changed
+    // one of them but not committed; the second one must wait for it and then see one manager
+    // left. Without the row lock it counts two from its snapshot and both managers end up inactive.
+    it('the last-manager guard waits for an uncommitted manager deactivation, then refuses (M23-S48)', async () => {
       const tenantId = '10000000-0000-4000-8000-000000000111';
       const [first, second] = ['a', 'b'].map((suffix) =>
         new StaffEntityBuilder()
@@ -436,22 +449,49 @@ describe('StaffController (integration) — management endpoints', () => {
       );
       await ds.getRepository(StaffEntity).delete({ tenantId });
       await ds.getRepository(StaffEntity).save([first, second]);
+      const staffRepo = app.get<IStaffRepository>(STAFF_REPOSITORY);
+      const deactivateStaff = app.get(DeactivateStaffUseCase);
 
-      const deactivate = (target: StaffEntity, actor: StaffEntity) =>
-        request(app.getHttpServer())
-          .patch(`/staff/${target.id}/deactivate`)
-          .set(actorHeaders(tenantId, actor.id));
-      const [one, other] = await Promise.all([
-        deactivate(second, first),
-        deactivate(first, second),
-      ]);
+      const held = await holdTransaction({ txManager: app.get(TRANSACTION_MANAGER) }, async () => {
+        await staffRepo.countActiveManagersByTenant(tenantId);
+        const target = (await staffRepo.findById(second.id, tenantId))!;
+        target.deactivate(first.id, uuidv7());
+        await staffRepo.save(target);
+      });
+      try {
+        const since = await databaseNow(ds);
+        let finished = false;
+        const outcome = deactivateStaff
+          .execute({
+            staffId: first.id,
+            tenantId,
+            deactivatedBy: second.id,
+            correlationId: uuidv7(),
+          })
+          .then(
+            () => ({ error: undefined }),
+            (error: unknown) => ({ error }),
+          )
+          .finally(() => (finished = true));
+        await Promise.race([
+          waitForBlockedLock(ds, 'row', since),
+          outcome.then(() => {
+            throw new Error('the guard finished without waiting for the uncommitted deactivation');
+          }),
+        ]);
+        expect(finished).toBe(false);
 
-      expect([one.status, other.status].sort()).toEqual([200, 409]);
-      const active = await ds
-        .getRepository(StaffEntity)
-        .count({ where: { tenantId, role: 'MANAGER', isActive: true } });
-      expect(active).toBe(1);
-      await ds.getRepository(StaffEntity).delete({ tenantId });
+        await held.release();
+        expect((await outcome).error).toBeInstanceOf(LastActiveManagerError);
+        expect(
+          await ds
+            .getRepository(StaffEntity)
+            .count({ where: { tenantId, role: 'MANAGER', isActive: true } }),
+        ).toBe(1);
+      } finally {
+        await held.release();
+        await ds.getRepository(StaffEntity).delete({ tenantId });
+      }
     });
 
     it('tenant isolation: returns 404 for staff belonging to another tenant', async () => {
