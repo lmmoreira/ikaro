@@ -196,14 +196,61 @@ Authorization: Bearer {{managerToken}}
 GET {{bffUrl}}/v1/services/{{serviceId}}/intake-schema
 Authorization: Bearer {{managerToken}}
 
+###
+
+### The Serviços edit page's composite read: the service plus its intake schema in one response (M22-S04)
+GET {{bffUrl}}/v1/services/{{serviceId}}/edit-view
+Authorization: Bearer {{managerToken}}
+
 # ─────────────────────────────────────────────────────────────────────────────
-# HAPPY PATH — deactivate service (UC-013)
+# HAPPY PATH — booking policy and intake schema (UC-055, UC-054)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Set the booking policy (UC-055) — only valid on an APPOINTMENT service
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/booking-policy
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "defaultApprovalMode": "MANUAL_APPROVAL",
+  "manualHoldMinutes": 30,
+  "cancellationWindowHoursOverride": null,
+  "recurrenceEligible": true,
+  "availabilityAlertEligible": true
+}
+
+###
+
+### Publish a booking-intake schema (UC-054) — 201, a new version; an older version is never edited
+POST {{bffUrl}}/v1/services/{{serviceId}}/intake-schema
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "questions": [
+    { "fieldKey": "accessNeeds", "label": "Necessidades de acesso", "type": "FREE_TEXT", "required": false }
+  ],
+  "consentText": "Concordo com os termos de agendamento",
+  "requiresNamedAttendees": false,
+  "participantCountRequired": false
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — deactivate / reactivate service (UC-013)
 # ─────────────────────────────────────────────────────────────────────────────
 
 ###
 
 ### Deactivate a service (logical delete) — returns 204 No Content
 DELETE {{bffUrl}}/v1/services/{{serviceId}}
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Reactivate a deactivated service
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/activate
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────

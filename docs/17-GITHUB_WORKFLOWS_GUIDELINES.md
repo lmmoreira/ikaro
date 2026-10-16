@@ -77,11 +77,13 @@ Snyk (dependency SCA) is **not** part of this per-PR gate — see §5 below.
 Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they run on `pull_request`, not on every push to a branch):
 1. **Linting:** Prettier & ESLint check.
 2. **Static Analysis:** `tsc` (TypeScript) verification.
-3. **Tests:** Execution of the full Test Pyramid (Unit → Integration).
+3. **Tests:** Execution of the full Test Pyramid (Unit → Integration), with coverage above 80% on changed code (SonarCloud differential).
 4. **Security:** Gitleaks scan for secrets, Trivy image scan, and Checkov IaC scan.
 5. **Quality Gate:** SonarCloud analysis must be "GREEN".
 
-(See §7 below for the full job list — this is a summary, not exhaustive; several additional PR-gating jobs, e.g. `architecture-check`, `dependency-cruise`, `knip`, `actionlint`/`zizmor`, `env-contract`, `attw-check`, `pubsub-catalog` (regenerates `infra/terraform/pubsub-catalog.json` and fails on a diff), aren't itemized here.)
+(This list is a summary, not exhaustive. Additional gating jobs: `architecture-check`, `actionlint`/`zizmor`, the Terraform env-var contract and `pubsub-catalog` (regenerates `infra/terraform/pubsub-catalog.json` and fails on a diff). **Report-only, never blocking:** the dependency-graph scan (`dependency-cruise`), the unused-dependency and dead-export scan (`knip`) and the package publish-shape check (`attw-check`) all run with `continue-on-error`.)
+
+**Aggregate jobs:** the aggregate jobs that summarise a PR's checks are `All Checks Passed` (`pr-tests.yml`: tests, Gitleaks, Trivy, Checkov, Sonar) and `Infra PR Checks Passed` (`infra-deploy.yml`), plus the individual `pr-quality.yml` jobs (ESLint, Prettier, TypeScript, Architecture validation); `pr-quality.yml` has no aggregator of its own.
 
 **Infra PR-shape gates (both in `pr-quality.yml`):**
 - `no-infra-app-mix` — a PR touching Terraform and application code fails unless it carries the `infra-app-mix-ok` label. The label must already be on the PR **when CI first starts**: the check does not re-run on the `labeled` event. Details: `infra/terraform/README.md`.
@@ -127,29 +129,7 @@ All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions
 - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 ```
 
-**Current SHAs** (update the table when bumping action versions — corrected 2026-07-21, M17-S24, then again 2026-08-04 via a full `/docs-audit` sweep: `checkout`, `sonarqube-scan-action`, `action-actionlint`, and `zizmor-action` had all drifted a second time, evidently bumped by Dependabot without this table following along. This table has now drifted from reality twice — treat it as a recurring risk, not a one-time fix, and re-verify it against the real workflow files whenever a Dependabot Actions PR merges, not just when this doc happens to be touched):
-
-| Action | SHA | Tag |
-|--------|-----|-----|
-| `actions/checkout` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | v7.0.1 |
-| `actions/setup-node` | `820762786026740c76f36085b0efc47a31fe5020` | v7.0.0 |
-| `actions/download-artifact` | `3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c` | v8.0.1 |
-| `pnpm/action-setup` | `ea17c68df8912ef543352723c149a84f56e3d413` | v6.1.0 |
-| `SonarSource/sonarqube-scan-action` | `d209202bc7d53ff1cc128f7f907dac145c9d6ae9` | v8.3.0 |
-| `aquasecurity/trivy-action` | `ed142fd0673e97e23eac54620cfb913e5ce36c25` | v0.36.0 |
-| `crazy-max/ghaction-github-runtime` | `04d248b84655b509d8c44dc1d6f990c879747487` | v4.0.0 |
-| `dorny/paths-filter` | `ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d` | v4.0.3 |
-| `google-github-actions/auth` | `7c6bc770dae815cd3e89ee6cdf493a5fab2cc093` | v3 |
-| `hashicorp/setup-terraform` | `dfe3c3f87815947d99a8997f908cb6525fc44e9e` | v4.0.1 |
-| `reviewdog/action-actionlint` | `13465d022aa41c282f730be17574b5ce692d0186` | v1.78.1 |
-| `zizmorcore/zizmor-action` | `cc914d7f3750a2d13d75c7f184a1060aa0e9d482` | v0.6.4 |
-| `marocchino/sticky-pull-request-comment` | `5770ad5eb8f42dd2c4f34da00c94c5381e49af88` | v3.0.5 |
-| `actions/upload-artifact` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` | v7.0.1 |
-| `actions/dependency-review-action` | `a1d282b36b6f3519aa1f3fc636f609c47dddb294` | v5.0.0 |
-| `bridgecrewio/checkov-action` | `cc0e17d456ef1713bbfd963ebac19dc776775cb2` | v12.3128.0 |
-| `gitleaks/gitleaks-action` | `ff98106e4c7b2bc287b24eaf42907196329070c7` | v2.3.9 |
-| `github/codeql-action/upload-sarif` | `2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2` | v4 |
-| `snyk/actions/node` | `9adf32b1121593767fc3c057af55b55db032dc04` | v1.0.0 |
+**The workflow files are the source of truth for which SHA each action is pinned to** (`grep -rhn 'uses:' .github/workflows`). This doc used to carry a table of the current SHAs; it drifted from the workflows three times (Dependabot bumps the pins without touching the doc), so it was removed rather than corrected a fourth time. Pin format and the Dependabot flow stay as described above; `snyk/actions/node` is now used only in `weekly-jobs.yml`.
 
 To look up the SHA for any action: `gh api repos/<owner>/<repo>/git/ref/tags/<tag> --jq '.object.sha'`
 

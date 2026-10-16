@@ -76,3 +76,10 @@ Authorization: Bearer {{staffToken}}
 ### 409 — already resolved or past its hold (BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL)
 POST {{bffUrl}}/v1/recurring-booking-schedules/{{resolvedScheduleId}}/approve
 Authorization: Bearer {{staffToken}}
+
+###
+
+### End a schedule early — 200 {id, status: "CANCELLED", cancelledBookingIds[]}; cancels every future occurrence (UC-070 A2).
+### A CUSTOMER ends their own; STAFF|MANAGER may end any schedule of the tenant.
+POST {{bffUrl}}/v1/recurring-booking-schedules/{{activeScheduleId}}/end
+Authorization: Bearer {{staffToken}}

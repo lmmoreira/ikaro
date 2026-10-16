@@ -55,7 +55,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     contactPhone:        string
     contactAddress: {                                          // non-null if guest provided general address
       street: string, number: string, complement: string | null,
-      neighborhood: string, city: string, state: string, zipCode: string
+      neighborhood: string | null, city: string, state: string, zipCode: string
     } | null
     scheduledAt:       ISO8601                                // start of the slot
     totalDurationMins: number                                 // SUM(lines.durationMinsAtBooking)
@@ -63,7 +63,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     requiresPickup:    boolean                                // true if any line has requiresPickupAddressAtBooking=true
     pickupAddress: {                                          // non-null when requiresPickup=true
       street: string, number: string, complement: string | null,
-      neighborhood: string, city: string, state: string, zipCode: string
+      neighborhood: string | null, city: string, state: string, zipCode: string
     } | null
     lines: [                                                   // ≥ 1
       {
@@ -190,7 +190,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     adminNotes:              string | null
     pickupAddress: {                        // non-null if booking had a pickup service
       street: string, number: string, complement: string | null,
-      neighborhood: string, city: string, state: string, zipCode: string
+      neighborhood: string | null, city: string, state: string, zipCode: string
     } | null
     totalPrice:              { amount: string, currency: string }   // quoted total (sum of priceAtBooking)
     totalActualPrice:        { amount: string, currency: string }   // charged total (sum of actualPriceCharged)
@@ -203,10 +203,10 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
         pointsValueAtBooking: number        // becomes the resulting LoyaltyEntry.points (unaffected by price)
       }
     ]
-    discountByPoints: {                     // present only when a loyalty discount was applied (UC-009 A6)
+    discountByPoints?: {                    // omitted (never null) unless a loyalty discount was applied (UC-009 A6)
       pointsUsed:     number
       amountDeducted: { amount: string, currency: string }
-    } | null
+    }
   }
   ```
 - **Consumers:**

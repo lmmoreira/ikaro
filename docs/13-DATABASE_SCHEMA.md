@@ -48,8 +48,10 @@ This is a direct consequence of the Context Isolation Contract in `docs/05-BOUND
 ### 3. Audit Columns
 Every mutable table includes:
 - `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for `platform`-schema tables, see §2)
-- `created_at` TIMESTAMP WITH TIME ZONE DEFAULT now()
-- `updated_at` TIMESTAMP WITH TIME ZONE DEFAULT now() (mutable rows only)
+- `created_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
+- `updated_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now() (mutable rows only)
+
+> The per-table rows below that write `DEFAULT now()` without `NOT NULL` are shorthand: every migration declares both audit columns `NOT NULL`.
 
 Optional where relevant:
 - `deleted_at` TIMESTAMP WITH TIME ZONE — soft delete (bookings, services, staff)
@@ -67,8 +69,8 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | id | UUID | PRIMARY KEY |
 | name | VARCHAR(255) | NOT NULL |
 | slug | VARCHAR(100) | UNIQUE, NOT NULL |
-| settings | JSONB | Full schema → `docs/21-TENANTS_SETTINGS_SCHEMA.md` |
-| is_active | BOOLEAN | DEFAULT true |
+| settings | JSONB | NOT NULL DEFAULT `'{}'` — full schema → `docs/21-TENANTS_SETTINGS_SCHEMA.md` |
+| is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 
@@ -81,6 +83,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | layout | JSONB | Array of modules: `[{ type, data }]` |
 | seo | JSONB | NOT NULL DEFAULT `'{"title": null, "description": null}'::jsonb` — `{ title, description }`, both nullable; tenant-configured SEO overrides |
 | is_published | BOOLEAN | NOT NULL DEFAULT false |
+| created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column |
 | **INDEX** | (tenant_id) | |
@@ -263,7 +266,7 @@ Owned by: **Staff Context** (`src/contexts/staff/`)
 | deactivated_by | UUID | NULLABLE — the deactivating MANAGER's staff id; cleared on reactivation (migration `1748000000001`) |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
-| **UNIQUE** | (tenant_id, google_oauth_id) | Per-tenant unique — this is what *allows* the same person to have separate active rows at multiple tenants, not what prevents it (staff are multi-tenant, same shape as customers) |
+| **UNIQUE** | (tenant_id, google_oauth_id) WHERE google_oauth_id IS NOT NULL — `UQ_staff_tenant_google_oauth_id` | Partial, because a pending invite has no `google_oauth_id` yet. Per-tenant unique — this is what *allows* the same person to have separate active rows at multiple tenants, not what prevents it (staff are multi-tenant, same shape as customers) |
 | **UNIQUE** | (tenant_id, email) | Required for invite flow (UC-025, UC-028) |
 
 ---
@@ -1181,7 +1184,7 @@ Audit trail of every notification send attempt. Consumer idempotency is handled 
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | event_id | UUID | NOT NULL — source domain event's `eventId` |
-| notification_type | VARCHAR(64) | NOT NULL — `NotificationTemplateKey` value (the database column is 64; the TypeORM entity declares 100, which is harmless today because the longest key is 43 characters) |
+| notification_type | VARCHAR(64) | NOT NULL — `NotificationTemplateKey` value (the longest key today is 43 characters; a longer key needs a widening migration) |
 | channel | VARCHAR(32) | NOT NULL — `'EMAIL'` \| `'SMS'` \| `'WHATSAPP'` |
 | recipient_email | VARCHAR(255) | NOT NULL DEFAULT `''` |
 | status | VARCHAR(20) | NOT NULL DEFAULT `'PENDING'`, `CHK_notification_logs_status` CHECK IN (`'PENDING'`, `'SENT'`, `'FAILED'`) |

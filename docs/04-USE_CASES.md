@@ -493,8 +493,11 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 **Booking Duration Calculation:**
 ```
 booking_duration_minutes = SUM(service.duration_minutes for each service in basket)
-                         + tenants.settings.booking.serviceBufferMinutes
+                         + buffer
+buffer = the last service's own bufferAfterMinutes (UC-053), else tenants.settings.booking.serviceBufferMinutes
 ```
+
+For a resource-scoped service the gap is the larger of the service buffer and the resource's turnover (UC-059; `docs/27` § Buffer / turnover / transition-gap formulas).
 
 Example: basket = [Basic Wash (30 min), Wax (25 min)], buffer = 60 min, granularity = 30 min:
 - Raw duration: 30 + 25 + 60 = 115 minutes

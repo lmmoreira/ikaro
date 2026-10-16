@@ -14,7 +14,7 @@ export class NotificationLogEntity {
   @Column({ name: 'event_id', type: 'uuid' })
   eventId!: string;
 
-  @Column({ name: 'notification_type', type: 'varchar', length: 100 })
+  @Column({ name: 'notification_type', type: 'varchar', length: 64 })
   notificationType!: string;
 
   @Column({ type: 'varchar', length: 32 })

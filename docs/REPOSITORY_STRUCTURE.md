@@ -143,9 +143,12 @@ apps/web/
 │   ├── [slug]/
 │   ├── dashboard/
 │   ├── auth/
+│   ├── bookings/            # guest info-submission page (bookings/[id]/submit-info)
 │   ├── select-staff-tenant/
 │   ├── switch-tenant/
+│   ├── v1/[...path]/        # same-origin gateway to the BFF (see docs/24)
 │   └── api/
+├── proxy.ts                 # route protection (Next.js 16 proxy, formerly middleware)
 ├── features/
 │   ├── auth/
 │   ├── booking/
@@ -160,10 +163,9 @@ apps/web/
 ├── shared/
 │   ├── components/
 │   │   └── ui/
-│   ├── lib/
-│   │   ├── api/
-│   │   ├── formatting/
-│   │   └── i18n/
+│   ├── lib/                 # illustrative: `ls apps/web/shared/lib` is authoritative
+│   │   ├── address/ api/ auth/ eslint/ formatting/ health/
+│   │   └── i18n/ preferences/ runtime-env/ upload/
 │   └── utils/
 ├── providers/
 ├── i18n/

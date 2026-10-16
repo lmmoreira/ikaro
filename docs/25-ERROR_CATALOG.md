@@ -56,7 +56,7 @@ This document is the error-response *reference*. The canonical code catalog is `
 | `type` | string | Always `'about:blank'` — not a machine-readable identifier |
 | `status` | integer | HTTP status code |
 | `title` | string | Short error summary, derived from `status` |
-| `code` | string (optional) | Machine-readable error identifier — single-cause errors only. Full catalog: `packages/types/src/error-codes.ts` |
+| `code` | string (optional) | Machine-readable error identifier — single-cause errors only. Full catalog: `packages/types/src/error-codes.ts` **One known exception:** the backend's `RequestInterceptor` answers a request with no `X-Tenant-ID` header with a `400` titled `Missing Tenant Header` and no `code`. It is a backend-internal contract error (the BFF always sets the header from the JWT, so a browser never sees it); it is deliberately not in the catalog or the locale files. |
 | `field` | string (optional) | Which request field is at fault — single-cause errors only, routing use, never message selection |
 | `params` | object (optional) | Interpolation values for the resolved message template (e.g. `{ hours: 48 }`) |
 | `violations` | array (optional) | Batch validation failures — `{ field, code, params? }[]`. Mutually exclusive with top-level `code`/`field` |

@@ -365,6 +365,8 @@ ClassResourceSlot {
 }
 ```
 
+**Service key methods (M22/M23):** `update(...)`, `setResourceRequirements(requirements, activeResourceIdsByType)`, `setLegs(legs, activeResourceIdsByType)` (returns the new span), `setBufferAfterMinutes(minutes)`, `setBookingPolicy(policy)`, `changeBookingModel(...)`, `activate()` / `deactivate()`.
+
 **New invariants (M22 Cluster 2, enforced by the aggregate):**
 - `bookingModel` is immutable once the service has any booking history (UC-056 A1).
 - `resourceRequirements`/`legs`/`classResourceSlots` are mutually exclusive: a flat APPOINTMENT service sets `resourceRequirements` (`legs = null`); a legged APPOINTMENT service sets `legs` (`resourceRequirements = []`, `bufferAfterMinutes = null`); a SESSION service sets `classResourceSlots` (`resourceRequirements = []`, `legs = null`).
@@ -466,8 +468,8 @@ Resource {
 - Deactivating a `Resource` never silently cancels or demotes an existing approved appointment or materialized session — it stops future scheduling only and surfaces a resolution worklist (UC-047).
 
 **Key Methods:**
-- `Resource.create(tenantId, type, name, workingHours?, refId?, maxCapacity?)` — validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
-- `update(name, type, refId, workingHours, turnoverMinutes, maxCapacity)` (UC-046) — a manager can correct any field, including `type`/`refId`, without deactivate+recreate; re-runs the same invariants `create()` enforces, plus the `LOCATION`-type-immutability guard and the `LOCATION`-workingHours-immutability guard (a `LOCATION` resource always inherits the tenant's business hours — `workingHours` must stay `null`).
+- `Resource.create({ tenantId, type, name, tenantBusinessHours, workingHours?, refId?, maxCapacity?, turnoverMinutes? })` — one options object; validates the `STAFF`⟺`refId` invariant and the working-hours subset invariant.
+- `update(name, type, refId, workingHours, turnoverMinutes, maxCapacity, tenantBusinessHours)` (UC-046) — a manager can correct any field, including `type`/`refId`, without deactivate+recreate; re-runs the same invariants `create()` enforces, plus the `LOCATION`-type-immutability guard and the `LOCATION`-workingHours-immutability guard (a `LOCATION` resource always inherits the tenant's business hours — `workingHours` must stay `null`).
 - `deactivate()` (UC-047) / `reactivate()` (UC-049)
 
 **Cross-context note:** a `STAFF`-type `Resource` has no DB-level FK to `staff.staff` (cross-schema) — Booking validates the referenced staff member (same-tenant, existing, active, schedulable) through a narrow lookup adapter at write time, and consumes the Staff Context's `StaffDeactivated` event to cascade-deactivate the wrapping resource (UC-048). Staff Context remains unaware of Booking. **Race closed via advisory lock (M21-S06):** a staff-active check followed by a create/update/reactivate save is a check-then-act race against a concurrent `StaffDeactivated` cascade — `CreateResourceUseCase`, `UpdateResourceUseCase`, `ReactivateResourceUseCase`, and `CascadeStaffDeactivationUseCase` all acquire the same per-`(tenant_id, staff_id)` `pg_advisory_xact_lock` (`ITenantLockPort.lockTenantStaff`, booking-local — no `shared/` promotion, since every racing call site already lives in Booking) before their respective authoritative check, inside the write transaction. Whichever side wins the lock fully determines what the other sees once it proceeds: a concurrent cascade either sees the not-yet-committed wrap (staff-active re-check fails, `ResourceStaffNotFoundError`) or the wrap sees the already-cascaded deactivation (same error) — never a stale read of both.
@@ -782,7 +784,8 @@ FutureCommitmentException {
 - `REASSIGN` moves the booking to another resource at the *same window* (time, price and status untouched); `RESCHEDULE` moves it to a manager-chosen new time and needs an `APPROVED` booking. Both are revalidated at commit; if the alternative is gone the entry stays `OPEN`. REASSIGN, CANCEL, KEEP and dismiss can be applied to many entries at once, each in its own transaction (best-effort); RESCHEDULE is one entry at a time.
 
 **Key Methods:**
-- `FutureCommitmentException.raise(sourceType, sourceId, affectedType, affectedId, alternatives)` (UC-073)
+- `FutureCommitmentException.raise({ tenantId, sourceType, sourceId, affectedType, affectedId, alternatives, … })` (UC-073) — one options object
+- `dismissAutomatically(reason, correlationId)` (M23-S48) — closes an entry with no acting person when the booking no longer needs a decision (the booking ended, or no longer occupies the source resource).
 - `refreshAlternatives(alternatives)` — replaces the suggested alternatives of an `OPEN` entry (throws once resolved or dismissed).
 - `resolve(staffId, resolutionType, reason, correlationId)` / `dismiss(staffId, reason, correlationId)` (UC-077) — the booking change itself is applied by the resolving use case in the same transaction, never by this aggregate.
 
@@ -1016,6 +1019,9 @@ ClassScheduleTemplateException {
 
 **`Booking` — modified (M23 Cluster 3):**
 - `+ recurringScheduleId: RecurringBookingScheduleId | null` — set when generated by an active `RecurringBookingSchedule`; unique `(tenantId, recurringScheduleId, scheduledAt)`.
+- `+ createdByStaffId: StaffId | null` — set when staff created the booking on a customer's behalf (UC-108, M23-S39).
+- `+ participantCount: int | null`, `+ intake: BookingIntakeSnapshot | null` (`intakeSchemaVersion`, `intakeAnswers`, `consentAcceptedAt`, `consentVersion` — an immutable snapshot of what was submitted against the booked schema version) and `+ attendees: BookingAttendee[]` (UC-067/068, M23-S02). `BookingAttendee` is a child entity of the Booking aggregate: `{ id, bookingId, tenantId, name, customerId (always null), isMinor }`, created only when the booked schema has `requiresNamedAttendees`.
+- `+ cancelledAt`, `cancelledBy`, `cancellationReason`, `rejectedAt`, `rejectedBy`, `rejectionReason` — the aggregate is authoritative for who ended a booking and why, for every booking (the audit table has no backfill).
 - `+` terminal status `NO_SHOW` added to the state machine: `APPROVED → COMPLETED | CANCELLED | NO_SHOW` (UC-074). A manager may correct a mistaken no-show with an append-only audit transition; loyalty is awarded only if the corrected resulting state is `COMPLETED`. **This changes CLAUDE.md §5's booking state machine — see that file's own update alongside this promotion.**
 - Every status change of an existing booking (M23-S26) records a pending transition — `from`, `to`, a `BookingActor` (`STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM` plus id), reason where one exists, `correlationId` — beside its domain events; `TypeOrmBookingRepository.save()` persists them into `booking.booking_status_transitions` in the same transaction as the booking. Creation, including a recurring occurrence materialized directly as `APPROVED`, records none. A booking's status changes only through the aggregate's private `transitionTo`, which records the transition and assigns the status in one step, and every status-changing method takes the acting `BookingActor` to pass to it. A `Booking` read never loads the history.
 - Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/13-DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
@@ -1258,6 +1264,8 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | `BookingCancelled` | Customer/admin cancels booking (also each occurrence when a recurring schedule is ended) | Notification Context; Booking Context (`availability-alert-matching`) |
 | `BookingRescheduled` | Customer/admin moves a booking to a new slot (UC-069) | Notification Context; Booking Context (`availability-alert-matching`) |
 | `BookingCompleted` | Staff marks booking complete, or a manager corrects a `NO_SHOW` to `COMPLETED` (UC-074) | **Loyalty Context** (`complete-booking-loyalty-effects` — the only Booking event Loyalty cares about); no Notification consumer |
+| `BookingResourceReassigned` | A manager reassigns a booking to another resource at the same window (UC-077 REASSIGN) | Notification Context (customer email); `audit-log` |
+| `ResourceDeactivationImpactRaised` | A resource deactivation raised at least one worklist entry (UC-047) | Notification Context (one manager email); `audit-log` |
 | `BookingNoShow` | Staff marks an `APPROVED` booking as a no-show after its end time (UC-074) | Notification Context (customer email) |
 | `RecurringBookingScheduleCreated` / `…ApprovalRequested` / `…Rejected` / `…Ended` | Recurring-schedule lifecycle (UC-070, UC-071) | Notification Context |
 | `AvailabilityAlertCreated` / `…Updated` / `…Cancelled` / `…Expired` | Availability-alert lifecycle (UC-072, UC-076) | none besides `audit-log` |

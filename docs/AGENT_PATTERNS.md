@@ -789,78 +789,6 @@ Canonical example: `apps/backend/src/contexts/customer/infrastructure/controller
 
 ---
 
-## Notification Context Patterns
-
-### 21. Notification Use Case — dispatch through `BaseNotificationUseCase`
-
-Every notification use case extends `BaseNotificationUseCase` (`notification/application/use-cases/base-notification.use-case.ts`) and sends through its dispatch methods; the per-recipient inbox claim, the `NotificationLog` row (sent or failed) and the redelivery behaviour live there once. Never implement a private `sendAdminEmail` method — duplicating that flow in each use case is the smell this pattern exists to prevent.
-
-- One recipient (a customer or guest): `dispatchTemplates(templates, dto, to, variables)`.
-- Several recipients (the tenant's managers): fetch the manager emails through the staff port, then `dispatchTemplatesToMany(templates, dto, emails, variables)`. It claims one inbox row per `(eventId, template, recipient)`, so a redelivery re-sends only to the recipient(s) that failed, continues past a single failure, and throws once at the end so Pub/Sub redelivers.
-
-```typescript
-// inside execute(), after finding the templates and calling localizeTemplates():
-const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
-if (managerEmails.length === 0) return { adminEmailSent: false };
-const adminEmailSent = await this.dispatchTemplatesToMany(
-  adminTemplates,
-  { tenantId: dto.tenantId, eventId: dto.eventId, correlationId: dto.correlationId },
-  managerEmails,
-  variables, // typed TemplateVariables<typeof TRIGGER> — see pattern #22
-);
-```
-
-Canonical example: `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case.ts` (a manager-only email: `getManagerEmails()` → `localizeTemplates()` → variables typed as `TemplateVariables<typeof TRIGGER>` → `dispatchTemplatesToMany()`).
-
----
-
-### 22. Notification variables — a contract spec, and specs that render the shipped copy
-
-`NotificationTemplate.render()` turns any variable nobody supplied into `''`, so a mismatch between a template and the use case that fills it fails nothing and logs nothing — the email just comes out blank in that place (M23-S37 audited all 22 shipped templates and found several blank-variable defects of exactly this kind). Two rules keep it from coming back:
-
-- **Declare the variables once.** Each `NotificationTemplateKey` entry in `notification-template-key.mapping.ts` lists its `variables`; the contract spec (`notification-template-key.mapping.spec.ts`) fails when an entry's variables differ from the placeholders actually present in the shipped template, in either language. A use case's variables object is typed against its entry.
-- **Render the real copy in specs.** A use-case spec that feeds a hand-typed stand-in template can never catch a missing variable. Build the template from the shipped localized copy (see `notification-emails.handler.integration.spec.ts`) and assert on the rendered subject and body, including one `it()` per conditional branch (nullable field, boolean flag) the template renders.
-
-Canonical examples: `apps/backend/src/contexts/notification/domain/notification-template-key.mapping.spec.ts`, `apps/backend/src/contexts/notification/infrastructure/events/notification-emails.handler.integration.spec.ts`
-
----
-
-### 23. Notification Use Cases sharing one flow — abstract base with template-method hooks
-
-When two or more notification use cases do the same thing and differ only in *which template* and *which extra variables*, they extend one abstract base that holds the flow; each subclass declares its input type and the hooks, with no constructor of its own (Nest reads the base class's parameter metadata, including the `@Inject()` tokens). Precedents: `BaseBookingReminderNotificationUseCase` (explicit subclass constructors) and `BaseRecurringScheduleCustomerNotificationUseCase` (constructor-less subclasses). Copying the flow into siblings breaches the SonarCloud 3% duplication gate (`docs/CI_TRAPS.md`).
-
-```typescript
-@Injectable()
-export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
-  TInput extends RecurringScheduleNotificationInput,
-> extends BaseNotificationUseCase {
-  constructor(/* @Inject(...) ports */) { super(logRepo, inboxRepo, dispatcher, txManager); }
-
-  protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
-  protected extraVariables(_input: TInput, _context: RecurringScheduleNotificationContext): Record<string, string> {
-    return {};
-  }
-
-  async execute(input: TInput): Promise<{ emailSent: boolean }> {
-    // find template rows -> resolve customer/service/tenant (null -> warn and skip)
-    // -> localizeTemplates() -> dispatchTemplates() with the common + extra variables
-  }
-}
-
-@Injectable()
-export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurringScheduleCustomerNotificationUseCase<SendRecurringScheduleEndedNotificationUseCaseInput> {
-  protected templateKeyFor(input: SendRecurringScheduleEndedNotificationUseCaseInput) {
-    return input.endedBy === 'STAFF'
-      ? NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
-      : NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER;
-  }
-}
-```
-
-**Rules:** the `{ClassName}Input`/`{ClassName}Result` naming detector still applies to each subclass (declare `…UseCaseInput` as an interface and `…UseCaseResult` as a type alias of the base's result). A recipient the flow does not fit (the manager alert dispatches to many and reports `adminEmailSent`) stays a standalone use case. Specs construct the subclass with the same positional ports and use the real `JsonLocalizationAdapter`, so they assert the shipped copy.
-
----
-
 ## BFF Patterns
 
 ### 17. BFF Module
@@ -1035,3 +963,75 @@ describe('XxxsController (component)', () => {
 - `setupActiveGuardMock(httpService)` must be called before any request that goes through the active-staff guard
 
 Canonical example: `apps/bff/src/features/customer/customers.controller.component.spec.ts`
+
+---
+
+## Notification Context Patterns
+
+### 21. Notification Use Case — dispatch through `BaseNotificationUseCase`
+
+Every notification use case extends `BaseNotificationUseCase` (`notification/application/use-cases/base-notification.use-case.ts`) and sends through its dispatch methods; the per-recipient inbox claim, the `NotificationLog` row (sent or failed) and the redelivery behaviour live there once. Never implement a private `sendAdminEmail` method — duplicating that flow in each use case is the smell this pattern exists to prevent.
+
+- One recipient (a customer or guest): `dispatchTemplates(templates, dto, to, variables)`.
+- Several recipients (the tenant's managers): fetch the manager emails through the staff port, then `dispatchTemplatesToMany(templates, dto, emails, variables)`. It claims one inbox row per `(eventId, template, recipient)`, so a redelivery re-sends only to the recipient(s) that failed, continues past a single failure, and throws once at the end so Pub/Sub redelivers.
+
+```typescript
+// inside execute(), after finding the templates and calling localizeTemplates():
+const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
+if (managerEmails.length === 0) return { adminEmailSent: false };
+const adminEmailSent = await this.dispatchTemplatesToMany(
+  adminTemplates,
+  { tenantId: dto.tenantId, eventId: dto.eventId, correlationId: dto.correlationId },
+  managerEmails,
+  variables, // typed TemplateVariables<typeof TRIGGER> — see pattern #22
+);
+```
+
+Canonical example: `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case.ts` (a manager-only email: `getManagerEmails()` → `localizeTemplates()` → variables typed as `TemplateVariables<typeof TRIGGER>` → `dispatchTemplatesToMany()`).
+
+---
+
+### 22. Notification variables — a contract spec, and specs that render the shipped copy
+
+`NotificationTemplate.render()` turns any variable nobody supplied into `''`, so a mismatch between a template and the use case that fills it fails nothing and logs nothing — the email just comes out blank in that place (M23-S37 audited all 22 shipped templates and found several blank-variable defects of exactly this kind). Two rules keep it from coming back:
+
+- **Declare the variables once.** Each `NotificationTemplateKey` entry in `notification-template-key.mapping.ts` lists its `variables`; the contract spec (`notification-template-key.mapping.spec.ts`) fails when an entry's variables differ from the placeholders actually present in the shipped template, in either language. A use case's variables object is typed against its entry.
+- **Render the real copy in specs.** A use-case spec that feeds a hand-typed stand-in template can never catch a missing variable. Build the template from the shipped localized copy (see `notification-emails.handler.integration.spec.ts`) and assert on the rendered subject and body, including one `it()` per conditional branch (nullable field, boolean flag) the template renders.
+
+Canonical examples: `apps/backend/src/contexts/notification/domain/notification-template-key.mapping.spec.ts`, `apps/backend/src/contexts/notification/infrastructure/events/notification-emails.handler.integration.spec.ts`
+
+---
+
+### 23. Notification Use Cases sharing one flow — abstract base with template-method hooks
+
+When two or more notification use cases do the same thing and differ only in *which template* and *which extra variables*, they extend one abstract base that holds the flow; each subclass declares its input type and the hooks, with no constructor of its own (Nest reads the base class's parameter metadata, including the `@Inject()` tokens). Precedents: `BaseBookingReminderNotificationUseCase` (explicit subclass constructors) and `BaseRecurringScheduleCustomerNotificationUseCase` (constructor-less subclasses). Copying the flow into siblings breaches the SonarCloud 3% duplication gate (`docs/CI_TRAPS.md`).
+
+```typescript
+@Injectable()
+export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
+  TInput extends RecurringScheduleNotificationInput,
+> extends BaseNotificationUseCase {
+  constructor(/* @Inject(...) ports */) { super(logRepo, inboxRepo, dispatcher, txManager); }
+
+  protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
+  protected extraVariables(_input: TInput, _context: RecurringScheduleNotificationContext): Record<string, string> {
+    return {};
+  }
+
+  async execute(input: TInput): Promise<{ emailSent: boolean }> {
+    // find template rows -> resolve customer/service/tenant (null -> warn and skip)
+    // -> localizeTemplates() -> dispatchTemplates() with the common + extra variables
+  }
+}
+
+@Injectable()
+export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurringScheduleCustomerNotificationUseCase<SendRecurringScheduleEndedNotificationUseCaseInput> {
+  protected templateKeyFor(input: SendRecurringScheduleEndedNotificationUseCaseInput) {
+    return input.endedBy === 'STAFF'
+      ? NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_BY_STAFF_CUSTOMER
+      : NotificationTemplateKey.RECURRING_SCHEDULE_ENDED_CUSTOMER;
+  }
+}
+```
+
+**Rules:** the `{ClassName}Input`/`{ClassName}Result` naming detector still applies to each subclass (declare `…UseCaseInput` as an interface and `…UseCaseResult` as a type alias of the base's result). A recipient the flow does not fit (the manager alert dispatches to many and reports `adminEmailSent`) stays a standalone use case. Specs construct the subclass with the same positional ports and use the real `JsonLocalizationAdapter`, so they assert the shipped copy.

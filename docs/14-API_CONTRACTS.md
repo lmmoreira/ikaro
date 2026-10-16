@@ -127,6 +127,9 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 - `POST /auth/switch-tenant` -> (UC-023, customer) `{ targetTenantId: uuid }` — sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
 - `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at.
 - `POST /auth/switch-staff-tenant` -> (UC-022, staff) Same shape as the customer switch, staff-scoped.
+- `GET /auth/session` -> (any authenticated role) One call for the hotsite's auth bar: `{ staff: { id, name } | null, customer: { customerId, name } | null }`. The BFF makes exactly one backend lookup (`/staff/me` for STAFF|MANAGER, `/customers/me` otherwise).
+- `GET /staff/me` -> (STAFF|MANAGER) The caller's own staff record, derived from the request context, never a URL param. The backend also has `GET /staff/me/tenants` and `GET /staff/me/status` (`{ isActive }`, the BFF's `ActiveStaffGuard` self-check); these two are backend-internal and not exposed by the BFF.
+- `GET /customers/tenants` -> (CUSTOMER, BFF; profile routes are under *Customer Management* below) Lists the tenants the customer has a profile in, backed by the backend's `GET /customers/me/tenants`.
 
 > **Removed (`M13-S14`):** `POST /auth/token` and `GET /auth/tenants` — the pre-login `/select-tenant` customer flow they backed was descoped as unreachable from any shipped UI (every customer login starts from a specific tenant's hotsite, which always supplies the tenant slug directly). Do not resurrect these without a real requirement driving them — see `docs/04-USE_CASES.md` UC-021's note.
 

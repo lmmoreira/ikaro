@@ -21,6 +21,15 @@
 GET {{baseUrl}}/services
 X-Tenant-ID: {{tenantId}}
 
+###
+
+### Get one service by id, active or inactive (STAFF|MANAGER)
+GET {{baseUrl}}/services/{{serviceId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — create service (UC-012)
 # ─────────────────────────────────────────────────────────────────────────────
