@@ -4211,7 +4211,7 @@ Decisions baked in (do not re-derive at discovery):
 
 ---
 
-### M23-S50 — The floating filter can be dragged to another corner of the screen, and remembers where the user left it
+### M23-S50 — The floating filter can be dragged to another corner of the screen, and remembers where the user left it ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
