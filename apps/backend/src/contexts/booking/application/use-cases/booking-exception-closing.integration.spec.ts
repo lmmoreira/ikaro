@@ -4,6 +4,10 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import {
+  occupiedResourceIds,
+  seedResource,
+} from '../../../../test/utils/future-commitment-db-fixture';
+import {
   bookingStatus,
   createLockRaceWorld,
   LockRaceEnv,
@@ -13,6 +17,7 @@ import { RESOURCE_OCCUPANCY_REPOSITORY } from '../ports/resource-occupancy-repos
 import { TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { CancelBookingAsAdminUseCase } from './cancel-booking-as-admin.use-case';
 import { RejectBookingUseCase } from './reject-booking.use-case';
+import { ResolveFutureCommitmentExceptionsUseCase } from './resolve-future-commitment-exceptions.use-case';
 
 const STAFF_ID = '20000000-0000-4000-8000-0000000000c1';
 
@@ -24,6 +29,7 @@ describe('closing a booking’s worklist entries (integration)', () => {
   let env: LockRaceEnv;
   let cancelAsAdmin: CancelBookingAsAdminUseCase;
   let reject: RejectBookingUseCase;
+  let resolve: ResolveFutureCommitmentExceptionsUseCase;
 
   beforeAll(async () => {
     ({ app, ds } = await createBookingIntegrationApp());
@@ -35,6 +41,7 @@ describe('closing a booking’s worklist entries (integration)', () => {
     };
     cancelAsAdmin = app.get(CancelBookingAsAdminUseCase);
     reject = app.get(RejectBookingUseCase);
+    resolve = app.get(ResolveFutureCommitmentExceptionsUseCase);
   });
 
   afterAll(async () => {
@@ -86,6 +93,34 @@ describe('closing a booking’s worklist entries (integration)', () => {
     for (const id of entryIds) {
       expect((await loadEntry(world.tenantId, id)).status).toBe('DISMISSED');
     }
+  });
+
+  // Only the entry a manager resolves closes. The booking still holds its other resource, so that
+  // resource's entry is still a decision to make (docs/27 § Close with the booking change).
+  it('reassigning one resource of a two-resource booking leaves the other resource’s entry open', async () => {
+    const world = await createLockRaceWorld(env);
+    const target = await seedResource(ds, world.tenantId, 'Sala C');
+    const { bookingId, entryIds } = await world.seedBooking({
+      resources: [world.roomA, world.roomB],
+    });
+
+    const { results } = await resolve.execute({
+      tenantId: world.tenantId,
+      staffId: STAFF_ID,
+      actorRole: 'MANAGER',
+      correlationId: uuidv7(),
+      timezone: 'America/Sao_Paulo',
+      exceptionIds: [entryIds[0]],
+      resolutionType: 'REASSIGN',
+      target: { resourceId: target.id },
+    });
+
+    expect(results).toEqual([{ exceptionId: entryIds[0], outcome: 'RESOLVED' }]);
+    expect((await loadEntry(world.tenantId, entryIds[0])).status).toBe('RESOLVED');
+    expect((await loadEntry(world.tenantId, entryIds[1])).status).toBe('OPEN');
+    expect((await occupiedResourceIds(ds, world.tenantId, bookingId)).sort()).toEqual(
+      [world.roomB.id, target.id].sort(),
+    );
   });
 
   it("a cancel in one tenant never closes another tenant's entry (tenant isolation)", async () => {
