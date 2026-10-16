@@ -396,6 +396,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
 | `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22 and later) | `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` |
+| Booking appointment extensions: recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` |
