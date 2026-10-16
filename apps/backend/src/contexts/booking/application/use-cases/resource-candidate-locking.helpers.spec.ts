@@ -43,6 +43,7 @@ describe('lockCandidateResources', () => {
     services: Map<string, Service>,
     resourceSelections: { resourceId: string }[] = [],
     lines = [LINE],
+    alsoLockResourceIds: string[] = [],
   ) =>
     lockCandidateResources({
       lines,
@@ -55,6 +56,7 @@ describe('lockCandidateResources', () => {
       })),
       ctx,
       lockResources,
+      alsoLockResourceIds,
     });
 
   beforeEach(() => {
@@ -127,6 +129,37 @@ describe('lockCandidateResources', () => {
     await lock(new Map([['service-1', service]]), [{ resourceId: staff.id }]);
 
     expect(locked).toEqual([]);
+  });
+
+  it('locks the resources the booking occupies before the move, even when every requirement is customer-chosen (M23-S48)', async () => {
+    const chosen = await seed(ResourceType.STAFF);
+    const previous = await seed(ResourceType.STAFF);
+    const service = serviceWith(
+      ResourceRequirement.create({ type: ResourceType.STAFF, selectionMode: 'CUSTOMER_CHOICE' }),
+    );
+
+    await lock(
+      new Map([['service-1', service]]),
+      [{ resourceId: chosen.id }],
+      [LINE],
+      [previous.id, chosen.id],
+    );
+
+    expect(locked).toHaveLength(1);
+    expect([...locked[0]].sort()).toEqual([chosen.id, previous.id].sort());
+  });
+
+  it('adds the previously occupied resources to the same single call as the eligible units (M23-S48)', async () => {
+    const room = await seed(ResourceType.ROOM);
+    const previous = await seed(ResourceType.STAFF);
+    const service = serviceWith(
+      ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+    );
+
+    await lock(new Map([['service-1', service]]), [], [LINE], [previous.id]);
+
+    expect(locked).toHaveLength(1);
+    expect([...locked[0]].sort()).toEqual([previous.id, room.id].sort());
   });
 
   it('includes the requirements of every leg of a legged service', async () => {

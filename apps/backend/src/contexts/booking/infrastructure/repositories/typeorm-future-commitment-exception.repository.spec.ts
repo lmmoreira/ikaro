@@ -1,6 +1,6 @@
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { FutureCommitmentExceptionBuilder } from '../../../../test/builders/booking/index';
 import { FutureCommitmentExceptionEntityBuilder } from '../../../../test/builders/booking/index';
 import { runWithEntityManager } from '../../../../shared/infrastructure/transaction-context';
@@ -131,6 +131,47 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
           repo.findOpenBySourceForUpdate(TENANT_ID, 'RESOURCE_DEACTIVATION', SOURCE_ID),
         ),
       ).resolves.toEqual([]);
+    });
+  });
+
+  describe('findOpenByAffectedForUpdate', () => {
+    const BOOKING_ID = '00000000-0000-7000-8000-0000000000b1';
+
+    it('refuses to run outside an active transaction', async () => {
+      await expect(
+        repo.findOpenByAffectedForUpdate(TENANT_ID, 'BOOKING', [BOOKING_ID]),
+      ).rejects.toThrow('active transaction');
+    });
+
+    it('locks only the OPEN rows of those affected ids, tenant-scoped and ordered by id', async () => {
+      const entities = [
+        new FutureCommitmentExceptionEntityBuilder().withTenantId(TENANT_ID).build(),
+        new FutureCommitmentExceptionEntityBuilder().withTenantId(TENANT_ID).build(),
+      ];
+      manager.find.mockResolvedValue(entities);
+
+      const result = await inTransaction(() =>
+        repo.findOpenByAffectedForUpdate(TENANT_ID, 'BOOKING', [BOOKING_ID]),
+      );
+
+      expect(manager.find).toHaveBeenCalledWith(FutureCommitmentExceptionEntity, {
+        where: {
+          tenantId: TENANT_ID,
+          affectedType: 'BOOKING',
+          affectedId: In([BOOKING_ID]),
+          status: 'OPEN',
+        },
+        order: { id: 'ASC' },
+        lock: { mode: 'pessimistic_write' },
+      });
+      expect(result.map((e) => e.id)).toEqual(entities.map((e) => e.id));
+    });
+
+    it('returns an empty list without a query when there are no affected ids', async () => {
+      await expect(
+        inTransaction(() => repo.findOpenByAffectedForUpdate(TENANT_ID, 'BOOKING', [])),
+      ).resolves.toEqual([]);
+      expect(manager.find).not.toHaveBeenCalled();
     });
   });
 

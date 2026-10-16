@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException } from '@nestjs/common';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -125,7 +126,14 @@ describe('RecurringBookingScheduleController', () => {
         resourceRepo,
         renewalService,
       ),
-      new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
+      new EndRecurringBookingScheduleUseCase(
+        scheduleRepo,
+        bookingRepo,
+        occupancyRepo,
+        tx,
+        new InMemoryFutureCommitmentExceptionRepository(),
+        new InMemoryTenantLock(),
+      ),
       new ApproveRecurringBookingScheduleUseCase(
         scheduleRepo,
         serviceRepo,

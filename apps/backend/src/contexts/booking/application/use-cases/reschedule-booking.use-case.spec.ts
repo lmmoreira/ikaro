@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
 import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
@@ -5,7 +6,11 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
-import { BookingBuilder, BookingLineBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  BookingLineBuilder,
+  FutureCommitmentExceptionBuilder,
+} from '../../../../test/builders/booking/index';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { Money } from '../../../../shared/value-objects/money';
 import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
@@ -36,6 +41,7 @@ describe('RescheduleBookingUseCase', () => {
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let quoteRevisionRepo: InMemoryBookingQuoteRevisionRepository;
   let eventBus: InMemoryEventBus;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: RescheduleBookingUseCase;
 
   beforeEach(() => {
@@ -44,6 +50,7 @@ describe('RescheduleBookingUseCase', () => {
     fixtures = createAutoBookingResourceFixtures();
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
       fixtures.serviceRepo,
@@ -54,6 +61,7 @@ describe('RescheduleBookingUseCase', () => {
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new BookingQuoteService(),
       new InMemoryTransactionManager(),
+      exceptionRepo,
     );
   });
 
@@ -78,6 +86,43 @@ describe('RescheduleBookingUseCase', () => {
       expect(result.bookingId).toBe(booking.id);
       expect(result.status).toBe(BookingStatus.APPROVED);
       expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
+    });
+
+    it('closes the entries whose resource the booking no longer occupies and keeps the others (M23-S48)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .build();
+      await bookingRepo.save(booking);
+      const locationId = fixtures.resourceRepo.ensureLocation(TENANT_A).id;
+      const keptEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .withSourceId(locationId)
+        .build();
+      const staleEntry = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(booking.id)
+        .build();
+      await exceptionRepo.save(keptEntry);
+      await exceptionRepo.save(staleEntry);
+
+      await useCase.execute({
+        bookingId: booking.id,
+        scheduledAt: newFutureSlot,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+      });
+
+      const kept = await exceptionRepo.findById(keptEntry.id, TENANT_A);
+      expect(kept?.status).toBe('OPEN');
+      const closed = await exceptionRepo.findById(staleEntry.id, TENANT_A);
+      expect(closed?.status).toBe('DISMISSED');
+      expect(closed?.resolutionReason).toBe('RESOURCE_NO_LONGER_USED');
+      expect(closed?.resolvedByStaffId).toBeNull();
     });
 
     it('persists the new scheduledAt in the repository', async () => {

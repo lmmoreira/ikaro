@@ -461,9 +461,9 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** M23-S08 ships an audit-log consumer only. The customer-facing detail comes from the resulting booking event (`BookingCancelled`, `BookingRescheduled`); a reassign's customer message comes from `BookingResourceReassigned` (M23-S23). No Notification consumer on `Resolved` itself.
 
 #### **FutureCommitmentExceptionDismissed**
-- **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item).
+- **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item), A3 (the source resource is reactivated, reason `RESOURCE_REACTIVATED`) and A4 (M23-S48: the booking was cancelled, rejected or ended with its recurring schedule, reason `BOOKING_NO_LONGER_ACTIVE`; or it was rescheduled or approved onto other resources, reason `RESOURCE_NO_LONGER_USED`).
 - **State change:** `status → DISMISSED`.
-- **Data:** `{ exceptionId, resolvedByStaffId, resolutionReason }`
+- **Data:** `{ exceptionId, resolvedByStaffId, resolutionReason }` — `resolvedByStaffId` is `null` when the system closed the entry (A3 records the reactivating staff member; A4 has no actor, a customer may have cancelled).
 - **Consumers:** audit-log-only subscriber (M23-S08) — no business consumer yet.
 
 #### **TenantSchedulingBootstrapped**

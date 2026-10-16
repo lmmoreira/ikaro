@@ -45,7 +45,11 @@ export async function seedResource(
 export async function seedService(
   ds: DataSource,
   tenantId: string,
-  options: { type?: ResourceType; poolResourceIds?: string[] } = {},
+  options: {
+    type?: ResourceType;
+    poolResourceIds?: string[];
+    selectionMode?: 'AUTO_ANY' | 'CUSTOMER_CHOICE';
+  } = {},
 ): Promise<ServiceEntity> {
   const service = await ds
     .getRepository(ServiceEntity)
@@ -55,7 +59,7 @@ export async function seedService(
       .withTenantId(tenantId)
       .withServiceId(service.id)
       .withResourceType(options.type ?? ResourceType.ROOM)
-      .withSelectionMode('AUTO_ANY')
+      .withSelectionMode(options.selectionMode ?? 'AUTO_ANY')
       .build(),
   );
   const poolResourceIds = options.poolResourceIds ?? [];

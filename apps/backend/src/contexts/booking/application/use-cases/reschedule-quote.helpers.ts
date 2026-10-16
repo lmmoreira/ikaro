@@ -15,10 +15,13 @@ import {
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
+  lockBookingLinesResourceCandidates,
   mergeResourceSelections,
   resolveBookingLinesResourceCandidates,
+  ResolveBookingLinesResourceCandidatesParams,
   ResolvedLineCandidates,
   ResourceSelectionInput,
 } from './resource-occupancy.helpers';
@@ -118,6 +121,10 @@ export interface ResolveRescheduleCandidatesParams {
   timezone: string;
   overrideSelections: ResourceSelectionInput[];
   durationChange: RescheduleDurationChange | undefined;
+  // Resources the booking occupies before the move, locked with the candidates (M23-S48).
+  alsoLockResourceIds?: readonly string[];
+  // The resources an earlier lock step read; resolving from it keeps every later lock inside the set held.
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 // Shared by RescheduleBookingUseCase (admin) and RescheduleBookingAsCustomerUseCase — resolves the
@@ -130,12 +137,36 @@ export interface ResolveRescheduleCandidatesParams {
 export async function resolveRescheduleCandidates(
   params: ResolveRescheduleCandidatesParams,
 ): Promise<Map<string, ResolvedLineCandidates>> {
-  const { resourceRepo, availabilityService, occupancyRepo, slotConflictService } = params;
-  const { booking, serviceMap, tenantId, newScheduledAt, timezone, durationChange } = params;
+  const { slotConflictService, booking, tenantId } = params;
   const bookingLineIds = booking.lines.map((l) => l.lineId);
 
   const resourceSelections = await resolveRescheduleResourceSelections(params);
-  const candidatesByLine = await resolveBookingLinesResourceCandidates({
+  const candidatesByLine = await resolveBookingLinesResourceCandidates(
+    toCandidatesParams(params, resourceSelections),
+  );
+
+  const allCandidates: ResourceOccupancyCandidate[] = [...candidatesByLine.values()].flatMap(
+    (v) => v.candidates,
+  );
+  await slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
+  return candidatesByLine;
+}
+
+// Only the lock step of resolveRescheduleCandidates (see lockBookingLinesResourceCandidates).
+export async function lockRescheduleCandidateResources(
+  params: ResolveRescheduleCandidatesParams,
+): Promise<ResolutionSnapshot> {
+  const resourceSelections = await resolveRescheduleResourceSelections(params);
+  return lockBookingLinesResourceCandidates(toCandidatesParams(params, resourceSelections));
+}
+
+function toCandidatesParams(
+  params: ResolveRescheduleCandidatesParams,
+  resourceSelections: ResourceSelectionInput[],
+): ResolveBookingLinesResourceCandidatesParams {
+  const { resourceRepo, availabilityService, occupancyRepo, slotConflictService } = params;
+  const { booking, serviceMap, tenantId, newScheduledAt, timezone, durationChange } = params;
+  return {
     resourceRepo,
     availabilityService,
     occupancyRepo,
@@ -146,13 +177,9 @@ export async function resolveRescheduleCandidates(
     serviceMap,
     resourceSelections,
     lockResources: (resourceIds) => slotConflictService.lockResources(tenantId, resourceIds),
-  });
-
-  const allCandidates: ResourceOccupancyCandidate[] = [...candidatesByLine.values()].flatMap(
-    (v) => v.candidates,
-  );
-  await slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);
-  return candidatesByLine;
+    alsoLockResourceIds: params.alsoLockResourceIds,
+    resolutionSnapshot: params.resolutionSnapshot,
+  };
 }
 
 function rescheduleLineInputs(

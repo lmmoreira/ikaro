@@ -1,9 +1,14 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
+import { InMemoryTenantLock } from '../../../../test/infrastructure/in-memory-tenant-lock';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
-import { BookingBuilder } from '../../../../test/builders/booking/index';
+import {
+  BookingBuilder,
+  FutureCommitmentExceptionBuilder,
+} from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
@@ -27,6 +32,7 @@ describe('RejectBookingUseCase', () => {
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let eventBus: InMemoryEventBus;
+  let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   let useCase: RejectBookingUseCase;
 
   beforeEach(() => {
@@ -34,10 +40,13 @@ describe('RejectBookingUseCase', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     occupancyRepo = new InMemoryResourceOccupancyRepository();
+    exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
     useCase = new RejectBookingUseCase(
       bookingRepo,
       occupancyRepo,
       new InMemoryTransactionManager(),
+      exceptionRepo,
+      new InMemoryTenantLock(),
     );
   });
 
@@ -342,5 +351,32 @@ describe('RejectBookingUseCase', () => {
         correlationId: CORRELATION_ID,
       }),
     ).rejects.toThrow(BookingNotFoundError);
+  });
+
+  it("closes the booking's open worklist entries in the same transaction (M23-S48)", async () => {
+    const booking = new BookingBuilder()
+      .withTenantId(TENANT_A)
+      .withScheduledAt(scheduledAt)
+      .build();
+    await bookingRepo.save(booking);
+    const entry = new FutureCommitmentExceptionBuilder()
+      .withTenantId(TENANT_A)
+      .withAffectedId(booking.id)
+      .build();
+    await exceptionRepo.save(entry);
+
+    await useCase.execute({
+      bookingId: booking.id,
+      reason: VALID_REASON,
+      tenantId: TENANT_A,
+      staffId: STAFF_ID,
+      actorRole: 'STAFF',
+      correlationId: CORRELATION_ID,
+    });
+
+    const closed = await exceptionRepo.findById(entry.id, TENANT_A);
+    expect(closed?.status).toBe('DISMISSED');
+    expect(closed?.resolutionReason).toBe('BOOKING_NO_LONGER_ACTIVE');
+    expect(closed?.resolvedByStaffId).toBeNull();
   });
 });

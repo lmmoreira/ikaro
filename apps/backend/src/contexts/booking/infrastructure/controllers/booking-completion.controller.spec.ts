@@ -1,3 +1,4 @@
+import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
@@ -69,11 +70,15 @@ describe('BookingCompletionController', () => {
           bookingRepo,
           occupancyRepo,
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryTenantLock(),
         ),
         new CancelBookingAsAdminUseCase(
           bookingRepo,
           occupancyRepo,
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryTenantLock(),
         ),
         new RescheduleBookingUseCase(
           bookingRepo,
@@ -85,6 +90,7 @@ describe('BookingCompletionController', () => {
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
         new RescheduleBookingAsCustomerUseCase(
           bookingRepo,
@@ -96,6 +102,7 @@ describe('BookingCompletionController', () => {
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),
           new InMemoryTransactionManager(),
+          new InMemoryFutureCommitmentExceptionRepository(),
         ),
         new CompleteBookingUseCase(
           bookingRepo,

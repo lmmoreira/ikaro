@@ -13,8 +13,16 @@ import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { RejectBookingDto } from '../dtos/reject-booking.dto';
-import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  saveTerminalBookingsInTransaction,
+  TerminalBookingDeps,
+} from './booking-exception-closing.helpers';
 
 export type RejectBookingUseCaseInput = RejectBookingDto & {
   bookingId: string;
@@ -37,7 +45,19 @@ export class RejectBookingUseCase {
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
+
+  private get closingDeps(): TerminalBookingDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      occupancyRepo: this.occupancyRepo,
+      exceptionRepo: this.exceptionRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
 
   async execute(input: RejectBookingUseCaseInput): Promise<RejectBookingUseCaseResult> {
     const { tenantId, staffId, correlationId } = input;
@@ -55,14 +75,13 @@ export class RejectBookingUseCase {
     booking.reject({ type: input.actorRole, id: staffId }, input.reason, correlationId);
 
     await this.txManager.run(async () => {
-      await this.bookingRepo.save(booking);
       // Releases this booking's HOLD row(s) immediately — the resource is free again right away,
       // not just after the 90-day GC sweep (M22-S03).
-      await releaseBookingOccupancy(
-        this.occupancyRepo,
+      await saveTerminalBookingsInTransaction(this.closingDeps, {
         tenantId,
-        booking.lines.map((l) => l.lineId),
-      );
+        bookings: [booking],
+        correlationId,
+      });
     });
 
     return {

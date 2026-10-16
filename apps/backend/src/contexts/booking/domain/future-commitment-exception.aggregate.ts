@@ -139,6 +139,15 @@ export class FutureCommitmentException extends AggregateRoot {
   }
 
   dismiss(staffId: string, reason: string, correlationId: string): void {
+    this.close(staffId, reason, correlationId);
+  }
+
+  // M23-S48 — the booking no longer needs a decision, so no person closes the entry.
+  dismissAutomatically(reason: string, correlationId: string): void {
+    this.close(null, reason, correlationId);
+  }
+
+  private close(staffId: string | null, reason: string, correlationId: string): void {
     this.assertOpen();
     this.props.status = 'DISMISSED';
     this.props.resolutionReason = reason;

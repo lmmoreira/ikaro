@@ -122,4 +122,36 @@ describe('FutureCommitmentException', () => {
       );
     });
   });
+
+  describe('dismissAutomatically', () => {
+    it('closes the entry with no actor and publishes Dismissed with a null staff id', () => {
+      const exception = new FutureCommitmentExceptionBuilder().build();
+      exception.clearDomainEvents();
+
+      exception.dismissAutomatically('BOOKING_NO_LONGER_ACTIVE', CORRELATION_ID);
+
+      expect(exception.status).toBe('DISMISSED');
+      expect(exception.resolutionType).toBeNull();
+      expect(exception.resolutionReason).toBe('BOOKING_NO_LONGER_ACTIVE');
+      expect(exception.resolvedByStaffId).toBeNull();
+      expect(exception.resolvedAt).toBeInstanceOf(Date);
+
+      const [event] = exception.clearDomainEvents();
+      expect(event).toBeInstanceOf(FutureCommitmentExceptionDismissed);
+      expect((event as FutureCommitmentExceptionDismissed).data).toEqual({
+        exceptionId: exception.id,
+        resolvedByStaffId: null,
+        resolutionReason: 'BOOKING_NO_LONGER_ACTIVE',
+      });
+    });
+
+    it('rejects an entry that is not OPEN', () => {
+      const exception = new FutureCommitmentExceptionBuilder().build();
+      exception.dismiss(STAFF_ID, 'first', CORRELATION_ID);
+
+      expect(() => exception.dismissAutomatically('second', CORRELATION_ID)).toThrow(
+        FutureCommitmentExceptionAlreadyResolvedError,
+      );
+    });
+  });
 });

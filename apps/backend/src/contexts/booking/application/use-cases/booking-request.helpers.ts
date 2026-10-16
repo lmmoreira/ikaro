@@ -273,6 +273,10 @@ export async function persistRequestedBooking(
   const lockState = params.occupancyLockState ?? 'HOLD';
 
   return deps.txManager.run(async () => {
+    // Service rows before resource locks: the recurring request takes them in this order, so the
+    // two can never wait on each other (docs/28-LOCK_CATALOG.md § 2, L2 before L3).
+    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+    await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
     const candidatesByLine = await resolveAndCheckCandidates(deps, {
       booking,
       tenantId,
@@ -281,9 +285,6 @@ export async function persistRequestedBooking(
       serviceMap,
       resourceSelections,
     });
-
-    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-    await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
     await deps.bookingRepo.save(booking);
 
     await assignBookingLinesOccupancy(

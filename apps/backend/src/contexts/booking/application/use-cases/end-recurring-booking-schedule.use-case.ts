@@ -15,7 +15,15 @@ import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
-import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
+import {
+  saveTerminalBookingsInTransaction,
+  TerminalBookingDeps,
+} from './booking-exception-closing.helpers';
 import { assertScheduleOwnership } from './recurring-booking-schedule-ownership.helpers';
 
 export interface EndRecurringBookingScheduleUseCaseInput {
@@ -45,7 +53,19 @@ export class EndRecurringBookingScheduleUseCase {
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
+
+  private get closingDeps(): TerminalBookingDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      occupancyRepo: this.occupancyRepo,
+      exceptionRepo: this.exceptionRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
 
   async execute(
     input: EndRecurringBookingScheduleUseCaseInput,
@@ -57,11 +77,12 @@ export class EndRecurringBookingScheduleUseCase {
     assertScheduleOwnership(schedule, ownerType, input.actorId);
 
     const cancelledBookingIds = await this.txManager.run(async () => {
-      const futureBookings = await this.bookingRepo.findFutureActiveByRecurringSchedule(
+      const found = await this.bookingRepo.findFutureActiveByRecurringSchedule(
         input.tenantId,
         schedule.id,
         new Date(),
       );
+      const futureBookings = [...found].sort((a, b) => a.id.localeCompare(b.id));
 
       for (const booking of futureBookings) {
         booking.cancel(
@@ -70,13 +91,12 @@ export class EndRecurringBookingScheduleUseCase {
           undefined,
           true,
         );
-        await this.bookingRepo.save(booking);
-        await releaseBookingOccupancy(
-          this.occupancyRepo,
-          input.tenantId,
-          booking.lines.map((l) => l.lineId),
-        );
       }
+      await saveTerminalBookingsInTransaction(this.closingDeps, {
+        tenantId: input.tenantId,
+        bookings: futureBookings,
+        correlationId: input.correlationId,
+      });
 
       schedule.end(
         input.correlationId,

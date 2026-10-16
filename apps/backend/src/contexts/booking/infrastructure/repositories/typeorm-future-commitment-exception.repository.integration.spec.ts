@@ -371,6 +371,90 @@ describe('TypeOrmFutureCommitmentExceptionRepository (integration)', () => {
     });
   });
 
+  describe('findOpenByAffectedForUpdate', () => {
+    const BOOKING_ID = uuidv7();
+
+    it('refuses to run outside a transaction', async () => {
+      await expect(
+        repo.findOpenByAffectedForUpdate(TENANT_A, 'BOOKING', [BOOKING_ID]),
+      ).rejects.toThrow('active transaction');
+    });
+
+    it('returns only the OPEN rows about those bookings, tenant-scoped, ordered by id', async () => {
+      const otherBooking = uuidv7();
+      const open = [BOOKING_ID, BOOKING_ID, otherBooking].map((affectedId) =>
+        new FutureCommitmentExceptionBuilder()
+          .withTenantId(TENANT_A)
+          .withAffectedId(affectedId)
+          .build(),
+      );
+      const dismissed = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(BOOKING_ID)
+        .build();
+      dismissed.dismissAutomatically('BOOKING_NO_LONGER_ACTIVE', 'corr-1');
+      const unrelated = new FutureCommitmentExceptionBuilder().withTenantId(TENANT_A).build();
+      const otherTenant = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_B)
+        .withAffectedId(BOOKING_ID)
+        .build();
+      for (const e of [...open, dismissed, unrelated, otherTenant]) await save(e);
+
+      const found = await txManager.run(() =>
+        repo.findOpenByAffectedForUpdate(TENANT_A, 'BOOKING', [BOOKING_ID, otherBooking]),
+      );
+
+      expect(found.map((e) => e.id)).toEqual(open.map((e) => e.id).sort());
+    });
+
+    it("never returns a row of another tenant for that tenant's booking id", async () => {
+      const exception = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(BOOKING_ID)
+        .build();
+      await save(exception);
+
+      const found = await txManager.run(() =>
+        repo.findOpenByAffectedForUpdate(TENANT_B, 'BOOKING', [BOOKING_ID]),
+      );
+
+      expect(found).toEqual([]);
+    });
+
+    it('serializes against a concurrent resolver: the entry is seen already closed once the resolver commits', async () => {
+      const exception = new FutureCommitmentExceptionBuilder()
+        .withTenantId(TENANT_A)
+        .withAffectedId(BOOKING_ID)
+        .build();
+      await save(exception);
+      const order: string[] = [];
+      let resolverHasLock!: () => void;
+      const resolverLocked = new Promise<void>((resolve) => (resolverHasLock = resolve));
+      let releaseResolver!: () => void;
+      const resolverReleased = new Promise<void>((resolve) => (releaseResolver = resolve));
+
+      const resolver = txManager.run(async () => {
+        const locked = (await repo.findByIdForUpdate(exception.id, TENANT_A))!;
+        order.push('resolver-locked');
+        resolverHasLock();
+        await resolverReleased;
+        locked.resolve(STAFF_ID, 'KEEP', null, 'corr-1');
+        await repo.save(locked);
+        order.push('resolver-committing');
+      });
+      await resolverLocked;
+      const canceller = txManager.run(async () => {
+        const open = await repo.findOpenByAffectedForUpdate(TENANT_A, 'BOOKING', [BOOKING_ID]);
+        order.push(`canceller-saw-${open.length}-open`);
+      });
+      await waitForBlockedRowLock(dataSource);
+      releaseResolver();
+      await Promise.all([resolver, canceller]);
+
+      expect(order).toEqual(['resolver-locked', 'resolver-committing', 'canceller-saw-0-open']);
+    });
+  });
+
   describe('findOpenBySourceForUpdate', () => {
     const SOURCE_ID = uuidv7();
 

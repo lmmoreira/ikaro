@@ -13,7 +13,11 @@ import {
   resolveLeggedLineCandidates,
 } from './resource-occupancy-candidate-builders.helpers';
 import { lockCandidateResources } from './resource-candidate-locking.helpers';
-import { ResolutionContext, selectionKey } from './resource-resolution-context.helpers';
+import {
+  ResolutionContext,
+  ResolutionSnapshot,
+  selectionKey,
+} from './resource-resolution-context.helpers';
 
 // isDegenerate carries isDegenerateService()'s verdict through to assignment time — see
 // resource-occupancy-assignment.helpers.ts's effectiveLockState() for why.
@@ -68,6 +72,10 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   // Locks resources inside the caller's transaction (BookingSlotConflictService.lockResources).
   // Required, so a caller cannot forget it and silently lose the ordering of automatic selection.
   lockResources: (resourceIds: string[]) => Promise<void>;
+  // Resources the booking occupies before a reschedule or an approval moves it (M23-S48).
+  alsoLockResourceIds?: readonly string[];
+  // What an earlier lock step already read; the resolution starts from it instead of reading again.
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
@@ -87,13 +95,7 @@ export async function resolveBookingLinesResourceCandidates(
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const { scheduledAt, lines, serviceMap, resourceSelections = [] } = params;
   const ctx = buildResolutionContext(params);
-  await lockCandidateResources({
-    lines,
-    serviceMap,
-    resourceSelections,
-    ctx,
-    lockResources: params.lockResources,
-  });
+  await lockWithContext(params, ctx);
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();
   let cursor = scheduledAt;
@@ -120,6 +122,31 @@ export async function resolveBookingLinesResourceCandidates(
   return result;
 }
 
+// Only the lock step of the resolution above: every resource the lines can land on, in one call.
+// The worklist's reschedule runs it before it takes the entry row lock (docs/28-LOCK_CATALOG.md
+// § 2); the resolution that follows asks for the same ids again, which a transaction already holds.
+export async function lockBookingLinesResourceCandidates(
+  params: ResolveBookingLinesResourceCandidatesParams,
+): Promise<ResolutionSnapshot> {
+  const ctx = buildResolutionContext(params);
+  await lockWithContext(params, ctx);
+  return { resourceCache: ctx.resourceCache, activeResourcesByType: ctx.activeResourcesByType };
+}
+
+function lockWithContext(
+  params: ResolveBookingLinesResourceCandidatesParams,
+  ctx: ResolutionContext,
+): Promise<void> {
+  return lockCandidateResources({
+    lines: params.lines,
+    serviceMap: params.serviceMap,
+    resourceSelections: params.resourceSelections ?? [],
+    ctx,
+    lockResources: params.lockResources,
+    alsoLockResourceIds: params.alsoLockResourceIds,
+  });
+}
+
 function buildResolutionContext(
   params: ResolveBookingLinesResourceCandidatesParams,
 ): ResolutionContext {
@@ -129,8 +156,8 @@ function buildResolutionContext(
     occupancyRepo: params.occupancyRepo,
     tenantId: params.tenantId,
     timezone: params.timezone,
-    resourceCache: new Map(),
-    activeResourcesByType: new Map(),
+    resourceCache: params.resolutionSnapshot?.resourceCache ?? new Map(),
+    activeResourcesByType: params.resolutionSnapshot?.activeResourcesByType ?? new Map(),
     // These lines' own pre-existing occupancy (if any — empty at creation, real at
     // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
     excludeBookingLineIds: params.lines.map((line) => line.lineId),

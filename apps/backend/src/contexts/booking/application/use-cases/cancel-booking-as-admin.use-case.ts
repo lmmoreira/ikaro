@@ -9,8 +9,16 @@ import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
+import {
+  FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
+  IFutureCommitmentExceptionRepository,
+} from '../ports/future-commitment-exception-repository.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { CancelBookingAsAdminDto } from '../dtos/cancel-booking-as-admin.dto';
-import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
+import {
+  saveTerminalBookingsInTransaction,
+  TerminalBookingDeps,
+} from './booking-exception-closing.helpers';
 
 export type CancelBookingAsAdminUseCaseInput = CancelBookingAsAdminDto & {
   bookingId: string;
@@ -32,7 +40,19 @@ export class CancelBookingAsAdminUseCase {
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
+    private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
   ) {}
+
+  private get closingDeps(): TerminalBookingDeps {
+    return {
+      bookingRepo: this.bookingRepo,
+      occupancyRepo: this.occupancyRepo,
+      exceptionRepo: this.exceptionRepo,
+      tenantLock: this.tenantLock,
+    };
+  }
 
   async execute(
     input: CancelBookingAsAdminUseCaseInput,
@@ -45,12 +65,11 @@ export class CancelBookingAsAdminUseCase {
     booking.cancel({ type: input.actorRole, id: staffId }, correlationId, input.reason);
 
     await this.txManager.run(async () => {
-      await this.bookingRepo.save(booking);
-      await releaseBookingOccupancy(
-        this.occupancyRepo,
+      await saveTerminalBookingsInTransaction(this.closingDeps, {
         tenantId,
-        booking.lines.map((l) => l.lineId),
-      );
+        bookings: [booking],
+        correlationId,
+      });
     });
 
     return { bookingId: booking.id, status: booking.status };

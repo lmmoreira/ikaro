@@ -13,6 +13,7 @@ import {
   checkGlobalModuleExportPairing,
   checkIkaroTypesDrift,
   checkNoJestFnForRepositoryOrPortMocks,
+  checkOccupancyReleaseChokePoint,
   checkPrimitiveFieldsValidatedAtConstruction,
   checkPrototypeChainSafety,
   checkReverseDiAlias,
@@ -162,6 +163,7 @@ const results = [
   checkEntityBuilderPrimaryKeyDefaults(backend),
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
   checkNoJestFnForRepositoryOrPortMocks(backend),
+  checkOccupancyReleaseChokePoint(backend),
   checkDomainEventsHaveAuditLogSubscription(backend),
   checkAggregatePropsUseSharedValueObjects(
     backend,
