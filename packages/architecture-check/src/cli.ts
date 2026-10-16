@@ -12,6 +12,7 @@ import {
   checkErrorMapperCoverage,
   checkGlobalModuleExportPairing,
   checkIkaroTypesDrift,
+  checkLockCatalogCoverage,
   checkNoJestFnForRepositoryOrPortMocks,
   checkOccupancyReleaseChokePoint,
   checkPrimitiveFieldsValidatedAtConstruction,
@@ -164,6 +165,7 @@ const results = [
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
   checkNoJestFnForRepositoryOrPortMocks(backend),
   checkOccupancyReleaseChokePoint(backend),
+  checkLockCatalogCoverage(backend, readFileSync(resolve(root, 'docs/28-LOCK_CATALOG.md'), 'utf8')),
   checkDomainEventsHaveAuditLogSubscription(backend),
   checkAggregatePropsUseSharedValueObjects(
     backend,
