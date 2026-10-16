@@ -438,7 +438,7 @@ export interface CompleteBookingResponse {
 
 **Chooser details:** the initial list is the first page of `GET /customers` (alphabetical — the backend has no recency order), so it is headed "Clientes", not "Clientes recentes" as drawn in `09`; the 5-character minimum applies only once a term is typed. A registered customer travels as `?customerId=` in the URL; a guest contact stays in memory only. The date step always uses the carousel, with `minBookingAdvanceHours = 0` (the existing components apply the notice client-side) and the dot on slots inside the notice. "Recorrência" is not in the menu until M23-S19 ships.
 
-**Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). Prefer extracting a shared floating-filter shell over a third copy.
+**Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). The balloon is built on the shared `FloatingFilterMenu` (extracted in M23-S13), not a third copy.
 
 **Error → screen map (`POST /recurring-booking-schedules/:id/approve|reject`):** `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve) → `#conflito`, with the same `conflicts[{ occurrenceStart, reason }]` list creation returns; `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` → `#expirada`; `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (approve) → `#telefone`; network/5xx → `#falha`.
 
@@ -619,3 +619,14 @@ Nothing above is built; the screens are the reference for a "full staff booking 
 - ⚠ **Role switch:** `03j` vs `03k` is two files for the prototype; in production the role comes from the JWT. `03k` inherits the base screen's sidebar, which still lists the manager-only section; the real STAFF sidebar does not.
 - ⚠ **The base screens were not redrawn by this change:** `00d` is derived from `00-agenda.html`, and `03j` / `03k` from `03-booking-detail-approved.html` as redrawn by M23-S47's prototype work (the resources card and the `?forma=` shapes come from there). If that screen changes again, regenerate `03j` / `03k`.
 - ⚠ **Pending booking:** the banner and panel are drawn on an approved booking (`03j`). A `PENDING` or `INFO_REQUESTED` detail gets the same banner and the same panel **without Reagendar** (the resolve contract allows `RESCHEDULE` only for `APPROVED`) and without Aprovar / Rejeitar while the decision is open.
+
+## ❓ GAP — M23-S50: the floating filter can be dragged to a corner (`11-filtro-flutuante.html`)
+
+Drawn 2026-10-16. Frontend only (no BFF, no migration). Behavior and decisions: `../../agenda.md` § "M23-S50 addition". Horários' two-pill variant: `../horarios/10-filtros-flutuantes.html`.
+
+- **Variants:** `#cantos-tl|tr|bl|br` (pill parked in each corner), `#posicao` (popover open on the "Posição" row), `#mobile` (the same page in a 390px frame, so the media queries apply: bottom corners clear the bottom nav). The drag is live in the prototype and snaps to the nearest corner; nothing persists.
+- **Components (planned, none built):** `FloatingFilterDock` (the fixed container, owns the corner and stacks the page's filters), `FloatingFilterMenu` (modified: orientation from the dock's corner, "Posição" row, `positionClassName` dropped), `useDraggableCorner` (Pointer Events + capture, ~6px threshold, `touch-action: none` on the pill only), `floating-filter-corner.ts` (pure geometry), `floating-filter-preferences.ts` (corner per tenant + page), and a small React context from the dock to its menus. Reuse `Button` from `shared/components/ui/`; no drag library.
+- **Prototype CSS → Tailwind:** `.filter-dock.c-br` = `bottom-24 right-4 lg:bottom-6 lg:right-6`; `.c-bl` = `bottom-24 left-4 lg:bottom-6 lg:left-[calc(15rem+1.5rem)]`; `.c-tr` = `top-[4.75rem] right-4 lg:right-6`; `.c-tl` = `top-[4.75rem] left-4 lg:left-[calc(15rem+1.5rem)]`. The top offset (4.75rem) is a prototype value; the real one is pinned by an E2E bounding-box assertion at implementation.
+- **A click is still a click:** a drag release must not toggle the popover (the prototype suppresses the click that follows a drag).
+- ⚠ A pill in a top or left corner can cover page content — accepted (decided 2026-10-16); the user chose the corner and "Posição" returns it to the default.
+

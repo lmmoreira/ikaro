@@ -177,3 +177,12 @@ flowchart TD
 - [x] Origin is **persisted at booking time** (`resource_occupancy.gap_minutes` + `gap_source`) and exposed on the day-grid block as `gap`. Recomputing it later from current config was rejected: wrong after any edit. Legacy rows (no recorded origin) render "Origem não registrada" — never a guessed cause. No backfill.
 - [x] Scope (widened during implementation): the columns board shows one strip per held resource; the merged Day timeline (no resource checked) and the Week view day-cards show **one strip per booking** — it runs to the longest hold, names every resource held until then ("Walace, Sala 1 · até 12:30") and the cause (a service buffer wins a tie). MANAGER only (the day-grid route is manager-only); with resources checked in Week view only those are considered.
 - [x] Delivered by `M18-S10` (backend-ts + bff-ts + web-ts, size L).
+
+## M23-S50 addition — Both filters move together as a dock (❓ Gap, `M23-S50`)
+
+> The status filter (`ScheduleStatusFilterMenu`) and, for a MANAGER, the resource filter (`ResourceFilterMenu`) share the Agenda's floating-filter behavior; the full rules are in `agenda.md` § "M23-S50 addition". Prototype: `prototypes/horarios/10-filtros-flutuantes.html`.
+
+- **One dock, two pills.** The page's filters travel together: dragging either pill (or choosing a corner in either popover's "Posição" row) moves both. They stack along the chosen corner in a fixed order, status nearest the corner and resource further out (the order they have today), and never overlap in any corner.
+- **One remembered corner for the Horários page**, per tenant, separate from the Agenda's. A STAFF user, who has no resource filter, sees the dock with the status pill only.
+- **Nothing changes for anyone who never drags:** the pills stay bottom-right where they are today.
+

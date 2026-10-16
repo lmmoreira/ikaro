@@ -334,3 +334,8 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 **Prototype notes:** both files are built from `08-visao-geral-manager.html` using the real Oct 8 Lavacar BeloAuto occupancy (bookings 11:00/13:00/16:00 → held until 12:30/15:00/17:30) plus an illustrative 09:00 Lavagem rápida with a 30-min Walace turnover (not Walace's real turnover, which is 5 min) to contrast the two origins. `09b-so-walace.html` is the one-resource-checked case. Free cells are tinted green only in the prototype so gaps are readable; the real board does not tint free time. Nav links point at real, existing screens (`../turmas/01-turmas-proximas.html`).
 
 **Known limitation carried from `08`:** `08-visao-geral-manager.html` still links `staff-02-session-roster.html` and `staff-04-turmas-proximas.html`, which do not exist (the real screens are `../turmas/02-roster-dia.html` and `../turmas/01-turmas-proximas.html`); left unchanged, flagged by the 2026-10-03 docs-audit.
+
+## ❓ GAP — M23-S50: both filters move together as a dock (`10-filtros-flutuantes.html`)
+
+Drawn 2026-10-16. The status filter and, for a MANAGER, the resource filter are two pills in one `FloatingFilterDock`: dragging either (or choosing a corner in either "Posição" row) moves both; they stack along the corner with **status nearest the corner and resource further out**, and never overlap. One remembered corner for the Horários page, per tenant, separate from the Agenda's. Full behavior, components and offsets: `../agenda/dev-notes.md` § "M23-S50" and `../../agenda.md` § "M23-S50 addition". Variants: `#cantos-tl|tr|bl|br`, `#posicao`, `#mobile`. A STAFF user has no resource filter, so the dock holds one pill.
+
