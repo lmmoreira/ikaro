@@ -411,24 +411,24 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-072.
 - **State change:** `availability_alerts` row created, `status = ACTIVE`.
 - **Data:** `{ alertId, customerId, serviceId, criteriaType, expiresAt }`
-- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
+- **Consumers:** `audit-log` only (`BookingAuditLogHandler` → `LogDomainEventUseCase`, M23-S36) — no business consumer.
 
 #### **AvailabilityAlertUpdated**
 - **Trigger:** UC-076/UC-053 (customer edits criteria or expiry).
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
+- **Consumers:** `audit-log` only (`BookingAuditLogHandler` → `LogDomainEventUseCase`, M23-S36) — no business consumer.
 
 #### **AvailabilityAlertCancelled**
 - **Trigger:** UC-072 A2 (withdraws before a match) or UC-076/UC-053 (explicit cancel).
 - **State change:** `status → CANCELLED`.
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
+- **Consumers:** `audit-log` only (`BookingAuditLogHandler` → `LogDomainEventUseCase`, M23-S36) — no business consumer.
 
 #### **AvailabilityAlertExpired**
 - **Trigger:** System — `expiresAt` passed with no match.
 - **State change:** `status → EXPIRED`.
 - **Data:** `{ alertId, customerId, serviceId }`
-- **Consumers:** audit-log-only subscriber (M23-S06) — no business consumer yet.
+- **Consumers:** `audit-log` only (`BookingAuditLogHandler` → `LogDomainEventUseCase`, M23-S36) — no business consumer.
 
 #### **AvailabilityAlertMatched**
 - **Trigger:** UC-072 step 3 — a bookable slot that a customer can actually select starts inside an `ACTIVE` alert's acceptable window. Two producers, one use case (`MatchAvailabilityAlertsUseCase`): the capacity-release handlers (`BookingCancelled`, `BookingRejected`, `BookingRescheduled` — one day re-checked) and the daily sweep on `cron-reminders` (the whole selectable window). See `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Availability Alerts.
@@ -464,7 +464,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Trigger:** UC-077 A2 (manager dismisses a genuinely resolved/non-impacting item), A3 (the source resource is reactivated, reason `RESOURCE_REACTIVATED`) and A4 (M23-S48: the booking was cancelled, rejected or ended with its recurring schedule, reason `BOOKING_NO_LONGER_ACTIVE`; or it was rescheduled or approved onto other resources, reason `RESOURCE_NO_LONGER_USED`).
 - **State change:** `status → DISMISSED`.
 - **Data:** `{ exceptionId, resolvedByStaffId, resolutionReason }` — `resolvedByStaffId` is `null` when the system closed the entry (A3 records the reactivating staff member; A4 has no actor, a customer may have cancelled).
-- **Consumers:** audit-log-only subscriber (M23-S08) — no business consumer yet.
+- **Consumers:** `audit-log` only (`BookingAuditLogHandler` → `LogDomainEventUseCase`, M23-S36) — no business consumer.
 
 #### **TenantSchedulingBootstrapped**
 > ⚠️ **Planned, not built:** UC-075 moved to M24-S21; no event class or Pub/Sub topic exists yet.
