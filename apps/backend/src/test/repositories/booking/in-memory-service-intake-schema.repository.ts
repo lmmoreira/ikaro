@@ -24,6 +24,17 @@ export class InMemoryServiceIntakeSchemaRepository implements IServiceIntakeSche
       .sort((a, b) => a.version - b.version);
   }
 
+  findAllByServiceIds(
+    serviceIds: readonly string[],
+    tenantId: string,
+  ): Promise<ServiceBookingIntakeSchema[]> {
+    return Promise.resolve(
+      Array.from(this.store.values())
+        .filter((s) => serviceIds.includes(s.serviceId) && s.tenantId === tenantId)
+        .sort((a, b) => a.serviceId.localeCompare(b.serviceId) || a.version - b.version),
+    );
+  }
+
   async findLatestByServiceId(
     serviceId: string,
     tenantId: string,

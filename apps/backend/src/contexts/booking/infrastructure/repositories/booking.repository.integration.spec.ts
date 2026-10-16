@@ -446,6 +446,78 @@ describe('TypeOrmBookingRepository (integration)', () => {
       }
     });
 
+    describe('findLatestResourceAssignments() (M23-S47)', () => {
+      it('returns the slot coordinates and only the latest resource of a reassigned slot', async () => {
+        const { booking, lineId } = bookingWithOneLine();
+        const [oldRoom, newRoom] = await seedRooms(2);
+        try {
+          await repo.save(booking);
+          await dataSource
+            .getRepository(BookingLineResourceAssignmentEntity)
+            .save([
+              assignment(lineId, oldRoom, { assignedAt: '2026-10-01T10:00:00Z' }),
+              assignment(lineId, newRoom, { assignedAt: '2026-10-02T10:00:00Z' }),
+            ]);
+
+          const rows = await repo.findLatestResourceAssignments(TENANT_A, booking.id);
+
+          expect(rows).toEqual([
+            expect.objectContaining({
+              bookingLineId: lineId,
+              resourceId: newRoom.id,
+              resourceName: newRoom.name,
+              legIndex: null,
+              quantityPosition: null,
+            }),
+          ]);
+        } finally {
+          await cleanup(booking.id, lineId, [oldRoom.id, newRoom.id]);
+        }
+      });
+
+      it('keeps a resource used on two legs as two rows instead of collapsing it', async () => {
+        const { booking, lineId } = bookingWithOneLine();
+        const [van, guide] = await seedRooms(2);
+        try {
+          await repo.save(booking);
+          await dataSource
+            .getRepository(BookingLineResourceAssignmentEntity)
+            .save([
+              assignment(lineId, van, { legIndex: 0 }),
+              assignment(lineId, guide, { legIndex: 1 }),
+              assignment(lineId, van, { legIndex: 2 }),
+            ]);
+
+          const rows = await repo.findLatestResourceAssignments(TENANT_A, booking.id);
+
+          expect(
+            rows.map((r) => [r.legIndex, r.resourceId]).sort(([a], [b]) => Number(a) - Number(b)),
+          ).toEqual([
+            [0, van.id],
+            [1, guide.id],
+            [2, van.id],
+          ]);
+        } finally {
+          await cleanup(booking.id, lineId, [van.id, guide.id]);
+        }
+      });
+
+      it('returns nothing for another tenant', async () => {
+        const { booking, lineId } = bookingWithOneLine();
+        const [room] = await seedRooms(1);
+        try {
+          await repo.save(booking);
+          await dataSource
+            .getRepository(BookingLineResourceAssignmentEntity)
+            .save([assignment(lineId, room)]);
+
+          expect(await repo.findLatestResourceAssignments(TENANT_B, booking.id)).toEqual([]);
+        } finally {
+          await cleanup(booking.id, lineId, [room.id]);
+        }
+      });
+    });
+
     it('keeps one resource per required type on a bundled line (all with a null leg)', async () => {
       const { booking, lineId } = bookingWithOneLine();
       const [room] = await seedRooms(1, ResourceType.ROOM);

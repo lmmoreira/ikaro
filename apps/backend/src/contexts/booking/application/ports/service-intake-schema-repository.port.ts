@@ -12,6 +12,12 @@ export interface IServiceIntakeSchemaRepository {
   // UC-054's own AC: "the previous version is preserved, not overwritten" — used by the
   // integration test to verify both versions remain queryable after a second publish.
   findAllByServiceId(serviceId: string, tenantId: string): Promise<ServiceBookingIntakeSchema[]>;
+  // Every version of several services in one query, ordered by service then version — the booking
+  // detail's single intake read, however many services the basket held (M23-S47).
+  findAllByServiceIds(
+    serviceIds: readonly string[],
+    tenantId: string,
+  ): Promise<ServiceBookingIntakeSchema[]>;
   // The `limit` most recent versions (active included), newest first — the bounded read behind
   // GET /services/:id/intake-schema, so the payload doesn't grow with every publish.
   findLatestByServiceId(

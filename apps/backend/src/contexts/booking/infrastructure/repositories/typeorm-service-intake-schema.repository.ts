@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IServiceIntakeSchemaRepository } from '../../application/ports/service-intake-schema-repository.port';
@@ -38,6 +38,19 @@ export class TypeOrmServiceIntakeSchemaRepository implements IServiceIntakeSchem
     const entities = await manager.find(ServiceBookingIntakeSchemaEntity, {
       where: { serviceId, tenantId },
       order: { version: 'ASC' },
+    });
+    return entities.map((e) => this.toDomain(e));
+  }
+
+  async findAllByServiceIds(
+    serviceIds: readonly string[],
+    tenantId: string,
+  ): Promise<ServiceBookingIntakeSchema[]> {
+    if (serviceIds.length === 0) return [];
+    const manager = getActiveEntityManager() ?? this.repo.manager;
+    const entities = await manager.find(ServiceBookingIntakeSchemaEntity, {
+      where: { serviceId: In([...serviceIds]), tenantId },
+      order: { serviceId: 'ASC', version: 'ASC' },
     });
     return entities.map((e) => this.toDomain(e));
   }

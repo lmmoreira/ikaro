@@ -121,6 +121,7 @@ describe('BookingController', () => {
         new InMemoryBookingStatusTransitionRepository(),
         new InMemoryBookingStaffPort(),
         new InMemoryFutureCommitmentExceptionRepository(),
+        new InMemoryServiceIntakeSchemaRepository(),
       ),
     });
 
@@ -258,6 +259,7 @@ describe('BookingController', () => {
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryServiceIntakeSchemaRepository(),
         ),
       );
       const err = await ctrl
@@ -345,6 +347,7 @@ describe('BookingController', () => {
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
+          new InMemoryServiceIntakeSchemaRepository(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);
@@ -468,6 +471,31 @@ describe('BookingController', () => {
 
       expect(staffResult.statusHistory).toEqual([]);
       expect(customerResult.statusHistory).toBeNull();
+    });
+
+    it('asks for the full detail on staff and customer reads, and for actor names on a staff read only (M23-S47)', async () => {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+      const execute = jest.spyOn(GetBookingByIdUseCase.prototype, 'execute');
+
+      try {
+        await controller.getOne(booking.id);
+        await customerController.getOne(booking.id);
+
+        expect(execute.mock.calls[0][0]).toMatchObject({
+          includeDetailExtras: true,
+          includeActorNames: true,
+        });
+        expect(execute.mock.calls[1][0]).toMatchObject({
+          includeDetailExtras: true,
+          includeActorNames: false,
+        });
+      } finally {
+        execute.mockRestore();
+      }
     });
 
     it('maps BookingNotFoundError to 404', async () => {

@@ -10,6 +10,7 @@ import { FutureCommitmentExceptionBuilder } from '../../../../test/builders/book
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceIntakeSchemaRepository } from '../../../../test/repositories/booking/in-memory-service-intake-schema.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -51,6 +52,7 @@ describe('GetBookingByIdUseCase', () => {
       transitionRepo,
       staffPort,
       exceptionRepo,
+      new InMemoryServiceIntakeSchemaRepository(),
     );
   });
 

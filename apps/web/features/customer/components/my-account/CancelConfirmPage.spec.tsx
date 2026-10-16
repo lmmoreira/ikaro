@@ -60,6 +60,15 @@ vi.mock('@/features/booking/api/customer', () => ({
 
 function makeBooking(): CustomerBookingDetailResponse {
   return {
+    pickupAddress: null,
+    resources: [],
+    itinerary: [],
+    participantCount: null,
+    attendees: [],
+    intake: null,
+    recurringScheduleId: null,
+    cancellation: null,
+    rejection: null,
     bookingId: 'b1',
     status: 'APPROVED',
     scheduledAt: '2026-06-20T10:00:00.000Z',

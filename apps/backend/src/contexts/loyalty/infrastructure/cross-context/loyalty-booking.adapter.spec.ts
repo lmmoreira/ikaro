@@ -108,6 +108,16 @@ describe('LoyaltyBookingAdapter', () => {
       pointsEarned: null,
       statusHistory: null,
       hasOpenException: null,
+      resources: null,
+      itinerary: null,
+      participantCount: null,
+      attendees: null,
+      intake: null,
+      recurringScheduleId: null,
+      createdByStaffId: null,
+      createdByName: null,
+      cancellation: null,
+      rejection: null,
     });
 
     const result = await adapter.findBookingServices(TENANT_ID, BOOKING_ID);

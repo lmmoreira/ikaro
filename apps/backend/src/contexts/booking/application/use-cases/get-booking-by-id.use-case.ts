@@ -20,7 +20,16 @@ import {
   IResourceOccupancyRepository,
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
+import {
+  IServiceIntakeSchemaRepository,
+  SERVICE_INTAKE_SCHEMA_REPOSITORY,
+} from '../ports/service-intake-schema-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import {
+  BookingDetailExtras,
+  EMPTY_BOOKING_DETAIL_EXTRAS,
+  loadBookingDetailExtras,
+} from './booking-detail-extras.helpers';
 import {
   BookingAddressDetail,
   BookingLineDetail,
@@ -35,7 +44,7 @@ import {
 } from './booking-status-history.helpers';
 import {
   BookingRescheduleOptionsDetail,
-  buildRescheduleOptions,
+  loadRescheduleOptions,
 } from './booking-reschedule-options.helpers';
 
 export type { BookingAddressDetail, BookingLineDetail } from './booking-detail.helpers';
@@ -53,9 +62,16 @@ export type GetBookingByIdUseCaseInput = {
   // resolver" entry. Off by default so the customer read and the loyalty adapter's read never
   // query the worklist.
   includeOpenException?: boolean;
+  // M23-S47 — the full booking detail: resources and itinerary, participants, intake answers with
+  // their booked labels, recurrence, creator and the cancel/reject facts. Off by default so the
+  // loyalty adapter's read of this use case never pays for the extra queries.
+  includeDetailExtras?: boolean;
+  // M23-S47, staff-facing reads only: resolve the creator's and the cancelling or rejecting staff
+  // member's names. Ignored unless includeDetailExtras is set.
+  includeActorNames?: boolean;
 };
 
-export interface GetBookingByIdUseCaseResult {
+export interface GetBookingByIdUseCaseResult extends BookingDetailExtras {
   id: string;
   status: string;
   type: string;
@@ -99,6 +115,11 @@ export interface GetBookingByIdUseCaseResult {
   hasOpenException: boolean | null;
 }
 
+type BaseBookingResult = Omit<
+  GetBookingByIdUseCaseResult,
+  'statusHistory' | 'hasOpenException' | keyof BookingDetailExtras
+>;
+
 @Injectable()
 export class GetBookingByIdUseCase {
   constructor(
@@ -113,6 +134,8 @@ export class GetBookingByIdUseCase {
     @Inject(BOOKING_STAFF_PORT) private readonly staffPort: IBookingStaffPort,
     @Inject(FUTURE_COMMITMENT_EXCEPTION_REPOSITORY)
     private readonly exceptionRepo: IFutureCommitmentExceptionRepository,
+    @Inject(SERVICE_INTAKE_SCHEMA_REPOSITORY)
+    private readonly intakeSchemaRepo: IServiceIntakeSchemaRepository,
   ) {}
 
   async execute(input: GetBookingByIdUseCaseInput): Promise<GetBookingByIdUseCaseResult> {
@@ -130,7 +153,18 @@ export class GetBookingByIdUseCase {
 
     const reschedule =
       requestingCustomerId !== undefined && input.tenantBookingWindow
-        ? await this.resolveRescheduleOptions(booking, input, input.tenantBookingWindow)
+        ? await loadRescheduleOptions(
+            {
+              serviceRepo: this.serviceRepo,
+              occupancyRepo: this.occupancyRepo,
+              txManager: this.txManager,
+            },
+            {
+              booking,
+              tenantDefaultRescheduleWindowHours: input.cancellationWindowHours,
+              tenantBookingWindow: input.tenantBookingWindow,
+            },
+          )
         : null;
 
     const statusHistory = input.includeStatusHistory
@@ -143,41 +177,34 @@ export class GetBookingByIdUseCase {
         )
       : null;
 
+    const extras = await this.loadExtras(booking, input);
+
     return this.toResult(
       booking,
       cancellationWindowHours,
       reschedule,
-      statusHistory,
-      hasOpenException,
+      { statusHistory, hasOpenException },
+      extras,
     );
   }
 
-  private async resolveRescheduleOptions(
+  private loadExtras(
     booking: Booking,
     input: GetBookingByIdUseCaseInput,
-    tenantBookingWindow: TenantBookingWindow,
-  ): Promise<BookingRescheduleOptionsDetail | null> {
-    if (booking.status !== BookingStatus.APPROVED) return null;
-
-    const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-    const [services, occupancyRows] = await Promise.all([
-      this.serviceRepo.findByIds(serviceIds, input.tenantId),
-      // The occupancy repository only works inside a transaction, reads included.
-      this.txManager.run(() =>
-        this.occupancyRepo.findOccupancyByBookingLines(
-          input.tenantId,
-          booking.lines.map((line) => line.lineId),
-        ),
-      ),
-    ]);
-
-    return buildRescheduleOptions({
+  ): Promise<BookingDetailExtras> {
+    if (!input.includeDetailExtras) return Promise.resolve(EMPTY_BOOKING_DETAIL_EXTRAS);
+    return loadBookingDetailExtras(
+      {
+        bookingRepo: this.bookingRepo,
+        serviceRepo: this.serviceRepo,
+        occupancyRepo: this.occupancyRepo,
+        intakeSchemaRepo: this.intakeSchemaRepo,
+        staffPort: this.staffPort,
+        txManager: this.txManager,
+      },
       booking,
-      serviceMap: new Map(services.map((service) => [service.id, service])),
-      occupancyRows,
-      tenantDefaultRescheduleWindowHours: input.cancellationWindowHours,
-      tenantBookingWindow,
-    });
+      { includeActorNames: input.includeActorNames === true },
+    );
   }
 
   private signPhotoUrls(paths: string[]): Promise<string[]> {
@@ -190,8 +217,11 @@ export class GetBookingByIdUseCase {
     booking: Booking,
     cancellationWindowHours: number,
     reschedule: BookingRescheduleOptionsDetail | null,
-    statusHistory: BookingStatusHistoryEntryDetail[] | null,
-    hasOpenException: boolean | null,
+    staffOnly: {
+      statusHistory: BookingStatusHistoryEntryDetail[] | null;
+      hasOpenException: boolean | null;
+    },
+    extras: BookingDetailExtras,
   ): Promise<GetBookingByIdUseCaseResult> {
     const [beforeServicePhotoUrls, afterServicePhotoUrls] = await Promise.all([
       this.signPhotoUrls(booking.beforeServicePhotoUrls),
@@ -205,8 +235,8 @@ export class GetBookingByIdUseCase {
         { beforeServicePhotoUrls, afterServicePhotoUrls },
         reschedule,
       ),
-      statusHistory,
-      hasOpenException,
+      ...staffOnly,
+      ...extras,
     };
   }
 
@@ -215,7 +245,7 @@ export class GetBookingByIdUseCase {
     cancellationWindowHours: number,
     signedPhotoUrls: { beforeServicePhotoUrls: string[]; afterServicePhotoUrls: string[] },
     reschedule: BookingRescheduleOptionsDetail | null,
-  ): Omit<GetBookingByIdUseCaseResult, 'statusHistory' | 'hasOpenException'> {
+  ): BaseBookingResult {
     return {
       id: booking.id,
       status: booking.status,

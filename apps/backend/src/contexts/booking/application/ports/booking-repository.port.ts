@@ -30,6 +30,19 @@ export interface BookingResourceAssignmentSummary {
   resourceName: string;
 }
 
+// One slot of a booking line's resource assignment as it stands now (M23-S47): the latest row of
+// the append-only booking_line_resource_assignments per (line, resource type, leg, quantity
+// position). It survives a cancel or reject, which release the occupancy rows, so it is the
+// durable record of which resource a booking had.
+export interface BookingLineResourceAssignment {
+  bookingLineId: string;
+  resourceId: string;
+  resourceType: ResourceType;
+  resourceName: string;
+  legIndex: number | null;
+  quantityPosition: number | null;
+}
+
 export interface BookingPaginatedResult {
   items: Booking[];
   total: number;
@@ -65,4 +78,10 @@ export interface IBookingRepository {
   // Narrow existence check (M22-S01, UC-056 A1) — never fetches full booking rows, just whether
   // any booking line references this service, for the bookingModel-immutability check.
   existsByServiceId(serviceId: string, tenantId: string): Promise<boolean>;
+  // M23-S47 — the booking's current resource assignments, one per slot, for any status (see
+  // BookingLineResourceAssignment). Tenant-scoped; empty when the booking has none.
+  findLatestResourceAssignments(
+    tenantId: string,
+    bookingId: string,
+  ): Promise<BookingLineResourceAssignment[]>;
 }

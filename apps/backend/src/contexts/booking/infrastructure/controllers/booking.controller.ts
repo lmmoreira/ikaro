@@ -90,6 +90,8 @@ export class BookingController {
         tenantBookingWindow: this.tenantBookingWindow(),
         includeStatusHistory: actorType === 'STAFF',
         includeOpenException: actorType === 'STAFF',
+        includeDetailExtras: actorType === 'STAFF' || actorType === 'CUSTOMER',
+        includeActorNames: actorType === 'STAFF',
       })
       .catch(mapBookingError);
   }

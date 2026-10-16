@@ -2,6 +2,7 @@ import { drainDomainEvents } from '../../../shared/infrastructure/outbox/drain-d
 import { IOutboxPublisher } from '../../../shared/ports/outbox-publisher.port';
 import {
   BookingFilters,
+  BookingLineResourceAssignment,
   BookingListFilters,
   BookingPaginatedResult,
   BookingResourceAssignmentSummary,
@@ -18,6 +19,11 @@ export class InMemoryBookingRepository implements IBookingRepository {
     BookingResourceAssignmentSummary[]
   >();
 
+  private readonly latestAssignmentsByBookingId = new Map<
+    string,
+    BookingLineResourceAssignment[]
+  >();
+
   constructor(
     private readonly outboxPublisher: IOutboxPublisher = { publish: async () => {} },
     private readonly transitionRepo: IBookingStatusTransitionRepository = new InMemoryBookingStatusTransitionRepository(),
@@ -28,6 +34,24 @@ export class InMemoryBookingRepository implements IBookingRepository {
   // seeds it explicitly.
   setResourceAssignments(bookingId: string, assignments: BookingResourceAssignmentSummary[]): void {
     this.resourceAssignmentsByBookingId.set(bookingId, assignments);
+  }
+
+  // Test-only seeding hook for findLatestResourceAssignments() — the real repository reads the
+  // latest booking_line_resource_assignments row per slot.
+  setLatestResourceAssignments(
+    bookingId: string,
+    assignments: BookingLineResourceAssignment[],
+  ): void {
+    this.latestAssignmentsByBookingId.set(bookingId, assignments);
+  }
+
+  findLatestResourceAssignments(
+    tenantId: string,
+    bookingId: string,
+  ): Promise<BookingLineResourceAssignment[]> {
+    const booking = this.store.get(bookingId);
+    if (booking?.tenantId !== tenantId) return Promise.resolve([]);
+    return Promise.resolve(this.latestAssignmentsByBookingId.get(bookingId) ?? []);
   }
 
   findById(id: string, tenantId: string): Promise<Booking | null> {

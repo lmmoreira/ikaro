@@ -10,6 +10,15 @@ export interface ResourceAssignmentRow {
   resourceName: string;
 }
 
+// The same latest-row-per-slot result with the slot's coordinates kept (M23-S47): the booking
+// detail needs the line, the leg and the quantity position, and must not collapse a resource used
+// on two legs into one.
+export interface LatestResourceAssignmentRow extends ResourceAssignmentRow {
+  bookingLineId: string;
+  legIndex: number | null;
+  quantityPosition: number | null;
+}
+
 // Generic grouping shared by findLinesByBookingId/findAttendeesByBookingId
 // (typeorm-booking.repository.ts) — both batch-load a child table for a page of bookings and need
 // the exact same "group flat rows by their own bookingId" shape.
@@ -54,10 +63,13 @@ export function groupResourceAssignmentsByBookingId(
 // resource type + leg + quantity position (a bundled line holds one row per required type, all
 // with a null leg) — i.e. the resource a booking is on now, or was on when it ended. `id DESC`
 // breaks a tie between two rows written in the same millisecond. $1 = tenant id, $2 = booking
-// ids. Rows come back as ResourceAssignmentRow.
+// ids. Rows come back as LatestResourceAssignmentRow (the list read ignores the slot columns).
 export const LATEST_RESOURCE_ASSIGNMENTS_SQL = `
   SELECT DISTINCT ON (blra.booking_line_id, blra.resource_type, blra.leg_index, blra.quantity_position)
          bl.booking_id AS "bookingId",
+         blra.booking_line_id AS "bookingLineId",
+         blra.leg_index AS "legIndex",
+         blra.quantity_position AS "quantityPosition",
          blra.resource_id AS "resourceId",
          blra.resource_type AS "resourceType",
          blra.resource_name_at_assignment AS "resourceName"
