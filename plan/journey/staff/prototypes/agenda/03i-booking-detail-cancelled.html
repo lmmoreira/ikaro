@@ -255,15 +255,15 @@
               <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima <span class="fx-tag">atribuído pelo sistema</span></span></div>
               <div class="fx-kv" data-v="pacote completo"><span>Cadeiras</span><span>Do conjunto<small>Conjunto sem item específico — só a quantidade é reservada</small></span></div>
             </div>
-            <p class="fx-note" data-v="recurso pacote completo equipe recorrente">Uma linha por requisito do serviço, com o tipo do recurso. Nome do recurso quando há um (escolhido pelo cliente ou atribuído pelo sistema); um conjunto sem item específico mostra só "Do conjunto". Serviço sem requisito: o cartão não aparece.</p>
+            <p class="fx-note" data-v="recurso pacote completo equipe recorrente">Os recursos que o agendamento tinha ao ser cancelado (último registro de cada vaga), mesmo com a reserva já liberada. Uma linha por requisito do serviço, com o tipo do recurso. Nome do recurso quando há um (escolhido pelo cliente ou atribuído pelo sistema); um conjunto sem item específico mostra só "Do conjunto". Serviço sem requisito: o cartão não aparece.</p>
 
             <p class="detail-section-label" data-v="trajeto">Trajeto</p>
             <div class="card" data-v="trajeto" style="padding: 0 1rem; margin-bottom: 1.25rem;">
-              <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida · 09:00 — 09:40</span></div></div>
-              <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio · 09:40 — 11:10</span></div></div>
-              <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta · 11:10 — 11:50</span></div></div>
+              <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida</span></div></div>
+              <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio</span></div></div>
+              <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta</span></div></div>
             </div>
-            <p class="fx-note" data-v="trajeto">Serviço com trechos: cada trecho com o recurso que o cumpre e o horário. Substitui a linha de horário único quando o serviço tem trechos.</p>
+            <p class="fx-note" data-v="trajeto">Serviço com trechos: cada trecho com o recurso que o cumpriria, na ordem. O horário de cada trecho não aparece: o cancelamento liberou a reserva do recurso, e o horário só existe nessa reserva.</p>
 
             <p class="detail-section-label" data-v="formulario completo">Participantes</p>
             <div class="card" data-v="formulario completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
@@ -350,11 +350,6 @@
       if (!(q in NAMES)) q = 'completo';
       document.querySelectorAll('[data-v]').forEach(function (el) {
         el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
-      });
-      /* A cancelled booking has released its resource occupancy: no resources or itinerary card (M23-S47 decision 2). */
-      document.querySelectorAll('[data-v]').forEach(function (el) {
-        var t = el.getAttribute('data-v').split(' ');
-        if (t.indexOf('recurso') >= 0 || t.indexOf('trajeto') >= 0) el.hidden = true;
       });
       var n = document.getElementById('svc-name'); if (n) n.textContent = NAMES[q];
       document.querySelectorAll('[data-f]').forEach(function (a) { if (a.getAttribute('data-f') === q) a.className = 'on'; });

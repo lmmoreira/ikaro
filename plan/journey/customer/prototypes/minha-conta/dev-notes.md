@@ -129,6 +129,8 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 | `02-agendamento-detail.html` | `/{slug}/my-account/bookings/[id]` (APPROVED/PENDING) | ✅ Done — M13-S28 |
 | `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ✅ Done — M13-S28 |
 | `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ✅ Done — M13-S28 |
+| `02g-agendamento-cancelado.html` | same route — CANCELLED (read-only; `?por=cliente\|estabelecimento`) | ❓ Gap — M23-S47 |
+| `02h-agendamento-recusado.html` | same route — REJECTED (read-only) | ❓ Gap — M23-S47 |
 | `02d-info-sent.html` | same route — inline state after successful submit-info | ✅ Done — M13-S28 |
 | `02e-submit-error.html` | same route — inline state after failed submit-info | ✅ Done — M13-S28 |
 | `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — dedicated page, not a sheet | ✅ Done — M13-S28 |
@@ -347,4 +349,12 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 ## Full booking detail cards (audit of 2026-10-15)
 
-`02`, `02b`, `02c` and `02f` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `completo`). ❓ Gap: none of these fields is in `CustomerBookingDetailResponse` today. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
+`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `completo`). ❓ Gap: none of these fields is in `CustomerBookingDetailResponse` today. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
+
+### `02g` cancelled and `02h` rejected (added 2026-10-16, M23-S47)
+
+- **They are reachable today.** `splitBookingSections` puts `CANCELLED` and `REJECTED` in Histórico and every `BookingListItem` links to the detail route, but `BookingDetailPage` has no branch for either status (only `COMPLETED` and `NO_SHOW` get a `ClosedActionPane`), so the page shows no action pane and no reason. Both screens add one: "Fazer novo agendamento", no cancel, no reschedule.
+- **`02g`, card "Cancelamento":** who (`Você` when `cancelledBy` equals the booking's `customerId`, else `O estabelecimento`), when (`cancelledAt`), why (`cancellationReason`; the row is omitted when empty). The staff member's name or id is never sent to the customer BFF mapper (negative test). `?por=` only switches the sample text.
+- **`02h`, card "Recusa":** when (`rejectedAt`) and the reason the business typed (`rejectionReason`; today only `StaffBookingDetailResponse` carries it, so S47 adds it to the customer response too). Nobody is named.
+- **Resources and itinerary stay.** They are read from the latest `booking_line_resource_assignments` row per slot, which a cancel or reject does not delete. The legs show their order and resource but **no times**: times exist only on `resource_occupancy`, which the cancel/reject releases. A completed or no-show booking (`02c`, `02f`) shows the times until the 90-day retention purge; the screens draw the times, and a booking old enough to have lost them renders like `02g`'s legs.
+- **Copy:** pt-BR in the files above; the `en` twin goes in the same commit as the components, under the existing `customer.bookingDetail` keys.
