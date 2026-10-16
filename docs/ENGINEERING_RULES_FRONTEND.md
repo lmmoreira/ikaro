@@ -154,6 +154,8 @@ Treat this table as a starting point, not the full list — `ls apps/web/shared/
 3. If none exists, say so explicitly, then fetch the library's or shadcn's current reference source and port it wholesale (`docs/ANTI_PATTERNS.md`, the "reconstructed from memory" row; the M21-S04 hand-rolled toggle that duplicated `SwitchField` is the same defect), add it under `shared/components/ui/` with its spec so the next story reuses it — never a one-off inside a feature.
 4. A deliberate deviation (the primitive cannot do what the story needs) is recorded in the story with the reason; it is never silent.
 
+**A form that two shells both need — extract the fields, keep the shells.** The logic layer (`features/<domain>/model/`, hooks) is always shared. The *view* is duplicated per shell only when one of the two paints tenant `--ba-*` branding (the public booking steps vs `dashboard/bookings/new-booking/NewBooking*Step.tsx`), because the dashboard must never read it. When both shells are unbranded Tailwind/shadcn (the customer account and the dashboard), extract the fields card and its generic parts into the owning domain slice and let each shell keep its own title, action pane, help text, result and empty state; the shared field copy lives in a neutral i18n namespace, not under one shell's. Copying the form is the defect there. The existing specs of the first shell must pass unchanged after the move. (M23-S19, 2026-10-16: the customer's recurring-reservation form and the staff form.)
+
 ---
 
 ## Every `apps/web` route renders per request — verify the rendering mode before designing around a cache
