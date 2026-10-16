@@ -2207,7 +2207,7 @@
       "resourceTypeROOM": "Sala",
       "resourceTypeEQUIPMENT": "Equipamento",
       "resolvedPerOccurrence": "Resolvido a cada ocorrência",
-      "resourceNameUnknown": "Recurso removido",
+      "resourceNameUnknown": "Nome indisponível",
       "whatHappens": "O que acontece",
       "noneCreatedYet": "Nenhuma reserva foi criada ainda.",
       "decisionCoversAll": "A decisão vale para o padrão inteiro, não por semana.",

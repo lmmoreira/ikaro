@@ -10,7 +10,6 @@ import { RecurringScheduleApprovalDetail } from './RecurringScheduleApprovalDeta
 const mockScheduleQuery = vi.fn();
 const mockCustomerQuery = vi.fn();
 const mockServiceQuery = vi.fn();
-const mockResourceNames = vi.fn();
 const approveMutateAsync = vi.fn();
 const rejectMutateAsync = vi.fn();
 const refreshAfterDecision = vi.fn();
@@ -20,7 +19,6 @@ const rejectState = { isPending: false };
 vi.mock('@/features/booking/hooks/useRecurringSchedules', () => ({
   useRecurringScheduleForStaff: (...args: unknown[]) => mockScheduleQuery(...args),
   useRecurringScheduleService: (...args: unknown[]) => mockServiceQuery(...args),
-  useAllResourceNames: (...args: unknown[]) => mockResourceNames(...args),
   useApproveRecurringSchedule: () => ({
     mutateAsync: approveMutateAsync,
     isPending: approveState.isPending,
@@ -62,7 +60,9 @@ function schedule(
     endsOn: '2026-11-10',
     status: 'PENDING_APPROVAL',
     assignmentPolicy: 'FIXED_ASSIGNMENT',
-    resourceAssignments: [{ resourceType: 'ROOM', resourceId: 'room-1' }],
+    resourceAssignments: [
+      { resourceType: 'ROOM', resourceId: 'room-1', resourceName: 'Sala Aurora' },
+    ],
     approvalHoldExpiresAt: '2099-08-11T12:30:00.000Z',
     createdAt: '2026-08-11T12:00:00.000Z',
     ...overrides,
@@ -115,7 +115,6 @@ beforeEach(() => {
       ],
     },
   });
-  mockResourceNames.mockReturnValue({ data: new Map([['room-1', 'Sala Aurora']]) });
 });
 
 describe('RecurringScheduleApprovalDetail — loading and failure', () => {
@@ -200,8 +199,8 @@ describe('RecurringScheduleApprovalDetail — a pending request', () => {
     ready(
       schedule({
         resourceAssignments: [
-          { resourceType: 'ROOM', resourceId: 'room-1' },
-          { resourceType: 'EQUIPMENT', resourceId: 'eq-1' },
+          { resourceType: 'ROOM', resourceId: 'room-1', resourceName: 'Sala Aurora' },
+          { resourceType: 'EQUIPMENT', resourceId: 'eq-1', resourceName: 'Projetor 2' },
         ],
       }),
     );
@@ -224,13 +223,6 @@ describe('RecurringScheduleApprovalDetail — a pending request', () => {
         ],
       },
     });
-    mockResourceNames.mockReturnValue({
-      data: new Map([
-        ['room-1', 'Sala Aurora'],
-        ['eq-1', 'Projetor 2'],
-      ]),
-    });
-
     renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
 
     const rows = screen.getByTestId('recurring-request-rows');
@@ -254,6 +246,24 @@ describe('RecurringScheduleApprovalDetail — a pending request', () => {
     const rows = screen.getByTestId('recurring-request-rows');
     expect(within(rows).queryByText('Local')).not.toBeInTheDocument();
     expect(within(rows).queryByText('Sala')).not.toBeInTheDocument();
+  });
+
+  it('names a pick from the schedule read alone, with no resource-list lookup that a STAFF reviewer could not make', () => {
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    expect(
+      within(screen.getByTestId('recurring-request-rows')).getByText('Sala Aurora'),
+    ).toBeInTheDocument();
+  });
+
+  it('shows "Nome indisponível" for a pick the read did not name, instead of failing', () => {
+    ready(schedule({ resourceAssignments: [{ resourceType: 'ROOM', resourceId: 'room-1' }] }));
+
+    renderWithIntl(<RecurringScheduleApprovalDetail scheduleId="sched-1" />);
+
+    expect(
+      within(screen.getByTestId('recurring-request-rows')).getByText('Nome indisponível'),
+    ).toBeInTheDocument();
   });
 
   it('still shows the stored picks when the service could not be read', () => {

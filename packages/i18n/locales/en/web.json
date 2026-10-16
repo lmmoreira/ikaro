@@ -2207,7 +2207,7 @@
       "resourceTypeROOM": "Room",
       "resourceTypeEQUIPMENT": "Equipment",
       "resolvedPerOccurrence": "Resolved for each booking",
-      "resourceNameUnknown": "Removed resource",
+      "resourceNameUnknown": "Name unavailable",
       "whatHappens": "What happens",
       "noneCreatedYet": "No booking has been created yet.",
       "decisionCoversAll": "The decision covers the whole pattern, not week by week.",

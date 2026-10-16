@@ -6,7 +6,6 @@ import {
   rejectRecurringScheduleAsStaff,
 } from '@/features/booking/api/recurring-booking-schedules';
 import { getService } from '@/features/booking/api/services';
-import { listResources } from '@/features/booking/api/resources';
 import { useTenant } from '@/providers/tenant-provider';
 
 // Staff side of the recurring schedules (UC-071, M23-S13). The customer side reads the same
@@ -37,17 +36,6 @@ export function useRecurringScheduleService(serviceId: string | undefined) {
     queryKey: ['services', tenantId, 'detail', serviceId],
     queryFn: () => getService(serviceId as string),
     enabled: Boolean(serviceId),
-  });
-}
-
-// Every resource, inactive ones included: a pick made before a resource was deactivated still has
-// to show its name.
-export function useAllResourceNames() {
-  const { tenantId } = useTenant();
-  return useQuery({
-    queryKey: ['resources', tenantId, 'all-names'],
-    queryFn: () => listResources(),
-    select: (response) => new Map(response.items.map((resource) => [resource.id, resource.name])),
   });
 }
 

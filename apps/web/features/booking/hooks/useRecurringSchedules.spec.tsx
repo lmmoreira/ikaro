@@ -4,7 +4,6 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  useAllResourceNames,
   useApproveRecurringSchedule,
   usePendingRecurringSchedules,
   useRecurringScheduleForStaff,
@@ -17,7 +16,6 @@ const mockGetSchedule = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
 const mockGetService = vi.fn();
-const mockListResources = vi.fn();
 
 vi.mock('@/features/booking/api/recurring-booking-schedules', () => ({
   listPendingRecurringSchedules: (...args: unknown[]) => mockListPending(...args),
@@ -27,9 +25,6 @@ vi.mock('@/features/booking/api/recurring-booking-schedules', () => ({
 }));
 vi.mock('@/features/booking/api/services', () => ({
   getService: (...args: unknown[]) => mockGetService(...args),
-}));
-vi.mock('@/features/booking/api/resources', () => ({
-  listResources: (...args: unknown[]) => mockListResources(...args),
 }));
 vi.mock('@/providers/tenant-provider', () => ({
   useTenant: vi.fn().mockReturnValue({ tenantId: 't-1', tenantSlug: 'lavacar-bh' }),
@@ -94,25 +89,6 @@ describe('useRecurringScheduleService', () => {
     const { result } = renderHook(() => useRecurringScheduleService('svc-1'), { wrapper });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(mockGetService).toHaveBeenCalledWith('svc-1');
-  });
-});
-
-describe('useAllResourceNames', () => {
-  it('maps every resource id, inactive ones included, to its name', async () => {
-    mockListResources.mockResolvedValue({
-      items: [
-        { id: 'r-1', name: 'Sala Aurora', isActive: true },
-        { id: 'r-2', name: 'Projetor 2', isActive: false },
-      ],
-    });
-    const { wrapper } = setup();
-
-    const { result } = renderHook(() => useAllResourceNames(), { wrapper });
-
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(mockListResources).toHaveBeenCalledWith();
-    expect(result.current.data?.get('r-1')).toBe('Sala Aurora');
-    expect(result.current.data?.get('r-2')).toBe('Projetor 2');
   });
 });
 

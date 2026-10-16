@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { loginAsStaff } from './helpers/auth';
+import { STAFF_EMAIL } from './helpers/booking/staff-new-booking';
 import { MANAGER_EMAIL, TENANT_SLUG } from './helpers/booking-form';
 import {
   AGENDA_URL,
@@ -144,6 +145,35 @@ test.describe('staff agenda: recurring-schedule requests (M23-S13, UC-071)', () 
       await expect(page.getByTestId('agenda-all-hidden')).toHaveCount(0);
       await expect(recurringCard(page, id)).toBeVisible();
     } finally {
+      await rejectRequestViaApi(page, id).catch(() => undefined);
+      await request.close();
+    }
+  });
+
+  test('a STAFF member (not a manager) sees the picked resource names and can decide', async ({
+    page,
+    browser,
+  }) => {
+    // Seeding needs a manager; the reviewer is a plain STAFF user, who cannot read /resources.
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const bundle = await seedRecurringBundle(page, { approvalMode: 'MANUAL_APPROVAL' });
+    const picked = bundle.staffs[0]!;
+    const request = await createPendingRequest(browser, bundle.service.serviceId, {
+      resourceSelections: [{ resourceType: 'STAFF', resourceId: picked.id }],
+    });
+    const { id } = request.schedule;
+    const staffContext = await browser.newContext();
+    const staffPage = await staffContext.newPage();
+
+    try {
+      await loginAsStaff(staffPage, STAFF_EMAIL, TENANT_SLUG);
+      await staffPage.goto(requestUrl(id));
+
+      await expect(staffPage.getByTestId('recurring-request-rows')).toContainText(picked.name);
+      await expect(staffPage.getByRole('button', { name: 'Aprovar recorrência' })).toBeEnabled();
+      await expect(staffPage.getByRole('button', { name: 'Recusar', exact: true })).toBeEnabled();
+    } finally {
+      await staffContext.close();
       await rejectRequestViaApi(page, id).catch(() => undefined);
       await request.close();
     }

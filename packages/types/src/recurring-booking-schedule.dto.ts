@@ -20,6 +20,9 @@ export interface RecurrenceRule {
 export interface RecurringScheduleResourceAssignment {
   resourceType: ResourceType;
   resourceId: string;
+  // The picked resource's name, present only when a STAFF|MANAGER reads the schedule (the staff
+  // approval screen, UC-071). A customer read never carries it: no resource name reaches a customer.
+  resourceName?: string;
 }
 
 export interface RecurringBookingScheduleListItem {

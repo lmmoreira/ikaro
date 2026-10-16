@@ -7,7 +7,6 @@ import { useStaffCustomer } from '@/features/customer/hooks/useStaffCustomer';
 import { RECURRING_SCHEDULE_STATUS_CLASSES } from '@/features/booking/model/recurring-schedule-display';
 import { useRecurrenceDescription } from '@/features/booking/hooks/useRecurrenceDescription';
 import {
-  useAllResourceNames,
   useApproveRecurringSchedule,
   useInvalidateAfterDecision,
   useRecurringScheduleForStaff,
@@ -61,7 +60,6 @@ export function RecurringScheduleApprovalDetail({
   const schedule = scheduleQuery.data;
   const customerQuery = useStaffCustomer(schedule?.customerId);
   const serviceQuery = useRecurringScheduleService(schedule?.serviceId);
-  const resourceNames = useAllResourceNames();
   const approve = useApproveRecurringSchedule();
   const reject = useRejectRecurringSchedule();
   const refreshAfterDecision = useInvalidateAfterDecision();
@@ -82,6 +80,16 @@ export function RecurringScheduleApprovalDetail({
           resourceId: a.resourceId,
         }));
   }, [schedule, serviceQuery.data]);
+
+  // The staff read names each picked resource itself, so this screen never reads the resource list
+  // (a MANAGER-only endpoint a STAFF reviewer could not call).
+  const resourceNames = new Map(
+    (schedule?.resourceAssignments ?? []).flatMap((assignment) =>
+      assignment.resourceName === undefined
+        ? []
+        : [[assignment.resourceId, assignment.resourceName] as const],
+    ),
+  );
 
   if (scheduleQuery.isLoading) {
     return (
@@ -171,7 +179,7 @@ export function RecurringScheduleApprovalDetail({
             customer={customer}
             customerFailed={customerQuery.isError}
             resourceRows={resourceRows}
-            resourceNames={resourceNames.data ?? new Map()}
+            resourceNames={resourceNames}
           />
 
           {canDecide ? (

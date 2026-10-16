@@ -125,13 +125,13 @@ describe('RecurringScheduleRequestSummary', () => {
     expect(within(rows()).getByText('Resolvido a cada ocorrência')).toBeInTheDocument();
   });
 
-  it('says "Recurso removido" for a pick whose resource name is unknown', () => {
+  it('says "Nome indisponível" for a pick whose name the read did not carry', () => {
     renderSummary({
       resourceRows: [{ kind: 'picked', type: 'ROOM', resourceId: 'gone' }],
       resourceNames: new Map(),
     });
 
-    expect(within(rows()).getByText('Recurso removido')).toBeInTheDocument();
+    expect(within(rows()).getByText('Nome indisponível')).toBeInTheDocument();
   });
 
   it('shows a loading line while the customer is read, and no initials', () => {
