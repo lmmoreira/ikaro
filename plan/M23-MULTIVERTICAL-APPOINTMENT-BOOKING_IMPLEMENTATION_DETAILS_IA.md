@@ -87,6 +87,5 @@ Builders in `src/test/builders/booking/` for every new entity; `InMemory*` doubl
 
 ## Follow-ups tracked, not dropped
 
-- `docs/27` has no dedicated section for variable duration/intake (S02) or quote revisions (S03); only fragments in the S29 and resolution sections.
 - A cancelled recurring schedule can't say whether it was rejected, expired or ended by someone (the read carries no `cancellationReason`).
-- `docs/27` (HOLD state diagram) says the missing `hold_expires_at` enforcement worker is "explicit M23 scope", but no M23 story delivered one — either re-scope it (M24 or a TD) or correct the sentence.
+- **`hold_expires_at` is written but never enforced** (`docs/27` § `lock_state` lifecycle): a pending request on a resource-scoped service keeps its slot until staff decide. No M23 story built the expiry; it needs its own story or TD.

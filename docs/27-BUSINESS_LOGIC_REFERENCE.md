@@ -145,14 +145,14 @@ stateDiagram-v2
 
   HOLD --> COMMITTED: staff approves
   HOLD --> [*]: reject or cancel (row deleted)
-  HOLD --> [*]: hold_expires_at passes (documented; no worker enforces this yet — explicit M23 scope)
+  HOLD --> HOLD: hold_expires_at passes (nothing happens: no worker or query reads it, so the row keeps the slot until a staff decision)
 
   COMMITTED --> COMMITTED: reschedule (release + reassign to the new window, same lock_state)
   COMMITTED --> [*]: reject or cancel (row deleted)
 ```
 
 - **`REQUESTED`** exists so a degenerate (LOCATION-fallback) service's PENDING request never blocks a *concurrent* PENDING request for the same popular slot — it's structurally excluded from the GIST exclusion constraint's own `WHERE` clause (`lock_state IN ('HOLD','COMMITTED')`), preserving car-wash-vertical byte-identical behavior. It still blocks against an existing `COMMITTED`/`HOLD` row (the pre-check in `BookingSlotConflictService` isn't scoped by `lock_state`) — only REQUESTED-vs-REQUESTED is deliberately unguarded. `REQUESTED`'s only *read* consumer is M22-S05's manager day grid (`IBookingAvailabilityPort.findDayGridOccupancy()`) — every other read path (availability computation, conflict checking) queries `lock_state IN ('HOLD','COMMITTED')` only and never sees these rows.
-- **`HOLD`** is the resource-scoped-service equivalent of a manual-approval pending booking — it *is* included in the GIST exclusion (two customers can't both hold the same real resource), and carries a `hold_expires_at`.
+- **`HOLD`** is the resource-scoped-service equivalent of a manual-approval pending booking — it *is* included in the GIST exclusion (two customers can't both hold the same real resource), and carries a `hold_expires_at`. **`hold_expires_at` is written but never enforced:** it is set at request time to `Service.bookingPolicy.manualHoldMinutes` (default 30) from now, and no job, read query or constraint treats an expired `HOLD` as free. A pending request on a resource-scoped service therefore blocks its slot until staff approve, reject or the customer cancels. An earlier revision of this section called the missing expiry worker "M23 scope"; no M23 story built it. (`RecurringBookingSchedule.approvalHoldExpiresAt` is a different mechanism and *is* enforced, by the `cron-reminders` expiry job.)
 - **`COMMITTED`** backs every approved booking, whether it arrived via `AUTO_CONFIRM`, staff approval, or the historical backfill.
 - `booking_line_resource_assignments` (a *separate* table) is the immutable audit record of which resource a line was ever assigned to — `release()` only ever deletes `resource_occupancy` rows, never assignment rows; re-resolving the same `(line, resource, leg, quantity)` tuple (a reschedule back to the same resource, or an approval that reuses the request-time resolution) reuses the existing assignment row via an idempotent upsert rather than duplicating it.
 
@@ -187,6 +187,43 @@ M22-S03 (PR #483, merged 2026-09-17) executed the documented expand → backfill
 | 5. Contract | `1748500000014-DropTenantWideExclusion.ts` | Drops `EX_booking_bookings_approved_slot` — mechanically fails closed first: a `DO $$ ... RAISE EXCEPTION` block verifies every `APPROVED` booking line already has a `COMMITTED` `resource_occupancy` row before the `DROP CONSTRAINT` runs, rather than relying only on the originally-planned manual pre-deploy check. |
 
 ---
+
+## Booking — Duration, Intake, Attendees and Reschedule (M23-S02, S03, S30)
+
+### Why this exists
+
+A booking is no longer always "this service, its fixed length, a name and a time". A service can let the customer pick the length (UC-067), collect versioned answers and named participants (UC-068), and a booking can be moved with a price change recorded (UC-069). These rules are small but spread across the quote service, the intake validator and the reschedule use cases, so they are described once here. Resource resolution and the exclusivity engine they feed are in the first section.
+
+### Customer-selected duration (UC-067)
+
+`BookingQuoteService.quote(service, requestedDurationMinutes)` is pure (no I/O). A service whose `bookingPolicy.durationPolicy` is not `CUSTOMER_SELECTED` returns its own `durationMinutes` and `price` unchanged. For `CUSTOMER_SELECTED`:
+
+1. **Validation.** The request must carry a duration (there is **no fallback** to `Service.durationMinutes`, which is not authoritative for that policy), `durationMinMinutes <= d <= durationMaxMinutes`, and `(d - durationMinMinutes) % durationIncrementMinutes == 0`. Otherwise `BOOKING_DURATION_OUT_OF_RANGE`.
+2. **Price.** With `pricingPolicy = PER_TIME_INCREMENT`: `ceil(d / pricingIncrementMinutes) × pricePerIncrementAmount`, then floored at `minimumChargeAmount` when set. `pricingIncrementMinutes` is independent of `durationIncrementMinutes`. Any other pricing policy keeps the service price.
+3. **Where it is used.** `GET /services/:id/quote?durationMinutes=` (`QuoteServiceDurationUseCase`) returns what booking creation would persist; booking creation, the staff create and a reschedule all call the same `quote()`.
+4. **Invariants.** At most one line of a basket may be `CUSTOMER_SELECTED` (`BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES`); a legged service cannot also be custom-duration (`BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT`), because its length is the sum of its legs.
+
+### Intake answers and attendees (UC-068)
+
+`BookingIntakeValidationService.resolve()` runs at request time against the service's intake schema (`service_booking_intake_schema`, versioned append-only; a new version never edits an old one).
+
+- **No active schema:** any intake fields sent are ignored (no error); the booking stores no intake.
+- **Version:** the client may echo the version it displayed; that version is used if it exists (never rejected merely for not being the latest). A version the service never published → `BOOKING_INTAKE_ANSWER_MISSING` naming `intakeSchemaVersion`.
+- **Answers:** every required question must be answered; a whitespace-only string counts as missing; a submitted answer must match its type (`FREE_TEXT` string, `BOOLEAN` boolean) and is never coerced. `participantCount` is required when the schema says so. Consent must be accepted. All failures are one `BOOKING_INTAKE_ANSWER_MISSING` listing the field keys.
+- **Snapshot:** `intakeSchemaVersion`, `intakeAnswers`, `consentAcceptedAt`, `consentVersion` are stored on the booking and never change. The booking detail (S47) resolves labels from the **booked** version.
+- **Attendees:** only when the schema has `requiresNamedAttendees`; each needs a non-blank name (`BOOKING_ATTENDEE_NAME_REQUIRED`) and an `isMinor` flag. `customerId` is always null: an attendee is not linked to a customer record.
+- **Staff-created bookings (UC-108):** `intakeOptional` — no required answer, count or consent is demanded; blank answers are dropped; if staff entered nothing the booking has no intake (the detail says "Não coletado — reserva da equipe").
+
+### Reschedule and quote revisions (UC-069, S03, S30)
+
+Two use cases share their helpers: `RescheduleBookingUseCase` (staff) and `RescheduleBookingAsCustomerUseCase` (the customer's own booking; `BOOKING_FORBIDDEN` for anyone else's).
+
+1. **Only an `APPROVED` booking can be rescheduled** (`Booking.reschedule()`), and the new start must be in the future.
+2. **Customer window.** The notice required is the **largest** `rescheduleWindowHoursOverride` among the basket's lines, else the tenant's cancellation window (`BOOKING_RESCHEDULE_WINDOW_EXPIRED`). The largest is a conservative reading for divergent per-service overrides; it was never confirmed as a business rule. The booking window (next section) also applies to the new start for customers, not for staff.
+3. **Duration change.** An optional `durationMinutes` applies to the one `CUSTOMER_SELECTED` line; with none, it is silently ignored (the same "unused, never an error" convention as a mismatched intake).
+4. **Resolution replays.** The new window's resources are resolved again (every line, every `selectionMode`), a body-supplied `resourceSelections` entry overriding the default for its key; the booking's own current occupancy is excluded from the conflict check, so it never conflicts with itself. Resource locks (old resources included) come first, then the booking's open future-commitment entries, then the booking row (`docs/28` §2); the occupancy rows move in the same transaction with their `COMMITTED` state.
+5. **Quote revision.** If the total price changed (a variable-duration re-quote), one append-only `booking_quote_revisions` row is written (`reason = RESCHEDULE_DURATION_CHANGE`, actor type and id, `revision_no` = previous + 1); a time-only move writes nothing. The customer's result carries `quoteRevision` when one was written.
+6. **Events.** `BookingRescheduled` carries the previous and new slot; the alert matcher listens for the freed slot and the worklist closes the booking's stale entries in the same transaction (S48).
 
 ## Booking — Booking Window (M23-S33)
 
