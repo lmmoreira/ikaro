@@ -53,6 +53,12 @@ vi.mock('next-intl', () => ({
         noShowBody: 'O estabelecimento registrou que você não compareceu.',
         noShowContact: 'Se foi um engano, entre em contato com o estabelecimento.',
         noShowNote: 'Este agendamento foi encerrado como não comparecimento.',
+        cancelledTitle: 'Agendamento cancelado',
+        cancelledBody: 'O horário foi liberado.',
+        cancelledNote: 'Este agendamento foi cancelado e o horário foi liberado.',
+        rejectedTitle: 'Pedido recusado',
+        rejectedBody: 'O estabelecimento não pôde aceitar. Nenhum horário foi reservado.',
+        rejectedNote: 'Este pedido foi recusado.',
         newBookingCta: 'Fazer novo agendamento',
         viewPointsCta: 'Ver meus pontos →',
       },
@@ -373,13 +379,16 @@ describe('BookingDetailPage', () => {
     ctas.forEach((cta) => expect(cta).toHaveAttribute('href', '/lavacar-bh/booking'));
   });
 
-  it('CANCELLED/REJECTED: no cancel action, no new-booking CTA', () => {
+  it('CANCELLED: no cancel action, but a way to book again', () => {
     render(
       <BookingDetailPage booking={makeBooking({ status: 'CANCELLED' })} tenantSlug="lavacar-bh" />,
     );
 
     expect(screen.queryByRole('link', { name: 'Cancelar agendamento' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Fazer novo agendamento' })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Fazer novo agendamento' })[0]).toHaveAttribute(
+      'href',
+      '/lavacar-bh/booking',
+    );
   });
 
   it('shows the 02f notice with the contact line, and no cancel or reschedule action, for a NO_SHOW booking', () => {
@@ -422,6 +431,34 @@ describe('BookingDetailPage', () => {
     render(<BookingDetailPage booking={booking} tenantSlug="beloauto" />);
 
     expect(screen.queryByText(/Motivo interno da equipe/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ['CANCELLED', 'Agendamento cancelado', 'O horário foi liberado.'],
+    ['REJECTED', 'Pedido recusado', 'Nenhum horário foi reservado'],
+  ] as const)(
+    'shows a %s booking an ended notice, a way to book again and no cancel or reschedule action',
+    (status, title, body) => {
+      render(<BookingDetailPage booking={makeBooking({ status })} tenantSlug="beloauto" />);
+
+      const notice = screen.getByTestId('booking-ended-notice');
+      expect(notice).toHaveTextContent(title);
+      expect(notice).toHaveTextContent(body);
+      expect(screen.getAllByRole('link', { name: 'Fazer novo agendamento' })[0]).toHaveAttribute(
+        'href',
+        '/beloauto/booking',
+      );
+      expect(screen.queryByRole('button', { name: /cancelar/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /reagendar/i })).not.toBeInTheDocument();
+    },
+  );
+
+  it('shows no ended notice for a booking that is still active', () => {
+    render(
+      <BookingDetailPage booking={makeBooking({ status: 'APPROVED' })} tenantSlug="beloauto" />,
+    );
+
+    expect(screen.queryByTestId('booking-ended-notice')).not.toBeInTheDocument();
   });
 
   it('does not show the no-show notice for other statuses', () => {

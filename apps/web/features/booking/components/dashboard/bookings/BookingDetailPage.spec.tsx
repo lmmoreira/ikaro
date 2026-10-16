@@ -376,7 +376,8 @@ describe('BookingDetailPage', () => {
     );
 
     expect(screen.queryByRole('button', { name: 'Marcar concluído' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Ações')).not.toBeInTheDocument();
+    // The only thing left in the aside is the way back to the Agenda.
+    expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toBeInTheDocument();
   });
 
   it('shows the charge and loyalty discount summary when reopening a completed booking', () => {

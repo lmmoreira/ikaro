@@ -6,9 +6,11 @@ import type { CustomerBookingDetailResponse } from '@ikaro/types';
 import { BOOKING_STATUS } from '@ikaro/types';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { PhotoTile } from '@/features/booking/components/PhotoTile';
+import { CustomerBookingExtras } from './CustomerBookingExtras';
 
 interface BookingDetailMainProps {
   readonly booking: CustomerBookingDetailResponse;
+  readonly tenantSlug: string;
 }
 
 interface DetailRowProps {
@@ -40,7 +42,10 @@ function DetailRow({ icon, label, value, last }: DetailRowProps): React.JSX.Elem
   );
 }
 
-export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JSX.Element {
+export function BookingDetailMain({
+  booking,
+  tenantSlug,
+}: BookingDetailMainProps): React.JSX.Element {
   const t = useTranslations('customer.bookingDetail');
   const { formatMoney, formatTime, formatDateLong } = useFormatting();
 
@@ -142,6 +147,8 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
           </div>
         </section>
       )}
+
+      <CustomerBookingExtras booking={booking} tenantSlug={tenantSlug} />
 
       {booking.notes !== null && (
         <section>

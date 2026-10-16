@@ -114,4 +114,41 @@ describe('BookingDetailMain', () => {
     expect(screen.getByRole('img', { name: 'Photo unavailable' })).toBeInTheDocument();
     expect(screen.getByText('Photo expired')).toBeInTheDocument();
   });
+  it('adds no extra card to a booking with none of the new data, except when it was requested', () => {
+    renderWithIntl(<BookingDetailMain booking={makeBooking()} />);
+
+    expect(screen.getByTestId('booking-origin-card')).toBeInTheDocument();
+    for (const id of [
+      'booking-resources-card',
+      'booking-itinerary-card',
+      'booking-participants-card',
+      'booking-intake-card',
+      'booking-addresses-card',
+      'booking-cancellation-card',
+    ]) {
+      expect(screen.queryByTestId(id)).not.toBeInTheDocument();
+    }
+  });
+
+  it('renders the resources card when the booking has resources', () => {
+    renderWithIntl(
+      <BookingDetailMain
+        booking={makeBooking({
+          resources: [
+            {
+              lineId: 'l-1',
+              serviceName: 'Sala',
+              resourceType: 'ROOM',
+              resourceName: 'Sala Aurora',
+              origin: 'CUSTOMER_CHOICE',
+              quantity: null,
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('booking-resources-card')).toBeInTheDocument();
+    expect(screen.getByText('Sala Aurora')).toBeInTheDocument();
+  });
 });

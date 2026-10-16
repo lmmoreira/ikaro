@@ -129,8 +129,8 @@ Reference shell: `plan/journey/shared/customer-dashboard.html`
 | `02-agendamento-detail.html` | `/{slug}/my-account/bookings/[id]` (APPROVED/PENDING) | ✅ Done — M13-S28 |
 | `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ✅ Done — M13-S28 |
 | `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ✅ Done — M13-S28 |
-| `02g-agendamento-cancelado.html` | same route — CANCELLED (read-only; `?por=cliente\|estabelecimento`) | ❓ Gap — M23-S47 |
-| `02h-agendamento-recusado.html` | same route — REJECTED (read-only) | ❓ Gap — M23-S47 |
+| `02g-agendamento-cancelado.html` | same route — CANCELLED (read-only; `?por=cliente\|estabelecimento`) | ✅ Done — M23-S47 |
+| `02h-agendamento-recusado.html` | same route — REJECTED (read-only) | ✅ Done — M23-S47 |
 | `02d-info-sent.html` | same route — inline state after successful submit-info | ✅ Done — M13-S28 |
 | `02e-submit-error.html` | same route — inline state after failed submit-info | ✅ Done — M13-S28 |
 | `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — dedicated page, not a sheet | ✅ Done — M13-S28 |
@@ -349,7 +349,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 ## Full booking detail cards (audit of 2026-10-15)
 
-`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `completo`). ❓ Gap: none of these fields is in `CustomerBookingDetailResponse` today. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
+`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `completo`). ✅ Built by M23-S47: the fields are in `CustomerBookingDetailResponse`. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
 
 ### `02g` cancelled and `02h` rejected (added 2026-10-16, M23-S47)
 

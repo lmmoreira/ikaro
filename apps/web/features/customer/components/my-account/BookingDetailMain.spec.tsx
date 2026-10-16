@@ -90,7 +90,7 @@ function makeBooking(
 
 describe('BookingDetailMain', () => {
   it('renders date, service lines and the quoted total', () => {
-    render(<BookingDetailMain booking={makeBooking()} />);
+    render(<BookingDetailMain booking={makeBooking()} tenantSlug="beloauto" />);
 
     expect(screen.getByText('Sábado, 20 de junho')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe('BookingDetailMain', () => {
   });
 
   it('renders separate Data and Horário rows with the estimated duration', () => {
-    render(<BookingDetailMain booking={makeBooking()} />);
+    render(<BookingDetailMain booking={makeBooking()} tenantSlug="beloauto" />);
 
     expect(screen.getByText('Data')).toBeInTheDocument();
     expect(screen.getByText('Horário')).toBeInTheDocument();
@@ -108,30 +108,44 @@ describe('BookingDetailMain', () => {
   });
 
   it('drops the duration suffix on the time row once COMPLETED', () => {
-    render(<BookingDetailMain booking={makeBooking({ status: 'COMPLETED' })} />);
+    render(
+      <BookingDetailMain booking={makeBooking({ status: 'COMPLETED' })} tenantSlug="beloauto" />,
+    );
 
     expect(screen.getByText('10:00')).toBeInTheDocument();
     expect(screen.queryByText(/duração estimada/)).not.toBeInTheDocument();
   });
 
   it('shows "a confirmar" when scheduledAt is null', () => {
-    render(<BookingDetailMain booking={makeBooking({ scheduledAt: null })} />);
+    render(
+      <BookingDetailMain booking={makeBooking({ scheduledAt: null })} tenantSlug="beloauto" />,
+    );
     expect(screen.getByText('A confirmar após aprovação')).toBeInTheDocument();
   });
 
   it('hides the notes section when notes is null', () => {
-    render(<BookingDetailMain booking={makeBooking({ notes: null })} />);
+    render(<BookingDetailMain booking={makeBooking({ notes: null })} tenantSlug="beloauto" />);
     expect(screen.queryByText('Suas observações')).not.toBeInTheDocument();
   });
 
   it('shows notes when present', () => {
-    render(<BookingDetailMain booking={makeBooking({ notes: 'Carro sujo de lama' })} />);
+    render(
+      <BookingDetailMain
+        booking={makeBooking({ notes: 'Carro sujo de lama' })}
+        tenantSlug="beloauto"
+      />,
+    );
     expect(screen.getByText('Suas observações')).toBeInTheDocument();
     expect(screen.getByText('Carro sujo de lama')).toBeInTheDocument();
   });
 
   it('hides before-photos grid when empty', () => {
-    render(<BookingDetailMain booking={makeBooking({ beforeServicePhotoUrls: [] })} />);
+    render(
+      <BookingDetailMain
+        booking={makeBooking({ beforeServicePhotoUrls: [] })}
+        tenantSlug="beloauto"
+      />,
+    );
     expect(screen.queryByText('Fotos antes do serviço')).not.toBeInTheDocument();
   });
 
@@ -139,6 +153,7 @@ describe('BookingDetailMain', () => {
     render(
       <BookingDetailMain
         booking={makeBooking({ beforeServicePhotoUrls: ['https://example.com/before.jpg'] })}
+        tenantSlug="beloauto"
       />,
     );
     expect(screen.getByText('Fotos antes do serviço')).toBeInTheDocument();
@@ -165,7 +180,7 @@ describe('BookingDetailMain', () => {
       ],
     });
 
-    render(<BookingDetailMain booking={booking} />);
+    render(<BookingDetailMain booking={booking} tenantSlug="beloauto" />);
 
     expect(screen.getByText('+20 pontos de fidelidade')).toBeInTheDocument();
     expect(screen.getByText('Valor cobrado')).toBeInTheDocument();
@@ -192,13 +207,19 @@ describe('BookingDetailMain', () => {
           status: 'APPROVED',
           afterServicePhotoUrls: ['https://example.com/after.jpg'],
         })}
+        tenantSlug="beloauto"
       />,
     );
     expect(screen.queryByText('Fotos após o serviço')).not.toBeInTheDocument();
   });
 
   it('shows the previous info response when present', () => {
-    render(<BookingDetailMain booking={makeBooking({ infoResponseMessage: 'Seguem as fotos' })} />);
+    render(
+      <BookingDetailMain
+        booking={makeBooking({ infoResponseMessage: 'Seguem as fotos' })}
+        tenantSlug="beloauto"
+      />,
+    );
     expect(screen.getByText('Sua resposta')).toBeInTheDocument();
     expect(screen.getByText('Seguem as fotos')).toBeInTheDocument();
   });
@@ -207,6 +228,7 @@ describe('BookingDetailMain', () => {
     render(
       <BookingDetailMain
         booking={makeBooking({ beforeServicePhotoUrls: ['https://example.com/before.jpg'] })}
+        tenantSlug="beloauto"
       />,
     );
 
@@ -215,5 +237,26 @@ describe('BookingDetailMain', () => {
     expect(screen.queryByRole('img', { name: 'Foto 1 antes do serviço' })).not.toBeInTheDocument();
     expect(screen.getByRole('img', { name: 'Foto indisponível' })).toBeInTheDocument();
     expect(screen.getByText('Foto expirada')).toBeInTheDocument();
+  });
+  it('adds no extra card to a booking with none of the new data', () => {
+    render(<BookingDetailMain booking={makeBooking()} tenantSlug="beloauto" />);
+
+    expect(screen.queryByTestId(/^booking-.*-card$/)).not.toBeInTheDocument();
+  });
+
+  it('renders the customer-visible cards and never the internal ones', () => {
+    render(
+      <BookingDetailMain
+        booking={makeBooking({
+          participantCount: 2,
+          attendees: [{ name: 'Maria', isMinor: false }],
+        })}
+        tenantSlug="beloauto"
+      />,
+    );
+
+    expect(screen.getByTestId('booking-participants-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('booking-internal-notes-card')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('booking-origin-card')).not.toBeInTheDocument();
   });
 });
