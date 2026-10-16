@@ -1271,7 +1271,7 @@ The customer sees and manages their recurring private reservations (UC-070 A2). 
 
 ---
 
-### M23-S13 — Staff Agenda extension: recurrence requests in the "Precisa de ação" queue, "Filtrar agenda" balloon and approval detail screen
+### M23-S13 — Staff Agenda extension: recurrence requests in the "Precisa de ação" queue, "Filtrar agenda" balloon and approval detail screen ✅ Done
 
 **Agent:** `frontend-ts` + `backend-ts` (the one-field `createdAt` read addition)
 **Complexity:** M
