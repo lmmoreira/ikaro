@@ -2,6 +2,8 @@ import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-even
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
+import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
+import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { RecurringScheduleRenewalService } from '../services/recurring-schedule-renewal.service';
 import { RecurringBookingScheduleNotFoundError } from '../../domain/errors/recurring-booking-schedule.error';
@@ -20,6 +22,7 @@ function schedule(
   customerId: string,
   tenantId = TENANT,
   status: 'ACTIVE' | 'PENDING_APPROVAL' = 'ACTIVE',
+  resourceId = 'res-1',
 ): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
     tenantId,
@@ -37,7 +40,7 @@ function schedule(
     assignmentPolicy: 'FIXED_ASSIGNMENT',
     resourceAssignments: [
       {
-        resourceId: 'res-1',
+        resourceId,
         resourceType: ResourceType.ROOM,
         requirementId: null,
         requiredQuantityPosition: null,
@@ -53,6 +56,7 @@ function schedule(
 describe('GetRecurringBookingScheduleUseCase', () => {
   let scheduleRepo: InMemoryRecurringBookingScheduleRepository;
   let serviceRepo: InMemoryServiceRepository;
+  let resourceRepo: InMemoryResourceRepository;
   let platform: InMemoryBookingPlatformPort;
   let renewalService: RecurringScheduleRenewalService;
   let useCase: GetRecurringBookingScheduleUseCase;
@@ -60,12 +64,18 @@ describe('GetRecurringBookingScheduleUseCase', () => {
   beforeEach(async () => {
     scheduleRepo = new InMemoryRecurringBookingScheduleRepository(new InMemoryEventBus());
     serviceRepo = new InMemoryServiceRepository();
+    resourceRepo = new InMemoryResourceRepository();
     await serviceRepo.save(
       new ServiceBuilder().withId(SERVICE_ID).withTenantId(TENANT).withName('Sala Aurora').build(),
     );
     platform = new InMemoryBookingPlatformPort();
     renewalService = new RecurringScheduleRenewalService(platform, scheduleRepo);
-    useCase = new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService);
+    useCase = new GetRecurringBookingScheduleUseCase(
+      scheduleRepo,
+      serviceRepo,
+      resourceRepo,
+      renewalService,
+    );
   });
 
   it("returns the owner's schedule in the list-item shape, with the service name", async () => {
@@ -90,6 +100,87 @@ describe('GetRecurringBookingScheduleUseCase', () => {
 
     expect(result.id).toBe(own.id);
     expect(result.customerId).toBe('customer-a');
+  });
+
+  describe('resource names (UC-071)', () => {
+    async function seedPickedResource(tenantId = TENANT) {
+      const room = new ResourceBuilder().withTenantId(tenantId).withName('Sala Lumen').build();
+      await resourceRepo.save(room);
+      return room;
+    }
+
+    it('names the picked resource when a STAFF|MANAGER reads the schedule (no customerId)', async () => {
+      const room = await seedPickedResource();
+      const pending = schedule('customer-a', TENANT, 'PENDING_APPROVAL', room.id);
+      scheduleRepo.seed(pending);
+
+      const result = await useCase.execute({ scheduleId: pending.id, tenantId: TENANT });
+
+      expect(result.resourceAssignments).toEqual([
+        { resourceType: ResourceType.ROOM, resourceId: room.id, resourceName: 'Sala Lumen' },
+      ]);
+    });
+
+    it('never names a resource in a customer read, even for their own schedule', async () => {
+      const room = await seedPickedResource();
+      const own = schedule('customer-a', TENANT, 'ACTIVE', room.id);
+      scheduleRepo.seed(own);
+
+      const result = await useCase.execute({
+        scheduleId: own.id,
+        tenantId: TENANT,
+        customerId: 'customer-a',
+      });
+
+      expect(result.resourceAssignments).toEqual([
+        { resourceType: ResourceType.ROOM, resourceId: room.id },
+      ]);
+      expect(JSON.stringify(result)).not.toContain('Sala Lumen');
+    });
+
+    it("does not take a name from another tenant's resource with the same id", async () => {
+      const foreign = await seedPickedResource(OTHER_TENANT);
+      const own = schedule('customer-a', TENANT, 'ACTIVE', foreign.id);
+      scheduleRepo.seed(own);
+
+      const result = await useCase.execute({ scheduleId: own.id, tenantId: TENANT });
+
+      expect(result.resourceAssignments).toEqual([
+        { resourceType: ResourceType.ROOM, resourceId: foreign.id },
+      ]);
+    });
+
+    it('leaves a schedule with no pick without names and reads no resource', async () => {
+      const result = await useCase.execute({
+        scheduleId: (() => {
+          const none = RecurringBookingSchedule.request({
+            tenantId: TENANT,
+            customerId: 'customer-a',
+            serviceId: SERVICE_ID,
+            recurrence: {
+              frequency: 'WEEKLY',
+              daysOfWeek: ['tuesday'],
+              startTime: '10:00',
+              durationMinutes: 60,
+            },
+            startsOn: '2026-09-01',
+            endsOn: '2026-11-24',
+            maxTermDays: 90,
+            assignmentPolicy: 'RESOLVE_PER_OCCURRENCE',
+            resourceAssignments: [],
+            status: 'ACTIVE',
+            approvalHoldExpiresAt: null,
+            createdByStaffId: null,
+            correlationId: 'corr-none',
+          });
+          scheduleRepo.seed(none);
+          return none.id;
+        })(),
+        tenantId: TENANT,
+      });
+
+      expect(result.resourceAssignments).toEqual([]);
+    });
   });
 
   it('returns a pending schedule with its approval-hold expiry', async () => {
@@ -140,6 +231,7 @@ describe('GetRecurringBookingScheduleUseCase', () => {
     const isolated = new GetRecurringBookingScheduleUseCase(
       scheduleRepo,
       otherTenantServices,
+      resourceRepo,
       renewalService,
     );
 

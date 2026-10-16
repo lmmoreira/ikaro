@@ -20,6 +20,9 @@ export interface RecurrenceRule {
 export interface RecurringScheduleResourceAssignment {
   resourceType: ResourceType;
   resourceId: string;
+  // The picked resource's name, present only when a STAFF|MANAGER reads the schedule (the staff
+  // approval screen, UC-071). A customer read never carries it: no resource name reaches a customer.
+  resourceName?: string;
 }
 
 export interface RecurringBookingScheduleListItem {
@@ -41,6 +44,9 @@ export interface RecurringBookingScheduleListItem {
   // bookings). Optional for the same rolling-deploy reason as resourceIds.
   resourceAssignments?: RecurringScheduleResourceAssignment[];
   approvalHoldExpiresAt: string | null;
+  // When the request was made (ISO-8601 UTC), M23-S13: the staff approval screen's "Solicitado em" row.
+  // Optional so a consumer reading an older response (a rolling deploy) still type-checks.
+  createdAt?: string;
   // Whether the customer can renew it now (M23-S21): an ACTIVE schedule inside the tenant's renewal
   // window or an ENDED one, with no successor. Computed server-side; a customer cannot read the
   // tenant settings the window comes from. Optional so a consumer reading an older response (a
@@ -80,4 +86,20 @@ export interface CreateRecurringBookingScheduleResponse {
   id: string;
   status: 'ACTIVE' | 'PENDING_APPROVAL';
   approvalHoldExpiresAt: string | null;
+}
+
+// POST /recurring-booking-schedules/:id/approve (UC-071, STAFF|MANAGER): the schedule is ACTIVE and
+// every occurrence of the term that had not started yet exists as an APPROVED booking.
+// `occurrenceCount` can be lower than the term holds (M23-S35 drops the dates that started while
+// the request waited), so the approval screen reports this number, not its own estimate.
+export interface ApproveRecurringBookingScheduleResponse {
+  id: string;
+  status: 'ACTIVE';
+  occurrenceCount: number;
+}
+
+// POST /recurring-booking-schedules/:id/reject (UC-071): no body, no reason; nothing was created.
+export interface RejectRecurringBookingScheduleResponse {
+  id: string;
+  status: 'CANCELLED';
 }

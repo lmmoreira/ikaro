@@ -230,6 +230,58 @@ describe('RecurringBookingScheduleController (integration)', () => {
     expect(body.resourceIds).toEqual([resourceId]);
   });
 
+  it('GET /recurring-booking-schedules/:id names the picked resource for STAFF and MANAGER but never for the customer (UC-071)', async () => {
+    const serviceId = await seedService('AUTO_CONFIRM');
+    const { body: created } = await request(app.getHttpServer())
+      .post('/recurring-booking-schedules')
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .send({
+        serviceId,
+        recurrence: {
+          frequency: 'WEEKLY',
+          daysOfWeek: ['friday'],
+          startTime: '11:00',
+          durationMinutes: 60,
+        },
+        resourceSelections: [{ resourceType: 'ROOM', resourceId: resourceId }],
+        startsOn: nextWeekday(5),
+        endsOn: addDays(nextWeekday(5), 14),
+      })
+      .expect(201);
+    const id = created.id as string;
+    const unnamed = [{ resourceType: 'ROOM', resourceId }];
+    const named = [{ resourceType: 'ROOM', resourceId, resourceName: 'Sala Aurora' }];
+
+    const asCustomer = await request(app.getHttpServer())
+      .get(`/recurring-booking-schedules/${id}`)
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .expect(200);
+    const asStaff = await request(app.getHttpServer())
+      .get(`/recurring-booking-schedules/${id}`)
+      .set(actorHeaders(tenantId, uuidv7(), 'STAFF'))
+      .expect(200);
+    const asManager = await request(app.getHttpServer())
+      .get(`/recurring-booking-schedules/${id}`)
+      .set(actorHeaders(tenantId, uuidv7(), 'MANAGER'))
+      .expect(200);
+    // The list read never loads a schedule's picks, so it can name no resource to anyone.
+    const customerList = await request(app.getHttpServer())
+      .get('/recurring-booking-schedules?limit=100')
+      .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+      .expect(200);
+
+    expect(asCustomer.body.resourceAssignments).toEqual(unnamed);
+    expect(asStaff.body.resourceAssignments).toEqual(named);
+    expect(asManager.body.resourceAssignments).toEqual(named);
+    for (const item of customerList.body.items as {
+      resourceAssignments?: Record<string, unknown>[];
+    }[]) {
+      for (const assignment of item.resourceAssignments ?? []) {
+        expect(assignment).not.toHaveProperty('resourceName');
+      }
+    }
+  });
+
   it('POST /recurring-booking-schedules persists PENDING_APPROVAL for MANUAL_APPROVAL, no resource_occupancy rows', async () => {
     const serviceId = await seedService('MANUAL_APPROVAL');
 
@@ -1901,6 +1953,23 @@ describe('RecurringBookingScheduleController (integration)', () => {
       expect(byId.get(ended.id)).toBe(true);
       expect(byId.get(scheduleId)).toBe(false);
       expect(one.renewable).toBe(true);
+    });
+
+    it('carries `createdAt` as an ISO-8601 UTC string on the list and the by-id read (M23-S13)', async () => {
+      const { body: list } = await request(app.getHttpServer())
+        .get('/recurring-booking-schedules?limit=100')
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+      const { body: one } = await request(app.getHttpServer())
+        .get(`/recurring-booking-schedules/${scheduleId}`)
+        .set(actorHeaders(tenantId, CUSTOMER_ID, 'CUSTOMER'))
+        .expect(200);
+
+      const listed = list.items.find((i: { id: string }) => i.id === scheduleId);
+      expect(typeof one.createdAt).toBe('string');
+      expect(Number.isNaN(Date.parse(one.createdAt))).toBe(false);
+      expect(one.createdAt).toMatch(/Z$/);
+      expect(listed.createdAt).toBe(one.createdAt);
     });
 
     it('GET /:id lets STAFF and MANAGER read any schedule of the tenant', async () => {

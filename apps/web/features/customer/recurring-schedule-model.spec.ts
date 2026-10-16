@@ -1,16 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { RecurringBookingScheduleListItem } from '@ikaro/types';
 import {
-  dateKeyToDate,
   isTerminalRecurringSchedule,
   offersRenewal,
   parseOccurrencePage,
-  recurrenceEndTime,
   recurringScheduleDetailPath,
   recurringScheduleEndPath,
   recurringScheduleListPath,
   recurringScheduleRenewPath,
-  sortedWeekdays,
   splitRecurringScheduleSections,
   totalOccurrencePages,
 } from './recurring-schedule-model';
@@ -117,31 +114,6 @@ describe('totalOccurrencePages', () => {
     expect(totalOccurrencePages(5, 5)).toBe(1);
     expect(totalOccurrencePages(6, 5)).toBe(2);
     expect(totalOccurrencePages(13, 5)).toBe(3);
-  });
-});
-
-describe('recurrenceEndTime', () => {
-  it('adds the duration to the start time', () => {
-    expect(recurrenceEndTime({ startTime: '10:00', durationMinutes: 120 })).toBe('12:00');
-    expect(recurrenceEndTime({ startTime: '09:30', durationMinutes: 45 })).toBe('10:15');
-  });
-
-  it('wraps past midnight', () => {
-    expect(recurrenceEndTime({ startTime: '23:00', durationMinutes: 120 })).toBe('01:00');
-  });
-});
-
-describe('sortedWeekdays', () => {
-  it('orders Monday first without mutating the input', () => {
-    const input = ['sunday', 'wednesday', 'monday'] as const;
-    expect(sortedWeekdays(input)).toEqual(['monday', 'wednesday', 'sunday']);
-    expect(input).toEqual(['sunday', 'wednesday', 'monday']);
-  });
-});
-
-describe('dateKeyToDate', () => {
-  it('keeps the calendar day when read back in UTC', () => {
-    expect(dateKeyToDate('2026-11-11').toISOString().slice(0, 10)).toBe('2026-11-11');
   });
 });
 

@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import { isBookingCreateRoute, matchBookingDetailRoute } from './booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
+import { matchRecurringScheduleRoute } from './recurring-schedule-route';
 import { matchSchedulingExceptionRescheduleRoute } from './scheduling-exception-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
@@ -41,6 +42,7 @@ interface TopbarRouteContext {
   readonly newBookingT: ReturnType<typeof useTranslations>;
   readonly resourcesT: ReturnType<typeof useTranslations>;
   readonly schedulingExceptionsT: ReturnType<typeof useTranslations>;
+  readonly recurringApprovalT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }
 
@@ -179,8 +181,22 @@ function resolveSchedulingExceptionTitleAndBackLink(
   };
 }
 
+// The approval screen of a recurring-schedule request (M23-S13): a drill-down of the Agenda. It must
+// resolve before the PAGE_TITLE_KEYS prefix fallback, which would title it as plain "Agendamentos".
+function resolveRecurringScheduleTitleAndBackLink(
+  ctx: TopbarRouteContext,
+): TitleAndBackLink | null {
+  if (!matchRecurringScheduleRoute(ctx.pathname)) return null;
+  return {
+    pageTitle: ctx.recurringApprovalT('pageTitle'),
+    backHref: '/dashboard/bookings',
+    backLabel: ctx.dashboardT('nav.bookings'),
+  };
+}
+
 function resolveSectionTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
   return (
+    resolveRecurringScheduleTitleAndBackLink(ctx) ??
     resolveBookingCreateTitleAndBackLink(ctx) ??
     resolveServiceTitleAndBackLink(ctx) ??
     resolveTeamTitleAndBackLink(ctx) ??

@@ -54,6 +54,9 @@ const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
     rescheduleTitle: 'Reagendar',
     rescheduleBack: 'Reservas a resolver',
   },
+  'dashboard.recurringApproval': {
+    pageTitle: 'Pedido de recorrência',
+  },
   'dashboard.resourcesPage': {
     createPageTitle: 'Novo recurso',
     editPageTitle: 'Editar recurso',
@@ -183,6 +186,17 @@ describe('Topbar', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Reservas a resolver');
     expect(screen.queryByTestId('topbar-back-button')).not.toBeInTheDocument();
+  });
+
+  it('titles the recurring-schedule approval screen and links back to the Agenda (not the generic section title)', () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/recurring/s-1');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pedido de recorrência');
+    expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings',
+    );
   });
 
   it('titles the entry reschedule route and links back to the list', () => {

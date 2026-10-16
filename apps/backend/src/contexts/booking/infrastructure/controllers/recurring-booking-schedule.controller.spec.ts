@@ -119,7 +119,12 @@ describe('RecurringBookingScheduleController', () => {
         new AvailabilityService(),
       ),
       new ListRecurringBookingSchedulesUseCase(scheduleRepo, serviceRepo, renewalService),
-      new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService),
+      new GetRecurringBookingScheduleUseCase(
+        scheduleRepo,
+        serviceRepo,
+        resourceRepo,
+        renewalService,
+      ),
       new EndRecurringBookingScheduleUseCase(scheduleRepo, bookingRepo, occupancyRepo, tx),
       new ApproveRecurringBookingScheduleUseCase(
         scheduleRepo,
@@ -279,7 +284,12 @@ describe('RecurringBookingScheduleController', () => {
         otherCtx,
         undefined as never,
         undefined as never,
-        new GetRecurringBookingScheduleUseCase(scheduleRepo, serviceRepo, renewalService),
+        new GetRecurringBookingScheduleUseCase(
+          scheduleRepo,
+          serviceRepo,
+          resourceRepo,
+          renewalService,
+        ),
         undefined as never,
         undefined as never,
         undefined as never,
