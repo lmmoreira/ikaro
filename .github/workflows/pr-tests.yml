@@ -215,7 +215,11 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.app == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30, not 20: the suite is ~330 tests (about 15 minutes of Playwright on a CI runner) after about
+    # 5 minutes of install, build and seed, so 20 left no headroom and PR #613 (M23-S13) was cancelled
+    # at the cap twice with every spec that ran passing. A hung stack still ends here, just later
+    # (docs/CI_TRAPS.md); if the suite grows past this again, shard it rather than raising the cap.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
