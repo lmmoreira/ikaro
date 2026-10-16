@@ -203,7 +203,7 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 
 - **`40P01 deadlock detected`**: the Postgres log names both statements and the two lock targets. Find the two use cases in §4 and compare their sequences with §2.
 - **A request returns 503 `AUTH_TRANSACTION_CONTENTION`** (with `Retry-After: 1`): it waited longer than 2s for a lock, or Postgres chose it as a deadlock victim; nothing was written. The backend logged a `warn` "Transaction aborted by lock contention" with the `sqlState` (`55P03` timeout, `40P01` deadlock) and, inside an HTTP request, the tenant and correlation ids. Find the holder with the query below while it is still running; for a `40P01` the Postgres log names both statements.
-- **A request hangs**: it no longer waits more than 2s for a lock (H5 closed), so a long wait is something else (a slow statement, an exhausted pool); find the blocked and blocking sessions.
+- **A request hangs**: no single lock wait lasts more than 2s (H5 closed), but a request that waits on several locks in turn can still exceed 2s in total, and a long wait can also be a slow statement or an exhausted pool; find the blocked and blocking sessions.
   ```sql
   SELECT l.pid, l.locktype, l.classid, l.objid, l.granted, a.state, a.query_start, a.query
   FROM pg_locks l JOIN pg_stat_activity a USING (pid)

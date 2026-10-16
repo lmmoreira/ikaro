@@ -76,15 +76,20 @@ describe('runInNewTransaction — lock contention (integration)', () => {
     const resourceId = uuidv7();
     const holder = await holdResourceLocks(env, tenantId, [resourceId]);
 
-    const { error, elapsedMs } = await elapsedUntilRejected(() =>
-      txManager.run(() => tenantLock.lockResources(tenantId, [resourceId])),
-    );
+    // The holder is released even when an assertion fails, so a failed run never leaves its
+    // lock held for the next scenario.
+    try {
+      const { error, elapsedMs } = await elapsedUntilRejected(() =>
+        txManager.run(() => tenantLock.lockResources(tenantId, [resourceId])),
+      );
 
-    expect(error).toBeInstanceOf(TransactionContentionError);
-    expect((error as TransactionContentionError).sqlState).toBe(LOCK_NOT_AVAILABLE_SQLSTATE);
-    expect(elapsedMs).toBeGreaterThanOrEqual(DB_LOCK_TIMEOUT_MS - 200);
-    expect(elapsedMs).toBeLessThan(WITHIN_TIMEOUT_MS);
-    await expect(holder.release()).resolves.toBeUndefined();
+      expect(error).toBeInstanceOf(TransactionContentionError);
+      expect((error as TransactionContentionError).sqlState).toBe(LOCK_NOT_AVAILABLE_SQLSTATE);
+      expect(elapsedMs).toBeGreaterThanOrEqual(DB_LOCK_TIMEOUT_MS - 200);
+      expect(elapsedMs).toBeLessThan(WITHIN_TIMEOUT_MS);
+    } finally {
+      await holder.release();
+    }
   });
 
   it('a row lock (service FOR UPDATE) held longer than the timeout makes the waiter fail fast; the holder commits', async () => {
@@ -93,14 +98,19 @@ describe('runInNewTransaction — lock contention (integration)', () => {
       serviceRepo.findByIdForUpdate(world.serviceId, world.tenantId),
     );
 
-    const { error, elapsedMs } = await elapsedUntilRejected(() =>
-      txManager.run(() => serviceRepo.findByIdForUpdate(world.serviceId, world.tenantId)),
-    );
+    // The holder is released even when an assertion fails, so a failed run never leaves its
+    // lock held for the next scenario.
+    try {
+      const { error, elapsedMs } = await elapsedUntilRejected(() =>
+        txManager.run(() => serviceRepo.findByIdForUpdate(world.serviceId, world.tenantId)),
+      );
 
-    expect(error).toBeInstanceOf(TransactionContentionError);
-    expect((error as TransactionContentionError).sqlState).toBe(LOCK_NOT_AVAILABLE_SQLSTATE);
-    expect(elapsedMs).toBeLessThan(WITHIN_TIMEOUT_MS);
-    await expect(holder.release()).resolves.toBeUndefined();
+      expect(error).toBeInstanceOf(TransactionContentionError);
+      expect((error as TransactionContentionError).sqlState).toBe(LOCK_NOT_AVAILABLE_SQLSTATE);
+      expect(elapsedMs).toBeLessThan(WITHIN_TIMEOUT_MS);
+    } finally {
+      await holder.release();
+    }
   });
 
   it('two transactions taking two advisory keys in opposite orders: exactly one is a deadlock victim, the other commits', async () => {

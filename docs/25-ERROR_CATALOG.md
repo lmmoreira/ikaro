@@ -83,7 +83,7 @@ This document is the error-response *reference*. The canonical code catalog is `
 | **422** | Unprocessable Entity | Request is well-formed but a domain rule rejects it — e.g. an availability alert's criteria, a recurring schedule's term, a required resource selection or intake answer |
 | **429** | Too Many Requests | Rate limit / per-session quota exceeded |
 | **500** | Internal Server Error | Unhandled exception |
-| **503** | Service Unavailable | Transient, safe to retry — always carries `Retry-After: 1` (set once in the shared `BaseErrorFilter`, so it also leaves the BFF). Two origins: the backend aborted the request because a lock wait exceeded the 2s `lock_timeout` or Postgres chose it as a deadlock victim (code `AUTH_TRANSACTION_CONTENTION`, M23-S49; nothing was written), or the backend was unreachable or timed out (BFF-originated, `BFF_UPSTREAM_UNAVAILABLE`) |
+| **503** | Service Unavailable | Transient — always carries `Retry-After: 1` (set once in the shared `BaseErrorFilter`, so it also leaves the BFF). Two origins: the backend aborted the request because a lock wait exceeded the 2s `lock_timeout` or Postgres chose it as a deadlock victim (code `AUTH_TRANSACTION_CONTENTION`, M23-S49; nothing was written, so a retry is safe), or the backend was unreachable or timed out (BFF-originated, `BFF_UPSTREAM_UNAVAILABLE`; the backend may have committed a write before the BFF gave up, so retry a write only if it is idempotent) |
 
 ---
 
