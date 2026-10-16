@@ -3,7 +3,7 @@ import { createRef } from 'react';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntlInFloatingFilterDock } from '@/test-utils';
 import type { AgendaFilterOption } from '@/features/booking/schedule/agenda-preferences';
 import { AgendaFilterMenu } from './AgendaFilterMenu';
 
@@ -22,14 +22,14 @@ function baseProps(hidden: AgendaFilterOption[] = []) {
 
 describe('AgendaFilterMenu', () => {
   it('shows the trigger only while closed', () => {
-    renderWithIntl(<AgendaFilterMenu {...baseProps()} open={false} />);
+    renderWithIntlInFloatingFilterDock(<AgendaFilterMenu {...baseProps()} open={false} />);
 
     expect(screen.getByRole('button', { name: 'Filtrar agenda' })).toBeInTheDocument();
     expect(screen.queryByText('Mostrar na agenda')).not.toBeInTheDocument();
   });
 
   it('lists the four blocks in their two groups, all ticked by default, each with its count', () => {
-    renderWithIntl(<AgendaFilterMenu {...baseProps()} />);
+    renderWithIntlInFloatingFilterDock(<AgendaFilterMenu {...baseProps()} />);
 
     expect(screen.getByText('Precisa de ação')).toBeInTheDocument();
     expect(screen.getByText('Confirmados')).toBeInTheDocument();
@@ -46,7 +46,9 @@ describe('AgendaFilterMenu', () => {
   });
 
   it('unticks the options the user hid', () => {
-    renderWithIntl(<AgendaFilterMenu {...baseProps(['recurrences', 'upcoming'])} />);
+    renderWithIntlInFloatingFilterDock(
+      <AgendaFilterMenu {...baseProps(['recurrences', 'upcoming'])} />,
+    );
 
     expect(screen.getByRole('checkbox', { name: /Recorrências/ })).not.toBeChecked();
     expect(screen.getByRole('checkbox', { name: /Próximos dias/ })).not.toBeChecked();
@@ -56,7 +58,7 @@ describe('AgendaFilterMenu', () => {
   it('reports which option was toggled', async () => {
     const user = userEvent.setup();
     const props = baseProps();
-    renderWithIntl(<AgendaFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<AgendaFilterMenu {...props} />);
 
     await user.click(screen.getByRole('checkbox', { name: /Recorrências/ }));
     await user.click(screen.getByRole('checkbox', { name: /Hoje/ }));
@@ -66,7 +68,9 @@ describe('AgendaFilterMenu', () => {
   });
 
   it('badges the trigger with how many options are hidden, and not at all when none are', () => {
-    const { rerender } = renderWithIntl(<AgendaFilterMenu {...baseProps()} open={false} />);
+    const { rerender } = renderWithIntlInFloatingFilterDock(
+      <AgendaFilterMenu {...baseProps()} open={false} />,
+    );
     expect(screen.queryByTestId('floating-filter-hidden-count')).not.toBeInTheDocument();
 
     rerender(<AgendaFilterMenu {...baseProps(['today', 'upcoming'])} open={false} />);
@@ -77,7 +81,7 @@ describe('AgendaFilterMenu', () => {
   it('resets with "Padrão" and closes with "Fechar"', async () => {
     const user = userEvent.setup();
     const props = baseProps(['today']);
-    renderWithIntl(<AgendaFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<AgendaFilterMenu {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Padrão' }));
     await user.click(screen.getByRole('button', { name: 'Fechar' }));

@@ -178,7 +178,7 @@ flowchart TD
 - [x] Scope (widened during implementation): the columns board shows one strip per held resource; the merged Day timeline (no resource checked) and the Week view day-cards show **one strip per booking** — it runs to the longest hold, names every resource held until then ("Walace, Sala 1 · até 12:30") and the cause (a service buffer wins a tie). MANAGER only (the day-grid route is manager-only); with resources checked in Week view only those are considered.
 - [x] Delivered by `M18-S10` (backend-ts + bff-ts + web-ts, size L).
 
-## M23-S50 addition — Both filters move together as a dock (❓ Gap, `M23-S50`)
+## M23-S50 addition — Both filters move together as a dock (✅ Criado, `M23-S50`)
 
 > The status filter (`ScheduleStatusFilterMenu`) and, for a MANAGER, the resource filter (`ResourceFilterMenu`) share the Agenda's floating-filter behavior; the full rules are in `agenda.md` § "M23-S50 addition". Prototype: `prototypes/horarios/10-filtros-flutuantes.html`.
 

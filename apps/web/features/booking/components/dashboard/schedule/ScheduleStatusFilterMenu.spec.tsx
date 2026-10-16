@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { BOOKING_STATUS, type BookingStatus } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntlInFloatingFilterDock } from '@/test-utils';
 import { ScheduleStatusFilterMenu } from './ScheduleStatusFilterMenu';
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
@@ -32,14 +32,14 @@ function baseProps() {
 
 describe('ScheduleStatusFilterMenu', () => {
   it('does not render the popover content when closed', () => {
-    renderWithIntl(<ScheduleStatusFilterMenu {...baseProps()} />);
+    renderWithIntlInFloatingFilterDock(<ScheduleStatusFilterMenu {...baseProps()} />);
     expect(screen.queryByText('Status visíveis')).not.toBeInTheDocument();
   });
 
   it('renders the popover and calls onToggleStatus for a checkbox', async () => {
     const user = userEvent.setup();
     const props = { ...baseProps(), open: true };
-    renderWithIntl(<ScheduleStatusFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ScheduleStatusFilterMenu {...props} />);
 
     expect(screen.getByText('Status visíveis')).toBeInTheDocument();
     const approvedCheckbox = screen.getByRole('checkbox', { name: 'Aprovado' });
@@ -52,7 +52,7 @@ describe('ScheduleStatusFilterMenu', () => {
   it('calls onReset and onClose from the popover footer', async () => {
     const user = userEvent.setup();
     const props = { ...baseProps(), open: true };
-    renderWithIntl(<ScheduleStatusFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ScheduleStatusFilterMenu {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Padrão' }));
     expect(props.onReset).toHaveBeenCalledTimes(1);
@@ -64,7 +64,7 @@ describe('ScheduleStatusFilterMenu', () => {
   it('calls onToggleOpen when the trigger button is clicked', async () => {
     const user = userEvent.setup();
     const props = baseProps();
-    renderWithIntl(<ScheduleStatusFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ScheduleStatusFilterMenu {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Filtrar status' }));
     expect(props.onToggleOpen).toHaveBeenCalledTimes(1);

@@ -13,6 +13,7 @@ import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { toLocalDate } from '@/features/booking/schedule/schedule-timeline';
 import { useSchedulePageController } from '@/features/booking/schedule/useSchedulePageController';
 import { useTenant } from '@/providers/tenant-provider';
+import { FloatingFilterDock } from '../FloatingFilterDock';
 import { ClosureFormSheet } from './ClosureFormSheet';
 import { OpeningFormSheet } from './OpeningFormSheet';
 import { RemoveClosureDialog } from './RemoveClosureDialog';
@@ -148,28 +149,30 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         slotLabels={slotLabels}
       />
 
-      <ScheduleStatusFilterMenu
-        containerRef={ui.statusFilterRef}
-        open={ui.statusFilterOpen}
-        onToggleOpen={statusFilter.handleToggleStatusFilterOpen}
-        selectedStatusSet={statusFilter.selectedStatusSet}
-        statusLabels={statusLabels}
-        onToggleStatus={statusFilter.handleToggleStatus}
-        onReset={statusFilter.handleResetStatusFilter}
-        onClose={statusFilter.handleCloseStatusFilter}
-      />
-
-      {role === 'MANAGER' && (
-        <ResourceFilterMenu
-          containerRef={ui.resourceFilterRef}
-          open={ui.resourceFilterOpen}
-          onToggleOpen={resourceFilter.handleToggleResourceFilterOpen}
-          selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
-          onToggleResource={resourceFilter.handleToggleResource}
-          onReset={resourceFilter.handleResetResourceFilter}
-          onClose={resourceFilter.handleCloseResourceFilter}
+      {/* The dock stacks its children along the corner, the LAST one nearest it: status stays where it is today, the resource filter above it. */}
+      <FloatingFilterDock pageKey="schedule">
+        {role === 'MANAGER' && (
+          <ResourceFilterMenu
+            containerRef={ui.resourceFilterRef}
+            open={ui.resourceFilterOpen}
+            onToggleOpen={resourceFilter.handleToggleResourceFilterOpen}
+            selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
+            onToggleResource={resourceFilter.handleToggleResource}
+            onReset={resourceFilter.handleResetResourceFilter}
+            onClose={resourceFilter.handleCloseResourceFilter}
+          />
+        )}
+        <ScheduleStatusFilterMenu
+          containerRef={ui.statusFilterRef}
+          open={ui.statusFilterOpen}
+          onToggleOpen={statusFilter.handleToggleStatusFilterOpen}
+          selectedStatusSet={statusFilter.selectedStatusSet}
+          statusLabels={statusLabels}
+          onToggleStatus={statusFilter.handleToggleStatus}
+          onReset={statusFilter.handleResetStatusFilter}
+          onClose={statusFilter.handleCloseStatusFilter}
         />
-      )}
+      </FloatingFilterDock>
 
       <ClosureFormSheet
         key={`closure-${ui.closureSheetOpen}-${ui.selectedDateKey}`}
