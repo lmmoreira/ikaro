@@ -4154,7 +4154,7 @@ Decisions baked in (do not re-derive at discovery):
 
 ---
 
-### M23-S49 — A request waiting on a lock fails fast with a retryable error instead of hanging, and a Postgres deadlock abort stops surfacing as a 500
+### M23-S49 — A request waiting on a lock fails fast with a retryable error instead of hanging, and a Postgres deadlock abort stops surfacing as a 500 ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
