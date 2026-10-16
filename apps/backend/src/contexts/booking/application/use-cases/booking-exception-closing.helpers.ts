@@ -1,6 +1,9 @@
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { Booking } from '../../domain/booking.aggregate';
-import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
+import {
+  FutureCommitmentException,
+  FutureCommitmentExceptionSourceType,
+} from '../../domain/future-commitment-exception.aggregate';
 import { IBookingRepository } from '../ports/booking-repository.port';
 import { IFutureCommitmentExceptionRepository } from '../ports/future-commitment-exception-repository.port';
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
@@ -105,6 +108,21 @@ export async function saveTerminalBookingsInTransaction(
   );
 }
 
+// Whether an entry of this source stops being relevant once the booking no longer occupies the
+// source resource. A new source type has to be decided here: the compiler stops at the default
+// branch until it is. A value read from the database that is not a known type is left open.
+function endsWhenSourceResourceIsFree(sourceType: FutureCommitmentExceptionSourceType): boolean {
+  switch (sourceType) {
+    case 'RESOURCE_DEACTIVATION':
+      return true;
+    default: {
+      const unhandled: never = sourceType;
+      void unhandled;
+      return false;
+    }
+  }
+}
+
 // After an approval or a reschedule moved the booking's occupancy: an entry whose source resource
 // the booking no longer occupies is obsolete; one it still occupies stays open. `exceptions` are
 // the booking's open entries, locked by the caller before the booking was saved.
@@ -116,7 +134,10 @@ export async function dismissStaleExceptionsAfterMove(
   if (exceptions.length === 0) return;
   const occupied = await occupiedResourceIds(deps.occupancyRepo, tenantId, [booking]);
   const stale = exceptions.filter(
-    (exception) => !occupied.has(exception.sourceId) && !excludeExceptionIds.includes(exception.id),
+    (exception) =>
+      endsWhenSourceResourceIsFree(exception.sourceType) &&
+      !occupied.has(exception.sourceId) &&
+      !excludeExceptionIds.includes(exception.id),
   );
   await dismissExceptions(deps.exceptionRepo, stale, RESOURCE_NO_LONGER_USED, correlationId);
 }

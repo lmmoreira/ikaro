@@ -9,6 +9,7 @@ import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repo
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { Booking } from '../../domain/booking.aggregate';
+import { FutureCommitmentExceptionSourceType } from '../../domain/future-commitment-exception.types';
 import { BookingLineOccupancyRow } from '../ports/resource-occupancy-repository.port';
 import { ResourceType } from '../../domain/resource.types';
 import {
@@ -253,6 +254,25 @@ describe('booking-exception-closing helpers', () => {
       expect(closed?.status).toBe('DISMISSED');
       expect(closed?.resolutionReason).toBe(RESOURCE_NO_LONGER_USED);
       expect(closed?.resolvedByStaffId).toBeNull();
+    });
+
+    it('leaves an entry of an unknown source type open (negative guarantee)', async () => {
+      const booking = await seedBooking();
+      const entry = await seedEntry(booking, RESOURCE_B);
+      // A value read from the database that the code does not know.
+      const unknownSource: string = 'FUTURE_SOURCE';
+      jest
+        .spyOn(entry, 'sourceType', 'get')
+        .mockReturnValue(unknownSource as FutureCommitmentExceptionSourceType);
+
+      await dismissStaleExceptionsAfterMove(deps(), {
+        tenantId: TENANT_A,
+        booking,
+        exceptions: [entry],
+        correlationId: CORRELATION_ID,
+      });
+
+      expect((await exceptionRepo.findById(entry.id, TENANT_A))?.status).toBe('OPEN');
     });
 
     it('does not read the occupancy when the booking has no open entries', async () => {
