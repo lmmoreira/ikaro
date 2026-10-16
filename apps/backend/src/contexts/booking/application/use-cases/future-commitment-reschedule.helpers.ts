@@ -1,5 +1,8 @@
 import { Booking } from '../../domain/booking.aggregate';
-import { BookingScheduledInPastError } from '../../domain/errors/booking-domain.error';
+import {
+  BookingScheduledAtInvalidError,
+  BookingScheduledInPastError,
+} from '../../domain/errors/booking-domain.error';
 import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
 import { Service } from '../../domain/service.aggregate';
 import { IServiceRepository } from '../ports/service-repository.port';
@@ -80,6 +83,7 @@ export async function rescheduleThroughWorklist(
 ): Promise<void> {
   const { tenantId, booking } = params;
   const newScheduledAt = new Date(params.scheduledAt);
+  if (Number.isNaN(newScheduledAt.getTime())) throw new BookingScheduledAtInvalidError();
   if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
   await rescheduleBookingInTransaction(deps, {

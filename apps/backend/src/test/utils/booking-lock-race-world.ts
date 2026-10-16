@@ -123,19 +123,20 @@ export async function createLockRaceWorld(
           status === 'PENDING' ? new Date(Date.now() + 3_600_000) : null,
         ),
       );
-      const entryIds: string[] = [];
-      for (const resource of options.resources) {
-        const entry = await ds
-          .getRepository(FutureCommitmentExceptionEntity)
-          .save(
-            new FutureCommitmentExceptionEntityBuilder()
-              .withTenantId(tenantId)
-              .withSourceId(resource.id)
-              .withAffectedId(booking.id)
-              .build(),
-          );
-        entryIds.push(entry.id);
-      }
+      const entryIds = await Promise.all(
+        options.resources.map(async (resource) => {
+          const entry = await ds
+            .getRepository(FutureCommitmentExceptionEntity)
+            .save(
+              new FutureCommitmentExceptionEntityBuilder()
+                .withTenantId(tenantId)
+                .withSourceId(resource.id)
+                .withAffectedId(booking.id)
+                .build(),
+            );
+          return entry.id;
+        }),
+      );
       return { bookingId: booking.id, entryIds };
     },
     async seedSchedule(customerId) {
@@ -201,16 +202,27 @@ export async function waitForBlockedLock(
   since: Date,
 ): Promise<void> {
   const waitEvent = kind === 'advisory' ? 'advisory' : 'transactionid';
-  for (let attempt = 0; attempt < 150; attempt++) {
+  const blocked = async (): Promise<boolean> => {
     const [{ waiting }] = await ds.query<{ waiting: number }[]>(
       `SELECT count(*)::int AS waiting FROM pg_stat_activity
         WHERE wait_event_type = 'Lock' AND wait_event = $1 AND query_start >= $2`,
       [waitEvent, since],
     );
-    if (waiting > 0) return;
-    await new Promise((resolveWait) => setTimeout(resolveWait, 20));
-  }
-  throw new Error(`no session ever blocked on a ${kind} lock`);
+    return waiting > 0;
+  };
+  await pollUntil(blocked, 150, `no session ever blocked on a ${kind} lock`);
+}
+
+// Checks every 20 ms, at most `attempts` times, then fails with `message`.
+async function pollUntil(
+  check: () => Promise<boolean>,
+  attempts: number,
+  message: string,
+): Promise<void> {
+  if (await check()) return;
+  if (attempts <= 1) throw new Error(message);
+  await new Promise((resolveWait) => setTimeout(resolveWait, 20));
+  return pollUntil(check, attempts - 1, message);
 }
 
 // The database's own clock, taken just before the operation under test starts, so the probe above

@@ -672,6 +672,26 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       ]);
     });
 
+    it('refuses a time that is not a valid date, and keeps the entry open', async () => {
+      const source = await world.addResource('Sala 1');
+      const service = await world.addService();
+      await world.addBooking({ service, resource: source });
+      const [entryId] = await raiseFor(source.id);
+
+      const { results } = await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: 'not-a-date',
+      });
+
+      expect(results[0]).toEqual({
+        exceptionId: entryId,
+        outcome: 'STILL_OPEN',
+        errorCode: BookingErrorCode.SCHEDULED_AT_INVALID,
+      });
+      expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+    });
+
     it('refuses a time in the past', async () => {
       const source = await world.addResource('Sala 1');
       const service = await world.addService();
