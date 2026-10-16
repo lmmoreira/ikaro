@@ -18,6 +18,13 @@ import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { addDays, nextWeekday } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import {
+  databaseNow,
+  holdTransaction,
+  waitForBlockedLock,
+} from '../../../../test/utils/booking-lock-race-world';
+import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../../application/ports/tenant-lock.port';
 import { ExpireRecurringBookingScheduleApprovalsJob } from '../../application/jobs/expire-recurring-schedule-approvals.job';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -180,6 +187,89 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
 
   const scheduleRow = (scheduleId: string) =>
     ds.getRepository(RecurringBookingScheduleEntity).findOneByOrFail({ id: scheduleId, tenantId });
+
+  // docs/28-LOCK_CATALOG.md A4 and A3. A request and an approval each take the service key and the
+  // lock on every resource they consider. The existing race tests above pass without the service
+  // key (the resource lock serializes those scenarios on its own), so these hold one lock at a
+  // time and prove the use case waits for it.
+  describe('lock contract: a request and an approval wait for the service key and the room lock', () => {
+    async function expectsToWaitFor(
+      acquire: (tenantLock: ITenantLockPort) => Promise<unknown>,
+      start: () => PromiseLike<request.Response>,
+    ): Promise<request.Response> {
+      const tenantLock = app.get<ITenantLockPort>(TENANT_LOCK_PORT);
+      const held = await holdTransaction({ txManager: app.get(TRANSACTION_MANAGER) }, () =>
+        acquire(tenantLock),
+      );
+      try {
+        const since = await databaseNow(ds);
+        let finished = false;
+        const operation = Promise.resolve(start()).then((response) => {
+          finished = true;
+          return response;
+        });
+        await Promise.race([
+          waitForBlockedLock(ds, 'advisory', since),
+          operation.then(() => {
+            throw new Error('the request finished without ever waiting for the lock');
+          }),
+        ]);
+        expect(finished).toBe(false);
+        await held.release();
+        return await operation;
+      } finally {
+        await held.release();
+      }
+    }
+
+    it('a request waits for the service key (A4)', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+
+      const response = await expectsToWaitFor(
+        (lock) => lock.lockService(tenantId, fixture.serviceId),
+        () => requestSchedule(fixture),
+      );
+
+      expect(response.status).toBe(201);
+    });
+
+    it('an approval waits for the service key (A4)', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: pending } = await requestSchedule(fixture).expect(201);
+
+      const response = await expectsToWaitFor(
+        (lock) => lock.lockService(tenantId, fixture.serviceId),
+        () => decide(pending.id, 'approve'),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await bookingsOf(pending.id)).toHaveLength(5);
+    });
+
+    it('a request waits for the lock on the room it considers (A3)', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+
+      const response = await expectsToWaitFor(
+        (lock) => lock.lockResources(tenantId, [fixture.resourceId]),
+        () => requestSchedule(fixture),
+      );
+
+      expect(response.status).toBe(201);
+    });
+
+    it('an approval waits for the lock on the room it considers (A3)', async () => {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+      const { body: pending } = await requestSchedule(fixture).expect(201);
+
+      const response = await expectsToWaitFor(
+        (lock) => lock.lockResources(tenantId, [fixture.resourceId]),
+        () => decide(pending.id, 'approve'),
+      );
+
+      expect(response.status).toBe(200);
+      expect(await bookingsOf(pending.id)).toHaveLength(5);
+    });
+  });
 
   describe('approve', () => {
     it('turns a PENDING_APPROVAL request into real APPROVED bookings for every occurrence', async () => {

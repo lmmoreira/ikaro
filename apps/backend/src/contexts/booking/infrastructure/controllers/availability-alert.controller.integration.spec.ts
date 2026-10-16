@@ -11,6 +11,13 @@ import {
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import {
+  databaseNow,
+  holdTransaction,
+  waitForBlockedLock,
+} from '../../../../test/utils/booking-lock-race-world';
+import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
+import { ITenantLockPort, TENANT_LOCK_PORT } from '../../application/ports/tenant-lock.port';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { AvailabilityAlertEntity } from '../entities/availability-alert.entity';
@@ -486,6 +493,41 @@ describe('AvailabilityAlertController (integration)', () => {
         .getRepository(AvailabilityAlertEntity)
         .count({ where: { tenantId: tenantA, customerId: CUSTOMER_A, status: 'ACTIVE' } }),
     ).toBe(10);
+  });
+
+  // docs/28-LOCK_CATALOG.md A5. The race test above passes without this key (the service row lock
+  // serializes those creates too), so this one holds only the customer's key and proves the create
+  // waits for it.
+  it('a create waits for the customer’s alert key, then succeeds (A5)', async () => {
+    const tenantLock = app.get<ITenantLockPort>(TENANT_LOCK_PORT);
+    const held = await holdTransaction({ txManager: app.get(TRANSACTION_MANAGER) }, () =>
+      tenantLock.lockCustomerAlerts(tenantA, CUSTOMER_A2),
+    );
+    try {
+      const since = await databaseNow(ds);
+      let finished = false;
+      const response = Promise.resolve(
+        request(app.getHttpServer())
+          .post('/availability-alerts')
+          .set(as(tenantA, CUSTOMER_A2))
+          .send(weeklyBody(serviceA)),
+      ).then((result) => {
+        finished = true;
+        return result;
+      });
+      await Promise.race([
+        waitForBlockedLock(ds, 'advisory', since),
+        response.then(() => {
+          throw new Error('the create finished without waiting for the customer’s alert key');
+        }),
+      ]);
+      expect(finished).toBe(false);
+
+      await held.release();
+      expect((await response).status).toBe(201);
+    } finally {
+      await held.release();
+    }
   });
 
   describe('tenant and customer isolation', () => {

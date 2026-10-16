@@ -7,6 +7,13 @@ import {
 } from '../../../../test/builders/booking/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import {
+  databaseNow,
+  holdTransaction,
+  waitForBlockedLock,
+} from '../../../../test/utils/booking-lock-race-world';
+import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { TRANSACTION_MANAGER } from '../../../../shared/ports/transaction-manager.port';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { PlatformModule } from '../../../platform/platform.module';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
@@ -430,6 +437,60 @@ describe('ScheduleOpeningController (integration)', () => {
       );
 
       expect(savedB.resourceId).toBe(resourceB.id);
+    });
+  });
+
+  // docs/28-LOCK_CATALOG.md R3. The request is checked against a cached copy of the hours first
+  // and then again under a row lock on the tenant, so a settings change committed in between is
+  // seen. The change is held uncommitted: the opening must wait for it and then be refused. Without
+  // the row lock it reads the old hours and the opening is created at once. The tenant is this
+  // test's own, because the change to its hours is permanent.
+  describe('lock contract: the tenant row (R3)', () => {
+    it('opening a day waits for an uncommitted change to the tenant’s business hours, then refuses', async () => {
+      const slug = `opening-row-lock-${Date.now()}`;
+      const { body: tenant } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({ name: 'Opening Row Lock', slug, adminEmail: `a@${slug}.test`, country_code: 'BR' })
+        .expect(201);
+      const tenantId = tenant.tenantId as string;
+
+      const held = await holdTransaction({ txManager: app.get(TRANSACTION_MANAGER) }, () =>
+        getActiveEntityManager()!.query(
+          `UPDATE platform.tenants
+              SET settings = jsonb_set(settings, '{businessHours,sunday}', $2::jsonb)
+            WHERE id = $1`,
+          [tenantId, JSON.stringify({ open: '09:00', close: '18:00' })],
+        ),
+      );
+      try {
+        const since = await databaseNow(ds);
+        let finished = false;
+        const response = Promise.resolve(
+          request(app.getHttpServer())
+            .post('/schedule/openings')
+            .set(actorHeaders(tenantId, MANAGER_ID))
+            .send({ date: CLOSED_DAY, startTime: '09:00', endTime: '14:00' }),
+        ).then((result) => {
+          finished = true;
+          return result;
+        });
+        await Promise.race([
+          waitForBlockedLock(ds, 'row', since),
+          response.then(() => {
+            throw new Error('the opening finished without waiting for the tenant row');
+          }),
+        ]);
+        expect(finished).toBe(false);
+
+        await held.release();
+        expect((await response).status).toBe(422);
+        expect(await ds.getRepository(ScheduleOpeningEntity).count({ where: { tenantId } })).toBe(
+          0,
+        );
+      } finally {
+        await held.release();
+      }
     });
   });
 });

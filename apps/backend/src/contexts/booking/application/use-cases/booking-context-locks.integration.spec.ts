@@ -35,6 +35,7 @@ import { CreateResourceUseCase } from './create-resource.use-case';
 import { DeactivateResourceUseCase } from './deactivate-resource.use-case';
 import { ReactivateResourceUseCase } from './reactivate-resource.use-case';
 import { RemoveScheduleOpeningUseCase } from './remove-schedule-opening.use-case';
+import { UpdateResourceUseCase } from './update-resource.use-case';
 
 const MANAGER_ID = '20000000-0000-4000-8000-0000000000e1';
 
@@ -49,6 +50,7 @@ describe('booking context locks (integration)', () => {
   let env: LockRaceEnv;
   let createResource: CreateResourceUseCase;
   let reactivateResource: ReactivateResourceUseCase;
+  let updateResource: UpdateResourceUseCase;
   let deactivateResource: DeactivateResourceUseCase;
   let cascade: CascadeStaffDeactivationUseCase;
   let closeSchedule: CloseScheduleUseCase;
@@ -64,6 +66,7 @@ describe('booking context locks (integration)', () => {
     };
     createResource = app.get(CreateResourceUseCase);
     reactivateResource = app.get(ReactivateResourceUseCase);
+    updateResource = app.get(UpdateResourceUseCase);
     deactivateResource = app.get(DeactivateResourceUseCase);
     cascade = app.get(CascadeStaffDeactivationUseCase);
     closeSchedule = app.get(CloseScheduleUseCase);
@@ -161,6 +164,29 @@ describe('booking context locks (integration)', () => {
             }),
           verify: async () => {
             const row = await ds.getRepository(ResourceEntity).findOneByOrFail({ id: wrapper.id });
+            expect(row.isActive).toBe(true);
+          },
+        };
+      },
+    },
+    {
+      name: 'updating a staff member’s resource waits for the staff lock (A2)',
+      prepare: async (world) => {
+        const staff = await seedStaff(world.tenantId);
+        const wrapper = await seedStaffResource(world.tenantId, staff.id, true);
+        return {
+          lockKind: 'advisory',
+          hold: holdStaff(world, staff.id),
+          start: () =>
+            updateResource.execute({
+              id: wrapper.id,
+              tenantId: world.tenantId,
+              tenantBusinessHours: FULL_WEEK_BUSINESS_HOURS,
+              name: 'Camila, agenda nova',
+            }),
+          verify: async () => {
+            const row = await ds.getRepository(ResourceEntity).findOneByOrFail({ id: wrapper.id });
+            expect(row.name).toBe('Camila, agenda nova');
             expect(row.isActive).toBe(true);
           },
         };

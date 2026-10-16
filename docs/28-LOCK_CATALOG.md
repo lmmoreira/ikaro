@@ -145,20 +145,20 @@ A test counts as coverage for a lock only if **removing the lock makes it fail**
 | Lock | Test (file › scenario) | Kind | Fails without the lock? |
 |---|---|---|---|
 | A1 tenant day | `booking-context-locks` › closing a day waits; removing a tenant-wide opening waits; two overlapping closures of the same day: exactly one is created | contract, outcome | Yes for closing (contract and outcome); the removal case was not mutated |
-| A2 staff | `booking-context-locks` › creating a staff member's resource, reactivating it, and the staff-deactivated cascade each wait for the staff lock | contract | Yes, all three |
-| A3 resources | `booking-lock-order` › ten paths wait for the resource lock without owning the entry row (staff cancel, customer cancel, reject, end-recurring, the worklist's CANCEL and RESCHEDULE, staff reschedule, customer reschedule, a reschedule overriding a customer-chosen room, approve) and four bounded races; `booking-context-locks` › deactivating a resource waits, then raises the entry; the slot-conflict races in `booking.controller`, `booking-by-staff`, `recurring-booking-schedule` | contract, race, outcome | Yes (terminal helper, old-resources lock, deactivation raise mutated) |
-| A4 service key | `recurring-booking-schedule.controller` › two concurrent `RESOLVE_PER_OCCURRENCE` requests near the per-service cap | outcome | Not re-checked here (existing test) |
-| A5 customer alerts | `availability-alert.controller` › serializes concurrent creates so the cap holds | outcome | Not re-checked here (existing test) |
+| A2 staff | `booking-context-locks` › creating, reactivating and updating a staff member's resource, and the staff-deactivated cascade, each wait for the staff lock | contract | Yes, all four |
+| A3 resources | `booking-lock-order` › ten paths wait for the resource lock without owning the entry row (staff cancel, customer cancel, reject, end-recurring, the worklist's CANCEL and RESCHEDULE, staff reschedule, customer reschedule, a reschedule overriding a customer-chosen room, approve) and four bounded races; `booking-context-locks` › deactivating a resource waits, then raises the entry; `recurring-booking-schedule-approval` › a request and an approval each wait for the lock on the room they consider; the slot-conflict races in `booking.controller`, `booking-by-staff`, `recurring-booking-schedule` | contract, race, outcome | Yes (terminal helper, old-resources lock, deactivation raise mutated) |
+| A4 service key | `recurring-booking-schedule-approval` › a request waits for the service key; an approval waits for the service key | contract | Yes, both. The existing cap race test (`recurring-booking-schedule.controller`) passes without the key, because the resource lock serializes it, so it is not counted |
+| A5 customer alerts | `availability-alert.controller` › a create waits for the customer's alert key, then succeeds | contract | Yes. The existing cap race test passes without the key, because the service row lock serializes those creates too, so it is not counted |
 | R1 service row | **None that discriminates.** | — | A held `FOR UPDATE` row blocks the writer's `UPDATE` anyway, and for the pairs tried (deactivate vs change requirements) the aggregate rewrite does not conflict, so removing the read lock changed no result. Do not add a test that passes either way |
 | R2 booking models | `booking-lock-order` › a one-off booking waits behind a held service row without having taken the candidate resource locks | contract | Yes (restoring the old order fails it) |
-| R3 tenant row | **None.** Deferred: it is the same single-row lock as R1, so a "waits" test cannot tell it from the writer's own `UPDATE`; worth adding with an outcome test (settings narrowing vs `OpenSchedule`) if that path changes | — | — |
+| R3 tenant row | `schedule-opening.controller` › opening a day waits for an uncommitted change to the tenant's business hours, then refuses (422) | contract | Yes (the plain read lets the opening through at once) |
 | R4 exception rows | `typeorm-future-commitment-exception.repository` (a resolver, then a reactivation or a cancel, sees the entry closed); `booking-lock-order` (the entry row is free while the operation waits on the resource lock) | contract | Yes |
 | R5 managers | `staff.controller` › the last-manager guard waits for an uncommitted manager deactivation, then refuses | contract | Yes (the earlier two-request HTTP race passed without the lock and was replaced) |
 | Q1 outbox | `outbox-relay.service`, `typeorm-booking.repository.outbox-cutover` › two concurrent sweeps (`SKIP LOCKED`) | outcome | Existing tests |
 | M4 constraints | the same slot-conflict races as A3 (the exclusion constraint is what makes them safe) | outcome | Existing tests |
 | M5 idempotency | `send-booking-approved-notification` › two concurrent deliveries of the same event | outcome | Existing test |
 
-Known gaps: R1, R3, `UpdateResourceUseCase` (A2, the same lock and pattern as create), and the removal path of A1.
+Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), and the removal path of A1 (not mutation-checked). Q1, M4 and M5 rely on existing tests that were not re-checked here; the A4 and A5 race tests turned out not to prove their locks, so those three may be the same.
 
 ---
 
