@@ -99,7 +99,6 @@ export function ResourceFilterMenu({
       description={t('resourceFilterMenuDescription')}
       resetLabel={t('resourceFilterReset')}
       doneLabel={t('resourceFilterDone')}
-      positionClassName="bottom-44 right-4 lg:bottom-24 lg:right-6"
     >
       {isError ? (
         <p

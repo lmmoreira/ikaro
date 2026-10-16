@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResourceResponse } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntlInFloatingFilterDock } from '@/test-utils';
 import { ResourceFilterMenu } from './ResourceFilterMenu';
 
 const RESOURCES: ResourceResponse[] = [
@@ -81,14 +81,14 @@ describe('ResourceFilterMenu', () => {
   });
 
   it('does not render the popover content when closed', () => {
-    renderWithIntl(<ResourceFilterMenu {...baseProps()} />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...baseProps()} />);
     expect(screen.queryByText('Recursos visíveis')).not.toBeInTheDocument();
   });
 
   it('renders active non-LOCATION resources and calls onToggleResource for a checkbox', async () => {
     const user = userEvent.setup();
     const props = { ...baseProps(), open: true, selectedResourceIdSet: new Set(['staff-1']) };
-    renderWithIntl(<ResourceFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...props} />);
 
     expect(screen.getByText('Recursos visíveis')).toBeInTheDocument();
     expect(screen.queryByText('Localização Principal')).not.toBeInTheDocument();
@@ -103,7 +103,7 @@ describe('ResourceFilterMenu', () => {
   it('calls onReset and onClose from the popover footer', async () => {
     const user = userEvent.setup();
     const props = { ...baseProps(), open: true };
-    renderWithIntl(<ResourceFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Padrão' }));
     expect(props.onReset).toHaveBeenCalledTimes(1);
@@ -115,7 +115,7 @@ describe('ResourceFilterMenu', () => {
   it('calls onToggleOpen when the trigger button is clicked', async () => {
     const user = userEvent.setup();
     const props = baseProps();
-    renderWithIntl(<ResourceFilterMenu {...props} />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...props} />);
 
     await user.click(screen.getByRole('button', { name: 'Filtrar recurso' }));
     expect(props.onToggleOpen).toHaveBeenCalledTimes(1);
@@ -128,7 +128,7 @@ describe('ResourceFilterMenu', () => {
       isError: false,
       error: null,
     });
-    renderWithIntl(<ResourceFilterMenu {...baseProps()} open />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...baseProps()} open />);
 
     expect(screen.getByText('Carregando...')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -141,7 +141,7 @@ describe('ResourceFilterMenu', () => {
       isError: false,
       error: null,
     });
-    renderWithIntl(<ResourceFilterMenu {...baseProps()} open />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...baseProps()} open />);
 
     expect(screen.getByTestId('resource-filter-empty')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
@@ -155,7 +155,7 @@ describe('ResourceFilterMenu', () => {
       error: null,
     });
     const selectedResourceIdSet = new Set(MANY_RESOURCES.slice(0, 6).map((r) => r.id));
-    renderWithIntl(
+    renderWithIntlInFloatingFilterDock(
       <ResourceFilterMenu {...baseProps()} open selectedResourceIdSet={selectedResourceIdSet} />,
     );
 
@@ -175,7 +175,7 @@ describe('ResourceFilterMenu', () => {
       error: null,
     });
     const selectedResourceIdSet = new Set(MANY_RESOURCES.slice(0, 5).map((r) => r.id));
-    renderWithIntl(
+    renderWithIntlInFloatingFilterDock(
       <ResourceFilterMenu {...baseProps()} open selectedResourceIdSet={selectedResourceIdSet} />,
     );
 
@@ -192,7 +192,7 @@ describe('ResourceFilterMenu', () => {
       isError: true,
       error: new Error('network down'),
     });
-    renderWithIntl(<ResourceFilterMenu {...baseProps()} open />);
+    renderWithIntlInFloatingFilterDock(<ResourceFilterMenu {...baseProps()} open />);
 
     expect(screen.getByTestId('resource-filter-error')).toBeInTheDocument();
     expect(screen.queryByTestId('resource-filter-options')).not.toBeInTheDocument();

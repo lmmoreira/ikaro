@@ -4272,7 +4272,7 @@ This story lets the user drag the pill and drop it at one of the **four corners*
   - [ ] `FloatingFilterMenu`: the popover orientation follows the dock's corner; the "Posição" buttons report the chosen corner; with no corner chosen the output equals today's *(negative guarantee, own test)*
   - [ ] `FloatingFilterDock`: stacks two filters in a fixed order in every corner without overlap; status nearest the corner, resource further out; one pill alone also works
   - [ ] `floating-filter-dock-context`: the hook throws when used outside a dock *(negative guarantee, own test)*
-  - [ ] The three menus' existing specs keep passing unchanged
+  - [ ] The three menus' existing assertions keep passing unchanged (the specs now render inside the dock test context, `renderWithIntlInFloatingFilterDock`, because a menu throws outside a dock)
 - Integration: n/a — client-side only
 - Tenant isolation: covered by the preference store spec above (the key carries the `tenantId`); no backend data
 - E2E:

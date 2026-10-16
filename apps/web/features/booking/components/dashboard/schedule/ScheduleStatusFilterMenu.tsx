@@ -44,7 +44,6 @@ export function ScheduleStatusFilterMenu({
       description={t('statusFilterMenuDescription')}
       resetLabel={t('statusFilterReset')}
       doneLabel={t('statusFilterDone')}
-      positionClassName="bottom-24 right-4 lg:bottom-6 lg:right-6"
     >
       <div className="max-h-72 overflow-y-auto border-y border-gray-100 px-2 py-2">
         {SCHEDULE_BOOKING_STATUS_OPTIONS.map((status) => (

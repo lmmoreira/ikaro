@@ -73,7 +73,6 @@ export function AgendaFilterMenu({
       description={t('filterMenuDescription')}
       resetLabel={t('filterReset')}
       doneLabel={t('filterDone')}
-      positionClassName="bottom-24 right-4 lg:bottom-6 lg:right-6"
       hiddenCount={hiddenOptions.size}
       hiddenCountLabel={t('filterHiddenCount', { count: hiddenOptions.size })}
     >

@@ -2501,6 +2501,14 @@
           "title": "Não foi possível criar o agendamento"
         }
       }
+    },
+    "floatingFilter": {
+      "dragHandleLabel": "Arraste para mover o filtro",
+      "positionTitle": "Posição",
+      "positionTopLeft": "Canto superior esquerdo",
+      "positionTopRight": "Canto superior direito",
+      "positionBottomLeft": "Canto inferior esquerdo",
+      "positionBottomRight": "Canto inferior direito"
     }
   }
 }
