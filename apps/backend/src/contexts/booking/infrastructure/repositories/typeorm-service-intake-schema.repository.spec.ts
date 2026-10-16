@@ -23,7 +23,13 @@ function entity(overrides: { version?: number; isActive?: boolean } = {}) {
 describe('TypeOrmServiceIntakeSchemaRepository', () => {
   let repo: TypeOrmServiceIntakeSchemaRepository;
   let ormRepo: jest.Mocked<Repository<ServiceBookingIntakeSchemaEntity>>;
-  let mockTx: { update: jest.Mock; save: jest.Mock; findOne: jest.Mock; find: jest.Mock };
+  let mockTx: {
+    update: jest.Mock;
+    save: jest.Mock;
+    findOne: jest.Mock;
+    find: jest.Mock;
+    query: jest.Mock;
+  };
 
   beforeEach(async () => {
     mockTx = {
@@ -31,6 +37,7 @@ describe('TypeOrmServiceIntakeSchemaRepository', () => {
       save: jest.fn(),
       findOne: jest.fn(),
       find: jest.fn(),
+      query: jest.fn().mockResolvedValue([]),
     };
 
     const moduleRef = await Test.createTestingModule({

@@ -19,6 +19,7 @@ import {
   updateLeadFormConfig,
   updateTenantSettings,
 } from './helpers/platform';
+import { gotoBookingPage } from './helpers/booking-form/goto';
 
 // autospa-premium is the same MANAGER tenant settings.spec.ts uses specifically because no
 // booking/schedule/service e2e spec touches it — hotsite config doesn't overlap with that state
@@ -894,7 +895,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       ],
     });
 
-    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await gotoBookingPage(page, `/${MANAGER_TENANT_SLUG}/booking`);
     await page
       .locator('[data-testid="service-card"][data-requires-pickup="false"]')
       .first()
@@ -960,7 +961,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       ],
     });
 
-    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await gotoBookingPage(page, `/${MANAGER_TENANT_SLUG}/booking`);
     await page
       .locator('[data-testid="service-card"][data-requires-pickup="false"]')
       .first()
@@ -1007,7 +1008,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       settings: { booking: { ...originalSettings.settings.booking, maxBookingAdvanceDays: 5 } },
     });
 
-    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await gotoBookingPage(page, `/${MANAGER_TENANT_SLUG}/booking`);
     await page
       .locator('[data-testid="service-card"][data-requires-pickup="false"]')
       .first()
@@ -1044,7 +1045,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       ],
     });
 
-    await page.goto(`/${MANAGER_TENANT_SLUG}/booking`);
+    await gotoBookingPage(page, `/${MANAGER_TENANT_SLUG}/booking`);
     await page
       .locator('[data-testid="service-card"][data-requires-pickup="false"]')
       .first()

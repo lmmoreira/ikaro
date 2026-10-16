@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { openFirstDayWithSlots } from './helpers/booking-form';
+import { gotoBookingPage } from './helpers/booking-form/goto';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const WEB_URL = process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000';
@@ -82,7 +83,7 @@ async function navigateToAuthenticatedStep3(
   await loginAsCustomer(page, uniqueTestEmail(`booking-auth-${tenantSlug}`), tenantSlug);
   await completeCustomerProfile(page, tenantSlug);
 
-  await page.goto(`/${tenantSlug}/booking`);
+  await gotoBookingPage(page, `/${tenantSlug}/booking`);
   await page.locator('[data-testid="step-service-selection"]').waitFor();
 
   await page
@@ -115,7 +116,7 @@ test.describe('UC-002 — Authenticated customer booking golden path', () => {
   test('authenticated customer sees the default pickup address on step 1', async ({ page }) => {
     await setupAuthenticatedCustomer(page, 'lavacar-beloauto');
 
-    await page.goto('/lavacar-beloauto/booking');
+    await gotoBookingPage(page, '/lavacar-beloauto/booking');
     await page.locator('[data-testid="step-service-selection"]').waitFor();
     await expect(page.locator('[data-testid="information-completion-prompt"]')).toHaveCount(0);
 

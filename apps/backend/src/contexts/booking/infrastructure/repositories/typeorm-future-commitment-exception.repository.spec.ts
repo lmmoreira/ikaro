@@ -14,7 +14,13 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
   let repo: TypeOrmFutureCommitmentExceptionRepository;
   let ormRepo: jest.Mocked<Repository<FutureCommitmentExceptionEntity>>;
   let outbox: { publish: jest.Mock };
-  let manager: { save: jest.Mock; findOne: jest.Mock; find: jest.Mock; getRepository: jest.Mock };
+  let manager: {
+    save: jest.Mock;
+    findOne: jest.Mock;
+    find: jest.Mock;
+    getRepository: jest.Mock;
+    query: jest.Mock;
+  };
 
   beforeEach(async () => {
     outbox = { publish: jest.fn().mockResolvedValue(undefined) };
@@ -23,6 +29,7 @@ describe('TypeOrmFutureCommitmentExceptionRepository', () => {
       findOne: jest.fn(),
       find: jest.fn(),
       getRepository: jest.fn(),
+      query: jest.fn().mockResolvedValue([]),
     };
     const moduleRef = await Test.createTestingModule({
       providers: [

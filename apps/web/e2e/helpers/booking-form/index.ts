@@ -2,9 +2,10 @@ import { expect, type Page } from '@playwright/test';
 import { completeCustomerProfile } from '../customer';
 import { loginAsCustomer, uniqueTestEmail } from '../auth';
 import { openFirstDayWithSlots } from './flow';
+import { gotoBookingPage } from './goto';
 
 export async function navigateToStep3(page: Page, tenantSlug = 'ikaro'): Promise<void> {
-  await page.goto(`/${tenantSlug}/booking`);
+  await gotoBookingPage(page, `/${tenantSlug}/booking`);
   await page.locator('[data-testid="step-service-selection"]').waitFor();
 
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
@@ -20,7 +21,7 @@ export async function navigateToStep3(page: Page, tenantSlug = 'ikaro'): Promise
 // For a tenant whose BOOKING_CTA module has datePickerType: 'calendar' — same step 1/3 flow as
 // navigateToStep3, just clicking a calendar-day cell instead of a day-option carousel button.
 export async function navigateToCalendarStep3(page: Page, tenantSlug = 'ikaro'): Promise<void> {
-  await page.goto(`/${tenantSlug}/booking`);
+  await gotoBookingPage(page, `/${tenantSlug}/booking`);
   await page.locator('[data-testid="step-service-selection"]').waitFor();
 
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();
@@ -40,7 +41,7 @@ export async function navigateToAuthenticatedStep3(
   await loginAsCustomer(page, uniqueTestEmail(`booking-auth-${tenantSlug}`), tenantSlug);
   await completeCustomerProfile(page, tenantSlug);
 
-  await page.goto(`/${tenantSlug}/booking`);
+  await gotoBookingPage(page, `/${tenantSlug}/booking`);
   await page.locator('[data-testid="step-service-selection"]').waitFor();
 
   await page.locator('[data-testid="service-card"][data-requires-pickup="false"]').first().click();

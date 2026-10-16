@@ -83,7 +83,7 @@ This document is the error-response *reference*. The canonical code catalog is `
 | **422** | Unprocessable Entity | Request is well-formed but a domain rule rejects it — e.g. an availability alert's criteria, a recurring schedule's term, a required resource selection or intake answer |
 | **429** | Too Many Requests | Rate limit / per-session quota exceeded |
 | **500** | Internal Server Error | Unhandled exception |
-| **503** | Service Unavailable | Backend unreachable or timed out (BFF-originated) |
+| **503** | Service Unavailable | Transient — always carries `Retry-After: 1` (set once in the shared `BaseErrorFilter`, so it also leaves the BFF). Two origins: the backend aborted the request because a lock wait exceeded the 2s `lock_timeout` or Postgres chose it as a deadlock victim (code `AUTH_TRANSACTION_CONTENTION`, M23-S49; nothing was written, so a retry is safe), or the backend was unreachable or timed out (BFF-originated, `BFF_UPSTREAM_UNAVAILABLE`; the backend may have committed a write before the BFF gave up, so retry a write only if it is idempotent) |
 
 ---
 
@@ -100,7 +100,7 @@ Every code is namespaced `<ORIGIN>_<REASON>` (upper snake case). Full catalog: `
 | `PLATFORM_*` | `apps/backend/src/contexts/platform/` |
 | `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*`, `CALENDAR_DATE_*` | Shared value objects, `apps/backend/src/shared/value-objects/` — reused by whichever context calls the VO |
 | `BFF_*` | BFF-originated conditions (guest-token failures, guard rejections, tenant-not-registered checks) — `apps/bff/src/shared/` |
-| `AUTH_*` | Auth/role framework fallback, shared by backend and BFF |
+| `AUTH_*` | Auth/role framework fallback, shared by backend and BFF; also the infrastructure-level `AUTH_INTERNAL_ERROR`, `AUTH_RATE_LIMITED` and `AUTH_TRANSACTION_CONTENTION` (a lock timeout or deadlock abort, 503) |
 | `GENERIC_*` | VO-less Zod validation rules (no domain VO behind the rule) |
 
 ---
@@ -111,7 +111,7 @@ Every code is namespaced `<ORIGIN>_<REASON>` (upper snake case). Full catalog: `
 2. **Use `field` for routing** (e.g. highlight the invalid input, or pick which of two address forms a 400 is about), never for message selection.
 3. **Log `correlationId`** for debugging — never surface `detail` in the UI.
 4. **`status` picks the UI shape, not the message:** 401 → redirect to login, 403 → forbidden screen, 404 → `notFound()`, 409 → conflict-specific UI state, 5xx → generic retry copy.
-5. **Retry logic:** 409 — don't retry (business conflict); 429 — retry with exponential backoff; 5xx — retry with exponential backoff (bounded attempts).
+5. **Retry logic:** 409 — don't retry (business conflict); 429 — retry with exponential backoff; 5xx — retry with exponential backoff (bounded attempts). A `503` carries `Retry-After` (seconds): wait at least that long before the first retry. Nothing in the web app or the BFF retries a write automatically today (React Query retries a failed query once, never a mutation), so a `503 AUTH_TRANSACTION_CONTENTION` reaches the user as the translated "the system is busy, try again" message. Any future automatic retry of a 503 must be bounded, jittered and honour `Retry-After`, and must decide then whether a circuit breaker is warranted (`docs/ENGINEERING_RULES_BACKEND.md` § Transactions).
 
 ## For API Developers (Backend/BFF, AI Agents)
 

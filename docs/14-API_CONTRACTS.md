@@ -26,7 +26,10 @@ All endpoints are served by the **BFF** (`apps/bff/`) — the frontend never cal
 - **Authenticated Endpoints:** Must include `Authorization: Bearer <JWT>`.
 - **Validation:** The BFF will reject any request where the `X-Tenant-Slug` does not match the `tenantId/slug` context in the JWT (for authenticated requests).
 
-### 3. **Pagination Strategy — Three Incompatible Shapes (Known Inconsistency)**
+### 3. **Transient `503` — retry on `Retry-After`**
+Any endpoint can answer `503` with `Retry-After: 1` (seconds) and a problem body whose `code` is `AUTH_TRANSACTION_CONTENTION`: the backend aborted the request because a lock wait exceeded 2s or Postgres chose it as a deadlock victim (M23-S49). Nothing was written, so the request is safe to repeat; the body carries no SQL, lock key or identifier. The same status and header also leave the BFF when the backend is unreachable (`BFF_UPSTREAM_UNAVAILABLE`). Full contract: `docs/25-ERROR_CATALOG.md` § HTTP Status Usage and § For Frontend Developers.
+
+### 4. **Pagination Strategy — Three Incompatible Shapes (Known Inconsistency)**
 
 > ⚠️ **Known inconsistency — tech debt, not a typo.** List endpoints were originally designed around one universal `{ data, pagination }` shape. In practice, three different shapes were implemented across BFF modules, and a fourth endpoint returns no pagination wrapper at all. This section documents what each endpoint **actually** returns today. Do not "fix" one example to match another without a coordinated cross-module change — see the callout at the end of this section before unifying them.
 

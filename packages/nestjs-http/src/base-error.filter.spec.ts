@@ -131,6 +131,39 @@ describe('BaseErrorFilter', () => {
     expect(tracingPort.calls).toEqual([{ 'error.code': 'BFF_UPSTREAM_UNAVAILABLE' }]);
   });
 
+  it('sets Retry-After: 1 on a 503 HttpException', () => {
+    const body = {
+      type: 'about:blank',
+      title: 'Service Unavailable',
+      status: 503,
+      code: 'AUTH_TRANSACTION_CONTENTION',
+    };
+    const { host, set } = makeHost('/v1/bookings', 'POST');
+
+    filter.catch(new HttpException(body, 503), host);
+
+    expect(set).toHaveBeenCalledWith('Retry-After', '1');
+  });
+
+  it.each([409, 429, 500, 502])('sets no Retry-After on a %i HttpException', (statusCode) => {
+    const { host, set } = makeHost('/v1/bookings', 'POST');
+
+    filter.catch(
+      new HttpException({ type: 'about:blank', title: 'x', status: statusCode }, statusCode),
+      host,
+    );
+
+    expect(set).not.toHaveBeenCalledWith('Retry-After', expect.anything());
+  });
+
+  it('sets no Retry-After on an unhandled (non-HttpException) 500', () => {
+    const { host, set } = makeHost('/v1/bookings', 'POST');
+
+    filter.catch(new Error('boom'), host);
+
+    expect(set).not.toHaveBeenCalledWith('Retry-After', expect.anything());
+  });
+
   it('does not touch the tracing port when the HttpException body carries no code', () => {
     const body = { type: 'about:blank', title: 'Not Found', status: 404 };
     const httpErr = new HttpException(body, 404);
