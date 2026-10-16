@@ -103,6 +103,8 @@ describe('closing a booking’s worklist entries (integration)', () => {
     const { bookingId, entryIds } = await world.seedBooking({
       resources: [world.roomA, world.roomB],
     });
+    await world.deactivate(world.roomA);
+    await world.deactivate(world.roomB);
 
     const { results } = await resolve.execute({
       tenantId: world.tenantId,
