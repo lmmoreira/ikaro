@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
     "test": "jest",
-    "test:unit": "jest --testPathIgnorePatterns='component\\.spec\\.ts'",
+    "test:unit": "NODE_OPTIONS=\"--max-old-space-size=1536\" jest --testPathIgnorePatterns='component\\.spec\\.ts' --maxWorkers=1",
     "test:component": "jest --testPathPatterns='component\\.spec\\.ts'",
     "test:cov": "jest --coverage --testPathIgnorePatterns='component\\.spec\\.ts'"
   },
