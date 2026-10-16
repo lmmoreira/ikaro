@@ -23,6 +23,7 @@ import {
   ServiceLegResourceRequirementPoolEntity,
 } from '../../../contexts/booking/infrastructure/entities/service-leg.entity';
 import { ServiceClassResourcePoolEntity } from '../../../contexts/booking/infrastructure/entities/service-class-resource-pool.entity';
+import { FutureCommitmentExceptionEntity } from '../../../contexts/booking/infrastructure/entities/future-commitment-exception.entity';
 import { ResourceEntity } from '../../../contexts/booking/infrastructure/entities/resource.entity';
 import { BookingLineResourceAssignmentEntity } from '../../../contexts/booking/infrastructure/entities/booking-line-resource-assignment.entity';
 import { ResourceOccupancyEntity } from '../../../contexts/booking/infrastructure/entities/resource-occupancy.entity';
@@ -39,6 +40,8 @@ const PLATFORM_KEY = 'outbox-full-topology-test-key-xxxxxx';
 // TenantProvisionedHandler, which always queries booking.resources on every TenantProvisioned
 // event. Omitting it here doesn't fail this test (RoutingInMemoryEventBus swallows handler
 // errors, matching production Pub/Sub fire-and-forget), but silently breaks that handler.
+// M23-S48: FutureCommitmentExceptionEntity is required because approving a booking now reads the
+// booking's open worklist entries (ApproveBookingUseCase), which is exactly what this test drives.
 const BOOKING_ENTITIES = [
   BookingEntity,
   BookingLineEntity,
@@ -54,6 +57,7 @@ const BOOKING_ENTITIES = [
   ScheduleOpeningEntity,
   CustomerEntity,
   ResourceEntity,
+  FutureCommitmentExceptionEntity,
   BookingLineResourceAssignmentEntity,
   ResourceOccupancyEntity,
   ServiceBookingIntakeSchemaEntity,
