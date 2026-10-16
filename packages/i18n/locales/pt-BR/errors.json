@@ -230,5 +230,6 @@
   "AUTH_FORBIDDEN": "Você não tem permissão para realizar esta ação.",
   "AUTH_TENANT_MISMATCH": "Este acesso não corresponde ao estabelecimento da sua sessão.",
   "AUTH_INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
-  "AUTH_RATE_LIMITED": "Muitas requisições. Tente novamente em instantes."
+  "AUTH_RATE_LIMITED": "Muitas requisições. Tente novamente em instantes.",
+  "AUTH_TRANSACTION_CONTENTION": "O sistema está ocupado com outra operação. Tente novamente em instantes."
 }

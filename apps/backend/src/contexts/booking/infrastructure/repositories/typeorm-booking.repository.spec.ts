@@ -52,6 +52,7 @@ describe('TypeOrmBookingRepository', () => {
     insert: jest.Mock;
     delete: jest.Mock;
     createQueryBuilder: jest.Mock;
+    query: jest.Mock;
   };
 
   beforeEach(async () => {
@@ -70,6 +71,7 @@ describe('TypeOrmBookingRepository', () => {
       insert: jest.fn().mockResolvedValue({}),
       delete: jest.fn().mockResolvedValue({ affected: 1, raw: [] }),
       createQueryBuilder: jest.fn().mockReturnValue(mockUpdateBuilder),
+      query: jest.fn().mockResolvedValue([]),
     };
 
     mockResourceAssignmentQuery = jest.fn().mockResolvedValue([]);

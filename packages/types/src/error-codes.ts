@@ -346,6 +346,11 @@ export const AuthErrorCode = {
   // Fires from ThrottlerGuard when a client exceeds a rate-limit tier (M17-S30) — a
   // framework/guard-level fallback in the same sense as the others above, not a business error.
   RATE_LIMITED: 'AUTH_RATE_LIMITED',
+  // A transaction lost a contention fight — waited longer than the backend's lock_timeout for a
+  // lock, or Postgres aborted it as a deadlock victim (M23-S49). Nothing was written; the caller
+  // retries on the response's Retry-After. Infrastructure-level like the others here, not a
+  // business error.
+  TRANSACTION_CONTENTION: 'AUTH_TRANSACTION_CONTENTION',
 } as const;
 export type AuthErrorCode = (typeof AuthErrorCode)[keyof typeof AuthErrorCode];
 

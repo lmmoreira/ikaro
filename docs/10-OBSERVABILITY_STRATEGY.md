@@ -45,6 +45,8 @@ Application and collector configuration are one contract: enabling an SDK signal
 
 Applications emit structured logs through the shared logging abstraction. Business/audit counters are derived from intentional structured events and exposed through Cloud Monitoring log-based metrics.
 
+One intentional event worth knowing: `runInNewTransaction` writes a `warn` "Transaction aborted by lock contention" with a `sqlState` field (`55P03` lock wait over the 2s timeout, `40P01` deadlock victim) whenever a transaction loses a lock fight (M23-S49). `tenantId` and `correlationId` are added when it happens inside an HTTP request and are absent in an event handler or job; the SQL text and lock key are never logged. The `error.code` span attribute `AUTH_TRANSACTION_CONTENTION` is set by the shared error filter. A rising count of these is the signal for a slow lock holder or a lock-order cycle (`docs/28-LOCK_CATALOG.md` § 6).
+
 Never log credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content, or other secrets. Query strings and outbound telemetry must follow the same redaction discipline — see `packages/observability/src/otel-query-redaction.ts` for the actual implementation.
 
 ## Dashboards and alerts

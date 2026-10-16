@@ -2,6 +2,10 @@ import { HttpException } from '@nestjs/common';
 import { ITracingPort } from '@ikaro/observability';
 import { PubSubPushController } from './pubsub-push.controller';
 import { InMemoryEventBus } from '../../../test/infrastructure/in-memory-event-bus';
+import {
+  DEADLOCK_DETECTED_SQLSTATE,
+  TransactionContentionError,
+} from '../transaction-contention.error';
 
 // Records what it was called with instead of talking to real OTel primitives — this suite only
 // needs to prove the controller wires the extracted carrier through, not that extraction itself
@@ -77,6 +81,25 @@ describe('PubSubPushController', () => {
       expect(body['status']).toBe(500);
       expect(body['detail']).toBe('handler boom');
     }
+  });
+
+  it('does not swallow a lock-contention failure: it rethrows a 5xx so Pub/Sub nacks and redelivers (M23-S49)', async () => {
+    eventBus.failNextDispatchPushMessage(
+      new TransactionContentionError(DEADLOCK_DETECTED_SQLSTATE, new Error('deadlock detected')),
+    );
+
+    const outcome = await controller
+      .push({
+        message: { data: 'x', messageId: 'm-contention', attributes: {} },
+        subscription: 'sub',
+      })
+      .then(
+        () => 'returned normally',
+        (e: unknown) => e,
+      );
+
+    expect(outcome).toBeInstanceOf(HttpException);
+    expect((outcome as HttpException).getStatus()).toBeGreaterThanOrEqual(500);
   });
 
   it('acks instead of dispatching when message.data is missing (malformed envelope)', async () => {

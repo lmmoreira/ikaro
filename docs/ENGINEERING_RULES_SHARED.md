@@ -127,6 +127,7 @@ A repository or adapter that reads `this.requestContext.settings` works fine whe
 - **Controllers** — the only layer that may inject `RequestContext`. Extract `tenantId`, `actorId`, `correlationId`, and any `settings.*` fields needed, then forward them as explicit DTO fields to the use case. **Use cases must never inject `RequestContext`.**
 - **Use cases and application services** — must not inject `RequestContext`. All caller context is passed via the input DTO. This keeps use cases callable from event handlers, scheduled jobs, and cross-context adapters without an HTTP request in scope.
 - **Shared infrastructure** (repositories, anything called from more than one invocation context) — must take `tenantId` as an explicit method parameter and read settings via a `tenantId`-parameterized port (`ITenantSettingsPort.getSettings(tenantId)`), never ambient context.
+- **One sanctioned ambient read: logging.** `AppLogger.enrich()` (`src/shared/observability/app-logger.ts`) reads the request store and returns nothing when there is none, so a log line written from shared infrastructure (`runInNewTransaction`'s lock-contention `warn`, M23-S49) carries `tenantId` and `correlationId` inside an HTTP request and omits them in an event handler or a job, without breaking the rule above. Reading the store for anything other than log enrichment stays forbidden.
 
 | Artifact | Location |
 |---|---|

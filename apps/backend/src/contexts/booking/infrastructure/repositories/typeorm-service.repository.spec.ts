@@ -23,13 +23,14 @@ describe('TypeOrmServiceRepository', () => {
   // Every child table read returns [] by default (a plain flat/non-legged service) — tests that
   // need children override mockTx.find's implementation per-call. Mirrors
   // typeorm-booking.repository.spec.ts's own manager.transaction/mockTx split.
-  let mockTx: { find: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let mockTx: { find: jest.Mock; save: jest.Mock; delete: jest.Mock; query: jest.Mock };
 
   beforeEach(async () => {
     mockTx = {
       find: jest.fn().mockResolvedValue([]),
       save: jest.fn(),
       delete: jest.fn(),
+      query: jest.fn().mockResolvedValue([]),
     };
 
     const moduleRef = await Test.createTestingModule({
