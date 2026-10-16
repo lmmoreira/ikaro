@@ -103,8 +103,9 @@
     visível (o padrão digitado é preservado) e o painel de ações à direita (barra fixa no mobile) é trocado.
     Um estado por desfecho de POST /recurring-booking-schedules (hash do protótipo; padrão #criada):
       #criada      201 ACTIVE
-      #aguardando  201 PENDING_APPROVAL — HOJE uma recorrência criada pela equipe para um serviço com aprovação manual também
-                   fica pendente (a equipe aprovaria o próprio pedido); pular a aprovação é uma decisão de M23-S19
+      #aguardando  201 PENDING_APPROVAL — NÃO ocorre para a equipe (decidido na discovery de M23-S19, 2026-10-16): a equipe é quem
+                   aprova (mesma regra de UC-108), então um serviço com aprovação manual também nasce ACTIVE (#criada). Painel mantido só
+                   como histórico do protótipo; a tela real tem seis desfechos, sem este
       #conflito    409 BOOKING_RECURRING_SCHEDULE_CONFLICT (lista conflicts[{ occurrenceStart, reason: OCCUPIED|CLOSED|OUTSIDE_HOURS }], M23-S18)
       #limite      409 BOOKING_RECURRING_SCHEDULE_CAP_REACHED — sem lista; o limite é de 50 recorrências ativas POR RECURSO ESCOLHIDO (grupo
                    CUSTOMER_CHOICE) ou POR SERVIÇO (serviço sem escolha, com requisitos automáticos ou o local padrão), então o texto não nomeia

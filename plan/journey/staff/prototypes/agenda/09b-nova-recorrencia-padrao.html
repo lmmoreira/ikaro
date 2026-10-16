@@ -100,7 +100,7 @@
                 resourceSelections?: [{ resourceType, resourceId }] (um por requisito CUSTOMER_CHOICE; a política é derivada pelo servidor),
                 startsOn, endsOn }  — endsOn OBRIGATÓRIO, no máximo startsOn + prazo máximo do serviço (90 dias por padrão)
         customerId é obrigatório para STAFF|MANAGER (404 BOOKING_CUSTOMER_NOT_FOUND se faltar ou não existir).
-        Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt }
+        Response 201: { id, status: "ACTIVE", approvalHoldExpiresAt: null }  — para a equipe sempre ACTIVE, mesmo com aprovação manual (M23-S19, 2026-10-16)
     Estrutura: formulário no centro, painel de ações à direita (barra fixa no mobile), criação direta (sem passo de revisão — decidido em
       2026-10-15: a equipe conhece o padrão e o servidor confere todas as ocorrências no envio).
   -->
@@ -372,13 +372,12 @@
           <div class="notice" data-form>
             <strong>Como funciona</strong>
             <p class="meta">Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. <span data-v="pacote pacote-duas pacote-falta opcoes">Em um serviço com mais de um recurso, todos precisam estar livres em todas as datas. </span>A recorrência fica na conta de Ana Costa, que poderá pular, reagendar ou encerrar, e ela recebe um e-mail quando a recorrência ficar ativa.</p>
-            <p class="meta" data-v="simples recusa sem-ocorrencia erros padrao" style="margin-top:0.5rem;">Se o serviço exigir aprovação (marcado "requer aprovação"), o pedido espera uma decisão em <strong>Precisa de ação</strong> na Agenda — o horário fica protegido enquanto isso.</p>
+            <p class="meta" data-v="simples recusa sem-ocorrencia erros padrao" style="margin-top:0.5rem;">Mesmo que o serviço exija aprovação (marcado "requer aprovação"), a recorrência criada por você já nasce ativa: a equipe é quem aprova.</p>
           </div>
 
             <div class="proto-only">
               <strong>Simular resultado (só no protótipo):</strong><br>
               <a href="09c-nova-recorrencia-resultado.html#criada">Criada</a>
-              <a href="09c-nova-recorrencia-resultado.html#aguardando">Aguardando aprovação</a>
               <a href="09c-nova-recorrencia-resultado.html#conflito">Conflito</a>
               <a href="09c-nova-recorrencia-resultado.html#limite">Limite</a>
               <a href="09c-nova-recorrencia-resultado.html#telefone">Cliente sem telefone</a>
