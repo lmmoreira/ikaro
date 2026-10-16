@@ -953,7 +953,7 @@ Returns:
   - **A2: A `resourceId` in the query doesn't belong to the querying tenant** → Excluded by the mandatory `tenantId` scoping in step 1; never reaches steps 2–3.
 - **Postconditions:** Extends today's `AvailabilityService` rather than replacing it.
 - **Events Triggered:** None (read path).
-- **Forward reference (not reachable in Cluster 2 alone):** once Cluster 3 ships `RecurringBookingSchedule`, "free" also excludes any active schedule whose recurrence rule produces an occurrence at the candidate time; once Cluster 4 ships `ClassScheduleTemplate`, the same applies to an active template's recurrence rule — both evaluated directly against the pattern, not against a materialized row, since a not-yet-generated future occurrence is still a real commitment.
+- **Forward reference (not reachable in Cluster 2 alone):** a `RecurringBookingSchedule` (Cluster 3, shipped) needs no separate rule — `M23-S05` creates every occurrence of its fixed term as an ordinary booking up front, so each already holds its resources through `resource_occupancy`; once Cluster 4 ships `ClassScheduleTemplate`, "free" also excludes an active template's recurrence rule, evaluated directly against the pattern, not against a materialized row, since a not-yet-generated future session is still a real commitment.
 
 ---
 

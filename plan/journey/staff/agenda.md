@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Review the daily booking queue, action each request — approve, reject, or request more information — and manage an approved booking through to completion, cancellation, or reschedule  
-**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (M23 Cluster 3 — UC-074 appointment no-show ✅ Criado by M23-S27; ❓ Gap for recurring-schedule creation on behalf + approval)  
-**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are partly built (see the ❓ Gap items below)
+**UCs covered:** UC-003, UC-004, UC-005, UC-008, UC-009 (incl. A6 — loyalty redemption during completion) · UC-070 (staff creating a recurrence on a customer's behalf), UC-071, UC-074, UC-108 (staff creating a one-off booking on a customer's behalf) (M23 Cluster 3 — UC-074 appointment no-show ✅ Criado by M23-S27; recurring-schedule creation on behalf ✅ M23-S19 and approval ✅ M23-S13)  
+**Status:** Reviewed — lifecycle screens built in `M13-S19`/`M13-S20`; the M23 extensions are built (`M23-S13`, `S19`, `S27`, `S40`, `S46`, `S47`, `S50`)
 
 > Note: the lifecycle screens referenced here were later implemented in M13-S19 and M13-S20; this document remains the prototype and journey reference.
 >
