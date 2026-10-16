@@ -8,7 +8,10 @@ import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
-import { FloatingFilterDockContext } from '@/features/booking/components/dashboard/floating-filter-dock-context';
+import {
+  FloatingFilterDockContext,
+  type FloatingFilterDockValue,
+} from '@/features/booking/components/dashboard/floating-filter-dock-context';
 import type { FloatingFilterCorner } from '@/features/booking/model/floating-filter-corner';
 
 // getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
@@ -198,23 +201,23 @@ export function renderWithIntlInFloatingFilterDock(
     readonly isDragging?: boolean;
   } = {},
 ): ReturnType<typeof render> {
+  // One object for the whole render, so the provider's value never changes between renders.
+  const value: FloatingFilterDockValue = {
+    corner,
+    setCorner,
+    isDragging,
+    dragHandlers: {
+      onPointerDown: () => undefined,
+      onPointerMove: () => undefined,
+      onPointerUp: () => undefined,
+      onPointerCancel: () => undefined,
+      onLostPointerCapture: () => undefined,
+      onClickCapture: () => undefined,
+    },
+  };
   function DockContext({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
     return (
-      <FloatingFilterDockContext.Provider
-        value={{
-          corner,
-          setCorner,
-          isDragging,
-          dragHandlers: {
-            onPointerDown: () => undefined,
-            onPointerMove: () => undefined,
-            onPointerUp: () => undefined,
-            onPointerCancel: () => undefined,
-            onLostPointerCapture: () => undefined,
-            onClickCapture: () => undefined,
-          },
-        }}
-      >
+      <FloatingFilterDockContext.Provider value={value}>
         {children}
       </FloatingFilterDockContext.Provider>
     );

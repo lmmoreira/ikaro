@@ -138,6 +138,24 @@ describe('FloatingFilterMenu', () => {
     });
   });
 
+  describe('popover sizing', () => {
+    it.each(['top-left', 'top-right', 'bottom-left', 'bottom-right'] as const)(
+      'is capped to what is left of the screen and scrolls inside it in %s, so no corner cuts it off',
+      (corner) => {
+        renderWithIntlInFloatingFilterDock(
+          <FloatingFilterMenu {...baseProps()} open>
+            <p>corpo</p>
+          </FloatingFilterMenu>,
+          { corner },
+        );
+
+        const popover = screen.getByTestId('floating-filter-popover');
+        expect(popover).toHaveClass('max-h-[calc(100dvh-17rem)]', 'overflow-y-auto');
+        expect(popover).not.toHaveClass('overflow-hidden');
+      },
+    );
+  });
+
   describe('"Posição" row', () => {
     it('offers the four corners, with the current one pressed', () => {
       renderWithIntlInFloatingFilterDock(

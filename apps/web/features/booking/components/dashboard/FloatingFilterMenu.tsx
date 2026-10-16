@@ -100,7 +100,10 @@ export function FloatingFilterMenu({
         <div
           data-testid="floating-filter-popover"
           className={cn(
-            'absolute w-[min(19rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl',
+            // The whole popover — header, body, "Posição" and footer — fits what is left of the screen
+            // between the pill and the far edge (17rem covers the topbar or bottom navigation, the
+            // offset and a second stacked pill) and scrolls inside that, so no corner cuts it off.
+            'absolute max-h-[calc(100dvh-17rem)] w-[min(19rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border border-gray-200 bg-white shadow-2xl',
             popoverClassName(corner),
           )}
         >
@@ -109,15 +112,11 @@ export function FloatingFilterMenu({
             <p className="mt-1 text-xs text-gray-500">{description}</p>
           </div>
           {children}
-          <div className="border-b border-gray-100 px-4 py-3">
-            <p className="text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
+          <fieldset className="min-w-0 border-b border-gray-100 px-4 py-3">
+            <legend className="float-left w-full text-[0.6875rem] font-bold uppercase tracking-wider text-gray-400">
               {t('positionTitle')}
-            </p>
-            <div
-              role="group"
-              aria-label={t('positionTitle')}
-              className="mt-2 grid grid-cols-2 gap-1.5"
-            >
+            </legend>
+            <div className="mt-2 grid clear-both grid-cols-2 gap-1.5">
               {FLOATING_FILTER_CORNERS.map((option) => (
                 <Button
                   key={option}
@@ -135,7 +134,7 @@ export function FloatingFilterMenu({
                 </Button>
               ))}
             </div>
-          </div>
+          </fieldset>
           <div className="flex items-center justify-between gap-2 px-4 py-3">
             <Button type="button" variant="ghost" size="sm" onClick={onReset}>
               {resetLabel}

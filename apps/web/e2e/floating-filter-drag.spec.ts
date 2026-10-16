@@ -22,6 +22,16 @@ import {
 // sees both Horários filters.
 
 const AGENDA_PILL = 'Filtrar agenda';
+
+// The top corners sit at the fixed 4.75rem offset (76px at the default root size), which is below
+// the topbar; a small tolerance absorbs sub-pixel rounding.
+const TOP_OFFSET_PX = 76;
+const TOLERANCE_PX = 2;
+
+function expectTopOffset(pillTop: number, topbar: { readonly y: number; readonly height: number }) {
+  expect(Math.abs(pillTop - TOP_OFFSET_PX)).toBeLessThanOrEqual(TOLERANCE_PX);
+  expect(pillTop).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+}
 const STATUS_PILL = 'Filtrar status';
 const RESOURCE_PILL = 'Filtrar recurso';
 
@@ -149,13 +159,11 @@ test.describe('movable floating filter (M23-S50)', () => {
     await expectCorner(page, 'top-left');
     const topLeft = (await pill(page, AGENDA_PILL).boundingBox())!;
     expect(topLeft.x).toBeGreaterThanOrEqual(sidebar.x + sidebar.width);
-    expect(topLeft.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+    expectTopOffset(topLeft.y, topbar);
 
     await chooseCornerInPopover(page, AGENDA_PILL, CORNER_LABEL['top-right']);
     await expectCorner(page, 'top-right');
-    expect((await pill(page, AGENDA_PILL).boundingBox())!.y).toBeGreaterThanOrEqual(
-      topbar.y + topbar.height,
-    );
+    expectTopOffset((await pill(page, AGENDA_PILL).boundingBox())!.y, topbar);
   });
 
   test.describe('mobile viewport', () => {
@@ -183,8 +191,31 @@ test.describe('movable floating filter (M23-S50)', () => {
         await chooseCornerInPopover(page, AGENDA_PILL, CORNER_LABEL[corner]);
         await expectCorner(page, corner);
         await page.getByRole('button', { name: 'Fechar', exact: true }).click();
-        const box = (await pill(page, AGENDA_PILL).boundingBox())!;
-        expect(box.y).toBeGreaterThanOrEqual(topbar.y + topbar.height);
+        expectTopOffset((await pill(page, AGENDA_PILL).boundingBox())!.y, topbar);
+      }
+    });
+  });
+
+  test.describe('short viewport', () => {
+    test.use({ viewport: { width: 390, height: 560 } });
+
+    test('the whole popover stays inside the screen in every corner, Agenda and Horários', async ({
+      page,
+    }) => {
+      await loginAsScheduleStaff(page);
+      const corners: Corner[] = ['top-left', 'top-right', 'bottom-left', 'bottom-right'];
+
+      for (const [route, pillName] of [
+        [AGENDA_PAGE, AGENDA_PILL],
+        [SCHEDULE_PAGE, RESOURCE_PILL],
+      ] as const) {
+        await page.goto(route);
+        for (const corner of corners) {
+          await chooseCornerInPopover(page, pillName, CORNER_LABEL[corner]);
+          await expectCorner(page, corner);
+          await expectLocatorInsideViewport(page, popover(page));
+          await page.getByRole('button', { name: /^(Fechar|Concluído)$/ }).click();
+        }
       }
     });
   });

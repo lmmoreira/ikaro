@@ -12,8 +12,10 @@ export type FloatingFilterCorner = (typeof FLOATING_FILTER_CORNERS)[number];
 // Where the filters sit today, so nobody who never drags sees anything move.
 export const DEFAULT_FLOATING_FILTER_CORNER: FloatingFilterCorner = 'bottom-right';
 
+const CORNERS: ReadonlySet<unknown> = new Set(FLOATING_FILTER_CORNERS);
+
 export function isFloatingFilterCorner(value: unknown): value is FloatingFilterCorner {
-  return FLOATING_FILTER_CORNERS.some((corner) => corner === value);
+  return CORNERS.has(value);
 }
 
 export interface ViewportPoint {
