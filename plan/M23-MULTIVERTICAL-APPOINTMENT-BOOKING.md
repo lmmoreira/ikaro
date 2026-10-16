@@ -3947,7 +3947,7 @@ Decisions baked in (do not re-derive at discovery):
 
 ---
 
-### M23-S47 — Full booking detail: the staff and customer detail show the booking's resources, itinerary, participants, intake answers, notes, addresses, origin and cancellation (backend + BFF + web)
+### M23-S47 — Full booking detail: the staff and customer detail show the booking's resources, itinerary, participants, intake answers, notes, addresses, origin and cancellation (backend + BFF + web) ✅ Done
 
 **Agent:** `frontend-ts` (plus `backend-ts` and `bff-ts` slices — see Backend HTTP surface; the discovery may split it into a backend/BFF PR and a web PR)
 **Complexity:** L
