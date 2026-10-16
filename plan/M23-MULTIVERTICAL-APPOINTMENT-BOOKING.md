@@ -1618,7 +1618,7 @@ Make creating a recurring schedule aware of the same rule availability uses, so 
 
 ---
 
-### M23-S19 — Staff creates a recurring private reservation on a customer's behalf
+### M23-S19 — Staff creates a recurring private reservation on a customer's behalf ✅ Done
 
 **Agent:** frontend-ts + backend-ts (decision A's small backend change; the rest is frontend)
 **Complexity:** M

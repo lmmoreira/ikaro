@@ -26,7 +26,7 @@ export function NewRecurringScheduleConflictList({
   durationMinutes,
   title,
 }: NewRecurringScheduleConflictListProps): React.JSX.Element {
-  const tn = useTranslations('customer.recurringSchedules.new');
+  const tn = useTranslations('booking.recurringScheduleForm');
   const { formatDate, formatTime } = useFormatting();
 
   return (

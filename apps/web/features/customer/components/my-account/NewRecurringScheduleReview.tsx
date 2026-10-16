@@ -9,7 +9,10 @@ import {
 } from '@/features/booking/model/recurring-schedule-form';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { recurrenceEndTime } from '../../recurring-schedule-model';
-import { ActionPane, NewRecurringScheduleLayout } from './NewRecurringScheduleLayout';
+import {
+  ActionPane,
+  NewRecurringScheduleLayout,
+} from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
 import { useRecurrenceText } from './use-recurrence-text';
 
 interface NewRecurringScheduleReviewProps {

@@ -428,6 +428,69 @@
       "actorCustomer": "Cliente",
       "actorStaffNamed": "{name} (equipe)",
       "actorStaff": "Equipe"
+    },
+    "recurringScheduleForm": {
+      "fieldService": "Serviço",
+      "serviceHint": "Só aparecem serviços que permitem reserva recorrente.",
+      "serviceOption": "{name} — {duration} · {price}",
+      "fieldResource": "Recurso",
+      "resourceHint": "Este é o recurso que ficará reservado toda semana.",
+      "resourcesLoading": "Carregando recursos…",
+      "resourcesError": "Não foi possível carregar os recursos. Tente novamente.",
+      "autoPoolLine": "Uma unidade livre é reservada a cada semana",
+      "autoAnyLine": {
+        "STAFF": "Escolhido automaticamente a cada semana, entre os profissionais livres",
+        "ROOM": "Escolhida automaticamente a cada semana, entre as salas livres",
+        "EQUIPMENT": "Escolhido automaticamente a cada semana, entre os equipamentos livres",
+        "LOCATION": "Escolhido automaticamente a cada semana, entre os locais livres"
+      },
+      "autoChosen": {
+        "STAFF": "Escolhido automaticamente",
+        "ROOM": "Escolhida automaticamente",
+        "EQUIPMENT": "Escolhido automaticamente",
+        "LOCATION": "Escolhido automaticamente"
+      },
+      "resourceNoOptions": {
+        "STAFF": "Nenhum profissional está disponível para este serviço no momento.",
+        "ROOM": "Nenhuma sala está disponível para este serviço no momento.",
+        "EQUIPMENT": "Nenhum equipamento está disponível para este serviço no momento.",
+        "LOCATION": "Nenhum local está disponível para este serviço no momento."
+      },
+      "bundleHint": "Se algum dos recursos não estiver livre em alguma data, a recorrência inteira não é criada.",
+      "fieldWeekdays": "Dias da semana",
+      "fieldStartTime": "Horário de início",
+      "fieldDuration": "Duração",
+      "durationFromService": "{duration} — definida pelo serviço",
+      "fieldStartsOn": "Começa em",
+      "fieldEndsOn": "Termina em",
+      "endsOnHint": "Escolha até quando a reserva se repete — no máximo {maxTermDays} dias, até {latest}. Depois disso você pode renovar.",
+      "errorWeekdayRequired": "Escolha pelo menos um dia da semana.",
+      "errorStartTimeRequired": "Escolha o horário de início.",
+      "errorStartDateRequired": "Escolha a data em que a recorrência começa.",
+      "errorResourceRequired": "Escolha um recurso.",
+      "errorEndRequired": "Escolha a data em que a recorrência termina.",
+      "errorEndBeforeStart": "A data de término não pode ser anterior à data de início.",
+      "errorTermExceeded": "A data final passa do limite de {maxTermDays} dias (até {latest}). Escolha uma data anterior — depois você pode renovar.",
+      "reasonOCCUPIED": "Já reservado",
+      "reasonCLOSED": "Fechado",
+      "reasonOUTSIDE_HOURS": "Fora do horário",
+      "reasonDetailOCCUPIED": "Este horário já está comprometido com outra reserva.",
+      "reasonDetailCLOSED": "Não há atendimento neste dia.",
+      "reasonDetailOUTSIDE_HOURS": "Este horário fica fora do horário de funcionamento nesta data.",
+      "occurrenceLine": "{date} · {from}–{to}",
+      "ariaHour": "Hora do horário de início",
+      "ariaMinute": "Minuto do horário de início",
+      "ariaPeriod": "Período do horário de início",
+      "datePlaceholder": "Escolher data",
+      "weekdayShort": {
+        "monday": "seg",
+        "tuesday": "ter",
+        "wednesday": "qua",
+        "thursday": "qui",
+        "friday": "sex",
+        "saturday": "sáb",
+        "sunday": "dom"
+      }
     }
   },
   "hotsite": {
@@ -823,63 +886,22 @@
         "title": "Nova reserva recorrente",
         "stepPattern": "Passo 1 de 2 · Padrão",
         "stepReview": "Passo 2 de 2 · Revisar",
-        "fieldService": "Serviço",
-        "serviceHint": "Só aparecem serviços que permitem reserva recorrente.",
-        "serviceOption": "{name} — {duration} · {price}",
         "noServices": "Nenhum serviço permite reserva recorrente no momento.",
         "noServicesHint": "Você pode fazer um agendamento avulso quando quiser.",
         "noServicesEnabled": "Os serviços com recorrência ainda não aceitam reserva recorrente.",
         "noServicesEnabledHint": "Fale com o estabelecimento para saber mais. Enquanto isso, você pode fazer um agendamento avulso.",
         "noServicesCta": "Fazer um agendamento",
-        "fieldResource": "Recurso",
-        "resourceHint": "Este é o recurso que ficará reservado toda semana.",
-        "resourcesLoading": "Carregando recursos…",
-        "resourcesError": "Não foi possível carregar os recursos. Tente novamente.",
-        "autoPoolLine": "Uma unidade livre é reservada a cada semana",
-        "autoAnyLine": {
-          "STAFF": "Escolhido automaticamente a cada semana, entre os profissionais livres",
-          "ROOM": "Escolhida automaticamente a cada semana, entre as salas livres",
-          "EQUIPMENT": "Escolhido automaticamente a cada semana, entre os equipamentos livres",
-          "LOCATION": "Escolhido automaticamente a cada semana, entre os locais livres"
-        },
-        "autoChosen": {
-          "STAFF": "Escolhido automaticamente",
-          "ROOM": "Escolhida automaticamente",
-          "EQUIPMENT": "Escolhido automaticamente",
-          "LOCATION": "Escolhido automaticamente"
-        },
-        "resourceNoOptions": {
-          "STAFF": "Nenhum profissional está disponível para este serviço no momento.",
-          "ROOM": "Nenhuma sala está disponível para este serviço no momento.",
-          "EQUIPMENT": "Nenhum equipamento está disponível para este serviço no momento.",
-          "LOCATION": "Nenhum local está disponível para este serviço no momento."
-        },
-        "bundleHint": "Se algum dos recursos não estiver livre em alguma data, a recorrência inteira não é criada.",
-        "fieldWeekdays": "Dias da semana",
-        "fieldStartTime": "Horário de início",
-        "fieldDuration": "Duração",
-        "durationFromService": "{duration} — definida pelo serviço",
-        "fieldStartsOn": "Começa em",
-        "fieldEndsOn": "Termina em",
         "renewTitle": "Renovar reserva recorrente",
         "renewBannerTitle": "Renovando sua reserva de {service}",
         "renewBannerBody": "{recurrence} · período anterior: {start} → {end}. Ajuste o que quiser — nada é reservado até você confirmar.",
         "renewNotFound": "Não encontramos a reserva que você queria renovar.",
         "renewNotFoundHint": "Você pode criar uma nova reserva recorrente abaixo.",
-        "endsOnHint": "Escolha até quando a reserva se repete — no máximo {maxTermDays} dias, até {latest}. Depois disso você pode renovar.",
         "howTitle": "Como funciona",
         "howBody": "Todas as reservas do período são verificadas e criadas de uma vez, e o horário fica garantido até a data final. Você pode pular, reagendar ou encerrar a recorrência quando quiser.",
         "reviewButton": "Revisar",
         "cancelButton": "Cancelar",
         "draftAside": "Escolha o padrão da recorrência. Nada é reservado até você revisar e confirmar.",
         "validationAside": "Corrija os campos destacados e tente novamente. O padrão que você montou foi mantido.",
-        "errorWeekdayRequired": "Escolha pelo menos um dia da semana.",
-        "errorStartTimeRequired": "Escolha o horário de início.",
-        "errorStartDateRequired": "Escolha a data em que a recorrência começa.",
-        "errorResourceRequired": "Escolha um recurso.",
-        "errorEndRequired": "Escolha a data em que a recorrência termina.",
-        "errorEndBeforeStart": "A data de término não pode ser anterior à data de início.",
-        "errorTermExceeded": "A data final passa do limite de {maxTermDays} dias (até {latest}). Escolha uma data anterior — depois você pode renovar.",
         "reviewTitle": "Revisar recorrência",
         "labelService": "Serviço",
         "labelResource": "Recurso",
@@ -908,13 +930,6 @@
         "conflictLeadMixed": "Algumas ocorrências deste padrão não podem ser atendidas — a criação é bloqueada por inteiro; nenhuma reserva parcial foi feita.",
         "conflictListOccupied": "Ocorrências em conflito",
         "conflictListMixed": "Ocorrências afetadas",
-        "reasonOCCUPIED": "Já reservado",
-        "reasonCLOSED": "Fechado",
-        "reasonOUTSIDE_HOURS": "Fora do horário",
-        "reasonDetailOCCUPIED": "Este horário já está comprometido com outra reserva.",
-        "reasonDetailCLOSED": "Não há atendimento neste dia.",
-        "reasonDetailOUTSIDE_HOURS": "Este horário fica fora do horário de funcionamento nesta data.",
-        "occurrenceLine": "{date} · {from}–{to}",
         "nextTitle": "O que fazer agora",
         "conflictNextOccupied": "Escolha outro dia ou horário para a recorrência, ou tente outro recurso.",
         "conflictNextMixed": "Escolha outro dia ou horário, ou ajuste o período para não incluir as datas afetadas.",
@@ -928,11 +943,7 @@
         "failureTitle": "Não foi possível enviar sua solicitação",
         "failureBody": "Nada foi criado. Verifique sua conexão e tente novamente — o padrão que você montou foi mantido.",
         "retryButton": "Tentar novamente",
-        "failureAside": "Nada foi criado. O padrão que você montou foi mantido.",
-        "ariaHour": "Hora do horário de início",
-        "ariaMinute": "Minuto do horário de início",
-        "ariaPeriod": "Período do horário de início",
-        "datePlaceholder": "Escolher data"
+        "failureAside": "Nada foi criado. O padrão que você montou foi mantido."
       },
       "createCta": "+ Nova reserva recorrente",
       "renewAction": "Renovar",
@@ -2477,6 +2488,10 @@
           "agendamento": {
             "label": "Agendamento",
             "hint": "Reserva avulsa para um cliente que ligou ou escreveu"
+          },
+          "recorrencia": {
+            "label": "Recorrência",
+            "hint": "Uma reserva que se repete toda semana, em nome de um cliente"
           }
         }
       },
@@ -2572,6 +2587,74 @@
       "positionTopRight": "Canto superior direito",
       "positionBottomLeft": "Canto inferior esquerdo",
       "positionBottomRight": "Canto inferior direito"
+    },
+    "newRecurring": {
+      "stepPattern": "Passo 2 de 2 · Padrão",
+      "title": "Nova reserva recorrente",
+      "customerNote": "{email} · a recorrência será criada em nome do cliente",
+      "changeCustomer": "Trocar cliente",
+      "createButton": "Criar recorrência",
+      "creating": "Criando…",
+      "backButton": "Voltar",
+      "asideDraft": "Verificamos todas as ocorrências do período antes de criar; se alguma não estiver disponível, nada é criado.",
+      "asideValidation": "Corrija os campos destacados para criar a recorrência.",
+      "howTitle": "Como funciona",
+      "howBody": "Verificamos todas as ocorrências do período (horário de funcionamento, fechamentos e outras reservas); se alguma não estiver disponível, nada é criado. A recorrência fica na conta do cliente, que poderá pular, reagendar ou encerrar, e ele recebe um e-mail quando ela ficar ativa.",
+      "howApproval": "Mesmo que o serviço exija aprovação, a recorrência criada por você já nasce ativa: a equipe é quem aprova.",
+      "noServices": {
+        "none": "Nenhum serviço permite reserva recorrente no momento.",
+        "noneHint": "A recorrência é ativada no editor de cada serviço, em Serviços. Enquanto isso, você pode fazer um agendamento avulso para {name}.",
+        "unavailable": "Os serviços com recorrência ainda não aceitam reserva recorrente.",
+        "unavailableHint": "Há serviços com a recorrência ativada, mas nenhum atende à regra (por exemplo, tem itinerário, endereço de coleta ou duração escolhida pelo cliente). O editor do serviço mostra o motivo. Enquanto isso, você pode fazer um agendamento avulso para {name}.",
+        "services": "Ver serviços",
+        "oneOff": "Fazer um agendamento"
+      },
+      "result": {
+        "created": {
+          "title": "Recorrência criada para {name}",
+          "body": "Criamos as {count} reservas de {from} a {to}, e todas já aparecem na agenda. A recorrência já está na conta de {name}, que recebe um e-mail de confirmação.",
+          "aside": "A recorrência foi registrada. Não há mais ações neste pedido."
+        },
+        "conflict": {
+          "title": "Não foi possível criar esta recorrência",
+          "body": "Pelo menos uma ocorrência deste padrão não está disponível — um horário já reservado ou fora do funcionamento. Nada foi criado.",
+          "list": "Datas que não estão disponíveis",
+          "aside": "Altere o padrão e tente de novo — o que você montou foi mantido."
+        },
+        "cap": {
+          "title": "Limite de reservas recorrentes atingido",
+          "body": "O limite de recorrências ativas foi atingido, então nada foi criado. Encerre uma recorrência ativa que não é mais usada, ou altere o padrão.",
+          "aside": "Altere o padrão e tente de novo — o que você montou foi mantido."
+        },
+        "noPhone": {
+          "title": "{name} não tem telefone cadastrado",
+          "body": "As reservas precisam de um telefone de contato, então nada foi criado. Peça ao cliente para cadastrar o telefone na conta dele e crie a recorrência de novo, ou escolha outro cliente.",
+          "aside": "Nada foi criado."
+        },
+        "notFound": {
+          "title": "Cliente não encontrado",
+          "body": "Não encontramos este cliente neste negócio, então nada foi criado.",
+          "aside": "Nada foi criado."
+        },
+        "failure": {
+          "title": "Não foi possível criar a recorrência",
+          "body": "Nada foi criado. Verifique sua conexão e tente novamente — o padrão que você montou foi mantido.",
+          "aside": "Altere o padrão e tente de novo — o que você montou foi mantido."
+        },
+        "recap": {
+          "customer": "Cliente",
+          "customerNote": "{email} · a recorrência é criada em nome do cliente",
+          "service": "Serviço",
+          "pattern": "Padrão",
+          "period": "Período",
+          "periodValue": "{from} → {to}",
+          "count": "Reservas"
+        },
+        "changePattern": "Alterar padrão",
+        "chooseOther": "Escolher outro cliente",
+        "backToAgenda": "Voltar à agenda",
+        "createAnother": "Criar outra"
+      }
     }
   }
 }

@@ -14,8 +14,11 @@ import {
   recurringScheduleDetailPath,
   recurringScheduleListPath,
 } from '../../recurring-schedule-model';
-import { NewRecurringScheduleConflictList } from './NewRecurringScheduleConflictList';
-import { ActionPane, NewRecurringScheduleLayout } from './NewRecurringScheduleLayout';
+import { NewRecurringScheduleConflictList } from '@/features/booking/components/recurring/NewRecurringScheduleConflictList';
+import {
+  ActionPane,
+  NewRecurringScheduleLayout,
+} from '@/features/booking/components/recurring/NewRecurringScheduleLayout';
 import { useRecurrenceText } from './use-recurrence-text';
 
 /** The outcomes this component draws; a pending approval and a refused pattern have their own screens. */

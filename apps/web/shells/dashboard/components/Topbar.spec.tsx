@@ -57,6 +57,9 @@ const MESSAGES_BY_NAMESPACE: Record<string, Record<string, string>> = {
   'dashboard.recurringApproval': {
     pageTitle: 'Pedido de recorrência',
   },
+  'dashboard.newRecurring': {
+    title: 'Nova reserva recorrente',
+  },
   'dashboard.resourcesPage': {
     createPageTitle: 'Novo recurso',
     editPageTitle: 'Editar recurso',
@@ -193,6 +196,17 @@ describe('Topbar', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
 
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pedido de recorrência');
+    expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute(
+      'href',
+      '/dashboard/bookings',
+    );
+  });
+
+  it("titles the staff new-recurrence page with its own title, not the approval screen's or the Agenda's, and links back to the Agenda", () => {
+    vi.mocked(usePathname).mockReturnValue('/dashboard/bookings/recurring/new');
+    render(<Topbar tenantName="Lavacar BH" userName="Ana" />);
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Nova reserva recorrente');
     expect(screen.getByRole('link', { name: 'Agenda' })).toHaveAttribute(
       'href',
       '/dashboard/bookings',

@@ -88,7 +88,7 @@ export async function openNewBookingMenu(page: Page): Promise<void> {
 
 export async function startNewBooking(page: Page): Promise<void> {
   await openNewBookingMenu(page);
-  await page.getByTestId('new-menu-item').click();
+  await page.locator('[data-testid="new-menu-item"][data-item="agendamento"]').click();
   await expect(page.getByTestId('customer-chooser')).toBeVisible();
 }
 

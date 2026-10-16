@@ -21,6 +21,9 @@ export interface PreparedRecurringBookingScheduleRequest {
   resourceAssignments: RequestRecurringBookingScheduleResourceAssignmentInput[];
   status: 'ACTIVE' | 'PENDING_APPROVAL';
   approvalHoldExpiresAt: Date | null;
+  // A STAFF actor created it for a service that needs manual approval: the staff member approves
+  // it by creating it (see resolveApprovalStatus).
+  approvedByStaff: boolean;
 }
 
 export interface RequestedScheduleInput {
@@ -52,6 +55,7 @@ export function buildRequestedSchedule(
     status: prepared.status,
     approvalHoldExpiresAt: prepared.approvalHoldExpiresAt,
     createdByStaffId: input.actorType === 'STAFF' ? input.actorId : null,
+    approvedByStaffId: prepared.approvedByStaff ? input.actorId : null,
     correlationId: input.correlationId,
   });
 }

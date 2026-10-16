@@ -9,7 +9,10 @@ import {
   isBookingCreateRoute,
   matchBookingDetailRoute,
 } from '@/shells/dashboard/model/booking-route';
-import { matchRecurringScheduleRoute } from '@/shells/dashboard/model/recurring-schedule-route';
+import {
+  isRecurringScheduleCreateRoute,
+  matchRecurringScheduleRoute,
+} from '@/shells/dashboard/model/recurring-schedule-route';
 import { isResourceCreateRoute, matchResourceRoute } from '@/shells/dashboard/model/resource-route';
 import { matchSchedulingExceptionRescheduleRoute } from '@/shells/dashboard/model/scheduling-exception-route';
 import { isServiceCreateRoute, matchServiceRoute } from '@/shells/dashboard/model/service-route';
@@ -36,7 +39,8 @@ export function BottomNav({
   const t = useTranslations('dashboard');
   const pathname = usePathname();
   const isBookingDetail = matchBookingDetailRoute(pathname) !== null;
-  const isRecurringScheduleDetail = matchRecurringScheduleRoute(pathname) !== null;
+  const isRecurringScheduleDetail =
+    matchRecurringScheduleRoute(pathname) !== null || isRecurringScheduleCreateRoute(pathname);
   const isServiceDetailAction = matchServiceRoute(pathname) !== null;
   const isLoyaltyDetail = /^\/dashboard\/loyalty\/[^/]+$/.test(pathname);
   const isTeamDetailRoute = matchTeamRoute(pathname) !== null;

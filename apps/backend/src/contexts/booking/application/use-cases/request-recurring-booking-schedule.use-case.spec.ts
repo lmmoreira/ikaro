@@ -24,6 +24,7 @@ import {
   FULL_WEEK_BUSINESS_HOURS,
 } from '../../../../test/utils/business-hours-fixtures';
 import { futureDate, nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
+import { BookingCustomerNotFoundError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -757,6 +758,69 @@ describe('RequestRecurringBookingScheduleUseCase', () => {
       await requestOn(serviceId, '10:00', 120);
 
       expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+    });
+
+    // M23-S19 (UC-070): the staff member is the approver, as in UC-108's one-off booking.
+    describe('a schedule a staff member creates for the customer', () => {
+      const asStaff = { actorType: 'STAFF', actorId: STAFF_ID, bodyCustomerId: CUSTOMER_ID };
+
+      it('is ACTIVE at once for a MANUAL_APPROVAL service, approved by that staff member', async () => {
+        const serviceId = await seedService({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+
+        const result = await requestOn(serviceId, '10:00', 120, asStaff);
+
+        expect(result.status).toBe('ACTIVE');
+        expect(result.approvalHoldExpiresAt).toBeNull();
+        const saved = await scheduleRepo.findById(result.id, TENANT);
+        expect(saved?.status).toBe('ACTIVE');
+        expect(saved?.approvedByStaffId).toBe(STAFF_ID);
+        expect(saved?.approvedAt).not.toBeNull();
+        expect(saved?.createdByStaffId).toBe(STAFF_ID);
+        expect(saved?.approvalHoldExpiresAt).toBeNull();
+        const bookings = await bookingRepo.findAllByTenant(TENANT);
+        expect(bookings).toHaveLength(5);
+        expect(bookings.every((b) => b.status === 'APPROVED')).toBe(true);
+        expect(bookings.every((b) => b.approvedBy === STAFF_ID)).toBe(true);
+        expect(eventBus.published.map((e) => e.eventName)).toEqual([
+          'RecurringBookingScheduleCreated',
+        ]);
+      });
+
+      it('records no approver for an AUTO_CONFIRM service — nobody approved anything', async () => {
+        const serviceId = await seedService();
+
+        const result = await requestOn(serviceId, '10:00', 120, asStaff);
+
+        const saved = await scheduleRepo.findById(result.id, TENANT);
+        expect(saved?.status).toBe('ACTIVE');
+        expect(saved?.approvedByStaffId).toBeNull();
+        expect(saved?.approvedAt).toBeNull();
+        const bookings = await bookingRepo.findAllByTenant(TENANT);
+        expect(bookings.every((b) => b.approvedBy === null)).toBe(true);
+      });
+
+      it('leaves the customer’s own request for the same service pending (negative guarantee)', async () => {
+        const serviceId = await seedService({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+
+        const result = await requestOn(serviceId, '10:00', 120);
+
+        const saved = await scheduleRepo.findById(result.id, TENANT);
+        expect(result.status).toBe('PENDING_APPROVAL');
+        expect(saved?.approvedByStaffId).toBeNull();
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      });
+
+      it('still refuses a customer unknown in the tenant and creates nothing', async () => {
+        const serviceId = await seedService({ defaultApprovalMode: 'MANUAL_APPROVAL' });
+
+        await expect(
+          requestOn(serviceId, '10:00', 120, {
+            ...asStaff,
+            bodyCustomerId: '99999999-0000-4000-8000-000000000009',
+          }),
+        ).rejects.toThrow(BookingCustomerNotFoundError);
+        expect(await bookingRepo.findAllByTenant(TENANT)).toHaveLength(0);
+      });
     });
 
     it('a second pattern overlapping the first is refused with OCCUPIED occurrences', async () => {

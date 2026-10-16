@@ -35,17 +35,27 @@ import { planBundleOccurrences } from './recurring-occurrence-resource-plan.help
 // business rules that happen to share MVP's default.
 const DEFAULT_MANUAL_HOLD_MINUTES = 30;
 
-export function resolveApprovalStatus(policy: ServiceBookingPolicyProps): {
+// A staff member creating the schedule is its approver (UC-070, M23-S19 — the same rule as UC-108's
+// one-off booking), so for a STAFF actor a manual-approval service also yields ACTIVE and
+// `approvedByStaff` says the staff member's approval is what made it so. A customer's request, and
+// an AUTO_CONFIRM service for anyone, keep the service's own policy.
+export function resolveApprovalStatus(
+  policy: ServiceBookingPolicyProps,
+  actorType: 'CUSTOMER' | 'STAFF',
+): {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
   approvalHoldExpiresAt: Date | null;
+  approvedByStaff: boolean;
 } {
-  const status: 'ACTIVE' | 'PENDING_APPROVAL' =
-    policy.defaultApprovalMode === 'AUTO_CONFIRM' ? 'ACTIVE' : 'PENDING_APPROVAL';
-  const approvalHoldExpiresAt =
-    status === 'PENDING_APPROVAL'
-      ? new Date(Date.now() + (policy.manualHoldMinutes ?? DEFAULT_MANUAL_HOLD_MINUTES) * 60_000)
-      : null;
-  return { status, approvalHoldExpiresAt };
+  const needsApproval = policy.defaultApprovalMode !== 'AUTO_CONFIRM';
+  if (needsApproval && actorType === 'STAFF') {
+    return { status: 'ACTIVE', approvalHoldExpiresAt: null, approvedByStaff: true };
+  }
+  const status: 'ACTIVE' | 'PENDING_APPROVAL' = needsApproval ? 'PENDING_APPROVAL' : 'ACTIVE';
+  const approvalHoldExpiresAt = needsApproval
+    ? new Date(Date.now() + (policy.manualHoldMinutes ?? DEFAULT_MANUAL_HOLD_MINUTES) * 60_000)
+    : null;
+  return { status, approvalHoldExpiresAt, approvedByStaff: false };
 }
 
 export interface ConflictCheckDeps {

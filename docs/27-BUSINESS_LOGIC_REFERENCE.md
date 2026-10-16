@@ -269,7 +269,8 @@ Every request and every approval first locks on `serviceId` (`lockService()`), t
 ```mermaid
 flowchart TD
   A[Request: AUTO_CONFIRM] --> M[materialize term: one APPROVED booking per occurrence, same transaction]
-  B[Request: MANUAL_APPROVAL] --> P[PENDING_APPROVAL, hold set, nothing materialized]
+  B[Request: MANUAL_APPROVAL, customer] --> P[PENDING_APPROVAL, hold set, nothing materialized]
+  B2[Request: MANUAL_APPROVAL, staff on a customer's behalf] --> M
   P --> S{staff decides before the hold ends}
   S -- reject --> X[CANCELLED, APPROVAL_REJECTED, RecurringBookingScheduleRejected]
   S -- approve --> C{hold still valid and every occurrence still passes hours, closures and occupancy}
@@ -279,6 +280,8 @@ flowchart TD
   M --> AC[ACTIVE]
   AC --> N[end-of-term step of the same job, tenant-local today is after endsOn] --> D[ENDED, no event]
 ```
+
+**A staff actor is the approver (M23-S19).** `resolveApprovalStatus(policy, actorType)` gives a STAFF actor `ACTIVE` for a `MANUAL_APPROVAL` service too (no hold, `approvedByStaffId` = the actor, `approvedAt` set), and the use case then materializes the term in the same transaction exactly as for `AUTO_CONFIRM` — the same rule as UC-108's one-off booking, where nothing waits for approval because the staff member is the approver. The event is `RecurringBookingScheduleCreated` (the customer's e-mail of M23-S28 goes out), never `…ApprovalRequested` (no manager alert). A customer's request, and an `AUTO_CONFIRM` service for anyone, are unchanged; for an `AUTO_CONFIRM` service nobody approved anything, so `approvedByStaffId` stays null even when staff created it.
 
 **Approval is atomic, like creation.** The approve use case takes the same locks as the request path (`lockService()`, then the union of the considered resources through `lockResources()`), re-reads the schedule and requires `PENDING_APPROVAL` with a hold still in the future, re-checks that the service is still eligible and still yields the schedule's assignment policy, then re-runs the hours-and-closures pass and the occupancy check over the whole term for every requirement. One failing occurrence refuses the whole approval with the creation-time `409` conflicts list; nothing is created, the schedule stays pending and staff can reject it or let it expire. There is deliberately no UC-073 worklist entry for this: an entry needs an existing booking (`affectedType = 'BOOKING'`), and no occurrence was created. A conflict discovered after the schedule is `ACTIVE` concerns a real booking and is UC-073's (today: a resource deactivation).
 

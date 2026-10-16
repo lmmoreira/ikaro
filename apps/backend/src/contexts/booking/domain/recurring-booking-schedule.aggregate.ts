@@ -119,6 +119,8 @@ export class RecurringBookingSchedule extends AggregateRoot {
       ...a,
       assignedAt: now,
     }));
+    const approvedByStaffId =
+      options.status === 'ACTIVE' ? (options.approvedByStaffId ?? null) : null;
 
     const schedule = new RecurringBookingSchedule(
       {
@@ -136,8 +138,8 @@ export class RecurringBookingSchedule extends AggregateRoot {
         assignmentPolicy: options.assignmentPolicy,
         resourceAssignments,
         approvalHoldExpiresAt: options.approvalHoldExpiresAt,
-        approvedByStaffId: null,
-        approvedAt: null,
+        approvedByStaffId,
+        approvedAt: approvedByStaffId === null ? null : now,
         cancellationReason: null,
         createdByStaffId: options.createdByStaffId,
         createdAt: now,

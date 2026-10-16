@@ -79,5 +79,10 @@ export interface RequestRecurringBookingScheduleOptions {
   status: 'ACTIVE' | 'PENDING_APPROVAL';
   approvalHoldExpiresAt: Date | null;
   createdByStaffId: string | null;
+  // Set when a staff member created the schedule for a service that normally needs manual approval
+  // and so approved it by creating it (UC-070, M23-S19: the staff member is the approver, as in
+  // UC-108). Only meaningful with status 'ACTIVE'; stays null for a customer's schedule and for an
+  // AUTO_CONFIRM service, where nobody approved anything.
+  approvedByStaffId?: string | null;
   correlationId: string;
 }

@@ -16,16 +16,29 @@ const PENDING_SCHEDULES_PAGE_SIZE = 100;
 // requests is worse than one that fails visibly (the same rule as `listAllPages` for bookings).
 const PENDING_SCHEDULES_MAX_PAGES = 50;
 
-// UC-070 — the signed-in customer requests a recurring schedule for themself (the customer id
-// comes from the JWT, never the body). 201 → ACTIVE, or PENDING_APPROVAL with the hold's end.
-export async function createRecurringScheduleAsCustomer(
+function postRecurringSchedule(
   body: CreateRecurringBookingScheduleRequest,
 ): Promise<CreateRecurringBookingScheduleResponse> {
-  const res = await bffClient.post<CreateRecurringBookingScheduleResponse>(
-    '/recurring-booking-schedules',
-    body,
-  );
-  return res.data;
+  return bffClient
+    .post<CreateRecurringBookingScheduleResponse>('/recurring-booking-schedules', body)
+    .then((res) => res.data);
+}
+
+// UC-070 — the signed-in customer requests a recurring schedule for themself (the customer id
+// comes from the JWT, never the body). 201 → ACTIVE, or PENDING_APPROVAL with the hold's end.
+export function createRecurringScheduleAsCustomer(
+  body: CreateRecurringBookingScheduleRequest,
+): Promise<CreateRecurringBookingScheduleResponse> {
+  return postRecurringSchedule(body);
+}
+
+// UC-070 — a STAFF|MANAGER actor requests a recurring schedule on a customer's behalf: the same
+// endpoint, with the chosen customer in the body (`customerId`). A staff member is the approver, so
+// the answer is 201 ACTIVE whatever the service's approval policy.
+export function createRecurringScheduleAsStaff(
+  body: CreateRecurringBookingScheduleRequest,
+): Promise<CreateRecurringBookingScheduleResponse> {
+  return postRecurringSchedule(body);
 }
 
 // UC-070 A2 — 200 → the schedule becomes CANCELLED and its future occurrence bookings are

@@ -34,6 +34,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
   const schedulingExceptionsT = useTranslations('dashboard.schedulingExceptionsPage');
   const recurringApprovalT = useTranslations('dashboard.recurringApproval');
   const newBookingT = useTranslations('dashboard.newBooking');
+  const newRecurringT = useTranslations('dashboard.newRecurring');
   const locale = useLocale();
   const pathname = usePathname();
   const topbarStatus = useDashboardTopbarStatus();
@@ -62,6 +63,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     resourcesT,
     schedulingExceptionsT,
     recurringApprovalT,
+    newRecurringT,
     returnTo,
   });
   const bookingStatusLabels = buildBookingStatusLabels(bookingT);

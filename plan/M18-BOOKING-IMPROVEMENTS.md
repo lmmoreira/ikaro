@@ -21,6 +21,7 @@
 | M18-S08 | Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link |
 | M18-S09 | Remove tenant `notification.fromEmail`; send From the platform sender, tenant name as display name, `businessInfo.email` as Reply-To |
 | M18-S10 | Manager schedule columns board: show who is held after each booking and why (buffer/turnover origin), persisted at booking time |
+| M18-S11 | Shared WeekNav month-range header for cross-month periods |
 
 *(more stories will be appended here as they're scoped)*
 
@@ -1387,3 +1388,54 @@ Make the Day-view resource columns board show, in every checked resource's colum
   - [ ] `schedule-resource-columns.spec.ts`: (a) a seeded booking whose service has a buffer shows "Buffer do serviço {name}" in each of its resource columns; (b) a resource with turnover but a zero-buffer service shows "Virada do recurso" only in that resource's column; (c) with only that resource checked the segment names it. Data source chosen at discovery (no fixed-slot booking race).
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean (including `architecture-check`: `test-builder-coverage`, `ikaro-types-drift`, `transactional-save`)
+
+---
+
+### M18-S11 — Shared WeekNav month-range header for cross-month periods
+
+**Agent:** web-ts
+**Complexity:** S
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md`
+**Dependencies:** none
+**Pattern:** plain composition — a pure date-range formatter consumed by the shared `WeekNav`
+
+**Discovered:** 2026-10-16, live user report while reviewing recurring bookings on Agenda and Horários.
+**Root cause:** `WeekNav` builds the complete visible day range but renders `formatMonthYear(windowStart)` only, so a period spanning two months identifies only its first month (`apps/web/shells/dashboard/components/WeekNav.tsx:55-57`).
+
+**Description:**
+
+Replace the shared dashboard `WeekNav` header's single-start-month label with a localized visible-period label. This is a display-only correction: the component's existing period navigation, date selection, activity dots, and each page's booking queries remain unchanged.
+
+When the first and final visible dates share a month and year, preserve the current output exactly (for example, `Outubro 2026`). When they are in different months of one year, render both full month names and one year (`Outubro – Novembro 2026`). When the range crosses a year boundary, render both month/year values (`Dezembro 2026 – Janeiro 2027`). The shared component is used by both `/dashboard/bookings` (whose window is tenant-configurable, default 14 days) and `/dashboard/schedule` (fixed 7-day week), so the behavior must be implemented once in `WeekNav`, never as page-specific formatting.
+
+**Prototype references:** `plan/journey/staff/prototypes/agenda/00b-agenda-month-boundary.html` — a new clickable Agenda screen showing a 14-day Oct 31–Nov 13 window with the proposed `Outubro – Novembro 2026` header. The same component also applies the behavior to Horários.
+
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `apps/web/shells/dashboard/components/WeekNav.tsx`
+- `apps/web/shells/dashboard/components/WeekNav.spec.tsx`
+- `apps/web/shared/lib/formatting/format-time.ts`
+- `apps/web/shared/lib/formatting/format-time.spec.ts`
+- `plan/journey/staff/prototypes/agenda/00b-agenda-month-boundary.html`
+- `plan/journey/staff/prototypes/agenda/index.html`
+- `plan/journey/staff/agenda.md`
+- `plan/journey/staff/prototypes/agenda/dev-notes.md`
+- `plan/journey/staff/horarios.md`
+- `plan/journey/staff/prototypes/horarios/dev-notes.md`
+
+**Acceptance criteria — product:**
+- [ ] Agenda renders `Outubro – Novembro 2026` when its visible window crosses from October into November.
+- [ ] Horários renders the same range label when its visible 7-day week crosses a month boundary.
+- [ ] A visible range contained in one month remains formatted as today, for example `Outubro 2026`.
+- [ ] A range crossing years shows both years, for example `Dezembro 2026 – Janeiro 2027`.
+- [ ] The month header describes all dates visible in the strip; it does not alter navigation, filtering, date selection, activity dots, or booking queries.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] Formatter tests cover same-month, cross-month/same-year, and cross-year ranges in pt-BR and en.
+  - [ ] `WeekNav.spec.tsx` verifies the exact label for a 14-day Agenda window and a 7-day Horários window crossing a month boundary.
+- E2E:
+  - [ ] none — the shared component's display-only behavior is covered by unit tests; existing page E2E coverage remains unchanged.
+- [ ] Coverage ≥80% on changed code.
+- [ ] `tsc --noEmit` clean and lint clean.

@@ -146,9 +146,12 @@ export class RequestRecurringBookingScheduleUseCase {
       const resourcePlan = await this.checkPatternConflict(input, prepared, considered);
       const built = buildRequestedSchedule(input, customerId, prepared);
       await this.scheduleRepo.save(built);
-      // An AUTO_CONFIRM schedule is ACTIVE from the start, so its whole term becomes bookings in
-      // this same transaction (UC-070 step 3); a PENDING_APPROVAL one waits for UC-071.
-      if (built.status === 'ACTIVE') await this.materialize(built, prepared, resourcePlan);
+      // An AUTO_CONFIRM schedule — or one a staff member created, who is its approver — is ACTIVE
+      // from the start, so its whole term becomes bookings in this same transaction (UC-070 step 3);
+      // a PENDING_APPROVAL one waits for UC-071.
+      if (built.status === 'ACTIVE') {
+        await this.materialize(built, prepared, resourcePlan, built.approvedByStaffId);
+      }
       return built;
     });
 
@@ -173,7 +176,10 @@ export class RequestRecurringBookingScheduleUseCase {
 
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(input.tenantId);
     const policy = resolveApprovalMode(service.bookingPolicy, autoApproveEnabled);
-    const { status, approvalHoldExpiresAt } = resolveApprovalStatus(policy);
+    const { status, approvalHoldExpiresAt, approvedByStaff } = resolveApprovalStatus(
+      policy,
+      input.actorType,
+    );
 
     // The term is validated before it is enumerated, so a far-future endsOn is refused without
     // any per-occurrence work (M23-S18: a schedule is a fixed term, never open-ended).
@@ -196,6 +202,7 @@ export class RequestRecurringBookingScheduleUseCase {
       resourceAssignments,
       status,
       approvalHoldExpiresAt,
+      approvedByStaff,
     };
   }
 
@@ -251,6 +258,7 @@ export class RequestRecurringBookingScheduleUseCase {
     schedule: RecurringBookingSchedule,
     prepared: PreparedRecurringBookingScheduleRequest,
     resources: Resource[][],
+    approvedByStaffId: string | null,
   ): Promise<void> {
     await materializeRecurringScheduleOccurrences(
       {
@@ -264,7 +272,7 @@ export class RequestRecurringBookingScheduleUseCase {
         service: prepared.service,
         occurrences: prepared.occurrences,
         resources,
-        approvedByStaffId: null,
+        approvedByStaffId,
       },
     );
   }
