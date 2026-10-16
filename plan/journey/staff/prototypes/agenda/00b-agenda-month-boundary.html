@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda — intervalo entre meses</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { margin: 0; background: #f9fafb; color: #111827; font-family: var(--ba-body-font); }
+    .shell { max-width: 72rem; min-height: 100vh; margin: 0 auto; background: #f9fafb; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; height: 3.5rem; padding: 0 1rem; background: white; border-bottom: 1px solid #e5e7eb; }
+    .brand { display: flex; align-items: center; gap: .625rem; font-weight: 700; }
+    .brand-mark { display: grid; width: 2rem; height: 2rem; place-items: center; border-radius: .5rem; background: #2563eb; color: white; }
+    .topbar small { color: #6b7280; }
+    .context { padding: 1.25rem 1rem .75rem; }
+    .context h1 { margin: 0 0 .25rem; font-size: 1.25rem; }
+    .context p { max-width: 46rem; margin: 0; color: #4b5563; font-size: .875rem; line-height: 1.5; }
+    .week-nav { overflow: hidden; background: white; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; }
+    .week-head { display: flex; align-items: center; justify-content: space-between; padding: .5rem 1rem; border-bottom: 1px solid #e5e7eb; }
+    .week-head button { display: grid; width: 2rem; height: 2rem; place-items: center; border: 1px solid #d1d5db; border-radius: .375rem; background: white; color: #374151; font-size: 1.25rem; cursor: pointer; }
+    .week-head button:hover { background: #f3f4f6; }
+    .period-label { font-size: .875rem; font-weight: 700; color: #1f2937; }
+    .days { display: flex; gap: .25rem; overflow-x: auto; padding: .5rem; }
+    .day { display: flex; min-width: 2.65rem; flex: 1; flex-direction: column; align-items: center; gap: .25rem; padding: .5rem .25rem; border: 0; border-radius: .625rem; background: white; color: #1f2937; cursor: pointer; }
+    .day:hover { background: #f3f4f6; }
+    .day .weekday { color: #9ca3af; font-size: .65rem; font-weight: 700; letter-spacing: .04em; }
+    .day .number { font-size: 1rem; font-weight: 700; }
+    .day .dot { width: .375rem; height: .375rem; border-radius: 50%; background: transparent; }
+    .day.has-booking .dot { background: #2563eb; }
+    .day.selected { background: #111827; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .day.selected .weekday { color: #d1d5db; }
+    .day.selected .dot { background: rgba(255,255,255,.8); }
+    .content { padding: 1rem; }
+    .hint { display: flex; gap: .5rem; align-items: flex-start; margin-bottom: 1rem; padding: .75rem; border: 1px solid #bfdbfe; border-radius: .5rem; background: #eff6ff; color: #1e40af; font-size: .8125rem; line-height: 1.45; }
+    .hint strong { white-space: nowrap; }
+    .section { display: flex; align-items: center; gap: .5rem; margin: 1.25rem 0 .75rem; }
+    .section h2 { margin: 0; color: #9ca3af; font-size: .75rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
+    .section .line { flex: 1; height: 1px; background: #e5e7eb; }
+    .card { display: grid; gap: .75rem; padding: 1rem; border: 1px solid #bfdbfe; border-radius: .625rem; background: #eff6ff; box-shadow: 0 1px 2px rgba(0,0,0,.04); }
+    .card-main { display: flex; align-items: flex-start; justify-content: space-between; gap: .75rem; }
+    .card h3 { margin: 0 0 .25rem; font-size: 1rem; }
+    .card p { margin: 0; color: #4b5563; font-size: .875rem; }
+    .badge { display: inline-block; padding: .2rem .45rem; border-radius: 999px; background: #dcfce7; color: #166534; font-size: .6875rem; font-weight: 700; }
+    .details { display: flex; justify-content: space-between; color: #374151; font-size: .8125rem; }
+    .prototype-note { margin: 1.5rem 0 .5rem; color: #6b7280; font-size: .75rem; text-align: center; }
+    @media (max-width: 40rem) { .days { justify-content: flex-start; } .day { flex: 0 0 2.65rem; } }
+  </style>
+</head>
+<body>
+  <!-- PROTOTYPE: proposed shared WeekNav behavior. It is used by both Agenda and Horários. -->
+  <div class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">B</span> BeloAuto</div>
+      <small>Agenda</small>
+    </header>
+
+    <section class="context">
+      <h1>Agenda</h1>
+      <p>Exemplo de uma janela de 14 dias que atravessa dois meses. O título identifica todo o período visível, não apenas o seu primeiro dia.</p>
+    </section>
+
+    <nav class="week-nav" aria-label="Período da agenda">
+      <div class="week-head">
+        <button type="button" aria-label="Período anterior">‹</button>
+        <span class="period-label" data-testid="week-nav-label">Outubro – Novembro 2026</span>
+        <button type="button" aria-label="Próximo período">›</button>
+      </div>
+      <div class="days" aria-label="Dias visíveis: 31 de outubro a 13 de novembro de 2026">
+        <button class="day has-booking" type="button"><span class="weekday">SÁB</span><span class="number">31</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">DOM</span><span class="number">1</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">SEG</span><span class="number">2</span><span class="dot"></span></button>
+        <button class="day has-booking" type="button"><span class="weekday">TER</span><span class="number">3</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">QUA</span><span class="number">4</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">QUI</span><span class="number">5</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">SEX</span><span class="number">6</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">SÁB</span><span class="number">7</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">DOM</span><span class="number">8</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">SEG</span><span class="number">9</span><span class="dot"></span></button>
+        <button class="day selected has-booking" type="button" aria-pressed="true"><span class="weekday">TER</span><span class="number">10</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">QUA</span><span class="number">11</span><span class="dot"></span></button>
+        <button class="day" type="button"><span class="weekday">QUI</span><span class="number">12</span><span class="dot"></span></button>
+        <button class="day has-booking" type="button"><span class="weekday">SEX</span><span class="number">13</span><span class="dot"></span></button>
+      </div>
+    </nav>
+
+    <main class="content">
+      <div class="hint"><strong>Decisão de UX</strong><span>Como há dias de outubro e novembro no mesmo carrossel, os dois meses aparecem no cabeçalho. Quando todos os dias pertencem ao mesmo mês, o cabeçalho continua simples: “Outubro 2026”.</span></div>
+      <div class="section"><h2>Próximos dias — 10/11</h2><span class="line"></span><span class="badge">1 agendamento</span></div>
+      <article class="card">
+        <div class="card-main"><div><h3>Mariana Costa</h3><p>Lavagem completa</p></div><span class="badge">Confirmado</span></div>
+        <div class="details"><span>Terça-feira, 10 de novembro · 10:00</span><span>R$ 80 · 60 min</span></div>
+      </article>
+      <p class="prototype-note">Protótipo de M18-S11 — o mesmo cabeçalho compartilhado também corrige Horários quando a semana atravessa um mês ou ano.</p>
+    </main>
+  </div>
+</body>
+</html>
