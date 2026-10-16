@@ -73,8 +73,11 @@ class FlatResourceCollector {
     assignment: BookingLineResourceAssignment,
     selectionMode: string | undefined,
   ): void {
-    // The default shape (a single location, no resource field) has nothing to show.
+    // The default shape (a single location, no resource field) has nothing to show: an explicit
+    // NONE requirement, or a service that declares no requirement at all and so booked the
+    // tenant's implicit LOCATION.
     if (selectionMode === 'NONE') return;
+    if (selectionMode === undefined && assignment.resourceType === ResourceType.LOCATION) return;
     if (selectionMode === 'AUTO_FUNGIBLE_POOL') this.addToPool(line, assignment);
     else this.addResource(line, assignment, selectionMode);
   }

@@ -1,5 +1,6 @@
 import {
   BookingActorRef,
+  BookingLineResourceEntry,
   CustomerBookingCancellation,
   CustomerBookingDetailResponse,
   CustomerBookingRejection,
@@ -89,12 +90,19 @@ function toCustomerRejection(
   return rejection ? { at: rejection.at, reason: rejection.reason } : null;
 }
 
+// A customer sees a resource's identity only when its requirement lets them choose it or shows the
+// automatic pick (UC-062/063). A named resource with no origin belongs to a requirement the service
+// no longer declares, so it stays hidden; a fungible pool already carries no name.
+function isDisclosableToCustomer(entry: BookingLineResourceEntry): boolean {
+  return entry.origin !== null || entry.resourceName === null;
+}
+
 // Never carries `adminNotes`, `createdByStaffId`/`createdByName`, `consentVersion` or an actor id
 // or name (negative guarantee, pinned by its own test).
 export function toCustomerDetailExtras(detail: BookingDetailResponse): CustomerDetailExtras {
   return {
     pickupAddress: detail.pickupAddress,
-    resources: detail.resources ?? [],
+    resources: (detail.resources ?? []).filter(isDisclosableToCustomer),
     itinerary: detail.itinerary ?? [],
     participantCount: detail.participantCount,
     attendees: detail.attendees ?? [],

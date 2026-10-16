@@ -7,6 +7,7 @@ import { BookingIntakeCard } from '@/features/booking/components/booking-detail/
 import { BookingItineraryCard } from '@/features/booking/components/booking-detail/BookingItineraryCard';
 import { BookingOriginCard } from '@/features/booking/components/booking-detail/BookingOriginCard';
 import { BookingParticipantsCard } from '@/features/booking/components/booking-detail/BookingParticipantsCard';
+import { appendReturnTo } from '@/features/customer/booking-navigation';
 import { BookingResourcesCard } from '@/features/booking/components/booking-detail/BookingResourcesCard';
 import { BookingTerminationCard } from '@/features/booking/components/booking-detail/BookingTerminationCard';
 
@@ -39,7 +40,10 @@ export function CustomerBookingExtras({
         recurrenceHref={
           booking.recurringScheduleId === null
             ? null
-            : `/${tenantSlug}/my-account/recurring-schedules/${booking.recurringScheduleId}`
+            : appendReturnTo(
+                `/${tenantSlug}/my-account/recurring-schedules/${booking.recurringScheduleId}`,
+                `/${tenantSlug}/my-account/bookings/${booking.bookingId}`,
+              )
         }
       />
       {cancellation !== null && (

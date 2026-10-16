@@ -69,7 +69,7 @@ describe('CustomerBookingExtras', () => {
     expect(screen.getByText('Suas respostas')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ver recorrência' })).toHaveAttribute(
       'href',
-      '/beloauto/my-account/recurring-schedules/s-1',
+      '/beloauto/my-account/recurring-schedules/s-1?returnTo=%2Fbeloauto%2Fmy-account%2Fbookings%2Fb-1',
     );
   });
 

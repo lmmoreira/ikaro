@@ -33,6 +33,8 @@ interface RecurringScheduleDetailProps {
   readonly tenantSlug: string;
   /** The schedule's occurrence bookings for the requested page; `null` for a pending schedule. */
   readonly occurrences: RecurringScheduleOccurrencePage | null;
+  /** Where the customer came from (a booking page), so "back" returns there instead of the list. */
+  readonly returnTo?: string | null;
 }
 
 const STATUS_LABEL_KEY = {
@@ -64,12 +66,18 @@ export function RecurringScheduleDetail({
   schedule,
   tenantSlug,
   occurrences,
+  returnTo = null,
 }: RecurringScheduleDetailProps): React.JSX.Element {
   if (schedule.status === 'PENDING_APPROVAL') {
     return <RecurringSchedulePendingView schedule={schedule} tenantSlug={tenantSlug} />;
   }
   return (
-    <ScheduleDetailBody schedule={schedule} tenantSlug={tenantSlug} occurrences={occurrences} />
+    <ScheduleDetailBody
+      schedule={schedule}
+      tenantSlug={tenantSlug}
+      occurrences={occurrences}
+      returnTo={returnTo}
+    />
   );
 }
 
@@ -77,6 +85,7 @@ function ScheduleDetailBody({
   schedule,
   tenantSlug,
   occurrences,
+  returnTo = null,
 }: RecurringScheduleDetailProps): React.JSX.Element {
   const t = useTranslations('customer.recurringSchedules');
   const { formatMoney } = useFormatting();
@@ -87,14 +96,17 @@ function ScheduleDetailBody({
   const listHref = recurringScheduleListPath(tenantSlug);
   const terminal = isTerminalRecurringSchedule(schedule.status);
 
+  const backHref = returnTo ?? listHref;
+  const backLabel = returnTo === null ? t('backToList') : t('backToBooking');
+
   useEffect(() => {
-    setBackHrefOverride?.(listHref);
-    setBackLabelOverride?.(t('backToList'));
+    setBackHrefOverride?.(backHref);
+    setBackLabelOverride?.(backLabel);
     return () => {
       setBackHrefOverride?.(null);
       setBackLabelOverride?.(null);
     };
-  }, [listHref, setBackHrefOverride, setBackLabelOverride, t]);
+  }, [backHref, backLabel, setBackHrefOverride, setBackLabelOverride]);
 
   // The schedule item carries no price or booking count, so both come from the loaded bookings.
   const firstPrice = occurrences?.items[0]?.totalPrice.amount;

@@ -2,7 +2,10 @@
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import type { CustomerBookingListItem, RecurringBookingScheduleListItem } from '@ikaro/types';
-import { CustomerTopbarStatusProvider } from '../customer-topbar-status-context';
+import {
+  CustomerTopbarStatusProvider,
+  useCustomerTopbarStatus,
+} from '../customer-topbar-status-context';
 import { RecurringScheduleDetail } from './RecurringScheduleDetail';
 
 vi.mock('next-intl', () => ({
@@ -87,6 +90,49 @@ function renderDetail(
 }
 
 const page = { items: [makeBooking('b1'), makeBooking('b2')], total: 13, page: 1, limit: 5 };
+
+function BackProbe(): React.JSX.Element {
+  const status = useCustomerTopbarStatus();
+  return (
+    <div>
+      <p data-testid="probe-back-href">{status?.backHrefOverride ?? 'none'}</p>
+      <p data-testid="probe-back-label">{status?.backLabelOverride ?? 'none'}</p>
+    </div>
+  );
+}
+
+describe('RecurringScheduleDetail — back link', () => {
+  const renderWithProbe = (returnTo?: string | null) =>
+    render(
+      <CustomerTopbarStatusProvider>
+        <BackProbe />
+        <RecurringScheduleDetail
+          schedule={makeSchedule()}
+          tenantSlug="beloauto"
+          occurrences={page}
+          returnTo={returnTo}
+        />
+      </CustomerTopbarStatusProvider>,
+    );
+
+  it('goes back to the list by default', () => {
+    renderWithProbe();
+
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/beloauto/my-account/recurring-schedules',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToList');
+  });
+
+  it('goes back to the booking the customer came from', () => {
+    renderWithProbe('/beloauto/my-account/bookings/b-1');
+
+    expect(screen.getByTestId('probe-back-href')).toHaveTextContent(
+      '/beloauto/my-account/bookings/b-1',
+    );
+    expect(screen.getByTestId('probe-back-label')).toHaveTextContent('backToBooking');
+  });
+});
 
 describe('RecurringScheduleDetail — ACTIVE', () => {
   it('shows the upcoming occurrences with skip and reschedule, and the end link', () => {

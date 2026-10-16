@@ -170,6 +170,24 @@ describe('buildBookingDetailResources', () => {
       expect(resources).toEqual([]);
     });
 
+    it('shows nothing for the implicit location of a service that declares no requirement', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withResourceRequirements([])
+        .build();
+
+      const { resources } = buildBookingDetailResources({
+        booking: bookingWith(service),
+        serviceMap: new Map([[service.id, service]]),
+        assignments: [
+          assignment({ resourceType: ResourceType.LOCATION, resourceName: 'Unidade principal' }),
+        ],
+        occupancyRows: [],
+      });
+
+      expect(resources).toEqual([]);
+    });
+
     it('returns empty lists when there are no assignments', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).build();
 

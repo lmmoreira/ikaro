@@ -935,7 +935,8 @@
         "datePlaceholder": "Escolher data"
       },
       "createCta": "+ Nova reserva recorrente",
-      "renewAction": "Renovar"
+      "renewAction": "Renovar",
+      "backToBooking": "Agendamento"
     },
     "alerts": {
       "title": "Meus avisos",
