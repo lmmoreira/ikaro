@@ -42,6 +42,25 @@ describe('checkLockCatalogCoverage', () => {
     expect(result.findings).toEqual([]);
   });
 
+  it('does not accept a longer catalog name as coverage for a shorter method', () => {
+    const project = fixtureProject({
+      [PORT]: `export interface IThingLockPort { lockTenant(id: string): Promise<void>; }`,
+    });
+
+    const result = checkLockCatalogCoverage(project, '#### A1 — lockTenantDay(tenantId, date)');
+
+    expectScannedTargets(result, 1);
+    expect(result.findings).toHaveLength(1);
+  });
+
+  it('counts a method named lock() as a locking method', () => {
+    const project = fixtureProject({
+      [PORT]: `export interface IThingLockPort { lock(id: string): Promise<void>; }`,
+    });
+
+    expectScannedTargets(checkLockCatalogCoverage(project, 'nothing here'), 1);
+  });
+
   it('ignores methods outside a port and methods that do not lock', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/booking/application/use-cases/x.use-case.ts': `export interface I { lockThing(): void }`,

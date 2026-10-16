@@ -6,7 +6,12 @@ const RULE = 'lock-catalog-coverage';
 
 // A port method that takes a lock: the advisory-lock port's lock*() methods and any repository
 // method that ends in ForUpdate (a SELECT ... FOR UPDATE row lock).
-const LOCKING_METHOD = /^lock[A-Z]|ForUpdate$/;
+const LOCKING_METHOD = /^lock([A-Z]|$)|ForUpdate$/;
+
+// The whole method name, not a longer one that contains it (lockResource vs lockResources).
+function catalogNames(catalogText: string, name: string): boolean {
+  return new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(catalogText);
+}
 
 // A new lock that is not in docs/28-LOCK_CATALOG.md has no place in the lock order, no business
 // case and no test that proves it, so the next change can deadlock against it unseen. Every
@@ -23,7 +28,7 @@ export function checkLockCatalogCoverage(project: Project, catalogText: string):
         const name = method.getName();
         if (!LOCKING_METHOD.test(name)) continue;
         scannedTargets++;
-        if (catalogText.includes(name)) continue;
+        if (catalogNames(catalogText, name)) continue;
         findings.push({
           rule: RULE,
           file: path,
