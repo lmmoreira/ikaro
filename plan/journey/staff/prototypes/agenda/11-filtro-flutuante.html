@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda — Filtro móvel (M23-S50)</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>    .qsec { display: flex; align-items: center; gap: 0.5rem; margin: 1.25rem 0 0.75rem; }
+    .qsec h2 { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 0; }
+    .qsec .line { flex: 1; height: 1px; background: #e5e7eb; }
+    .qsec .count { font-size: 0.6875rem; font-weight: 700; color: #9ca3af; }
+    .qwrap { position: relative; margin-bottom: 0.75rem; }
+    .qlink { position: absolute; inset: 0; z-index: 10; border-radius: 0.5rem; }
+    .qcard { background: white; border: 1px solid #e5e7eb; border-radius: 0.5rem; box-shadow: 0 1px 2px rgba(0,0,0,0.05); padding: 1rem; transition: box-shadow .15s; }
+    .qwrap:hover .qcard { box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .qcard.selected { border-color: #3b82f6; background: rgba(239,246,255,0.6); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qrow1 { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.25rem; }
+    .qname { display: flex; align-items: center; gap: 0.5rem; min-width: 0; }
+    .qtext { font-size: 0.875rem; font-weight: 600; color: #111827; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qchk { position: relative; z-index: 20; width: 1.125rem; height: 1.125rem; flex-shrink: 0; accent-color: #2563eb; cursor: pointer; }
+    .qbadges { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.5rem; flex-shrink: 0; }
+    .qbadge { display: inline-flex; align-items: center; border-radius: 9999px; padding: 0.125rem 0.625rem; font-size: 0.75rem; font-weight: 600; }
+    .b-cust { background: #dbeafe; color: #1e40af; }
+    .b-guest { background: #fef3c7; color: #92400e; }
+    .b-ok { background: #dcfce7; color: #166534; }
+    .b-pend { background: #fef9c3; color: #854d0e; }
+    .b-done { background: #f1f5f9; color: #475569; }
+    .qsvc { font-size: 0.75rem; color: #6b7280; margin: 0 0 0.25rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .qrow3 { display: flex; align-items: center; justify-content: space-between; font-size: 0.75rem; color: #4b5563; }
+    .qinfo { font-size: 0.75rem; color: #6b7280; margin: 0.375rem 0 0; }
+    .qinfo .alt { color: #15803d; }
+    .qinfo .none { color: #92400e; }
+    .qinfo.open { color: #b91c1c; font-weight: 600; }
+    .qactions { position: relative; z-index: 20; display: flex; gap: 0.5rem; margin-top: 0.75rem; }
+    .qbtn { display: inline-flex; align-items: center; justify-content: center; height: 2rem; padding: 0 0.75rem; border-radius: 0.375rem; font-size: 0.75rem; font-weight: 500; text-decoration: none; cursor: pointer; background: #2563eb; color: white; border: 1px solid transparent; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qbtn:hover { opacity: 0.9; }
+    .qwrap.info .qcard { border-left: 3px solid #2563eb; }
+    .qwrap.upcoming .qcard { opacity: 0.7; }
+    .qwrap.upcoming:hover .qcard { box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .qwrap.upcoming.emph .qcard { opacity: 1; border-color: #3b82f6; background: rgba(239,246,255,0.6); }
+    .b-info { background: #dbeafe; color: #1e40af; }
+    .b-recur { background: #ccfbf1; color: #0f766e; }
+    .qempty { font-size: 0.875rem; color: #9ca3af; }
+    .qsection { margin-bottom: 1.5rem; }
+
+    /* WeekNav — mirrors apps/web/shells/dashboard/components/WeekNav.tsx */
+    .wk { background: white; }
+    .wk-head { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e5e7eb; padding: 0.5rem 1rem; }
+    .wk-chev { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: 0.25rem; border: 1px solid #e5e7eb; background: white; color: #374151; cursor: pointer; text-decoration: none; }
+    .wk-chev:hover { background: #f3f4f6; }
+    .wk-month { font-size: 0.875rem; font-weight: 600; color: #1f2937; }
+    .wk-strip { display: flex; justify-content: space-evenly; overflow-x: auto; padding: 0.5rem 0.25rem; }
+    .wk-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; min-width: 2.5rem; border-radius: 0.625rem; padding: 0.5rem 0.375rem; border: none; background: none; cursor: pointer; color: #1f2937; font-family: inherit; }
+    .wk-day:hover { background: #f3f4f6; }
+    .wk-day .wd { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.025em; color: #9ca3af; }
+    .wk-day .dn { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .wk-day .dot { width: 0.375rem; height: 0.375rem; border-radius: 9999px; background: transparent; }
+    .wk-day.act .dot { background: #2563eb; }
+    .wk-day.today { background: #2563eb; color: white; }
+    .wk-day.today .wd { color: #dbeafe; }
+    .wk-day.today.act .dot, .wk-day.sel.act .dot { background: rgba(255,255,255,0.8); }
+    .wk-day.sel { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .wk-day.sel .wd { color: #e5e7eb; }
+    .new-row { display: flex; justify-content: flex-end; margin-bottom: 1rem; position: relative; }
+    .new-btn { display: inline-flex; align-items: center; height: 2.25rem; padding: 0 1rem; border-radius: 0.375rem; background: #2563eb; color: white; border: none; font-size: 0.875rem; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+    .new-menu { display: none; position: absolute; right: 0; top: calc(100% + 0.25rem); width: 16rem; background: white; border: 1px solid #e5e7eb; border-radius: 0.375rem; box-shadow: 0 10px 15px rgba(0,0,0,0.1); padding: 0.25rem; z-index: 35; }
+    .new-menu.open { display: block; }
+    .new-menu a { display: block; padding: 0.5rem 0.75rem; border-radius: 0.375rem; text-decoration: none; }
+    .new-menu a:hover { background: #f9fafb; }
+    .new-menu strong { display: block; font-size: 0.875rem; color: #111827; }
+    .new-menu span { display: block; font-size: 0.75rem; color: #6b7280; }
+    .bottom-nav-item.active { color: #2563eb; }
+    .filter-fab-wrap { position: fixed; bottom: 5.5rem; right: 1rem; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; }
+    @media (min-width: 1024px) { .filter-fab-wrap { bottom: 1.5rem; right: 1.5rem; } }
+    .filter-fab { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.625rem 0.875rem; border-radius: 9999px; border: 1px solid rgba(37,99,235,0.2); background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; }
+    .filter-fab .count { background: white; color: #2563eb; border-radius: 9999px; font-size: 0.6875rem; padding: 0 0.375rem; display: none; }
+    .filter-popover { display: none; width: min(19rem, calc(100vw - 2rem)); border-radius: 1rem; border: 1px solid var(--ba-secondary); background: white; box-shadow: 0 20px 45px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 0.75rem; }
+    .filter-popover.open { display: block; }
+    .filter-popover-header { padding: 0.75rem 1rem; }
+    .filter-popover-header p.title { font-size: 0.875rem; font-weight: 600; color: #111827; margin: 0; }
+    .filter-popover-header p.desc { font-size: 0.75rem; color: #6b7280; margin: 0.2rem 0 0; }
+    .filter-popover-options { max-height: 20rem; overflow-y: auto; padding: 0.375rem 0.5rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .filter-group-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #9ca3af; padding: 0.5rem 0.5rem 0.25rem; }
+    .filter-option { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; border-radius: 0.75rem; cursor: pointer; }
+    .filter-option:hover { background: #f9fafb; }
+    .filter-option input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .filter-option span { font-size: 0.8125rem; font-weight: 500; color: #111827; flex: 1; }
+    .filter-option em { font-style: normal; font-size: 0.6875rem; font-weight: 700; color: #9ca3af; }
+    .filter-popover-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; }
+    .filter-popover-footer button { border: none; background: none; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.5rem; }
+    .filter-popover-footer button.ghost { color: #6b7280; }
+    .filter-popover-footer button.outline { color: var(--ba-text); border: 1px solid var(--ba-secondary); }
+  
+    /* Movable dock (M23-S50) — replaces .filter-fab-wrap's fixed bottom/right with one class per corner */
+    .filter-dock { position: fixed; z-index: 30; display: flex; flex-direction: column; gap: 0.625rem; max-width: calc(100vw - 2rem); touch-action: auto; }
+    .filter-dock.c-br { bottom: 5.5rem; right: 1rem; align-items: flex-end; }
+    .filter-dock.c-bl { bottom: 5.5rem; left: 1rem; align-items: flex-start; }
+    .filter-dock.c-tr { top: 4.75rem; right: 1rem; align-items: flex-end; }
+    .filter-dock.c-tl { top: 4.75rem; left: 1rem; align-items: flex-start; }
+    @media (min-width: 1024px) {
+      .filter-dock.c-br { bottom: 1.5rem; right: 1.5rem; }
+      .filter-dock.c-bl { bottom: 1.5rem; left: calc(15rem + 1.5rem); }
+      .filter-dock.c-tr { top: 4.75rem; right: 1.5rem; }
+      .filter-dock.c-tl { top: 4.75rem; left: calc(15rem + 1.5rem); }
+    }
+    .filter-dock.dragging { transition: none; opacity: 0.9; }
+    /* Bottom corners: the pill nearest the corner is last, its popover opens upward. Top corners: reversed, popover opens downward. */
+    .filter-dock.c-tr, .filter-dock.c-tl { flex-direction: column-reverse; }
+    .fm { position: relative; display: flex; flex-direction: column; }
+    .filter-dock.c-br .fm, .filter-dock.c-bl .fm { align-items: inherit; }
+    .filter-dock.c-tr .fm, .filter-dock.c-tl .fm { flex-direction: column-reverse; }
+    .fm .filter-popover { margin-bottom: 0.75rem; }
+    .filter-dock.c-tr .fm .filter-popover, .filter-dock.c-tl .fm .filter-popover { margin-bottom: 0; margin-top: 0.75rem; }
+    .fm .filter-fab { cursor: grab; touch-action: none; user-select: none; }
+    .filter-dock.dragging .fm .filter-fab { cursor: grabbing; }
+    .pos-row { border-top: 1px solid #f3f4f6; padding: 0.625rem 1rem 0.75rem; }
+    .pos-row .pos-title { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; margin: 0 0 0.5rem; }
+    .pos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.375rem; }
+    .pos-grid button { border: 1px solid var(--ba-secondary); background: white; border-radius: 0.5rem; padding: 0.4rem 0.5rem; font-size: 0.75rem; font-weight: 600; color: #374151; cursor: pointer; }
+    .pos-grid button[aria-pressed="true"] { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+    .proto-note { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 0.5rem; padding: 0.625rem 0.875rem; font-size: 0.8125rem; color: #1e3a8a; margin-bottom: 1rem; }
+    .mobile-stage { display: none; min-height: 100vh; background: #f3f4f6; padding: 1rem; justify-content: center; align-items: flex-start; }
+    .mobile-stage iframe { width: 390px; height: 780px; border: 8px solid #111827; border-radius: 1.5rem; background: white; }
+    body.is-mobile-stage .mobile-stage { display: flex; }
+    body.is-mobile-stage .stage-real { display: none; }
+    body.is-frame .proto-banner { display: none; }
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: FloatingFilterDock + FloatingFilterMenu (NEW — M23-S50)   apps/web/features/booking/components/dashboard/FloatingFilterDock.tsx
+    Used by: BookingQueuePage -> AgendaFilterMenu (one pill). Page key for the remembered corner: "agenda".
+    The pill is draggable: a movement past ~6px is a drag and snaps to the NEAREST of the four corners on release; a smaller movement is a plain click
+    (opens/closes the popover, as today). The popover opens toward the screen centre. The "Posição" row is the single-pointer / keyboard way to pick a corner.
+    Nothing persists here — in production the corner is remembered per tenant and per page (localStorage, key scoped by tenantId); default bottom-right.
+    Offsets: bottom corners clear the mobile bottom nav (5.5rem) and sit at 1.5rem on desktop; top corners sit below the topbar (4.75rem);
+    left corners on desktop start after the 15rem sidebar + the 1.5rem gutter.
+  -->
+  <div class="stage-real">
+  <div class="proto-banner" style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo-mark">B</div>
+      <span class="topbar-tenant-name">BeloAuto Demo</span>
+    </div>
+    <h1 class="topbar-page-title">Agenda</h1>
+    <div style="margin-left: auto; display: flex; align-items: center; gap: 0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 11 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">B</div>
+        <div>
+          <p class="sidebar-tenant-name">BeloAuto Demo</p>
+          <p class="sidebar-tenant-slug">@beloauto</p>
+        </div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top: 0.5rem;">
+        <a class="sidebar-nav-item active" href="00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item" href="../horarios/00-schedule.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="../fidelidade/00-customer-search.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink: 0; width: 2rem; height: 2rem; font-size: 0.8125rem;">AP</div>
+        <div style="min-width: 0;">
+          <p class="sidebar-user-name">Ana Pereira</p>
+          <span class="role-badge role-badge-manager">Gerente</span>
+        </div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        <div class="proto-note"><strong>Protótipo do filtro móvel (M23-S50).</strong> Arraste "Filtrar agenda" até outro canto e solte; ou abra o filtro e escolha em "Posição". Variantes: <a href="#cantos-tl">canto superior esquerdo</a> · <a href="#cantos-tr">superior direito</a> · <a href="#cantos-bl">inferior esquerdo</a> · <a href="#cantos-br">inferior direito</a> · <a href="#posicao">linha "Posição" aberta</a> · <a href="#mobile">celular</a>. Recarregue a página após mudar o link.</div>
+        <section class="qsection">
+          <div class="qsec"><h2>Precisa de ação</h2><span class="line"></span><span class="count">3 agendamentos</span></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Marcos Lima</span></span></div><p class="qsvc">Lavagem Completa</p><div class="qrow3"><span>Quarta-feira, 12 de agosto · 09:00</span></div></div></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Ana Pereira</span></span></div><p class="qsvc">Polimento</p><div class="qrow3"><span>Quinta-feira, 13 de agosto · 14:00</span></div></div></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Bruno Alves</span></span></div><p class="qsvc">Lavagem Simples</p><div class="qrow3"><span>Sexta-feira, 14 de agosto · 10:30</span></div></div></div>
+        </section>
+        <section class="qsection">
+          <div class="qsec"><h2>Hoje — confirmados</h2><span class="line"></span><span class="count">1 agendamento</span></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Sandra Rocha</span></span></div><p class="qsvc">Lavagem Simples</p><div class="qrow3"><span>Hoje · 16:00</span></div></div></div>
+        </section>
+        <section class="qsection">
+          <div class="qsec"><h2>Próximos dias — confirmados</h2><span class="line"></span><span class="count">2 agendamentos</span></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Paulo Dias</span></span></div><p class="qsvc">Lavagem Completa</p><div class="qrow3"><span>Terça-feira, 18 de agosto · 10:30</span></div></div></div>
+          <div class="qwrap"><div class="qcard"><div class="qrow1"><span class="qname"><span class="qtext">Rita Gomes</span></span></div><p class="qsvc">Polimento</p><div class="qrow3"><span>Quarta-feira, 19 de agosto · 15:00</span></div></div></div>
+        </section>
+      </div>
+
+    </main>
+
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item active" href="00-agenda.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item" href="../horarios/00-schedule.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="../fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+    <button class="bottom-nav-item" onclick="openSheet()">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+      Mais
+    </button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+      Recursos
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Equipe
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      Configurações
+    </a>
+    <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+      Hotsite
+    </a>
+    <div style="padding: 0.75rem 1.25rem; border-top: 1px solid var(--ba-secondary); margin-top: 0.25rem;">
+      <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
+        <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        Sair
+      </a>
+    </div>
+  </div>
+
+
+  <div class="filter-dock c-br" id="dock" data-page="11-filtro-flutuante.html">
+      <div class="fm" data-fm="agenda">
+        <div class="filter-popover" id="pop-agenda">
+          <div class="filter-popover-header"><p class="title">Mostrar na agenda</p><p class="desc">Marque o que deve aparecer na lista.</p></div>
+          <div class="filter-popover-options">
+        <p class="filter-group-label">Precisa de ação</p>
+        <label class="filter-option"><input type="checkbox" checked><span>Agendamentos</span><em>3</em></label>
+        <label class="filter-option"><input type="checkbox" checked><span>Recorrências</span><em>1</em></label>
+        <p class="filter-group-label">Confirmados</p>
+        <label class="filter-option"><input type="checkbox" checked><span>Hoje</span><em>1</em></label>
+        <label class="filter-option"><input type="checkbox" checked><span>Próximos dias</span><em>2</em></label>
+</div>
+          <div class="pos-row">
+            <p class="pos-title">Posição</p>
+            <div class="pos-grid" role="group" aria-label="Posição do filtro">
+              <button type="button" data-corner="tl" aria-pressed="false">Canto superior esquerdo</button>
+              <button type="button" data-corner="tr" aria-pressed="false">Canto superior direito</button>
+              <button type="button" data-corner="bl" aria-pressed="false">Canto inferior esquerdo</button>
+              <button type="button" data-corner="br" aria-pressed="true">Canto inferior direito</button>
+            </div>
+          </div>
+          <div class="filter-popover-footer">
+            <button type="button" class="ghost">Padrão</button>
+            <button type="button" class="outline" data-close>Concluído</button>
+          </div>
+        </div>
+        <button type="button" class="filter-fab" aria-haspopup="menu" aria-expanded="false" data-pill="agenda" aria-label="Filtrar agenda — arraste para mover">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtrar agenda
+        </button>
+      </div>
+  </div>
+  </div>
+
+  <div class="mobile-stage"><iframe title="Celular (390px)" src="11-filtro-flutuante.html#frame"></iframe></div>
+  <script>
+
+    (function () {
+      window.addEventListener('hashchange', function () { location.reload(); });
+      var h = location.hash.replace('#', '');
+      if (h === 'mobile') document.body.classList.add('is-mobile-stage');
+      if (h === 'frame') document.body.classList.add('is-frame');
+      var dock = document.getElementById('dock');
+      var corner = 'br';
+      var THRESHOLD = 6, dragMoved = false, suppressClick = false;
+      function setCorner(c) {
+        corner = c;
+        dock.className = 'filter-dock c-' + c;
+        dock.style.transform = '';
+        document.querySelectorAll('[data-corner]').forEach(function (b) { b.setAttribute('aria-pressed', b.dataset.corner === c); });
+      }
+      function nearestCorner(x, y) { return (y < innerHeight / 2 ? 't' : 'b') + (x < innerWidth / 2 ? 'l' : 'r'); }
+      function togglePop(fm, force) {
+        var pop = fm.querySelector('.filter-popover'), pill = fm.querySelector('.filter-fab');
+        var open = typeof force === 'boolean' ? force : !pop.classList.contains('open');
+        pop.classList.toggle('open', open);
+        pill.setAttribute('aria-expanded', open);
+      }
+      document.querySelectorAll('.fm').forEach(function (fm) {
+        var pill = fm.querySelector('.filter-fab');
+        var startX, startY, baseRect, id = null;
+        pill.addEventListener('pointerdown', function (e) {
+          id = e.pointerId; startX = e.clientX; startY = e.clientY; dragMoved = false;
+          baseRect = dock.getBoundingClientRect();
+          try { pill.setPointerCapture(id); } catch (err) {}
+        });
+        pill.addEventListener('pointermove', function (e) {
+          if (id === null) return;
+          var dx = e.clientX - startX, dy = e.clientY - startY;
+          if (!dragMoved && Math.hypot(dx, dy) < THRESHOLD) return;
+          if (!dragMoved) { dragMoved = true; dock.classList.add('dragging'); document.querySelectorAll('.filter-popover.open').forEach(function (p) { p.classList.remove('open'); }); }
+          dock.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+        });
+        function end(e, cancelled) {
+          if (id === null) return;
+          try { pill.releasePointerCapture(id); } catch (err) {}
+          id = null;
+          dock.classList.remove('dragging');
+          if (dragMoved && !cancelled) { suppressClick = true; setCorner(nearestCorner(e.clientX, e.clientY)); }
+          else dock.style.transform = '';
+          dragMoved = false;
+        }
+        pill.addEventListener('pointerup', function (e) { end(e, false); });
+        pill.addEventListener('pointercancel', function (e) { end(e, true); });
+        pill.addEventListener('lostpointercapture', function (e) { if (id !== null) end(e, true); });
+        pill.addEventListener('click', function () {
+          if (suppressClick) { suppressClick = false; return; }
+          togglePop(fm);
+        });
+        fm.querySelectorAll('[data-close]').forEach(function (b) { b.addEventListener('click', function () { togglePop(fm, false); }); });
+      });
+      document.querySelectorAll('[data-corner]').forEach(function (b) { b.addEventListener('click', function () { setCorner(b.dataset.corner); }); });
+      document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('.fm').forEach(function (fm) { togglePop(fm, false); }); });
+      var openFirst = location.hash.indexOf('posicao') !== -1;
+      var cornerFromHash = (location.hash.match(/(tl|tr|bl|br)/) || [])[1];
+      if (cornerFromHash) setCorner(cornerFromHash);
+      if (openFirst) togglePop(document.querySelector('.fm'), true);
+    })();
+
+  </script>
+</body>
+</html>

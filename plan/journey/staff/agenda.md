@@ -150,6 +150,7 @@ Folder: `staff/prototypes/agenda/`
 | `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03k-booking-detail-precisa-decisao-staff.html` | O mesmo aviso para a equipe: sem link e sem painel de decisão (a ação é do gerente), "Peça a um gerente para resolver" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
+| `11-filtro-flutuante.html` | The floating filter movable to any of the four corners: `#cantos` (the pill in each corner, popover toward the centre, drag demo), `#posicao` (the "Posição" row in the popover), `#mobile` (bottom corners clear the bottom nav). Drawn for the Agenda's "Filtrar agenda"; Horários' stacked pair is `horarios/10-filtros-flutuantes.html` | — | M23-S50 | ❓ Gap (M23-S50) |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
@@ -296,3 +297,29 @@ flowchart TD
 - [x] **No-show: correction reason validation — locked 2026-10-10 (M23-S27 discovery):** required, trimmed, 10–500 characters (same minimum as Reject); the confirm button is disabled until valid.
 - [x] **No-show: the customer email** ("foi avisado por email" in `03`, `03d`) shipped with `M23-S25`, so the sentence is true. The staff member's reason is internal and never appears in the email or on the customer's screen (`customer/prototypes/minha-conta/02f`).
 - [x] **No-show: the UI story** is `M23-S27` (dashboard actions and sheets, the status-history read, and the customer `02f` detail), created 2026-09-30; it depends on `M23-S09`, `M23-S25` and `M23-S26`. The read-only `NO_SHOW` status display (badge, history list, read-only details) ships earlier, inside `M23-S09`, because the shared status type forces it.
+
+---
+
+## M23-S50 addition — The floating filter can be dragged to another corner (❓ Gap, `M23-S50`)
+
+> Discovered 2026-10-16 while M23-S13 was in review: the "Filtrar agenda" pill (and Horários' two filters) is one shared component, fixed in the bottom-right corner, and covers content on a small screen or on a page whose content ends there. Prototype: `prototypes/agenda/11-filtro-flutuante.html`. Horários' side: `horarios.md` § "M23-S50 addition".
+
+- **Four corners, not free placement.** Dragging the pill and releasing snaps it to the nearest of top-left, top-right, bottom-left, bottom-right. The default is bottom-right, so nobody who never drags sees any change.
+- **The popover opens toward the centre of the screen.** Upward from a bottom corner, downward from a top one; aligned to the right edge of the pill in a right corner and to the left edge in a left one. It is never cut off by the viewport.
+- **A click is still a click.** A movement below a small threshold opens and closes the popover exactly as today; a real drag never toggles it. Only the pill is draggable, so the page scrolls everywhere else.
+- **"Posição" row (single-pointer alternative).** The popover gains a row of four corner buttons, which is also how a keyboard user moves the pill and how anyone returns to the default. "Padrão" keeps meaning "reset the filter choices" and does not move the pill. No grip icon: the pill's only drag hint is the grab cursor.
+- **Remembered per tenant and per page.** The choice is the corner (not coordinates), stored in the browser under the tenant, so one tenant's choice never reaches another; the Agenda has its own corner and Horários has its own.
+- **Offsets (decided 2026-10-16):** the bottom corners keep today's offset that clears the mobile bottom navigation (`bottom-24`, `lg:bottom-6`); the top corners sit below the dashboard topbar; on desktop the left corners start after the 15rem sidebar plus the usual gutter. A pill may cover page content in a top or left corner — accepted: the user chose the corner and can move it back.
+
+```mermaid
+flowchart TD
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Pill["Pill 'Filtrar agenda'<br/>(bottom-right by default)"] -->|"click / tap"| Pop["Popover opens toward the centre<br/>(11 #cantos)"]
+    Pill -->|"drag past threshold, release"| Snap["Snaps to the nearest corner<br/>(11 #cantos)"]:::gap
+    Pop -->|"'Posição' → a corner"| Snap
+    Snap --> Saved["Corner remembered for this tenant + page"]:::gap
+```
+
+- [ ] **Open until the prototype is reviewed (2026-10-16):** whether the top offset is a fixed class or follows the topbar's measured height; settled by an E2E bounding-box assertion at implementation.
+
