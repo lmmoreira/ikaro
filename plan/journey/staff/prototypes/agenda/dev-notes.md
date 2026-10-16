@@ -577,14 +577,14 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 
 | Card (screen) | Fields | Where the data is today |
 |---|---|---|
-| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none |
-| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not |
+| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none. Source for every status, a cancelled or rejected booking included: the latest `booking_line_resource_assignments` row per slot (the audit table a cancel does not delete), through a new query beside `LATEST_RESOURCE_ASSIGNMENTS_SQL` that also returns line, leg and quantity position (M23-S47 decision 2) |
+| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not. Leg order and resource come from the assignments; the leg times come from `resource_occupancy` and exist only while those rows do (never after a cancel or reject, and not after the 90-day purge): such a leg is drawn without a time (`03i`) |
 | Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | **Needs backend + BFF** — on the aggregate, not in the detail response |
 | Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | **Needs backend + BFF** (`intake`, `consentAcceptedAt`) |
 | Observações do cliente | `notes` | Backend detail has it; **the BFF staff mapper drops it** |
 | Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
 | Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
-| Notas internas (`03h`, `?forma=completo`) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
+| Notas internas (`03h`: one card, shown whenever `adminNotes` is set; `?forma=completo` elsewhere) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
 | Cobrança (`03h`) | Quoted total, points discount, charged total, points earned, after photos | In the DTO (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `afterServicePhotoUrls`); **the read-only page does not render them** |
 | Cancelamento / Rejeição (`03i`) | Who, when, reason | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
 | Duração escolhida (service line note) | Chosen duration of a variable-duration service | Already in the line (`durationMinsAtBooking`); the page does not say it was a choice |
