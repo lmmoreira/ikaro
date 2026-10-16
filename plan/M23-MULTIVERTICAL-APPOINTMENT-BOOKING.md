@@ -36,7 +36,7 @@
 | 2 | M23-S47 | Full booking detail: resources, itinerary, participants, intake answers, notes, addresses, origin, charge and cancellation on the staff and customer detail (backend + BFF + web; same files as S46, never in one batch with it) |
 | 2 | M23-S48 | Close a booking's stale "Reservas a resolver" entries in the same transaction when the booking no longer occupies the entry's resource (cancel, reject, reschedule, end of a recurring schedule; backend only, shared helpers and a lock order; UC-077; found in M23-S46 discovery, related to S08/S45, not blocking) |
 | 3 | M23-S49 | Bounded lock waits: a transaction-local `lock_timeout` and a retryable 503 for a lock timeout or a Postgres deadlock abort (backend-only; from the lock catalog hazard H5; depends on S48) |
-| 6 | M23-S50 | The floating filter (Agenda "Filtrar agenda", Horários status and resource) can be dragged to any of the four corners, remembers the corner per tenant and page, and opens its popover toward the screen centre (frontend only; needs a prototype first; depends on S13) |
+| 6 | M23-S50 | The floating filter (Agenda "Filtrar agenda", Horários status and resource) can be dragged to any of the four corners, remembers the corner per tenant and page, and opens its popover toward the screen centre (frontend only; prototype drawn and approved 2026-10-16; depends on S13) |
 | 3 | M23-S11a | Guest/customer booking flow frontend, part 1 — step engine, intake, service cards, one resource picker and the booking-details success box (depends on S29) |
 | 4 | M23-S11b | Guest/customer booking flow frontend, part 2 — bundle/journey confirmation and variable duration (depends on S11a) |
 | 3 | M23-S16 | Surface `recurringHorizonDays` in the Service booking-policy dashboard panel |
@@ -4233,17 +4233,27 @@ This story lets the user drag the pill and drop it at one of the **four corners*
 4. **Plain Pointer Events on the pill**, with pointer capture, and a small movement threshold that tells a drag from a click: a movement below the threshold is a click, so opening and closing the popover behaves exactly as today. `touch-action: none` on the pill only, so the page still scrolls everywhere else. No library.
 5. **The choice is the corner, not coordinates, remembered per tenant and per page** in the browser (the same `createBrowserPreferenceStore` shape as `schedule-preferences.ts` / `agenda-preferences.ts`, key scoped by `tenantId`, so one tenant's choice never reaches another's). A corner survives a resize or a phone rotation by construction. Default: bottom-right, so nothing moves for anyone who never drags.
 6. **A single-pointer alternative to dragging** (WCAG 2.5.7): the popover gains a "Posição" row with four corner buttons. It is also the answer to "how does a keyboard user move it", and it is the way back to the default. "Padrão" keeps meaning "reset the filter choices" and does not move the pill.
-7. **The existing offsets are the baseline.** The bottom corners keep the offset that clears the mobile bottom navigation (`bottom-24`, `lg:bottom-6`); the top corners sit below the dashboard topbar. The exact top offset is read from the topbar's real height at discovery, not guessed here.
+7. **The existing offsets are the baseline.** The bottom corners keep the offset that clears the mobile bottom navigation (`bottom-24`, `lg:bottom-6`); the top corners sit below the dashboard topbar (`top-[4.75rem]`, the prototype's value — pinned by an E2E bounding-box assertion, not by a CSS variable); on `lg:` the left corners start after the 15rem sidebar plus the gutter (`lg:left-[calc(15rem+1.5rem)]`). Settled at `/story-discovery` 2026-10-16.
 
-**Open at `/story-discovery` (to settle with the user, not to re-derive):**
-- A **prototype** of the four corners and the popover in each, plus the "Posição" row and the pill's drag affordance (a grip icon on the pill, or nothing but a cursor change and a first-use hint). There is none yet, so the story is blocked on drawing it first, in the order `plan/journey/README.md` requires (journey `.md`, use-cases, README index, then the prototype). The journeys touched are `plan/journey/staff/agenda.md` and `plan/journey/staff/horarios.md`.
-- Whether the corner is remembered per page (decided above) or one corner for every dashboard page.
+**Decisions (2026-10-16, `/story-discovery M23-S50`) — state as fact, do not re-derive:**
+- **Prototype done and approved by the user:** `plan/journey/staff/prototypes/agenda/11-filtro-flutuante.html` (variants `#cantos-tl|tr|bl|br`, `#posicao`, `#mobile`) and `plan/journey/staff/prototypes/horarios/10-filtros-flutuantes.html` (two pills in a dock). Journey docs updated: `staff/agenda.md` and `staff/horarios.md` § "M23-S50 addition", `staff/use-cases.md` (note on UC-071), both `dev-notes.md` and `index.html`. Pushed to `main` in `3aa325441e`.
+- **Drag affordance:** no grip icon — the pill's only hint is `cursor: grab` plus the "Posição" row.
+- **Remembered per page** (not one corner for every dashboard page): the Agenda has its own corner; Horários has one corner for both its filters.
+- **Left corners on desktop clear the 15rem sidebar; top corners sit below the topbar** (offsets in item 7 above).
+- **A pill covering page content in a top or left corner is accepted:** the user chose the corner and "Posição" returns it to the default.
+- **Horários stack order:** status filter nearest the corner, resource filter further out (today's layout); a STAFF user has no resource filter, so the dock holds one pill.
+- **A drag release must not toggle the popover** (the click that follows `pointerup` is suppressed); only a movement under the threshold is a click.
+- **Code-quality rules:** (1) the dock owns the corner, the drag and the stacking, and each menu reads the corner through a small React context (`floating-filter-dock-context.ts`) — no menu computes its own offset; (2) the context hook throws when a `FloatingFilterMenu` is rendered outside a dock, so a stray menu can never float unplaced or lose its "Posição" row; (3) the nearest-corner maths, the orientation and the per-corner Tailwind position classes live only in `floating-filter-corner.ts`; (4) the files stay in the booking slice (only booking uses them, CLAUDE.md §11), nothing goes into `shared/`, no drag library; (5) the three menus lose `positionClassName` and the two pages wrap their filters in `<FloatingFilterDock pageKey="agenda|schedule">`.
+- **UI reuse inventory:** the pill and the corner buttons compose `Button` (`apps/web/shared/components/ui/button.tsx`), as `FloatingFilterMenu` already does; the popover stays the menu's own markup. No drag primitive exists and none is added to `shared/components/ui/`.
+- **SSR note:** the corner comes from `useSyncExternalStore` like `agenda-preferences.ts`, so the first paint is bottom-right and the stored corner applies after hydration (the same trade-off the Agenda filter already accepts).
+- **Test-file note:** `FloatingFilterMenu.spec.tsx` passes `positionClassName` today and changes; the three menus' own specs keep passing unchanged.
 
 **New migration / i18n keys / env vars / feature flags:** none / yes / none / none. i18n keys, both locales in the same change, under a new `dashboard.floatingFilter` namespace: the pill's drag label (`dragHandleLabel`), the "Posição" row title (`positionTitle`) and the four corner labels (`positionTopLeft`, `positionTopRight`, `positionBottomLeft`, `positionBottomRight`).
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/dashboard/FloatingFilterMenu.tsx` (+ spec) (modify — drag on the pill, orientation of the popover from the dock's corner, the "Posição" row; drop `positionClassName`)
 - `apps/web/features/booking/components/dashboard/FloatingFilterDock.tsx` (+ spec) (new — the fixed container that places and stacks a page's filters at the chosen corner)
+- `apps/web/features/booking/components/dashboard/floating-filter-dock-context.ts` (+ spec) (new — the dock's context: the corner, the setter and the pill's drag handlers; its hook throws outside a dock)
 - `apps/web/features/booking/hooks/useDraggableCorner.ts` (+ spec) (new — the pointer hook: threshold, capture, cancel, snap)
 - `apps/web/features/booking/model/floating-filter-corner.ts` (+ spec) (new — the pure part: nearest corner for a point and a viewport, the dock's position and the popover's orientation per corner)
 - `apps/web/features/booking/schedule/floating-filter-preferences.ts` (+ spec) (new — the per-tenant, per-page corner store, beside `agenda-preferences.ts`)
@@ -4251,7 +4261,7 @@ This story lets the user drag the pill and drop it at one of the **four corners*
 - `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx`, `apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx` (+ specs) (modify — wrap the page's filters in the dock)
 - `apps/web/e2e/floating-filter-drag.spec.ts` (new — specs only; reusable steps in `apps/web/e2e/helpers/floating-filter.ts`, new)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — the keys above)
-- `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and their `prototypes/*/dev-notes.md` and `index.html` (modify — the prototype and the new behavior)
+- `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and their `prototypes/*/dev-notes.md` and `index.html` (✅ already done and pushed in `3aa325441e` — at implementation only flip the ❓ GAP markers to ✅ Criado and add the as-built component names)
 
 **Acceptance criteria — product:**
 - [ ] The user can drag the filter pill and, on release, it snaps to the nearest of the four corners; the page's other filters travel with it.
@@ -4262,14 +4272,17 @@ This story lets the user drag the pill and drop it at one of the **four corners*
 - [ ] The pill never covers the mobile bottom navigation or the topbar, in any corner.
 - [ ] On Horários, the status and resource filters never overlap, whichever corner they are in.
 - [ ] A user who never touches it sees the filters exactly where they are today.
+- [ ] On desktop the left corners never cover the sidebar.
+- [ ] Releasing a drag never opens or closes the popover.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `floating-filter-corner`: the nearest corner for points in each quadrant and on the axes, for desktop and mobile viewports; the dock position and the popover orientation for each of the four corners
-  - [ ] `useDraggableCorner`: a movement past the threshold is a drag and snaps on release; a movement below it is a click and fires nothing else *(negative guarantee, own test)*; `pointercancel` and losing capture end the drag without moving the pill; `touch-action` is set on the pill only (jsdom has no pointer capture, so the spec stubs `setPointerCapture`)
+  - [ ] `useDraggableCorner`: a movement past the threshold is a drag and snaps on release; a movement below it is a click and fires nothing else *(negative guarantee, own test)*; the click that follows a drag release is suppressed so the popover does not toggle *(negative guarantee, own test)*; `pointercancel` and losing capture end the drag without moving the pill; `touch-action` is set on the pill only (jsdom has no pointer capture, so the spec stubs `setPointerCapture`)
   - [ ] `floating-filter-preferences`: stores and restores a corner; a different tenant or page does not see it *(tenant isolation, own test)*; an unknown stored value and an unavailable storage fall back to bottom-right
   - [ ] `FloatingFilterMenu`: the popover orientation follows the dock's corner; the "Posição" buttons report the chosen corner; with no corner chosen the output equals today's *(negative guarantee, own test)*
-  - [ ] `FloatingFilterDock`: stacks two filters in a fixed order in every corner without overlap
+  - [ ] `FloatingFilterDock`: stacks two filters in a fixed order in every corner without overlap; status nearest the corner, resource further out; one pill alone also works
+  - [ ] `floating-filter-dock-context`: the hook throws when used outside a dock *(negative guarantee, own test)*
   - [ ] The three menus' existing specs keep passing unchanged
 - Integration: n/a — client-side only
 - Tenant isolation: covered by the preference store spec above (the key carries the `tenantId`); no backend data
@@ -4278,5 +4291,6 @@ This story lets the user drag the pill and drop it at one of the **four corners*
   - [ ] Playwright: choose a corner from the "Posição" row without dragging; it moves and the choice survives a reload
   - [ ] Playwright: on Horários, move the filters to each corner; the status and resource filters stay visible and do not overlap
   - [ ] Playwright, mobile viewport: the bottom corners clear the bottom navigation
+  - [ ] Playwright, desktop viewport: the left corners start after the sidebar and the top corners sit below the topbar (bounding-box assertions)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
