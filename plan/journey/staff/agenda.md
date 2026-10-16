@@ -144,7 +144,7 @@ Folder: `staff/prototypes/agenda/`
 | `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ✅ Criado |
 | `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ✅ Criado |
 | `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ✅ Criado |
-| `03h-booking-detail-completed.html` | Read-only COMPLETED detail with the "Cobrança" card (quoted, discount, charged, points), after photos and internal notes; same `?forma=` cards | UC-009 | — | ❓ Gap (2026-10-15) |
+| `03h-booking-detail-completed.html` | Read-only COMPLETED detail (the charge summary in the banner already ships — the separate "Cobrança" card was removed 2026-10-16), after photos and internal notes; same `?forma=` cards | UC-009 | — | ❓ Gap (2026-10-15) |
 | `03i-booking-detail-cancelled.html` | Read-only CANCELLED detail with the "Cancelamento" card (who, when, why); same `?forma=` cards. The resources and itinerary cards stay (legs without times) — redrawn 2026-10-16 | UC-008 | — | ❓ Gap (2026-10-15) |
 | `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ✅ Criado |
 | `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
@@ -168,9 +168,9 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 | Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
 | Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
 | Notas internas (`03h`: one card, shown whenever `adminNotes` is set; `?forma=completo` elsewhere) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
-| Cobrança (`03h`) | Quoted total, points discount, charged total, points earned, after photos | In the DTO (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `afterServicePhotoUrls`); **the read-only page does not render them** |
-| Cancelamento / Rejeição (`03i`) | Who, when, reason | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
-| Duração escolhida (service line note) | Chosen duration of a variable-duration service | Already in the line (`durationMinsAtBooking`); the page does not say it was a choice |
+| Cobrança (`03h`) | **Not S47 work** — the completed banner already shows quoted, discount, charged and points earned (`BookingCompletionSummary`); the separate card drawn on 2026-10-15 was removed on 2026-10-16 | Already built |
+| Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
+| Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
 
 Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 

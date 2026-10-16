@@ -79,7 +79,7 @@
     PAGE:       apps/web/app/[slug]/my-account/bookings/[id]/page.tsx  (EXISTS)
     UC-006 step 5 (detail) · status: CANCELLED — read-only, no actions. Drawn 2026-10-16 (M23-S47).
     Who cancelled is shown by role only ("Você" / "O estabelecimento") — never a staff name or id. The reason is the one given at
-    cancel time (the customer's own, or the one the business recorded). Resources and the itinerary order stay (they come from the
+    cancel time, and only when the business cancelled (a customer's own cancel stores no reason). Resources and the itinerary order stay (they come from the
     latest assignment); the legs carry no times because the cancel released the reservation. ?por=cliente|estabelecimento switches the actor.
     DATA: GET /v1/bookings/:id
   -->
@@ -207,9 +207,9 @@
             <div class="card" style="padding: 0 1rem; margin-bottom: 1.25rem;">
               <div class="fx-kv"><span>Cancelado por</span><span><span data-p="cliente">Você</span><span data-p="estabelecimento">O estabelecimento</span></span></div>
               <div class="fx-kv"><span>Quando</span><span>Hoje às 08:40</span></div>
-              <div class="fx-kv"><span>Motivo</span><span><span data-p="cliente">Imprevisto no trabalho.</span><span data-p="estabelecimento">Equipamento em manutenção.</span></span></div>
+              <div class="fx-kv" data-p="estabelecimento"><span>Motivo</span><span>Equipamento em manutenção.</span></div>
             </div>
-            <p class="fx-note">Quem cancelou aparece só como "Você" ou "O estabelecimento", nunca o nome de quem da equipe cancelou. Sem motivo registrado, a linha "Motivo" não aparece.</p>
+            <p class="fx-note">Quem cancelou aparece só como "Você" ou "O estabelecimento", nunca o nome de quem da equipe cancelou. O motivo aparece só quando o estabelecimento cancelou: o cancelamento feito pelo cliente não guarda motivo (a tela de cancelar não pede), então a linha "Motivo" não aparece em "?por=cliente".</p>
 
             <p class="section-label">Suas observações</p>
             <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">

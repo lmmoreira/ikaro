@@ -88,11 +88,11 @@
     ROUTE:      /dashboard/bookings/:id
     AUTH:       JWT cookie, STAFF or MANAGER role
 
-    Booking shown: João Silva — Lavagem Simples — COMPLETED (terminal). Drawn 2026-10-15: the shipped page shows a completed
-    booking with no charge summary, so staff could not see what was charged. Needs the "Cobrança" card:
-      totalPrice (quoted) · discountPointsUsed / discountAmount · totalActualPrice (charged) · points earned (sum of the lines'
-      pointsValueAtBooking) · completedAt · after-service photos · adminNotes (internal, staff only).
-    All of these are already in StaffBookingDetailResponse except adminNotes (dropped by the BFF mapper — see dev-notes).
+    Booking shown: João Silva — Lavagem Simples — COMPLETED (terminal). Redrawn 2026-10-16 (M23-S47 discovery): the charge
+    summary (quoted, points discount, charged, points earned) ALREADY SHIPS inside the completed banner
+    (BookingDetailMainBanner → BookingCompletionSummary); the separate "Cobrança" card drawn on 2026-10-15 duplicated it and
+    was removed. What S47 adds here is only the shared detail cards plus adminNotes (internal, staff only; dropped by the BFF
+    mapper today — see dev-notes). After-service photos already ship.
     Shape variants (?forma=) work as in 01 — the resource/participant/intake cards are the same.
   -->
 
@@ -202,6 +202,8 @@
             <div style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: var(--ba-radius); padding: 1.25rem 1.5rem; margin-bottom: 1.5rem;">
               <p style="font-weight: 700; font-size: 1rem; color: #475569; margin-bottom: 0.375rem;">Concluído</p>
               <p style="font-size: 0.875rem; color: #475569; opacity: 0.85; line-height: 1.5;">Concluído hoje às 11:05 por Ana Pereira (Gerente). 12 pontos concedidos a João Silva.</p>
+              <p style="font-size: 0.8125rem; color: #475569; line-height: 1.6; margin-top: 0.5rem;">Total cotado: R$ 60,00<br>Desconto fidelidade: -R$ 12,00<br>Total cobrado: R$ 48,00<br>Cliente ganhará 12 pontos</p>
+              <p style="font-size: 0.6875rem; opacity: 0.55; margin-top: 0.5rem;">Resumo de cobrança já entregue (BookingCompletionSummary); não é trabalho do M23-S47.</p>
             </div>
             <p class="detail-section-label" style="margin-top: 0;">Cliente</p>
             <div class="card" style="display: flex; align-items: center; gap: 0.875rem; margin-bottom: 1.25rem;">
@@ -305,13 +307,6 @@
             </div>
             <p class="fx-note">"Solicitado em" aparece sempre. "Origem" liga à recorrência quando o agendamento é uma ocorrência. "Criado por" só para reserva feita pela equipe.</p>
 
-            <p class="detail-section-label">Cobrança</p>
-            <div class="card" style="padding: 0 1rem; margin-bottom: 1.25rem;">
-              <div class="fx-kv"><span>Valor orçado</span><span>R$ 60,00</span></div>
-              <div class="fx-kv"><span>Desconto por pontos</span><span>− R$ 12,00<small>120 pontos usados</small></span></div>
-              <div class="fx-kv"><span>Total cobrado</span><span style="color:var(--ba-primary);">R$ 48,00</span></div>
-              <div class="fx-kv"><span>Pontos concedidos</span><span>+12</span></div>
-            </div>
             <p class="detail-section-label">Fotos depois do serviço</p>
             <div class="photo-grid" style="margin-bottom: 1.25rem; display:grid; grid-template-columns:repeat(3,1fr); gap:0.5rem;">
               <div class="photo-thumb" style="aspect-ratio:1;background:var(--ba-secondary);border-radius:var(--ba-radius);display:flex;align-items:center;justify-content:center;font-size:0.75rem;opacity:.5;">foto 1</div>

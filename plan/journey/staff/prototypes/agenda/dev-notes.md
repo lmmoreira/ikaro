@@ -585,9 +585,9 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 | Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
 | Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
 | Notas internas (`03h`: one card, shown whenever `adminNotes` is set; `?forma=completo` elsewhere) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
-| Cobrança (`03h`) | Quoted total, points discount, charged total, points earned, after photos | In the DTO (`totalActualPrice`, `discountPointsUsed`, `discountAmount`, `afterServicePhotoUrls`); **the read-only page does not render them** |
-| Cancelamento / Rejeição (`03i`) | Who, when, reason | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
-| Duração escolhida (service line note) | Chosen duration of a variable-duration service | Already in the line (`durationMinsAtBooking`); the page does not say it was a choice |
+| Cobrança (`03h`) | **Not S47 work** — the completed banner already shows quoted, discount, charged and points earned (`BookingCompletionSummary`); the separate card drawn on 2026-10-15 was removed on 2026-10-16 | Already built |
+| Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
+| Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
 
 Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
