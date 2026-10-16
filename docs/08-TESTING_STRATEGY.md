@@ -384,6 +384,20 @@ describe('LoyaltyEventConsumer — idempotency', () => {
 
 ---
 
+## Concurrency Tests (lock order and races)
+
+In-memory doubles never block, so a unit test cannot show that a lock waits, in what order locks are taken, or that a race ends consistently. Those properties are tested against Postgres, in `*.integration.spec.ts`, and `docs/28-LOCK_CATALOG.md` § 3.1 names the test that proves each lock.
+
+| Kind | What it does | What it proves |
+|---|---|---|
+| **Lock contract** (deterministic) | Hold a lock in one transaction, start the use case, wait until Postgres shows a session blocked on a lock, assert it has not finished (and, for a resource lock, that it does not already own the worklist entry row), release, assert the result | The lock order that makes a deadlock impossible; the same result on every run |
+| **Outcome** | Run the operations and assert the data the lock protects (for example, exactly one of two overlapping closures is created) | The business invariant, where no database constraint backs it |
+| **Race** (bounded) | Run two real operations at once, 3 to 6 rounds, assert the invariant and that no error is a deadlock (`40P01`) | Catches a regression; cannot prove there is none, so it never stands alone |
+
+Files: `booking-lock-order.integration.spec.ts` (resource-lock paths, the service row, four races), `booking-context-locks.integration.spec.ts` (staff, tenant day, resource deactivation), the last-manager test in `staff.controller.integration.spec.ts`. Shared helpers: `src/test/utils/booking-lock-race-world.ts` (one tenant, two rooms and a service per scenario; `holdTransaction`, `holdResourceLocks`, `waitForBlockedLock`, `entryRowIsFree`, `resourceLockIsFree`). Cost: about 5 seconds for 15 tests in the first file and 3 seconds for 7 in the second, on the integration job's existing Postgres container. Detail and pitfalls: `docs/ENGINEERING_RULES_TESTING.md` § Concurrency tests.
+
+---
+
 ## Layer 4 — Contract Tests (Spectral)
 
 > ⚠️ **Not implemented:** there is no `docs/api/openapi.yaml`, no `.spectral.yml` and no Spectral step in any workflow. API contracts live in `docs/14-API_CONTRACTS.md` and the shared Zod/DTO schemas (`@ikaro/validation`, `@ikaro/types`). The rest of this layer describes the original design intent.

@@ -138,6 +138,28 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 
 The meaning of the unique constraints is taken from their names and `docs/13-DATABASE_SCHEMA.md`; confirm there before relying on one for a new design.
 
+### 3.1 Which test proves each lock
+
+A test counts as coverage for a lock only if **removing the lock makes it fail** (the mutation check in `docs/ENGINEERING_RULES_TESTING.md` § Concurrency tests). Kinds: **contract** = hold the lock, start the use case, prove it waits (and, for a resource lock, that it does not already own the worklist entry row); **outcome** = assert the data the lock protects; **race** = two real operations at once, a few rounds, assert the invariant. All files are `*.integration.spec.ts` under `apps/backend/src`, each scenario on its own tenant.
+
+| Lock | Test (file › scenario) | Kind | Fails without the lock? |
+|---|---|---|---|
+| A1 tenant day | `booking-context-locks` › closing a day waits; removing a tenant-wide opening waits; two overlapping closures of the same day: exactly one is created | contract, outcome | Yes for closing (contract and outcome); the removal case was not mutated |
+| A2 staff | `booking-context-locks` › creating a staff member's resource, reactivating it, and the staff-deactivated cascade each wait for the staff lock | contract | Yes, all three |
+| A3 resources | `booking-lock-order` › ten paths wait for the resource lock without owning the entry row (staff cancel, customer cancel, reject, end-recurring, the worklist's CANCEL and RESCHEDULE, staff reschedule, customer reschedule, a reschedule overriding a customer-chosen room, approve) and four bounded races; `booking-context-locks` › deactivating a resource waits, then raises the entry; the slot-conflict races in `booking.controller`, `booking-by-staff`, `recurring-booking-schedule` | contract, race, outcome | Yes (terminal helper, old-resources lock, deactivation raise mutated) |
+| A4 service key | `recurring-booking-schedule.controller` › two concurrent `RESOLVE_PER_OCCURRENCE` requests near the per-service cap | outcome | Not re-checked here (existing test) |
+| A5 customer alerts | `availability-alert.controller` › serializes concurrent creates so the cap holds | outcome | Not re-checked here (existing test) |
+| R1 service row | **None that discriminates.** | — | A held `FOR UPDATE` row blocks the writer's `UPDATE` anyway, and for the pairs tried (deactivate vs change requirements) the aggregate rewrite does not conflict, so removing the read lock changed no result. Do not add a test that passes either way |
+| R2 booking models | `booking-lock-order` › a one-off booking waits behind a held service row without having taken the candidate resource locks | contract | Yes (restoring the old order fails it) |
+| R3 tenant row | **None.** Deferred: it is the same single-row lock as R1, so a "waits" test cannot tell it from the writer's own `UPDATE`; worth adding with an outcome test (settings narrowing vs `OpenSchedule`) if that path changes | — | — |
+| R4 exception rows | `typeorm-future-commitment-exception.repository` (a resolver, then a reactivation or a cancel, sees the entry closed); `booking-lock-order` (the entry row is free while the operation waits on the resource lock) | contract | Yes |
+| R5 managers | `staff.controller` › the last-manager guard waits for an uncommitted manager deactivation, then refuses | contract | Yes (the earlier two-request HTTP race passed without the lock and was replaced) |
+| Q1 outbox | `outbox-relay.service`, `typeorm-booking.repository.outbox-cutover` › two concurrent sweeps (`SKIP LOCKED`) | outcome | Existing tests |
+| M4 constraints | the same slot-conflict races as A3 (the exclusion constraint is what makes them safe) | outcome | Existing tests |
+| M5 idempotency | `send-booking-approved-notification` › two concurrent deliveries of the same event | outcome | Existing test |
+
+Known gaps: R1, R3, `UpdateResourceUseCase` (A2, the same lock and pattern as create), and the removal path of A1.
+
 ---
 
 ## 4. Use cases that take several locks, in the order they take them
@@ -198,3 +220,4 @@ The meaning of the unique constraints is taken from their names and `docs/13-DAT
 5. A new advisory key is free to namespace; an existing live key never changes.
 6. Add the entry to §3, the sequence to §4, and any hazard to §5, in the same commit.
 7. Ship a concurrent integration test; a unit test with an in-memory double proves nothing about ordering.
+8. Name the test in § 3.1 and run the mutation check on it: remove the lock and watch it fail. A test that passes without the lock is not coverage (R1 is the example); if no test can tell, record that in § 3.1 and say why.
