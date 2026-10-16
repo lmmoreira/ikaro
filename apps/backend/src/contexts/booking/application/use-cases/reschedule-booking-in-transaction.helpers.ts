@@ -13,6 +13,7 @@ import {
   occupiedResourceIds,
 } from './booking-exception-closing.helpers';
 import { ResourceSelectionInput } from './resource-occupancy.helpers';
+import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
 import {
   QuoteRevisionResult,
@@ -44,6 +45,8 @@ export interface RescheduleBookingInTransactionParams {
   timezone: string;
   // Entries the caller closes itself (the worklist's selected entry is RESOLVED by the manager).
   excludeExceptionIds?: readonly string[];
+  // What the caller read when it took its resource locks (the worklist's reschedule).
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 // The staff reschedule's own write sequence (UC-069 A3), shared by RescheduleBookingUseCase and by
@@ -108,6 +111,7 @@ async function resolveAndLockExceptions(
   const candidatesByLine = await resolveRescheduleCandidates({
     ...toResolveParams(deps, params),
     alsoLockResourceIds: [...occupiedBefore],
+    resolutionSnapshot: params.resolutionSnapshot,
   });
   const openExceptions = await deps.exceptionRepo.findOpenByAffectedForUpdate(tenantId, 'BOOKING', [
     booking.id,

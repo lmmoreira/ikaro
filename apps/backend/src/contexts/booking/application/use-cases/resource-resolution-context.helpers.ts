@@ -31,6 +31,14 @@ export interface ResolutionContext {
   excludeBookingLineIds: string[];
 }
 
+// What a resolution read about the tenant's resources. The worklist's reschedule locks the resources
+// it read, then resolves again inside the transaction from this same snapshot, so a resource that
+// became eligible in between is neither chosen nor locked after the entry row.
+export interface ResolutionSnapshot {
+  resourceCache: Map<string, Resource>;
+  activeResourcesByType: Map<ResourceType, Resource[]>;
+}
+
 export function selectionKey(
   serviceId: string,
   legIndex: number | null,

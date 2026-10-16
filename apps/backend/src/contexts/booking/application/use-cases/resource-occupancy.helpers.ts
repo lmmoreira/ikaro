@@ -13,7 +13,11 @@ import {
   resolveLeggedLineCandidates,
 } from './resource-occupancy-candidate-builders.helpers';
 import { lockCandidateResources } from './resource-candidate-locking.helpers';
-import { ResolutionContext, selectionKey } from './resource-resolution-context.helpers';
+import {
+  ResolutionContext,
+  ResolutionSnapshot,
+  selectionKey,
+} from './resource-resolution-context.helpers';
 
 // isDegenerate carries isDegenerateService()'s verdict through to assignment time — see
 // resource-occupancy-assignment.helpers.ts's effectiveLockState() for why.
@@ -70,6 +74,8 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   lockResources: (resourceIds: string[]) => Promise<void>;
   // Resources the booking occupies before a reschedule or an approval moves it (M23-S48).
   alsoLockResourceIds?: readonly string[];
+  // What an earlier lock step already read; the resolution starts from it instead of reading again.
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
@@ -119,10 +125,12 @@ export async function resolveBookingLinesResourceCandidates(
 // Only the lock step of the resolution above: every resource the lines can land on, in one call.
 // The worklist's reschedule runs it before it takes the entry row lock (docs/28-LOCK_CATALOG.md
 // § 2); the resolution that follows asks for the same ids again, which a transaction already holds.
-export function lockBookingLinesResourceCandidates(
+export async function lockBookingLinesResourceCandidates(
   params: ResolveBookingLinesResourceCandidatesParams,
-): Promise<void> {
-  return lockWithContext(params, buildResolutionContext(params));
+): Promise<ResolutionSnapshot> {
+  const ctx = buildResolutionContext(params);
+  await lockWithContext(params, ctx);
+  return { resourceCache: ctx.resourceCache, activeResourcesByType: ctx.activeResourcesByType };
 }
 
 function lockWithContext(
@@ -148,8 +156,8 @@ function buildResolutionContext(
     occupancyRepo: params.occupancyRepo,
     tenantId: params.tenantId,
     timezone: params.timezone,
-    resourceCache: new Map(),
-    activeResourcesByType: new Map(),
+    resourceCache: params.resolutionSnapshot?.resourceCache ?? new Map(),
+    activeResourcesByType: params.resolutionSnapshot?.activeResourcesByType ?? new Map(),
     // These lines' own pre-existing occupancy (if any — empty at creation, real at
     // approve/reschedule re-resolution) must never count as AUTO_ANY workload against itself.
     excludeBookingLineIds: params.lines.map((line) => line.lineId),

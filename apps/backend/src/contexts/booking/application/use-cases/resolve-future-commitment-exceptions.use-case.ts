@@ -45,6 +45,7 @@ import {
   WorklistRescheduleDeps,
 } from './future-commitment-reschedule.helpers';
 import { reassignThroughWorklist } from './future-commitment-reassign.helpers';
+import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import { ReassignTarget } from './resource-reassignment.helpers';
 import { TerminalBookingDeps } from './booking-exception-closing.helpers';
 import {
@@ -140,7 +141,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     const { tenantId, staffId, correlationId, resolutionType } = input;
     try {
       await this.txManager.run(async () => {
-        await this.lockResourcesFirst(input, exceptionId);
+        const snapshot = await this.lockResourcesFirst(input, exceptionId);
         const exception = await this.lockOpenEntry(exceptionId, tenantId);
         const booking = await this.loadBookingFor(exception, resolutionType, tenantId);
 
@@ -164,6 +165,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
             scheduledAt: input.scheduledAt!,
             exception,
             booking: booking!,
+            resolutionSnapshot: snapshot,
           });
         }
 
@@ -183,18 +185,20 @@ export class ResolveFutureCommitmentExceptionsUseCase {
   private async lockResourcesFirst(
     input: ResolveFutureCommitmentExceptionsUseCaseInput,
     exceptionId: string,
-  ): Promise<void> {
+  ): Promise<ResolutionSnapshot | undefined> {
     const { tenantId, resolutionType } = input;
     if (resolutionType === 'CANCEL') {
       await lockResourcesBeforeEntry(this.closingDeps, exceptionId, tenantId);
     } else if (resolutionType === 'RESCHEDULE' && input.scheduledAt) {
-      await lockRescheduleResourcesBeforeEntry(this.worklistDeps, {
+      // What the lock step read is handed to the reschedule, so it resolves from the same set.
+      return lockRescheduleResourcesBeforeEntry(this.worklistDeps, {
         tenantId,
         exceptionId,
         scheduledAt: input.scheduledAt,
         timezone: input.timezone,
       });
     }
+    return undefined;
   }
 
   private async outcomeOfFailure(

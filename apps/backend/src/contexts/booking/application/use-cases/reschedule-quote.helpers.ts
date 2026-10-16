@@ -15,6 +15,7 @@ import {
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
   lockBookingLinesResourceCandidates,
@@ -122,6 +123,8 @@ export interface ResolveRescheduleCandidatesParams {
   durationChange: RescheduleDurationChange | undefined;
   // Resources the booking occupies before the move, locked with the candidates (M23-S48).
   alsoLockResourceIds?: readonly string[];
+  // The resources an earlier lock step read; resolving from it keeps every later lock inside the set held.
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 // Shared by RescheduleBookingUseCase (admin) and RescheduleBookingAsCustomerUseCase — resolves the
@@ -152,9 +155,9 @@ export async function resolveRescheduleCandidates(
 // Only the lock step of resolveRescheduleCandidates (see lockBookingLinesResourceCandidates).
 export async function lockRescheduleCandidateResources(
   params: ResolveRescheduleCandidatesParams,
-): Promise<void> {
+): Promise<ResolutionSnapshot> {
   const resourceSelections = await resolveRescheduleResourceSelections(params);
-  await lockBookingLinesResourceCandidates(toCandidatesParams(params, resourceSelections));
+  return lockBookingLinesResourceCandidates(toCandidatesParams(params, resourceSelections));
 }
 
 function toCandidatesParams(
@@ -175,6 +178,7 @@ function toCandidatesParams(
     resourceSelections,
     lockResources: (resourceIds) => slotConflictService.lockResources(tenantId, resourceIds),
     alsoLockResourceIds: params.alsoLockResourceIds,
+    resolutionSnapshot: params.resolutionSnapshot,
   };
 }
 

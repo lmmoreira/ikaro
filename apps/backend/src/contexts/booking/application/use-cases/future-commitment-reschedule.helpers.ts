@@ -13,6 +13,7 @@ import {
   RescheduleBookingInTransactionDeps,
 } from './reschedule-booking-in-transaction.helpers';
 import { lockRescheduleCandidateResources } from './reschedule-quote.helpers';
+import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 
 export interface WorklistRescheduleDeps extends RescheduleBookingInTransactionDeps {
   serviceRepo: IServiceRepository;
@@ -27,6 +28,8 @@ export interface WorklistRescheduleParams {
   scheduledAt: string;
   exception: FutureCommitmentException;
   booking: Booking;
+  // What the pre-lock read; the reschedule resolves from it so it never locks beyond the held set.
+  resolutionSnapshot?: ResolutionSnapshot;
 }
 
 export async function loadServiceMap(
@@ -48,16 +51,16 @@ export async function loadServiceMap(
 export async function lockRescheduleResourcesBeforeEntry(
   deps: WorklistRescheduleDeps,
   params: { tenantId: string; exceptionId: string; scheduledAt: string; timezone: string },
-): Promise<void> {
+): Promise<ResolutionSnapshot | undefined> {
   const { tenantId, exceptionId, scheduledAt, timezone } = params;
   const entry = await deps.exceptionRepo.findById(exceptionId, tenantId);
-  if (!entry) return;
+  if (!entry) return undefined;
   const booking = await deps.bookingRepo.findById(entry.affectedId, tenantId);
-  if (!booking) return;
+  if (!booking) return undefined;
   const newScheduledAt = new Date(scheduledAt);
-  if (Number.isNaN(newScheduledAt.getTime()) || newScheduledAt <= new Date()) return;
+  if (Number.isNaN(newScheduledAt.getTime()) || newScheduledAt <= new Date()) return undefined;
   const occupied = await occupiedResourceIds(deps.occupancyRepo, tenantId, [booking]);
-  await lockRescheduleCandidateResources({
+  return lockRescheduleCandidateResources({
     resourceRepo: deps.resourceRepo,
     availabilityService: deps.availabilityService,
     occupancyRepo: deps.occupancyRepo,
@@ -97,5 +100,6 @@ export async function rescheduleThroughWorklist(
     correlationId: params.correlationId,
     timezone: params.timezone,
     excludeExceptionIds: [params.exception.id],
+    resolutionSnapshot: params.resolutionSnapshot,
   });
 }

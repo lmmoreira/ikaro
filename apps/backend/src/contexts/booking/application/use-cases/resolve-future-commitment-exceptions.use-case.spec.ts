@@ -598,6 +598,38 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         expect(order.indexOf('lock-resources')).toBeLessThan(order.indexOf('lock-entry'));
       });
 
+      it('a resource that becomes eligible after the resource locks is neither locked nor chosen', async () => {
+        const { entryId, newTime } = await setup();
+        const calls: string[][] = [];
+        const lockResources = world.tenantLock.lockResources.bind(world.tenantLock);
+        jest.spyOn(world.tenantLock, 'lockResources').mockImplementation((tenantId, ids) => {
+          calls.push([...ids]);
+          return lockResources(tenantId, ids);
+        });
+        // A room is added between the resource locks and the entry row lock.
+        let lateId = '';
+        const lockEntry = world.exceptionRepo.findByIdForUpdate.bind(world.exceptionRepo);
+        jest
+          .spyOn(world.exceptionRepo, 'findByIdForUpdate')
+          .mockImplementation(async (id, tenantId) => {
+            lateId = (await world.addResource('Sala tardia')).id;
+            return lockEntry(id, tenantId);
+          });
+
+        await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: newTime,
+        });
+
+        expect(lateId).not.toBe('');
+        expect(calls.flat()).not.toContain(lateId);
+        const held = new Set(calls[0]);
+        for (const later of calls.slice(1)) {
+          for (const id of later) expect(held.has(id)).toBe(true);
+        }
+      });
+
       it('holds the entry resource and the old resources in the first lock call, and later calls only ask for ids already held', async () => {
         const { source, entryId, newTime } = await setup();
         const calls: string[][] = [];

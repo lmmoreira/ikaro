@@ -271,6 +271,38 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
     });
   });
 
+  // docs/28-LOCK_CATALOG.md H1. A one-off booking and a recurring request used to take the service
+  // row and the room lock in opposite orders, so two of them on the same service and room could
+  // deadlock. Both now take the service row first. They ask for different times, so both succeed.
+  it('a one-off booking and a recurring request on the same service and room never deadlock (H1)', async () => {
+    for (let round = 0; round < 8; round++) {
+      const fixture = await seedFixture('MANUAL_APPROVAL');
+
+      const [recurring, oneOff] = await Promise.all([
+        requestSchedule(fixture),
+        request(app.getHttpServer())
+          .post('/bookings')
+          .set({ 'x-tenant-id': tenantId, 'x-correlation-id': uuidv7() })
+          .send({
+            contactEmail: `h1-race-${round}@lavacar.test`,
+            contactName: 'João Silva',
+            contactPhone: '+5531999999999',
+            scheduledAt: `${STARTS_ON}T17:00:00.000Z`,
+            serviceIds: [fixture.serviceId],
+            resourceSelections: [
+              {
+                serviceId: fixture.serviceId,
+                resourceType: 'ROOM',
+                resourceId: fixture.resourceId,
+              },
+            ],
+          }),
+      ]);
+
+      expect([recurring.status, oneOff.status]).toEqual([201, 201]);
+    }
+  });
+
   describe('approve', () => {
     it('turns a PENDING_APPROVAL request into real APPROVED bookings for every occurrence', async () => {
       const fixture = await seedFixture('MANUAL_APPROVAL');
