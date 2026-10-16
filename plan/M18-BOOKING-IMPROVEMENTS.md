@@ -927,7 +927,7 @@ M18-S06 — code confirmed present in this branch (not yet `✅ Done`-marked; bo
 
 ---
 
-## M18-S08 — Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link
+## M18-S08 — Hotsite editor usability: module-config Preview + discard-confirm, and a "visit live site" link ✅ Done
 
 **Agent:** `frontend-ts`
 **Complexity:** M
