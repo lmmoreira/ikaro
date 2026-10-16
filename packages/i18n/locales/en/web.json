@@ -373,6 +373,62 @@
         "period": "{label}: period"
       }
     },
+    "detailCards": {
+      "resourcesTitle": "Reserved resources",
+      "resourceType": {
+        "ROOM": "Room",
+        "STAFF": "Professional",
+        "EQUIPMENT": "Equipment",
+        "LOCATION": "Location"
+      },
+      "originChosen": "chosen by the customer",
+      "originAssigned": "assigned by the system",
+      "poolLabel": "From the pool",
+      "poolQuantity": "{count, plural, one {# unit reserved} other {# units reserved}}",
+      "resourcesNote": "The resources the booking has (or had when it ended). A pool with no specific item shows only the reserved quantity.",
+      "itineraryTitle": "Itinerary",
+      "itineraryTimeRange": "{start} — {end}",
+      "itineraryNote": "The legs, in order, with each leg's resource. The time only shows while the resource reservation exists.",
+      "participantsTitle": "Participants",
+      "participantCountLabel": "Participants",
+      "minorTag": "minor",
+      "intakeTitleStaff": "Intake form",
+      "intakeTitleCustomer": "Your answers",
+      "answerYes": "Yes",
+      "answerNo": "No",
+      "consentLabel": "Terms of responsibility",
+      "consentAccepted": "Accepted on {date} at {time}",
+      "consentVersion": "version {version}",
+      "consentNotCollected": "Not collected",
+      "consentNotCollectedTag": "staff booking",
+      "customerNotesTitle": "Customer notes",
+      "internalNotesTitle": "Internal notes",
+      "internalNotesNote": "Staff only. Never shown to the customer.",
+      "addressesTitle": "Addresses",
+      "pickupAddressLabel": "Pickup address",
+      "contactAddressLabel": "Contact address",
+      "originTitle": "Origin",
+      "requestedAtLabel": "Requested on",
+      "requestedAtValue": "{date} at {time}",
+      "recurrenceLabel": "Recurring booking",
+      "recurrenceLink": "View recurrence",
+      "createdByLabel": "Created by",
+      "createdByNote": "Booking made by staff on the customer's behalf",
+      "cancellationTitle": "Cancellation",
+      "rejectionTitleStaff": "Rejection",
+      "rejectionTitleCustomer": "Declined",
+      "cancelledByLabel": "Cancelled by",
+      "rejectedByLabel": "Declined by",
+      "whenLabel": "When",
+      "whenValue": "{date} at {time}",
+      "reasonLabel": "Reason",
+      "actorYou": "You",
+      "actorEstablishment": "The business",
+      "actorCustomerNamed": "{name} (customer)",
+      "actorCustomer": "Customer",
+      "actorStaffNamed": "{name} (staff)",
+      "actorStaff": "Staff"
+    },
     "recurringScheduleForm": {
       "fieldService": "Service",
       "serviceHint": "Only services that allow recurring reservations are listed.",
@@ -642,7 +698,13 @@
       "viewPointsCta": "View my points →",
       "backToSchedule": "Recurrence",
       "noShowContact": "If this was a mistake, please contact the business.",
-      "noShowNote": "This booking was closed as a no-show. No loyalty points were awarded."
+      "noShowNote": "This booking was closed as a no-show. No loyalty points were awarded.",
+      "cancelledTitle": "Booking cancelled",
+      "cancelledBody": "The slot was released.",
+      "cancelledNote": "This booking was cancelled and the slot was released. Nothing more to do here.",
+      "rejectedTitle": "Request declined",
+      "rejectedBody": "The business could not accept this booking. No slot was reserved and no points were used.",
+      "rejectedNote": "This request was declined. You can book again at another time."
     },
     "infoSubmit": {
       "label": "Message",
@@ -884,7 +946,8 @@
         "failureAside": "Nothing was created. The pattern you built was kept."
       },
       "createCta": "+ New recurring reservation",
-      "renewAction": "Renew"
+      "renewAction": "Renew",
+      "backToBooking": "Booking"
     },
     "alerts": {
       "title": "My alerts",

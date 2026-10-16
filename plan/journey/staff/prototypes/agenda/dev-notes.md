@@ -589,7 +589,7 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 | Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
 | Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
 
-Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
 - ⚠ **Prototype mechanics:** `?forma=` is a query parameter (not a hash) because `03f` already uses the hash for its role switch. The service name on the line changes per shape for illustration only.
 - ⚠ **Photos label** in `01`/`03` is now "Fotos enviadas pelo cliente" (was "do veículo", a car-wash leftover).

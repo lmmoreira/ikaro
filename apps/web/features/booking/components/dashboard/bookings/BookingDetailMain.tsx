@@ -8,6 +8,7 @@ import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { PhotoTile } from '../../PhotoTile';
 import { BookingClientCard } from './BookingClientCard';
+import { StaffBookingExtras } from './StaffBookingExtras';
 
 interface BookingDetailMainProps {
   readonly booking: StaffBookingDetailResponse;
@@ -132,6 +133,8 @@ export function BookingDetailMain({ booking }: BookingDetailMainProps): React.JS
           </CardContent>
         </Card>
       </section>
+
+      <StaffBookingExtras booking={booking} />
 
       {(booking.beforeServicePhotoUrls.length > 0 || booking.afterServicePhotoUrls.length > 0) && (
         <section>

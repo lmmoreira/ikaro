@@ -373,6 +373,62 @@
         "period": "{label}: período"
       }
     },
+    "detailCards": {
+      "resourcesTitle": "Recursos reservados",
+      "resourceType": {
+        "ROOM": "Sala",
+        "STAFF": "Profissional",
+        "EQUIPMENT": "Equipamento",
+        "LOCATION": "Local"
+      },
+      "originChosen": "escolhido pelo cliente",
+      "originAssigned": "atribuído pelo sistema",
+      "poolLabel": "Do conjunto",
+      "poolQuantity": "{count, plural, one {# unidade reservada} other {# unidades reservadas}}",
+      "resourcesNote": "Os recursos que o agendamento tem (ou tinha ao ser encerrado). Um conjunto sem item específico mostra só a quantidade reservada.",
+      "itineraryTitle": "Trajeto",
+      "itineraryTimeRange": "{start} — {end}",
+      "itineraryNote": "Os trechos, na ordem, com o recurso de cada um. O horário só aparece enquanto a reserva do recurso existe.",
+      "participantsTitle": "Participantes",
+      "participantCountLabel": "Participantes",
+      "minorTag": "menor",
+      "intakeTitleStaff": "Formulário de entrada",
+      "intakeTitleCustomer": "Suas respostas",
+      "answerYes": "Sim",
+      "answerNo": "Não",
+      "consentLabel": "Termo de responsabilidade",
+      "consentAccepted": "Aceito em {date} às {time}",
+      "consentVersion": "versão {version}",
+      "consentNotCollected": "Não coletado",
+      "consentNotCollectedTag": "reserva da equipe",
+      "customerNotesTitle": "Observações do cliente",
+      "internalNotesTitle": "Notas internas",
+      "internalNotesNote": "Somente a equipe vê. Nunca aparece para o cliente.",
+      "addressesTitle": "Endereços",
+      "pickupAddressLabel": "Endereço de retirada",
+      "contactAddressLabel": "Endereço do contato",
+      "originTitle": "Origem",
+      "requestedAtLabel": "Solicitado em",
+      "requestedAtValue": "{date} às {time}",
+      "recurrenceLabel": "Reserva recorrente",
+      "recurrenceLink": "Ver recorrência",
+      "createdByLabel": "Criado por",
+      "createdByNote": "Reserva feita pela equipe em nome do cliente",
+      "cancellationTitle": "Cancelamento",
+      "rejectionTitleStaff": "Rejeição",
+      "rejectionTitleCustomer": "Recusa",
+      "cancelledByLabel": "Cancelado por",
+      "rejectedByLabel": "Recusado por",
+      "whenLabel": "Quando",
+      "whenValue": "{date} às {time}",
+      "reasonLabel": "Motivo",
+      "actorYou": "Você",
+      "actorEstablishment": "O estabelecimento",
+      "actorCustomerNamed": "{name} (cliente)",
+      "actorCustomer": "Cliente",
+      "actorStaffNamed": "{name} (equipe)",
+      "actorStaff": "Equipe"
+    },
     "recurringScheduleForm": {
       "fieldService": "Serviço",
       "serviceHint": "Só aparecem serviços que permitem reserva recorrente.",
@@ -642,7 +698,13 @@
       "viewPointsCta": "Ver meus pontos →",
       "backToSchedule": "Recorrência",
       "noShowContact": "Se foi um engano, entre em contato com o estabelecimento.",
-      "noShowNote": "Este agendamento foi encerrado como não comparecimento. Nenhum ponto de fidelidade foi concedido."
+      "noShowNote": "Este agendamento foi encerrado como não comparecimento. Nenhum ponto de fidelidade foi concedido.",
+      "cancelledTitle": "Agendamento cancelado",
+      "cancelledBody": "O horário foi liberado.",
+      "cancelledNote": "Este agendamento foi cancelado e o horário foi liberado. Nada mais a fazer aqui.",
+      "rejectedTitle": "Pedido recusado",
+      "rejectedBody": "O estabelecimento não pôde aceitar este agendamento. Nenhum horário foi reservado e nenhum ponto foi usado.",
+      "rejectedNote": "Este pedido foi recusado. Você pode fazer um novo agendamento em outro horário."
     },
     "infoSubmit": {
       "label": "Mensagem",
@@ -884,7 +946,8 @@
         "failureAside": "Nada foi criado. O padrão que você montou foi mantido."
       },
       "createCta": "+ Nova reserva recorrente",
-      "renewAction": "Renovar"
+      "renewAction": "Renovar",
+      "backToBooking": "Agendamento"
     },
     "alerts": {
       "title": "Meus avisos",

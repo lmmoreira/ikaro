@@ -170,12 +170,13 @@ export function BookingDetailAsideCard({
     );
   }
 
-  if (booking.status === BOOKING_STATUS.COMPLETED) {
+  // A terminal booking has no actions of its own: just the way back to the Agenda.
+  if (
+    booking.status === BOOKING_STATUS.COMPLETED ||
+    booking.status === BOOKING_STATUS.REJECTED ||
+    booking.status === BOOKING_STATUS.CANCELLED
+  ) {
     return <BackToAgendaActionsCard backHref={backHref} />;
-  }
-
-  if (booking.status === BOOKING_STATUS.REJECTED || booking.status === BOOKING_STATUS.CANCELLED) {
-    return null;
   }
 
   const triageStatus =

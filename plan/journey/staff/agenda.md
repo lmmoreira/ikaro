@@ -119,13 +119,13 @@ Folder: `staff/prototypes/agenda/`
 |---|---|---|---|---|
 | `index.html` | Navigation hub + validation checklist | — | — | ✅ Criado |
 | `00-agenda.html` | Booking queue — an **exact copy of the shipped page** (redrawn 2026-10-14 after drifting): `WeekNav`, "+ Novo" (Agendamento only), "Precisa de ação" (PENDING + INFO_REQUESTED, any date) → "Hoje — confirmados" → "Próximos dias — confirmados", real `BookingCard` | UC-003, UC-008, UC-009 | M13-S19 | ✅ Criado |
-| `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets. **Redrawn 2026-10-15** with the new cards (resources, itinerary, participants, intake, notes, addresses, origin) switched by `?forma=` — the new cards are ❓ Gap, see "Full booking detail" below | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado (base) · ❓ Gap (new cards) |
+| `01-booking-detail.html` | Booking detail + inline Reject/Info bottom sheets. **Redrawn 2026-10-15** with the new cards (resources, itinerary, participants, intake, notes, addresses, origin) switched by `?forma=` — the new cards are ✅ built (M23-S47), see "Full booking detail" below | UC-003, UC-004, UC-005 | M125-S05 | ✅ Criado (M23-S47) |
 | `01b-slot-conflict.html` | Slot conflict error + adjacent slot picker | UC-003 Alt A1 | M125-S05 | ✅ Criado |
 | `01c-reject-success.html` | Reject success inline state (actionState = 'rejected') | UC-004 | M125-S05 | ✅ Criado |
 | `01d-info-success.html` | Info-request success inline state (actionState = 'info-requested') | UC-005 | M125-S05 | ✅ Criado |
 | `02-approve-success.html` | Approval success (prototype page; production = inline) | UC-003 | M125-S05 | ✅ Criado |
 | `00-agenda-next.html` | Booking queue — the next `welcomeStaffScreenDays` window (reached with ›): no "Hoje" section, "Próximos dias" starts at the window's first day | — | — | ✅ Criado |
-| `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions); same `?forma=` cards as `01` | UC-008, UC-009 | — | ✅ Criado (base) · ❓ Gap (new cards) |
+| `03-booking-detail-approved.html` | Booking detail, APPROVED state (Cancel/Complete/Reschedule actions); same `?forma=` cards as `01` | UC-008, UC-009 | — | ✅ Criado (M23-S47) |
 | `03b-cancel-success.html` | Cancel success inline state, triggered from `03-booking-detail-approved.html` | UC-008 | — | ✅ Criado |
 | `04-mark-complete.html` | Mark complete flow | UC-009 | — | ✅ Criado |
 | `04b-complete-success.html` | Completion confirmed inline state | UC-009 | — | ✅ Criado |
@@ -144,8 +144,8 @@ Folder: `staff/prototypes/agenda/`
 | `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ✅ Criado |
 | `03e-no-show-error.html` | Erros: 409 `BOOKING_ALREADY_TERMINAL` (`#terminal`) e falha de rede/5xx (`#falha`) | UC-074 A2 | M23-S27 | ✅ Criado |
 | `03f-booking-detail-no-show.html` | Detalhe de um não comparecimento + histórico; gerente vê "Corrigir para concluído", staff não (`#equipe`) | UC-074 A3 | M23-S27 | ✅ Criado |
-| `03h-booking-detail-completed.html` | Read-only COMPLETED detail (the charge summary in the banner already ships — the separate "Cobrança" card was removed 2026-10-16), after photos and internal notes; same `?forma=` cards | UC-009 | — | ❓ Gap (2026-10-15) |
-| `03i-booking-detail-cancelled.html` | Read-only CANCELLED detail with the "Cancelamento" card (who, when, why); same `?forma=` cards. The resources and itinerary cards stay (legs without times) — redrawn 2026-10-16 | UC-008 | — | ❓ Gap (2026-10-15) |
+| `03h-booking-detail-completed.html` | Read-only COMPLETED detail (the charge summary in the banner already ships — the separate "Cobrança" card was removed 2026-10-16), after photos and internal notes; same `?forma=` cards | UC-009 | — | ✅ Criado (M23-S47) |
+| `03i-booking-detail-cancelled.html` | Read-only CANCELLED detail with the "Cancelamento" card (who, when, why); same `?forma=` cards. The resources and itinerary cards stay (legs without times) — redrawn 2026-10-16 | UC-008 | — | ✅ Criado (M23-S47) |
 | `03g-correct-no-show.html` | Correção (somente gerente): motivo obrigatório (10–500), sucesso com pontos, falha, 403 | UC-074 A3 | M23-S27 | ✅ Criado |
 | `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado |
@@ -172,7 +172,7 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 | Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
 | Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
 
-Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (UC-071 approval ✅ Criado by M23-S13 · UC-074 no-show ✅ Criado by M23-S27 · staff creation ✅ Criado by M23-S19)
 

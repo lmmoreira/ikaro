@@ -97,6 +97,21 @@ function baseProps(overrides: Partial<Parameters<typeof BookingDetailAsideCard>[
 }
 
 describe('BookingDetailAsideCard', () => {
+  it.each(['CANCELLED', 'REJECTED', 'COMPLETED'] as const)(
+    'gives a %s booking the way back to the Agenda and no action buttons',
+    (status) => {
+      renderWithIntl(
+        <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status }) })} />,
+      );
+
+      expect(screen.getByRole('link', { name: 'Voltar à agenda' })).toHaveAttribute(
+        'href',
+        '/dashboard/bookings',
+      );
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    },
+  );
+
   it('renders the back-to-agenda card when actionState is approved', () => {
     renderWithIntl(<BookingDetailAsideCard {...baseProps({ actionState: 'approved' })} />);
 
@@ -142,14 +157,6 @@ describe('BookingDetailAsideCard', () => {
     await user.click(screen.getByRole('button', { name: 'Marcar concluído' }));
 
     expect(onOpenComplete).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders nothing for a rejected or cancelled (non-actionState) booking', () => {
-    const { container } = renderWithIntl(
-      <BookingDetailAsideCard {...baseProps({ booking: makeBooking({ status: 'REJECTED' }) })} />,
-    );
-
-    expect(container).toBeEmptyDOMElement();
   });
 
   describe('no-show (UC-074)', () => {

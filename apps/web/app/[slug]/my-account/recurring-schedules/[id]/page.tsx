@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { getAccessToken } from '@/features/auth/get-access-token';
 import { withAuthRedirect } from '@/features/customer/api.server';
+import { resolveReturnTo } from '@/features/customer/booking-navigation';
 import { fetchCustomerBookings } from '@/features/booking/api/customer.server';
 import { fetchCustomerRecurringScheduleOrRedirect } from '@/features/booking/api/recurring-booking-schedules.server';
 import { RecurringScheduleDetail } from '@/features/customer/components/my-account/RecurringScheduleDetail';
@@ -19,7 +20,7 @@ import { isValidTimezone } from '@/shared/lib/formatting/locale-validators';
 
 interface RecurringScheduleDetailRouteProps {
   readonly params: Promise<{ readonly slug: string; readonly id: string }>;
-  readonly searchParams: Promise<{ readonly page?: string }>;
+  readonly searchParams: Promise<{ readonly page?: string; readonly returnTo?: string }>;
 }
 
 export default async function RecurringScheduleDetailRoute({
@@ -27,14 +28,22 @@ export default async function RecurringScheduleDetailRoute({
   searchParams,
 }: RecurringScheduleDetailRouteProps): Promise<React.JSX.Element> {
   const { slug, id } = await params;
-  const { page: rawPage } = await searchParams;
+  const { page: rawPage, returnTo: rawReturnTo } = await searchParams;
+  const returnTo = resolveReturnTo(rawReturnTo, slug);
   const page = parseOccurrencePage(rawPage);
   const token = await getAccessToken();
   const schedule = await fetchCustomerRecurringScheduleOrRedirect(token, id, slug);
 
   // A pending schedule has no bookings yet — nothing to list.
   if (schedule.status === 'PENDING_APPROVAL') {
-    return <RecurringScheduleDetail schedule={schedule} tenantSlug={slug} occurrences={null} />;
+    return (
+      <RecurringScheduleDetail
+        schedule={schedule}
+        tenantSlug={slug}
+        occurrences={null}
+        returnTo={returnTo}
+      />
+    );
   }
 
   const terminal = isTerminalRecurringSchedule(schedule.status);
@@ -63,6 +72,7 @@ export default async function RecurringScheduleDetailRoute({
     <RecurringScheduleDetail
       schedule={schedule}
       tenantSlug={slug}
+      returnTo={returnTo}
       occurrences={{
         items: bookings.items,
         total: bookings.total,

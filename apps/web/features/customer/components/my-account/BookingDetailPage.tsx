@@ -22,7 +22,7 @@ interface BookingDetailPageProps {
 interface ClosedActionPaneProps {
   readonly tenantSlug: string;
   // The note explaining why this closed booking has no actions of its own.
-  readonly noteKey: 'completedNote' | 'noShowNote';
+  readonly noteKey: 'completedNote' | 'noShowNote' | 'cancelledNote' | 'rejectedNote';
 }
 
 // COMPLETED and NO_SHOW share one pane (02c / 02f): a note, a way to book again, and the points.
@@ -71,7 +71,9 @@ export function BookingDetailPage({
     showCancel ||
     showReschedule ||
     status === BOOKING_STATUS.COMPLETED ||
-    status === BOOKING_STATUS.NO_SHOW;
+    status === BOOKING_STATUS.NO_SHOW ||
+    status === BOOKING_STATUS.CANCELLED ||
+    status === BOOKING_STATUS.REJECTED;
 
   useEffect(() => {
     setTopbarBookingStatus?.(status);
@@ -97,6 +99,12 @@ export function BookingDetailPage({
     }
     if (status === BOOKING_STATUS.NO_SHOW) {
       return <ClosedActionPane tenantSlug={tenantSlug} noteKey="noShowNote" />;
+    }
+    if (status === BOOKING_STATUS.CANCELLED) {
+      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="cancelledNote" />;
+    }
+    if (status === BOOKING_STATUS.REJECTED) {
+      return <ClosedActionPane tenantSlug={tenantSlug} noteKey="rejectedNote" />;
     }
     return (
       <div className="flex flex-col gap-3">
@@ -150,7 +158,20 @@ export function BookingDetailPage({
               <p className="mt-1 leading-6">{t('noShowContact')}</p>
             </div>
           )}
-          <BookingDetailMain booking={{ ...booking, status }} />
+          {(status === BOOKING_STATUS.CANCELLED || status === BOOKING_STATUS.REJECTED) && (
+            <div
+              data-testid="booking-ended-notice"
+              className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
+            >
+              <p className="font-bold">
+                {t(status === BOOKING_STATUS.CANCELLED ? 'cancelledTitle' : 'rejectedTitle')}
+              </p>
+              <p className="mt-1 leading-6">
+                {t(status === BOOKING_STATUS.CANCELLED ? 'cancelledBody' : 'rejectedBody')}
+              </p>
+            </div>
+          )}
+          <BookingDetailMain booking={{ ...booking, status }} tenantSlug={tenantSlug} />
 
           {infoJustSubmitted && (
             <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-3 text-sm font-medium text-green-800">

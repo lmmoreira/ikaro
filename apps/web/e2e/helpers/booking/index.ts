@@ -9,3 +9,10 @@ export { submitGuestInfoDirectly } from './submit-guest-info-directly';
 export { createEndedApprovedBooking, createNoShowBooking } from './no-show';
 export { getResourceRow } from './resource-locators';
 export { createResource, deactivateResource, reactivateResource } from './resource-api';
+export {
+  bookAsNewCustomer,
+  cancelBookingInDashboard,
+  INTAKE_QUESTIONS,
+  roomPick,
+  seedBundleWithIntake,
+} from './detail-seed';
