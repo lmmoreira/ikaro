@@ -197,9 +197,9 @@ export function pickBookedIntakeSchemas(
 async function loadIntake(deps: BookingDetailExtrasDeps, booking: Booking) {
   if (!booking.intake) return null;
   const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
-  const schemasByService = await Promise.all(
-    serviceIds.map((id) => deps.intakeSchemaRepo.findAllByServiceId(id, booking.tenantId)),
-  );
+  // One query for the whole basket, then grouped back per service.
+  const schemas = await deps.intakeSchemaRepo.findAllByServiceIds(serviceIds, booking.tenantId);
+  const schemasByService = serviceIds.map((id) => schemas.filter((s) => s.serviceId === id));
   return buildIntakeDetail(booking, pickBookedIntakeSchemas(booking, schemasByService));
 }
 

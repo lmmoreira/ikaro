@@ -265,7 +265,7 @@ describe('GetBookingByIdUseCase — full booking detail (M23-S47)', () => {
 
     it('reads the intake schema only when the booking has an intake, and returns a null consent for a staff-created one', async () => {
       const { booking } = await seedBooking();
-      const read = jest.spyOn(intakeRepo, 'findAllByServiceId');
+      const read = jest.spyOn(intakeRepo, 'findAllByServiceIds');
 
       expect((await ask(booking.id)).intake).toBeNull();
       expect(read).not.toHaveBeenCalled();

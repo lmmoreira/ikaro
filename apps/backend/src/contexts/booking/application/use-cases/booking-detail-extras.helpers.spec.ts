@@ -344,6 +344,7 @@ describe('loadBookingDetailExtras', () => {
     const schemaRepo = new InMemoryServiceIntakeSchemaRepository();
     await schemaRepo.publish(schemaV(1, { plate: 'Placa' }, undefined, second.id));
     deps.intakeSchemaRepo = schemaRepo;
+    const read = jest.spyOn(schemaRepo, 'findAllByServiceIds');
     const lines = [first, second].map((service, index) =>
       new BookingLineBuilder()
         .withLineId(`3000000${index}-0000-4000-8000-000000000481`)
@@ -367,6 +368,8 @@ describe('loadBookingDetailExtras', () => {
     expect(extras.intake?.answers).toEqual([
       { fieldKey: 'plate', label: 'Placa', type: 'FREE_TEXT', value: 'ABC1D23' },
     ]);
+    // One intake query for the whole basket, not one per service.
+    expect(read).toHaveBeenCalledTimes(1);
   });
 
   it('exposes an empty, all-null shape for a read that did not ask for extras', () => {
