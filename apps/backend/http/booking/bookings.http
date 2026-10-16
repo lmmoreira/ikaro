@@ -178,6 +178,16 @@ X-Correlation-ID: test-corr-list-003
 # `[{ fromStatus, toStatus, reason, actorType, actorId, actorName, occurredAt }]`. `actorName` is the
 # staff member's name (resolved in the backend), the contact name for a CUSTOMER actor, and `null`
 # for a GUEST or SYSTEM actor or an unresolvable staff member. A CUSTOMER caller gets `null`.
+#
+# M23-S47 — the full booking detail, for a STAFF and a CUSTOMER caller (the BFF keeps each audience's
+# subset): `resources` (one entry per resource of a flat line: `resourceType`, `resourceName`,
+# `origin` `CUSTOMER_CHOICE | SYSTEM_ASSIGNED | null`, and for a fungible pool `quantity` with a null
+# name), `itinerary` (a legged line, in leg order, with `startsAt`/`endsAt` null once the occupancy
+# row is gone), `participantCount`, `attendees`, `intake` (`answers` labelled with the schema version
+# the booking was made on, `consentAcceptedAt`, `consentVersion`), `recurringScheduleId`,
+# `createdByStaffId`/`createdByName`, and `cancellation` / `rejection` (`at`, `reason`, `byCustomer`,
+# `actorId`, `actorName`). All of it comes from the same GET; a read that does not ask for it (the
+# loyalty adapter) gets nulls.
 
 GET {{baseUrl}}/bookings/{{bookingId}}
 X-Tenant-ID: {{tenantId}}

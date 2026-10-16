@@ -7,6 +7,7 @@ import {
   StaffBookingDetailResponse,
   StaffBookingListResponse,
 } from '@ikaro/types';
+import { toCustomerDetailExtras, toStaffDetailExtras } from './bookings-detail.mapper';
 import { BookingDetailResponse, BookingListItem, BookingListResponse } from './bookings.types';
 
 function toMoneyOrNull(
@@ -105,6 +106,7 @@ export function toCustomerBookingDetail(
     discountPointsUsed: detail.discountPointsUsed,
     discountAmount: toMoneyOrNull(detail.discountAmount),
     pointsEarned: detail.pointsEarned,
+    ...toCustomerDetailExtras(detail),
   };
 }
 
@@ -166,5 +168,6 @@ export function toStaffBookingDetail(
     rejectionReason: detail.rejectionReason,
     statusHistory: detail.statusHistory ?? [],
     hasOpenException: detail.hasOpenException ?? false,
+    ...toStaffDetailExtras(detail),
   };
 }

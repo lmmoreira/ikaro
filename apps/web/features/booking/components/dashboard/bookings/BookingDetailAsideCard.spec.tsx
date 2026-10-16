@@ -18,6 +18,18 @@ vi.mock('next/link', () => ({
 
 function makeBooking(overrides?: Partial<StaffBookingDetailResponse>): StaffBookingDetailResponse {
   return {
+    notes: null,
+    adminNotes: null,
+    createdAt: '2026-06-14T09:12:00.000Z',
+    createdByName: null,
+    resources: [],
+    itinerary: [],
+    participantCount: null,
+    attendees: [],
+    intake: null,
+    recurringScheduleId: null,
+    cancellation: null,
+    rejection: null,
     bookingId: 'b-1',
     status: 'PENDING',
     scheduledAt: '2026-06-16T10:00:00.000Z',

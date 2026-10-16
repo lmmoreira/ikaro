@@ -682,6 +682,8 @@ describe('BookingsController', () => {
       createdAt: '2026-01-01T00:00:00.000Z',
       cancellableUntil: null,
       pointsEarned: null,
+      participantCount: null,
+      recurringScheduleId: null,
     };
 
     it('CUSTOMER: calls GET /bookings/:id and returns CustomerBookingDetailResponse, dropping staff-only fields', async () => {
@@ -709,6 +711,15 @@ describe('BookingsController', () => {
         discountPointsUsed: null,
         discountAmount: null,
         pointsEarned: null,
+        pickupAddress: null,
+        resources: [],
+        itinerary: [],
+        participantCount: null,
+        attendees: [],
+        intake: null,
+        recurringScheduleId: null,
+        cancellation: null,
+        rejection: null,
       });
       expect(result).not.toHaveProperty('contactEmail');
       expect(result).not.toHaveProperty('adminNotes');

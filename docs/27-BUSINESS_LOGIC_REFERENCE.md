@@ -543,6 +543,36 @@ On success the status moves to `NO_SHOW`, a `booking_status_transitions` row is 
 
 ---
 
+## Booking — Full Booking Detail (M23-S47)
+
+**Why this section exists:** the detail read answers "which resource did this booking have, and who did what to it" from two tables with different lifetimes. Reading the wrong one shows a stale resource or nothing at all.
+
+```mermaid
+flowchart TD
+    Booking["booking (aggregate)<br/>cancelledAt/By, cancellationReason,<br/>rejectedAt/By, rejectionReason,<br/>attendees, intake, createdByStaffId"] --> Detail
+    Assign["booking_line_resource_assignments<br/>append-only, never deleted<br/>latest row per (line, type, leg, quantity)"] -->|"resources + itinerary ORDER<br/>every status"| Detail
+    Occ["resource_occupancy<br/>deleted on cancel / reject,<br/>purged 90 days after ends_at"] -->|"leg TIMES only,<br/>null when the row is gone"| Detail
+    Schema["service_booking_intake_schema<br/>versioned, never edited"] -->|"answer labels of the BOOKED version"| Detail
+    Detail["GET /bookings/:id<br/>(includeDetailExtras)"] --> BFF{"BFF mapper"}
+    BFF -->|staff| Staff["everything, incl. adminNotes,<br/>creator name, actor names"]
+    BFF -->|customer| Cust["resources, participants, own answers,<br/>cancel: 'Você' / 'O estabelecimento',<br/>reason only if the establishment cancelled"]
+```
+
+### Rules
+
+- **Resources and itinerary order: the latest assignment per slot.** The assignment table is append-only (a reassign or a reschedule onto another resource adds a row), so a raw read shows stale resources; the latest row per `(line, resource type, leg, quantity position)` is the resource the booking is on now, or was on when it ended. It is not deduplicated by resource: one van on legs 1 and 3 is two itinerary entries.
+- **Leg times: only while the occupancy row exists.** A cancel or reject deletes the rows at once; a completed or no-show booking keeps them until the 90-day purge. A leg without a live row has `startsAt`/`endsAt` = `null` and the UI shows the order and the resource only. Times are never derived from the service's current leg durations, which may have changed.
+- **Origin tag** (`CUSTOMER_CHOICE` / `SYSTEM_ASSIGNED`) comes from the service's *current* requirement for that resource type; a service that no longer declares it carries no tag. A `NONE` requirement (the default single-location shape) shows nothing. A fungible pool shows a quantity and never the unit.
+- **Cancel and reject facts come from the aggregate**, not the status history (no backfill). A customer's own cancel stores no reason, so only a business cancel has one; the customer sees *who* only as "Você" or "O estabelecimento".
+- **Cost:** the extra reads sit behind `includeDetailExtras`, off by default (the loyalty adapter also calls this use case); staff names are resolved only for the staff-facing read.
+
+### Known limitations
+
+- A completed charge is not part of this section: it ships in the completed banner (`BookingCompletionSummary`).
+- A booking cancelled by a recurring schedule ending has no reason of its own.
+
+---
+
 ## Other bounded contexts
 
 Not yet written. Add a section here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

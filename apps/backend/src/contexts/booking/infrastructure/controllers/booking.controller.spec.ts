@@ -121,6 +121,7 @@ describe('BookingController', () => {
         new InMemoryBookingStatusTransitionRepository(),
         new InMemoryBookingStaffPort(),
         new InMemoryFutureCommitmentExceptionRepository(),
+        new InMemoryServiceIntakeSchemaRepository(),
       ),
     });
 
@@ -258,6 +259,7 @@ describe('BookingController', () => {
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
+        new InMemoryServiceIntakeSchemaRepository(),
         ),
       );
       const err = await ctrl
@@ -345,6 +347,7 @@ describe('BookingController', () => {
           new InMemoryBookingStatusTransitionRepository(),
           new InMemoryBookingStaffPort(),
           new InMemoryFutureCommitmentExceptionRepository(),
+        new InMemoryServiceIntakeSchemaRepository(),
         ),
       );
       const err = await ctrl.createAuthenticated(authBody()).catch((e: unknown) => e);

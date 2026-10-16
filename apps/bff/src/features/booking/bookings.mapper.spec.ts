@@ -230,6 +230,16 @@ describe('toStaffBookingDetail()', () => {
     pointsEarned: null,
     statusHistory: null,
     hasOpenException: null,
+    resources: null,
+    itinerary: null,
+    participantCount: null,
+    attendees: null,
+    intake: null,
+    recurringScheduleId: null,
+    createdByStaffId: null,
+    createdByName: null,
+    cancellation: null,
+    rejection: null,
   };
 
   it('maps backend booking detail fields and the given loyaltyBalance to StaffBookingDetailResponse', () => {
@@ -265,6 +275,18 @@ describe('toStaffBookingDetail()', () => {
       rejectionReason: null,
       statusHistory: [],
       hasOpenException: false,
+      notes: null,
+      adminNotes: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      createdByName: null,
+      resources: [],
+      itinerary: [],
+      participantCount: null,
+      attendees: [],
+      intake: null,
+      recurringScheduleId: null,
+      cancellation: null,
+      rejection: null,
     });
   });
 
@@ -534,6 +556,16 @@ describe('toCustomerBookingDetail()', () => {
     pointsEarned: null,
     statusHistory: null,
     hasOpenException: null,
+    resources: null,
+    itinerary: null,
+    participantCount: null,
+    attendees: null,
+    intake: null,
+    recurringScheduleId: null,
+    createdByStaffId: null,
+    createdByName: null,
+    cancellation: null,
+    rejection: null,
   };
 
   it('maps backend booking detail fields to CustomerBookingDetailResponse', () => {
@@ -557,6 +589,15 @@ describe('toCustomerBookingDetail()', () => {
       discountPointsUsed: null,
       discountAmount: null,
       pointsEarned: null,
+      pickupAddress: null,
+      resources: [],
+      itinerary: [],
+      participantCount: null,
+      attendees: [],
+      intake: null,
+      recurringScheduleId: null,
+      cancellation: null,
+      rejection: null,
     });
   });
 
@@ -782,6 +823,16 @@ describe('toGuestBookingRead()', () => {
     pointsEarned: null,
     statusHistory: null,
     hasOpenException: null,
+    resources: null,
+    itinerary: null,
+    participantCount: null,
+    attendees: null,
+    intake: null,
+    recurringScheduleId: null,
+    createdByStaffId: null,
+    createdByName: null,
+    cancellation: null,
+    rejection: null,
   };
 
   it('maps backend booking detail fields to GuestBookingReadResponse', () => {

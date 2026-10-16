@@ -538,6 +538,98 @@ describe('BookingController (integration)', () => {
       expect(second.legIndex).toBe(1);
       expect(body.totalDurationMins).toBe(fixedMinutes + 35);
     });
+
+    describe('GET /bookings/:id — resources and itinerary (M23-S47)', () => {
+      const detail = (id: string, tenantId = tenantAId, role: 'MANAGER' | 'STAFF' = 'MANAGER') =>
+        request(app.getHttpServer())
+          .get(`/bookings/${id}`)
+          .set(actorHeaders(tenantId, STAFF_ID, role));
+
+      it('returns the chosen resource with its origin, and tenant B cannot read the booking', async () => {
+        const { body: created } = await request(app.getHttpServer())
+          .post('/bookings')
+          .set(guestHeaders(tenantAId))
+          .send({
+            ...validBody(),
+            scheduledAt: `${futureDate(41)}T13:00:00.000Z`,
+            serviceIds: [customerChoiceServiceId],
+            resourceSelections: [
+              {
+                serviceId: customerChoiceServiceId,
+                legIndex: null,
+                resourceType: 'STAFF',
+                resourceId: staffResourceId,
+              },
+            ],
+          })
+          .expect(201);
+
+        const { body } = await detail(created.bookingId).expect(200);
+
+        expect(body.resources).toEqual([
+          expect.objectContaining({
+            resourceType: 'STAFF',
+            resourceName: 'Ana Souza',
+            origin: 'CUSTOMER_CHOICE',
+            quantity: null,
+          }),
+        ]);
+        expect(body.itinerary).toEqual([]);
+        await detail(created.bookingId, tenantBId).expect(404);
+      });
+
+      it('shows a fungible pool as a quantity without naming the unit', async () => {
+        const { body: created } = await request(app.getHttpServer())
+          .post('/bookings')
+          .set(guestHeaders(tenantAId))
+          .send({
+            ...validBody(),
+            scheduledAt: `${futureDate(42)}T13:00:00.000Z`,
+            serviceIds: [poolServiceId],
+          })
+          .expect(201);
+
+        const { body } = await detail(created.bookingId).expect(200);
+
+        expect(body.resources).toEqual([
+          expect.objectContaining({ resourceType: 'ROOM', resourceName: null, quantity: 1 }),
+        ]);
+      });
+
+      it('lists a legged booking in leg order with times, and keeps the legs without times once cancelled', async () => {
+        const { body: created } = await request(app.getHttpServer())
+          .post('/bookings')
+          .set(guestHeaders(tenantAId))
+          .send({
+            ...validBody(),
+            scheduledAt: `${futureDate(43)}T13:00:00.000Z`,
+            serviceIds: [leggedServiceId],
+          })
+          .expect(201);
+
+        const { body: live } = await detail(created.bookingId).expect(200);
+        expect(live.itinerary.map((leg: { legIndex: number }) => leg.legIndex)).toEqual([0, 1]);
+        expect(live.itinerary[0]).toMatchObject({ legName: 'Sauna', resourceName: 'Sala Spa' });
+        expect(live.itinerary[0].startsAt).not.toBeNull();
+
+        await request(app.getHttpServer())
+          .patch(`/bookings/${created.bookingId}/cancel-admin`)
+          .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+          .send({ reason: 'Equipamento em manutenção' })
+          .expect(200);
+
+        const { body: cancelled } = await detail(created.bookingId).expect(200);
+        expect(cancelled.itinerary).toHaveLength(2);
+        expect(
+          cancelled.itinerary.every((leg: { startsAt: string | null }) => leg.startsAt === null),
+        ).toBe(true);
+        expect(cancelled.cancellation).toMatchObject({
+          reason: 'Equipamento em manutenção',
+          byCustomer: false,
+          actorId: STAFF_ID,
+        });
+      });
+    });
   });
 
   describe('POST /bookings — variable duration + intake (M23-S02)', () => {
@@ -674,6 +766,19 @@ describe('BookingController (integration)', () => {
         .findOneByOrFail({ id: created.bookingId as string });
       expect(savedBooking.intakeSchemaVersion).toBe(1);
       expect(savedBooking.intakeAnswers).toEqual({ vehiclePlate: 'ABC1D23' });
+
+      // M23-S47: the detail still labels the answer with the version the booking was made on.
+      const { body: detail } = await request(app.getHttpServer())
+        .get(`/bookings/${created.bookingId}`)
+        .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
+        .expect(200);
+      expect(detail.intake).toMatchObject({
+        schemaVersion: 1,
+        answers: [
+          { fieldKey: 'vehiclePlate', label: 'Placa', type: 'FREE_TEXT', value: 'ABC1D23' },
+        ],
+      });
+      expect(detail.intake.consentAcceptedAt).not.toBeNull();
     });
 
     it('422s when a required intake answer is missing', async () => {

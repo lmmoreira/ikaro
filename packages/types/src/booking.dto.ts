@@ -225,6 +225,86 @@ export interface BookingStatusHistoryEntry {
   occurredAt: string;
 }
 
+// M23-S47 — the full booking detail. Who picked a resource; null when the service no longer declares
+// a requirement for that resource type, so a wrong tag is never shown.
+export type BookingResourceOrigin = 'CUSTOMER_CHOICE' | 'SYSTEM_ASSIGNED';
+
+// One resource of a flat booking line. A fungible pool is one entry with `quantity` (units reserved)
+// and no `resourceName`: the pool never says which unit was reserved. It comes from the latest
+// resource assignment per slot, so a cancelled or rejected booking still has it.
+export interface BookingLineResourceEntry {
+  lineId: string;
+  serviceName: string;
+  resourceType: ResourceType;
+  resourceName: string | null;
+  origin: BookingResourceOrigin | null;
+  quantity: number | null;
+}
+
+// One leg of a legged booking line, in leg order. The times exist only while the occupancy row does
+// (never after a cancel or reject, nor after the 90-day purge): null then.
+export interface BookingItineraryLeg {
+  lineId: string;
+  serviceName: string;
+  legIndex: number;
+  legName: string | null;
+  resourceType: ResourceType;
+  resourceName: string;
+  startsAt: string | null;
+  endsAt: string | null;
+}
+
+export interface BookingDetailAttendee {
+  name: string;
+  isMinor: boolean;
+}
+
+// Labelled with the intake schema version the booking was made on, not the active one.
+export interface BookingDetailIntakeAnswer {
+  fieldKey: string;
+  label: string;
+  type: 'FREE_TEXT' | 'BOOLEAN';
+  value: string | boolean;
+}
+
+export interface CustomerBookingDetailIntake {
+  schemaVersion: number;
+  answers: BookingDetailIntakeAnswer[];
+  // Null when staff created the booking and the customer's consent was not collected (UC-108).
+  consentAcceptedAt: string | null;
+}
+
+export interface StaffBookingDetailIntake extends CustomerBookingDetailIntake {
+  consentVersion: number | null;
+}
+
+// Who did it, for the staff read only. `name` is the staff member's name, or the booking's contact
+// name for a customer; null when unresolvable, and the UI then shows a role label.
+export interface BookingActorRef {
+  kind: 'CUSTOMER' | 'STAFF';
+  name: string | null;
+}
+
+export interface StaffBookingTermination {
+  at: string;
+  reason: string | null;
+  by: BookingActorRef;
+}
+
+// The customer sees who only as "you" or "the establishment", never a staff name or id. A customer's
+// own cancel stores no reason, so `reason` is non-null only when the establishment cancelled.
+export interface CustomerBookingCancellation {
+  at: string;
+  byCustomer: boolean;
+  reason: string | null;
+}
+
+// The reason the business gave when it declined the request (it is also emailed to the customer).
+export interface CustomerBookingRejection {
+  at: string;
+  reason: string | null;
+}
+
 export interface StaffBookingDetailResponse {
   bookingId: string;
   status: BookingStatus;
@@ -270,6 +350,20 @@ export interface StaffBookingDetailResponse {
   // M23-S27 — every status change of the booking, oldest first (staff-facing only).
   statusHistory: BookingStatusHistoryEntry[];
 
+  // M23-S47 — the full booking detail.
+  notes: string | null; // the customer's own notes at request time
+  adminNotes: string | null; // internal, staff only
+  createdAt: string;
+  createdByName: string | null; // set only for a booking staff created on the customer's behalf
+  resources: BookingLineResourceEntry[];
+  itinerary: BookingItineraryLeg[];
+  participantCount: number | null;
+  attendees: BookingDetailAttendee[];
+  intake: StaffBookingDetailIntake | null;
+  recurringScheduleId: string | null;
+  cancellation: StaffBookingTermination | null;
+  rejection: StaffBookingTermination | null;
+
   // M23-S46 — the booking has an open "Reservas a resolver" entry (a view of current data, never
   // stored): the detail shows the "Precisa de decisão" banner and, for a manager, the decision panel.
   hasOpenException: boolean;
@@ -301,6 +395,18 @@ export interface CustomerBookingDetailResponse {
   lines: CustomerBookingLineItem[];
   totalPrice: MoneyAmount;
   notes: string | null; // customer's own notes at time of request
+  pickupAddress: Address | null;
+
+  // M23-S47 — the booking's resources, participants, the customer's own answers and, once terminal,
+  // the cancel or reject facts. Never internal notes, "Criado por" or an actor's name or id.
+  resources: BookingLineResourceEntry[];
+  itinerary: BookingItineraryLeg[];
+  participantCount: number | null;
+  attendees: BookingDetailAttendee[];
+  intake: CustomerBookingDetailIntake | null;
+  recurringScheduleId: string | null;
+  cancellation: CustomerBookingCancellation | null;
+  rejection: CustomerBookingRejection | null;
 
   // Self-cancellation deadline (UC-007), same semantics as CustomerBookingListItem.
   cancellableUntil: string | null;

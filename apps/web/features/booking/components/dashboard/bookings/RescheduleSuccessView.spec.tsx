@@ -7,6 +7,18 @@ import { RescheduleSuccessView } from './RescheduleSuccessView';
 
 function makeBooking(): StaffBookingDetailResponse {
   return {
+    notes: null,
+    adminNotes: null,
+    createdAt: '2026-06-14T09:12:00.000Z',
+    createdByName: null,
+    resources: [],
+    itinerary: [],
+    participantCount: null,
+    attendees: [],
+    intake: null,
+    recurringScheduleId: null,
+    cancellation: null,
+    rejection: null,
     hasOpenException: false,
     bookingId: 'b-1',
     status: 'APPROVED',

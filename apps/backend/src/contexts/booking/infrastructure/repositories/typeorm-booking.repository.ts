@@ -22,6 +22,7 @@ import {
   BookingFilters,
   BookingListFilters,
   BookingPaginatedResult,
+  BookingLineResourceAssignment,
   BookingResourceAssignmentSummary,
   IBookingRepository,
 } from '../../application/ports/booking-repository.port';
@@ -200,6 +201,17 @@ export class TypeOrmBookingRepository implements IBookingRepository {
   // every hop, not just the outer WHERE — see the same discipline in
   // typeorm-booking-availability.adapter.ts's findDayGridOccupancy). Deduplicated by resourceId
   // per booking — a resource assigned across 2+ lines/legs of the same booking is listed once.
+  // A LatestResourceAssignmentRow carries every field of a BookingLineResourceAssignment.
+  findLatestResourceAssignments(
+    tenantId: string,
+    bookingId: string,
+  ): Promise<BookingLineResourceAssignment[]> {
+    return this.resourceAssignmentRepo.query(LATEST_RESOURCE_ASSIGNMENTS_SQL, [
+      tenantId,
+      [bookingId],
+    ]);
+  }
+
   private async findResourceAssignmentsByBookingId(
     entities: BookingEntity[],
     tenantId: string,

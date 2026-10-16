@@ -1,7 +1,12 @@
-import { Booking } from '../../domain/booking.aggregate';
+import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
+import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
-import { BookingLineOccupancyRow } from '../ports/resource-occupancy-repository.port';
+import {
+  BookingLineOccupancyRow,
+  IResourceOccupancyRepository,
+} from '../ports/resource-occupancy-repository.port';
+import { IServiceRepository } from '../ports/service-repository.port';
 import { ResourceSelectionInput } from './resource-occupancy.helpers';
 import { resolveEffectiveBookingWindow, TenantBookingWindow } from './booking-window.helpers';
 import { findRequirementForAssignment } from './future-commitment-alternatives.helpers';
@@ -88,4 +93,37 @@ export function buildRescheduleOptions(
       resourceName: row.resourceName,
     })),
   };
+}
+
+export interface LoadRescheduleOptionsDeps {
+  serviceRepo: IServiceRepository;
+  occupancyRepo: IResourceOccupancyRepository;
+  txManager: ITransactionManager;
+}
+
+// The customer reschedule screen's input, loaded for an APPROVED booking only (null otherwise).
+export async function loadRescheduleOptions(
+  deps: LoadRescheduleOptionsDeps,
+  params: Omit<BuildRescheduleOptionsParams, 'serviceMap' | 'occupancyRows'>,
+): Promise<BookingRescheduleOptionsDetail | null> {
+  const { booking } = params;
+  if (booking.status !== BookingStatus.APPROVED) return null;
+
+  const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+  const [services, occupancyRows] = await Promise.all([
+    deps.serviceRepo.findByIds(serviceIds, booking.tenantId),
+    // The occupancy repository only works inside a transaction, reads included.
+    deps.txManager.run(() =>
+      deps.occupancyRepo.findOccupancyByBookingLines(
+        booking.tenantId,
+        booking.lines.map((line) => line.lineId),
+      ),
+    ),
+  ]);
+
+  return buildRescheduleOptions({
+    ...params,
+    serviceMap: new Map(services.map((service) => [service.id, service])),
+    occupancyRows,
+  });
 }

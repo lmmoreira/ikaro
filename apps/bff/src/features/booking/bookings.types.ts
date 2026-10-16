@@ -1,4 +1,8 @@
 import {
+  BookingDetailAttendee,
+  BookingDetailIntakeAnswer,
+  BookingItineraryLeg,
+  BookingLineResourceEntry,
   BookingRescheduleOptions,
   BookingStatus,
   BookingStatusHistoryEntry,
@@ -181,4 +185,31 @@ export interface BookingDetailResponse {
   // Present only on the staff-facing read (M23-S46): true when the booking has an open "Reservas a
   // resolver" entry; null on a customer or loyalty read, which never queries the worklist.
   hasOpenException: boolean | null;
+  // M23-S47 — present on the staff and customer reads (null/empty on a read that did not ask).
+  resources: BookingLineResourceEntry[] | null;
+  itinerary: BookingItineraryLeg[] | null;
+  participantCount: number | null;
+  attendees: BookingDetailAttendee[] | null;
+  intake: BackendBookingIntake | null;
+  recurringScheduleId: string | null;
+  createdByStaffId: string | null;
+  createdByName: string | null;
+  cancellation: BackendBookingTermination | null;
+  rejection: BackendBookingTermination | null;
+}
+
+export interface BackendBookingIntake {
+  schemaVersion: number;
+  answers: BookingDetailIntakeAnswer[];
+  consentAcceptedAt: string | null;
+  consentVersion: number | null;
+}
+
+// The backend's cancel/reject facts: the actor id and name are for the staff read only.
+export interface BackendBookingTermination {
+  at: string;
+  reason: string | null;
+  byCustomer: boolean;
+  actorId: string | null;
+  actorName: string | null;
 }
