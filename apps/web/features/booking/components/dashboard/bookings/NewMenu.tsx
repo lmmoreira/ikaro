@@ -12,10 +12,10 @@ interface NewMenuItem {
 }
 
 // One "+ Novo" button, never a second one: a new kind of "create on a customer's behalf" is one
-// more entry here. "Recorrência" (UC-070, M23-S19) is not listed until that story ships and adds
-// its entry, so the menu never offers something that leads nowhere.
+// more entry here. Both start at the shared customer chooser, which reads `?tipo=`.
 export const NEW_MENU_ITEMS: readonly NewMenuItem[] = [
   { key: 'agendamento', href: '/dashboard/bookings/new?tipo=agendamento' },
+  { key: 'recorrencia', href: '/dashboard/bookings/new?tipo=recorrencia' },
 ];
 
 interface NewMenuProps {

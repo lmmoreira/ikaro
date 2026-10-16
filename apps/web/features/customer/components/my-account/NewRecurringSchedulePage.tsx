@@ -13,24 +13,19 @@ import {
   type PatternRefusal,
   type RecurringScheduleDraft,
 } from '@/features/booking/model/recurring-schedule-form';
-import {
-  choiceRequirements,
-  isBundleForm,
-  isChoiceLine,
-  optionsForChoice,
-  visibleRequirementLines,
-} from '@/features/booking/model/recurring-requirements';
+import { choiceRequirements } from '@/features/booking/model/recurring-requirements';
 import type { NoRecurrenceServicesReason } from '@/features/booking/model/recurring-service-eligibility';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useCreateRecurringSchedule } from '../../hooks/useCreateRecurringSchedule';
-import { useRecurringResourceOptions } from '../../hooks/useRecurringResourceOptions';
+import { useRecurringResourceOptions } from '@/features/booking/hooks/useRecurringResourceOptions';
 import { recurringScheduleListPath } from '../../recurring-schedule-model';
 import { useCustomerTopbarStatus } from '../customer-topbar-status-context';
 import { NewRecurringScheduleForm } from './NewRecurringScheduleForm';
 import { NewRecurringScheduleRenewalNotice } from './NewRecurringScheduleRenewalNotice';
 import { NewRecurringScheduleResult } from './NewRecurringScheduleResult';
 import { NewRecurringScheduleReview } from './NewRecurringScheduleReview';
-import { useRequirementText } from './use-requirement-text';
+import { buildResourceRecap } from '@/features/booking/components/recurring/resource-recap';
+import { useRequirementText } from '@/features/booking/components/recurring/use-requirement-text';
 import { RecurringSchedulePendingView } from './RecurringSchedulePendingView';
 
 interface NewRecurringSchedulePageProps {
@@ -125,37 +120,8 @@ export function NewRecurringSchedulePage({
   }
 
   const issues = validateDraft(draft, service);
-  const bundle = isBundleForm(service);
-  // The review lists every resource: the picked one by name, an automatic one as such. A lone
-  // automatic requirement is not listed (it never had a row).
-  const reviewResources = visibleRequirementLines(service).flatMap((line) => {
-    if (!isChoiceLine(line)) {
-      return bundle
-        ? [
-            {
-              key: `auto-${line.type}`,
-              label: text.bundleTitle(line),
-              value: text.autoChosen(line),
-            },
-          ]
-        : [];
-    }
-    const picked = draft.resourceIds[line.choiceIndex] ?? null;
-    const name =
-      resources.data === undefined
-        ? undefined
-        : optionsForChoice(resources.data, line).find((option) => option.resourceId === picked)
-            ?.name;
-    return name === undefined
-      ? []
-      : [
-          {
-            key: `choice-${line.type}`,
-            label: bundle ? text.bundleTitle(line) : text.singleTitle(),
-            value: name,
-          },
-        ];
-  });
+  // The review lists every resource: the picked one by name, an automatic one as such.
+  const reviewResources = buildResourceRecap(service, draft, resources.data, text);
 
   function handleReview(): void {
     if (service === null) return;

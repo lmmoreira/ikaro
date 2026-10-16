@@ -28,7 +28,7 @@ export function ServiceField({
   serviceId,
   onChange,
 }: ServiceFieldProps): React.JSX.Element {
-  const tn = useTranslations('customer.recurringSchedules.new');
+  const tn = useTranslations('booking.recurringScheduleForm');
   const label = (service: HotsiteServiceResponse): string =>
     tn('serviceOption', {
       name: service.name,
@@ -92,7 +92,7 @@ export function ResourceField({
   index = 0,
   onChange,
 }: ResourceFieldProps): React.JSX.Element {
-  const tn = useTranslations('customer.recurringSchedules.new');
+  const tn = useTranslations('booking.recurringScheduleForm');
 
   function renderChoice(): React.JSX.Element {
     if (query.isError) {

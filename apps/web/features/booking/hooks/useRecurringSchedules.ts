@@ -1,11 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { CreateRecurringBookingScheduleRequest } from '@ikaro/types';
 import {
   approveRecurringScheduleAsStaff,
+  createRecurringScheduleAsStaff,
   getRecurringSchedule,
   listPendingRecurringSchedules,
   rejectRecurringScheduleAsStaff,
 } from '@/features/booking/api/recurring-booking-schedules';
 import { getService } from '@/features/booking/api/services';
+import {
+  mapStaffCreateFailure,
+  mapStaffCreateSuccess,
+  type StaffCreateOutcome,
+} from '@/features/booking/model/recurring-staff-create';
 import { useTenant } from '@/providers/tenant-provider';
 
 // Staff side of the recurring schedules (UC-071, M23-S13). The customer side reads the same
@@ -65,5 +72,26 @@ export function useRejectRecurringSchedule() {
   return useMutation({
     mutationFn: (scheduleId: string) => rejectRecurringScheduleAsStaff(scheduleId),
     onSuccess: invalidate,
+  });
+}
+
+// UC-070, M23-S19: a staff member creates a schedule for a customer. Like the customer's own
+// mutation it never rejects — every HTTP outcome is a variant of `StaffCreateOutcome`, so the form
+// keeps the typed pattern. A created schedule is ACTIVE and its occurrences exist at once, so the
+// Agenda's booking sections, the day grid and the schedule lists are refreshed; a refusal created
+// nothing and refreshes nothing.
+export function useCreateRecurringScheduleAsStaff() {
+  const invalidate = useInvalidateAfterDecision();
+  return useMutation<StaffCreateOutcome, never, CreateRecurringBookingScheduleRequest>({
+    mutationFn: async (body) => {
+      try {
+        return mapStaffCreateSuccess(await createRecurringScheduleAsStaff(body));
+      } catch (error) {
+        return mapStaffCreateFailure(error);
+      }
+    },
+    onSuccess: async (outcome) => {
+      if (outcome.kind === 'ACTIVE') await invalidate();
+    },
   });
 }

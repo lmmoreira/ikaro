@@ -137,8 +137,8 @@ Folder: `staff/prototypes/agenda/`
 | `09-escolher-cliente.html` | **Shared customer chooser** for everything staff creates on a customer's behalf (`?tipo=agendamento` or `recorrencia`): *Cliente cadastrado* (search by name, e-mail or phone; recent; no result; search error) and *Novo contato* (name, phone, e-mail, all required → guest booking; disabled for a recurrence) | UC-108, UC-070 | M23-S40 · M23-S19 | ✅ Criado — M23-S40 (the Recorrência mode is consumed by M23-S19) |
 | `10-novo-agendamento.html` | Novo agendamento — the public flow's steps in the dashboard skin (the public step engine: services, a picker per requirement that needs a choice — per leg for a legged service —, duration, date/time, intake, confirm; the step count depends on the basket and there is no personal step; "Passo 1 de 3" is the simplest case), summary and actions in the right pane; staff see slots inside the minimum notice. The picker, duration, intake, pickup and itinerary steps are built as dashboard views of the public steps, not drawn here (decided 2026-10-13) | UC-108 | M23-S40 | ✅ Criado — M23-S40 |
 | `10b-novo-agendamento-resultado.html` | Inline outcomes: created `APPROVED`, 409 slot taken, outside the window, customer without phone, customer not found, network/5xx | UC-108 | M23-S40 | ✅ Criado — M23-S40 |
-| `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recursos, dias, horário, período) para o cliente escolhido, com **variantes** por forma de serviço (`#simples`, `#padrao` sem campo de recurso, `#pacote` / `#pacote-duas` com um grupo por requisito de escolha e uma linha para cada automático, `#pacote-falta`, `#opcoes`) e por recusa do padrão (`#erros`, `#recusa`, `#sem-ocorrencia`) e de lista vazia (`#sem-servicos`, `#sem-elegivel`). Redesenhada em 2026-10-15 após o TD49 | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
-| `09c-nova-recorrencia-resultado.html` | Desfechos: criada, aguardando aprovação, conflito, limite, cliente sem telefone, cliente não encontrado, falha (resumo por forma de serviço: `?forma=simples\|padrao\|pacote`) | UC-070 | M23-S19 | ❓ Gap (M23 Cluster 3) |
+| `09b-nova-recorrencia-padrao.html` | Nova recorrência — padrão (serviço, recursos, dias, horário, período) para o cliente escolhido, com **variantes** por forma de serviço (`#simples`, `#padrao` sem campo de recurso, `#pacote` / `#pacote-duas` com um grupo por requisito de escolha e uma linha para cada automático, `#pacote-falta`, `#opcoes`) e por recusa do padrão (`#erros`, `#recusa`, `#sem-ocorrencia`) e de lista vazia (`#sem-servicos`, `#sem-elegivel`). Redesenhada em 2026-10-15 após o TD49 | UC-070 | M23-S19 | ✅ Criado — M23-S19 |
+| `09c-nova-recorrencia-resultado.html` | Desfechos: criada, conflito, limite, cliente sem telefone, cliente não encontrado, falha (resumo por forma de serviço: `?forma=simples\|padrao\|pacote`). `#aguardando` não ocorre para a equipe: quem cria é quem aprova (decidido na discovery de M23-S19, 2026-10-16) | UC-070 | M23-S19 | ✅ Criado — M23-S19 |
 | `03-booking-detail-approved.html` — "Marcar não compareceu" (extended) | Nova ação + bottom sheet (motivo opcional) no detalhe de um agendamento aprovado | UC-074 | M23-S09 (backend/BFF) · M23-S27 | ✅ Criado |
 | `03c-no-show-not-yet-ended.html` | Atendimento ainda não terminou: ação desativada com dica; erro 422 `BOOKING_NOT_YET_ENDED` (`#rejeitado`) | UC-074 A1 | M23-S27 | ✅ Criado |
 | `03d-no-show-success.html` | Sucesso inline (`actionState = 'no-show'`), status "Não compareceu" | UC-074 | M23-S27 | ✅ Criado |
@@ -174,11 +174,11 @@ The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchan
 
 Nothing above is built; the screens are the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
-## M23 — Multi-Vertical Scheduling, Cluster 3 extension (UC-071 approval ✅ Criado by M23-S13 · UC-074 no-show ✅ Criado by M23-S27 · staff creation ❓ Gap, M23-S19)
+## M23 — Multi-Vertical Scheduling, Cluster 3 extension (UC-071 approval ✅ Criado by M23-S13 · UC-074 no-show ✅ Criado by M23-S27 · staff creation ✅ Criado by M23-S19)
 
 > Promoted from `docs/discovery/multivertical-booking/`. **UC-071's approval queue lives inside the existing "Precisa de ação" block of the Agenda (decided 2026-10-08)** — a recurrence request is something that needs a staff decision now, exactly like a pending booking, so it sits in the same hot list instead of a separate tab. See "Recurrence requests in the Agenda" below. UC-074 (no-show) extends `03-booking-detail-approved.html`'s existing Cancel/Complete/Reschedule action set with a new "Marcar não compareceu" action — same route and component, no new page; the prototype adds its states as `03c`–`03g` (added 2026-09-30 after the M23-S09 discovery; the UI itself is a future frontend story, M23-S09 ships the backend/BFF only). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
 
-> **Staff creating a recurring schedule on a customer's behalf** (UC-070 allows it, and `POST /recurring-booking-schedules` already accepts a `customerId` from `STAFF|MANAGER`) was added on 2026-09-29 as a deliberately small first pass (`09`, `09b`, `09c`), in the same staff dashboard shell as `08`. **Redrawn 2026-10-15 after TD49:** `09b` now shows every service shape the server accepts (single choice, the default shape with no resource field, a bundle with one pick group per `CUSTOMER_CHOICE` requirement and a line per automatic one), the empty states and the pattern refusals; `09c` gained the customer-without-phone outcome and shape-neutral limit/conflict copy. Creation is direct (no review step, decided 2026-10-15). The rest of the choices stay defaults to recheck at `M23-S19`'s story-discovery.
+> **Staff creating a recurring schedule on a customer's behalf** (UC-070 allows it, and `POST /recurring-booking-schedules` already accepts a `customerId` from `STAFF|MANAGER`) was added on 2026-09-29 as a deliberately small first pass (`09`, `09b`, `09c`), in the same staff dashboard shell as `08`. **Redrawn 2026-10-15 after TD49:** `09b` now shows every service shape the server accepts (single choice, the default shape with no resource field, a bundle with one pick group per `CUSTOMER_CHOICE` requirement and a line per automatic one), the empty states and the pattern refusals; `09c` gained the customer-without-phone outcome and shape-neutral limit/conflict copy. Creation is direct (no review step, decided 2026-10-15). **Shipped by M23-S19 (2026-10-16):** the staff create straight away and, being the approver, a schedule for an approval-required service is created `ACTIVE` (the `#aguardando` panel is not reachable for them); the route is `/dashboard/bookings/recurring/new?customerId=`.
 
 **Recurrence requests in the Agenda (M23-S13, decided 2026-10-08):**
 
@@ -208,27 +208,25 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Agenda["/dashboard/bookings<br/>Agenda — botão '+ Novo' (real, shipped)"] -->|"menu: Recorrência"| Cliente["escolher cliente<br/>(09-escolher-cliente ?tipo=recorrencia, M23-S40)"]
-    Cliente -->|"busca e seleciona (só cliente cadastrado)"| Padrao["❓ GAP: padrão para o cliente<br/>(09b-nova-recorrencia-padrao — variantes por forma de serviço)"]
-    Padrao -->|"nenhum serviço qualifica"| SemServ["❓ GAP: lista vazia<br/>(09b #sem-servicos / #sem-elegivel)"]
+    Cliente -->|"busca e seleciona (só cliente cadastrado)"| Padrao["padrão para o cliente<br/>(09b-nova-recorrencia-padrao — variantes por forma de serviço)"]
+    Padrao -->|"nenhum serviço qualifica"| SemServ["lista vazia<br/>(09b #sem-servicos / #sem-elegivel)"]
     Padrao -->|"'Criar recorrência'"| Envio(("POST /recurring-booking-schedules<br/>com customerId"))
     Padrao -->|"'Trocar cliente'"| Cliente
 
-    Envio -->|"422 padrão recusado (data final, prazo, passado, sem ocorrência)"| Recusa["❓ GAP: volta ao formulário, padrão mantido<br/>(09b #erros / #recusa / #sem-ocorrencia)"]
+    Envio -->|"422 padrão recusado (data final, prazo, passado, sem ocorrência)"| Recusa["volta ao formulário, padrão mantido<br/>(09b #erros / #recusa / #sem-ocorrencia)"]
     Recusa --> Padrao
-    Envio -->|"201 ACTIVE"| Criada["❓ GAP: mesma rota, resultado<br/>(09c #criada)"]
-    Envio -->|"201 PENDING_APPROVAL"| Aguardando["❓ GAP: mesma rota, resultado<br/>(09c #aguardando)"]
-    Envio -->|"409 conflito"| Conflito["❓ GAP: (09c #conflito)"]
-    Envio -->|"409 limite de recorrências ativas"| Limite["❓ GAP: (09c #limite)"]
-    Envio -->|"422 cliente sem telefone"| Telefone["❓ GAP: (09c #telefone)"]
-    Envio -->|"404 cliente não encontrado"| ClienteNaoEncontrado["❓ GAP: (09c #cliente)"]
-    Envio -->|"erro rede/5xx"| Falha["❓ GAP: (09c #falha)"]
+    Envio -->|"201 ACTIVE"| Criada["mesma rota, resultado — sempre ACTIVE para a equipe<br/>(09c #criada)"]
+    Envio -->|"409 conflito"| Conflito["(09c #conflito)"]
+    Envio -->|"409 limite de recorrências ativas"| Limite["(09c #limite)"]
+    Envio -->|"422 cliente sem telefone"| Telefone["(09c #telefone)"]
+    Envio -->|"404 cliente não encontrado"| ClienteNaoEncontrado["(09c #cliente)"]
+    Envio -->|"erro rede/5xx"| Falha["(09c #falha)"]
 
-    Aguardando -->|"'Ver na agenda' (cartão em Precisa de ação)"| Aprovar["❓ GAP: fila da Agenda → 08-recurring-schedule-approval"]
     Conflito -->|"'Alterar padrão'"| Padrao
     Limite -->|"'Alterar padrão'"| Padrao
     Telefone -->|"'Escolher outro cliente'"| Cliente
     ClienteNaoEncontrado -->|"'Escolher outro cliente'"| Cliente
-    Falha -->|"'Tentar novamente'"| Padrao
+    Falha -->|"'Alterar padrão'"| Padrao
 ```
 
 **UC-108 — Staff creates a booking on a customer's behalf (added 2026-10-08):**
@@ -240,7 +238,7 @@ flowchart TD
     Agenda["/dashboard/bookings<br/>Agenda — botão '+ Novo'<br/>(00-agenda)"] -->|"menu: Agendamento"| Quem["escolher o cliente<br/>Cliente cadastrado | Novo contato<br/>(09-escolher-cliente)"]
     Agenda -->|"menu: Recorrência"| Quem
     Quem -->|"Agendamento + continuar"| Passos["passos do fluxo público no dashboard<br/>(10-novo-agendamento)"]
-    Quem -->|"Recorrência + continuar (só cliente cadastrado)"| Padrao["❓ GAP: padrão da recorrência<br/>(09b)"]
+    Quem -->|"Recorrência + continuar (só cliente cadastrado)"| Padrao["padrão da recorrência<br/>(09b)"]
     Passos -->|"'Criar agendamento'"| Envio(("POST /bookings/staff"))
     Envio -->|"201 APPROVED"| Ok["(10b #criado)"]
     Envio -->|"409 horário ocupado"| Oc["(10b #ocupado)"]
@@ -283,9 +281,9 @@ flowchart TD
 - [x] **Filter persistence — decided 2026-10-15 (M23-S13):** remembered per tenant in the browser, like Horários' filters; "Padrão" clears it.
 - [x] **Merged-queue paging — decided 2026-10-15 (M23-S13):** the recurrence cards are pinned above the bookings, closest decision deadline first, whatever week the strip is on (a request has no appointment date); every page of `GET /recurring-booking-schedules?status=PENDING_APPROVAL` is read (`limit=100`, following `pagination.hasMore`).
 - [x] **Week strip with the "Filtrar agenda" balloon — decided 2026-10-15 (M23-S13):** while "Próximos dias" is hidden, a day pick does nothing visible (the pick is kept and applies again when the block is shown); the balloon is the only thing that decides what is visible.
-- [ ] **Approval on a staff-created schedule.** Today a schedule created by staff for a service that requires manual approval still lands in `PENDING_APPROVAL`, so staff would approve their own request. Should staff creation skip approval? (`09c #aguardando` draws today's behavior.)
+- [x] **Approval on a staff-created schedule — decided 2026-10-16 (M23-S19's discovery, shipped): staff skip it.** A schedule a staff member creates for a service that requires manual approval is created `ACTIVE` at once, with `approvedByStaffId` set to that staff member: they are the approver, the same rule as UC-108's one-off booking. `09c #aguardando` is kept only as prototype history; the real screen has six outcomes.
 - [x] **Customer and manager e-mails — shipped in `M23-S28` (corrected 2026-10-08; this bullet used to say nobody is notified).** The customer is e-mailed when a schedule becomes `ACTIVE` (at creation for an `AUTO_CONFIRM` service, at approval otherwise), when it is rejected, when the request expires, and when it is ended. Managers get an alert when a `MANUAL_APPROVAL` request is waiting. `08` and `08b` therefore say "Ana recebe um e-mail", and since 2026-10-15 so do `09b` ("Como funciona") and `09c #criada`.
-- [ ] **Route.** The chooser is S40's `/dashboard/bookings/new` (`?tipo=recorrencia`; its page hard-codes `agendamento` today, so S19 wires the parameter); the pattern step is proposed as `/dashboard/bookings/recurring/new?customerId=` — two segments after `/dashboard/bookings/`, so it is never read as a booking id. A brand-new dashboard section would also need registering in the sidebar, the proxy role list, the bottom nav and the topbar titles. Confirm at `M23-S19`'s discovery.
+- [x] **Route — confirmed 2026-10-16 (shipped).** The chooser is S40's `/dashboard/bookings/new` and now reads `?tipo=recorrencia` (the page passes it to `NewBookingChooserPage`); the pattern step is `/dashboard/bookings/recurring/new?customerId=` — two segments after `/dashboard/bookings/`, so it is never read as a booking id, and `matchRecurringScheduleRoute` excludes `new`. It is registered in the topbar title resolver (before the `/dashboard/bookings` entry) and the `BottomNav` drill-down matcher; it is not a new dashboard section, so no sidebar or proxy entry.
 - [x] **The conflict list** in `09c #conflito` is the `409` occurrence-list payload that `M23-S18` owns (reasons `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, occupancy and hours merged into one list); no backend work in `M23-S19`.
 - [x] **Fixed term — decided 2026-09-29; prototypes `08`, `09b`, `09c` updated in the same-day prototype pass:** a recurring schedule always has an end date, chosen up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or when staff approve). `09b` therefore needs an end-date field with a "máx. N dias" hint and no "sem data final" copy; `09c` needs its "geradas… até 90 dias à frente" success copy replaced (the whole term appears at once) and `#conflito` needs the reason labels; and `08` should show the requested term ("até dd/mm") instead of "sem data de término", with a note that approving creates every occurrence of the term at once (after the checks re-run — if any occurrence no longer passes, approval is refused as a whole with a `409` listing the conflicts and nothing is created; decided in `M23-S05`, since the exception worklist can only hold bookings that already exist).
 - [x] Variable-duration services are out of scope here, as in the customer flow. Bundled services (several resource requirements) are in scope: the API accepts them (TD49 Story 0) and staff creation inherits the customer form's per-requirement picks from `docs/archive/td/TD49-RECURRING-SCHEDULE-BUNDLED-SERVICES.md` Story 2. **Drawn 2026-10-15:** `09b` shows one pick group per `CUSTOMER_CHOICE` requirement and an info line per automatic one (`#pacote`, `#pacote-duas`, `#pacote-falta`, `#opcoes`), plus the default shape with no resource field (`#padrao`) and the empty states (`#sem-servicos`, `#sem-elegivel`), mirroring customer `13h`/`13g`. `08` was redrawn the same day: its "Recurso" row is one row per requirement (`#simples`, `#um`, `#pacote`).

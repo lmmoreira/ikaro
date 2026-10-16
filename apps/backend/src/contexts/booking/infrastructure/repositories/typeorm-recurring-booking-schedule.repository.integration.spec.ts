@@ -6,7 +6,10 @@ import {
   ServiceEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
-import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
+import {
+  RecurringBookingSchedule,
+  RequestRecurringBookingScheduleOptions,
+} from '../../domain/recurring-booking-schedule.aggregate';
 import { BookingConcurrentModificationError } from '../../domain/errors/booking-domain.error';
 import { ServiceEntity } from '../entities/service.entity';
 import { RecurringBookingScheduleEntity } from '../entities/recurring-booking-schedule.entity';
@@ -21,7 +24,9 @@ const SERVICE_ID = '00000000-0000-7000-8000-000000000091';
 const CUSTOMER_ID = '00000000-0000-7000-8000-000000000093';
 const CORRELATION_ID = 'corr-repo-integration';
 
-function activeSchedule(): RecurringBookingSchedule {
+function activeSchedule(
+  overrides: Partial<RequestRecurringBookingScheduleOptions> = {},
+): RecurringBookingSchedule {
   return RecurringBookingSchedule.request({
     tenantId: TENANT_ID,
     customerId: CUSTOMER_ID,
@@ -41,6 +46,7 @@ function activeSchedule(): RecurringBookingSchedule {
     approvalHoldExpiresAt: null,
     createdByStaffId: null,
     correlationId: CORRELATION_ID,
+    ...overrides,
   });
 }
 
@@ -78,6 +84,23 @@ describe('TypeOrmRecurringBookingScheduleRepository (integration)', () => {
 
     const reloaded = await repo.findById(schedule.id, TENANT_ID);
     expect(reloaded?.version).toBe(2);
+  });
+
+  // M23-S19: a schedule a staff member created for a manual-approval service is ACTIVE from the
+  // start and carries its approver, against the real column and its CHECK constraints.
+  it('persists the approver of a schedule a staff member approved by creating it', async () => {
+    const staffId = uuidv7();
+    const schedule = activeSchedule({ createdByStaffId: staffId, approvedByStaffId: staffId });
+    await repo.save(schedule);
+
+    const reloaded = await repo.findById(schedule.id, TENANT_ID);
+    expect(reloaded?.status).toBe('ACTIVE');
+    expect(reloaded?.approvedByStaffId).toBe(staffId);
+    expect(reloaded?.approvedAt).not.toBeNull();
+    expect(reloaded?.createdByStaffId).toBe(staffId);
+    expect(reloaded?.approvalHoldExpiresAt).toBeNull();
+    // another tenant never reads it
+    expect(await repo.findById(schedule.id, uuidv7())).toBeNull();
   });
 
   it('persists STAFF_CANCELLED when staff end the schedule (cancellation-reason constraint)', async () => {

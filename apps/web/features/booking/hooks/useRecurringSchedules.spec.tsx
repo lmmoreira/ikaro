@@ -3,8 +3,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BookingErrorCode } from '@ikaro/types';
+import { ApiError } from '@/shared/lib/api/errors';
 import {
   useApproveRecurringSchedule,
+  useCreateRecurringScheduleAsStaff,
   usePendingRecurringSchedules,
   useRecurringScheduleForStaff,
   useRecurringScheduleService,
@@ -15,6 +18,7 @@ const mockListPending = vi.fn();
 const mockGetSchedule = vi.fn();
 const mockApprove = vi.fn();
 const mockReject = vi.fn();
+const mockCreateAsStaff = vi.fn();
 const mockGetService = vi.fn();
 
 vi.mock('@/features/booking/api/recurring-booking-schedules', () => ({
@@ -22,6 +26,7 @@ vi.mock('@/features/booking/api/recurring-booking-schedules', () => ({
   getRecurringSchedule: (...args: unknown[]) => mockGetSchedule(...args),
   approveRecurringScheduleAsStaff: (...args: unknown[]) => mockApprove(...args),
   rejectRecurringScheduleAsStaff: (...args: unknown[]) => mockReject(...args),
+  createRecurringScheduleAsStaff: (...args: unknown[]) => mockCreateAsStaff(...args),
 }));
 vi.mock('@/features/booking/api/services', () => ({
   getService: (...args: unknown[]) => mockGetService(...args),
@@ -138,5 +143,103 @@ describe('useRejectRecurringSchedule', () => {
 
     expect(mockReject).toHaveBeenCalledWith('s-1');
     expect(invalidate).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('useCreateRecurringScheduleAsStaff', () => {
+  const BODY = {
+    serviceId: 'svc-1',
+    recurrence: {
+      frequency: 'WEEKLY' as const,
+      daysOfWeek: ['monday' as const],
+      startTime: '10:00',
+      durationMinutes: 120,
+    },
+    startsOn: '2026-10-12',
+    endsOn: '2026-11-09',
+    customerId: 'cust-1',
+  };
+
+  it('posts the body and, once the schedule exists, refreshes the schedules, bookings and day grid by prefix', async () => {
+    mockCreateAsStaff.mockResolvedValue({
+      id: 's-1',
+      status: 'ACTIVE',
+      approvalHoldExpiresAt: null,
+    });
+    const { wrapper, invalidate } = setup();
+
+    const { result } = renderHook(() => useCreateRecurringScheduleAsStaff(), { wrapper });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.mutateAsync(BODY);
+    });
+
+    expect(mockCreateAsStaff).toHaveBeenCalledWith(BODY);
+    expect(outcome).toEqual({
+      kind: 'ACTIVE',
+      schedule: { id: 's-1', status: 'ACTIVE', approvalHoldExpiresAt: null },
+    });
+    const keys = invalidate.mock.calls.map(([filters]) => filters?.queryKey);
+    expect(keys).toEqual(
+      expect.arrayContaining([
+        ['recurring-schedules', 't-1'],
+        ['bookings', 't-1'],
+        ['schedule', 'day-grid', 't-1'],
+      ]),
+    );
+  });
+
+  it('resolves every refusal as an outcome, never rejects, and refreshes nothing: nothing was created', async () => {
+    const { wrapper, invalidate } = setup();
+    const { result } = renderHook(() => useCreateRecurringScheduleAsStaff(), { wrapper });
+
+    mockCreateAsStaff.mockRejectedValueOnce(
+      new ApiError(409, 'x', {
+        type: 't',
+        title: 't',
+        status: 409,
+        code: BookingErrorCode.RECURRING_SCHEDULE_CAP_REACHED,
+      }),
+    );
+    mockCreateAsStaff.mockRejectedValueOnce(
+      new ApiError(404, 'x', {
+        type: 't',
+        title: 't',
+        status: 404,
+        code: BookingErrorCode.CUSTOMER_NOT_FOUND,
+      }),
+    );
+    mockCreateAsStaff.mockRejectedValueOnce(new Error('network'));
+    const outcomes: unknown[] = [];
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await act(async () => {
+        outcomes.push(await result.current.mutateAsync(BODY));
+      });
+    }
+
+    expect(outcomes).toEqual([
+      { kind: 'CAP_REACHED' },
+      { kind: 'CUSTOMER_NOT_FOUND' },
+      { kind: 'FAILURE' },
+    ]);
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('treats a pending answer as a failure and refreshes nothing', async () => {
+    mockCreateAsStaff.mockResolvedValue({
+      id: 's-1',
+      status: 'PENDING_APPROVAL',
+      approvalHoldExpiresAt: '2026-10-13T10:00:00Z',
+    });
+    const { wrapper, invalidate } = setup();
+
+    const { result } = renderHook(() => useCreateRecurringScheduleAsStaff(), { wrapper });
+    let outcome;
+    await act(async () => {
+      outcome = await result.current.mutateAsync(BODY);
+    });
+
+    expect(outcome).toEqual({ kind: 'FAILURE' });
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });

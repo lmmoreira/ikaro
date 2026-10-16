@@ -11,7 +11,7 @@ import { BookingOutcomeActionRail } from './BookingOutcomeActionRail';
 import { CustomerSearchPanel } from './CustomerSearchPanel';
 import { GuestContactForm } from './GuestContactForm';
 
-type StaffBookingKind = 'agendamento' | 'recorrencia';
+export type StaffBookingKind = 'agendamento' | 'recorrencia';
 type ChooserMode = 'registered' | 'guest';
 
 interface CustomerChooserStepProps {

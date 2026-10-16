@@ -1,7 +1,10 @@
 import { useTranslations } from 'next-intl';
 import { isBookingCreateRoute, matchBookingDetailRoute } from './booking-route';
 import { isResourceCreateRoute, matchResourceRoute } from './resource-route';
-import { matchRecurringScheduleRoute } from './recurring-schedule-route';
+import {
+  isRecurringScheduleCreateRoute,
+  matchRecurringScheduleRoute,
+} from './recurring-schedule-route';
 import { matchSchedulingExceptionRescheduleRoute } from './scheduling-exception-route';
 import { isServiceCreateRoute, matchServiceRoute } from './service-route';
 import { isTeamInviteRoute, matchTeamRoute } from './team-route';
@@ -43,6 +46,7 @@ interface TopbarRouteContext {
   readonly resourcesT: ReturnType<typeof useTranslations>;
   readonly schedulingExceptionsT: ReturnType<typeof useTranslations>;
   readonly recurringApprovalT: ReturnType<typeof useTranslations>;
+  readonly newRecurringT: ReturnType<typeof useTranslations>;
   readonly returnTo: string | null;
 }
 
@@ -181,6 +185,19 @@ function resolveSchedulingExceptionTitleAndBackLink(
   };
 }
 
+// The staff pattern page of a new recurring reservation (UC-070, M23-S19): a drill-down of the
+// Agenda too. Resolved before the PAGE_TITLE_KEYS prefix fallback, which would title it "Agendamentos".
+function resolveRecurringScheduleCreateTitleAndBackLink(
+  ctx: TopbarRouteContext,
+): TitleAndBackLink | null {
+  if (!isRecurringScheduleCreateRoute(ctx.pathname)) return null;
+  return {
+    pageTitle: ctx.newRecurringT('title'),
+    backHref: '/dashboard/bookings',
+    backLabel: ctx.dashboardT('nav.bookings'),
+  };
+}
+
 // The approval screen of a recurring-schedule request (M23-S13): a drill-down of the Agenda. It must
 // resolve before the PAGE_TITLE_KEYS prefix fallback, which would title it as plain "Agendamentos".
 function resolveRecurringScheduleTitleAndBackLink(
@@ -197,6 +214,7 @@ function resolveRecurringScheduleTitleAndBackLink(
 function resolveSectionTitleAndBackLink(ctx: TopbarRouteContext): TitleAndBackLink | null {
   return (
     resolveRecurringScheduleTitleAndBackLink(ctx) ??
+    resolveRecurringScheduleCreateTitleAndBackLink(ctx) ??
     resolveBookingCreateTitleAndBackLink(ctx) ??
     resolveServiceTitleAndBackLink(ctx) ??
     resolveTeamTitleAndBackLink(ctx) ??
