@@ -2501,6 +2501,14 @@
           "title": "Could not create the booking"
         }
       }
+    },
+    "floatingFilter": {
+      "dragHandleLabel": "Drag to move the filter",
+      "positionTitle": "Position",
+      "positionTopLeft": "Top left",
+      "positionTopRight": "Top right",
+      "positionBottomLeft": "Bottom left",
+      "positionBottomRight": "Bottom right"
     }
   }
 }

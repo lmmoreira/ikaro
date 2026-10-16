@@ -23,6 +23,7 @@ import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { FloatingFilterDock } from '../FloatingFilterDock';
 import { AgendaFilterMenu } from './AgendaFilterMenu';
 import { BookingCard } from './BookingCard';
 import { BookingQueueActionNeeded } from './BookingQueueActionNeeded';
@@ -234,21 +235,23 @@ export function BookingQueuePage({
         )}
       </div>
 
-      <AgendaFilterMenu
-        containerRef={filter.menuRef}
-        open={filter.menuOpen}
-        onToggleOpen={filter.toggleMenu}
-        hiddenOptions={filter.hiddenOptions}
-        counts={{
-          bookings: actionNeeded?.items.length ?? 0,
-          recurrences: recurrences.length,
-          today: todayData?.items.length ?? 0,
-          upcoming: upcoming?.items.length ?? 0,
-        }}
-        onToggleOption={filter.toggleOption}
-        onReset={filter.reset}
-        onClose={filter.closeMenu}
-      />
+      <FloatingFilterDock pageKey="agenda">
+        <AgendaFilterMenu
+          containerRef={filter.menuRef}
+          open={filter.menuOpen}
+          onToggleOpen={filter.toggleMenu}
+          hiddenOptions={filter.hiddenOptions}
+          counts={{
+            bookings: actionNeeded?.items.length ?? 0,
+            recurrences: recurrences.length,
+            today: todayData?.items.length ?? 0,
+            upcoming: upcoming?.items.length ?? 0,
+          }}
+          onToggleOption={filter.toggleOption}
+          onReset={filter.reset}
+          onClose={filter.closeMenu}
+        />
+      </FloatingFilterDock>
     </div>
   );
 }

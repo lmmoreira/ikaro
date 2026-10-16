@@ -8,6 +8,11 @@ import { FormattingProvider } from '@/providers/formatting-provider';
 import type { DateFormat } from '@ikaro/i18n';
 import type { HotsiteAddressSpec, HotsiteServiceResponse } from '@ikaro/types';
 import type { PublicEnvKey } from '@/shared/lib/runtime-env/public-env';
+import {
+  FloatingFilterDockContext,
+  type FloatingFilterDockValue,
+} from '@/features/booking/components/dashboard/floating-filter-dock-context';
+import type { FloatingFilterCorner } from '@/features/booking/model/floating-filter-corner';
 
 // getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
 // process.env — mirrors what the root layout's PublicEnvScript injects into real pages (TD29).
@@ -147,11 +152,18 @@ export interface RenderWithIntlOptions {
   readonly locale?: string;
   readonly messages?: AbstractIntlMessages;
   readonly formattingOverrides?: Partial<(typeof FORMATTING_DEFAULTS)[string]>;
+  // An extra provider layer inside the intl/formatting ones, kept by `rerender()` like they are.
+  readonly contextWrapper?: React.ComponentType<{ readonly children: React.ReactNode }>;
 }
 
 export function renderWithIntl(
   ui: React.ReactElement,
-  { locale = 'pt-BR', messages, formattingOverrides }: RenderWithIntlOptions = {},
+  {
+    locale = 'pt-BR',
+    messages,
+    formattingOverrides,
+    contextWrapper: ContextWrapper,
+  }: RenderWithIntlOptions = {},
 ): ReturnType<typeof render> {
   const resolvedMessages = messages ?? MESSAGES[locale] ?? (ptBRMessages as AbstractIntlMessages);
   const baseFormatting = FORMATTING_DEFAULTS[locale] ?? FORMATTING_DEFAULTS['pt-BR'];
@@ -164,12 +176,53 @@ export function renderWithIntl(
   function Wrapper({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
     return (
       <NextIntlClientProvider locale={locale} messages={resolvedMessages}>
-        <FormattingProvider {...formatting}>{children}</FormattingProvider>
+        <FormattingProvider {...formatting}>
+          {ContextWrapper ? <ContextWrapper>{children}</ContextWrapper> : children}
+        </FormattingProvider>
       </NextIntlClientProvider>
     );
   }
 
   return render(ui, { wrapper: Wrapper });
+}
+
+// A FloatingFilterMenu throws outside a FloatingFilterDock (M23-S50), so a menu spec renders it
+// inside a fixed-corner dock context — no tenant, no localStorage, no pointer handling to set up.
+export function renderWithIntlInFloatingFilterDock(
+  ui: React.ReactElement,
+  {
+    corner = 'bottom-right',
+    setCorner = () => undefined,
+    isDragging = false,
+    ...options
+  }: RenderWithIntlOptions & {
+    readonly corner?: FloatingFilterCorner;
+    readonly setCorner?: (corner: FloatingFilterCorner) => void;
+    readonly isDragging?: boolean;
+  } = {},
+): ReturnType<typeof render> {
+  // One object for the whole render, so the provider's value never changes between renders.
+  const value: FloatingFilterDockValue = {
+    corner,
+    setCorner,
+    isDragging,
+    dragHandlers: {
+      onPointerDown: () => undefined,
+      onPointerMove: () => undefined,
+      onPointerUp: () => undefined,
+      onPointerCancel: () => undefined,
+      onLostPointerCapture: () => undefined,
+      onClickCapture: () => undefined,
+    },
+  };
+  function DockContext({ children }: { readonly children: React.ReactNode }): React.JSX.Element {
+    return (
+      <FloatingFilterDockContext.Provider value={value}>
+        {children}
+      </FloatingFilterDockContext.Provider>
+    );
+  }
+  return renderWithIntl(ui, { ...options, contextWrapper: DockContext });
 }
 
 // PillSelect (TD37-S23, Codex review PR #450) shares one static data-testid per option group,

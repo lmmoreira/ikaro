@@ -150,7 +150,7 @@ Folder: `staff/prototypes/agenda/`
 | `00d-agenda-precisa-decisao.html` | A fila com o selo "Precisa de decisão" em três cards (Precisa de ação, Hoje, Próximos dias); a reserva continua na fila, ganha o selo e **perde as ações rápidas** (Aprovar, Marcar concluído); a barra lateral do gerente mostra "Reservas a resolver" logo abaixo de "Agenda" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03j-booking-detail-precisa-decisao.html` | Detalhe de uma reserva aprovada com o aviso laranja "Esta reserva precisa de uma decisão" e, ao lado (barra no celular), o **painel de decisão** do gerente: Reatribuir, Reagendar e Cancelar (as mesmas três ações de Reservas a resolver, para esta reserva); as ações normais (concluir, não compareceu) não aparecem. Redesenhada em 2026-10-15: o botão "Abrir Reservas a resolver" foi removido | UC-073 · UC-077 | M23-S46 | ✅ Criado |
 | `03k-booking-detail-precisa-decisao-staff.html` | O mesmo aviso para a equipe: sem link e sem painel de decisão (a ação é do gerente), "Peça a um gerente para resolver" | UC-073 · UC-077 | M23-S46 | ✅ Criado |
-| `11-filtro-flutuante.html` | The floating filter movable to any of the four corners: `#cantos` (the pill in each corner, popover toward the centre, drag demo), `#posicao` (the "Posição" row in the popover), `#mobile` (bottom corners clear the bottom nav). Drawn for the Agenda's "Filtrar agenda"; Horários' stacked pair is `horarios/10-filtros-flutuantes.html` | — | M23-S50 | ❓ Gap (M23-S50) |
+| `11-filtro-flutuante.html` | The floating filter movable to any of the four corners: `#cantos` (the pill in each corner, popover toward the centre, drag demo), `#posicao` (the "Posição" row in the popover), `#mobile` (bottom corners clear the bottom nav). Drawn for the Agenda's "Filtrar agenda"; Horários' stacked pair is `horarios/10-filtros-flutuantes.html` | — | M23-S50 | ✅ Criado (M23-S50) |
 
 (Story numbers left as `—` above where they couldn't be confirmed against a specific milestone story — do not guess when citing these in a new story; check `git log` or ask.)
 
@@ -300,7 +300,7 @@ flowchart TD
 
 ---
 
-## M23-S50 addition — The floating filter can be dragged to another corner (❓ Gap, `M23-S50`)
+## M23-S50 addition — The floating filter can be dragged to another corner (✅ Criado, `M23-S50`)
 
 > Discovered 2026-10-16 while M23-S13 was in review: the "Filtrar agenda" pill (and Horários' two filters) is one shared component, fixed in the bottom-right corner, and covers content on a small screen or on a page whose content ends there. Prototype: `prototypes/agenda/11-filtro-flutuante.html`. Horários' side: `horarios.md` § "M23-S50 addition".
 
@@ -316,10 +316,10 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Pill["Pill 'Filtrar agenda'<br/>(bottom-right by default)"] -->|"click / tap"| Pop["Popover opens toward the centre<br/>(11 #cantos)"]
-    Pill -->|"drag past threshold, release"| Snap["Snaps to the nearest corner<br/>(11 #cantos)"]:::gap
+    Pill -->|"drag past threshold, release"| Snap["Snaps to the nearest corner<br/>(11 #cantos)"]
     Pop -->|"'Posição' → a corner"| Snap
-    Snap --> Saved["Corner remembered for this tenant + page"]:::gap
+    Snap --> Saved["Corner remembered for this tenant + page"]
 ```
 
-- [ ] **Open until the prototype is reviewed (2026-10-16):** whether the top offset is a fixed class or follows the topbar's measured height; settled by an E2E bounding-box assertion at implementation.
+- [x] **Top offset — settled at implementation (M23-S50):** a fixed class (`top-[4.75rem]`), pinned by an E2E bounding-box assertion (`apps/web/e2e/floating-filter-drag.spec.ts`), not a CSS variable.
 
