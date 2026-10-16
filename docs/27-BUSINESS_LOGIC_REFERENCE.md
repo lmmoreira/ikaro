@@ -392,6 +392,8 @@ The dismissals are system actions (`resolvedByStaffId` is `null`; a customer can
 
 A bulk CANCEL ticking several entries of one booking: the first id cancels the booking and dismisses its siblings, so a later id finds its entry closed on a cancelled booking; that is reported `RESOLVED` (nothing is left to do), not `STILL_OPEN`. A closed entry on a booking that is **not** cancelled is still `STILL_OPEN` with the already-resolved error.
 
+When a booking moves (reschedule or approve), only an entry whose source type the code knows is closed by the occupancy rule; an entry of an unknown source type is left open. The rule is a table keyed by the source type (`ENDS_WHEN_SOURCE_RESOURCE_IS_FREE`), so a new source type does not compile until it is added there. A cancel or reject closes every entry whatever its source.
+
 Not affected: complete and no-show (the staff queue hides those buttons while an entry is open), the worklist grouping, the badge count, and the manual `dismiss`. A reschedule that cannot re-resolve a `CUSTOMER_CHOICE` pinned to a deactivated resource still fails and leaves the entry `OPEN`.
 
 ### Resolve (best-effort per booking)
