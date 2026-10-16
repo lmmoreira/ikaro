@@ -22,6 +22,45 @@ describe('WeekNav — header', () => {
     expect(screen.getByTestId('week-nav-label')).toHaveTextContent('Junho 2026');
   });
 
+  it('renders both months for a 14-day Agenda window crossing a month boundary', () => {
+    renderWithIntl(
+      <WeekNav
+        windowStart={new Date('2026-10-31T00:00:00')}
+        windowDays={14}
+        today={today}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('week-nav-label')).toHaveTextContent('Outubro – Novembro 2026');
+  });
+
+  it('renders both months for a 7-day Horários week crossing a month boundary', () => {
+    renderWithIntl(
+      <WeekNav
+        windowStart={new Date('2026-10-28T00:00:00')}
+        windowDays={7}
+        today={today}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('week-nav-label')).toHaveTextContent('Outubro – Novembro 2026');
+  });
+
+  it('renders both years when the window crosses a year boundary', () => {
+    renderWithIntl(
+      <WeekNav
+        windowStart={new Date('2026-12-28T00:00:00')}
+        windowDays={14}
+        today={today}
+        onPrev={vi.fn()}
+        onNext={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('week-nav-label')).toHaveTextContent('Dezembro 2026 – Janeiro 2027');
+  });
+
   it('calls onPrev when the ‹ button is clicked', async () => {
     const onPrev = vi.fn();
     renderWithIntl(

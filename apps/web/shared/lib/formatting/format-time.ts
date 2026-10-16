@@ -43,8 +43,23 @@ export function formatDateLong(date: Date, locale: string): string {
   return formatted.charAt(0).toUpperCase() + formatted.slice(1);
 }
 
-export function formatMonthYear(date: Date, locale: string): string {
+function formatMonthName(date: Date, locale: string): string {
   const month = new Intl.DateTimeFormat(locale, { month: 'long' }).format(date);
-  const year = date.getFullYear();
-  return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
+  return month.charAt(0).toUpperCase() + month.slice(1);
+}
+
+export function formatMonthYear(date: Date, locale: string): string {
+  return `${formatMonthName(date, locale)} ${date.getFullYear()}`;
+}
+
+// Label for a visible period: "Outubro 2026", "Outubro – Novembro 2026" or
+// "Dezembro 2026 – Janeiro 2027" depending on how many months/years it spans.
+export function formatMonthYearRange(start: Date, end: Date, locale: string): string {
+  if (start.getFullYear() !== end.getFullYear()) {
+    return `${formatMonthYear(start, locale)} – ${formatMonthYear(end, locale)}`;
+  }
+  if (start.getMonth() !== end.getMonth()) {
+    return `${formatMonthName(start, locale)} – ${formatMonthYear(end, locale)}`;
+  }
+  return formatMonthYear(start, locale);
 }
