@@ -260,6 +260,29 @@ describe('buildBookingDetailResources', () => {
       expect(itinerary[1].endsAt).toBe('2026-06-16T11:10:00.000Z');
     });
 
+    it('shows nothing for a leg whose requirement is the default NONE shape', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Ida',
+            durationMinutes: 40,
+            resourceRequirements: [requirement(ResourceType.LOCATION, 'NONE')],
+          }),
+        ])
+        .build();
+
+      const { itinerary } = buildBookingDetailResources({
+        booking: bookingWith(service),
+        serviceMap: new Map([[service.id, service]]),
+        assignments: [assignment({ resourceType: ResourceType.LOCATION, legIndex: 0 })],
+        occupancyRows: [],
+      });
+
+      expect(itinerary).toEqual([]);
+    });
+
     it('carries null times for a leg without a live occupancy row, never a derived time', () => {
       const service = legged();
 

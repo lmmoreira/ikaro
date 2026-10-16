@@ -128,8 +128,19 @@ function terminationOf(
     reason,
     byCustomer,
     actorId,
-    actorName: byCustomer ? booking.contactName : actorId ? (names.get(actorId) ?? null) : null,
+    actorName: actorNameOf(actorId, byCustomer, booking, names),
   };
+}
+
+function actorNameOf(
+  actorId: string | null,
+  byCustomer: boolean,
+  booking: Booking,
+  names: ReadonlyMap<string, string | null>,
+): string | null {
+  if (byCustomer) return booking.contactName;
+  if (actorId === null) return null;
+  return names.get(actorId) ?? null;
 }
 
 function staffIdsOf(booking: Booking): string[] {
@@ -167,13 +178,29 @@ async function loadResources(deps: BookingDetailExtrasDeps, booking: Booking) {
   });
 }
 
+// The booking stores the intake version but not which service owns it, and a basket may hold
+// several services (only one of them had an active schema when it was booked). That service is the
+// one whose booked version was its newest version at booking time; a schema published after the
+// booking, even with the same version number, cannot be it.
+export function pickBookedIntakeSchemas(
+  booking: Booking,
+  schemasByService: readonly (readonly ServiceBookingIntakeSchema[])[],
+): readonly ServiceBookingIntakeSchema[] {
+  const bookedVersion = booking.intake?.intakeSchemaVersion;
+  const newestAtBooking = (schemas: readonly ServiceBookingIntakeSchema[]) =>
+    schemas
+      .filter((schema) => schema.createdAt <= booking.createdAt)
+      .reduce((max, schema) => Math.max(max, schema.version), 0);
+  return schemasByService.find((schemas) => newestAtBooking(schemas) === bookedVersion) ?? [];
+}
+
 async function loadIntake(deps: BookingDetailExtrasDeps, booking: Booking) {
   if (!booking.intake) return null;
-  const schemas = await deps.intakeSchemaRepo.findAllByServiceId(
-    booking.lines[0].serviceId,
-    booking.tenantId,
+  const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
+  const schemasByService = await Promise.all(
+    serviceIds.map((id) => deps.intakeSchemaRepo.findAllByServiceId(id, booking.tenantId)),
   );
-  return buildIntakeDetail(booking, schemas);
+  return buildIntakeDetail(booking, pickBookedIntakeSchemas(booking, schemasByService));
 }
 
 export async function loadBookingDetailExtras(

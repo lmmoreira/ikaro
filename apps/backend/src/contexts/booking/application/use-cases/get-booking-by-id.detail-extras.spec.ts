@@ -189,7 +189,8 @@ describe('GetBookingByIdUseCase — full booking detail (M23-S47)', () => {
   });
 
   describe('intake', () => {
-    async function publishVersions(serviceId: string) {
+    // v1 is published before the booking; v2 only afterwards (a later timestamp), as in real use.
+    async function publishV1(serviceId: string) {
       const v1 = ServiceBookingIntakeSchema.publish({
         tenantId: TENANT_A,
         serviceId,
@@ -203,23 +204,31 @@ describe('GetBookingByIdUseCase — full booking detail (M23-S47)', () => {
         participantCountRequired: false,
       });
       await intakeRepo.publish(v1);
-      const v2 = ServiceBookingIntakeSchema.publish({
-        tenantId: TENANT_A,
-        serviceId,
-        previousVersion: 1,
-        questions: [
-          { fieldKey: 'level', label: 'Qual o seu nível?', type: 'FREE_TEXT', required: true },
-        ],
-        consentText: 'Termo v2',
-        requiresNamedAttendees: false,
-        participantCountRequired: false,
-      });
-      await intakeRepo.publish(v2);
+    }
+
+    async function publishV2AfterTheBooking(serviceId: string) {
+      await intakeRepo.publish(
+        ServiceBookingIntakeSchema.reconstitute({
+          id: 'schema-2',
+          tenantId: TENANT_A,
+          serviceId,
+          version: 2,
+          questions: [
+            { fieldKey: 'level', label: 'Qual o seu nível?', type: 'FREE_TEXT', required: true },
+          ],
+          consentText: 'Termo v2',
+          consentVersion: 2,
+          requiresNamedAttendees: false,
+          participantCountRequired: false,
+          isActive: true,
+          createdAt: new Date('2099-01-01T00:00:00.000Z'),
+        }),
+      );
     }
 
     it('labels the answers with the version the booking was made on, and falls back to the key', async () => {
       const { booking, service } = await seedBooking();
-      await publishVersions(service.id);
+      await publishV1(service.id);
       const withIntake = new BookingBuilder()
         .withId(booking.id)
         .withTenantId(TENANT_A)
@@ -233,6 +242,7 @@ describe('GetBookingByIdUseCase — full booking detail (M23-S47)', () => {
         })
         .build();
       await repo.save(withIntake);
+      await publishV2AfterTheBooking(service.id);
 
       const result = await ask(withIntake.id);
 

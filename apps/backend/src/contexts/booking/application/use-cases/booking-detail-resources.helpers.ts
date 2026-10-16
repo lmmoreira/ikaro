@@ -1,4 +1,5 @@
 import { Booking } from '../../domain/booking.aggregate';
+import { BookingLine } from '../../domain/booking-line.entity';
 import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { BookingLineResourceAssignment } from '../ports/booking-repository.port';
@@ -52,57 +53,80 @@ function originOf(selectionMode: string | undefined): BookingResourceOrigin | nu
   return null;
 }
 
-function buildFlatResources(
-  params: BuildBookingDetailResourcesParams,
-): BookingLineResourceEntryDetail[] {
-  const { booking, serviceMap, assignments } = params;
-  const entries: BookingLineResourceEntryDetail[] = [];
-  const poolEntries = new Map<string, BookingLineResourceEntryDetail>();
-  const seen = new Set<string>();
-
-  for (const line of booking.lines) {
-    const service = serviceMap.get(line.serviceId);
-    for (const assignment of assignments) {
-      if (assignment.bookingLineId !== line.lineId || assignment.legIndex !== null) continue;
-      const requirement = findRequirementForAssignment(service, null, assignment.resourceType);
-      // The default shape (a single location, no resource field) has nothing to show.
-      if (requirement?.selectionMode === 'NONE') continue;
-
-      if (requirement?.selectionMode === 'AUTO_FUNGIBLE_POOL') {
-        const key = `${line.lineId}:${assignment.resourceType}`;
-        const pool = poolEntries.get(key);
-        if (pool) {
-          pool.quantity = (pool.quantity ?? 0) + 1;
-          continue;
-        }
-        const entry = poolEntry(line.lineId, line.serviceNameAtBooking, assignment.resourceType);
-        poolEntries.set(key, entry);
-        entries.push(entry);
-        continue;
-      }
-
-      const key = `${line.lineId}:${assignment.resourceType}:${assignment.resourceId}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      entries.push({
-        lineId: line.lineId,
-        serviceName: line.serviceNameAtBooking,
-        resourceType: assignment.resourceType,
-        resourceName: assignment.resourceName,
-        origin: originOf(requirement?.selectionMode),
-        quantity: null,
-      });
-    }
-  }
-  return entries;
-}
-
 function poolEntry(
   lineId: string,
   serviceName: string,
   resourceType: ResourceType,
 ): BookingLineResourceEntryDetail {
   return { lineId, serviceName, resourceType, resourceName: null, origin: null, quantity: 1 };
+}
+
+// Collects the flat entries of a booking: one per (line, type, resource), except a fungible pool,
+// which is one per (line, type) counting the units reserved.
+class FlatResourceCollector {
+  readonly entries: BookingLineResourceEntryDetail[] = [];
+  private readonly pools = new Map<string, BookingLineResourceEntryDetail>();
+  private readonly seen = new Set<string>();
+
+  add(
+    line: BookingLine,
+    assignment: BookingLineResourceAssignment,
+    selectionMode: string | undefined,
+  ): void {
+    // The default shape (a single location, no resource field) has nothing to show.
+    if (selectionMode === 'NONE') return;
+    if (selectionMode === 'AUTO_FUNGIBLE_POOL') this.addToPool(line, assignment);
+    else this.addResource(line, assignment, selectionMode);
+  }
+
+  private addToPool(line: BookingLine, assignment: BookingLineResourceAssignment): void {
+    const key = `${line.lineId}:${assignment.resourceType}`;
+    const pool = this.pools.get(key);
+    if (pool) {
+      pool.quantity = (pool.quantity ?? 0) + 1;
+      return;
+    }
+    const entry = poolEntry(line.lineId, line.serviceNameAtBooking, assignment.resourceType);
+    this.pools.set(key, entry);
+    this.entries.push(entry);
+  }
+
+  private addResource(
+    line: BookingLine,
+    assignment: BookingLineResourceAssignment,
+    selectionMode: string | undefined,
+  ): void {
+    const key = `${line.lineId}:${assignment.resourceType}:${assignment.resourceId}`;
+    if (this.seen.has(key)) return;
+    this.seen.add(key);
+    this.entries.push({
+      lineId: line.lineId,
+      serviceName: line.serviceNameAtBooking,
+      resourceType: assignment.resourceType,
+      resourceName: assignment.resourceName,
+      origin: originOf(selectionMode),
+      quantity: null,
+    });
+  }
+}
+
+function buildFlatResources(
+  params: BuildBookingDetailResourcesParams,
+): BookingLineResourceEntryDetail[] {
+  const { booking, serviceMap, assignments } = params;
+  const collector = new FlatResourceCollector();
+
+  for (const line of booking.lines) {
+    const service = serviceMap.get(line.serviceId);
+    const flatAssignments = assignments.filter(
+      (a) => a.bookingLineId === line.lineId && a.legIndex === null,
+    );
+    for (const assignment of flatAssignments) {
+      const requirement = findRequirementForAssignment(service, null, assignment.resourceType);
+      collector.add(line, assignment, requirement?.selectionMode);
+    }
+  }
+  return collector.entries;
 }
 
 function buildItinerary(params: BuildBookingDetailResourcesParams): BookingItineraryLegDetail[] {
