@@ -369,8 +369,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` |
 | Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
-| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
-| Booking scheduling logic: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` § the matching `Booking — …` section (+ DB/migration, UC rows) |
+| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates); booking scheduling: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section (booking: the matching `Booking — …` section, + DB/migration, UC rows) before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
 | Database / migration; a lock, a deadlock or a hung request | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` + `docs/ENGINEERING_RULES_BACKEND.md`; locks: `docs/28-LOCK_CATALOG.md` (every lock, its order, its business case) |
 | API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
 | Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
@@ -382,8 +381,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/ENGINEERING_RULES_FRONTEND.md` |
 | BFF implementation | `docs/24-BFF_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
 | Web → BFF transport | `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
-| Architecture question | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` |
-| Repo layout / new file location | `docs/REPOSITORY_STRUCTURE.md` (full trees) — §11 below has the quick summary |
+| Architecture question; repo layout / new file location | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` (full trees; §11 below has the quick summary) |
 | Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` |
 | Testing patterns | `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES_TESTING.md` |
 | apps/web test infrastructure | `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
@@ -393,16 +391,14 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` + `docs/ENGINEERING_RULES_INFRA.md` |
 | Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` before editing Terraform or workflows |
 | Observability | `docs/10-OBSERVABILITY_STRATEGY.md` + `docs/ENGINEERING_RULES_INFRA.md` |
-| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md` to list). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
-| `Resource` aggregate / resource-scoped scheduling (M21 and later) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` |
-| `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22 and later) | `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` |
-| Booking appointment extensions: recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
+| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
+| Multivertical scheduling: `Resource` aggregate (M21); `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22); recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` · `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` · `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` |
 | Creating a brand-new TD | `/create-td` |
-| Appending one new story to an already-existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` |
-| Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it instead of restating their own copy |
+| Appending one story to an existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` |
+| Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it, none restate it |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
