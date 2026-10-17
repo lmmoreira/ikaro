@@ -7,7 +7,7 @@
 - **Created**: 2026-10-17
 - **Discovered**: a chat review of `/docs-audit`'s fit (2026-10-17), then measuring how agents actually read these docs from the repo's own session transcripts
 - **Decision status**: Drafted 2026-10-17; re-scoped the same day from a human-oriented folder reorganisation to agent-first routing and integrity once the transcript measurements below were taken. Each story still begins with `/story-discovery`.
-- **Related**: TD52 (docs inventory registry), TD41 (canonical-home rule, `ENGINEERING_RULES_*` split), TD37 (`architecture-check` decisions), `.claude/commands/docs-audit.md`, `CLAUDE.md` §10
+- **Related**: TD52 (cancelled 2026-10-17 and folded into Story 1: the deep/light classification lives in each doc's header, not in a registry JSON), TD41 (canonical-home rule, `ENGINEERING_RULES_*` split), TD37 (`architecture-check` decisions), `.claude/commands/docs-audit.md`, `CLAUDE.md` §10
 
 ## Problem
 
@@ -38,7 +38,7 @@ Principles:
 - **Keep the grep surface to live, agent-facing text.** Superseded material moves out of `docs/` to a top-level `archive/`; it stays in the repository and keeps its history, it just stops appearing in docs searches.
 - **Optimise tokens by loading less up front and more on demand.** Always-on context stays small; everything else loads by trigger (a `§ section` pointer, a path-scoped context file, a skill invoked by name).
 - **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5).
-- **One canonical home per fact.** The "when to load" statement lives in each doc's own header, and is not copied into the TD52 registry, which holds files and classification only.
+- **One canonical home per fact.** The "when to load" statement lives in each doc's own header, and travels with the doc together with its "Verified against" field (the code or config it is checked against, or `none (light check)`). There is no separate registry file, so there is nothing to keep in sync and the classification survives a rename or move.
 - **No table of contents to maintain.** `grep -n '^##' <doc>` already gives an agent the structure, and a hand-kept contents block would be one more thing to drift.
 
 Rejected, with the condition to reopen:
@@ -105,7 +105,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 1 — "When to load" orientation contract for large docs ⚪
+### Story 1 — Doc header contract: "When to load" and "Verified against" ⚪
 
 **Agent:** devops
 **Complexity:** M
@@ -116,6 +116,8 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 **Description:**
 Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md` is the model); none of the 15 docs over 30 KB do. Add a one-line orientation to each large doc — when it applies, which apps/layers/contexts it covers, and which neighbouring doc holds what it does not — written from the doc's actual content, not from its title. Add a detector `doc-orientation` that fails when a `docs/*.md` over the size threshold has no `**When to load:**` line within its first 15 lines. The threshold and the exclusions (`docs/archive/**`, `docs/discovery/**`, `docs/lean/*`) live in the policy file. This adds context only; no existing text is changed or removed. No contents block is added (see Chosen approach).
 
+**Folded in from TD52 (cancelled 2026-10-17).** The header contract covers every top-level `docs/*.md`, not only the large ones, and carries two fields: `**When to load:**` and `**Verified against:** <code or config paths>` or `none (light check)`. `doc-orientation` requires both on every doc, and fails when a listed path does not exist (a `none (light check)` value is valid). The size threshold gates only the "When to load" line; "Verified against" is required on every non-excluded doc regardless of size, so a new doc cannot be added without declaring its class. `.claude/commands/docs-audit.md` Step 1 drops its inline deep/light lists and derives the deep and light sets, and each doc's artifacts, by grepping the headers; its stale `docs/ENGINEERING_RULES.md` wording (now a 94-line index, not a possible leftover copy) is corrected in the same change. Detector settings go in the existing `architecture-policy.json`; no new policy file.
+
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
@@ -123,18 +125,23 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - `packages/architecture-check/src/detectors/doc-orientation.spec.ts` (new)
 - `packages/architecture-check/src/index.ts`, `packages/architecture-check/src/cli.ts` (modify — export, register)
 - `packages/architecture-check/architecture-policy.json` (modify — threshold and exclusions)
+- `.claude/commands/docs-audit.md` (modify — Step 1 derives deep/light and artifacts from headers; fix stale `ENGINEERING_RULES.md` wording)
+- Every remaining top-level `docs/*.md` (modify — add the two header fields, seeded from the skill's current deep/light lists, verified against `ls docs/*.md`)
 - `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — one detector-table row)
 - The 15 docs over 30 KB: `docs/04-USE_CASES.md`, `14-API_CONTRACTS.md`, `02-DOMAIN_MODEL.md`, `13-DATABASE_SCHEMA.md`, `ANTI_PATTERNS.md`, `27-BUSINESS_LOGIC_REFERENCE.md`, `CI_TRAPS.md`, `08-TESTING_STRATEGY.md`, `15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `03-DOMAIN_EVENTS.md`, `24-BFF_ARCHITECTURE.md`, `05-BOUNDED_CONTEXTS.md`, `22-TECH_STACK_DECISIONS.md`, `AGENT_PATTERNS.md`, `21-TENANTS_SETTINGS_SCHEMA.md` (modify — one line each; re-measure the list at implementation time)
 
 **Acceptance criteria — product:**
 - [ ] Every doc over the threshold opens with a "When to load" line stating its trigger, scope and neighbouring doc.
 - [ ] A new large doc without the line fails `pnpm architecture-check` with a message naming it.
+- [ ] A new `docs/*.md` without a `Verified against` field fails `pnpm architecture-check` with a message naming it.
+- [ ] `/docs-audit` Step 1 carries no inline deep/light lists and derives them from the doc headers.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `doc-orientation.spec.ts`: a doc over the threshold without the line is reported.
   - [ ] `doc-orientation.spec.ts`: a doc over the threshold with the line inside the first 15 lines passes; with it on line 16 is reported.
-  - [ ] `doc-orientation.spec.ts`: a doc under the threshold and an excluded doc pass without the line.
+  - [ ] `doc-orientation.spec.ts`: a doc under the threshold and an excluded doc pass without the "When to load" line.
+  - [ ] `doc-orientation.spec.ts`: a doc with no `Verified against` field is reported; one listing a non-existent path is reported; `none (light check)` passes.
 - Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
 - Tenant isolation: none — no tenant data
 - E2E: none
@@ -302,7 +309,7 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 **Description:**
 Rename the 27 numbered docs by removing the `NN-` prefix, keeping the `UPPER_SNAKE` name, with `git mv` so history is preserved: `01-BUSINESS_CONTEXT`, `02-DOMAIN_MODEL`, `03-DOMAIN_EVENTS`, `04-USE_CASES`, `05-BOUNDED_CONTEXTS`, `06-TENANT_ISOLATION_STRATEGY`, `08-TESTING_STRATEGY`, `09-CI_CD_PIPELINE`, `10-OBSERVABILITY_STRATEGY`, `11-ARCHITECTURE`, `12-DEPLOYMENT_STRATEGY`, `13-DATABASE_SCHEMA`, `14-API_CONTRACTS`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `16-DASHBOARD_FRONTEND_ARCHITECTURE`, `17-GITHUB_WORKFLOWS_GUIDELINES`, `18-RELEASE_LIFECYCLE_OPERATIONS`, `19-INFRASTRUCTURE_TOOLING_MAP`, `20-COST_OPTIMIZATION_STRATEGY`, `21-TENANTS_SETTINGS_SCHEMA`, `22-TECH_STACK_DECISIONS`, `23-INFRASTRUCTURE_SETUP`, `24-BFF_ARCHITECTURE`, `25-ERROR_CATALOG`, `26-DATA_RETENTION_AND_PRIVACY`, `27-BUSINESS_LOGIC_REFERENCE`, `28-LOCK_CATALOG` (each `.md`; confirm no name collision with an existing doc before running).
 Rewrite every citation with a script kept in the scratchpad, not committed. Three citation shapes exist and all must be covered: the full path (`docs/14-API_CONTRACTS.md`), the bare filename in prose (`14-API_CONTRACTS.md`), and the short numeric form already used in prose (`docs/13`, `docs/27`, `docs/28`). Citations of a `§ heading` are unaffected. `archive/` and `docs/discovery/` are excluded from the rewrite and from the checker (the owner's decision: they are historical, so their internal citations of the old names are left as they are; the policy says so).
-**Pre-rename impact inventory (before any `git mv`).** A read-only scan lists every place that cites each of the 27 old names, in all three shapes, across all tracked files except the two exclusions above and `node_modules`, `dist`, `.next` and the lockfile. It must cover more than markdown: `.ts`/`.tsx` comments, `.json` policy and config, `.yaml`/`.yml` (`.coderabbit.yaml`, workflows, issue and PR templates), `.tf`, `.sh`/`.cjs` scripts, `.html`, `sonar-project.properties`, `knip.config.ts`, the skills, and code that builds a doc path from parts or reads a doc by name (grep for `readFileSync`/`resolve(` calls and string concatenations containing `docs/`). It also lists gitignored local files that cite a doc (for example `docs/BOOTSTRAP_LOG.md`), which a commit cannot rewrite. The inventory (counts per file type and the list of non-markdown hits) goes in the PR, and every hit is either rewritten or explicitly justified. After the rename the same scan must return zero hits. Extend `doc-link-integrity` so that, after the rename, any `docs/NN` or `NN-NAME.md` form fails CI, which guarantees no short form survives. The Codex skill copies are regenerated with `scripts/codex-skill.sh`. The registry from TD52, if already implemented, is updated in the same pass. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+**Pre-rename impact inventory (before any `git mv`).** A read-only scan lists every place that cites each of the 27 old names, in all three shapes, across all tracked files except the two exclusions above and `node_modules`, `dist`, `.next` and the lockfile. It must cover more than markdown: `.ts`/`.tsx` comments, `.json` policy and config, `.yaml`/`.yml` (`.coderabbit.yaml`, workflows, issue and PR templates), `.tf`, `.sh`/`.cjs` scripts, `.html`, `sonar-project.properties`, `knip.config.ts`, the skills, and code that builds a doc path from parts or reads a doc by name (grep for `readFileSync`/`resolve(` calls and string concatenations containing `docs/`). It also lists gitignored local files that cite a doc (for example `docs/BOOTSTRAP_LOG.md`), which a commit cannot rewrite. The inventory (counts per file type and the list of non-markdown hits) goes in the PR, and every hit is either rewritten or explicitly justified. After the rename the same scan must return zero hits. Extend `doc-link-integrity` so that, after the rename, any `docs/NN` or `NN-NAME.md` form fails CI, which guarantees no short form survives. The Codex skill copies are regenerated with `scripts/codex-skill.sh`. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
