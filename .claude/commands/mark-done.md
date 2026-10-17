@@ -17,6 +17,12 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
 ## Steps
 
+0. **Sync `main` first — before any audit or check.** Steps 4 and 6–8 must run against the latest merged code, and the Step 4 docs audit finds the story's squash commit with `git log main --grep`, which only exists locally after a pull.
+
+   **If this session is isolated in a worktree** (the usual case right after `/pr-land`), the guard refuses every git command aimed at the main checkout, so the pull and steps 6–8 cannot run from there. Call `ExitWorktree` with `action: "keep"` first (it leaves the worktree and branch on disk and returns the session to the main checkout), then run `git pull --ff-only origin main`. Do steps 4–8 on `main`, and remove the worktree afterwards with the git commands in step 8a (which works from the main checkout). `action: "remove"` here would refuse after a squash merge (the commits are not ancestors of `main`) and cannot be used before the plan commit anyway. (M23-S14, 2026-10-15.)
+
+   Already in the main checkout: just `git pull --ff-only origin main`. Then confirm the story is actually merged: `git log main --grep "(<story-id>)" --format='%h %s' -1` must return a commit. If it returns nothing, stop and report that the PR does not appear merged — do not audit or mark anything done. If the pull is not a fast-forward, look at `git log origin/main..main --format='%h %an %s'` first (see step 7's note on shared-checkout commits) before touching anything.
+
 1. Parse the milestone prefix from the argument (e.g. `M03` from `M03-S06`).
 
 2. Find the plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAILS_IA.md` and `*_IMPLEMENTATION_DETAILS_DEVELOPER.md`. There should be exactly one match (e.g. `plan/M03-AUTHENTICATION.md`).
@@ -33,6 +39,15 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
    **Also check `docs/27-BUSINESS_LOGIC_REFERENCE.md`** if this story's bounded context has a section there: does that section still accurately describe the algorithm/state machine/formulas as this story actually shipped them, not as originally planned at story-discovery time? A story frequently changes its own design mid-implementation (bot review, a user decision) — the reference doc needs to reflect the merged result, not the discovery-time plan. If the context has no section yet but this story's own business logic is genuinely complex/cross-cutting (same bar as `/story-discovery`'s 4r check), that's a real gap too, not just a "changed section" one.
 
+   **Also run the story's docs audit.** Find the story's merged commit: `git log main --grep "(<story-id>)" --format=%H` (a squash merge is one commit; for a TD story bundled in its feature branch, use that branch's commit range instead). Run `/docs-audit changed:<sha>^..<sha>` — it maps the files the story changed to the canonical docs, journeys, prototypes (including the journey-vs-code check), TDs and milestones that describe them. It is read-only; any fix goes through docs-audit's own approval step (CLAUDE.md §0).
+
+   Treat its findings by type:
+   - **Stale/Conflicting or journey-vs-code drift this story caused** — handled exactly like a partial AC line below: fix now as a follow-up doc commit (via docs-audit's approval step), or open a TD via `/create-td` and add the `⚠️ … tracked in <TD>` line. Never left silent.
+   - **Dead pointers, context-quality, duplication, weight report** — reported to the user, not gating; the user decides now or later.
+   - **Changed files that mapped to no doc** — list them so the user can say whether a doc should exist for them.
+
+   If the user declines a fix, record that and continue — doc findings never block the `✅ Done` edit on their own, but a silent gap is not allowed.
+
    **If any AC line is partial/unverified, a devops live-state check can't be confirmed, or a Critical/Important review finding is unresolved — never mark the story done with the gap left silent.** Resolve it one of two ways:
    - **Trivial** — fix it immediately as a follow-up commit, verify it, then mark done with no annotation needed.
    - **Not trivial** — open a bug-fix TD via `/create-td` describing the specific gap (not a vague catch-all), then mark done with a single line appended directly below the affected AC checkbox (or directly below the story heading, for a review-finding gap with no single AC line): `  - ⚠️ <gap description> — tracked in <new TD ID>, <date>`. Before writing that line, apply the doc/config gate explicitly: summarise the exact line you intend to add and ask *"May I now update `<path>`?"* — choosing this resolution path is not itself that permission. Nothing else in the file changes beyond this line and the `✅ Done` heading edit itself.
@@ -45,7 +60,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    > "You are on branch `<branch>`. This commit should go to main. Switch to main first, or confirm you want to commit here."
    Then stop and wait for confirmation before proceeding.
 
-   **If this session is isolated in a worktree** (the usual case right after `/pr-land`), the guard refuses every git command aimed at the main checkout, so steps 6–8 cannot run from there. Call `ExitWorktree` with `action: "keep"` first (it leaves the worktree and branch on disk and returns the session to the main checkout), run `git pull --ff-only origin main`, do steps 6–8 on `main`, and remove the worktree afterwards with the git commands in step 8a (which works from the main checkout). `action: "remove"` here would refuse after a squash merge (the commits are not ancestors of `main`) and cannot be used before the plan commit anyway. (M23-S14, 2026-10-15.)
+   (If the session was in a worktree, Step 0 already left it and pulled `main`; worktree cleanup is step 8a.)
 
 7. Stage only the plan file and commit:
 
@@ -80,6 +95,6 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    > - `plan/<milestone>_IMPLEMENTATION_DETAILS_DEVELOPER.md` — detailed learning doc for the human developer: explain every concept with rationale, real code examples from this codebase, and enough context that a developer can learn NestJS, DDD, and the engineering patterns used here just by reading it.
    > Then add the IA doc to §10 of CLAUDE.md.
    >
-   > **Also do a stale-documentation sweep before declaring the milestone complete** — this is a safety net for the per-story Definition of Done check (`docs/DEFINITION_OF_DONE.md`), which should have caught most of this already, but milestones this size reliably leave a few behind. For each story that replaced or removed an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, and CLAUDE.md itself for anything still describing the *old* version. Present findings to the user before editing (doc/config gate) — do not silently rewrite docs without confirmation.
+   > **Also do a stale-documentation sweep before declaring the milestone complete** — this is a safety net for the per-story Definition of Done check (`docs/DEFINITION_OF_DONE.md`), which should have caught most of this already, but milestones this size reliably leave a few behind. For each story that replaced or removed an existing flow/mechanism (an auth pattern, a data model assumption, a transport layer, a dead endpoint), grep `docs/*.md`, other milestones' `plan/*_IMPLEMENTATION_DETAILS_*.md`, and CLAUDE.md itself for anything still describing the *old* version. Present findings to the user before editing (doc/config gate) — do not silently rewrite docs without confirmation. The per-story docs-audit results from Step 4 feed this sweep; also run `/docs-audit <milestone>` (cited docs) and `/docs-audit changed:<first-story-sha>^..HEAD` (the milestone's whole code footprint, including docs and journeys the plan never cited).
    >
    > **Also confirm `docs/27-BUSINESS_LOGIC_REFERENCE.md` reflects the milestone's final shipped design**, not just each story's own individual mark-done check (Step 4 above) — a later story in the same milestone sometimes changes an earlier story's algorithm in a way its own section never got updated for. Cross-check the whole milestone's relevant section(s) in one pass, not per-story."
