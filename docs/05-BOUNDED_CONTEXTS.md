@@ -176,7 +176,7 @@ Notification Context subscribes:
 **Consumed Events:**
 - `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
 - `TenantProvisioned` (Platform Context) → creates the tenant's `LOCATION` resource (`create-tenant-location-resource`)
-- Its own `BookingCancelled`/`BookingRejected`/`BookingRescheduled` (`availability-alert-matching`, M23-S07) and the `cron-reminders` trigger (alert sweep/expiry, recurring-schedule approval expiry)
+- Its own `BookingCancelled`/`BookingRejected`/`BookingRescheduled` (`availability-alert-matching`, M23-S07) and the `cron-reminders` trigger (alert sweep/expiry, recurring-schedule approval expiry, manual-approval booking hold expiry — TD51)
 
 **Dependencies:**
 - **Input:** Requires Customer data (optional), Staff data (optional) and Platform settings (booking window, business hours, hotsite booking picker) to validate - all tenant-scoped, read through the existing cross-context adapters (`booking-customer`, `booking-staff`, `booking-platform`; `architecture-policy.json` is the authority, including the `get-staff` edge used for actor names). Consumes `StaffDeactivated` and `TenantProvisioned` (see above).
@@ -324,6 +324,7 @@ TenantProvisioned → (no email) seeds the tenant's default notification templat
 
 BookingCancelled → Email #1: Customer "Cancellation confirmed"
                  → Email #2: Admin "[name] cancelled booking"
+                 (a manual-approval request the system cancelled after its hold ran out sends only the customer an "expired unanswered" email instead, and no admin email — TD51)
 
 BookingRescheduled → Email: Customer/guest "Your booking has been rescheduled to [new date/time]"
 
