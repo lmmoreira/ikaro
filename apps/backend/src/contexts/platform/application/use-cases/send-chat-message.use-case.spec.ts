@@ -459,7 +459,7 @@ describe('SendChatMessageUseCase', () => {
       );
     });
 
-    it('does NOT reject an existing, already-open conversation once the global spend limit trips mid-conversation — docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by their own per-session caps regardless"', async () => {
+    it('does NOT reject an existing, already-open conversation once the global spend limit trips mid-conversation — docs/04-USE_CASES.md UC-033: "already-open conversations remain bounded by their own per-session caps regardless"', async () => {
       const session = new ChatbotSessionBuilder().withTenantId(TENANT_ID).build();
       await sessionRepo.save(session);
       await messageRepo.save(

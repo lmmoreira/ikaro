@@ -60,7 +60,7 @@ export type GenerateHotsiteImageSignedUrlBody = z.infer<
 
 // Only for not-yet-promoted tmp/ staging uploads — an already-permanent tenants/.../hotsite/...
 // image resolves via the pure getPublicUrl() string template instead (see
-// docs/14-API_CONTRACTS.md § tmp/ image preview).
+// docs/14-API_CONTRACTS.md § Hotsite Image Preview).
 export const GenerateHotsiteImageReadSignedUrlBodySchema = z.object({
   filePath: z.string().regex(new RegExp(`^${HOTSITE_TMP_PATH_FRAGMENT}$`)),
 });

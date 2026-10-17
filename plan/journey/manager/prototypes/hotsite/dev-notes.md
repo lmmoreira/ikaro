@@ -33,7 +33,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 | Unpublish | `POST /tenants/hotsite/unpublish` | MANAGER |
 | Chatbot cap status (new, feeds the `01e` red banner) | `GET /v1/tenants/chatbot/cap-status` → `{ dailyCapReachedToday: boolean }` | MANAGER |
 
-All four (branding/layout/publish/unpublish) exist in `apps/bff/src/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` shipped in `M19-S10`; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status it reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
+All four (branding/layout/publish/unpublish) exist in `apps/bff/src/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` shipped in `M19-S10`; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status, which reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
 
 ---
 

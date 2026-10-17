@@ -4,8 +4,8 @@ import Script from 'next/script';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 // Cloudflare Turnstile is a plain script + 'use client' wrapper, not an npm package — none is
-// installed for it, and none should be added (docs/discovery/lead-form-module/lead-form-module.md
-// § Cross-cutting infra: "the widget itself is a plain script ... no heavy SDK needed").
+// installed for it, and none should be added (docs/04-USE_CASES.md UC-039: the widget itself is
+// a plain script, no heavy SDK needed).
 declare global {
   interface Window {
     turnstile?: {

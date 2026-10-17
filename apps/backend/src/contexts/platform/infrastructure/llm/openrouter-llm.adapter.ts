@@ -103,7 +103,7 @@ const openRouterResponseSchema = z.object({
   }),
 });
 
-// docs/discovery/CHATBOT/CHATBOT.md §3/§4: reasoning.effort must always be sent explicitly as
+// docs/ENGINEERING_RULES_BACKEND.md § OpenRouter chatbot: reasoning.effort must always be sent explicitly as
 // "none" — the API defaults to "high" if unset, and reasoning tokens bill as output tokens
 // whether or not they're returned. Even "low" starved the visible answer on 8/19 real eval
 // questions once max_tokens had to cover reasoning + answer combined — "none" is the only

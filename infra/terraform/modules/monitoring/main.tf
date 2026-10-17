@@ -50,8 +50,7 @@
 # failed deliveries, not a deliberately-published poison message). All
 # policies referenced the email notification channel correctly and fired
 # within their configured windows. See docs/RUNBOOKS.md § Simulate an
-# incident (verify alerts) for the reusable procedure and
-# docs/10-OBSERVABILITY_STRATEGY.md for the acceptance-criteria writeup.
+# incident (verify alerts) for the reusable procedure.
 
 resource "google_monitoring_notification_channel" "email" {
   project      = var.project_id

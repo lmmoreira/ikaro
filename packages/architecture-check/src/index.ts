@@ -18,6 +18,8 @@ export type {
   AggregatePrimitiveVoExemption,
   AggregateValueObjectConcept,
 } from './detectors/aggregate-primitive-vo';
+export { checkDocLinkIntegrity } from './detectors/doc-link-integrity';
+export type { DocLinkAllowlistEntry, DocLinkIntegrityPolicy } from './detectors/doc-link-integrity';
 export { checkDomainEventsHaveAuditLogSubscription } from './detectors/domain-event-audit-coverage';
 export { checkEntityBuilderPrimaryKeyDefaults } from './detectors/entity-builder-pk-default';
 export { checkErrorMapperCoverage } from './detectors/error-mappers';

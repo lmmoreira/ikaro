@@ -11,7 +11,7 @@ export const LLM_PROVIDER_REGISTRY = Symbol('LlmProviderRegistry');
 // Resolved per-request by the caller (e.g. tenant.settings.chatbot?.llmProvider ?? platform
 // default), never by this class reading TenantSettings itself — keeps this registry usable
 // before the chatbot settings category exists and decoupled from its shape either way
-// (docs/discovery/CHATBOT/CHATBOT.md §4).
+// (docs/ENGINEERING_RULES_BACKEND.md § OpenRouter chatbot).
 //
 // Framework/env-free by design: platformDefault is resolved once, at module-wiring time
 // (platform.module.ts's useFactory reads CHATBOT_LLM_PROVIDER, mirroring the EMAIL_SENDER

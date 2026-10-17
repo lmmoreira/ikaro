@@ -11,7 +11,7 @@ Promote a mature `docs/discovery/` doc set into canonical documentation, then dr
 
 > **AGENT RULE:** Never invoke this skill autonomously. A discovery doc represents real design work — ask the user: *"Ready to promote `<discovery-doc>` into a milestone? This will touch several canonical docs and (if applicable) plan/journey/ files before any story is drafted."* Wait for explicit yes.
 
-Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discovery/MULTI_VERTICAL_SCHEDULING.md`.
+Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discovery/multivertical-booking/multivertical-booking.md`.
 
 ---
 

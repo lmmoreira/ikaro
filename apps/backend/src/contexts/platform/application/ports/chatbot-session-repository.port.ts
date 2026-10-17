@@ -10,7 +10,7 @@ export interface IChatbotSessionRepository {
    * never silently burns the tenant's daily/per-IP/concurrency cap budget for a conversation
    * that never happened. Never called for an existing session (which has real prior messages). */
   deleteById(id: string, tenantId: string): Promise<void>;
-  /** Cap layer 1 (docs/discovery/CHATBOT/CHATBOT.md §8): tenant-wide daily conversation count. */
+  /** Cap layer 1 (docs/04-USE_CASES.md UC-033): tenant-wide daily conversation count. */
   countByTenantAndDate(tenantId: string, conversationDate: string): Promise<number>;
   /** Cap layer 2: per-visitor daily conversation count, same table + an added client_ip filter. */
   countByTenantIpAndDate(

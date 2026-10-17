@@ -21,7 +21,7 @@ describe('isOtelSdkDisabled', () => {
     expect(isOtelSdkDisabled({ APP_ENV: 'production', OTEL_SDK_DISABLED: 'true' })).toBe(true);
   });
 
-  it('an explicit OTEL_SDK_DISABLED=false wins even locally (e.g. testing against `pnpm obs`)', () => {
+  it('an explicit OTEL_SDK_DISABLED=false wins even locally (e.g. testing against a local collector)', () => {
     expect(isOtelSdkDisabled({ APP_ENV: 'local', OTEL_SDK_DISABLED: 'false' })).toBe(false);
   });
 

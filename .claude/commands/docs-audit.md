@@ -223,7 +223,7 @@ Run across every in-scope doc (deep and light) plus `CLAUDE.md`/`.copilot/contex
 - Every finding must carry the **no-loss proof** from the Guiding principle (canonical home Read and confirmed complete; pointer target heading exists) before it is proposed for collapse. Where the two copies differ in detail, the finding is "merge the extra detail into the canonical copy first, then point" — never "drop the shorter one".
 
 ### 3h. Pointer and anchor integrity — mechanical, no judgment
-- Every `→ doc § heading`, `see docs/X.md § Y`, and `docs/*.md`/`plan/**` path cited in `.copilot/context.md`, `.claude/commands/*.md`, and the in-scope docs: the file exists, and the quoted `§ heading` text matches (case-insensitive substring) a real heading in that file. A dead pointer is context loss — report each as **Dead pointer** with file, line, and the nearest real heading if one is a likely rename.
+- Every `→ doc § heading`, `see docs/X.md § Y`, and `docs/*.md`/`plan/**` path cited in `.copilot/context.md`, `.claude/commands/*.md`, and the in-scope docs: the file exists, and the quoted `§ heading` text matches (case-insensitive substring) a real heading in that file. A dead pointer is context loss — report each as **Dead pointer** with file, line, and the nearest real heading if one is a likely rename. <!-- doc-link:example -->
 - Every `§N` section reference to `context.md` resolves to a numbered top-level section that exists.
 
 ### 3i. Context-quality pass — in-scope docs, direct read

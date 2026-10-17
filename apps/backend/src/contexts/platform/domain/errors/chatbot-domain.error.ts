@@ -2,7 +2,7 @@ import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { PlatformDomainError } from './platform-domain.error';
 
 /**
- * Chatbot cap-rejection errors (UC-033, docs/discovery/CHATBOT/CHATBOT.md §8) — all mapped to
+ * Chatbot cap-rejection errors (docs/04-USE_CASES.md UC-033) — all mapped to
  * HTTP 429 in platform-error.mapper.ts. Covers both layer 1 (tenant-wide) and layer 2 (per-IP)
  * daily caps: same visitor-facing outcome ("come back tomorrow"), same error code.
  */

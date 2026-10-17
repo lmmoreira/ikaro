@@ -7,8 +7,8 @@ import { ActorRole } from '@ikaro/types/protocol/actor';
 //
 // TRUST BOUNDARY: The backend trusts X-Actor-Role because it is reachable only from
 // the BFF over a private internal network (Cloud Run VPC / service-to-service). If the
-// backend were ever exposed publicly, this header could be forged. Production hardening
-// (mTLS or a shared-secret header) is tracked in plan/M16-CICD-DEPLOY-HARDENING.md § M16-S11.
+// backend were ever exposed publicly, this header could be forged. That is hardened by
+// internal-only ingress plus the shared-secret X-Internal-Key check in InternalApiGuard.
 @Injectable()
 export class ManagerRoleGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {

@@ -144,7 +144,7 @@ export class OpenScheduleUseCase {
   }
 
   // A resource-scoped opening's window must always fit inside something the tenant itself has
-  // open for that date (docs/13-DATABASE_SCHEMA.md § schedule_openings Rules: "never... extends
+  // open for that date (docs/13-DATABASE_SCHEMA.md § booking.schedule_openings: "never... extends
   // beyond a tenant opening/window"). What that "something" is depends on whether the day is
   // normally open for the tenant:
   //  - Normally open (businessHours[day] set): that window IS the bound — no explicit

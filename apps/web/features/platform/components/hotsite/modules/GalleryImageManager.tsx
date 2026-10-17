@@ -47,7 +47,7 @@ export function GalleryImageManager({
   // Not-yet-promoted tmp/ images live in the private bucket — they can't resolve via the
   // public-bucket string template, so re-mounting this manager after the local blob preview is
   // gone (e.g. a tab switch) needs a fresh private signed read URL per image instead (see
-  // docs/14-API_CONTRACTS.md § tmp/ image preview).
+  // docs/14-API_CONTRACTS.md § Hotsite Image Preview).
   const [remoteReadUrls, setRemoteReadUrls] = useState(() => new Map<string, string>());
 
   useEffect(() => {

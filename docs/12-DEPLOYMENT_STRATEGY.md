@@ -12,7 +12,7 @@ Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. 
 | Database | Cloud SQL for PostgreSQL 17 | Private; application access through the Cloud SQL connector |
 | Events and scheduled triggers | Pub/Sub + Cloud Scheduler | Push/trigger infrastructure managed by Terraform |
 | Object storage | GCS | Tenant-prefixed object paths |
-| Telemetry | OTel Collector Cloud Run sidecar | Cloud Trace, Cloud Monitoring/GMP, Cloud Logging |
+| Telemetry | OTel Collector Cloud Run sidecar for traces and metrics; stdout for logs | Cloud Trace, Managed Prometheus, Cloud Logging |
 
 There is no production observability VM and no self-hosted Grafana/Loki deployment.
 
