@@ -56,7 +56,7 @@ Decisions locked by `/story-discovery` (2026-10-17, with the user):
 - Any change to recurring-schedule expiry.
 - Retrying or re-requesting for the customer.
 
-### Story 0 — Expire an unanswered manual-approval booking: job, domain transition, approve guard and customer email
+### Story 0 — Expire an unanswered manual-approval booking: job, domain transition, approve guard and customer email ✅ Done
 
 **Agent:** backend-ts (small bff-ts / web-ts touches for the detail wording)
 **Complexity:** L
