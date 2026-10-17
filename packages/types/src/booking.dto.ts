@@ -281,7 +281,8 @@ export interface StaffBookingDetailIntake extends CustomerBookingDetailIntake {
 // Who did it, for the staff read only. `name` is the staff member's name, or the booking's contact
 // name for a customer; null when unresolvable, and the UI then shows a role label.
 export interface BookingActorRef {
-  kind: 'CUSTOMER' | 'STAFF';
+  // SYSTEM: the platform cancelled an unanswered manual-approval request (TD51); no name.
+  kind: 'CUSTOMER' | 'STAFF' | 'SYSTEM';
   name: string | null;
 }
 
@@ -296,6 +297,9 @@ export interface StaffBookingTermination {
 export interface CustomerBookingCancellation {
   at: string;
   byCustomer: boolean;
+  // The request expired without an answer (TD51): neither the customer nor the establishment
+  // cancelled it. Absent from a BFF that predates TD51, which a reader treats as false.
+  expired?: boolean;
   reason: string | null;
 }
 

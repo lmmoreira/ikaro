@@ -19,6 +19,7 @@ type Translate = ReturnType<typeof useTranslations<'booking.detailCards'>>;
 
 // "Ana Pereira (equipe)" / "João Silva (cliente)" when the backend resolved a name, else the role.
 function resolveActorLabel(by: BookingActorRef, t: Translate): string {
+  if (by.kind === 'SYSTEM') return t('actorSystem');
   if (by.kind === 'CUSTOMER') {
     return by.name ? t('actorCustomerNamed', { name: by.name }) : t('actorCustomer');
   }
@@ -66,7 +67,7 @@ export function StaffBookingExtras({ booking }: StaffBookingExtrasProps): React.
       />
       {cancellation !== null && (
         <BookingTerminationCard
-          kind="cancellation"
+          kind={cancellation.by.kind === 'SYSTEM' ? 'expiry' : 'cancellation'}
           audience="staff"
           at={cancellation.at}
           reason={cancellation.reason}

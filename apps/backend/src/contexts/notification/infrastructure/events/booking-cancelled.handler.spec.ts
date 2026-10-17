@@ -1,12 +1,14 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { BookingCancelledEventBuilder } from '../../../../test/builders/booking/booking-cancelled-event.builder';
 import { SendBookingCancelledNotificationUseCase } from '../../application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case';
+import { SendBookingApprovalExpiredNotificationUseCase } from '../../application/use-cases/send-booking-approval-expired-notification/send-booking-approval-expired-notification.use-case';
 import { BookingCancelledHandler } from './booking-cancelled.handler';
 
 const TENANT_ID = 'aaaaaaaa-0000-4000-8000-000000000011';
 
 describe('BookingCancelledHandler', () => {
   let useCase: jest.Mocked<Pick<SendBookingCancelledNotificationUseCase, 'execute'>>;
+  let expiredUseCase: jest.Mocked<Pick<SendBookingApprovalExpiredNotificationUseCase, 'execute'>>;
   let eventBus: InMemoryEventBus;
   let handler: BookingCancelledHandler;
 
@@ -14,9 +16,11 @@ describe('BookingCancelledHandler', () => {
     useCase = {
       execute: jest.fn().mockResolvedValue({ customerEmailSent: true, adminEmailSent: true }),
     };
+    expiredUseCase = { execute: jest.fn().mockResolvedValue({ customerEmailSent: true }) };
     eventBus = new InMemoryEventBus();
     handler = new BookingCancelledHandler(
       useCase as unknown as SendBookingCancelledNotificationUseCase,
+      expiredUseCase as unknown as SendBookingApprovalExpiredNotificationUseCase,
       eventBus,
     );
     handler.onModuleInit();
@@ -54,6 +58,46 @@ describe('BookingCancelledHandler', () => {
     await handler.handle(event);
 
     expect(useCase.execute.mock.calls[0][0].cancelledByScheduleEnd).toBe(true);
+  });
+
+  it('passes cancelledByHoldExpiry through to the generic use case', async () => {
+    await handler.handle(new BookingCancelledEventBuilder().withTenantId(TENANT_ID).build());
+
+    expect(useCase.execute.mock.calls[0][0].cancelledByHoldExpiry).toBe(false);
+  });
+
+  it('sends a request that expired unanswered through the expiry use case only, with no actor', async () => {
+    const event = new BookingCancelledEventBuilder()
+      .withTenantId(TENANT_ID)
+      .withCancelledBy(null)
+      .withCancelledByHoldExpiry(true)
+      .build();
+
+    await handler.handle(event);
+
+    expect(useCase.execute).not.toHaveBeenCalled();
+    expect(expiredUseCase.execute).toHaveBeenCalledTimes(1);
+    const dto = expiredUseCase.execute.mock.calls[0][0];
+    expect(dto.tenantId).toBe(TENANT_ID);
+    expect(dto.eventId).toBe(event.eventId);
+    expect(dto.correlationId).toBe('corr-cancelled-1');
+    expect(dto.contactEmail).toBe('joao@example.com');
+    expect(dto.scheduledAt).toBe('2026-07-01T10:00:00.000Z');
+    expect(dto.lineSummary[0].serviceNameAtBooking).toBe('Lavagem Completa');
+  });
+
+  it('rethrows errors from the expiry use case', async () => {
+    expiredUseCase.execute.mockRejectedValue(new Error('expiry failure'));
+
+    await expect(
+      handler.handle(
+        new BookingCancelledEventBuilder()
+          .withTenantId(TENANT_ID)
+          .withCancelledBy(null)
+          .withCancelledByHoldExpiry(true)
+          .build(),
+      ),
+    ).rejects.toThrow('expiry failure');
   });
 
   it('passes isBusiness=false for customer-initiated cancellation', async () => {

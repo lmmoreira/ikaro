@@ -53,6 +53,11 @@ function toStaffTermination(
   };
 }
 
+function cancellationKind(cancellation: BackendBookingTermination | null): BookingActorRef['kind'] {
+  if (cancellation?.byExpiry) return 'SYSTEM';
+  return cancellation?.byCustomer ? 'CUSTOMER' : 'STAFF';
+}
+
 export function toStaffDetailExtras(detail: BookingDetailResponse): StaffDetailExtras {
   const { cancellation, rejection, intake } = detail;
   return {
@@ -66,7 +71,7 @@ export function toStaffDetailExtras(detail: BookingDetailResponse): StaffDetailE
     attendees: detail.attendees ?? [],
     intake: intake ? { ...intake } : null,
     recurringScheduleId: detail.recurringScheduleId,
-    cancellation: toStaffTermination(cancellation, cancellation?.byCustomer ? 'CUSTOMER' : 'STAFF'),
+    cancellation: toStaffTermination(cancellation, cancellationKind(cancellation)),
     rejection: toStaffTermination(rejection, 'STAFF'),
   };
 }
@@ -78,9 +83,10 @@ function toCustomerCancellation(
   return {
     at: cancellation.at,
     byCustomer: cancellation.byCustomer,
+    expired: cancellation.byExpiry,
     // A customer's own cancel stores no reason, and the customer is only told a reason the
     // establishment gave (the same rule as the cancellation email).
-    reason: cancellation.byCustomer ? null : cancellation.reason,
+    reason: cancellation.byCustomer || cancellation.byExpiry ? null : cancellation.reason,
   };
 }
 

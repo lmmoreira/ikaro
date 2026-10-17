@@ -32,6 +32,7 @@ import {
   CustomerPhoneNotSetError,
   DayAlreadyOpenInSettingsError,
   BookingAlreadyTerminalError,
+  BookingApprovalHoldExpiredError,
   BookingNotYetEndedError,
   InvalidBookingTransitionError,
   InvalidTimeRangeError,
@@ -158,6 +159,11 @@ describe('booking domain error subclasses', () => {
       label: 'BookingAlreadyTerminalError',
       build: () => new BookingAlreadyTerminalError('COMPLETED'),
       code: BookingErrorCode.ALREADY_TERMINAL,
+    },
+    {
+      label: 'BookingApprovalHoldExpiredError',
+      build: () => new BookingApprovalHoldExpiredError('booking-1'),
+      code: BookingErrorCode.APPROVAL_HOLD_EXPIRED,
     },
     {
       label: 'BookingNotYetEndedError',

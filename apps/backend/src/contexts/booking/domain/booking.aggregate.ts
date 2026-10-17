@@ -34,6 +34,7 @@ import { BookingResourceReassigned } from './events/booking-resource-reassigned.
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
 import {
+  APPROVAL_EXPIRED_REASON,
   BookingIntakeSnapshot,
   BookingProps,
   BookingStatus,
@@ -193,6 +194,16 @@ export class Booking extends AggregateRoot {
   }
   get cancelledBy(): string | null {
     return this.props.cancelledBy;
+  }
+  // True for a booking the system cancelled because its hold ran out (TD51). cancellation_reason is
+  // free text, so the reason alone proves nothing: a person's own cancellation always carries an
+  // actor id.
+  get cancelledByHoldExpiry(): boolean {
+    return (
+      this.props.status === BookingStatus.CANCELLED &&
+      this.props.cancelledBy === null &&
+      this.props.cancellationReason === APPROVAL_EXPIRED_REASON
+    );
   }
   get cancellationReason(): string | null {
     return this.props.cancellationReason;
@@ -824,8 +835,46 @@ export class Booking extends AggregateRoot {
         lineSummary: this.lineSummaryPayload(),
         totalPrice: this.totalPricePayload(),
         cancelledByScheduleEnd,
+        cancelledByHoldExpiry: false,
       }),
     );
+  }
+
+  // TD51 — the system cancels a request nobody decided within its hold. Only PENDING expires: an
+  // INFO_REQUESTED booking is waiting on the customer, not on staff.
+  expireApproval(correlationId: string): void {
+    if (this.props.status !== BookingStatus.PENDING) {
+      throw new InvalidBookingTransitionError(this.props.status, BookingStatus.CANCELLED);
+    }
+
+    this.transitionTo(
+      BookingStatus.CANCELLED,
+      { type: 'SYSTEM', id: null },
+      correlationId,
+      APPROVAL_EXPIRED_REASON,
+    );
+    this.props.cancelledAt = new Date();
+    this.props.cancelledBy = null;
+    this.props.cancellationReason = APPROVAL_EXPIRED_REASON;
+
+    this.addDomainEvent(this.buildHoldExpiredCancelledEvent(correlationId));
+  }
+
+  private buildHoldExpiredCancelledEvent(correlationId: string): BookingCancelled {
+    return new BookingCancelled(this.props.tenantId, correlationId, {
+      bookingId: this.props.id,
+      customerId: this.props.customerId,
+      contactEmail: this.props.contactEmail.address,
+      contactName: this.props.contactName,
+      cancelledBy: null,
+      isBusiness: true,
+      reason: APPROVAL_EXPIRED_REASON,
+      scheduledAt: this.props.scheduledAt.toISOString(),
+      lineSummary: this.lineSummaryPayload(),
+      totalPrice: this.totalPricePayload(),
+      cancelledByScheduleEnd: false,
+      cancelledByHoldExpiry: true,
+    });
   }
 
   reschedule(

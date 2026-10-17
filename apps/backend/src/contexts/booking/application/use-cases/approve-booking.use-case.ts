@@ -5,6 +5,7 @@ import {
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
 import {
+  BookingApprovalHoldExpiredError,
   BookingNotFoundError,
   InvalidBookingTransitionError,
   BookingScheduledAtInvalidError,
@@ -102,6 +103,7 @@ export class ApproveBookingUseCase {
   ): Promise<void> {
     const { tenantId, staffId, correlationId } = input;
     await this.txManager.run(async () => {
+      await this.assertHoldNotExpired(booking, tenantId);
       const occupiedBefore = await occupiedResourceIds(this.occupancyRepo, tenantId, [booking]);
       const candidatesByLine = await this.resolveAndCheckCandidates(
         booking,
@@ -130,6 +132,24 @@ export class ApproveBookingUseCase {
         { tenantId, booking, exceptions: openExceptions, correlationId },
       );
     });
+  }
+
+  // TD51 — the deadline lives on the booking's HOLD occupancy rows, not on the aggregate. A passed
+  // deadline is refused even when the expiry job has not run yet, so the job's 30-minute schedule
+  // only delays the cleanup and an approval can never commit a slot the request already lost.
+  private async assertHoldNotExpired(booking: Booking, tenantId: string): Promise<void> {
+    const rows = await this.occupancyRepo.findOccupancyByBookingLines(
+      tenantId,
+      booking.lines.map((line) => line.lineId),
+    );
+    const now = Date.now();
+    const expired = rows.some(
+      (row) =>
+        row.lockState === 'HOLD' &&
+        row.holdExpiresAt !== null &&
+        row.holdExpiresAt.getTime() <= now,
+    );
+    if (expired) throw new BookingApprovalHoldExpiredError(booking.id);
   }
 
   private assertApprovable(booking: Booking): void {

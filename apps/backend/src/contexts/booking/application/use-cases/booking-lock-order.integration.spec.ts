@@ -22,6 +22,7 @@ import {
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { occupiedResourceIds } from '../../../../test/utils/future-commitment-db-fixture';
 import { AvailabilityService } from '../../domain/services/availability.service';
+import { ExpireBookingHoldsJob } from '../jobs/expire-booking-holds.job';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RESOURCE_OCCUPANCY_REPOSITORY } from '../ports/resource-occupancy-repository.port';
 import { BOOKING_REPOSITORY } from '../ports/booking-repository.port';
@@ -61,6 +62,7 @@ describe('booking lock order (integration)', () => {
   let rescheduleAsStaff: RescheduleBookingUseCase;
   let rescheduleAsCustomer: RescheduleBookingAsCustomerUseCase;
   let approve: ApproveBookingUseCase;
+  let expireHolds: ExpireBookingHoldsJob;
   let resolve: ResolveFutureCommitmentExceptionsUseCase;
   let deactivate: DeactivateResourceUseCase;
 
@@ -79,6 +81,7 @@ describe('booking lock order (integration)', () => {
     rescheduleAsStaff = app.get(RescheduleBookingUseCase);
     rescheduleAsCustomer = app.get(RescheduleBookingAsCustomerUseCase);
     approve = app.get(ApproveBookingUseCase);
+    expireHolds = app.get(ExpireBookingHoldsJob);
     resolve = app.get(ResolveFutureCommitmentExceptionsUseCase);
     deactivate = app.get(DeactivateResourceUseCase);
   });
@@ -343,6 +346,26 @@ describe('booking lock order (integration)', () => {
             expect(await occupiedResourceIds(ds, world.tenantId, bookingId)).toEqual([
               world.roomB.id,
             ]);
+          },
+        };
+      },
+    ],
+    [
+      'the hold-expiry job cancelling a request nobody answered',
+      async (world) => {
+        const { bookingId, entryIds } = await world.seedBooking({
+          resources: [world.roomA],
+          status: 'PENDING',
+          holdExpiresAt: new Date(Date.now() - 60_000),
+        });
+        return {
+          entryId: entryIds[0],
+          tenantId: world.tenantId,
+          start: () => expireHolds.expireForTenant(world.tenantId),
+          verify: async () => {
+            expect(await entryStatus(ds, world.tenantId, entryIds[0])).toBe('DISMISSED');
+            expect(await bookingStatus(ds, world.tenantId, bookingId)).toBe('CANCELLED');
+            expect(await occupiedResourceIds(ds, world.tenantId, bookingId)).toEqual([]);
           },
         };
       },

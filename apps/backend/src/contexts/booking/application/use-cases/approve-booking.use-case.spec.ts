@@ -14,12 +14,14 @@ import {
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { futureDate } from '../../../../test/utils/date-helpers';
+import { seedOccupancy } from '../../../../test/utils/occupancy-seed';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import {
+  BookingApprovalHoldExpiredError,
   BookingNotFoundError,
   BookingSlotUnavailableError,
   InvalidBookingTransitionError,
@@ -115,6 +117,59 @@ describe('ApproveBookingUseCase', () => {
       expect(closed?.status).toBe('DISMISSED');
       expect(closed?.resolutionReason).toBe('RESOURCE_NO_LONGER_USED');
       expect(closed?.resolvedByStaffId).toBeNull();
+    });
+
+    describe('hold deadline (TD51)', () => {
+      const holdCases: Array<[string, BookingStatus]> = [
+        ['PENDING', BookingStatus.PENDING],
+        ['INFO_REQUESTED', BookingStatus.INFO_REQUESTED],
+      ];
+
+      async function bookingWithHold(status: BookingStatus, holdExpiresAt: Date) {
+        const booking = new BookingBuilder()
+          .withTenantId(TENANT_A)
+          .withScheduledAt(scheduledAt)
+          .withStatus(status)
+          .build();
+        await bookingRepo.save(booking);
+        await seedOccupancy(occupancyRepo, {
+          tenantId: TENANT_A,
+          bookingLineId: booking.lines[0].lineId,
+          lockState: 'HOLD',
+          holdExpiresAt,
+          startsAt: scheduledAt,
+        });
+        return booking;
+      }
+
+      it.each(holdCases)(
+        'refuses to approve a %s booking whose hold has passed, and commits nothing',
+        async (_label, status) => {
+          const booking = await bookingWithHold(status, new Date(Date.now() - 60_000));
+
+          await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toThrow(
+            BookingApprovalHoldExpiredError,
+          );
+
+          const saved = await bookingRepo.findById(booking.id, TENANT_A);
+          expect(saved?.status).toBe(status);
+          const [row] = await occupancyRepo.findOccupancyByBookingLines(TENANT_A, [
+            booking.lines[0].lineId,
+          ]);
+          expect(row.lockState).toBe('HOLD');
+        },
+      );
+
+      it.each(holdCases)(
+        'still approves a %s booking whose hold has not passed yet',
+        async (_label, status) => {
+          const booking = await bookingWithHold(status, new Date(Date.now() + 10 * 60_000));
+
+          const result = await useCase.execute({ bookingId: booking.id, ...ctx });
+
+          expect(result.status).toBe(BookingStatus.APPROVED);
+        },
+      );
     });
 
     it('transitions INFO_REQUESTED → APPROVED', async () => {

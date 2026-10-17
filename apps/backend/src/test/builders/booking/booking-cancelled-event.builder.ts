@@ -15,12 +15,13 @@ export class BookingCancelledEventBuilder {
     },
   ];
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
-  private cancelledBy = 'staffid-0000-4000-8000-000000000001';
+  private cancelledBy: string | null = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private reason: string | null = null;
   private serviceId: string | null = null;
   private scheduledAt = '2026-07-01T10:00:00.000Z';
   private cancelledByScheduleEnd = false;
+  private cancelledByHoldExpiry = false;
 
   withScheduledAt(scheduledAt: Date): this {
     this.scheduledAt = scheduledAt.toISOString();
@@ -58,7 +59,7 @@ export class BookingCancelledEventBuilder {
     return this;
   }
 
-  withCancelledBy(cancelledBy: string): this {
+  withCancelledBy(cancelledBy: string | null): this {
     this.cancelledBy = cancelledBy;
     return this;
   }
@@ -70,6 +71,11 @@ export class BookingCancelledEventBuilder {
 
   withCancelledByScheduleEnd(cancelledByScheduleEnd: boolean): this {
     this.cancelledByScheduleEnd = cancelledByScheduleEnd;
+    return this;
+  }
+
+  withCancelledByHoldExpiry(cancelledByHoldExpiry: boolean): this {
+    this.cancelledByHoldExpiry = cancelledByHoldExpiry;
     return this;
   }
 
@@ -89,6 +95,7 @@ export class BookingCancelledEventBuilder {
       })),
       totalPrice: this.totalPrice,
       cancelledByScheduleEnd: this.cancelledByScheduleEnd,
+      cancelledByHoldExpiry: this.cancelledByHoldExpiry,
     });
   }
 }

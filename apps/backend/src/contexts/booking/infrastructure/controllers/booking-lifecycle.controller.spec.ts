@@ -75,11 +75,15 @@ describe('BookingLifecycleController', () => {
           repo,
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
+          fixtures.serviceRepo,
+          occupancyRepo,
         ),
         submitGuestBookingInfo: new SubmitGuestBookingInfoUseCase(
           repo,
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
+          fixtures.serviceRepo,
+          occupancyRepo,
         ),
       };
     };
@@ -203,11 +207,15 @@ describe('BookingLifecycleController', () => {
           bookingRepoB,
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
+          fixturesB.serviceRepo,
+          occupancyRepoB,
         ),
         new SubmitGuestBookingInfoUseCase(
           bookingRepoB,
           new InMemoryTransactionManager(),
           new PhotoExistenceService(storageService),
+          fixturesB.serviceRepo,
+          occupancyRepoB,
         ),
       );
       const booking = new BookingBuilder()

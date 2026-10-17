@@ -115,7 +115,7 @@ Naming (from `infra/terraform/modules/pubsub` and `modules/scheduler`): a topic 
 
 1. List the jobs and their last attempt: `gcloud scheduler jobs list --project=<project> --location=<region>` (the `ikaro-cron-*` jobs; one per `cron-*` topic, defined in `modules/scheduler`'s `locals.jobs`).
 2. Fire one manually: `gcloud scheduler jobs run ikaro-cron-reminders --project=<project> --location=<region>`. The `POST /cron/*` routes on the backend are the **local/manual dev path only** (`InternalApiGuard`); in staging and production use the Scheduler job, not the route.
-3. A tick fans out to every consumer of its topic — `cron-reminders` (every 30 min) drives five: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep` and `recurring-schedule-approval-expiry`. You cannot trigger one consumer alone; each is idempotent (inbox claim), so re-running a tick is safe.
+3. A tick fans out to every consumer of its topic — `cron-reminders` (every 30 min) drives seven: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep`, `recurring-schedule-approval-expiry`, `recurring-schedule-renewal-reminder` and `booking-hold-expiry`. You cannot trigger one consumer alone; each is idempotent (inbox claim), so re-running a tick is safe.
 4. Some consumers only act inside a tenant-local window (the availability-alert sweep runs 06:30–06:59 tenant time — `docs/27-BUSINESS_LOGIC_REFERENCE.md`), so a manual tick outside the window correctly does nothing.
 
 ### A message landed in a dead-letter topic

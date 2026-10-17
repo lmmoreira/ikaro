@@ -33,6 +33,11 @@ export enum BookingStatus {
 
 export type BookingType = 'GUEST' | 'CUSTOMER';
 
+// TD51 — the cancellation_reason the system records when a manual-approval request's hold runs
+// out. cancellation_reason is free text, so a reader tells an expiry apart by this value together
+// with a null cancelledBy, never by the value alone.
+export const APPROVAL_EXPIRED_REASON = 'APPROVAL_EXPIRED';
+
 // M23-S03 (UC-069) — a variable-duration reschedule's re-quoted line (BookingQuoteService), passed
 // into Booking.reschedule() so it can update the one affected line + recompute
 // totalDurationMins/totalPrice atomically with the rest of the reschedule.

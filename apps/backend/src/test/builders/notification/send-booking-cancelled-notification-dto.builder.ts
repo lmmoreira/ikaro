@@ -6,7 +6,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
   private readonly correlationId = 'corr-cancelled-1';
   private contactEmail = 'joao@example.com';
   private contactName = 'João Silva';
-  private cancelledBy = 'staffid-0000-4000-8000-000000000001';
+  private cancelledBy: string | null = 'staffid-0000-4000-8000-000000000001';
   private isBusiness = true;
   private reason: string | null = 'Unavailability';
   private readonly scheduledAt = '2026-07-01T13:00:00.000Z';
@@ -18,6 +18,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
   ];
   private readonly totalPrice = { amount: '150.00', currency: 'BRL' };
   private cancelledByScheduleEnd = false;
+  private cancelledByHoldExpiry = false;
 
   withTenantId(tenantId: string): this {
     this.tenantId = tenantId;
@@ -34,7 +35,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
     return this;
   }
 
-  withCancelledBy(cancelledBy: string): this {
+  withCancelledBy(cancelledBy: string | null): this {
     this.cancelledBy = cancelledBy;
     return this;
   }
@@ -59,6 +60,11 @@ export class SendBookingCancelledNotificationDtoBuilder {
     return this;
   }
 
+  withCancelledByHoldExpiry(cancelledByHoldExpiry: boolean): this {
+    this.cancelledByHoldExpiry = cancelledByHoldExpiry;
+    return this;
+  }
+
   build(): SendBookingCancelledNotificationDto {
     return {
       tenantId: this.tenantId,
@@ -73,6 +79,7 @@ export class SendBookingCancelledNotificationDtoBuilder {
       lineSummary: this.lineSummary,
       totalPrice: this.totalPrice,
       cancelledByScheduleEnd: this.cancelledByScheduleEnd,
+      cancelledByHoldExpiry: this.cancelledByHoldExpiry,
     };
   }
 }

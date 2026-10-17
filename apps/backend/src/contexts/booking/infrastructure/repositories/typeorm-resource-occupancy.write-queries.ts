@@ -271,3 +271,26 @@ export async function insertFreshAssignmentsAndOccupancy(
     pairs.map((pair) => toFreshOccupancyRow(pair, { tenantId, lockState, holdExpiresAt, now })),
   );
 }
+
+// TD51 — gives the HOLD rows of the given booking lines a new deadline (a customer's answer to a
+// request for information). COMMITTED and REQUESTED rows have no deadline and are left alone.
+export async function restartHoldRows(
+  manager: EntityManager,
+  tenantId: string,
+  bookingLineIds: string[],
+  holdExpiresAt: Date,
+): Promise<void> {
+  await manager.query(
+    `
+    UPDATE booking.resource_occupancy
+    SET hold_expires_at = $3
+    WHERE tenant_id = $1
+      AND lock_state = 'HOLD'
+      AND booking_line_resource_assignment_id IN (
+        SELECT id FROM booking.booking_line_resource_assignments
+        WHERE tenant_id = $1 AND booking_line_id = ANY($2::uuid[])
+      )
+    `,
+    [tenantId, bookingLineIds, holdExpiresAt],
+  );
+}

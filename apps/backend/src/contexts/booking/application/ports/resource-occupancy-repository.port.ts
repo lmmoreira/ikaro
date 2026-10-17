@@ -116,6 +116,11 @@ export interface IResourceOccupancyRepository {
   // booking_line_resource_assignments, the immutable audit record.
   release(tenantId: string, bookingLineIds: string[]): Promise<void>;
 
+  // TD51 — gives the HOLD rows of the given booking lines a new deadline (a customer's answer to a
+  // request for information starts the staff's window again). Only HOLD rows move: COMMITTED and
+  // REQUESTED rows have no deadline. Same active-transaction contract as the other methods.
+  restartHold(tenantId: string, bookingLineIds: string[], holdExpiresAt: Date): Promise<void>;
+
   // TD40 Story 2 retention purge — deletes every resource_occupancy row (any lock_state) whose
   // ends_at is before cutoff, across every tenant in one pass. Deliberately no tenantId param,
   // unlike every other method on this port: the table is documented as "safely

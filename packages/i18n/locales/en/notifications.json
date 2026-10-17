@@ -41,6 +41,10 @@
     "admin": {
       "subject": "Booking cancelled",
       "body": "<p>Booking cancelled.</p><p><strong>Customer:</strong> {{contactName}}</p><p><strong>Date:</strong> {{localDate}}</p><p><strong>Time:</strong> {{localTime}}</p><p><strong>Services:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}"
+    },
+    "customerApprovalExpired": {
+      "subject": "Your booking request expired without a reply",
+      "body": "<p>Hello, {{contactName}}!</p><p>Your request for {{serviceNames}} on {{localDate}} at {{localTime}} expired before {{tenantName}} could answer it, so nothing was booked.</p><p>You are welcome to send a new request whenever you like.</p>"
     }
   },
   "BookingRescheduled": {

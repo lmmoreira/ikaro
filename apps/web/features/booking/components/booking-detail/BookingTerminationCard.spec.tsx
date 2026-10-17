@@ -25,6 +25,25 @@ describe('BookingTerminationCard', () => {
     expect(screen.getByText('Equipamento em manutenção.')).toBeInTheDocument();
   });
 
+  it('words an expired request itself, titled "Solicitação expirada" with the system as the actor and never the raw reason', () => {
+    renderWithIntl(
+      <BookingTerminationCard
+        kind="expiry"
+        audience="customer"
+        at={AT}
+        reason="APPROVAL_EXPIRED"
+        actorLabel="Sistema"
+      />,
+    );
+
+    expect(screen.getByTestId('booking-expiry-card')).toBeInTheDocument();
+    expect(screen.getByText('Solicitação expirada')).toBeInTheDocument();
+    expect(screen.getByText('Cancelado por')).toBeInTheDocument();
+    expect(screen.getByText('Sistema')).toBeInTheDocument();
+    expect(screen.getByText('A solicitação expirou sem resposta')).toBeInTheDocument();
+    expect(screen.queryByText('APPROVAL_EXPIRED')).not.toBeInTheDocument();
+  });
+
   it.each([null, '', '   '])('shows no reason row when there is none (%j)', (reason) => {
     renderWithIntl(
       <BookingTerminationCard

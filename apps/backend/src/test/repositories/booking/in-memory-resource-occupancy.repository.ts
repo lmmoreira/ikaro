@@ -114,6 +114,19 @@ export class InMemoryResourceOccupancyRepository implements IResourceOccupancyRe
     );
   }
 
+  restartHold(tenantId: string, bookingLineIds: string[], holdExpiresAt: Date): Promise<void> {
+    for (const row of this.store) {
+      if (
+        row.tenantId === tenantId &&
+        row.lockState === 'HOLD' &&
+        bookingLineIds.includes(row.bookingLineId)
+      ) {
+        row.holdExpiresAt = holdExpiresAt;
+      }
+    }
+    return Promise.resolve();
+  }
+
   release(tenantId: string, bookingLineIds: string[]): Promise<void> {
     this.store = this.store.filter(
       (row) => !(row.tenantId === tenantId && bookingLineIds.includes(row.bookingLineId)),

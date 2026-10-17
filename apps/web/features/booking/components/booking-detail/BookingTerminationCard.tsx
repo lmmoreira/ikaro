@@ -5,7 +5,9 @@ import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { BookingDetailRow, BookingDetailSection } from './BookingDetailSection';
 
 interface BookingTerminationCardProps {
-  readonly kind: 'cancellation' | 'rejection';
+  // 'expiry': the system cancelled a request nobody answered (TD51); `reason` is ignored and the
+  // card says so itself.
+  readonly kind: 'cancellation' | 'rejection' | 'expiry';
   readonly audience: 'staff' | 'customer';
   readonly at: string;
   readonly reason: string | null;
@@ -25,22 +27,26 @@ export function BookingTerminationCard({
   const t = useTranslations('booking.detailCards');
   const { formatDate, formatTime } = useFormatting();
   const when = new Date(at);
-  const isCancellation = kind === 'cancellation';
+  const isRejection = kind === 'rejection';
+  const isExpiry = kind === 'expiry';
   let title = t('cancellationTitle');
-  if (!isCancellation) {
+  if (isExpiry) {
+    title = t('expiryTitle');
+  } else if (isRejection) {
     title = audience === 'staff' ? t('rejectionTitleStaff') : t('rejectionTitleCustomer');
   }
+  const shownReason = isExpiry ? t('expiryReason') : reason;
 
   return (
     <BookingDetailSection title={title} testId={`booking-${kind}-card`}>
-      <BookingDetailRow label={isCancellation ? t('cancelledByLabel') : t('rejectedByLabel')}>
+      <BookingDetailRow label={isRejection ? t('rejectedByLabel') : t('cancelledByLabel')}>
         {actorLabel}
       </BookingDetailRow>
       <BookingDetailRow label={t('whenLabel')}>
         {t('whenValue', { date: formatDate(when), time: formatTime(when) })}
       </BookingDetailRow>
-      {reason !== null && reason.trim() !== '' && (
-        <BookingDetailRow label={t('reasonLabel')}>{reason}</BookingDetailRow>
+      {shownReason !== null && shownReason.trim() !== '' && (
+        <BookingDetailRow label={t('reasonLabel')}>{shownReason}</BookingDetailRow>
       )}
     </BookingDetailSection>
   );

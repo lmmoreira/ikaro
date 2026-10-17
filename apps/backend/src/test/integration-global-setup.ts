@@ -65,6 +65,8 @@ import { AddBookingNoShowCustomerTemplate1748500000032 } from '../contexts/notif
 import { AddBookingCreatedByStaffId1748500000033 } from '../contexts/booking/infrastructure/migrations/1748500000033-AddBookingCreatedByStaffId';
 import { AddRecurringScheduleRenewalDueTemplate1748500000034 } from '../contexts/notification/infrastructure/migrations/1748500000034-AddRecurringScheduleRenewalDueTemplate';
 import { AddFutureCommitmentWorklistTemplates1748500000035 } from '../contexts/notification/infrastructure/migrations/1748500000035-AddFutureCommitmentWorklistTemplates';
+import { AddBookingApprovalExpiredCustomerTemplate1748500000036 } from '../contexts/notification/infrastructure/migrations/1748500000036-AddBookingApprovalExpiredCustomerTemplate';
+import { AddResourceOccupancyHoldExpiryIndex1748500000037 } from '../contexts/booking/infrastructure/migrations/1748500000037-AddResourceOccupancyHoldExpiryIndex';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -249,6 +251,8 @@ export default async function globalSetup(): Promise<void> {
       AddBookingCreatedByStaffId1748500000033,
       AddRecurringScheduleRenewalDueTemplate1748500000034,
       AddFutureCommitmentWorklistTemplates1748500000035,
+      AddBookingApprovalExpiredCustomerTemplate1748500000036,
+      AddResourceOccupancyHoldExpiryIndex1748500000037,
     ],
     synchronize: false,
     migrationsRun: false,

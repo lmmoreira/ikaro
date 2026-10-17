@@ -24,11 +24,13 @@ import { DismissFutureCommitmentExceptionsUseCase } from './application/use-case
 import { TypeOrmFutureCommitmentExceptionRepository } from './infrastructure/repositories/typeorm-future-commitment-exception.repository';
 import { AdminScheduleReminderJob } from './application/jobs/admin-schedule-reminder.job';
 import { BookingReminderJob } from './application/jobs/booking-reminder.job';
+import { ExpireBookingHoldsJob } from './application/jobs/expire-booking-holds.job';
 import { ExpireRecurringBookingScheduleApprovalsJob } from './application/jobs/expire-recurring-schedule-approvals.job';
 import { RecurringScheduleRenewalReminderJob } from './application/jobs/recurring-schedule-renewal-reminder.job';
 import { ExpireAvailabilityAlertsJob } from './application/jobs/expire-availability-alerts.job';
 import { ResourceOccupancyRetentionPurgeJob } from './application/jobs/resource-occupancy-retention-purge.job';
 import { BookingReminderTriggerHandler } from './infrastructure/events/booking-reminder-trigger.handler';
+import { ExpireBookingHoldsTriggerHandler } from './infrastructure/events/expire-booking-holds-trigger.handler';
 import { ExpireRecurringScheduleApprovalsTriggerHandler } from './infrastructure/events/expire-recurring-schedule-approvals-trigger.handler';
 import { RecurringScheduleRenewalReminderTriggerHandler } from './infrastructure/events/recurring-schedule-renewal-reminder-trigger.handler';
 import { ExpireAvailabilityAlertsTriggerHandler } from './infrastructure/events/expire-availability-alerts-trigger.handler';
@@ -160,12 +162,14 @@ export const bookingModuleProviders: Provider[] = [
   { provide: BOOKING_STAFF_PORT, useClass: BookingStaffAdapter },
   AvailabilityService,
   BookingReminderJob,
+  ExpireBookingHoldsJob,
   ExpireRecurringBookingScheduleApprovalsJob,
   RecurringScheduleRenewalReminderJob,
   ExpireAvailabilityAlertsJob,
   AdminScheduleReminderJob,
   ResourceOccupancyRetentionPurgeJob,
   BookingReminderTriggerHandler,
+  ExpireBookingHoldsTriggerHandler,
   ExpireRecurringScheduleApprovalsTriggerHandler,
   RecurringScheduleRenewalReminderTriggerHandler,
   ExpireAvailabilityAlertsTriggerHandler,

@@ -1,6 +1,6 @@
 'use client';
 
-import type { CustomerBookingDetailResponse } from '@ikaro/types';
+import type { CustomerBookingCancellation, CustomerBookingDetailResponse } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
 import { BookingAddressesCard } from '@/features/booking/components/booking-detail/BookingAddressesCard';
 import { BookingIntakeCard } from '@/features/booking/components/booking-detail/BookingIntakeCard';
@@ -14,6 +14,14 @@ import { BookingTerminationCard } from '@/features/booking/components/booking-de
 interface CustomerBookingExtrasProps {
   readonly booking: CustomerBookingDetailResponse;
   readonly tenantSlug: string;
+}
+
+type Translate = ReturnType<typeof useTranslations<'booking.detailCards'>>;
+
+// "Você", "O estabelecimento", or "Sistema" for a request that expired unanswered (TD51).
+function cancellationActorLabel(cancellation: CustomerBookingCancellation, t: Translate): string {
+  if (cancellation.expired) return t('actorSystem');
+  return cancellation.byCustomer ? t('actorYou') : t('actorEstablishment');
 }
 
 // Everything the full customer booking detail adds to the shipped cards (M23-S47): what the
@@ -48,11 +56,11 @@ export function CustomerBookingExtras({
       />
       {cancellation !== null && (
         <BookingTerminationCard
-          kind="cancellation"
+          kind={cancellation.expired ? 'expiry' : 'cancellation'}
           audience="customer"
           at={cancellation.at}
           reason={cancellation.reason}
-          actorLabel={cancellation.byCustomer ? t('actorYou') : t('actorEstablishment')}
+          actorLabel={cancellationActorLabel(cancellation, t)}
         />
       )}
       {rejection !== null && (

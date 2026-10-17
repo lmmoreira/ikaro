@@ -1,9 +1,12 @@
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
+import { seedOccupancy } from '../../../../test/utils/occupancy-seed';
 import { futureDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -29,6 +32,7 @@ describe('SubmitBookingInfoUseCase', () => {
   let transitionRepo: InMemoryBookingStatusTransitionRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let useCase: SubmitBookingInfoUseCase;
 
   beforeEach(() => {
@@ -36,10 +40,13 @@ describe('SubmitBookingInfoUseCase', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     bookingRepo = new InMemoryBookingRepository(eventBus, transitionRepo);
     storageService = new InMemoryStorageService();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
     useCase = new SubmitBookingInfoUseCase(
       bookingRepo,
       new InMemoryTransactionManager(),
       new PhotoExistenceService(storageService),
+      new InMemoryServiceRepository(),
+      occupancyRepo,
     );
   });
 
@@ -63,6 +70,67 @@ describe('SubmitBookingInfoUseCase', () => {
     expect(result.status).toBe(BookingStatus.PENDING);
     expect(result.bookingId).toBe(booking.id);
     expect(result.infoSubmittedAt).toBeDefined();
+  });
+
+  describe('hold restart (TD51)', () => {
+    async function infoRequestedBookingWithHold(holdExpiresAt: Date) {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withCustomerId(CUSTOMER_ID)
+        .withStatus(BookingStatus.INFO_REQUESTED)
+        .withScheduledAt(scheduledAt)
+        .build();
+      await bookingRepo.save(booking);
+      await seedOccupancy(occupancyRepo, {
+        tenantId: TENANT_A,
+        bookingLineId: booking.lines[0].lineId,
+        lockState: 'HOLD',
+        holdExpiresAt,
+      });
+      return booking;
+    }
+
+    const answer = (bookingId: string) =>
+      useCase.execute({
+        bookingId,
+        response: VALID_RESPONSE,
+        tenantId: TENANT_A,
+        customerId: CUSTOMER_ID,
+        correlationId: CORRELATION_ID,
+      });
+
+    it('restarts a hold that already passed, so staff get a fresh window and the job does not expire the answered booking', async () => {
+      const booking = await infoRequestedBookingWithHold(new Date(Date.now() - 3_600_000));
+
+      await answer(booking.id);
+
+      const [row] = await occupancyRepo.findOccupancyByBookingLines(
+        TENANT_A,
+        booking.lines.map((line) => line.lineId),
+      );
+      expect(row.lockState).toBe('HOLD');
+      expect(row.holdExpiresAt!.getTime()).toBeGreaterThan(Date.now() + 25 * 60_000);
+    });
+
+    it("does not touch another tenant's rows for the same line id", async () => {
+      const booking = await infoRequestedBookingWithHold(new Date(Date.now() - 3_600_000));
+      const otherTenantDeadline = new Date(Date.now() - 7_200_000);
+      await seedOccupancy(occupancyRepo, {
+        tenantId: TENANT_B,
+        bookingLineId: booking.lines[0].lineId,
+        lockState: 'HOLD',
+        holdExpiresAt: otherTenantDeadline,
+        resourceId: 'eeeeeeee-0000-4000-8000-000000000002',
+      });
+
+      await answer(booking.id);
+
+      const [row] = await occupancyRepo.findOccupancyByBookingLines(
+        TENANT_B,
+        booking.lines.map((line) => line.lineId),
+      );
+      expect(row.holdExpiresAt).toEqual(otherTenantDeadline);
+    });
   });
 
   it('records the reply as one audit row for the customer, without the free-text reply', async () => {

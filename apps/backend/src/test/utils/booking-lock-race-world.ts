@@ -34,10 +34,12 @@ export interface LockRaceEnv {
 
 export interface SeedBookingOptions {
   resources: ResourceEntity[];
-  status?: 'APPROVED' | 'PENDING';
+  status?: 'APPROVED' | 'PENDING' | 'INFO_REQUESTED';
   customerId?: string;
   recurringScheduleId?: string;
   startsInDays?: number;
+  // For a PENDING booking: when its HOLD runs out (default: an hour from now).
+  holdExpiresAt?: Date;
 }
 
 export interface LockRaceWorld {
@@ -119,8 +121,10 @@ export async function createLockRaceWorld(
             startsAt,
             endsAt,
           })),
-          status === 'PENDING' ? 'HOLD' : 'COMMITTED',
-          status === 'PENDING' ? new Date(Date.now() + 3_600_000) : null,
+          status === 'APPROVED' ? 'COMMITTED' : 'HOLD',
+          status === 'APPROVED'
+            ? null
+            : (options.holdExpiresAt ?? new Date(Date.now() + 3_600_000)),
         ),
       );
       const entryIds = await Promise.all(

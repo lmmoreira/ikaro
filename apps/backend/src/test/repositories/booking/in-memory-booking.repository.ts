@@ -83,6 +83,28 @@ export class InMemoryBookingRepository implements IBookingRepository {
     );
   }
 
+  private readonly holdExpiresAtByBookingId = new Map<string, Date>();
+
+  // Test-only helper — the in-memory repository has no occupancy rows, so a spec states directly
+  // when a booking's HOLD runs out.
+  seedHoldExpiry(bookingId: string, holdExpiresAt: Date): void {
+    this.holdExpiresAtByBookingId.set(bookingId, holdExpiresAt);
+  }
+
+  findPendingWithExpiredHold(tenantId: string, now: Date): Promise<Booking[]> {
+    return Promise.resolve(
+      Array.from(this.store.values()).filter((b) => {
+        const holdExpiresAt = this.holdExpiresAtByBookingId.get(b.id);
+        return (
+          b.tenantId === tenantId &&
+          b.status === 'PENDING' &&
+          holdExpiresAt !== undefined &&
+          holdExpiresAt.getTime() <= now.getTime()
+        );
+      }),
+    );
+  }
+
   findAllByTenant(tenantId: string, filters: BookingFilters = {}): Promise<Booking[]> {
     let results = Array.from(this.store.values()).filter((b) => b.tenantId === tenantId);
     if (filters.status?.length) results = results.filter((b) => filters.status!.includes(b.status));

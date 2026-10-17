@@ -66,6 +66,7 @@ const baseDetail: BookingDetailResponse = {
     at: '2026-06-16T08:40:00.000Z',
     reason: 'Equipamento em manutenção.',
     byCustomer: false,
+    byExpiry: false,
     actorId: '30000000-0000-4000-8000-000000000471',
     actorName: 'Ana Pereira',
   },
@@ -102,6 +103,7 @@ describe('toStaffDetailExtras()', () => {
         at: '2026-06-16T08:40:00.000Z',
         reason: null,
         byCustomer: true,
+        byExpiry: false,
         actorId: baseDetail.customerId,
         actorName: 'João Silva',
       },
@@ -158,6 +160,7 @@ describe('toCustomerDetailExtras()', () => {
     expect(toCustomerDetailExtras(baseDetail).cancellation).toEqual({
       at: '2026-06-16T08:40:00.000Z',
       byCustomer: false,
+      expired: false,
       reason: 'Equipamento em manutenção.',
     });
 
@@ -167,6 +170,7 @@ describe('toCustomerDetailExtras()', () => {
         at: '2026-06-16T08:40:00.000Z',
         reason: 'stray reason',
         byCustomer: true,
+        byExpiry: false,
         actorId: baseDetail.customerId,
         actorName: 'João Silva',
       },
@@ -174,7 +178,56 @@ describe('toCustomerDetailExtras()', () => {
     expect(own.cancellation).toEqual({
       at: '2026-06-16T08:40:00.000Z',
       byCustomer: true,
+      expired: false,
       reason: null,
+    });
+  });
+
+  describe('a request that expired unanswered (TD51)', () => {
+    const expired = {
+      ...baseDetail,
+      cancellation: {
+        at: '2026-06-16T08:40:00.000Z',
+        reason: null,
+        byCustomer: false,
+        byExpiry: true,
+        actorId: null,
+        actorName: null,
+      },
+    };
+
+    it('shows the customer an expiry with no reason and neither party as the canceller', () => {
+      expect(toCustomerDetailExtras(expired).cancellation).toEqual({
+        at: '2026-06-16T08:40:00.000Z',
+        byCustomer: false,
+        expired: true,
+        reason: null,
+      });
+    });
+
+    it('names the system as the staff-facing actor, with no name', () => {
+      expect(toStaffDetailExtras(expired).cancellation).toEqual({
+        at: '2026-06-16T08:40:00.000Z',
+        reason: null,
+        by: { kind: 'SYSTEM', name: null },
+      });
+    });
+
+    it('does not treat an ordinary cancellation as an expiry, even when a person typed the marker as the reason', () => {
+      const typed = {
+        ...baseDetail,
+        cancellation: {
+          at: '2026-06-16T08:40:00.000Z',
+          reason: 'APPROVAL_EXPIRED',
+          byCustomer: false,
+          byExpiry: false,
+          actorId: '30000000-0000-4000-8000-000000000471',
+          actorName: 'Ana Pereira',
+        },
+      };
+
+      expect(toStaffDetailExtras(typed).cancellation?.by.kind).toBe('STAFF');
+      expect(toCustomerDetailExtras(typed).cancellation?.expired).toBe(false);
     });
   });
 
@@ -187,6 +240,7 @@ describe('toCustomerDetailExtras()', () => {
         at: '2026-06-15T17:20:00.000Z',
         reason: 'Não atendemos esse tipo de veículo.',
         byCustomer: false,
+        byExpiry: false,
         actorId: '30000000-0000-4000-8000-000000000471',
         actorName: 'Ana Pereira',
       },

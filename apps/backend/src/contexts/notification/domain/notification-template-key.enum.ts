@@ -7,6 +7,7 @@ export enum NotificationTemplateKey {
   BOOKING_INFO_SUBMITTED_ADMIN = 'booking-info-submitted-admin',
   BOOKING_CANCELLED_CUSTOMER = 'booking-cancelled-customer',
   BOOKING_CANCELLED_ADMIN = 'booking-cancelled-admin',
+  BOOKING_APPROVAL_EXPIRED_CUSTOMER = 'booking-approval-expired-customer',
   BOOKING_RESCHEDULED_CUSTOMER = 'booking-rescheduled-customer',
   BOOKING_RESCHEDULED_ADMIN = 'booking-rescheduled-admin',
   BOOKING_NO_SHOW_CUSTOMER = 'booking-no-show-customer',
