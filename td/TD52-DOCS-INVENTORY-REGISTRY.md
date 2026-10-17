@@ -7,7 +7,7 @@
 - **Created**: 2026-10-17
 - **Discovered**: reviewing `/docs-audit`'s quality in a chat session; the deep/light lists are the one hand-maintained inventory in the documentation tooling with no CI check
 - **Decision status**: Drafted 2026-10-17 — approach decided below. One story; it still begins with `/story-discovery TD52`.
-- **Related**: TD41 (canonical-home rule), TD37 (`architecture-check` decisions), `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check` detector table, `docs/28-LOCK_CATALOG.md` § 7 (the `lock-catalog-coverage` precedent)
+- **Related**: TD53 (docs and journeys layout — decides the final paths this registry is seeded with; implement after it), TD41 (canonical-home rule), TD37 (`architecture-check` decisions), `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check` detector table, `docs/28-LOCK_CATALOG.md` § 7 (the `lock-catalog-coverage` precedent)
 
 ## Problem
 
@@ -44,7 +44,7 @@ Decisions baked in:
 **Agent:** devops
 **Complexity:** M
 **Docs to load:** `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/ENGINEERING_RULES_TESTING.md` (detector tests); `docs/STORY_SCHEMA.md`; `.claude/commands/docs-audit.md` Step 1
-**Dependencies:** none
+**Dependencies:** TD53 Story 3, or TD53 Story 0's no-go decision on regrouping `docs/` — so the registry is seeded once with the final paths. If regrouping is no-go, add a `category` field to the registry entries and generate or validate `docs/README.md` from it.
 **Pattern:** plain composition — no named pattern applies. The detector follows `lock-catalog-coverage.ts` and `agent-context-file.ts`: policy JSON in, `ScanResult` out.
 
 **Description:**
