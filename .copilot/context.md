@@ -348,8 +348,7 @@ Ask: *"All checks are green on PR #N — happy to merge?"* Then:
 Always delete the local branch with `-D` (not `-d` — squash merges aren't recognized as fully merged).
 
 ### Step 11 — Mark done
-`/mark-done M0X-SYY` — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete. (TD stories: no separate command — see `mark-done.md`'s note on marking a TD story done directly in its own feature branch.)
-
+`/mark-done M0X-SYY` (or `TDNN-SYY` for a TD story, e.g. `TD49-S02` — same flow, after the merge) — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete.
 **If a worktree was used, clean it up immediately after — no need to ask:** `git worktree remove .claude/worktrees/<name> --force`, delete the local branch(es) with `-D`, prune the stale remote-tracking ref (`git fetch --prune origin`). Verify the removal actually took with `git worktree list` — don't trust a success message alone.
 
 ### Step 12 — Milestone complete?
@@ -482,7 +481,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC\|M0X\|TDNN\|path\|changed]` | `.claude/commands/docs-audit.md` |
 | `/grill-me` | `.claude/commands/grill-me.md` |
-| `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
+| `/mark-done <story-id>` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
 | `/pr-land [PR#]` | `.claude/commands/pr-land.md` |
 | `/pr-review [PR#]` | `.claude/commands/pr-review.md` |
