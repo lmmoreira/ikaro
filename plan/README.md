@@ -1,9 +1,9 @@
 # Ikaro — Project Plan
 
-**Milestones:** M00 – M13, M17 – M24 and M115. M14 – M16 (observability, GCP infrastructure, deploy pipelines) were superseded by M17 and removed; they stay recoverable from git history.  
-**Stories:** counted in each milestone file  
-**Two phases:** Local Development (no cloud cost) → Cloud Deployment  
-**Development model:** All stories are designed to be executed by AI agents under human review.
+- **Milestones:** M00 – M13, M17 – M24 and M115. M14 – M16 (observability, GCP infrastructure, deploy pipelines) were superseded by M17 and removed; they stay recoverable from git history.
+- **Stories:** counted in each milestone file
+- **Two phases:** Local Development (no cloud cost) → Cloud Deployment
+- **Development model:** All stories are designed to be executed by AI agents under human review.
 
 ---
 

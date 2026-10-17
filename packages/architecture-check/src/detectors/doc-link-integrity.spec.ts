@@ -196,6 +196,29 @@ describe('checkDocLinkIntegrity', () => {
       expect(result.findings).toEqual([]);
     });
 
+    it.each(['.', ',', ':', ';', ')', '#frag'])(
+      'reports a missing doc cited in a .ts comment followed by "%s"',
+      (suffix) => {
+        const result = scan({
+          'apps/backend/src/a.ts': `// see (docs/GONE.md${suffix}\nexport {};`,
+        });
+
+        expect(result.findings).toEqual([
+          expect.objectContaining({ message: expect.stringContaining('docs/GONE.md') }),
+        ]);
+      },
+    );
+
+    it('passes a present doc cited in a .ts comment followed by sentence punctuation', () => {
+      const result = scan({
+        'docs/A.md': '# A',
+        'apps/backend/src/a.ts': '// see docs/A.md.\n// and docs/A.md, plus docs/A.md:\nexport {};',
+      });
+
+      expect(result.findings).toEqual([]);
+      expect(result.scannedTargets).toBe(3);
+    });
+
     it('checks an infra citation against tracked files and directories', () => {
       const files = {
         'infra/terraform/README.md': '# r',
