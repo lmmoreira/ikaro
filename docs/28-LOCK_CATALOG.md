@@ -2,7 +2,7 @@
 
 **Audience:** any engineer or AI agent touching a transaction that writes shared rows, and anyone debugging a stuck request, a `40P01` deadlock or a duplicate/stale row.
 **Scope:** every mechanism the backend uses to serialize concurrent work. BFF and web were searched too (`mutex`, `semaphore`, `redlock`, advisory/`FOR UPDATE` patterns) and hold none.
-**Last verified against the code:** 2026-10-16, after M23-S49 (read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
+**Last verified against the code:** 2026-10-17 (docs-audit re-check of every lock, key, call site and §4 order; corrections the same day), after M23-S49 (read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
 **How to keep it true:** a change that adds, removes or reorders a lock updates this file in the same commit (§7).
 
 The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive and § A lock only orders callers who both acquire it. This file is the *inventory*: what exists, what each one protects, and the order they may be combined in.
@@ -19,7 +19,7 @@ The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` �
 | M4 | Database constraint as the authoritative backstop | Two rows must never collide | migrations (`EX_…` exclusion, `UQ_…` unique) |
 | M5 | Idempotency key | At-least-once delivery, the same work twice | inbox `ON CONFLICT (event_id, consumer_name) DO NOTHING`, outbox `UQ_shared_outbox_dedup_key` |
 
-All M1 and M2 locks throw `Error('… must be called inside an active transaction')` when no transaction is open, and are released on commit or rollback. Every transaction opened by `runInNewTransaction` sets a transaction-local `lock_timeout` of 2s (`DB_LOCK_TIMEOUT_MS`, `shared/infrastructure/run-in-new-transaction.ts`; M23-S49, §5 H5), so a wait for any M1 or M2 lock (and for an uncommitted conflicting row under M4) that lasts longer than 2s fails with `TransactionContentionError`, which the caller sees as a retryable 503 `AUTH_TRANSACTION_CONTENTION` with `Retry-After: 1`; a deadlock victim (`40P01`) gets the same error. The timeout bounds **each** wait, not the whole transaction. M3 (`SKIP LOCKED`) never waits.
+The M1 adapter (`Tenant lock requires an active transaction`) and the M2 `…ForUpdate` / `lockBookingModels` methods (an error naming the method) throw when no transaction is open, and all of them are released on commit or rollback. **Exception: `countActiveManagersByTenant` (R5) does not throw — outside a transaction it silently falls back to an unlocked `repo.count`.** Every transaction opened by `runInNewTransaction` sets a transaction-local `lock_timeout` of 2s (`DB_LOCK_TIMEOUT_MS`, `shared/infrastructure/run-in-new-transaction.ts`; M23-S49, §5 H5), so a wait for any M1 or M2 lock (and for an uncommitted conflicting row under M4) that lasts longer than 2s fails with `TransactionContentionError`, which the caller sees as a retryable 503 `AUTH_TRANSACTION_CONTENTION` with `Retry-After: 1`; a deadlock victim (`40P01`) gets the same error. The timeout bounds **each** wait, not the whole transaction. M3 (`SKIP LOCKED`) never waits.
 
 ---
 
@@ -67,7 +67,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Precedent:** M21-S06.
 
 #### A3 — `lockResources(tenantId, resourceIds)` — key `resource:{tenantId}:{resourceId}` per id
-- **Taken by:** booking creation (`booking-request.helpers.ts` → `resolveAndCheckCandidates`), `ApproveBookingUseCase`, reschedule (`reschedule-quote.helpers.ts`), reassign (`resource-reassignment.helpers.ts`), `ReactivateResourceUseCase`, `RaiseFutureCommitmentExceptionsForResourceUseCase`, the recurring request and approval (`recurring-considered-resources.helpers.ts`), `BookingSlotConflictService.assertSlotFree` and `lockResources`.
+- **Taken by:** booking creation (`booking-request.helpers.ts` → `resolveAndCheckCandidates`), `DeactivateResourceUseCase` (through the raise below, after the resource `save()`), `ApproveBookingUseCase`, reschedule (`reschedule-quote.helpers.ts`), reassign (`resource-reassignment.helpers.ts`), `ReactivateResourceUseCase`, `RaiseFutureCommitmentExceptionsForResourceUseCase`, the recurring request and approval (`recurring-considered-resources.helpers.ts`), `BookingSlotConflictService.assertSlotFree` and `lockResources`.
 - **Protects:** the read-then-insert of resource occupancy. Two requests that both read a unit as free must not both take it, and a request choosing among interchangeable units must lock every candidate before reading (`resource-candidate-locking.helpers.ts`, M23-S32). Also orders a deactivation's impact read against a booking inserting occupancy on that resource.
 - **Why advisory + a constraint:** the ids are sorted by the adapter (so overlapping sets cannot cross); the GIST exclusion M4-1 remains the authoritative backstop.
 - **Level:** L3.
@@ -117,11 +117,13 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Taken by:** `DeactivateStaffUseCase`, `UpdateStaffProfileUseCase`.
 - **Protects:** the last-active-manager guard. Locks every active MANAGER row of the tenant (`FOR UPDATE` cannot be combined with `COUNT`, so ids are selected and counted in code).
 - **Level:** none of the above; it only touches `staff.staff`. The query has `ORDER BY id` since M23-S48 (H3).
+- **Only locks inside a transaction:** outside one, the repository falls back to an unlocked `repo.count`, with no error. Both callers run inside `txManager.run` today; a new caller must too.
 
 ### Queue lease (M3)
 
 #### Q1 — Outbox claim
 - `shared.outbox` rows are claimed with `FOR UPDATE SKIP LOCKED` plus `lease_token` / `lease_expires_at`; a worker that dies releases the claim when the lease expires. Several relay instances can run side by side.
+- A second claim path exists: the inline per-id claim (`CLAIM_UNPUBLISHED_BY_ID_SQL` in the same repository) is a plain conditional `UPDATE` guarded only by `lease_expires_at IS NULL OR < now()`, with no `SKIP LOCKED`. Only the sweep uses `SKIP LOCKED`.
 
 ### Constraints and idempotency (M4, M5)
 
@@ -134,7 +136,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 | `UQ_booking_schedule_openings_*` | `booking.schedule_openings` | One opening per tenant, date and resource scope |
 | `UQ_booking_bookings_recurring_schedule_occurrence`, `UQ_booking_rbs_exceptions_schedule_occurrence` | `booking.bookings`, schedule exceptions | One booking or exception per schedule occurrence |
 | `UQ_staff_tenant_google_oauth_id`, `UQ_staff_tenant_email`, `UQ_customer_customers_tenant_oauth` | `staff.staff`, `customer.customers` | Per-tenant identity (multi-tenancy invariants 5 and 6) |
-| `UQ_notification_logs_event_channel`, `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |
+| `UQ_notification_logs_event_type_channel` (unique index; the earlier `UQ_notification_logs_event_channel` constraint was dropped by migration `1748200000010`), `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |
 | inbox `(event_id, consumer_name)`, outbox `UQ_shared_outbox_dedup_key` | `shared.*` | Consumer idempotency, publish dedup |
 
 The meaning of the unique constraints is taken from their names and `docs/13-DATABASE_SCHEMA.md`; confirm there before relying on one for a new design.
@@ -178,6 +180,7 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 | Resolve RESCHEDULE (worklist) | A3 (the booking's resources, the entry's source and the candidates, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
 | `ReactivateResourceUseCase` | A2 → A3 → R4 → resource `save` |
 | `CascadeStaffDeactivationUseCase` | A2 → resource `save` → raise (A3 → impact read → entry inserts) |
+| `DeactivateResourceUseCase` | resource `save` → raise (A3 → impact read → entry inserts); the resource row is written before A3, unlike the cancel paths |
 | Raise (`RaiseFutureCommitmentExceptionsForResource`) | A3 → impact read |
 | `RequestRecurringBookingScheduleUseCase` | A4 → R1 → A3 (considered resources, one call) → cap check |
 | `ApproveRecurringBookingScheduleUseCase` | A4 → A3 |
@@ -195,7 +198,7 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 | H2 | **Resolve versus reactivate.** Resolve REASSIGN/RESCHEDULE take the entry (R4) then resource locks (A3); reactivate takes A3 then R4. The cycle needs the failing resolve case (a `CUSTOMER_CHOICE` pinned to the deactivated resource); reassign locks only candidate targets. | **Closed in M23-S48:** RESCHEDULE locks the full resource set before the entry row; an integration test shows it waits for a held source-resource lock without holding the entry row, and a unit test pins that REASSIGN never asks for the source. The reschedule resolves from the same snapshot of the tenant's resources that the pre-lock read (`ResolutionSnapshot`), so a resource that becomes eligible in between is neither chosen nor locked; a unit test adds a room between the resource locks and the entry lock and checks that no later lock request leaves the held set. |
 | H3 | `countActiveManagersByTenant` locks manager rows with no `ORDER BY`; two concurrent deactivations rely on identical scan order. | **Closed in M23-S48** (`ORDER BY id`). A lock-contract test holds an uncommitted manager deactivation and checks that the last-manager guard waits for it, then refuses with `LastActiveManagerError` (the earlier two-request race passed without the lock and was replaced). |
 | H4 | Cancel, reject and end-recurring take no resource lock, so a stale future-commitment entry can be inserted by a concurrent raise. | **Closed in M23-S48** (A3 → R4 → booking `save`); cancel racing a deactivation, and cancel racing the worklist's CANCEL, are covered by integration tests. |
-| H5 | **No `lock_timeout` or `statement_timeout` anywhere in the backend** (before M23-S49) (search over `*.ts` and infra found none). A deadlock is detected by Postgres after `deadlock_timeout` and one side fails with `40P01`, which no code maps; a merely slow holder (a raise over a resource with many bookings, a long `end-recurring`) makes others wait without bound. | **Closed in M23-S49** (design, why 2s and the retry contract: `docs/ENGINEERING_RULES_BACKEND.md` § Lock waits are bounded). A `40P01` deadlock is still a real defect to fix by ordering (§2); the 503 only makes it visible and retryable instead of a 500. |
+| H5 | **No `lock_timeout` or `statement_timeout` anywhere in the backend** (before M23-S49) (search over `*.ts` and infra found none). A deadlock is detected by Postgres after `deadlock_timeout` and one side fails with `40P01`, which no code maps; a merely slow holder (a raise over a resource with many bookings, a long `end-recurring`) makes others wait without bound. | **Closed in M23-S49** (design, why 2s and the retry contract: the "Lock waits are bounded (M23-S49)" paragraph in `docs/ENGINEERING_RULES_BACKEND.md`, near the top). A `40P01` deadlock is still a real defect to fix by ordering (§2); the 503 only makes it visible and retryable instead of a 500. |
 
 ---
 
