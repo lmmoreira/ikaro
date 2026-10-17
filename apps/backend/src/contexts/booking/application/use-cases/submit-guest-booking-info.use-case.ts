@@ -8,6 +8,12 @@ import {
   BookingNotFoundError,
 } from '../../domain/errors/booking-domain.error';
 import { IBookingRepository, BOOKING_REPOSITORY } from '../ports/booking-repository.port';
+import {
+  IResourceOccupancyRepository,
+  RESOURCE_OCCUPANCY_REPOSITORY,
+} from '../ports/resource-occupancy-repository.port';
+import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { restartBookingHold } from './restart-booking-hold.helpers';
 import { PhotoExistenceService } from '../services/photo-existence.service';
 import { SubmitGuestBookingInfoDto } from '../dtos/submit-guest-booking-info.dto';
 
@@ -28,6 +34,9 @@ export class SubmitGuestBookingInfoUseCase {
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly photoExistenceService: PhotoExistenceService,
+    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
+    private readonly occupancyRepo: IResourceOccupancyRepository,
   ) {}
 
   async execute(
@@ -57,6 +66,10 @@ export class SubmitGuestBookingInfoUseCase {
 
     await this.txManager.run(async () => {
       await this.bookingRepo.save(booking);
+      await restartBookingHold(
+        { serviceRepo: this.serviceRepo, occupancyRepo: this.occupancyRepo },
+        booking,
+      );
       await this.txManager.scheduleAfterCommit(() =>
         this.photoExistenceService.executePhotoPromotion(operations),
       );

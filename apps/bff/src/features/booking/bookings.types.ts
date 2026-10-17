@@ -210,6 +210,8 @@ export interface BackendBookingTermination {
   at: string;
   reason: string | null;
   byCustomer: boolean;
+  // The system cancelled an unanswered manual-approval request (TD51); no actor, no reason.
+  byExpiry: boolean;
   actorId: string | null;
   actorName: string | null;
 }

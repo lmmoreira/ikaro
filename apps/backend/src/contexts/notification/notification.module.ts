@@ -20,6 +20,7 @@ import { SendBookingApprovedNotificationUseCase } from './application/use-cases/
 import { SendBookingRejectedNotificationUseCase } from './application/use-cases/send-booking-rejected-notification/send-booking-rejected-notification.use-case';
 import { SendBookingInfoRequestedNotificationUseCase } from './application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case';
 import { SendBookingInfoSubmittedNotificationUseCase } from './application/use-cases/send-booking-info-submitted-notification/send-booking-info-submitted-notification.use-case';
+import { SendBookingApprovalExpiredNotificationUseCase } from './application/use-cases/send-booking-approval-expired-notification/send-booking-approval-expired-notification.use-case';
 import { SendBookingCancelledNotificationUseCase } from './application/use-cases/send-booking-cancelled-notification/send-booking-cancelled-notification.use-case';
 import { SendBookingResourceReassignedNotificationUseCase } from './application/use-cases/send-booking-resource-reassigned-notification/send-booking-resource-reassigned-notification.use-case';
 import { SendResourceDeactivationImpactNotificationUseCase } from './application/use-cases/send-resource-deactivation-impact-notification/send-resource-deactivation-impact-notification.use-case';
@@ -129,6 +130,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendBookingInfoRequestedNotificationUseCase,
     SendBookingInfoSubmittedNotificationUseCase,
     SendBookingCancelledNotificationUseCase,
+    SendBookingApprovalExpiredNotificationUseCase,
     SendBookingNoShowNotificationUseCase,
     SendBookingResourceReassignedNotificationUseCase,
     SendResourceDeactivationImpactNotificationUseCase,

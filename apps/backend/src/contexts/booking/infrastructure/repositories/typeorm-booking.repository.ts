@@ -39,6 +39,7 @@ import { BookingAttendeeEntity } from '../entities/booking-attendee.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { BookingLineEntity } from '../entities/booking-line.entity';
 import { BookingLineResourceAssignmentEntity } from '../entities/booking-line-resource-assignment.entity';
+import { queryPendingBookingIdsWithExpiredHold } from './typeorm-booking-expired-hold.queries';
 import { toDomain, toEntity, toUpdateSet } from './typeorm-booking.mapper';
 import {
   groupByBookingId,
@@ -94,6 +95,11 @@ export class TypeOrmBookingRepository implements IBookingRepository {
       },
     });
     return entities.length ? this.hydrateMany(entities, tenantId) : [];
+  }
+
+  async findPendingWithExpiredHold(tenantId: string, now: Date): Promise<Booking[]> {
+    const ids = await queryPendingBookingIdsWithExpiredHold(this.repo, tenantId, now);
+    return this.findByIds(ids, tenantId);
   }
 
   private async hydrateOne(entity: BookingEntity, tenantId: string): Promise<Booking> {

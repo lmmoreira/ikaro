@@ -60,6 +60,7 @@ export interface SendBookingCancelledNotificationUseCaseInput extends BaseContac
   lineSummary: SendBookingCancelledNotificationDto['lineSummary'];
   totalPrice: SendBookingCancelledNotificationDto['totalPrice'];
   cancelledByScheduleEnd: SendBookingCancelledNotificationDto['cancelledByScheduleEnd'];
+  cancelledByHoldExpiry: SendBookingCancelledNotificationDto['cancelledByHoldExpiry'];
 }
 
 export interface SendBookingCancelledNotificationUseCaseResult {
@@ -91,6 +92,17 @@ export class SendBookingCancelledNotificationUseCase extends BaseNotificationUse
     // (M23-S28, docs/03-DOMAIN_EVENTS.md § BookingCancelled).
     if (input.cancelledByScheduleEnd) {
       this.logger.log('Skipping — occurrence cancelled by its recurring schedule ending', {
+        tenantId: input.tenantId,
+        correlationId: input.correlationId,
+      });
+      return { customerEmailSent: false, adminEmailSent: false };
+    }
+
+    // A request that expired unanswered (TD51) has its own customer email and tells no manager:
+    // the handler routes it elsewhere, and this keeps the generic wording from ever going out if
+    // it is called anyway.
+    if (input.cancelledByHoldExpiry) {
+      this.logger.log('Skipping — request cancelled because its hold expired', {
         tenantId: input.tenantId,
         correlationId: input.correlationId,
       });

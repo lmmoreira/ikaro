@@ -41,6 +41,10 @@
     "admin": {
       "subject": "Agendamento cancelado",
       "body": "<p>Agendamento cancelado.</p><p><strong>Cliente:</strong> {{contactName}}</p><p><strong>Data:</strong> {{localDate}}</p><p><strong>Horário:</strong> {{localTime}}</p><p><strong>Serviços:</strong> {{serviceNames}}</p><p><strong>Total:</strong> {{totalPrice}}</p><p>{{cancelledByLine}}</p>{{reasonLine}}"
+    },
+    "customerApprovalExpired": {
+      "subject": "Sua solicitação de agendamento expirou sem resposta",
+      "body": "<p>Olá, {{contactName}}!</p><p>Sua solicitação de {{serviceNames}} em {{localDate}} às {{localTime}} expirou antes que {{tenantName}} pudesse respondê-la, então nada foi agendado.</p><p>Você pode fazer uma nova solicitação quando quiser.</p>"
     }
   },
   "BookingRescheduled": {

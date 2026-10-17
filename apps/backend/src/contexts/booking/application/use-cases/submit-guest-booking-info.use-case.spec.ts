@@ -2,7 +2,10 @@ import { InMemoryBookingRepository } from '../../../../test/repositories/booking
 import { InMemoryBookingStatusTransitionRepository } from '../../../../test/repositories/booking/in-memory-booking-status-transition.repository';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryEventBus } from '../../../../test/infrastructure/in-memory-event-bus';
+import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
+import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
+import { seedOccupancy } from '../../../../test/utils/occupancy-seed';
 import { BookingBuilder } from '../../../../test/builders/booking/booking.builder';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import {
@@ -23,6 +26,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
   let txManager: InMemoryTransactionManager;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
+  let occupancyRepo: InMemoryResourceOccupancyRepository;
   let useCase: SubmitGuestBookingInfoUseCase;
   let guestBookingId: string;
 
@@ -32,6 +36,7 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     transitionRepo = new InMemoryBookingStatusTransitionRepository();
     repo = new InMemoryBookingRepository(eventBus, transitionRepo);
     storageService = new InMemoryStorageService();
+    occupancyRepo = new InMemoryResourceOccupancyRepository();
 
     const guestBooking = new BookingBuilder()
       .withTenantId(TENANT_A)
@@ -46,6 +51,8 @@ describe('SubmitGuestBookingInfoUseCase', () => {
       repo,
       txManager,
       new PhotoExistenceService(storageService),
+      new InMemoryServiceRepository(),
+      occupancyRepo,
     );
   });
 
@@ -61,6 +68,30 @@ describe('SubmitGuestBookingInfoUseCase', () => {
     expect(result.status).toBe('PENDING');
     expect(result.bookingId).toBe(guestBookingId);
     expect(result.infoSubmittedAt).toBeDefined();
+  });
+
+  it('restarts a hold that already passed, so the answered booking is not expired by the job (TD51)', async () => {
+    const booking = await repo.findById(guestBookingId, TENANT_A);
+    await seedOccupancy(occupancyRepo, {
+      tenantId: TENANT_A,
+      bookingLineId: booking!.lines[0].lineId,
+      lockState: 'HOLD',
+      holdExpiresAt: new Date(Date.now() - 3_600_000),
+    });
+
+    await useCase.execute({
+      bookingId: guestBookingId,
+      contactEmail: 'joao@example.com',
+      response: 'Segue a foto do carro',
+      tenantId: TENANT_A,
+      correlationId: CORRELATION_ID,
+    });
+
+    const [row] = await occupancyRepo.findOccupancyByBookingLines(
+      TENANT_A,
+      booking!.lines.map((line) => line.lineId),
+    );
+    expect(row.holdExpiresAt!.getTime()).toBeGreaterThan(Date.now() + 25 * 60_000);
   });
 
   it('records the reply as one audit row for a guest, with no actor id', async () => {

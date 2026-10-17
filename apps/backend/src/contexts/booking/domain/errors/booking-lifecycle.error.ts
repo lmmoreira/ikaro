@@ -43,6 +43,19 @@ export class BookingAlreadyTerminalError extends BookingDomainError {
   }
 }
 
+// TD51 — staff tried to approve a manual-approval request whose hold has passed. The expiry job
+// would cancel it on its next run; refusing here means the job's schedule only delays the cleanup,
+// the same rule UC-071 A2 applies to a recurring schedule.
+export class BookingApprovalHoldExpiredError extends BookingDomainError {
+  constructor(bookingId: string) {
+    super(
+      `The approval deadline of booking ${bookingId} has passed`,
+      BookingErrorCode.APPROVAL_HOLD_EXPIRED,
+    );
+    this.name = 'BookingApprovalHoldExpiredError';
+  }
+}
+
 // UC-074 A1 — a no-show can only be recorded after the appointment's scheduled end time.
 export class BookingNotYetEndedError extends BookingDomainError {
   constructor(endsAt: Date) {

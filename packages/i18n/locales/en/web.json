@@ -427,7 +427,10 @@
       "actorCustomerNamed": "{name} (customer)",
       "actorCustomer": "Customer",
       "actorStaffNamed": "{name} (staff)",
-      "actorStaff": "Staff"
+      "actorStaff": "Staff",
+      "actorSystem": "System",
+      "expiryTitle": "Request expired",
+      "expiryReason": "The request expired without a reply"
     },
     "recurringScheduleForm": {
       "fieldService": "Service",

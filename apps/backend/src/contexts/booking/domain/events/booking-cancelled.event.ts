@@ -11,7 +11,8 @@ interface BookingCancelledData extends Record<string, unknown> {
   customerId: string | null;
   contactEmail: string;
   contactName: string;
-  cancelledBy: string;
+  // Null when the system cancelled it (an unanswered manual-approval request, TD51).
+  cancelledBy: string | null;
   isBusiness: boolean;
   reason: string | null;
   scheduledAt: string;
@@ -20,6 +21,9 @@ interface BookingCancelledData extends Record<string, unknown> {
   // True only for the occurrences cancelled when a recurring schedule is ended (M23-S28): the
   // schedule's own RecurringBookingScheduleEnded email replaces one cancellation email each.
   cancelledByScheduleEnd: boolean;
+  // True only when a PENDING manual-approval booking's hold ran out unanswered (TD51): a dedicated
+  // customer email replaces the generic one and managers get none.
+  cancelledByHoldExpiry: boolean;
 }
 
 export class BookingCancelled extends DomainEvent<BookingCancelledData> {

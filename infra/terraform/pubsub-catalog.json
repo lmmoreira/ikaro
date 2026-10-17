@@ -270,6 +270,7 @@
       "availability-alert-expiry",
       "availability-alert-sweep",
       "booking-admin-schedule-reminder",
+      "booking-hold-expiry",
       "booking-reminder",
       "recurring-schedule-approval-expiry",
       "recurring-schedule-renewal-reminder"

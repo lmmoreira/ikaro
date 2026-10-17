@@ -1,7 +1,7 @@
 import { BaseContactNotificationDto } from './base-contact-notification.dto';
 
 export interface SendBookingCancelledNotificationDto extends BaseContactNotificationDto {
-  cancelledBy: string;
+  cancelledBy: string | null;
   isBusiness: boolean;
   reason: string | null;
   scheduledAt: string;
@@ -11,4 +11,5 @@ export interface SendBookingCancelledNotificationDto extends BaseContactNotifica
   }>;
   totalPrice: { amount: string; currency: string };
   cancelledByScheduleEnd: boolean;
+  cancelledByHoldExpiry: boolean;
 }

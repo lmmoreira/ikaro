@@ -216,7 +216,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 ---
 
 #### **BookingCancelled**
-- **Trigger:** Customer cancels (UC-007) or admin cancels (UC-008) a booking that is in `PENDING`, `INFO_REQUESTED`, or `APPROVED`
+- **Trigger:** Customer cancels (UC-007) or admin cancels (UC-008) a booking that is in `PENDING`, `INFO_REQUESTED`, or `APPROVED`; or the system expires a `PENDING` manual-approval request nobody decided in time (TD51, `Booking.expireApproval()`)
 - **State change:** `PENDING | INFO_REQUESTED | APPROVED` → `CANCELLED`
 - **Data:**
   ```
@@ -225,7 +225,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     customerId:       string | null
     contactEmail:       string
     contactName:        string
-    cancelledBy:      string          // customer id, guest email, or staff id
+    cancelledBy:      string | null   // customer id, guest email, or staff id; null when the system cancelled an unanswered manual-approval request (TD51)
     isBusiness:       boolean         // true = admin/business cancelled, false = customer cancelled
     reason:           string | null
     scheduledAt:      ISO8601         // the appointment time that was cancelled
@@ -238,12 +238,14 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     ]
     totalPrice:       { amount: string, currency: string }
     cancelledByScheduleEnd: boolean   // additive (M23-S28), false by default; true only for the occurrences cancelled when a recurring schedule is ended
+    cancelledByHoldExpiry: boolean    // additive (TD51), false by default; true only when ExpireBookingHoldsJob cancelled a PENDING manual-approval booking whose hold ran out (then cancelledBy is null, isBusiness true and reason 'APPROVAL_EXPIRED')
   }
   ```
 - **Consumers:**
   - **Notification Context** → email to customer: `"Seu agendamento foi cancelado"` — booking details (date/time, services, total), plus the reason when the business cancelled and gave one
   - **Notification Context** → email to admin: `"Agendamento cancelado"` — whether the customer or the business cancelled, the reason when the business gave one (a customer's own cancellation carries none), booking summary
   - **Booking Context** (`availability-alert-matching`, M23-S07) → the freed window is offered to matching availability alerts (see `AvailabilityAlertMatched`)
+  - Neither email is sent when `cancelledByHoldExpiry = true` (TD51): the customer gets the dedicated `BOOKING_APPROVAL_EXPIRED_CUSTOMER` email (the request expired unanswered, nothing was booked, they may ask again; no staff name), routed by the same `BookingCancelled` consumer to its own use case, and managers get nothing. The audit-log and availability-alert consumers handle it like any cancellation.
   - Neither email is sent when `cancelledByScheduleEnd = true`: ending a recurring schedule sends the one `RecurringBookingScheduleEnded` email instead of one cancellation email per occurrence (M23-S28). The audit-log consumer still records every occurrence cancel.
 
 > Loyalty Context does NOT consume this event. A booking cannot reach `COMPLETED` and then be cancelled (the state machine forbids it), so no `LoyaltyEntry` rows are ever affected by a cancellation.

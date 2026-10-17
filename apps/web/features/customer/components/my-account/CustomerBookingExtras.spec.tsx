@@ -90,7 +90,7 @@ describe('CustomerBookingExtras', () => {
       <CustomerBookingExtras
         booking={makeBooking({
           status: 'CANCELLED',
-          cancellation: { at: AT, byCustomer: true, reason: null },
+          cancellation: { at: AT, byCustomer: true, expired: false, reason: null },
         })}
         tenantSlug="beloauto"
       />,
@@ -106,7 +106,12 @@ describe('CustomerBookingExtras', () => {
       <CustomerBookingExtras
         booking={makeBooking({
           status: 'CANCELLED',
-          cancellation: { at: AT, byCustomer: false, reason: 'Equipamento em manutenção.' },
+          cancellation: {
+            at: AT,
+            byCustomer: false,
+            expired: false,
+            reason: 'Equipamento em manutenção.',
+          },
         })}
         tenantSlug="beloauto"
       />,
@@ -114,6 +119,23 @@ describe('CustomerBookingExtras', () => {
 
     expect(screen.getByText('O estabelecimento')).toBeInTheDocument();
     expect(screen.getByText('Equipamento em manutenção.')).toBeInTheDocument();
+  });
+
+  it('words a request that expired unanswered as the system, not the establishment (TD51)', () => {
+    renderWithIntl(
+      <CustomerBookingExtras
+        booking={makeBooking({
+          status: 'CANCELLED',
+          cancellation: { at: AT, byCustomer: false, expired: true, reason: null },
+        })}
+        tenantSlug="beloauto"
+      />,
+    );
+
+    expect(screen.getByText('Solicitação expirada')).toBeInTheDocument();
+    expect(screen.getByText('Sistema')).toBeInTheDocument();
+    expect(screen.getByText('A solicitação expirou sem resposta')).toBeInTheDocument();
+    expect(screen.queryByText('O estabelecimento')).not.toBeInTheDocument();
   });
 
   it('shows a rejection as "Recusa" with the reason the business gave', () => {

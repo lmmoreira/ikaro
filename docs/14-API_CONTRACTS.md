@@ -826,7 +826,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 > **BFF note (M13-S03/S04/S06/S07):** `GET /v1/bookings` and `GET /v1/bookings/:id` are both accessible to STAFF, MANAGER, and CUSTOMER — same routes, same query schema/defaults, but the BFF maps the response differently per role: `StaffBookingCard/ListResponse`/`StaffBookingDetailResponse` for STAFF/MANAGER, `CustomerBookingListItem/Response`/`CustomerBookingDetailResponse` for CUSTOMER (no contact info, no staff-only fields). The BFF's `GET /v1/bookings` accepts `date`, `from` and `to` — each a `YYYY-MM-DD` **tenant-local** date key, validated as a real calendar date (`to` requires `from`; `date` wins over `from`/`to`) — plus `page`. It forwards `date` as `from = to = date`, `from`/`to` unchanged, and `page` as `offset = (page − 1) × limit`, always as date keys and never as UTC instants, so the backend applies the tenant's `businessHours.timezone` (see the backend `GET /bookings` bullet above).
 
 **Admin approval workflow** (JWT + `MANAGER|STAFF` role required):
-- `PATCH /bookings/:id/approve` → (UC-003) Approve a PENDING or INFO_REQUESTED booking. Re-checks slot availability. Returns `200 { bookingId, status: 'APPROVED', approvedAt }`. Returns `409 BOOKING_SLOT_UNAVAILABLE` if slot is taken.
+- `PATCH /bookings/:id/approve` → (UC-003) Approve a PENDING or INFO_REQUESTED booking. Re-checks slot availability. Returns `200 { bookingId, status: 'APPROVED', approvedAt }`. Returns `409 BOOKING_SLOT_UNAVAILABLE` if slot is taken, and `409 BOOKING_APPROVAL_HOLD_EXPIRED` (TD51) when the request's approval hold (`manualHoldMinutes`) has passed, even if the expiry job has not cancelled it yet.
 - `PATCH /bookings/:id/reject` → (UC-004) Reject a PENDING or INFO_REQUESTED booking. Body: `{ reason: string }` (required, min 10 chars). Returns `200 { bookingId, status: 'REJECTED' }`.
 - `PATCH /bookings/:id/request-info` → (UC-005a) Transition PENDING → INFO_REQUESTED. Body: `{ message: string }` (required, min 20 chars). Returns `200 { bookingId, status: 'INFO_REQUESTED' }`.
 
@@ -1505,7 +1505,7 @@ Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path on
 
 | Route | Trigger topic | What the trigger fans out to |
 |---|---|---|
-| `POST /cron/reminders` | `cron-reminders` | Five consumers: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep` (M23-S07) and `recurring-schedule-approval-expiry` (M23-S05) |
+| `POST /cron/reminders` | `cron-reminders` | Seven consumers: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep` (M23-S07), `recurring-schedule-approval-expiry` (M23-S05), `recurring-schedule-renewal-reminder` and `booking-hold-expiry` (TD51) |
 | `POST /cron/resource-occupancy-retention-purge` | `cron-resource-occupancy-retention-purge` | `resource-occupancy-retention-purge` |
 | `POST /cron/loyalty-expiry-warning` | `cron-loyalty-expiry-warning` | `loyalty-notify-expiring-points` |
 

@@ -118,6 +118,26 @@ describe('StaffBookingExtras', () => {
     expect(screen.getByText('Equipamento em manutenção.')).toBeInTheDocument();
   });
 
+  it('shows the expiry card with the system as the actor when the request expired unanswered (TD51)', () => {
+    renderWithIntl(
+      <StaffBookingExtras
+        booking={makeBooking({
+          status: 'CANCELLED',
+          cancellation: {
+            at: '2026-06-16T11:40:00.000Z',
+            reason: null,
+            by: { kind: 'SYSTEM', name: null },
+          },
+        })}
+      />,
+    );
+
+    expect(screen.getByTestId('booking-expiry-card')).toBeInTheDocument();
+    expect(screen.queryByTestId('booking-cancellation-card')).not.toBeInTheDocument();
+    expect(screen.getByText('Sistema')).toBeInTheDocument();
+    expect(screen.getByText('A solicitação expirou sem resposta')).toBeInTheDocument();
+  });
+
   it('falls back to the role when the actor cannot be named, and labels a customer cancel', () => {
     const { rerender } = renderWithIntl(
       <StaffBookingExtras

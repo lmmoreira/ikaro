@@ -123,7 +123,7 @@ async function lockAndVerifyServiceModels(
 // converts it (approve-booking.use-case.ts). Hold duration = the longest manualHoldMinutes among
 // this booking's own services, so no line's hold expires before its service's own configured
 // grace period.
-function resolveHoldExpiresAt(serviceMap: Map<string, Service>): Date {
+export function resolveHoldExpiresAt(serviceMap: Map<string, Service>): Date {
   const holdMinutes = Math.max(
     DEFAULT_MANUAL_HOLD_MINUTES,
     ...[...serviceMap.values()].map(

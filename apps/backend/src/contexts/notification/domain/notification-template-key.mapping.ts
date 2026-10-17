@@ -71,6 +71,13 @@ export const NOTIFICATION_TEMPLATE_KEY_MAPPING = {
       'totalPrice',
     ],
   },
+  // Same event as the cancelled templates, told apart by recipientType: the copy for a request that
+  // expired unanswered differs (TD51) and the persisted trigger_event is the enum value.
+  [NotificationTemplateKey.BOOKING_APPROVAL_EXPIRED_CUSTOMER]: {
+    eventName: 'BookingCancelled',
+    recipientType: 'customerApprovalExpired',
+    variables: ['contactName', 'localDate', 'localTime', 'serviceNames', 'tenantName'],
+  },
   [NotificationTemplateKey.BOOKING_RESCHEDULED_CUSTOMER]: {
     eventName: 'BookingRescheduled',
     recipientType: 'customer',

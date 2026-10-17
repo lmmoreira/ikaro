@@ -33,11 +33,14 @@ export interface BookingDetailIntakeDetail {
 
 // Cancel / reject facts of a terminal booking, read from the aggregate itself (never rebuilt from
 // the status history, which has no backfill). `byCustomer` is true when the booking's own customer
-// cancelled it; the actor id and name are for the staff-facing read only.
+// cancelled it; the actor id and name are for the staff-facing read only. `byExpiry` is true when
+// the system cancelled an unanswered manual-approval request (TD51): there is no actor and the
+// stored reason is a marker, not text anyone wrote, so `reason` is null.
 export interface BookingTerminationDetail {
   at: string;
   reason: string | null;
   byCustomer: boolean;
+  byExpiry: boolean;
   actorId: string | null;
   actorName: string | null;
 }
@@ -120,13 +123,15 @@ function terminationOf(
   actorId: string | null,
   booking: Booking,
   names: ReadonlyMap<string, string | null>,
+  byExpiry = false,
 ): BookingTerminationDetail | null {
   if (!at) return null;
   const byCustomer = booking.customerId !== null && actorId === booking.customerId;
   return {
     at: at.toISOString(),
-    reason,
+    reason: byExpiry ? null : reason,
     byCustomer,
+    byExpiry,
     actorId,
     actorName: actorNameOf(actorId, byCustomer, booking, names),
   };
@@ -232,6 +237,7 @@ export async function loadBookingDetailExtras(
       booking.cancelledBy,
       booking,
       names,
+      booking.cancelledByHoldExpiry,
     ),
     rejection: terminationOf(
       booking.rejectedAt,

@@ -105,14 +105,21 @@ describe('SendBookingCancelledNotificationUseCase', () => {
     expect(types).toContain('booking-cancelled-admin');
   });
 
-  it('dispatches nothing when the occurrence was cancelled by its schedule ending', async () => {
-    const endedWithSchedule = new SendBookingCancelledNotificationDtoBuilder()
-      .withTenantId(TENANT_ID)
-      .withEventId(EVENT_ID)
-      .withCancelledByScheduleEnd(true)
-      .build();
-
-    const result = await useCase.execute(endedWithSchedule);
+  it.each([
+    [
+      'its schedule ending',
+      new SendBookingCancelledNotificationDtoBuilder().withCancelledByScheduleEnd(true),
+    ],
+    [
+      'its approval hold expiring (TD51: own customer email, no manager email)',
+      new SendBookingCancelledNotificationDtoBuilder()
+        .withCancelledBy(null)
+        .withCancelledByHoldExpiry(true),
+    ],
+  ])('dispatches nothing when the booking was cancelled by %s', async (_label, builder) => {
+    const result = await useCase.execute(
+      builder.withTenantId(TENANT_ID).withEventId(EVENT_ID).build(),
+    );
 
     expect(result).toEqual({ customerEmailSent: false, adminEmailSent: false });
     expect(dispatcher.dispatched).toHaveLength(0);

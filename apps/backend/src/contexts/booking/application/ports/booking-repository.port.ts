@@ -62,6 +62,11 @@ export interface IBookingRepository {
     recurringScheduleId: string,
     after: Date,
   ): Promise<Booking[]>;
+  // TD51 — the PENDING bookings that hold at least one HOLD occupancy row whose hold_expires_at is
+  // at or before `now`: the requests nobody decided in time. Tenant-scoped, served by the partial
+  // (tenant_id, hold_expires_at) WHERE lock_state = 'HOLD' index. A REQUESTED (degenerate) row has
+  // no deadline and an AUTO_CONFIRM booking is never PENDING, so neither is ever returned.
+  findPendingWithExpiredHold(tenantId: string, now: Date): Promise<Booking[]>;
   findAllByTenant(tenantId: string, filters?: BookingFilters): Promise<Booking[]>;
   findAllByTenantPaginated(
     tenantId: string,

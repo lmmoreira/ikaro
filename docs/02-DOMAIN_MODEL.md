@@ -165,7 +165,7 @@ Booking {
   completedAt:          DateTime | null
   completedBy:          StaffId  | null
   cancelledAt:          DateTime | null
-  cancelledBy:          UserId   | null  (staff or customer UUID)
+  cancelledBy:          UserId   | null  (staff or customer UUID; null for a system expiry, TD51)
   cancellationReason:   String   | null
   rejectedAt:           DateTime | null
   rejectedBy:           StaffId  | null
@@ -241,6 +241,7 @@ BookingLine {
   Computes and caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   Stores photos. Publishes `BookingCompleted` **with the full line list including `actualPriceCharged`**.
 - `cancel(actor, correlationId, reason?, cancelledByScheduleEnd = false)` → transitions `PENDING | INFO_REQUESTED | APPROVED → CANCELLED`, publishes `BookingCancelled`. The aggregate does not check the cancellation window: the customer use case calls `isEligibleForCancellation()` first; staff cancels have no window.
+- `expireApproval(correlationId)` (TD51) → `PENDING → CANCELLED` by the `SYSTEM` actor (`{ type: 'SYSTEM', id: null }`): `cancelledBy` stays null, `cancellationReason = 'APPROVAL_EXPIRED'`, publishes `BookingCancelled` with `cancelledBy: null` and `cancelledByHoldExpiry: true`. Any other status is an `InvalidBookingTransitionError`. `cancelledByHoldExpiry` (getter) is true only for a `CANCELLED` booking with a null `cancelledBy` and that reason: the reason column is free text, so the reason alone never identifies an expiry.
 - Every status-changing method above (and `markNoShow` / `correctNoShow`) takes the acting `BookingActor` (`{ type: STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM, id }`) and records the transition — see *`Booking` — modified (M23 Cluster 3)* below. `BookingCancelled.isBusiness` is derived from the actor (`type !== CUSTOMER`), not passed in.
 - `isEligibleForCancellation(cancellationWindowHours)` → `now < scheduledAt − window`; `cancellableUntil(hours)` returns that deadline. `isEligibleForReschedule(hours)` and `rescheduleEligibleUntil(hours)` are the customer-reschedule twins (UC-069), with the window resolved by the caller (`Service.rescheduleWindowHoursOverride ?? tenant default`).
 - `reschedule(actorId, newScheduledAt, correlationId, isBusiness, adminNotes?, durationChange?)` → `APPROVED` only; publishes `BookingRescheduled`.

@@ -22,6 +22,7 @@ import {
   buildOccupancyRows,
   insertFreshAssignmentsAndOccupancy,
   insertOccupancyRows,
+  restartHoldRows,
   upsertBookingLineResourceAssignments,
 } from './typeorm-resource-occupancy.write-queries';
 
@@ -185,6 +186,16 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
       `,
       [tenantId, bookingLineIds],
     );
+  }
+
+  // TD51 — see typeorm-resource-occupancy.write-queries.ts.
+  async restartHold(
+    tenantId: string,
+    bookingLineIds: string[],
+    holdExpiresAt: Date,
+  ): Promise<void> {
+    if (bookingLineIds.length === 0) return;
+    await restartHoldRows(this.requireActiveManager(), tenantId, bookingLineIds, holdExpiresAt);
   }
 
   // TD40 Story 2: single set-based DELETE, no tenant_id predicate (cross-tenant retention sweep —

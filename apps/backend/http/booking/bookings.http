@@ -264,6 +264,22 @@ X-Correlation-ID: test-corr-approve-003
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ERROR — manual-approval request whose hold (manualHoldMinutes) has passed → 409
+#         BOOKING_APPROVAL_HOLD_EXPIRED (TD51). Use a PENDING booking on a resource-scoped
+#         service whose resource_occupancy.hold_expires_at is already in the past; the
+#         hold-expiry job would cancel it on its next 30-minute run.
+# ─────────────────────────────────────────────────────────────────────────────
+
+PATCH {{baseUrl}}/bookings/{{bookingId}}/approve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-approve-004
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR — invalid state transition (e.g. APPROVED → APPROVED) → 422
 # ─────────────────────────────────────────────────────────────────────────────
 
