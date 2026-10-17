@@ -226,4 +226,43 @@ describe('ExpireBookingHoldsJob (integration)', () => {
       expect(['STAFF', 'SYSTEM']).toContain(transitions[0].actorType);
     }
   });
+
+  it('an approval racing the expiry of the same request leaves exactly one outcome, consistent occupancy and no deadlock', async () => {
+    for (let round = 0; round < 3; round++) {
+      const world = await createLockRaceWorld(env);
+      // The deadline is still ahead for the approval's own guard, while the job is run "later".
+      const { bookingId } = await world.seedBooking({
+        resources: [world.roomA],
+        status: 'PENDING',
+        holdExpiresAt: new Date(Date.now() + 60 * 60_000),
+      });
+
+      const results = await Promise.allSettled([
+        app.get(ApproveBookingUseCase).execute({
+          bookingId,
+          tenantId: world.tenantId,
+          staffId: STAFF_ID,
+          actorRole: 'STAFF',
+          correlationId: uuidv7(),
+          timezone: TIMEZONE,
+        }),
+        job.expireForTenant(world.tenantId, new Date(Date.now() + 2 * 3_600_000)),
+      ]);
+
+      for (const result of results) {
+        if (result.status === 'rejected') {
+          expect(
+            JSON.stringify(result.reason, Object.getOwnPropertyNames(result.reason)),
+          ).not.toMatch(/40P01|deadlock/i);
+        }
+      }
+      const status = await bookingStatus(ds, world.tenantId, bookingId);
+      expect(['APPROVED', 'CANCELLED']).toContain(status);
+      // An approval that wins is never undone; an expiry that wins leaves nothing held.
+      expect(await occupiedResourceIds(ds, world.tenantId, bookingId)).toEqual(
+        status === 'APPROVED' ? [world.roomA.id] : [],
+      );
+      expect(await transitionsOf(world.tenantId, bookingId)).toHaveLength(1);
+    }
+  });
 });

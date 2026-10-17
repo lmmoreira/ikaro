@@ -298,8 +298,8 @@ export interface CustomerBookingCancellation {
   at: string;
   byCustomer: boolean;
   // The request expired without an answer (TD51): neither the customer nor the establishment
-  // cancelled it.
-  expired: boolean;
+  // cancelled it. Absent from a BFF that predates TD51, which a reader treats as false.
+  expired?: boolean;
   reason: string | null;
 }
 

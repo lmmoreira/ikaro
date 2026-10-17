@@ -5,7 +5,7 @@ import { InMemoryNotificationPlatformPort } from '../../../../../test/infrastruc
 import { InMemoryNotificationTemplateRepository } from '../../../../../test/repositories/notification/in-memory-notification-template.repository';
 import { InMemoryTransactionManager } from '../../../../../test/infrastructure/in-memory-transaction-manager';
 import { JsonLocalizationAdapter } from '../../../infrastructure/adapters/json-localization.adapter';
-import { NotificationTemplate } from '../../../domain/notification-template.aggregate';
+import { NotificationTemplateBuilder } from '../../../../../test/builders/notification/notification-template.builder';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
 import {
   SendBookingApprovalExpiredNotificationUseCase,
@@ -56,14 +56,12 @@ describe('SendBookingApprovalExpiredNotificationUseCase', () => {
 
   function seedTemplate(tenantId: string): void {
     templateRepo.seed(
-      NotificationTemplate.create({
-        tenantId,
-        triggerEvent: NotificationTemplateKey.BOOKING_APPROVAL_EXPIRED_CUSTOMER,
-        channel: 'EMAIL',
-        locale: 'pt-BR',
-        subject: 'DB SUBJECT (unused)',
-        body: 'DB BODY (unused)',
-      }),
+      new NotificationTemplateBuilder()
+        .withTenantId(tenantId)
+        .withTriggerEvent(NotificationTemplateKey.BOOKING_APPROVAL_EXPIRED_CUSTOMER)
+        .withSubject('DB SUBJECT (unused)')
+        .withBody('DB BODY (unused)')
+        .build(),
     );
   }
 

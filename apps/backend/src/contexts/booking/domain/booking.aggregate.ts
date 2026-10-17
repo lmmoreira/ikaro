@@ -13,7 +13,6 @@ import {
   IdentifiedBookingActor,
   StaffBookingActor,
 } from './booking-status-transition';
-import { APPROVAL_EXPIRED_REASON } from './booking.types';
 import {
   BookingAlreadyTerminalError,
   BookingDiscountExceedsTotalError,
@@ -35,6 +34,7 @@ import { BookingResourceReassigned } from './events/booking-resource-reassigned.
 import { BookingRescheduled } from './events/booking-rescheduled.event';
 import { BookingRejected } from './events/booking-rejected.event';
 import {
+  APPROVAL_EXPIRED_REASON,
   BookingIntakeSnapshot,
   BookingProps,
   BookingStatus,
@@ -857,22 +857,24 @@ export class Booking extends AggregateRoot {
     this.props.cancelledBy = null;
     this.props.cancellationReason = APPROVAL_EXPIRED_REASON;
 
-    this.addDomainEvent(
-      new BookingCancelled(this.props.tenantId, correlationId, {
-        bookingId: this.props.id,
-        customerId: this.props.customerId,
-        contactEmail: this.props.contactEmail.address,
-        contactName: this.props.contactName,
-        cancelledBy: null,
-        isBusiness: true,
-        reason: APPROVAL_EXPIRED_REASON,
-        scheduledAt: this.props.scheduledAt.toISOString(),
-        lineSummary: this.lineSummaryPayload(),
-        totalPrice: this.totalPricePayload(),
-        cancelledByScheduleEnd: false,
-        cancelledByHoldExpiry: true,
-      }),
-    );
+    this.addDomainEvent(this.buildHoldExpiredCancelledEvent(correlationId));
+  }
+
+  private buildHoldExpiredCancelledEvent(correlationId: string): BookingCancelled {
+    return new BookingCancelled(this.props.tenantId, correlationId, {
+      bookingId: this.props.id,
+      customerId: this.props.customerId,
+      contactEmail: this.props.contactEmail.address,
+      contactName: this.props.contactName,
+      cancelledBy: null,
+      isBusiness: true,
+      reason: APPROVAL_EXPIRED_REASON,
+      scheduledAt: this.props.scheduledAt.toISOString(),
+      lineSummary: this.lineSummaryPayload(),
+      totalPrice: this.totalPricePayload(),
+      cancelledByScheduleEnd: false,
+      cancelledByHoldExpiry: true,
+    });
   }
 
   reschedule(
