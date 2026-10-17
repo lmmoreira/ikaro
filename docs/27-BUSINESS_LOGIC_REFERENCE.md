@@ -601,7 +601,7 @@ flowchart TD
     Schema["service_booking_intake_schema<br/>versioned, never edited"] -->|"answer labels of the BOOKED version"| Detail
     Detail["GET /bookings/:id<br/>(includeDetailExtras)"] --> BFF{"BFF mapper"}
     BFF -->|staff| Staff["everything, incl. adminNotes,<br/>creator name, actor names"]
-    BFF -->|customer| Cust["resources, participants, own answers,<br/>cancel: 'Você' / 'O estabelecimento',<br/>reason only if the establishment cancelled"]
+    BFF -->|customer| Cust["resources, participants, own answers,<br/>cancel: 'Você' / 'O estabelecimento' / 'Sistema' (expired),<br/>reason only if the establishment cancelled"]
 ```
 
 ### Rules
@@ -609,7 +609,7 @@ flowchart TD
 - **Resources and itinerary order: the latest assignment per slot.** The assignment table is append-only (a reassign or a reschedule onto another resource adds a row), so a raw read shows stale resources; the latest row per `(line, resource type, leg, quantity position)` is the resource the booking is on now, or was on when it ended. It is not deduplicated by resource: one van on legs 1 and 3 is two itinerary entries.
 - **Leg times: only while the occupancy row exists.** A cancel or reject deletes the rows at once; a completed or no-show booking keeps them until the 90-day purge. A leg without a live row has `startsAt`/`endsAt` = `null` and the UI shows the order and the resource only. Times are never derived from the service's current leg durations, which may have changed.
 - **Origin tag** (`CUSTOMER_CHOICE` / `SYSTEM_ASSIGNED`) comes from the service's *current* requirement for that resource type; a service that no longer declares it carries no tag. A `NONE` requirement, or the implicit `LOCATION` of a service that declares no requirement at all (the default single-location shape), shows nothing. For the customer, a named resource that carries no origin tag is hidden too (the service no longer declares that requirement), following the disclosure rule of UC-062/063: a customer sees a resource's identity only when they chose it or the system's automatic pick is shown. A fungible pool shows a quantity and never the unit.
-- **Cancel and reject facts come from the aggregate**, not the status history (no backfill). A customer's own cancel stores no reason, so only a business cancel has one; the customer sees *who* only as "Você" or "O estabelecimento".
+- **Cancel and reject facts come from the aggregate**, not the status history (no backfill). A customer's own cancel stores no reason, so only a business cancel has one; the customer sees *who* only as "Você", "O estabelecimento" or, for a request the system cancelled after its hold ran out (TD51), "Sistema" with the card "Solicitação expirada". The BFF recognises that expiry by a null `cancelledBy` together with the `APPROVAL_EXPIRED` marker (`BookingTerminationDetail.byExpiry`), never by the free-text reason alone, and shows neither party's name nor the marker text.
 - **Cost:** the extra reads sit behind `includeDetailExtras`, off by default (the loyalty adapter also calls this use case); staff names are resolved only for the staff-facing read.
 
 ### Known limitations

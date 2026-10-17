@@ -88,4 +88,4 @@ Builders in `src/test/builders/booking/` for every new entity; `InMemory*` doubl
 ## Follow-ups tracked, not dropped
 
 - A cancelled recurring schedule can't say whether it was rejected, expired or ended by someone (the read carries no `cancellationReason`).
-- **`hold_expires_at` is written but never enforced** (`docs/27` § `lock_state` lifecycle): a pending request on a resource-scoped service keeps its slot until staff decide. No M23 story built the expiry; it needs its own story or TD.
+- **`hold_expires_at` is enforced since TD51, not by an M23 story** (`docs/27` § `lock_state` lifecycle): `ExpireBookingHoldsJob` (consumer `booking-hold-expiry` on `cron-reminders`) cancels a `PENDING` request past its hold as the system; `INFO_REQUESTED` is never expired and a customer's answer restarts the hold; approve refuses a passed deadline (`BOOKING_APPROVAL_HOLD_EXPIRED`).

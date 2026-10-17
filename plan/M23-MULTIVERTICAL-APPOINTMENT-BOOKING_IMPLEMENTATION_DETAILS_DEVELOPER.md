@@ -88,5 +88,5 @@ S33 centralized "how far ahead and how soon" in one helper: a per-service overri
 ## 7. Known gaps
 
 - A cancelled recurring schedule shows only "Cancelada" — the read carries no reason.
-- `hold_expires_at` on a pending `HOLD` is written but nothing enforces it (corrected in `docs/27`): a manual-approval request on a resource-scoped service keeps its slot until staff act. It needs its own story or TD.
+- `hold_expires_at` on a pending `HOLD` was written for a while with nothing enforcing it; TD51 added the enforcement (`docs/27`): a manual-approval request on a resource-scoped service is now cancelled by the system once its hold passes, and staff can no longer approve it after that.
 - M24 (classes and sessions) reuses `booking_quote_revisions` and the resource-resolution precedent, and owns its own rolling session generation — M23 deliberately left no generation pattern to reuse.
