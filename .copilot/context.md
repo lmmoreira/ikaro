@@ -480,7 +480,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/create-story <M0X \| TDNN + description>` | `.claude/commands/create-story.md` |
 | `/create-td <problem description>` | `.claude/commands/create-td.md` |
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
-| `/docs-audit [UC-XXX\|M0X\|actor/slug\|doc-path]` | `.claude/commands/docs-audit.md` |
+| `/docs-audit [UC\|M0X\|TDNN\|path\|changed]` | `.claude/commands/docs-audit.md` |
 | `/grill-me` | `.claude/commands/grill-me.md` |
 | `/mark-done M0X-SYY` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |

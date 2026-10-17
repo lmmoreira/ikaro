@@ -119,6 +119,18 @@ If scope is blank (full sweep), confirm with the user before proceeding given th
 
 Fan-out is **fixed and bounded** — never one agent per doc or per journey.
 
+### Agent prompt template and output contract (every agent in this step)
+
+Give each agent: the exact doc path(s) in its bucket, the artifact paths to check against (from its bucket description below), and this contract. Agents are **read-only** and return findings, never file contents.
+
+> Verify the doc's claims against the code. Return ONLY: (1) findings, each as `[doc § or id] doc claim → what code says (file:line) → wrong | omitted | stale-reference`; (2) a **Verified correct** list, one line each, **with the file:line you checked** — a "correct" without evidence doesn't count; (3) any code that should be in the doc but isn't (omissions), with file:line. Under ~80 lines. Do not modify anything. Quote nothing longer than one line.
+
+If an agent returns prose without file:line evidence, send it back once for evidence rather than accepting the claim.
+
+### Verify before you report (NON-NEGOTIABLE)
+
+An agent's report is model output, not ground truth. **Before any Stale/Conflicting, omitted, or journey-vs-code finding enters the report or becomes a proposed edit, the main agent re-reads the cited file:line itself** and confirms the claim (a quick targeted read or grep — not a re-audit). Drop findings that don't hold; downgrade ones that only partly hold and say why. Mark each reported finding **verified** (re-read) or **agent-reported, unverified** (only if a re-read wasn't possible, with the reason). This is the same discipline `/pr-review` applies to its Critical/Important findings, and it stops one wrong agent claim from becoming a wrong doc edit.
+
 ### (a) UC-vs-code — only if UCs in scope
 
 Spawn 3 Explore agents, in parallel:
@@ -156,6 +168,9 @@ Report per journey: drift item · prototype/doc claim · what code does · file:
 ---
 
 ## Step 3 — Direct-read checks (no subagents — same pattern as today's UC doc-vs-doc pass)
+
+### 3.0 Inventory-table check — run this first, on every in-scope doc
+Tables and lists that enumerate files, exports, constraints, locks, routes, error codes, event names, env vars, commands or workflows are the most drift-prone content in the repo and the cheapest to verify mechanically. For each such table/list in an in-scope doc: derive the real set from the code (`ls`/`find` for files, grep/`export` for exports, migrations for constraints, controller decorators for routes, `@ikaro/types` for error codes, `.claude/commands/`/`.github/workflows/` for commands and workflows) and diff it against the doc's rows. Report both directions: **in code, missing from the doc** and **in the doc, gone from code**. Examples this has caught or would catch: a `shared/lib/formatting/` inventory missing a newly exported `formatMonthYearRange` (found by `changed` mode on M18-S11); a catalogued constraint name that a later migration dropped. In `changed` mode, run it first against the docs the changed files map to. Tag these findings `[inventory]` under Stale/Conflicting.
 
 ### 3a. UC internal consistency — only if UCs in scope
 - Summary table row matches the detail section's `**Actor:**` line and outcome
@@ -231,7 +246,9 @@ Print `wc -c` (and approximate tokens = chars/4) for: the 10 largest in-scope do
 ## Docs Audit Report — <scope>
 
 ### Stale / Conflicting (doc says X, code says Y)
-1. [UC-XXX] <field> — doc: "<old>" / code: "<actual>" → proposed fix: <one-line>
+Every finding is tagged **verified** (main agent re-read the cited file:line) or **agent-reported, unverified** (with why). Inventory-table findings carry an `[inventory]` tag.
+1. [UC-XXX] <field> — doc: "<old>" / code: "<actual>" (file:line) · verified → proposed fix: <one-line>
+2. [inventory][docs/X.md table] row `foo` — in code, missing from the doc (file:line) · verified → add row
 
 ### Internal inconsistencies (doc vs. doc)
 1. [CLAUDE.md §19] "Folder structure" subsection appears twice, identical content
@@ -264,7 +281,8 @@ Top docs by size · context.md headroom vs CI budget · §10 row load costs
 1. [TD50] story S03 `Dependencies:` cites S09, which doesn't exist
 
 ### Confirmed correct
-1. [UC-XXX] <thing> ✓
+Each item carries the file:line that was checked — "correct" with no evidence is not reported.
+1. [UC-XXX] <thing> (file:line) ✓
 ```
 
 If a category has no findings, print `(none found)`.
