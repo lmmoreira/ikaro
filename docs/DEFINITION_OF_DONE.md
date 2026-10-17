@@ -25,7 +25,7 @@ An index, not a second copy of the rules: list the story's changed files (`git d
 
 | If the diff contains… | Required check | Where the rule lives |
 |---|---|---|
-| a new `DomainEvent`, or a new `subscribe()` call site | the topic is publishable (backend publisher binding) and the new subscription is usable (subscriber binding + DLQ publisher), in both `ikaro-staging` and `ikaro-prod` | `/mark-done` Step 4 (the `gcloud` commands) · `docs/ANTI_PATTERNS.md` § A domain event is drained |
+| a new `DomainEvent`, a new cron trigger, a new outbox-published `Command` that a consumer subscribes to, or any new `subscribe()` / `registerTrigger()` call site | the topic is publishable (backend publisher binding) and the new subscription is usable (subscriber binding + DLQ publisher), in both `ikaro-staging` and `ikaro-prod` | `/mark-done` Step 4 (the `gcloud` commands) · `docs/ANTI_PATTERNS.md` § A domain event is drained |
 | `infra/terraform/**`, `.github/workflows/**`, or an AC describing live cloud state (IAM, org policy, API, DNS) | the concrete live check the change implies (module wired into a real root, grant resolves, `terraform plan -refresh-only`) | `/mark-done` Step 4 · `.copilot/context.md` §9 item 6 |
 | a change to an algorithm, state machine or formula, or an event/notification added to one | the matching `docs/27-BUSINESS_LOGIC_REFERENCE.md` section reflects what shipped | the `27-BUSINESS_LOGIC_REFERENCE` item in the checklist above |
 | a lock (`ITenantLockPort`, `*ForUpdate`, `lock*`) or a path that takes one | `docs/28-LOCK_CATALOG.md` § 3 entry, § 4 sequence and § 3.1 test, plus a concurrent integration test | the lock-catalog item above (and CI's `lock-catalog-coverage`) |
