@@ -19,6 +19,21 @@ Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 St
 
 ---
 
+## Which checks a story's diff triggers
+
+An index, not a second copy of the rules: list the story's changed files (`git diff --name-only`) and run the rows the diff triggers; every other row is "n/a". Used by `/mark-done` Step 4 (so which conditional checks apply is decided from the diff, not from memory); `/story-discovery` and `/pre-pr` can use the same triggers. The full rule for each row lives where the last column points.
+
+| If the diff contains… | Required check | Where the rule lives |
+|---|---|---|
+| a new `DomainEvent`, or a new `subscribe()` call site | the topic is publishable (backend publisher binding) and the new subscription is usable (subscriber binding + DLQ publisher), in both `ikaro-staging` and `ikaro-prod` | `/mark-done` Step 4 (the `gcloud` commands) · `docs/ANTI_PATTERNS.md` § A domain event is drained |
+| `infra/terraform/**`, `.github/workflows/**`, or an AC describing live cloud state (IAM, org policy, API, DNS) | the concrete live check the change implies (module wired into a real root, grant resolves, `terraform plan -refresh-only`) | `/mark-done` Step 4 · `.copilot/context.md` §9 item 6 |
+| a change to an algorithm, state machine or formula, or an event/notification added to one | the matching `docs/27-BUSINESS_LOGIC_REFERENCE.md` section reflects what shipped | the `27-BUSINESS_LOGIC_REFERENCE` item in the checklist above |
+| a lock (`ITenantLockPort`, `*ForUpdate`, `lock*`) or a path that takes one | `docs/28-LOCK_CATALOG.md` § 3 entry, § 4 sequence and § 3.1 test, plus a concurrent integration test | the lock-catalog item above (and CI's `lock-catalog-coverage`) |
+| a migration file | `docs/13-DATABASE_SCHEMA.md` table, `integration-global-setup.ts` registration, `PERSISTENCE_BYPASS_IGNORES` | the three migration items above |
+| UI under `apps/web/**` | journey GAP status flipped, sibling-file parity, journey-vs-code (`/docs-audit` Step 2c) | "Journey GAP-status drift" and "Sibling-file structural parity" below |
+
+---
+
 ## Migration history — pre-production exception
 
 Squashing or editing an already-written migration (rewriting history instead of expand/contract) is allowed only if no real environment has ever run it. Verify this by checking `plan/M17-CLOUD-DEPLOY.md`'s go-live status before touching migration history — never assume "pre-production" without checking.
