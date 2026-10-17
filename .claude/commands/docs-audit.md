@@ -13,7 +13,7 @@ Optional argument: `$ARGUMENTS`
 - A UC number or comma-separated list, e.g. `UC-021` or `UC-002,UC-021,UC-027` — scope to these UCs (full `docs/04-USE_CASES.md` still read for cross-reference context).
 - A milestone prefix, e.g. `M13` — read `plan/M13-*.md` (excluding `_IMPLEMENTATION_DETAILS_*` files) and scope to every doc/UC/journey/milestone path it actually cites (see Step 1).
 - A journey path, e.g. `staff/agenda` — scope to that actor's `<slug>.md` + `prototypes/<slug>/` folder (including `dev-notes.md`, `index.html`).
-- A folder, e.g. `plan/journey/staff`, `plan/journey`, `docs/discovery/multivertical-booking`, `docs/lean`, `td` — scope to every file under it (recursive), each classified by the normal rules. See "If `$ARGUMENTS` is a folder" in Step 1.
+- A folder, e.g. `plan/journey/staff`, `plan/journey`, `docs/discovery/multivertical-booking`, `docs/lean`, `td` — scope to every file under it (recursive), each classified by the normal rules. See "If the argument is a folder" in Step 1.
 - A TD id, e.g. `TD50` — scope to `td/TD50-*.md` (exactly one match expected, same ambiguity rule as milestones) and every doc/UC/journey/milestone path it cites (same grep rules as a milestone prefix in Step 1).
 - One or more doc paths and/or journey paths, comma-separated, e.g. `docs/14-API_CONTRACTS.md` or `docs/04-USE_CASES.md,docs/02-DOMAIN_MODEL.md,staff/agenda` — scope to exactly those. Step 3b's cross-doc consistency check runs across every pair in the batch, which is the main reason to pass more than one: verifying a just-promoted batch of docs (e.g. by `/discovery-to-milestone`) agrees with itself before anything references it — a freshly-promoted doc has no implemented code yet to deep-check against, so doc-to-doc consistency is what actually catches a mistake at that stage.
 - Blank — audit **everything**: every UC, every doc under `docs/` (all of them — see Step 1's depth split), every milestone (active drafts *and* completed ones), every journey, and `CLAUDE.md` itself. Nothing is excluded from scope; what varies is audit *depth* (see Step 1). This is the expensive, full-sweep mode — use deliberately, not as a default habit.
@@ -40,10 +40,10 @@ These docs exist to give AI agents accurate, complete context. Token efficiency 
 
 ## Step 1 — Resolve scope
 
-### If `$ARGUMENTS` is a UC number/list
+### If the argument is a UC number/list
 Scope = those UCs. Read `docs/04-USE_CASES.md` in full regardless, for cross-reference context.
 
-### If `$ARGUMENTS` is a milestone prefix (e.g. `M13`)
+### If the argument is a milestone prefix (e.g. `M13`)
 
 Find the plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAILS_IA.md` and `*_IMPLEMENTATION_DETAILS_DEVELOPER.md`. **Exactly one match expected — if zero or more than one file matches, STOP and surface it as a finding instead of guessing:**
 > Found <N> files matching `plan/<milestone>-*.md`: <list>. This milestone's planning docs are ambiguous/fragmented — confirm with the user which file is canonical (and check `.copilot/context.md` §10's table for which one it actually references) before auditing. Do not pick one silently.
@@ -68,7 +68,7 @@ Grep the **entire file** (not just "Docs to load" lines — story blocks cite pa
 
 Also note any prose-only mentions outside story blocks (e.g. an "Architecture & conventions" section, a supersession note naming old milestone files) — include cited docs/journeys from there too (deep- or light-check, per the lists above), but exclude filenames that are clearly historical/dead references (e.g. inside a "(formerly ...)" or "supersedes ..." note) — those are deliberate history, not live citations.
 
-### If `$ARGUMENTS` is a folder (an existing directory path)
+### If the argument is a folder (an existing directory path)
 Verify it exists and is under the repo; if it doesn't exist, or contains no `.md`/journey files, STOP and report that instead of guessing. Otherwise expand recursively and classify each file by the normal rules:
 - `plan/journey` → every actor folder (`guest`, `customer`, `staff`, `manager`) as journeys, plus `shared/`, plus `README.md`'s index.
 - `plan/journey/<actor>` → every journey of that actor (each `<slug>.md` + `prototypes/<slug>/`), that actor's `use-cases.md`, plus `plan/journey/shared/` and the README index rows for those journeys.
@@ -79,18 +79,18 @@ Verify it exists and is under the repo; if it doesn't exist, or contains no `.md
 - Any other directory → each file by extension: `.md` under `docs/` by the deep/light lists; unknown files are listed as "unclassified, not audited", never silently skipped.
 The folder's files form **one pool for Step 3b/3g/3h**, exactly as with several comma-separated paths. A trailing slash or a relative/absolute path is fine; normalize to repo-relative. The resolved file list is printed in the scope block, so the user can see exactly what was picked up. Folders larger than ~50 files require the confirmation step used for a blank full sweep.
 
-### If `$ARGUMENTS` is a TD id (e.g. `TD50`)
+### If the argument is a TD id (e.g. `TD50`)
 Find `td/<TDNN>-*.md`; zero or multiple matches → STOP and surface it as a finding (same wording as the milestone case). Grep the whole file for `UC-\d+`, `docs/...md`, `plan/journey/...`, `plan/M\d+...md`, `td/TD\d+...md` exactly as for a milestone, and add each to scope at its normal depth.
 
 **`td/` in a blank/full sweep:** every `td/TD*.md` is in scope. A TD with unfinished stories gets the active-milestone self-consistency pass (3c, plus conformance to `docs/STORY_SCHEMA.md`'s field set); a TD whose stories are all done gets the light pass (3f). Also check each TD's cited docs/paths still resolve (3h) and that `.copilot/context.md`/docs don't still describe as "planned" something a done TD shipped.
 
-### If `$ARGUMENTS` is a journey path (e.g. `staff/agenda`)
+### If the argument is a journey path (e.g. `staff/agenda`)
 Scope = `plan/journey/<actor>/<slug>.md`, `plan/journey/<actor>/prototypes/<slug>/` (all files), `plan/journey/<actor>/use-cases.md`, `plan/journey/README.md`'s index row for this journey, **plus `plan/journey/shared/` in full** (`tokens.css` and the shared HTML fragments — `dashboard-shell.html`, `hotsite.html`, `login.html`, etc.). `shared/` belongs to no single actor, so every journey audit implicitly depends on it and must include it, not just the actor-specific paths. Light-check `shared/` for internal consistency: does every CSS custom property / shared fragment this journey's prototype actually references still exist there.
 
-### If `$ARGUMENTS` is one or more doc/journey paths (comma-separated)
+### If the argument is one or more doc/journey paths (comma-separated)
 Scope = exactly those files/journeys, each depth-classified per the deep-check/light-check lists above (a doc path) or per the journey-path rules above (a journey path) — mixing both kinds in one invocation is expected, not a special case. With 2+ items in scope, Step 3b's cross-doc consistency check treats the whole batch as one pool to cross-reference, not independent single-doc passes — this is what a `/discovery-to-milestone` promotion-verification call relies on.
 
-### If `$ARGUMENTS` is blank
+### If the argument is blank
 Scope = every UC, every doc under `docs/` (deep-check list + light-check list, both), every milestone — active drafts (`plan/M*.md` with no matching `_IMPLEMENTATION_DETAILS_IA.md`) get the full deep self-consistency pass (Step 3c), completed milestones (every milestone with an `_IMPLEMENTATION_DETAILS_IA.md` — count them with `ls plan/*_IMPLEMENTATION_DETAILS_IA.md`, never a hardcoded number) get the light pass (Step 3f) — every journey under `plan/journey/` (including `plan/journey/shared/`, which is not itself a journey but is in scope on every full sweep for the same reason it's always included in a single-journey audit), and `CLAUDE.md`/`.copilot/context.md`.
 
 ### Print the resolved scope before proceeding
