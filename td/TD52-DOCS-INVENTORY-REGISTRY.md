@@ -44,7 +44,7 @@ Decisions baked in:
 **Agent:** devops
 **Complexity:** M
 **Docs to load:** `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/ENGINEERING_RULES_TESTING.md` (detector tests); `docs/STORY_SCHEMA.md`; `.claude/commands/docs-audit.md` Step 1
-**Dependencies:** TD53 Story 3 (it moves the TD37 decisions doc out of `docs/` and records the docs layout decision), so the registry is seeded once with the final paths. The registry holds files and classification only: each doc's "when to load" statement lives in the doc's own header (TD53 Story 1), not copied here.
+**Dependencies:** TD53 Story 6 (the last TD53 story: it drops the numeric prefix from every numbered doc, after Story 3 has moved or deleted other docs), so the registry is seeded once with the final file names. The registry holds files and classification only: each doc's "when to load" statement lives in the doc's own header (TD53 Story 1), not copied here.
 **Pattern:** plain composition — no named pattern applies. The detector follows `lock-catalog-coverage.ts` and `agent-context-file.ts`: policy JSON in, `ScanResult` out.
 
 **Description:**

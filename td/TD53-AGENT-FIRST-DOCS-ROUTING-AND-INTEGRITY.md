@@ -34,6 +34,7 @@ File size is not what costs an agent; **findability** is — the agent greps for
 Principles:
 - **Optimise findability and routing, not file layout.** Stable paths and stable `§ heading` handles are an asset; every move spends it.
 - **Verify before changing.** The link and anchor checker lands first, so every later change is proven by CI, not trusted.
+- **One uniform naming rule.** The 27 numbered docs (`01`–`28`, no `07`) carry a creation-order number that means nothing to an agent, while the other 16 are unnumbered. Story 6 drops the prefix from all of them (`14-API_CONTRACTS.md` → `API_CONTRACTS.md`), so one rule covers every doc and `grep -l API_CONTRACTS` finds it as well as before. It runs last because it rewrites about 2,662 citations, all proven by Story 0's checker.
 - **Keep the grep surface to live, agent-facing text.** Superseded material moves out of `docs/` to a top-level `archive/`; it stays in the repository and keeps its history, it just stops appearing in docs searches.
 - **Optimise tokens by loading less up front and more on demand.** Always-on context stays small; everything else loads by trigger (a `§ section` pointer, a path-scoped context file, a skill invoked by name).
 - **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5).
@@ -58,6 +59,9 @@ graph TD
   S3 --> S4
   S3 --> S5
   S1
+  S2 --> S6
+  S4 --> S6
+  S5 --> S6
 ```
 
 ### Story 0 — Repo-wide link and anchor checker ⚪
@@ -178,7 +182,7 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 1. **Baseline.** Run `/docs-audit` with a blank scope (per folder if the context strains: `docs`, `plan`, `plan/journey`, `td`) and apply the approved fix batch — stale claims, dead pointers, journey `dev-notes.md` drift — so later work starts clean.
 2. **Per-doc triage table** in the Decision record: size, inbound reference count, verdict (keep / merge / archive / move) and whether the doc is still relevant, with evidence.
 3. **Load measurement.** Re-run the transcript measurement on fresh sessions, including any non-Claude agent logs available, and classify every bullet of `context.md` §0–§9 by the trigger that makes it relevant (global gate, area-scoped, workflow-scoped). The classification feeds Story 5; this story removes nothing.
-4. **Minimal cleanup.** State in `docs/README.md` the rule for numbered versus named docs — the numbered files are the original reference set, numbered in creation order, existing numbers stay (renaming them would rewrite about 2,662 citations for no load benefit) and new docs are named without a number — and where a new doc goes; move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/` (its citations rewritten, proven by Story 0); delete `docs/ENGINEERING_RULES.md` (a 94-line redirect index) once Story 0's checker shows no citation still needs it.
+4. **Minimal cleanup.** State in `docs/README.md` where a new doc goes and the one naming rule (`UPPER_SNAKE.md`, no numeric prefix — applied to the existing numbered docs by Story 6), with the former reading order kept as an ordered list in that README; move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/` (its citations rewritten, proven by Story 0); delete `docs/ENGINEERING_RULES.md` (a 94-line redirect index) once Story 0's checker shows no citation still needs it.
 7. **Move `docs/archive/` to a top-level `archive/`.** 59 files, 1.46 MB of superseded content; about 52 citations to rewrite, proven by Story 0. History is preserved by `git mv`. `docs/discovery/` stays where it is until its milestone is promoted.
 5. **Journeys destination.** Confirm the destination for the move in Story 4 (`journeys/` at the repository top level; `docs/journeys/` is rejected for the grep noise of about 5.8 MB of HTML in `docs/`) and list the root config that hardcodes the current path (`.gitignore`, `.coderabbit.yaml`, `sonar-project.properties`, `knip.config.ts`).
 6. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation; Story 0's checker proves none is left.
@@ -286,3 +290,42 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - [ ] `tsc --noEmit` clean, lint clean
 
 **Open items for `/story-discovery`:** whether any agent tool loads nested files eagerly (which would make the move cost more, not less); whether §9's workflow content belongs in a skill; the per-file budget values.
+
+### Story 6 — Drop the numeric prefix from every numbered doc ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `docs/README.md`; `.copilot/context.md` §10, §17; `.claude/commands/docs-audit.md`; the Decision record above
+**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 and Story 5 (they edit the same files and lines; this story runs last so nothing is rewritten twice), Story 3 (the deletions and moves are done first)
+**Pattern:** plain composition — no named pattern applies
+
+**Description:**
+Rename the 27 numbered docs by removing the `NN-` prefix, keeping the `UPPER_SNAKE` name, with `git mv` so history is preserved: `01-BUSINESS_CONTEXT`, `02-DOMAIN_MODEL`, `03-DOMAIN_EVENTS`, `04-USE_CASES`, `05-BOUNDED_CONTEXTS`, `06-TENANT_ISOLATION_STRATEGY`, `08-TESTING_STRATEGY`, `09-CI_CD_PIPELINE`, `10-OBSERVABILITY_STRATEGY`, `11-ARCHITECTURE`, `12-DEPLOYMENT_STRATEGY`, `13-DATABASE_SCHEMA`, `14-API_CONTRACTS`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `16-DASHBOARD_FRONTEND_ARCHITECTURE`, `17-GITHUB_WORKFLOWS_GUIDELINES`, `18-RELEASE_LIFECYCLE_OPERATIONS`, `19-INFRASTRUCTURE_TOOLING_MAP`, `20-COST_OPTIMIZATION_STRATEGY`, `21-TENANTS_SETTINGS_SCHEMA`, `22-TECH_STACK_DECISIONS`, `23-INFRASTRUCTURE_SETUP`, `24-BFF_ARCHITECTURE`, `25-ERROR_CATALOG`, `26-DATA_RETENTION_AND_PRIVACY`, `27-BUSINESS_LOGIC_REFERENCE`, `28-LOCK_CATALOG` (each `.md`; confirm no name collision with an existing doc before running).
+Rewrite every citation with a script kept in the scratchpad, not committed. Three citation shapes exist and all must be covered: the full path (`docs/14-API_CONTRACTS.md`), the bare filename in prose (`14-API_CONTRACTS.md`), and the short numeric form already used in prose (`docs/13`, `docs/27`, `docs/28`). Citations of a `§ heading` are unaffected. Historical citations inside `archive/` are left as they are, and the checker's policy says so. Extend `doc-link-integrity` so that, after the rename, any `docs/NN` or `NN-NAME.md` form fails CI, which guarantees no short form survives. The Codex skill copies are regenerated with `scripts/codex-skill.sh`. The registry from TD52, if already implemented, is updated in the same pass. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- The 27 `docs/NN-NAME.md` files listed above (`git mv` to `docs/NAME.md`)
+- Every file returned by `grep -rlE "docs/[0-9]{2}\b|[0-9]{2}-[A-Z_]+\.md"` at implementation time (about 640 files; regenerate then, since stories land in between)
+- `.coderabbit.yaml`, `packages/architecture-check/src/cli.ts` (the `docs/28-LOCK_CATALOG.md` read), `packages/architecture-check/src/detectors/lock-catalog-coverage.ts` and its spec (error text), `packages/architecture-check/agent-context-policy.json` (anchors, if any name a numbered doc), `.copilot/context.md`, `.claude/commands/*.md`, `.agents/skills/*/SKILL.md` (regenerated)
+- `packages/architecture-check/src/detectors/doc-link-integrity.ts` and `doc-link-integrity.spec.ts` (modify — the numeric-form rule)
+- `docs/README.md` (modify — the ordered reading list)
+
+**Acceptance criteria — product:**
+- [ ] No doc under `docs/` has a numeric prefix, and no tracked file outside `archive/` cites one by full path, bare filename or short numeric form.
+- [ ] `docs/README.md` lists the docs in their former reading order.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] `doc-link-integrity.spec.ts`: a `docs/NN` short numeric citation is reported.
+  - [ ] `doc-link-integrity.spec.ts`: a `NN-NAME.md` bare filename citation is reported.
+  - [ ] `doc-link-integrity.spec.ts`: the same forms inside `archive/` pass.
+  - [ ] `lock-catalog-coverage.spec.ts` still passes with the renamed catalog path.
+- Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` (every detector, including `doc-link-integrity`, `agent-context-file`, `lock-catalog-coverage`) passes
+- [ ] `/docs-audit changed` over the rename range reports zero dead pointers
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
