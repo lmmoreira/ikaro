@@ -10,7 +10,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 
 ### **Step 1: Local Development**
 1. **Branch:** Create a short-lived branch `feat/M0X-SYY-<short-description>` (see CLAUDE.md §1).
-2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/10-OBSERVABILITY_STRATEGY.md` § Local Development Setup.
+2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/10-OBSERVABILITY_STRATEGY.md` § Local development.
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
 5. **Verify:** Run `pnpm ci:fast` locally (lint, type-check, architecture-check and unit tests; the pre-push hook runs it too).
@@ -81,8 +81,8 @@ There is no timed auto-rollback. A new Cloud Run revision that fails its startup
 
 ## 5. Monitoring the Release
 
-> No "Release Dashboard"/Grafana/Loki exists — see `docs/10-OBSERVABILITY_STRATEGY.md`'s file-level banner. Dashboards/alerts-as-code (M17-S35) is implemented (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md`'s Dashboards/Alerting Rules sections. The dashboard, uptime checks and alert policies, including the three `error_rate_5xx` policies (their MQL type bug is fixed and was live-verified in staging on 2026-08-09), are live in staging.
+> No "Release Dashboard"/Grafana/Loki exists. Dashboards, alerts and uptime checks are code (`infra/terraform/modules/monitoring`) — see `docs/10-OBSERVABILITY_STRATEGY.md` § Dashboards, alerts and uptime checks. The dashboard, uptime checks and alert policies, including the three `error_rate_5xx` policies (their MQL type bug is fixed and was live-verified in staging on 2026-08-09), are live in staging.
 
 During and after deployment, the team monitors:
-- **Success Rate / Latency (P99):** Cloud Trace (traces from the OTel SDK + collector sidecar, M17-S33/S34) — should remain > 99% success, P99 not increasing by more than 10%.
+- **Success Rate / Latency (P99):** the Engineering dashboard and the 5xx-rate and p99 alerts in Cloud Monitoring (Cloud Trace is sampled, 10% in production, so use it to drill into a slow request, not to measure rates) — should remain > 99% success, P99 not increasing by more than 10%.
 - **Error Logs:** Cloud Logging for new `ERROR`-level entries; correlate via `correlationId` (also promoted to `logging.googleapis.com/trace`/`spanId` for trace↔log linking).

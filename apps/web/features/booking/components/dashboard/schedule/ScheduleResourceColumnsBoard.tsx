@@ -82,7 +82,7 @@ function ScheduleColumnSpilloverBanner({
 
 // Renders one unmodified ScheduleTimelineBoard per checked resource, side by side — the manager's
 // bounded curation (ResourceFilterMenu) drives which columns exist, not "every active resource".
-// See docs/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md's M22-S06 entry for the full design.
+// See plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md's M22-S06 entry for the full design.
 export function ScheduleResourceColumnsBoard(
   props: ScheduleResourceColumnsBoardProps,
 ): React.JSX.Element {

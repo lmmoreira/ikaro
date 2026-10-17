@@ -102,7 +102,7 @@ export const schema = z.object({
   // surfaces (a scoped fail-closed `false`, not a boot crash).
   TURNSTILE_SECRET_KEY: z.string().optional(),
   // Chatbot cost/abuse-prevention platform-wide backstops (M19-S05/S06) — deliberately env vars,
-  // not tenants.settings fields (docs/discovery/CHATBOT/CHATBOT.md §8.9-8.10): no tenant can opt
+  // not tenants.settings fields (docs/04-USE_CASES.md UC-033): no tenant can opt
   // out, and all three can be changed via a Terraform var update + apply (a new Cloud Run
   // revision, no application code build/test/deploy) during a real incident, without waiting for
   // the next app release. Registered here (not a bare code constant) so

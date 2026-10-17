@@ -222,7 +222,7 @@ export function checkUseCaseInputNaming(project: Project): ScanResult {
     if (dtoName) {
       const message =
         dtoName === typeName
-          ? `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/AGENT_PATTERNS.md § Naming).`
+          ? `${className}.execute() takes "${typeName}" directly. Application input types must never be named/typed as an HTTP "*Dto" — define a dedicated "${className}Input" type owned by the use case, and have the calling controller construct it explicitly from the validated Dto (see rename-tenant.use-case.ts for the reference pattern; docs/CODE_STANDARDS.md § Naming conventions).`
           : `${className}.execute() takes "${typeName}", a bare alias ("type ${typeName} = ${dtoName}") for the HTTP Dto "${dtoName}" that adds nothing — still conflates the two contracts despite the Input-suffixed name. Declare "interface ${typeName} extends ${dtoName} { ... }" instead (see find-or-create-customer.use-case.ts for the reference pattern), or "${dtoName} & { ...extra fields }" if merging in context-derived fields (see approve-booking.use-case.ts).`;
 
       findings.push({

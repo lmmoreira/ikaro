@@ -381,8 +381,8 @@ describe('Chatbot repositories (integration)', () => {
       expect(recent.map((m) => m.content)).toEqual(['message 3', 'message 4']);
     });
 
-    // sumCostUsdSince is deliberately platform-wide, not tenant-scoped (docs/discovery/CHATBOT/CHATBOT.md
-    // §8's global spend breaker) — so `since` is captured narrowly, right before this test's own
+    // sumCostUsdSince is deliberately platform-wide, not tenant-scoped (docs/04-USE_CASES.md
+    // UC-033's global spend breaker) — so `since` is captured narrowly, right before this test's own
     // inserts, rather than an arbitrary window. Capturing it any earlier would pick up cost from
     // whichever other test in this file happened to run first, making the exact-sum assertion flaky.
     it('sumCostUsdSince sums cost_usd across every tenant, from `since` onward', async () => {

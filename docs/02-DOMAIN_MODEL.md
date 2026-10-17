@@ -380,7 +380,7 @@ ClassResourceSlot {
 
 #### **Aggregate: ServiceBookingIntakeSchema** (Root Entity, append-only)
 
-> Added M22 — Multi-Vertical Scheduling, Cluster 2 (UC-054). Deliberately **not** a `Service`-owned field or child collection like `resourceRequirements`/`legs` above — `Service`'s own props hold no reference to it. Publishing a new version never edits or deletes the previous one, so it has its own identity, its own repository (`IServiceIntakeSchemaRepository`), and its own `publish()`/`reconstitute()` factory — see `docs/ENGINEERING_RULES_BACKEND.md` § "A versioned, append-only child concept... is an independent aggregate root with its own repository" for the full pattern rationale and its `architecture-check` consequence.
+> Added M22 — Multi-Vertical Scheduling, Cluster 2 (UC-054). Deliberately **not** a `Service`-owned field or child collection like `resourceRequirements`/`legs` above — `Service`'s own props hold no reference to it. Publishing a new version never edits or deletes the previous one, so it has its own identity, its own repository (`IServiceIntakeSchemaRepository`), and its own `publish()`/`reconstitute()` factory — see `docs/ENGINEERING_RULES_BACKEND.md` § "A versioned, append-only child concept" for the full pattern rationale and its `architecture-check` consequence.
 
 **Properties:**
 ```
@@ -1365,7 +1365,7 @@ NO_SHOW         -> COMPLETED   (manager correction only; otherwise terminal)
 
 > A booking materialized from a `RecurringBookingSchedule` (M23-S05) is created directly in `APPROVED` — the schedule was vetted once when it became `ACTIVE`, so each occurrence skips the `PENDING` review; from `APPROVED` it follows the same transitions as any other booking.
 >
-> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074): reachable only from `APPROVED`, terminal, and correctable to `COMPLETED` by a manager only. See `docs/02-DOMAIN_MODEL.md` § Booking Context's own Cluster 3 modification note and `.copilot/context.md` §5 for the same state machine.
+> `NO_SHOW` is added by M23 — Multi-Vertical Scheduling, Cluster 3 (UC-074): reachable only from `APPROVED`, terminal, and correctable to `COMPLETED` by a manager only. See the note above and `.copilot/context.md` §5 for the same state machine.
 
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`

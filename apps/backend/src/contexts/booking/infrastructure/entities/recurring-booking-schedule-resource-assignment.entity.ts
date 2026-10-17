@@ -1,7 +1,7 @@
 import { Column, Entity, PrimaryColumn } from 'typeorm';
 import { ResourceType } from '../../domain/resource.types';
 
-// docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedule_resource_assignments — durable
+// docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules / assignments — durable
 // child assignment record, mandatory for FIXED_ASSIGNMENT (empty for RESOLVE_PER_OCCURRENCE).
 @Entity('recurring_booking_schedule_resource_assignments', { schema: 'booking' })
 export class RecurringBookingScheduleResourceAssignmentEntity {

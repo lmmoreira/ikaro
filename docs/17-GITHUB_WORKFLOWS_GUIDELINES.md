@@ -94,6 +94,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 | Rule id | What it enforces |
 |---|---|
 | `agent-context-file` | `.copilot/context.md` exists, its pointers resolve, no PR-number/ISO-date literals, each section within its budget (`agent-context-policy.json`), the `CLAUDE.md`/`AGENTS.md`/`gemini.md` symlinks agree |
+| `doc-link-integrity` | every cited `docs/`, `plan/`, `td/` or `infra/` path exists, and a `` `path.md` § heading `` citation matches a heading, bold lead-in or table row in its target. Scans canonical docs, `.claude/commands/`, `.copilot/`, `docs/…` citations in non-spec code comments and non-frozen `plan/`/`td/` files; skips `docs/archive/`, `docs/discovery/`, `archive/`, `> Frozen: <date>` files, fenced code blocks and lines marked `<!-- doc-link:example -->`; exceptions live under `docLinkIntegrity` in `architecture-policy.json` |
 | `transactional-io`, `transactional-save` | no cross-service network I/O inside `txManager.run()`; every repository `save()` is textually inside the callback |
 | `unsafe-use-existing`, `reverse-di-alias`, `global-module-export-pairing` | DI: no `useExisting` alias of a class that is also its own provider; a `@Global()` module exports every token it provides |
 | `error-mapper-coverage`, `error-prototype-chain`, `vo-create-no-bare-error`, `shared-vo-error-mapper-coverage` | every domain error maps to a typed HTTP error; VOs throw typed errors, not `Error` |

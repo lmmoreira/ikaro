@@ -221,7 +221,7 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-018/019/020, M11 IA file, S02 implementation (`PubSubPushGuard`, `PubSubPushController`, `GcpPubSubEventBusAdapter`), `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers (test-wiring table) + `docs/ENGINEERING_RULES_SHARED.md` § `RequestContext` is HTTP-request-scoped only (`*.job.ts` category)
+**Docs to load:** `docs/04-USE_CASES.md` § UC-018, UC-019, UC-020, M11 IA file, S02 implementation (`PubSubPushGuard`, `PubSubPushController`, `GcpPubSubEventBusAdapter`), `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers (test-wiring table) + `docs/ENGINEERING_RULES_SHARED.md` § `RequestContext` is HTTP-request-scoped only (`*.job.ts` category)
 
 **Description:**
 The cron controllers already exist on the backend (`cron-booking.controller.ts` → `POST /cron/reminders`; `cron-loyalty.controller.ts`) but their in-code comments (“MVP: no auth guard”) are stale — both already sit behind the global `InternalApiGuard`. Rather than bolting `PubSubPushGuard` onto these controllers directly (a second push-consuming code path parallel to S02’s `/pubsub/push`), cron reuses the *same* shared push receiver: Scheduler publishes to a cron topic → push subscription → `/pubsub/push` → routed by subscription name to a trigger handler, exactly like a domain event (2026-07-09 discovery — the original design in this section pointed push subscriptions directly at the cron controllers; corrected here before any Terraform or guard code existed for that shape).
@@ -230,7 +230,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 `BookingReminderJob` and `AdminScheduleReminderJob` (bundled today under one `/cron/reminders` call) are independent — verified in code: disjoint tenant loops, own `correlationId`, own published event, no shared state or ordering dependency. Same for loyalty’s `ExpirePointsUseCase`/`NotifyExpiringPointsUseCase` (bundled under `cron-loyalty.controller.ts`): disjoint time windows (past-due vs. not-yet-due), no shared state. Each becomes its own trigger handler — satisfies the “handler calls exactly one use case” rule (§7) and gives each independent Pub/Sub retry/DLQ isolation. This also fixes a latent bug in today’s bundled design: if `BookingReminderJob.run()` throws mid-loop, `AdminScheduleReminderJob.run()` never runs at all for that invocation (sequential `await` in one controller method, no isolation).
 
-**Job-pattern unification (2026-07-09 discovery):** `docs/ENGINEERING_RULES_SHARED.md` § RequestContext already documents “Cron jobs (`*.job.ts`)” as a distinct invocation-context category (alongside event handlers) — but only `booking/application/jobs/` actually follows it; loyalty’s two cron-triggered pieces are named/located like ordinary use cases even though neither `findExpiringBefore(date)` nor `findExpiringSoon(from, to)` takes a `tenantId` (both are already genuine cross-tenant fan-out queries, architecturally identical to the booking jobs’ `tenantPort.findAllActive()` loop — they’re shaped like jobs today, just misnamed). Blast radius checked: `ExpirePointsUseCase`/`NotifyExpiringPointsUseCase` are referenced only in `loyalty.module.ts` and `cron-loyalty.controller.ts` — both already being touched by this story. Rename and relocate to match booking’s flat-file layout exactly, including the injectable-clock signature:
+**Job-pattern unification (2026-07-09 discovery):** `docs/ENGINEERING_RULES_SHARED.md` § RequestContext, which already documents “Cron jobs (`*.job.ts`)” as a distinct invocation-context category (alongside event handlers) — but only `booking/application/jobs/` actually follows it; loyalty’s two cron-triggered pieces are named/located like ordinary use cases even though neither `findExpiringBefore(date)` nor `findExpiringSoon(from, to)` takes a `tenantId` (both are already genuine cross-tenant fan-out queries, architecturally identical to the booking jobs’ `tenantPort.findAllActive()` loop — they’re shaped like jobs today, just misnamed). Blast radius checked: `ExpirePointsUseCase`/`NotifyExpiringPointsUseCase` are referenced only in `loyalty.module.ts` and `cron-loyalty.controller.ts` — both already being touched by this story. Rename and relocate to match booking’s flat-file layout exactly, including the injectable-clock signature:
 - `application/use-cases/expire-points/expire-points.use-case.ts` → `application/jobs/expire-points.job.ts`, class `ExpirePointsUseCase` → `ExpirePointsJob`, `execute()` → `run(now: Date = new Date())`
 - `application/use-cases/notify-expiring-points/notify-expiring-points.use-case.ts` → `application/jobs/notify-expiring-points.job.ts`, class `NotifyExpiringPointsUseCase` → `NotifyExpiringPointsJob`, `execute(warningDays?)` → `run(now: Date = new Date(), warningDays?: number)`
 
@@ -270,7 +270,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § health check contract
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § Dashboards, alerts and uptime checks
 
 **Description:**
 `HealthController` exists in backend and BFF but `/health/ready` is a stub (always `{status:'ok'}`). Cloud Run readiness/startup probes depend on it being real. (Absorbs old M14-S07.)
@@ -299,7 +299,7 @@ A cron tick is not a domain event, though — it carries no `tenantId` (the job 
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § logging contract
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § Logs
 
 **Description:**
 `packages/observability` `AppLogger` already emits structured JSON with `tenantId` + `correlationId` (AsyncLocalStorage). Align the output so Cloud Logging parses it natively, without making the logger GCP-dependent. (Absorbs old M14-S08; the “audit all call sites” part shrinks to a verification pass.)
@@ -576,7 +576,7 @@ Create the Cloudflare footprint and move `ikaro.online` DNS to it. No production
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § OAuth (reference only — M17 §0 wins)
+**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` (reference only — M17 §0 wins; its former OAuth section was dropped in the lean rewrite)
 
 **Description:**
 The two external service prerequisites for a working deployment: Google OAuth (login) and a transactional email provider.
@@ -667,7 +667,7 @@ Create the folder structure above with empty-but-valid modules, per-env backends
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` § network (reference only — M17 §0 wins)
+**Docs to load:** vendored skills; `docs/23-INFRASTRUCTURE_SETUP.md` (reference only — M17 §0 wins; its former network section was dropped in the lean rewrite)
 
 **Description:**
 `modules/network`: VPC `ikaro-vpc-{env}` (no auto subnets), subnet `ikaro-subnet-{env}` `10.0.0.0/24` in `southamerica-east1` (flow logs ON per Checkov; **`private_ip_google_access = true`** — required: the BFF egresses `ALL_TRAFFIC` through this subnet (S18), so its Google-API calls — OAuth token exchange, JWKS fetches — must ride Private Google Access), **private services access** peering range for Cloud SQL (`servicenetworking` connection), firewall: default-deny ingress; egress allowed. **No Serverless VPC Access connector** (D7) — Cloud Run services reference this subnet via direct VPC egress in S18. **No Cloud NAT at launch** (documented decision, 2026-07-07): the backend keeps `PRIVATE_RANGES_ONLY` egress so its non-Google calls (Brevo) go direct from Cloud Run's infrastructure, and the BFF calls only Google APIs (PGA) + the backend (VPC) — nothing needs a NAT path. Revisit only if a VPC-egressing service ever needs a non-Google external API. **This exact trigger fired and was missed:** M20-S05 (2026-08-25) added the BFF's first raw call to a non-Google third party (Cloudflare Turnstile's `siteverify`) without revisiting this decision, and it went undetected until a live staging incident (M20-S14, 2026-08-27) — every submission failed closed because the BFF's `ALL_TRAFFIC` egress had no NAT to route that call out. The fix needed no NAT after all: the backend's own `PRIVATE_RANGES_ONLY` egress (already reaching Brevo directly, per this same decision) could host the call instead, with zero new infrastructure — see `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run `vpc_egress` mode determines third-party outbound reachability and `plan/M20-LEAD-FORM-MODULE.md` § M20-S14 for the full incident. The lesson for the *next* time this trigger fires: check whether an existing `PRIVATE_RANGES_ONLY` service can host the new call before reaching for Cloud NAT. *Settled in discovery (2026-07-17): PSA reserved range is auto-allocated `/16` (`prefix_length = 16`, name `ikaro-psa-range-{env}`); the module also outputs the servicenetworking connection (`private_services_connection`) so S13's database module can take an explicit graph dependency on the peering (module-composition practice — avoids `depends_on` on the module call); the module is composed in both env roots but applied to staging only — prod stays plan-only until S24/S37.*
@@ -704,7 +704,7 @@ Rationale: `tf-planner` (PR-mintable, S08) reads state; a Terraform-generated pa
 cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-staging --port 5433
 ```
 
-*Settled in discovery (2026-07-17):* (0) **Engine bumped PostgreSQL 15 → 17** — the original PG15 pick (`docs/22` §6) dates to project inception (~2023, when PG16 was newly GA); this story is the first ever to provision a real Cloud SQL instance, so it's the cheapest possible moment (zero data, no migration) to correct the stale pin. PG18 was considered and set aside only for Cloud SQL-specific immaturity (support added 2026), not upstream risk. Local `docker/docker-compose.yml`, backend Testcontainers (`integration-global-setup.ts`), and every doc asserting "PostgreSQL 15" were updated in the same PR (`docs/22`, `docs/08/09/11/12/19/23`, `infra/terraform/README.md`, `modules/database/README.md`, `plan/M00`, `plan/M01-CI-QUALITY-GATES*`, `plan/README.md`, `.copilot/context.md`) — `plan/M15-GCP-INFRASTRUCTURE.md` intentionally excluded (superseded/historical, not live). (1) **Human DB access uses Cloud SQL IAM database authentication** — `cloudsql.iam_authentication` flag ON, admin identity registered as a `CLOUD_IAM_USER` via `var.iam_admin_user` (no password exists → zero secrets in state; the "future option, not built" note above now refers only to the *app runtime*, which keeps password auth via the S27 runbook). The email value is never committed (public repo): locally it comes from a gitignored `local.auto.tfvars`; post-S24 the pipeline supplies `TF_VAR_iam_admin_user` from a GitHub environment variable (noted in S24). (2) Provider v7 renamed `require_ssl` → `ssl_mode = "ENCRYPTED_ONLY"` (same intent, new attribute). (3) **Apply postponed** (cost decision): the module lands behind an `enable_database` flag at each env root — staging `false` (no instance, no charge) until S18/S27 needs the live DB (~$9/mo once flipped), prod `true` (prod stays plan-only regardless). Live-instance AC items (proxy login, backups in console) move to the S27 checklist.
+*Settled in discovery (2026-07-17):* (0) **Engine bumped PostgreSQL 15 → 17** — the original PG15 pick (`docs/22` §6) dates to project inception (~2023, when PG16 was newly GA); this story is the first ever to provision a real Cloud SQL instance, so it's the cheapest possible moment (zero data, no migration) to correct the stale pin. PG18 was considered and set aside only for Cloud SQL-specific immaturity (support added 2026), not upstream risk. Local `docker/docker-compose.yml`, backend Testcontainers (`integration-global-setup.ts`), and every doc asserting "PostgreSQL 15" were updated in the same PR (`docs/22`, `docs/08/09/11/12/19/23`, `infra/terraform/README.md`, `modules/database/README.md`, `plan/M00`, `plan/M01-CI-QUALITY-GATES*`, `plan/README.md`, `.copilot/context.md`) — the superseded M15 plan was excluded as historical and has since been deleted (recoverable from git history). (1) **Human DB access uses Cloud SQL IAM database authentication** — `cloudsql.iam_authentication` flag ON, admin identity registered as a `CLOUD_IAM_USER` via `var.iam_admin_user` (no password exists → zero secrets in state; the "future option, not built" note above now refers only to the *app runtime*, which keeps password auth via the S27 runbook). The email value is never committed (public repo): locally it comes from a gitignored `local.auto.tfvars`; post-S24 the pipeline supplies `TF_VAR_iam_admin_user` from a GitHub environment variable (noted in S24). (2) Provider v7 renamed `require_ssl` → `ssl_mode = "ENCRYPTED_ONLY"` (same intent, new attribute). (3) **Apply postponed** (cost decision): the module lands behind an `enable_database` flag at each env root — staging `false` (no instance, no charge) until S18/S27 needs the live DB (~$9/mo once flipped), prod `true` (prod stays plan-only regardless). Live-instance AC items (proxy login, backups in console) move to the S27 checklist.
 
 **Connection capacity note:** `db-f1-micro` allows only ~25 connections, and every Cloud Run instance opens its own TypeORM pool — the invariant `backend max_instances × DB_POOL_SIZE ≤ ~80% of max_connections` is owned by S18. The connection scale-up ladder (verified against Cloud SQL docs, 2026-07-07) is: **(1)** pool math — day zero, free; **(2)** dedicated-core Enterprise tier + raise the `max_connections` database flag (RAM-bounded); **(3)** Enterprise Plus edition + **Managed Connection Pooling** (Google-managed PgBouncer — requires Enterprise Plus, ~$200–300+/mo/env, so ONLY when traffic justifies it): M17-S46. Never a self-hosted pooler VM at any rung.
 
@@ -747,7 +747,7 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 
 **Agent:** `devops`
 **Complexity:** S
-**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § immutable artifacts (reference only — M17 §0 wins)
+**Docs to load:** `docs/12-DEPLOYMENT_STRATEGY.md` § Delivery model (reference only — M17 §0 wins)
 
 **Description:**
 `modules/registry`, instantiated **only in the prod env** (D8): Docker repo `ikaro-registry` in `southamerica-east1`. Cleanup policies (revised 2026-07-18, PR review — a KEEP policy alone never deletes anything, it only exempts matched versions from a DELETE policy, so retention requires **three** policies, not two): delete tagged versions >7 days, delete untagged versions >7 days, keep the 30 most recent versions per image regardless of tag state (`most_recent_versions` has no tag-state filter — a very recent untagged version can outlive the untagged rule until it ages out of this top-30 window; accepted, bounded edge case). **Revised 2026-07-23, M17-S26 cross-tool review:** the original 5-most-recent floor was too tight against staging's per-merge push frequency (`deploy-staging.yml` pushes a new tagged version on every merge touching `apps/**`/`packages/**`/the lockfile, independent of promote cadence) — as few as 5 staging merges after a prod promote could evict the exact image S26's "thorough" rollback path needs. Raised to 30 for real headroom; `docs/RUNBOOKS.md`'s rollback section documents falling back to `rollback-production.yml`'s traffic-shift path (unaffected — works off already-deployed Cloud Run revisions, not the registry) if this floor is ever exhausted anyway. IAM (clarified in discovery, 2026-07-18 — S08's table named this role but it was never actually executed; closed out here as a manual grant): `ikaro-tf-deployer@ikaro-prod` gets `roles/artifactregistry.admin` on the project, granted **manually** via `gcloud`, same pattern as S08's other 8 deployer roles — Terraform can't grant this to its own applier starting from zero permissions. Fully Terraform-managed within this module (no further bootstrap needed): `ikaro-app-deployer@ikaro-staging` gets `roles/artifactregistry.writer` on the repo (cross-project — staging pushes the image later validated for prod, D8); each project's **Cloud Run service agent** (`service-<PROJECT_NUMBER>@serverless-robot-prod.iam.gserviceaccount.com`) — not the app runtime SAs (backend/bff/web, created later in S17) — gets `roles/artifactregistry.reader`, since that's the actual identity Cloud Run uses to pull images; only staging's needs an explicit grant (prod's same-project pull is automatic). `staging_project_number` enters as a plain non-secret var in `envs/prod/terraform.tfvars` (same treatment as `project_id`/`db_tier` — not gitignored). Images: `ikaro-backend:<sha>`, `ikaro-bff:<sha>`, `ikaro-web:<sha>` (single image, no per-env suffix — corrected 2026-07-22, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`: this row originally documented a per-env `-staging`/`-prod` web build that TD29 removed the need for; see D8/S25/S26), `ikaro-otel-collector:<version>` (S34).
@@ -1002,7 +1002,7 @@ Create **4 environments** (D10) in repo settings:
 | `staging-infrastructure` | none |
 | `production-infrastructure` | required reviewer: repository owner |
 
-Repository **variables** (non-sensitive): `GCP_PROJECT_STAGING=ikaro-staging`, `GCP_PROJECT_PROD=ikaro-prod`, `GCP_REGION=southamerica-east1`, `GAR_HOST=southamerica-east1-docker.pkg.dev`. Repository **secrets** (corrected 2026-07-22 — `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` §7's Secrets-vs-Variables convention, and this repo's live config, both confirm these are Secrets, not Variables as this line originally said; none is a bearer credential by itself since WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims, but Secrets auto-redact in logs): `WIF_PROVIDER_STAGING` / `WIF_PROVIDER_PROD` (full resource names from S08), the six SA emails from the S08 split (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`). Also `CLOUDFLARE_API_TOKEN` (added when the edge module lands — S22 needs it for DNS/cert automation; scope extended later by S40/S41).
+Repository **variables** (non-sensitive): `GCP_PROJECT_STAGING=ikaro-staging`, `GCP_PROJECT_PROD=ikaro-prod`, `GCP_REGION=southamerica-east1`, `GAR_HOST=southamerica-east1-docker.pkg.dev`. Repository **secrets** (corrected 2026-07-22 — `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Repository Secrets vs. Variables, and this repo's live config, both confirm these are Secrets, not Variables as this line originally said; none is a bearer credential by itself since WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims, but Secrets auto-redact in logs): `WIF_PROVIDER_STAGING` / `WIF_PROVIDER_PROD` (full resource names from S08), the six SA emails from the S08 split (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`). Also `CLOUDFLARE_API_TOKEN` (added when the edge module lands — S22 needs it for DNS/cert automation; scope extended later by S40/S41).
 
 **Acceptance criteria:**
 - [ ] 4 environments exist; production ones cannot deploy without an approval (test with a dummy workflow)
@@ -1234,7 +1234,7 @@ Old M16-S08 is **largely already implemented** (`packages/nestjs-http/src/proble
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § OTel
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § Traces
 
 **Description:**
 Old M14-S01 preserved with the anti-lock-in rule: **only OTLP exporters in code** (D9). `src/tracing.ts` in backend and BFF, imported first in `main.ts`: `NodeSDK` + `getNodeAutoInstrumentations` (http, express/nest, pg/typeorm) + `OTLPTraceExporter` to `OTEL_EXPORTER_OTLP_ENDPOINT` (default `http://localhost:4318` — the sidecar; unset/disabled in local dev unless `pnpm obs` profile used). Sampling: `ParentBasedTraceIdRatio` from `OTEL_TRACES_SAMPLER_ARG` (staging 1.0, prod 0.1). Span enrichment: `tenant.id`, `correlation.id` attributes from `RequestContext` (interceptor). Exclude `/health/*` and `/pubsub/push` heartbeat noise via instrumentation ignore rules. Wire S05’s trace-correlation log fields (they activate automatically once spans exist). Manual business spans (old M14-S02) are explicitly **deferred** — auto-instrumentation covers HTTP+DB+outbound; revisit when debugging demands it. **TD24-S05 cross-reference (2026-07-14):** the outbox/inbox relay (`OutboxRelayService`) already logs `tenant.id`/`correlation.id` as structured fields for its sweep/GC operations — same "activates automatically once spans exist" pattern as every other log line here; no relay code change needed when this story lands. **TD23-S18 cross-reference (2026-07-14):** `error.code` is already attached to every non-2xx structured log line (backend + BFF, via `AppLogger`) — same "activates automatically once spans exist" pattern; this story should also attach `error.code` as a span attribute on the request span when it lands (TD23-S18's original ask, deferred here since no spans existed yet).
@@ -1293,7 +1293,7 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 **Agent:** `devops`
 **Complexity:** M
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting (metric *intents*; the metric names there are stale — use Cloud Run built-ins)
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § Dashboards, alerts and uptime checks (use Cloud Run built-in metrics)
 
 **Narrowed 2026-08-08, via story-discovery.** Originally bundled business-counter log metrics and an OTel-metrics decision into this story; both split out (see M17-S54/M17-S55 below) once discovery found the business counters' premise didn't hold (the use cases it assumed already logged start/completion don't) and the OTel-metrics work is a separate, careful initiative in its own right. This story now covers only infra-level signals that already exist — Cloud Run built-ins, Cloud SQL metrics, Pub/Sub DLQ depth, and the outbox relay's already-confirmed structured logs — no new application code required.
 
@@ -1322,7 +1322,7 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 **Agent:** `backend-ts` (new logger calls in booking/notification use cases) + `bff-ts` (new logger calls in the auth login flow) + `devops` (Terraform log-based metrics)
 **Complexity:** S
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § SLOs/alerting, `docs/10-OBSERVABILITY_STRATEGY.md` § Log Format Specification (gauge vs. event logging — corrected 2026-08-12 via story-discovery: this content lives in this file, not `docs/ENGINEERING_RULES.md`, which has no such section)
+**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § Dashboards, alerts and uptime checks, `docs/10-OBSERVABILITY_STRATEGY.md` § Logs (gauge vs. event logging — corrected 2026-08-12 via story-discovery: this content lives in this file, not `docs/ENGINEERING_RULES.md`, which has no such section)
 
 **Split out of M17-S35, 2026-08-08, via story-discovery.** The original S35 description assumed "use cases already log start/completion with structured fields (S05)" for bookings requested/approved/completed. Checked directly during discovery: `request-booking.use-case.ts`, `approve-booking.use-case.ts`, and `complete-booking.use-case.ts` have **zero** logger calls today. "Failed notifications" data exists (`NotificationLog` aggregate, DB-persisted) but not as a log line either. This story adds the missing log lines first, then the log-based counters/dashboard panels that consume them — a code story, not a pure-Terraform one, which is why it's split from S35.
 
@@ -1467,7 +1467,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 **Docs to load:** S13 (backups/PITR), S11 (state layout), S16 (`SECRETS.md`)
 
 **Description:**
-**Found in review (2026-07-07):** the plan has backups, PITR, rollback, and state versioning as *facts*, but no recovery targets, no tested restore procedure, and no recovery runbooks — and untested backups are not backups. This story writes `docs/RUNBOOKS.md` § Disaster Recovery and **executes the first restore drill against staging** before production go-live (S37 depends on this).
+**Found in review (2026-07-07):** the plan has backups, PITR, rollback, and state versioning as *facts*, but no recovery targets, no tested restore procedure, and no recovery runbooks — and untested backups are not backups. This story writes `docs/RUNBOOKS.md` § Disaster Recovery and **executes the first restore drill against staging** before production go-live (S37 depends on this). <!-- doc-link:example -->
 
 **What to produce:**
 1. **Targets (documented, with rationale):** prod RPO ≤ 1h (PITR); staging RPO ≤ 24h (daily backup). RTO target: ≤ 2h for DB restore, ≤ 30min for app rollback (Cloud Run revision / re-promote previous SHA). These are commitments to yourself — revisit when the first paying tenant lands.
@@ -1477,7 +1477,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 5. **Alert routing recap:** one table — which alert (billing, uptime, 5xx, DLQ, SQL disk, ERROR burst) notifies whom, on which channel (S07 budgets + S35 policies). For a solo operator: email + phone-visible channel; document the intent to add a second recipient when one exists.
 
 **Acceptance criteria:**
-- [ ] `docs/RUNBOOKS.md` § DR covers all five areas with copy-pasteable commands
+- [ ] `docs/RUNBOOKS.md` § DR covers all five areas with copy-pasteable commands <!-- doc-link:example -->
 - [ ] Restore drill executed on staging: evidence (timings, instance name, verification steps) recorded; temp instance destroyed
 - [ ] RPO/RTO targets stated and consistent with S13's backup/PITR configuration
 - [ ] Quarterly drill reminder exists (calendar or scheduled issue)
@@ -1495,7 +1495,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 **Description:**
 **Found in review (2026-07-07):** the security *mechanisms* exist (2FA, no keys, no SSH, WIF, audit logs) but there is no written policy — who holds what, what happens if the sole operator loses access, when access is reviewed. One short governance doc, proportionate to a solo-operated platform.
 
-**What to produce (`docs/SECURITY_GOVERNANCE.md`, doc gate applies):**
+**What to produce (`docs/SECURITY_GOVERNANCE.md`, doc gate applies):** <!-- doc-link:example -->
 1. **Role inventory:** the admin identity is the only human with org/project Owner; everything else (CI, runtime) is enumerated with its S08/S17 role set. Any new human gets least-privilege roles, never Owner.
 2. **Break-glass account:** the second admin identity **created back in S07** (moved there 2026-07-07 — the lockout risk is live from Day 0). This story verifies and drills it (login + revoke test), documents the activation procedure + a log requirement (any break-glass use is written up). For a solo operator this is the difference between "lost my phone" and "lost the platform".
 3. **Quarterly IAM review:** 15-minute checklist — `gcloud projects get-iam-policy` diff vs the documented inventory, SA key check (must stay zero), WIF binding check, dormant-identity removal. Same calendar cadence as the S49 drill.
@@ -1503,7 +1503,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 5. **2FA statement:** hardware key (or authenticator minimum) on the admin Google account, Cloudflare, GitHub, Brevo — already required by S07/S09; this doc is where the requirement lives permanently.
 
 **Acceptance criteria:**
-- [ ] `docs/SECURITY_GOVERNANCE.md` exists covering the five areas
+- [ ] `docs/SECURITY_GOVERNANCE.md` exists covering the five areas <!-- doc-link:example -->
 - [ ] Break-glass identity (created in S07) verified and tested (login + revoke drill), key stored offline
 - [ ] Data Access audit logs enabled for Secret Manager + Cloud SQL via Terraform
 - [ ] First quarterly review executed as part of this story (baseline)
@@ -1520,7 +1520,7 @@ Closes the “bypass Cloudflare by hitting the LB IP directly” hole. `modules/
 
 **Agent:** `devops`
 **Complexity:** M
-**Docs to load:** this file §2, S22 (edge), S37, and `docs/24-BFF_ARCHITECTURE.md` § throttling/client-IP handling
+**Docs to load:** this file §2, S22 (edge), S37, and `docs/24-BFF_ARCHITECTURE.md` § Rate Limiting
 
 **Description:**
 TD38 Story A (staging) is merged and verified live: BFF's ingress locked to internal-only, its `allUsers` public invoker grant removed, `ikaro-web` authenticates to BFF with a Cloud Run IAM ID token plus an app-layer `X-Web-Internal-Key` shared secret (mirrors the existing BFF→backend pattern exactly), and BFF trusts a forwarded `X-Real-Client-Ip` header instead of guessing from CF-Connecting-IP/XFF. **None of this is wired for prod yet** — prod's BFF remains `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with its public invoker grant intact (reachable by anyone on the internet via `bff.ikaro.online`, zero IAM-level gate), and `ikaro-web` has no VPC egress at all. This story must land **before** S37 — S37's own go-live checklist does not currently cover any of this, and running it as written today would activate prod with BFF still fully public.
@@ -1855,7 +1855,7 @@ When the trigger above is met, move the instance to Enterprise Plus and enable *
 2. **Data-subject export runbook:** parameterized SQL per context (`WHERE tenant_id = X AND customer_id = Y`) + `gsutil ls/cp` for the customer's photos → a JSON/CSV bundle. Manual, operator-executed, target ≤ 15 days (LGPD art. 19 timeline noted).
 3. **Data-subject deletion runbook:** the multi-tenant subtlety documented explicitly — deletion is **per tenant-customer relationship** (same person may be a customer of other tenants; §2 invariant 5). Anonymization strategy for rows that must survive for tenant business records (completed bookings keep aggregates, contact fields nulled/hashed) vs hard-delete for the rest; photos deleted from GCS. Candidate `UC-033 — Customer requests data deletion` noted for future automation.
 4. **Tenant offboarding runbook:** contract-end sequence — export bundle offered to the tenant, then hard delete of the tenant's rows across all contexts (order respecting FKs), GCS prefixes (`tenants/<id>/`), custom hostname (S40) removal, Secret/log references check. Candidate `UC-034 — Platform operator offboards tenant` noted.
-5. **Backup interplay statement (goes into the privacy posture + tenant terms stub from S45):** deleted data persists in DB backups up to the 7-day retention (S13) and is purged automatically thereafter; backups are never selectively edited; restore procedures (S49) must re-apply any deletions executed since the backup point (kept feasible by logging deletion executions with dates in `SECRETS.md`-style ledger — `docs/DATA_REQUESTS_LOG.md`, gitignored).
+5. **Backup interplay statement (goes into the privacy posture + tenant terms stub from S45):** deleted data persists in DB backups up to the 7-day retention (S13) and is purged automatically thereafter; backups are never selectively edited; restore procedures (S49) must re-apply any deletions executed since the backup point (kept feasible by logging deletion executions with dates in `SECRETS.md`-style ledger — `docs/DATA_REQUESTS_LOG.md`, gitignored). <!-- doc-link:example -->
 6. **Log caveat:** Cloud Logging retains request logs (emails may appear in structured fields) for the configured retention — verify S05's field set doesn't log raw emails outside hashed/necessary cases; fix call sites if found (root-cause rule).
 
 **Acceptance criteria:**
