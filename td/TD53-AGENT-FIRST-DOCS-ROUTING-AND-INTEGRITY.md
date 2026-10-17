@@ -7,6 +7,7 @@
 - **Created**: 2026-10-17
 - **Discovered**: a chat review of `/docs-audit`'s fit (2026-10-17), then measuring how agents actually read these docs from the repo's own session transcripts
 - **Decision status**: Drafted 2026-10-17; re-scoped the same day from a human-oriented folder reorganisation to agent-first routing and integrity once the transcript measurements below were taken. Each story still begins with `/story-discovery`.
+- **Review 2026-10-17**: reviewed against the repository the same day; Story 3 split into 3A/3B/3C, Story 5 preceded by a mechanism spike (5A), Stories 1 and 0 tightened, Stories 4 and 6 gated on the Decision record, success metrics added.
 - **Related**: TD52 (cancelled 2026-10-17 and folded into Story 1: the deep/light classification lives in each doc's header, not in a registry JSON), TD41 (canonical-home rule, `ENGINEERING_RULES_*` split), TD37 (`architecture-check` decisions), `.claude/commands/docs-audit.md`, `CLAUDE.md` §10
 
 ## Problem
@@ -19,8 +20,8 @@ This repository is mainly maintained by AI agents running a mostly unattended fl
 - **Large docs are never read whole.** Whole-file reads occurred only for small docs (up to about 28 KB: `STORY_SCHEMA`, `DEFINITION_OF_DONE`, `LOCK_CATALOG`). Every large doc was read partially — `04-USE_CASES` (251 KB) 11 of 11 reads, `14-API_CONTRACTS` (156 KB) 12 of 12, `13-DATABASE_SCHEMA` (121 KB) 10 of 10; overall 145 partial Read calls vs 31 whole.
 - **Routing is coarse.** Only 8 of the 36 rows of `.copilot/context.md` §10 cite a `§ section`; the rest point at a whole file.
 - **The always-on context is the biggest fixed cost.** `.copilot/context.md` is 57,647 characters loaded in every session, whatever the task: §7 Engineering Rules alone is 24,439 (42%), §9 Story Workflow 9,029, §10 5,379. No nested context file exists anywhere in the repo, so nothing is loaded by area.
-- **The grep surface is mostly not live docs.** `docs/` holds about 4.9 MB, of which the 43 live top-level docs are 1.84 MB; `docs/archive` (59 files, 1.46 MB, superseded) and `docs/discovery` (115 files, 1.59 MB) make up the rest. Ten archive files still mention the superseded UC-014/UC-015, so a grep of `docs/` can land on wrong context.
-- **Orientation is missing where it matters.** Only 7 docs carry a "When to load" line, and none of the 15 docs over 30 KB do.
+- **The grep surface is mostly not live docs.** `docs/` holds about 4.9 MB, of which the 45 live top-level docs are about 1.9 MB; `docs/archive` (59 files, 1.46 MB, superseded) and `docs/discovery` (115 files, 1.59 MB) make up the rest. Ten archive files still mention the superseded UC-014/UC-015, so a grep of `docs/` can land on wrong context.
+- **Orientation is missing where it matters.** Only 7 docs carry a "When to load" line, and none of the 18 docs over 30 KB do.
 - **Nothing checks pointers outside `context.md`.** The `agent-context-file` detector validates only `.copilot/context.md`; a moved, renamed or reworded target in any other doc, skill, TD, milestone or code comment fails silently. `docs/*.md` is cited in about 640 files / 3,930 occurrences (`plan/` 1,688, `apps/` 628 — 462 of them `.ts`/`.tsx` comments — `.claude/` 148, `.copilot/context.md` 131, `packages/` 118, `td/` 56).
 
 Limits of this evidence: one repository, mostly Claude Code; other agents (Codex, Gemini) may read differently and are not visible in these transcripts.
@@ -34,35 +35,55 @@ File size is not what costs an agent; **findability** is — the agent greps for
 Principles:
 - **Optimise findability and routing, not file layout.** Stable paths and stable `§ heading` handles are an asset; every move spends it.
 - **Verify before changing.** The link and anchor checker lands first, so every later change is proven by CI, not trusted.
-- **One uniform naming rule.** The 27 numbered docs (`01`–`28`, no `07`) carry a creation-order number that means nothing to an agent, while the other 16 are unnumbered. Story 6 drops the prefix from all of them (`14-API_CONTRACTS.md` → `API_CONTRACTS.md`), so one rule covers every doc and `grep -l API_CONTRACTS` finds it as well as before. It runs last because it rewrites about 2,662 citations, all proven by Story 0's checker.
+- **One uniform naming rule.** The 27 numbered docs (`01`–`28`, no `07`) carry a creation-order number that means nothing to an agent, while the other 16 are unnumbered. Story 6 drops the prefix from all of them (`14-API_CONTRACTS.md` → `API_CONTRACTS.md`), so one rule covers every doc and `grep -l API_CONTRACTS` finds it as well as before. It runs last, and only if the Decision record confirms it (the gain for an agent is low; the cost is about 2,662 citation rewrites), all proven by Story 0's checker.
 - **Keep the grep surface to live, agent-facing text.** Superseded material moves out of `docs/` to a top-level `archive/`; it stays in the repository and keeps its history, it just stops appearing in docs searches.
 - **Optimise tokens by loading less up front and more on demand.** Always-on context stays small; everything else loads by trigger (a `§ section` pointer, a path-scoped context file, a skill invoked by name).
-- **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5).
+- **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5B).
 - **One canonical home per fact.** The "when to load" statement lives in each doc's own header, and travels with the doc together with its "Verified against" field (the code or config it is checked against, or `none (light check)`). There is no separate registry file, so there is nothing to keep in sync and the classification survives a rename or move.
 - **No table of contents to maintain.** `grep -n '^##' <doc>` already gives an agent the structure, and a hand-kept contents block would be one more thing to drift.
 
 Rejected, with the condition to reopen:
-- **Regrouping `docs/` into subfolders and dropping the numbers.** About 3,930 rewrites across 640 files for a human-browsing gain; the transcripts show agents are not slowed by a flat layout. Reopen only if Story 3's triage shows another agent navigating by directory.
+- **Regrouping `docs/` into subfolders and dropping the numbers.** About 3,930 rewrites across 640 files for a human-browsing gain; the transcripts show agents are not slowed by a flat layout. Reopen only if Story 3A's triage shows another agent navigating by directory.
 - **Splitting the large docs into smaller files.** The transcripts show they are already consumed by section. Reopen only if measurement shows an agent that reads them whole.
 - **Moving `plan/journey/` into `docs/`.** About 5.8 MB of HTML and CSS would add noise to the `docs/` greps agents run constantly. The journeys move to a top-level `journeys/` instead (Story 4), so `plan/` means delivery only and `docs/` stays text. Agent value of this move is low; it is chosen for clarity, and its cost (about 790 mechanical edits) is small once Story 0's checker exists.
 
-### Decision record (filled by Story 3)
+### Success metrics (baseline measured 2026-10-17; each story records its after-value in its PR)
 
-_Open. Story 3 writes here: the per-doc verdicts, the load measurements including any non-Claude agent evidence, the always-on `context.md` cost review, and the confirmed destination of the journeys move (top-level `journeys/` unless the measurements say otherwise)._
+| Metric | Baseline | Target | Story |
+|---|---|---|---|
+| Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 |
+| Docs over 30 KB with a "When to load" line | 0 of 18 | 18 of 18, enforced by CI | 1 |
+| Top-level docs declaring `Verified against` | 0 of 45 | 45 of 45, enforced by CI | 1 |
+| `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 36 | 36 of 36 | 2 |
+| Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B |
+| Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B |
+
+### Decision record (filled by Story 3C)
+
+_Open. Story 3C writes here: the per-doc verdicts, the load measurements including any non-Claude agent evidence, the always-on `context.md` cost review, and the confirmed destination of the journeys move (top-level `journeys/` unless the measurements say otherwise), and an explicit go or no-go, with the cost shown, for Story 4 (journeys move) and Story 6 (numeric-prefix drop)._
 
 ## Stories
 
 ```mermaid
 graph TD
+  S0 --> S1
   S0 --> S2
-  S0 --> S3
-  S3 --> S4
-  S3 --> S5
-  S1
+  S0 --> S3A
+  S0 --> S3B
+  S3A --> S3C
+  S3A --> S4
+  S3C --> S4
+  S5A --> S5B
+  S3C --> S5B
+  S0 --> S5B
+  S3B --> S6
   S2 --> S6
-  S4 --> S6
-  S5 --> S6
+  S4 -.-> S6
+  S5B --> S6
+  S3C --> S6
 ```
+
+Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waits for its result.
 
 ### Story 0 — Repo-wide link and anchor checker ⚪
 
@@ -73,7 +94,7 @@ graph TD
 **Pattern:** plain composition — follows `lock-catalog-coverage.ts` / `agent-context-file.ts` (policy in, `ScanResult` out)
 
 **Description:**
-Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citations checked today. Add a detector `doc-link-integrity` that scans tracked `.md` files (`docs/**`, `plan/**`, `td/**`, `.claude/commands/**`, `.copilot/**`) and the `docs/…md` path citations in code comments (`apps/**`, `packages/**`), and fails when a cited `docs/`, `plan/`, `td/` or `infra/` path does not exist, or a `§ heading` citation matches no heading in its target. Reuse the heading-normalization and citation-matching helpers that `agent-context-file.ts` already has by extracting them into a shared module, not copying them. Pre-existing dead links are fixed in this same PR or allowlisted with a rationale, owner and review date, like the other policy files. `archive/**` and `docs/discovery/**` are excluded by the policy (the owner's decision: archived and discovery material is historical, so its internal citations are not checked and not rewritten when docs move or are renamed; live docs that cite a path inside them are still checked).
+Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citations checked today. Add a detector `doc-link-integrity` that scans tracked `.md` files (`docs/**`, `plan/**`, `td/**`, `.claude/commands/**`, `.copilot/**`) and the `docs/…md` path citations in code comments (`apps/**`, `packages/**`), and fails when a cited `docs/`, `plan/`, `td/` or `infra/` path does not exist, or a `§ heading` citation matches no heading in its target. Reuse the heading-normalization and citation-matching helpers that `agent-context-file.ts` already has by extracting them into a shared module, not copying them. Pre-existing dead links are fixed in this same PR or allowlisted with a rationale, owner and review date, like the other policy files. **Placeholders and examples are not citations.** Docs deliberately contain example paths (`docs/NN-NAME.md`, `docs/X.md`, `docs/...md`) and detector fixtures cite fake docs. The detector ignores citations inside fenced code blocks and inside test fixtures, and honours an explicit marker for the rare inline example; each exemption rule is unit-tested. The baseline run's findings are triaged into real dead links (fixed), examples (exempted by rule, never by allowlist entry) and genuine exceptions (allowlisted). **Cost:** the scan covers `apps/**` and `packages/**` comments, so the PR records its runtime and it must stay within the `architecture-check` job's existing budget. `archive/**` and `docs/discovery/**` are excluded by the policy (the owner's decision: archived and discovery material is historical, so its internal citations are not checked and not rewritten when docs move or are renamed; live docs that cite a path inside them are still checked).
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -90,6 +111,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - [ ] Renaming or deleting a cited doc fails `pnpm architecture-check` and names each broken citation with file and line.
 - [ ] A `§ heading` citation to a heading that does not exist fails the same way.
 - [ ] The repository passes the new detector at merge, with every pre-existing dead link fixed or allowlisted.
+- [ ] The PR records the baseline dead-link count, how many were real, examples and allowlisted, and the detector's added runtime.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -97,6 +119,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
   - [ ] `doc-link-integrity.spec.ts`: a `§ heading` with no matching heading is reported.
   - [ ] `doc-link-integrity.spec.ts`: a citation in a `.ts` comment to a missing doc is reported.
   - [ ] `doc-link-integrity.spec.ts`: an allowlisted dead link passes; an expired allowlist entry fails.
+  - [ ] `doc-link-integrity.spec.ts`: a path inside a fenced code block or marked as an example passes; the same path in prose is reported.
   - [ ] `doc-link-integrity.spec.ts`: a fully valid set passes with zero findings.
   - [ ] `agent-context-file.spec.ts` still passes unchanged after the helper extraction.
 - Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
@@ -108,15 +131,17 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 ### Story 1 — Doc header contract: "When to load" and "Verified against" ⚪
 
 **Agent:** devops
-**Complexity:** M
+**Complexity:** L
 **Docs to load:** `docs/STORY_SCHEMA.md` (the existing header pattern); `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `.claude/commands/docs-audit.md` Step 3i
-**Dependencies:** none
+**Dependencies:** Story 0 (so every path a header cites is checked by CI)
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
 Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md` is the model); none of the 15 docs over 30 KB do. Add a one-line orientation to each large doc — when it applies, which apps/layers/contexts it covers, and which neighbouring doc holds what it does not — written from the doc's actual content, not from its title. Add a detector `doc-orientation` that fails when a `docs/*.md` over the size threshold has no `**When to load:**` line within its first 15 lines. The threshold and the exclusions (`docs/archive/**`, `docs/discovery/**`, `docs/lean/*`) live in the policy file. This adds context only; no existing text is changed or removed. No contents block is added (see Chosen approach).
 
-**Folded in from TD52 (cancelled 2026-10-17).** The header contract covers every top-level `docs/*.md`, not only the large ones, and carries two fields: `**When to load:**` and `**Verified against:** <code or config paths>` or `none (light check)`. `doc-orientation` requires both on every doc, and fails when a listed path does not exist (a `none (light check)` value is valid). The size threshold gates only the "When to load" line; "Verified against" is required on every non-excluded doc regardless of size, so a new doc cannot be added without declaring its class. `.claude/commands/docs-audit.md` Step 1 drops its inline deep/light lists and derives the deep and light sets, and each doc's artifacts, by grepping the headers; its stale `docs/ENGINEERING_RULES.md` wording (now a 94-line index, not a possible leftover copy) is corrected in the same change. Detector settings go in the existing `architecture-policy.json`; no new policy file.
+**Folded in from TD52 (cancelled 2026-10-17).** The header contract covers every top-level `docs/*.md`, not only the large ones, and carries three fields: `**When to load:**`, `**Verified against:** <code or config paths/globs>` or `none (light check)`, and, for deep docs, `**Audit bucket:** schema-data | architecture-contracts | standards-structure | process-infra`, so `/docs-audit` keeps its four-agent grouping (Step 2b) without carrying a list. `doc-orientation` requires both on every doc, and fails when a listed path or glob matches nothing (a `none (light check)` value is valid). Entries may be globs (`apps/backend/src/**/*.aggregate.ts`), because many docs are verified against a set of files, not one; a prose-only artifact is not accepted. The size threshold gates only the "When to load" line; "Verified against" is required on every non-excluded doc regardless of size, so a new doc cannot be added without declaring its class. `.claude/commands/docs-audit.md` Step 1 drops its inline deep/light lists and derives the deep and light sets, and each doc's artifacts, by grepping the headers; its stale `docs/ENGINEERING_RULES.md` wording (now a 94-line index, not a possible leftover copy) is corrected in the same change. Detector settings go in the existing `architecture-policy.json`; no new policy file.
+
+**Header placement.** Both fields sit in one blockquote within the first 15 lines. Before the detector lands, the story checks that no doc has a longer preamble that would push them out; where one does, the fields go above it. Because the classification now lives in the docs, `/docs-audit changed` maps changed code to docs by grepping the `Verified against` globs instead of the bucket prose. The Codex copy of the skill is regenerated with `scripts/codex-skill.sh`.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -128,19 +153,22 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - `.claude/commands/docs-audit.md` (modify — Step 1 derives deep/light and artifacts from headers; fix stale `ENGINEERING_RULES.md` wording)
 - Every remaining top-level `docs/*.md` (modify — add the two header fields, seeded from the skill's current deep/light lists, verified against `ls docs/*.md`)
 - `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — one detector-table row)
-- The 15 docs over 30 KB: `docs/04-USE_CASES.md`, `14-API_CONTRACTS.md`, `02-DOMAIN_MODEL.md`, `13-DATABASE_SCHEMA.md`, `ANTI_PATTERNS.md`, `27-BUSINESS_LOGIC_REFERENCE.md`, `CI_TRAPS.md`, `08-TESTING_STRATEGY.md`, `15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `03-DOMAIN_EVENTS.md`, `24-BFF_ARCHITECTURE.md`, `05-BOUNDED_CONTEXTS.md`, `22-TECH_STACK_DECISIONS.md`, `AGENT_PATTERNS.md`, `21-TENANTS_SETTINGS_SCHEMA.md` (modify — one line each; re-measure the list at implementation time)
+- `.agents/skills/docs-audit/SKILL.md` (regenerated with `scripts/codex-skill.sh`, not edited by hand)
+- The 18 docs over 30 KB (2026-10-17 measurement, largest first): `04-USE_CASES`, `14-API_CONTRACTS`, `02-DOMAIN_MODEL`, `13-DATABASE_SCHEMA`, `ANTI_PATTERNS`, `27-BUSINESS_LOGIC_REFERENCE`, `CI_TRAPS`, `ENGINEERING_RULES_BACKEND`, `08-TESTING_STRATEGY`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `03-DOMAIN_EVENTS`, `24-BFF_ARCHITECTURE`, `05-BOUNDED_CONTEXTS`, `22-TECH_STACK_DECISIONS`, `AGENT_PATTERNS`, `ENGINEERING_RULES_TESTING`, `ENGINEERING_RULES_SHARED`, `21-TENANTS_SETTINGS_SCHEMA` (modify — a written, content-based "When to load" line each; re-measure at implementation time)
 
 **Acceptance criteria — product:**
 - [ ] Every doc over the threshold opens with a "When to load" line stating its trigger, scope and neighbouring doc.
 - [ ] A new large doc without the line fails `pnpm architecture-check` with a message naming it.
 - [ ] A new `docs/*.md` without a `Verified against` field fails `pnpm architecture-check` with a message naming it.
-- [ ] `/docs-audit` Step 1 carries no inline deep/light lists and derives them from the doc headers.
+- [ ] `/docs-audit` Step 1 carries no inline deep/light lists and derives them, the buckets and the artifacts from the doc headers; a dry run on one doc per bucket gives the same deep/light verdict as the old lists.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `doc-orientation.spec.ts`: a doc over the threshold without the line is reported.
   - [ ] `doc-orientation.spec.ts`: a doc over the threshold with the line inside the first 15 lines passes; with it on line 16 is reported.
   - [ ] `doc-orientation.spec.ts`: a doc under the threshold and an excluded doc pass without the "When to load" line.
+  - [ ] `doc-orientation.spec.ts`: a deep doc with no `Audit bucket`, or an unknown bucket value, is reported.
+  - [ ] `doc-orientation.spec.ts`: a glob that matches nothing is reported; one that matches at least one file passes.
   - [ ] `doc-orientation.spec.ts`: a doc with no `Verified against` field is reported; one listing a non-existent path is reported; `none (light check)` passes.
 - Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
 - Tenant isolation: none — no tenant data
@@ -177,49 +205,102 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - [ ] `pnpm architecture-check` (including `doc-link-integrity` and `agent-context-file`) passes
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 3 — Triage, baseline and minimal cleanup ⚪
+### Story 3A — Audit baseline and per-doc triage ⚪
 
 **Agent:** devops
-**Complexity:** L
+**Complexity:** M
 **Docs to load:** `.claude/commands/docs-audit.md`; `.copilot/context.md` §10, §15, §17; `docs/README.md`
-**Dependencies:** Story 0 (so the one file move below is proven)
+**Dependencies:** Story 0 (so dead links are found by CI, not by eye)
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-1. **Baseline.** Run `/docs-audit` with a blank scope (per folder if the context strains: `docs`, `plan`, `plan/journey`, `td`) and apply the approved fix batch — stale claims, dead pointers, journey `dev-notes.md` drift — so later work starts clean.
-2. **Per-doc triage table** in the Decision record: size, inbound reference count, verdict (keep / merge / archive / move) and whether the doc is still relevant, with evidence.
-3. **Load measurement.** Re-run the transcript measurement on fresh sessions, including any non-Claude agent logs available, and classify every bullet of `context.md` §0–§9 by the trigger that makes it relevant (global gate, area-scoped, workflow-scoped). The classification feeds Story 5; this story removes nothing.
-4. **Minimal cleanup.** State in `docs/README.md` where a new doc goes and the one naming rule (`UPPER_SNAKE.md`, no numeric prefix — applied to the existing numbered docs by Story 6), with the former reading order kept as an ordered list in that README; move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/` (its citations rewritten, proven by Story 0); delete `docs/ENGINEERING_RULES.md` (a 94-line redirect index) once Story 0's checker shows no citation still needs it.
-7. **Move `docs/archive/` to a top-level `archive/`.** 59 files, 1.46 MB of superseded content; about 52 citations to rewrite, proven by Story 0. History is preserved by `git mv`. `docs/discovery/` stays where it is until its milestone is promoted.
-5. **Journeys destination.** Confirm the destination for the move in Story 4 (`journeys/` at the repository top level; `docs/journeys/` is rejected for the grep noise of about 5.8 MB of HTML in `docs/`) and list the root config that hardcodes the current path (`.gitignore`, `.coderabbit.yaml`, `sonar-project.properties`, `knip.config.ts`).
-6. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation; Story 0's checker proves none is left.
+1. **Baseline.** Run `/docs-audit` with a blank scope (per folder if the context strains: `docs`, `plan`, `plan/journey`, `td`) and apply the approved fix batch — stale claims, dead pointers, journey `dev-notes.md` drift — so later work starts clean. Fixes the user declines are recorded as declined, not dropped.
+2. **Per-doc triage table** in the Decision record: size, inbound reference count, verdict (keep / merge / archive / move) and whether the doc is still relevant, with evidence. This story only records verdicts; Story 3B acts on the ones already decided.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record)
-- `docs/README.md` (modify — convention paragraph)
-- `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` → `td/TD37-ARCHITECTURE-CHECK-DECISIONS.md` (`git mv`) and every file citing it (regenerate the list with `grep -rl TD37-ARCHITECTURE-CHECK-DECISIONS` at implementation time)
-- `docs/ENGINEERING_RULES.md` (delete) and every file citing it (regenerate the list with `grep -rl "docs/ENGINEERING_RULES.md"` at implementation time)
-- `docs/archive/**` → `archive/**` (`git mv`, 59 files) and every file citing `docs/archive` (about 52 occurrences; regenerate the list at implementation time)
-- `docs/lean/WEB_LEAN.md` (delete) and its citations: `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md` (modify — the Codex copy is regenerated with `scripts/codex-skill.sh`, not edited by hand)
+- `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record, triage table)
 - Docs and journey files the approved audit fixes touch (listed in the audit report)
 
 **Acceptance criteria — product:**
 - [ ] Every `docs/*.md` has a recorded verdict with evidence.
-- [ ] The Decision record states the load measurement, the `context.md` always-on review and the confirmed journeys destination.
-- [ ] `docs/lean/` is gone and no tracked file cites it.
-- [ ] `docs/archive/` lives at `archive/` with its history intact, and no tracked file still cites the old path.
-- [ ] `docs/ENGINEERING_RULES.md` is gone and no tracked file cites it.
-- [ ] `docs/README.md` states where a new doc goes and why some are numbered.
 - [ ] The audit baseline fixes are applied or each is explicitly declined.
 
 **Acceptance criteria — technical:**
-- Unit: none — documentation and measurement story
+- Unit: none — documentation story
 - Integration: none
 - Tenant isolation: none — no tenant data
 - E2E: none
-- [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes after the TD37 move
+- [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 3B — Moves and deletions out of the live grep surface ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `docs/README.md`; `.claude/commands/docs-audit.md`
+**Dependencies:** Story 0 (the checker proves every move). Not batchable with any other story: it rewrites citations across the repository.
+**Pattern:** plain composition — no named pattern applies
+
+**Description:**
+1. **`docs/README.md`.** State where a new doc goes and the one naming rule (`UPPER_SNAKE.md`; the numeric prefix is removed by Story 6 only if that story is approved), keeping the former reading order as an ordered list.
+2. **Move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/`** (citations rewritten, proven by Story 0).
+3. **Delete `docs/ENGINEERING_RULES.md`** (a 94-line redirect index, cited by about 21 files outside archive and discovery) once the checker shows no citation still needs it.
+4. **Move `docs/archive/` to a top-level `archive/`.** 59 files, about 1.5 MB of superseded content; about 52 citations to rewrite. History is preserved by `git mv`. `docs/discovery/` stays where it is until its milestone is promoted.
+5. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation.
+Each of items 2–5 is its own commit in the PR, so a bad one can be reverted alone. The Codex skill copies are regenerated with `scripts/codex-skill.sh`.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `docs/README.md` (modify — convention paragraph and reading order)
+- `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` → `td/TD37-ARCHITECTURE-CHECK-DECISIONS.md` (`git mv`) and every file citing it (regenerate with `grep -rl TD37-ARCHITECTURE-CHECK-DECISIONS` at implementation time)
+- `docs/ENGINEERING_RULES.md` (delete) and every file citing it (regenerate with `grep -rl "docs/ENGINEERING_RULES.md"`)
+- `docs/archive/**` → `archive/**` (`git mv`, 59 files) and every file citing `docs/archive` (regenerate the list)
+- `docs/lean/WEB_LEAN.md` (delete) and its citations: `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md` (regenerated)
+
+**Acceptance criteria — product:**
+- [ ] `docs/lean/` is gone and no tracked file cites it.
+- [ ] `docs/archive/` lives at `archive/` with its history intact, and no tracked live file still cites the old path.
+- [ ] `docs/ENGINEERING_RULES.md` is gone and no tracked file cites it.
+- [ ] `docs/README.md` states where a new doc goes and lists the docs in their former reading order.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation and move story
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes after each commit
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 3C — Load measurement and Decision record ⚪
+
+**Agent:** devops
+**Complexity:** M
+**Docs to load:** `.copilot/context.md` §0–§10; the Decision record above
+**Dependencies:** Story 3A (the triage table it builds on)
+**Pattern:** plain composition — no named pattern applies
+
+**Description:**
+1. **Load measurement.** Re-run the transcript measurement on fresh sessions, including any non-Claude agent logs available, and record the Success-metrics after-values that are measurable at this point.
+2. **Classify every bullet of `context.md` §0–§9** by the trigger that makes it relevant (global gate, area-scoped, workflow-scoped). The classification feeds Story 5B; this story removes nothing.
+3. **Journeys destination.** Confirm the destination for Story 4 (`journeys/` at the repository top level; `docs/journeys/` is rejected for the grep noise of about 5.8 MB of HTML in `docs/`) and list the root config that hardcodes the current path (`.gitignore`, `.coderabbit.yaml`, `sonar-project.properties`, `knip.config.ts`).
+4. **Go or no-go for Story 4 and Story 6**, recorded in the Decision record with the measured cost (files rewritten, non-markdown hits) beside the benefit. A no-go closes the story as cancelled and leaves the numbering and journeys where they are.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record, success metrics)
+
+**Acceptance criteria — product:**
+- [ ] The Decision record states the load measurement, the `context.md` always-on classification, the confirmed journeys destination and a go or no-go for Stories 4 and 6.
+
+**Acceptance criteria — technical:**
+- Unit: none — measurement story
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
 ### Story 4 — Move `plan/journey/` to `journeys/` ⚪
@@ -227,18 +308,18 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** the Decision record above; `plan/journey/README.md`; `.copilot/context.md` §15
-**Dependencies:** Story 0 (the checker proves the move) and Story 3 (the audit baseline fixes journey drift first, so stale `dev-notes.md` content is not moved)
+**Dependencies:** Story 0 (the checker proves the move), Story 3A (the audit baseline fixes journey drift first, so stale `dev-notes.md` content is not moved) and Story 3C (the go decision and destination). **Gated:** runs only on an explicit go in the Decision record; agent value is low and the cost is large.
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-`git mv` the whole subtree to the destination Story 3 confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite every outside citation with a script (about 790 occurrences plus 51 inside the subtree), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments, `td/TD50`, and any root config Story 3 listed. No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite every outside citation with a script (about 790 occurrences plus 51 inside the subtree), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments, `td/TD50`, and any root config Story 3C listed. No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
 - The `plan/journey/**` subtree (`git mv`, 407 files)
 - Every file returned by `grep -rl "plan/journey"` at implementation time (about 125 outside the subtree; regenerate then)
-- Root config Story 3 confirmed contains the path
+- Root config Story 3C confirmed contains the path
 
 **Acceptance criteria — product:**
 - [ ] No tracked file cites the old path after the move.
@@ -253,18 +334,45 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - [ ] `/docs-audit changed` over the move range reports zero dead pointers
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 5 — Load area-scoped rules on demand instead of always-on ⚪
+### Story 5A — Spike: which agent tools load path-scoped context, and how ⚪
+
+**Agent:** devops
+**Complexity:** S
+**Docs to load:** `.copilot/context.md` §0, §7; the tools' own documentation for nested and path-scoped context files
+**Dependencies:** none
+**Pattern:** plain composition — time-boxed investigation, no code
+
+**Description:**
+Story 5B only makes sense for a tool that loads area context when the agent works in that area. Established by test, not assumption, per tool (Claude Code, Codex, Gemini), launched from the repository root as sessions are launched here: does a nested `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` under `apps/backend` load when a file there is read or edited, is it loaded eagerly at start-up, or only when the working directory is below it? Expect differences (a tool that builds its chain from the working directory upward will never see a nested file in a root-launched session). Also evaluate Claude Code's path-scoped rules (`.claude/rules/*.md` with a `paths` frontmatter) as an alternative to nested files, and whether §9's workflow content belongs in a skill invoked by name. Output: a table in the Decision record of tool, mechanism, evidence (the session log line or the observed behaviour), and the resulting recommendation for 5B (nested files, path-scoped rules, per-tool mix, or no move). A recommendation of "no move" is a valid outcome and cancels 5B.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record)
+
+**Acceptance criteria — product:**
+- [ ] For each tool, the Decision record states whether and when path-scoped context loads, with evidence from a real session.
+- [ ] The Decision record states the 5B recommendation, including the case where one tool keeps everything always-on.
+
+**Acceptance criteria — technical:**
+- Unit: none — investigation
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 5B — Load area-scoped rules on demand instead of always-on ⚪
 
 **Agent:** devops
 **Complexity:** L
-**Docs to load:** `.copilot/context.md` §0, §7, §8, §9; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; the Decision record above (Story 3's bullet classification)
-**Dependencies:** Story 0, Story 3
+**Docs to load:** `.copilot/context.md` §0, §7, §8, §9; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; the Decision record above (Story 3C's bullet classification, Story 5A's recommendation)
+**Dependencies:** Story 0, Story 3C (the bullet classification), Story 5A (the verified mechanism and recommendation). Does not run if 5A recommends no move.
 **Pattern:** plain composition — no named pattern applies. The mechanism is progressive disclosure: a small always-on router, with area rules loaded by path.
 
 **Description:**
 `.copilot/context.md` is 57,647 characters loaded in every session, 42% of it §7. Many of its bullets are writing-time traps that live there only because an agent would not think to load a doc before writing that code (the keep-in-file criterion (c) in §7). A path-scoped context file solves the same trigger problem at lower cost: it loads when the agent works under that directory.
-1. **Verify the mechanism first.** In a controlled session per agent tool (Claude Code, Codex, Gemini), confirm whether a context file nested under `apps/backend`, `apps/bff`, `apps/web`, `infra` or `packages` loads on demand when the agent touches files there, and record what loaded. Move rules only for the tools where this is confirmed; the rest stay always-on. Nothing in this repository relies on that behaviour yet.
-2. **Move by classification.** Using Story 3's classification, move area-scoped bullets to the nested context file of their area, with the same wording and their `→ doc § heading` pointers intact. Global gates (§0, the multi-tenancy invariants, the PR gate) stay always-on. Workflow-scoped content (§9) is evaluated for a skill invoked by name.
+1. **Use the mechanism Story 5A verified.** Move rules only for the tools where 5A confirmed on-demand loading, using the mechanism it recommended (nested files or path-scoped rules). For a tool where it is not confirmed, the rules stay in the always-on file; to avoid two divergent copies, the always-on file keeps them and the area file holds only a pointer, or 5A's recommendation says how the single source is shared.
+2. **Move by classification.** Using Story 3C's classification, move area-scoped bullets to the nested context file of their area, with the same wording and their `→ doc § heading` pointers intact. Global gates (§0, the multi-tenancy invariants, the PR gate) stay always-on. Workflow-scoped content (§9) is evaluated for a skill invoked by name.
 3. **Keep the one-file contract.** `CLAUDE.md`, `AGENTS.md` and `gemini.md` remain symlinks to one canonical file at each level; extend the `agent-context-file` detector to every nested context file (symlink agreement, pointers resolve, per-file budget).
 4. **Prove each moved rule still fires.** Every moved trap keeps its scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, re-run against the new location; a rule whose new trigger cannot be shown to fire does not move.
 5. **The always-on target comes from the measurement**, not from a number chosen here. The always-on file stays free of dates and PR numbers (already enforced), so its text stays stable for prompt caching.
@@ -296,14 +404,14 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-**Open items for `/story-discovery`:** whether any agent tool loads nested files eagerly (which would make the move cost more, not less); whether §9's workflow content belongs in a skill; the per-file budget values.
+**Open items for `/story-discovery`:** the per-file budget values; how a rule shared by tools with and without on-demand loading avoids being kept twice.
 
 ### Story 6 — Drop the numeric prefix from every numbered doc ⚪
 
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** `docs/README.md`; `.copilot/context.md` §10, §17; `.claude/commands/docs-audit.md`; the Decision record above
-**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 and Story 5 (they edit the same files and lines; this story runs last so nothing is rewritten twice), Story 3 (the deletions and moves are done first)
+**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 (if approved) and Story 5B (they edit the same files and lines; this story runs last so nothing is rewritten twice), Stories 3B and 3C (the deletions and moves are done first, and the go decision is recorded). **Gated:** runs only on an explicit go in the Decision record; an agent gains little from dropping the numbers, so the cost must be shown against the benefit first.
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
@@ -323,7 +431,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 **Acceptance criteria — product:**
 - [ ] No doc under `docs/` has a numeric prefix, and no tracked file outside `archive/` and `docs/discovery/` cites one by full path, bare filename or short numeric form.
 - [ ] The pre-rename impact inventory is attached to the PR, covers non-markdown files and code that builds doc paths, and the same scan returns zero hits after the rename.
-- [ ] `docs/README.md` lists the docs in their former reading order.
+- [ ] `docs/README.md` lists the docs in their former reading order, and a check (in `doc-link-integrity` or `doc-orientation`) fails when the list and the set of `docs/*.md` files differ.
 
 **Acceptance criteria — technical:**
 - Unit:
