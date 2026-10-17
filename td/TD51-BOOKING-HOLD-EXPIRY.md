@@ -6,7 +6,7 @@
 - **Context**: apps/backend — booking and notification contexts; apps/bff — booking detail mapper; apps/web — booking detail termination card and status history; packages/types, packages/i18n
 - **Created**: 2026-10-16
 - **Discovered**: closing M23 — writing `docs/27`'s `lock_state` lifecycle from the code showed that `hold_expires_at` is written and never read
-- **Decision status**: Ready for discovery. One story; `/story-discovery` may split the customer-facing detail wording (web) from the backend if the PR gets too large.
+- **Decision status**: Discovered 2026-10-17 — decisions locked below. One story.
 - **Related**: M23-S05 (the recurring-schedule expiry job this mirrors), M23-S28 (its customer email), M23-S33/TD50 (approve-time checks), M23-S47 (booking detail shows who cancelled and why), `docs/27-BUSINESS_LOGIC_REFERENCE.md` § `lock_state` lifecycle, `docs/28-LOCK_CATALOG.md`, UC-070 A5, UC-004/UC-005, `docs/discovery/multivertical-booking/multivertical-booking.md` (the design: "expires after its snapshotted hold duration", `CANCELLED` with `APPROVAL_EXPIRED`, never a new status)
 
 ## Problem
@@ -24,7 +24,7 @@ So a request nobody decides keeps its slot blocked until staff approve or reject
 
 A manager who ignores one request can keep a room or a staff member's slot unbookable for any number of days, and the availability read still shows it taken. The customer waits on a request that will never be answered and cannot tell. Recurring schedules do not have the problem (their own job cancels an unanswered request and emails the customer), which makes the gap easy to miss.
 
-## Chosen approach (decided in the drafting session, 2026-10-16 — story-discovery has not yet run)
+## Chosen approach (drafted 2026-10-16; story-discovery ran 2026-10-17 and locked the decisions at the end of this section)
 
 Candidates considered for "can the recurrence job and handler be reused?":
 
@@ -40,10 +40,15 @@ Decisions baked in:
 - **One partial index** supports the per-tenant sweep: `(tenant_id, hold_expires_at) WHERE lock_state = 'HOLD'` on `resource_occupancy`, tenant first. There is no cross-tenant query, so no standalone index.
 - **Out of scope:** `REQUESTED` rows (degenerate services; no `hold_expires_at`, they never block); `AUTO_CONFIRM` bookings (created `COMMITTED`).
 
-Decisions left for `/story-discovery` (business, not technical — ask the user):
-1. **`INFO_REQUESTED`.** Staff asked the customer for more information, so the booking still holds its slot. Should the hold expire while the customer has the question, or should asking for information pause or extend the deadline? Recommendation: expire only `PENDING`; an `INFO_REQUESTED` booking keeps its hold until the customer responds or staff decide (matching "waiting on the customer is not staff silence") — but then the same indefinite-block problem exists for that state, so the discovery should either bound it separately or accept it explicitly.
-2. **Late approve.** Refuse (recurrence precedent, recommended) or allow when the slot is still free?
-3. **What the customer sees on the booking afterwards** (M23-S47 shows who cancelled and why): "A solicitação expirou sem resposta" rather than "O estabelecimento" — wording to confirm in both locales.
+Decisions locked by `/story-discovery` (2026-10-17, with the user):
+1. **`INFO_REQUESTED`.** Only `PENDING` expires. An `INFO_REQUESTED` booking keeps its hold while the customer has the question; the indefinite block if the customer never answers is accepted explicitly. When the customer answers (`INFO_REQUESTED → PENDING`, `SubmitBookingInfoUseCase` and `SubmitGuestBookingInfoUseCase`), `hold_expires_at` restarts at now + `manualHoldMinutes` so staff get a fresh window and the job never expires a booking the instant the customer replies.
+2. **Late approve** is refused (`409 BOOKING_APPROVAL_HOLD_EXPIRED`), for `PENDING` and `INFO_REQUESTED` alike. `Booking` does not carry the deadline: the guard reads `holdExpiresAt` from the booking's occupancy rows (`findOccupancyByBookingLines`).
+3. **Wording.** pt-BR: detail card "A solicitação expirou sem resposta", status-history actor "Sistema". en: "The request expired without a reply", actor "System". The termination card must not render the raw `APPROVAL_EXPIRED` reason.
+4. **Managers get no email.** `SendBookingCancelledNotificationUseCase` returns early for `cancelledByHoldExpiry` for both the customer and the admin template (the schedule-end precedent).
+5. **Index.** Plain `CREATE INDEX` (nothing in production yet), citing the `…015` migration's reasoning in the comment.
+6. **Event shape.** `BookingCancelled.data.cancelledBy` becomes `string | null` (null for the system expiry) and `cancelledByHoldExpiry: boolean` is added. Every consumer's type is updated: the availability-alert handler, the audit log and the notification DTO/handler.
+7. **Discriminator.** `cancellation_reason` is free text, so the BFF and web recognise an expiry by `cancelledBy === null && reason === 'APPROVAL_EXPIRED'`, never by the reason alone.
+8. **Race handling.** No new locking read. The job reloads the booking inside its transaction; `saveTerminalBookingsInTransaction` takes the resource locks and the booking's optimistic version check makes the loser throw `BookingConcurrentModificationError`, which the job treats as "someone else won" and skips (the recurrence job's shape). `docs/28` §3.1 and §4 gain a row for the new path.
 
 ## Non-goals
 
@@ -67,22 +72,25 @@ Add the missing expiry for a single booking, following the decisions above. `Exp
 
 **Backend use case steps:**
 1. `ExpireBookingHoldsJob.run(now)`: `tenantPort.findAllActive()`; per tenant, `bookingRepo.findPendingWithExpiredHold(tenantId, now)`; per booking, `mapSequentially` → `expireOne`.
-2. `expireOne`: `txManager.run()` → reload the booking under lock, skip unless `status === PENDING` and its HOLD rows are still expired → `booking.expireApproval(correlationId)` → `saveTerminalBookingsInTransaction(deps, { tenantId, bookings: [booking], correlationId })`.
-3. `Booking.expireApproval()`: `PENDING → CANCELLED` through `transitionTo()` with `{ type: 'SYSTEM', id: null }`, `cancelledAt = now`, `cancellationReason = 'APPROVAL_EXPIRED'`, raises `BookingCancelled` with `cancelledByHoldExpiry: true`.
-4. `ApproveBookingUseCase`: before converting `HOLD → COMMITTED`, throw `BookingApprovalHoldExpiredError` when the booking's hold has passed.
-5. Notification: `SendBookingCancelledNotificationUseCase` returns early for `cancelledByHoldExpiry`; a new use case sends `BOOKING_APPROVAL_EXPIRED_CUSTOMER` (pt-BR and en, escaped, formatted dates — the S37 correctness guard must render the real copy).
+2. `expireOne`: `txManager.run()` → reload the booking inside the transaction, skip unless `status === PENDING` and its HOLD rows are still expired → `booking.expireApproval(correlationId)` → `saveTerminalBookingsInTransaction(deps, { tenantId, bookings: [booking], correlationId })`. A `BookingConcurrentModificationError` (approve, reject, cancel or an info answer won) is a skip, not a failure; any other error is logged and retried next run.
+3. `Booking.expireApproval()`: `PENDING → CANCELLED` through `transitionTo()` with `{ type: 'SYSTEM', id: null }`, `cancelledAt = now`, `cancelledBy = null`, `cancellationReason = 'APPROVAL_EXPIRED'`, raises `BookingCancelled` with `cancelledBy: null` and `cancelledByHoldExpiry: true`.
+4. `ApproveBookingUseCase`: before converting `HOLD → COMMITTED`, read the booking's `holdExpiresAt` from its occupancy rows and throw `BookingApprovalHoldExpiredError` when it has passed (`PENDING` and `INFO_REQUESTED` alike).
+5. `SubmitBookingInfoUseCase` and `SubmitGuestBookingInfoUseCase`: when the booking returns to `PENDING`, restart the booking's HOLD rows at now + the longest `manualHoldMinutes` of its services (reuse `resolveHoldExpiresAt`, exported from `booking-request.helpers.ts` if needed), inside the same transaction and under the same resource locks as other occupancy writes.
+6. Notification: `SendBookingCancelledNotificationUseCase` returns early (customer and admin emails both) for `cancelledByHoldExpiry`; a new use case sends `BOOKING_APPROVAL_EXPIRED_CUSTOMER` (pt-BR and en, escaped, formatted dates — the S37 correctness guard must render the real copy). Managers receive nothing.
 
 **Backend HTTP surface:** none new — a cron job; `POST /bookings/:id/approve` gains the new 409.
 **BFF endpoint spec:** none new; the booking detail mappers pass through the new cancellation kind.
 **Prototype references:** none — wording only on existing cards (`BookingTerminationCard`); confirm copy with the user at discovery.
-**New migration / i18n keys / env vars / feature flags:** migration — partial index on `resource_occupancy (tenant_id, hold_expires_at) WHERE lock_state = 'HOLD'` (the discovery checks `docs/ANTI_PATTERNS.md` for how to create an index on a live table); notification-template migration for `BOOKING_APPROVAL_EXPIRED_CUSTOMER`; new error code `BOOKING_APPROVAL_HOLD_EXPIRED` in `@ikaro/types` with entries in **both** `packages/i18n/locales/{pt-BR,en}/errors.json`; web copy in both `web.json` locales; no env var, no flag.
+**New migration / i18n keys / env vars / feature flags:** migration — partial index on `resource_occupancy (tenant_id, hold_expires_at) WHERE lock_state = 'HOLD'`, plain `CREATE INDEX` (nothing in production yet; comment cites `…015`'s reasoning); notification-template migration for `BOOKING_APPROVAL_EXPIRED_CUSTOMER` for existing tenants, plus the same template in `seed-default-templates` and the localization catalog for tenants provisioned later; new error code `BOOKING_APPROVAL_HOLD_EXPIRED` in `@ikaro/types` with entries in **both** `packages/i18n/locales/{pt-BR,en}/errors.json`; web copy in both `web.json` locales; no env var, no flag.
 
 **Files to create/modify:** (paths verified against siblings; the discovery re-verifies)
 - `apps/backend/src/contexts/booking/application/jobs/expire-booking-holds.job.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/events/expire-booking-holds-trigger.handler.ts` (+ `.spec.ts`) (new)
 - `apps/backend/src/contexts/booking/infrastructure/events/cron-trigger-names.constants.ts` (no change expected — reuses `CRON_REMINDERS_TRIGGER`)
 - `apps/backend/src/contexts/booking/domain/booking.aggregate.ts` (+ `.spec.ts`) (modify — `expireApproval()`)
-- `apps/backend/src/contexts/booking/domain/events/booking-cancelled.event.ts` (modify — `cancelledByHoldExpiry`)
+- `apps/backend/src/contexts/booking/domain/events/booking-cancelled.event.ts` (modify — `cancelledBy: string | null`, `cancelledByHoldExpiry`); every consumer's type: `booking-cancelled-availability-alert.handler.ts`, `booking-audit-log.handler.ts`, `notification/application/dtos/send-booking-cancelled-notification.dto.ts`, `notification/infrastructure/events/booking-cancelled.handler.ts`
+- `apps/backend/src/contexts/booking/application/use-cases/submit-booking-info.use-case.ts`, `submit-guest-booking-info.use-case.ts` (+ specs) (modify — restart the hold when the booking returns to `PENDING`)
+- `apps/backend/src/contexts/notification/application/use-cases/seed-default-templates/seed-default-templates.use-case.ts` (+ spec) (modify — the new template for newly provisioned tenants)
 - `apps/backend/src/contexts/booking/domain/errors/booking-domain.error.ts`, `infrastructure/http/booking-error.mapper.ts` (modify — `BookingApprovalHoldExpiredError` → 409)
 - `apps/backend/src/contexts/booking/application/use-cases/approve-booking.use-case.ts` (+ `.spec.ts`) (modify)
 - `apps/backend/src/contexts/booking/application/ports/booking-repository.port.ts`, `infrastructure/repositories/typeorm-booking.repository.ts` (modify — `findPendingWithExpiredHold`)
@@ -93,7 +101,7 @@ Add the missing expiry for a single booking, following the decisions above. `Exp
 - `apps/bff/src/features/booking/bookings-detail.mapper.ts` (+ `.spec.ts`) (modify, if the cancellation kind must be exposed)
 - `apps/web/features/booking/components/booking-detail/BookingTerminationCard.tsx` (+ `.spec.tsx`) and the status-history actor label (modify)
 - `apps/backend/test/` builders and integration spec (modify), `apps/web/e2e/` (only if the card wording needs an end-to-end pin)
-- Docs in the same change: `docs/27` (`lock_state` lifecycle: HOLD expires), `docs/13` (the `resource_occupancy` index, the `APPROVAL_EXPIRED` reason), `docs/04` (UC-001/004/005 expiry flow, UC-070 A5 wording), `docs/02`, `docs/03` (`BookingCancelled.cancelledByHoldExpiry`, new notification), `docs/28` (no new lock; confirm the order)
+- Docs in the same change: `docs/27` (`lock_state` lifecycle: HOLD expires), `docs/13` (the `resource_occupancy` index, the `APPROVAL_EXPIRED` reason), `docs/04` (UC-001/004/005 expiry flow, UC-070 A5 wording), `docs/02`, `docs/03` (`BookingCancelled.cancelledByHoldExpiry`, new notification), `docs/28` (no new lock; add the job's path to §3.1 and §4 and confirm the order), `docs/21`/`docs/14` only if the new error code needs an API-contract line
 - `apps/backend/http/booking/bookings.http` (modify — the approve block gains the 409 sample)
 
 **Acceptance criteria — product:**
@@ -101,7 +109,10 @@ Add the missing expiry for a single booking, following the decisions above. `Exp
 - [ ] The customer does not also receive the generic "cancelled by the establishment" email.
 - [ ] Staff approving a booking whose hold has passed (job not yet run) is refused with a clear message and the slot is not committed.
 - [ ] An approved, rejected or customer-cancelled booking is never expired afterwards, and an approval that wins the race is never undone.
-- [ ] The booking detail and the status history say the request expired without an answer (not "the establishment cancelled").
+- [ ] Managers receive no email when a request expires.
+- [ ] A booking in `INFO_REQUESTED` is never expired; when the customer answers, its hold restarts for a full `manualHoldMinutes`, so it is not expired by the next run.
+- [ ] Staff approving an `INFO_REQUESTED` booking whose original hold has passed is also refused.
+- [ ] The booking detail and the status history say the request expired without an answer ("A solicitação expirou sem resposta" / "Sistema" in pt-BR; "The request expired without a reply" / "System" in en), never "the establishment cancelled" and never the raw `APPROVAL_EXPIRED` text.
 - [ ] A degenerate (`REQUESTED`) booking and an `AUTO_CONFIRM` booking are never touched.
 
 **Acceptance criteria — technical:**
@@ -111,10 +122,17 @@ Add the missing expiry for a single booking, following the decisions above. `Exp
   - [ ] `ApproveBookingUseCase`: refuses a passed hold with `BOOKING_APPROVAL_HOLD_EXPIRED`; an unexpired hold still approves
   - [ ] Notification: expiry email sent once with the real pt-BR/en copy; generic cancelled email suppressed for `cancelledByHoldExpiry` *(negative guarantee, own test)*
   - [ ] Trigger handler registers on `cron-reminders` with its own consumer name and rethrows on failure
+  - [ ] `ExpireBookingHoldsJob`: a `BookingConcurrentModificationError` on one booking is a skip and the rest still run *(negative guarantee, own test)*
+  - [ ] A `REQUESTED` (degenerate) and an `AUTO_CONFIRM` booking are never returned or expired *(negative guarantee, own test)*
+  - [ ] `SubmitBookingInfoUseCase` and `SubmitGuestBookingInfoUseCase`: returning to `PENDING` restarts the hold at now + the longest `manualHoldMinutes`
+  - [ ] `BookingCancelled` with `cancelledBy: null`: the availability-alert handler, the audit log and the notification handler each accept it; the notification use case sends neither the customer nor the admin generic email for `cancelledByHoldExpiry` *(negative guarantee, own test)*
+  - [ ] `ApproveBookingUseCase`: an `INFO_REQUESTED` booking with a passed hold is refused too
+  - [ ] BFF detail mapper: `cancelledBy === null && reason === 'APPROVAL_EXPIRED'` yields the expiry kind; a customer-typed reason equal to `APPROVAL_EXPIRED` with a non-null `cancelledBy` does not *(negative guarantee, own test)*; web card renders the localized wording and never the raw reason
 - Integration:
   - [ ] Real database: expiry releases the occupancy rows, the slot is bookable again, the `booking_status_transitions` row has a `SYSTEM` actor, open future-commitment entries are dismissed
-  - [ ] Race: concurrent approve and expiry on one booking leaves exactly one outcome; no `40P01` (locks in `docs/28` order)
-  - [ ] A `COMMITTED`, `REQUESTED` and `INFO_REQUESTED` (per the discovery decision) booking is not expired
+  - [ ] Race: concurrent approve and expiry on one booking leaves exactly one outcome; no `40P01` (locks in `docs/28` order); the optimistic version check turns the loser into a skip
+  - [ ] A `COMMITTED`, `REQUESTED` and `INFO_REQUESTED` booking is not expired; an `INFO_REQUESTED` booking answered by the customer gets a fresh hold and survives the next run
+  - [ ] Approve against a passed hold returns `409 BOOKING_APPROVAL_HOLD_EXPIRED` through the HTTP endpoint and commits nothing
 - Tenant isolation:
   - [ ] Tenant B's expired hold is not expired by tenant A's pass, and tenant A's job never reads tenant B's bookings
 - E2E:
