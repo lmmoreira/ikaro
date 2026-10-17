@@ -163,7 +163,7 @@ Step 3d only checks journeys against themselves. This step checks them against w
 - **State machine / statuses:** states and transitions in `dev-notes.md` match the real enum/aggregate (e.g. booking statuses vs CLAUDE.md §5).
 - **i18n and CSS names:** copy keys the notes cite exist in `packages/i18n/locales/{pt-BR,en}`; class names the story/notes call "exact" still exist in the implemented component or `tokens.css`.
 - **"Known limitations" bullets:** for each, say whether the code still has that limitation (grep the relevant behavior) — stale if the code no longer has it.
-Report per journey: drift item · prototype/doc claim · what code does · file:line. These are recommendation-only findings — never auto-fixed (Step 5's file-type rules: `dev-notes.md` and `.html` are not auto-edited).
+Report per journey: drift item · prototype/doc claim · what code does · file:line · **fix direction** (`code wins` — journey shipped, so the notes/prototype must describe what the code does; `story wins` — journey not shipped, so align with the milestone/TD story spec; `ask` — spec and notes disagree, or the code diverges from a spec that still looks intended). Each is fixable with approval under Step 5's file-type rules; `ask` items are batched into the Step 5 question round, never guessed.
 
 ---
 
@@ -275,7 +275,7 @@ Top docs by size · context.md headroom vs CI budget · §10 row load costs
 1. [staff/horarios] 3 sidebar links self-loop instead of pointing to real cross-journey paths
 
 ### Journey vs implemented code (Step 2c)
-1. [staff/agenda dev-notes "BFF call"] doc: `GET /v1/x` / code: `GET /v1/y` (`apps/bff/.../x.controller.ts:42`) → recommendation only
+1. [staff/agenda dev-notes "BFF call"] doc: `GET /v1/x` / code: `GET /v1/y` (`apps/bff/.../x.controller.ts:42`) · verified · direction: code wins → proposed fix: <old → new>
 
 ### TD / milestone issues
 1. [TD50] story S03 `Dependencies:` cites S09, which doesn't exist
@@ -301,9 +301,11 @@ For each "Cross-doc duplication" finding (only with its no-loss proof, per the G
 
 **File-type rules for what gets auto-fixed:**
 - ✅ Auto-fixable (with permission): any `.md` doc text — `docs/*.md`, `plan/M0X-*.md` (including the milestone file's own story headers and dependency references), `plan/journey/*/use-cases.md`, `plan/journey/README.md`'s index table, `CLAUDE.md`/`.copilot/context.md`. (Editing a `plan/journey/` `.md` file to correct a drifted index or stale cross-link is not the same thing CLAUDE.md §15's hard stop guards against — that hard stop is about *creating* new journey/prototype work casually, not about this audit fixing an existing inconsistency.)
-- ❌ Never auto-fixed, always listed as a recommendation instead: `.html` prototype files (need the full journey workflow per CLAUDE.md §15, not a mechanical text edit); `dev-notes.md` specifically — even though it's `.md`, its content is implementation intent the audit agent isn't positioned to author correctly; missing `.http` request blocks (need real payload/auth knowledge, not just doc text).
+- ✅ Fixable with permission, direction-gated: `dev-notes.md`. Shipped journey → code is the source of truth; correct endpoints, field names, props, file paths, statuses/enums, i18n keys, class names and stale "Known limitations" bullets to match the code (each finding verified by a main-agent re-read of the cited file:line). Unshipped journey → align with the story spec in the milestone/TD file. Spec and notes disagree, or code diverges from a spec that still looks intended → `ask` via `AskUserQuestion`, never guess the direction.
+- ✅ Fixable with permission, mechanical defects only: `.html` prototype files — `href="#"` or self-looping nav links, wrong shared class names, references to missing `tokens.css` properties or shared fragments, screen-list/file-on-disk mismatches in `index.html`.
+- ❌ Never auto-fixed, always listed as a recommendation instead: `.html` changes that alter layout, states, screens or visual design (need the full journey workflow per CLAUDE.md §15); missing `.http` request blocks (need real payload/auth knowledge, not just doc text).
 
-"IA gaps" and "Journey/prototype issues" that require new content (not a text correction) are listed only, not auto-fixed — carry IA gaps into `plan/journey/<actor>/use-cases.md` when that actor's journeys are drafted; carry journey/prototype issues into the next prototype touch-up pass.
+"IA gaps" and journey/prototype issues that require new content (not a text correction) are listed only, not auto-fixed — carry IA gaps into `plan/journey/<actor>/use-cases.md` when that actor's journeys are drafted; carry design-level prototype issues into the next prototype touch-up pass.
 
 Before writing anything, apply CLAUDE.md §0: summarise every proposed edit across all affected files in one message, ask "May I now write these N changes?", and write only after an explicit yes.
 
@@ -322,7 +324,7 @@ If the user says no to a change, note it and proceed with the current docs.
 ✅ Zero information removed — every reduction was a verified-duplicate pointer or a code-contradicted correction
 📋 N IA gaps recorded — carry into plan/journey/ when drafting that actor's journeys
 📋 N journey/prototype issues recorded — carry into the next prototype touch-up
-📋 N journey-vs-code drifts recorded (recommendation only) · N TD/milestone issues
+✅ N journey-vs-code drifts fixed (`dev-notes.md` / mechanical `.html`) · 📋 N recorded for the §15 workflow or awaiting a direction decision · N TD/milestone issues
 ✅ Confirmed correct: N items
 
 Docs are now a verified baseline for journey-mapping / milestone planning / implementation.
