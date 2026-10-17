@@ -17,7 +17,9 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
 ## Steps
 
-0. **Sync `main` first — before any audit or check.** Steps 4 and 6–8 must run against the latest merged code, and the Step 4 docs audit finds the story's squash commit with `git log main --grep`, which only exists locally after a pull.
+0. **Milestone stories only — a TD story skips this step.** A TD story is marked done inside its own feature branch, before merge (see the TD note above), so it is not on `main` yet: skip the sync and the merged-commit gate, stay on the feature branch, and give Step 4's docs audit the branch range `origin/main..HEAD` instead of a squash commit.
+
+   **Sync `main` first — before any audit or check.** Steps 4 and 6–8 must run against the latest merged code, and the Step 4 docs audit finds the story's squash commit with `git log main --grep`, which only exists locally after a pull.
 
    **If this session is isolated in a worktree** (the usual case right after `/pr-land`), the guard refuses every git command aimed at the main checkout, so the pull and steps 6–8 cannot run from there. Call `ExitWorktree` with `action: "keep"` first (it leaves the worktree and branch on disk and returns the session to the main checkout), then run `git pull --ff-only origin main`. Do steps 4–8 on `main`, and remove the worktree afterwards with the git commands in step 8a (which works from the main checkout). `action: "remove"` here would refuse after a squash merge (the commits are not ancestors of `main`) and cannot be used before the plan commit anyway. (M23-S14, 2026-10-15.)
 
@@ -39,14 +41,18 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
 
    **Also check `docs/27-BUSINESS_LOGIC_REFERENCE.md`** if this story's bounded context has a section there: does that section still accurately describe the algorithm/state machine/formulas as this story actually shipped them, not as originally planned at story-discovery time? A story frequently changes its own design mid-implementation (bot review, a user decision) — the reference doc needs to reflect the merged result, not the discovery-time plan. If the context has no section yet but this story's own business logic is genuinely complex/cross-cutting (same bar as `/story-discovery`'s 4r check), that's a real gap too, not just a "changed section" one.
 
-   **Also run the story's docs audit.** Find the story's merged commit: `git log main --grep "(<story-id>)" --format=%H` (a squash merge is one commit; for a TD story bundled in its feature branch, use that branch's commit range instead). Run `/docs-audit changed:<sha>^..<sha>` — it maps the files the story changed to the canonical docs, journeys, prototypes (including the journey-vs-code check), TDs and milestones that describe them. It is read-only; any fix goes through docs-audit's own approval step (CLAUDE.md §0).
+   **Also run the story's docs audit.** Find every commit the story shipped, not just one — a story can land in more than one PR (a follow-up fix, a bug-fix commit), and a bare `git log --grep` can also match unrelated commits. Prefer the PR record: `gh pr list --repo lmmoreira/ikaro --state merged --search "<story-id> in:title" --json number,title,mergeCommit`; fall back to `git log main --grep "(<story-id>)" --format='%h %s'`. List what matched. If more than one commit matches, show the list and confirm with the user which belong to this story rather than guessing; audit the union of their changed files (one `/docs-audit changed:<sha>^..<sha>` per commit, results merged). For a TD story, use the branch range `origin/main..HEAD`. Each run maps the files the story changed to the canonical docs, journeys, prototypes (including the journey-vs-code check), TDs and milestones that describe them. It is read-only; any fix goes through docs-audit's own approval step (CLAUDE.md §0).
 
    Treat its findings by type:
-   - **Stale/Conflicting or journey-vs-code drift this story caused** — handled exactly like a partial AC line below: fix now as a follow-up doc commit (via docs-audit's approval step), or open a TD via `/create-td` and add the `⚠️ … tracked in <TD>` line. Never left silent.
-   - **Dead pointers, context-quality, duplication, weight report** — reported to the user, not gating; the user decides now or later.
+   - **Stale/Conflicting, `[inventory]` drift, journey-vs-code drift, or a dead pointer — this story caused** (e.g. it renamed or removed a heading, file or export that a doc points to) — handled exactly like a partial AC line below: fix now as a follow-up doc commit (via docs-audit's approval step), or open a TD via `/create-td` and add the `⚠️ … tracked in <TD>` line. Never left silent.
+   - **Dead pointers the story did not cause, context-quality, duplication, weight report** — reported to the user, not gating; the user decides now or later.
    - **Changed files that mapped to no doc** — list them so the user can say whether a doc should exist for them.
 
    If the user declines a fix, record that and continue — doc findings never block the `✅ Done` edit on their own, but a silent gap is not allowed.
+
+   **Also walk `docs/DEFINITION_OF_DONE.md` as a whole.** For each checklist item that applies to this story (coverage, migration items, stale-reference sweep, lock-catalog update, and so on), record the evidence or mark it "n/a — <why>". An applicable item with no evidence is a gap, handled like a partial AC line below.
+
+   **Before the status edit, present one summary block** (a table or short list) so the user reviews it once instead of scrolling Step 4: one row each for every AC line, the bot/review chain, live cloud state (or n/a), `27-BUSINESS_LOGIC_REFERENCE`, the docs audit (counts by finding type, what was fixed or tracked), and the Definition of Done — each with its verdict (verified / gap + resolution) and the evidence reference.
 
    **If any AC line is partial/unverified, a devops live-state check can't be confirmed, or a Critical/Important review finding is unresolved — never mark the story done with the gap left silent.** Resolve it one of two ways:
    - **Trivial** — fix it immediately as a follow-up commit, verify it, then mark done with no annotation needed.
@@ -79,6 +85,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done (e.g. `M03-S06`).
    ```text
    ✅ Marked M03-S06 done in plan/M03-AUTHENTICATION.md
    Commit: <hash>
+   Checks: AC <n>/<n> verified · bot chain resolved · docs audit <n> fixed / <n> tracked / <n> reported · DoD <n> applicable items verified
    ```
 
 8a. **If a worktree was used for this story, clean it up now — no need to ask** (CLAUDE.md §9 Step 11 authorizes this automatically as part of the same chain the story's READY verdict already authorized). If this session is currently inside that worktree, use `ExitWorktree` with `action: "remove"`. `ExitWorktree` only acts on a worktree this session created with `EnterWorktree`; for one made with `git worktree add`, or by an earlier session, it is a no-op, so remove it from the main checkout with the commands below and run later commands from there (a shell standing inside a removed worktree breaks). If already back in the main checkout with the worktree directory still present, remove it directly:
