@@ -43,24 +43,12 @@
       "rationale": "TD31 Story 12 BFF-flat-shape correction citation in \u00a711's slice-shape table (the separate TD31 Story 11 actor-scoped-view citation was relocated to docs/REPOSITORY_STRUCTURE.md by TD41-S2)",
       "owner": "TD31",
       "reviewBy": "2027-03-20"
-    },
-    {
-      "text": "2026-08-06",
-      "rationale": "Cloud Run CPU-throttling root-cause investigation date cited in the OTel trace-loss invariant (\u00a77)",
-      "owner": "observability",
-      "reviewBy": "2027-03-20"
-    },
-    {
-      "text": "2026-08-12",
-      "rationale": "OTel metric-reader re-enable date cited in the same Cloud Run trace-loss invariant (\u00a77)",
-      "owner": "observability",
-      "reviewBy": "2027-03-20"
     }
   ],
   "budgets": {
     "file": {
-      "maxLines": 507,
-      "maxChars": 57824
+      "maxLines": 494,
+      "maxChars": 58982
     },
     "sections": {
       "0": {
@@ -93,19 +81,19 @@
       },
       "7": {
         "maxLines": 130,
-        "maxChars": 24440
+        "maxChars": 24151
       },
       "8": {
         "maxLines": 20,
         "maxChars": 3051
       },
       "9": {
-        "maxLines": 98,
-        "maxChars": 9548
+        "maxLines": 85,
+        "maxChars": 8724
       },
       "10": {
-        "maxLines": 49,
-        "maxChars": 5393
+        "maxLines": 51,
+        "maxChars": 8051
       },
       "11": {
         "maxLines": 23,

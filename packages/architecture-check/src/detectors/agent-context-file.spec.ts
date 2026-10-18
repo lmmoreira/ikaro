@@ -351,28 +351,18 @@ describe('checkAgentContextFile', () => {
     );
   });
 
-  it('still catches a forbidden pattern smuggled onto the same line as the Last-updated stamp', () => {
-    root = buildRoot({
-      '.copilot/context.md':
-        '**Last updated:** 2026-01-01 (see PR #4821)\n\n## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n',
-    });
-    symlinkAll(root);
-    const result = checkAgentContextFile(root, basePolicy());
-    expect(result.findings).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ message: expect.stringContaining('PR #4821') }),
-      ]),
-    );
-  });
-
-  it('still exempts a clean, date-only Last-updated line', () => {
+  it('flags a Last-updated stamp like any other date literal — git records when the file changed', () => {
     root = buildRoot({
       '.copilot/context.md':
         '**Last updated:** 2026-05-05\n\n## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n',
     });
     symlinkAll(root);
     const result = checkAgentContextFile(root, basePolicy());
-    expect(result.findings.filter((f) => f.message.includes('2026-05-05'))).toHaveLength(0);
+    expect(result.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ message: expect.stringContaining('"2026-05-05"') }),
+      ]),
+    );
   });
 
   it('flags a bare PR number literal', () => {

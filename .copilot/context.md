@@ -1,11 +1,10 @@
 # Ikaro — Agent Context (canonical)
 
-> **AGENT EDITING NOTICE:** `CLAUDE.md`, `claude.md`, `AGENTS.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. Always write to `.copilot/context.md` directly — never through the symlinks.
+> **AGENT EDITING NOTICE:** `CLAUDE.md`, `AGENTS.md`, and `gemini.md` are all symlinks to **`.copilot/context.md`**. Always write to `.copilot/context.md` directly — never through the symlinks.
 
 **Symlinked as:** `CLAUDE.md`, `gemini.md`, `AGENTS.md`
 **Audience:** Any AI coding agent
 **Rule:** Read this file first. Then use §10 to load only the docs you need.
-**Last updated:** 2026-09-20
 
 ---
 
@@ -168,11 +167,11 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **A `declare global` augmenting an interface member a dependency already declares silently no-ops** under `skipLibCheck: true` — `tsc --noEmit` still passes. → `docs/ENGINEERING_RULES_BACKEND.md` § Express `Request.user` typing
 - **A Server Component's `generateMetadata()` needing the same data as the page/layout body must share one fetch via React's `cache()`.** → `docs/CODE_STANDARDS.md` § shared data fetch between `generateMetadata()`
 - **A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* value or an *implicit* engine default.** → `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § implicit vs. explicit CSS defaults
-- **Cloud Run timer/async starvation, OTel sampler defaults, and exporter limits have each independently caused silent trace loss** — a timer-driven flush/queue on a CPU-throttled instance can starve (every container, sidecars included, though confirmed as of 2026-08-06 to be low-frequency/intermittent, not the dominant cause); `ParentBasedSampler` needs `remoteParentNotSampled`/`localParentNotSampled` set explicitly or it silently drops most spans (this was the actual dominant cause); `OTLPTraceExporter` needs an explicit `concurrencyLimit`; every dispatcher branch needs its own tracing span, not assumed symmetry; a traces-only bootstrap's metric-reader config must stay in sync with the collector's real pipeline (metrics were re-enabled 2026-08-12 — `metricReaders: []` is no longer the steady state). Before documenting a root cause as confirmed, check it against the target system's own direct evidence, not arithmetic alone. → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling *(dense multi-fact summary — kept per safeguard)*
+- **Cloud Run timer/async starvation, OTel sampler defaults, and exporter limits have each independently caused silent trace loss.** A timer-driven flush/queue on a CPU-throttled Cloud Run instance can starve (every container, sidecars included; real but low-frequency); `ParentBasedSampler` needs `remoteParentNotSampled`/`localParentNotSampled` set explicitly or it silently drops most spans (the dominant cause); `OTLPTraceExporter` needs an explicit `concurrencyLimit`; every dispatcher branch needs its own tracing span; a traces-only bootstrap's metric-reader config must match the collector's real pipeline (`metricReaders: []` is outdated). Check a root cause against the target system's own direct evidence before documenting it as confirmed. → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling
 - **There is no `InsertQueryBuilder.onConflict()`** — use `.orUpdate(overwrite, conflictTarget, { overwriteCondition })` with real DB column names, not entity property names. → `docs/ANTI_PATTERNS.md` § InsertQueryBuilder.onConflict
 - **Adding a `CHECK` constraint to an existing table with live rows via a plain `ADD CONSTRAINT` takes `ACCESS EXCLUSIVE`** — split into `ADD CONSTRAINT ... NOT VALID` + a separate `VALIDATE CONSTRAINT`. → `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`
 - **A new `DomainEvent` needs a line in its context's `<Context>AuditLogHandler`** (`subscribe(<Event>.name, …, LogDomainEventUseCase.CONSUMER_NAME)`) — that call site is what gives it a topic. **CI-enforced**: `domain-event-audit-coverage`. → `docs/ANTI_PATTERNS.md` § A domain event is drained
-- **OpenRouter/undici outbound calls need:** an explicit retry config (undici excludes `POST` and connect-timeout errors from its retry defaults); awareness that a shared `AbortSignal.timeout()` caps *total* time across retries, not a fresh budget per attempt; `provider.ignore` for a specific provider caught not honoring `reasoning: { effort: 'none' }` even with `require_parameters: true`; `provider.sort: 'throughput'` over the "obvious" `'latency'` for a fixed-time-budget request; and the backend's per-attempt timeout kept safely below the BFF's own timeout for the same call. → `docs/ENGINEERING_RULES_BACKEND.md` § OpenRouter chatbot *(dense multi-fact summary — kept per safeguard)*
+- **OpenRouter/undici outbound calls need:** an explicit retry config (undici excludes `POST` and connect-timeout errors from its retry defaults); awareness that a shared `AbortSignal.timeout()` caps *total* time across retries, not a fresh budget per attempt; `provider.ignore` for a specific provider caught not honoring `reasoning: { effort: 'none' }` even with `require_parameters: true`; `provider.sort: 'throughput'` over the "obvious" `'latency'` for a fixed-time-budget request; and the backend's per-attempt timeout kept safely below the BFF's own timeout for the same call. → `docs/ENGINEERING_RULES_BACKEND.md` § OpenRouter chatbot
 - **A shared test builder's date-typed default (`expiresAt`, `startedAt`) must be computed relative to `Date.now()`, never a hardcoded calendar date.** → `docs/ENGINEERING_RULES_TESTING.md` § Shared test-builder date defaults
 - **A new cross-tenant, unscoped system job needs its own standalone index matching its filter column** — an existing `(tenant_id, X)` composite index can't be seeked without `tenant_id` in the query. → `docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant
 - **A merge that changes a workspace package's exports needs that package rebuilt before trusting a local type-check; a worktree's `.env` can go stale relative to sibling stories merged after it was created.** → `docs/CI_TRAPS.md` § Stale local state
@@ -323,7 +322,7 @@ gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
   --repo lmmoreira/ikaro
 ```
 
-**5. Monitor CI; triage bot reviews** — `/pre-pr` already posted the CodeRabbit trigger and dispatched Codex's round-1 review; hand off to `/pr-land`, which loads its own full mechanics as a skill invocation: `.claude/commands/pr-land.md` (Core Rule: wait for every in-scope actor before batching one commit + one push, never react to a single actor mid-round; § Step 3: the mandatory bot-finding discipline — read → check against real codebase practice → check against the real business scenario → fix or explain why not, with immediate escalation for business/design-only or undeterminable findings). It loops, re-dispatching Codex only for each code-changing round (never CodeRabbit again), until CI is green and Codex reports 0 unresolved Critical/Important.
+**5. Monitor CI; triage bot reviews** — `/pre-pr` already posted the CodeRabbit trigger and dispatched Codex's round-1 review; hand off to `/pr-land`, which loads its own mechanics (`.claude/commands/pr-land.md`: its Core Rule on batching a round, and § Step 3's mandatory bot-finding discipline). It loops, re-dispatching Codex only for each code-changing round (never CodeRabbit again), until CI is green and Codex reports 0 unresolved Critical/Important.
 
 **6. Infra-touching stories — live-verification gate:** if this story touches Terraform, IAM, Pub/Sub, or CI/CD, run the concrete live check the change implies (confirm a Terraform module is referenced by a real `module` block, confirm an IAM grant actually resolves, a real `terraform plan -refresh-only`) **before** treating the PR as ready for the human merge review — see §7's Cross-layer deployment invariants for why "tests pass, bots clean" isn't sufficient for this category. A failed or un-runnable check is its own stuck condition.
 
@@ -362,34 +361,38 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 
 ## 10. Dynamic Context Loading — Load Only What You Need
 
+A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for the outline); one with neither is read whole, its size shown when over 10 KB.
+
 | Task | Docs to load |
 |---|---|
-| Writing any code | `docs/CODE_STANDARDS.md` + `docs/AGENT_PATTERNS.md` + `docs/ENGINEERING_RULES_SHARED.md` |
-| Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` |
-| CI failure / pre-PR | `docs/CI_TRAPS.md` |
-| Implement a UC | `docs/04-USE_CASES.md` (UC section) + `docs/02-DOMAIN_MODEL.md` + `docs/03-DOMAIN_EVENTS.md` |
-| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates); booking scheduling: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` — check its bounded-context section (booking: the matching `Booking — …` section, + DB/migration, UC rows) before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
-| Database / migration; a lock, a deadlock or a hung request | `docs/13-DATABASE_SCHEMA.md` + `docs/02-DOMAIN_MODEL.md` + `docs/ENGINEERING_RULES_BACKEND.md`; locks: `docs/28-LOCK_CATALOG.md` (every lock, its order, its business case) |
-| API endpoint | `docs/14-API_CONTRACTS.md` + the cited UC |
-| Event handler | `docs/03-DOMAIN_EVENTS.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
+| Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (43 KB) + `docs/ENGINEERING_RULES_SHARED.md` (37 KB) — read whole: the general rules for any code |
+| Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` (15 KB) |
+| CI failure / pre-PR | `docs/CI_TRAPS.md` (100 KB) — the failing tool's own section only: `grep -n '^## ' docs/CI_TRAPS.md` |
+| Implement a UC | `docs/04-USE_CASES.md` (250 KB) — the UC's own section only: `grep -n 'UC-0NN'` + `docs/02-DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects (the aggregate's subsection) + `docs/03-DOMAIN_EVENTS.md` § Event Categories (the event's entry) |
+| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates); booking scheduling: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` (104 KB) — its bounded-context section only (booking: the matching `Booking — …` section, + DB/migration, UC rows) before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
+| Database / migration; a lock, a deadlock or a hung request | `docs/13-DATABASE_SCHEMA.md` § Global Standards + the context's `Schema:` section (`grep -n '^## Schema'`) + `docs/02-DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects + `docs/ENGINEERING_RULES_BACKEND.md` § Transactions (a migration: also § Migration backfills); locks: `docs/28-LOCK_CATALOG.md` § The order locks are taken in (every lock, its order, its business case) |
+| API endpoint | `docs/14-API_CONTRACTS.md` § Base Standards + the resource's own numbered section (`grep -n '^## ' docs/14-API_CONTRACTS.md`; 157 KB) + the cited UC |
+| Event handler | `docs/03-DOMAIN_EVENTS.md` § Event Publishing & Consumption (the event's entry: `grep -n '<EventName>'`) + `docs/05-BOUNDED_CONTEXTS.md` § Communication Patterns + `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers |
 | Staff OAuth login / invite link | `docs/ENGINEERING_RULES_BACKEND.md` § Staff OAuth login URL format |
 | New notification type | `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type |
-| New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) |
-| New UI copy / locale key | `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` |
-| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/ENGINEERING_RULES_FRONTEND.md` |
-| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/ENGINEERING_RULES_FRONTEND.md` |
-| BFF implementation | `docs/24-BFF_ARCHITECTURE.md` + `docs/14-API_CONTRACTS.md` + `docs/ENGINEERING_RULES_BACKEND.md` |
+| New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) + `docs/25-ERROR_CATALOG.md` § Code Origins (where each code originates) |
+| New UI copy / locale key | `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` (19 KB) |
+| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` (58 KB) — the task's numbered section only: `grep -n '^## ' docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` (a new module: § Adding a New Module) + `docs/14-API_CONTRACTS.md` § Tenant Hotsite Manifest + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
+| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/14-API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
+| BFF implementation | `docs/24-BFF_ARCHITECTURE.md` (48 KB) — the task's own section only (a new controller: § Module & Controller Naming Conventions) + `docs/14-API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_BACKEND.md` § Backend read use cases for cross-context access (also § Express `Request.user` typing) |
 | Web → BFF transport | `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
-| Architecture question; repo layout / new file location | `docs/11-ARCHITECTURE.md` + `docs/05-BOUNDED_CONTEXTS.md` + `docs/REPOSITORY_STRUCTURE.md` (full trees; §11 below has the quick summary) |
-| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` |
-| Testing patterns | `docs/08-TESTING_STRATEGY.md` + `docs/ENGINEERING_RULES_TESTING.md` |
+| Architecture question; repo layout / new file location | `docs/11-ARCHITECTURE.md` (11 KB) + `docs/05-BOUNDED_CONTEXTS.md` § Context Descriptions (the context concerned) + `docs/REPOSITORY_STRUCTURE.md` § Web target structure (or the Backend / BFF one); §11 below has the quick summary |
+| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` (14 KB) |
+| Testing patterns | `docs/08-TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (39 KB, independent traps: read whole) |
 | apps/web test infrastructure | `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
-| Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` |
-| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
-| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` |
-| Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 + `infra/terraform/README.md` + `docs/ENGINEERING_RULES_INFRA.md` |
-| Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` before editing Terraform or workflows |
-| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` + `docs/ENGINEERING_RULES_INFRA.md` |
+| Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (37 KB) |
+| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (19 KB) |
+| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` (44 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/22-TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
+| Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 (299 KB doc: those sections only) + `infra/terraform/README.md` § Layout (60 KB; a new resource: § New-resource PR-sequencing playbook; IAM: § IAM binding review discipline) + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
+| Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` § IAM binding review discipline, before editing Terraform or workflows |
+| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` § Where a change belongs (then the section it names) + `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling |
+| Production incident, rollback or release path | `docs/RUNBOOKS.md` (17 KB) — the procedure's own section only (Rollback, Staging, Pub/Sub and scheduled jobs) + `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md` (7 KB) |
+| Reading, adding or validating a `tenants.settings` key | `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Settings by Category (the key's own entry; 37 KB) |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | Multivertical scheduling: `Resource` aggregate (M21); `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22); recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` · `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` · `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `plan/journey/README.md` |
@@ -398,6 +401,7 @@ For a milestone with many independent stories, `/run-batch` runs a small batch (
 | Creating a brand-new TD | `/create-td` |
 | Appending one story to an existing TD or milestone (a live bug, a freshly spotted gap — no discovery doc, no new-container ceremony) | `/create-story` |
 | Drafting or parsing any story (TD or milestone) | `docs/STORY_SCHEMA.md` — canonical field set; `/create-td`, `/create-story`, `/discovery-to-milestone`, `/story-discovery`, `/run-batch` all reference it, none restate it |
+| Anything not listed above (infra setup, data retention, business context, cost) | `pnpm --filter @ikaro/architecture-check docs-for --file <path>` (or `--tag <tag>`) lists the docs for a file or tag; read a doc's `When to load` line before the rest |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
 **Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
