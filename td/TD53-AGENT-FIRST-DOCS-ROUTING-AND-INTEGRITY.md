@@ -54,7 +54,7 @@ Rejected, with the condition to reopen:
 | Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 |
 | Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 |
 | Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 |
-| `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 36 | 36 of 36 | 2 |
+| `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 |
 | Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B |
 
@@ -220,34 +220,50 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — Section-level routing in `context.md` §10 ⚪
+### Story 2 — Section-level routing in `context.md` §10, and the trims that pay for it ⚪
 
 **Agent:** devops
 **Complexity:** M
-**Docs to load:** `.copilot/context.md` §7 (How to edit this file), §10; `packages/architecture-check/agent-context-policy.json`
-**Dependencies:** Story 0 (so every `§` cited here is verified by CI, not by eye)
-**Pattern:** plain composition — no named pattern applies
+**Docs to load:** `.copilot/context.md` §7 (How to edit this file), §9, §10, §13, §17; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling; `docs/ENGINEERING_RULES_BACKEND.md` § OpenRouter chatbot
+**Dependencies:** Story 0 (every `§` added here is verified by CI), Story 1 (the `docs-for` helper and the tags that the new §10 row points at)
+**Pattern:** plain composition — no named pattern applies. Dynamic loading: a trap keeps a one-line headline in the always-on file; its explanation is read from the doc on demand.
 
 **Description:**
-8 of the 36 §10 rows cite a `§ section`; the rest send the agent to a whole file, so it greps and ranges through 100–250 KB to find the part the task needs. For each row, replace or add the section pointers that exist (`docs/04-USE_CASES.md` § the UC, `docs/14-API_CONTRACTS.md` § the resource, and so on); where a row genuinely needs the whole doc, say so with the reason in the row. Do not restate any doc's content in §10 (the file is budgeted, and `/docs-audit` 3e flags a restated rule). Every added pointer must resolve per Story 0's detector. §10's section budget in `agent-context-policy.json` may need a reviewed bump; that is a policy-file change and needs the explicit yes. <!-- doc-link:example -->
+`context.md` §10 has 34 rows (the TD's earlier "36" was wrong); about 8 cite a `§ section`, the rest send the agent to a whole 100–250 KB file, so it greps and ranges to find the part the task needs. The file has 177 characters of budget headroom (§10: 14), so the pointers have to be paid for by lossless trims or a reviewed budget increase.
+1. **§10 routing.** Each row cites a `§ section` that exists, or says "whole file" and why. A row whose target depends on the task (a UC, an API resource, a milestone) says so and how to locate it (`grep -n 'UC-0NN'`), without a placeholder `§`. "Writing any code" stays three whole files, stated as such: they are the general rules for any code. Add a row pointing at `docs-for` and the tags, and rows for the docs no row routes today: `25-ERROR_CATALOG`, `21-TENANTS_SETTINGS_SCHEMA`, `RUNBOOKS` with `18-RELEASE_LIFECYCLE_OPERATIONS`, `23-INFRASTRUCTURE_SETUP` with `19-INFRASTRUCTURE_TOOLING_MAP`, `26-DATA_RETENTION_AND_PRIVACY`, and one product row for `01-BUSINESS_CONTEXT` and `20-COST_OPTIMIZATION_STRATEGY`. A new "LLM / OpenRouter / chatbot call" row points at the OpenRouter chatbot section of `ENGINEERING_RULES_BACKEND.md`.
+2. **Lossless trims.** Delete the `**Last updated:**` line, and with it `LAST_UPDATED_LINE_REGEX` and its test in `agent-context-file.ts`. Correct the editing notice to the three symlinks that exist (`CLAUDE.md`, `AGENTS.md`, `gemini.md`; there is no `claude.md`). Drop the two "kept per safeguard" notes. Cut §9 Step 5's parenthetical that restates `pr-land.md` (the skill loads its own Core Rule and Step 3).
+3. **Dynamic-loading trims.** For the Cloud Run/OTel bullet, the OpenRouter bullet, the Terraform/infra "cross-layer deployment invariants" and the testing traps that point at `ENGINEERING_RULES_TESTING.md`: keep each trap's one-line headline and its `→ doc § heading` pointer in the file, and move nothing out that is not already in the target doc. Before shortening a bullet, grep the target section and confirm it holds every fact the bullet drops (dates, incident history, caveats). A bullet whose target section does not hold it stays unchanged. No trap's existence is removed from the always-on file; only its explanation moves to the doc.
+4. **Budgets.** After the edits, set `agent-context-policy.json`'s file and §10 limits to the new actual sizes, no slack. The increase is expected to be about 1 KB for the file and 1.5–2 KB for §10 and must be stated in the PR with the reason.
+
+**Decisions locked in story-discovery (2026-10-18):**
+- Trim only what loses no context; where a trim would lose information or quality, raise the budget instead.
+- The dynamic-loading trims are done here, not deferred to Story 5B, in the headline-kept form above. Story 5B inherits the shortened bullets and the new triggers as its starting inventory and measures whether they fire.
+- §13 is left alone (it is already five one-line pointers); §17 is left alone (agent-agnostic table); the `docs-for` row is added.
+- The before/after bytes per row come from a throwaway script using each cited section's line range, run in the scratchpad and pasted into the PR body; the script is not committed.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `.copilot/context.md` (modify — §10 rows; edit this file directly, never through the symlinks)
-- `packages/architecture-check/agent-context-policy.json` (modify — §10 budget, only if the pointers need it)
+- `.copilot/context.md` (modify — §10 rows, header, §7 and §9 trims; edit this file directly, never through the symlinks)
+- `packages/architecture-check/agent-context-policy.json` (modify — budgets; remove the dead `Last updated` handling if the policy mentions it)
+- `packages/architecture-check/src/detectors/agent-context-file.ts` and `agent-context-file.spec.ts` (modify — delete `LAST_UPDATED_LINE_REGEX` and its test)
+- `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify only if a shortened bullet's scenario cites wording that moved)
+- `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — the "36 of 36" metric row)
 
 **Acceptance criteria — product:**
-- [ ] Every §10 row cites a `§ section` where a relevant one exists, and states "whole file" with a reason where none does.
-- [ ] Before/after bytes an agent reads per §10 row are recorded in the PR, using the cited section line ranges.
+- [ ] Every §10 row cites a `§ section` that exists, or states "whole file" with a reason; every top-level live doc is reachable from some row or from `docs-for`.
+- [ ] Each shortened bullet is listed in the PR with the target section that holds every dropped fact; none is shortened without that check.
+- [ ] Before/after bytes an agent reads per §10 row, and the file's before/after size and budgets, are recorded in the PR.
+- [ ] The file has no `Last updated` line and names only the three real symlinks.
 
 **Acceptance criteria — technical:**
-- Unit: none — `.md` content; verified by Story 0's detector and the existing `agent-context-file` budget check
+- Unit: `agent-context-file.spec.ts` still passes after the removal of the `Last updated` exemption; a `Last updated` line now fails the forbidden-date rule (one test)
 - Integration: none
 - Tenant isolation: none — no tenant data
 - E2E: none
-- [ ] `pnpm architecture-check` (including `doc-link-integrity` and `agent-context-file`) passes
-- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+- [ ] `pnpm architecture-check` (including `doc-link-integrity`, `agent-context-file` and `doc-orientation`) passes
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
 
 ### Story 3A — Audit baseline and per-doc triage ⚪
 
@@ -416,7 +432,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 **Description:**
 `.copilot/context.md` is 57,647 characters loaded in every session, 42% of it §7. Many of its bullets are writing-time traps that live there only because an agent would not think to load a doc before writing that code (the keep-in-file criterion (c) in §7). A path-scoped context file solves the same trigger problem at lower cost: it loads when the agent works under that directory.
 1. **Use the mechanism Story 5A verified.** Move rules only for the tools where 5A confirmed on-demand loading, using the mechanism it recommended (nested files or path-scoped rules). For a tool where it is not confirmed, the rules stay in the always-on file; to avoid two divergent copies, the always-on file keeps them and the area file holds only a pointer, or 5A's recommendation says how the single source is shared.
-2. **Move by classification.** Using Story 3C's classification, move area-scoped bullets to the nested context file of their area, with the same wording and their `→ doc § heading` pointers intact. Global gates (§0, the multi-tenancy invariants, the PR gate) stay always-on. Workflow-scoped content (§9) is evaluated for a skill invoked by name.
+2. **Move by classification.** Using Story 3C's classification, move area-scoped bullets to the nested context file of their area, with the same wording and their `→ doc § heading` pointers intact. Story 2 already shortened the OTel, OpenRouter, Terraform and testing traps to headlines; this story moves those, and any others its classification finds, using the headlines as they stand. Global gates (§0, the multi-tenancy invariants, the PR gate) stay always-on. Workflow-scoped content (§9) is evaluated for a skill invoked by name.
 3. **Keep the one-file contract.** `CLAUDE.md`, `AGENTS.md` and `gemini.md` remain symlinks to one canonical file at each level; extend the `agent-context-file` detector to every nested context file (symlink agreement, pointers resolve, per-file budget).
 4. **Prove each moved rule still fires.** Every moved trap keeps its scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, re-run against the new location; a rule whose new trigger cannot be shown to fire does not move.
 5. **The always-on target comes from the measurement**, not from a number chosen here. The always-on file stays free of dates and PR numbers (already enforced), so its text stays stable for prompt caching.
