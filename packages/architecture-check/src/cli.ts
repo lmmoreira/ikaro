@@ -9,6 +9,7 @@ import {
   checkBffTypesLiveInModuleFiles,
   checkClosedEnumRegistry,
   checkDocLinkIntegrity,
+  checkDocOrientation,
   checkDomainEventsHaveAuditLogSubscription,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
@@ -35,6 +36,7 @@ import {
   type ClosedEnumRegistryEntry,
   type ConstructionValidationTarget,
   type DocLinkIntegrityPolicy,
+  type DocOrientationPolicy,
   type ErrorMapperException,
   type ExternalSideEffectPort,
   type IkaroTypesDriftException,
@@ -63,6 +65,7 @@ const policy = JSON.parse(
   voConstructionValidationRegistry?: ConstructionValidationTarget[];
   closedEnumRegistry?: ClosedEnumRegistryEntry[];
   docLinkIntegrity?: DocLinkIntegrityPolicy;
+  docOrientation?: DocOrientationPolicy;
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -153,6 +156,10 @@ const docLinkIntegrity = policy.docLinkIntegrity;
 if (!docLinkIntegrity) {
   throw new Error('The architecture policy must define docLinkIntegrity.');
 }
+const docOrientation = policy.docOrientation;
+if (!docOrientation) {
+  throw new Error('The architecture policy must define docOrientation.');
+}
 // Every file that exists in the working tree and is not ignored: tracked plus new-but-unstaged,
 // minus files staged for deletion, so a citation is judged against the live tree.
 const repositoryFiles = execFileSync(
@@ -166,6 +173,7 @@ const repositoryFiles = execFileSync(
 const results = [
   checkAgentContextFile(root, agentContextPolicy),
   checkDocLinkIntegrity(root, docLinkIntegrity, repositoryFiles),
+  checkDocOrientation(root, docOrientation, repositoryFiles),
   checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),
