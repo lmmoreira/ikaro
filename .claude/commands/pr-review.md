@@ -36,6 +36,8 @@ git show <headRefOid>:<path/to/file>
 ```
 In local-branch mode, the working directory already matches the diff being reviewed — no pinning needed, read files normally.
 
+**Review workspace — a checkout only if a finding needs code run.** Reading the diff, the history and blobs at the pinned commit needs no checkout. Only when a finding must be proven by running something (the tests, `architecture-check`, a build), create one worktree from the main checkout: `git worktree add --detach .claude/worktrees/review-pr-<N> <headRefOid>`, then `pnpm install --frozen-lockfile --offline` inside it. Never symlink to, or run `pnpm` against, `/opt/ikaro-base/node_modules`: pnpm rewrites the target of a linked `node_modules` and broke the main checkout (TD53-S02). Keep scratch files (diffs, comment dumps, the Step 5 report) in one `mktemp -d` directory, not loose in `/tmp`. Step 6 removes both.
+
 **Resolve the PR number now and fetch its comment/review history — needed by Step 3's dedupe pass, and reused by Step 5's posting step so it's only resolved once:**
 ```bash
 # $ARGUMENTS PR number, or — in local-branch mode — a PR already open for the current branch
@@ -234,7 +236,7 @@ Only skipped when there is no actual GitHub PR to comment on (pure local-diff mo
 Reuse the PR number resolved in Step 0 — no need to re-resolve it. If none resolved there, skip this step silently — there's nothing to comment on.
 
 Otherwise, post automatically:
-1. Write the exact Step 4 report to a temp file, with the 🟢 Minor section wrapped in a collapsible block so a long comment stays scannable:
+1. Write the exact Step 4 report to a file in the scratch directory (Step 0), with the 🟢 Minor section wrapped in a collapsible block so a long comment stays scannable:
    ```
    <details>
    <summary>🟢 Minor (nice to have) — N findings</summary>
@@ -249,3 +251,9 @@ Otherwise, post automatically:
    gh pr comment <N> --repo lmmoreira/ikaro --body-file <path-to-report>
    ```
    `--body-file`, not `--body` — avoids shell-escaping corruption on a large multi-section markdown body.
+
+---
+
+## Step 6 — Clean up (always, even if the review stopped early)
+
+Remove what Step 0 created, and nothing else: `git worktree remove --force .claude/worktrees/review-pr-<N>` (only if one was created), `git worktree prune`, and delete the scratch directory. Confirm with `git worktree list` that no `review-pr-<N>` entry remains. A review that leaves a worktree or loose files behind is incomplete.
