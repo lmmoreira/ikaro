@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import picomatch from 'picomatch';
 import {
+  globMatcher,
   isOrientationDoc,
   parseDocHeader,
   type DocOrientationPolicy,
@@ -36,7 +36,7 @@ export function checkDocOrientation(
 
     if (!header.whenToLoad) {
       report(
-        `No "> **When to load:** …" line in the first ${policy.headerLines} lines. State when this doc applies, which apps/layers/contexts it covers, and which neighbouring doc holds what it does not.`,
+        `No "> **When to load:** …" line under the "# Title", within the first ${policy.headerLines} lines. State when this doc applies, which apps/layers/contexts it covers, and which neighbouring doc holds what it does not.`,
       );
     } else if (header.whenToLoad.value.length < policy.minWhenToLoadLength) {
       findings.push({
@@ -49,7 +49,7 @@ export function checkDocOrientation(
 
     if (!header.tags) {
       report(
-        `No "> **Tags:** a, b" line in the first ${policy.headerLines} lines. Pick one or more from the vocabulary in ${POLICY_FILE} (docOrientation.tags).`,
+        `No "> **Tags:** a, b" line under the "# Title", within the first ${policy.headerLines} lines. Pick one or more from the vocabulary in ${POLICY_FILE} (docOrientation.tags).`,
       );
     } else if (header.tags.value.length === 0) {
       findings.push({
@@ -82,7 +82,7 @@ export function checkDocOrientation(
       });
     }
     if (definition.globs.length === 0) continue;
-    const matchesTag = picomatch(definition.globs, { dot: true });
+    const matchesTag = globMatcher(definition.globs);
     if (!files.some((file) => matchesTag(file))) {
       findings.push({
         rule: RULE,

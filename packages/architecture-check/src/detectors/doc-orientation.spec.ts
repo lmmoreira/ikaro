@@ -91,6 +91,18 @@ describe('checkDocOrientation', () => {
     ]);
   });
 
+  it('reports fields placed above the title', () => {
+    const above = `${WHEN}> **Tags:** backend, product\n\n# Doc\n\nBody\n`;
+    const docFindings = scan({ 'docs/A.md': above, ...CODE }).findings.filter(
+      (finding) => finding.file === 'docs/A.md',
+    );
+
+    expect(docFindings.map((finding) => finding.message)).toEqual([
+      expect.stringContaining('When to load'),
+      expect.stringContaining('Tags'),
+    ]);
+  });
+
   it('reports a vocabulary tag no doc uses, but not a glob-less tag that is used', () => {
     const result = scan({ 'docs/A.md': `# D\n${WHEN}> **Tags:** product\n`, ...CODE });
 

@@ -51,45 +51,50 @@ export interface DocsForResult {
 
 const WHEN_TO_LOAD_REGEX = /^>\s*\*\*When to load:\*\*\s*(.*)$/;
 const TAGS_REGEX = /^>\s*\*\*Tags:\*\*\s*(.*)$/;
+const TITLE_REGEX = /^# /;
 const TOP_LEVEL_DOC_REGEX = /^docs\/[^/]+\.md$/;
 
 export function isOrientationDoc(path: string): boolean {
   return TOP_LEVEL_DOC_REGEX.test(path);
 }
 
+// The header sits under the `# Title` and inside the first `headerLines` lines; a field above the
+// title, or in a doc whose title is outside that window, is not part of the contract.
 export function parseDocHeader(content: string, headerLines: number): DocHeader {
   const header: DocHeader = { whenToLoad: null, tags: null };
-  content
-    .split('\n')
-    .slice(0, headerLines)
-    .forEach((text, index) => {
-      const line = index + 1;
-      const whenToLoad = text.match(WHEN_TO_LOAD_REGEX);
-      if (whenToLoad && !header.whenToLoad) {
-        header.whenToLoad = { line, value: whenToLoad[1].trim() };
-        return;
-      }
-      const tags = text.match(TAGS_REGEX);
-      if (tags && !header.tags) {
-        header.tags = {
-          line,
-          value: tags[1]
-            .split(',')
-            .map((tag) => tag.trim())
-            .filter(Boolean),
-        };
-      }
-    });
+  const lines = content.split('\n').slice(0, headerLines);
+  const titleIndex = lines.findIndex((text) => TITLE_REGEX.test(text));
+  if (titleIndex === -1) return header;
+  lines.forEach((text, index) => {
+    if (index <= titleIndex) return;
+    const line = index + 1;
+    const whenToLoad = text.match(WHEN_TO_LOAD_REGEX);
+    if (whenToLoad && !header.whenToLoad) {
+      header.whenToLoad = { line, value: whenToLoad[1].trim() };
+      return;
+    }
+    const tags = text.match(TAGS_REGEX);
+    if (tags && !header.tags) {
+      header.tags = {
+        line,
+        value: tags[1]
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      };
+    }
+  });
   return header;
 }
 
-function matcher(globs: string[]): (file: string) => boolean {
+// The one glob matcher, so the CI detector and `docs-for` classify a path identically.
+export function globMatcher(globs: string[]): (file: string) => boolean {
   return picomatch(globs, { dot: true });
 }
 
 export function tagsForFile(file: string, policy: DocOrientationPolicy): string[] {
   return Object.entries(policy.tags)
-    .filter(([, definition]) => definition.globs.length > 0 && matcher(definition.globs)(file))
+    .filter(([, definition]) => definition.globs.length > 0 && globMatcher(definition.globs)(file))
     .map(([name]) => name);
 }
 

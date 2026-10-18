@@ -35,6 +35,14 @@ describe('parseDocHeader', () => {
     expect(parseDocHeader(body, 15)).toEqual({ whenToLoad: null, tags: null });
   });
 
+  it('ignores fields above the title and in a doc with no title in the window', () => {
+    const above = '> **When to load:** writing a use case\n> **Tags:** backend\n\n# Title\n\nBody';
+    const noTitle = '> **Tags:** backend\n\nBody without a title';
+
+    expect(parseDocHeader(above, 15)).toEqual({ whenToLoad: null, tags: null });
+    expect(parseDocHeader(noTitle, 15)).toEqual({ whenToLoad: null, tags: null });
+  });
+
   it('returns an empty list for an empty Tags line', () => {
     expect(parseDocHeader('# T\n> **Tags:**\n', 15).tags).toEqual({ line: 2, value: [] });
   });
