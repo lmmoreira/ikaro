@@ -85,7 +85,7 @@ graph TD
 
 Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waits for its result.
 
-### Story 0 — Repo-wide link and anchor checker ⚪
+### Story 0 — Repo-wide link and anchor checker ✅ Done
 
 **Agent:** devops
 **Complexity:** M
