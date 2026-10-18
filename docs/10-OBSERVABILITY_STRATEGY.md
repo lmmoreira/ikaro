@@ -1,7 +1,7 @@
 # Observability Strategy
 
 > **When to load:** adding or changing a span, a log line, a metric, an alert, a dashboard or the OTel/collector setup; debugging missing traces, missing logs or a silent alert; deciding where an observability change belongs. Covers the backend and BFF (instrumented), the collector sidecar, Cloud Logging and the Terraform `monitoring` module. The web app is not instrumented. Incident history and durable hardening rules live in `docs/ENGINEERING_RULES_INFRA.md`; the collector's rebuild path and trace-loss playbook live in `infra/docker/otel-collector/README.md`.
-> **Tags:** infra, backend
+> **Tags:** infra, backend, bff
 
 Ikaro instruments the backend and BFF with OpenTelemetry (OTel), ships traces and metrics through an OTel Collector sidecar to Google Cloud's managed backends, and writes structured JSON logs to stdout for Cloud Logging. There is no self-hosted Prometheus, Grafana, Loki or Tempo stack and no `pnpm obs` command; that design (old M14) was never shipped and is superseded by M17.
 

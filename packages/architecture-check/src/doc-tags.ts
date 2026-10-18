@@ -34,7 +34,16 @@ export interface DocForEntry {
   kind: DocKind;
 }
 
+export interface DocsForFile {
+  file: string;
+  // The tags that selected docs for this file: the tags its path matches, or, for a changed doc,
+  // the doc's own tags. Empty for a file no tag covers (it is also listed under `unmapped`).
+  tags: string[];
+}
+
 export interface DocsForResult {
+  // One entry per input file, so a reader can see which file selected which tags and docs.
+  files: DocsForFile[];
   docs: DocForEntry[];
   // Changed files that no tag covers, so a reader can judge whether a doc should exist for them.
   unmapped: string[];
@@ -120,12 +129,16 @@ export function docsForFiles(
 ): DocsForResult {
   const selected = new Set<string>();
   const unmapped: string[] = [];
+  const perFile: DocsForFile[] = [];
   for (const file of files) {
     if (isOrientationDoc(file)) {
-      if (index.some((doc) => doc.path === file)) selected.add(file);
+      const own = index.find((doc) => doc.path === file);
+      if (own) selected.add(file);
+      perFile.push({ file, tags: own?.tags ?? [] });
       continue;
     }
     const tags = tagsForFile(file, policy);
+    perFile.push({ file, tags });
     if (tags.length === 0) {
       unmapped.push(file);
       continue;
@@ -135,6 +148,7 @@ export function docsForFiles(
     }
   }
   return {
+    files: perFile,
     docs: toEntries(
       index.filter((doc) => selected.has(doc.path)),
       policy,

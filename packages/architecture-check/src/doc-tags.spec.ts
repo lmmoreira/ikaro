@@ -78,6 +78,10 @@ describe('docsForTags and docsForFiles', () => {
 
     expect(result.docs.map((doc) => doc.path)).toEqual(['docs/B.md']);
     expect(result.unmapped).toEqual(['README.md']);
+    expect(result.files).toEqual([
+      { file: 'apps/backend/src/a.ts', tags: ['backend', 'shared'] },
+      { file: 'README.md', tags: [] },
+    ]);
   });
 
   it('includes a changed doc itself and does not report it as unmapped', () => {
@@ -85,5 +89,6 @@ describe('docsForTags and docsForFiles', () => {
 
     expect(result.docs.map((doc) => doc.path)).toEqual(['docs/P.md']);
     expect(result.unmapped).toEqual([]);
+    expect(result.files).toEqual([{ file: 'docs/P.md', tags: ['product'] }]);
   });
 });

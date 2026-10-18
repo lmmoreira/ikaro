@@ -3,6 +3,7 @@
 // instead of guessing from the policy JSON.
 //
 //   docs-for --file <path…>      tags of each file, then the docs carrying them
+//                                (lines: `tags <file> [tags]`, `deep|light <doc> [tags]`, `unmapped <file>`)
 //   docs-for --range <a>..<b>    the same for every file changed in a git range
 //   docs-for --tag <name…>       the docs carrying a tag
 //   --json                       machine-readable output
@@ -73,7 +74,10 @@ function parse(argv: string[]): {
 }
 
 function render(result: DocsForResult): string {
-  const lines = result.docs.map((doc) => `${doc.kind} ${doc.path} [${doc.tags.join(', ')}]`);
+  const lines = result.files
+    .filter((entry) => entry.tags.length > 0)
+    .map((entry) => `tags ${entry.file} [${entry.tags.join(', ')}]`);
+  lines.push(...result.docs.map((doc) => `${doc.kind} ${doc.path} [${doc.tags.join(', ')}]`));
   for (const file of result.unmapped) lines.push(`unmapped ${file}`);
   return lines.length > 0 ? `${lines.join('\n')}\n` : 'no docs\n';
 }
@@ -94,7 +98,7 @@ export function runDocsFor(argv: string[], rootDir: string, io: DocsForIo): numb
           `Unknown tag ${unknown.join(', ')}. Known tags: ${Object.keys(policy.tags).join(', ')}.`,
         );
       }
-      result = { docs: docsForTags(values, index, policy), unmapped: [] };
+      result = { files: [], docs: docsForTags(values, index, policy), unmapped: [] };
     } else {
       const changed = mode === 'range' ? git(rootDir, ['diff', '--name-only', values[0]]) : values;
       result = docsForFiles(changed, index, policy);

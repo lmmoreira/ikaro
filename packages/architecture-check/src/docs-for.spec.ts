@@ -64,7 +64,29 @@ describe('runDocsFor', () => {
     const { code, out } = run(repo(), '--file', 'apps/backend/src/a.ts');
 
     expect(code).toBe(0);
-    expect(out).toBe('deep docs/BACKEND.md [backend]\n');
+    expect(out).toBe('tags apps/backend/src/a.ts [backend]\ndeep docs/BACKEND.md [backend]\n');
+  });
+
+  it('--file keeps each input file separate when several select the same doc', () => {
+    const { out, code } = run(repo(), '--file', 'apps/backend/src/a.ts', 'apps/backend/src/b.ts');
+
+    expect(code).toBe(0);
+    expect(out).toBe(
+      'tags apps/backend/src/a.ts [backend]\ntags apps/backend/src/b.ts [backend]\ndeep docs/BACKEND.md [backend]\n',
+    );
+  });
+
+  it('--file --json carries the per-file tags next to docs and unmapped', () => {
+    const { out } = run(repo(), '--file', 'apps/backend/src/a.ts', 'scripts/x.sh', '--json');
+
+    expect(JSON.parse(out)).toEqual({
+      files: [
+        { file: 'apps/backend/src/a.ts', tags: ['backend'] },
+        { file: 'scripts/x.sh', tags: [] },
+      ],
+      docs: [{ path: 'docs/BACKEND.md', tags: ['backend'], kind: 'deep' }],
+      unmapped: ['scripts/x.sh'],
+    });
   });
 
   it('--file lists a file no tag covers as unmapped', () => {
@@ -82,7 +104,9 @@ describe('runDocsFor', () => {
     const { code, out } = run(root, '--range', 'HEAD~1..HEAD');
 
     expect(code).toBe(0);
-    expect(out).toBe('deep docs/BACKEND.md [backend]\nunmapped scripts/x.sh\n');
+    expect(out).toBe(
+      'tags apps/backend/src/a.ts [backend]\ndeep docs/BACKEND.md [backend]\nunmapped scripts/x.sh\n',
+    );
   });
 
   it('--tag lists the docs carrying a tag', () => {
@@ -93,6 +117,7 @@ describe('runDocsFor', () => {
     const { out } = run(repo(), '--tag', 'backend', '--json');
 
     expect(JSON.parse(out)).toEqual({
+      files: [],
       docs: [{ path: 'docs/BACKEND.md', tags: ['backend'], kind: 'deep' }],
       unmapped: [],
     });
