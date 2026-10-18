@@ -59,7 +59,7 @@ flowchart TD
 | `GET /v1/auth/google?tenantSlug={slug}` | Customer clicks "Entrar" from hotsite |
 | `POST /internal/customers` | BFF callback (`handleTenantLogin`) — find or create customer for tenant |
 | `PATCH /v1/customers/me { phone }` | UC-021 A3 — phone collection (mandatory) |
-| `GET /v1/customers/tenants` | UC-023 — list other tenants customer belongs to (excludes current) |
+| `GET /v1/customers/tenants` | UC-023 — list other tenants customer belongs to (includes the current tenant — the switch screen renders it as the non-clickable "Atual" card) |
 | `POST /v1/auth/switch-tenant { targetTenantId }` | UC-023 — switch active tenant |
 
 > Removed: `GET /v1/auth/google` (no slug), `GET /internal/customers/tenants?googleOAuthId=...`, `POST /v1/auth/token` — all only reachable via the now-descoped multi-tenant login branch.
@@ -69,7 +69,7 @@ flowchart TD
 - [x] **Customer area after login:** where does the customer land after successful login? — **Resolved.** Customer lands on `/{slug}` (hotsite, logged-in state); no separate customer dashboard follow-up story is needed, per `M13-DASHBOARD-FRONTEND.md`'s open-questions section.
 - [x] **Phone completion placement (UC-021 A3):** is this a separate page or an inline modal/banner on the first screen after login? — **Resolved.** Implemented as a mandatory, non-dismissible inline bottom-sheet component (`M13-S14`) — no "skip" option, unlike the original draft.
 - [x] **`/auth/error` shared route:** staff and customer auth failures both redirect to `/auth/error?reason=...`. — **Resolved.** One shared page (`apps/web/app/auth/error/page.tsx`), content driven by `?reason`. Already built (`M13-S02`/`M13-S42`).
-- [x] **UC-023 trigger:** the "Trocar empresa" action lives somewhere in the customer area after login. Which component holds it? — **Resolved.** `HotsiteAuthBar`'s avatar dropdown (already shipped, `M13-S42`) — not `CustomerShell` (`M13-S16`, not yet built). `M13-S14` adds the item there directly.
+- [x] **UC-023 trigger:** the "Trocar empresa" action lives somewhere in the customer area after login. Which component holds it? — **Resolved.** `HotsiteAuthBar`'s avatar dropdown (already shipped, `M13-S42`) — not `CustomerShell` (`M13-S16`, since built as `apps/web/features/customer/components/CustomerShell.tsx`). `M13-S14` adds the item there directly.
 - [x] **Generic login entry (no tenantSlug):** is there a branded entry point for a slug-less login? — **Resolved: not needed for MVP.** No current product flow requires logging in without first knowing which tenant's hotsite you're on. The BFF's slug-less branch (`handleMultiTenantLogin`) and `/select-tenant` were descoped rather than built — see `docs/04-USE_CASES.md` UC-021. Revisit only if a tenant-agnostic entry point (e.g. a unified cross-tenant customer portal) is ever scoped as its own feature.
 
 ## Prototype

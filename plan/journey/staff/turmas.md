@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** View upcoming class sessions, manage a session's roster (capacity override, guest approval, close-out with attendance and optional manual charge record)  
 **UCs covered:** UC-082 (list), UC-083 (capacity override), UC-091 (waitlist promotion, staff-triggered entry point), UC-098 (guest approval), UC-101 (close-out), UC-107 (manual payment record at close-out)  
-**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). No story assigned yet.
+**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Stories: `M24-S06` (session list + capacity override, backend/BFF), `M24-S14` (close-out + manual payment record) and `M24-S16` (Staff "Turmas" frontend), in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; not yet shipped.
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-13b, 14, 34, 37) via `/discovery-to-milestone`. Mirrors `staff/agenda.md`'s own shape for private appointments — a list first, then a detail/roster page per item. `manager-roster-dia.html` is the single canonical roster screen (superseding an earlier, independently-built `staff-02-session-roster.html` — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 41 for the reconciliation rationale), despite its discovery-era "manager-" filename prefix; the actual actor is STAFF|MANAGER shared, so it lives here per this repo's staff-vs-manager folder convention (`plan/journey/README.md` § Why MANAGER, not ADMIN).
 
@@ -12,6 +12,7 @@
 ```mermaid
 flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+    class List,Roster,CapOverride,CapErr,GuestApproval,GuestErr,FecharTurma gap
 
     List["❓ GAP: /dashboard/turmas<br/>Turmas próximas (01-turmas-proximas)"] -->|"'mine' vs 'all' toggle"| List
     List -->|"Seleciona sessão"| Roster["❓ GAP: /dashboard/turmas/[sessionId]<br/>Roster (02-roster-dia)"]
@@ -30,9 +31,9 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/turmas` | `ClassSessionListPage` | — | ❓ GAP |
-| `/dashboard/turmas/[sessionId]` | `ClassSessionRosterPage` | — | ❓ GAP |
-| `/dashboard/turmas/[sessionId]/close` | `ClassSessionCloseOutPage` | — | ❓ GAP |
+| `/dashboard/turmas` | `ClassSessionListPage` | M24-S16 | ❓ GAP |
+| `/dashboard/turmas/[sessionId]` | `ClassSessionRosterPage` | M24-S16 | ❓ GAP |
+| `/dashboard/turmas/[sessionId]/close` | `ClassSessionCloseOutPage` | M24-S16 | ❓ GAP |
 
 ## BFF calls in this flow
 
@@ -64,5 +65,5 @@ Folder: `staff/prototypes/turmas/` — relocated from `docs/discovery/multiverti
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M24 milestone file is drafted.
+- [ ] Stories exist in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` (`M24-S06`, `M24-S14`, `M24-S16`; waitlist and guest approval in `M24-S08`/`M24-S09`) — still needs `/story-discovery` before implementation.
 - [ ] Whether `02-roster-dia.html`'s live check-in toggle and "+ Drop-in" action correspond to a use case beyond UC-091/098, or are UI sugar over existing capacity-check flows, is worth confirming during `/story-discovery`.

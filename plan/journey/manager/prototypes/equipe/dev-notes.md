@@ -29,7 +29,8 @@ Fully shipped. Updated 2026-07-31 — UC-030/UC-031 were added to this journey a
 
 | Action | Method + Path | Role guard | Request body | Success |
 |---|---|---|---|---|
-| List staff | `GET /staff` | MANAGER | — | `StaffListResponse` |
+| List staff | `GET /staff` (`limit` default 50, `offset` default 0) | MANAGER | — | `StaffListResponse` |
+| Get staff member | `GET /staff/:id` | MANAGER | — | `StaffResponse` |
 | Invite staff | `POST /staff/invite` | MANAGER | `InviteStaffDto` | `201` |
 | Deactivate staff | `PATCH /staff/:id/deactivate` | MANAGER | — | `200` |
 | Update staff (UC-030) | `PATCH /staff/:id` | MANAGER | `{ name, role }` | `200` |
@@ -55,9 +56,9 @@ interface InviteStaffDto {
 The `staff` table has **no dedicated "pending invite" status**, and since M13-S13's staff-auth security redesign, `Staff.invite()` provisions every row as `isActive = true` from the moment of creation (previously `false` — changed because `is_active=false` could be bypassed). This means `isActive` alone can no longer distinguish "never accepted the invite" from "currently active": a brand-new, never-logged-in invitee already has `isActive = true`. The reliable signal is `googleOAuthId`, set once at UC-025 activation and never cleared by `deactivate()` — it must be checked **before** `isActive`, not after:
 
 ```typescript
-function memberStatus(member: { isActive: boolean; googleOAuthId: string | null }): 'active' | 'pending' | 'deactivated' {
-  if (member.googleOAuthId === null) return 'pending';
-  return member.isActive ? 'active' : 'deactivated';
+function deriveStaffStatus(member: { isActive: boolean; googleOAuthId: string | null }): 'PENDING' | 'ACTIVE' | 'DEACTIVATED' {
+  if (member.googleOAuthId === null) return 'PENDING';
+  return member.isActive ? 'ACTIVE' : 'DEACTIVATED';
 }
 ```
 

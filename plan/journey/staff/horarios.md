@@ -98,11 +98,11 @@ flowchart TD
 
 | Field | Type | Required | Validation |
 |---|---|---|---|
-| `date` | date picker | ✅ | not in the past |
+| `date` | date picker | ✅ | not in the past (enforced by the backend aggregate — `ClosureDateInPastError`; the BFF only checks `z.iso.date()`) |
 | `reason` | enum select: `STAFF_DAY_OFF` \| `MAINTENANCE` \| `HOLIDAY` | ✅ | one of three values |
 | `startTime` | time input | ❌ (null = full-day) | if provided, `endTime` must also be provided |
 | `endTime` | time input | ❌ (null = full-day) | must be > `startTime` |
-| `notes` | text area | ❌ | max 200 chars |
+| `notes` | text area | ❌ | max 200 chars is the product spec — not enforced by the BFF (`notes: z.string().optional()`) or the backend aggregate |
 
 **Error states (from UC-010a alt flows):**
 - `422` date in the past → "Não é possível bloquear datas passadas."
@@ -114,10 +114,10 @@ flowchart TD
 
 | Field | Type | Required | Validation |
 |---|---|---|---|
-| `date` | date picker (closed days only) | ✅ | not in the past; day-of-week must be null in `business_hours` |
+| `date` | date picker (closed days only) | ✅ | not in the past; day-of-week must be null in `business_hours` (both enforced by the backend; the BFF only checks `z.iso.date()`) |
 | `startTime` | time input | ✅ | |
 | `endTime` | time input | ✅ | must be > `startTime` |
-| `notes` | text area | ❌ | max 200 chars |
+| `notes` | text area | ❌ | max 200 chars is the product spec — not enforced by the BFF (`notes: z.string().optional()`) or the backend aggregate |
 
 **Error states (from UC-010c alt flows):**
 - `422` date in the past → "Não é possível abrir datas passadas."

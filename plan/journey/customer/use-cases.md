@@ -18,7 +18,7 @@ Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder �
 | UC-089, UC-091, UC-094, UC-095, UC-102 | Manage an existing class enrollment (cancel, skip, waitlist offer, reposição) | Same promotion. Draft — not yet shipped; story `M24-S18` in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. | `customer/minha-conta.md` |
 | UC-019 | Customer Receives Booking Reminder (Day Before) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
 | UC-020 | Customer Receives Booking Reminder (Day Of) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
-| UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Draft — promoted 2026-08-23 for `M20-LEAD-FORM-MODULE`, no story assigned. | `submit-lead-form.md` |
+| UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Built (M20-S09). | `submit-lead-form.md` |
 
 ## Entry point
 

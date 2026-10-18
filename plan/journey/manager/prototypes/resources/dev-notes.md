@@ -32,6 +32,7 @@ Dashboard section for creating and managing the tenant's `Resource` rows (`LOCAT
 | Edit resource | `PATCH /v1/resources/:id` | MANAGER | `UpdateResourceRequest` (every field independently optional) | `200` |
 | Deactivate resource | `DELETE /v1/resources/:id` | MANAGER | — | `204` |
 | Reactivate resource | `POST /v1/resources/:id/reactivate` | MANAGER | — | `200` |
+| STAFF picker options | `GET /v1/resources/staff-options?excludeResourceId=` | MANAGER | — | `ResourceStaffOptionsResponse` (BFF-composed from Staff + Resource reads) |
 
 All endpoints exist (`apps/bff/src/features/booking/resource.controller.ts`; backend `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts`). Full contract: `docs/14-API_CONTRACTS.md` § Resource Management.
 
@@ -75,5 +76,5 @@ Corrected during live manual testing (2026-09-02, superseding an earlier confirm
 ## Known limitations
 
 - Cluster 2–4 features this journey will eventually integrate with (`Service.classResourceSlots` eligibility pools, `resource_occupancy`-based availability) do not exist yet.
-- The STAFF picker (`ResourceCreateForm`/`ResourceEditFormFields`) fetches only the first 100 staff rows — the backend's own `GET /staff` hard-caps `limit` at 100 (`staff.controller.ts`), matching the Team page's own existing `fetchStaffList` precedent. No pagination/search UI exists anywhere in the codebase to build one from; worth a dedicated staff-search TD if team sizes ever realistically exceed 100.
+- The STAFF picker (`ResourceCreateForm`/`ResourceEditFormFields`) gets its options from the BFF's `GET /resources/staff-options`, which merges the Staff and Resource reads server-side with a hard-coded `limit: 100` on the staff read (`resource.controller.ts`), so only the first 100 staff rows are offered. No pagination/search UI exists anywhere in the codebase to build one from; worth a dedicated staff-search TD if team sizes ever realistically exceed 100.
 - The resource list itself has no pagination — `GET /resources` has no `limit`/`offset` params in its documented contract, and Resources (rooms/equipment/staff-wrappers/one location) is an inherently small, physically-bounded dataset by domain nature, unlike customer/booking-scale entities.

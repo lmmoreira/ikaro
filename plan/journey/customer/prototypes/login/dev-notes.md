@@ -24,7 +24,9 @@
 
 ## Screen: `/{tenantSlug}/login` (`CustomerLoginPage`)
 
-**File:** `apps/web/app/[tenantSlug]/login/page.tsx` (GAP)  
+> **Superseded — original design kept for history.** The real route is `apps/web/app/[slug]/login/page.tsx` (see the file map above); the `GET /v1/hotsite/{tenantSlug}/config` branding fetch below is likewise the original design, not the shipped implementation.
+
+**File:** `apps/web/app/[tenantSlug]/login/page.tsx` (GAP — superseded, see note above)  
 **Type:** Server component (reads `tenantSlug` from params; passes to Google OAuth redirect)  
 **Prototype:** `shared/login.html`
 
@@ -91,7 +93,7 @@ PATCH /v1/customers/me { phone: string }
 Headers: Authorization: Bearer <jwt>
 
 → 200: phone saved → dismiss prompt
-→ 422: { type: 'invalid-phone' } → "Digite um número de telefone válido (10 ou 11 dígitos)."
+→ 422: phone must be E.164 (BFF `isValidPhoneNumber`, code `PhoneErrorCode.FORMAT_INVALID`; `customers.schemas.ts`) → "Digite um número de telefone válido (10 ou 11 dígitos)." (the shipped UI copy; the original design said `{ type: 'invalid-phone' }`)
 ```
 
 **Validation (client-side):** strip non-digits, must be 10 or 11 digits.

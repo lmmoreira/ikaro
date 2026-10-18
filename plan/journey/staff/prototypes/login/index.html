@@ -55,7 +55,7 @@
     </li>
     <li>
       <a href="./01-first-login.html">01 — Convite não aceito</a>
-      <span class="tag tag-red">GAP: /auth/first-login</span>
+      <span class="tag tag-red">Superseded: /auth/first-login not built by design</span>
       — UC-022 Caso B: staff encontrado mas is_active=false — único gap real remanescente desta jornada
     </li>
     <li>
@@ -113,7 +113,7 @@
   <h2>Arquitetura</h2>
   <ul>
     <li><strong>shared/staff-login.html</strong> → produção: <code>apps/web/app/dashboard/login/page.tsx</code> (✅ EXISTS)</li>
-    <li><strong>01-first-login.html</strong> → produção: <code>apps/web/app/auth/first-login/page.tsx</code> (❌ GAP — genuinely missing, the only real gap in this journey)</li>
+    <li><strong>01-first-login.html</strong> → produção: <code>apps/web/app/auth/first-login/page.tsx</code> (not built by design — superseded; inactive staff are redirected to <code>/auth/error?reason=staff-deactivated</code>)</li>
     <li><strong>01b–01h error screens</strong> → produção: <code>apps/web/app/auth/error/page.tsx</code> (✅ EXISTS, compartilhado com customer, 8 reason codes)</li>
     <li>Backend/BFF: todos os endpoints de auth já implementados ✓</li>
   </ul>

@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Staff member authenticates with Google OAuth and lands on the dashboard booking queue; invited staff activate their account on first access  
 **UCs covered:** UC-022, UC-025  
-**Status:** Draft
+**Status:** Reviewed
 
 ## Flow
 
@@ -20,7 +20,7 @@ flowchart TD
     Google --> Callback{"BFF /v1/auth/google/callback<br/>handleStaffLogin (existing record) ou<br/>invite-activation path (UC-025)"}
 
     Callback -->|"is_active=true<br/>UC-022 Caso A"| Dashboard["/dashboard/bookings<br/>Fila de Agendamentos"]
-    Callback -->|"is_active=false<br/>UC-022 Caso B"| FirstLogin["❓ GAP: /auth/first-login<br/>Convite Não Aceito<br/>(dead end — page doesn't exist)"]
+    Callback -->|"is_active=false<br/>UC-022 Caso B"| FirstLogin["Superseded: /auth/first-login not built<br/>BFF redirects to /auth/error?reason=staff-deactivated"]
     Callback -->|"UC-025: ativa staff_record<br/>is_active false → true"| Dashboard
     Callback -->|"reason=not-a-staff-member"| AuthError["/auth/error?reason=..."]
     Callback -->|"reason=staff-deactivated"| AuthError
@@ -41,7 +41,7 @@ flowchart TD
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | `/dashboard/login` | `StaffLoginPage` | M124-S01 | ✅ Existing |
-| `/auth/first-login` | `FirstLoginPage` | M124-S01 | ❌ GAP — genuinely missing, dead-end redirect in production |
+| `/auth/first-login` | `FirstLoginPage` | M124-S01 | ⛔ Not built by design — superseded; the BFF redirects an inactive staff record to `/auth/error?reason=staff-deactivated` (see `dev-notes.md`) |
 | `/auth/error` | `AuthErrorPage` | M124-S01 | ✅ Existing — 7 staff-relevant reason codes, see `dev-notes.md`'s reason table |
 | `/dashboard/bookings` | `BookingQueuePage` | M125-S03 | ✅ Existing |
 
@@ -57,7 +57,7 @@ flowchart TD
 ## Open questions / gaps
 
 - [x] **Route for staff login:** — **Resolved.** `/dashboard/login` is canonical, confirmed shipped (`apps/web/app/dashboard/login/page.tsx`, reads `?tenantSlug` as a query param rather than a URL segment).
-- [ ] **"Bem-vindo(a)!" banner on first login (UC-025 step 8):** does the dashboard show a one-time welcome message after first activation? If yes, it belongs in M124-S01 as an inline success state on the dashboard, not a separate page.
+- [x] **"Bem-vindo(a)!" banner on first login (UC-025 step 8):** — **Resolved: not built.** Invite activation lands directly on `/dashboard/bookings` (see `dev-notes.md` § Known limitations).
 - [x] **Deactivated staff (UC-025 A3 / A2):** tenant deactivated after invite sent — should `/auth/error` show a distinct message? — **Resolved.** Both `reason=tenant-deactivated` and `reason=staff-deactivated` are implemented with distinct messages — see `dev-notes.md`'s reason-code table.
 - [ ] **JWT expiry / re-login:** no logout or refresh endpoint exists yet. Staff whose JWT expires will be redirected to `/dashboard/login`. Confirm this is the intended re-login flow.
 

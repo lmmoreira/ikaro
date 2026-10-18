@@ -48,12 +48,12 @@ GET /v1/customers/:customerId/loyalty/balance
 
 GET /v1/customers/:customerId/loyalty/entries?page=1&limit=20
   → { items: LoyaltyEntryItem[], total, page, limit }
-  LoyaltyEntryItem: { id, serviceName, points, earnedAt, expiresAt, isActive }
+  LoyaltyEntryItem: { id, bookingId, serviceName, points, earnedAt, expiresAt, isActive }
   Note: isActive = expiresAt > now(), computed by GetLoyaltyEntriesUseCase
 
 GET /v1/customers/:customerId/loyalty/redemptions?page=1&limit=20
   → { items: LoyaltyRedemptionItem[], total, page, limit }
-  LoyaltyRedemptionItem: { id, pointsRedeemed, amountDeducted, redeemedAt, bookingId?, notes? }
+  LoyaltyRedemptionItem: { id, pointsRedeemed, amountDeducted, redeemedAt, bookingId: string | null, notes: string | null }
 ```
 
 All three require `X-Actor-Role: STAFF|MANAGER`.
@@ -93,8 +93,8 @@ searchCustomers(term?: string, limit?: number): Promise<CustomerSearchListRespon
 
 `packages/types/src/loyalty.dto.ts` matches the BFF staff-facing loyalty responses used by this page:
 - `EnrichedLoyaltyBalanceResponse` exposes `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`, and `conversionRate`
-- `PaginatedLoyaltyEntriesResponse` exposes `items[]` with `serviceName`, `points`, `earnedAt`, `expiresAt`, `isActive`, `bookingId?`
-- `PaginatedLoyaltyRedemptionsResponse` exposes `items[]` with `amountDeducted`, `bookingId?`, and `notes?`
+- `PaginatedLoyaltyEntriesResponse` exposes `items[]` with `serviceName`, `points`, `earnedAt`, `expiresAt`, `isActive`, `bookingId` (always a string)
+- `PaginatedLoyaltyRedemptionsResponse` exposes `items[]` with `amountDeducted`, `bookingId` (`string | null`), and `notes` (`string | null`)
 
 ## Known limitations
 
