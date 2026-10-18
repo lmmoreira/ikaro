@@ -809,6 +809,8 @@ Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGI
 **Docs to load:** M17 §2 security model
 
 **Description:**
+> **Superseded location:** `modules/iam` was deleted (dead code, M19-S02); the runtime service accounts now live in `infra/terraform/foundation/modules/runtime-identities/` and their bindings in `infra/terraform/foundation/modules/workload-iam/`. The text below is the original design.
+
 `modules/iam`: three runtime SAs per env — `ikaro-backend@`, `ikaro-bff@`, `ikaro-web@` — plus `ikaro-pubsub-invoker@` (the identity Pub/Sub push mints OIDC tokens as; the Pub/Sub **service agent** needs `iam.serviceAccountTokenCreator` on it — granted in S19). **No custom Scheduler SA** (corrected 2026-07-08): `pubsub_target` Scheduler jobs cannot run as a user SA — the **Cloud Scheduler service agent** performs the publish and gets `pubsub.publisher` on the three cron topics (S21). Takes `secret_ids` (the map output by S16's `modules/secrets`) as an input variable to reference the actual secret resources when granting per-SA accessor roles.
 
 **Scope split (clarified in discovery, 2026-07-18):** this module creates the 4 SAs and every binding resolvable against resources that already exist (S14 buckets, S16 secrets, project-level roles, self-grants). Bindings targeting resources created by *later* stories are documented in the table below for the full picture, but are actually created by the module that owns the target resource — `run.invoker` on a specific Cloud Run service is **S18's** (which already depends on S17 for the principal to exist); `pubsub.publisher` on a specific topic is **S19's** (same reasoning, transitively after S17 via S18).

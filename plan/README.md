@@ -28,18 +28,18 @@ GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the
 | [M01](M01-CI-QUALITY-GATES.md) | CI Quality Gates | Local | 7 | M00 |
 | [M02](M02-PLATFORM-CONTEXT.md) | Platform Context — Tenant Core | Local | 6 | M00 |
 | [M03](M03-AUTHENTICATION.md) | Authentication | Local | 8 | M02 |
-| [M04](M04-STAFF-MANAGEMENT.md) | Staff Management | Local | 5 | M03 |
+| [M04](M04-STAFF-MANAGEMENT.md) | Staff Management | Local | 6 | M03 |
 | [M05](M05-SERVICE-CATALOG.md) | Service Catalog | Local | 5 | M02 |
-| [M06](M06-CALENDAR-SCHEDULE.md) | Calendar & Schedule Availability | Local | 5 | M05 |
+| [M06](M06-CALENDAR-SCHEDULE.md) | Calendar & Schedule Availability | Local | 8 | M05 |
 | [M07](M07-BOOKING-CREATION.md) | Booking Creation | Local | 7 | M06, M03 |
 | [M08](M08-BOOKING-APPROVAL.md) | Booking Approval Workflow | Local | 6 | M07 |
 | [M09](M09-CANCELLATION-RESCHEDULING.md) | Cancellation & Rescheduling | Local | 4 | M08 |
-| [M10](M10-COMPLETION-LOYALTY.md) | Booking Completion + Loyalty | Local | 6 | M09 |
+| [M10](M10-COMPLETION-LOYALTY.md) | Booking Completion + Loyalty | Local | 9 | M09 |
 | [M11](M11-NOTIFICATIONS-CRON.md) | Notifications & Cron Jobs | Local | 8 | M10, M04 |
-| [M12](M12-HOTSITE-FRONTEND.md) | Hotsite Public Frontend | Local | 11 | M07, M02 |
-| [M13](M13-DASHBOARD-FRONTEND.md) | Dashboard Frontend | Local | 13 | M10, M11, M12 |
+| [M12](M12-HOTSITE-FRONTEND.md) | Hotsite Public Frontend | Local | 12 | M07, M02 |
+| [M13](M13-DASHBOARD-FRONTEND.md) | Dashboard Frontend | Local | 44 | M10, M11, M12 |
 | [M17](M17-CLOUD-DEPLOY.md) | Cloud Deploy: GCP Infrastructure, CI/CD, Hardening & Observability | **Cloud** | 56 | M13 |
-| [M18](M18-BOOKING-IMPROVEMENTS.md) | Booking Improvements | Local | 1 | M07, M12 |
+| [M18](M18-BOOKING-IMPROVEMENTS.md) | Booking Improvements | Local | 11 | M07, M12 |
 | [M19](M19-HOTSITE-CHATBOT.md) | Hotsite Chatbot | Local | 14 | M12, M13 |
 | [M20](M20-LEAD-FORM-MODULE.md) | Lead Form Hotsite Module | Local | 16 | M12, M13 |
 | [M21](M21-MULTIVERTICAL-FOUNDATION.md) | Multi-Vertical Scheduling: Foundation | Local | 6 | — |
