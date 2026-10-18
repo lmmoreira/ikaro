@@ -470,6 +470,11 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 
 **Open items for `/story-discovery`:** the per-file budget values; how a rule shared by tools with and without on-demand loading avoids being kept twice.
 
+**Inventory handed over by Story 2's discovery (2026-10-18), to be classified by Story 3C and acted on here:**
+- **CI-enforced bullets.** 13 bullets in §7 are marked CI-enforced (about 3.5 KB). A deterministic gate catches each one, so the always-on text needs only the trap's name and the gate; several still carry long rationale. Shrink them, with the rationale left in the doc each already points at.
+- **§9 step mechanics.** §9 is about 9 KB and applies only while implementing a story. Evaluate moving the step-by-step mechanics (commit format, push, `/pre-pr`, PR body, bot-fix loop detail) to the skills that already carry them (`/pre-pr`, `/pr-land`), keeping inline only the gates that must hold before any skill loads: the PR gate, the merge ask and the stuck conditions.
+- **Emphasis.** The file has 6 `NON-NEGOTIABLE`, about 48 `never`/`Never` and 25 `must`. Reserve the strong form for the gates that cost the most when broken, so it still stands out.
+
 ### Story 6 — Drop the numeric prefix from every numbered doc ⚪
 
 **Agent:** devops
@@ -514,3 +519,4 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 ## Follow-ups (not scheduled)
 
 - **`/story-discovery` Step 2 cross-check (after Story 1 ships).** Run `docs-for --file` over each path in a story's "Files to create/modify" and compare the result with its "Docs to load", flagging a relevant doc the author did not list (for example a story touching `apps/web/**` that does not cite `ENGINEERING_RULES_FRONTEND`). Deferred because it needs the tags and the helper to exist and be trusted, and it changes how a discovery loads context, which deserves its own measurement. Open it with `/create-story` once Story 1 is merged.
+- **Deterministic enforcement of the hard prohibitions (raised in Story 2's discovery, 2026-10-18).** `context.md` states several prohibitions as prose: no `git push --no-verify`, no `git add -A`, no `pkill -f <pattern>` in a session, no `gh pr create` before `/pre-pr`. Prose is followed probabilistically; a `PreToolUse` hook in the project's `.claude/settings.json` blocks the command deterministically, and the prose then shrinks to one line. The repository has no project hooks today (only `settings.local.json`, `commands/` and `skills/`). A hook changes what a session may run, so it needs its own story, a decision on which prohibitions are safe to block outright, and the explicit yes for a settings change. It covers Claude Code only; Codex and Gemini keep the prose. Open it with `/create-story`.
