@@ -144,7 +144,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 1 — Doc header contract: "When to load" and "Tags", plus a `docs-for` helper ⚪
+### Story 1 — Doc header contract: "When to load" and "Tags", plus a `docs-for` helper ✅ Done
 
 **Agent:** devops
 **Complexity:** L
