@@ -223,22 +223,24 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 ### Story 2 — Section-level routing in `context.md` §10, and the trims that pay for it ⚪
 
 **Agent:** devops
-**Complexity:** M
+**Complexity:** L
 **Docs to load:** `.copilot/context.md` §7 (How to edit this file), §9, §10, §13, §17; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling; `docs/ENGINEERING_RULES_BACKEND.md` § OpenRouter chatbot
 **Dependencies:** Story 0 (every `§` added here is verified by CI), Story 1 (the `docs-for` helper and the tags that the new §10 row points at)
 **Pattern:** plain composition — no named pattern applies. Dynamic loading: a trap keeps a one-line headline in the always-on file; its explanation is read from the doc on demand.
 
 **Description:**
 `context.md` §10 has 34 rows (the TD's earlier "36" was wrong); about 8 cite a `§ section`, the rest send the agent to a whole 100–250 KB file, so it greps and ranges to find the part the task needs. The file has 177 characters of budget headroom (§10: 14), so the pointers have to be paid for by lossless trims or a reviewed budget increase.
-1. **§10 routing.** Each row cites a `§ section` that exists, or says "whole file" and why. A row whose target depends on the task (a UC, an API resource, a milestone) says so and how to locate it (`grep -n 'UC-0NN'`), without a placeholder `§`. "Writing any code" stays three whole files, stated as such: they are the general rules for any code. Add a row pointing at `docs-for` and the tags, and rows for the docs no row routes today: `25-ERROR_CATALOG`, `21-TENANTS_SETTINGS_SCHEMA`, `RUNBOOKS` with `18-RELEASE_LIFECYCLE_OPERATIONS`, `23-INFRASTRUCTURE_SETUP` with `19-INFRASTRUCTURE_TOOLING_MAP`, `26-DATA_RETENTION_AND_PRIVACY`, and one product row for `01-BUSINESS_CONTEXT` and `20-COST_OPTIMIZATION_STRATEGY`. A new "LLM / OpenRouter / chatbot call" row points at the OpenRouter chatbot section of `ENGINEERING_RULES_BACKEND.md`.
+1. **§10 routing.** Each row cites a `§ section` that exists, or says "whole file" and why. A row whose target depends on the task (a UC, an API resource, a milestone) says so and how to locate it (`grep -n 'UC-0NN'`), without a placeholder `§`. "Writing any code" stays three whole files, stated as such: they are the general rules for any code. Add rows for the unrouted docs agents work on often: `25-ERROR_CATALOG`, `21-TENANTS_SETTINGS_SCHEMA`, and `RUNBOOKS` with `18-RELEASE_LIFECYCLE_OPERATIONS`; and one catch-all row, "anything not listed: `docs-for --tag <tag>` and read the doc's `When to load` line", which covers `23-INFRASTRUCTURE_SETUP`, `19-INFRASTRUCTURE_TOOLING_MAP`, `26-DATA_RETENTION_AND_PRIVACY`, `01-BUSINESS_CONTEXT` and `20-COST_OPTIMIZATION_STRATEGY` through Story 1's headers and tags instead of one row each. A new "LLM / OpenRouter / chatbot call" row points at the OpenRouter chatbot section of `ENGINEERING_RULES_BACKEND.md`.
+   **Where the value is.** Measured 2026-10-18, the rows that name whole docs load these many bytes if read whole: Implement a UC 422 KB, Database/migration/lock 357 KB, BFF implementation 289 KB, Hotsite frontend 254 KB, Dashboard frontend 197 KB, Event handler 190 KB, API endpoint 153 KB, Testing patterns 112 KB, CI failure 99 KB. These rows get the pointers first (for example `ENGINEERING_RULES_BACKEND.md`, 91 KB, is named whole by three rows). **Pointer rules:** one or two sections per row, or the locate method for a task-dependent row; never a list of every section, which would restate a table of contents; the cited text is a specific heading, never a generic one (`Overview`, `References`), because the checker accepts any heading that exists.
 2. **Lossless trims.** Delete the `**Last updated:**` line, and with it `LAST_UPDATED_LINE_REGEX` and its test in `agent-context-file.ts`. Correct the editing notice to the three symlinks that exist (`CLAUDE.md`, `AGENTS.md`, `gemini.md`; there is no `claude.md`). Drop the two "kept per safeguard" notes. Cut §9 Step 5's parenthetical that restates `pr-land.md` (the skill loads its own Core Rule and Step 3).
-3. **Dynamic-loading trims.** For the Cloud Run/OTel bullet, the OpenRouter bullet, the Terraform/infra "cross-layer deployment invariants" and the testing traps that point at `ENGINEERING_RULES_TESTING.md`: keep each trap's one-line headline and its `→ doc § heading` pointer in the file, and move nothing out that is not already in the target doc. Before shortening a bullet, grep the target section and confirm it holds every fact the bullet drops (dates, incident history, caveats). A bullet whose target section does not hold it stays unchanged. No trap's existence is removed from the always-on file; only its explanation moves to the doc.
+3. **Dynamic-loading trims.** Only these four groups (any other candidate is left to Story 5B's classification): the Cloud Run/OTel bullet, the OpenRouter bullet, the Terraform/infra "cross-layer deployment invariants" and the testing traps that point at `ENGINEERING_RULES_TESTING.md`: keep each trap's one-line headline and its `→ doc § heading` pointer in the file, and move nothing out that is not already in the target doc. Before shortening a bullet, grep the target section and confirm it holds every fact the bullet drops (dates, incident history, caveats). A bullet whose target section does not hold it stays unchanged. No trap's existence is removed from the always-on file; only its explanation moves to the doc.
 4. **Budgets.** After the edits, set `agent-context-policy.json`'s file and §10 limits to the new actual sizes, no slack. The increase is expected to be about 1 KB for the file and 1.5–2 KB for §10 and must be stated in the PR with the reason.
 
 **Decisions locked in story-discovery (2026-10-18):**
 - Trim only what loses no context; where a trim would lose information or quality, raise the budget instead.
 - The dynamic-loading trims are done here, not deferred to Story 5B, in the headline-kept form above. Story 5B inherits the shortened bullets and the new triggers as its starting inventory and measures whether they fire.
-- §13 is left alone (it is already five one-line pointers); §17 is left alone (agent-agnostic table); the `docs-for` row is added.
+- §13 is left alone (it is already five one-line pointers); §17 is left alone (agent-agnostic table); the `docs-for` row is added, and unrouted docs not worked on often are covered by one catch-all row (Story 1's headers and tags already make them findable) rather than a row each.
+- Complexity is L: about 20 bullets are verified one by one against their target sections, and about 30 pointers are added.
 - The before/after bytes per row come from a throwaway script using each cited section's line range, run in the scratchpad and pasted into the PR body; the script is not committed.
 
 **New migration / i18n keys / env vars / feature flags:** none
@@ -247,12 +249,14 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - `.copilot/context.md` (modify — §10 rows, header, §7 and §9 trims; edit this file directly, never through the symlinks)
 - `packages/architecture-check/agent-context-policy.json` (modify — budgets; remove the dead `Last updated` handling if the policy mentions it)
 - `packages/architecture-check/src/detectors/agent-context-file.ts` and `agent-context-file.spec.ts` (modify — delete `LAST_UPDATED_LINE_REGEX` and its test)
-- `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify only if a shortened bullet's scenario cites wording that moved)
+- `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify — a scenario for each shortened bullet that lacks one, and the moved wording for those that have one)
 - `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — the "36 of 36" metric row)
 
 **Acceptance criteria — product:**
-- [ ] Every §10 row cites a `§ section` that exists, or states "whole file" with a reason; every top-level live doc is reachable from some row or from `docs-for`.
+- [ ] Every §10 row cites a `§ section` that exists, or states "whole file" with a reason; no row that loads more than 100 KB if read whole stays so without a stated reason.
+- [ ] Every top-level live doc is cited by a row or covered by the catch-all `docs-for` row, and the catch-all row names how to use it.
 - [ ] Each shortened bullet is listed in the PR with the target section that holds every dropped fact; none is shortened without that check.
+- [ ] For every shortened bullet that has a scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, the scenario is re-run against the new text and its result is recorded in the PR; a shortened bullet with no scenario gets one, or the PR states the gap.
 - [ ] Before/after bytes an agent reads per §10 row, and the file's before/after size and budgets, are recorded in the PR.
 - [ ] The file has no `Last updated` line and names only the three real symlinks.
 
