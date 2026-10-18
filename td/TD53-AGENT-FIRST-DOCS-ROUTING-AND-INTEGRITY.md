@@ -6,9 +6,9 @@
 - **Context**: `docs/`, `.copilot/context.md`, `.claude/commands/`, `packages/architecture-check`
 - **Created**: 2026-10-17
 - **Discovered**: a chat review of `/docs-audit`'s fit (2026-10-17), then measuring how agents actually read these docs from the repo's own session transcripts
-- **Decision status**: Drafted 2026-10-17; re-scoped the same day from a human-oriented folder reorganisation to agent-first routing and integrity once the transcript measurements below were taken. Each story still begins with `/story-discovery`.
+- **Decision status**: Drafted 2026-10-17; re-scoped the same day from a human-oriented folder reorganisation to agent-first routing and integrity once the transcript measurements below were taken. Story 1 was re-scoped again in its own `/story-discovery` on 2026-10-18 (tags and a `docs-for` helper replace `Verified against` and `Audit bucket`). Each story still begins with `/story-discovery`.
 - **Review 2026-10-17**: reviewed against the repository the same day; Story 3 split into 3A/3B/3C, Story 5 preceded by a mechanism spike (5A), Stories 1 and 0 tightened, Stories 4 and 6 gated on the Decision record, success metrics added.
-- **Related**: TD52 (cancelled 2026-10-17 and folded into Story 1: the deep/light classification lives in each doc's header, not in a registry JSON), TD41 (canonical-home rule, `ENGINEERING_RULES_*` split), TD37 (`architecture-check` decisions), `.claude/commands/docs-audit.md`, `CLAUDE.md` §10
+- **Related**: TD52 (cancelled 2026-10-17 and folded into Story 1; re-scoped in Story 1's discovery on 2026-10-18 so the classification is each doc's `Tags` plus one tag vocabulary in the policy file, not per-doc code lists), TD41 (canonical-home rule, `ENGINEERING_RULES_*` split), TD37 (`architecture-check` decisions), `.claude/commands/docs-audit.md`, `CLAUDE.md` §10
 
 ## Problem
 
@@ -21,7 +21,7 @@ This repository is mainly maintained by AI agents running a mostly unattended fl
 - **Routing is coarse.** Only 8 of the 36 rows of `.copilot/context.md` §10 cite a `§ section`; the rest point at a whole file.
 - **The always-on context is the biggest fixed cost.** `.copilot/context.md` is 57,647 characters loaded in every session, whatever the task: §7 Engineering Rules alone is 24,439 (42%), §9 Story Workflow 9,029, §10 5,379. No nested context file exists anywhere in the repo, so nothing is loaded by area.
 - **The grep surface is mostly not live docs.** `docs/` holds about 4.9 MB, of which the 45 live top-level docs are about 1.9 MB; `docs/archive` (59 files, 1.46 MB, superseded) and `docs/discovery` (115 files, 1.59 MB) make up the rest. Ten archive files still mention the superseded UC-014/UC-015, so a grep of `docs/` can land on wrong context.
-- **Orientation is missing where it matters.** Only 7 docs carry a "When to load" line, and none of the 18 docs over 30 KB do.
+- **Orientation is missing where it matters.** Only 8 of the 45 top-level docs carry a "When to load" line (re-measured 2026-10-18), and only 3 of the 18 docs over 30 KB do (`ENGINEERING_RULES_BACKEND`, `_SHARED`, `_TESTING`).
 - **Nothing checks pointers outside `context.md`.** The `agent-context-file` detector validates only `.copilot/context.md`; a moved, renamed or reworded target in any other doc, skill, TD, milestone or code comment fails silently. `docs/*.md` is cited in about 640 files / 3,930 occurrences (`plan/` 1,688, `apps/` 628 — 462 of them `.ts`/`.tsx` comments — `.claude/` 148, `.copilot/context.md` 131, `packages/` 118, `td/` 56).
 
 Limits of this evidence: one repository, mostly Claude Code; other agents (Codex, Gemini) may read differently and are not visible in these transcripts.
@@ -39,7 +39,7 @@ Principles:
 - **Keep the grep surface to live, agent-facing text.** Superseded material moves out of `docs/` to a top-level `archive/`; it stays in the repository and keeps its history, it just stops appearing in docs searches.
 - **Optimise tokens by loading less up front and more on demand.** Always-on context stays small; everything else loads by trigger (a `§ section` pointer, a path-scoped context file, a skill invoked by name).
 - **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5B).
-- **One canonical home per fact.** The "when to load" statement lives in each doc's own header, and travels with the doc together with its "Verified against" field (the code or config it is checked against, or `none (light check)`). There is no separate registry file, so there is nothing to keep in sync and the classification survives a rename or move.
+- **One canonical home per fact.** The "when to load" statement and the doc's `Tags` live in each doc's own header and travel with it. The tag vocabulary, with each tag's code globs, lives once in `architecture-policy.json`, so a moved doc keeps its classification and a moved code folder is a one-line policy edit. There is no per-doc code list to go stale, and deep versus light checking is derived from the tags (a tag with code globs makes a doc deep-checked).
 - **No table of contents to maintain.** `grep -n '^##' <doc>` already gives an agent the structure, and a hand-kept contents block would be one more thing to drift.
 
 Rejected, with the condition to reopen:
@@ -52,8 +52,8 @@ Rejected, with the condition to reopen:
 | Metric | Baseline | Target | Story |
 |---|---|---|---|
 | Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 |
-| Docs over 30 KB with a "When to load" line | 0 of 18 | 18 of 18, enforced by CI | 1 |
-| Top-level docs declaring `Verified against` | 0 of 45 | 45 of 45, enforced by CI | 1 |
+| Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 |
+| Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 |
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 36 | 36 of 36 | 2 |
 | Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B |
@@ -144,51 +144,79 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 1 — Doc header contract: "When to load" and "Verified against" ⚪
+### Story 1 — Doc header contract: "When to load" and "Tags", plus a `docs-for` helper ⚪
 
 **Agent:** devops
 **Complexity:** L
-**Docs to load:** `docs/STORY_SCHEMA.md` (the existing header pattern); `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `.claude/commands/docs-audit.md` Step 3i
-**Dependencies:** Story 0 (so every path a header cites is checked by CI)
-**Pattern:** plain composition — no named pattern applies
+**Docs to load:** `docs/STORY_SCHEMA.md` (the existing header pattern); `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `.claude/commands/docs-audit.md` Step 1, Step 2b and the `changed` mode; `packages/architecture-check/src/detectors/doc-link-integrity.ts` (the model for policy in, `ScanResult` out)
+**Dependencies:** Story 0 (so every path a header or a tag glob cites is checked by CI)
+**Pattern:** plain composition — one shared module (`doc-tags.ts`) consumed by a CI detector and a CLI, so the two cannot disagree
 
 **Description:**
-Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md` is the model); none of the 15 docs over 30 KB do. Add a one-line orientation to each large doc — when it applies, which apps/layers/contexts it covers, and which neighbouring doc holds what it does not — written from the doc's actual content, not from its title. Add a detector `doc-orientation` that fails when a `docs/*.md` over the size threshold has no `**When to load:**` line within its first 15 lines. The threshold and the exclusions (`docs/archive/**`, `docs/discovery/**`, `docs/lean/*`) live in the policy file. This adds context only; no existing text is changed or removed. No contents block is added (see Chosen approach).
+Eight of the 45 top-level docs open with a `> **When to load:** …` line (`STORY_SCHEMA.md` is the model); 37 do not, including 15 of the 18 docs over 30 KB. `/docs-audit` also carries two hand-kept lists (deep-check and light-check docs) and four hand-kept bucket lists, which drift: nothing checks them, and a new doc is silently "unclassified". This story gives every live doc a two-field header and moves the classification into one reviewed place.
 
-**Folded in from TD52 (cancelled 2026-10-17).** The header contract covers every top-level `docs/*.md`, not only the large ones, and carries three fields: `**When to load:**`, `**Verified against:** <code or config paths/globs>` or `none (light check)`, and, for deep docs, `**Audit bucket:** schema-data | architecture-contracts | standards-structure | process-infra`, so `/docs-audit` keeps its four-agent grouping (Step 2b) without carrying a list. `doc-orientation` requires both on every doc, and fails when a listed path or glob matches nothing (a `none (light check)` value is valid). Entries may be globs (`apps/backend/src/**/*.aggregate.ts`), because many docs are verified against a set of files, not one; a prose-only artifact is not accepted. The size threshold gates only the "When to load" line; "Verified against" is required on every non-excluded doc regardless of size, so a new doc cannot be added without declaring its class. `.claude/commands/docs-audit.md` Step 1 drops its inline deep/light lists and derives the deep and light sets, and each doc's artifacts, by grepping the headers; its stale `docs/ENGINEERING_RULES.md` wording (now a 94-line index, not a possible leftover copy) is corrected in the same change. Detector settings go in the existing `architecture-policy.json`; no new policy file.
+**The header contract.** Every top-level `docs/*.md` carries, in one blockquote right after the H1 and within its first 15 lines:
+- `> **When to load:** <trigger, scope (apps, layers, contexts), and the neighbouring doc that holds what this one does not>`, written from the doc's actual content, not its title, at least 20 characters;
+- `> **Tags:** <one or more tags, comma-separated>` from a closed vocabulary.
+There is no size threshold: the rule is the same for a 2 KB doc and a 250 KB doc. `Verified against` and `Audit bucket` (the TD52 fold-in) are dropped: a hand-written per-doc code list goes stale quickly and CI could only catch a dead glob, not a wrong one, and tags give the same scoping in one place.
 
-**Header placement.** Both fields sit in one blockquote within the first 15 lines. Before the detector lands, the story checks that no doc has a longer preamble that would push them out; where one does, the fields go above it. Because the classification now lives in the docs, `/docs-audit changed` maps changed code to docs by grepping the `Verified against` globs instead of the bucket prose. The Codex copy of the skill is regenerated with `scripts/codex-skill.sh`.
+**The tag vocabulary** lives once in `architecture-policy.json`, under a new `docOrientation` section: each tag has a one-line description and zero or more code globs. Starting set: `backend`, `bff`, `web`, `database`, `events`, `tenancy`, `infra`, `testing`, `prototypes` (each with globs, verified against the real tree at implementation time) and `product`, `agent-process` (no globs). A doc is **deep-checked** when at least one of its tags has globs and **light-checked** otherwise, so there is no separate deep/light marker. A moved code folder is a one-line policy edit, and a moved doc keeps its tags.
+
+**The detector `doc-orientation`** (runs in `architecture-check`, hence in `ci:fast` and on every PR) fails when a top-level `docs/*.md` has no `When to load` line within 15 lines or one shorter than 20 characters, no `Tags` line, an empty tag list, or a tag outside the vocabulary; and when a vocabulary tag is used by no doc, or a tag with globs matches no tracked file. `docs/archive/**`, `docs/discovery/**` and `docs/lean/*` are excluded in the policy.
+
+**The helper `docs-for`** (a second entry point of `packages/architecture-check`, same matcher as the detector, run as `pnpm --filter @ikaro/architecture-check docs-for …`):
+- `--file <path…>` prints each file's tags, then the docs carrying them;
+- `--range <a>..<b>` does the same for every file changed in a git range, and lists the changed files that mapped to no tag;
+- `--tag <name…>` lists the docs for a tag ("audit all the backend docs");
+- output is one doc per line marked `deep` or `light`; `--json` gives the same data; an unknown tag exits non-zero.
+It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer instead of an agent reading the policy JSON and guessing.
+
+**Skills.** `.claude/commands/docs-audit.md` drops its inline deep-check and light-check lists, the "unclassified" rule and the bucket doc lists. Scope resolution calls `docs-for` (a doc path reads its `Tags`, `changed` uses `--range`, a tag uses `--tag`); the four Step 2b agents keep their grep instructions, keyed by tag: `database` and `events` to the schema/data agent; `backend`, `bff`, `web` and `tenancy` to the architecture/contracts agent; `infra` to the process/infra agent; `testing` and `agent-process` to the standards/structure agent; a doc with several tags goes to the agent of its first tag. Its stale `docs/ENGINEERING_RULES.md` wording is corrected. `.claude/commands/mark-done.md` Step 4 states that its docs audit is tag-driven and that "mapped to no doc" now means "mapped to no tag". `.claude/commands/discovery-to-milestone.md` line 77 stops citing "`/docs-audit`'s own deep-check docs bucketing" and uses the tags and `docs-for --tag`. The Codex copies are regenerated with `scripts/codex-skill.sh`. `docs/10-OBSERVABILITY_STRATEGY.md` carries the retired `Verified against` and `Audit bucket` lines (added by Story 0); they are replaced by `Tags`. `docs/DEFINITION_OF_DONE.md` gains one line: a story that adds a doc gives it both header fields.
+
+**Header placement.** Before the detector lands, the story checks that no doc has a preamble that pushes the fields past line 15; where one does, the fields go above it. This adds context only; no existing text is changed or removed. No contents block is added (see Chosen approach).
+
+**Decisions locked in story-discovery (2026-10-18):**
+- Both fields mandatory on all 45 live top-level docs, no size threshold; `When to load` at least 20 characters; tags comma-separated, at least one, no maximum.
+- Docs that Story 3B later deletes, moves or rewrites (`ENGINEERING_RULES.md`, `TD37-ARCHITECTURE-CHECK-DECISIONS.md`, `README.md`) are tagged now, so the rule has no exception and 3B only moves or deletes them.
+- `plan/journey/README.md` and `td/` files are out of scope for the detector; prototypes are reached through the `prototypes` tag's globs. Story 4 moves the journeys and must update those globs (see Story 4).
+- Glob matching uses `picomatch`, added to `packages/architecture-check/package.json` (explicit yes obtained in discovery).
+- Deep versus light is derived from the tags (a tag with globs makes a doc deep); there is no separate marker.
+- The `docs-for` helper is in this story, not a follow-up.
+- Not in scope: `/story-discovery` is unchanged (see Follow-ups at the end of this document).
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `packages/architecture-check/src/detectors/doc-orientation.ts` (new)
-- `packages/architecture-check/src/detectors/doc-orientation.spec.ts` (new)
-- `packages/architecture-check/src/index.ts`, `packages/architecture-check/src/cli.ts` (modify — export, register)
-- `packages/architecture-check/architecture-policy.json` (modify — threshold and exclusions)
-- `.claude/commands/docs-audit.md` (modify — Step 1 derives deep/light and artifacts from headers; fix stale `ENGINEERING_RULES.md` wording)
-- Every remaining top-level `docs/*.md` (modify — add the two header fields, seeded from the skill's current deep/light lists, verified against `ls docs/*.md`)
-- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — one detector-table row)
-- `.agents/skills/docs-audit/SKILL.md` (regenerated with `scripts/codex-skill.sh`, not edited by hand)
-- The 18 docs over 30 KB (2026-10-17 measurement, largest first): `04-USE_CASES`, `14-API_CONTRACTS`, `02-DOMAIN_MODEL`, `13-DATABASE_SCHEMA`, `ANTI_PATTERNS`, `27-BUSINESS_LOGIC_REFERENCE`, `CI_TRAPS`, `ENGINEERING_RULES_BACKEND`, `08-TESTING_STRATEGY`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `03-DOMAIN_EVENTS`, `24-BFF_ARCHITECTURE`, `05-BOUNDED_CONTEXTS`, `22-TECH_STACK_DECISIONS`, `AGENT_PATTERNS`, `ENGINEERING_RULES_TESTING`, `ENGINEERING_RULES_SHARED`, `21-TENANTS_SETTINGS_SCHEMA` (modify — a written, content-based "When to load" line each; re-measure at implementation time)
+- `packages/architecture-check/src/doc-tags.ts` and `doc-tags.spec.ts` (new — header parsing, vocabulary, glob-to-tag matching, deep/light derivation)
+- `packages/architecture-check/src/detectors/doc-orientation.ts` and `doc-orientation.spec.ts` (new)
+- `packages/architecture-check/src/docs-for.ts` and `docs-for.spec.ts` (new — the CLI)
+- `packages/architecture-check/src/index.ts`, `packages/architecture-check/src/cli.ts` (modify — export, register the detector)
+- `packages/architecture-check/package.json` (modify — `picomatch` and the `docs-for` script)
+- `packages/architecture-check/architecture-policy.json` (modify — `docOrientation` section: header lines, minimum length, exclusions, tag vocabulary with descriptions and globs)
+- `.claude/commands/docs-audit.md`, `.claude/commands/mark-done.md`, `.claude/commands/discovery-to-milestone.md` (modify) and their regenerated copies under `.agents/skills/` (via `scripts/codex-skill.sh`, not by hand)
+- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — the detector row and the `docs-for` helper)
+- `docs/DEFINITION_OF_DONE.md` (modify — one line)
+- `docs/10-OBSERVABILITY_STRATEGY.md` (modify — replace the two retired lines with `Tags`)
+- Every other top-level `docs/*.md` (modify — add `When to load` where missing, and `Tags` on all 45; each line written from reading the doc; re-measure the inventory at implementation time)
 
 **Acceptance criteria — product:**
-- [ ] Every doc over the threshold opens with a "When to load" line stating its trigger, scope and neighbouring doc.
-- [ ] A new large doc without the line fails `pnpm architecture-check` with a message naming it.
-- [ ] A new `docs/*.md` without a `Verified against` field fails `pnpm architecture-check` with a message naming it.
-- [ ] `/docs-audit` Step 1 carries no inline deep/light lists and derives them, the buckets and the artifacts from the doc headers; a dry run on one doc per bucket gives the same deep/light verdict as the old lists.
+- [ ] Every top-level `docs/*.md` opens with a `When to load` line stating its trigger, scope and neighbouring doc, and a `Tags` line from the vocabulary.
+- [ ] A new `docs/*.md` without either field, with an unknown tag, or with the field past line 15 fails `pnpm architecture-check` with a message naming it.
+- [ ] `docs-for --file`, `--range` and `--tag` return the right docs on the real repository, and a changed file that matches no tag is listed as unmapped.
+- [ ] `/docs-audit` Step 1 carries no inline deep/light lists, bucket doc lists or "unclassified" rule and derives them from `docs-for`; a dry run on one doc per tag group gives the same deep/light verdict as the old lists. No tracked skill file still names `Audit bucket` or `Verified against`.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `doc-orientation.spec.ts`: a doc over the threshold without the line is reported.
-  - [ ] `doc-orientation.spec.ts`: a doc over the threshold with the line inside the first 15 lines passes; with it on line 16 is reported.
-  - [ ] `doc-orientation.spec.ts`: a doc under the threshold and an excluded doc pass without the "When to load" line.
-  - [ ] `doc-orientation.spec.ts`: a deep doc with no `Audit bucket`, or an unknown bucket value, is reported.
-  - [ ] `doc-orientation.spec.ts`: a glob that matches nothing is reported; one that matches at least one file passes.
-  - [ ] `doc-orientation.spec.ts`: a doc with no `Verified against` field is reported; one listing a non-existent path is reported; `none (light check)` passes.
+  - [ ] `doc-tags.spec.ts`: a `Tags` line is parsed; a file path is mapped to every tag whose globs match it (several tags possible); a doc is deep when any tag has globs and light otherwise.
+  - [ ] `doc-orientation.spec.ts`: a doc with both fields in the first 15 lines passes; a missing `When to load`, one under 20 characters, a missing `Tags` line, an empty tag list and an unknown tag are each reported; a field on line 16 is reported.
+  - [ ] `doc-orientation.spec.ts`: a vocabulary tag used by no doc is reported; a tag with globs that match no file is reported; a glob-less tag is not.
+  - [ ] `doc-orientation.spec.ts` (negative guarantees): files under `docs/archive/**`, `docs/discovery/**` and `docs/lean/*`, and `.md` files outside the top level of `docs/`, are not scanned.
+  - [ ] `docs-for.spec.ts`: `--file`, `--range` (a temporary git repository fixture) and `--tag` each return the expected docs marked deep or light; a file with no tag is listed as unmapped; `--json` returns the same data; an unknown tag exits non-zero.
 - Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
 - Tenant isolation: none — no tenant data
 - E2E: none
+- [ ] `pnpm architecture-check` (including `doc-orientation`, `doc-link-integrity` and `agent-context-file`) passes on the real repository
+- [ ] The PR records the detector's added runtime and a before/after count of docs with each field
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -260,7 +288,7 @@ Seven docs already open with a `> **When to load:** …` line (`STORY_SCHEMA.md`
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-1. **`docs/README.md`.** State where a new doc goes and the one naming rule (`UPPER_SNAKE.md`; the numeric prefix is removed by Story 6 only if that story is approved), keeping the former reading order as an ordered list.
+1. **`docs/README.md`.** State where a new doc goes and the one naming rule (`UPPER_SNAKE.md`; the numeric prefix is removed by Story 6 only if that story is approved), keeping the former reading order as an ordered list. The convention paragraph also states the header contract Story 1 enforces: every doc opens with `When to load` and `Tags` lines, so a new doc is not a surprise CI failure.
 2. **Move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/`** (citations rewritten, proven by Story 0).
 3. **Delete `docs/ENGINEERING_RULES.md`** (a 94-line redirect index, cited by about 21 files outside archive and discovery) once the checker shows no citation still needs it.
 4. **Move `docs/archive/` to a top-level `archive/`.** 59 files, about 1.5 MB of superseded content; about 52 citations to rewrite. History is preserved by `git mv`. `docs/discovery/` stays where it is until its milestone is promoted.
@@ -328,7 +356,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite every outside citation with a script (about 790 occurrences plus 51 inside the subtree), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments, `td/TD50`, and any root config Story 3C listed. No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite every outside citation with a script (about 790 occurrences plus 51 inside the subtree), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments, `td/TD50`, and any root config Story 3C listed. No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. **Tags:** update the `prototypes` tag's globs in `architecture-policy.json` (`docOrientation`) to the new location, and give the journeys index doc (`plan/journey/README.md`, or its replacement at the new path) a `Tags` line, so `docs-for --tag prototypes` keeps finding the journeys; Story 1's `doc-orientation` fails if that tag's globs match nothing, which makes a forgotten update visible. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -462,3 +490,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - [ ] `/docs-audit changed` over the rename range reports zero dead pointers
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+## Follow-ups (not scheduled)
+
+- **`/story-discovery` Step 2 cross-check (after Story 1 ships).** Run `docs-for --file` over each path in a story's "Files to create/modify" and compare the result with its "Docs to load", flagging a relevant doc the author did not list (for example a story touching `apps/web/**` that does not cite `ENGINEERING_RULES_FRONTEND`). Deferred because it needs the tags and the helper to exist and be trusted, and it changes how a discovery loads context, which deserves its own measurement. Open it with `/create-story` once Story 1 is merged.
