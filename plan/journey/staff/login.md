@@ -20,7 +20,7 @@ flowchart TD
     Google --> Callback{"BFF /v1/auth/google/callback<br/>handleStaffLogin (existing record) ou<br/>invite-activation path (UC-025)"}
 
     Callback -->|"is_active=true<br/>UC-022 Caso A"| Dashboard["/dashboard/bookings<br/>Fila de Agendamentos"]
-    Callback -->|"is_active=false<br/>UC-022 Caso B"| FirstLogin["Superseded: /auth/first-login not built<br/>BFF redirects to /auth/error?reason=staff-deactivated"]
+    Callback -->|"is_active=false<br/>UC-022 Caso B"| AuthError
     Callback -->|"UC-025: ativa staff_record<br/>is_active false → true"| Dashboard
     Callback -->|"reason=not-a-staff-member"| AuthError["/auth/error?reason=..."]
     Callback -->|"reason=staff-deactivated"| AuthError
@@ -30,10 +30,8 @@ flowchart TD
     Callback -->|"reason=tenant-not-found"| AuthError
     Callback -->|"reason=tenant-deactivated"| AuthError
 
-    FirstLogin --> RetryHint["Mensagem: use o link<br/>do e-mail de convite"]
 
     class Login,Dashboard,AuthError existing
-    class FirstLogin gap
 ```
 
 ## Pages referenced

@@ -101,7 +101,7 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 
 **Published Events:**
 - `StaffInvited` — consumed by Notification Context (invitation email). Published on staff invite (UC-028) and during tenant provisioning (M04-S06 handles `TenantProvisioned` → creates first MANAGER → publishes `StaffInvited`).
-- `StaffDeactivated` — no consumers in MVP (sessions expire via JWT TTL).
+- `StaffDeactivated` — consumed by Booking (cascade-deactivates the wrapping `STAFF`-type `Resource`, UC-048) and the shared `audit-log` consumer; active sessions still expire via JWT TTL.
 
 > `ScheduleClosure` is owned by the **Booking Context** (it directly controls calendar availability). Staff Context reads closures for display but never writes them directly.
 
@@ -123,12 +123,12 @@ A single customer visit. A booking groups **one or more `BookingLine` entities**
 > block in `Booking.Properties` below.
 
 **Value Objects:**
-- `BookingId`, `BookingLineId` (UUIDs)
+- `BookingId`, `BookingLineId` (UUID identifiers — plain `string` ids in code, not dedicated value-object classes)
 - `BookingStatus` (PENDING, INFO_REQUESTED, APPROVED, REJECTED, COMPLETED, CANCELLED, NO_SHOW — the last added by M23 Cluster 3 / M23-S09, reachable only from APPROVED)
 - `BookingType` (GUEST, CUSTOMER)
-- `TimeSlot` (date, startTime, endTime)
+- `TimeSlot` (concept only — no `TimeSlot` class exists; a slot is a plain `{ startTime, endTime }` pair of strings, plus a date where relevant)
 - `Money` (price, currency)
-- `Duration` (minutes)
+- `Duration` (concept only — no `Duration` class exists; durations are plain integer minutes, e.g. `totalDurationMins`)
 
 **Properties:**
 ```
@@ -1313,7 +1313,7 @@ None. `EmailSent` / `EmailFailed` were never implemented as domain events — de
 > **Shared value objects:** `Money` and `Address` are used by multiple contexts (Booking, Customer, Loyalty). They live in `src/shared/value-objects/` — **not** inside any single context. Contexts import them from shared. All other value objects below (`Email`, `Phone`, `TimeSlot`, etc.) follow the same rule if used across contexts; otherwise they live inside their own context's `domain/value-objects/`.
 
 ### **Address**
-Brazilian postal address. Lives in `src/shared/value-objects/address.ts`. Used for customer `defaultAddress` and booking `pickupAddress`.
+Postal address. Country-spec driven. Lives in `src/shared/value-objects/address.ts`. Used for customer `defaultAddress` and booking `pickupAddress`.
 ```
 Address {
   street:       String          -- logradouro (e.g. "Rua das Flores")
@@ -1321,13 +1321,12 @@ Address {
   complement:   String | null   -- complemento (e.g. "Apto 4B", "Bloco C") — optional
   neighborhood: String          -- bairro (e.g. "Centro")
   city:         String          -- cidade (e.g. "Belo Horizonte")
-  state:        String          -- UF, 2 chars (e.g. "MG")
-  zipCode:      String          -- CEP, 8 digits no hyphen (e.g. "30130010")
+  state:        String          -- state/UF (e.g. "MG" for Brazil)
+  zipCode:      String          -- postal code (e.g. CEP "30130010" for Brazil, 8 digits no hyphen)
 }
 ```
 - Immutable (value object — replace, never mutate)
-- `zipCode` must match `/^\d{8}$/`
-- `state` must be a valid Brazilian UF
+- Validation is driven by the country's `AddressSpec` (`address.ts`): required fields, an optional postal-code regex, an optional state pattern and an optional required neighborhood. For Brazil: `zipCode` matches `/^\d{8}$/` and `state` is a valid UF.
 
 ### **Email**
 - Validates RFC 5322 format
@@ -1335,19 +1334,20 @@ Address {
 - Comparable by value
 
 ### **Phone**
-- Validates phone number format (Brazilian mobile/landline)
-- Stores in E.164 format (`+55...`)
+- Validates generic E.164 format `^\+[1-9]\d{6,14}$` (`packages/validation/src/phone.ts`) — any country code, not Brazil-only
+- Stores in E.164 format (e.g. `+55...` for Brazil)
 - Immutable
 
 ### **Money**
 Lives in `src/shared/value-objects/money.ts`.
 - Amount (Decimal — never float)
-- Currency (always `'BRL'` — Ikaro is Brazil-only)
-- Display format: `R$ 1.234,56` (Brazilian locale)
+- Currency (any ISO-4217 3-letter code, upper-cased; `'BRL'` is the default — localization is no longer Brazil-only, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`)
+- Display format: locale-driven (e.g. `R$ 1.234,56` for BRL in pt-BR)
 - Supports operations: add, subtract, multiply
 - Immutable
 
 ### **TimeSlot**
+Conceptual only — no `TimeSlot` class exists in code; slots are plain `{ startTime, endTime }` strings.
 - startTime: DateTime
 - endTime: DateTime
 - Validates: endTime > startTime
@@ -1380,7 +1380,7 @@ Configurable **per tenant** via `tenants.settings.loyalty.expiryDays` (integer, 
 
 When a `LoyaltyEntry`'s `expiresAt` passes:
 - The entry stops contributing to active balance (query-time filter — nothing is mutated).
-- No event is emitted. Customers are warned **in advance** via the weekly `PointsExpiringSoon` cron (see Domain Service `LoyaltyService.notifyExpiringSoon()`).
+- No event is emitted. Customers are warned **in advance** via the weekly `PointsExpiringSoon` cron (see `NotifyExpiringPointsJob`, `contexts/loyalty/application/jobs/notify-expiring-points.job.ts`).
 
 > The previous `LoyaltyStatus` enum (`BRONZE / SILVER / GOLD`) has been removed. The admin reads raw active-point totals and decides when to offer rewards — there is no automated tier in MVP.
 
@@ -1485,7 +1485,7 @@ HotsiteConfig {
 }
 ```
 
-**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `FOOTER`, `CHATBOT`.
+**Layout modules (types):** `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `FOOTER`, `CHATBOT`, `LEAD_FORM`.
 
 **Key methods:**
 - `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.

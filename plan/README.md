@@ -41,11 +41,11 @@ GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the
 | [M17](M17-CLOUD-DEPLOY.md) | Cloud Deploy: GCP Infrastructure, CI/CD, Hardening & Observability | **Cloud** | 56 | M13 |
 | [M18](M18-BOOKING-IMPROVEMENTS.md) | Booking Improvements | Local | 11 | M07, M12 |
 | [M19](M19-HOTSITE-CHATBOT.md) | Hotsite Chatbot | Local | 14 | M12, M13 |
-| [M20](M20-LEAD-FORM-MODULE.md) | Lead Form Hotsite Module | Local | 16 | M12, M13 |
+| [M20](M20-LEAD-FORM-MODULE.md) | Lead Form Hotsite Module | Local | 16 | M12, M13, M19 |
 | [M21](M21-MULTIVERTICAL-FOUNDATION.md) | Multi-Vertical Scheduling: Foundation | Local | 6 | — |
 | [M22](M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md) | Multi-Vertical Scheduling: Service Extensions & Availability Engine | Local | 6 | M21 |
 | [M23](M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md) | Multi-Vertical Scheduling: Appointment Booking & Extensions | Local | 51 | M21, M22 |
-| [M24](M24-MULTIVERTICAL-CLASSES-SESSIONS.md) | Multi-Vertical Scheduling: Classes & Sessions | Local | 22 | M21, M22 |
+| [M24](M24-MULTIVERTICAL-CLASSES-SESSIONS.md) | Multi-Vertical Scheduling: Classes & Sessions | Local | 22 | M21, M22, M23 |
 | [M115](M115-PRODUCTION-READINESS.md) | Production Readiness | Local | 4 | M10, M03, M00 |
 
 ---

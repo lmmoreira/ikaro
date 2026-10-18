@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | Pub/Sub push (D2) | topics/subs/DLQ/OIDC push | `IEventBus` port + one adapter + push guard | ~weeks (new adapter, e.g. Service Bus/SNS-SQS) | port confines damage; push is the only $0-idle option |
 | Cloud Run (D1) | service/job definitions | plain Docker images | ~days (any container runtime) | containers, not Terraform, carry the portability |
-| Cloud SQL private networking | PSA peering, auth proxy | plain Postgres 15 + `pg_dump` | ~days | zero engine-specific features (guardrail 4) |
+| Cloud SQL private networking | PSA peering, auth proxy | plain PostgreSQL 17 + `pg_dump` | ~days | zero engine-specific features (guardrail 4) |
 | Cloud Run Jobs (migrations) | job trigger plumbing | `typeorm migration:run` in the image | ~hours (any runner with DB access) | trivial surface |
 | Cloud Monitoring/Trace (D9) | dashboards, alert policies, exporter YAML block | OTLP + collector config + structured stdout | ~days (swap exporter, rebuild dashboards) | dashboards are cheap; instrumentation is the expensive part and stays portable |
 | Secret Manager | secret refs in Cloud Run | env-var contract in `env.validation.ts` | ~hours | apps read env vars, not SM APIs |

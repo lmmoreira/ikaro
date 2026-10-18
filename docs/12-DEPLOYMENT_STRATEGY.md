@@ -10,7 +10,7 @@ Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. 
 | Component | Runtime | Exposure |
 |---|---|---|
 | Web | Cloud Run | Public |
-| BFF | Cloud Run | Public application API |
+| BFF | Cloud Run | Internal: staging ingress is internal-only (reached through the web service); production sits behind the internal load balancer via the edge |
 | Backend | Cloud Run | Internal service ingress |
 | Database | Cloud SQL for PostgreSQL 17 | Private; application access through the Cloud SQL connector |
 | Events and scheduled triggers | Pub/Sub + Cloud Scheduler | Push/trigger infrastructure managed by Terraform |

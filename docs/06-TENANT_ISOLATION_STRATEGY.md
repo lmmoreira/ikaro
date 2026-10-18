@@ -32,7 +32,7 @@ We distinguish between two types of users to balance flexibility for customers a
 Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and cost-effectiveness, but enforces isolation through strict software patterns.
 
 ### **Logical Isolation (tenant_id)**
-- **Every Table:** Every single table in the database includes a `tenant_id` column, except the documented exemptions below (`shared.inbox`, which carries none, and `platform.chatbot_provider_balance`, platform-operator data).
+- **Every Table:** Every single table in the database includes a `tenant_id` column, except the documented exemptions below (`shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself).
 - **Query Pattern:** Every query **MUST** include a `tenant_id` filter.
   ```sql
   -- CORRECT

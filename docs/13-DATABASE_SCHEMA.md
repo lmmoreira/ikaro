@@ -57,7 +57,7 @@ Every mutable table includes:
 > The per-table rows below that write `DEFAULT now()` without `NOT NULL` are shorthand: every migration declares both audit columns `NOT NULL`.
 
 Optional where relevant:
-- `deleted_at` TIMESTAMP WITH TIME ZONE — soft delete (bookings, services, staff)
+- No `deleted_at` soft-delete column exists on any table — records are retained and deactivated through status/active flags instead
 - `created_by` / `updated_by` UUID — where the actor matters for audit
 
 ---
@@ -1065,8 +1065,8 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | customer_id | UUID | NOT NULL — no FK (cross-context ref to `customer.customers`) |
-| booking_id | UUID | NULLABLE (widened by M24 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
-| booking_line_id | UUID | NULLABLE (widened by M24 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
+| booking_id | UUID | NOT NULL today (planned, M24 Cluster 4, not built: widened to NULLABLE — see below) — no FK (cross-context ref to `booking.bookings`) |
+| booking_line_id | UUID | NOT NULL today (planned, M24 Cluster 4, not built: widened to NULLABLE) — no FK (cross-context ref to `booking.booking_lines`) |
 | class_session_booking_id | UUID | NULLABLE, added by M24 Cluster 4 — no FK (cross-context ref to `booking.class_session_bookings`) |
 | service_id | UUID | NOT NULL — no FK (cross-context ref to `booking.services`; denormalised for per-service queries) |
 | points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` (appointment) or `class_session_bookings.points_value_at_booking` (class), at completion |
@@ -1300,7 +1300,7 @@ await drainDomainEvents(booking, this.outboxPublisher); // 2. Insert outbox row,
 // inline on the happy path, or the scheduled sweep (SKIP LOCKED) if that fails/crashes.
 ```
 
-The event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 5 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `RecurringScheduleRenewalDue`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
+The 7 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 5 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `RecurringScheduleRenewalDue`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
 
 ### Consume-side: shared inbox (TD24-S04)
 

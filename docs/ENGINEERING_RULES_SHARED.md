@@ -9,10 +9,10 @@
 ## Repository slice ownership
 
 - **Backend:** bounded-context first. Canonical roots live under `apps/backend/src/contexts/<context>/`.
-- **BFF:** feature first. Business-owned code lives under `apps/bff/src/features/<capability>/`; `auth` and `uploads` are technical slices, not bounded contexts.
+- **BFF:** feature first. Business-owned code lives under `apps/bff/src/features/<capability>/`; `auth` is a technical slice, not a bounded context (there is no `uploads` slice in the BFF).
 - **Web:** domain feature first. Business-owned code lives under `apps/web/features/<domain>/`; `dashboard` and `hotsite` are shell slices only.
 - **Shared:** `shared/` is cross-cutting only. If a file has slice-specific policy, it belongs next to the owning feature or shell.
-- **Transitional roots:** current flat capability folders and generic buckets are allowed only while the TD21 migration is in flight. New code should land in the target slice path.
+- **Flat roots:** the migration to slice roots is done (no flat capability folders remain under `apps/web`, `apps/bff/src` or `apps/backend/src`). A new flat capability folder or generic bucket is not allowed; new code lands in its slice path.
 
 ---
 

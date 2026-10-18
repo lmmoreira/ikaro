@@ -36,6 +36,7 @@ This file is the fix: one schema, referenced everywhere. A new rule gets added o
 **Pattern:** <named architectural/GoF pattern, or "plain composition — no named pattern applies">
 ```
 
+- `Agent:` takes one value from the list, or a compound `a + b` (e.g. `backend-ts + bff-ts`, `devops + backend-ts`) when a story spans both; real files use the compound form widely.
 - Field name is **`Agent:`**, not `Agent target:` — matches every real file (`M20-S15`, `M12-S04`, `M17-S17`); the latter was a drafting-template-only variant, now retired.
 - `Pattern` is mandatory, not optional prose buried in the description. It's already required by `/story-discovery`'s Step 4q lock-in and `/create-td`'s own Step 6 self-dry-run — this just gives it a first-class line so it can't be silently skipped.
 

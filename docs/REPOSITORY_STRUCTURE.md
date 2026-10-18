@@ -29,7 +29,7 @@
 │   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
 ├── docker/               # Dockerfiles + docker-compose.yml (local dev)
-├── .copilot/context.md   # canonical agent context (symlinked as claude.md, CLAUDE.md, gemini.md)
+├── .copilot/context.md   # canonical agent context (symlinked as AGENTS.md, CLAUDE.md, gemini.md)
 └── docs/                 # source of truth documentation (see CLAUDE.md §10)
 ```
 
@@ -83,7 +83,7 @@ apps/backend/src/shared/
 │                     # localDayBounds*), escapeLikePattern, escapeHtml, redact-email/storage-path-for-logging, text-normalization —
 │                     # `ls apps/backend/src/shared/utils/` is the authoritative list
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
-├── observability/    # Logger, OTel tracer, structured log helpers
+├── observability/    # app-logger only (BaseAppLogger subclass); OTel/tracing code lives in packages/observability and apps/backend/src/tracing.ts
 ├── http/             # Shared validation-error mappers (address, VO); the RFC 9457 ProblemDetail type lives in packages/types
 ├── guards/           # role guards used by more than one context
 ├── decorators/       # cross-cutting decorators (e.g. @Public())
@@ -186,7 +186,7 @@ apps/web/
 ### Web placement rules
 
 - Domain-owned code lives under `features/<domain>/`.
-- Feature-local transport helpers use a normalized API folder: `features/<domain>/api/<resource>.ts` for client-safe code and `features/<domain>/api/<resource>.server.ts` for server-only code.
+- Feature-local transport helpers: `auth`, `customer` and `loyalty` use flat `api.ts` (client-safe) and `api.server.ts` (server-only) at the feature root; `booking` and `staff` use an `api/` folder with `<resource>.ts` / `<resource>.server.ts` files; `platform` has both the flat files and an `api/` folder. Follow the convention of the feature you are editing.
 - Feature-local non-transport shared logic belongs in sibling folders such as `model/`, `hooks/`, `components/`, or `utils/`, depending on the concern.
 - `features/platform/hotsite` owns hotsite page-model logic, manifest shaping, and public fetchers.
 - `shells/dashboard` owns authenticated dashboard composition and shell-only presentation.

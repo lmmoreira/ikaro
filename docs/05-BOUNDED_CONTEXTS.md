@@ -90,8 +90,8 @@ Notification Context subscribes:
 │  │                      │              │                           │  │
 │  │  Aggregates:         │              │  Aggregates:              │  │
 │  │  - LoyaltyEntry      │              │  - NotificationTemplate   │  │
-│  │    (append-only)     │              │  - NotificationLog        │  │
-│  │                      │  ServicePointsEarned, PointsExpiringSoon │  │
+│  │  - LoyaltyBalance    │              │  - NotificationLog        │  │
+│  │  - LoyaltyRedemption │  ServicePointsEarned, PointsExpiringSoon │  │
 │  │  Published:          │──────────────►                           │  │
 │  │  - ServicePointsEarned              │  Sends email via          │  │
 │  │  - PointsExpiringSoon│              │  IEmailSender port        │  │
@@ -136,6 +136,7 @@ Notification Context subscribes:
 - `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped); optionally scoped to one `Resource` (M21 Cluster 1).
 - `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`; optionally scoped to one `Resource` (M21 Cluster 1).
 - `Resource` — generic bookable unit (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`), tenant-scoped. **Added M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).** A `STAFF`-type resource wraps an existing `Staff` row by reference; every tenant gets exactly one active `LOCATION` resource by migration backfill. See `docs/02-DOMAIN_MODEL.md` § Booking Context.
+- `ServiceBookingIntakeSchema` — versioned per-service intake-question schema (M22).
 - `RecurringBookingSchedule` — a fixed-term recurring private reservation (`PENDING_APPROVAL`/`ACTIVE`/`CANCELLED`/`ENDED`); its occurrences are ordinary bookings linked by `recurringScheduleId`. **M23 Cluster 3** (UC-070/071).
 - `AvailabilityAlert` — a customer's "tell me when this opens" request, with an append-only notification-attempt history. **M23 Cluster 3** (UC-072/076).
 - `FutureCommitmentException` — a manager-owned worklist entry for a future booking affected by a resource deactivation (`OPEN`/`RESOLVED`/`DISMISSED`). **M23 Cluster 3** (UC-073/077).
@@ -220,12 +221,12 @@ Notification Context subscribes:
 - `loyalty_entries` — INSERT-only, UNIQUE(tenant_id, booking_line_id)
 - `loyalty_balances` — UNIQUE(tenant_id, customer_id); current_points CHECK >= 0
 - `loyalty_redemptions` — INSERT-only
-- `balance_expiry_log` — PK(tenant_id, customer_id, expiry_date) — idempotency for cron
+- `balance_expiry_log` — PK(entry_id), no `tenant_id` column — idempotency for cron
 - Event consumer dedup lives in `shared.inbox` (TD24-S04) — not a per-context table
 - See `docs/13-DATABASE_SCHEMA.md` for full column definitions.
 
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
-- `ServicePointsEarned` → consumed by Notification. **One event per `BookingLine`** — a 3-line booking produces 3 events.
+- `ServicePointsEarned` → consumed by Notification. **One event per booking** (`eventVersion` 2) — its `data.lines[]` carries one entry per `BookingLine`, so a 3-line booking produces 1 event with 3 lines.
 - `PointsExpiringSoon` (a Command published through the outbox, not a `DomainEvent`) → consumed by Notification. Forward-looking weekly warning.
 
 **Consumed Events:**
@@ -234,7 +235,7 @@ Notification Context subscribes:
 **Tech Stack:**
 - Event subscriber pattern (GCP Pub/Sub via `IEventBus` port — idempotent via `UNIQUE(tenant_id, booking_line_id)`)
 - Repositories for `loyalty_entries`, `loyalty_balances`, `loyalty_redemptions` (insert + select; balances also update)
-- `@Cron('0 2 * * *')` NestJS scheduler for daily expiry
+- Cloud Scheduler -> Pub/Sub trigger for the daily expiry (`infra/terraform/modules/scheduler/main.tf`); there is no in-process `@Cron` scheduler
 - **Weekly cron** (Mondays 06:00 UTC) for `PointsExpiringSoon` warnings
 
 **MVP constraints:** No tiers, no manual bonus adjustments, no bulk expiry triggers — only the daily cron and admin-recorded redemptions.
@@ -257,7 +258,7 @@ TENANT A: customer completes a booking with 3 lines:
 → Loyalty Context inserts 3 LoyaltyEntry rows and increments LoyaltyBalance by 5 (all in one tx):
      balance: current_points = 5
 
-→ Loyalty Context publishes 3 ServicePointsEarned events (one per line).
+→ Loyalty Context publishes 1 ServicePointsEarned event for the booking (its `lines[]` carries the 3 entries).
 
 ~173 days later, weekly cron notices entry1 expires within 7 days:
 → PointsExpiringSoon published; NO DB write.
@@ -303,6 +304,7 @@ TENANT B (completely separate):
 **Consumed Events** (the authoritative list is `infra/terraform/pubsub-catalog.json`; each is a named consumer, not a catch-all):
 - Booking: `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingNoShow`, `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended`, `AvailabilityAlertMatched`, and the reminder/daily-schedule commands. **Not** `BookingCompleted`.
 - Loyalty: `ServicePointsEarned`, `PointsExpiringSoon`.
+- Booking (resource impact, M23-S23): `ResourceDeactivationImpactRaised`, `BookingResourceReassigned`.
 - Staff: `StaffInvited`. Platform: `TenantProvisioned` (seeds the default templates).
 
 **Event-to-Email Mapping:**
@@ -351,7 +353,7 @@ PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points 
 
 **Tech Stack:**
 - Event subscriber pattern (GCP Pub/Sub via `IEventBus`)
-- Email template engine (Handlebars or EJS)
+- Email templating: custom `{{key}}` interpolation in `NotificationTemplate.render()` (no Handlebars/EJS)
 - `IEmailSender` port with `BrevoEmailAdapter` (prod) / `MailhogEmailAdapter` (local) implementations
 - Retry logic with exponential backoff
 
@@ -438,7 +440,7 @@ Same Person, Multiple Tenants:
 - Foundation for future role-based access control per-tenant
 
 **Database:** `staff` schema
-- Tables: staff_members, (schedule_closures in shared reference)
+- Tables: staff.staff, (schedule_closures in shared reference)
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 - Unique constraint: UNIQUE(tenantId, googleOAuthId) — per-tenant unique, which is what *allows* the same person to have separate active `Staff` rows at multiple tenants, not what prevents it. 2+ active rows → selection token → `/select-staff-tenant`.
@@ -601,12 +603,12 @@ ALTER TABLE loyalty.loyalty_entries
 -- booking_id UUID NOT NULL  ← just a column, no FK
 ```
 
-**One exception:** every table keeps `tenant_id` with a FK to `platform.tenants`. Tenant existence is a foundational platform invariant — not a context coupling.
+**One exception:** the `platform`-schema tables (chatbot, lead-form, hotsite tables) keep `tenant_id` with a FK to `platform.tenants`. Tenant existence is a foundational platform invariant — not a context coupling. Tables in other contexts' schemas carry `tenant_id` as a plain indexed column with no FK (`docs/13-DATABASE_SCHEMA.md` Global Standards).
 
 ```sql
--- ✅ tenant_id FK to platform.tenants is the one allowed cross-schema FK
-ALTER TABLE booking.bookings
-  ADD CONSTRAINT fk_bookings_tenant
+-- ✅ tenant_id FK to platform.tenants exists only within the platform schema's own tables
+ALTER TABLE platform.lead_form_configs
+  ADD CONSTRAINT FK_platform_lead_form_configs_tenant_id
   FOREIGN KEY (tenant_id) REFERENCES platform.tenants(id);
 ```
 
@@ -673,12 +675,12 @@ If two contexts represent the same real-world data, each owns its own copy. Data
 
 | Context | Owns | Reads | Watches |
 |---------|------|-------|---------|
-| Booking | Bookings, BookingLines, Services, ScheduleClosures, ScheduleOpenings, Resources, RecurringBookingSchedules, AvailabilityAlerts, FutureCommitmentExceptions | Customer, Staff, Platform settings (via the `booking-*` cross-context adapters) | `StaffDeactivated`, `TenantProvisioned`, its own cancel/reject/reschedule events and the `cron-reminders` trigger |
+| Booking | Bookings, BookingLines, Services, ServiceBookingIntakeSchemas, ScheduleClosures, ScheduleOpenings, Resources, RecurringBookingSchedules, AvailabilityAlerts, FutureCommitmentExceptions | Customer, Staff, Platform settings (via the `booking-*` cross-context adapters) | `StaffDeactivated`, `TenantProvisioned`, its own cancel/reject/reschedule events and the `cron-reminders` trigger |
 | Customer | Customers | — | — |
 | Staff | Staff members | — | `TenantProvisioned` (creates the first MANAGER) |
 | Loyalty | LoyaltyEntry (append-only, insert only), LoyaltyBalance, LoyaltyRedemption (append-only) | Customer, Booking and Platform: events for completions, plus synchronous reads through three Port+Adapters (`loyalty-booking`, `loyalty-customer`, `loyalty-platform` in `contexts/loyalty/infrastructure/cross-context/`) | `BookingCompleted` only — inserts one `LoyaltyEntry` per line; idempotent on `UNIQUE(tenant_id, booking_line_id)` |
 | Notification | NotificationTemplates, NotificationLogs | Booking projections, Customer, Staff, Platform settings (via the `notification-*` adapters) | A named list of Booking, Loyalty, Staff and Platform events (see the Notification section; not `BookingCompleted`) |
-| Platform | Tenants, HotsiteConfigs | — | — |
+| Platform | Tenants, HotsiteConfigs, ChatbotSessions/Messages/ProviderBalance, LeadFormConfigs, LeadFormSubmissions | — | — |
 
 ### **Consistency Model:**
 
@@ -742,7 +744,7 @@ Each context can be deployed independently:
 Backend Service 1: Booking Context API
 Backend Service 2: Loyalty Context Worker
 Backend Service 3: Notification Context Worker
-Frontend Service: React SPA
+Frontend Service: Next.js App Router app (`apps/web`)
 BFF Service: API Gateway
 
 Each has own pipeline, tests, database schema.
@@ -773,7 +775,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
 - Let a MANAGER configure a lead-capture form (up to 20 custom questions) on the hotsite, and let guests/logged-in customers submit it, protected by Cloudflare Turnstile + per-IP/per-tenant rate limits (UC-037–UC-043)
 
-**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` tables (see `docs/13-DATABASE_SCHEMA.md`)
+**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` + `lead_form_answers` + `lead_form_submission_question_refs` tables (see `docs/13-DATABASE_SCHEMA.md`)
 
 **Published Events:**
 - `TenantProvisioned` → consumed by **Staff** (first MANAGER), **Booking** (the tenant's location resource) and **Notification** (default-template seed), plus the shared `audit-log` consumer
@@ -784,7 +786,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Consumed Events:** none — Platform is the source for its own data (it only *publishes* `TenantProvisioned`). The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/04-USE_CASES.md` UC-033.
 
 **Dependencies:**
-- **Output:** All other contexts read `tenant_id` and `tenants.settings` from here (via repository, not API)
+- **Output:** All other contexts read `tenant_id` and `tenants.settings` from here through their cross-context adapters, which call Platform's exported `GetTenantByIdUseCase` (e.g. `loyalty-platform.adapter.ts`) — never Platform's repository or tables directly
 - **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/04-USE_CASES.md` UC-033–UC-036)
 
 **Tenant Isolation:**

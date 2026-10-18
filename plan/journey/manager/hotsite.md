@@ -18,7 +18,7 @@ flowchart TD
     Editor --> ToggleModule(("Liga/desliga módulo"))
     Editor --> ReorderModule(("Arrasta para reordenar"))
     Editor --> ConfigModule(("Click 'Configurar' em um módulo (M13-S36)"))
-    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (9 tipos)"]
+    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (10 tipos)"]
     ModuleConfigPanel --> Editor
     Editor --> EditSeo(("Edita título/descrição SEO"))
 
@@ -77,7 +77,7 @@ Folder: `manager/prototypes/hotsite/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
-| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (10 module types) / SEO tabs | UC-027 | ✅ Criado |
+| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (10 module types) / SEO / Manifest tabs | UC-027 | ✅ Criado |
 | `01b-color-error.html` | Invalid hex color error | UC-027 A1 | ✅ Criado |
 | `01c-image-upload-fallback.html` | Image upload failure → URL fallback | UC-027 A2 | ✅ Criado |
 | `01d-module-config-hero.html` | Per-module config drill-down (HERO, representative example) | — | ✅ Criado |

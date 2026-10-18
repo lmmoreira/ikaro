@@ -2,7 +2,7 @@
 
 **Phase:** Local Development
 **Goal:** Deliver the SESSION booking model end-to-end — recurring class schedule templates, generated sessions, capacity/waitlist-managed bookings (contract, pay-per-class, verified-guest group), recurring enrollments, class-access contracts, and staff close-out/attendance — completing the fourth and final cluster of the Multi-Vertical Scheduling discovery. This is the largest cluster: it also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable), UC-058's forward-referenced class-template availability check, UC-060's cross-family `resource_occupancy` exclusivity, and UC-075 — the whole tenant onboarding bootstrap and wizard, all seven presets, moved here from M23 on 2026-10-10 and scheduled last.
-**Depends on:** M21 (`Resource` aggregate), M22 (`Service.bookingModel`/`classResourceSlots`, availability engine, `resource_occupancy`), M23 (`booking_quote_revisions` precedent, `FutureCommitmentException`/no-show shape, nothing for onboarding: the UC-075 bootstrap and wizard (formerly M23-S10/S15) are now built in this milestone as S21/S05/S22). Exact M22/M23 story IDs aren't known while all three are drafted in parallel — dependencies below are cited at the concept/doc level, not `M22-Sxx`/`M23-Sxx` IDs; verify the real story IDs against the merged `plan/M22-*.md`/`plan/M23-*.md` files before running `/story-discovery` on any M24 story.
+**Depends on:** M21 (`Resource` aggregate), M22 (`Service.bookingModel`/`classResourceSlots`, availability engine, `resource_occupancy`), M23 (`booking_quote_revisions` precedent, `FutureCommitmentException`/no-show shape, nothing for onboarding: the UC-075 bootstrap and wizard (formerly M23-S10/S15) are now built in this milestone as S21/S05/S22). Where a story needs one specific M21/M22/M23 story it cites its exact ID (e.g. `M21-S01`, `M23-S11a`, `M23-S29`); a bare `M21`/`M22` means the milestone as a whole. Verify against `plan/M21-*.md`/`plan/M22-*.md`/`plan/M23-*.md` before running `/story-discovery` on any M24 story.
 **Blocks:** none — this is the final milestone of the Multi-Vertical Scheduling sequence.
 **Design rationale:** `docs/discovery/multivertical-booking/multivertical-booking.md` (Cluster 4, promoted via `/discovery-to-milestone` on 2026-08-31) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-078–107, `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract`/`ClassScheduleTemplateException`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § 4b, `docs/21-TENANTS_SETTINGS_SCHEMA.md`) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
@@ -47,10 +47,13 @@ graph TD
   S01 --> S05
   S21 --> S05
   S05 --> S22
+  S21 --> S22
   S04 --> S06
   S04 --> S07
   S02 --> S07
   S03 --> S07
+  S01 --> S08
+  S04 --> S08
   S06 --> S08
   S07 --> S08
   S07 --> S09
@@ -60,6 +63,7 @@ graph TD
   S07 --> S11
   S02 --> S11
   S01 --> S11
+  S08 --> S11
   S07 --> S12
   S11 --> S13
   S07 --> S13
@@ -80,6 +84,8 @@ graph TD
   S03 --> S19
   S07 --> S19
   S08 --> S19
+  S17 --> S20
+  S19 --> S20
 ```
 
 **Wave note (self-dry-run):** UC-084 ("Staff/Manager Cancels a Class Session With Existing Bookings") reads like a natural fit alongside UC-082/083 in S06, but its own precondition — "≥1 `ClassSessionBooking` in `CONFIRMED`/`WAITLISTED` status" — means it cannot exist until the `ClassSessionBooking` aggregate does (S07). Moved to S08, bundled with the booking-level cancellation story instead, since UC-084 step 3 ("System transitions every active booking on it to `CANCELLED`") is literally a bulk invocation of the same cancel mechanism UC-089 implements at the single-booking level — a real shared code path, not just a shared aggregate type.

@@ -16,7 +16,7 @@ Current `shared/lib/formatting/` inventory:
 
 | File | Exports |
 |---|---|
-| `format-money.ts` | `formatMoney(amount, locale, currency)` |
+| `format-money.ts` | `formatMoney(amount, locale, currency)`, `formatCurrencySymbol(locale, currency)` |
 | `format-duration.ts` | `formatDuration(minutes)` |
 | `format-time.ts` | `formatTime`, `formatDate`, `formatDateLong`, `formatMonthYear`, `formatMonthYearRange` (the visible-period label, e.g. "Outubro – Novembro 2026", M18-S11); re-exports `DateFormat` from `@ikaro/i18n` |
 | `date-utils.ts` | `toISODate`, `toISODateInTimezone`, `addDays`, `isSameDay`, `inWindow`, `dayNumber`, `dayCarouselLabel` — pure date math |
@@ -29,7 +29,7 @@ Current `shared/lib/formatting/` inventory:
 
 - `apps/web/shared/lib/api/` owns the browser/server BFF transport helpers that multiple features need.
 - `apps/web/shared/lib/i18n/` owns the shared Next Intl request helpers and locale resolution logic.
-- `apps/web/shared/utils/` owns pure helpers like phone formatting, date math, and initials.
+- `apps/web/shared/utils/` owns pure helpers like phone and postal-code formatting, digit/hex helpers, and initials (date math lives in `shared/lib/formatting/date-utils.ts`).
 - Feature-specific helpers should live under `apps/web/features/<domain>/...`; shell-specific helpers should live under `apps/web/shells/<surface>/...`.
 
 ### `DateFormat` and `TimeFormat` types — use `@ikaro/i18n`

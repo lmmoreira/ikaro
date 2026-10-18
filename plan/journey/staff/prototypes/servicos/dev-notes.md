@@ -94,7 +94,7 @@ Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `price
 const ServiceFormSchema = z.object({
   name:                  z.string().min(2).max(100),
   description:           z.string().max(500).optional(),
-  priceAmount:           z.number().min(0),
+  priceAmount:           z.number().positive(),
   durationMinutes:       z.number().int().min(1).max(480),
   loyaltyPointsValue:    z.number().int().min(0).optional().default(0),
   requiresPickupAddress: z.boolean().optional().default(false),

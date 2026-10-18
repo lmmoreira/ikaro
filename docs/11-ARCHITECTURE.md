@@ -75,7 +75,7 @@ graph TD
 The BFF serves a dynamic `Hotsite Manifest` (JSON) to the web hotsite shell. The manifest defines the branding (colors, logo) and the layout (which modules to render) for a specific tenant slug, while the route composition stays in `apps/web/shells/hotsite/` and the hotsite page model lives in `apps/web/features/platform/hotsite/`.
 
 ### **Role-Based Dashboard (UC-003+ )**
-The Dashboard shell uses the JWT role (`STAFF` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions. Composition stays in `apps/web/shells/dashboard/`; domain-owned booking, customer, staff, and platform logic stays in the matching feature slice.
+The Dashboard shell uses the JWT role (`STAFF`, `MANAGER` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions (manager-only routes such as settings, team, hotsite and resources are listed in `apps/web/proxy.ts`). Composition stays in `apps/web/shells/dashboard/`; domain-owned booking, customer, staff, and platform logic stays in the matching feature slice.
 
 ---
 
@@ -175,4 +175,4 @@ The architecture enforces tenant isolation at the **Adapter Layer**:
 ---
 
 **Status:** Phase 2 - Technical Architecture  
-**Next:** `12-DATABASE_SCHEMA.md` (Multi-tenant Table Design)
+**Next:** `13-DATABASE_SCHEMA.md` (Multi-tenant Table Design)

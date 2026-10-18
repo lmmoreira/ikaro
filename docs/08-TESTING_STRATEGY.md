@@ -1,6 +1,6 @@
 # Testing Strategy - Ikaro
 
-> **When to load:** writing or reviewing tests: the pyramid, domain, application, integration, contract and E2E layers, test data builders, the mandatory tenant-isolation test, concurrency tests, parallelism and CI quality gates; rules learned from failures are in `docs/ENGINEERING_RULES_TESTING.md`, CI failure causes in `docs/CI_TRAPS.md`.
+> **When to load:** writing or reviewing tests: the pyramid, domain, application, integration, contract and E2E layers, test data builders, the mandatory tenant-isolation and integration-app-helper patterns, concurrency tests, apps/web testing infrastructure (Vitest, axe, per-component coverage), parallelism and CI quality gates; rules learned from failures are in `docs/ENGINEERING_RULES_TESTING.md`, CI failure causes in `docs/CI_TRAPS.md`.
 > **Tags:** testing
 
 ## Philosophy
@@ -23,11 +23,11 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
 | Frontend unit + component | **Vitest** | Faster than Jest, native ESM, Vite-native |
 | Frontend components | **React Testing Library** | Tests behaviour, not implementation |
 | HTTP integration | **Supertest** | NestJS-native HTTP testing |
-| Real DB / Pub/Sub | **Testcontainers** | Ephemeral containers per test suite, no shared state |
+| Real DB / Pub/Sub | **Testcontainers** | One shared ephemeral Postgres container per integration run (started in `globalSetup`); isolation is per-tenant UUID |
 | API contract | **Spectral** *(planned — not implemented)* | OpenAPI linting — validates spec consistency in CI |
 | E2E | **Playwright** | Full browser automation, cross-context flows |
 | In-memory fakes | **Manual** | Hand-written in-memory adapters (see §In-Memory Adapters) |
-| Frontend API mocking | **MSW (Mock Service Worker)** | Intercepts BFF calls in browser and Vitest |
+| Frontend API mocking | **`vi.spyOn(globalThis, 'fetch')` / `vi.mock()`** | Vitest stubs for BFF calls (MSW is not used in `apps/web`) |
 
 ---
 
@@ -184,7 +184,7 @@ export class InMemoryBookingRepository implements IBookingRepository {
     this.store.set(`${booking.tenantId}:${booking.id}`, booking);
   }
 
-  async findByTenant(id: string, tenantId: string): Promise<Booking | null> {
+  async findById(id: string, tenantId: string): Promise<Booking | null> {
     return this.store.get(`${tenantId}:${id}`) ?? null;
   }
 
@@ -195,15 +195,15 @@ export class InMemoryBookingRepository implements IBookingRepository {
 
 // src/test/infrastructure/in-memory-event-bus.ts
 export class InMemoryEventBus implements IEventBus {
-  readonly publishedEvents: DomainEvent[] = [];
+  readonly published: Envelope[] = [];
 
-  async publish(event: DomainEvent): Promise<void> {
-    this.publishedEvents.push(event);
+  async publish(event: Envelope): Promise<void> {
+    this.published.push(event);
   }
 
   async subscribe(_eventName: string, _handler: Function): Promise<void> {}
 
-  clear(): void { this.publishedEvents.length = 0; }
+  clear(): void { this.published.length = 0; }
 }
 ```
 
@@ -228,10 +228,10 @@ describe('ApproveBookingUseCase', () => {
 
     await useCase.execute({ bookingId: booking.id, staffId: STAFF_ID, tenantId: TENANT_A });
 
-    const saved = await bookingRepo.findByTenant(booking.id, TENANT_A);
+    const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.status).toBe(BookingStatus.APPROVED);
-    expect(eventBus.publishedEvents).toHaveLength(1);
-    expect(eventBus.publishedEvents[0]).toMatchObject({
+    expect(eventBus.published).toHaveLength(1);
+    expect(eventBus.published[0]).toMatchObject({
       eventName: 'BookingApproved',
       tenantId: TENANT_A,
     });
@@ -247,7 +247,7 @@ describe('ApproveBookingUseCase', () => {
     ).rejects.toThrow(NotFoundError);
 
     // no events published for failed cross-tenant attempts
-    expect(eventBus.publishedEvents).toHaveLength(0);
+    expect(eventBus.published).toHaveLength(0);
   });
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -259,7 +259,7 @@ describe('ApproveBookingUseCase', () => {
       useCase.execute({ bookingId: booking.id, staffId: STAFF_ID, tenantId: TENANT_A }),
     ).rejects.toThrow(InvalidStateTransitionError);
 
-    expect(eventBus.publishedEvents).toHaveLength(0);
+    expect(eventBus.published).toHaveLength(0);
   });
 });
 ```
@@ -271,22 +271,22 @@ describe('ApproveBookingUseCase', () => {
 **Scope:** Repository adapters, event consumers, REST controllers. Uses real PostgreSQL (via Testcontainers) and the real GCP Pub/Sub Emulator.
 
 **Rules:**
-- Each context spins up its **own schema only**, not the full DB. Migrations run from `src/contexts/<context>/infrastructure/migrations/`.
-- `beforeAll`: start container, run migrations.
+- ONE shared Postgres container is started once per run in `src/test/integration-global-setup.ts` (wired in `apps/backend/jest.config.ts`); migrations run there, and specs connect through `TEST_DATABASE_URL`. A spec never starts its own container.
+- `beforeAll`: build the app/DataSource against the shared database.
 - `afterEach`: truncate context tables (not drop) — keeps the schema, clears data.
-- `afterAll`: stop container.
+- `afterAll`: destroy the DataSource / close the app (the container is stopped by global teardown).
 - Each test suite creates its own unique `tenantId` (UUID) to avoid cross-test contamination even within the same container.
 
-### Testcontainers setup (per context)
+### Testcontainers setup (illustrative — the real container lives in `integration-global-setup.ts`)
 ```typescript
-// src/contexts/booking/infrastructure/persistence/booking.repository.integration.spec.ts
+// src/contexts/booking/infrastructure/repositories/booking.repository.integration.spec.ts
 import { v7 as uuidv7 } from 'uuid';
 
 let dataSource: DataSource;
 let container: StartedPostgreSqlContainer;
 
 beforeAll(async () => {
-  container = await new PostgreSqlContainer('postgres:17')
+  container = await new PostgreSqlContainer('postgres:17-alpine')
     .withDatabase('ikaro_test')
     .start();
 
@@ -652,7 +652,7 @@ The Context Isolation Contract (Rule 1 in `docs/05-BOUNDED_CONTEXTS.md`) is expr
 
 - **The policy:** `contextDependencyMatrix` in `packages/architecture-check/architecture-policy.json` — `default: "deny"` plus a `permittedEdges` list. Each permitted edge names the exact source file (a cross-context adapter), the target context and the exact target paths it may import, with a rationale and an owner. There is no wildcard entry.
 - **The checker:** `scripts/dependency-cruiser.config.cjs` turns that policy into dependency-cruiser rules (denied by default; a permitted source may import only its exact target paths). `pnpm dep-cruise` runs it over the codebase.
-- **What is a blocking gate today:** `pnpm dep-cruise:test` (`scripts/dependency-cruiser-config.spec.cjs`), which proves the generated rules match the policy. **The scan itself, `pnpm dep-cruise`, runs in `pr-quality.yml` as a report-only step (`continue-on-error: true`), so a cross-context import does not fail a PR on its own.** Treat a finding in that report as a defect all the same, and add a permitted edge to the policy only with the rationale and review the policy requires.
+- **What is a blocking gate today:** `pnpm dep-cruise:test` (`scripts/dependency-cruiser-config.spec.cjs`), which proves that every permitted edge in the policy produces an exception limited to that edge's exact source and target paths (it does not scan the code). **The scan itself, `pnpm dep-cruise`, runs in `pr-quality.yml` as a report-only step (`continue-on-error: true`), so a cross-context import does not fail a PR on its own.** Treat a finding in that report as a defect all the same, and add a permitted edge to the policy only with the rationale and review the policy requires.
 - **ESLint** still bans related shortcuts through `no-restricted-imports` in `apps/backend/eslint.config.js` (the ports barrel, the shared-domain barrel, direct TypeORM use outside repository adapters); those do block merge.
 
 > **Note on `src/shared/`:** the policy governs context-to-context imports. Imports from `src/shared/` are the intended cross-cutting path and are allowed.
@@ -734,11 +734,11 @@ describe('RescheduleBookingUseCase', () => {
       adminNotes:   'Reagendado a pedido do cliente',
     });
 
-    const saved = await bookingRepo.findByTenant(booking.id, TENANT_A);
+    const saved = await bookingRepo.findById(booking.id, TENANT_A);
     expect(saved!.scheduledAt).toEqual(newSlot.startTime);
     expect(saved!.status).toBe(BookingStatus.APPROVED);
-    expect(eventBus.publishedEvents).toHaveLength(1);
-    expect(eventBus.publishedEvents[0]).toMatchObject({
+    expect(eventBus.published).toHaveLength(1);
+    expect(eventBus.published[0]).toMatchObject({
       eventName: 'BookingRescheduled',
       tenantId:  TENANT_A,
     });
@@ -759,7 +759,7 @@ describe('RescheduleBookingUseCase', () => {
       }),
     ).rejects.toThrow(NotFoundError);
 
-    expect(eventBus.publishedEvents).toHaveLength(0);
+    expect(eventBus.published).toHaveLength(0);
   });
   // ───────────────────────────────────────────────────────────────────────────
 
@@ -780,7 +780,7 @@ describe('RescheduleBookingUseCase', () => {
       }),
     ).rejects.toThrow(SlotUnavailableError);
 
-    expect(eventBus.publishedEvents).toHaveLength(0);
+    expect(eventBus.published).toHaveLength(0);
   });
 });
 ```
@@ -792,7 +792,7 @@ describe('RescheduleBookingUseCase', () => {
 ## Test Parallelism
 
 - **Domain and application tests** are stateless — run fully in parallel (`--runInBand false`, default Jest behaviour).
-- **Integration tests** each spin up their own Testcontainers instance. They run in parallel using Jest's `--maxWorkers` setting. Because each context owns its own schema and each test generates a unique `tenantId` (UUID), there are no port or data conflicts.
+- **Integration tests** share ONE Postgres container (started in `globalSetup`) and run with `--maxWorkers=1` (`apps/backend/package.json` `test:integration`). Because each test generates a unique `tenantId` (UUID), rows never collide even though the database is shared.
 - **E2E tests run in parallel, not sequentially** — `playwright.config.ts` sets `fullyParallel: true`, with `workers: process.env.CI ? 1 : undefined` (CI is effectively sequential; local runs default to multiple workers). This applies **within a single spec file** too — Playwright does not serialize tests inside one `test.describe()` block by default, only inside `test.describe.serial()`.
 - **A spec file whose tests mutate a shared, tenant-wide resource (hotsite config, tenant settings — one row per tenant, not a fixture created per test) must wrap that whole `test.describe()` in `.serial()`.** Without it, `fullyParallel` can run two of that file's own tests against the same tenant row concurrently, and one overwrites the other's setup mid-test. Confirmed in M18-S01: adding more `autospa-premium`-mutating tests to `hotsite-editor.spec.ts` broke an unrelated, previously-passing test in the same file via exactly this race. Restoration must live in `afterEach`, not an in-test `try/finally` — a test aborted by Playwright's own per-test timeout can skip straight past a `finally` block, but `afterEach` always runs.
 - **`.serial()` only orders a *single* file's own tests — it does not protect against a *different* spec file mutating the same shared tenant row concurrently.** `hotsite-editor.spec.ts` and `settings.spec.ts` both mutate `autospa-premium`'s tenant settings, but `settings.spec.ts` was never wrapped in `.serial()` — the two files can still theoretically race under a local multi-worker run. The only thing that actually rules this out is CI's `workers: 1` (the whole suite runs one test at a time there, so no two files' tests ever execute concurrently); a local full-suite run hitting this race is a false alarm for the gate that matters, not evidence of a bug — confirm with a `--workers=1` re-run before treating it as one. Real cross-file isolation (e.g. a dedicated tenant per file) would be the actual fix if this ever needs to hold locally too, not just in CI.
@@ -861,15 +861,15 @@ src/contexts/booking/
 │       ├── approve-booking.use-case.ts
 │       └── approve-booking.use-case.spec.ts ← application test (in-memory adapters)
 └── infrastructure/
-    ├── persistence/
-    │   ├── booking.repository.ts
-    │   └── booking.repository.integration.spec.ts  ← integration test (Testcontainers)
+    ├── repositories/
+    │   ├── typeorm-booking.repository.ts
+    │   └── booking.repository.integration.spec.ts  ← integration test (shared Testcontainers DB)
     ├── controllers/
     │   ├── booking.controller.ts
     │   └── booking.controller.integration.spec.ts  ← HTTP integration (Supertest)
-    └── event-consumers/
-        ├── booking-completed.consumer.ts
-        └── booking-completed.consumer.integration.spec.ts  ← event + idempotency test
+    └── events/
+        ├── booking-audit-log.handler.ts
+        └── booking-audit-log.handler.spec.ts  ← event handler test
 
 src/test/
 ├── infrastructure/          ← in-memory ports and shared doubles (InMemoryEventBus, InMemoryTransactionManager, InMemoryBookingPlatformPort, …)
@@ -955,13 +955,14 @@ In `afterEach`, use `resetAllMocks()` not `clearAllMocks()` — `clearAllMocks` 
 `src/test/utils/date-helpers.ts` exports:
 - `futureDate(daysAhead = 1)` — `YYYY-MM-DD` string, UTC
 - `pastDate(daysAgo = 1)` — `YYYY-MM-DD` string, UTC
+- `addDays(date: string, n: number)` — `YYYY-MM-DD` string shifted by `n` days
 - `nextWeekday(utcDayOfWeek: 0–6, weeksAhead?)` — next future date for that UTC day. 0 = Sunday … 6 = Saturday.
 
 Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextMonday`, etc. inline in any spec file.
 
 ### Shared address helper (mandatory — never inline)
 
-`src/test/utils/address-helpers.ts` exports `testAddress(overrides?: Partial<AddressProps>): Address` — a valid Brazilian `Address` VO with sensible defaults. Always import it instead of calling `Address.create({...})` inline.
+`src/test/utils/address-helpers.ts` exports `testAddress(overrides?: Partial<AddressProps>, countryCode = 'BR'): Address` — a valid Brazilian `Address` VO with sensible defaults — and `testAddressProps(overrides?)` for the raw props. Always import it instead of calling `Address.create({...})` inline.
 
 ### Integration test DB isolation
 
@@ -1031,7 +1032,7 @@ Currently affected helpers and their default overrides:
 |---|---|
 | `createBookingIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
 | `createNotificationIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService` (BookingModule pulled via `extraModules`); `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` (pass `useRealOutbox: true` to skip the `OUTBOX_PUBLISHER` override) |
-| `createLoyaltyIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus` |
+| `createLoyaltyIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `RoutingInMemoryEventBus`; `STORAGE_SERVICE` → `InMemoryStorageService`; `TENANT_SETTINGS_PORT` → `InMemoryTenantSettingsPort`; `LOYALTY_BOOKING_PORT` → the in-memory service catalog |
 | `createPlatformIntegrationApp()` | `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
 | `createCustomerIntegrationApp()` | `STORAGE_SERVICE` → `InMemoryStorageService`; `EVENT_BUS`/`OUTBOX_PUBLISHER` → same `InMemoryEventBus` |
 
@@ -1144,7 +1145,7 @@ it('has no axe violations', async () => {
 });
 ```
 - `toHaveNoViolations` registered globally via `expect.extend(toHaveNoViolations)` in `vitest.setup.ts`
-- `color-contrast` rule **disabled globally** in `vitest.setup.ts` — jsdom cannot resolve CSS custom properties (`--ba-primary`, etc.), causing false-positives on branding tokens; WCAG AA correctness is covered by `contrastRatio` unit tests in `apply-branding.spec.ts`
+- `color-contrast` rule **disabled in the shared `axe` instance** exported by `apps/web/axe-helper.ts` (`vitest.setup.ts` only registers the matchers) — jsdom cannot resolve CSS custom properties (`--ba-primary`, etc.), causing false-positives on branding tokens; WCAG AA correctness is covered by `contrastRatio` unit tests in `apply-branding.spec.ts`
 - `ContactModule`: pass `{ iframes: false }` to `axe()` — jsdom cannot scan cross-origin `<iframe>` (Google Maps embed)
 - **Dashboard/account components** use Ikaro's fixed design system (no `--ba-*` tokens) — use the **full** default axe ruleset including `color-contrast`
 

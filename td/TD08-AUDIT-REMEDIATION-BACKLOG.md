@@ -34,7 +34,7 @@
 | ID | Title | Risk | Effort | Phase | Depends on | Audit ref |
 |---|---|---|---|---|---|---|
 | **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
-| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
+| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock ✅ | 🔴 Critical | M | Now | — | §4.2, §4.3 |
 | **AUD-003** | Adversarial concurrency + event-failure test suite ✅ | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) ✅ | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
@@ -66,7 +66,7 @@
 | **AUD-030** | DB connection pool + PgBouncer + SSL | 🔴 Critical | M | Infra/Deploy | — | §13.1 |
 | **AUD-031** | Introduce Redis (unlocks 032/034/016/011) | 🟠 High | M | Infra/Deploy | — | §13.2 |
 | **AUD-032** | Distributed rate limiting + trust proxy + per-tenant | 🟠 High | S | Infra/Deploy | AUD-031 | §13.2 |
-| **AUD-033** | Readiness probe checks dependencies | ✅ Done | S | Infra/Deploy | M17-S04 | §13.3 |
+| **AUD-033** | Readiness probe checks dependencies ✅ | — | S | Infra/Deploy | M17-S04 | §13.3 |
 | **AUD-034** | Wire OpenTelemetry tracing + metrics ✅ | 🟠 High | M | Infra/Deploy | — | §13.4 |
 | **AUD-035** | LGPD / PII data-protection plan (design early) | 🟠 High | L | Pre-deploy | — | §13.5 |
 | **AUD-036** | Resilience: retry/backoff + circuit breaker (BFF→backend) | 🟡 Medium | M | Infra/Deploy | — | §13.6 |
@@ -472,7 +472,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-020 — Slim the `Booking` aggregate (event-payload factories)
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §5.3
-**Status:** ☐ Not started — and worse: re-verified 2026-08-19 at **709 lines**, up from the 615-line snapshot below. `lineSummaryPayload()`/`toAddressPayload()` are still inline, unextracted.
+**Status:** ☐ Not started — and worse: now **1050 lines** (up from the 615-line snapshot below). `lineSummaryPayload()`/`toAddressPayload()` are still inline, unextracted.
 
 **What's wrong:** `booking.aggregate.ts` was 615 lines (largest source file) at the original 2026-06-21 audit, well over the project's ≤200-line class rule, mostly inline event-payload serialization (`lineSummaryPayload`, `toAddressPayload`, large literal payloads in `complete()`/`approve()`).
 **Fix:** Extract event-payload assembly into dedicated factories/mappers (`BookingEventPayloadFactory`), leaving the aggregate with state-transition logic.

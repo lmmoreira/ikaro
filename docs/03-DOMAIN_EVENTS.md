@@ -571,9 +571,9 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
     currentBalance:     number       // customer's total active points after this increment (snapshot)
   }
   ```
-- **Design note:** One `ServicePointsEarned` is published per **booking** (not per line) so the customer receives a single thank-you email summarising all services completed in that booking. The `LoyaltyEntry` rows are still one per line; the event is assembled in `RecordLoyaltyEntriesUseCase` after all entries are saved.
+- **Design note:** One `ServicePointsEarned` is published per **booking** (not per line) so the customer receives a single thank-you email summarising all services completed in that booking. The `LoyaltyEntry` rows are still one per line; the event is assembled in `CompleteBookingLoyaltyEffectsUseCase` after all entries are saved.
 - **Consumers:**
-  - **Notification Context** → sends one thank-you email per booking. Uses `INotificationCustomerPort` to resolve `customerId → email/name` and `INotificationServicePort.findServicesByIds()` to resolve all service names in a single query.
+  - **Notification Context** → sends one thank-you email per booking. Uses `INotificationCustomerPort` to resolve `customerId → email/name` and `INotificationBookingPort.findServicesByIds()` to resolve all service names in a single query.
 
 ---
 
@@ -710,7 +710,7 @@ Customer clicks "Cancel"
   ```
   (`tenantId`/`correlationId` are envelope fields on every event, not part of `data`. `deactivatedBy` is **not** part of the event payload — it's tracked on the `Staff` row itself, same pattern as `StaffInvited`'s `invitedBy`.)
 - **Consumers:**
-  - **Booking Context** (UC-048, added M21 Cluster 1) → cascades to the wrapping `STAFF`-type `Resource`: `isActive = false` for new scheduling, any active class-schedule-template bundle containing it ends for future generation. First real consumer of this event — sessions themselves still expire naturally via JWT TTL, independent of this.
+  - **Booking Context** (UC-048, added M21 Cluster 1) → cascades to the wrapping `STAFF`-type `Resource`: `isActive = false` for new scheduling, any active class-schedule-template bundle containing it ends for future generation (planned, M24; not built — `CascadeStaffDeactivationUseCase` touches only the `STAFF` Resource today). First real consumer of this event — sessions themselves still expire naturally via JWT TTL, independent of this.
 
 #### **StaffActivated**
 - **Trigger:** MANAGER-role staff member reactivates a previously deactivated team member (UC-031)

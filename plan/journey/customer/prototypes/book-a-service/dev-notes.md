@@ -209,7 +209,7 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 | Range: end after start and end in the future; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` / `16g` / `16i` |
 | Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
 | At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
-| A customer-selected-duration service needs a valid duration (M23-S34, once it lands) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
+| A customer-selected-duration service needs a valid duration (M23-S34, ✅ Done) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
 
 **State machine:** `17` (guest, no session) → login → `16` / `16h` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16g` / `16i` / `16e` / `16f` (errors; the validation states keep the form editable).
 

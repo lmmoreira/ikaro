@@ -720,8 +720,8 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Reviewed |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Reviewed |
 | MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Reviewed |
-| GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Reviewed |
-| CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Reviewed |
+| GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Built (M20-S07, M20-S09) |
+| CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Built (M20-S09) |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Shipped (M20-S08) |
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |

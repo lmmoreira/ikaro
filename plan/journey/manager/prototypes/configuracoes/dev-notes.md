@@ -92,7 +92,7 @@ Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirel
 ## Chatbot section (✅ shipped)
 
 Promoted from `docs/04-USE_CASES.md` UC-033–UC-036/§6 via `/discovery-to-milestone` (2026-08-08).
-Prototyped in `01d-chatbot-section.html` against the full, current 7-section form (not an excerpt).
+Prototyped in `01d-chatbot-section.html` against the full, current 8-section form (not an excerpt).
 
 **Field:** `chatbot.knowledgeText` — the only tenant-editable field in the `chatbot` settings
 category (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7). Free-form business info/policy/FAQ/tone text,

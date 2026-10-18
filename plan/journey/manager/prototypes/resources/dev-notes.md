@@ -75,6 +75,6 @@ Corrected during live manual testing (2026-09-02, superseding an earlier confirm
 
 ## Known limitations
 
-- Cluster 2–4 features this journey will eventually integrate with (`Service.classResourceSlots` eligibility pools, `resource_occupancy`-based availability) do not exist yet.
+- Cluster 2 and 3 features this journey integrates with (`Service.classResourceSlots` eligibility pools, `resource_occupancy`-based availability) shipped in M22/M23 and exist in the backend; Cluster 4 (class sessions, M24) is not built yet.
 - The STAFF picker (`ResourceCreateForm`/`ResourceEditFormFields`) gets its options from the BFF's `GET /resources/staff-options`, which merges the Staff and Resource reads server-side with a hard-coded `limit: 100` on the staff read (`resource.controller.ts`), so only the first 100 staff rows are offered. No pagination/search UI exists anywhere in the codebase to build one from; worth a dedicated staff-search TD if team sizes ever realistically exceed 100.
 - The resource list itself has no pagination — `GET /resources` has no `limit`/`offset` params in its documented contract, and Resources (rooms/equipment/staff-wrappers/one location) is an inherently small, physically-bounded dataset by domain nature, unlike customer/booking-scale entities.

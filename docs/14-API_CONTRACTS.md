@@ -309,10 +309,10 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
     - `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID` — a `SINGLE_CHOICE`/`MULTIPLE_CHOICE` question with < 2 or > 10 options
     - `400 GENERIC_FIELD_REQUIRED` — a question with an empty `label`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
-  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
+  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
   - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
   - `seo.ogImageUrl` (M18-S03) is an optional `string` — same path-shape validation as `branding.logoUrl` (empty, a permanent `tenants/<id>/hotsite/...` path, or a `tmp/<id>/...` staging path); goes through the same promotion/existence-check flow above. Uploaded via the `'seo-og-image'` purpose (see "Hotsite Image Upload" below), auto center-cropped client-side to 1200×630 before upload — unlike `branding.logoUrl` (auto-cropped to 1:1), since it's a landscape share-image card, not a small brand mark.
-- `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
+- `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 PLATFORM_HOTSITE_NO_ENABLED_MODULES` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
 
@@ -384,7 +384,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
 
 (Contrast with booking attachments below, where the bucket is private and a fresh *read*-signed URL genuinely must be minted per display.)
 
-**Error responses:** same constraint set as booking attachments (`400 invalid-file-name`, `400 unsupported-media-type`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table. `PATCH /v1/tenants/hotsite` additionally returns `400 hotsite-image-not-uploaded` for a `tmp/` path that doesn't exist or belongs to another tenant.
+**Error responses:** same constraint set as booking attachments (a plain Zod `400` for a bad `fileName` or unsupported `contentType`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table. `PATCH /v1/tenants/hotsite` additionally returns `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED` for a `tmp/` path that doesn't exist or belongs to another tenant.
 
 ### **Hotsite Image Preview — Private Read Signed URL (Admin — TD22)**
 A not-yet-promoted `tmp/` image lives in the private bucket, so it can't resolve via the public-bucket string template the admin editor otherwise uses for hotsite images. This endpoint mints a fresh private *read*-signed URL for previewing one — used whenever the editor re-mounts a field showing a `tmp/`-prefixed value with no local blob preview left (e.g. switching tabs before the first save).
@@ -405,7 +405,12 @@ A not-yet-promoted `tmp/` image lives in the private bucket, so it can't resolve
   }
   ```
 
-**Error responses:** `400 hotsite-image-not-uploaded` — `filePath` isn't a `tmp/<callerTenantId>/...` path.
+**Error responses:** `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED` — `filePath` isn't a `tmp/<callerTenantId>/...` path.
+
+### **Hotsite Image Delete (Admin)**
+**BFF:** `POST /v1/tenants/hotsite/images/delete` -> `204 No Content`
+- Requires JWT + `MANAGER` role
+- **Request body:** `{ "filePath": "tenants/<tenantId>/hotsite/..." }` — or a `tmp/<tenantId>/...` staging path (the BFF validates the shape with a regex; the backend route is `/tenants/hotsite/images/delete`).
 
 ### **Hotsite Gallery — Feature a Booking Photo (Admin — UC-027, M12-S02 + M12-S10)**
 Lets the admin curate the GALLERY module's "before/after" showcase by selecting a photo straight from one of the tenant's own bookings — guest or authenticated-customer, it makes no difference; `tenantId` is the only check that matters.
@@ -523,7 +528,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```json
   { "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." } }
   ```
-  - `200` on success — `active: null` if no version has ever been published (including for an inactive service — `IServiceRepository` has no lightweight active-only existence check, and an inactive service can't be booked regardless via the existing `invalid-services-inactive` guard on `POST /bookings`, so this read intentionally doesn't add one)
+  - `200` on success — `active: null` if no version has ever been published (including for an inactive service — `IServiceRepository` has no lightweight active-only existence check, and an inactive service can't be booked regardless via the existing `BOOKING_SERVICE_NOT_ACTIVE` guard on `POST /bookings`, so this read intentionally doesn't add one)
   - `404` if the service doesn't exist or belongs to another tenant
   - BFF: fronted by the existing `apps/bff/src/features/booking/services.public.controller.ts` (already exists — only had the services-list route before this story)
 
@@ -614,18 +619,18 @@ Single endpoint covering four authentication scenarios — all four now upload t
 #### **Upload Constraints (MVP):**
 | Constraint | Value | Notes |
 |---|---|---|
-| Accepted MIME types | `image/jpeg`, `image/png` | Others return `400`; also enforced by GCS at `PUT` time |
+| Accepted MIME types | `image/jpeg`, `image/png`, `image/webp` | Others return `400`; also enforced by GCS at `PUT` time |
 | Max file size | 10 MB | Enforced by GCS via `content-length-range` condition embedded in the signed URL — backend never sees the upload |
 | `fileName` | 1–255 chars, no path separators | `../` or `/` returns `400` |
 | URL expiration | 15 minutes | `signedUrl` expires 15 min after issuance |
 | Rate limit | 10 requests / minute per IP | `429` on the 11th request — protects the public guest path |
 
 #### **Error Responses:**
-- `400 invalid-file-name` — `fileName` contains `../` or `/`, or is empty
-- `400 unsupported-media-type` — `contentType` not `image/jpeg` or `image/png`
-- `400 missing-tenant` — scenario 2 called without `tenantSlug`
-- `401 invalid-guest-token` — scenario 3: `guestToken` missing, expired, or invalid
-- `429 too-many-requests` — rate limit exceeded
+- `400` (plain Zod validation, no dedicated error code) — `fileName` contains `../` or `/`, or is empty
+- `400` (plain Zod validation, no dedicated error code) — `contentType` not one of `image/jpeg`, `image/png`, `image/webp`
+- `400 BFF_TENANT_SLUG_HEADER_REQUIRED` — scenario 2 called without `tenantSlug`
+- `401 BFF_GUEST_TOKEN_INVALID` — scenario 3: `guestToken` missing, expired, or invalid
+- `429 AUTH_RATE_LIMITED` — rate limit exceeded
 
 (Promotion — not this endpoint — is what can return `400 BOOKING_PHOTO_NOT_UPLOADED` for a `tmp/` path that doesn't exist or belongs to another tenant; see the booking create/submit-info/complete endpoints.)
 
@@ -722,12 +727,12 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 
 - **Errors (RFC 9457 Problem Details):**
-  - `400 invalid-services-empty` — `serviceIds` is empty.
+  - `400` (plain Zod validation, no dedicated error code) — `serviceIds` is empty (`min(1)`).
   - `404 BOOKING_SERVICE_NOT_FOUND` — one or more `serviceId` does not exist in the tenant's catalog.
   - `400 BOOKING_SERVICE_NOT_IN_TENANT` — one or more `serviceId` exists globally but does not belong to this tenant.
-  - `400 invalid-services-inactive` — one or more service has `is_active = false`.
+  - `BOOKING_SERVICE_NOT_ACTIVE` — one or more service has `is_active = false`.
   - `400 BOOKING_PICKUP_ADDRESS_REQUIRED` — one or more selected services require a pickup address but none was provided.
-  - `400 invalid-pickup-address` — `pickupAddress` fields fail validation (e.g. `zipCode` not 8 digits, `state` not a valid UF).
+  - `400` (plain Zod validation, no dedicated error code) — `pickupAddress` fields fail the shared address schema validation.
   - `400 BOOKING_PHOTO_NOT_UPLOADED` — one or more `beforeServicePhotoUrls` paths were never confirmed as uploaded to GCS (the backend calls `IStorageService.exists()` on each path before persisting — a stale, never-uploaded, or hand-crafted path is rejected rather than stored).
   - `409 BOOKING_SLOT_UNAVAILABLE` — the requested `scheduledAt + totalDurationMins` window overlaps another APPROVED booking or a `ScheduleClosure`.
   - `422 BOOKING_RESOURCE_SELECTION_REQUIRED` (M23-S01) — a `CUSTOMER_CHOICE` requirement has no matching `resourceSelections` entry.
@@ -904,8 +909,8 @@ See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
   The response is flat — no per-line breakdown (`CompleteBookingResponse`, `apps/bff/src/features/booking/bookings.types.ts`). Per-line `actualPriceCharged` is persisted but only surfaced later via `GET /bookings/:id` (`BookingLineDetail`).
 
 - **Errors:**
-  - `400 invalid-line-id` — a `lineId` in `lines` does not belong to this booking.
-  - `400 invalid-actual-price` — `actualPriceCharged` is negative.
+  - `400 BOOKING_COMPLETE_LINES_INCOMPLETE` — `lines` omits one or more of this booking's lines.
+  - `400` (plain Zod validation, no dedicated error code) — `actualPriceCharged` is negative (`z.number().nonnegative()`) or `lines` is empty.
   - `400 BOOKING_PHOTO_NOT_UPLOADED` — one or more `afterServicePhotoUrls` paths were never confirmed as uploaded to GCS (verified via `IStorageService.exists()` before persisting).
 
 ---
@@ -1189,13 +1194,13 @@ Auth: JWT + MANAGER only.
 - `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name, email or phone.
   - Requires JWT with `MANAGER|STAFF` role.
   - Query params:
-    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the phone is matched only when the term holds at least 4 digits, so a term like "Maria" never matches on phone; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
+    - `search` (optional, string, trimmed, min 1 char when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the phone is matched only when the term holds at least 4 digits, so a term like "Maria" never matches on phone; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
     - `limit` (optional, integer, default 20) — max results to return.
   - Response:
     ```json
     {
       "items": [
-        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "31999999999", "currentPoints": 150 }
+        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "+5531999999999", "currentPoints": 150 }
       ],
       "total": 1
     }
@@ -1203,7 +1208,7 @@ Auth: JWT + MANAGER only.
   - `currentPoints` is read from `loyalty_balances.current_points` for the customer (`0` if no balance row).
   - Results are scoped to the caller's tenant — no cross-tenant leakage possible.
   - `CUSTOMER` role → `403`.
-- `GET /customers/:id` -> (Admin/Self) Detailed profile. Response includes `defaultAddress` (nullable).
+- `GET /customers/:customerId` -> (Admin: `STAFF|MANAGER` only; a customer reads their own profile via `GET /customers/me`) Detailed profile. Response includes `defaultAddress` (nullable).
 - `GET /customers/me` -> (Self) Current authenticated customer profile.
   - Requires JWT with `role: CUSTOMER`.
   - Response:
@@ -1212,14 +1217,14 @@ Auth: JWT + MANAGER only.
       "customerId": "uuid",
       "email": "cliente@example.com",
       "name": "João Silva",
-      "phone": "31999999999",
+      "phone": "+5531999999999",
       "defaultAddress": {
         "street": "Av. Afonso Pena", "number": "1000", "complement": null,
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
       }
     }
     ```
-  - `phone` is digits only (10–11 digits, no country prefix). `null` when not set.
+  - `phone` is E.164 (`^\+[1-9]\d{6,14}$`, e.g. `+5531999999999`). `null` when not set.
   - `defaultAddress` is `null` when not set.
 - `PATCH /customers/me` -> (Self) Update own profile.
   - Requires JWT with `role: CUSTOMER`.
@@ -1228,7 +1233,7 @@ Auth: JWT + MANAGER only.
     ```json
     {
       "name": "João Silva",
-      "phone": "31999999999",
+      "phone": "+5531999999999",
       "defaultAddress": {
         "street": "Av. Afonso Pena", "number": "1000", "complement": null,
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
@@ -1236,7 +1241,7 @@ Auth: JWT + MANAGER only.
     }
     ```
   - Set `defaultAddress` to `null` to clear it. Set `phone` to `null` to clear it.
-  - `phone` must be 10–11 digits (digits only, no country prefix e.g. `31999999999`).
+  - `phone` must be E.164 (`^\+[1-9]\d{6,14}$`, e.g. `+5531999999999`).
   - `zipCode` must be 8 digits; hyphen is accepted and normalised (`"30130-921"` → `"30130921"`).
   - Returns the full updated profile (same shape as `GET /customers/me`).
 
@@ -1529,6 +1534,24 @@ Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path on
 | `POST /cron/loyalty-expiry-warning` | `cron-loyalty-expiry-warning` | `loyalty-notify-expiring-points` |
 
 The outbox relay (`cron-outbox-relay`) has no HTTP trigger route; Cloud Scheduler publishes to its topic only. The authoritative topic/consumer list is `infra/terraform/pubsub-catalog.json`.
+
+### Backend-only read/lookup routes (BFF and operator tooling, no public contract)
+
+These backend routes are consumed by the BFF (or operator tooling) and have no `/v1` counterpart of their own. The `/internal/*` ones sit behind the global `InternalApiGuard` (`X-Internal-Key`) and need no `X-Tenant-ID`.
+
+| Route | Purpose | Guard |
+|---|---|---|
+| `GET /internal/tenants/by-slug/:slug` | Resolve a tenant by slug | `InternalApiGuard` |
+| `GET /internal/tenants/published-hotsites` | List tenants with a published hotsite | `InternalApiGuard` |
+| `GET /internal/tenants?ids=<uuid>,<uuid>` | Batch lookup of tenants by id (`ids` required) | `InternalApiGuard` |
+| `GET /internal/tenants/:tenantId` | Fetch one tenant by id | `InternalApiGuard` |
+| `GET /internal/staff/by-oauth?googleOAuthId=` | List the staff records linked to a Google account (multi-tenant) | `InternalApiGuard` |
+| `GET /internal/staff/by-email?email=&tenantId=` | Find a staff record by email within a tenant | `InternalApiGuard` |
+| `POST /internal/staff/:staffId/link-google` | Link a Google account to an invited staff record (`200`) | `InternalApiGuard` |
+| `GET /internal/customers/tenants?googleOAuthId=` | List the tenants a Google account has a customer profile in | `InternalApiGuard` |
+| `POST /internal/customers` | Find or create the customer row for a tenant + Google account (`200`) | `InternalApiGuard` |
+| `GET /loyalty/balances?customerIds=<uuid>,<uuid>` | Batch loyalty balances for many customers in the caller's tenant (the BFF customer search calls it; not an `/internal` route) | `X-Tenant-ID` + `STAFF\|MANAGER` role guard |
+| `GET /loyalty/balances/own` | The calling customer's balances across tenants, resolved from their own identity (takes no params) | `CUSTOMER` role guard |
 
 ---
 

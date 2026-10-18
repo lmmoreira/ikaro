@@ -51,14 +51,14 @@ The `layout` array is **ordered and fully controlled by the admin**. The admin c
 >
 > Both of those shells belong to the **SaaS product** whose colours are fixed and not per-tenant — they use Tailwind utility classes and shadcn/ui design tokens (`--primary`, `--secondary`, etc.), not the hotsite branding palette. When in doubt: if a component is visible to a logged-in staff member or inside a protected shell, it does not use `--ba-*`.
 
-Instead of exposing raw CSS to the admin, we use a **semantic design token** system. The admin configures 10 tokens — some are direct values (color pickers, font selectors), others are semantic choices (e.g. "Rounded" instead of "8px"). These tokens are injected as CSS custom properties and inherited by every module automatically.
+Instead of exposing raw CSS to the admin, we use a **semantic design token** system. The admin configures a set of branding tokens (the 11 core tokens below plus optional button-color overrides and visual-rhythm/brand-identity fields) — some are direct values (color pickers, font selectors), others are semantic choices (e.g. "Rounded" instead of "8px"). These tokens are injected as CSS custom properties and inherited by every module automatically.
 
 ### Token Definition
 
 ```typescript
 // packages/types/src/hotsite.ts
 
-interface HotsiteBranding {
+interface HotsiteBrandingResponse {
   // — Direct values (admin uses pickers) —
   primaryColor: string;       // hex — buttons, links, highlights
   secondaryColor: string;     // hex — section backgrounds, accents
@@ -77,8 +77,19 @@ interface HotsiteBranding {
   // — Optional button color overrides (M12-S11) — see "Button Color Tokens" below —
   buttonBackgroundColor?: string; // hex
   buttonTextColor?: string;       // hex
+
+  // — Visual rhythm (optional) —
+  heroBgStyle?: 'primary' | 'background';   // hero section background; default primary
+  alternateSectionBg?: boolean;              // alternate every other enabled module's background ('alt' variant)
+  dividerStyle?: 'none' | 'gradient' | 'solid'; // divider rendered between sections
+
+  // — Brand identity (optional; used by the brand-card rightPanel in hero/booking-cta) —
+  brandName?: string;
+  brandTagline?: string;
 }
 ```
+
+`alternateSectionBg` is not a CSS variable: the page model (`buildHotsiteModuleRenderPlan(layout, alternateSectionBg)`) uses it to give every second enabled module that participates in alternation the `'alt'` background variant.
 
 ### Font Allow-List
 
@@ -124,6 +135,10 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
     '--ba-section-py':    SECTION_PY[branding.spacing],
     '--ba-shadow':        SHADOW[branding.shadowStyle],
     '--ba-btn-variant':   branding.buttonStyle,
+    // + --ba-btn-bg / --ba-btn-text / --ba-btn-border / --ba-btn-hover-bg (see "Button Color Tokens" below)
+    '--ba-hero-bg':       deriveHeroBg(branding),        // primaryColor, or backgroundColor when heroBgStyle === 'background'
+    '--ba-hero-text':     deriveHeroTextColor(branding), // whichever of backgroundColor/textColor contrasts better with the hero bg
+    '--ba-divider':       deriveDivider(branding),       // gradient | secondaryColor | 'none' from dividerStyle
   } as React.CSSProperties;
 }
 ```
@@ -196,12 +211,15 @@ type HotsiteModuleType =
   | 'CHATBOT'
   | 'LEAD_FORM';
 
-interface HotsiteModule {
+// Shared contract (packages/types/src/hotsite.ts) — what the BFF returns and the web consumes:
+interface HotsiteModuleResponse {
   type: HotsiteModuleType;
   enabled: boolean;   // false = skip rendering without removing from layout
-  data: HotsiteModuleData[HotsiteModuleType];
+  data: Record<string, unknown>;   // parsed per-type on the web side
 }
 ```
+
+The typed `HotsiteModule { type; enabled; data: HotsiteModuleData }` and the `HotsiteModuleData` union exist only in the backend domain (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`); they are not part of the shared `@ikaro/types` contract.
 
 ---
 
@@ -272,9 +290,9 @@ Hotsite images are **public marketing assets** — unlike booking photos, there 
 Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/14-API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
 
 **Image sources (both available in the dashboard editor):**
-- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
+- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
 - **From bookings (`source: 'booking'`):** Admin browses a completed booking's photos — **before** (`beforeServicePhotoUrls`, from UC-001/UC-002) *and* after (`afterServicePhotoUrls`, from UC-009) are both selectable, since a compelling "before/after" showcase needs both — and features one via `POST /v1/tenants/hotsite/gallery/feature-booking-photo { bookingId, photoUrl }` (M12-S10). The backend derives `photoType` itself by checking which list the photo came from (never trusts a client-supplied label — also doubles as an integrity check: a `photoUrl` absent from both lists is rejected), then **copies** the object from the private booking-photos path into the public bucket. It's a copy, not a live reference: the featured image becomes an independent, permanent editorial choice, decoupled from whatever later happens to the source booking (archival, customer-initiated erasure under LGPD, disputes, etc.) — and avoiding a live reference is also what keeps it consistent with the "no expiring URLs in a cached manifest" rule above. This works identically for guest-originated bookings (`customerId: null`) and authenticated-customer bookings; `tenantId` is the only access boundary that matters.
-- **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 hotsite-image-not-uploaded`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
+- **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
 
 ### TESTIMONIALS
 
@@ -354,23 +372,27 @@ Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleD
 
 ```typescript
 // packages/types/src/hotsite.ts
+interface HotsiteBusinessInfoAddress {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+interface HotsiteBusinessInfoSocialLinks {
+  whatsapp: string | null;   // validated phone number — used in wa.me/ links
+  instagram: string | null;  // free-form URL / handle
+  facebook: string | null;   // free-form URL / handle
+}
+
 interface HotsiteBusinessInfoResponse {
   phone: string | null;
   email: string | null;
-  address: {
-    street: string;
-    number: string;
-    complement?: string;
-    neighborhood: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  } | null;
-  socialLinks: {
-    whatsapp: string | null;   // validated phone number — used in wa.me/ links
-    instagram: string | null;  // free-form URL / handle
-    facebook: string | null;   // free-form URL / handle
-  } | null;
+  address: HotsiteBusinessInfoAddress | null;
+  socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
 interface HotsiteManifestResponse extends HotsiteResponse {
@@ -386,7 +408,7 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 - `showPhone` → render `business.phone` (formatted); omitted if `null`
 - `showEmail` → render `business.email` as a `mailto:` link; omitted if `null`
 - `showWhatsapp` → render a `https://wa.me/<digits>` link using `business.socialLinks.whatsapp`; omitted if `null`
-- `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
+- `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present **and** the matching `showInstagram` / `showFacebook` flag is not `false` (an omitted flag means shown, for backward compatibility; `apps/web/shells/hotsite/components/ContactModule.tsx`)
 - `showMap` → embeds `https://maps.google.com/maps?q=<urlencoded address>&output=embed` (keyless query-based embed, no Google Maps API key needed) using `business.address`; omitted if `business.address` is `null`, even when `showMap: true`
 
 ### FOOTER

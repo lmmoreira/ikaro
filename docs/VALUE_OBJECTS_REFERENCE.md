@@ -93,7 +93,7 @@ toEntity(customer: Customer): CustomerEntity {
 | `Email` | `.address` |
 | `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CalendarDate`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
 | `Address` | `.toJSON()` (for JSONB) |
-| `Money` | `.amount` and `.currency` |
+| `Money` | `.amount` (a `Decimal`, not a JavaScript `number`) and `.currency` (a string) |
 
 ---
 

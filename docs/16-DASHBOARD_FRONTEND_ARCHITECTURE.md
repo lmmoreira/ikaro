@@ -232,4 +232,4 @@ if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_MSW === 't
 ---
 
 **Status:** Phase 2 - Technical Architecture  
-**Validated:** Covers all authenticated use cases (UC-003 to UC-023).
+**Validated:** Covers the authenticated dashboard and account use cases (see the UC references in each section).

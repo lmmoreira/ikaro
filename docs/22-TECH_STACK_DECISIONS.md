@@ -413,7 +413,7 @@ Ikaro's Next.js app requires **server-side rendering** — GCS static export is 
 
 | Stage | Timeline | Cloud Run config | Est. cost |
 |---|---|---|---|
-| MVP | Month 0–3 | `min=0, max=20, memory=256Mi` | ~$5–15/month |
+| MVP | Month 0–3 | `min=0, max=100, memory=512Mi` (the module default; a 256Mi spec was rejected by GCP) | ~$5–15/month |
 | Growth | Month 3–12 | `min=1, max=50, memory=512Mi` | ~$30–60/month |
 | Scale | Month 12+ | `min=2, max=100` + Cloud CDN in front | ~$80–150/month |
 
@@ -454,11 +454,11 @@ Per `docs/10-OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 
 ---
 
-## 4. EVENT BUS: GCP Pub/Sub (MVP) → Kafka (Future)
+## 4. EVENT BUS: GCP Pub/Sub (Kafka: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Pub/Sub (serverless, managed)  
-**Phase 2 (Year 1-2):** Apache Kafka (if needed for multi-cloud)
+**Historical option (not planned):** Apache Kafka, weighed at inception for a multi-cloud future
 
 ### Why GCP Pub/Sub for MVP
 
@@ -540,7 +540,7 @@ This pattern scales from day 1 → year 2 unchanged.
 
 Subscriptions are per consumer, not per tenant: every domain event has one topic (`ikaro-{event}`) and one push subscription per consuming handler (`ikaro-{event}-{consumer}`, each with its own DLQ), all generated from `infra/terraform/pubsub-catalog.json` by `modules/pubsub`. Tenant isolation happens in the message, not in the subscription: every event envelope carries `tenantId`, and each consumer scopes its work to that tenant and deduplicates by `eventId`.
 
-This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/03-DOMAIN_EVENTS.md`.
+Push delivery is at-least-once and may redeliver a message, so every consumer deduplicates by `eventId`. This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/03-DOMAIN_EVENTS.md`.
 
 ### Cost Model
 
@@ -555,22 +555,22 @@ This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the eve
 
 ### Guaranteed Delivery
 
-Pub/Sub provides exactly-once semantics (critical for bookings):
+Pub/Sub push subscriptions deliver at-least-once and can redeliver a message; exactly-once is achieved in the consumer through `eventId` deduplication (critical for bookings):
 
 ```
 BookingCompleted Event
 ├─ Published once (idempotent eventId)
-├─ Delivered at-least-once (with retries)
+├─ Delivered at-least-once (with retries, so a message can arrive twice)
 ├─ Processed exactly-once (idempotency in consumer)
 └─ Result: LoyaltyEntry created once, guaranteed
 ```
 
-### Future: Kafka Migration Path
+### Historical: Kafka Migration Path
 
-If Phase 2 requires Kafka (analytics, stream processing), same interface:
+Had a later phase required Kafka (analytics, stream processing), the same interface would apply:
 
 ```typescript
-// Kafka Implementation (Phase 2+)
+// Kafka Implementation (historical option)
 @Injectable()
 export class KafkaPublisher implements EventPublisher {
   async publish(topic: string, event: DomainEvent): Promise<void> {
@@ -593,13 +593,14 @@ export class KafkaPublisher implements EventPublisher {
 Free emulator enables dev parity:
 
 ```yaml
-# docker-compose.yml
+# docker/docker-compose.yml
 pubsub-emulator:
-  image: google/cloud-sdk:emulators
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+  command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=ikaro-local
   ports:
-    - "8085:8085"
+    - '8085:8085'
   environment:
-    PUBSUB_PROJECT_ID: ikaro-local
+    CLOUDSDK_CORE_PROJECT: ikaro-local
 ```
 
 ### Cost Impact
@@ -614,11 +615,11 @@ pubsub-emulator:
 
 ---
 
-## 5. DEPLOYMENT: Cloud Run (MVP) → Kubernetes (Future)
+## 5. DEPLOYMENT: Cloud Run (Kubernetes: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Cloud Run (serverless)  
-**Phase 2 (Year 2+):** Kubernetes (GKE) only if needed
+**Historical option (not planned):** Kubernetes (GKE), only if ever needed
 
 ### Why Cloud Run for MVP
 
@@ -729,7 +730,7 @@ gcloud logging read "resource.type=cloud_run_revision AND severity=ERROR"
 
 ### Local Development
 
-Same Docker image runs locally:
+Illustrative only: the local stack (`docker/docker-compose.yml`, started with `pnpm infra:up`) runs just postgres, the Pub/Sub emulator, the GCS emulator and mailhog; the apps themselves run on the host with pnpm, not in compose. A backend service would look like this:
 
 ```yaml
 # docker-compose.yml
@@ -785,8 +786,8 @@ Fully specified in `docs/13-DATABASE_SCHEMA.md` with:
 #### Automatic Backups
 
 ```
-Daily backups (7-day retention) included
-├─ Point-in-time recovery (35 days)
+Daily backups (7 retained) included
+├─ Point-in-time recovery: on in production (`enable_pitr`), off in staging
 ├─ Automated for high availability
 └─ Zero operational overhead
 ```
@@ -868,9 +869,11 @@ Original decision: PostgreSQL 15 (sweet spot of stability + modern features).
 
 ### Cloud SQL Terraform
 
+Illustrative; the real definition is `infra/terraform/modules/database/main.tf` (instance `ikaro-db-<env>`, private IP only).
+
 ```hcl
 resource "google_sql_database_instance" "ikaro" {
-  name             = "ikaro-postgres"
+  name             = "ikaro-db-${var.environment}"
   database_version = "POSTGRES_17"
   region           = "southamerica-east1"
 
@@ -879,12 +882,11 @@ resource "google_sql_database_instance" "ikaro" {
 
     backup_configuration {
       enabled                        = true
-      point_in_time_recovery_enabled = true
-      transaction_log_retention_days = 7
+      point_in_time_recovery_enabled = var.enable_pitr
     }
 
     ip_configuration {
-      ipv4_enabled                                  = true
+      ipv4_enabled                                  = false
       private_network                               = google_compute_network.private_net.id
       enable_private_path_access                    = true
     }
@@ -904,11 +906,11 @@ resource "google_sql_database_instance" "ikaro" {
 
 ---
 
-## 7. SECRETS MANAGEMENT: GCP Secret Manager (MVP) → Vault (Future)
+## 7. SECRETS MANAGEMENT: GCP Secret Manager (Vault: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Secret Manager (simple, managed)  
-**Phase 2 (Year 1-2):** HashiCorp Vault (cloud-agnostic, when multi-cloud needed)
+**Historical option (not planned):** HashiCorp Vault, weighed for a multi-cloud future
 
 ### Phase 1: GCP Secret Manager
 
@@ -986,7 +988,7 @@ export class ConfigService {
 }
 ```
 
-### Phase 2: HashiCorp Vault
+### Historical option: HashiCorp Vault
 
 #### When to Migrate
 
@@ -1009,7 +1011,7 @@ export class GcpSecretsProvider implements SecretsProvider {
   }
 }
 
-// Phase 2: Vault
+// Historical option: Vault
 export class VaultSecretsProvider implements SecretsProvider {
   async getSecret(path: string): Promise<string> {
     // Call Vault API (works on GCP, AWS, Azure)
@@ -1031,7 +1033,7 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 
 ### Cost Impact
 - **Phase 1:** $0-6/month (GCP, minimal)
-- **Phase 2:** $200-500/month (Vault, enterprise-grade)
+- **Historical option (Vault):** $200-500/month, enterprise-grade
 - **No cost to switch:** Just configuration changes
 
 ### References
@@ -1044,7 +1046,7 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 ## 8. INFRASTRUCTURE AS CODE: Terraform
 
 ### Decision
-**Terraform** with GCP provider (AWS/Azure providers as future paths)
+**Terraform** with the GCP provider (GCP only; other providers were a historical illustration)
 
 ### Why Terraform
 
@@ -1057,6 +1059,8 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 | **Team Onboarding** | ❌ Complex runbooks | ✅ Code review process |
 
 ### Repository Structure
+
+> Illustrative layout from the original plan. The real one is `infra/terraform/{foundation,envs/staging,envs/prod,modules}` (see `docs/23-INFRASTRUCTURE_SETUP.md`); bucket, topic and secret names in the snippets below are placeholders, the real ones come from the modules.
 
 ```
 terraform/
@@ -1084,29 +1088,29 @@ resource "google_sql_database_instance" "postgres" {
 resource "google_cloud_run_v2_service" "backend" {
   name     = "ikaro-backend"
   location = "southamerica-east1"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — cloudrun.tf)
+  # ... (real definition: infra/terraform/modules/cloudrun-service/)
 }
 
 # Cloud Storage — media uploads only (tenant photos), NOT for the frontend
 resource "google_storage_bucket" "media" {
   name     = "ikaro-media-prod"
   location = "US"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — storage.tf)
+  # ... (real definition: infra/terraform/modules/storage/)
 }
 
 # Cloud Pub/Sub
 resource "google_pubsub_topic" "domain_events" {
   name = "ikaro-domain-events"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — pubsub.tf)
+  # ... (real definition: infra/terraform/modules/pubsub/)
 }
 
 # GCP Secret Manager
 resource "google_secret_manager_secret" "database_url" {
   secret_id = "database-url"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — secrets.tf)
+  # ... (real definition: infra/terraform/modules/secrets/)
 }
 
-# Full authoritative Terraform: docs/23-INFRASTRUCTURE_SETUP.md
+# Authoritative Terraform: infra/terraform/ (layout in docs/23-INFRASTRUCTURE_SETUP.md)
 ```
 
 ### Multi-Cloud Ready (historical illustration — not planned)
@@ -1171,7 +1175,7 @@ variable "environment" {
 # terraform/main.tf
 resource "google_sql_database_instance" "postgres" {
   settings {
-    tier = var.environment == "prod" ? "db-n1-standard-2" : "db-f1-micro"
+    tier = var.db_tier  # db-f1-micro in both environments today
     # Automatically different costs per environment
   }
 }
@@ -1180,8 +1184,8 @@ resource "google_sql_database_instance" "postgres" {
 ### Local Development
 
 ```bash
-# Local setup (docker-compose)
-docker-compose up -d
+# Local setup (docker/docker-compose.yml: postgres, pubsub, gcs, mailhog)
+pnpm infra:up
 
 # Local environment variables
 export DATABASE_URL=postgres://localhost/ikaro
@@ -1327,12 +1331,11 @@ Per `docs/06-TENANT_ISOLATION_STRATEGY.md`:
 - ✅ **Database level:** Composite FKs enforce tenant isolation
 - ✅ **API level:** JWT includes tenantId, validated on every request
 - ✅ **Application level:** TypeORM queries automatically filtered by tenant
-- ✅ **Infrastructure level:** Cloud Run service accounts scoped to tenant data
+- ✅ **Infrastructure level:** Cloud Run runtime service accounts are per service (`ikaro-<service>`), not per tenant; tenant scoping is enforced in the application and the database
 
 ### Secrets Rotation
 
-Cloud SQL passwords auto-rotated by GCP.  
-JWT secrets managed via Secret Manager with rotation policies.
+No automatic rotation is configured: the database passwords (`db-password`, `db-migrator-password`) and the JWT secret are plain Secret Manager secrets, rotated by adding a new secret version.
 
 ### Encryption
 
@@ -1439,7 +1442,7 @@ Before development begins, confirm:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-05-12  
-**Next Review:** 2026-08-12 (post-MVP)  
-**Status:** Approved for development
+**Document Version:** 1.0 (historical decision record; later edits are dated where they occur)  
+**Originally written:** 2026-05-12  
+**Next Review:** none scheduled  
+**Status:** Implemented (see the note under the title)

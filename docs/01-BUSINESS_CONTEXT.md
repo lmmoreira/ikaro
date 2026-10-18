@@ -57,8 +57,8 @@ Each tenant has dedicated hotsite accessible via path:
 **Customers: Can belong to MULTIPLE tenants**
 - One person can book services at multiple car wash companies
 - Each car wash company = separate Customer record + separate Loyalty record
-- On login, if customer has bookings in multiple tenants → must select which to enter
-- Can switch between tenants (switch session)
+- Every customer login starts from one tenant's own hotsite login (`/{slug}/login`), so the session is scoped to that tenant from the start; there is no tenant-selection screen at login (descoped, `plan/journey/customer/login.md`)
+- Can switch between tenants after login (`POST /auth/switch-tenant`)
 
 **Staff: Can belong to MULTIPLE tenants**
 - One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/06-TENANT_ISOLATION_STRATEGY.md`)
@@ -75,9 +75,9 @@ As Customer:
   - Bookings with SuperClean (Tenant B)
     • 2 completed washes (lifetime), 8 active loyalty points
   
-  Login: "Which car wash would you like to use?
-          - AutoWash Pro (50 points)
-          - SuperClean (8 points)"
+  Login: from AutoWash Pro's hotsite → a session scoped to AutoWash Pro.
+  Switching: "Switch car wash" after login → SuperClean (a new session
+             scoped to SuperClean, with its own 8 points)
 
 As Staff:
   - Works for AutoWash Pro (Tenant A)
@@ -129,7 +129,7 @@ Small car wash businesses face challenges:
 - View past/upcoming bookings
 - Cancel bookings (default 48-hour notice, configurable per tenant through `cancellationWindowHours`)
 - View loyalty metrics (wash count, loyalty status)
-- Receive booking reminders (24h before appointment)
+- Receive booking reminders (sent between 06:00 and 06:29 tenant-local time, for tomorrow's and today's bookings)
 - Build history for future loyalty programs
 
 ### 4. **Staff / Admin** (Google OAuth + staff flag)
@@ -168,7 +168,7 @@ Small car wash businesses face challenges:
 3. Customer selects service and preferred date/time
 4. Booking follows same workflow as Journey 1
 5. **Difference:** System knows customer history (wash count, etc.)
-6. Can cancel with 48h notice → loyalty system updated
+6. Can cancel within the tenant's cancellation window (default 48h notice) → loyalty system updated
 ```
 
 ### **Journey 3: Complete Wash (Staff/Admin)**
@@ -184,7 +184,7 @@ Small car wash businesses face challenges:
 ### **Journey 4: Customer Cancels Booking**
 ```
 1. Customer views upcoming booking
-2. Clicks "Cancel" (only if > 48h before appointment)
+2. Clicks "Cancel" (only if outside the tenant's cancellation window, default 48h before the appointment)
 3. Booking state: APPROVED → CANCELLED
 4. System triggers:
    - Loyalty tracking: mark cancellation (for future: may affect promotions)
@@ -210,7 +210,7 @@ Small car wash businesses face challenges:
 - ✓ Admin approval/rejection workflow
 - ✓ Request additional info workflow
 - ✓ Authenticated customer bookings
-- ✓ Booking cancellation (48h default policy, configurable per tenant)
+- ✓ Booking cancellation (tenant cancellation window, 48h by default)
 - ✓ Mark booking complete
 
 ### **Service Management**

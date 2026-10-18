@@ -45,7 +45,7 @@ flowchart TD
 |---|---|---|---|
 | `/{tenantSlug}` | hotsite pages | M12 | ✅ Existente |
 | `/{tenantSlug}/booking` | `BookingForm` | M12-S07 | ✅ Existente |
-| `/{tenantSlug}/login` | `CustomerLoginPage` | M13-S42 | ✅ Existente |
+| `/{tenantSlug}/login` | `LoginPage` | M13-S42 | ✅ Existente |
 | `/auth/error` | `AuthErrorPage` | M13-S02/S42 | ✅ Existente (shared with staff) |
 | ~~`/select-tenant`~~ | ~~`SelectTenantPage`~~ | — | ❌ Descoped — see scope-change note above |
 | profile completion prompt | `InformationCompletionPrompt` (`apps/web/features/customer/components/`) | M13-S14 | ✅ Existente |

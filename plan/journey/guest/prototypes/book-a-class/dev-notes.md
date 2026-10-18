@@ -2,7 +2,7 @@
 
 ## Overview
 
-New guest-facing journey for M21 — Multi-Vertical Scheduling, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/public-{02b,06,06b,06c,10,10b,16}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
+New guest-facing journey for M24 — Multi-Vertical Classes/Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/public-{02b,06,06b,06c,10,10b,16}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
 
 ## File map (❓ none exist yet)
 
@@ -37,5 +37,5 @@ POST /v1/class-sessions/:id/waitlist   -- requires authentication; guest hits UC
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [ ] Stories exist: `M24-S19`, `M24-S20` — each still begins with `/story-discovery`.
 - [ ] `04-business-profile.html`'s scope (in vs. out of this milestone) needs confirmation.

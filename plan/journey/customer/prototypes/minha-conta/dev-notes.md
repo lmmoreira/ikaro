@@ -53,7 +53,12 @@ Show "Cancelar" on APPROVED bookings only while the server-computed deadline has
 ```ts
 // booking.cancellableUntil = scheduledAt minus the tenant's cancellation window (default 48h),
 // computed server-side; non-null only for APPROVED bookings (apps/web/features/customer/booking-sections.ts `canCancelBooking`)
-const canCancel = booking.cancellableUntil !== null && new Date() < new Date(booking.cancellableUntil);
+const canCancel =
+  booking.status === 'PENDING' || booking.status === 'INFO_REQUESTED'
+    ? true
+    : booking.status === 'APPROVED' &&
+      booking.cancellableUntil !== null &&
+      new Date() < new Date(booking.cancellableUntil);
 ```
 When `canCancel === false`: hide button, show note "Prazo de cancelamento encerrado".
 
@@ -273,7 +278,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 ```
 
 **Open questions / gaps:**
-- [x] Stories exist: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — each still begins with `/story-discovery`.
+- [x] Stories done: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — all ✅ Done.
 - [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with creation through the topbar "+ Novo ▾" menu (see Shell pattern). Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
 - [ ] Every "known limitation" above.
 
@@ -352,7 +357,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 ## Full booking detail cards (audit of 2026-10-15)
 
-`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `completo`). ✅ Built by M23-S47: the fields are in `CustomerBookingDetailResponse`. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
+`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `simples`, `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `equipe`, `completo`). ✅ Built by M23-S47: the fields are in `CustomerBookingDetailResponse`. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
 
 ### `02g` cancelled and `02h` rejected (added 2026-10-16, M23-S47)
 

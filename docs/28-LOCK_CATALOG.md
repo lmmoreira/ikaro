@@ -5,7 +5,7 @@
 
 **Audience:** any engineer or AI agent touching a transaction that writes shared rows, and anyone debugging a stuck request, a `40P01` deadlock or a duplicate/stale row.
 **Scope:** every mechanism the backend uses to serialize concurrent work. BFF and web were searched too (`mutex`, `semaphore`, `redlock`, advisory/`FOR UPDATE` patterns) and hold none.
-**Last verified against the code:** 2026-10-17 (docs-audit re-check of every lock, key, call site and §4 order; corrections the same day), after M23-S49 (read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
+**Verified against the code** (docs-audit re-check of every lock, key, call site and §4 order, after M23-S49; read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
 **How to keep it true:** a change that adds, removes or reorders a lock updates this file in the same commit (§7).
 
 The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive and § A lock only orders callers who both acquire it. This file is the *inventory*: what exists, what each one protects, and the order they may be combined in.

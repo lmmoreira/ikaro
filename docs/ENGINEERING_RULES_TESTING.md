@@ -68,7 +68,7 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-Full explanation and the worked before/after example now live in `docs/ANTI_PATTERNS.md` row 68 (relocated 2026-09-20, TD41 — this rule was independently, fully explained in both that row and here, with no pointer between them; collapsed to one canonical copy).
+Full explanation and the worked before/after example now live in the `useExisting` row of `docs/ANTI_PATTERNS.md` (relocated 2026-09-20, TD41 — this rule was independently, fully explained in both that row and here, with no pointer between them; collapsed to one canonical copy).
 
 ### Notification spec setup
 
@@ -127,7 +127,7 @@ Before adding a new "mock one input, render, assert one output" style test to a 
 
 Set `--max-old-space-size` explicitly on every Jest entry point that can run a large suite, not just the one that happened to OOM — a fix scoped to `test`/`test:integration` alone leaves `test:unit`/`test:cov` (what CI's own coverage job actually runs) exposed to the identical failure mode.
 
-**TD08 AUD-044 precedent, PR #484, 2026-09-16:** a local OOM kill on a KVM VM with 6GB+ free RAM traced directly to this default. Fixed by adding `--max-old-space-size=6144` to all four backend Jest scripts (`test`, `test:unit`, `test:integration`, `test:cov`) — the first fix covered only two of the four and was caught by a PR review round.
+**TD08 AUD-044 precedent, PR #484, 2026-09-16:** a local OOM kill on a KVM VM with 6GB+ free RAM traced directly to this default. Fixed by adding an explicit `--max-old-space-size` to all four backend Jest scripts (`test`, `test:unit`, `test:integration`, `test:cov`; live values in `apps/backend/package.json` — currently 5120 for `test`/`test:integration`, 3072 for `test:unit`/`test:cov`) — the first fix covered only two of the four and was caught by a PR review round.
 
 
 ## An integration test seeding fixtures under fixed/hardcoded tenant UUIDs needs symmetric, complete setup/teardown — CI's Testcontainers reuse can carry a prior run's corruption into an unrelated later run

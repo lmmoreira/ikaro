@@ -22,7 +22,7 @@
 | `apps/web/app/auth/error/page.tsx` | ✅ Created in M124-S01 | Reused — no changes needed |
 | Phone completion UI | ❌ Gap | Inline prompt or modal on first post-login screen — see open questions |
 
-## Screen: `/{tenantSlug}/login` (`CustomerLoginPage`)
+## Screen: `/{tenantSlug}/login` (`LoginPage`)
 
 > **Superseded — original design kept for history.** The real route is `apps/web/app/[slug]/login/page.tsx` (see the file map above); the `GET /v1/hotsite/{tenantSlug}/config` branding fetch below is likewise the original design, not the shipped implementation.
 

@@ -5,7 +5,7 @@
 
 **Status:** Phase 2 - Technical Architecture  
 **Audience:** Backend developers, AI agents, database teams  
-**Last Updated:** 2026-10-12
+**Last Updated:** this file is the live reference — keep it in step with the code
 
 ---
 
@@ -46,7 +46,7 @@ Controls how the loyalty system behaves for this tenant.
 | `expiryDays` | integer | 180 | 1 | 3650 | Days until loyalty points expire after earning |
 | `enableNotifications` | boolean | true | — | — | Send email when points expiring soon |
 | `expiryWarningDays` | integer | 7 | 1 | 90 | Look-ahead window for expiring-soon check (weekly cron) |
-| `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.use-case.ts` and `loyalty-platform.port.ts`) |
+| `notificationMinPoints` | integer | 50 | 0 | 10000 | Minimum active point balance a customer must have for the `PointsExpiringSoon` notification's threshold check (used by `notify-expiring-points.job.ts` and `loyalty-platform.port.ts`) |
 | `pointsPerCurrencyUnit` | integer | 0 | 0 | 10000 | How many points equal 1 currency unit (e.g. `10` = 10 pts → R$1 / $1). `0` = loyalty redemption feature disabled — the discount strip will not appear during booking completion (UC-009 A6). |
 
 **Example:**
@@ -256,7 +256,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `phone` | string \| null | null | Business phone, digits only (10–11 digits, no country code) — same format as `Customer.phone` |
+| `phone` | string \| null | null | Business phone in E.164 format (`^\+[1-9]\d{6,14}$`, e.g. `+5531999999999`) — same format as `Customer.phone` |
 | `email` | string \| null | null | Business contact email. Also used as the **Reply-To** of every email sent for this tenant (§4), and shown publicly (hotsite `CONTACT` module, chatbot context) — so it must be an address the business is happy to publish and monitor |
 | `address` | object \| null | null | Business address — see sub-fields below |
 | `socialLinks` | object \| null | null | Social/contact links — see sub-fields below |
@@ -270,8 +270,8 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 | `complement` | string (optional) | Suite / unit / floor |
 | `neighborhood` | string | Neighborhood / district |
 | `city` | string | City |
-| `state` | string | UF — 2-letter Brazilian state code |
-| `zipCode` | string | CEP, 8 digits, no hyphen |
+| `state` | string | State / region (country-spec driven; a 2-letter UF for Brazil) |
+| `zipCode` | string | Postal code (country-spec driven; for Brazil the CEP, 8 digits, no hyphen) |
 
 **`socialLinks` sub-fields** (all optional/nullable independently):
 
@@ -285,7 +285,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 ```json
 {
   "businessInfo": {
-    "phone": "31999999999",
+    "phone": "+5531999999999",
     "email": "contato@lavacar.com.br",
     "address": {
       "street": "Rua das Flores",
@@ -297,7 +297,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
       "zipCode": "30130000"
     },
     "socialLinks": {
-      "whatsapp": "31999999999",
+      "whatsapp": "+5531999999999",
       "instagram": "https://instagram.com/lavacar",
       "facebook": "https://facebook.com/lavacar"
     }
@@ -306,11 +306,10 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 ```
 
 **Validation Rules:**
-- `phone`, when present, must be 10–11 digits (`PhoneNumber.isValid`)
+- `phone`, when present, must be E.164 (`packages/validation/src/phone.ts`; `PhoneNumber.isValid` in the backend validator)
 - `email`, when present, must be a valid email address (`Email.isValid`)
 - `address`, when present, requires `street`, `number`, `neighborhood`, `city`, `state`, `zipCode`; `complement` is optional
-- `zipCode` must be exactly 8 digits (no hyphen)
-- `state` must be a 2-letter uppercase Brazilian UF code
+- `address` is shape-checked only on this path (`PartialAddressSchema`); `BusinessInfoValidator` does not validate it. Per-country postal-code and state rules live in the `Address` value object (`address.ts`, country-spec driven) — e.g. for Brazil the CEP is 8 digits without hyphen and the state a UF code
 - `socialLinks.whatsapp`, when present, must be a valid phone number (`PhoneNumber.isValid`); `instagram`/`facebook` are unvalidated URL strings
 - Any top-level field may be `null`/absent — partial business info is valid (e.g. `phone` set, `address` not yet filled)
 
@@ -408,7 +407,8 @@ Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHI
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
     "slotGranularityMinutes": 30,
-    "welcomeStaffScreenDays": 14
+    "welcomeStaffScreenDays": 14,
+    "recurringRenewalReminderDays": 7
   },
   "businessHours": {
     "timezone": "America/Sao_Paulo",
@@ -428,7 +428,7 @@ Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHI
     "decimalPlaces": 2
   },
   "businessInfo": {
-    "phone": "31999999999",
+    "phone": "+5531999999999",
     "email": "contato@lavacar.com.br",
     "address": {
       "street": "Rua das Flores",
@@ -440,7 +440,7 @@ Configuration for the `LEAD_FORM` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHI
       "zipCode": "30130000"
     },
     "socialLinks": {
-      "whatsapp": "31999999999",
+      "whatsapp": "+5531999999999",
       "instagram": "https://instagram.com/lavacar",
       "facebook": "https://facebook.com/lavacar"
     }
@@ -480,7 +480,8 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
     "maxBookingAdvanceDays": 90,
     "serviceBufferMinutes": 60,
     "slotGranularityMinutes": 30,
-    "welcomeStaffScreenDays": 14
+    "welcomeStaffScreenDays": 14,
+    "recurringRenewalReminderDays": 7
   },
   "businessHours": {
     "timezone": "America/Sao_Paulo",

@@ -25,7 +25,7 @@ flowchart TD
     class Form,FieldError,Success existing
 ```
 
-**Also shipped, undocumented by the original prototype (2026-07-31 docs audit):** the real form has 7 sections (General, Booking, Loyalty, **Notification**, Hours, Contact, **Localization**) vs. the prototype's 5, with ~9 additional fields (`autoApproveEnabled`, `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `recurringRenewalReminderDays` (M23-S21), `slotGranularityMinutes`, `welcomeStaffScreenDays`, `pointsPerCurrencyUnit`, `enableNotifications`, `expiryWarningDays`, `notificationMinPoints`), a structured address with ViaCEP zip-lookup instead of one free-text line, and social links (WhatsApp/Instagram/Facebook). This was a deliberate scope expansion on the `M13-S31` branch. **Resolved** — `01-settings-form.html` was already expanded the same day (2026-07-31) to add all 7 sections (see its own inline comment noting the expansion).
+**Also shipped, undocumented by the original prototype (2026-07-31 docs audit):** the real form then had 7 sections (General, Booking, Loyalty, **Notification**, Hours, Contact, **Localization**) vs. the prototype's 5 — it now has 8 (General, Booking, Loyalty, Hours, Contact, Chatbot, Lead Form, Localization; Notification was removed in `M18-S09`, Chatbot and Lead Form added below) — with ~9 additional fields (`autoApproveEnabled`, `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `recurringRenewalReminderDays` (M23-S21), `slotGranularityMinutes`, `welcomeStaffScreenDays`, `pointsPerCurrencyUnit`, `enableNotifications`, `expiryWarningDays`, `notificationMinPoints`), a structured address with ViaCEP zip-lookup instead of one free-text line, and social links (WhatsApp/Instagram/Facebook). This was a deliberate scope expansion on the `M13-S31` branch. **Resolved** — `01-settings-form.html` was already expanded the same day (2026-07-31) to add all 7 sections then present (see its own inline comment noting the expansion).
 
 **Shipped (`M19-S13`; added 2026-08-08 as a gap, promoted from `docs/04-USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`):** an 8th section, **Chatbot**, containing only `chatbot.knowledgeText` (free-form business info/policy/FAQ text fed into UC-033's system-prompt assembly) — no client-side length cap; the server's `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` is the sole backstop, since the resolved max can be a per-tenant Ikaro-only override never exposed to this form. See `manager/prototypes/configuracoes/01d-chatbot-section.html` and its `dev-notes.md` entry. Cross-reference: UC-026 (this journey, edits the field) ↔ UC-033 (`guest/ask-chatbot.md`, reads the field).
 
@@ -51,10 +51,10 @@ Folder: `manager/prototypes/configuracoes/`
 
 | File | Screen | UC | Status |
 |---|---|---|---|
-| `index.html` | Navigation hub + dry-run checklist (flags the missing BFF endpoint) | — | ✅ Criado |
+| `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
 | `01-settings-form.html` | Settings form (Geral / Agendamento / Fidelidade / Horário / Contato) | UC-026 | ✅ Criado |
 | `01b-validation-error.html` | Invalid field value error | UC-026 A1 | ✅ Criado |
 | `01c-saved-success.html` | Save confirmation | UC-026 | ✅ Criado |
 | `01d-chatbot-section.html` | Full form + new "Chatbot" section (`knowledgeText`, shipped `M19-S13`) | UC-026 | ✅ Criado |
 | `01e-lead-form-section.html` | Excerpt + new "Formulário de contato" section (`retentionMonths`, shipped `M20-S11`) | UC-042 | ✅ Criado |
-| `dev-notes.md` | Implementation handoff (BFF gap detailed) | — | ✅ Criado |
+| `dev-notes.md` | Implementation handoff | — | ✅ Criado |

@@ -20,12 +20,12 @@ The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) th
 
 ## NestJS Module Structure
 
-> **Note:** the tree below reflects the real `apps/bff/src/` layout. Controllers call `BackendHttpService` directly — there is **no** separate `.service.ts` delegation layer per module (the early `booking.service.ts` / `customer.service.ts` design was dropped; only `auth/` has standalone services, for JWT issuance and selection-token handling, which have no `BackendHttpService` equivalent to delegate to).
+> **Note:** the tree below reflects the real `apps/bff/src/` layout. Controllers call `BackendHttpService` directly — there is **no** separate `.service.ts` delegation layer per module (the early `booking.service.ts` / `customer.service.ts` design was dropped; only `auth/` has standalone services, for JWT issuance and OAuth state handling, which have no `BackendHttpService` equivalent to delegate to).
 
 ```
 apps/bff/src/
 ├── features/
-│   ├── auth/                 ← technical slice: OAuth, JWT issuance, tenant selection
+│   ├── auth/                 ← technical slice: OAuth, JWT issuance, session, tenant switching
 │   ├── booking/              ← domain slice: bookings, schedule, services, resources, recurring schedules, availability alerts, scheduling exceptions, attachments
 │   ├── customer/             ← domain slice
 │   ├── loyalty/              ← domain slice
@@ -181,11 +181,12 @@ Google → GET /v1/auth/google/callback?code=... (web origin; gateway forwards t
 BFF (GoogleStrategy.validate()):
   1. Exchange code for profile (googleOAuthId, email, name)
   2. Query backend: does this email exist as Staff in any tenant?
-     → If yes: single tenant → go to Step 4 (staff login, UC-022)
+     → If yes: the login targets the one tenant carried by the OAuth state → go to Step 4 (staff login, UC-022)
   3. Query backend: does this googleOAuthId exist as Customer in any tenant?
      → If none: new customer → create Customer in selected tenant later
      → If one: go to Step 4 (customer login, UC-021 case A)
-     → If multiple: go to Step 3 (tenant selection, UC-021 case B)
+     → If multiple: the login still targets the tenant whose hotsite the customer started from → Step 4 (Step 3, the pre-login tenant chooser, was removed)
+       (moving between already-linked tenants afterwards is `POST /auth/switch-tenant`; staff use `GET /auth/staff-tenants` + `POST /auth/switch-staff-tenant`)
 ```
 
 ### Step 3 — Tenant selection (customers only) — **removed, `M13-S14`**
@@ -245,7 +246,8 @@ AppThrottlerGuard
   │  Rate limit per route (see Rate Limiting) — rejects over-limit requests before any JWT work
   ▼
 JwtAuthGuard (passport-jwt)
-  │  Extracts JWT from the Bearer header OR the access_token cookie
+  │  Extracts JWT from the access_token cookie first; the Bearer header is only a fallback
+  │  (it normally carries the Cloud Run IAM identity token, not the session JWT)
   │  Verifies signature with JWT_SECRET
   │  Verifies expiry
   │  Extracts payload → { sub, tenantId, tenantSlug, tenantName, userName, role, locale }
@@ -256,12 +258,12 @@ TenantGuard
   │  Reads X-Tenant-Slug header IF PRESENT — the browser no longer sends it post-S17, so this
   │  guard is now effectively a no-op in practice (`if (!tenantSlug) return true`). Tenant
   │  scoping is carried entirely by the JWT/cookie, not this header, for real traffic.
-  │  → 403 tenant-mismatch only if a caller supplies a mismatched header explicitly
+  │  → 403 AUTH_TENANT_MISMATCH only if a caller supplies a mismatched header explicitly
   ▼
 RolesGuard (only on routes decorated with @Roles())
   │  Reads req.user.role
   │  Compares with allowed roles from @Roles() decorator
-  │  → 403 forbidden if role insufficient
+  │  → 403 AUTH_FORBIDDEN if role insufficient
   ▼
 ActiveStaffGuard (skipped on @Public() routes)
   │  For a staff caller, asks the backend whether the staff member is still active
@@ -288,7 +290,7 @@ Backend (internal Cloud Run — not public)
   ▼
 ErrorFilter
   │  If backend returns 4xx/5xx: re-emits as RFC 9457 ProblemDetail
-  │  If backend is unreachable (timeout): returns 503 service-unavailable
+  │  If backend is unreachable (timeout / no response): returns 503 BFF_UPSTREAM_UNAVAILABLE
   ▼
 Browser
 ```
@@ -305,11 +307,15 @@ The `BackendHttpService` is the single class that all BFF modules use to call th
 // apps/bff/src/shared/http/backend-http.service.ts
 @Injectable({ scope: Scope.REQUEST })
 export class BackendHttpService {
+  private readonly baseUrl: string;
+
   constructor(
     private readonly http: HttpService,  // @nestjs/axios
     private readonly config: ConfigService,
     @Inject(REQUEST) private readonly req: Request,
-  ) {}
+  ) {
+    this.baseUrl = this.config.getOrThrow<string>('BACKEND_INTERNAL_URL');
+  }
 
   private headers(): Record<string, string> {
     return {
@@ -318,41 +324,24 @@ export class BackendHttpService {
     };
   }
 
+  // get / post / patch / put / delete use headers() (JWT actor);
+  // getForPublic / postForPublic / patchForPublic use publicHeaders(tenantId) (X-Tenant-ID + X-Internal-Key only).
   async get<T>(path: string, params?: Record<string, unknown>): Promise<T> {
-    const url = `${process.env.BACKEND_INTERNAL_URL}${path}`;
-    const { data } = await firstValueFrom(
-      this.http.get<T>(url, { headers: this.headers(), params, timeout: 10_000 }),
+    return this.call(
+      this.http.get<T>(`${this.baseUrl}${path}`, { headers: this.headers(), params, timeout: 10_000 }),
     );
-    return data;
   }
 
-  async post<T>(path: string, body: unknown): Promise<T> {
-    const url = `${process.env.BACKEND_INTERNAL_URL}${path}`;
-    const { data } = await firstValueFrom(
-      this.http.post<T>(url, body, { headers: this.headers(), timeout: 10_000 }),
-    );
-    return data;
-  }
-
-  async patch<T>(path: string, body: unknown): Promise<T> {
-    const url = `${process.env.BACKEND_INTERNAL_URL}${path}`;
-    const { data } = await firstValueFrom(
-      this.http.patch<T>(url, body, { headers: this.headers(), timeout: 10_000 }),
-    );
-    return data;
-  }
-
-  async delete<T>(path: string): Promise<T> {
-    const url = `${process.env.BACKEND_INTERNAL_URL}${path}`;
-    const { data } = await firstValueFrom(
-      this.http.delete<T>(url, { headers: this.headers(), timeout: 10_000 }),
-    );
-    return data;
-  }
+  // Every method wraps its request in call():
+  //   backend responded 4xx/5xx -> rethrown as HttpException(response.data, response.status)
+  //   no response (timeout / connection error) -> 503 BFF_UPSTREAM_UNAVAILABLE
+  private async call<T>(observable: Observable<AxiosResponse<T>>): Promise<T> { /* ... */ }
 }
 ```
 
-**Timeout:** 10 seconds per call. If the backend does not respond within 10 s, the BFF returns `503 service-unavailable` with the correlationId so the ops team can trace the slow request.
+In production (`BACKEND_AUTH_MODE=iam`) a singleton `BackendAuthInterceptor` (`apps/bff/src/shared/http/backend-auth.interceptor.ts`) registers one axios request interceptor on the shared axios instance. For requests whose origin matches `BACKEND_INTERNAL_URL` it sets `Authorization: Bearer <Google identity token>` (audience `BACKEND_AUDIENCE`, defaulting to the backend URL), obtained through the `IIdentityTokenProvider` port (`GoogleIdentityTokenProvider` adapter) so Cloud Run's IAM invoker check passes. It lives outside the request-scoped service so it registers once, not per request.
+
+**Timeout:** 10 seconds per call. If the backend does not respond within 10 s (or the connection fails), the BFF returns `503 BFF_UPSTREAM_UNAVAILABLE` with the correlationId so the ops team can trace the slow request.
 
 **Public POST variant:** `postForPublic(path, body, tenantId, timeoutMs = 10_000)` is the unauthenticated (guest/hotsite) counterpart of `post`, built on the tenant id instead of a JWT actor. Its `timeoutMs` is the one per-call timeout override in the class: the chatbot message endpoint passes a longer value because a real LLM completion can outlast the usual 10 seconds.
 
