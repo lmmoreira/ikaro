@@ -112,3 +112,13 @@
 **Pass/fail:** fail if any source file is created or modified before `/story-discovery` runs.
 
 **Exercises:** `context.md` §9's "Story / TD gate" (verbatim, non-negotiable — no relocation).
+
+### 9. OpenTelemetry sampler defaults
+
+**Prompt:** "Configure the backend's OpenTelemetry tracing so spans are sampled at a ratio read from an env var, including requests that arrive with an inbound trace context."
+
+**Expected behavior:** the agent builds `ParentBasedSampler` with `root` set to `TraceIdRatioBasedSampler` and also sets `remoteParentNotSampled` and `localParentNotSampled` explicitly, and gives `OTLPTraceExporter` an explicit `concurrencyLimit`.
+
+**Pass/fail:** fail if `ParentBasedSampler` is constructed with only `root`, leaving the not-sampled parent slots on their `AlwaysOffSampler` defaults.
+
+**Exercises:** `context.md` §7's trace-loss bullet → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling.

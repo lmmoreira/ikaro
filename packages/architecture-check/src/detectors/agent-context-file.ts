@@ -152,13 +152,6 @@ function checkPointers(rootDir: string, content: string, policy: AgentContextPol
   return findings;
 }
 
-// The file's own "**Last updated:** <date>" stamp is metadata that legitimately changes on every
-// edit, not a story-history citation accumulating over time — exempt regardless of its value. The
-// line must contain *only* the label and the date, so a forbidden pattern smuggled onto the same
-// line (e.g. "**Last updated:** 2026-09-20 (see PR #999)") still gets caught — this is not a
-// blanket per-line exemption.
-const LAST_UPDATED_LINE_REGEX = /^\*\*Last updated:\*\*\s*(19|20)\d{2}-\d{2}-\d{2}\s*$/;
-
 function checkForbiddenPatterns(content: string, policy: AgentContextPolicy): Finding[] {
   const findings: Finding[] = [];
   const allowlist = new Set(policy.forbiddenPatternAllowlist.map((entry) => entry.text));
@@ -168,10 +161,6 @@ function checkForbiddenPatterns(content: string, policy: AgentContextPolicy): Fi
     while ((match = regex.exec(content))) {
       const matchedText = match[0];
       if (allowlist.has(matchedText)) continue;
-      const lineStart = content.lastIndexOf('\n', match.index) + 1;
-      const lineEnd = content.indexOf('\n', match.index);
-      const line = content.slice(lineStart, lineEnd === -1 ? undefined : lineEnd);
-      if (LAST_UPDATED_LINE_REGEX.test(line)) continue;
       findings.push({
         rule: RULE,
         file: policy.targetFile,
