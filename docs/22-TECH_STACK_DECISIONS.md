@@ -9,6 +9,8 @@
 
 ---
 
+> **Historical illustrations:** the Kafka, Vault, Kubernetes, AWS/Azure-provider and multi-cloud material in this document records Phase-2 options weighed at inception. The committed target is GCP only (`.copilot/context.md` §1) and none of them is planned; the sections that describe them are kept for the reasoning, not as a roadmap.
+
 ## Executive Summary
 
 This document defines the technology stack for Ikaro, a multi-tenant SaaS platform for car wash booking and loyalty management. The stack is designed to be **production-grade from day 1**, **cost-efficient for MVP**, and **scalable without refactoring**.
@@ -1107,7 +1109,7 @@ resource "google_secret_manager_secret" "database_url" {
 # Full authoritative Terraform: docs/23-INFRASTRUCTURE_SETUP.md
 ```
 
-### Multi-Cloud Ready (Future)
+### Multi-Cloud Ready (historical illustration — not planned)
 
 ```hcl
 # terraform/providers.tf

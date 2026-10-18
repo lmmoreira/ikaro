@@ -608,45 +608,17 @@ page.getByLabel(/e-mail/i)
 
 ---
 
-## Test Data Factories
+## Test Data Builders
 
-Every test that needs domain objects uses a **Factory** — never constructs aggregates by hand. Factories live in `src/shared/testing/factories/`.
+Every test that needs domain objects uses a **Builder class** — never constructs aggregates or entities by hand, and never a plain factory function. Builders live in `src/test/builders/<context>/` (see "Builder class pattern" under Mandatory Patterns for the naming and location rules, and `pnpm architecture-check`'s `test-builder-coverage` detector for the coverage requirement).
 
-```typescript
-// src/shared/testing/factories/booking.factory.ts
-export const BookingFactory = {
-  pending(overrides?: Partial<BookingProps>): Booking {
-    return Booking.requestBooking(
-      overrides?.actor ?? GuestActorFactory.create(),
-      overrides?.slot ?? SlotFactory.tomorrow(),
-      overrides?.services ?? [ServiceFactory.basicWash()],
-      overrides?.pickupAddress ?? null,
-    );
-  },
+> **Note on the examples in this document:** several snippets below write `BookingFactory.approved(...)`, `SlotFactory.nextWeek()` and similar. That is illustrative shorthand for "an approved booking" and "a slot next week"; in real specs build them with the context's builders (`src/test/builders/booking/`), for example `new BookingBuilder()…build()`.
 
-  approved(overrides?: Partial<BookingProps>): Booking {
-    const booking = BookingFactory.pending(overrides);
-    booking.approveBooking(overrides?.staffId ?? STAFF_ID);
-    booking.clearDomainEvents(); // clean slate for the test's assertions
-    return booking;
-  },
+**Rule:** builders always produce **valid** domain objects. Override only what the scenario needs — never build invalid states by bypassing the aggregate.
 
-  withStatus(status: BookingStatus, overrides?: Partial<BookingProps>): Booking {
-    // ... build booking in the required state
-  },
-};
-```
+### Test constants
 
-**Rule:** Factories always produce **valid** domain objects. Use `overrides` to target specific scenarios — never build invalid states by bypassing the aggregate.
-
-### Shared test constants
-```typescript
-// src/shared/testing/constants.ts
-export const TENANT_A = '00000000-0000-0000-0000-000000000001' as TenantId;
-export const TENANT_B = '00000000-0000-0000-0000-000000000002' as TenantId;
-export const STAFF_ID = '00000000-0000-0000-0000-000000000010' as StaffId;
-export const CUSTOMER_ID = '00000000-0000-0000-0000-000000000020' as CustomerId;
-```
+There is no shared constants file. Each spec declares the tenant, staff and customer ids it needs (for example `const TENANT_A = …` at the top of the spec file), using fixed literal UUIDs for readability.
 
 ---
 
@@ -670,83 +642,20 @@ it('should not expose TENANT_A data to TENANT_B', async () => {
 });
 ```
 
-**Named exports to reuse across suites:**
-```typescript
-// src/shared/testing/tenant-isolation.helper.ts
-export function expectTenantIsolation(
-  fn: () => Promise<unknown>,
-): Promise<void> {
-  return expect(fn()).rejects.toThrow(NotFoundError);
-}
-```
+**There is no shared helper for this.** Each spec states the cross-tenant assertion directly (`expect(result).toBeNull()` or `.rejects.toThrow(NotFoundError)`, as above), so the assertion stays next to the data it protects.
 
 ---
 
 ## Architecture Isolation Test
 
-This test enforces the Context Isolation Contract (Rule 1 in `docs/05-BOUNDED_CONTEXTS.md`) at build time. It uses ESLint import rules, not a custom test.
+The Context Isolation Contract (Rule 1 in `docs/05-BOUNDED_CONTEXTS.md`) is expressed as a policy, not as a hand-written list of ESLint zones:
 
-All 30 pairs (6 contexts × 5 forbidden sources) are listed explicitly — no "repeat for all" shortcuts. Every pair must be present for the rule to be complete.
+- **The policy:** `contextDependencyMatrix` in `packages/architecture-check/architecture-policy.json` — `default: "deny"` plus a `permittedEdges` list. Each permitted edge names the exact source file (a cross-context adapter), the target context and the exact target paths it may import, with a rationale and an owner. There is no wildcard entry.
+- **The checker:** `scripts/dependency-cruiser.config.cjs` turns that policy into dependency-cruiser rules (denied by default; a permitted source may import only its exact target paths). `pnpm dep-cruise` runs it over the codebase.
+- **What is a blocking gate today:** `pnpm dep-cruise:test` (`scripts/dependency-cruiser-config.spec.cjs`), which proves the generated rules match the policy. **The scan itself, `pnpm dep-cruise`, runs in `pr-quality.yml` as a report-only step (`continue-on-error: true`), so a cross-context import does not fail a PR on its own.** Treat a finding in that report as a defect all the same, and add a permitted edge to the policy only with the rationale and review the policy requires.
+- **ESLint** still bans related shortcuts through `no-restricted-imports` in `apps/backend/eslint.config.js` (the ports barrel, the shared-domain barrel, direct TypeORM use outside repository adapters); those do block merge.
 
-```jsonc
-// apps/backend/.eslintrc.js  (or eslint.config.ts)
-{
-  "rules": {
-    "import/no-restricted-paths": [
-      "error",
-      {
-        "zones": [
-          // ── Booking cannot import from ───────────────────────────────────────
-          { "target": "./src/contexts/booking",      "from": "./src/contexts/customer" },
-          { "target": "./src/contexts/booking",      "from": "./src/contexts/staff" },
-          { "target": "./src/contexts/booking",      "from": "./src/contexts/loyalty" },
-          { "target": "./src/contexts/booking",      "from": "./src/contexts/notification" },
-          { "target": "./src/contexts/booking",      "from": "./src/contexts/platform" },
-
-          // ── Customer cannot import from ──────────────────────────────────────
-          { "target": "./src/contexts/customer",     "from": "./src/contexts/booking" },
-          { "target": "./src/contexts/customer",     "from": "./src/contexts/staff" },
-          { "target": "./src/contexts/customer",     "from": "./src/contexts/loyalty" },
-          { "target": "./src/contexts/customer",     "from": "./src/contexts/notification" },
-          { "target": "./src/contexts/customer",     "from": "./src/contexts/platform" },
-
-          // ── Staff cannot import from ─────────────────────────────────────────
-          { "target": "./src/contexts/staff",        "from": "./src/contexts/booking" },
-          { "target": "./src/contexts/staff",        "from": "./src/contexts/customer" },
-          { "target": "./src/contexts/staff",        "from": "./src/contexts/loyalty" },
-          { "target": "./src/contexts/staff",        "from": "./src/contexts/notification" },
-          { "target": "./src/contexts/staff",        "from": "./src/contexts/platform" },
-
-          // ── Loyalty cannot import from ───────────────────────────────────────
-          { "target": "./src/contexts/loyalty",      "from": "./src/contexts/booking" },
-          { "target": "./src/contexts/loyalty",      "from": "./src/contexts/customer" },
-          { "target": "./src/contexts/loyalty",      "from": "./src/contexts/staff" },
-          { "target": "./src/contexts/loyalty",      "from": "./src/contexts/notification" },
-          { "target": "./src/contexts/loyalty",      "from": "./src/contexts/platform" },
-
-          // ── Notification cannot import from ──────────────────────────────────
-          { "target": "./src/contexts/notification", "from": "./src/contexts/booking" },
-          { "target": "./src/contexts/notification", "from": "./src/contexts/customer" },
-          { "target": "./src/contexts/notification", "from": "./src/contexts/staff" },
-          { "target": "./src/contexts/notification", "from": "./src/contexts/loyalty" },
-          { "target": "./src/contexts/notification", "from": "./src/contexts/platform" },
-
-          // ── Platform cannot import from ──────────────────────────────────────
-          { "target": "./src/contexts/platform",     "from": "./src/contexts/booking" },
-          { "target": "./src/contexts/platform",     "from": "./src/contexts/customer" },
-          { "target": "./src/contexts/platform",     "from": "./src/contexts/staff" },
-          { "target": "./src/contexts/platform",     "from": "./src/contexts/loyalty" },
-          { "target": "./src/contexts/platform",     "from": "./src/contexts/notification" }
-        ]
-      }
-    ]
-  }
-}
-```
-
-This makes cross-context imports a **lint error** caught in CI Stage 1 (Static Analysis), long before tests run.
-
-> **Note on `src/shared/`:** The rule above only restricts context-to-context imports. Imports from `src/shared/` are always allowed from any context — that is the intended cross-cutting path.
+> **Note on `src/shared/`:** the policy governs context-to-context imports. Imports from `src/shared/` are the intended cross-cutting path and are allowed.
 
 ---
 
@@ -895,7 +804,7 @@ describe('RescheduleBookingUseCase', () => {
 | Gate | Tool | Failure action |
 |---|---|---|
 | Zero lint errors | ESLint + Prettier | Block merge |
-| Zero cross-context imports | ESLint `no-restricted-paths` | Block merge |
+| Zero cross-context imports | dependency-cruiser, driven by `contextDependencyMatrix` (`pnpm dep-cruise`) | **Report-only today** (`continue-on-error`); only `pnpm dep-cruise:test` blocks |
 | Type check passes | `tsc --noEmit` | Block merge |
 | All tests pass (100%) | Jest / Vitest | Block merge |
 | Coverage ≥ 80% on **changed code** | SonarCloud (differential) | Block merge |
@@ -1018,6 +927,8 @@ Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/
 Example: `InMemoryBookingPlatformPort` (`src/test/infrastructure/in-memory-booking-platform.port.ts`) is seeded per tenant with `seedBusinessHoursAndLocale(tenantId, value)` and cleared between tests.
 
 ### BFF: two test files per controller (mandatory)
+
+> **Known gap:** four BFF controllers have no `*.controller.component.spec.ts` yet (`bookings-attachments`, `recurring-booking-schedules`, `bookings-guest`, `bookings-no-show`, all under `apps/bff/src/features/booking/`); the rule below is not enforced by `architecture-check`. Adding them is tracked by `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md`.
 
 Every `*.controller.ts` in `apps/bff/src/` must have:
 - `*.controller.spec.ts` — unit spec

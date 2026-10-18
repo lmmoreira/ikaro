@@ -39,12 +39,12 @@ Every `save()` in every use case must be wrapped in `ITransactionManager.run()` 
 
 ### Cross-row invariants: transaction scope is necessary, database enforcement is authoritative
 
-Some business rules are not "single-row correctness" rules; they are **cross-row invariants**. Booking slot exclusivity is the canonical example: "no two `APPROVED` bookings overlap for the same tenant." `@VersionColumn` and optimistic locking do **not** protect this kind of rule, because they only detect stale writes to the **same row**.
+Some business rules are not "single-row correctness" rules; they are **cross-row invariants**. Resource occupancy is the canonical example: "no two `HOLD`/`COMMITTED` occupancies overlap on the same resource." `@VersionColumn` and optimistic locking do **not** protect this kind of rule, because they only detect stale writes to the **same row**.
 
 Rule:
 
 - Re-check any cross-row invariant **inside** the write transaction. A pre-transaction read/check is a TOCTOU race.
-- Treat the database as the final authority for the invariant. For booking slot exclusivity, use a Postgres exclusion constraint over the persisted time range.
+- Treat the database as the final authority for the invariant. For resource occupancy, use a Postgres exclusion constraint over the persisted time range (`EX_booking_resource_occupancy_locked_window` on `booking.resource_occupancy`: a GiST exclusion over `tenant_id`, `resource_id` and the `starts_at`/`ends_at` range, applying to the `HOLD` and `COMMITTED` lock states).
 - If you add an app-level lock (for example `pg_advisory_xact_lock(...)`) to narrow concurrent attempts around the in-transaction check, treat it as a companion to the DB constraint, not a replacement for it.
 
 In other words: transaction scope fixes "check-then-act outside the write"; the database constraint fixes "two writers race anyway."

@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-**Ikaro** is a multi-tenant car wash service management platform enabling multiple autonomous car wash companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
+**Ikaro** is a multi-tenant booking and loyalty platform for local service businesses. Car wash is the flagship vertical and the one this document's examples use; the platform also supports appointment-style services through resources and scheduling rules (`docs/05-BOUNDED_CONTEXTS.md`). It enables multiple autonomous companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
 
 **Key:** Single Ikaro platform, multiple independent companies.
 
