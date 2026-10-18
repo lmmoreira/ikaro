@@ -45,12 +45,12 @@ Argument: `$ARGUMENTS` — the story ID to mark done: a milestone story (`M03-S0
 
    **Also check `docs/27-BUSINESS_LOGIC_REFERENCE.md`** if this story's bounded context has a section there: does that section still accurately describe the algorithm/state machine/formulas as this story actually shipped them, not as originally planned at story-discovery time? A story frequently changes its own design mid-implementation (bot review, a user decision) — the reference doc needs to reflect the merged result, not the discovery-time plan. If the context has no section yet but this story's own business logic is genuinely complex/cross-cutting (same bar as `/story-discovery`'s 4r check), that's a real gap too, not just a "changed section" one.
 
-   **Also run the story's docs audit.** Over the commits listed at the start of this step, run one `/docs-audit changed:<sha>^..<sha>` per commit and merge the results. Each run maps the files the story changed to the canonical docs, journeys, prototypes (including the journey-vs-code check), TDs and milestones that describe them. It is read-only; any fix goes through docs-audit's own approval step (CLAUDE.md §0).
+   **Also run the story's docs audit.** Over the commits listed at the start of this step, run one `/docs-audit changed:<sha>^..<sha>` per commit and merge the results. Each run maps the files the story changed to the canonical docs (by `Tags`, through `pnpm --filter @ikaro/architecture-check docs-for --range <sha>^..<sha>`), journeys, prototypes (including the journey-vs-code check), TDs and milestones that describe them. It is read-only; any fix goes through docs-audit's own approval step (CLAUDE.md §0).
 
    Treat its findings by type:
    - **Stale/Conflicting, `[inventory]` drift, journey-vs-code drift, or a dead pointer — this story caused** (e.g. it renamed or removed a heading, file or export that a doc points to) — handled exactly like a partial AC line below: fix now as a follow-up doc commit (via docs-audit's approval step), or open a TD via `/create-td` and add the `⚠️ … tracked in <TD>` line. Never left silent.
    - **Dead pointers the story did not cause, context-quality, duplication, weight report** — reported to the user, not gating; the user decides now or later.
-   - **Changed files that mapped to no doc** — list them so the user can say whether a doc should exist for them.
+   - **Changed files that mapped to no doc or tag** (`docs-for`'s `unmapped` lines) — list them so the user can say whether a doc should exist for them.
 
    If the user declines a fix, record that and continue — doc findings never block the `✅ Done` edit on their own, but a silent gap is not allowed.
 

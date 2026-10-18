@@ -1,6 +1,7 @@
 # Ikaro — Repository Structure
 
 > **When to load:** creating files in unfamiliar locations, answering architecture questions, or setting up a new context module.
+> **Tags:** agent-process, backend, bff, web
 
 ---
 

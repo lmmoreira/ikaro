@@ -1,5 +1,8 @@
 # Infrastructure Setup
 
+> **When to load:** provisioning Ikaro infrastructure: operator tooling, repository layout, provisioning order, current platform choices, local infrastructure and verification; Terraform and workflow YAML stay the executable sources, runtime topology is in `docs/12-DEPLOYMENT_STRATEGY.md`.
+> **Tags:** infra
+
 This document is the supported entry point for provisioning Ikaro infrastructure. Terraform configuration and workflow YAML remain the executable sources of truth.
 
 ## Before provisioning

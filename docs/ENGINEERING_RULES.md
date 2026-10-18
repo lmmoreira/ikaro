@@ -1,5 +1,8 @@
 # Ikaro — Engineering Rules (index)
 
+> **When to load:** finding which `ENGINEERING_RULES_*.md` file holds a rule that used to live in one file; this is an index only, and the rules are in `docs/ENGINEERING_RULES_SHARED.md`, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_INFRA.md`, `docs/ENGINEERING_RULES_FRONTEND.md` and `docs/ENGINEERING_RULES_TESTING.md`.
+> **Tags:** agent-process
+
 > **This file no longer holds the rules directly.** Split into 5 topic-focused files (TD41-S4, 2026-09-23) so a session only loads what its task actually needs — see `CLAUDE.md §10` for which file(s) a given task type loads. Every original heading is listed below with the file it moved to, so an old citation (`docs/ENGINEERING_RULES.md § <heading>`) always resolves to a real line here. <!-- doc-link:example -->
 
 ---

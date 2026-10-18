@@ -1,5 +1,8 @@
 # Tenants Settings Schema - Ikaro
 
+> **When to load:** reading, adding or validating a `tenants.settings` key: the schema, settings by category, defaults at tenant creation, how code reads and updates them (UC-026) and backward compatibility; tenant isolation is in `docs/06-TENANT_ISOLATION_STRATEGY.md`.
+> **Tags:** backend, database, tenancy
+
 **Status:** Phase 2 - Technical Architecture  
 **Audience:** Backend developers, AI agents, database teams  
 **Last Updated:** 2026-10-12

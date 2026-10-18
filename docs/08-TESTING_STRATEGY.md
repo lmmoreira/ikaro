@@ -1,5 +1,8 @@
 # Testing Strategy - Ikaro
 
+> **When to load:** writing or reviewing tests: the pyramid, domain, application, integration, contract and E2E layers, test data builders, the mandatory tenant-isolation test, concurrency tests, parallelism and CI quality gates; rules learned from failures are in `docs/ENGINEERING_RULES_TESTING.md`, CI failure causes in `docs/CI_TRAPS.md`.
+> **Tags:** testing
+
 ## Philosophy
 
 Tests in Ikaro are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/04-USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.

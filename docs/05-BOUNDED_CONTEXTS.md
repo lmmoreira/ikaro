@@ -1,5 +1,8 @@
 # Bounded Contexts & Communication - Ikaro
 
+> **When to load:** deciding how one bounded context talks to another (events, BFF orchestration or a port), or checking context ownership, the isolation contract or an allowed cross-context edge; aggregate shapes are in `docs/02-DOMAIN_MODEL.md`, event payloads in `docs/03-DOMAIN_EVENTS.md`.
+> **Tags:** backend, events
+
 This document describes how the independent bounded contexts in Ikaro interact and communicate, ensuring loose coupling and high cohesion, **while maintaining complete tenant isolation**.
 
 ---

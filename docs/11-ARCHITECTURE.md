@@ -1,5 +1,8 @@
 # System Architecture & Hexagonal Design - Ikaro
 
+> **When to load:** orienting on the system: the modular monolith with hexagonal layers, the high-level diagram, the repository slice shape and how multi-tenancy is enforced; full trees are in `docs/REPOSITORY_STRUCTURE.md`, context boundaries in `docs/05-BOUNDED_CONTEXTS.md`.
+> **Tags:** backend, bff, web
+
 ## Overview
 
 Ikaro is designed as a **Modular Monolith** using **Hexagonal Architecture (Ports & Adapters)**. This ensures that the core business logic is isolated from external technologies (Database, APIs, UI), making the system highly testable and maintainable.

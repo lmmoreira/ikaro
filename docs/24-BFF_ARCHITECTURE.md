@@ -1,5 +1,8 @@
 # BFF Architecture - Ikaro
 
+> **When to load:** implementing or changing the BFF (`apps/bff/`): module and controller naming, the web-to-BFF transport helpers, the Google OAuth and JWT flow, the protected-request lifecycle, error passthrough, rate limiting and environment variables; endpoint shapes are in `docs/14-API_CONTRACTS.md`.
+> **Tags:** bff
+
 ## Purpose
 
 The BFF (Backend-for-Frontend) is a **separate NestJS service** (`apps/bff/`) that acts as the sole public entry point for the web layer (`apps/web/`). The frontend never calls the backend directly.

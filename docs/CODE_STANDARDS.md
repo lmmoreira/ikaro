@@ -1,5 +1,8 @@
 # Code Standards — Ikaro
 
+> **When to load:** writing or reviewing any TypeScript: strictness, repository signatures, controllers, domain errors, naming, value objects, events, Zod validators and Next.js component rules; code skeletons are in `docs/AGENT_PATTERNS.md`.
+> **Tags:** agent-process, backend, bff, web
+
 Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the condensed summary; this file is the authoritative reference. Load when writing new code or reviewing standards.
 
 ---

@@ -1,5 +1,8 @@
 # Ikaro — Anti-Patterns Reference (BLOCK MERGE)
 
+> **When to load:** before committing or reviewing code: the full list of merge-blocking mistakes with their fixes (the 11 most severe are inline in `CLAUDE.md` §8); failures that only appear in CI are in `docs/CI_TRAPS.md`.
+> **Tags:** agent-process, backend, web
+
 > Canonical list. Loaded automatically by `/pre-pr`. See `CLAUDE.md §8` for the 11 highest-severity/most-universal ones kept inline — narrower, single-incident precedents live here only.
 
 | Pattern | Problem | Fix |

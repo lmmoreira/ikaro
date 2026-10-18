@@ -1,5 +1,8 @@
 # 28 — Lock Catalog
 
+> **When to load:** adding, changing or debugging a lock, a transaction that writes shared rows, a deadlock or a stuck request: every lock, its key, call sites, the required acquisition order and known hazards; why to pick each primitive is in `docs/ENGINEERING_RULES_BACKEND.md`.
+> **Tags:** backend, database
+
 **Audience:** any engineer or AI agent touching a transaction that writes shared rows, and anyone debugging a stuck request, a `40P01` deadlock or a duplicate/stale row.
 **Scope:** every mechanism the backend uses to serialize concurrent work. BFF and web were searched too (`mutex`, `semaphore`, `redlock`, advisory/`FOR UPDATE` patterns) and hold none.
 **Last verified against the code:** 2026-10-17 (docs-audit re-check of every lock, key, call site and §4 order; corrections the same day), after M23-S49 (read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).

@@ -1,5 +1,8 @@
 # Runbooks — Ikaro
 
+> **When to load:** an operator is rolling back a production promote, handling a staging problem or running a Pub/Sub or scheduled-job procedure; why the system is built this way is in `docs/12-DEPLOYMENT_STRATEGY.md`.
+> **Tags:** infra
+
 Operational procedures for production incidents and controlled platform operations — what an operator actually runs, not why the system is built the way it is (that's `plan/M17-CLOUD-DEPLOY.md`).
 
 ---

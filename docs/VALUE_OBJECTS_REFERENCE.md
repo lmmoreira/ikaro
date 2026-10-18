@@ -1,6 +1,7 @@
 # Value Objects — Agent Reference
 
-**Load when:** working with aggregate fields, repository mappers, JSONB columns, or in-memory repo comparisons.
+> **When to load:** working with aggregate fields, repository mappers, JSONB columns or in-memory repo comparisons: the shared value-object catalog and the aggregate props pattern; aggregate shapes are in `docs/02-DOMAIN_MODEL.md`.
+> **Tags:** backend, agent-process
 
 ---
 

@@ -1,5 +1,8 @@
 # Agent Patterns — Ikaro
 
+> **When to load:** writing any backend, test, BFF or notification code: token-efficient code skeletons distilled from real files; the rules they follow are in `docs/CODE_STANDARDS.md` and `docs/ENGINEERING_RULES_SHARED.md`.
+> **Tags:** agent-process, backend
+
 > Token-efficient code templates. Load this whenever writing any code (§10 maps it to "Writing any code").
 > Each skeleton is distilled from a real file in the repo — copy and substitute `Xxx`/`xxx`/`XXX` with your context name.
 > Canonical source files are noted in each section — read them only when you need something the skeleton doesn't cover.

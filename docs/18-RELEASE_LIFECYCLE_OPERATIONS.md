@@ -1,5 +1,8 @@
 # Release Lifecycle & Operations - Ikaro
 
+> **When to load:** following a change from local development to production, the hotfix path, secrets and configuration management, rollback or release monitoring; incident procedures are in `docs/RUNBOOKS.md`.
+> **Tags:** infra
+
 ## Overview
 
 This document provides a step-by-step operational guide for the entire lifecycle of a change in Ikaro, from the first line of code on a local machine to the final deployment in Production.

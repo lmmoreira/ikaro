@@ -1086,6 +1086,83 @@
     "gitignoredAllowed": ["docs/BOOTSTRAP_LOG.md"],
     "allowlist": []
   },
+  "docOrientation": {
+    "headerLines": 15,
+    "minWhenToLoadLength": 20,
+    "tags": {
+      "backend": {
+        "description": "NestJS backend: bounded contexts, use cases, aggregates, domain rules.",
+        "globs": ["apps/backend/**"]
+      },
+      "bff": {
+        "description": "The BFF: feature controllers, mappers, API contracts and the shared types they use.",
+        "globs": ["apps/bff/**", "packages/types/**"]
+      },
+      "web": {
+        "description": "The Next.js app: hotsite, dashboard, shells, UI primitives, i18n copy.",
+        "globs": ["apps/web/**", "packages/i18n/**"]
+      },
+      "database": {
+        "description": "Schema, migrations, entities, repositories and persistence rules.",
+        "globs": [
+          "apps/backend/src/**/migrations/**",
+          "apps/backend/src/**/*.entity.ts",
+          "apps/backend/src/shared/database/**"
+        ]
+      },
+      "events": {
+        "description": "Domain events, the event bus and Pub/Sub topics and subscriptions.",
+        "globs": [
+          "apps/backend/src/contexts/*/domain/events/**",
+          "apps/backend/src/contexts/*/infrastructure/events/**",
+          "infra/terraform/pubsub-catalog.json"
+        ]
+      },
+      "tenancy": {
+        "description": "Multi-tenant isolation: request context, guards, tenant-scoped access and tenant settings.",
+        "globs": [
+          "apps/backend/src/shared/request/**",
+          "apps/backend/src/shared/guards/**",
+          "apps/web/proxy.ts"
+        ]
+      },
+      "infra": {
+        "description": "Infrastructure, CI/CD, deployment, observability and the architecture checks.",
+        "globs": [
+          "infra/**",
+          ".github/**",
+          "scripts/**",
+          "packages/observability/**",
+          "packages/architecture-check/**"
+        ]
+      },
+      "testing": {
+        "description": "Test strategy, test infrastructure, builders and E2E conventions.",
+        "globs": [
+          "apps/backend/src/test/**",
+          "apps/web/e2e/**",
+          "apps/web/vitest.config.ts",
+          "apps/web/vitest.setup.ts",
+          "apps/web/playwright.config.ts",
+          "apps/backend/jest*.ts",
+          "apps/bff/jest*.ts",
+          "apps/bff/src/test/**"
+        ]
+      },
+      "prototypes": {
+        "description": "The validated UX journeys and HTML prototypes the UI is built from.",
+        "globs": ["plan/journey/**"]
+      },
+      "product": {
+        "description": "Business context, product rules and cost: topics with no code to diff against.",
+        "globs": []
+      },
+      "agent-process": {
+        "description": "Engineering standards, conventions, decisions and agent workflow: topics with no code to diff against.",
+        "globs": []
+      }
+    }
+  },
   "detectorContract": {
     "requiresPermanentPositiveAndNegativeFixtures": true,
     "requiresScannedTargetCount": true,

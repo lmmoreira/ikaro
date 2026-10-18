@@ -1,5 +1,8 @@
 # Ikaro — Business Logic Reference (Visual)
 
+> **When to load:** implementing or changing a complex rule that spans several use cases or aggregates (resource-scoped scheduling, booking window, recurring reservations, the worklist, availability alerts, no-show); read the one section for your context. Aggregate shapes are in `docs/02-DOMAIN_MODEL.md`, flows in `docs/04-USE_CASES.md`.
+> **Tags:** backend
+
 **Audience:** developers and AI agents who need to understand a genuinely complex, cross-cutting piece of business logic without re-deriving it from prose scattered across several docs.
 
 **Scope:** algorithms, state machines, and formulas that span multiple use cases or aggregates within one bounded context — the kind of logic that's easy to get subtly wrong from memory and expensive to re-verify from scratch. This doc does **not** duplicate the canonical sources:

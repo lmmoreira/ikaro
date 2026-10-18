@@ -1,5 +1,8 @@
 # Cost Optimization Strategy (Lean Startup) - Ikaro
 
+> **When to load:** weighing a tooling or infrastructure choice against cost: the lean-startup rules, estimated MVP costs, optimisation patterns and the scaling roadmap; the choices themselves are in `docs/22-TECH_STACK_DECISIONS.md`.
+> **Tags:** product
+
 ## Overview
 
 For a small startup, being **finance conscious** means maximizing the value of every dollar. Our strategy follows the **"Lean Professional"** approach: use free/low-cost SaaS to save time (the most expensive resource), and use pay-as-you-go infrastructure to minimize hosting waste.

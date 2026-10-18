@@ -1,5 +1,8 @@
 # Deployment Strategy
 
+> **When to load:** checking how Ikaro is deployed: the Cloud Run runtime topology, the delivery model, database changes in a deploy, infrastructure ordering, availability and rollback; provisioning steps are in `docs/23-INFRASTRUCTURE_SETUP.md`, operator procedures in `docs/RUNBOOKS.md`.
+> **Tags:** infra
+
 Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. Terraform is the infrastructure source of truth; GitHub Actions builds, scans, migrates, deploys, promotes, and rolls back.
 
 ## Runtime topology

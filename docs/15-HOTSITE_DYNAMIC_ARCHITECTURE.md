@@ -1,5 +1,8 @@
 # Hotsite Dynamic Architecture - Ikaro
 
+> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/14-API_CONTRACTS.md`.
+> **Tags:** web, bff, prototypes
+
 ## Overview
 
 Ikaro provides each tenant with a professional, high-conversion hotsite. To support unique visual identities and varied content needs while maintaining a single codebase, we use a **Server-Driven Hotsite Manifest** strategy.
