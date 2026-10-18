@@ -2,6 +2,7 @@
 
 > **When to load:** drafting a story (`/create-td`, `/discovery-to-milestone`), consuming a story (`/story-discovery`, `/run-batch`), or writing/reviewing any `plan/M0X-*.md` or `td/TDNN-*.md` file.
 > This is the single source of truth for "what fields does a story have." Producers (`/create-td`, `/discovery-to-milestone`) draft to this shape; consumers (`/story-discovery`, `/run-batch`) parse this shape. Neither restates the field list itself — both reference this file.
+> **Tags:** agent-process
 
 ---
 

@@ -1,5 +1,8 @@
 # TD37 Architecture Check Decisions
 
+> **When to load:** understanding why `architecture-check` uses ts-morph and how its first detectors were rolled out; the current detector list is in `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`.
+> **Tags:** infra
+
 ## Story 0 — semantic-analysis tool selection
 
 The shared runner uses `ts-morph` 28.0.0. It loads each workspace TypeScript project from an explicit project list and passes the resulting `Project` instances to independently tested detector modules.

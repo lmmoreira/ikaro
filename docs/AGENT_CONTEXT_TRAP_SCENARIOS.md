@@ -1,5 +1,8 @@
 # Agent Context Trap Scenarios
 
+> **When to load:** changing `.copilot/context.md` and needing to re-run the prompts that prove each trap rule still fires; it is an eval spec, not a reference, and the rules themselves are in `docs/ANTI_PATTERNS.md` and `docs/CI_TRAPS.md`.
+> **Tags:** agent-process
+
 > Eval spec for `.copilot/context.md` — not a reference doc. Each entry is a prompt to run in a
 > fresh session, a pass/fail criterion, and a citation. No rationale is restated here: the "why"
 > lives at the cited `docs/ANTI_PATTERNS.md`/`docs/CI_TRAPS.md` row, or the relevant

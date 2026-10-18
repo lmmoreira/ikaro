@@ -1,5 +1,8 @@
 # Domain Events - Ikaro
 
+> **When to load:** emitting, handling or changing a domain event: the mandatory envelope, each event's `data` payload, publishing and consumption rules and versioning; which context subscribes to what is in `docs/05-BOUNDED_CONTEXTS.md`, handler rules in `docs/ENGINEERING_RULES_BACKEND.md`.
+> **Tags:** backend, events
+
 Domain events represent things that happened in the business. Other bounded contexts subscribe asynchronously through the event bus and react.
 
 ---

@@ -2,6 +2,7 @@
 
 > **When to load:** writing any code (baseline), value objects, exception/i18n handling, RequestContext, observability, controller/route boundaries.
 > Split from `docs/ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). Summary rules are in `CLAUDE.md §7`.
+> **Tags:** backend, bff, web, agent-process
 
 ---
 

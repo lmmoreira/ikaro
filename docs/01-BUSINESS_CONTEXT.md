@@ -1,5 +1,8 @@
 # Business Context - Ikaro
 
+> **When to load:** understanding what Ikaro is, who the tenants and users are, the MVP scope and out-of-scope list, success metrics or the glossary; the use cases themselves are in `docs/04-USE_CASES.md`, technology choices in `docs/22-TECH_STACK_DECISIONS.md`.
+> **Tags:** product
+
 ## Executive Summary
 
 **Ikaro** is a multi-tenant car wash service management platform enabling multiple autonomous car wash companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.

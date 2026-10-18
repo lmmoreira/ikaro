@@ -1,5 +1,8 @@
 # Database Schema - Ikaro
 
+> **When to load:** writing a migration or an entity, or checking a table, column, index or constraint: the schema per context, global standards, the indexing strategy and migration rules; aggregate meaning is in `docs/02-DOMAIN_MODEL.md`, locking and race rules in `docs/28-LOCK_CATALOG.md`.
+> **Tags:** database, backend
+
 ## Overview
 
 Ikaro uses a **Single PostgreSQL instance, Schema-per-Context** pattern. Each bounded context owns its own PostgreSQL schema. This enforces physical data isolation between contexts and makes context boundaries visible at the database level.

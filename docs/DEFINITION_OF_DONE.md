@@ -1,5 +1,8 @@
 # Definition of Done
 
+> **When to load:** finishing a story or TD before `/pre-pr`: the completion checklist and which extra checks a diff triggers (migration history, the stale-reference sweep, journey drift, sibling-file parity).
+> **Tags:** agent-process
+
 Checked at the end of every story or TD, before `/pre-pr` runs (CLAUDE.md §9 Steps 3–9). Referenced by `/mark-done` and CLAUDE.md §13's self-check.
 
 - [ ] Matches cited UC's main + alt flows; CI passes (`pnpm lint`, `pnpm test`, `pnpm type-check`)
@@ -30,6 +33,7 @@ An index, not a second copy of the rules: list the story's changed files (`git d
 | a change to an algorithm, state machine or formula, or an event/notification added to one | the matching `docs/27-BUSINESS_LOGIC_REFERENCE.md` section reflects what shipped | the `27-BUSINESS_LOGIC_REFERENCE` item in the checklist above |
 | a lock (`ITenantLockPort`, `*ForUpdate`, `lock*`) or a path that takes one | `docs/28-LOCK_CATALOG.md` § 3 (entry), § 4 (sequence) and § 3.1 (test), plus a concurrent integration test | the lock-catalog item above (and CI's `lock-catalog-coverage`) |
 | a migration file | `docs/13-DATABASE_SCHEMA.md` table, `integration-global-setup.ts` registration, `PERSISTENCE_BYPASS_IGNORES` | the three migration items above |
+| a new top-level `docs/*.md` | the `> **When to load:**` and `> **Tags:**` header lines, tags from the vocabulary in `packages/architecture-check/architecture-policy.json` | CI's `doc-orientation` (`docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` detector table) |
 | UI under `apps/web/**` | journey GAP status flipped, sibling-file parity, journey-vs-code (`/docs-audit` Step 2c) | "Journey GAP-status drift" and "Sibling-file structural parity" below |
 
 ---

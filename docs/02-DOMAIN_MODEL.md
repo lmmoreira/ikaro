@@ -1,5 +1,8 @@
 # Domain Model - Ikaro (DDD)
 
+> **When to load:** implementing or changing an aggregate, entity, value object or bounded-context boundary in the backend, or checking an aggregate's fields and invariants; event payloads are in `docs/03-DOMAIN_EVENTS.md`, tables and columns in `docs/13-DATABASE_SCHEMA.md`, flows in `docs/04-USE_CASES.md`.
+> **Tags:** backend, database
+
 This document defines the domain model using Domain-Driven Design (DDD) principles: bounded contexts, aggregates, entities, value objects, and domain events.
 
 ---

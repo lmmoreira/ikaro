@@ -1,5 +1,8 @@
 # Dashboard Frontend Architecture (Backoffice) - Ikaro
 
+> **When to load:** building or changing the authenticated dashboard (staff and manager shell) or the customer My Account shell: role-based rendering, the fixed SaaS palette, shared shadcn/ui components, quality gates and folder structure; the public hotsite is in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, frontend rules in `docs/ENGINEERING_RULES_FRONTEND.md`.
+> **Tags:** web, prototypes
+
 ## Overview
 
 The Dashboard is the authenticated area of Ikaro where **Customers** manage their bookings/loyalty and **Staff** manage the business operations. It is a single React application that dynamically adapts its layout and capabilities based on the user's **Role** and **Tenant Context**.

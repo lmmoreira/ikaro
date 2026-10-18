@@ -1,5 +1,8 @@
 # Use Cases - Ikaro
 
+> **When to load:** implementing, testing or reviewing a use case (UC-NNN): its actors, main flow, alternative flows and behavior, grouped by area (booking, schedule, resources, services, auth, loyalty, chatbot, lead form, platform); read the one UC section you need, not the whole file. Algorithms spanning several UCs are in `docs/27-BUSINESS_LOGIC_REFERENCE.md`, endpoints in `docs/14-API_CONTRACTS.md`.
+> **Tags:** product, backend
+
 Use cases represent the business operations (user actions) that the system must support. Each use case describes the sequence of steps to achieve a business goal.
 
 ## Multi-Tenancy Note

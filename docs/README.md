@@ -1,5 +1,8 @@
 # Ikaro Documentation
 
+> **When to load:** orienting in the docs folder, finding what to read first and where a doc lives; agents start from `CLAUDE.md` and its §10 loading table, not from here.
+> **Tags:** agent-process
+
 This folder contains the foundational documentation for Ikaro, built on **Domain-Driven Design (DDD)** principles and **Hexagonal Architecture**.
 
 **Quick start:** Read `CLAUDE.md` (root) first — it is the canonical agent context and links everything else via its §10 dynamic-loading table.

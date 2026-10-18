@@ -1,5 +1,8 @@
 # CI Traps — Ikaro
 
+> **When to load:** a CI, SonarCloud, Prettier, Zod, NestJS DI or pre-push failure, or before a first commit to avoid one; coding mistakes that block a merge are in `docs/ANTI_PATTERNS.md`.
+> **Tags:** infra, testing
+
 > Failures this project repeatedly produces in CI and SonarCloud.
 > Check your code against this list before the first commit — fixing pre-push is much cheaper than fixing post-push.
 

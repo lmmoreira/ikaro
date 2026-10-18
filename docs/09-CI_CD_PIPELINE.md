@@ -1,5 +1,8 @@
 # CI/CD Pipeline
 
+> **When to load:** understanding which GitHub workflows run on a pull request, on push, on a staging deploy, a production promotion or a schedule, and how they fit together; the YAML under `.github/workflows/` is authoritative, branching and PR rules are in `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`.
+> **Tags:** infra
+
 This document describes the workflow topology that exists in the repository. Workflow YAML under `.github/workflows/` is authoritative for triggers, permissions, and job implementation; this guide explains how those workflows fit together.
 
 ## Pull-request validation

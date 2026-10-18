@@ -1,4 +1,7 @@
 # Tech Stack Architecture & Decisions - Ikaro
+
+> **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/12-DEPLOYMENT_STRATEGY.md` and `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`.
+> **Tags:** agent-process
 **Date:** 2026-05-12  
 **Status:** Final Pre-Development Decision Record  
 **Audience:** Development team, stakeholders, AI agents  

@@ -1,5 +1,8 @@
 # Infrastructure and Tooling Map
 
+> **When to load:** finding which tool owns what (Cloud Run, CI, observability, local development) and where its authoritative configuration lives; provisioning steps are in `docs/23-INFRASTRUCTURE_SETUP.md`.
+> **Tags:** infra
+
 This map identifies each maintained tool and its authority. Exact resource values belong in Terraform or workflow YAML, not in this overview.
 
 ## Application and data platform

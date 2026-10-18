@@ -1,5 +1,8 @@
 # API Contracts - Ikaro
 
+> **When to load:** adding or changing an HTTP endpoint, or checking a request or response shape: base standards, auth and tenancy, discovery, bookings, schedule, classes, customers and loyalty, the internal platform API and RFC 9457 errors; error codes are in `docs/25-ERROR_CATALOG.md`, the BFF structure in `docs/24-BFF_ARCHITECTURE.md`.
+> **Tags:** bff, backend
+
 ## Overview
 
 Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All communication must be encrypted over **HTTPS**.

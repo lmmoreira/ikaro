@@ -1,5 +1,8 @@
 # Tenant Isolation Strategy - Ikaro
 
+> **When to load:** touching anything that must stay tenant-scoped: the staff and customer tenant model, data, communication and infrastructure isolation, or tenant timezone handling; settings keys are in `docs/21-TENANTS_SETTINGS_SCHEMA.md`, schema-level rules in `docs/13-DATABASE_SCHEMA.md`.
+> **Tags:** tenancy, backend, database
+
 ## Overview
 
 Ikaro is a **multi-tenant SaaS platform** designed for absolute data isolation and professional scalability. This document defines how we separate car wash companies (tenants) at both the **Business Logic** level (User-Tenant Model) and the **Infrastructure** level (Data Isolation).
