@@ -21,7 +21,7 @@ The exact job list can evolve; do not duplicate it in milestone plans. Read the 
 
 ## Local pre-push validation
 
-`git push` runs the repository's `ci:fast` hook. Do not bypass it with `--no-verify`. For the project-specific PR preparation and review sequence, use the procedures in `.copilot/context.md` §9 and `scripts/pre-pr.sh`.
+`git push` runs the repository's `ci:fast` hook. Do not bypass it with `--no-verify`. For the project-specific PR preparation and review sequence, use the procedures in `.copilot/context.md` §9 and `scripts/pre-pr.sh`. Heavier local variants: `pnpm ci:integration` (backend integration, BFF component and web tests), `pnpm ci:full` (`ci:fast` plus `ci:integration`) and `pnpm ci:local` (`scripts/ci-local.sh`, the Docker-based CI replay).
 
 ## Staging deployment
 

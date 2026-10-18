@@ -49,7 +49,7 @@ flowchart TD
 
 ## Implementation history
 
-`buildRespondLink()` in `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` was updated (and its `.spec.ts` companion) to emit `/bookings/:id/submit-info?token=` instead of the old `/responder` path, as part of the same story that shipped the frontend page.
+`buildRespondLink()` in `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` was updated (and its `.spec.ts` companion) to emit `/bookings/:id/submit-info?token=` instead of the old `/responder` path, as part of the same story that shipped the frontend page (for a guest; an authenticated customer's email links to `/{slug}/my-account/bookings/{id}`, see the note above).
 
 ## Open questions / gaps
 

@@ -340,7 +340,7 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 **Agent:** `backend-ts`
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` UC-075 (steps 4/A1), `plan/journey/manager/onboarding.md`
-**Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M24-S21 (extends its `BootstrapTenantSchedulingUseCase`; formerly M23-S10)
+**Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M24-S21 (extends its `BootstrapTenantSchedulingUseCase`; formerly M23-S10 — a forward reference by number only: S21 is built in an earlier wave than S05)
 **Pattern:** plain composition — extends an existing M23 use case.
 
 **Description:**

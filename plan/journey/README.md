@@ -726,7 +726,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
-| MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M23 Cluster 3) |
+| MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |
 | MANAGER — Turmas (Class Configuration & Enrollment Management) | `manager/turmas.md` | `manager/prototypes/turmas/` | Draft (M24 Cluster 4) |
 | STAFF — Turmas (Daily Class Operations) | `staff/turmas.md` | `staff/prototypes/turmas/` | Draft (M24 Cluster 4) |

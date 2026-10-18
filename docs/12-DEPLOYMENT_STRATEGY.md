@@ -17,7 +17,7 @@ Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. 
 | Object storage | GCS | Tenant-prefixed object paths |
 | Telemetry | OTel Collector Cloud Run sidecar for traces and metrics; stdout for logs | Cloud Trace, Managed Prometheus, Cloud Logging |
 
-There is no production observability VM and no self-hosted Grafana/Loki deployment.
+There is no production observability VM and no self-hosted Grafana/Loki deployment. (An on-demand, IAP-only relay VM does exist for developer access to the private database; it is inert unless enabled — `infra/terraform/modules/relay-vm/`, `docs/RUNBOOKS.md` — and is not an observability VM.)
 
 ## Delivery model
 

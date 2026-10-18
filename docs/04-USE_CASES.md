@@ -1346,7 +1346,7 @@ Returns:
 
 ## Classes/Sessions Use Cases (M24 Cluster 4)
 
-> ⚠️ **Planned, not built:** every use case in this section (UC-078 – UC-108 and the class parts of earlier UCs) is a target design for the M24 plan; no controller for any of its endpoints (`/class-sessions`, `/class-session-bookings`, `/recurring-enrollments`, `/class-access-contracts`, `PATCH /services/:id/guest-access-policy`) exists in the backend or BFF yet. `docs/14-API_CONTRACTS.md` § 4b carries the same marker.
+> ⚠️ **Planned, not built:** every use case in this section (UC-078 – UC-107 and the class parts of earlier UCs; UC-108, the last heading below, is the exception: it shipped in M23-S39/S40 as `POST /bookings/staff`) is a target design for the M24 plan; no controller for any of its endpoints (`/class-sessions`, `/class-session-bookings`, `/recurring-enrollments`, `/class-access-contracts`, `PATCH /services/:id/guest-access-policy`) exists in the backend or BFF yet. The Classes & Sessions section of `docs/14-API_CONTRACTS.md` carries the same marker.
 
 > Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
 

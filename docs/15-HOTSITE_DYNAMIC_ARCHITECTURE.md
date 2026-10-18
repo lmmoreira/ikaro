@@ -177,7 +177,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
-The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one added in canonical order (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts`); `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
+The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
 ### Module Type Union
 

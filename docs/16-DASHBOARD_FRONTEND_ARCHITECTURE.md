@@ -125,7 +125,7 @@ apps/web/
 │   ├── auth/
 │   ├── booking/
 │   │   ├── api/
-│   │   ├── components/     (dashboard/{bookings,resources,schedule,services}/ and public/ — the booking flow)
+│   │   ├── components/     (dashboard/{bookings,resources,schedule,scheduling-exceptions,services}/, public/ — the booking flow — and booking-detail/, recurring/)
 │   │   ├── hooks/
 │   │   ├── model/
 │   │   ├── schedule/       (view-preference persistence, API layer — M13-S21)
