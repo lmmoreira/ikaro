@@ -60,6 +60,8 @@ Rejected, with the condition to reopen:
 
 ### Decision record (filled by Story 3C)
 
+_Story 3A adds here: the per-doc triage table with its method, and the list of declined audit fixes._
+
 _Open. Story 3C writes here: the per-doc verdicts, the load measurements including any non-Claude agent evidence, the always-on `context.md` cost review, and the confirmed destination of the journeys move (top-level `journeys/` unless the measurements say otherwise), and an explicit go or no-go, with the cost shown, for Story 4 (journeys move) and Story 6 (numeric-prefix drop)._
 
 ## Stories
@@ -282,6 +284,15 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 1. **Baseline.** Run `/docs-audit` with a blank scope (per folder if the context strains: `docs`, `plan`, `plan/journey`, `td`) and apply the approved fix batch — stale claims, dead pointers, journey `dev-notes.md` drift — so later work starts clean. Fixes the user declines are recorded as declined, not dropped.
 2. **Per-doc triage table** in the Decision record: size, inbound reference count, verdict (keep / merge / archive / move) and whether the doc is still relevant, with evidence. This story only records verdicts; Story 3B acts on the ones already decided.
 
+**Decisions locked in story-discovery (2026-10-18):**
+- **3A identifies and fixes; only verdicts are handed to 3B.** Audit findings (stale claims, dead pointers, journey drift) are verified by a re-read of the cited file:line and fixed in this story. The keep/merge/archive/move verdicts are recorded here and acted on by 3B.
+- **Files 3B deletes or rewrites are not fixed here:** `docs/lean/WEB_LEAN.md`, `docs/ENGINEERING_RULES.md`, `docs/README.md`. A real finding in any of them is written under Story 3B's description, so 3B corrects it from a recorded finding and not from memory.
+- **Run order:** `/docs-audit` per folder (`docs`, `td`, `plan`, `plan/journey`, then `.copilot/context.md`), one commit per folder, one docs-only PR. **`docs/discovery/` and `docs/archive/` are ignored entirely** (not audited, not fixed, no structure check, no triage row); 3B owns `docs/archive/`'s move and `docs/discovery/` stays as it is. The final `.copilot/context.md` run pools a cross-reference check (docs against plan against `context.md` pointers) over every file the earlier runs touched, since per-folder runs cannot see across folders.
+- **Approval — descriptive facts only are auto-applied.** A verified fix is applied without a per-item ask only when the doc is *descriptive*: file paths and names, inventories, endpoint and field names, dead pointers, "planned/future" wording for something that shipped, journey drift where the code is the source of truth. Anything *normative* (a rule, UC behaviour, an invariant, a state machine) goes to the user even when the code disagrees, because the code may be the buggy side; so do duplicate-collapse proposals, context-quality rewrites that change meaning, and every `dev-notes.md` item whose direction is unclear (`ask`). Questions are batched into one round per folder run. Declined fixes are listed in the Decision record, not dropped.
+- **Closed milestone files** (those with an `_IMPLEMENTATION_DETAILS_IA.md`, and `> Frozen:` files): fix only an error that would misdirect an agent (a dead path, a wrongly stated rule); historical wording is left alone.
+- **Triage table:** one row per top-level `docs/*.md` (45). Columns: size (`wc -c`); inbound references (distinct tracked files citing the doc's path via `git grep`, split into live and historical = frozen plan files and `td/`, excluding `docs/archive/` and `docs/discovery/` as the checker does); **agent reads** (how many of the repository's session transcripts read the doc, by the same measurement as the Problem section, because a citation count shows how docs cite each other, not whether an agent uses the doc); verdict; one-line relevance evidence. Any verdict other than keep also names its no-loss proof (the canonical home, read and confirmed complete). The method is recorded beside the table so Story 3C can re-run it.
+- **Prove the baseline is clean.** The PR records finding counts per audit category before and after the fixes (the TD's success-metric style), and ends with a convergence pass: `/docs-audit changed` over the files the PR touched must report no remaining verified finding outside the declined list. One LLM-driven pass is not proof on its own.
+
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
@@ -291,6 +302,9 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 **Acceptance criteria — product:**
 - [ ] Every `docs/*.md` has a recorded verdict with evidence.
 - [ ] The audit baseline fixes are applied or each is explicitly declined.
+- [ ] The triage method (column definitions, the `git grep` rule and the transcript-read measurement) is recorded beside the table.
+- [ ] The PR records before/after finding counts per audit category, and the convergence pass reports nothing outside the declined list.
+- [ ] Every audit finding in a file Story 3B deletes or rewrites is listed under Story 3B's description.
 
 **Acceptance criteria — technical:**
 - Unit: none — documentation story
