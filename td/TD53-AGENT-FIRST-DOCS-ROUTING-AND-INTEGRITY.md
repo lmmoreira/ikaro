@@ -220,7 +220,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — Section-level routing in `context.md` §10, and the trims that pay for it ⚪
+### Story 2 — Section-level routing in `context.md` §10, and the trims that pay for it ✅ Done
 
 **Agent:** devops
 **Complexity:** L
