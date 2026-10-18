@@ -119,7 +119,7 @@ Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTempl
 
 This story defines and persists `ClassScheduleTemplateException`, but deliberately does not expose range cancellation. The atomic UC-096 operation depends on materialized `ClassSession` rows and lands in M24-S08 after both session and booking cancellation semantics exist. No temporary no-op or cross-story TODO is permitted.
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `GET /class-schedule-templates`. `POST /class-schedule-templates/:id/cancel-range` lands atomically in M24-S08. `STAFF|MANAGER` per `docs/14-API_CONTRACTS.md` § 4b's blanket auth note.
+**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `GET /class-schedule-templates`. `POST /class-schedule-templates/:id/cancel-range` lands atomically in M24-S08. `STAFF|MANAGER` per `docs/14-API_CONTRACTS.md` § 4b (blanket auth note).
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/class-schedule-template.controller.ts` + `.schemas.ts` + `.types.ts`, forwarding via `BackendHttpService`. Register in the existing `apps/bff/src/features/booking/` module.
 
@@ -747,7 +747,7 @@ Staff/manager admin views over enrollments and one-off bookings for a class type
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassSession.close()`, `docs/13-DATABASE_SCHEMA.md` § `class_session_payments`, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionBookingCompleted`/`NoShow`/`InPersonPaymentRecorded`/`Reversed`, `docs/04-USE_CASES.md` UC-101, UC-107
+**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Aggregate: ClassSession (`close()`), `docs/13-DATABASE_SCHEMA.md` § `class_session_payments`, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionBookingCompleted`/`NoShow`/`InPersonPaymentRecorded`/`Reversed`, `docs/04-USE_CASES.md` UC-101, UC-107
 **Dependencies:** M24-S07 (bookings/attendees)
 **Pattern:** plain composition.
 
@@ -947,7 +947,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
 **Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11a (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
 **Pattern:** plain composition — one extra card variant in the existing `ServiceSelectionStep`; no new pattern.
-**Prototype references:** `plan/journey/guest/book-a-service/` is unchanged by this story; the destination screens are `plan/journey/guest/prototypes/book-a-class/01-class-agenda.html` and `plan/journey/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `plan/journey/README.md`).
+**Prototype references:** `plan/journey/guest/prototypes/book-a-service/` is unchanged by this story; the destination screens are `plan/journey/guest/prototypes/book-a-class/01-class-agenda.html` and `plan/journey/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `plan/journey/README.md`).
 
 **Description:**
 `POST /bookings` rejects any service whose `bookingModel` is not `APPOINTMENT` (`request-booking.use-case.ts:153`), so the appointment flow's Step 1 (M23-S11a) lists only `APPOINTMENT` services — a `SESSION` (class) service must never be selectable there. Without this story a tenant that offers classes has no way to reach them from the booking page: the class agenda routes (`/[slug]/aulas`, M24-S17 for customers; `/[slug]/aulas/agenda`, M24-S19 for guests) exist but nothing links to them. This story adds the entry point: the Step 1 list shows each `SESSION` service as a non-selectable "Ver turmas" card, below the appointment services, that routes to the class agenda for that service (`serviceId` retained). It replaces the type-selector screen (16) that was removed from M23 — a class is just another service in the same list, rendered differently by `bookingModel`.
@@ -986,7 +986,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Complexity:** L
 **Docs to load:** `docs/04-USE_CASES.md` UC-075, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` (preset taxonomy, minimum-answer shape per preset), `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/03-DOMAIN_EVENTS.md` § `TenantSchedulingBootstrapped`, `docs/02-DOMAIN_MODEL.md` § `Resource` (M21), `Service` extensions (M22)
 **Dependencies:** M21-S01 (`Resource`), M22 (`Service` extensions). Moved from M23-S10 on 2026-10-10; no M23 story depends on it. `M24-S05` (the SESSION presets) extends it.
-**Pattern:** Orchestration use case — one transaction creating a `Resource`/`Service` graph in dependency order; no new named pattern, but this is the first use case in the Booking context to orchestrate two aggregate types' creation atomically, so verify the transaction-manager usage against `docs/ENGINEERING_RULES_BACKEND.md` § Transactions closely (cross-aggregate writes, single `txManager.run()`).
+**Pattern:** Orchestration use case — one transaction creating a `Resource`/`Service` graph in dependency order; no new named pattern, but this is the first use case in the Booking context to orchestrate two aggregate types' creation atomically, so verify the transaction-manager usage against `docs/ENGINEERING_RULES_BACKEND.md` § Transactions — read closely (cross-aggregate writes, single `txManager.run()`).
 
 **Description:**
 `BootstrapTenantSchedulingUseCase` takes a `presetId` (A/B/C/G only — a SESSION preset D/E/F is accepted at the API layer per the contract but this story's implementation only completes the appointment-only presets; a SESSION preset's session-half stays inert exactly as UC-075 A1 describes, real work deferred to M24) and per-preset minimum answers, and creates: the tenant's `Resource` graph (staff/room/equipment wrappers, skipping the `LOCATION` row if M21-S02's backfill already ran — check first, never duplicate), the `Service` graph (with `resourceRequirements`/booking policy pre-filled per the preset), and working hours, all in one transaction. Failure at any point rolls back the whole configuration (UC-075 A3) — no partially-configured tenant is ever published.

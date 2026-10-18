@@ -38,7 +38,7 @@ function resolveDateRangeLabel(
 
 // Picking a range via react-day-picker's own range mode already keeps `from` <= `to` — clicking
 // a day before the current `from` restarts the range with that day as the new `from`, so no
-// extra clamp/validation is needed here (docs/M20-LEAD-FORM-MODULE.md M20-S13 story-discovery).
+// extra clamp/validation is needed here (plan/M20-LEAD-FORM-MODULE.md M20-S13 story-discovery).
 export function LeadFormDateRangeControl({
   value,
   onChange,

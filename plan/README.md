@@ -1,20 +1,20 @@
 # Ikaro — Project Plan
 
-**Total milestones:** 17 (M00 – M16)  
-**Total stories:** ~105  
-**Two phases:** Local Development (no cloud cost) → Cloud Deployment  
-**Development model:** All stories are designed to be executed by AI agents under human review.
+- **Milestones:** M00 – M13, M17 – M24 and M115. M14 – M16 (observability, GCP infrastructure, deploy pipelines) were superseded by M17 and removed; they stay recoverable from git history.
+- **Stories:** counted in each milestone file
+- **Two phases:** Local Development (no cloud cost) → Cloud Deployment
+- **Development model:** All stories are designed to be executed by AI agents under human review.
 
 ---
 
 ## Phase Overview
 
-### Phase 1 — Local Development (M00 – M14)
+### Phase 1 — Local Development (M00 – M13, M18 – M24, M115)
 All work runs on the developer's machine via Docker Compose. Zero GCP cost.  
 The local environment replicates production exactly:  
 PostgreSQL 17 · GCP Pub/Sub Emulator · GCS Emulator · MailHog (email preview).
 
-### Phase 2 — Cloud Deployment (M15 – M16)
+### Phase 2 — Cloud Deployment (M17)
 GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the system goes live.  
 **Cloud charges begin here.**
 
@@ -38,9 +38,15 @@ GCP infrastructure is provisioned, CI/CD deploy pipelines are activated, and the
 | [M11](M11-NOTIFICATIONS-CRON.md) | Notifications & Cron Jobs | Local | 8 | M10, M04 |
 | [M12](M12-HOTSITE-FRONTEND.md) | Hotsite Public Frontend | Local | 11 | M07, M02 |
 | [M13](M13-DASHBOARD-FRONTEND.md) | Dashboard Frontend | Local | 13 | M10, M11, M12 |
-| [M14](M14-OBSERVABILITY.md) | Observability | Local | 8 | M00 |
-| [M15](M15-GCP-INFRASTRUCTURE.md) | GCP Infrastructure (Terraform) | **Cloud** | 11 | M14 |
-| [M16](M16-CICD-DEPLOY-HARDENING.md) | CI/CD Deploy Pipelines + Production Hardening | **Cloud** | 10 | M15 |
+| [M17](M17-CLOUD-DEPLOY.md) | Cloud Deploy: GCP Infrastructure, CI/CD, Hardening & Observability | **Cloud** | 56 | M13 |
+| [M18](M18-BOOKING-IMPROVEMENTS.md) | Booking Improvements | Local | 1 | M07, M12 |
+| [M19](M19-HOTSITE-CHATBOT.md) | Hotsite Chatbot | Local | 14 | M12, M13 |
+| [M20](M20-LEAD-FORM-MODULE.md) | Lead Form Hotsite Module | Local | 16 | M12, M13 |
+| [M21](M21-MULTIVERTICAL-FOUNDATION.md) | Multi-Vertical Scheduling: Foundation | Local | 6 | — |
+| [M22](M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md) | Multi-Vertical Scheduling: Service Extensions & Availability Engine | Local | 6 | M21 |
+| [M23](M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md) | Multi-Vertical Scheduling: Appointment Booking & Extensions | Local | 51 | M21, M22 |
+| [M24](M24-MULTIVERTICAL-CLASSES-SESSIONS.md) | Multi-Vertical Scheduling: Classes & Sessions | Local | 22 | M21, M22 |
+| [M115](M115-PRODUCTION-READINESS.md) | Production Readiness | Local | 4 | M10, M03, M00 |
 
 ---
 
@@ -60,9 +66,9 @@ M00 (Foundation)
  │     │               │                                    └─► M13 (Dashboard)
  │     └─► M12 (Hotsite) ◄─────── M07 (for booking form)
  │               └─► M13 (Dashboard) ◄─ M10, M11, M12
- └─► M14 (Observability)         ← parallel track, can start after M00
-           └─► M15 (GCP Infra)
-                     └─► M16 (Deploy + Hardening)
+ └─► M17 (Cloud Deploy)          ← after M13; includes infra, CI/CD and observability
+ └─► M21 (Multi-Vertical Foundation) ◄─ independent of the sequence above
+           └─► M22 ─► M23, M24
 ```
 
 ---

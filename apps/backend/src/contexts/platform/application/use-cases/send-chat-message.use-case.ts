@@ -95,7 +95,7 @@ export class SendChatMessageUseCase {
 
     // Reserve this turn's 2 rows (persist the session with its updated messageCount/
     // lastMessageAt) BEFORE the LLM call, not after. Narrows the concurrent-write race on layers
-    // 3 and 4 to the same DB-round-trip-sized window docs/discovery/CHATBOT/CHATBOT.md §8 already
+    // 3 and 4 to the same DB-round-trip-sized window docs/04-USE_CASES.md UC-033 already
     // accepts for layers 1-2, instead of the full LLM-call-latency window a concurrent burst
     // could previously exploit (PR #360 review finding — the session/messageCount used to be
     // written only in the final save alongside the message rows, after the LLM call returned).

@@ -139,7 +139,7 @@ EXCLUDE USING gist (tenant_id WITH =, resource_id WITH =,
 **Migration ordering (5-phase, compressed to 3 files), executed by PR #483 (merged 2026-09-17):** Expand (`012`, GIST constraint live immediately, no pre-existing data violates it) → Backfill (`013`, idempotent `NOT EXISTS`-guarded; multi-line bookings get sequential non-overlapping sub-windows reconstructed via `ORDER BY line_id` window functions, buffer only after the last line) → Contract (`014`, drops legacy `EX_booking_bookings_approved_slot`; fails closed via a `DO $$` block that raises if any APPROVED line still lacks a COMMITTED `resource_occupancy` row, rather than trusting a "no tenants yet" assumption).
 
 ### `EX_booking_bookings_approved_slot` — retired (S03)
-The pre-M22 tenant-wide GIST exclusion on `bookings` itself. Dropped by `1748500000014`. Superseded because a booking can now lock a *bundle* of resources or a different resource per *leg* — no longer one row per booking to key an exclusion constraint on. See `docs/ENGINEERING_RULES_BACKEND.md` § race-condition primitives for the general "one shared table, not one per family" rule this established.
+The pre-M22 tenant-wide GIST exclusion on `bookings` itself. Dropped by `1748500000014`. Superseded because a booking can now lock a *bundle* of resources or a different resource per *leg* — no longer one row per booking to key an exclusion constraint on. See `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive for the general "one shared table, not one per family" rule this established.
 
 ---
 

@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Project } from 'ts-morph';
 import {
@@ -7,6 +8,7 @@ import {
   checkAggregatePropsUseSharedValueObjects,
   checkBffTypesLiveInModuleFiles,
   checkClosedEnumRegistry,
+  checkDocLinkIntegrity,
   checkDomainEventsHaveAuditLogSubscription,
   checkEntityBuilderPrimaryKeyDefaults,
   checkErrorMapperCoverage,
@@ -32,6 +34,7 @@ import {
   type BffInlineTypeException,
   type ClosedEnumRegistryEntry,
   type ConstructionValidationTarget,
+  type DocLinkIntegrityPolicy,
   type ErrorMapperException,
   type ExternalSideEffectPort,
   type IkaroTypesDriftException,
@@ -59,6 +62,7 @@ const policy = JSON.parse(
   aggregateValueObjectRegistry?: AggregateValueObjectConcept[];
   voConstructionValidationRegistry?: ConstructionValidationTarget[];
   closedEnumRegistry?: ClosedEnumRegistryEntry[];
+  docLinkIntegrity?: DocLinkIntegrityPolicy;
   projects?: string[];
 };
 const projectPaths = policy.projects ?? [];
@@ -145,8 +149,23 @@ if (!closedEnumRegistry?.length) {
   throw new Error('The architecture policy must register at least one closed-enum registry entry.');
 }
 
+const docLinkIntegrity = policy.docLinkIntegrity;
+if (!docLinkIntegrity) {
+  throw new Error('The architecture policy must define docLinkIntegrity.');
+}
+// Every file that exists in the working tree and is not ignored: tracked plus new-but-unstaged,
+// minus files staged for deletion, so a citation is judged against the live tree.
+const repositoryFiles = execFileSync(
+  'git',
+  ['ls-files', '--cached', '--others', '--exclude-standard'],
+  { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 },
+)
+  .split('\n')
+  .filter((file) => file && existsSync(resolve(root, file)));
+
 const results = [
   checkAgentContextFile(root, agentContextPolicy),
+  checkDocLinkIntegrity(root, docLinkIntegrity, repositoryFiles),
   checkTransactionalIo(backend, externalSideEffectPorts),
   checkTransactionalSaves(backend),
   checkErrorMapperCoverage(backend, intentionalErrorMapperGaps),

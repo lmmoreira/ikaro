@@ -1,6 +1,6 @@
 # Ikaro — Engineering Rules (index)
 
-> **This file no longer holds the rules directly.** Split into 5 topic-focused files (TD41-S4, 2026-09-23) so a session only loads what its task actually needs — see `CLAUDE.md §10` for which file(s) a given task type loads. Every original heading is listed below with the file it moved to, so an old citation (`docs/ENGINEERING_RULES.md § <heading>`) always resolves to a real line here.
+> **This file no longer holds the rules directly.** Split into 5 topic-focused files (TD41-S4, 2026-09-23) so a session only loads what its task actually needs — see `CLAUDE.md §10` for which file(s) a given task type loads. Every original heading is listed below with the file it moved to, so an old citation (`docs/ENGINEERING_RULES.md § <heading>`) always resolves to a real line here. <!-- doc-link:example -->
 
 ---
 

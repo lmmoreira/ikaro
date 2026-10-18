@@ -386,7 +386,7 @@ describe('LoyaltyEventConsumer — idempotency', () => {
 
 ## Concurrency Tests (lock order and races)
 
-In-memory doubles never block, so a unit test cannot show that a lock waits, in what order locks are taken, or that a race ends consistently. Those properties are tested against Postgres, in `*.integration.spec.ts`, and `docs/28-LOCK_CATALOG.md` § 3.1 names the test that proves each lock.
+In-memory doubles never block, so a unit test cannot show that a lock waits, in what order locks are taken, or that a race ends consistently. Those properties are tested against Postgres, in `*.integration.spec.ts`, and `docs/28-LOCK_CATALOG.md` § 3.1 (names the test that proves each lock).
 
 | Kind | What it does | What it proves |
 |---|---|---|

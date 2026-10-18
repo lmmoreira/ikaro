@@ -48,7 +48,7 @@ Do not treat a passing module test as proof that the module is instantiated. Con
 - Runtime: Cloud Run for web, BFF, backend, migrations, and collector sidecars.
 - Database: Cloud SQL PostgreSQL 17, reached through the Cloud SQL connector.
 - Events: Pub/Sub, with Cloud Scheduler publishing scheduled triggers.
-- Observability: Cloud Trace, Cloud Monitoring/GMP, and Cloud Logging through the collector sidecar.
+- Observability: traces and metrics reach Cloud Trace and Managed Prometheus through the collector sidecar; logs go from stdout straight to Cloud Logging (`docs/10-OBSERVABILITY_STRATEGY.md`).
 
 There is no GCE observability VM, no `ikaro-images` registry, no supported `us-central1` deployment recipe, and no long-lived `GCP_SA_KEY_*` CI authentication path.
 

@@ -15,7 +15,7 @@ export interface ChatbotBusinessContext {
 }
 
 // Same call `SERVICE_LIST`/`ServicesPublicController` already makes — no new cross-context
-// machinery (docs/discovery/CHATBOT/CHATBOT.md §6).
+// machinery (docs/04-USE_CASES.md UC-033).
 export async function getServicesContext(
   backendHttp: BackendHttpService,
   tenantId: string,

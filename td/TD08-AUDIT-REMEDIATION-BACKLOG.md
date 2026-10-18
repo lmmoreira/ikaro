@@ -454,7 +454,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-018 — Pub/Sub ordering keys per booking
 **Risk:** 🟡 Medium · **Effort:** S · **Phase:** Now · **Depends on:** AUD-001 · **Audit ref:** §12.6
-**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`docs/03-DOMAIN_EVENTS.md` §Non-Goals: "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
+**Status:** ☐ Not started — dependency (AUD-001) now satisfied, unblocked. Explicitly out of scope for TD24 itself (`docs/03-DOMAIN_EVENTS.md` § Ordering (formerly Non-Goals): "No Pub/Sub ordering keys — TD08 AUD-018, separate follow-up. Relay is `SKIP LOCKED`, out-of-order-safe like today."). Remains a genuine open item for whoever picks it up next.
 
 **What's wrong:** `gcp-pubsub-event-bus.adapter.ts` publishes with no `orderingKey`; a fast approve→reschedule/complete sequence can be consumed out of order (e.g. "approved" email after "completed").
 **Fix:** Publish booking-related events with `orderingKey = bookingId` and enable ordered delivery on those subscriptions. Accept the per-key throughput tradeoff.

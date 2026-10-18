@@ -208,7 +208,7 @@ export const PlatformErrorCode = {
   SETTINGS_UPDATE_EMPTY: 'PLATFORM_SETTINGS_UPDATE_EMPTY',
   HOTSITE_UPDATE_EMPTY: 'PLATFORM_HOTSITE_UPDATE_EMPTY',
   FEATURED_PHOTO_PATH_MISMATCH: 'PLATFORM_FEATURED_PHOTO_PATH_MISMATCH',
-  // Chatbot cap-rejection reasons (UC-033, docs/discovery/CHATBOT/CHATBOT.md §8) — all 5 map to
+  // Chatbot cap-rejection reasons (docs/04-USE_CASES.md UC-033) — all 5 map to
   // HTTP 429 (M19-S05 story-discovery, 2026-08-12). DAILY_CAP_REACHED covers both layer 1
   // (tenant-wide) and layer 2 (per-IP) — both are the same "come back tomorrow" outcome from the
   // visitor's perspective, matching UC-033 A1's own grouping of the two.

@@ -193,7 +193,7 @@ For interfaces/types declared in `apps/web/features/**/api/**` or `apps/web/shar
 - **Identical shape** → flag as an avoidable duplicate that should import from `@ikaro/types` instead.
 - **Different shape under the same name** → flag as drift, not just duplication — this is a real correctness risk (the local type silently shadows the canonical one at compile time). Report the exact field-level mismatch (e.g. `id` vs `entryId`, a field present on one side and missing on the other).
 
-This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/features/**/api/**`... without checking `@ikaro/types` first"), but `bad-smell-audit` had no check for it until 2026-07-23. See `td/TD09-WEB-TYPES-DRIFT-VS-IKARO-TYPES.md` for prior resolved instances (`services`, `customers`, `staff`, `LoyaltyBalanceResponse`) and `td/TD31-BAD-SMELL-AUDIT-COVERAGE-SNAPSHOT.md` for the newly-found drift on `LoyaltyEntryItem`/`LoyaltyRedemptionItem` that prompted adding this check.
+This is CLAUDE.md's own documented anti-pattern ("New interface in `apps/web/features/**/api/**`... without checking `@ikaro/types` first"), but `bad-smell-audit` had no check for it until 2026-07-23. See TD09 (since removed from `td/`; recoverable from git history) for prior resolved instances (`services`, `customers`, `staff`, `LoyaltyBalanceResponse`) and TD31 (likewise removed) for the newly-found drift on `LoyaltyEntryItem`/`LoyaltyRedemptionItem` that prompted adding this check.
 
 ### WEB-10. `--ba-*` CSS variables used outside the hotsite tree
 

@@ -311,7 +311,7 @@ Public-facing contact details for the tenant's hotsite (M12-S06 `CONTACT` module
 - `socialLinks.whatsapp`, when present, must be a valid phone number (`PhoneNumber.isValid`); `instagram`/`facebook` are unvalidated URL strings
 - Any top-level field may be `null`/absent — partial business info is valid (e.g. `phone` set, `address` not yet filled)
 
-**Usage:** Resolved into the public hotsite manifest's `business` field (camelCase) by `GetHotsiteManifestUseCase` — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 CONTACT.
+**Usage:** Resolved into the public hotsite manifest's `business` field (camelCase) by `GetHotsiteManifestUseCase` — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT.
 
 ---
 

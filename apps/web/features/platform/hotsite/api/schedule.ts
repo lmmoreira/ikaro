@@ -13,7 +13,7 @@ export interface AvailabilityFlowParams {
 }
 
 // One comma-joined param, `<serviceId>:<legIndex or ->:<resourceType>:<resourceId>` per pick —
-// the same convention as `serviceIds` (docs/14-API_CONTRACTS.md § Schedule Availability).
+// the same convention as `serviceIds` (docs/14-API_CONTRACTS.md § Schedule & Availability).
 function encodeResourceSelections(selections: readonly ResourceSelectionItem[]): string {
   return selections
     .map(

@@ -162,7 +162,7 @@ export class BookingEntity {
   // pattern would be same-context here, but the referenced table doesn't exist until this same
   // migration creates it in the same transaction, so a literal FK constraint is added by the
   // migration's own DDL instead of declared here (matches recurring_schedule_id's own
-  // docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules note).
+  // docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules).
   @Column({ name: 'recurring_schedule_id', type: 'uuid', nullable: true })
   recurringScheduleId!: string | null;
 

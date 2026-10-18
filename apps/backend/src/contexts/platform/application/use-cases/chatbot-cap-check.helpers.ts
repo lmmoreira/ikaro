@@ -29,7 +29,7 @@ import { ChatTurn } from '../ports/llm-provider.port';
 import { SendChatMessageUseCaseInput } from './send-chat-message.use-case';
 import { ChatbotCapCheckDeps, ResolvedSession } from './chatbot-cap-check.types';
 
-// Cap layer 3's live-ness proxy window (docs/discovery/CHATBOT/CHATBOT.md §8): a session counts
+// Cap layer 3's live-ness proxy window (docs/04-USE_CASES.md UC-033): a session counts
 // as concurrently active if it received a message in the last 2 minutes. Not tenant-configurable.
 const CONCURRENCY_WINDOW_MS = 2 * 60 * 1000;
 
@@ -162,7 +162,7 @@ async function checkNewSessionVolumeCaps(
 }
 
 // Platform-wide backstops (layers 9-10) — new-session creation only, per
-// docs/discovery/CHATBOT/CHATBOT.md §8.9: "already-open conversations remain bounded by their
+// docs/04-USE_CASES.md UC-033: "already-open conversations remain bounded by their
 // own per-session caps regardless" (not the global breaker). Checking these on every message of
 // an already-open conversation contradicted this canonical text (PR #360 review — reverting the
 // M19-S05 story-discovery decision to check on every message).
