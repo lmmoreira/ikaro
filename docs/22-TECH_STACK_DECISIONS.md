@@ -3,7 +3,7 @@
 > **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/12-DEPLOYMENT_STRATEGY.md` and `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12  
-**Status:** Final Pre-Development Decision Record  
+**Status:** Decision record. The stack below is implemented; the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
 
@@ -385,20 +385,13 @@ This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` - Client enforces tenant
 
 #### BFF Integration Pattern
 
-The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts.
+The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts. The session JWT lives in an httpOnly cookie, never in client-readable code; server-side web code calls the BFF only through the transport helpers (`bffServerFetch` for authenticated calls, `bffPublicFetch` for public ones, `bffClient` in client components), documented in `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
 
 ```typescript
-// apps/web/features/booking/api/bookings.ts — API client in Next.js
-export async function getBooking(id: string, jwt: string, tenantSlug: string) {
-  const res = await fetch(`${process.env.BFF_URL}/bookings/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${jwt}`,
-      'X-Tenant-Slug': tenantSlug,
-    },
-  });
-  if (!res.ok) throw new ApiError(res);
-  return res.json();
-}
+// apps/web/features/booking/api/availability-alerts.server.ts — server-only fetcher
+const res = await bffServerFetch(token, '/availability-alerts');
+await assertOk(res, CustomerFetchError);
+return (await res.json()) as AvailabilityAlertListResponse;
 ```
 
 **Key:** Next.js never calls the backend or TypeORM directly. All API traffic goes through the NestJS BFF, which enforces multi-tenancy.
@@ -543,20 +536,9 @@ This pattern scales from day 1 → year 2 unchanged.
 
 ### Multi-Tenant Event Filtering
 
-Pub/Sub enforces tenant isolation at subscription level:
+Subscriptions are per consumer, not per tenant: every domain event has one topic (`ikaro-{event}`) and one push subscription per consuming handler (`ikaro-{event}-{consumer}`, each with its own DLQ), all generated from `infra/terraform/pubsub-catalog.json` by `modules/pubsub`. Tenant isolation happens in the message, not in the subscription: every event envelope carries `tenantId`, and each consumer scopes its work to that tenant and deduplicates by `eventId`.
 
-```typescript
-// Each tenant gets isolated subscriptions
-const subscriptionName = `projects/${projectId}/subscriptions/${tenantId}-booking-completed`;
-
-await subscriber.createSubscription({
-  subscription: subscriptionName,
-  topic: 'projects/ikaro/topics/booking-completed',
-  filter: `attributes.tenantId="${tenantId}"`, // Tenant-scoped
-});
-```
-
-This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules.
+This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/03-DOMAIN_EVENTS.md`.
 
 ### Cost Model
 
@@ -659,7 +641,7 @@ docker build -t gcr.io/project/ikaro-backend:latest .
 # Deploy to Cloud Run
 gcloud run deploy ikaro-backend \
   --image gcr.io/project/ikaro-backend:latest \
-  --region us-central1 \
+  --region southamerica-east1 \
   --memory 512Mi \
   --cpu 1 \
   --concurrency 80 \
@@ -710,7 +692,7 @@ If Kubernetes becomes necessary later (multi-region orchestration), same Docker 
 # Year 2: Add Kubernetes
 gcloud container clusters create ikaro-gke \
   --num-nodes 3 \
-  --zone us-central1-a
+  --zone southamerica-east1-a
 
 # Deploy SAME IMAGE
 kubectl apply -f kubernetes/deployment.yaml
@@ -888,7 +870,7 @@ Original decision: PostgreSQL 15 (sweet spot of stability + modern features).
 resource "google_sql_database_instance" "ikaro" {
   name             = "ikaro-postgres"
   database_version = "POSTGRES_17"
-  region           = "us-central1"
+  region           = "southamerica-east1"
 
   settings {
     tier = "db-f1-micro"  # MVP
@@ -945,13 +927,17 @@ resource "google_sql_database_instance" "ikaro" {
 Per `docs/21-TENANTS_SETTINGS_SCHEMA.md` and `docs/14-API_CONTRACTS.md`:
 
 ```
-├─ database-url (PostgreSQL connection string)
+├─ db-password, db-migrator-password (runtime DML role and DDL-capable migrator role)
 ├─ jwt-secret (JWT signing key)
-├─ oauth-client-secret (OAuth provider secret)
-├─ pubsub-project-id (GCP project for Pub/Sub)
-├─ storage-bucket-url (GCP Cloud Storage URL)
-└─ email-api-key (Email provider API key)
+├─ google-oauth-client-id, google-oauth-client-secret (OAuth client)
+├─ internal-api-key, platform-admin-key, web-internal-key (service-to-service and operator keys)
+├─ hotsite-revalidate-secret, turnstile-secret-key
+├─ brevo-smtp-key (email provider)
+├─ openrouter-api-key, openrouter-management-api-key, anthropic-api-key, openai-api-key (chatbot LLM providers)
+└─ cloudflare-api-token (production only)
 ```
+
+The authoritative list is `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`. Non-secret values (the Pub/Sub project, bucket names) are plain environment variables, not secrets.
 
 #### Terraform Configuration
 
@@ -1095,7 +1081,7 @@ resource "google_sql_database_instance" "postgres" {
 # Cloud Run — backend, BFF, and web (Next.js SSR) all run as containers
 resource "google_cloud_run_v2_service" "backend" {
   name     = "ikaro-backend"
-  location = "us-central1"
+  location = "southamerica-east1"
   # ... (see docs/23-INFRASTRUCTURE_SETUP.md — cloudrun.tf)
 }
 
@@ -1237,7 +1223,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $5 | 10K events/day |
 | Cloud Storage (media only) | $1 | Tenant photo uploads |
 | Cloud Scheduler | $1 | 8 cron jobs ($0.10/job/month) |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$43/month** | Lean, production-ready |
 
 ### Growth Phase (Month 12)
@@ -1249,7 +1235,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $40 | 100K events/day |
 | Cloud Storage (media) | $10 | Growing photo library |
 | Cloud Scheduler | $1 | 8 cron jobs |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$272/month** | Proven traffic |
 
 ### Scale Phase (Month 24)
@@ -1261,7 +1247,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $100 | 500K events/day |
 | Cloud Storage (media) | $30 | Large photo library |
 | Cloud Scheduler | $1 | 8 cron jobs |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$732/month** | Approaching scale |
 
 ### vs. Wrong Approach
@@ -1398,7 +1384,7 @@ This tech stack decision is **not immutable**:
 
 ---
 
-## ✅ DECISION CHECKLIST
+## ✅ DECISION CHECKLIST (historical — pre-development, all superseded by what shipped)
 
 Before development begins, confirm:
 
@@ -1413,7 +1399,7 @@ Before development begins, confirm:
 
 ---
 
-## 📋 NEXT STEPS
+## 📋 NEXT STEPS (historical — the original pre-development plan; delivery is tracked in `plan/`)
 
 ### Before Development (Week 1)
 1. [ ] Terraform scaffold created and tested

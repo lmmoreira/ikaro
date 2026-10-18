@@ -173,10 +173,10 @@ describe('Booking / requestBooking()', () => {
 
 ### In-Memory Adapters
 
-In-memory adapters live in `src/shared/testing/` and implement the same port interfaces as real adapters:
+In-memory adapters live in `src/test/infrastructure/` (ports and shared infrastructure) and `src/test/repositories/<context>/` (repositories), and implement the same port interfaces as real adapters:
 
 ```typescript
-// src/shared/testing/in-memory-booking.repository.ts
+// src/test/repositories/booking/in-memory-booking.repository.ts
 export class InMemoryBookingRepository implements IBookingRepository {
   private store = new Map<string, Booking>();
 
@@ -193,7 +193,7 @@ export class InMemoryBookingRepository implements IBookingRepository {
   }
 }
 
-// src/shared/testing/in-memory-event-bus.ts
+// src/test/infrastructure/in-memory-event-bus.ts
 export class InMemoryEventBus implements IEventBus {
   readonly publishedEvents: DomainEvent[] = [];
 
@@ -962,24 +962,19 @@ src/contexts/booking/
         ├── booking-completed.consumer.ts
         └── booking-completed.consumer.integration.spec.ts  ← event + idempotency test
 
-src/shared/testing/
-├── constants.ts             ← TENANT_A, TENANT_B, STAFF_ID, CUSTOMER_ID
-├── in-memory-event-bus.ts   ← IEventBus in-memory implementation
-├── in-memory-booking.repository.ts
-├── in-memory-loyalty.repository.ts
-├── ... (one per context port)
-└── factories/
-    ├── booking.factory.ts
-    ├── service.factory.ts
-    ├── customer.factory.ts
-    └── loyalty-entry.factory.ts
+src/test/
+├── infrastructure/          ← in-memory ports and shared doubles (InMemoryEventBus, InMemoryTransactionManager, InMemoryBookingPlatformPort, …)
+├── repositories/<context>/  ← in-memory repositories (in-memory-booking.repository.ts, …)
+├── builders/<context>/      ← test-data builders (see "Builder class pattern" below)
+├── factories/               ← shared infra stubs (request-context.factory.ts)
+├── utils/                   ← helpers (wait-for.ts, date-helpers.ts, address-helpers.ts, *-integration-app.ts)
+├── integration-global-setup.ts / integration-global-teardown.ts / test-datasource.ts
+```
 
-e2e/
-├── guest-booking.spec.ts
-├── admin-approve.spec.ts
-├── complete-with-actual-prices.spec.ts
-├── customer-cancel.spec.ts
-└── customer-login-tenant-selection.spec.ts
+```
+apps/web/e2e/
+├── <journey>.spec.ts        ← one Playwright spec per journey (guest-booking, staff-booking-lifecycle, my-account-detail-cancel, switch-tenant, …)
+└── helpers/<feature>/       ← reusable flows (specs are test cases only)
 ```
 
 ---
@@ -1020,7 +1015,7 @@ const makeUseCase = () => new ApproveBookingUseCase(...);
 
 Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Provide a sensible default state with setter methods for overrides.
 
-Example: `InMemoryScheduleTenantSettingsPort` defaults to Mon–Sat open, Sunday null.
+Example: `InMemoryBookingPlatformPort` (`src/test/infrastructure/in-memory-booking-platform.port.ts`) is seeded per tenant with `seedBusinessHoursAndLocale(tenantId, value)` and cleared between tests.
 
 ### BFF: two test files per controller (mandatory)
 

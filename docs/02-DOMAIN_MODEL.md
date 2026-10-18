@@ -795,6 +795,8 @@ FutureCommitmentException {
 
 ---
 
+> ⚠️ **Planned, not built:** the six M24 Cluster 4 aggregates below (`ClassScheduleTemplate`, `ClassSession`, `ClassSessionBooking`, `RecurringEnrollment`, `ClassAccessContract`, `ClassScheduleTemplateException`) have no aggregate class in `apps/backend/src` yet; they are the target design for the M24 plan (`plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`). `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md` and `docs/21-TENANTS_SETTINGS_SCHEMA.md` carry the same marker.
+
 #### **Aggregate: ClassScheduleTemplate** (Root Entity)
 
 > Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Session-style recurring pattern — the SESSION-family counterpart to `RecurringBookingSchedule`. Depends on `Service.classResourceSlots` (Cluster 2 schema).
@@ -1283,7 +1285,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `ServicePointsEarned` | `BookingCompleted` consumed → one `LoyaltyEntry` inserted per `BookingLine`, **one event per booking** (`eventVersion = 2`, lists every line) | Notification Context |
-| `PointsExpiringSoon` | Weekly cron (Mondays) finds entries whose `expires_at` falls within the next `loyalty.expiryWarningDays` (default 7, see `docs/21`) — forward-looking warning | Notification Context |
+| `PointsExpiringSoon` *(a Command published through the outbox, not a `DomainEvent`)* | Weekly cron (Mondays 06:00 UTC) finds entries whose `expires_at` falls within the next `loyalty.expiryWarningDays` (default 7, see `docs/21`) — forward-looking warning | Notification Context |
 
 ### **Staff Context Events**
 

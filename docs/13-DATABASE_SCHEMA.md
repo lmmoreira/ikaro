@@ -1314,21 +1314,22 @@ Every event/command consumer — each domain-event handler (including the per-co
 
 Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_platform_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
+Representative indexes, under the names the migrations create (the authoritative list is each table's `INDEX` rows above and its migration):
+
 ```sql
 -- Booking context
-CREATE INDEX idx_bookings_tenant_status    ON booking.bookings (tenant_id, status);
-CREATE INDEX idx_bookings_tenant_scheduled ON booking.bookings (tenant_id, scheduled_at);
-CREATE INDEX idx_bookings_tenant_customer  ON booking.bookings (tenant_id, customer_id);
+CREATE INDEX "IDX_booking_bookings_tenant_status"    ON booking.bookings (tenant_id, status);
+CREATE INDEX "IDX_booking_bookings_tenant_scheduled" ON booking.bookings (tenant_id, scheduled_at);
+CREATE INDEX "IDX_booking_bookings_tenant_customer"  ON booking.bookings (tenant_id, customer_id);
 
 -- Loyalty context
-CREATE INDEX idx_loyalty_tenant_customer_expires   ON loyalty.loyalty_entries (tenant_id, customer_id, expires_at);
-CREATE INDEX idx_loyalty_tenant_customer_service   ON loyalty.loyalty_entries (tenant_id, customer_id, service_id, expires_at);
+CREATE INDEX "IDX_loyalty_entries_tenant_customer_expires" ON loyalty.loyalty_entries (tenant_id, customer_id, expires_at);
 
 -- Customer context
-CREATE INDEX idx_customers_tenant_google ON customer.customers (tenant_id, google_oauth_id);
+CREATE INDEX "IDX_customer_customers_tenant_oauth" ON customer.customers (tenant_id, google_oauth_id);
 
 -- Staff context
-CREATE INDEX idx_staff_tenant_google ON staff.staff (tenant_id, google_oauth_id);
+CREATE INDEX "IDX_staff_staff_tenant_oauth" ON staff.staff (tenant_id, google_oauth_id);
 ```
 
 ---

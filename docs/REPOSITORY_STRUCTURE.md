@@ -84,7 +84,7 @@ apps/backend/src/shared/
 │                     # `ls apps/backend/src/shared/utils/` is the authoritative list
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
 ├── observability/    # Logger, OTel tracer, structured log helpers
-├── http/             # Pagination DTOs, RFC 9457 ProblemDetail base type
+├── http/             # Shared validation-error mappers (address, VO); the RFC 9457 ProblemDetail type lives in packages/types
 ├── guards/           # role guards used by more than one context
 ├── decorators/       # cross-cutting decorators (e.g. @Public())
 ├── filters/          # cross-cutting exception filters (RFC 9457 error filter)
@@ -202,7 +202,7 @@ apps/web/
 
 ## Guard placement
 
-- **`src/shared/guards/`** - role guards that enforce the `X-Actor-Role` header contract across multiple contexts (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`). Every guard has its own `.spec.ts`.
+- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) and the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`). Every guard has its own `.spec.ts`.
 - **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (e.g. `PlatformAdminGuard` which injects `ConfigService`). These stay local.
 - Never import a guard from another context's `infrastructure/guards/` path - that is a context-isolation violation.
 

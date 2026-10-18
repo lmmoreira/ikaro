@@ -14,7 +14,7 @@
 | Physical address | `Address` | `address.ts` | structured fields; `create(props, spec: AddressSpec)` validates against a country-specific spec (postal regex, state pattern, neighborhood requirement) — takes a mandatory `spec` param, not a fixed Brazilian-CEP-length check; `reconstitute()` skips validation |
 | Money amount | `Money` | `money.ts` | currency code + decimal precision — never a plain `number`; fully implemented, used across aggregates/use cases/repositories |
 | Hex colour | `HexColor` | `hex-color.vo.ts` | must match `#RRGGBB`; normalises to uppercase; getter: `.value` |
-| IANA timezone | `Timezone` | `timezone.vo.ts` | validates against `Intl.supportedValuesOf('timeZone')`; getter: `.value` |
+| IANA timezone | `Timezone` | `timezone.vo.ts` | validates through `isValidTimezone` from `@ikaro/validation` (an `Intl.DateTimeFormat` construction in a try/catch); getter: `.value` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` | validates HH:MM string; `isBefore()` comparison; getter: `.value` |
 | YYYY-MM-DD calendar date | `CalendarDate` | `calendar-date.vo.ts` | validates a real calendar date via `isValidCalendarDate` from `@ikaro/validation` (Zod's `z.iso.date()` — rejects `2026-02-30`, non-leap Feb 29); `isBefore()` comparison; `today()` (UTC); getter: `.value` |
 | URL-safe slug | `Slug` | `slug.vo.ts` | `/^[a-z0-9-]+$/`; used for tenant slugs; getter: `.value` |
@@ -93,6 +93,7 @@ toEntity(customer: Customer): CustomerEntity {
 | `Email` | `.address` |
 | `PhoneNumber`, `Slug`, `HexColor`, `Timezone`, `TimeOfDay`, `CalendarDate`, `CountryCode`, `SeoTitle`, `SeoDescription` | `.value` |
 | `Address` | `.toJSON()` (for JSONB) |
+| `Money` | `.amount` and `.currency` |
 
 ---
 

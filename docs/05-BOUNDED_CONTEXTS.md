@@ -168,6 +168,7 @@ Notification Context subscribes:
 - `FutureCommitmentExceptionRaised`/`Resolved`/`Dismissed` (M23 Cluster 3) → only the shared `audit-log` consumer, by design. M23-S23 adds two events instead: `ResourceDeactivationImpactRaised` (one manager alert per deactivation) and `BookingResourceReassigned` (customer message on a reassign), each consumed by Notification and the shared `audit-log` consumer
 - `TenantSchedulingBootstrapped` (UC-075, planned — M24-S21) → **no event class exists yet**
 - `BookingNoShow` (M23 Cluster 3) → shared `audit-log` consumer (M23-S36), Notification (customer email) added by M23-S25; explicitly **not** consumed by Loyalty (no points for a no-show)
+- **Planned, not built — the `ClassSession*`, `WaitlistPromoted` and `InPersonPayment*` events below have no event class in code yet (M24 Cluster 4):**
 - `ClassSessionCancelled`, `ClassSessionBookingConfirmed`/`Waitlisted`/`Cancelled` (M24 Cluster 4) → consumed by Notification
 - `WaitlistPromoted` (M24 Cluster 4) → consumed by Notification
 - `ClassSessionBookingCompleted` (M24 Cluster 4) → consumed by **Loyalty** (inserts a `LoyaltyEntry` via `class_session_booking_id`) and Notification — the SESSION-family counterpart to `BookingCompleted`
@@ -213,7 +214,7 @@ Notification Context subscribes:
 - **M24 Cluster 4:** also listens to `ClassSessionBookingCompleted` — same insert-and-increment transaction, sourced from `class_session_booking_id` instead of `booking_line_id`. Not consumed for a guest attendee (no `customerId`) or a `NO_SHOW` outcome.
 - Allow admin to record a redemption via `POST /v1/loyalty/redeem` — insert `LoyaltyRedemption` and decrement `LoyaltyBalance` atomically.
 - Run a **daily expiry cron** at 02:00 UTC: compute points from `loyalty_entries` that expired that day and decrement `loyalty_balances.current_points` accordingly. Idempotent via `balance_expiry_log`.
-- Run a **weekly cron** (Mondays 06:00 tenant-local) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
+- Run a **weekly cron** (Mondays 06:00 UTC) to emit `PointsExpiringSoon` warnings for entries expiring within the next 7 days.
 
 **Database:** `loyalty` schema
 - `loyalty_entries` — INSERT-only, UNIQUE(tenant_id, booking_line_id)
@@ -225,7 +226,7 @@ Notification Context subscribes:
 
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
 - `ServicePointsEarned` → consumed by Notification. **One event per `BookingLine`** — a 3-line booking produces 3 events.
-- `PointsExpiringSoon` → consumed by Notification. Forward-looking weekly warning.
+- `PointsExpiringSoon` (a Command published through the outbox, not a `DomainEvent`) → consumed by Notification. Forward-looking weekly warning.
 
 **Consumed Events:**
 - `BookingCompleted` (from Booking) — **the only event Loyalty subscribes to.** For each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`.
@@ -234,7 +235,7 @@ Notification Context subscribes:
 - Event subscriber pattern (GCP Pub/Sub via `IEventBus` port — idempotent via `UNIQUE(tenant_id, booking_line_id)`)
 - Repositories for `loyalty_entries`, `loyalty_balances`, `loyalty_redemptions` (insert + select; balances also update)
 - `@Cron('0 2 * * *')` NestJS scheduler for daily expiry
-- **Weekly cron** (Mondays 06:00 tenant-local) for `PointsExpiringSoon` warnings
+- **Weekly cron** (Mondays 06:00 UTC) for `PointsExpiringSoon` warnings
 
 **MVP constraints:** No tiers, no manual bonus adjustments, no bulk expiry triggers — only the daily cron and admin-recorded redemptions.
 

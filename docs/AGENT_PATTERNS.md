@@ -391,7 +391,7 @@ These tables are **not exhaustive** — they show the common entries. `ls` the d
 | File | Export | Signature | Use for |
 |------|--------|-----------|---------|
 | `actor-headers.ts` | `actorHeaders` | `(tenantId, actorId, role?)` → `Record<string, string>` | supertest `.set()` calls in integration specs |
-| `wait-for.ts` | `waitFor` | `(fn: () => Promise<void>, opts?)` | polling async side effects in story integration specs |
+| `wait-for.ts` | `waitFor` | `(condition: () => Promise<boolean>, timeoutMs = 8000)` | polling async side effects in story integration specs |
 | `date-helpers.ts` | various date utils | — | date manipulation in tests |
 | `booking-integration-app.ts` | `createBookingIntegrationApp` | `()` → `{ app, ds }` | booking context integration tests |
 | `customer-integration-app.ts` | `createCustomerIntegrationApp` | `()` → `{ app, ds }` | customer context integration tests |

@@ -18,7 +18,7 @@
 - **Tenant = Company** (e.g., "AutoWash Pro", "SuperClean", "QuickWash")
 - **Single Platform, Multiple Companies:** All tenants share one Ikaro instance
 - **Complete Isolation:** Each tenant's data is completely isolated from others
-- **User Constraint:** One user can belong to only ONE tenant (no cross-tenant access)
+- **User Constraint:** Customers and staff can each belong to several tenants, with one record per tenant (never shared data); a session is always scoped to a single tenant
 
 ### **Data Isolation**
 
@@ -60,10 +60,10 @@ Each tenant has dedicated hotsite accessible via path:
 - On login, if customer has bookings in multiple tenants → must select which to enter
 - Can switch between tenants (switch session)
 
-**Staff: Belong to ONLY ONE tenant**
-- One staff member works for exactly ONE car wash company
-- Staff cannot work for multiple companies
-- On login, directly enters their single tenant (no selection)
+**Staff: Can belong to MULTIPLE tenants**
+- One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/06-TENANT_ISOLATION_STRATEGY.md`)
+- On login with a single active Staff record, directly enters that tenant (no selection)
+- With several active records, must select which tenant to enter (`/select-staff-tenant`)
 
 **Example:**
 ```
@@ -80,13 +80,16 @@ As Customer:
           - SuperClean (8 points)"
 
 As Staff:
-  - Works for AutoWash Pro ONLY (Tenant A)
-  - Cannot work for SuperClean
-  
-  Login: Direct entry to AutoWash Pro dashboard (no selection)
+  - Works for AutoWash Pro (Tenant A)
+  - Also works for SuperClean (Tenant B)
+
+  Login: "Which car wash would you like to manage?" (selection shown only when
+  more than one active Staff record exists; with a single record, direct entry)
 ```
 
 ---
+
+## Problem and Solution
 
 Small car wash businesses face challenges:
 - Manual booking management (phone calls, spreadsheets)
@@ -124,7 +127,7 @@ Small car wash businesses face challenges:
 - All guest features, plus:
 - Customer account with booking history
 - View past/upcoming bookings
-- Cancel bookings (with 48-hour notice)
+- Cancel bookings (default 48-hour notice, configurable per tenant through `cancellationWindowHours`)
 - View loyalty metrics (wash count, loyalty status)
 - Receive booking reminders (24h before appointment)
 - Build history for future loyalty programs
@@ -137,7 +140,7 @@ Small car wash businesses face challenges:
 - Mark bookings as completed (triggers loyalty tracking)
 - View customer wash logs and loyalty history
 - Upload photos, internal notes on bookings
-- **No granular permissions yet** (all staff can do all actions)
+- **Two roles:** `STAFF` and `MANAGER` (`MANAGER` is a superset; the manager-only areas are settings, team, hotsite, resources and scheduling exceptions)
 
 ---
 
@@ -207,7 +210,7 @@ Small car wash businesses face challenges:
 - ✓ Admin approval/rejection workflow
 - ✓ Request additional info workflow
 - ✓ Authenticated customer bookings
-- ✓ Booking cancellation (48h policy)
+- ✓ Booking cancellation (48h default policy, configurable per tenant)
 - ✓ Mark booking complete
 
 ### **Service Management**
@@ -229,7 +232,7 @@ Small car wash businesses face challenges:
 - ✓ Google OAuth login for staff
 - ✓ Dashboard to manage bookings
 - ✓ View all customer bookings and history
-- ✓ All staff can perform all actions (no role-based permissions yet)
+- ✓ Two roles, `STAFF` and `MANAGER` (`MANAGER` is a superset)
 
 ### **Photo Management**
 - ✓ Guest/customer uploads multiple car photos when booking (optional but encouraged)
@@ -267,11 +270,10 @@ Small car wash businesses face challenges:
 - ❌ Payment processing (business handles cash/card at location)
 - ❌ SMS notifications (email only for now)
 - ❌ Multi-location support (single location MVP)
-- ❌ Role-based permissions (all staff equal)
 - ❌ Loyalty promotions (tracking only, business logic later)
 - ❌ Reporting/analytics dashboard (foundation ready, UI later)
 - ❌ Mobile app (responsive web only)
-- ❌ Appointment reminders (email only, no push notifications)
+- ❌ Push notifications (appointment reminders are email only)
 
 ---
 

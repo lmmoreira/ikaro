@@ -40,7 +40,7 @@ graph TD
         Secrets[GCP Secret Manager]
     end
 
-    Hotsite -->|GET /platform/manifest/:slug — manifest| BFF
+    Hotsite -->|GET /public/platform/manifest/:slug — manifest| BFF
     Dashboard -->|Authenticated API calls + JWT| BFF
     BFF -->|Validates JWT · injects tenantId| BC1
     BFF -->|Validates JWT · injects tenantId| BC2
@@ -63,7 +63,7 @@ graph TD
 ## Repository Slice Orientation
 
 - **Backend:** canonical bounded contexts live under `apps/backend/src/contexts/<context>/`.
-- **BFF:** business-owned code lives in `apps/bff/src/features/<capability>/`; `auth` and `uploads` are technical slices.
+- **BFF:** business-owned code lives in `apps/bff/src/features/<capability>/`; `auth` is the technical slice (the BFF has no `uploads` slice; uploads go through the booking and hotsite endpoints).
 - **Web:** business-owned code lives in `apps/web/features/<domain>/`; `dashboard` and `hotsite` are shell slices.
 - **Shared code:** `shared/` is cross-cutting only; it must not become a dumping ground for feature-owned logic.
 

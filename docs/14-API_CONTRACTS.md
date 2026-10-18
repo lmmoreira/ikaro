@@ -49,6 +49,8 @@ Response:
 }
 ```
 
+The BFF's own `GET /bookings` request takes `page` (default 1) and `limit` (default 20, max 100), not `offset`; see § Booking Management.
+
 | Field | Type | Description |
 |-------|------|-------------|
 | `items` | array | Array of items for this page |
@@ -131,8 +133,18 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 - `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at.
 - `POST /auth/switch-staff-tenant` -> (UC-022, staff) Same shape as the customer switch, staff-scoped.
 - `GET /auth/session` -> (any authenticated role) One call for the hotsite's auth bar: `{ staff: { id, name } | null, customer: { customerId, name } | null }`. The BFF makes exactly one backend lookup (`/staff/me` for STAFF|MANAGER, `/customers/me` otherwise).
+- `POST /auth/dev-login` -> (public, **local/staging dev tooling and E2E harnesses only**, never reachable by real users; not rate-limited) signs a test actor in without Google OAuth; see `docs/24-BFF_ARCHITECTURE.md` § Public vs Protected Routes.
 - `GET /staff/me` -> (STAFF|MANAGER) The caller's own staff record, derived from the request context, never a URL param. The backend also has `GET /staff/me/tenants` and `GET /staff/me/status` (`{ isActive }`, the BFF's `ActiveStaffGuard` self-check); these two are backend-internal and not exposed by the BFF.
 - `GET /customers/tenants` -> (CUSTOMER, BFF; profile routes are under *Customer Management* below) Lists the tenants the customer has a profile in, backed by the backend's `GET /customers/me/tenants`.
+
+### **Staff Management (UC-028 – UC-031)**
+All BFF routes below are `MANAGER`-only (class-level `@Roles('MANAGER')` on `StaffController`), except `GET /staff/me` above; the flows, preconditions and error codes are in `docs/04-USE_CASES.md` (UC-028 invite, UC-029 deactivate, UC-030 edit profile, UC-031 reactivate).
+- `GET /staff` -> Paginated staff list (Pattern B under Base Standards).
+- `GET /staff/:id` -> One staff member.
+- `POST /staff/invite` -> (UC-028) Body `{ email, firstName, lastName, role: "MANAGER" | "STAFF" }`; `201 Created`.
+- `PATCH /staff/:id` -> (UC-030) Body `{ name, role: "MANAGER" | "STAFF" }`; `200 OK`.
+- `PATCH /staff/:id/deactivate` -> (UC-029) No body; `200 OK`.
+- `PATCH /staff/:id/activate` -> (UC-031) No body; `200 OK`.
 
 > **Removed (`M13-S14`):** `POST /auth/token` and `GET /auth/tenants` — the pre-login `/select-tenant` customer flow they backed was descoped as unreachable from any shipped UI (every customer login starts from a specific tenant's hotsite, which always supplies the tenant slug directly). Do not resurrect these without a real requirement driving them — see `docs/04-USE_CASES.md` UC-021's note.
 
@@ -217,7 +229,7 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
 
 ### **Published Hotsites Listing (Public — M12-S09)**
 Used by `app/sitemap.ts` to enumerate every published tenant hotsite for search-engine discovery.
-- `GET /platform/published-hotsites`
+- `GET /v1/public/platform/published-hotsites` (the BFF route, `PlatformPublicController`)
 - **Public** — no auth required
 - **Response:** `200 OK`
   ```json
@@ -274,6 +286,7 @@ The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platfor
 First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
 
 - `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, notification, localization, businessInfo, chatbot, leadForm } }` — `STAFF`|`MANAGER` (read allowed to both roles)
+- `PATCH /v1/tenants` → (MANAGER) rename the tenant: body `{ name: string }` (trimmed, non-empty); `200 OK` (`TenantController`, backend `PATCH /tenants`).
 - `PATCH /v1/tenants/settings` → body `{ settings: { <category>?: {...}, ... } }` — partial update, any subset of the category keys nested under `settings` (unspecified categories/fields unchanged); `200` returns updated state — `MANAGER` only, `STAFF` gets `403`
   - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.schemas.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` and `leadForm` are categories in that fixed list alongside the six pre-existing ones.
   - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, no hardcoded length bound at the Zod layer — the resolved `maxKnowledgeTextLength` cap (default 4000, or a tenant's own Ikaro-granted override) is enforced solely by the domain-layer `ChatbotSettingsValidator`, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded (a static Zod max would make an above-4000 override unenforceable, since Zod would reject the request before the domain layer's resolved check ever ran — decided during M19-S04 `/story-discovery`, 2026-08-11). This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body — a request including any of them is rejected `400` (not silently stripped), same as any other unrecognized key under `chatbot`, since `chatbot` accepts only `knowledgeText` at the Zod layer (see `docs/04-USE_CASES.md` UC-033–UC-036 for why these stay Ikaro-only overrides)
@@ -367,7 +380,7 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
 
 **Storage path rule:** `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` — staged in the **private** media bucket. Not public, not permanent, not yet referenced by anything durable.
 
-`filePath` is what the frontend holds as the field's draft value until the next save. **`PATCH /v1/tenants/hotsite` promotes every `tmp/`-referenced field**: validates the tmp object exists in the private bucket and belongs to the caller's tenant, copies it to `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` in the **public** hotsite bucket, rewrites the stored reference to that permanent path, and deletes the tmp original. If the field previously pointed at a different permanent object, that old object is deleted too (delete-previous-on-replace); a field left untouched (still pointing at its existing permanent object) is neither re-promoted nor deleted. **Reading hotsite images back** (post-promotion) works differently from booking attachments: because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
+`filePath` is what the frontend holds as the field's draft value until the next save. **`PATCH /v1/tenants/hotsite` promotes every `tmp/`-referenced field**: validates the tmp object exists in the private bucket and belongs to the caller's tenant, copies it to `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` in the **public** hotsite bucket, rewrites the stored reference to that permanent path, and deletes the tmp original. If the field previously pointed at a different permanent object, that old object is deleted too (delete-previous-on-replace); a field left untouched (still pointing at its existing permanent object) is neither re-promoted nor deleted. **Reading hotsite images back** (post-promotion) works differently from booking attachments: because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/public/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
 
 (Contrast with booking attachments below, where the bucket is private and a fresh *read*-signed URL genuinely must be minted per display.)
 
@@ -856,7 +869,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 
 ### **No-Show (UC-074, M23 Cluster 3)**
 - `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). Optional body: `{ "reason"?: string }` (max 500 chars). `404` unknown booking; `409 BOOKING_ALREADY_TERMINAL` if already `COMPLETED`/`CANCELLED`/`REJECTED`/`NO_SHOW`; `422 BOOKING_INVALID_TRANSITION` if still `PENDING`/`INFO_REQUESTED`; `422 BOOKING_NOT_YET_ENDED` if the scheduled end time hasn't passed.
-- `POST /bookings/:id/no-show/correct` -> Manager-only correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED", "reason": "..." }` — `COMPLETED` is the only accepted value and `reason` is required. Each line's actual price defaults to its booked price; loyalty is awarded by the `BookingCompleted` the correction publishes. `404` unknown booking; `422 BOOKING_INVALID_TRANSITION` if the booking is not `NO_SHOW`; `403` for a `STAFF` caller.
+- `POST /bookings/:id/no-show/correct` -> Manager-only correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED", "reason": "..." }` (`reason` required, 10–500 characters) — `COMPLETED` is the only accepted value and `reason` is required. Each line's actual price defaults to its booked price; loyalty is awarded by the `BookingCompleted` the correction publishes. `404` unknown booking; `422 BOOKING_INVALID_TRANSITION` if the booking is not `NO_SHOW`; `403` for a `STAFF` caller.
 
 ### **Information Workflow (UC-005)**
 See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
@@ -1282,6 +1295,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 
 All endpoints require JWT with `MANAGER|STAFF` role. The `customerId` is taken from the URL path. Returns `404` if `customerId` does not belong to the caller's tenant.
 
+- `GET /customers/:customerId/loyalty` — the composite detail view (`StaffCustomerLoyaltyDetailResponse`): the customer, balance, entries and redemptions fetched in one BFF call (`apps/bff/src/features/loyalty/loyalty.controller.ts`).
 - `GET /customers/:customerId/loyalty/balance` — returns `EnrichedLoyaltyBalanceResponse` (same fields as `CustomerLoyaltyBalanceResponse` including `conversionRate`).
 - `GET /customers/:customerId/loyalty/entries?page=1&limit=20` — same response shape as customer entries endpoint.
 - `GET /customers/:customerId/loyalty/redemptions?page=1&limit=20` — same response shape as customer redemptions endpoint.
@@ -1325,6 +1339,8 @@ Errors:
 ---
 
 ## 6. System & Future
+
+> ⚠️ **Planned, not built:** neither endpoint below has a controller in the backend or BFF (UC-017 is out of MVP, and a notification-log view is listed under "Missing UCs" in `.copilot/context.md` §6).
 
 ### **Analytics (UC-017)**
 - `GET /analytics/summary` -> Dashboard stats for admins.

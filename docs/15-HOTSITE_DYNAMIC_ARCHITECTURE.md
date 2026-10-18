@@ -177,7 +177,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
-The `FOOTER` is always rendered automatically from tenant settings — it is **not** part of the `layout` array.
+The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one added in canonical order (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts`); `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
 ### Module Type Union
 
@@ -234,6 +234,7 @@ interface HeroModuleData {
 ```typescript
 interface ServiceListModuleData {
   title?: string;        // section heading, default "Nossos Serviços"
+  eyebrow?: string;      // short label above the heading
   showPrices: boolean;
   showPoints: boolean;   // show loyalty points per service
   layout: 'grid' | 'list';  // default: 'grid'
@@ -257,6 +258,7 @@ interface GalleryImage {
 
 interface GalleryModuleData {
   title?: string;            // default "Nossos Resultados"
+  eyebrow?: string;          // short label above the heading
   images: GalleryImage[];    // admin-curated ordered list
   layout: 'grid' | 'masonry' | 'featured';   // default: 'grid'
   maxVisible: number;        // default 6 — "ver mais" shown if images.length > maxVisible
@@ -281,11 +283,12 @@ interface Testimonial {
   authorName: string;
   text: string;
   rating?: 1 | 2 | 3 | 4 | 5;
-  avatarUrl?: string;    // GCS URL, optional
+  avatarUrl?: string | null;    // GCS URL, optional (null clears it)
 }
 
 interface TestimonialsModuleData {
   title?: string;        // default "O que nossos clientes dizem"
+  eyebrow?: string;      // short label above the heading
   items: Testimonial[];
   layout: 'grid' | 'carousel';  // default: 'grid'
 }
@@ -317,7 +320,8 @@ interface BookingCtaModuleData {
 interface AboutModuleData {
   title: string;                          // e.g. "Sobre nós" | "Conheça o Dr. Silva"
   body: string;                           // markdown supported
-  imageUrl?: string;                      // GCS URL — team/owner photo
+  eyebrow?: string;                       // short label above the heading
+  imageUrl?: string | null;               // GCS URL — team/owner photo (null clears it)
   imagePosition: 'left' | 'right';       // default: 'right'
 }
 ```
@@ -329,11 +333,16 @@ Useful for any business type: car wash owner story, dentist bio, salon team phot
 ```typescript
 interface ContactModuleData {
   title?: string;          // default "Fale conosco"
+  eyebrow?: string;        // short label above the heading
   showAddress: boolean;
   showPhone: boolean;
   showWhatsapp: boolean;
   showEmail: boolean;
   showMap: boolean;        // Google Maps embed using address from tenants.settings.businessInfo
+  showInstagram?: boolean; // show the Instagram link from business.socialLinks
+  showFacebook?: boolean;  // show the Facebook link from business.socialLinks
+  displayStyle?: 'list' | 'icon-cards';
+  whatsappCtaLabel?: string; // label of the WhatsApp call-to-action button
 }
 ```
 
@@ -379,6 +388,18 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 - `showWhatsapp` → render a `https://wa.me/<digits>` link using `business.socialLinks.whatsapp`; omitted if `null`
 - `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
 - `showMap` → embeds `https://maps.google.com/maps?q=<urlencoded address>&output=embed` (keyless query-based embed, no Google Maps API key needed) using `business.address`; omitted if `business.address` is `null`, even when `showMap: true`
+
+### FOOTER
+
+```typescript
+interface FooterModuleData {
+  tagline?: string;
+  copyrightNote?: string;
+  showWhatsapp?: boolean;
+}
+```
+
+`FooterModuleData` lives in `packages/types/src/hotsite.ts`; the footer shows the tenant's business info (see § CONTACT above) alongside these fields.
 
 ### CHATBOT
 
@@ -447,32 +468,36 @@ https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 **`app/[slug]/layout.tsx`** — fetches manifest and applies full branding token set:
 
 ```typescript
-import { fetchManifest } from '@/features/platform/hotsite/api/platform';
+import { fetchManifest } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
-import { FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
+import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+// … plus the locale, formatting and message helpers
 
-export default async function HotsiteLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ slug: string }>;  // Next.js 16: params is a Promise
-}) {
-  const { slug } = await params;
+export default async function HotsiteLayout({ children, params }: HotsiteLayoutProps) {
+  const { slug } = await params;  // Next.js 16: params is a Promise
   const manifest = await fetchManifest(slug);
+  // locale, currency, timezone and date/time formats come from manifest.localization
 
   return (
-    <html lang="pt-BR">
-      <body
-        style={applyBranding(manifest.branding)}
-        className={FONT_VARIABLES.join(' ')}
-      >
-        {children}
-      </body>
-    </html>
+    <div
+      id="hotsite-root"
+      style={{ ...applyBranding(manifest.branding), fontFamily: 'var(--ba-body-font)' }}
+      className={getActiveFontVariables(
+        manifest.branding.headingFontFamily,
+        manifest.branding.bodyFontFamily,
+      ).join(' ')}
+    >
+      <LocaleProvider locale={locale} messages={messages}>
+        <FormattingProvider locale={locale} currency={currency} timezone={timezone} /* … */>
+          {/* InformationCompletionPrompt, then */ children}
+        </FormattingProvider>
+      </LocaleProvider>
+    </div>
   );
 }
 ```
+
+The `<html>` and `<body>` elements live in the root `app/layout.tsx`, not in this layout; the hotsite layout wraps its pages in `#hotsite-root` so the `--ba-*` token set applies only inside the hotsite tree.
 
 **`app/[slug]/page.tsx`** — renders enabled modules in manifest order. **Corrected 2026-08-08 (docs-audit, promoted via `/discovery-to-milestone` for the CHATBOT module):** the actual implementation is not a `MODULE_MAP` lookup table — it's a direct per-type component-import chain, fed by `buildHotsiteModuleRenderPlan()` (`apps/web/features/platform/hotsite/page-model.ts`), which does the generic `enabled` filter (the outcome this doc originally described is still accurate — no per-module logic needed for the on/off toggle — just not via the mechanism previously documented here):
 
@@ -553,7 +578,7 @@ export const HOTSITE_REVALIDATE_SECONDS = 300;
 ```
 
 ```typescript
-// apps/web/app/[slug]/page.tsx  (and layout.tsx)
+// apps/web/app/[slug]/page.tsx  (and the booking/, login/ and lead-form/ page.tsx files; the layout has no `revalidate`)
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in features/platform/hotsite/revalidate.ts.
 export const revalidate = 300;
@@ -732,7 +757,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 ### Published hotsites listing endpoint
 
-`GET /platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
+`GET /v1/public/platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
 
 ---
 

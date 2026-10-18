@@ -577,7 +577,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-#### **PointsExpiringSoon**
+#### **PointsExpiringSoon** *(Command — `loyalty/domain/commands/points-expiring-soon.command.ts`, published through the outbox like the other cron-emitted commands, not a `DomainEvent`)*
 - **Trigger:** GCP Cloud Scheduler publishes to the `ikaro-cron-loyalty-expiry-warning` Pub/Sub topic once a week (Mondays 06:00 UTC); the push subscription dispatches to `NotifyExpiringPointsTriggerHandler`, which calls `NotifyExpiringPointsJob.run()` (M17-S03 — local dev: `POST /cron/loyalty-expiry-warning` publishes the same trigger). The job finds all customers across all tenants who have `LoyaltyEntry` rows whose `expires_at` falls within the configured warning window (`settings.loyalty.expiryWarningDays`, default 7).
 - **Direction:** Forward-looking — this is a heads-up, not a post-mortem. Once `expires_at` actually passes, the `ikaro-cron-loyalty-expiry` topic (daily, 02:00 UTC) dispatches to `ExpirePointsTriggerHandler`, which decrements `loyalty_balances.current_points` for those entries.
 - **Aggregation:** One event per customer per tenant — all expiring entries for a customer are aggregated into a single event.

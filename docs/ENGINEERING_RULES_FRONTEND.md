@@ -19,7 +19,8 @@ Current `shared/lib/formatting/` inventory:
 | `format-money.ts` | `formatMoney(amount, locale, currency)` |
 | `format-duration.ts` | `formatDuration(minutes)` |
 | `format-time.ts` | `formatTime`, `formatDate`, `formatDateLong`, `formatMonthYear`, `formatMonthYearRange` (the visible-period label, e.g. "Outubro – Novembro 2026", M18-S11); re-exports `DateFormat` from `@ikaro/i18n` |
-| `date-utils.ts` | `toISODate`, `addDays` — pure date math |
+| `date-utils.ts` | `toISODate`, `toISODateInTimezone`, `addDays`, `isSameDay`, `inWindow`, `dayNumber`, `dayCarouselLabel` — pure date math |
+| `calendar-day.ts` | `toLocalISODate`, `localDateFromISO`, `utcDateFromISO` — calendar-day conversions without timezone drift |
 | `locale-validators.ts` | `isValidTimezone`, `resolveDateFormat` |
 | `formatting-context.ts` | `FormattingContext`, `FormattingState` |
 | `use-formatting.ts` | `useFormatting()` hook |
@@ -143,6 +144,9 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
 | A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
 | A button | `ui/button` | `DiscardChangesDialog` |
+| A user's avatar | `ui/avatar` | `Topbar`, `Sidebar` |
+| A searchable list inside a popover | `ui/command` | `ui/font-picker` |
+| Several choices from a few short options | `ui/pill-multi-select` | `RecurringScheduleFields` |
 | A colour or font choice | `ui/color-picker`, `ui/font-picker` | `BrandingColorsSection`, `BrandingTab` |
 | A weekday-with-hours row | `ui/week-day-row` | `ResourceWorkingHoursEditor`, `SettingsHoursSection` |
 | A booking date + time-slot picker (a day strip, then the day's slots) | `AvailabilityCarousel` + `SlotPicker` (`features/booking/components/public/`) with `variant="dashboard"` in the account and dashboard shells (`hotsite` is the tenant-branded look, never used there) | `RescheduleBookingPage` |

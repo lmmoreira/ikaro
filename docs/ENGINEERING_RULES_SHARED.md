@@ -30,6 +30,7 @@ Fields with domain validation → `src/shared/value-objects/` (never plain primi
 | Hex colour | `HexColor` | `hex-color.vo.ts` |
 | IANA timezone | `Timezone` | `timezone.vo.ts` |
 | HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` |
+| YYYY-MM-DD calendar date | `CalendarDate` | `calendar-date.vo.ts` |
 | URL-safe slug | `Slug` | `slug.vo.ts` |
 | ISO country code | `CountryCode` | `country-code.vo.ts` |
 | SEO page title | `SeoTitle` | `seo-title.vo.ts` |

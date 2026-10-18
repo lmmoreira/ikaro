@@ -78,8 +78,8 @@ All events emitted by the system include the `tenant_id`.
 ```json
 {
   "eventName": "BookingCompleted",
-  "tenantId": "autowash-pro-001",
-  "payload": { "bookingId": "..." }
+  "tenantId": "<tenant uuid>",
+  "data": { "bookingId": "..." }
 }
 ```
 **Subscribers** must only process events that match their own tenant context or explicitly handle multi-tenancy (e.g., Notification service).
@@ -101,7 +101,7 @@ All events emitted by the system include the `tenant_id`.
 | Aspect | Customer | Staff |
 |--------|----------|-------|
 | **Tenancy** | Multi-tenant | Multi-tenant |
-| **Google ID** | Shared across records (no unique constraint) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
+| **Google ID** | Shared across records (not unique across tenants; each `(tenant_id, google_oauth_id)` pair is unique) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
 | **Login Flow** | Selection screen (if 2+) | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
 | **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
 | **Switching** | Allowed | Allowed |
