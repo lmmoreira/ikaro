@@ -11,7 +11,7 @@ Promote a mature `docs/discovery/` doc set into canonical documentation, then dr
 
 > **AGENT RULE:** Never invoke this skill autonomously. A discovery doc represents real design work — ask the user: *"Ready to promote `<discovery-doc>` into a milestone? This will touch several canonical docs and (if applicable) plan/journey/ files before any story is drafted."* Wait for explicit yes.
 
-Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discovery/MULTI_VERTICAL_SCHEDULING.md`.
+Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discovery/multivertical-booking/multivertical-booking.md`.
 
 ---
 
@@ -74,7 +74,7 @@ For each candidate use case (`CAND-XX` or equivalent) the Decisions log didn't c
 
 ### 2b. Domain model, events, schema, contracts, settings, errors
 
-Using `/docs-audit`'s own "deep-check docs" bucketing as the checklist (not a fresh list invented here), fold the discovery doc's content into whichever of these actually apply:
+Using `/docs-audit`'s tag-derived deep-check set as the checklist (`pnpm --filter @ikaro/architecture-check docs-for --tag <tags>` lists the docs for the areas the discovery touches, each marked deep or light; not a fresh list invented here), fold the discovery doc's content into whichever of these actually apply:
 - `docs/02-DOMAIN_MODEL.md` — new/modified aggregates
 - `docs/03-DOMAIN_EVENTS.md` — new domain events, full payload definitions
 - `docs/13-DATABASE_SCHEMA.md` — new tables, modified tables, migration ordering
