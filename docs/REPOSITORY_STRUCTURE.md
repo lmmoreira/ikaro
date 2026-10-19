@@ -30,7 +30,11 @@
 ├── .github/workflows/    # CI/CD pipeline YAML files
 ├── docker/               # Dockerfiles + docker-compose.yml (local dev)
 ├── .copilot/context.md   # canonical agent context (symlinked as AGENTS.md, CLAUDE.md, gemini.md)
-└── docs/                 # source of truth documentation (see CLAUDE.md §10)
+├── docs/                 # source of truth documentation (see CLAUDE.md §10)
+├── journeys/             # canonical journeys + HTML prototypes per actor (guest/customer/staff/manager/shared); index: journeys/README.md
+├── plan/                 # milestone plans (M*.md) and their IMPLEMENTATION_DETAILS files
+├── td/                   # technical-debt files (TD*.md), stories in the same schema as milestones
+└── archive/              # superseded docs — never load
 ```
 
 ---
