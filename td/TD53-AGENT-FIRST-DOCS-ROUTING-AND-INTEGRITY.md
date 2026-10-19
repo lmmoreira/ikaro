@@ -466,6 +466,14 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 4. **Go or no-go for Story 4 and Story 6**, recorded in the Decision record with the measured cost (files rewritten, non-markdown hits) beside the benefit. A no-go closes the story as cancelled and leaves the numbering and journeys where they are.
 5. **Name the story that carries the closing audit** (see "Closing audit" under Stories): Story 6 if it gets a go, otherwise the last story that will actually run. Record it in the Decision record so the one final `/docs-audit` has an owner and is not repeated.
 
+**Decisions locked in story-discovery (2026-10-19):**
+- **Scope addition:** the Decision record also carries a canonical-home verdict for each item Story 3A left open for 3C: the `12`/`19`/`23` overlap, the `20` merge candidate, and the nine rules explained in full in two docs each. S3C only decides; any resulting doc edit becomes a follow-up story or TD.
+- **Measurement:** re-run Story 3A's 127-session Claude method and add the newer sessions, with before and after side by side. Add Codex evidence from `~/.codex/sessions` (417 rollout files, read-only); record counts only, never transcript content. No Gemini logs exist. "After" values are measured fresh: `context.md` is 59,709 characters at discovery time, not the 57,647 baseline. Citation costs for Stories 4 and 6 are recomputed (discovery-time figures: about 693 occurrences of `plan/journey` in 176 files; about 1,919 occurrences of the `docs/NN-` form in 443 files).
+- **Classification:** covers the 67 top-level bullets of §0–§9 and builds on the inventory Story 2 handed to Story 5B (the 13 CI-enforced bullets, §9 mechanics, emphasis, ablation results); it does not redo that inventory.
+- **Root-config list (item 3):** corrected to what a grep shows. Real hits: the `prototypes` tag glob (`architecture-policy.json`), `.github/instructions/pr-review.instructions.md`, `.agents/skills/**`, `.claude/commands/**`, `.copilot/context.md`, and a few `apps/web` comments. `.gitignore`, `.coderabbit.yaml`, `sonar-project.properties` and `knip.config.ts` contain no literal path; S3C checks them for broader globs (such as `plan/**`) that the move would still affect.
+- **Go or no-go (item 4):** the Decision record shows the measured cost beside the benefit and gives a recommendation for each story; the owner's call is recorded as final. The discovery-time lean is no-go on Story 6.
+- **Closing-audit owner (item 5):** named conditionally, "Story 6 if go, else the last of Stories 4, 5A and 5B to run".
+
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
