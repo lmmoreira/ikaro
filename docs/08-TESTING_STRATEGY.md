@@ -924,7 +924,7 @@ const makeUseCase = () => new ApproveBookingUseCase(...);
 
 ### InMemory port doubles
 
-Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Provide a sensible default state with setter methods for overrides.
+Every cross-context port used in tests needs an `InMemoryXxxPort` class in `src/test/infrastructure/` — never a `jest.fn()` inline mock. Provide a sensible default state with setter methods for overrides. The rule and the list of existing doubles: `docs/ENGINEERING_RULES_TESTING.md` § InMemory doubles.
 
 Example: `InMemoryBookingPlatformPort` (`src/test/infrastructure/in-memory-booking-platform.port.ts`) is seeded per tenant with `seedBusinessHoursAndLocale(tenantId, value)` and cleared between tests.
 
@@ -960,7 +960,7 @@ In `afterEach`, use `resetAllMocks()` not `clearAllMocks()` — `clearAllMocks` 
 - `addDays(date: string, n: number)` — `YYYY-MM-DD` string shifted by `n` days
 - `nextWeekday(utcDayOfWeek: 0–6, weeksAhead?)` — next future date for that UTC day. 0 = Sunday … 6 = Saturday.
 
-Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextMonday`, etc. inline in any spec file.
+Always import these; never define `futureDate`, `pastDate`, `nextSunday`, `nextMonday`, etc. inline in any spec file. `nextWeekday()` depends only on today and the requested weekday, so calls for two different weekdays are not guaranteed to come out in weekday order; when a spec needs related dates ("the day after", "a week later"), derive them from one anchor with `addDays()`.
 
 ### Shared address helper (mandatory — never inline)
 
@@ -976,7 +976,7 @@ Integration tests share a live DB with no cleanup between tests in the same file
 
 `src/test/integration-global-setup.ts` holds **explicit** import lists — it does not use a glob. Every time you add a new TypeORM entity or migration you **must** update this file or integration tests will fail with `column X does not exist` / `relation X does not exist`.
 
-**Checklist — do this in the same commit as the migration:**
+**Checklist — do this in the same commit as the migration** (it applies to a migration that only adds an index, not just one that creates a table):
 
 1. **Import the migration class** at the top of `integration-global-setup.ts`.
 2. **Add the migration** to the `migrations: [...]` array, keeping timestamp order.
@@ -1007,7 +1007,17 @@ for (const { provide, useValue } of overrideProviders) {
 
 **When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token. See the consolidated table below (after the `EVENT_BUS`/`OUTBOX_PUBLISHER` section) for the current per-helper override list, including `STORAGE_SERVICE`.
 
-**Root cause gotcha — `useExisting` vs `useClass`:** register the adapter with `useClass`, never `useExisting`, or overriding the token in tests leaves the standalone class instantiated. Full explanation and before/after: `docs/ANTI_PATTERNS.md` (the `useExisting` row); CI-enforced by the `di-alias` detector.
+**Root cause gotcha — `useExisting` vs `useClass`:** register a replaceable adapter token with `useClass`, never as `useExisting` of a class that is also its own provider.
+
+```ts
+// Wrong: GcsSignedUrlAdapter is also registered as its own standalone provider
+providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]
+
+// Right: the class exists only as the provider of the token, so overriding the token drops it
+providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]
+```
+
+Nest instantiates every provider in the module graph when the application bootstraps. `useExisting` only creates an alias, while the class stays registered as a standalone provider, so overriding `STORAGE_SERVICE` in a test replaces the alias but not the class, and the adapter's `onApplicationBootstrap` network calls still run. With `useClass` the class has no provider of its own: the override replaces the provider registered under the token before the testing module is compiled, so nothing constructs the adapter. A token-to-token alias (`{ provide: TRIGGER_BUS, useExisting: EVENT_BUS }` in `event-bus.module.ts`) is not this case. CI-enforced by `packages/architecture-check`'s `di-alias` detector (it reports this case as rule `unsafe-use-existing`); `docs/ANTI_PATTERNS.md` keeps a row for it, and a second row covers the reverse alias direction (`reverse-di-alias`).
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 

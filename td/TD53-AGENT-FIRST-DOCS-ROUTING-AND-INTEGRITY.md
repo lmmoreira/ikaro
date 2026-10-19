@@ -57,7 +57,7 @@ Rejected, with the condition to reopen:
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
 | Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B | 0 (`docs/archive` and `docs/lean` no longer exist; the archive is the top-level `archive/`) |
-| Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | not yet measured |
+| Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | 0 (Story 3D re-inventory, 2026-10-19: 3 collapsed to a pointer, 1 table row corrected, 5 were already one sentence or a detector row, so no full explanation is duplicated) |
 
 ### Decision record (filled by Story 3C)
 
@@ -640,8 +640,10 @@ Nine rules are explained in more than one doc, so a change to a rule has to be m
 Decisions already made (not re-opened in discovery):
 - **What collapses.** A passage that restates a rule's explanation, table or worked example collapses. A one-line statement that already points at the canonical doc, a table row that exists so `/pre-pr` or a detector finds the rule (the `ANTI_PATTERNS` rows), and a tree comment in `REPOSITORY_STRUCTURE` all stay.
 - **No fact is lost.** Before a passage is cut, the canonical doc is read and must already hold every fact in it; a fact only the copy holds moves to the canonical doc first. The PR body lists, per rule, each removed passage next to the canonical line that carries it.
-- **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so `context.md` does not change. For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `08-TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
+- **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so no canonical home or pointer in `context.md` changes (the only edit is to its §7 CI-enforced line: four detector names corrected to the rule ids CI prints, plus about 60 characters of wording trimmed on that same line with no information removed, because the longer ids otherwise put the file over its `agent-context-file` size budget; owner approved it in this PR, 2026-10-19). For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `08-TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
 - **Pointers use the exact `path § heading` form** so `doc-link-integrity` checks them. Use "see" wording, never a restated summary.
+- **Extraction is conditional on benefit (locked in story-discovery, 2026-10-19).** A copy collapses only when that gains something real: maintainability (one place to edit), objectiveness (no two wordings that can disagree) or agent context (an agent landing on the copy no longer reads a stale or competing version). A copy that applies the rule to its own topic and adds a fact the canonical doc lacks is context-specific: that fact moves into the canonical doc only if it is general, and otherwise the copy stays as it is. A rule whose inventory finds no real copy is recorded as "already one home" and skipped. The decision and its reason are recorded per rule. The copies in question are those in `docs/` and the live agent files; a closed milestone's wrap-up records under `plan/` (its `_IMPLEMENTATION_DETAILS_IA.md` and `_DEVELOPER.md` lessons-learned passages) are historical statements of what was learned then, are not collapsed, and are listed in the PR body so the final grep is honest about them (the `_DEVELOPER.md` files are never loaded by agents).
+- **Staleness sweep in the same story (scope added 2026-10-19).** Every doc the story touches (the canonical and copy docs of the nine rules, and any doc a fact moves into) gets a pass for stale, wrong or confusing claims, checked against the code where a claim names a file, class, detector, command or behaviour. Each finding is re-read at its cited line before it is edited, and is fixed in this story. A finding that needs a decision or is too large for the story is listed in the PR body and, if real, appended to `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md`. The sweep covers the touched files only; the repository-wide closing audit stays with the story named in the Decision record.
 
 Inventory found while drafting (to be re-run first; line numbers will have moved):
 
@@ -664,10 +666,12 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 - `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/CODE_STANDARDS.md`, `docs/ENGINEERING_RULES_FRONTEND.md` (modify only if a fact moves in from a copy)
 
 **Acceptance criteria — product:**
-- [ ] Each of the nine rules has its full explanation in exactly one doc, the canonical home Story 3C chose.
-- [ ] Every other doc that mentions a rule says it in one sentence at most and points at the canonical doc.
+- [ ] Each of the nine rules has its full explanation in exactly one doc, the canonical home Story 3C chose, except a context-specific copy kept under the benefit test above.
+- [ ] Every other doc that mentions a rule, apart from a kept context-specific copy, says it in one sentence at most and points at the canonical doc.
 - [ ] No fact is lost: the PR body maps every removed passage to the canonical line that now carries it.
-- [ ] `.copilot/context.md` is unchanged, and every pointer it already holds to a canonical home still resolves.
+- [ ] The PR body records, per rule, one verdict with its reason: collapsed, kept as context-specific, or already one home.
+- [ ] Every stale, wrong or confusing claim found in the touched docs is fixed (each checked against the code where it names code) or listed in the PR body with why it was not.
+- [ ] `.copilot/context.md` changes only its §7 CI-enforced line: the four detector names become the rule ids CI prints (`entity-builder-pk-uuidv7-default`, `use-case-input-naming`/`use-case-result-naming`, `bff-controller-inline-type`, `no-jest-fn-for-repository-or-port`), and the same line is shortened by the same amount or more (wording only, no rule dropped) so the file stays within its `agent-context-file` budget; every pointer it already holds to a canonical home still resolves.
 
 **Acceptance criteria — technical:**
 - Unit: none — documentation story

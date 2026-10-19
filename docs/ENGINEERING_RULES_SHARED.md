@@ -19,22 +19,7 @@
 
 ## Value Objects
 
-Fields with domain validation → `src/shared/value-objects/` (never plain primitives):
-
-| Field | Value Object | File |
-|---|---|---|
-| Email address | `Email` | `email.vo.ts` |
-| Phone number | `PhoneNumber` | `phone-number.vo.ts` |
-| Physical address | `Address` | `address.ts` |
-| Money amount | `Money` | `money.ts` |
-| Hex colour | `HexColor` | `hex-color.vo.ts` |
-| IANA timezone | `Timezone` | `timezone.vo.ts` |
-| HH:MM time | `TimeOfDay` | `time-of-day.vo.ts` |
-| YYYY-MM-DD calendar date | `CalendarDate` | `calendar-date.vo.ts` |
-| URL-safe slug | `Slug` | `slug.vo.ts` |
-| ISO country code | `CountryCode` | `country-code.vo.ts` |
-| SEO page title | `SeoTitle` | `seo-title.vo.ts` |
-| SEO meta description | `SeoDescription` | `seo-description.vo.ts` |
+Fields with domain validation → `src/shared/value-objects/` (never plain primitives). The catalog of which VO covers which field, with its validation rule and getter, is `docs/VALUE_OBJECTS_REFERENCE.md` § Catalog (`src/shared/value-objects/`); add a new VO's row there.
 
 Every VO must have a `.spec.ts` covering valid and invalid inputs. PhoneNumber format and normalisation boundary rules → `docs/CODE_STANDARDS.md`.
 
