@@ -10,7 +10,7 @@
 - A reference doc is a top-level `docs/*.md` file named `UPPER_SNAKE.md`. Numbered files (`01-` to `28-`) are the original reading order; a new doc takes no number. There is no `07-`: the numbering gap is historical.
 - Every doc opens with two lines the `doc-orientation` check enforces: `> **When to load:** …` (the task that should make an agent open it, and where the neighbouring rules live) and `> **Tags:** …` (the topic tags `pnpm --filter @ikaro/architecture-check docs-for` routes by).
 - A new doc also needs its row in `CLAUDE.md` §10 (or a tag `docs-for` resolves), otherwise nothing loads it.
-- Work in progress lives in `docs/discovery/<name>/` until it is promoted into a milestone; plans in `plan/`, tech-debt in `td/`, journeys and prototypes in `plan/journey/`. Superseded material goes to the top-level `archive/` and is never loaded.
+- Work in progress lives in `docs/discovery/<name>/` until it is promoted into a milestone; plans in `plan/`, tech-debt in `td/`, journeys and prototypes in `journeys/`. Superseded material goes to the top-level `archive/` and is never loaded.
 
 ## Reading order
 

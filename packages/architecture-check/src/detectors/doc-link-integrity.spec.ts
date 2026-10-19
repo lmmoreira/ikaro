@@ -8,7 +8,7 @@ const roots: string[] = [];
 
 function policy(overrides: Partial<DocLinkIntegrityPolicy> = {}): DocLinkIntegrityPolicy {
   return {
-    markdownSources: ['docs/', 'plan/', 'td/', '.claude/commands/', '.copilot/'],
+    markdownSources: ['docs/', 'plan/', 'td/', 'journeys/', '.claude/commands/', '.copilot/'],
     codeSources: ['apps/', 'packages/'],
     excluded: ['docs/archive/', 'docs/discovery/', 'archive/'],
     frozen: [],
@@ -176,6 +176,27 @@ describe('checkDocLinkIntegrity', () => {
 
       expect(ok.findings).toEqual([]);
       expect(bad.findings).toHaveLength(1);
+    });
+
+    it('checks a journeys/ citation: passes a real file and fails a dead one', () => {
+      const ok = scan({
+        'journeys/staff/agenda.md': '# agenda',
+        'docs/SOURCE.md': 'see `journeys/staff/agenda.md`',
+      });
+      const bad = scan({ 'docs/SOURCE.md': 'see `journeys/staff/gone.md`' });
+
+      expect(ok.findings).toEqual([]);
+      expect(bad.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('journeys/staff/gone.md') }),
+      ]);
+    });
+
+    it('scans a journeys/ markdown file as a source', () => {
+      const result = scan({ 'journeys/staff/agenda.md': 'see `docs/MISSING.md`' });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({ file: 'journeys/staff/agenda.md' }),
+      ]);
     });
 
     it('passes a gitignored path listed in gitignoredAllowed', () => {

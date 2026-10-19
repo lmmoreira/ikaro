@@ -160,21 +160,21 @@ Apply Story 0's check wherever a booking's start changes after creation: the cus
 
 **Agent:** web-ts
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`
 **Dependencies:** TD50 Story 0; TD50 Story 1 for the reschedule screen
 **Pattern:** plain composition — extends the existing submit-error routing table (`resolveBookingSubmitErrorRoute` in `booking-steps.ts`); no new pattern.
 
 **Description:**
 The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE`) back to the date step with everything else kept. The two new codes must take the same route, with copy that says the time is no longer open, so a stale page recovers instead of showing a generic error. The same mapping applies to the customer reschedule screen (M23-S30) and is what the staff booking screen (M23-S40) inherits through the shared step engine. No new screen: the existing slot-conflict error state is reused, with new copy keys.
 
-**Prototype references:** `plan/journey/guest/prototypes/book-a-service/` and `plan/journey/customer/prototypes/book-a-service/` (the existing slot-conflict error screens); confirm at discovery that no prototype change is needed.
+**Prototype references:** `journeys/guest/prototypes/book-a-service/` and `journeys/customer/prototypes/book-a-service/` (the existing slot-conflict error screens); confirm at discovery that no prototype change is needed.
 **New migration / i18n keys / env vars / feature flags:** none beyond Story 0's `errors.json` entries; any screen-level copy goes in `packages/i18n/locales/{pt-BR,en}/web.json` in the same commit.
 
 **Files to create/modify:**
 - `apps/web/features/booking/model/booking-steps.ts` (+ `booking-steps.spec.ts`) (modify — `resolveBookingSubmitErrorRoute` routes both codes to the date step)
 - `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (modify only if the error state needs new copy)
 - `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (modify — same mapping on the reschedule screen from M23-S30)
-- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md`, both `dev-notes.md` (modify — record the new error route)
+- `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`, both `dev-notes.md` (modify — record the new error route)
 
 **Acceptance criteria — product:**
 - [ ] If the chosen time closes while the page is open, submitting returns the customer to the date step with their other choices kept and a message that the time is no longer open.

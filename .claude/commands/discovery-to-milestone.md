@@ -1,6 +1,6 @@
 ---
 name: discovery-to-milestone
-description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone (or, for a large discovery, a sequenced set of milestones) of stories ready for /story-discovery. Scales from a small, single-context discovery to a large, multi-aggregate one: Phase A promotes discovery content into docs/04-USE_CASES.md, docs/02-DOMAIN_MODEL.md, docs/03-DOMAIN_EVENTS.md, docs/13-DATABASE_SCHEMA.md, docs/14-API_CONTRACTS.md, and other canonical docs, plus the real plan/journey/ prototype structure (per CLAUDE.md §15), promoted in logical clusters and independently verified via /docs-audit as each lands. Phase B checks whether the promoted scope is one milestone or several, sequences the promoted use cases into dependency-ordered waves, proactively works out milestone-level design/aggregate/database/performance/test-strategy decisions no single story can see on its own — scaled to how many aggregates are actually in play — and drafts each story with inline context and pre-decided architectural choices in the exact format /story-discovery parses. Never writes code.
+description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone (or, for a large discovery, a sequenced set of milestones) of stories ready for /story-discovery. Scales from a small, single-context discovery to a large, multi-aggregate one: Phase A promotes discovery content into docs/04-USE_CASES.md, docs/02-DOMAIN_MODEL.md, docs/03-DOMAIN_EVENTS.md, docs/13-DATABASE_SCHEMA.md, docs/14-API_CONTRACTS.md, and other canonical docs, plus the real journeys/ prototype structure (per CLAUDE.md §15), promoted in logical clusters and independently verified via /docs-audit as each lands. Phase B checks whether the promoted scope is one milestone or several, sequences the promoted use cases into dependency-ordered waves, proactively works out milestone-level design/aggregate/database/performance/test-strategy decisions no single story can see on its own — scaled to how many aggregates are actually in play — and drafts each story with inline context and pre-decided architectural choices in the exact format /story-discovery parses. Never writes code.
 metadata:
   short-description: Promote discovery docs into a sequenced milestone
 ---
@@ -9,7 +9,7 @@ Promote a mature `docs/discovery/` doc set into canonical documentation, then dr
 
 > **HARD RULE — NO CODE CHANGES:** This skill only reads code and writes documentation/plan files (`.md`). It NEVER writes or modifies any `.ts`, `.js`, or source/test/config file. It also never runs `/story-discovery` itself — it produces stories *for* that skill to later validate, one at a time, through the normal workflow.
 
-> **AGENT RULE:** Never invoke this skill autonomously. A discovery doc represents real design work — ask the user: *"Ready to promote `<discovery-doc>` into a milestone? This will touch several canonical docs and (if applicable) plan/journey/ files before any story is drafted."* Wait for explicit yes.
+> **AGENT RULE:** Never invoke this skill autonomously. A discovery doc represents real design work — ask the user: *"Ready to promote `<discovery-doc>` into a milestone? This will touch several canonical docs and (if applicable) journeys/ files before any story is drafted."* Wait for explicit yes.
 
 Argument: `$ARGUMENTS` — path to a discovery doc or folder, e.g. `docs/discovery/multivertical-booking/multivertical-booking.md`.
 
@@ -90,15 +90,15 @@ The discovery doc's own deeper rationale (a taxonomy, a worked comparison of alt
 
 For each actor whose flow is new or materially changes:
 
-1. Run `/docs-audit` and confirm a clean baseline **before touching any `plan/journey/` file** — this is non-negotiable per §15, not a suggestion.
-2. Write `plan/journey/<actor>/<slug>.md` — the journey spec.
-3. Update `plan/journey/<actor>/use-cases.md`.
-4. Update `plan/journey/README.md`'s index.
-5. **Only then** move the discovery prototype's screens for that actor into `plan/journey/<actor>/prototypes/<slug>/`. This is a **relocation of already-built, already-validated HTML**, not a rebuild — preserve the existing screens, `dev-notes.md` content, and `index.html` structure; adapt paths/naming to the canonical per-actor convention (`plan/journey/README.md` documents the exact folder shape, naming convention for lettered variants, and CSS gotchas — load it before touching any file here).
+1. Run `/docs-audit` and confirm a clean baseline **before touching any `journeys/` file** — this is non-negotiable per §15, not a suggestion.
+2. Write `journeys/<actor>/<slug>.md` — the journey spec.
+3. Update `journeys/<actor>/use-cases.md`.
+4. Update `journeys/README.md`'s index.
+5. **Only then** move the discovery prototype's screens for that actor into `journeys/<actor>/prototypes/<slug>/`. This is a **relocation of already-built, already-validated HTML**, not a rebuild — preserve the existing screens, `dev-notes.md` content, and `index.html` structure; adapt paths/naming to the canonical per-actor convention (`journeys/README.md` documents the exact folder shape, naming convention for lettered variants, and CSS gotchas — load it before touching any file here).
 
 A single discovery doc's prototype folder commonly covers multiple actors in one flat folder (as this repo's `docs/discovery/*/prototype/` structure does, with `customer-*`/`manager-*`/`staff-*`/`public-*` prefixes) — this step is what splits that into the real per-actor journey structure the rest of the pipeline expects.
 
-**If a discovery's prototype work was already merged directly into an existing, shipped `plan/journey/` file** (rather than sitting cleanly in the discovery's own prototype folder) — this can happen when UX prototyping work lands ahead of formal promotion — item 5 above's "relocate" instruction does not apply as written: that file is not wholly new, and a blind move/rename would corrupt real, shipped content sitting alongside the new part. Before touching it:
+**If a discovery's prototype work was already merged directly into an existing, shipped `journeys/` file** (rather than sitting cleanly in the discovery's own prototype folder) — this can happen when UX prototyping work lands ahead of formal promotion — item 5 above's "relocate" instruction does not apply as written: that file is not wholly new, and a blind move/rename would corrupt real, shipped content sitting alongside the new part. Before touching it:
 1. Check whether the new content is already marked inline (a `(GAP)` / `GAP (<date>)` comment, or an equivalent marker the discovery doc's own promotion-status note describes) — if so, that marker *is* the seam; treat everything outside it as already-shipped and untouchable, and everything inside it as this cluster's new content to fold in place, not relocate.
 2. If no inline marker exists, diff the file against its state before the merge (`git log -- <path>` to find the pre-merge commit) to find the seam yourself before editing.
 3. Either way, run `/docs-audit` scoped to that specific journey path (its 3d shared-fragment and `dev-notes.md` consistency checks) after the merge lands, not just at the "confirm a clean baseline before touching any file" gate in step 1 — a merge-in-place is exactly the shape of edit most likely to silently break a cross-reference the pre-existing file relied on.
@@ -167,7 +167,7 @@ Scoped to what no single story can decide on its own, because it cuts across all
 
 Not everything here will have a clean answer, especially for a genuinely large discovery — tag exactly like Step 1 does: **BLOCKER** (must resolve before any story in the affected area is drafted), **DEFERRABLE** (state an explicit default, carry it into the relevant stories' acceptance criteria as something to revisit, never silently baked in), or **PRODUCT-DECISION** (a real business/design call needed before real implementation, but not before this milestone can be drafted — carried into the affected story's AC as a named open item, never resolved by this skill either direction). Every resolved item here — whether decided immediately or via that tagging — joins the same running Decisions log Step 1 started, so Step 4's "bake in pre-decisions" rule picks it up exactly like any other decision.
 
-Render 3a and 3b together as one combined proposal — a mermaid dependency graph (this repo's existing convention in `plan/journey/` files) plus the milestone-level strategy findings — presented for sign-off **before** drafting any story body:
+Render 3a and 3b together as one combined proposal — a mermaid dependency graph (this repo's existing convention in `journeys/` files) plus the milestone-level strategy findings — presented for sign-off **before** drafting any story body:
 
 ```
 ## Proposed milestone — M<N>-<NAME>
@@ -209,7 +209,7 @@ For every story in the confirmed wave sequence, write a `### M<N>-S<NN> — <tit
 - **A story bundling multiple UCs (per 3a's coupling test) structures "Backend use case steps" as one labeled sub-list per UC** (e.g. `**UC-038 — Book:**` then its numbered steps, `**UC-039 — Cancel:**` then its own), not one flat numbered list mixing steps from different UCs — a reader must be able to tell which steps belong to which UC without inferring it from context.
 - **Acceptance criteria — product** — including, explicitly, any DEFERRABLE assumption from the Decisions log that this story's scope touches (state it as a criterion: "assumes FIFO tie-break per Decisions log #2 — not a hidden default").
 - **Dependencies** — story IDs from this same milestone, per the Step 3 wave graph.
-- **Prototype references** — the real `plan/journey/<actor>/prototypes/<slug>/` path from Step 2c, for any frontend story.
+- **Prototype references** — the real `journeys/<actor>/prototypes/<slug>/` path from Step 2c, for any frontend story.
 - **Files to create/modify** — enumerate real paths, for every story, without exception (schema requires this; see schema doc for the domain-slice-naming and `.http`-file rules). `/run-batch`'s file-overlap safety check reads this field directly from the plan file to decide whether two stories are safe to implement concurrently — a story with this field silently missing isn't just an incomplete draft, it's a story `/run-batch` can't safety-check at all. For a story several waves out, treat this list as a best-effort snapshot, not a guarantee — `/story-discovery`'s own Step 1 re-verifies it against the live repo at implementation time and corrects it there if earlier waves have since changed the codebase; that re-check is the safety net, not a reason to skip stating it now.
 - **New migration / i18n keys / env vars / feature flags** — flag explicitly if this story introduces any.
 - **Infra-touching stories** (Terraform/IAM/Pub/Sub/CI-CD) — include the schema's IAM/permissions, Live-verification check, and PR sequence fields; cite the exact row from `infra/terraform/README.md`'s playbook for PR sequence, never re-derive it.
@@ -257,7 +257,7 @@ If any PRODUCT-DECISION items exist (Step 1 or 3b), give them a standard, guaran
 ### Phase A promotion summary
 - N new UC-XXX entries in docs/04-USE_CASES.md
 - Domain model / events / schema / contracts / settings / error-catalog changes: <list of docs touched>
-- Journeys created/updated: <list of plan/journey/<actor>/<slug>.md paths>
+- Journeys created/updated: <list of journeys/<actor>/<slug>.md paths>
 
 ### Phase B milestone
 <full wave-sequenced story list, dependency graph>

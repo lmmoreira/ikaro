@@ -10,7 +10,7 @@ Review every PR with high standards. Be precise, actionable, and reference the e
 
 Do **not** review, flag, or comment on any file matching these patterns — they are outside the scope of code quality standards:
 
-- `plan/journey/*/prototypes/**` — raw HTML UX prototypes used for design reference only
+- `journeys/*/prototypes/**` — raw HTML UX prototypes used for design reference only
 - `archive/**` — superseded documentation
 
 ---
@@ -381,7 +381,7 @@ Provide one short paragraph (3–5 sentences) summarising the main concerns and 
 6. **Do not over-engineer suggestions.** If the current solution is simple and correct, say so.
 7. When in doubt about intent, **ask a clarifying question** rather than assuming malicious or incompetent intent.
 8. **Missing tests for CRITICAL paths** (auth, payments, tenant isolation) are themselves a CRITICAL finding.
-9. **Do not review excluded paths** (see top of this file). Files under `plan/journey/*/prototypes/` are exempt from all code quality rules.
+9. **Do not review excluded paths** (see top of this file). Files under `journeys/*/prototypes/` are exempt from all code quality rules.
 10. When reviewing UI changes, always apply the UX & Accessibility section — a technically correct component that is confusing or inaccessible is still a defect.
 11. When reviewing a new API endpoint, always cross-check against the BFF & API Design section AND confirm a `.http` file exists for manual testing.
 12. When reviewing any backend write path, always verify transaction wrapping, idempotency, and tenant isolation together — these three travel as a unit.

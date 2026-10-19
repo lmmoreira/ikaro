@@ -14,7 +14,7 @@ interface HotsiteAuthBarProps {
   readonly tenantName: string;
 }
 
-// Brand mark, left-most element — see plan/journey/shared/hotsite.html's topbar section for the
+// Brand mark, left-most element — see journeys/shared/hotsite.html's topbar section for the
 // validated size/placement (28px circle, ahead of the staff-area link). Falls back to an
 // initial-letter badge when no logo is uploaded yet, same pattern as app/[slug]/login/page.tsx.
 function BrandMark({

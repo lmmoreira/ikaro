@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Horários — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    /* ── Week navigation (synced to apps/web/shells/dashboard/components/WeekNav.tsx) ── */
+    .week-nav { display: flex; align-items: center; justify-content: space-between; padding: 0.5rem 1rem; background: white; border-bottom: 1px solid var(--ba-secondary); }
+    .week-nav-btn { display: flex; align-items: center; justify-content: center; width: 2rem; height: 2rem; border-radius: var(--ba-radius); border: 1.5px solid var(--ba-secondary); background: white; cursor: pointer; color: var(--ba-text); font-size: 1.125rem; text-decoration: none; line-height: 1; }
+    .week-nav-btn.disabled { opacity: 0.3; cursor: default; pointer-events: none; }
+    .week-nav-month { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); }
+
+    .week-strip { display: flex; justify-content: space-evenly; gap: 0.25rem; padding: 0.5rem 0.375rem; background: white; border-bottom: 1px solid var(--ba-secondary); overflow-x: auto; }
+    .week-day { display: flex; flex-direction: column; align-items: center; gap: 0.125rem; flex: 1; min-width: 2.5rem; padding: 0.5rem 0.375rem; border-radius: 0.625rem; cursor: pointer; color: #1f2937; }
+    .week-day-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: #9ca3af; }
+    .week-day-number { font-size: 1rem; font-weight: 700; line-height: 1; }
+    .week-day-dot { width: 6px; height: 6px; border-radius: 9999px; background: #2563eb; margin-top: 0.3rem; }
+    .week-day-dot.empty { background: transparent; }
+    .week-day.today { background: #2563eb; color: white; }
+    .week-day.today .week-day-label { color: #dbeafe; }
+    .week-day.today .week-day-dot { background: rgba(255,255,255,0.8); }
+    .week-day.selected { background: #030712; color: white; box-shadow: 0 0 0 2px #bfdbfe; }
+    .week-day.selected .week-day-label { color: #e5e7eb; }
+    .week-day.selected .week-day-dot { background: rgba(255,255,255,0.8); }
+
+    /* ── Day header (synced to ScheduleDayHeader.tsx) ── */
+    .day-header { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem; padding: 0.875rem 1rem 0; }
+    .day-header-eyebrow { font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.16em; color: #9ca3af; margin: 0; }
+    .day-header-title { font-size: 1.125rem; font-weight: 600; color: #111827; margin: 0.125rem 0 0; }
+    .day-header-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+    .btn-outline-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 0.5rem; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; cursor: pointer; text-decoration: none; }
+    .view-mode-select { display: inline-flex; align-items: center; gap: 0.375rem; height: 2.25rem; padding: 0 0.75rem; border-radius: 9999px; border: 1px solid var(--ba-secondary); background: white; color: var(--ba-text); font-size: 0.8125rem; font-weight: 600; }
+    .btn-primary-sm { display: inline-flex; align-items: center; gap: 0.25rem; height: 2.25rem; padding: 0 0.875rem; border-radius: 0.5rem; border: none; background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic */
+    .day-header-summary { margin: 0.625rem 1rem 0; font-size: 0.8125rem; color: rgba(17,24,39,0.55); }
+
+    /* ── Bounded multi-resource columns (NEW — only the resources checked in "Filtrar recurso"
+       get a column; this is NOT "every active resource", see the comment block below) ── */
+    .columns-scroll { margin: 0.875rem 1rem 6.5rem; overflow-x: auto; background: white; border: 1px solid var(--ba-secondary); border-radius: var(--ba-radius); }
+    .columns-table { border-collapse: collapse; width: 100%; min-width: 34rem; }
+    .columns-table th, .columns-table td { border-bottom: 1px solid var(--ba-secondary); border-right: 1px solid var(--ba-secondary); padding: 0.375rem 0.625rem; font-size: 0.8125rem; vertical-align: top; }
+    .columns-table th:last-child, .columns-table td:last-child { border-right: none; }
+    .columns-table th { position: sticky; top: 0; background: white; z-index: 2; font-weight: 700; color: var(--ba-text); text-align: left; padding-top: 0.625rem; padding-bottom: 0.625rem; }
+    .columns-table th.time-col, .columns-table td.time-col { position: sticky; left: 0; background: white; z-index: 1; font-size: 0.6875rem; color: rgba(17,24,39,0.4); font-variant-numeric: tabular-nums; white-space: nowrap; border-right: 2px solid var(--ba-secondary); }
+    .columns-table th.time-col { z-index: 3; }
+
+    .cv-block { display: block; border-radius: 0.5rem; padding: 0.375rem 0.5rem; text-decoration: none; color: inherit; }
+    .cv-booking { background: var(--ba-secondary); border-left: 3px solid #2563eb; } /* fixed platform blue, not --ba-primary -- dashboard is tenant-agnostic. APPOINTMENT-family */
+    .cv-booking p.name { font-weight: 600; color: #2563eb; margin: 0; line-height: 1.2; } /* fixed platform blue, not --ba-primary */
+    .cv-booking p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-session { background: #ede9fe; border-left: 3px solid #7c3aed; } /* SESSION-family — distinct purple accent, matches ScheduleTimelineEventRenderer */
+    .cv-session p.name { font-weight: 600; color: #7c3aed; margin: 0; line-height: 1.2; }
+    .cv-session p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-closure { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); } /* matches ScheduleTimelineEventRenderer's closure block exactly */
+    .cv-closure p.name { font-weight: 600; color: #475569; margin: 0; line-height: 1.2; }
+    .cv-closure p.meta { opacity: 0.65; margin: 0; line-height: 1.2; }
+    .cv-cont { background: var(--ba-secondary); border-left: 3px solid #2563eb; border-radius: 0 0 0.375rem 0.375rem; }
+    .cv-cont.cv-session-cont { background: #ede9fe; border-left: 3px solid #7c3aed; }
+    .cv-cont.cv-closure-cont { border-left: 3px solid #64748b; background-image: repeating-linear-gradient(135deg, rgba(148,163,184,0.18) 0, rgba(148,163,184,0.18) 8px, rgba(248,250,252,0.95) 8px, rgba(248,250,252,0.95) 16px); }
+
+    /* ── Floating filter balloons (synced to ResourceFilterMenu.tsx + ScheduleStatusFilterMenu.tsx —
+       stacked bottom-right, resource filter above status filter, same trigger+popover shape).
+       This balloon is what DRIVES the columns above — checking a resource here is what gives it
+       a column; nothing else narrows/selects columns (no separate type-tab UI). ── */
+    .filter-fab-stack { position: fixed; bottom: 1.25rem; right: 1rem; z-index: 30; display: flex; flex-direction: column; align-items: flex-end; gap: 0.75rem; }
+    .filter-fab { display: inline-flex; align-items: center; gap: 0.5rem; height: auto; padding: 0.625rem 0.875rem; border-radius: 9999px; border: 1px solid rgba(37,99,235,0.2); background: #2563eb; color: white; font-size: 0.8125rem; font-weight: 600; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; }
+    .filter-popover { width: min(19rem, calc(100vw - 2rem)); border-radius: 1rem; border: 1px solid var(--ba-secondary); background: white; box-shadow: 0 20px 45px rgba(0,0,0,0.2); overflow: hidden; margin-bottom: 0.5rem; }
+    .filter-popover-header { padding: 0.75rem 1rem; }
+    .filter-popover-header p.title { font-size: 0.875rem; font-weight: 600; color: #111827; margin: 0; }
+    .filter-popover-header p.desc { font-size: 0.75rem; color: #6b7280; margin: 0.2rem 0 0; }
+    .filter-popover-options { max-height: 16rem; overflow-y: auto; padding: 0.375rem 0.5rem; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+    .filter-option { display: flex; align-items: center; gap: 0.625rem; padding: 0.5rem; border-radius: 0.75rem; cursor: pointer; }
+    .filter-option:hover { background: #f9fafb; }
+    .filter-option input { width: 1rem; height: 1rem; accent-color: #2563eb; }
+    .filter-option span { font-size: 0.8125rem; font-weight: 500; color: #111827; }
+    .filter-popover-footer { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; padding: 0.75rem 1rem; }
+    .filter-popover-footer button { border: none; background: none; font-size: 0.8125rem; font-weight: 600; cursor: pointer; padding: 0.25rem 0.5rem; border-radius: 0.5rem; }
+    .filter-popover-footer button.ghost { color: #6b7280; }
+    .filter-popover-footer button.outline { color: var(--ba-text); border: 1px solid var(--ba-secondary); }
+  </style>
+</head>
+<body>
+
+  <!--
+    SYNCED PROTOTYPE (2026-09-24, revised same day) — this file previously mocked a standalone
+    multi-column grid with ONE COLUMN PER EVERY ACTIVE RESOURCE, as a discovery concept (added
+    2026-07-29, CAND-13c; later as UC-057's literal "columns = active resources" wording). That
+    was dropped before M22-S06 implementation started: a column-per-resource layout doesn't
+    scale — a tenant with 60 resources (a large gym: dozens of instructors + rooms + equipment)
+    can't fit that many columns on any screen, and even UC-057 A1's type-tab filter
+    (Profissionais/Salas/Equipamentos) only narrows to sub-groups still too large to render side
+    by side. No layout can show every resource "at a glance" — the only workable approach is a
+    manager curating a small subset.
+
+    That curation tool already exists and shipped in M21-S05: the floating "Filtrar recurso"
+    checkbox filter below. The resolved design reuses it instead of building a separate grid:
+    checking 0 resources = today's unchanged single merged timeline (see 00-schedule-next.html,
+    07-horarios-recurso.html for that shape — not re-mocked here); checking 1+ resources renders
+    ONLY those checked resources as real side-by-side columns, as shown below (3 of the tenant's
+    19 total resources checked — not "5 of 19 shown as a representative sample" like the old
+    version of this file said; every checked resource gets a column, nothing is sampled/hidden).
+
+    Real files this mockup is synced to:
+      apps/web/features/booking/components/dashboard/schedule/SchedulePage.tsx
+      apps/web/shells/dashboard/components/WeekNav.tsx (day-picker strip)
+      .../schedule/ScheduleDayHeader.tsx (day title, Hoje, view mode, primary action)
+      .../schedule/ResourceFilterMenu.tsx (floating "Filtrar recurso" balloon — drives the
+        columns below directly; no separate type-tab control exists or is proposed)
+      .../schedule/ScheduleTimelineEventRenderer.tsx (booking/closure/opening block styling —
+        closure = hatched grey + Lock icon, opening = emerald + CalendarDays icon, reused as-is
+        for the block styles inside each column below)
+
+    Data sources for the columns (both already exist — no new backend/BFF work):
+      Bookings   -> GET /schedule/day-grid (M22-S05, done) filtered client-side to the checked
+                    resourceIds. The endpoint already returns every active resource's blocks
+                    with `refId` resolved to the booking id; this story only renders the checked
+                    subset's columns instead of every resource's.
+      Closures/  -> the existing resourceId-scoped fetch (M21-S05, unchanged) — already fans out
+      openings      one call per checked resource + one tenant-wide call, merged client-side.
+                    Confirmed 2026-09-24: a manager who checks a resource with a closure already
+                    sees that closure today (see Bruno Alves' 13:00 block below) — this mockup
+                    just shows it rendered inside a column instead of the merged single board.
+
+    REJECTED alternative (recorded so it isn't re-proposed): labeling each block in the existing
+    single merged timeline with a resource-name badge (reusing ResourceNameBadge, already used
+    for closures/openings) instead of building columns. Rejected because it needed new backend
+    work (StaffBookingCardResponse has no resource field — bookings aren't resource-scoped in
+    that DTO) for a weaker result than the already-resolved day-grid columns used here.
+
+    See journeys/staff/prototypes/horarios/dev-notes.md's Cluster 2 section and
+    plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md's M22-S06 entry for the full writeup.
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">V</div><span class="topbar-tenant-name">Vitta Studio</span></div>
+    <h1 class="topbar-page-title">Horários</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 04 de agosto de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Agenda
+        </a>
+        <a class="sidebar-nav-item active" href="08-visao-geral-manager.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          Horários
+        </a>
+        <a class="sidebar-nav-item" href="../servicos/01-servicos-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          Serviços
+        </a>
+        <a class="sidebar-nav-item" href="staff-04-turmas-proximas.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+          Turmas
+        </a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          Fidelidade
+        </a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+          Recursos
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/equipe/01-team-list.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          Equipe
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          Configurações
+        </a>
+        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
+          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Hotsite
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding:0;overflow:hidden;">
+
+      <!-- Week navigation — synced to WeekNav.tsx (month row + 7-day strip, activity dot, today/selected states) -->
+      <div class="week-nav">
+        <button class="week-nav-btn" title="Semana anterior">‹</button>
+        <span class="week-nav-month">agosto 2026</span>
+        <button class="week-nav-btn" title="Próxima semana">›</button>
+      </div>
+      <div class="week-strip">
+        <div class="week-day"><span class="week-day-label">Seg</span><span class="week-day-number">3</span><span class="week-day-dot"></span></div>
+        <div class="week-day today selected"><span class="week-day-label">Ter</span><span class="week-day-number">4</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Qua</span><span class="week-day-number">5</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day"><span class="week-day-label">Qui</span><span class="week-day-number">6</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sex</span><span class="week-day-number">7</span><span class="week-day-dot"></span></div>
+        <div class="week-day"><span class="week-day-label">Sáb</span><span class="week-day-number">8</span><span class="week-day-dot empty"></span></div>
+        <div class="week-day" style="opacity:0.4;"><span class="week-day-label">Dom</span><span class="week-day-number">9</span><span class="week-day-dot empty"></span></div>
+      </div>
+
+      <!-- Day header — synced to ScheduleDayHeader.tsx -->
+      <div class="day-header">
+        <div>
+          <p class="day-header-eyebrow">Dia selecionado</p>
+          <h2 class="day-header-title">Terça-feira, 4 de agosto de 2026</h2>
+        </div>
+        <div class="day-header-actions">
+          <button class="btn-outline-sm">Hoje</button>
+          <span class="view-mode-select">Dia ▾</span>
+          <button class="btn-primary-sm">+ Bloquear período</button>
+        </div>
+      </div>
+      <p class="day-header-summary">
+        3 recursos marcados no balão "Filtrar recurso" — Camila Duarte, Bruno Alves e Estúdio 1 — cada um com sua
+        própria coluna abaixo. Desmarque todos para voltar à agenda única (comportamento de hoje, inalterado).
+      </p>
+
+      <!-- Bounded columns — one per CHECKED resource only (3 here), not "every active resource".
+           Bookings from GET /schedule/day-grid (M22-S05) filtered to these 3 ids; closures from
+           the existing resourceId-scoped fetch (M21-S05) — both merged per column, client-side. -->
+      <div class="columns-scroll">
+        <table class="columns-table">
+          <thead>
+            <tr>
+              <th class="time-col">Hora</th>
+              <th>Camila Duarte</th>
+              <th>Bruno Alves</th>
+              <th>Estúdio 1</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="time-col">08:00</td>
+              <td></td><td></td>
+              <td>
+                <a class="cv-block cv-session" href="staff-02-session-roster.html">
+                  <p class="name">Pilates</p>
+                  <p class="meta">3/4 vagas</p>
+                </a>
+              </td>
+            </tr>
+            <tr><td class="time-col">08:30</td><td></td><td></td><td class="cv-cont cv-session-cont"></td></tr>
+            <tr><td class="time-col">09:00</td><td></td><td></td><td></td></tr>
+            <tr><td class="time-col">09:30</td><td></td><td></td><td></td></tr>
+
+            <!-- Fernanda Lima — Corte + Escova (booking, day-grid) -->
+            <tr>
+              <td class="time-col">10:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Fernanda Lima</p>
+                  <p class="meta">Corte + Escova</p>
+                </a>
+              </td>
+              <td></td><td></td>
+            </tr>
+            <tr><td class="time-col">10:30</td><td class="cv-cont"></td><td></td><td></td></tr>
+
+            <!-- Ana Costa — Manicure (booking, day-grid) alongside Marcos Vieira — Corte -->
+            <tr>
+              <td class="time-col">11:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Ana Costa</p>
+                  <p class="meta">Manicure</p>
+                </a>
+              </td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Marcos Vieira</p>
+                  <p class="meta">Corte</p>
+                </a>
+              </td>
+              <td></td>
+            </tr>
+            <tr><td class="time-col">11:30</td><td class="cv-cont"></td><td class="cv-cont"></td><td></td></tr>
+
+            <tr><td class="time-col">12:00</td><td></td><td></td><td></td></tr>
+            <tr><td class="time-col">12:30</td><td></td><td></td><td></td></tr>
+
+            <!-- Bruno Alves — Manutenção de equipamento (CLOSURE, already resource-scoped since
+                 M21-S05 — this is not new, only rendered inside a column now instead of merged) -->
+            <tr>
+              <td class="time-col">13:00</td>
+              <td></td>
+              <td>
+                <a class="cv-block cv-closure" href="#">
+                  <p class="name">Manutenção de equipamento</p>
+                  <p class="meta">13:00–13:30</p>
+                </a>
+              </td>
+              <td></td>
+            </tr>
+            <tr><td class="time-col">13:30</td><td></td><td class="cv-cont cv-closure-cont"></td><td></td></tr>
+
+            <!-- Roberta Dias — Coloração (booking, day-grid) -->
+            <tr>
+              <td class="time-col">14:00</td>
+              <td>
+                <a class="cv-block cv-booking" href="../../../staff/prototypes/agenda/00-agenda.html">
+                  <p class="name">Roberta Dias</p>
+                  <p class="meta">Coloração</p>
+                </a>
+              </td>
+              <td></td><td></td>
+            </tr>
+            <tr><td class="time-col">14:30</td><td class="cv-cont"></td><td></td><td></td></tr>
+            <tr><td class="time-col">15:00</td><td class="cv-cont"></td><td></td><td></td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Floating filter balloons — synced to ResourceFilterMenu.tsx (open here, showing the
+       multi-select checkboxes that drive the columns above) stacked above ScheduleStatusFilterMenu.tsx -->
+  <div class="filter-fab-stack">
+    <div>
+      <div class="filter-popover">
+        <div class="filter-popover-header">
+          <p class="title">Recursos visíveis</p>
+          <p class="desc">Marque os recursos que devem aparecer no calendário.</p>
+        </div>
+        <div class="filter-popover-options">
+          <label class="filter-option"><input type="checkbox" checked><span>Camila Duarte</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Bruno Alves</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Renata Souza</span></label>
+          <label class="filter-option"><input type="checkbox" checked><span>Estúdio 1</span></label>
+          <label class="filter-option"><input type="checkbox"><span>Área CrossFit</span></label>
+        </div>
+        <div class="filter-popover-footer">
+          <button class="ghost">Padrão</button>
+          <button class="outline">Fechar</button>
+        </div>
+      </div>
+      <button class="filter-fab" aria-expanded="true">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtrar recurso
+        <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(180deg);"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+    </div>
+    <button class="filter-fab">
+      <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+      Filtrar status
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      Agenda
+    </a>
+    <a class="bottom-nav-item active" href="08-visao-geral-manager.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Horários
+    </a>
+    <a class="bottom-nav-item" href="../servicos/01-servicos-list.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+      Serviços
+    </a>
+    <a class="bottom-nav-item" href="staff-04-turmas-proximas.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M9 16l2 2 4-4"/></svg>
+      Turmas
+    </a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">
+      <svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+      Fidelidade
+    </a>
+  </nav>
+
+</body>
+</html>

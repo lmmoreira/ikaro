@@ -1,11 +1,11 @@
 ---
 name: docs-audit
-description: Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info - across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
+description: Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info - across `docs/`, `plan/M0X-*.md` milestone files, `journeys/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`journeys/`), before starting a new milestone, or any time documentation might have drifted from reality.
 metadata:
   short-description: Project documentation audit
 ---
 
-Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info — across `docs/`, `plan/M0X-*.md` milestone files, `plan/journey/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`plan/journey/`), before starting a new milestone, or any time documentation might have drifted from reality.
+Audit project documentation for staleness, internal inconsistency, cross-doc content duplication (the same rule/pattern fully restated in more than one canonical doc), drift from the actually-implemented code, and confusing/missing handoff info — across `docs/`, `plan/M0X-*.md` milestone files, `journeys/` (journeys + prototypes), and `CLAUDE.md`/`.copilot/context.md` itself. Run this before drafting any journey file (`journeys/`), before starting a new milestone, or any time documentation might have drifted from reality.
 
 > Supersedes the old `/uc-audit` skill — its UC-vs-code logic is preserved verbatim as category (a) below, just no longer the only thing this skill checks.
 
@@ -13,14 +13,14 @@ Optional argument: `$ARGUMENTS`
 - A UC number or comma-separated list, e.g. `UC-021` or `UC-002,UC-021,UC-027` — scope to these UCs (full `docs/04-USE_CASES.md` still read for cross-reference context).
 - A milestone prefix, e.g. `M13` — read `plan/M13-*.md` (excluding `_IMPLEMENTATION_DETAILS_*` files) and scope to every doc/UC/journey/milestone path it actually cites (see Step 1).
 - A journey path, e.g. `staff/agenda` — scope to that actor's `<slug>.md` + `prototypes/<slug>/` folder (including `dev-notes.md`, `index.html`).
-- A folder, e.g. `plan/journey/staff`, `plan/journey`, `docs/discovery/multivertical-booking`, `td` — scope to every file under it (recursive), each classified by the normal rules. See "If the argument is a folder" in Step 1.
+- A folder, e.g. `journeys/staff`, `journeys`, `docs/discovery/multivertical-booking`, `td` — scope to every file under it (recursive), each classified by the normal rules. See "If the argument is a folder" in Step 1.
 - A TD id, e.g. `TD50` — scope to `td/TD50-*.md` (exactly one match expected, same ambiguity rule as milestones) and every doc/UC/journey/milestone path it cites (same grep rules as a milestone prefix in Step 1).
 - One or more doc paths and/or journey paths, comma-separated, e.g. `docs/14-API_CONTRACTS.md` or `docs/04-USE_CASES.md,docs/02-DOMAIN_MODEL.md,staff/agenda` — scope to exactly those. Step 3b's cross-doc consistency check runs across every pair in the batch, which is the main reason to pass more than one: verifying a just-promoted batch of docs (e.g. by `/discovery-to-milestone`) agrees with itself before anything references it — a freshly-promoted doc has no implemented code yet to deep-check against, so doc-to-doc consistency is what actually catches a mistake at that stage.
 - A tag, e.g. `tag:backend` or `tag:web,prototypes` — scope to every doc carrying one of those tags (split the names on commas and pass them to the helper as separate arguments: `tag:web,prototypes` runs `docs-for --tag web prototypes`), each at the depth its tags give it. The tags and what each covers are in `docOrientation.tags` in `packages/architecture-check/architecture-policy.json`; a request like "audit all the backend docs" resolves to `tag:backend`. See "If the argument is a tag" in Step 1.
 - Blank — audit **everything**: every UC, every doc under `docs/` (all of them — see Step 1's depth split), every milestone (active drafts *and* completed ones), every journey, and `CLAUDE.md` itself. Nothing is excluded from scope; what varies is audit *depth* (see Step 1). This is the expensive, full-sweep mode — use deliberately, not as a default habit.
 
 - `changed`, `changed:<git-ref>` or `changed:<a>..<b>` (default ref: the last `docs:`/`docs-audit` commit on `main`, else `HEAD~20`; a bare ref means `<ref>..HEAD`; an explicit range, e.g. a single squash commit `<sha>^..<sha>` as `/mark-done` passes, audits exactly that range) — **post-story / incremental mode.** Scope = docs touched in the range **plus** docs whose cited code paths changed in the range (`pnpm --filter @ikaro/architecture-check docs-for --range <range>` maps the changed files to docs through their `Tags` and prints the changed files no tag covers; also grep the changed file names/class names in `docs/` for anything the tags miss). Use this after a story; use the blank full sweep at milestone end. Besides docs, `changed` mode also maps the changed files to:
-  - **journeys** — a changed `apps/web/features|shells|app/**` or `apps/bff/src/features/**` file maps to every `plan/journey/**` `dev-notes.md`/`<slug>.md` that names that file, component, route or endpoint (grep the changed file's basename, exported component/controller names and route strings across `plan/journey/`); those journeys get the Step 2c journey-vs-code check;
+  - **journeys** — a changed `apps/web/features|shells|app/**` or `apps/bff/src/features/**` file maps to every `journeys/**` `dev-notes.md`/`<slug>.md` that names that file, component, route or endpoint (grep the changed file's basename, exported component/controller names and route strings across `journeys/`); those journeys get the Step 2c journey-vs-code check;
   - **TDs and milestones** — any `td/*.md` or `plan/M*.md` whose story block cites a changed path, or whose story the branch/PR closed, gets the self-consistency pass (3c);
   - **the story's own spec** — if the ref range contains a `feat(...)(M0X-SYY)`/TD commit, include that story's milestone/TD file.
   The doc mapping is deterministic (tags) but a tag can still miss an indirect dependency, and the journey, TD and milestone mapping is heuristic, so state in the report which docs/journeys were pulled in by which changed file, and which changed files mapped to *nothing* (`docs-for`'s `unmapped` lines), so the user can judge whether that is a real gap.
@@ -52,10 +52,10 @@ Find the plan file: `plan/<milestone>-*.md` — exclude `*_IMPLEMENTATION_DETAIL
 Grep the **entire file** (not just "Docs to load" lines — story blocks cite paths under inconsistent labels: "Docs to load", "Prototype references:", "Prototype reference:", "Journey prototype:", or as bare filenames inside a list) for:
 - `UC-\d+` → UC scope
 - `docs/[A-Z0-9_-]+\.md` → doc scope
-- `plan/journey/[a-z]+/.*\.(md|html|css)` → journey scope (the `css` case matters specifically for `plan/journey/shared/tokens.css` — a bare `.md`/`.html` pattern misses it entirely)
+- `journeys/[a-z]+/.*\.(md|html|css)` → journey scope (the `css` case matters specifically for `journeys/shared/tokens.css` — a bare `.md`/`.html` pattern misses it entirely)
 - `plan/M\d+.*\.md` → other-milestone scope (e.g. a "Depends on M08" reference)
 
-**Bare-filename rule:** within one citation list/line, a filename with no directory prefix (e.g. `dev-notes.md`, `05-reschedule.html`) inherits the most recent fully-qualified `plan/journey/.../` directory mentioned earlier in the same field.
+**Bare-filename rule:** within one citation list/line, a filename with no directory prefix (e.g. `dev-notes.md`, `05-reschedule.html`) inherits the most recent fully-qualified `journeys/.../` directory mentioned earlier in the same field.
 
 **Every doc found stays in scope — nothing is dropped.** What varies is audit *depth*, decided by whether a concrete artifact exists to diff the doc against, and that is read from the doc's own header, not from a list in this skill.
 
@@ -72,31 +72,31 @@ Also note any prose-only mentions outside story blocks (e.g. an "Architecture & 
 
 ### If the argument is a folder (an existing directory path)
 Verify it exists and is under the repo; if it doesn't exist, or contains no `.md`/journey files, STOP and report that instead of guessing. Otherwise expand recursively and classify each file by the normal rules:
-- `plan/journey` → every actor folder (`guest`, `customer`, `staff`, `manager`) as journeys, plus `shared/`, plus `README.md`'s index.
-- `plan/journey/<actor>` → every journey of that actor (each `<slug>.md` + `prototypes/<slug>/`), that actor's `use-cases.md`, plus `plan/journey/shared/` and the README index rows for those journeys.
+- `journeys` → every actor folder (`guest`, `customer`, `staff`, `manager`) as journeys, plus `shared/`, plus `README.md`'s index.
+- `journeys/<actor>` → every journey of that actor (each `<slug>.md` + `prototypes/<slug>/`), that actor's `use-cases.md`, plus `journeys/shared/` and the README index rows for those journeys.
 - `docs` → equivalent to the blank scope's docs portion (every top-level doc, depth from its tags).
 - `docs/discovery/<name>` → light-check each file, plus a structure check: a discovery folder should match the shape `/discovery-to-milestone` expects (see `.claude/commands/create-discovery.md`); report missing or out-of-pattern files.
 - `td` → every `td/TD*.md` per the TD rules below.
-- `plan` → every `plan/M*.md` (active drafts deep, completed light) and `plan/journey` as above.
+- `plan` → every `plan/M*.md` (active drafts deep, completed light) and `journeys` as above.
 - Any other directory → each file by extension: `.md` under `docs/` by its tags (`docs-for`); unknown files are listed as "unclassified, not audited", never silently skipped.
 The folder's files form **one pool for Step 3b/3g/3h**, exactly as with several comma-separated paths. A trailing slash or a relative/absolute path is fine; normalize to repo-relative. The resolved file list is printed in the scope block, so the user can see exactly what was picked up. Folders larger than ~50 files require the confirmation step used for a blank full sweep.
 
 ### If the argument is a TD id (e.g. `TD50`)
-Find `td/<TDNN>-*.md`; zero or multiple matches → STOP and surface it as a finding (same wording as the milestone case). Grep the whole file for `UC-\d+`, `docs/...md`, `plan/journey/...`, `plan/M\d+...md`, `td/TD\d+...md` exactly as for a milestone, and add each to scope at its normal depth.
+Find `td/<TDNN>-*.md`; zero or multiple matches → STOP and surface it as a finding (same wording as the milestone case). Grep the whole file for `UC-\d+`, `docs/...md`, `journeys/...`, `plan/M\d+...md`, `td/TD\d+...md` exactly as for a milestone, and add each to scope at its normal depth.
 
 **`td/` in a blank/full sweep:** every `td/TD*.md` is in scope. A TD with unfinished stories gets the active-milestone self-consistency pass (3c, plus conformance to `docs/STORY_SCHEMA.md`'s field set); a TD whose stories are all done gets the light pass (3f). Also check each TD's cited docs/paths still resolve (3h) and that `.copilot/context.md`/docs don't still describe as "planned" something a done TD shipped.
 
 ### If the argument is a tag (e.g. `tag:backend`)
-Split the argument's names on commas and run `docs-for --tag <name> <name>…` (separate arguments, not one comma-joined string); scope = the docs it lists, each at its `deep`/`light` depth, forming one pool for Step 3b/3g/3h. An unknown tag makes the helper exit non-zero: report the known tags it prints and stop. When the tag is `prototypes`, also add the journeys under the globs that tag covers in the policy (`plan/journey/**`, or its new location after the journeys move) with the Step 2c journey-vs-code check.
+Split the argument's names on commas and run `docs-for --tag <name> <name>…` (separate arguments, not one comma-joined string); scope = the docs it lists, each at its `deep`/`light` depth, forming one pool for Step 3b/3g/3h. An unknown tag makes the helper exit non-zero: report the known tags it prints and stop. When the tag is `prototypes`, also add the journeys under the globs that tag covers in the policy (`journeys/**`, or its new location after the journeys move) with the Step 2c journey-vs-code check.
 
 ### If the argument is a journey path (e.g. `staff/agenda`)
-Scope = `plan/journey/<actor>/<slug>.md`, `plan/journey/<actor>/prototypes/<slug>/` (all files), `plan/journey/<actor>/use-cases.md`, `plan/journey/README.md`'s index row for this journey, **plus `plan/journey/shared/` in full** (`tokens.css` and the shared HTML fragments — `dashboard-shell.html`, `hotsite.html`, `login.html`, etc.). `shared/` belongs to no single actor, so every journey audit implicitly depends on it and must include it, not just the actor-specific paths. Light-check `shared/` for internal consistency: does every CSS custom property / shared fragment this journey's prototype actually references still exist there.
+Scope = `journeys/<actor>/<slug>.md`, `journeys/<actor>/prototypes/<slug>/` (all files), `journeys/<actor>/use-cases.md`, `journeys/README.md`'s index row for this journey, **plus `journeys/shared/` in full** (`tokens.css` and the shared HTML fragments — `dashboard-shell.html`, `hotsite.html`, `login.html`, etc.). `shared/` belongs to no single actor, so every journey audit implicitly depends on it and must include it, not just the actor-specific paths. Light-check `shared/` for internal consistency: does every CSS custom property / shared fragment this journey's prototype actually references still exist there.
 
 ### If the argument is one or more doc/journey paths (comma-separated)
 Scope = exactly those files/journeys, each depth-classified from its tags (a doc path) or per the journey-path rules above (a journey path) — mixing both kinds in one invocation is expected, not a special case. With 2+ items in scope, Step 3b's cross-doc consistency check treats the whole batch as one pool to cross-reference, not independent single-doc passes — this is what a `/discovery-to-milestone` promotion-verification call relies on.
 
 ### If the argument is blank
-Scope = every UC, every doc under `docs/` (every top-level doc, depth from its tags), every milestone — active drafts (`plan/M*.md` with no matching `_IMPLEMENTATION_DETAILS_IA.md`) get the full deep self-consistency pass (Step 3c), completed milestones (every milestone with an `_IMPLEMENTATION_DETAILS_IA.md` — count them with `ls plan/*_IMPLEMENTATION_DETAILS_IA.md`, never a hardcoded number) get the light pass (Step 3f) — every journey under `plan/journey/` (including `plan/journey/shared/`, which is not itself a journey but is in scope on every full sweep for the same reason it's always included in a single-journey audit), and `CLAUDE.md`/`.copilot/context.md`.
+Scope = every UC, every doc under `docs/` (every top-level doc, depth from its tags), every milestone — active drafts (`plan/M*.md` with no matching `_IMPLEMENTATION_DETAILS_IA.md`) get the full deep self-consistency pass (Step 3c), completed milestones (every milestone with an `_IMPLEMENTATION_DETAILS_IA.md` — count them with `ls plan/*_IMPLEMENTATION_DETAILS_IA.md`, never a hardcoded number) get the light pass (Step 3f) — every journey under `journeys/` (including `journeys/shared/`, which is not itself a journey but is in scope on every full sweep for the same reason it's always included in a single-journey audit), and `CLAUDE.md`/`.copilot/context.md`.
 
 ### Print the resolved scope before proceeding
 
@@ -144,7 +144,7 @@ Spawn 3 Explore agents, in parallel:
 
 - **Agent B — Endpoints & `.http` coverage:** for every HTTP method+path literal in the in-scope UCs (e.g. `PATCH /customers/me`, `POST /v1/loyalty/redeem`), grep backend (`apps/backend/src/contexts/**/*.controller.ts`) and BFF (`apps/bff/src/**/*.controller.ts`) for a matching route decorator, and grep `apps/backend/http/**/*.http` + `apps/bff/http/**/*.http` for a corresponding request block. Report any UC-stated path with no matching controller route, any method mismatch (UC says PATCH, code has PUT, etc.), and any route missing an `.http` block.
 
-- **Agent C — Entities, enums, settings keys & frontend pages:** for every domain term an in-scope UC asserts as a concrete shape (module types, status enums, `tenants.settings` keys, table/column names), grep the relevant `*.aggregate.ts`, enum, or `docs/21-TENANTS_SETTINGS_SCHEMA.md` and report whether the doc's list matches the code's. Separately, for every in-scope UC that implies a dedicated frontend page/route (a distinct "guest views X" / "customer submits Y" screen, not just an API call), check `apps/web/app/` for a matching page and report MISSING if none exists — this is the IA-gap signal that feeds `plan/journey/`.
+- **Agent C — Entities, enums, settings keys & frontend pages:** for every domain term an in-scope UC asserts as a concrete shape (module types, status enums, `tenants.settings` keys, table/column names), grep the relevant `*.aggregate.ts`, enum, or `docs/21-TENANTS_SETTINGS_SCHEMA.md` and report whether the doc's list matches the code's. Separately, for every in-scope UC that implies a dedicated frontend page/route (a distinct "guest views X" / "customer submits Y" screen, not just an API call), check `apps/web/app/` for a matching page and report MISSING if none exists — this is the IA-gap signal that feeds `journeys/`.
 
 ### (b) Deep-check docs vs their artifact — only for non-empty groups, max 4 agents total
 
@@ -198,12 +198,12 @@ Tables and lists that enumerate files, exports, constraints, locks, routes, erro
 
 ### 3d. Journey/prototype internal consistency — only if journey(s) in scope
 Direct-read pass per in-scope journey. Only promote to a real subagent — bounded to one per **actor folder** (max 4: guest/customer/staff/manager) — if the in-scope journey set is large enough to risk blowing the context budget in one pass; otherwise stay in this direct-read step:
-- Sidebar/bottom-nav/bottom-sheet items linking to `#` or self-looping instead of the real cross-journey path (see `plan/journey/README.md` Part 4 pitfall — grep `href="#"` and same-file self-links on `sidebar-nav-item`/`bottom-nav-item`/`bottom-sheet-item` classes)
+- Sidebar/bottom-nav/bottom-sheet items linking to `#` or self-looping instead of the real cross-journey path (see `journeys/README.md` Part 4 pitfall — grep `href="#"` and same-file self-links on `sidebar-nav-item`/`bottom-nav-item`/`bottom-sheet-item` classes)
 - The journey `.md`'s mermaid flow matches what the prototype folder actually contains (no node marked `gap` that's actually fully prototyped, and vice versa)
-- `dev-notes.md` has the mandatory sections per `plan/journey/README.md`'s template (file map, props, BFF call, validation table, state machine) for every screen that needs them
+- `dev-notes.md` has the mandatory sections per `journeys/README.md`'s template (file map, props, BFF call, validation table, state machine) for every screen that needs them
 - `index.html`'s screen list matches the files actually on disk; every lettered variant follows the `01b`/`01c` naming convention with no collisions
 - Every "Known limitations" bullet in `dev-notes.md` is either still accurate or stale
-- `plan/journey/shared/` consistency: every `var(--...)` custom property or shared class this journey's prototype references actually exists in `shared/tokens.css`; every shared HTML fragment (`dashboard-shell.html`, `hotsite.html`, `login.html`, etc.) this journey's screens include/reference still exists and hasn't drifted in a way that breaks the reference
+- `journeys/shared/` consistency: every `var(--...)` custom property or shared class this journey's prototype references actually exists in `shared/tokens.css`; every shared HTML fragment (`dashboard-shell.html`, `hotsite.html`, `login.html`, etc.) this journey's screens include/reference still exists and hasn't drifted in a way that breaks the reference
 
 ### 3e. `CLAUDE.md`/`.copilot/context.md` self-consistency — always runs (cheap, one file, no agent spawn)
 - No duplicated subsections (read top to bottom once; flag any heading/content block that repeats)
@@ -278,7 +278,7 @@ Every finding is tagged **verified** (main agent re-read the cited file:line) or
 Top docs by size · context.md headroom vs CI budget · §10 row load costs
 
 ### IA gaps (UC/doc implies something that doesn't exist)
-1. [UC-XXX] <flow> — no page under apps/web/app/... — candidate for plan/journey/<actor>/
+1. [UC-XXX] <flow> — no page under apps/web/app/... — candidate for journeys/<actor>/
 
 ### Journey / prototype issues
 1. [staff/horarios] 3 sidebar links self-loop instead of pointing to real cross-journey paths
@@ -309,12 +309,12 @@ For each "Dead pointer": propose the exact corrected pointer (or, if the target 
 For each "Cross-doc duplication" finding (only with its no-loss proof, per the Guiding principle): propose one canonical home per the rule's type — `ANTI_PATTERNS.md` for "what not to do + why + fix", `docs/ENGINEERING_RULES_*.md`/`CODE_STANDARDS.md` for "how to do it correctly", `CI_TRAPS.md` for CI/deploy-specific gotchas; `CLAUDE.md`/`.copilot/context.md` never holds the full explanation for any of these, only a trigger + pointer. Replace every other location's full text with a `→ doc § heading` pointer. This check is deliberately non-blocking and lives only here, not as an `architecture-check` CI gate — cross-doc semantic duplication isn't a deterministic, low-ambiguity check (the same rule is usually worded differently in each copy), which is exactly the class of check `docs/ANTI_PATTERNS.md` row 143 says to keep out of a mandatory blocking gate.
 
 **File-type rules for what gets auto-fixed:**
-- ✅ Auto-fixable (with permission): any `.md` doc text — `docs/*.md`, `plan/M0X-*.md` (including the milestone file's own story headers and dependency references), `plan/journey/*/use-cases.md`, `plan/journey/README.md`'s index table, `CLAUDE.md`/`.copilot/context.md`. (Editing a `plan/journey/` `.md` file to correct a drifted index or stale cross-link is not the same thing CLAUDE.md §15's hard stop guards against — that hard stop is about *creating* new journey/prototype work casually, not about this audit fixing an existing inconsistency.)
+- ✅ Auto-fixable (with permission): any `.md` doc text — `docs/*.md`, `plan/M0X-*.md` (including the milestone file's own story headers and dependency references), `journeys/*/use-cases.md`, `journeys/README.md`'s index table, `CLAUDE.md`/`.copilot/context.md`. (Editing a `journeys/` `.md` file to correct a drifted index or stale cross-link is not the same thing CLAUDE.md §15's hard stop guards against — that hard stop is about *creating* new journey/prototype work casually, not about this audit fixing an existing inconsistency.)
 - ✅ Fixable with permission, direction-gated: `dev-notes.md`. Shipped journey → code is the source of truth; correct endpoints, field names, props, file paths, statuses/enums, i18n keys, class names and stale "Known limitations" bullets to match the code (each finding verified by a main-agent re-read of the cited file:line). Unshipped journey → align with the story spec in the milestone/TD file. Spec and notes disagree, or code diverges from a spec that still looks intended → `ask` via `AskUserQuestion`, never guess the direction.
 - ✅ Fixable with permission, mechanical defects only: `.html` prototype files — `href="#"` or self-looping nav links, wrong shared class names, references to missing `tokens.css` properties or shared fragments, screen-list/file-on-disk mismatches in `index.html`.
 - ❌ Never auto-fixed, always listed as a recommendation instead: `.html` changes that alter layout, states, screens or visual design (need the full journey workflow per CLAUDE.md §15); missing `.http` request blocks (need real payload/auth knowledge, not just doc text).
 
-"IA gaps" and journey/prototype issues that require new content (not a text correction) are listed only, not auto-fixed — carry IA gaps into `plan/journey/<actor>/use-cases.md` when that actor's journeys are drafted; carry design-level prototype issues into the next prototype touch-up pass.
+"IA gaps" and journey/prototype issues that require new content (not a text correction) are listed only, not auto-fixed — carry IA gaps into `journeys/<actor>/use-cases.md` when that actor's journeys are drafted; carry design-level prototype issues into the next prototype touch-up pass.
 
 Before writing anything, apply CLAUDE.md §0: summarise every proposed edit across all affected files in one message, ask "May I now write these N changes?", and write only after an explicit yes.
 
@@ -331,7 +331,7 @@ If the user says no to a change, note it and proceed with the current docs.
 ✅ N internal inconsistencies fixed
 ✅ N duplications collapsed to pointers (each with no-loss proof) · N dead pointers fixed · N context-quality rewrites applied
 ✅ Zero information removed — every reduction was a verified-duplicate pointer or a code-contradicted correction
-📋 N IA gaps recorded — carry into plan/journey/ when drafting that actor's journeys
+📋 N IA gaps recorded — carry into journeys/ when drafting that actor's journeys
 📋 N journey/prototype issues recorded — carry into the next prototype touch-up
 ✅ N journey-vs-code drifts fixed (`dev-notes.md` / mechanical `.html`) · 📋 N recorded for the §15 workflow or awaiting a direction decision · N TD/milestone issues
 ✅ Confirmed correct: N items

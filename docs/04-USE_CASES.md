@@ -756,7 +756,7 @@ Returns:
   2. Admin clicks "Create"
   3. System validates: name unique within tenant, price must be greater than zero (> 0), duration > 0
   4. System creates Service aggregate with `requiresPickupAddress` flag
-  5. Admin sees confirmation: "Serviço criado" and is taken directly to the new service's edit page (not back to the service list) — landing there next to the M22 Cluster 2 resource-requirements/booking-policy/intake-schema config (UC-050–055), which only ever makes sense once the service exists (decided 2026-09-17, see `plan/journey/staff/prototypes/servicos/02c-service-create-success.html`)
+  5. Admin sees confirmation: "Serviço criado" and is taken directly to the new service's edit page (not back to the service list) — landing there next to the M22 Cluster 2 resource-requirements/booking-policy/intake-schema config (UC-050–055), which only ever makes sense once the service exists (decided 2026-09-17, see `journeys/staff/prototypes/servicos/02c-service-create-success.html`)
 
 - **Alternative Flows:**
   - **A1: Service name already exists** → System shows error, admin changes name
@@ -926,7 +926,7 @@ Returns:
 
 ### **UC-057: MANAGER Views a Bounded Multi-Resource Column View**
 
-> Redesigned 2026-09-24, before `M22-S06` implementation started (backend/BFF from `M22-S05` unchanged) — this UC previously described columns = **every** active resource, with a resource-type filter (Profissionais/Salas/Equipamentos) to narrow them when too many to fit. Dropped: a column-per-resource layout doesn't scale regardless of that filter — a tenant with dozens of staff/rooms/equipment (e.g. a large gym) can't fit that many columns on any screen even narrowed to one type. See `plan/journey/staff/prototypes/horarios/dev-notes.md`'s Cluster 2 section and `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full rationale.
+> Redesigned 2026-09-24, before `M22-S06` implementation started (backend/BFF from `M22-S05` unchanged) — this UC previously described columns = **every** active resource, with a resource-type filter (Profissionais/Salas/Equipamentos) to narrow them when too many to fit. Dropped: a column-per-resource layout doesn't scale regardless of that filter — a tenant with dozens of staff/rooms/equipment (e.g. a large gym) can't fit that many columns on any screen even narrowed to one type. See `journeys/staff/prototypes/horarios/dev-notes.md`'s Cluster 2 section and `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY.md`'s `M22-S06` entry for the full rationale.
 
 - **Actor:** MANAGER (deliberately manager-only, like Equipe/Configurações/Hotsite/Recursos — a broader oversight surface than any single-resource view)
 - **Endpoint:** `GET /schedule/day-grid?date=` — unchanged; always returns every active resource's blocks, filtered to the checked subset client-side (see Main Flow step 2)
@@ -2163,7 +2163,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
    2. Turnstile + submit, same as UC-039 steps 3–8.
    3. Backend sets `customerId` on the submission from the JWT `sub`.
 - **Alternative Flows:**
-   - **A1: `audienceMode === 'CUSTOMER_ONLY'` and visitor is NOT authenticated** → redirected to a login-required gate screen (`plan/journey/guest/prototypes/lead-form/`, newly built by this milestone — no existing canonical `plan/journey/` precedent for this gate screen existed prior) with a link into the existing customer login flow (`plan/journey/customer/prototypes/login/00-login.html`); after login, returns to `/[slug]/lead-form`. `401 AUTH_UNAUTHORIZED`.
+   - **A1: `audienceMode === 'CUSTOMER_ONLY'` and visitor is NOT authenticated** → redirected to a login-required gate screen (`journeys/guest/prototypes/lead-form/`, newly built by this milestone — no existing canonical `journeys/` precedent for this gate screen existed prior) with a link into the existing customer login flow (`journeys/customer/prototypes/login/00-login.html`); after login, returns to `/[slug]/lead-form`. `401 AUTH_UNAUTHORIZED`.
    - **A2–A5:** same as UC-039 A1–A4.
 - **Postconditions:** `LeadFormSubmission` persisted with `customerId` set.
 - **Events Triggered:** `LeadFormSubmissionReceived` (`data.customerId` set).

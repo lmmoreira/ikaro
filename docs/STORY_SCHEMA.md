@@ -59,7 +59,7 @@ Full inline prose: mechanism, context, chosen approach. A reader must not need t
 **Backend use case steps:** <numbered list; one labeled sub-list per UC if the story bundles multiple UCs>
 **Backend HTTP surface:** <new/extended controller+route, or "reuses <existing endpoint>">
 **BFF endpoint spec:** <method, path, auth, request/response shape>
-**Prototype references:** <plan/journey/<actor>/prototypes/<slug>/ path — frontend stories only>
+**Prototype references:** <journeys/<actor>/prototypes/<slug>/ path — frontend stories only>
 **New migration / i18n keys / env vars / feature flags:** <explicit list, or "none">
 ```
 

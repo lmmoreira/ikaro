@@ -395,7 +395,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Reading, adding or validating a `tenants.settings` key | `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Settings by Category (the key's own entry; 37 KB) |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | Multivertical scheduling: `Resource` aggregate (M21); `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22); recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` · `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` · `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
-| New journey or prototype | `plan/journey/README.md` |
+| New journey or prototype | `journeys/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` |
 | Promoting a `docs/discovery/` doc into a milestone | `/discovery-to-milestone` |
 | Creating a brand-new TD | `/create-td` |
@@ -450,12 +450,12 @@ Three slice types, consistent across all three apps:
 
 ## 15. Journey & Prototype Workflow Rules
 
-> ❗ **HARD STOP — READ BEFORE TOUCHING ANY `plan/journey/` FILE**
-> `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `plan/journey/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
+> ❗ **HARD STOP — READ BEFORE TOUCHING ANY `journeys/` FILE**
+> `/docs-audit` MUST run and report a clean baseline first. Then: (1) write `<actor>/<slug>.md`, (2) update `<actor>/use-cases.md`, (3) update `journeys/README.md`'s index, (4) **only then** create files under `<actor>/prototypes/<slug>/`.
 
-**Scope of the hard stop:** it covers *creating or restructuring* journeys and prototypes. A one-sentence factual sync of an existing `plan/journey/**` file (e.g. correcting a `dev-notes.md` line after the implementation changed) needs only the normal doc-gate yes — no `/docs-audit` baseline.
+**Scope of the hard stop:** it covers *creating or restructuring* journeys and prototypes. A one-sentence factual sync of an existing `journeys/**` file (e.g. correcting a `dev-notes.md` line after the implementation changed) needs only the normal doc-gate yes — no `/docs-audit` baseline.
 
-Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `plan/journey/README.md` — load whenever working on any journey file or prototype folder.
+Full rules, folder structure, and CSS gotchas (`.topbar-avatar`, `.week-nav`, `padding-bottom`, floating toast, etc.): `journeys/README.md` — load whenever working on any journey file or prototype folder.
 
 ---
 

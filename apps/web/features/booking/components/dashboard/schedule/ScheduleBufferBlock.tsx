@@ -10,7 +10,7 @@ import {
 import { TimelineBlockShell } from './TimelineBlockShell';
 
 // M18-S10 — amber hatched segment under a booking, matching
-// plan/journey/staff/prototypes/horarios/09-colunas-buffer.html: who is held and until when, and
+// journeys/staff/prototypes/horarios/09-colunas-buffer.html: who is held and until when, and
 // why. Informational only — no click target, drawn beneath bookings/closures (z-[5]) and never in
 // a booking's lane.
 const BUFFER_HATCH =

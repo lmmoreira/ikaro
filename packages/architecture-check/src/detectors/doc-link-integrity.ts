@@ -31,10 +31,11 @@ const EXAMPLE_MARKER = 'doc-link:example';
 const FROZEN_HEADER_REGEX = /^>\s*Frozen:\s*\d{4}-\d{2}-\d{2}/m;
 const FROZEN_HEADER_LINES = 15;
 const FENCE_REGEX = /^\s*(```|~~~)/;
-// A citation starts at one of the four doc roots, not glued to a longer path or word before it.
+// A citation starts at one of the five doc roots, not glued to a longer path or word before it.
 // The class stops at whitespace, backticks, quotes, brackets and parentheses; trailing sentence
 // punctuation is trimmed afterwards.
-const CITATION_REGEX = /(?<![A-Za-z0-9_./-])((?:docs|plan|td|infra)\/[^\s`'"<>()[\]{}|\\]*)/g;
+const CITATION_REGEX =
+  /(?<![A-Za-z0-9_./-])((?:docs|plan|td|journeys|infra)\/[^\s`'"<>()[\]{}|\\]*)/g;
 const CODE_CITATION_REGEX = /(?<![A-Za-z0-9_./-])(docs\/[^\s`'"<>()[\]{}|\\*]*\.md)/g;
 // Right after the path (and an optional closing backtick/quote/bracket) on the same line.
 const SECTION_TAIL_REGEX = /^[`'")\]*]*\s*§\s*(.+)$/;
