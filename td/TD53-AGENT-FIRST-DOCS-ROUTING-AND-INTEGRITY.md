@@ -403,7 +403,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 3B — Moves and deletions out of the live grep surface ⚪
+### Story 3B — Moves and deletions out of the live grep surface ✅ Done
 
 **Agent:** devops
 **Complexity:** L
