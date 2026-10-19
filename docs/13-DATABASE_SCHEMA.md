@@ -17,7 +17,9 @@ Single PostgreSQL instance
 └── notification (Notification Context)
 ```
 
-**Multi-tenant isolation within each schema** is enforced by a mandatory `tenant_id` column on every table, composite indexes starting with `tenant_id`, and composite FK constraints within a context.
+Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
+
+**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself — see `docs/06-TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
 
 ---
 
@@ -42,7 +44,7 @@ All domain entities, value objects, and test factories that generate IDs must us
 ### 2. Cross-Schema FK Rules
 | Reference type | FK constraint? | Rule |
 |---|---|---|
-| `tenant_id` → `platform.tenants(id)` | ⚠️ Only for tables in the `platform` schema (`hotsite_configs`, `chatbot_*`, `lead_form_*`) | The `booking`, `customer`, `staff`, `loyalty` and `notification` migrations store `tenant_id` as a plain NOT NULL UUID with **no** FK, the same as any other cross-schema reference. Tenant existence is guaranteed by the request context (the BFF rejects unknown tenants), not by the database. Adding the FKs would be a deliberate design change (cross-schema coupling vs. DB-level integrity), not a doc fix. |
+| `tenant_id` → `platform.tenants(id)` | ⚠️ Only for tables in the `platform` schema (`hotsite_configs`, `lead_form_configs`, `lead_form_submissions`, `chatbot_sessions`; the child tables `chatbot_messages`, `lead_form_answers` and `lead_form_submission_question_refs` carry only a composite `(tenant_id, …)` FK to their parent) | The `booking`, `customer`, `staff`, `loyalty` and `notification` migrations store `tenant_id` as a plain NOT NULL UUID with **no** FK, the same as any other cross-schema reference. Tenant existence is guaranteed by the request context (the BFF rejects unknown tenants), not by the database. Adding the FKs would be a deliberate design change (cross-schema coupling vs. DB-level integrity), not a doc fix. |
 | Intra-context (same schema) | ✅ Yes | Always enforce referential integrity within a context |
 | Cross-context (different schemas) | ❌ No | Store UUID only. Integrity enforced at application level via events. |
 
@@ -50,7 +52,7 @@ This is a direct consequence of the Context Isolation Contract in `docs/05-BOUND
 
 ### 3. Audit Columns
 Every mutable table includes:
-- `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for `platform`-schema tables, see §2)
+- `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for the `platform` tables that have it, see §2)
 - `created_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 - `updated_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now() (mutable rows only)
 
@@ -119,7 +121,7 @@ The actual chat log — visitor questions and bot answers, both sides, not just 
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | session_id | UUID | NOT NULL |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL — first column of the composite FK `(tenant_id, session_id)` below; no direct FK to `platform.tenants` |
 | role | VARCHAR(9) | NOT NULL — `'USER'` \| `'ASSISTANT'` |
 | content | TEXT | NOT NULL |
 | input_tokens | INTEGER | NOT NULL DEFAULT 0 |
@@ -212,7 +214,7 @@ One row per **question** per submission (not one row per submission) — `MULTIP
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY (uuidv7) |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL — first column of the composite FK `(tenant_id, submission_id)` below; no direct FK to `platform.tenants` |
 | submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, tenant-safe (blocks cross-tenant reference at the DB level, same discipline as `chatbot_messages` → `chatbot_sessions`), `ON DELETE CASCADE` so retention purge cannot orphan answer rows. Requires `lead_form_submissions`'s own `UNIQUE (tenant_id, id)` above to exist first |
 | question_id | UUID | NOT NULL — the question's `id` at submission time (informational; matching is by `question_label`, not this, since a question can be edited/removed after submission — see below) |
 | question_label | TEXT | NOT NULL — snapshotted, not looked up live (same reasoning as the JSONB snapshot) |

@@ -1,9 +1,9 @@
 # M17 — Cloud Deploy: GCP Infrastructure, CI/CD, Hardening & Observability
 
 **Phase:** Cloud ☁️ — GCP + Cloudflare charges begin in Wave 1
-**Goal:** The platform runs on GCP behind Cloudflare with fully automated trunk-based CI/CD: every merge to `main` auto-deploys to staging; production is promoted behind a single manual approval — same git SHA, backend/BFF as byte-identical image digests, web rebuilt from the same source SHA (Next.js public env vars are build-time, see D8). Terraform lives in this repo (`infra/terraform/`) with its own pipeline. Database migrations run as a dedicated pipeline stage (Cloud Run Job) separate from app deploys. Observability covers all three pillars (logs, metrics, traces) via OpenTelemetry + a collector sidecar — vendor-neutral instrumentation, GCP-managed storage, zero VMs.
+**Goal:** The platform runs on GCP behind Cloudflare with fully automated trunk-based CI/CD: every merge to `main` auto-deploys to staging; production is promoted behind a single manual approval — same git SHA, the same image SHA promoted for backend, BFF and web (web no longer needs a per-environment rebuild, see D8). Terraform lives in this repo (`infra/terraform/`) with its own pipeline. Database migrations run as a dedicated pipeline stage (Cloud Run Job) separate from app deploys. Observability covers all three pillars (logs, metrics, traces) via OpenTelemetry + a collector sidecar — vendor-neutral instrumentation, GCP-managed storage, zero VMs.
 **Depends on:** M13 (dashboard frontend complete)
-**Supersedes:** M14, M15, M16 (all stories reconciled against the implemented codebase as of 2026-07-07 and merged here; the original files remain as historical reference with supersession notes)
+**Supersedes:** M14, M15, M16 (all stories reconciled against the implemented codebase as of 2026-07-07 and merged here; the original files have since been deleted and stay recoverable from git history)
 
 ---
 
@@ -134,8 +134,8 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | 1 | S07–S10, S48 | Accounts & Day-0 bootstrap (GCP, Cloudflare, OAuth, Brevo) + legacy-doc banners | Starts |
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
-| 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S31, S33–S36, S49–S50, S54–S56 | Hardening + observability + DR & governance | Yes |
+| 4 | S27, S28 (Cut) | Staging live + E2E against staging | Yes |
+| 5 | S29 (Cut), S31, S33–S36, S49–S50, S54–S56 | Hardening + observability + DR & governance | Yes |
 | 6 | S53, S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 

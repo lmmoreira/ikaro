@@ -39,7 +39,7 @@ Tests in Ikaro are **executable specifications**. Each test proves that a specif
             /─────\
            / Contr.\        Spectral — OpenAPI spec validation
           /─────────\
-         /Integration\      Jest + Testcontainers — real DB, real Pub/Sub emulator
+         /Integration\      Jest + Testcontainers — real Postgres (+ fake-gcs-server); in-memory event bus
         /─────────────\
        /  Application  \    Jest + in-memory adapters — use case logic
       /─────────────────\
@@ -69,6 +69,8 @@ describe('<ClassName> / <methodName>()')
   it('should <expected behaviour> when <precondition>')
   it('should throw <ErrorType> when <invalid precondition>')
 ```
+
+> **Illustrative shorthand:** the snippets below use `BookingFactory`, `booking.approveBooking(id)`, `InvalidStateTransitionError`, `NotFoundError` and `Booking.requestBooking(actor, slot, ...)`. None exist as written. Real equivalents: `BookingBuilder` (`src/test/builders/booking/`), `booking.approve(actor, correlationId, scheduledAt?)`, `InvalidBookingTransitionError` and the `Booking*Error` classes in `contexts/booking/domain/errors/`, `Booking.requestBooking(input)` — see `booking.aggregate.ts`. Keep the shape, not the names.
 
 ### Example — Booking aggregate state machine
 ```typescript
@@ -268,7 +270,7 @@ describe('ApproveBookingUseCase', () => {
 
 ## Layer 3 — Infrastructure Tests (Integration)
 
-**Scope:** Repository adapters, event consumers, REST controllers. Uses real PostgreSQL (via Testcontainers) and the real GCP Pub/Sub Emulator.
+**Scope:** Repository adapters, event consumers, REST controllers. Uses real PostgreSQL (via Testcontainers; the global setup also starts fake-gcs-server for the few storage specs). There is no Pub/Sub emulator in integration tests: `EVENT_BUS`/`OUTBOX_PUBLISHER` are overridden with in-memory doubles (see the notification integration app helper below).
 
 **Rules:**
 - ONE shared Postgres container is started once per run in `src/test/integration-global-setup.ts` (wired in `apps/backend/jest.config.ts`); migrations run there, and specs connect through `TEST_DATABASE_URL`. A spec never starts its own container.
@@ -1045,13 +1047,13 @@ Almost all integration tests use `InMemoryStorageService` (see the default-overr
 Two non-obvious things had to be solved to make this container usable:
 
 - **Fixed port, not Testcontainers' dynamic assignment.** `fake-gcs-server`'s V4 signed URLs are only valid for the exact `host:port` the server was told to expect via `-public-host`/`-external-url` at startup — which must be known before the container's CMD args are set, so a dynamically-assigned port can't satisfy it. `GCS_TEST_PORT = 14443` is hardcoded in `integration-global-setup.ts` (deliberately different from `docker-compose.yml`'s `4443`, so it doesn't conflict with a developer's `pnpm infra:up`).
-- **`NODE_OPTIONS=--experimental-vm-modules` on `test:integration` only.** `@google-cloud/storage`'s transitive `teeny-request` dependency unconditionally does a dynamic `import('node-fetch')`, and `node-fetch@3` is pure ESM (no CJS entry) — this throws under Jest's default CJS mode. No dependency upgrade removes this (confirmed against the latest `@google-cloud/storage`/`teeny-request` at the time). The flag is scoped to the `test:integration` script only — it has no effect on `test`, `test:unit`, `dev`, or `build`.
+- **`NODE_OPTIONS=--experimental-vm-modules` on `test:integration` only.** `@google-cloud/storage`'s transitive `teeny-request` dependency unconditionally does a dynamic `import('node-fetch')`, and `node-fetch@3` is pure ESM (no CJS entry) — this throws under Jest's default CJS mode. No dependency upgrade removes this (confirmed against the latest `@google-cloud/storage`/`teeny-request` at the time). The flag is set on the `test` and `test:integration` scripts only (both can load the integration project) — `test:unit`, `test:cov`, `dev` and `build` do not use it.
 
 ### Notification integration spec helper
 
 All notification story integration specs must use `createNotificationIntegrationApp()` from `src/test/utils/notification-integration-app.ts`.
 
-Options: `dispatcher` (required), `configure` (override providers), `extraModules`, `extraEntities`, `withRequestInterceptor`. Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline.
+Options: `dispatcher` (required), `configure` (override providers), `extraModules`, `extraEntities`, `withRequestInterceptor`, `useRealOutbox` (skip the `OUTBOX_PUBLISHER` override to use the real outbox). Returns `{ app, ds, eventBus }`. Never repeat `TypeOrmModule.forRoot` inline.
 
 ### Notification cross-handler isolation
 
@@ -1127,8 +1129,8 @@ import '@testing-library/jest-dom/vitest';
 - If a dialog's accessible name is not exposed the same way as in the browser, use `getByRole('dialog', { hidden: true })` or assert on the inner content instead of treating that mismatch as a production bug.
 
 ### SonarCloud configuration
-- `sonar.coverage.exclusions`: `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx` — `apps/web/features/**`, `apps/web/shells/**`, and `apps/web/shared/components/**` are **NOT excluded**
-- `sonar.exclusions`: `**/vitest.config.ts`, `**/__mocks__/**`, `**/vitest.setup.ts`
+- `sonar.coverage.exclusions` (see `sonar-project.properties`): spec/e2e files, `main.ts`/tracing/seed/`data-source.ts`, infrastructure entities, `*.module.ts`, `test/**`, `vitest.setup.ts`, `apps/web/app/**/page.tsx`, `apps/web/app/**/layout.tsx`, `apps/web/app/not-found.tsx`, `apps/web/proxy.ts`, `apps/web/i18n/**`, `apps/web/next.config.ts` — `apps/web/features/**`, `apps/web/shells/**`, and `apps/web/shared/components/**` are **NOT excluded**
+- `sonar.exclusions`: `node_modules`, `dist`, `.next`, `coverage`, migrations, `**/vitest.config.ts`, `**/axe-helper.ts`, `**/eslint.config.js`, `apps/web/e2e/**` (`__mocks__` and `vitest.setup.ts` are not in this list; `vitest.setup.ts` is a coverage exclusion)
 
 ### Code standards
 - React props interfaces: every field must be **`readonly`** (SonarCloud S6759 — fires on every new component)

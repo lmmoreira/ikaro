@@ -56,5 +56,5 @@ Folder: `manager/prototypes/configuracoes/`
 | `01b-validation-error.html` | Invalid field value error | UC-026 A1 | ✅ Criado |
 | `01c-saved-success.html` | Save confirmation | UC-026 | ✅ Criado |
 | `01d-chatbot-section.html` | Full form + new "Chatbot" section (`knowledgeText`, shipped `M19-S13`) | UC-026 | ✅ Criado |
-| `01e-lead-form-section.html` | Excerpt + new "Formulário de contato" section (`retentionMonths`, shipped `M20-S11`) | UC-042 | ✅ Criado |
+| `01e-lead-form-section.html` | Excerpt + new "Formulário de contato" section (`retentionMonths`, `maxSubmissionsPerDay`, `maxSubmissionsPerIpPerDay`, shipped `M20-S11`) | UC-042 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |

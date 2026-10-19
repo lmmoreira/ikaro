@@ -33,7 +33,7 @@ Never commit credentials or service-account keys. CI authenticates to GCP throug
 | `.github/workflows/rollback-production.yml` | Manual emergency rollback of a production service |
 | `.github/workflows/pr-quality.yml` | PR quality gates (lint, type-check, architecture validation, Terraform env-contract and `pubsub-catalog` checks) |
 | `.github/workflows/pr-tests.yml` | PR test and security gates (unit, integration, E2E, Gitleaks, Trivy, Checkov, Sonar) |
-| `.github/workflows/weekly-jobs.yml` | Weekly security and quality baseline (Snyk, full Trivy scan) |
+| `.github/workflows/weekly-jobs.yml` | Weekly security and quality baseline — three jobs: `trivy-unfixed` (full Trivy scan), `sonarcloud` (branch scan with `-Dsonar.qualitygate.wait=false`) and `snyk-sca` |
 | `.github/workflows/build-otel-collector.yml` | Collector sidecar image build |
 
 ## Provisioning order

@@ -102,9 +102,9 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
   - **Scheduled Tasks (Cron Jobs):** Cloud Scheduler publishes to `cron-*` Pub/Sub topics (full list and consumers: `infra/terraform/pubsub-catalog.json`). Consumers include booking and admin-schedule reminders, loyalty expiry and its warning, the availability-alert sweep and expiry, recurring-schedule approval expiry, the outbox relay, and the chatbot, lead-form and resource-occupancy retention purges.
   - CLI Commands.
 - **Driven Adapters (Output):**
-  - `PostgresBookingRepository` (TypeORM/Prisma).
+  - `TypeOrmBookingRepository` (TypeORM).
   - `BrevoEmailAdapter` (production) and `MailhogEmailAdapter` (local), behind the `IEmailSender` port.
-  - `GoogleCloudPhotoStorage`.
+  - `GcsSignedUrlAdapter` (GCS signed URLs for photo uploads, `apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts`).
 
 ---
 

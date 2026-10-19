@@ -15,7 +15,7 @@
     BFF CALLS:
       Carousel → GET /schedule/availability/summary?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid,uuid
                  Header: X-Tenant-Slug: {slug}
-                 Fetcher: apps/web/lib/api/schedule.ts
+                 Fetcher: apps/web/features/platform/hotsite/api/schedule.ts
                  Response: AvailabilitySummaryResponse { dates: { date: string; available: boolean }[] }
 
       Slots    → GET /schedule/availability?date=YYYY-MM-DD&serviceIds=uuid,uuid

@@ -9,12 +9,12 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/select-tenant/page.tsx
+    PAGE (descoped, never built): apps/web/app/select-tenant/page.tsx
     ROUTE:      /select-tenant?token=<selectionToken>
     When shown: UC-021 Case B — customer belongs to 2+ tenants
     Query param: ?token=<selectionToken>  (opaque token issued by BFF in handleMultiTenantLogin)
 
-    COMPONENT (GAP): SelectTenantPage
+    COMPONENT (descoped, never built): SelectTenantPage
     FILE: apps/web/app/select-tenant/page.tsx  ('use client' — calls POST /v1/auth/token)
 
     On mount: decode the ?token param (or just display the tenants from the selection payload)

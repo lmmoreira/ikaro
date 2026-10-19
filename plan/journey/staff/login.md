@@ -57,7 +57,7 @@ flowchart TD
 - [x] **Route for staff login:** — **Resolved.** `/dashboard/login` is canonical, confirmed shipped (`apps/web/app/dashboard/login/page.tsx`, reads `?tenantSlug` as a query param rather than a URL segment).
 - [x] **"Bem-vindo(a)!" banner on first login (UC-025 step 8):** — **Resolved: not built.** Invite activation lands directly on `/dashboard/bookings` (see `dev-notes.md` § Known limitations).
 - [x] **Deactivated staff (UC-025 A3 / A2):** tenant deactivated after invite sent — should `/auth/error` show a distinct message? — **Resolved.** Both `reason=tenant-deactivated` and `reason=staff-deactivated` are implemented with distinct messages — see `dev-notes.md`'s reason-code table.
-- [ ] **JWT expiry / re-login:** no logout or refresh endpoint exists yet. Staff whose JWT expires will be redirected to `/dashboard/login`. Confirm this is the intended re-login flow.
+- [ ] **JWT expiry / re-login:** the BFF has a public `GET /auth/logout` but no refresh endpoint exists yet. Staff whose JWT expires will be redirected to `/dashboard/login`. Confirm this is the intended re-login flow.
 
 ## Prototype
 

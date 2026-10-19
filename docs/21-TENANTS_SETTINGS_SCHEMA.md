@@ -362,7 +362,7 @@ Configuration for the `CHATBOT` hotsite module (`docs/15-HOTSITE_DYNAMIC_ARCHITE
 **Validation Rules:**
 - `knowledgeText`, when present, must not exceed the resolved `maxKnowledgeTextLength` (default 4000, or this tenant's own override if one exists)
 - Every other field in this category is rejected by `PATCH /v1/tenants/settings` if a request attempts to set it through the normal admin-facing settings form path — these are set only via a direct database update or an ad hoc script, run by a developer, not through the API (see `docs/04-USE_CASES.md` UC-033–UC-036 — deliberately not gold-plated with a dedicated internal endpoint at this frequency)
-- `llmProvider`, when present, must be one of the built adapters (`'openrouter'`, `'anthropic'`, `'openai'`)
+- `llmProvider` is not validated when written (the chatbot settings validator checks only `knowledgeText` length). The provider registry resolves it at call time against its registered adapters (`'openrouter'`, `'anthropic'`, `'openai'`, plus the test-only `'fake'`) and throws `Unknown LLM provider` for any other value, so a bad override surfaces as a chatbot runtime error, not a settings-write rejection
 
 **Usage:** Read by UC-033's system-prompt assembly (`knowledgeText`) and by the per-tenant LLM provider/model resolution (`llmProvider`/`llmModel`) — see `docs/04-USE_CASES.md` UC-033/UC-034 and `docs/04-USE_CASES.md` UC-033–UC-036/§6.
 

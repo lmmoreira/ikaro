@@ -98,7 +98,7 @@ type ActionState =
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
 | `idle` | Click "Cancelar" | — | Opens `AdminCancelBookingSheet` (no state change yet) |
-| `AdminCancelBookingSheet` confirm | `PATCH .../cancel-admin` → 200 | `cancelled` | Red banner; no further actions (terminal) |
+| `AdminCancelBookingSheet` confirm | `PATCH /v1/bookings/:id/cancel` → 200 | `cancelled` | Red banner; no further actions (terminal) |
 
 ### Button visibility per `actionState` — lifecycle panel
 

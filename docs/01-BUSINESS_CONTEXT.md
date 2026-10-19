@@ -62,8 +62,8 @@ Each tenant has dedicated hotsite accessible via path:
 
 **Staff: Can belong to MULTIPLE tenants**
 - One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/06-TENANT_ISOLATION_STRATEGY.md`)
-- On login with a single active Staff record, directly enters that tenant (no selection)
-- With several active records, must select which tenant to enter (`/select-staff-tenant`)
+- Staff login is per-tenant: it starts from a specific tenant (`tenantSlug` carried in the OAuth state) and enters that tenant directly, with no selection step
+- With several active records, can switch tenant after login (`/select-staff-tenant`, `POST /auth/switch-staff-tenant`)
 
 **Example:**
 ```
@@ -83,8 +83,9 @@ As Staff:
   - Works for AutoWash Pro (Tenant A)
   - Also works for SuperClean (Tenant B)
 
-  Login: "Which car wash would you like to manage?" (selection shown only when
-  more than one active Staff record exists; with a single record, direct entry)
+  Login: starts from one tenant and enters it directly; the "Which car wash would you
+  like to manage?" screen (`/select-staff-tenant`) appears only as a post-login switch,
+  when more than one active Staff record exists
 ```
 
 ---
@@ -113,7 +114,7 @@ Small car wash businesses face challenges:
 - Browse services, testimonials, before/after photos
 - Discover Ikaro through marketing hotsite
 - Learn about services and pricing
-- **Cannot book** (must authenticate first)
+- Can book without an account as a guest (see Guest Customer below)
 
 ### 2. **Guest Customer** (Booking without authentication)
 - Request booking: name, email, phone, service, preferred date/time

@@ -108,11 +108,11 @@ export const UpdateXxxSchema = z.object({
 export type UpdateXxxDto = z.infer<typeof UpdateXxxSchema>;
 ```
 
-**When NOT to add a Zod schema:** if the DTO only carries a `bookingId` (or similar) that comes from a `@Param` decorated with `ParseUUIDPipe`, there is no request body to validate — a Zod schema is dead code. Use a plain TypeScript interface instead:
+**When NOT to add a Zod schema:** if the DTO only carries a `bookingId` (or similar) that comes from a `@Param` decorated with `CanonicalParseUUIDPipe`, there is no request body to validate — a Zod schema is dead code. Use a plain TypeScript interface instead:
 
 ```typescript
 // src/contexts/<ctx>/application/dtos/approve-xxx.dto.ts
-// No Zod — bookingId comes from ParseUUIDPipe on the @Param
+// No Zod — bookingId comes from CanonicalParseUUIDPipe on the @Param
 export interface ApproveXxxDto {
   bookingId: string;
 }
@@ -167,7 +167,7 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get
 
 ---
 
-### 6. Use Case — Write (with transaction + event flush)
+### 6. Use Case — Write (with transaction; events drained by the repository)
 
 ```typescript
 // src/contexts/<ctx>/application/use-cases/update-xxx.use-case.ts
@@ -192,7 +192,6 @@ export class UpdateXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    // @Inject(EVENT_BUS) private readonly eventBus: IEventBus,  // add if aggregate emits events
   ) {}
 
   async execute(dto: UpdateXxxUseCaseInput): Promise<UpdateXxxUseCaseResult> {
@@ -210,10 +209,10 @@ export class UpdateXxxUseCase {
     // 4. Write inside transaction
     await this.txManager.run(() => this.repo.save(entity));
 
-    // 5. Flush domain events AFTER transaction — never inside txManager.run()
-    // for (const event of entity.clearDomainEvents()) {
-    //   await this.eventBus.publish(event);
-    // }
+    // 5. No event flush here: for an event-emitting aggregate, repo.save() drains its domain
+    //    events into the outbox inside the same transaction (ENGINEERING_RULES_BACKEND.md,
+    //    "Aggregate domain events → outbox (repo auto-flush)"). Never inject EVENT_BUS or call
+    //    clearDomainEvents() in a use case.
 
     return { id: entity.id /* ... */ };
   }
@@ -856,7 +855,7 @@ export class XxxsController {
 }
 ```
 
-**`BackendHttpService` methods:** `.get<T>(path)` · `.post<T>(path, body)` · `.patch<T>(path, body)` · `.delete<T>(path)` · `.getForPublic<T>(path)` (no auth headers forwarded) · `.postForPublic<T>(path, body)`
+**`BackendHttpService` methods:** `.get<T>(path)` · `.post<T>(path, body)` · `.patch<T>(path, body)` · `.delete<T>(path)` · `.put<T>(path, body)` · `.getForPublic<T>(path)` (no auth headers forwarded) · `.postForPublic<T>(path, body)` · `.patchForPublic<T>(path, body, tenantId)`
 
 Canonical example: `apps/bff/src/features/customer/customers.controller.ts`
 
@@ -988,8 +987,8 @@ Every notification use case extends `BaseNotificationUseCase` (`notification/app
 ```typescript
 // inside execute(), after finding the templates and calling localizeTemplates():
 const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
-if (managerEmails.length === 0) return { adminEmailSent: false };
-const adminEmailSent = await this.dispatchTemplatesToMany(
+if (managerEmails.length === 0) return { emailSent: false };
+const emailSent = await this.dispatchTemplatesToMany(
   adminTemplates,
   { tenantId: dto.tenantId, eventId: dto.eventId, correlationId: dto.correlationId },
   managerEmails,
@@ -1024,9 +1023,7 @@ export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
   constructor(/* @Inject(...) ports */) { super(logRepo, inboxRepo, dispatcher, txManager); }
 
   protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
-  protected extraVariables(_input: TInput, _context: RecurringScheduleNotificationContext): Record<string, string> {
-    return {};
-  }
+  protected abstract variablesFor(input: TInput, context: RecurringScheduleNotificationContext): Record<string, string>;
 
   async execute(input: TInput): Promise<{ emailSent: boolean }> {
     // find template rows -> resolve customer/service/tenant (null -> warn and skip)

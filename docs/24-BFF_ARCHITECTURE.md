@@ -217,7 +217,7 @@ POST /auth/switch-tenant { targetTenantId: uuid }
   → issues new JWT with the new tenantId/tenantSlug
   → invalidates nothing (previous JWT remains valid until TTL — acceptable for MVP)
 ```
-Staff have the analogous `POST /auth/switch-staff-tenant`, driven by `GET /staff/me/tenants` and the `/select-staff-tenant` screen — staff are multi-tenant-capable since `M13-S13` (see `docs/06-TENANT_ISOLATION_STRATEGY.md`).
+Staff have the analogous `POST /auth/switch-staff-tenant`, driven by `GET /auth/staff-tenants` and the `/select-staff-tenant` screen — staff are multi-tenant-capable since `M13-S13` (see `docs/06-TENANT_ISOLATION_STRATEGY.md`).
 
 ---
 
@@ -417,10 +417,11 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /tenants/lead-form/status`, `/submissions`, `/submissions/filter-options`, `/submissions/:id` | JWT | No | STAFF \| MANAGER |
 | `GET /staff`, `GET /staff/:id`, `POST /staff/invite`, `PATCH /staff/:id`, `PATCH /staff/:id/deactivate`, `PATCH /staff/:id/activate` | JWT | No | MANAGER |
 | `GET /staff/me` | JWT | No | STAFF \| MANAGER |
+| `GET /health/live`, `GET /health/ready` (served under the global `v1` prefix, i.e. `/v1/health/*`) | No | No | — (never throttled) |
 
 > **No cron routes in the BFF.** The `/cron/*` trigger endpoints live in the backend (`InternalApiGuard`, local/manual path only); in production Cloud Scheduler publishes straight to the `cron-*` Pub/Sub topics. All routes above sit under the global `/v1` prefix (`main.ts`). Authoritative source: the `*.controller.ts` files under `apps/bff/src/features/`.
 
-> **Guest booking:** `POST /bookings` is callable without a JWT when the body includes `guestInfo`. The BFF detects the absence of a Bearer token and passes the request through as a guest booking. Tenant identification comes from `X-Tenant-Slug`.
+> **Guest booking:** `POST /bookings` is `@Public()` and callable without a JWT; a guest identifies themselves through the body's `contactEmail`/`contactName`/`contactPhone` (`RequestBookingBodySchema`, `apps/bff/src/features/booking/bookings.schemas.ts`). The BFF detects the absence of a Bearer token and passes the request through as a guest booking. Tenant identification comes from `X-Tenant-Slug`.
 
 ---
 
@@ -463,12 +464,20 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | Variable | Source | Description |
 |---|---|---|
 | `NODE_ENV` | Cloud Run env | `development` \| `staging` \| `production` |
+| `APP_ENV` | Cloud Run env | `local` (default) \| `staging` \| `production` — separate from `NODE_ENV`; `ENABLE_DEV_AUTH=true` is refused when `APP_ENV=production` |
 | `PORT` | Cloud Run env | `3002` (local) — Cloud Run sets this automatically |
 | `BACKEND_INTERNAL_URL` | Cloud Run env | Internal Cloud Run URL of the backend service (e.g. `https://ikaro-backend-xyz-uc.a.run.app`) |
 | `JWT_SECRET` | Secret Manager | Signing secret for JWTs — must be ≥ 64 chars |
 | `JWT_EXPIRES_IN` | Cloud Run env | `7d` |
 | `GOOGLE_CLIENT_ID` | Secret Manager | OAuth client ID from Google Console |
 | `GOOGLE_CLIENT_SECRET` | Secret Manager | OAuth client secret from Google Console |
+| `FRONTEND_URL` | Cloud Run env | Web app URL used for post-login redirects (default `http://localhost:3000`) |
+| `ALLOWED_ORIGINS` | Cloud Run env | CORS allow-list (default `http://localhost:3000`) |
+| `ENABLE_DEV_AUTH` | Cloud Run env | Optional; `true` enables `POST /auth/dev-login` (local and staging E2E only, startup fails under `APP_ENV=production`) |
+| `INTERNAL_API_KEY` | Secret Manager | Shared secret with the backend, min 32 chars |
+| `WEB_INTERNAL_KEY` | Secret Manager | Shared secret with `ikaro-web`, min 32 chars, checked by `WebOnlyGuard` on every request |
+| `BACKEND_AUTH_MODE` | Cloud Run env | `none` (default) \| `iam`; must be `iam` when `NODE_ENV=production` |
+| `BACKEND_AUDIENCE` | Cloud Run env | Optional URL used as the identity-token audience when `BACKEND_AUTH_MODE=iam` (defaults to the backend URL) |
 | `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | Not Terraform-set | Falls back to the hardcoded `http://localhost:4318/v1/traces` (`otel-tracing.ts`) — correct because the otel-collector sidecar (M17-S34) shares this instance's network namespace |
 | `SERVICE_NAME` | Not Terraform-set | Falls back to the literal `'ikaro-bff'` passed into `bootstrapTracing('ikaro-bff')` (`apps/bff/src/tracing.ts`) |
@@ -483,7 +492,11 @@ JWT_EXPIRES_IN=7d
 GOOGLE_CLIENT_ID=<from-google-console>
 GOOGLE_CLIENT_SECRET=<from-google-console>
 GOOGLE_CALLBACK_URL=http://localhost:3000/v1/auth/google/callback
+INTERNAL_API_KEY=<openssl rand -hex 32>   # min 32 chars, identical to the backend's
+WEB_INTERNAL_KEY=<openssl rand -hex 32>   # min 32 chars, identical to apps/web's
 ```
+
+The full schema is `apps/bff/src/config/env.validation.ts`; `apps/bff/.env.example` has safe local defaults.
 
 ---
 
@@ -533,16 +546,16 @@ gcloud run deploy ikaro-bff \
 
 ## CI/CD
 
-Full pipeline YAML is in `docs/09-CI_CD_PIPELINE.md`. Summary:
+The BFF has no workflow of its own; it runs through the shared pipelines described in `docs/09-CI_CD_PIPELINE.md`. Summary:
 
 | Stage | Workflow | What runs |
 |---|---|---|
-| PR gate | `ci-bff.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks |
-| Merge to `main` | `deploy-bff.yml` | Build → GAR, deploy staging (auto), deploy production (1 reviewer) |
+| PR gate | `pr-quality.yml`, `pr-tests.yml` | ESLint, `tsc --noEmit`, unit + integration tests, Gitleaks and the other quality/security gates |
+| Merge to `main` | `deploy-staging.yml`, `deploy-production.yml` | Build the images, deploy staging, then production |
 
 **Testing in CI:**
 - Unit tests: NestJS test module with mocked `BackendHttpService`
-- Integration tests: real HTTP calls to a locally-started BFF, with backend mocked via MSW
+- Tests use Jest (`apps/bff/jest.config.ts`); there is no MSW (no `msw` dependency)
 - No Testcontainers needed for the BFF (it owns no database schema)
 
 ---
@@ -579,18 +592,12 @@ pnpm --filter bff type-check   # tsc --noEmit
 
 ## Key Dependencies
 
-```json
-{
-  "@nestjs/passport":       "^10.0.0",
-  "@nestjs/jwt":            "^10.0.0",
-  "@nestjs/axios":          "^3.0.0",
-  "@nestjs/throttler":      "^5.0.0",
-  "passport":               "^0.7.0",
-  "passport-google-oauth20": "^2.0.0",
-  "passport-jwt":           "^4.0.0",
-  "axios":                  "^1.6.0",
-  "uuid":                   "^9.0.0"
-}
+The authoritative list (and versions) is `apps/bff/package.json`; the auth/HTTP-relevant ones are:
+
+```
+@nestjs/passport, @nestjs/jwt, @nestjs/axios, @nestjs/throttler,
+passport, passport-google-oauth20, passport-jwt, jsonwebtoken, google-auth-library,
+axios, helmet, zod
 ```
 
 ---
@@ -600,8 +607,8 @@ pnpm --filter bff type-check   # tsc --noEmit
 ```
 apps/bff/
 ├── src/                  ← NestJS source (structure above)
-├── test/                 ← integration tests (Supertest against local BFF)
-├── Dockerfile            ← multi-stage build: node:20-alpine
+├── http/                 ← .http request files
+├── Dockerfile            ← multi-stage build, digest-pinned node:22 base image
 ├── package.json
 ├── tsconfig.json         ← extends packages/config/tsconfig.base.json
 └── .env.example          ← safe defaults for local dev (no secrets)
@@ -610,7 +617,7 @@ apps/bff/
 **Dockerfile pattern (multi-stage):**
 ```dockerfile
 # Stage 1: build
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder  # the real Dockerfile pins this by sha256 digest
 WORKDIR /app
 COPY pnpm-lock.yaml package.json pnpm-workspace.yaml ./
 COPY apps/bff/package.json apps/bff/
@@ -620,7 +627,7 @@ COPY apps/bff/ apps/bff/
 RUN pnpm --filter bff build
 
 # Stage 2: runtime
-FROM node:20-alpine AS runner
+FROM node:22-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/apps/bff/dist ./dist

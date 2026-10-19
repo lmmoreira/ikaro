@@ -2,7 +2,7 @@
 
 ## Overview
 
-New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`.
+New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S08`/`S11`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`.
 
 ## File map (❓ none exist yet)
 
@@ -39,5 +39,5 @@ POST                    /v1/class-session-bookings | /v1/recurring-enrollments  
 
 ## Open questions / gaps
 
-- [ ] Stories exist (`M24-S01`/`S02`/`S13`, `M24-S15`) — each needs `/story-discovery` first.
+- [ ] Stories exist (`M24-S01`/`S02`/`S08`/`S11`/`S13`, `M24-S15`) — each needs `/story-discovery` first.
 - [ ] Routing shape for the 3-step wizard (one route vs. three) is a decision for the implementing story.

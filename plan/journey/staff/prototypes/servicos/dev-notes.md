@@ -24,14 +24,15 @@ No `[slug]` segment on any of these — the staff/manager dashboard is JWT/sessi
 
 | Action | Method + Path | Role guard | Request body | Success |
 |---|---|---|---|---|
-| List services | `GET /v1/services` | STAFF \| MANAGER | — | `ServiceListResponse` |
-| Get single service | `GET /v1/services/:id` | STAFF \| MANAGER | — | `ServiceDetailResponse` |
-| Create service | `POST /v1/services` | STAFF \| MANAGER | `CreateServiceDto` | `201 ServiceDetailResponse` |
-| Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceDto` | `200 ServiceDetailResponse` |
+| List services | `GET /v1/services` | STAFF \| MANAGER | — | `StaffServiceListResponse` |
+| Get single service | `GET /v1/services/:id` | STAFF \| MANAGER | — | `StaffServiceResponse` |
+| Get edit view | `GET /v1/services/:id/edit-view` | STAFF \| MANAGER | — | `StaffServiceEditViewResponse` |
+| Create service | `POST /v1/services` | STAFF \| MANAGER | `CreateServiceBody` | `201 StaffServiceResponse` |
+| Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceBody` | `200 StaffServiceResponse` |
 | Deactivate service | `DELETE /v1/services/:id` | STAFF \| MANAGER | — | `204` |
 | Activate service | `PATCH /v1/services/:id/activate` | STAFF \| MANAGER | — | `200` |
 
-All confirmed existing in `apps/bff/src/features/booking/services.controller.ts`.
+Routes confirmed in; request/response types are `CreateServiceBody`/`UpdateServiceBody` (BFF) and `StaffService*Response` (`packages/types/src/service.dto.ts`); see `apps/bff/src/features/booking/services.controller.ts`.
 
 ---
 

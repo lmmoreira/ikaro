@@ -101,9 +101,10 @@ A bounded context is an autonomous domain with clear boundaries and its own mode
 
 **Published Events:**
 - `StaffInvited` — consumed by Notification Context (invitation email). Published on staff invite (UC-028) and during tenant provisioning (M04-S06 handles `TenantProvisioned` → creates first MANAGER → publishes `StaffInvited`).
+- `StaffActivated` — consumed by the shared `audit-log` consumer only (UC-031).
 - `StaffDeactivated` — consumed by Booking (cascade-deactivates the wrapping `STAFF`-type `Resource`, UC-048) and the shared `audit-log` consumer; active sessions still expire via JWT TTL.
 
-> `ScheduleClosure` is owned by the **Booking Context** (it directly controls calendar availability). Staff Context reads closures for display but never writes them directly.
+> `ScheduleClosure` is owned by the **Booking Context** (it directly controls calendar availability). The Staff Context does not read or write closures.
 
 ---
 
@@ -226,18 +227,17 @@ BookingLine {
 **Key Methods (on the Booking aggregate root — `BookingLine` itself has no behaviour):**
 - `materializeRecurringOccurrence(...)` (M23-S05) — builds one occurrence of an `ACTIVE` `RecurringBookingSchedule` directly in `APPROVED` (an entry state `requestBooking()` never produces), with `recurringScheduleId` set, the line snapshot taken from the service and the contact snapshot from the customer; `approvedBy` is the approving staff member, or `null` when the schedule auto-confirmed. Raises **no** `BookingRequested` and **no** `BookingApproved` — those drive per-booking customer emails, and one schedule would otherwise send one pair per occurrence.
 - `createByStaff(...)` (UC-108, M23-S39) — builds a one-off booking a staff member creates for a customer who phoned or walked in, directly in `APPROVED` (the second entry state `requestBooking()` never produces): `approvedAt = now`, `approvedBy` and `createdByStaffId` = the acting staff member, `type = CUSTOMER` (contact snapshot from the `Customer`) or `GUEST` (the contact staff entered). Raises `BookingApproved` and **no** `BookingRequested` — the customer gets the confirmation email, no manager is asked to decide.
-- `requestBooking(actor, scheduledAt, serviceIds[], contactAddress?: Address, pickupAddress?: Address)`
-  - Loads each `Service`, snapshots `price`/`durationMinutes`/`loyaltyPointsValue`/`requiresPickupAddress` into a new `BookingLine`.
+- `static requestBooking(input: RequestBookingInput)` — takes pre-built `lineInputs` (the caller's use case has already loaded each `Service` and captured the snapshot); loads nothing and checks no calendar availability (that is the use case's job, before the aggregate is built)
+  - Builds a `BookingLine` per input, carrying the `price`/`durationMinutes`/`loyaltyPointsValue`/`requiresPickupAddress` snapshot.
   - Validates pickup invariant: if any line has `requiresPickupAddressAtBooking = true` and `pickupAddress` is absent → reject.
   - `contactAddress` is stored as-is (optional informational field; not subject to the pickup requirement).
   - Computes `totalPrice` and `totalDurationMins`.
-  - Validates calendar availability against the total duration.
   - Creates booking in `PENDING`.
   - Publishes `BookingRequested`.
 - `approve(actor, correlationId, scheduledAt?)` → transitions `PENDING | INFO_REQUESTED → APPROVED`, publishes `BookingApproved` (event carries the line summary).
 - `reject(actor, reason, correlationId)` → transitions `PENDING | INFO_REQUESTED → REJECTED`, publishes `BookingRejected`.
 - `requestMoreInfo(actor, message, correlationId)` → `PENDING → INFO_REQUESTED`, publishes `BookingInfoRequested`.
-- `submitInformation(payload)` → `INFO_REQUESTED → PENDING`, publishes `BookingInfoSubmitted`.
+- `submitInformation(submittedByEmail, infoPayload, correlationId, actor, photoUrls?)` → `INFO_REQUESTED → PENDING`, publishes `BookingInfoSubmitted`.
 - `complete(actor, lineActualPrices: Map<lineId, Money>, afterPhotos, correlationId, adminNotes?, discountByPoints?)`
   → `APPROVED → COMPLETED`.
   For each line: sets `actualPriceCharged = lineActualPrices[lineId] ?? priceAtBooking`.
@@ -458,7 +458,7 @@ Resource {
 
 **Three different relationships to existing data, by design:**
 - **`LOCATION`** — the degenerate default every tenant gets. Replaces today's implicit "whole tenant is the resource" behavior with an explicit row. Every existing tenant receives exactly one active `LOCATION` resource during the M21 backfill migration; there is no legacy `resourceId = null` path on a `Service`'s resource requirements (Cluster 2). `resourceId IS NULL` on a `ScheduleClosure`/`ScheduleOpening` remains its own, separate "close/open the whole business" sentinel — backfilling `LOCATION` does not retire it.
-- **`STAFF`** — *wraps* an existing `Staff` aggregate by reference (`refId = staffId`). Staff Context stays pure identity/permissions; scheduling data (working hours, turnover) lives on the `Resource` row, not on `Staff` itself. Mirrors the existing rule that Staff Context reads closures but never writes them.
+- **`STAFF`** — *wraps* an existing `Staff` aggregate by reference (`refId = staffId`). Staff Context stays pure identity/permissions; scheduling data (working hours, turnover) lives on the `Resource` row, not on `Staff` itself. Staff Context stays out of scheduling data entirely.
 - **`ROOM` / `EQUIPMENT`** — no other context owns these; the `Resource` row *is* the aggregate.
 
 **Tenant boundary and resource schedule resolution:** the tenant calendar is a hard outer boundary, resolved first using the existing Three-Layer Schedule Resolution below. A resource can be available only inside that resulting tenant window — a resource opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window; every `workingHours` window must be a subset of the tenant's recurring business-hours window. Changing resource hours, adding a resource-scoped closure, or deactivating a resource is a change to future availability only — already-approved appointments and already-materialized sessions (Clusters 3–4) remain explicit commitments even if they now fall outside the new default.
@@ -525,9 +525,9 @@ ScheduleClosure {
 ---
 
 #### **Aggregate: ScheduleOpening** (Root Entity)
-Represents an **exception** that opens the schedule on a day that `businessHours` marks as closed (e.g., a normally-closed Sunday opened for a special event). `ScheduleOpening` is the inverse of `ScheduleClosure`: it overrides a recurring "closed" day with a specific operating window.
+Represents an **exception** that opens the schedule on a day that is closed in the effective hours source (the tenant's `businessHours` for a tenant-wide opening; for a resource-scoped opening, the resource's own `workingHours` when set, else `businessHours`) — e.g., a normally-closed Sunday opened for a special event. `ScheduleOpening` is the inverse of `ScheduleClosure`: it overrides a recurring "closed" day with a specific operating window.
 
-`ScheduleOpening` is only meaningful when `businessHours[dayOfWeek] = null`. On a day that is already open in `businessHours`, creating an opening exception is invalid (use the `businessHours` settings to change the regular hours instead).
+`ScheduleOpening` is only meaningful when the effective hours source is closed that day. On a day already open in that source, creating an opening exception is invalid (change the regular hours instead). A resource-scoped opening is therefore allowed on a day the tenant itself is open, when that resource is closed that day.
 
 **Entities within:**
 - `ScheduleOpening` (root)
@@ -551,7 +551,7 @@ ScheduleOpening {
 - `date` cannot be in the past
 - `endTime > startTime`
 - `startTime` and `endTime` are valid HH:MM strings
-- The day-of-week derived from `date` must be closed in `businessHours` (cannot create an opening for an already-open day)
+- The day-of-week derived from `date` must be closed in the effective hours source (the resource's own `workingHours` when set, else the tenant's `businessHours`; cannot create an opening for an already-open day)
 - Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/13-DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
 - A resource opening can make that resource available on one of its normally-off dates, but never outside the tenant's own effective hours for that date
 
@@ -746,8 +746,8 @@ AvailabilityAlert {
 - An alert's `expiresAt` defaults to 30 days after creation (`ALERT_DEFAULT_EXPIRY_DAYS`), is at most 365 days after it (`ALERT_MAX_EXPIRY_DAYS`, the highest value `maxBookingAdvanceDays` can take), and is clamped to `acceptableEndAt` for a range; a customer may hold at most 10 `ACTIVE` alerts (`ALERT_ACTIVE_CAP_PER_CUSTOMER`) — all three in `availability-alert-criteria.helpers.ts`, the cap enforced by `CreateAvailabilityAlertUseCase`.
 
 **Key Methods:**
-- `AvailabilityAlert.create(customerId, serviceId, criteria, expiresAt)` (UC-072)
-- `update(changes)` / `cancel()` (UC-076/UC-053) — `changes` is an `UpdateAvailabilityAlertChanges`: the criteria plus `preferredResourceId`, `durationMinutes`, `participantCount` and `expiresAt`
+- `AvailabilityAlert.create(options: CreateAvailabilityAlertOptions)` (UC-072)
+- `update(changes)` / `cancel(correlationId, now?)` (UC-076/UC-053) — `changes` is an `UpdateAvailabilityAlertChanges`: the criteria plus `preferredResourceId`, `durationMinutes`, `participantCount` and `expiresAt`
 - `expire(correlationId)` — `ACTIVE → EXPIRED`, called by the alert-expiry job (M23-S06)
 - `markPersisted(version)` — the repository's hook after a successful save, advancing the optimistic-concurrency `version`
 - `recordNotificationAttempt(matchingWindow, channel, correlationId, now?)` (M23-S07) — for an `ACTIVE`, unexpired alert: queues one `PENDING` attempt for the `[startsAt, endsAt)` slot, moves the alert `ACTIVE → NOTIFIED` and raises `AvailabilityAlertMatched`; returns `false` and does nothing for an alert that is notified, cancelled, expired or past its `expiresAt`, so it never notifies twice. The repository persists the queued attempt (`takePendingAttempt()`) with the status change, deduplicated on `(alertId, matchingWindow, channel)`.
@@ -1165,7 +1165,7 @@ Email template definitions **per tenant**.
 NotificationTemplate {
   id: TemplateId
   tenantId: TenantId | null (null = platform-wide default template, used when no tenant override exists)
-  triggerEvent: NotificationTemplateKey (e.g., "BOOKING_APPROVED" — which domain event/trigger this template renders for)
+  triggerEvent: NotificationTemplateKey (e.g., 'booking-approved-customer' — which domain event/trigger this template renders for)
   locale: string (default 'pt-BR' — TD02-S10)
   channel: 'EMAIL' | 'SMS' | 'WHATSAPP'
   subject: String (can include placeholders like {{customerName}})
@@ -1410,6 +1410,8 @@ When a `LoyaltyEntry`'s `expiresAt` passes:
                               StaffInvited, StaffDeactivated
                               (published by Staff Context)
 
+> The diagram above is a partial overview (it omits events such as the resource/alert/recurrence events and the Platform context's); `docs/03-DOMAIN_EVENTS.md` has the full event list.
+
 Booking → Loyalty: BookingCompleted only (inserts LoyaltyEntry per line)
 Booking → Notification: all lifecycle events → emails
 Staff  → Notification: StaffInvited → invitation email
@@ -1420,13 +1422,12 @@ Staff  → Notification: StaffInvited → invitation email
 ---
 
 ### **Context 6: Platform Context**
-**Purpose:** Manage the operational lifecycle of each tenant — onboarding, configuration, hotsite, and staff.
+**Purpose:** Manage the operational lifecycle of each tenant — onboarding, configuration, and hotsite (staff invite/deactivate lifecycle is owned by the Staff Context, not Platform).
 
 **Responsibilities:**
 - Create and configure tenants (name, slug, initial settings)
 - Allow tenant admins to edit their operational settings (cancellation window, loyalty rules, business hours, timezone)
 - Allow tenant admins to manage and publish their public hotsite (branding, layout, content)
-- Allow tenant admins to invite and manage staff members
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/04-USE_CASES.md` UC-033–UC-036)
 
 **Key Aggregates:**
@@ -1437,14 +1438,13 @@ Staff  → Notification: StaffInvited → invitation email
 - `ChatbotProviderBalance` (root) — single-row-per-provider prepaid balance, upserted by a periodic poll
 - `LeadFormConfig` (root) — one per tenant; owns `audienceMode` and the question catalog (UC-037)
 - `LeadFormSubmission` (root) — one per visitor submission to a tenant's lead form (UC-039/UC-040)
-- Staff lifecycle (create/deactivate) — Platform use cases operate on the `Staff` aggregate owned by the Staff Context
 
 **Notes:**
 - There is no super-admin UI in MVP. A new tenant is provisioned by a developer via a CLI command or a seed script.
 - All Platform use cases (except super-admin provisioning) are performed by a staff member with `MANAGER` role within their own tenant scope.
 
 **Published Events:**
-- `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`)
+- `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`), Booking Context (location resource), Notification Context (default template seed) and the shared `audit-log` consumer
 - `LeadFormSubmissionReceived` — consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an obvious, explicitly deferred fast-follow
 
 ---
@@ -1463,6 +1463,7 @@ Tenant {
 ```
 
 **Key methods:**
+- `updateName(name)` → normalizes and replaces the display name (rejects an empty name or an inactive tenant).
 - `updateSettings(settings)` → validates and replaces settings blob; publishes no event (settings are read fresh per request).
 - `deactivate()` → sets `isActive = false`; all tenant data remains intact.
 
@@ -1481,6 +1482,7 @@ HotsiteConfig {
   layout:        LayoutModule[]  -- ordered list of UI modules to render
   seo:           SeoMetadata     -- { title, description } — tenant SEO overrides, both nullable
   isPublished:   Boolean         -- false = draft; true = visible at /<slug>
+  version:       Integer | undefined -- optimistic-locking column (undefined until first persisted; bumped by markPersisted())
   updatedAt:     DateTime
 }
 ```
@@ -1565,7 +1567,7 @@ ChatbotProviderBalance {
 
 **Methods:**
 - `static upsert(provider, remainingUsd)` — S08's balance write.
-- A corresponding health-write method (S06's own call on exact signature) — both persisted via a **partial-column upsert only** (`docs/13-DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
+- `isHealthy(cooldownMinutes, now)` — the UC-034 condition (c) availability check below (reads `lastSuccessAt`/`lastFailureAt`; the health timestamps are written by a repository method, not the aggregate) — both writers persist via a **partial-column upsert only** (`docs/13-DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
 
 **Availability rule (UC-034 condition c):** the provider is unhealthy only if `lastFailureAt` is more recent than `lastSuccessAt` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`) of now — a half-open/circuit-breaker cooldown, not a permanent trip, so a single transient failure can't leave the widget dark forever (`available: false` means the widget never renders at all, so without a cooldown no visitor could ever produce the success that would clear it).
 
@@ -1580,6 +1582,7 @@ LeadFormConfig {
   tenantId:      TenantId          -- PK, also FK to platform.tenants, UNIQUE (one row per tenant)
   audienceMode:  'GUEST_AND_CUSTOMER' | 'CUSTOMER_ONLY'   -- default 'GUEST_AND_CUSTOMER'
   questions:     LeadFormQuestion[]  -- ≤20 entries, ordered
+  version:       Integer | undefined -- optimistic-locking column (undefined until first persisted; bumped by markPersisted())
   updatedAt:     DateTime
 }
 

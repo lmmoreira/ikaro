@@ -197,7 +197,7 @@ The `scope` parameter is **mandatory** in matrix jobs. Without it, the three Tri
 Coverage must be generated **once** per PR, not re-run by the Sonar job:
 
 1. Test jobs (`backend-unit`, `bff-unit`, `web-unit`) run `test:cov` and upload `lcov.info` via `actions/upload-artifact`
-2. The `sonar` job declares `needs: [backend-unit, bff-unit, web-unit]` and downloads those artifacts via `actions/download-artifact`
+2. The `sonar` job declares `needs: [detect-changes, test-suite-passed, backend-unit, bff-unit, web-unit]`, runs only when `needs.detect-changes.outputs.app == 'true'` (and `test-suite-passed` succeeded), and downloads those artifacts via `actions/download-artifact`
 3. The `sonar` job only runs `test:cov` for packages not covered by those sibling jobs (`@ikaro/observability`, `@ikaro/env-validation`, `@ikaro/validation`)
 
 Never add a Sonar job that re-runs all `test:cov` suites from scratch — see `docs/CI_TRAPS.md § CI workflow configuration traps`.

@@ -159,7 +159,7 @@ Both are shared, cross-app code in `packages/observability` (used by backend and
 - **Never NestJS-DI-managed** (`BaseAppLogger`/`AppLogger` — always `new AppLogger(Context.name)`, never `@Inject`-ed): the port is a plain constructor parameter with a real-adapter default (`vendorFormatter: LogVendorFormatter = new NoopLogVendorFormatter()`, `tracingPort: ITracingPort = defaultTracingPort`). No `@Optional()` needed — nothing is asking Nest's container to resolve it.
 - **Already NestJS-DI-managed** (`CorrelationMiddleware`, `RequestInterceptor` — real `@Injectable()`s Nest's container constructs): same constructor-parameter-with-default shape, but the parameter needs `@Optional()`. Without it, Nest reflects the parameter's design-time type for DI resolution; since `ITracingPort` is an interface (erased at runtime), Nest can't find a bound provider for it and throws `UnknownDependenciesException` instead of falling through to the default. `@Optional()` tells Nest to pass `undefined` when nothing is bound — which is what lets the JS default value apply. No token, no module registration needed for the default case.
 
-**One exported default instance per port, not `new Adapter()` at every call site.** `otel-tracing-adapter.ts` exports `export const defaultTracingPort: ITracingPort = new OtelTracingAdapter();` and all 5 consumers (`BaseAppLogger`, both apps' `CorrelationMiddleware`/`RequestInterceptor`) default to that same constant, not their own `new OtelTracingAdapter()`. `OtelTracingAdapter` has no state — its methods only delegate to `@opentelemetry/api`'s own global `trace` singleton — so this isn't a caching/perf concern, it's centralising *which* concrete adapter is the default: swapping it is one line in `otel-tracing-adapter.ts`, not five call sites across two apps. Still no NestJS DI/token — this is a plain shared constant, consistent with the "never DI-managed" callers above; a future port should follow this shape too rather than repeating `new X()` at each default-parameter site.
+**One exported default instance per port, not `new Adapter()` at every call site.** `otel-tracing-adapter.ts` exports `export const defaultTracingPort: ITracingPort = new OtelTracingAdapter();` and its consumers (several, e.g. `BaseAppLogger`, both apps' `CorrelationMiddleware`/`RequestInterceptor`, `BaseErrorFilter`) default to that same constant, not their own `new OtelTracingAdapter()`. `OtelTracingAdapter` has no state — its methods only delegate to `@opentelemetry/api`'s own global `trace` singleton — so this isn't a caching/perf concern, it's centralising *which* concrete adapter is the default: swapping it is one line in `otel-tracing-adapter.ts`, not one edit per call site across two apps. Still no NestJS DI/token — this is a plain shared constant, consistent with the "never DI-managed" callers above; a future port should follow this shape too rather than repeating `new X()` at each default-parameter site.
 
 **Dependency direction:** shared code in `packages/*` depends on the port only, never on either app's concrete class — a shared package importing from `apps/backend` or `apps/bff` inverts the dependency direction. `BaseErrorFilter` (`packages/nestjs-http`) is the existing example: typed against `BaseAppLogger`, but each app's own `ErrorFilter` passes its real, enriching `AppLogger` into `super()` — the shared filter code gets full app-specific enrichment through polymorphism, without ever importing either app's concrete logger class.
 
@@ -225,8 +225,15 @@ interface ProblemDetail {
   code?: string;          // the only field frontend message-selection is allowed to branch on
   field?: string;         // which request field is at fault, single-cause errors only — routing use, never message selection
   params?: Record<string, string | number>;
-  detail: string;         // backend-internal/debug text only — contractually never rendered to a user (docs/ANTI_PATTERNS.md)
-  violations?: { field: string; code: string; params?: Record<string, string | number> }[];
+  detail?: string;        // backend-internal/debug text only — contractually never rendered to a user (docs/ANTI_PATTERNS.md)
+  instance?: string;
+  correlationId?: string; // attached centrally by BaseErrorFilter, never at a throw site
+  [key: string]: unknown;
+}
+
+// Batch validation errors use the ValidationProblemDetail extension:
+interface ValidationProblemDetail extends ProblemDetail {
+  violations: { field: string; code: string; params?: Record<string, string | number> }[];
 }
 ```
 

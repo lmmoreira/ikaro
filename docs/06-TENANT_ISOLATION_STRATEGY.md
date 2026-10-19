@@ -91,7 +91,7 @@ All events emitted by the system include the `tenant_id`.
 > Storage, logs and branding. Not related to the Booking context's `Resource` aggregate (people/rooms/equipment) — that one's tenant scoping follows the ordinary row-level rules in §2.
 
 - **File Storage:** Photos are stored in paths prefixed by the tenant: `/storage/tenant_a/bookings/photo_1.jpg`.
-- **Logs & Metrics:** Every log entry and Prometheus metric includes a `tenant_id` label for granular monitoring and debugging.
+- **Logs & Metrics:** Log entries carry `tenantId` (added by the logger's request-context enrichment) for granular monitoring and debugging. The apps emit no application-level metrics of their own yet — only OpenTelemetry auto-instrumentation (`packages/observability/src/otel-tracing.ts`) — so there is no per-tenant metric label today.
 - **Branding:** Email templates and hotsite content are fetched dynamically based on the `tenant_id`.
 
 ---

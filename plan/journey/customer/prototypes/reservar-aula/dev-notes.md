@@ -53,5 +53,5 @@ POST /v1/recurring-enrollments
 
 ## Open questions / gaps
 
-- [ ] Stories exist: `M24-S17`, `M24-S18` — each still begins with `/story-discovery`.
+- [x] Stories exist: `M24-S17`, `M24-S18` — each still begins with `/story-discovery`.
 - [ ] Whether `ReservaTypePicker` is a real intermediate page or a client-side branch within `ClassCatalogPage` is a routing decision for the implementing story.

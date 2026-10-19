@@ -78,6 +78,8 @@ Notification Context subscribes:
 │  │             BookingCompleted, BookingCancelled, BookingRescheduled,│ │
 │  │             BookingNoShow, RecurringBookingSchedule*,             │ │
 │  │             AvailabilityAlert*, FutureCommitmentException*,       │ │
+│  │             ResourceDeactivationImpactRaised,                     │ │
+│  │             BookingResourceReassigned,                            │ │
 │  │             BookingReminderDue(Today) / AdminDailyScheduleReminder│ │
 │  │             (commands, not events)                                │ │
 │  │  Consumes:  StaffDeactivated (Staff), TenantProvisioned (Platform)│ │
@@ -431,7 +433,7 @@ Same Person, Multiple Tenants:
 **Owned Aggregates:**
 - `Staff` - Employee profile (one row per tenant a person is staff at — multi-tenant rows)
 
-> `ScheduleClosure` is **owned by the Booking Context** — it directly controls calendar availability. Staff Context references `ScheduleClosure` read-only (by `tenant_id` and `staff_id`) when displaying staff schedules. No writes to `schedule_closures` originate from the Staff Context.
+> `ScheduleClosure` is **owned by the Booking Context** — it directly controls calendar availability. The Staff Context neither reads nor writes `schedule_closures` (a closure is scoped by `resource_id`, not `staff_id`; a staff member's schedule lives on their wrapping `STAFF`-type `Resource` in the Booking Context).
 
 **Responsibilities:**
 - Store staff information for a specific tenant
@@ -440,7 +442,7 @@ Same Person, Multiple Tenants:
 - Foundation for future role-based access control per-tenant
 
 **Database:** `staff` schema
-- Tables: staff.staff, (schedule_closures in shared reference)
+- Tables: staff.staff
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
 - Unique constraint: UNIQUE(tenantId, googleOAuthId) — per-tenant unique, which is what *allows* the same person to have separate active `Staff` rows at multiple tenants, not what prevents it. 2+ active rows → selection token → `/select-staff-tenant`.
@@ -514,7 +516,7 @@ Notification Context subscribes, composes email, sends
 
 ### **3. ScheduleClosure Reference**
 
-`ScheduleClosure` is owned by the **Booking Context**. When a staff member creates a day-off entry, the write goes through the Booking Context use case (UC-010). The Staff Context never writes to `schedule_closures` directly — it reads closures for display purposes only (filtered by `tenant_id` and `staff_id`).
+`ScheduleClosure` is owned by the **Booking Context**. When a staff member creates a day-off entry, the write goes through the Booking Context use case (UC-010). The Staff Context never reads or writes `schedule_closures`; closures are scoped by `resource_id`, not `staff_id`.
 
 ---
 
@@ -603,7 +605,7 @@ ALTER TABLE loyalty.loyalty_entries
 -- booking_id UUID NOT NULL  ← just a column, no FK
 ```
 
-**One exception:** the `platform`-schema tables (chatbot, lead-form, hotsite tables) keep `tenant_id` with a FK to `platform.tenants`. Tenant existence is a foundational platform invariant — not a context coupling. Tables in other contexts' schemas carry `tenant_id` as a plain indexed column with no FK (`docs/13-DATABASE_SCHEMA.md` Global Standards).
+**One exception:** the `platform`-schema tables `hotsite_configs`, `lead_form_configs`, `lead_form_submissions` and `chatbot_sessions` keep `tenant_id` with a FK to `platform.tenants` (their child tables `chatbot_messages`, `lead_form_answers` and `lead_form_submission_question_refs` are tenant-safe through a composite `(tenant_id, …)` FK to the parent instead). Tenant existence is a foundational platform invariant — not a context coupling. Tables in other contexts' schemas carry `tenant_id` as a plain indexed column with no FK (`docs/13-DATABASE_SCHEMA.md` Global Standards).
 
 ```sql
 -- ✅ tenant_id FK to platform.tenants exists only within the platform schema's own tables
@@ -616,10 +618,10 @@ ALTER TABLE platform.lead_form_configs
 
 ### Rule 4 — Self-Contained Events
 
-Events carry all data their consumers need. A consumer **MUST NOT** query another context to fill in data missing from an event.
+Events carry all data their consumers need. A consumer **MUST NOT** read another context's data directly (SQL, another context's repository or entity) to fill in data missing from an event. The only sanctioned cross-context reads are the reviewed ports/adapters under `infrastructure/cross-context/` (e.g. Notification's `notification-booking`/`-customer`/`-staff`/`-platform` adapters), registered in `architecture-policy.json`'s `contextDependencyMatrix.permittedEdges`.
 
 ```typescript
-// ❌ FORBIDDEN — Notification handler querying Customer context
+// ❌ FORBIDDEN — Notification handler querying the Customer context's repository directly
 async handle(event: BookingApproved) {
   const customer = await this.customerRepo.findById(event.customerId); // cross-context query
   await this.send(customer.email, ...);
@@ -664,7 +666,8 @@ If two contexts represent the same real-world data, each owns its own copy. Data
   Both received the email from the BookingRequested event.
 
 ❌ Wrong:
-  Notification queries customer.customers to get the email.
+  Notification runs SQL against customer.customers (or imports the Customer repository) to get the email.
+  (Reading it through the reviewed `notification-customer` cross-context adapter is the sanctioned path.)
 ```
 
 ---

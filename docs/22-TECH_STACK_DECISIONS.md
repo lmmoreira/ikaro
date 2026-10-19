@@ -638,6 +638,7 @@ pubsub-emulator:
 #### Deployment Model
 
 ```bash
+# Illustrative only; real: images live in the Artifact Registry repo `ikaro-registry` (infra/terraform/modules/registry), the backend is capped at 3 max instances (infra/terraform/envs/prod/variables.tf, envs/staging/variables.tf), and it reads DB_HOST / DB_INSTANCE_CONNECTION_NAME / DB_PASSWORD, not DATABASE_URL (apps/backend/src/config/env.validation.ts)
 # Build Docker image
 docker build -t gcr.io/project/ikaro-backend:latest .
 
@@ -705,7 +706,9 @@ kubectl apply -f kubernetes/deployment.yaml
 
 ### Environment Variables
 
-Cloud Run integrates with secrets (See `docs/21-TENANTS_SETTINGS_SCHEMA.md`):
+Cloud Run integrates with secrets (the real list is `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`; they are injected through the `secret_env_vars` of `infra/terraform/modules/cloudrun-service`):
+
+Illustrative only; real: `infra/terraform/modules/cloudrun-service` (`secret_env_vars`) — there is no `.env.prod` file.
 
 ```bash
 gcloud run deploy ikaro-backend \
@@ -766,11 +769,11 @@ backend:
 |-----------|---|---|
 | **Backups** | You script/manage | Automatic, 7-day retention |
 | **Updates** | You schedule/test | Google handles (rolling) |
-| **High Availability** | You build/test | Built-in (replicas) |
+| **High Availability** | You build/test | Available as a Cloud SQL option (not configured here: the instance is ZONAL) |
 | **Monitoring** | You setup | Built-in (Cloud Console) |
 | **Day 1 Cost** | $0 + your time | $10-15/month |
 | **Day 100 Cost** | $100 + ops | $30-50/month |
-| **Reliability** | 99.0% | 99.95% SLA |
+| **Reliability** | 99.0% | Higher with a regional (HA) instance; ours is ZONAL, so the HA SLA does not apply |
 | **On-Call Cost** | Database down = $??? | Google guarantees it |
 
 ### Database Schema
@@ -788,7 +791,7 @@ Fully specified in `docs/13-DATABASE_SCHEMA.md` with:
 ```
 Daily backups (7 retained) included
 ├─ Point-in-time recovery: on in production (`enable_pitr`), off in staging
-├─ Automated for high availability
+├─ Instance is ZONAL (no HA failover configured; HA is a one-click upgrade)
 └─ Zero operational overhead
 ```
 
@@ -928,7 +931,7 @@ resource "google_sql_database_instance" "ikaro" {
 
 #### Secrets Stored
 
-Per `docs/21-TENANTS_SETTINGS_SCHEMA.md` and `docs/14-API_CONTRACTS.md`:
+Per `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`:
 
 ```
 ├─ db-password, db-migrator-password (runtime DML role and DDL-capable migrator role)
@@ -944,6 +947,8 @@ Per `docs/21-TENANTS_SETTINGS_SCHEMA.md` and `docs/14-API_CONTRACTS.md`:
 The authoritative list is `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`. Non-secret values (the Pub/Sub project, bucket names) are plain environment variables, not secrets.
 
 #### Terraform Configuration
+
+Illustrative only; real: `infra/terraform/modules/secrets/main.tf` (no `database-url` secret exists; the backend gets `db-password` as `DB_PASSWORD` through Cloud Run `secret_env_vars`).
 
 ```hcl
 resource "google_secret_manager_secret" "database_url" {
@@ -968,6 +973,8 @@ resource "google_secret_manager_secret_iam_member" "backend_access" {
 ```
 
 #### NestJS Integration
+
+Illustrative only; real: `apps/backend/src/config/env.validation.ts` (Zod-validated `process.env`; secrets arrive as env vars from Cloud Run, no `.env.prod`).
 
 ```typescript
 @Module({
@@ -1037,7 +1044,7 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 - **No cost to switch:** Just configuration changes
 
 ### References
-- Tenants Settings: `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+- Secrets: `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`
 - API Contracts: `docs/14-API_CONTRACTS.md`
 - Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
 
@@ -1182,6 +1189,8 @@ resource "google_sql_database_instance" "postgres" {
 ```
 
 ### Local Development
+
+Illustrative only; real: root `package.json` scripts (`pnpm infra:up`, `pnpm dev`, `pnpm up`; there is no `pnpm start`) and `apps/backend/src/config/env.validation.ts` (`DB_HOST` etc., not `DATABASE_URL`).
 
 ```bash
 # Local setup (docker/docker-compose.yml: postgres, pubsub, gcs, mailhog)
@@ -1368,7 +1377,7 @@ This tech stack integrates with all architectural decisions:
 | `docs/11-ARCHITECTURE.md` | Hexagonal pattern with these technologies |
 | `docs/13-DATABASE_SCHEMA.md` | TypeORM entities + Cloud SQL |
 | `docs/14-API_CONTRACTS.md` | NestJS controllers + Next.js clients |
-| `docs/21-TENANTS_SETTINGS_SCHEMA.md` | Secrets in Secret Manager |
+| `infra/terraform/modules/secrets/main.tf` (`base_secret_ids`) | Secrets in Secret Manager |
 
 ---
 

@@ -218,14 +218,7 @@ pnpm dev
 
 **API calls in local dev:** Browser code calls `/v1`; the Next.js gateway forwards to `BFF_UPSTREAM_URL=http://localhost:3002/v1`.
 
-**MSW (Mock Service Worker):** Optional. Use to develop UI before BFF endpoints exist:
-```typescript
-// app/layout.tsx (dev only)
-if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_MSW === 'true') {
-  const { worker } = await import('../mocks/browser');
-  await worker.start();
-}
-```
+**Stubbing BFF calls:** the repo does not use MSW (no `msw` dependency, no `apps/web/mocks`, no `NEXT_PUBLIC_MSW` flag). To develop UI before a BFF endpoint exists, run against the local BFF (`pnpm dev`); in tests, `apps/web` specs stub the network with Vitest, either spying on `fetch` (e.g. `vi.spyOn(globalThis, 'fetch')`, see `apps/web/shared/lib/health/check-bff-readiness.spec.ts`) or mocking the shared BFF-transport helper with `vi.mock()` (see `apps/web/features/loyalty/dashboard-api.server.spec.ts`). Details: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure.
 
 **Hotsite local testing:** Visit `http://localhost:3000/<tenant-slug>` (e.g. `http://localhost:3000/autowash-pro`). The `[slug]` route fetches the manifest from the local BFF which calls the local backend.
 

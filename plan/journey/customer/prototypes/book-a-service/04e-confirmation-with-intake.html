@@ -16,7 +16,7 @@
     FILE:      apps/web/features/booking/components/public/ConfirmationStep.tsx
     DIFFERENCE vs guest: submit calls createAuthenticatedBooking() instead of createBooking()
 
-    ON SUBMIT — calls createAuthenticatedBooking(payload) (new function in lib/api/bookings.ts):
+    ON SUBMIT — calls createAuthenticatedBooking(payload) (new function in apps/web/features/booking/api/public.ts):
       POST /bookings/authenticated
       Header: Authorization: Bearer <jwt>  (cookie → BFF extracts, forwards X-Actor-*)
       Content-Type: application/json

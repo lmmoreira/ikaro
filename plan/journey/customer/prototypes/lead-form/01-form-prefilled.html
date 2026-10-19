@@ -15,11 +15,11 @@
 <body>
 
   <!--
-    COMPONENT (GAP): LeadFormPage — same page as guest/prototypes/lead-form/01-form.html,
+    COMPONENT (built, M20-S09): LeadFormPage — same page as guest/prototypes/lead-form/01-form.html,
     but the visitor is an authenticated Customer: name/email/phone are pre-filled from the
     Customer profile (editable, visible autofill — not hidden), and customerId is linked
     server-side from the JWT sub, never shown to the visitor as a separate field (UC-040 main flow).
-    FILE: apps/web/app/[slug]/lead-form/page.tsx (GAP — shared with guest)
+    FILE: apps/web/app/[slug]/lead-form/page.tsx (built, M20-S09 — shared with guest)
     BFF CALL: same GET /public/platform/lead-form/:slug, but an authenticated request also
     resolves GET /customers/me server-side to pre-fill the three fields.
   -->

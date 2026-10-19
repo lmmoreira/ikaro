@@ -37,5 +37,5 @@ POST /v1/class-sessions/:id/waitlist   -- requires authentication; guest hits UC
 
 ## Open questions / gaps
 
-- [ ] Stories exist: `M24-S19`, `M24-S20` — each still begins with `/story-discovery`.
+- [x] Stories exist: `M24-S19`, `M24-S20` — each still begins with `/story-discovery`.
 - [ ] `04-business-profile.html`'s scope (in vs. out of this milestone) needs confirmation.

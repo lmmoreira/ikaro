@@ -398,6 +398,7 @@ interface HotsiteBusinessInfoResponse {
 interface HotsiteManifestResponse extends HotsiteResponse {
   tenant: TenantInfoResponse;
   business: HotsiteBusinessInfoResponse;
+  // (partial: the full manifest also carries `localization` and `booking?`, see section 1)
 }
 ```
 
@@ -718,7 +719,7 @@ pnpm infra:up && pnpm dev
 Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 **Testing different branding / module configs:**
-1. Provision tenants via CLI (UC-024): `pnpm --filter backend tenant:create --slug autowash-pro ...`
+1. Provision tenants (UC-024) through `POST /internal/tenants` (operator-only; see `docs/RUNBOOKS.md`'s "Provision a tenant" flow), or load the local seed data with `pnpm db:seed` (there is no `tenant:create` script)
 2. Visit `http://localhost:3000/autowash-pro` — each slug resolves its own manifest
 3. Edit `hotsite_configs` directly in the local DB or use the dashboard at `http://localhost:3000/dashboard`
 
@@ -730,7 +731,7 @@ Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 **Custom domains (post-MVP):** Cloud Run domain mapping allows `autowashpro.com.br` to point to the same service. Next.js middleware reads the `Host` header and uses it as the slug lookup key — no code changes needed.
 
-**CI/CD:** Part of the `apps/web/` pipeline — `ci-frontend.yml` + `deploy-frontend.yml`. No separate pipeline.
+**CI/CD:** Part of the shared pipelines (`pr-quality.yml`, `pr-tests.yml`, `deploy-staging.yml`, `deploy-production.yml`); `apps/web/` is built and deployed there. No separate hotsite pipeline.
 
 ---
 
@@ -774,7 +775,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 ### Sitemap & robots
 
-- `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`lib/api/platform.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`
+- `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`apps/web/features/platform/api.server.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`
 - `app/robots.ts` allows `/`, disallows `/dashboard` and `/auth`, and references `${SITE_URL}/sitemap.xml`
 
 ### Published hotsites listing endpoint

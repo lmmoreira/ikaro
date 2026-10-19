@@ -186,7 +186,7 @@ apps/web/
 ### Web placement rules
 
 - Domain-owned code lives under `features/<domain>/`.
-- Feature-local transport helpers: `auth`, `customer` and `loyalty` use flat `api.ts` (client-safe) and `api.server.ts` (server-only) at the feature root; `booking` and `staff` use an `api/` folder with `<resource>.ts` / `<resource>.server.ts` files; `platform` has both the flat files and an `api/` folder. Follow the convention of the feature you are editing.
+- Feature-local transport helpers: `customer` and `loyalty` use flat `api.ts` (client-safe) and `api.server.ts` (server-only) at the feature root, and `auth` only a flat `api.ts`; `booking` and `staff` use an `api/` folder with `<resource>.ts` / `<resource>.server.ts` files; `platform` has both the flat files and an `api/` folder. Follow the convention of the feature you are editing.
 - Feature-local non-transport shared logic belongs in sibling folders such as `model/`, `hooks/`, `components/`, or `utils/`, depending on the concern.
 - `features/platform/hotsite` owns hotsite page-model logic, manifest shaping, and public fetchers.
 - `shells/dashboard` owns authenticated dashboard composition and shell-only presentation.

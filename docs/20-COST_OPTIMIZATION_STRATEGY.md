@@ -46,9 +46,9 @@ Use "Serverless Containers" (GCP Cloud Run). If no one is using the app at 3 AM,
 
 ### **C. Managed Database vs. VPS**
 While a $5 VPS can run Postgres, a **Cloud SQL** instance (starting at ~$15) provides:
-- Automatic Point-in-Time recovery (Backups).
+- Automated daily backups, plus Point-in-Time recovery where enabled (`enable_pitr`: off in staging, on in production).
 - Automatic security patches.
-- 99.9% availability.
+- Managed availability (the instance is currently ZONAL — `infra/terraform/modules/database/main.tf` — no HA/regional failover is configured, so no HA SLA applies yet).
 **Benefit:** Prevents a $50,000 loss from data corruption to save $10/month.
 
 ---

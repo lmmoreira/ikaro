@@ -210,7 +210,7 @@ flowchart TD
     MinhasTurmas -->|"Clica card em fila"| TurmaWaitlist["❓ GAP: mesma rota, status WAITLISTED/PROMOTION_PENDING<br/>Fila/oferta (09b-turma-detail-waitlist)"]
     MinhasTurmas -->|"'Ver agenda de turmas'"| Catalog["❓ GAP: /{slug}/aulas<br/>(journey: reservar-aula.md)"]
 
-    TurmaDetail["❓ GAP: /{slug}/my-account/turmas/[id]<br/>Detalhe (09-turma-detail)"] -->|"tipo série"| TurmaSerieDetail["❓ GAP: mesma rota, variante série<br/>(09c-turma-detail-serie)"]
+    TurmaDetail["❓ GAP: /{slug}/my-account/turmas/[enrollmentId]<br/>Detalhe (09-turma-detail)"] -->|"tipo série"| TurmaSerieDetail["❓ GAP: mesma rota, variante série<br/>(09c-turma-detail-serie)"]
     TurmaDetail -->|"'Pular' (sessão futura)"| PularSessao
     TurmaDetail -->|"'Cancelar matrícula'"| CancelarMatricula
 
