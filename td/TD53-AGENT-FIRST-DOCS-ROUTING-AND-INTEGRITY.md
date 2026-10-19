@@ -761,7 +761,7 @@ This story rewrites lines across the whole repository, so it is **not batchable*
 - `.prettierignore`, `.dockerignore`
 
 **Acceptance criteria — product:**
-- [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`.
+- [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`, plus this TD's own narrative (it names the old path as the subject of the move and carries `doc-link:example` markers).
 - [ ] Every relative `href`/`src` in the moved HTML prototypes still resolves (one-off script run, result recorded in the PR).
 - [ ] `docs-for --tag prototypes` still lists the journeys.
 
