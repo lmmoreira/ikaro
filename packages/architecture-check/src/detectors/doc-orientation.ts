@@ -14,7 +14,7 @@ export type { DocOrientationPolicy, DocTagDefinition };
 const RULE = 'doc-orientation';
 const POLICY_FILE = 'packages/architecture-check/architecture-policy.json';
 
-// Every top-level docs/*.md opens with a `When to load` line and a `Tags` line, so an agent can
+// Every top-level docs/*.md (and journeys/README.md) opens with a `When to load` line and a `Tags` line, so an agent can
 // decide from the first lines whether to read on, and `docs-for` can map changed code to docs.
 // `files` is every repository file that exists, so a tag's globs are judged against the live tree.
 export function checkDocOrientation(

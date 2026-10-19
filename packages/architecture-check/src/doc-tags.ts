@@ -52,10 +52,12 @@ export interface DocsForResult {
 const WHEN_TO_LOAD_REGEX = /^>\s*\*\*When to load:\*\*\s*(.*)$/;
 const TAGS_REGEX = /^>\s*\*\*Tags:\*\*\s*(.*)$/;
 const TITLE_REGEX = /^# /;
-const TOP_LEVEL_DOC_REGEX = /^docs\/[^/]+\.md$/;
+// Every top-level docs/*.md, plus the journeys index: it is the one entry point to the prototypes,
+// the other files under journeys/ are screens and per-journey specs without a header contract.
+const ORIENTATION_DOC_REGEX = /^(?:docs\/[^/]+\.md|journeys\/README\.md)$/;
 
 export function isOrientationDoc(path: string): boolean {
-  return TOP_LEVEL_DOC_REGEX.test(path);
+  return ORIENTATION_DOC_REGEX.test(path);
 }
 
 // The header sits under the `# Title` and inside the first `headerLines` lines; a field above the

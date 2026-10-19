@@ -759,10 +759,12 @@ This story rewrites lines across the whole repository, so it is **not batchable*
 - `packages/architecture-check/architecture-policy.json` (`prototypes` glob under `docOrientation`; `markdownSources`)
 - `packages/architecture-check/src/detectors/doc-link-integrity.ts` and `doc-link-integrity.spec.ts` (new root)
 - `.prettierignore`, `.dockerignore`
+- `packages/architecture-check/src/doc-tags.ts` and its specs (`isOrientationDoc` also accepts `journeys/README.md`, so `docs-for --tag prototypes` lists the journeys index; found by Codex in review, the Tags line alone never made it discoverable)
+- Six prototype HTML files under `journeys/` (`href` values and one redirect only), repairing the 15 targets that were already broken before the move
 
 **Acceptance criteria — product:**
 - [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`, plus this TD's own narrative (it names the old path as the subject of the move and carries `doc-link:example` markers).
-- [ ] The move breaks no relative `href`/`src` in the moved HTML prototypes: a one-off script resolves every one before and after and the broken set is identical (2026-10-19 measurement: 3,760 refs, the same 15 broken both times, all old discovery-era file names that predate this story; repairing them changes journey content and is outside this move). Result recorded in the PR.
+- [ ] Every relative `href`/`src` in the moved HTML prototypes resolves (one-off script run, result recorded in the PR). The 15 targets that were already broken before the move (old discovery-era file names) are repaired in the same PR, so the count is 0 of 3,760.
 - [ ] `docs-for --tag prototypes` still lists the journeys.
 
 **Acceptance criteria — technical:**
