@@ -55,7 +55,7 @@ Rejected, with the condition to reopen:
 | Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 (two docs deleted or moved by 3B) |
 | Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 |
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
-| Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
+| Always-on `context.md` size | 57,647 chars | no target set: Story 5A did not recommend one, and 5B (optional, in-place trimming only) sets it in its own discovery if it runs | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B | 0 (`docs/archive` and `docs/lean` no longer exist; the archive is the top-level `archive/`) |
 | Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | 0 (Story 3D re-inventory, 2026-10-19: 3 collapsed to a pointer, 1 table row corrected, 5 were already one sentence or a detector row, so no full explanation is duplicated) |
 
@@ -257,6 +257,7 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 | Area: bff | 3 | 1,222 | Guard-rejected middleware, `Request.user` typing, BFF naming | nested context for `apps/bff` |
 | Workflow-scoped | 11 | 6,574 | §9's step mechanics (commit format, push, `/pre-pr`, PR body, bot-fix loop), worktree and mark-done steps, three bot-review discipline bullets, the infra live-verification bullet | the skills that already carry them (`/pre-pr`, `/pr-land`, `/mark-done`, `/story-discovery`); only the gates stay inline |
 
+- **Superseded by Story 5A (2026-10-19):** the "nested context for …" destinations in the table above were rejected by the owner (a context file per directory is a smell); area scoping stays the single root file's links to `docs/`. The classification still shows which bullets are area- or workflow-scoped, for any in-place trimming.
 - **Upper bound, not a prediction.** Area and workflow units total 24,772 characters, about 55% of §0–§9. Story 5A decides whether a nested file loads in each agent tool at all, and Story 5B must still run the ablation on each bullet it proposes to move or shorten (Story 2's n=2 result: the CHECK-constraint bullet steers, the LIKE-escaping bullet currently does not).
 - **Duplicates inside the file.** §0's autonomous-chain bullet (861 characters) and §9's READY paragraph (212) state the same authorization; keep §0's gate and cut the §9 restatement. §8's table says it holds the 11 highest-severity rows; 7 of them name a single app (`useExisting`, the cross-context port, the VO error, raw SQL in a non-repository, `@Global()` exports, the BFF mapper, `--ba-*`), so they are movable, and 4 are cross-layer.
 - **Story 2's inventory stands** and is not redone here: the 13 CI-enforced bullets (about 3.5 KB) shrink to a name and the gate; the 1 KB of model-known content (PR body template, commit examples, CI-gates list) compresses without an experiment.
@@ -354,7 +355,7 @@ graph TD
   S3C --> S6
 ```
 
-Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waits for its result.
+Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waited for its result. Story 5A (2026-10-19) cancelled 5B's nested-file move, so 5B now runs only if the owner wants the in-place trimming of `context.md`, and Story 6 does not wait for it when it is not run.
 
 **Closing audit — one final run, then stop.** Story 3A's convergence passes did not reach zero (about 169, 123, then 102 findings; see its Decision record), and a repeated audit can always find more in the largest docs, so the loop must have an end. The **last story that actually runs** (Story 6 if it gets its go; otherwise whichever of Stories 3C, 4, 5A and 5B runs last) ends with **one** full `/docs-audit` of `docs/`, `plan/`, `td/` and `plan/journey/` (or its new `journeys/` location), run once after every move, rename and trim has landed so it checks the final layout and not a layout that is about to change. Its findings are fixed in the same PR, its counts are recorded beside Story 3A's table, and that closes the documentation baseline: it is **not** repeated unless a later change to the code or the docs gives a specific reason. Story 3C's Decision record names which story carries it.
 
@@ -760,7 +761,7 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 - [ ] `/docs-audit changed` over the move range reports zero dead pointers
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 5A — Spike: which agent tools load path-scoped context, and how ⚪
+### Story 5A — Spike: which agent tools load path-scoped context, and how ✅ Done
 
 **Agent:** devops
 **Complexity:** S
