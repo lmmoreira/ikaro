@@ -51,7 +51,7 @@ Rejected, with the condition to reopen:
 
 | Metric | Baseline | Target | Story | After (Story 3C, 2026-10-19) |
 |---|---|---|---|---|
-| Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 | 0 at each of Story 3A's passes; held by `doc-link-integrity` in CI |
+| Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 | 0 at each of Story 3A's passes (historical); this PR's own CI run (`Architecture validation`, which includes `doc-link-integrity`) also passed, so the current tree is clean. Enforced in CI from Story 0 |
 | Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 (two docs deleted or moved by 3B) |
 | Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 |
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
@@ -624,18 +624,18 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** the Decision record above; `plan/journey/README.md`; `.copilot/context.md` §15
-**Dependencies:** Story 0 (the checker proves the move), Story 3A (the audit baseline fixes journey drift first, so stale `dev-notes.md` content is not moved) and Story 3C (the go decision and destination). **Gated:** runs only on an explicit go in the Decision record; agent value is low and the cost is large.
+**Dependencies:** Story 0 (the checker proves the move), Story 3A (the audit baseline fixes journey drift first, so stale `dev-notes.md` content is not moved) and Story 3C (the go decision and destination). **Gated:** runs only on an explicit go in the Decision record; agent value is low and the cost is large. **Go recorded 2026-10-19** (Story 3C's Decision record, with the measured cost shown).
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite every outside citation with a script (about 790 occurrences plus 51 inside the subtree), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments, `td/TD50`, and any root config Story 3C listed. No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. **Tags:** update the `prototypes` tag's globs in `architecture-policy.json` (`docOrientation`) to the new location, and give the journeys index doc (`plan/journey/README.md`, or its replacement at the new path) a `Tags` line, so `docs-for --tag prototypes` keeps finding the journeys; Story 1's `doc-orientation` fails if that tag's globs match nothing, which makes a forgotten update visible. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite all 879 occurrences with a script (828 outside the subtree in 139 files, 51 inside it in 40 files; measured by Story 3C, regenerate at implementation time), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments and `td/TD50`. No root config needs an edit (Story 3C checked `.gitignore`, `.coderabbit.yaml`, `sonar-project.properties` and `knip.config.ts`: none names the path). No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. **Tags:** update the `prototypes` tag's globs in `architecture-policy.json` (`docOrientation`) to the new location, and give the journeys index doc (`plan/journey/README.md`, or its replacement at the new path) a `Tags` line, so `docs-for --tag prototypes` keeps finding the journeys; Story 1's `doc-orientation` fails if that tag's globs match nothing, which makes a forgotten update visible. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
 - The `plan/journey/**` subtree (`git mv`, 407 files)
-- Every file returned by `grep -rl "plan/journey"` at implementation time (about 125 outside the subtree; regenerate then)
-- Root config Story 3C confirmed contains the path
+- Every file returned by `grep -rl "plan/journey"` at implementation time (139 measured outside the subtree; regenerate then)
+- `packages/architecture-check/architecture-policy.json` (the `prototypes` glob under `docOrientation`); no root config edit is required
 
 **Acceptance criteria — product:**
 - [ ] No tracked file cites the old path after the move.
@@ -737,7 +737,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** `docs/README.md`; `.copilot/context.md` §10, §17; `.claude/commands/docs-audit.md`; the Decision record above
-**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 (if approved) and Story 5B (they edit the same files and lines; this story runs last so nothing is rewritten twice), Stories 3B and 3C (the deletions and moves are done first, and the go decision is recorded). **Gated:** runs only on an explicit go in the Decision record; an agent gains little from dropping the numbers, so the cost must be shown against the benefit first.
+**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 (if approved) and Story 5B (they edit the same files and lines; this story runs last so nothing is rewritten twice), Stories 3B and 3C (the deletions and moves are done first, and the go decision is recorded). **Gated:** runs only on an explicit go in the Decision record; an agent gains little from dropping the numbers, so the cost must be shown against the benefit first. **Go recorded 2026-10-19** (Story 3C's Decision record, with the measured cost shown); it also carries the closing audit.
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
