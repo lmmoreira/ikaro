@@ -1007,17 +1007,17 @@ for (const { provide, useValue } of overrideProviders) {
 
 **When adding a new shared module with a network-calling adapter:** update every integration app helper that imports that module (directly or via `extraModules`) to add a default override for the new token. See the consolidated table below (after the `EVENT_BUS`/`OUTBOX_PUBLISHER` section) for the current per-helper override list, including `STORAGE_SERVICE`.
 
-**Root cause gotcha — `useExisting` vs `useClass`:** register the adapter with `useClass`, never `useExisting`.
+**Root cause gotcha — `useExisting` vs `useClass`:** register a replaceable adapter token with `useClass`, never as `useExisting` of a class that is also its own provider.
 
 ```ts
 // Wrong: GcsSignedUrlAdapter is also registered as its own standalone provider
 providers: [GcsSignedUrlAdapter, { provide: STORAGE_SERVICE, useExisting: GcsSignedUrlAdapter }]
 
-// Right: the adapter is only instantiated when the token is requested
+// Right: the class exists only as the provider of the token, so overriding the token drops it
 providers: [{ provide: STORAGE_SERVICE, useClass: GcsSignedUrlAdapter }]
 ```
 
-`useExisting` only creates an alias, while the class stays registered as a standalone provider and is instantiated unconditionally. Overriding `STORAGE_SERVICE` in a test then removes the alias but not the class, so the adapter's `onApplicationBootstrap` network calls still run. With `useClass` NestJS builds the adapter only when the token is requested, so a test override prevents the instantiation entirely. CI-enforced by `packages/architecture-check`'s `di-alias` detector (it reports this case as rule `unsafe-use-existing`); `docs/ANTI_PATTERNS.md` keeps a row for it, and a second row covers the reverse alias direction (`reverse-di-alias`).
+Nest instantiates every provider in the module graph when the application bootstraps. `useExisting` only creates an alias, while the class stays registered as a standalone provider, so overriding `STORAGE_SERVICE` in a test replaces the alias but not the class, and the adapter's `onApplicationBootstrap` network calls still run. With `useClass` the class has no provider of its own: the override replaces the provider registered under the token before the testing module is compiled, so nothing constructs the adapter. A token-to-token alias (`{ provide: TRIGGER_BUS, useExisting: EVENT_BUS }` in `event-bus.module.ts`) is not this case. CI-enforced by `packages/architecture-check`'s `di-alias` detector (it reports this case as rule `unsafe-use-existing`); `docs/ANTI_PATTERNS.md` keeps a row for it, and a second row covers the reverse alias direction (`reverse-di-alias`).
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 

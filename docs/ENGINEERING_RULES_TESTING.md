@@ -68,7 +68,7 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-Register an adapter with `useClass`, never `useExisting`: see `docs/08-TESTING_STRATEGY.md` § Integration app helpers — mandatory default overrides for network-calling adapters (the root cause and the before/after example).
+Register a replaceable adapter token with `useClass`; `useExisting` is wrong only when its target class is also registered as its own provider. See `docs/08-TESTING_STRATEGY.md` § Integration app helpers — mandatory default overrides for network-calling adapters (the root cause and the before/after example).
 
 ### Notification spec setup
 
