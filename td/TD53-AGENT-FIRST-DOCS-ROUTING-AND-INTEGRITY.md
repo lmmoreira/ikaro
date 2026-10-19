@@ -309,7 +309,7 @@ Both stories were originally costed at about 790 and 2,662 occurrences; the tree
 
 **Recommendation for Story 5B: a per-tool mix, with nested context files as the mechanism, not `.claude/rules`.** Do not cancel 5B.
 - Move area-scoped bullets into a nested `context.md` per area (three symlinks each) for Claude Code, where on-demand loading is confirmed.
-- Keep a one-line pointer per area in the always-on file ("rules for `apps/backend` live in `apps/backend/context.md`; read it before editing there") so Codex, and Gemini until tested, still reach the rule. The rule text itself exists once, in the nested file. 5B's discovery decides how many bullets this pointer approach can carry; for any bullet the ablation shows depends on being in context (the CHECK-constraint bullet), 5B keeps it always-on.
+- Keep a one-line pointer per area in the always-on file ("rules for `apps/backend` live in `apps/backend/context.md`; read it before editing there") so Codex still reaches the rule. Gemini's rules stay in the always-on file until a real session confirms both the filename and the on-demand load; no pointer is relied on for it. The rule text itself exists once, in the nested file. 5B's discovery decides how many bullets this pointer approach can carry; for any bullet the ablation shows depends on being in context (the CHECK-constraint bullet), 5B keeps it always-on.
 - Treat Codex as always-on for any rule that must fire without the agent choosing to read a file. 5B's step 4 re-runs each moved trap in Codex with the pointer and records whether it fires; a trap that does not fire stays in the always-on file.
 - Do not move anything for Gemini until a real session confirms both the filename and the on-demand load.
 - The size saving is therefore for Claude Code sessions only; Codex and Gemini keep the always-on cost for rules the pointer cannot carry.
@@ -764,7 +764,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 - `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record)
 
 **Acceptance criteria — product:**
-- [ ] For each tool, the Decision record states whether and when path-scoped context loads, with evidence from a real session.
+- [ ] For each tool, the Decision record states whether and when path-scoped context loads, with evidence from a real session. Gemini CLI is not installed here, so its row is from published documentation and is marked not tested (agreed in `/story-discovery`, 2026-10-19); a live Gemini session is left to whoever first runs one, and 5B moves nothing for Gemini until then.
 - [ ] The Decision record states the 5B recommendation, including the case where one tool keeps everything always-on.
 
 **Acceptance criteria — technical:**
