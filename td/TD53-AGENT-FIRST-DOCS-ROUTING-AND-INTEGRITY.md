@@ -624,7 +624,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - E2E: none
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 3D — Collapse the nine doubly-explained rules to one canonical home each ⚪
+### Story 3D — Collapse the nine doubly-explained rules to one canonical home each ✅ Done
 
 **Agent:** devops
 **Complexity:** M
