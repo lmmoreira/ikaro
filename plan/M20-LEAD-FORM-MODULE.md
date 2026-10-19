@@ -312,7 +312,7 @@ BFF: same two endpoints added to S01's `lead-form.controller.ts` (BFF side), `ST
 **Agent:** `frontend-ts`
 **Complexity:** S
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 3 (Module Library), § LEAD_FORM, § 7 (Adding a New Module checklist), `docs/04-USE_CASES.md` UC-038
-**Prototype reference:** `plan/journey/guest/prototypes/lead-form/` (teaser shown in context on `plan/journey/shared/hotsite.html`)
+**Prototype reference:** `journeys/guest/prototypes/lead-form/` (teaser shown in context on `journeys/shared/hotsite.html`)
 
 **Description:**
 Follow `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 7's checklist exactly, for the 10th module type:
@@ -332,7 +332,7 @@ Follow `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 7's checklist exactly, for t
 - [ ] A newly-provisioned tenant's manifest can include a `LEAD_FORM` module row without the Manifesto tab rejecting it
 - [ ] Component + Vitest unit test + React Testing Library test (`jsdom`)
 - [ ] Localization-ready — no hardcoded copy beyond what's genuinely tenant-authored (title/subtitle/CTA are tenant content, not UI chrome, so no `useTranslations()` needed for those specifically — confirm against `BookingCtaModule.tsx`'s own precedent)
-- [ ] `plan/journey/guest/submit-lead-form.md`'s "Pages referenced" table — the "Hotsite teaser section" row's Story column set to `M20-S07` and Status flipped from `❌ Gap` to `✅ Done`, in the same commit that ships `LeadFormModule.tsx`
+- [ ] `journeys/guest/submit-lead-form.md`'s "Pages referenced" table — the "Hotsite teaser section" row's Story column set to `M20-S07` and Status flipped from `❌ Gap` to `✅ Done`, in the same commit that ships `LeadFormModule.tsx`
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 **Dependencies:** None (frontend-only, no backend read needed for the teaser).
@@ -344,7 +344,7 @@ Follow `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 7's checklist exactly, for t
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-037, `docs/14-API_CONTRACTS.md` § Lead Form Admin Config, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
-**Prototype reference:** `plan/journey/manager/prototypes/lead-form/` (`01-config.html`, `01b-config-max-questions.html`, `01c-config-validation-error.html`, `01d-remove-question-confirm.html`)
+**Prototype reference:** `journeys/manager/prototypes/lead-form/` (`01-config.html`, `01b-config-max-questions.html`, `01c-config-validation-error.html`, `01d-remove-question-confirm.html`)
 
 **Description:**
 `apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already implements. "Aplicar" keeps the existing hotsite-editor meaning: it commits the panel edit to the editor's temporary local draft and makes no network request. When the manager later clicks "Publicar", the lead-form teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` are sent together through the consolidated `PATCH /v1/tenants/hotsite` (folded in during this story's own implementation — `audienceMode`/`questions` became two optional extra fields on that existing hotsite-content endpoint rather than a separate `PATCH /v1/tenants/lead-form/config`; see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"), saved atomically in one backend transaction. The request is one lead-form configuration save, not a client-side orchestration of separate teaser and audience/questions calls. An earlier draft of this panel made two independent, unsynchronized REST calls (teaser via `PATCH /v1/tenants/hotsite`, audience/questions via a separate endpoint), which could leave the manager's edit half-applied on a partial failure; that design was replaced before implementation. The module's `enabled` toggle goes through this same `PATCH /v1/tenants/hotsite` endpoint too, but as a separate, pre-existing action (the same inline toggle every other module's Layout-tab row already has) — it's not part of this panel's "Aplicar" action.
@@ -375,7 +375,7 @@ The panel remains an in-place `HotsiteEditor` module-config view; no new `/dashb
 **Agent:** `frontend-ts` (+ a small, contained `apps/bff` auth extension — see "OAuth `returnTo`" below; deliberately kept in this story rather than split out, since nothing else needs it yet)
 **Complexity:** L
 **Docs to load:** `docs/04-USE_CASES.md` UC-039, UC-040, `docs/14-API_CONTRACTS.md` § Lead Form Widget (Public), `docs/24-BFF_ARCHITECTURE.md` § OAuth state `returnTo` (M20-S09)
-**Prototype reference:** `plan/journey/guest/prototypes/lead-form/` (`01-form.html` + all lettered variants) + `plan/journey/customer/prototypes/lead-form/` (`01-form-prefilled.html`)
+**Prototype reference:** `journeys/guest/prototypes/lead-form/` (`01-form.html` + all lettered variants) + `journeys/customer/prototypes/lead-form/` (`01-form-prefilled.html`)
 
 **Description:**
 `apps/web/app/[slug]/lead-form/page.tsx` — one shared page/component for both guest and authenticated-customer, matching the prototype's own explicit design (not two components). Thin server component, mirroring `/[slug]/booking/page.tsx`'s shape exactly: resolves the manifest, finds the `LEAD_FORM` module in `manifest.layout`, renders the existing `<Unavailable/>` component when absent/disabled — **new logic**, since no prior hotsite module had a dedicated page checking its own `enabled` flag this way (the closest analog, `/[slug]/booking`, only checks `manifest.isPublished`) — then renders the client widget below, passing the module's own `title`/`subtitle`/`eyebrow` teaser data as the page's heading copy (the dedicated page continues the same manager-authored copy the teaser section shows, exactly like the prototype's `01-form.html` heading matches `shared/hotsite.html`'s `.lead-form-teaser` heading verbatim — this is *not* a fixed i18n page title the way `/[slug]/booking`'s is).
@@ -433,7 +433,7 @@ The panel remains an in-place `HotsiteEditor` module-config view; no new `/dashb
 **Agent:** `frontend-ts` (+ a small, contained backend + BFF field addition — see "Guest vs. customer indicator" below)
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` UC-041 (Trigger — gating), `docs/14-API_CONTRACTS.md` § Leads Submissions (Admin) + § Lead Form Status, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
-**Prototype reference:** `plan/journey/manager/prototypes/leads/` (`01-submissions-list.html`, `01b-submissions-empty.html`, `02-submission-detail.html`)
+**Prototype reference:** `journeys/manager/prototypes/leads/` (`01-submissions-list.html`, `01b-submissions-empty.html`, `02-submission-detail.html`)
 
 **Description:**
 `apps/web/app/dashboard/leads/page.tsx` (paginated list, name/email/phone/submittedAt) and `.../[id]/page.tsx` (read-only detail — full contact info + every question/answer pair in order, plus `submittedAt` and the guest/customer indicator below).
@@ -459,7 +459,7 @@ Empty state (`01b-submissions-empty.html`) links to `/dashboard/hotsite` (S08's 
 - [ ] Mobile "Mais" button is absent for STAFF when the module is disabled, present for STAFF when enabled (opening `MoreSheet` with only "Leads"); present for MANAGER regardless of module state (Equipe/Configurações/Hotsite always shows; "Leads" additionally shows when enabled)
 - [ ] Spanning golden-path E2E passes: config (module gets enabled) → submit → list → detail, and the nav item's visibility flips from absent to present as part of the same flow
 - [ ] Every visible string localized
-- [ ] `plan/journey/manager/lead-form-submissions.md`'s "Pages referenced" table (`/dashboard/leads` and `/dashboard/leads/[id]` rows) and its Prototype table's Status column, plus `plan/journey/manager/prototypes/leads/dev-notes.md`'s File map, flipped from `❌ Gap` to `✅ Done` / `M20-S10`, in the same commit
+- [ ] `journeys/manager/lead-form-submissions.md`'s "Pages referenced" table (`/dashboard/leads` and `/dashboard/leads/[id]` rows) and its Prototype table's Status column, plus `journeys/manager/prototypes/leads/dev-notes.md`'s File map, flipped from `❌ Gap` to `✅ Done` / `M20-S10`, in the same commit
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 **Dependencies:** S06 (admin read endpoints), S01 (status endpoint), S08 (config save — golden-path E2E's first step), S09 (public submission — golden-path E2E's second step).
@@ -471,7 +471,7 @@ Empty state (`01b-submissions-empty.html`) links to `/dashboard/hotsite` (S08's 
 **Agent:** `frontend-ts`
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` UC-042, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 8
-**Prototype reference:** `plan/journey/manager/prototypes/configuracoes/01e-lead-form-section.html`
+**Prototype reference:** `journeys/manager/prototypes/configuracoes/01e-lead-form-section.html`
 
 **Description:**
 Add a "Formulário de contato" section to the existing `apps/web/features/platform/components/settings/SettingsForm.tsx` — three fields, same visual treatment the Chatbot section's fields got: `retentionMonths` (integer 1-24, default 6, suffix "meses"), `maxSubmissionsPerDay` (integer 1-1000, default 100, "limite de envios por dia"), `maxSubmissionsPerIpPerDay` (integer 1-100, default 3, "limite por visitante por dia" — with a short inline hint that a tenant seeing false-positive blocks from legitimate shared-IP traffic, e.g. mobile carriers, should raise this). No client-side length/complexity beyond each field's own numeric bound; the server's three dedicated error codes are the real backstop.
@@ -497,7 +497,7 @@ Add a "Formulário de contato" section to the existing `apps/web/features/platfo
 
 **Dependencies:** S03 (backend/BFF settings extension).
 
-**Also in scope (story-discovery finding, 2026-08-26):** `plan/journey/manager/prototypes/configuracoes/dev-notes.md` is stale — it still marks the Chatbot section "❌ GAP — not yet built" even though `SettingsChatbotSection.tsx` already shipped, and has no Lead Form entry. Fix both in the same commit (see doc update already applied at story-discovery time — flip Chatbot to shipped, add a Lead Form section write-up mirroring Chatbot's).
+**Also in scope (story-discovery finding, 2026-08-26):** `journeys/manager/prototypes/configuracoes/dev-notes.md` is stale — it still marks the Chatbot section "❌ GAP — not yet built" even though `SettingsChatbotSection.tsx` already shipped, and has no Lead Form entry. Fix both in the same commit (see doc update already applied at story-discovery time — flip Chatbot to shipped, add a Lead Form section write-up mirroring Chatbot's).
 
 ---
 
@@ -557,7 +557,7 @@ New endpoint: `GET /v1/tenants/lead-form/submissions/filter-options` → `{ ques
 **Agent:** `frontend-ts`
 **Complexity:** S
 **Docs to load:** `docs/04-USE_CASES.md` UC-041 (steps 3-5, A3-A5), `docs/14-API_CONTRACTS.md` § Leads Submissions (Admin)
-**Prototype reference:** `plan/journey/manager/prototypes/leads/` (`01-submissions-list.html` updated with a search box + date range, `01d-advanced-filters.html`, `01c-search-no-results.html`)
+**Prototype reference:** `journeys/manager/prototypes/leads/` (`01-submissions-list.html` updated with a search box + date range, `01d-advanced-filters.html`, `01c-search-no-results.html`)
 
 **Description:**
 Add a **basic** search input above the list on `apps/web/app/dashboard/leads/page.tsx`, wired to S12's `?search=`. **Button-driven, not live/debounced (locked in at story-discovery, 2026-08-27 — overrides an earlier debounced draft):** the search box and the date range control (below) share one **"Aplicar"/"Limpar"** button pair — typing into the search box or picking dates does nothing by itself; clicking **"Aplicar"** submits the search term (when non-empty) together with any active date range in one navigation; **"Limpar"** clears the search box and date range together, back to the unfiltered list, without leaving basic mode. Add an **"+ Adicionar filtro"** affordance that reveals structured filter rows — each a [pergunta ▾] (populated from `GET .../submissions/filter-options`) + [valor] pair, repeatable, wired to `?filters=` as a JSON-encoded array; this **advanced** mode gets its own **"Aplicar filtros"/"Limpar filtros"** pair governing the filter rows *and* the date range together (same button-driven shape as basic mode — neither the rows nor the range are live-typed), staying in advanced mode. Basic search and advanced filters are alternative *modes*, switched via a **"Busca avançada"/"Voltar para busca simples"** toggle — switching modes clears the other mode's active query (matching S12's mutually-exclusive backend contract) but never clears the shared date range control. **No 3-character minimum (revised during M20-S13 implementation, 2026-08-27 — reverses S12's original AC bullet):** the backend's `pg_trgm` index limitation is real, but rejecting a short search outright over-weighted it against this feature's actual (small) data volume, and made real short answers (an age, "25") unsearchable; both layers now only require the term to be non-empty. An empty search box is simply "no search active," not an error state — Aplicar has no disabled state to guard against.
@@ -583,8 +583,8 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 - [ ] Zero-match state shows `01c-search-no-results.html`'s distinct copy, not S10's "no submissions" state
 - [ ] Opening a submission's detail from a filtered/searched list and clicking "back" restores the exact list state (mode, search/filters, date range, page) — not always the bare unfiltered basic view (added during M20-S13 implementation, 2026-08-27, via a row-link `?returnTo=` param and `Topbar.tsx`'s `backHrefOverride`)
 - [ ] Every visible string localized
-- [ ] `plan/journey/manager/lead-form-submissions.md`'s Status line and `plan/journey/manager/prototypes/leads/dev-notes.md`'s Status line, both flipped from "search... tracked by M20-S12/S13" to reflect S13 done, in the same commit
-- [ ] `plan/journey/manager/prototypes/leads/index.html`'s stale "GAP" tags (predating S10, never updated) corrected to reflect real status for every screen in the folder, in the same commit
+- [ ] `journeys/manager/lead-form-submissions.md`'s Status line and `journeys/manager/prototypes/leads/dev-notes.md`'s Status line, both flipped from "search... tracked by M20-S12/S13" to reflect S13 done, in the same commit
+- [ ] `journeys/manager/prototypes/leads/index.html`'s stale "GAP" tags (predating S10, never updated) corrected to reflect real status for every screen in the folder, in the same commit
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 **Dependencies:** S10 (extends its list page), S12 (needs `search`/`filters`/`filter-options`/date-range params).

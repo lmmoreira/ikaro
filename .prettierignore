@@ -10,6 +10,7 @@ coverage/
 # Documentation — manually formatted, not subject to Prettier
 docs/
 plan/
+journeys/
 .agents/
 .copilot/
 *.md

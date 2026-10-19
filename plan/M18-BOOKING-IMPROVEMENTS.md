@@ -304,7 +304,7 @@ Reuses `dashboard.hotsitePage.layout.configShell.applyLabel` ("Aplicar"/"Apply")
 
 ### Resolved during `/story-discovery M18-S02` (2026-07-28)
 
-1. **No `plan/journey/` prototype required.** This is a minor, self-contained addition (a textarea) to an already-shipped, already-validated screen — not a new journey. Consistent with M18-S01, which also shipped in this same milestone without a cited prototype.
+1. **No `journeys/` prototype required.** This is a minor, self-contained addition (a textarea) to an already-shipped, already-validated screen — not a new journey. Consistent with M18-S01, which also shipped in this same milestone without a cited prototype.
 2. **i18n footprint minimized by reuse, not by skipping it.** i18n itself is non-negotiable here — every other string on this screen already goes through `useTranslations()`/locale-file keys (this is how the codebase's dual pt-BR/en support works, enforced by a CI exhaustiveness check), so a hardcoded "Manifesto" label would be the one inconsistent, untranslated string on the page. What *was* trimmed: the Aplicar button and the "applies to draft, not yet public" hint reuse the already-shipped `layout.configShell.applyLabel`/`.description` keys instead of duplicating them under a new `manifest.*` block — only the tab label and the invalid-JSON error message are genuinely new copy (Part 5).
 
 ### Dependencies
@@ -318,7 +318,7 @@ None — `PATCH /tenants/hotsite` already accepts partial `branding`/`layout`/`s
 **Agent:** `fullstack-ts`
 **Complexity:** L
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027, `docs/VALUE_OBJECTS_REFERENCE.md`
-**Prototype reference:** `plan/journey/shared/hotsite.html` (topbar + footer logo placement, validated 2026-07-29) — read this file before writing `HotsiteAuthBar`/`Footer` changes; it is the UX spec for size/placement, not just an illustration.
+**Prototype reference:** `journeys/shared/hotsite.html` (topbar + footer logo placement, validated 2026-07-29) — read this file before writing `HotsiteAuthBar`/`Footer` changes; it is the UX spec for size/placement, not just an illustration.
 
 ### Background
 
@@ -347,7 +347,7 @@ Investigation also found **zero existing crop/aspect-ratio enforcement anywhere*
 - **`HotsiteImageUrlResolver.resolve()`** (`apps/backend/.../domain/services/hotsite-image-url-resolver.service.ts`) has the identical gap — its `ResolvedHotsiteContent` return type only has `branding`/`layout`. Needs a `seo` parameter/return field too. `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` currently do `seo: content.seo` with **zero** resolution (never needed it — `seo` never held a storage path before `ogImageUrl`); both use cases need to route `seo` through the resolver, or `GET /hotsite` returns a raw, unresolved storage path instead of a public URL.
 - **No migration needed:** `HotsiteConfigEntity.seo` (`apps/backend/.../entities/hotsite-config.entity.ts:19`) is a single `jsonb` column — `ogImageUrl` is just a new key on the `HotsiteSeo` interface/VO, same as `branding`/`layout` already are. Purely an application-code change (TS type, Zod schema, VO validation); no DDL.
 - `HotsiteAdminContentResponse`/`HotsiteManifestResponse` (`@ikaro/types`) gain `seo.ogImageUrl`; `UpdateHotsiteContentDto`'s `HotsiteSeoSchema` gains the same field.
-- **New `OgImageUpload.tsx`** (`apps/web/features/platform/components/hotsite/`), mirroring `LogoUpload.tsx`'s thin-wrapper pattern around `SingleImageUploadField` — fixed `purpose="seo-og-image"`, landscape-appropriate preview treatment (not the `previewSize="small"` square treatment `LogoUpload` uses). Wired into `SeoTab.tsx`, which today renders only `title`+`description` (confirmed — no image field exists there yet). No new `plan/journey/` prototype for this addition — same "minor, self-contained addition to an already-shipped, already-validated screen" reasoning as M18-S02's Manifesto tab.
+- **New `OgImageUpload.tsx`** (`apps/web/features/platform/components/hotsite/`), mirroring `LogoUpload.tsx`'s thin-wrapper pattern around `SingleImageUploadField` — fixed `purpose="seo-og-image"`, landscape-appropriate preview treatment (not the `previewSize="small"` square treatment `LogoUpload` uses). Wired into `SeoTab.tsx`, which today renders only `title`+`description` (confirmed — no image field exists there yet). No new `journeys/` prototype for this addition — same "minor, self-contained addition to an already-shipped, already-validated screen" reasoning as M18-S02's Manifesto tab.
 - **New i18n keys** (both `packages/i18n/locales/pt-BR/web.json` and `.../en/web.json`, same namespace as the existing `dashboard.hotsitePage.seo.*` keys): `dashboard.hotsitePage.seo.ogImageLabel`, `.ogImageFormatHint`, and `.ogImageRemove`. Reuses the existing generic `dashboard.hotsitePage.branding.{logoClickToAdd,logoUploading,logoUploadError}` keys for the shared upload-interaction copy (identical wording regardless of field) rather than duplicating them under `seo.*` — only the field-specific label/format-hint/remove copy is new.
 - `buildHotsiteMetadata()` updated to read `manifest.seo.ogImageUrl` with real `width`/`height` reflecting the enforced crop ratio (Part 2). **Null/empty `seo.ogImageUrl`:** `openGraph.images` is omitted entirely (conditional spread, not an empty-array value) — the object literally has no `images` key. No fallback to `branding.logoUrl`, since a square logo in a landscape slot is exactly the bad outcome this story fixes.
 
@@ -359,7 +359,7 @@ Investigation also found **zero existing crop/aspect-ratio enforcement anywhere*
 
 **Part 3 — Render `branding.logoUrl` on the public hotsite, per the validated prototype:**
 
-Per `plan/journey/shared/hotsite.html`'s topbar section: a small circular image (`1.75rem` / 28px, `object-fit: cover`, `border-radius: 9999px`) to the left of the brand name, ahead of the "Área da Equipe" link (separated by the existing divider). Per the footer section: same treatment at `1.25rem` / 20px, above the address/phone line.
+Per `journeys/shared/hotsite.html`'s topbar section: a small circular image (`1.75rem` / 28px, `object-fit: cover`, `border-radius: 9999px`) to the left of the brand name, ahead of the "Área da Equipe" link (separated by the existing divider). Per the footer section: same treatment at `1.25rem` / 20px, above the address/phone line.
 
 - **`HotsiteAuthBar`** (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`): add `logoUrl: string` and `tenantName: string` props (currently only takes `slug`). Wire at both call sites — `apps/web/app/[slug]/page.tsx:74` (already destructures `branding` at line 52 — pass `branding.logoUrl`) and `apps/web/app/[slug]/booking/page.tsx:47` (fetches `manifest` at line 32 but doesn't destructure `branding` yet — add it).
 - **`Footer`** (`apps/web/shells/hotsite/components/Footer.tsx`): add `logoUrl: string` prop to `FooterProps`. Wire at `apps/web/app/[slug]/page.tsx:120-127` (same `branding` already in scope) **and** the admin live-preview call site `apps/web/features/platform/components/hotsite/HotsitePreview.tsx:262-269` (`branding.logoUrl` already in scope via `resolveDraftImageUrls` at lines 140-141) — this second call site must be updated in the same commit or the build breaks on the now-required prop.
@@ -531,7 +531,7 @@ Resolved values: mobile aspect ratio `21:9` (≈2.33:1) on both variants, `sm:` 
 4. **Focal-point default:** `'center'`.
 5. **Accepted limitation:** the reference image has important content at both horizontal extremes (text left, logo right) — a single focal-point value can't preserve both on a `21:9` mobile crop. `'center'` avoids fully losing either side. This is an accepted trade-off of the chosen single-image approach (Option 2 in Background), not something this story fixes — a tenant needing both sides fully visible on mobile would need art direction (Option 1), deliberately out of scope.
 6. **Low-resolution error mechanism:** new `lowResolutionErrorLabel` prop on `SingleImageUploadField`, matching the existing per-purpose label-prop pattern — not a typed error class.
-7. **No `plan/journey/` prototype required:** the measured reference image substituted for one — same reasoning precedent as M18-S02/M18-S03 for a scoped visual change, extended here to cover the "no prototype for a public-facing change" risk since a real image was reviewed and its exact numbers drove the resolved values above.
+7. **No `journeys/` prototype required:** the measured reference image substituted for one — same reasoning precedent as M18-S02/M18-S03 for a scoped visual change, extended here to cover the "no prototype for a public-facing change" risk since a real image was reviewed and its exact numbers drove the resolved values above.
 8. **`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` doc drift:** refreshed in this story's own Part 4, rather than left as a separately-tracked gap.
 
 ### Resolved during PR review (Codex + CodeRabbit, PR #294, 2026-07-30)
@@ -817,7 +817,7 @@ None — extends existing components (`GalleryItem`, `GalleryModule`, `GalleryIm
 **Complexity:** L
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
 **UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
-**Reference:** two external HTML mockups supplied directly by the user — `go-cowork-site.html` and `cf-cross-site.html` (not under `plan/journey/`; read directly, not copied from memory) — both a `#galeria` section captioned "Conheça o espaço."/"Conheça o box.". Both are static desktop-only wireframes: `.photo` is a placeholder `<div>` with caption text, not a real `<img>`; **zero `@media` queries in either file** — no mobile behavior to copy, it has to be designed for this story.
+**Reference:** two external HTML mockups supplied directly by the user — `go-cowork-site.html` and `cf-cross-site.html` (not under `journeys/`; read directly, not copied from memory) — both a `#galeria` section captioned "Conheça o espaço."/"Conheça o box.". Both are static desktop-only wireframes: `.photo` is a placeholder `<div>` with caption text, not a real `<img>`; **zero `@media` queries in either file** — no mobile behavior to copy, it has to be designed for this story.
 
 ### Background
 
@@ -898,7 +898,7 @@ Exactly 5 photos in both files. The first one spans both rows (`go-cowork` also 
 3. **Mobile gets a real, distinct design, not a copy of the (nonexistent) reference mobile behavior.** User: "design thinking in mobile as well, to be well enough." Proposed: large photo full-width first, then the other 4 in a 2×2 grid — preserves the "1 hero + 4 supporting" hierarchy the desktop layout has, using the same square tiles Grade already settled on (M18-S06 Part 6) for visual consistency.
 4. **`featuredPosition` is a plain enum field** (`'left' | 'right'`), same pattern as `contentPositionX`/`backgroundImagePosition` elsewhere in this milestone — confirmed with user ("left right, is a property right?").
 5. **Fallback when a saved `'featured'` gallery drifts away from exactly 5 images: render as `'grid'` on both admin preview and public site until back at exactly 5.** The stored `layout` value is untouched — this is a display-time fallback, not a data mutation (confirmed at `/story-discovery`, see Part 4).
-6. **No `plan/journey/` prototype.** Confirmed with user: the UX-validation purpose that process serves has already happened here, directly — two real external reference files (read in full, not recalled from memory) plus point-by-point design decisions confirmed in conversation. Same precedent as M18-S01/S02/S06 (no separate prototype needed absent a new UX surface requiring validation from scratch).
+6. **No `journeys/` prototype.** Confirmed with user: the UX-validation purpose that process serves has already happened here, directly — two real external reference files (read in full, not recalled from memory) plus point-by-point design decisions confirmed in conversation. Same precedent as M18-S01/S02/S06 (no separate prototype needed absent a new UX surface requiring validation from scratch).
 
 ### Resolved during `/story-discovery M18-S07` (2026-08-07)
 
@@ -1196,7 +1196,7 @@ None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `dra
 
 ### Resolved during `/story-discovery M18-S08` (2026-08-07)
 
-1. **No `plan/journey/` prototype required.** All three parts of this story are small, self-contained additions to an already-shipped, already-validated screen (`HotsiteEditor.tsx`, M13-S37) — not a new UX surface needing validation from scratch. Same precedent as M18-S01/S02/S06/S07 in this same milestone.
+1. **No `journeys/` prototype required.** All three parts of this story are small, self-contained additions to an already-shipped, already-validated screen (`HotsiteEditor.tsx`, M13-S37) — not a new UX surface needing validation from scratch. Same precedent as M18-S01/S02/S06/S07 in this same milestone.
 2. **`docs/04-USE_CASES.md` UC-027 updated in the same pass** (not deferred to this story's own implementation) — step 4 of the Main Flow now describes both the module-config Preview entry point and the "Visitar site" link; a new Alternative Flow A4 describes the discard-confirm prompt. Confirmed by direct read of UC-027 that neither the pre-existing module-config screen nor this story's additions were previously documented there.
 3. **`@radix-ui/react-alert-dialog` must be added to `dependencies`, not `devDependencies`** — confirmed against `docs/ANTI_PATTERNS.md`'s documented failure mode (a production-only import misclassified as dev-only passes CI, since tests see the full graph regardless, and only breaks at `pnpm deploy --prod`). Called out explicitly in Part 7 above so it isn't missed during implementation.
 
@@ -1252,7 +1252,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 - `apps/bff/src/features/platform/tenant-settings.controller.spec.ts`, `apps/bff/http/platform/tenant-settings.http`
 - `apps/web/features/platform/settings-form.ts`, `settings-form-validation.ts`, `settings-form.spec.ts`, `api/tenant-settings.spec.ts`, `components/settings/SettingsForm.tsx` + `SettingsForm.spec.tsx`, `components/settings/SettingsNotificationSection.tsx` + `.spec.tsx` (delete), `apps/web/e2e/helpers/platform/settings-api.ts` (drops `notification` passthrough), `packages/i18n/locales/{pt-BR,en}/{web,errors}.json`
 - Additional `fromEmail` fixture specs beyond the ~12 above: `seed-default-templates.use-case.spec.ts`, `staff-invited.handler.spec.ts`, `send-staff-invitation.use-case.spec.ts`, `send-admin-daily-schedule-reminder-notification.use-case.spec.ts` (find all with `grep -rl fromEmail`)
-- Docs/prototypes already synced during discovery (2026-10-02): `docs/21-TENANTS_SETTINGS_SCHEMA.md` (§4 tombstone, examples), `docs/04-USE_CASES.md` UC-026 note, `plan/journey/manager/prototypes/configuracoes/**` (Notificações card removed from 01/01b/01c/01d, counts 7→6 in `index.html`/`01e`/`dev-notes.md`), `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` (EMAIL_FROM lines). `docs/02`/`docs/13` do not mention the block. Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
+- Docs/prototypes already synced during discovery (2026-10-02): `docs/21-TENANTS_SETTINGS_SCHEMA.md` (§4 tombstone, examples), `docs/04-USE_CASES.md` UC-026 note, `journeys/manager/prototypes/configuracoes/**` (Notificações card removed from 01/01b/01c/01d, counts 7→6 in `index.html`/`01e`/`dev-notes.md`), `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` (EMAIL_FROM lines). `docs/02`/`docs/13` do not mention the block. Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
 
 **Acceptance criteria — product:**
 - [ ] Every outbound email is sent From the platform `EMAIL_FROM` address with the tenant's name as display name, regardless of any legacy stored value.
@@ -1283,7 +1283,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 
 **Agent:** `backend-ts` (plus `bff-ts` for the response type pass-through and `web-ts` for the columns board)
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-057 and UC-059, `docs/02-DOMAIN_MODEL.md` (`resource_occupancy`, effective gap rule), `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`, `docs/DEFINITION_OF_DONE.md` § Migration history, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/CODE_STANDARDS.md`, `docs/08-TESTING_STRATEGY.md`, `plan/journey/staff/horarios.md` (UC-057, TD43, TD44 sections), `plan/journey/staff/prototypes/horarios/dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-057 and UC-059, `docs/02-DOMAIN_MODEL.md` (`resource_occupancy`, effective gap rule), `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`, `docs/DEFINITION_OF_DONE.md` § Migration history, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/CODE_STANDARDS.md`, `docs/08-TESTING_STRATEGY.md`, `journeys/staff/horarios.md` (UC-057, TD43, TD44 sections), `journeys/staff/prototypes/horarios/dev-notes.md`
 **Dependencies:** none (builds on shipped M22-S03 `resource_occupancy`, M22-S05 day-grid, M22-S06 columns board, TD43, TD44)
 **Pattern:** plain composition — no named pattern applies (one domain rule resolves `{minutes, source}` once, in `AvailabilityService`, and every consumer reads that result; a new `buffer` timeline-event kind on the web)
 
@@ -1336,7 +1336,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 1. `schedule-resource-columns.ts`: for each matched booking block with `block.endsAt > booking end`, derive a tail `{ resourceName, endsAt, gap }`; same for the multi-line and placeholder rules above.
 2. `schedule-timeline-events.ts` / `schedule-timeline.ts` / `schedule-timeline-event-list.ts`: new `BufferTimelineEvent` kind carrying resource name, release time and `gap`; lane assignment never gives it a lane of a booking; a tail overlapped by another event renders beneath it.
 3. `ScheduleTimelineEventRenderer.tsx` / `TimelineBlockShell.tsx` / `ScheduleResourceColumnsBoard.tsx`: render line 1, line 2 and the tooltip from the i18n keys; segment is `aria`-labelled with the tooltip text and is not focusable/clickable.
-**Prototype references:** `plan/journey/staff/prototypes/horarios/09-colunas-buffer.html` (3 columns: both origin types side by side, including a resource turnover holding only Walace and a service buffer holding every resource) and `09b-so-walace.html` (only Walace checked, label still names Walace and the origin). Baseline is `08-visao-geral-manager.html`. `horarios.md`, `dev-notes.md`, `staff/use-cases.md` and `index.html` are updated alongside.
+**Prototype references:** `journeys/staff/prototypes/horarios/09-colunas-buffer.html` (3 columns: both origin types side by side, including a resource turnover holding only Walace and a service buffer holding every resource) and `09b-so-walace.html` (only Walace checked, label still names Walace and the origin). Baseline is `08-visao-geral-manager.html`. `horarios.md`, `dev-notes.md`, `staff/use-cases.md` and `index.html` are updated alongside.
 **New migration / i18n keys / env vars / feature flags:**
 - Migration `AddGapToResourceOccupancy` (`1748500000025`, next after `1748500000024`, `contexts/booking/infrastructure/migrations/`): `ADD COLUMN gap_minutes INT NULL`, `ADD COLUMN gap_source VARCHAR(20) NULL`, `ADD CONSTRAINT CHK_booking_resource_occupancy_gap ... NOT VALID`, then a separate `VALIDATE CONSTRAINT`. Additive, backward-compatible, no backfill, nothing locked beyond a brief catalog change. `down()` drops the constraint then the columns.
 - i18n in BOTH `pt-BR` and `en` `web.json` next to `dayGridSpilloverOccupancy`: `dayGridBufferHeading` ("{resource} · até {time}"), `dayGridBufferServiceBuffer` ("Buffer do serviço {service} · {minutes} min"), `dayGridBufferResourceTurnover` ("Virada do recurso · {minutes} min"), `dayGridBufferUnknownOrigin` ("Origem não registrada"), plus `dayGridBufferTooltipServiceBuffer`, `dayGridBufferTooltipResourceTurnover`, `dayGridBufferTooltipUnknownOrigin`. No env var, no feature flag, no new error code.
@@ -1360,7 +1360,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json`
 - `apps/web/e2e/schedule-resource-columns.spec.ts` (+ helpers under `apps/web/e2e/helpers/` if a seed helper is needed)
 - Docs (doc gate applies, each needs its own yes at implementation time): `docs/13-DATABASE_SCHEMA.md` (two new `resource_occupancy` columns + constraint), `docs/14-API_CONTRACTS.md` (`gap` on the day-grid block), `docs/02-DOMAIN_MODEL.md` / `docs/04-USE_CASES.md` (UC-059 gap source, UC-057 note)
-- Journey/prototype (already drafted 2026-10-03): `plan/journey/staff/horarios.md`, `plan/journey/staff/use-cases.md`, `plan/journey/staff/prototypes/horarios/{09-colunas-buffer.html, 09b-so-walace.html, index.html, dev-notes.md}`
+- Journey/prototype (already drafted 2026-10-03): `journeys/staff/horarios.md`, `journeys/staff/use-cases.md`, `journeys/staff/prototypes/horarios/{09-colunas-buffer.html, 09b-so-walace.html, index.html, dev-notes.md}`
 
 **Acceptance criteria — product:**
 - [ ] In Day view with ≥1 resource checked, every booking in a column is followed by a distinct segment covering the time that resource stays blocked after the booking ends, labeled with the resource name, the release time and the origin.
@@ -1395,7 +1395,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 
 **Agent:** web-ts
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `journeys/staff/agenda.md`, `journeys/staff/horarios.md`
 **Dependencies:** none
 **Pattern:** plain composition — a pure date-range formatter consumed by the shared `WeekNav`
 
@@ -1408,7 +1408,7 @@ Replace the shared dashboard `WeekNav` header's single-start-month label with a 
 
 When the first and final visible dates share a month and year, preserve the current output exactly (for example, `Outubro 2026`). When they are in different months of one year, render both full month names and one year (`Outubro – Novembro 2026`). When the range crosses a year boundary, render both month/year values (`Dezembro 2026 – Janeiro 2027`). The shared component is used by both `/dashboard/bookings` (whose window is tenant-configurable, default 14 days) and `/dashboard/schedule` (fixed 7-day week), so the behavior must be implemented once in `WeekNav`, never as page-specific formatting.
 
-**Prototype references:** `plan/journey/staff/prototypes/agenda/00b-agenda-month-boundary.html` — a new clickable Agenda screen showing a 14-day Oct 31–Nov 13 window with the proposed `Outubro – Novembro 2026` header. The same component also applies the behavior to Horários.
+**Prototype references:** `journeys/staff/prototypes/agenda/00b-agenda-month-boundary.html` — a new clickable Agenda screen showing a 14-day Oct 31–Nov 13 window with the proposed `Outubro – Novembro 2026` header. The same component also applies the behavior to Horários.
 
 **New migration / i18n keys / env vars / feature flags:** none.
 
@@ -1417,12 +1417,12 @@ When the first and final visible dates share a month and year, preserve the curr
 - `apps/web/shells/dashboard/components/WeekNav.spec.tsx`
 - `apps/web/shared/lib/formatting/format-time.ts`
 - `apps/web/shared/lib/formatting/format-time.spec.ts`
-- `plan/journey/staff/prototypes/agenda/00b-agenda-month-boundary.html`
-- `plan/journey/staff/prototypes/agenda/index.html`
-- `plan/journey/staff/agenda.md`
-- `plan/journey/staff/prototypes/agenda/dev-notes.md`
-- `plan/journey/staff/horarios.md`
-- `plan/journey/staff/prototypes/horarios/dev-notes.md`
+- `journeys/staff/prototypes/agenda/00b-agenda-month-boundary.html`
+- `journeys/staff/prototypes/agenda/index.html`
+- `journeys/staff/agenda.md`
+- `journeys/staff/prototypes/agenda/dev-notes.md`
+- `journeys/staff/horarios.md`
+- `journeys/staff/prototypes/horarios/dev-notes.md`
 
 **Acceptance criteria — product:**
 - [ ] Agenda renders `Outubro – Novembro 2026` when its visible window crosses from October into November.

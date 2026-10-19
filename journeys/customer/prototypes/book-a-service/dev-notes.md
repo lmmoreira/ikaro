@@ -1,0 +1,218 @@
+# Dev Notes — CUSTOMER: Book a Service
+
+> **Status:** ✅ Done. Updated 2026-07-31 — this file previously described a design (dedicated login screens, a `BookingForm` `mode` prop, a new `AuthenticatedBookingReviewStep` component) that was never built. The real implementation is simpler: one shared `BookingForm` auto-detects an authenticated customer and reuses the existing guest step components with different props.
+
+---
+
+## Overview
+
+The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11a adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` (through `useBookingFormController`/`useBookingSubmission`) calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
+
+---
+
+## File map (all ✅ shipped)
+
+| File | Notes |
+|---|---|
+| `apps/web/app/[slug]/login/page.tsx` | Real login route — tenant-scoped, not a generic `/auth/login` |
+| `apps/web/features/booking/components/public/BookingForm.tsx` | Auto-detects auth via `getHotsiteCustomerProfile(slug)` — no `mode` prop |
+| `apps/web/features/booking/api/public.ts` | `createAuthenticatedBooking()`, `createBooking()` |
+| `apps/web/features/booking/components/public/PersonalInfoStep.tsx` | Reused for step 3 in both paths, via `hideContactFields` prop |
+| `apps/web/features/booking/components/public/{ServiceSelectionStep,AvailabilityCarousel,SlotPicker,ConfirmationStep,PhotoUpload,AddressFields}.tsx` | Shared with the guest flow (M23-S11a extends `ServiceSelectionStep`, the availability components and `ConfirmationStep` for both actors) |
+
+There is no `/api/auth/callback/google` Next.js route and no `/select-tenant` page — OAuth is handled entirely by the BFF (`GET /v1/auth/google/callback`), and login-time tenant selection was permanently descoped (see `customer/login.md`).
+
+---
+
+## Authenticated-customer detection (real design)
+
+```tsx
+// Detection now lives in the hooks, not inline in BookingForm:
+// useBookingFormController.ts (on mount) and useBookingSubmission.ts (at submit):
+const customerProfile = await getHotsiteCustomerProfile(slug); // resolves to null if not authenticated
+const isAuthenticatedCustomer = customerProfile !== null;
+
+// Step 3:
+<PersonalInfoStep
+  hideContactFields={isAuthenticatedCustomer}
+  pickupAddress={isAuthenticatedCustomer ? customerProfile.defaultAddress : undefined}
+  ...
+/>
+
+// Submit:
+const submit = isAuthenticatedCustomer
+  ? () => createAuthenticatedBooking(buildCustomerPayload(...))
+  : () => createBooking(slug, buildGuestPayload(...));
+```
+
+No separate review component was built — `PersonalInfoStep` handles both paths via props, and no `GET /customers/me` call is needed since `getHotsiteCustomerProfile` already returns `defaultAddress`.
+
+---
+
+## Screen 4 — Confirmation + Submit (`ConfirmationStep`)
+
+**States:** `idle → submitting → success / error`
+
+| Status | Button text | Button state | UI |
+|---|---|---|---|
+| `'idle'` | "Confirmar agendamento" | enabled | Normal view |
+| `'submitting'` | "Enviando..." | disabled | Normal view — see `04b-submitting.html` |
+| `'success'` | — | — | Success view replaces step (data-testid: `booking-success`) — see `04d-success.html` |
+| `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) — see `04c-submission-error.html` |
+
+**Error messages:**
+- `errorMessage = 'Não foi possível enviar sua solicitação. Tente novamente.'` (all non-409 errors)
+- 409 → navigate back to step 2, not shown in step 4
+
+---
+
+## New fetcher — `createAuthenticatedBooking()`
+
+**File:** `apps/web/features/booking/api/public.ts` (shipped; uses `bffClient`, not a raw `fetch`)
+
+```ts
+export async function createAuthenticatedBooking(
+  payload: AuthenticatedBookingRequest,
+): Promise<BookingResponse> {
+  const res = await bffClient.post<BookingResponse>('/bookings/authenticated', payload);
+  return res.data;
+}
+```
+
+**BFF endpoint (EXISTS):**
+```
+POST /bookings/authenticated
+  @Roles('CUSTOMER')  — requires valid JWT cookie
+  Body (AuthenticatedBookingBodySchema):
+    {
+      scheduledAt:             string,     // ISO-8601 UTC
+      serviceIds:              string[],   // uuid[]
+      pickupAddress?:          Address,
+      notes?:                  string,     // trim, min 1, max 1000
+      beforeServicePhotoUrls?: string[],
+      // M23: resourceSelections?, durationMinutes?, participantCount?, intakeSchemaVersion?,
+      //      intakeAnswers?, consentAccepted?, attendees?  (identical to the guest endpoint)
+    }
+  201 Created → BookingResponse
+  409 Conflict → slot taken
+```
+
+---
+
+## Photo upload — authenticated variant
+
+`PhotoUpload` is reused unchanged. The BFF endpoint `POST /bookings/attachments/signed-url` handles both paths:
+
+- **Guest** (no auth): send `{ fileName, contentType, tenantSlug: slug }` in body
+- **Customer** (auth): send `{ fileName, contentType }` — the BFF resolves the tenant from the auth header, `guestToken` or `tenantSlug` (`resolveTenantIdForAttachmentUpload` in `apps/bff/src/features/booking/bookings-attachments.controller.ts`)
+
+`PhotoUpload` already calls `createAttachmentSignedUrl(slug, ...)` which passes `tenantSlug`. For the customer path, pass the JWT via `credentials: 'include'` instead (decided: no `mode` prop on `PhotoUpload`; `tenantSlug` is passed for the customer too).
+
+---
+
+## Auth header bar
+
+A small bar showing `"{name} · {email}"` at the top of steps 1–4 for the customer path. Options:
+- **Option A:** Rendered by `page.tsx` (reads JWT from cookie), passed as prop to `BookingForm`
+- **Option B:** Rendered by a layout wrapper at `app/[slug]/booking/layout.tsx`
+- **Shipped:** as `HotsiteAuthBar` (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`), rendered by `apps/web/app/[slug]/booking/page.tsx` — neither option as written
+
+---
+
+## Testing notes
+
+New files require Vitest unit tests (`*.spec.tsx` alongside each new component); `apps/web` has no integration-test tier (the BFF `POST /bookings/authenticated` is covered in the BFF/backend suites and by Playwright). Reused components (`ServiceSelectionStep`, etc.) do not need new tests.
+
+`PersonalInfoStep` (authenticated branch) key test cases:
+- `hideContactFields={true}` → no name/email/phone fields rendered
+- `requiresPickupAddress: true` → `AddressFields` rendered, pre-filled from `pickupAddress`
+- `requiresPickupAddress: false` → no address fields
+- PhotoUpload present regardless of `requiresPickupAddress`
+
+---
+
+## ✅ Intake step (M23-S11a, UC-068; backend/BFF shipped in M23-S02, frontend built by M23-S11a)
+
+For a service with an active `service_booking_intake_schema`, the authenticated-customer flow gains one step between Review (Step 3) and Confirmation: Services → Calendar → Review → **Intake (`IntakeAnswersStep`)** → Confirm ("Passo N de 5"). Services without a schema skip it and the flow stays 4 steps.
+
+- Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` (client field errors) + `03e-intake-answers-erro-servidor.html` (server rejection, summary only) — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `journeys/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
+- Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
+- Files: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ `IntakeQuestionField.tsx`, `IntakeAttendeesList.tsx`) — one component for both actors, not duplicated.
+
+**Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 BOOKING_INTAKE_ANSWER_MISSING`, whose missing field names are only in `detail` and never rendered — field-level errors here are client-side only; a server-only rejection shows the summary banner (`03e`)):**
+
+| Field | Source in the schema | Control | Rule | Error message | `data-testid` |
+|---|---|---|---|---|---|
+| each question, `type = FREE_TEXT` | `questions[]` | text input / textarea | required only when `required = true`; whitespace-only counts as missing | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| each question, `type = BOOLEAN`, optional | `questions[]` | single checkbox | none (unchecked = `false` or omitted) | — | — |
+| each question, `type = BOOLEAN`, `required = true` | `questions[]` | **Sim / Não radio pair** | an explicit answer is required; `false` ("Não") is valid — the backend checks the key is present, not that it is `true` | `"Este campo é obrigatório."` | `intake-field-error-<fieldKey>` |
+| `participantCount` | shown only if `participantCountRequired` | number input | integer > 0 (BFF `z.number().int().positive()`) | `"Informe a quantidade de participantes."` | `intake-field-error-participants` |
+| `attendees[]` | shown only if `requiresNamedAttendees` | repeatable rows: name input + "Menor de idade" checkbox + Remover; "Adicionar participante" | each row `{ name: 1–255 chars trimmed, isMinor?: boolean (default false) }`; **no minimum count** — the backend never requires ≥ 1 attendee nor ties the count to `participantCount` (decided: no minimum is enforced in the UI) | row name blank → `"Informe o nome do participante."` (client-only) | `intake-field-error-attendees` |
+| `consentAccepted` | `consentText` (always shown) | checkbox, label = `consentText` | must be `true` | `"Você precisa aceitar os termos para continuar."` | `intake-consent-error` |
+
+Summary banner on any failure: `data-testid="intake-error-summary"`, `role="alert"`. The step holds no async state — it never submits, so there is no loading/success state of its own (the POST and its states stay on Confirmation).
+
+**Two clickable paths in this prototype set (step numbering):**
+
+| Path | Screens | Indicators |
+|---|---|---|
+| Default — service **without** an intake schema (4 steps) | `01` → `02` → `03-review-confirm` → `04-confirmation` (→ `04b`/`04c`/`04d`) | Passo 1–4 de 4 |
+| Service **with** an intake schema (5 steps) | `01` → `02` → `03d-review-confirm-with-intake` → `03b-intake-answers` (`03c` error) → `04e-confirmation-with-intake` | Passo 3 de 5 → 4 de 5 → 5 de 5 |
+
+`04b`/`04c`/`04d` are shared by both paths (only the step number differs on the 5-step path). `03d` and `04e` are copies of `03`/`04` apart from the step indicator and the Próximo/Voltar targets.
+
+---
+
+### M23-S11a (✅ built) / M23-S11b (✅ built) — the other new steps (reuse of the guest screens)
+
+The authenticated-customer flow uses the **same components and the same screens** as the guest flow; the clickable prototype for them lives in `journeys/guest/prototypes/book-a-service/` and is not duplicated here. Only the auth bar (avatar → Minha conta / Sair) and Step 3's `hideContactFields` differ, and both are already drawn in this folder (`01`–`04`).
+
+| Customer step | Screens (guest folder) | Customer-specific difference |
+|---|---|---|
+| Step 1 type-aware cards, schema loading/error, multiple-variable error | `01c`–`01g` | none |
+| Resource picker (only when there is a `CUSTOMER_CHOICE` requirement — **automatic resources have no screen**) | `05`–`05h` | none |
+| Variable duration · journey confirmation | `12`–`12d` · `10` | none; the journey confirmation submits `POST /bookings/authenticated` |
+| Availability step (the existing `02`, unchanged UI) · slot / bundle / leg errors | `02` · `02e`, `09b`, `10b` | none |
+| Intake step · errors | `03b`/`03c`/`03e` here (same as `13`/`13b`/`13c`) | none |
+| Combined baskets — summary card · confirmation · journey review · success | `03e` · `04g`/`04i` · `10c` · `04h` (guest folder) | none; only the submit endpoint differs |
+| Success box | `04d` here (plain, CTA → Agendamentos; the resource-line variants are in the guest `04d`) · `04f` (guest folder) | the primary CTA links to the Agendamentos list |
+
+Error routing, step paths and the design decisions: `journeys/guest/prototypes/book-a-service/dev-notes.md` § M23 Cluster 3 extension.
+
+## ✅ "Avise-me quando abrir": the button and the alert page (M23-S31, UC-072 — built)
+
+**The button.** `02-calendar-slot.html` shows it in every state of the calendar step, only when the basket holds exactly one alert-eligible service (`bookingPolicy.availabilityAlertEligible`; an alert is for one service). It is one shared pattern (same component, label and look in guest `02`/`02d` and here — one button in the nav row between Voltar and Próximo), specified in the guest folder's `dev-notes.md` § Availability-alert entry § Pattern. It always links straight to the alert page; a guest meets the login-required card there.
+
+**The alert page is a page of the booking flow** — same shell and tenant branding as the booking steps (`--ba-*`), with no use outside a booking attempt. It is **not** a Minha Conta page. "Meus avisos" (`../minha-conta/07-availability-alert.html`) only lists and cancels, through a detail page and a confirmation page.
+
+| File | Screen / state | Story |
+|---|---|---|
+| `16-novo-aviso.html` | Alert form, prefilled from the button's link: service, the single resource pick (read-only), duration | M23-S31 |
+| `16h-novo-aviso-jornada.html` | The form for a **legged** service — no resource field and a note ("Avisaremos quando a jornada inteira couber, com qualquer profissional ou sala") | M23-S31 |
+| `16b-novo-aviso-erro.html` | Validation error for the one-time range (422 `BOOKING_ALERT_CRITERIA_INVALID`) and a submit failure | M23-S31 |
+| `16g-novo-aviso-erro-semanal.html` | Validation errors in weekly mode — no weekday chosen, end time not after start | M23-S31 |
+| `16i-novo-aviso-periodo-passado.html` | The one-time range ends in the past (422 `BOOKING_ALERT_CRITERIA_INVALID`, `range-in-past`; also checked in the form) | M23-S31 |
+| `16c-novo-aviso-salvando.html` | Saving | M23-S31 |
+| `16d-novo-aviso-salvo.html` | Aviso criado — confirmation with "Voltar ao site" | M23-S31 |
+| `16e-novo-aviso-limite.html` | 10 active alerts reached (409 `BOOKING_ALERT_CAP_REACHED`) — points to Meus avisos | M23-S31 |
+| `16f-novo-aviso-servico-indisponivel.html` | Service not alert-eligible (422 `BOOKING_ALERT_INELIGIBLE_SERVICE`, e.g. a stale or hand-typed link) | M23-S31 |
+| `../../../guest/prototypes/book-a-service/17-login-aviso.html` | The login-required state of this page for a guest (no session) — "Entrar ou criar conta" returns to `16` | M23-S31 |
+
+**Route and page:** `/[slug]/booking/availability-alert` (`apps/web/app/[slug]/booking/availability-alert/page.tsx`), a thin `page.tsx`. It checks the customer session client-side (`getHotsiteCustomerProfile`, as the lead form does): no session → `AvailabilityAlertLoginGate` (a login-required card, `LeadFormLoginRequiredGate` is the precedent) whose link is `/{slug}/login?returnTo=<encoded alert URL with its query string>`; a session → `NewAvailabilityAlertForm`, both under `apps/web/features/booking/components/public/`.
+
+**Prefill (query parameters on the button's link):** `serviceId` (required — without a valid one, or for an ineligible service, the page shows `16f`), `preferredResourceId` (only when a flat service has exactly one resource pick; the alert holds **one** preferred resource, so a legged, bundled or multi-pick service passes none — `16h`), `durationMinutes` (always for a customer-selected-duration service). **No participant count:** it is only collected at the intake step, and matching ignores it.
+
+**Fields:** criteria type — one-time range (`acceptableStartAt`/`acceptableEndAt`, converted from the tenant's timezone to offset ISO) or weekly preference (`weekdays` as lowercase English names, `localStartTime`/`localEndTime`, tenant timezone, never sent); optional `expiresAt` (default 30 days, at most 365, clamped to the range end).
+
+| Rule | Source | Error |
+|---|---|---|
+| Range: end after start and end in the future; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` / `16g` / `16i` |
+| Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
+| At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
+| A customer-selected-duration service needs a valid duration (M23-S34, ✅ Done) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
+
+**State machine:** `17` (guest, no session) → login → `16` / `16h` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16g` / `16i` / `16e` / `16f` (errors; the validation states keep the form editable).
+
+**UI building blocks:** hotsite tree — tenant branding via `--ba-*` for the page's own surfaces (frame, cards, buttons, weekday pills), painting its own `backgroundColor: 'var(--ba-background)'`. The date, time and duration controls are the project's shared shadcn/ui primitives, used as the rest of the app uses them (CLAUDE.md § Web styling boundary "prefer shadcn/ui primitives"; the M20 plan's rule that a date control is "shadcn/ui's `Calendar` via `Popover` + `Calendar`, not a native date input"): a day is a `Popover` + `Button` + `Calendar` (`LeadFormDateRangeControl`, `ScheduleDateTimeRangeSheet`; two months shown, outside days hidden), an hour is the shared `TimePicker` (settings business hours; `timeFormat` from `useFormatting()`), and the alert duration is the shadcn `Select`. The shadcn tokens are defined globally (`app/globals.css`), so these render in the fixed SaaS palette inside the tenant-branded page, as they do wherever they are used; the page's own surfaces (frame, cards, buttons, pills) keep the tenant's `--ba-*` branding. The prototypes draw native date/time inputs only because that is this repo's prototype convention — they are not the implementation. Do **not** use dashboard/account patterns here. Rule: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
+
+**BFF call:** `POST /availability-alerts` (customer-only) — body `{ serviceId, preferredResourceId?, criteriaType, acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, expiresAt? }` (`participantCount` exists in the API but this page never sends it).

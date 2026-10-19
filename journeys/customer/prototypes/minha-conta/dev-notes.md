@@ -1,0 +1,368 @@
+# Dev Notes — Customer: Minha Conta
+
+Journey spec: `customer/minha-conta.md`
+Stories: `M13-S27` (list) · `M13-S28` (detail/cancel/info-submit) · `M13-S29` (loyalty) · `M13-S30`/`M13-S14` (switch tenant) — ✅ Done
+
+> Updated 2026-07-31 — this file previously described the whole journey as unbuilt and cited the old milestone codes (`M12X`/`M126`/`M124`, since retired/renumbered into M13) and Portuguese route segments (`minha-conta`/`agendamentos`/`fidelidade`) that were never the real route names — the shipped routes use English segments (`my-account`/`bookings`/`loyalty`).
+
+---
+
+## Routes (all ✅ shipped)
+
+| File | Next.js Route | Component |
+|---|---|---|
+| `01-minha-conta.html` | `/{slug}/my-account` | `BookingsList` (Agendamentos, `/{slug}/my-account/bookings`; the bare `/my-account` renders `HomeDashboard`) |
+| `02-*.html` | `/{slug}/my-account/bookings/[id]` | `BookingDetailPage` |
+| `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — a dedicated page, not a bottom sheet | `CancelConfirmPage` |
+| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | — |
+| `04-*.html` | `/{slug}/my-account/loyalty` | `LoyaltyPage` |
+| `05-trocar-empresa.html` | `/switch-tenant` (not tenant-scoped — no `[slug]` prefix) | `SwitchTenantClient` |
+
+## Auth guard
+
+Both pages require a valid httpOnly `access_token` cookie with `role: CUSTOMER`.  
+On 401 → redirect to `/{slug}/login`.
+
+## BFF calls
+
+| Screen | Call | Endpoint | Notes |
+|---|---|---|---|
+| Minha Conta (list) | `GET /v1/bookings` | booking context | No status filter — split client-side into 3 sections |
+| Minha Conta (list) | `GET /v1/loyalty/balance` | loyalty context | **No longer called by the list (2026-10-09):** the compact points strip was removed from Agendamentos — points show on Início and Fidelidade only. The list's page drops this read. |
+| Detail | `GET /v1/bookings/:id` | booking context | Ownership check: backend returns 404 if `customerId ≠ JWT.sub` (deliberate — doesn't reveal booking existence to a non-owner) |
+| Cancel | `PATCH /v1/bookings/:id/cancel` | BFF routes to `/cancel-customer` | 422 if outside the cancellation window (`cancellableUntil`) |
+| Info submit (UC-005 A2) | `PATCH /v1/bookings/:id/submit-info` | booking context | Body: `{ response: string (trim, min 1), photoUrls?: string[] }` |
+
+## Client-side section logic
+
+```ts
+const upcoming = bookings.filter(b =>
+  b.status === 'APPROVED' && new Date(b.scheduledAt) >= today
+);
+const pending = bookings.filter(b =>
+  b.status === 'PENDING' || b.status === 'INFO_REQUESTED'
+);
+const history = bookings.filter(b =>
+  ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'].includes(b.status)
+);
+```
+
+## Cancel button visibility (UC-006 A2)
+
+Show "Cancelar" on APPROVED bookings only while the server-computed deadline has not passed (PENDING and INFO_REQUESTED are always cancellable — UC-007 has no time restriction on them):
+```ts
+// booking.cancellableUntil = scheduledAt minus the tenant's cancellation window (default 48h),
+// computed server-side; non-null only for APPROVED bookings (apps/web/features/customer/booking-sections.ts `canCancelBooking`)
+const canCancel =
+  booking.status === 'PENDING' || booking.status === 'INFO_REQUESTED'
+    ? true
+    : booking.status === 'APPROVED' &&
+      booking.cancellableUntil !== null &&
+      new Date() < new Date(booking.cancellableUntil);
+```
+When `canCancel === false`: hide button, show note "Prazo de cancelamento encerrado".
+
+## Cancel flow (UC-007)
+
+1. Customer clicks "Cancelar" → navigates to the dedicated page `apps/web/app/[slug]/my-account/bookings/[id]/cancel/page.tsx` (`CancelConfirmPage`) — not a bottom sheet (`CancelSheet` is a staff scheduling-exceptions component)
+2. Customer confirms → `PATCH /v1/bookings/:id/cancel`
+3. On 200 → back to the customer's booking area, with the booking in Histórico as CANCELLED
+4. On 422 → the dedicated error page `.../cancel/error` (`CancelErrorPage`; `03b-cancel-error` prototype)
+
+## Info-submit flow (UC-005 A2)
+
+1. Customer lands on detail page with `status === INFO_REQUESTED`
+2. Sees admin's message + textarea form
+3. Submits → `PATCH /v1/bookings/:id/submit-info` with `{ response: string, photoUrls? }`
+4. On 200 → booking status returns to `PENDING`; update UI accordingly (status badge + remove form) — see `02d-info-sent.html`
+5. On non-2xx (network/5xx) → re-enable form, preserve typed text, show inline error banner — see `02e-submit-error.html`
+
+**Validation:**
+
+| Field | Rule | Error message |
+|---|---|---|
+| `response` (textarea) | must not be empty | "Informe sua resposta antes de enviar." |
+
+> The textarea in `02b-agendamento-info-requested.html` has no `required` attribute and no validation-error prototype screen today — this is an implicit rule, not yet shown as a clickable state. The error copy above follows the repo's established "Informe..." tone (see guest `03b-validation-error.html`: "Informe um e-mail válido."). Confirm exact copy with product before implementation; no variant screen exists for this specific state.
+
+**States:** `idle → submitting → success / error` (submitting state has no dedicated prototype screen — button text/disabled treatment should follow the same pattern as `customer/prototypes/book-a-service/04b-submitting.html`).
+
+## Types (resolved — shipped as part of M13-S27)
+
+The type shape below was the pre-implementation proposal; verify the exact current name/shape in `packages/types/src/` directly rather than trusting this table, since the feature has since shipped and the type may have been named or structured differently during implementation.
+
+```ts
+// packages/types/src/booking.dto.ts
+export interface CustomerBookingListItem {
+  bookingId: string;
+  status: BookingStatus;
+  scheduledAt: string; // ISO-8601, always set
+  lines: CustomerBookingLineItem[];
+  totalPrice: MoneyAmount;
+  cancellableUntil: string | null; // non-null only for APPROVED
+}
+export interface CustomerBookingListResponse {
+  items: CustomerBookingListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+```
+
+## Shell pattern
+
+Customer area uses `dashboard-topbar` + `dashboard-layout` + `main-content` (same tokens as staff dashboard) — but NO sidebar. The 3-tab bottom nav (Início / Agendamentos / Fidelidade) mirrors mobile navigation.
+
+Detail pages (drill-down) use `dashboard-topbar` with a back link replacing the brand slot. No bottom-nav on detail pages. The same applies to the M23 sub-pages reached from a card on Agendamentos (`07*`, `14*`, `06*`, `13*`) — forms and outcome screens too, whose submit/continue buttons sit in the action pane on desktop (`13f`'s "reserva não encontrada" state keeps its buttons inline, being a second state of the same page): the back link lives in the topbar (label "Agendamentos" on the two lists, "Reservas recorrentes"/"Meus avisos" on their details), never as a `back-link` inside the content, and a destructive action (end a schedule, cancel an alert) is a dedicated confirmation page, never an inline panel.
+
+**Topbar "+ Novo ▾" menu (decided 2026-10-09):** the topbar's global create action is one button with a two-item menu — "Agendamento" (→ the one-off booking flow, as before) and "Reserva recorrente" (→ `13`), each with a one-line description, mirroring the staff Agenda's `new-menu` (`staff/prototypes/agenda/00-agenda.html`). It is part of the shared `CustomerTopbar`, so the real app shows it (desktop, `≥1024px`) on every my-account screen, drill-downs included; the prototypes draw it on `01`, `01b`, `14` and `14b` only and do not repeat it on the other drill-down screens. On mobile the topbar has no room for it, so the same menu sits in the page: the Agendamentos body (`01`) and the header of the recurring list (`14`). The empty states keep their own contextual calls to action (`14b`'s "+ Nova reserva recorrente", `07b`'s "+ Novo agendamento").
+
+**Tab roles (decided 2026-10-09):** Início = glance (points, active counts, "Renovar" card, booking preview); Agendamentos = the booking list plus the "Reservas recorrentes" and "Meus avisos" entries, each shown only when the customer has ANY item of that kind in any status (the count shown is the active ones); Fidelidade = the only full points view. `01` no longer draws the loyalty strip. The two entries are rows, not tiles (they are navigation, and tiles would push the bookings down and repeat Início): the same icon as the Início tile, the title, the count as a badge on the right and a chevron.
+
+**Create actions on a detail pane (decided 2026-10-09):** a detail page offers a create action only in a terminal-status pane, the way a completed booking offers "Fazer novo agendamento": an `ENDED` recurring schedule (`06h`) has "Renovar" (primary) and "Nova reserva recorrente" (secondary); a `CANCELLED` one has "Nova reserva recorrente" only; an active or pending one has none. These buttons belong to `M23-S22` / `M23-S17`; `M23-S12` draws the read-only page without them. A pending schedule opens `06c`.
+
+**What `M23-S12` builds vs. what these prototypes draw (checked 2026-10-09):** the prototypes show the combined design of S12, S17 and S22. S12 itself builds **no** "Renovar" (list rows `14`, active detail `06`, terminal detail `06h`), **no** "Nova reserva recorrente" button (`06h`, the empty-state call to action in `14b`) and **no** "+ Novo ▾" menu (`14`, `14b`: today's "+ Novo agendamento" link stays); those are S22 and S17. Occurrence rows (`06`, `06h`) show no resource. `14` draws a `CANCELLED` row ("Cancelada" grey badge, opens `06h?cancelada`); `06g#falha` draws the inline end-failure message.
+
+**List row pattern (decided 2026-10-09; `07`, `14`):** every row in an account list has the same shape as the booking row in Agendamentos — a small icon, the **title as the link to the detail page** (hover underline; there is no "Ver detalhes" link), one or two muted meta lines, small inline text actions under them (only when an action is possible: a red "Cancelar aviso" on an active alert, a blue "Renovar" on an ended or ending recurring schedule), and the **status badge on the right**. History and read-only rows have the title link and the badge only. "Encerrar" a schedule stays on its detail page behind the confirmation page. The real app builds these as one shared account list row, not a copy per list.
+
+Reference shell: `journeys/shared/customer-dashboard.html`
+
+## File map — per-screen status (all ✅ shipped)
+
+| File | Production target | Status |
+|---|---|---|
+| `00-hotsite-logged-in.html` | `shared/hotsite-logged-in.html` (entry point) | ✅ Done |
+| `01-minha-conta.html` | `/{slug}/my-account` | ✅ Done — M13-S27 |
+| `01b-minha-conta-empty.html` | same route — empty state (UC-006 A1) | ✅ Done — M13-S27 |
+| `02-agendamento-detail.html` | `/{slug}/my-account/bookings/[id]` (APPROVED/PENDING) | ✅ Done — M13-S28 |
+| `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ✅ Done — M13-S28 |
+| `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ✅ Done — M13-S28 |
+| `02g-agendamento-cancelado.html` | same route — CANCELLED (read-only; `?por=cliente\|estabelecimento`) | ✅ Done — M23-S47 |
+| `02h-agendamento-recusado.html` | same route — REJECTED (read-only) | ✅ Done — M23-S47 |
+| `02d-info-sent.html` | same route — inline state after successful submit-info | ✅ Done — M13-S28 |
+| `02e-submit-error.html` | same route — inline state after failed submit-info | ✅ Done — M13-S28 |
+| `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — dedicated page, not a sheet | ✅ Done — M13-S28 |
+| `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | ✅ Done — M13-S28 |
+| `04-fidelidade.html` | `/{slug}/my-account/loyalty` | ✅ Done — M13-S29 |
+| `04b-fidelidade-empty.html` | same route — empty state (0 points) | ✅ Done — M13-S29 |
+| `05-trocar-empresa.html` | `/switch-tenant` (UC-023) | ✅ Done — M13-S14/S30 |
+
+---
+
+## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072 creation ✅ M23-S31, UC-076 alerts management ✅ built by M23-S43)
+
+> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts management (UC-076) is shipped too (M23-S43); the scope was promoted from `docs/discovery/multivertical-booking/`. A cancelled alert is gone for the customer: the list, the detail and the Agendamentos row never show it. A `409` on cancel (notified or expired meanwhile) returns to the list, where the alert already sits under Histórico — there is no separate screen for it. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+
+### Overview
+
+Stories: `M23-S12` (recurring reservations: list, detail, end, Agendamentos entry), `M23-S43` (availability alerts: list, detail, cancel), `M23-S42` (the service name and the by-id reads), `M23-S31` (alert creation — a page of the booking flow, screens in `customer/prototypes/book-a-service/16*`), `M23-S17` (creating a recurring reservation — the `13*`, `06b`, `06c` screens), `M23-S18` (the shared hours-and-closures check and the single `409` occurrence-list payload, backend — it lands before `M23-S05`; `06d` is only its proposed UI, built in `M23-S17` if S18 rejects at creation). The creation screens were added on 2026-09-29 as a deliberately simple first pass, all inside the account shell `08-turmas-lista.html` established (Vitta Studio tenant, Agendamentos tab active); every choice is a default to recheck at each story's discovery. The flow diagram is in `../../minha-conta.md`.
+
+### File map (each row carries its own status)
+
+| File | Status | Story |
+|---|---|---|
+| `apps/web/app/[slug]/my-account/recurring-schedules/page.tsx` | ✅ Done (M23-S12) | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/new/page.tsx` | ✅ Done | M23-S17 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/page.tsx` | ✅ Done (M23-S12) — detail page (central detail + action pane, same pattern as `bookings/[id]/page.tsx`) | M23-S12 |
+| `apps/web/app/[slug]/my-account/recurring-schedules/[id]/end/page.tsx` | ✅ Done (M23-S12) — end confirmation page (same pattern as `bookings/[id]/cancel` and `alerts/[id]/cancel`; **not** an inline panel) | M23-S12 |
+| `apps/web/app/[slug]/my-account/alerts/page.tsx` (+ `loading.tsx` = `07c`, `error.tsx` = `07d`) | ✅ Done (M23-S43) | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/page.tsx` | ✅ Done (M23-S43) — detail page (central detail + action pane) | M23-S43 |
+| `apps/web/app/[slug]/my-account/alerts/[id]/cancel/page.tsx` | ✅ Done (M23-S43) — cancel confirmation page, same pattern as `bookings/[id]/cancel` | M23-S43 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleList.tsx` | ✅ Done (M23-S12) | M23-S12 |
+| `apps/web/features/customer/components/my-account/RecurringScheduleOccurrences.tsx` (+ `AccountListRow`, `RecurringScheduleDetail`, `RecurringSchedulePendingView`, `RecurringScheduleEndConfirm`) | ✅ Done (M23-S12) | M23-S12 |
+| `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (+ Review, Result, the page container, and the shared `NewReservationMenu`) | ✅ Done | M23-S17 |
+| `apps/web/features/booking/api/recurring-booking-schedules.server.ts` / `.ts` | ✅ Done (M23-S12 reads and end, M23-S17 create) | M23-S12 / S17 |
+| `apps/web/features/booking/api/availability-alerts.server.ts` / `.ts` | ✅ Done (M23-S43 list, by-id, summary and cancel; M23-S31 create) | M23-S43 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.recurringSchedules.*` (incl. `.new.*`) and `customer.newMenu.*` | ✅ Done | M23-S12 / S17 |
+| `packages/i18n/locales/{pt-BR,en}/web.json` — `customer.alerts.*` | ✅ Done (M23-S43) | M23-S43 |
+
+> Supersedes the earlier draft names (`features/booking/components/account/RecurringPrivateReservationManager.tsx`, route `/my-account/recurring-reservations/[id]`): `M23-S12` already chose `recurring-schedules` and `features/customer/components/my-account/` after checking the real precedent, and that story's own verification note applies here too — re-check at implementation time.
+
+### Prototype screens
+
+| File | Screen | Route | Story |
+|---|---|---|---|
+| `14-recorrentes-lista.html` | List: ativas / em análise / encerradas, each with its term ("até dd/mm") and "Renovar" | `/{slug}/my-account/recurring-schedules` | M23-S12 (S17 adds the create button) |
+| `14b-recorrentes-lista-vazia.html` | List, empty state + create button | same | M23-S12 / S17 |
+| `13-nova-recorrencia.html` | Pattern: service, resource, weekdays, start time, period | `/{slug}/my-account/recurring-schedules/new` | M23-S17 |
+| `13b-nova-recorrencia-revisar.html` | Review and confirm (step 2, same route); `#pacote` is the bundle variant, one row per resource | same | M23-S17 / TD49-S02 |
+| `13h-nova-recorrencia-pacote.html` | Pattern form for a service with several resource requirements (staff + room): one pick group per `CUSTOMER_CHOICE` requirement, the automatic one as an info line; every composition the backend accepts as states A/A2 (choice + automatic, all chosen), C (a pick is missing), D (all automatic), E (a unit pool), F (older location + staff), G (three requirements) and H (loading / error / no options); the service-shape table is in the file's header comment | same | ✅ Done — TD49-S02 |
+| `13c-nova-recorrencia-sucesso.html` | Created — `ACTIVE` | same, success state | M23-S17 |
+| `06c-recorrente-em-analise.html` | Created — `PENDING_APPROVAL` | same, pending state | M23-S17 |
+| `06b-reserva-recorrente-erro.html` | `409` conflict, with the conflicting dates | same, error state | M23-S17 |
+| `06d-reserva-recorrente-erro-horario.html` | `409` conflict, mixed list (closed day, outside hours, already booked) — same component as `06b`, different data | same, error state | M23-S17 (payload from M23-S18) |
+| `13f-renovar-recorrencia.html` | Renewal: the form pre-filled from an ended/ending schedule (state A) and the not-found fallback (state B — not a screen: the blank `13` form with a one-line notice above it and no buttons of its own) | `/{slug}/my-account/recurring-schedules/new?renewFrom=<id>` | M23-S22 |
+| `13g-nova-recorrencia-sem-servicos.html` | Form empty state when no service is offered: variant A (no service has recurrence enabled) and B (enabled, but none meets the rule); the technical reason is shown to managers only, in `staff/prototypes/servicos/03f` | same route, empty state | ✅ Done — TD49-S03 |
+| `13d-nova-recorrencia-limite.html` | `409` active-schedule cap reached | same, error state | M23-S17 |
+| `13e-nova-recorrencia-erro.html` | Validation errors + submit failure | same, error states | M23-S17 |
+| `06-reserva-recorrente.html` | Detail (central detail + action pane, back link in the topbar, status badge in the topbar): skip / reschedule occurrence, end (no Pause). "Pular" opens the ordinary one-off cancel confirmation `03-cancel-confirm`; "Reagendar" opens `15-reagendar`; "Encerrar recorrência" opens `06g`. Since `M23-S08` an occurrence is its linked booking: skip = cancel that booking and reschedule = the ordinary reschedule, both subject to the tenant's cancellation / reschedule windows (refusals are drawn as `06e` / `06f`) | `/{slug}/my-account/recurring-schedules/[id]` | M23-S12 |
+| `06g-encerrar-recorrencia.html` | End confirmation page — central detail + action pane; `POST /recurring-booking-schedules/:id/end` → back to the list (failure states not drawn — define at `/story-discovery M23-S12`) | `/{slug}/my-account/recurring-schedules/[id]/end` | M23-S12 |
+| `06e-pular-fora-do-prazo.html` / `06f-reagendar-fora-do-prazo.html` | Skip / reschedule refused because the tenant's cancellation / reschedule window has passed (same wording as one-off `03b`; the occurrence is a booking, decided in `M23-S08`) | same, error state | **Superseded 2026-10-09** — not built: "Pular" and "Reagendar" open the existing booking cancel and reschedule pages, which already show these refusals |
+| `07-availability-alert.html` | "Meus avisos": list and cancel — no create button, no edit yet (creation is a page of the booking flow, `book-a-service/16*`); entered from the "Meus avisos" link on `01-minha-conta.html` | `/{slug}/my-account/alerts` | M23-S43 |
+| `07b-avisos-vazio.html` | Empty state — points the customer to "Avise-me quando abrir" in the booking flow | same, empty | M23-S43 |
+| `07c-avisos-carregando.html` | Loading skeleton | same, loading | M23-S43 |
+| `07d-avisos-erro.html` | `GET /availability-alerts` failed — retry | same, error | M23-S43 |
+| `07f-aviso-detalhe.html` | Alert detail (ACTIVE) — central detail + action pane with "Cancelar aviso"; same layout as `02-agendamento-detail` | `/{slug}/my-account/alerts/[id]` | M23-S43 |
+| `07g-aviso-detalhe-historico.html` | Alert detail (NOTIFIED / EXPIRED) — read-only, no cancel action | same, history | M23-S43 |
+| `07h-cancelar-aviso.html` | Cancel confirmation — central detail + action pane; same layout as `03-cancel-confirm`, `DELETE /availability-alerts/:id` | `/{slug}/my-account/alerts/[id]/cancel` | M23-S43 |
+| `07i-cancelar-aviso-erro.html` | Cancel failed (network / 5xx) — the alert stays active, retry | same, error | M23-S43 |
+
+### Screen 13 — Nova reserva recorrente: padrão (`NewRecurringScheduleForm`)
+
+**File:** `apps/web/features/customer/components/my-account/NewRecurringScheduleForm.tsx` (✅ Done — M23-S17)
+
+**BFF call:**
+```
+POST /recurring-booking-schedules
+  Body: { serviceId, recurrence: { frequency: "WEEKLY", daysOfWeek, startTime, durationMinutes },
+          resourceSelections?: [{ resourceType, resourceId }]   // one entry per CUSTOMER_CHOICE requirement; the server derives the assignment policy (TD49 Story 0)
+          startsOn: "YYYY-MM-DD", endsOn: "YYYY-MM-DD" }   // endsOn REQUIRED, <= startsOn + the service's maximum term (recurringHorizonDays, 90 days by default)
+  Response 201: { id, status: "ACTIVE" | "PENDING_APPROVAL", approvalHoldExpiresAt: string | null }
+```
+
+**Which services the form offers:** there is **no server-side filter** for recurrence. The client filters with `isRecurrenceEligibleService()` (`features/booking/model/recurring-service-eligibility.ts`), which mirrors the backend's `assertServiceEligible()` and is backed by a shape table that drives both specs (TD49-S03): `recurrenceEligible`, `bookingModel = APPOINTMENT`, no `legs`, `requiresPickupAddress = false`, and one of — **no resource requirement** (the default service shape), **one unrestricted `LOCATION` requirement with mode `NONE`** (an older service stored by the M22 backfill), or **one requirement of quantity 1 whose mode is `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL`**. Only the client adds `durationPolicy != CUSTOMER_SELECTED` (the duration is read-only here; see Known limitations). Since TD49 Story 2 a service with **several** such requirements (a bundle: staff + room, an older location + staff service) is offered too, because the rule is checked on **every** requirement, exactly as the backend does (quantity 1 and an allowed mode on each; `NONE` only on the unrestricted location). A quantity above 1 on any requirement, legs and a `NONE` requirement on anything but the unrestricted location stay out. The backend stays the authority; its 422 `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` is a generic failure the filter should make unreachable. One edge the public service shape cannot show: it never carries pool lists, so a `NONE` location restricted to a pool would be offered and then refused by the backend; the editor (which sees pools) hints it, and the shape cannot occur through the editor today (the editor offers staff, room and equipment only). When the filtered list is empty the page shows `13g`.
+
+**Resource fields (TD49 Story 2, `13h`):** one group per `CUSTOMER_CHOICE` requirement, titled by its resource type (`booking.resourcePicker.sectionTitle.*`: Profissional, Sala, Equipamento) and built as `PillSelect` groups like today's single resource field — the customer shell has its own design system, so the hotsite `ResourcePicker` is not reused. The first option of each group is preselected; a group without a pick shows the required error and blocks Revisar. A flat service has at most one requirement per resource type (unique index on service + type), so a type never repeats and the groups are never numbered; the picks are keyed by that type, in the request and in a renewal. An `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` requirement in a bundle gets no group, only a read-only line (`13h` D, E, G), and a bundle whose requirements are all automatic shows only those lines, fetches no options and sends no `resourceSelections` (D). The default-location `NONE` requirement of an older service gets neither a group nor a line (F). There is no limit on the number of requirements beyond quantity 1 on each (G). A group that is loading, failed to load or has no options blocks Revisar without hiding the other groups (H; the loading and error texts are today's single-field ones). Renewal (`13f`) is the same form pre-filled with the old picks. The request carries one `resourceSelections` entry per `CUSTOMER_CHOICE` requirement; the review step lists every resource and says "escolhida automaticamente" for the automatic ones. The options come from `GET /public/services/:id/resource-options`, which already returns one entry per `CUSTOMER_CHOICE` requirement. Before TD49 Story 2 the field was shown only when the service's single requirement was `CUSTOMER_CHOICE` (→ one `resourceSelections` entry; the server derives `FIXED_ASSIGNMENT`). For `AUTO_ANY` / `AUTO_FUNGIBLE_POOL`, and for a service with no requirement or the default location, it is omitted and the policy is `RESOLVE_PER_OCCURRENCE`; the occurrences are then checked and held against the tenant's single location, exactly like a one-off booking of that service (TD49-S03).
+
+**Validation** (the rules the backend actually enforces):
+| Field | Rule | Error message |
+|---|---|---|
+| daysOfWeek | at least one weekday (`RecurrenceRuleSchema`, `.min(1)`) | "Escolha pelo menos um dia da semana." |
+| resourceSelections | one entry, keyed by the requirement's resource type, for a `CUSTOMER_CHOICE` service; omitted otherwise (a missing pick → `422` `BOOKING_RESOURCE_SELECTION_REQUIRED`) | not drawn — the resource list preselects one |
+| endsOn | **required**, not before `startsOn` (equal is allowed) and not later than `startsOn` + the service's maximum term (before start → `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE`; over the cap → `422` `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED` with `params { maxTermDays, latestEndsOn }`; missing → `400` request validation) | before start: "A data de término não pode ser anterior à data de início." · missing: "Escolha a data em que a recorrência termina." · over the cap: "A data final passa do limite de 90 dias (até dd/mm). Escolha uma data anterior — depois você pode renovar." (`13e` states A1/A2/A3) |
+| durationMinutes | positive integer — read-only, defined by the service | — |
+
+**States:** idle → reviewing (`13b`) → submitting → created (`13c`) | pending approval (`06c`) | conflict (`06b`) | hours / closed-day / occupied list (`06d`, same component as `06b`) | cap reached (`13d`) | failure (`13e`).
+
+**Outcome → screen:**
+| Outcome | Screen |
+|---|---|
+| `201` `ACTIVE` | `13c` |
+| `201` `PENDING_APPROVAL` | `06c` |
+| `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` | `06b` |
+| `409` `BOOKING_RECURRING_SCHEDULE_CONFLICT` whose `conflicts` carry `CLOSED` / `OUTSIDE_HOURS` reasons (M23-S18 rejects at creation) | `06d` — same component as `06b`; occupancy and hours reasons can appear together in one list |
+| `409` `BOOKING_RECURRING_SCHEDULE_CAP_REACHED` | `13d` |
+| `422` `BOOKING_RECURRING_SCHEDULE_INVALID_DATE_RANGE` (A1) · `400` request validation for a missing end date (A2) · `422` `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED` (A3) | `13e`, state A (A1 / A2 / A3) |
+| `422` `BOOKING_RECURRING_SCHEDULE_INELIGIBLE_SERVICE` | should be unreachable (the service list is filtered); treat as generic failure |
+| network / `5xx` | `13e`, state B — the typed pattern is preserved |
+
+**Mobile notes:** the shell provides the bottom nav; the form is a single column, weekday chips wrap.
+
+### Built by M23-S17 (2026-10) — what the code does beyond the drawn screens
+
+- **Where the "+ Novo ▾" menu sits on mobile:** in the page header, right of the title, on Início (full-width button), Agendamentos (`01`, and its empty state `01b`) and the recurring list (`14`). Desktop: the topbar, on every my-account screen. `14b` keeps its own call to action.
+- **First occurrence in the booking window:** the form checks the first occurrence (first chosen weekday on or after the start date, in the tenant timezone) against the service's minimum notice and maximum advance before sending, and shows the catalog message above the form (`13e` A4); a pattern none of whose weekdays falls in the term shows A5. The `422`s of the same codes are the backstop.
+- **The service list does not say "requer aprovação":** the public service shape carries no approval mode, so the option reads "{name} — {duração} · {preço}"; the customer learns it from the outcome (`06c`).
+
+### Known limitations of this prototype (gap variants, not silently dropped)
+
+- ✅ **`06b` is built (M23-S17) on the data the API returns since M23-S18.** It lists the conflicting occurrences from the `409` body's `conflicts: [{ occurrenceStart, reason }]` (`reason` `OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`); `M23-S17` only renders it, falling back to the generic message when the body has no list (which is also what an overlap with the customer's own active schedule returns — see S17's decision G). The alternative-resource suggestion the original discovery prototype showed was removed — the API cannot compute it.
+- ⚠ **`06b`'s original dates were inconsistent** ("a cada quatro semanas" between dates two weeks apart, on days that were not Tuesdays); corrected to 26 ago and 23 set.
+- ⚠ **Duration is read-only.** A `durationPolicy = CUSTOMER_SELECTED` service needs the variable-duration control (`guest/prototypes/book-a-service/12-reserva-por-tempo.html`), not drawn.
+- ✅ **`06d` is built (M23-S17), the same component as `06b`.** Working hours and closures are validated at creation (decided 2026-09-29: reject the whole request with the occurrence list, `CLOSED` / `OUTSIDE_HOURS` mixed with `OCCUPIED` in one payload).
+- ⚠ **Fixed term (2026-09-29).** The whole term is created at once (immediately, or when staff approve), the end date is required and capped, and there is no Pause, no rolling generation and no open-ended schedule. `13`/`13b`/`13c`/`13e`/`06`/`14` were updated for it. A finished schedule shows as "Encerrada" (`ENDED`, set by a job in `M23-S05`).
+- ✅ **Renewal (`13f`): "Renovar" appears on an ended schedule (`M23-S22`) and on an active one the server flags `renewable` (`M23-S41`)** — the flag is the window of the reminder e-mail, owned by `M23-S21`. The by-id read that `13f` needs is `GET /recurring-booking-schedules/:id` from `M23-S42` (✅ Done). The create POST for a renewal carries `renewsScheduleId` (see the Renewal note in `minha-conta.md`); `Começa em` is editable (minimum today); in renewal mode the form skips its own minimum-notice/maximum-days check and the backend decides. `M23-S22` drew "Renovar" on `ENDED` rows (`14`) and on `06h`; `M23-S41` added it on `ACTIVE` rows (`14`) and on the active detail (`06`) when `renewable` is true, and the Início card (`shared/customer-dashboard.html`).
+- ✅ **A bundle (staff + room) is drawn in `13h` and `13b#pacote` and built by TD49 Story 2.** The API accepts it since TD49 Story 0. Customer-side lists and details do not change: a customer never sees the resources of a schedule (staff-only `assignedResources`, see the `06` note), so `14` and `06` still show only the service name; the conflict screen `06b` is unchanged too, because the 409 carries dates and reasons but not which requirement collided. Services with no requirement or only the default location recur from TD49-S03. Bundles are TD49 Stories 0 to 2.
+- ⚠ **Renewal of a schedule whose service has since stopped qualifying** (recurrence switched off, a second requirement added): `buildRenewalDraft()` (`features/booking/model/recurring-schedule-renewal.ts`) returns null and the customer lands on the blank form with the not-found notice (`13f` state B), or on `13g` when nothing qualifies at all. Defined behavior (TD49 Addendum item 7), not an error.
+- ⚠ **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype.
+
+### Alert creation is not in this folder
+
+The "Avise-me quando abrir" alert page is a page of the booking flow (tenant branding, login-required), so its screens (`16`–`16i`) live in `customer/prototypes/book-a-service/` and are specified in that folder's `dev-notes.md` § "Avise-me quando abrir": the button and the alert page. This folder holds only "Meus avisos" (`07`, M23-S12): list and cancel (no edit yet).
+
+**BFF calls (whole extension):**
+```
+GET, GET :id, POST  /recurring-booking-schedules[/:id]        -- UC-070 (no PATCH; also POST :id/approve, :id/reject)
+POST            /recurring-booking-schedules/:id/end          -- UC-070 A2 (the `…/pause` route was removed by M23-S20)
+POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
+```
+
+**Open questions / gaps:**
+- [x] Stories done: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — all ✅ Done.
+- [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with creation through the topbar "+ Novo ▾" menu (see Shell pattern). Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
+- [ ] Every "known limitation" above.
+
+---
+
+## ✅ Done — M23 Cluster 3 — Reagendar uma reserva (UC-069, story `M23-S30`)
+
+The customer area had **no reschedule screen** (only the staff `RescheduleBookingPage` in the dashboard and the recurring-occurrence panel in `06`). This pass adds it; `06`'s inline reschedule panel (a slot `<select>` with "Preço será recalculado") was **removed** — an occurrence is an ordinary booking, so "Reagendar esta ocorrência" opens the same `15-reagendar` screen.
+
+**Decisions (2026-10-03):**
+1. **Only date and time change.** A `CUSTOMER_CHOICE` pick (staff, room, equipment) is **kept and shown read-only** (`15b`); there is no picker. Changing a pick = cancel and rebook. Automatic resources are not listed (they are re-resolved for the new window and an automatic room may change).
+2. **The duration is kept.** No duration control, therefore **no price change and no quote preview** (the old S11 "recomputed quote before confirming" item no longer exists). `PATCH` carries `{ scheduledAt }` only — never `resourceSelections`/`durationMinutes`.
+3. **Only `APPROVED` bookings** (the aggregate rejects any other status); a `PENDING` booking offers only "Cancelar". The button is hidden once the reschedule window has closed.
+4. The booking **stays `APPROVED`** after a reschedule (no re-approval); the customer gets the `BookingRescheduled` email.
+
+**Screens:** `15` default · `15b` kept picks (journey) · `15c` loading · `15d` no slots · `15e` fetch error · `15f` submitting · `15g` success · `15h` `409 BOOKING_SLOT_UNAVAILABLE` · `15i` `409 BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`/`BOOKING_LEG_UNAVAILABLE` · `15j` `422 BOOKING_RESCHEDULE_WINDOW_EXPIRED` · `15k` network/other (incl. `BOOKING_INVALID_TRANSITION`/`BOOKING_ALREADY_TERMINAL`). Entry: `02-agendamento-detail` ("Reagendar") and `06-reserva-recorrente` (each occurrence row).
+
+**File map (M23-S30):**
+
+| File | Status |
+|---|---|
+| `apps/web/app/[slug]/my-account/bookings/[id]/reschedule/page.tsx` (thin, same shape as `cancel/page.tsx`) | ✅ Done |
+| `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (with every other customer-shell page, beside `CancelConfirmPage`) | ✅ Done |
+| `apps/web/features/booking/api/customer.ts` — `rescheduleBookingAsCustomer(id, { scheduledAt })` (`PATCH /bookings/:id/reschedule`; transport lives in the owning slice, like `cancelBookingAsCustomer`) | ✅ Done |
+| `apps/web/features/customer/booking-sections.ts` — `canRescheduleBooking` (beside `canCancelBooking`) | ✅ Done |
+| Backend + BFF + `@ikaro/types` — the `reschedule` block on the customer `GET /bookings/:id` response | ✅ Done |
+
+**Resolved at `/story-discovery M23-S30` (2026-10-07):**
+- **The customer booking read carries a server-resolved `reschedule` block** (`eligibleUntil`, `serviceIds`, the kept `CUSTOMER_CHOICE` `resourceSelections`, `durationMinutes`, the effective `window`, and `keptPicks` for `15b`'s read-only list) — non-null only for an `APPROVED` booking. It is the page's whole input: it decides whether "Reagendar" shows, what the carousel/slot list is pinned and limited to, and what `15b` lists. A null block redirects to the booking detail; `now ≥ eligibleUntil` renders `15j` without loading slots.
+- **The booking's own current window shows as unavailable in the slot list** — the availability reads are public (an exclude parameter would leak other bookings), and the staff reschedule has the same limitation. Accepted; the write path accepts such a move. Not drawn.
+- **The three S33 window errors** (`BOOKING_SCHEDULED_IN_PAST` / `BOOKING_TOO_SOON` / `BOOKING_TOO_FAR_AHEAD`, `422`) show as `15k`'s generic state with their catalogue message, clearing the slot and re-fetching — no new screen, because the picker hides slots outside the window; only a clock-crossing race reaches them.
+- **`BookingRescheduled` customer email exists** (`BOOKING_RESCHEDULED_CUSTOMER`, both locales) — nothing to add.
+- **Occurrence entry:** `06`'s "Reagendar esta ocorrência" links to this route by booking id (an occurrence is an ordinary booking); the link, its E2E and AC belong to `M23-S12`. The page supports `?returnTo=` like the detail page.
+
+**Date and slot picker (corrected 2026-10-07):** `15`, `15b`, `15c`, `15d`, `15e`, `15f`, `15h`, `15i`, `15k` draw the picker exactly as the real `AvailabilityCarousel` + `SlotPicker` render it with `variant="dashboard"` — the same pair the staff `RescheduleBookingPage` composes — via `shared/reschedule-picker.css` (NOT the `tokens.css` `.day-pill`/`.slot-btn`, which draw the hotsite look). What that means on screen: a 14-day strip starting at *Hoje* with prev/next chevrons (`sm+`), each chip a weekday + day number, unavailable days disabled; a **"Horários disponíveis"** grid of `start–end` ranges (3 columns, 4 from `sm`), one range per slot; loading = plain *Carregando disponibilidade…* / *Carregando horários…* text (no skeleton); no slots = the strip all disabled + the *Nenhum horário disponível nos próximos dias* alert and the amber *Nenhum horário disponível* note; fetch error = the carousel's and the slot list's own `ErrorAlert` with *Tentar novamente*. Section labels are *Escolha a nova data* and *Horários disponíveis*. The customer shell is Ikaro's own SaaS look (no tenant branding), so the screen uses `variant="dashboard"` exactly as the staff `RescheduleBookingPage` does and always the carousel — `datePickerType` is a hotsite/tenant setting and does not apply here.
+
+**UX rules (docs audit, 2026-10-03):** a **"De … Para …" change summary** (current and newly chosen date/time) sits directly above "Confirmar novo horário" (`15`, `15b`); error text on a red tint is `#b91c1c` and hint text never below `opacity: .6`; on any error the focus moves to the alert (`role="alert"`).
+
+**Error copy:** headlines are the catalogue texts (`BOOKING_SLOT_UNAVAILABLE`, `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE`, `BOOKING_LEG_UNAVAILABLE`, `BOOKING_RESCHEDULE_WINDOW_EXPIRED`); supporting lines are screen copy needing `web.json` keys in both locales. Error text on a fixed red tint uses `#dc2626`/`#991b1b` with fixed backgrounds (customer area, SaaS design system — no `--ba-*`).
+
+## ❓ GAP — M24 Cluster 4 extension (UC-089–095, UC-102, not yet built)
+
+> Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+
+**New prototype screens:**
+
+| File | Screen | Production route (proposed) |
+|---|---|---|
+| `08-turmas-lista.html` | Minhas Turmas — lista de matrículas | `/{slug}/my-account/turmas` |
+| `09-turma-detail.html` / `09b`/`09c`/`09d` | Detalhe da matrícula + variantes (série, waitlist, promovida) | `/{slug}/my-account/turmas/[enrollmentId]` |
+| `10-pular-sessao.html` / `10b` / `10c` | Pular sessão + sucesso + erro | `/{slug}/my-account/turmas/[enrollmentId]/pular` |
+| `11-cancelar-matricula.html` / `11b` | Cancelar matrícula + erro | `/{slug}/my-account/turmas/[enrollmentId]/cancelar` |
+| `12-waitlist-offer.html` / `12b` | Aceitar/recusar oferta de vaga + confirmação | same route as `09b`, inline action |
+
+**File map (❓ none exist yet):**
+
+| File | Status |
+|---|---|
+| `apps/web/features/booking/components/account/MinhasTurmasPage.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/account/TurmaDetailPage.tsx` | ❓ Gap |
+| `apps/web/features/booking/components/account/WaitlistOfferDecision.tsx` | ❓ Gap |
+
+**BFF calls:** see the Cluster 4 section of `../../minha-conta.md` above.
+
+**Important — read model reconciliation (carried forward from the discovery's own note, still unresolved):** the original prototype's `EnrollmentSession` interface is superseded — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance`. "Pulou" is derived at display time (`status=CANCELLED AND seriesId!=null`), never a stored enum value. The implementing story must remove any obsolete interface rather than reconcile it.
+
+**Open questions / gaps:**
+- [ ] Stories for this extension live in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; each still begins with `/story-discovery`.
+- [ ] Reposição (UC-102) has no implementation-grade prototype screen — the discovery-stage `customer-04d-reagendada.html` was never promoted to this rigor; design fresh from `10-pular-sessao.html`'s existing "reagendar" link, not copy that screen as-is.
+
+### Screen 06 — window and resource notes (added with `M23-S08`, 2026-09-30)
+
+- **The windows apply.** Skipping an occurrence is the ordinary customer cancel of its booking and rescheduling is the ordinary customer reschedule, so a refusal inside the tenant's cancellation / reschedule window is shown as `06e` / `06f`, worded like the one-off `03b` ("… com pelo menos N horas de antecedência", the deadline, and a contact-the-business hint). The "48 horas" in the prototype is the example value; the real number is the tenant's setting.
+- **Occurrences are listed with `GET /bookings?recurringScheduleId=<id>`** and each row's actions call the ordinary booking cancel / reschedule (`PATCH /bookings/:id/cancel`, `PATCH /bookings/:id/reschedule`). There is no per-occurrence route any more.
+- **The resource on each row is unresolved.** `06` draws "Sala Aurora" on every occurrence, but the customer booking list item carries no resource (`assignedResources` is staff-only). `M23-S12`'s discovery decides whether to add it for customers; until then the copy is illustrative. A row must never read the resource from the schedule's own assignment (it only records what was requested).
+
+## Full booking detail cards (audit of 2026-10-15)
+
+`02`, `02b`, `02c`, `02f`, `02g` and `02h` gained the cards **Recursos**, **Trajeto**, **Participantes**, **Suas respostas**, **Endereço** and **Origem**, switched by `?forma=` (`completo` default — every card; the real page shows only the cards with data — `simples`, `recurso`, `pacote`, `trajeto`, `formulario`, `retirada`, `recorrente`, `equipe`, `completo`). ✅ Built by M23-S47: the fields are in `CustomerBookingDetailResponse`. They share one backend/BFF story with the staff detail (see `staff/prototypes/agenda/dev-notes.md` § Full booking detail). The customer sees only what they gave or were assigned: no internal notes, no "Criado por", no consent version. The "Origem" link points to `06` and must carry `returnTo`, as the schedule page already does for its occurrences.
+
+### `02g` cancelled and `02h` rejected (added 2026-10-16, M23-S47)
+
+- **They are reachable today.** `splitBookingSections` puts `CANCELLED` and `REJECTED` in Histórico and every `BookingListItem` links to the detail route, and `BookingDetailPage` now has a branch for each (`ClosedActionPane` with `cancelledNote`/`rejectedNote`, like `COMPLETED`/`NO_SHOW`; originally it had none, so the page showed no action pane and no reason). Both screens draw: "Fazer novo agendamento", no cancel, no reschedule.
+- **`02g`, card "Cancelamento":** who (`Você` when `cancelledBy` equals the booking's `customerId`, else `O estabelecimento`), when (`cancelledAt`), why (`cancellationReason`, shown only when the establishment cancelled: a customer's own cancel stores no reason because the cancel page has no field, so `?por=cliente` has no "Motivo" row). The staff member's name or id is never sent to the customer BFF mapper (negative test). `?por=` only switches the sample text.
+- **`02h`, card "Recusa":** when (`rejectedAt`) and the reason the business typed (`rejectionReason`; today only `StaffBookingDetailResponse` carries it, so S47 adds it to the customer response too). Nobody is named.
+- **Resources and itinerary stay.** They are read from the latest `booking_line_resource_assignments` row per slot, which a cancel or reject does not delete. The legs show their order and resource but **no times**: times exist only on `resource_occupancy`, which the cancel/reject releases. A completed or no-show booking (`02c`, `02f`) shows the times until the 90-day retention purge; the screens draw the times, and a booking old enough to have lost them renders like `02g`'s legs.
+- **Copy:** pt-BR in the files above; the `en` twin goes in the same commit as the components, under the existing `customer.bookingDetail` keys.

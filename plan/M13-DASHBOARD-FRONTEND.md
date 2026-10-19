@@ -33,7 +33,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Multi-tenant support:** a login-time `/select-tenant` selection screen was designed but descoped in `M13-S14`'s discovery session — every customer login starts from a specific tenant's hotsite, which always supplies the tenant context directly, so the BFF's multi-tenant OAuth branch is unreachable in practice (see `docs/04-USE_CASES.md` UC-021). Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use `/switch-tenant` (UC-023, built in `M13-S14`) to move between tenants they already belong to, triggered from "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown.
 
-**Customer account area naming:** the journey prototype folder is `plan/journey/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
+**Customer account area naming:** the journey prototype folder is `journeys/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
 
 **Booking form / calendar reuse:** the guest/customer booking flow (UC-011, M12) still provides the shared availability primitives, but the shipped staff reschedule flow is a dedicated `/dashboard/bookings/[id]/reschedule` route built on `AvailabilityCarousel` + `SlotPicker`. Keep basket/duration-recompute logic out of the staff lifecycle flow.
 
@@ -115,7 +115,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
 **Agent:** `bff-ts`
 **Complexity:** S
 **Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`
-**Journey prototypes:** `plan/journey/customer/prototypes/login/` · `plan/journey/staff/prototypes/login/` — reviewed; UC audit done 2026-06-16
+**Journey prototypes:** `journeys/customer/prototypes/login/` · `journeys/staff/prototypes/login/` — reviewed; UC audit done 2026-06-16
 
 **Description:**
 Three targeted fixes to `apps/bff/src/auth/auth.controller.ts`. No new endpoints, no schema changes — only behavioural corrections to existing methods. The BFF already has `JWT_COOKIE_OPTIONS` and `res.cookie(...)` usage in other handlers; replicate the same pattern.
@@ -219,7 +219,7 @@ Provide a paginated, filterable booking list endpoint shaped for the booking que
 
 **Proposed endpoint (adjust based on discovery):**
 
-> **Queue grouping resolved 2026-06-16** (see `plan/journey/staff/agenda.md` "Queue scope"): the queue is grouped by urgency, not date — "Precisa de ação" (no date filter, ALL pending/info-requested), "Hoje" (approved, today only), "Próximos dias" (approved, future). One endpoint shape serves all three via different query params — no separate routes needed.
+> **Queue grouping resolved 2026-06-16** (see `journeys/staff/agenda.md` "Queue scope"): the queue is grouped by urgency, not date — "Precisa de ação" (no date filter, ALL pending/info-requested), "Hoje" (approved, today only), "Próximos dias" (approved, future). One endpoint shape serves all three via different query params — no separate routes needed.
 
 ```
 GET /v1/bookings
@@ -353,7 +353,7 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 >
 > Also resolved: `contactAddress`, `approvedAt`, `approvedBy`, `rejectionReason` exist as `Booking` aggregate getters but were never projected by `GetBookingUseCase.toResult()`. This story extends that projection to surface them — no new business logic, just widening an existing read model.
 >
-> `GET /v1/bookings/:id` stays a single shared route, branched by `X-Actor-Role` inside the existing `getOne()` handler. STAFF/MANAGER get the new `StaffBookingDetailResponse`; CUSTOMER keeps today's unchanged generic `BookingDetailResponse` passthrough — narrowing the route to staff-only would have broken the validated customer "Minha Conta" detail prototype (`plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html`), which already relies on this route today. `M13-S07` later replaces the CUSTOMER branch with the dedicated `CustomerBookingDetailResponse` shape.
+> `GET /v1/bookings/:id` stays a single shared route, branched by `X-Actor-Role` inside the existing `getOne()` handler. STAFF/MANAGER get the new `StaffBookingDetailResponse`; CUSTOMER keeps today's unchanged generic `BookingDetailResponse` passthrough — narrowing the route to staff-only would have broken the validated customer "Minha Conta" detail prototype (`journeys/customer/prototypes/minha-conta/02-agendamento-detail.html`), which already relies on this route today. `M13-S07` later replaces the CUSTOMER branch with the dedicated `CustomerBookingDetailResponse` shape.
 
 **Acceptance criteria:**
 - [ ] `GET /v1/bookings/:id` with STAFF|MANAGER JWT returns `StaffBookingDetailResponse`
@@ -468,7 +468,7 @@ Provide the two data endpoints needed for the Minha Conta list page: a customer-
 > 🔍 **Discover before starting:**
 > - Open `apps/bff/src/bookings/bookings.controller.ts`. Look for `GET /v1/bookings`. Check: (a) does it already allow `CUSTOMER` role via `@Roles`? (b) when called with a CUSTOMER JWT, does it filter to `customerId === JWT.sub`? (c) does its response shape include `status`, `scheduledAt`, `lines[].serviceName`, `lines[].priceAtBooking`, `totalPrice`? If yes to all three, this story reduces to adding `CustomerBookingListResponse` to `packages/types/` only.
 >
-> **Note (resolved during M13-S06 discovery):** an earlier draft of this story's `CustomerBookingListItem` included `notes: string | null` ("booking.notes — what the customer wrote on request"). Removed — the validated UX prototype for this list page (`plan/journey/customer/prototypes/minha-conta/01-minha-conta.html`) has no notes/observations element at all; that section only exists on the *detail* page prototype (`02-agendamento-detail.html`, "Suas observações"). See the note added to `M13-S07` below — the backend has no field to back that section either way, so it's a real gap for whichever story picks up the detail page, not this one.
+> **Note (resolved during M13-S06 discovery):** an earlier draft of this story's `CustomerBookingListItem` included `notes: string | null` ("booking.notes — what the customer wrote on request"). Removed — the validated UX prototype for this list page (`journeys/customer/prototypes/minha-conta/01-minha-conta.html`) has no notes/observations element at all; that section only exists on the *detail* page prototype (`02-agendamento-detail.html`, "Suas observações"). See the note added to `M13-S07` below — the backend has no field to back that section either way, so it's a real gap for whichever story picks up the detail page, not this one.
 > - Open `apps/bff/src/loyalty/loyalty.controller.ts` (or similar). Check if `GET /v1/loyalty/balance` exists and is accessible to CUSTOMER role. Response should include `currentPoints`, `nextExpiryDate`, `nextExpiryPoints`.
 
 **`@ikaro/types` additions** (`packages/types/src/booking.dto.ts`):
@@ -630,7 +630,7 @@ Provide the two paginated endpoints needed for the customer's full loyalty histo
 > - `GetLoyaltyRedemptionsUseCase` projects the stored `pointsPerCurrencyUnit` (not an externally-supplied one); the BFF mapper computes `amountSaved` from it directly — no `conversionRate` parameter on `toCustomerLoyaltyRedemption()` at all anymore.
 > - Out of scope (unchanged): the admin "edit tenant settings" endpoint still can't actually *set* `pointsPerCurrencyUnit` to a non-zero value (`update-tenant-settings.dto.ts`'s `LoyaltySchema` wasn't touched) — that's `M13-S12`'s job. Until then this is `0` everywhere, identical to today's behavior, but now structurally correct. `getBalance()`'s separate `BALANCE_DISPLAY_CONVERSION_RATE` (renamed from `REDEMPTION_CONVERSION_RATE`) is a forward-looking display rate, conceptually different from a historical redemption record, and stays hardcoded pending `M13-S12`.
 
-> ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`plan/journey/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/14-API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
+> ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`journeys/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/14-API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
 > - `loyalty-booking.port.ts` (`ILoyaltyBookingPort`) — add `findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]>` (reuses the existing `ServiceSummary` shape from `findServicesByIds`; empty array when the booking has no lines or doesn't exist).
 > - `loyalty-booking.adapter.ts` (`LoyaltyBookingAdapter`) — inject `BookingQueryService` (already exists in `apps/backend/src/contexts/booking/application/services/booking-query.service.ts`, no new service needed) alongside the existing `ServiceQueryService`; implement via `bookingQueryService.findById(bookingId, tenantId)` → `booking.lines.map(l => ({ serviceId: l.serviceId, serviceName: l.serviceNameAtBooking }))` — **all** lines, not just the first.
 > - `get-loyalty-redemptions.use-case.ts` — `LoyaltyRedemptionItem.bookingReference: string | null` becomes `bookingServices: ServiceSummary[]` (empty array when no `bookingId`); the use case stays at the structured-data layer, no string formatting.
@@ -1357,8 +1357,8 @@ New design: staff is always provisioned as `is_active=true`; the invite link onl
 > 🔍 **Discover before starting:** `apps/web/proxy.ts` already exists and redirects `/dashboard/**` to `/auth/login` (wrong target — fix in this story). `apps/web/app/auth/login/page.tsx` is a 3-line stub to delete. `apps/web/app/dashboard/page.tsx` is a stub — leave it.
 
 **Prototype references:**
-- `plan/journey/shared/staff-login.html` → `/dashboard/login`
-- `plan/journey/staff/prototypes/login/01b-error.html` and siblings → `/auth/error`
+- `journeys/shared/staff-login.html` → `/dashboard/login`
+- `journeys/staff/prototypes/login/01b-error.html` and siblings → `/auth/error`
 
 ---
 
@@ -1647,7 +1647,7 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 **Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/journey/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `journeys/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`
 
 **Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
 1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.
@@ -1668,8 +1668,8 @@ What's actually left to build: the phone-completion prompt, the staff proxy-rout
 > - Read `apps/backend/src/contexts/customer/infrastructure/controllers/internal-customer.controller.ts` and any `internal/tenants/**` controller for the exact internal-route conventions (no role guard, called by `BackendHttpService`) before adding the new loyalty-balance internal endpoint — match the existing pattern exactly, don't invent a new one.
 
 **Prototype references:**
-- `plan/journey/customer/prototypes/login/02-phone-completion.html` + `02b-validation-error.html` (phone prompt — rendered inline, not as a page)
-- `plan/journey/customer/prototypes/minha-conta/05-trocar-empresa.html` (switch-tenant — same visual pattern as the now-descoped `01-select-tenant.html`)
+- `journeys/customer/prototypes/login/02-phone-completion.html` + `02b-validation-error.html` (phone prompt — rendered inline, not as a page)
+- `journeys/customer/prototypes/minha-conta/05-trocar-empresa.html` (switch-tenant — same visual pattern as the now-descoped `01-select-tenant.html`)
 
 **What to create:**
 
@@ -1825,12 +1825,12 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /ap
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/REPOSITORY_STRUCTURE.md`
-**Journey prototype:** `plan/journey/staff/prototypes/agenda/` — reviewed; UC-003/004/005 audit done 2026-06-16; UC-008/009 audit done same day
+**Journey prototype:** `journeys/staff/prototypes/agenda/` — reviewed; UC-003/004/005 audit done 2026-06-16; UC-008/009 audit done same day
 
 **Description:**
 Implement the foundational shell that every staff/manager dashboard page will live inside. This is the prerequisite for all Phase 4–8 stories — nothing else can be built until the layout exists.
 
-The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/staff/prototypes/agenda/00-agenda.html`:
+The shell matches `journeys/shared/dashboard-shell.html` and `journeys/staff/prototypes/agenda/00-agenda.html`:
 - **Mobile (`<1024px`):** sticky topbar (brand + avatar) + `main` + bottom tab nav (Agenda | Horários | Serviços | Fidelidade | + Manager-only tabs)
 - **Desktop (`≥1024px`):** fixed left sidebar (logo, nav, manager section, user footer) + topbar (page title + date + avatar) + `main`
 - **Role-aware nav:** "Somente Gerente" section in sidebar is only rendered when JWT role = MANAGER
@@ -1913,7 +1913,7 @@ The shell matches `plan/journey/shared/dashboard-shell.html` and `plan/journey/s
 **Parallel with:** M13-S06–M13-S08 (already landed in Phase 1, so no actual blocking here)
 
 **Description:**
-Implement the foundational shell for the customer area. All `/{slug}/my-account/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `plan/journey/shared/customer-dashboard.html` and `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html` (prototype folder stays pt-BR — see naming note below; the production route is `my-account`, not `minha-conta`).
+Implement the foundational shell for the customer area. All `/{slug}/my-account/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `journeys/shared/customer-dashboard.html` and `journeys/customer/prototypes/minha-conta/01-minha-conta.html` (prototype folder stays pt-BR — see naming note below; the production route is `my-account`, not `minha-conta`).
 
 > 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/proxy.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
 
@@ -1975,14 +1975,14 @@ Extend `apps/web/proxy.ts` — add protection for `/{slug}/my-account/**`:
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `plan/journey/staff/prototypes/agenda/00-agenda.html` (reference), `plan/journey/staff/agenda.md`
+**Docs to load:** `journeys/staff/prototypes/agenda/00-agenda.html` (reference), `journeys/staff/agenda.md`
 
 **Description:**
-Implement the booking queue — grouped by **urgency, not date** (resolved 2026-06-16, see `plan/journey/staff/agenda.md` "Queue scope"): "Precisa de ação" (all PENDING + INFO_REQUESTED, any date), "Hoje" (today's APPROVED, actionable), "Próximos dias" (future APPROVED, read-only glance). This is the first page a staff member sees after logging in.
+Implement the booking queue — grouped by **urgency, not date** (resolved 2026-06-16, see `journeys/staff/agenda.md` "Queue scope"): "Precisa de ação" (all PENDING + INFO_REQUESTED, any date), "Hoje" (today's APPROVED, actionable), "Próximos dias" (future APPROVED, read-only glance). This is the first page a staff member sees after logging in.
 
 > 🔍 **Discover before starting:** Verify the exact path of `fetchStaffBookings` — it must call `GET /v1/bookings` with `X-Actor-*` headers forwarded, three times with different query params (see `M13-S03`). Check whether a `lib/api/dashboard/` directory exists or if fetchers live flat in `lib/api/`. Follow whatever convention is already there.
 
-**Prototype reference:** `plan/journey/staff/prototypes/agenda/00-agenda.html`
+**Prototype reference:** `journeys/staff/prototypes/agenda/00-agenda.html`
 **Route:** `/dashboard/bookings`
 
 **What to create:**
@@ -2002,7 +2002,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 - Three sections, each a `<BookingSection title="..." items={...} />`: "Precisa de ação", "Hoje", "Próximos dias"
 - Each card in "Precisa de ação" and "Próximos dias" shows its own date inline (e.g. "Hoje · 10:00", "Amanhã · 09:00", "Qui, 18 de junho · 09:00") since these sections span multiple days — "Hoje" cards show time only (date is implied by the section)
 - Empty state per section: "Nenhum agendamento precisa de ação." / "Nenhum agendamento confirmado para hoje." / "Nenhum agendamento confirmado nos próximos dias." (pt-BR, not an error)
-- **Superseded by implementation:** the week-strip (`plan/journey/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
+- **Superseded by implementation:** the week-strip (`journeys/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
 
 `apps/web/components/dashboard/bookings/BookingCard.tsx`:
 - Customer name (truncated with ellipsis if long)
@@ -2038,7 +2038,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-003, UC-004, UC-005, `plan/journey/staff/prototypes/agenda/01-booking-detail.html`, `plan/journey/staff/prototypes/agenda/01b-slot-conflict.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-003, UC-004, UC-005, `journeys/staff/prototypes/agenda/01-booking-detail.html`, `journeys/staff/prototypes/agenda/01b-slot-conflict.html`
 
 **Description:**
 The booking detail page where staff triage pending requests. The shipped implementation keeps the user on `/dashboard/bookings/[id]`, uses localized copy throughout, and handles approve / reject / request info inline. Approval has an error branch for slot conflict. Later lifecycle actions are split into `M13-S19` and `M13-S20`.
@@ -2046,10 +2046,10 @@ The booking detail page where staff triage pending requests. The shipped impleme
 > 🔍 **Discover before starting:** Confirm the BFF action endpoints are wired correctly: `PATCH /v1/bookings/:id/approve`, `PATCH /v1/bookings/:id/reject`, `PATCH /v1/bookings/:id/request-info`. These were built in M08/M09 and should exist. Verify their exact request bodies and error codes (409 for slot conflict, 422 for validation). Also check whether `@ikaro/types` has `ApproveBookingRequest`, `RejectBookingRequest`, `RequestMoreInfoRequest` — M12-S07 explicitly dropped these ("re-added when the dashboard story is built"). They need to be re-added here.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/agenda/01-booking-detail.html` — main detail + action panel + bottom sheets
-- `plan/journey/staff/prototypes/agenda/01b-slot-conflict.html` — slot conflict (UC-003 A1)
-- `plan/journey/staff/prototypes/agenda/01c-reject-success.html` — rejection confirmed inline state
-- `plan/journey/staff/prototypes/agenda/01d-info-success.html` — info request sent inline state
+- `journeys/staff/prototypes/agenda/01-booking-detail.html` — main detail + action panel + bottom sheets
+- `journeys/staff/prototypes/agenda/01b-slot-conflict.html` — slot conflict (UC-003 A1)
+- `journeys/staff/prototypes/agenda/01c-reject-success.html` — rejection confirmed inline state
+- `journeys/staff/prototypes/agenda/01d-info-success.html` — info request sent inline state
 
 **Route:** `/dashboard/bookings/[id]`
 
@@ -2120,7 +2120,7 @@ requestMoreInfo(bookingId: string, message: string): Promise<void>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-008, `plan/journey/staff/prototypes/agenda/03-booking-detail-approved.html`, `05-reschedule.html`, `05b-reschedule-conflict.html`, `dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-008, `journeys/staff/prototypes/agenda/03-booking-detail-approved.html`, `05-reschedule.html`, `05b-reschedule-conflict.html`, `dev-notes.md`
 
 **Description:**
 Approved-booking lifecycle actions. The shipped implementation keeps the same detail shell from `M13-S18`, but when `booking.status === 'APPROVED'` the action panel switches to the lifecycle actions: complete, reschedule, and cancel. Cancel stays inline as a sheet; reschedule is a dedicated route; complete routes to `M13-S20`. Booking stays `APPROVED` after a reschedule — it is not a status transition.
@@ -2128,11 +2128,11 @@ Approved-booking lifecycle actions. The shipped implementation keeps the same de
 > 🔍 **Implementation note:** the shipped reschedule flow is the nested `/dashboard/bookings/[id]/reschedule` route. It reuses the shared availability primitives (`AvailabilityCarousel` + `SlotPicker`) and `SlotConflictAlert`; do not reintroduce a modal/sheet variant or a separate `AvailabilityCalendar`-based component here.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/agenda/03-booking-detail-approved.html` — APPROVED branch of the detail page + inline cancel sheet
-- `plan/journey/staff/prototypes/agenda/03b-cancel-success.html` — cancel success inline state
-- `plan/journey/staff/prototypes/agenda/05-reschedule.html` — calendar + "Revisar reagendamento" summary
-- `plan/journey/staff/prototypes/agenda/05b-reschedule-conflict.html` — 409 conflict + adjacent slot suggestions
-- `plan/journey/staff/prototypes/agenda/05c-reschedule-success.html` — reschedule success inline state (booking stays APPROVED, panel returns)
+- `journeys/staff/prototypes/agenda/03-booking-detail-approved.html` — APPROVED branch of the detail page + inline cancel sheet
+- `journeys/staff/prototypes/agenda/03b-cancel-success.html` — cancel success inline state
+- `journeys/staff/prototypes/agenda/05-reschedule.html` — calendar + "Revisar reagendamento" summary
+- `journeys/staff/prototypes/agenda/05b-reschedule-conflict.html` — 409 conflict + adjacent slot suggestions
+- `journeys/staff/prototypes/agenda/05c-reschedule-success.html` — reschedule success inline state (booking stays APPROVED, panel returns)
 
 **Route:** `/dashboard/bookings/[id]` (same route as `M13-S18`, branched by status) + `/dashboard/bookings/[id]/reschedule`
 
@@ -2175,7 +2175,7 @@ rescheduleBooking(bookingId: string, scheduledAt: string, adminNotes?: string): 
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-009, `plan/journey/staff/prototypes/agenda/04-mark-complete.html`, `04b-complete-success.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-009, `journeys/staff/prototypes/agenda/04-mark-complete.html`, `04b-complete-success.html`
 
 **Description:**
 The "Marcar concluído" action from the approved booking lifecycle. The shipped implementation uses a dedicated `/dashboard/bookings/[id]/complete` route rather than a popup or sheet. Staff can adjust the actual price charged per line, add notes, and confirm completion. Triggers loyalty point earning server-side (computed from `pointsValueAtBooking`, unaffected by `actualPriceCharged`).
@@ -2183,8 +2183,8 @@ The "Marcar concluído" action from the approved booking lifecycle. The shipped 
 > 🔍 **Discover before starting:** Confirm the after-service photo upload reuses the same GCS signed-URL upload component/pattern as the guest/customer "before" photos (M115-S01), not a new implementation. This is still missing in the current frontend shape.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/agenda/04-mark-complete.html` — per-line price editor + photo upload + notes
-- `plan/journey/staff/prototypes/agenda/04b-complete-success.html` — completion success inline state (cotado vs. cobrado summary)
+- `journeys/staff/prototypes/agenda/04-mark-complete.html` — per-line price editor + photo upload + notes
+- `journeys/staff/prototypes/agenda/04b-complete-success.html` — completion success inline state (cotado vs. cobrado summary)
 
 **Route:** `/dashboard/bookings/[id]/complete`
 
@@ -2269,7 +2269,7 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-010, `plan/journey/staff/prototypes/horarios/dev-notes.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CODE_STANDARDS.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-010, `journeys/staff/prototypes/horarios/dev-notes.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CODE_STANDARDS.md`
 
 **Description:**
 Implement the Horários section of the staff dashboard. This is a **frontend-only story**, but it must follow the current repository conventions:
@@ -2284,7 +2284,7 @@ The page is a weekly schedule view where staff can see approved bookings on a ti
 
 > 🔍 **Discover before starting:** Verify that `GET /v1/schedule/closures`, `POST /v1/schedule/closures`, `DELETE /v1/schedule/closures/:id`, `GET /v1/schedule/openings`, `POST /v1/schedule/openings`, and `DELETE /v1/schedule/openings/:id` exist in `apps/bff/src/features/booking/` and return the shapes described below. Check `GET /v1/bookings?status=APPROVED&from=...&to=...` through the existing `listBookings(...)` helper in `apps/web/features/booking/api/booking.ts` (renamed from `staff.ts` — TD31 Story 9); confirm the `from`/`to` filter params work for a date range. Verify `apps/bff/http/schedule/` exists; if `schedule-openings.http` or `availability.http` are missing, create them as part of this story.
 
-**Prototype reference:** `plan/journey/staff/prototypes/horarios/` (10 screens — `00-schedule.html` through `06-remove-opening.html`)
+**Prototype reference:** `journeys/staff/prototypes/horarios/` (10 screens — `00-schedule.html` through `06-remove-opening.html`)
 **Route:** `/dashboard/schedule`
 
 **What to create:**
@@ -2467,14 +2467,14 @@ export interface CreateOpeningRequest {
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `plan/journey/staff/prototypes/servicos/01-servicos-list.html` (reference)
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/prototypes/servicos/01-servicos-list.html` (reference)
 
 **Description:**
 The main service management page — a filterable list of all services (active + inactive) with quick visual indicators and entry points to create or edit.
 
 > 🔍 **Discover before starting:** Check whether a `lib/api/dashboard/services.ts` fetcher file exists. If not, create it. Verify `apps/web/app/dashboard/` folder structure matches `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` — place the route at `/dashboard/services`.
 
-**Prototype reference:** `plan/journey/staff/prototypes/servicos/01-servicos-list.html`
+**Prototype reference:** `journeys/staff/prototypes/servicos/01-servicos-list.html`
 **Route:** `/dashboard/services`
 
 **What to create:**
@@ -2526,15 +2526,15 @@ fetchStaffServices(): Promise<StaffServiceListResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-012, `plan/journey/staff/prototypes/servicos/02-service-create.html`, `plan/journey/staff/prototypes/servicos/02b-service-create-error.html`, `plan/journey/staff/prototypes/servicos/02c-service-create-success.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-012, `journeys/staff/prototypes/servicos/02-service-create.html`, `journeys/staff/prototypes/servicos/02b-service-create-error.html`, `journeys/staff/prototypes/servicos/02c-service-create-success.html`
 
 **Description:**
 The service creation form. The prototype shows a clean single-page form with two toggles and inline validation for the duplicate-name 409 error, followed by a confirmation state on the list page.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/servicos/02-service-create.html` — happy path
-- `plan/journey/staff/prototypes/servicos/02b-service-create-error.html` — 409 duplicate name error state
-- `plan/journey/staff/prototypes/servicos/02c-service-create-success.html` — post-create success state on the list page
+- `journeys/staff/prototypes/servicos/02-service-create.html` — happy path
+- `journeys/staff/prototypes/servicos/02b-service-create-error.html` — 409 duplicate name error state
+- `journeys/staff/prototypes/servicos/02c-service-create-success.html` — post-create success state on the list page
 
 > **AC addition folded in during consolidation:** the original draft of this story specified the redirect-to-list behavior but no explicit confirmation that creation succeeded — the journey-prototype audit found the list page had no success state at all. The prototype now has `02c-service-create-success.html` (list page + inline green banner confirming the new service); replicate that exact pattern below rather than a bare redirect.
 
@@ -2590,14 +2590,14 @@ createService(body: CreateServiceRequest): Promise<StaffServiceResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-013, `plan/journey/staff/prototypes/servicos/03-service-edit.html`, `plan/journey/staff/prototypes/servicos/03b-deactivate-confirm.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-013, `journeys/staff/prototypes/servicos/03-service-edit.html`, `journeys/staff/prototypes/servicos/03b-deactivate-confirm.html`
 
 **Description:**
 The service edit form (pre-filled, price-change warning, status badge in topbar) and the deactivation flow (danger zone → confirmation page → `DELETE /v1/services/:id`).
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/servicos/03-service-edit.html` — edit form
-- `plan/journey/staff/prototypes/servicos/03b-deactivate-confirm.html` — deactivation confirmation
+- `journeys/staff/prototypes/servicos/03-service-edit.html` — edit form
+- `journeys/staff/prototypes/servicos/03b-deactivate-confirm.html` — deactivation confirmation
 
 **Routes:** `/dashboard/services/[id]/edit` and `/dashboard/services/[id]/deactivate`
 
@@ -2681,7 +2681,7 @@ deactivateService(serviceId: string): Promise<void>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `plan/journey/staff/fidelidade.md`, `plan/journey/staff/prototypes/fidelidade/dev-notes.md`
+**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/fidelidade.md`, `journeys/staff/prototypes/fidelidade/dev-notes.md`
 
 **Description:**
 Two pages under a new `/dashboard/loyalty` route. The search page lets staff find any customer by name/email; the detail page shows their active balance (with currency equivalent), earning history tab (active vs. expired entries), and redemption history tab.
@@ -2697,10 +2697,10 @@ Two pages under a new `/dashboard/loyalty` route. The search page lets staff fin
 > - The shared loyalty DTOs in `@ikaro/types` already match the current BFF shapes for this story; no type-drift fix is needed before implementing the page.
 
 **Prototype references:**
-- `plan/journey/staff/prototypes/fidelidade/00-customer-search.html`
-- `plan/journey/staff/prototypes/fidelidade/01-customer-loyalty.html`
-- `plan/journey/staff/prototypes/fidelidade/01b-no-entries.html`
-- `plan/journey/staff/prototypes/fidelidade/01c-no-results.html`
+- `journeys/staff/prototypes/fidelidade/00-customer-search.html`
+- `journeys/staff/prototypes/fidelidade/01-customer-loyalty.html`
+- `journeys/staff/prototypes/fidelidade/01b-no-entries.html`
+- `journeys/staff/prototypes/fidelidade/01c-no-results.html`
 
 ---
 
@@ -2785,7 +2785,7 @@ interface Props {
 
 **Agent:** `frontend-ts` (extended scope also touched `backend-ts` + `bff-ts` — read-path/mapper fields only, no migration; see "Extended scope" below)
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-009 A6, `plan/journey/staff/prototypes/agenda/04-mark-complete.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-009 A6, `journeys/staff/prototypes/agenda/04-mark-complete.html`
 
 **Description:**
 Extends the `MarkCompleteBookingPage` component (built in `M13-S20`) with the loyalty redemption strip. Visible only when `booking.customerId != null` AND `conversionRate > 0`. Staff enters points to use (or clicks "Usar todos"), sees the BRL discount live, and the discount is included in the completion request body.
@@ -2795,7 +2795,7 @@ Extends the `MarkCompleteBookingPage` component (built in `M13-S20`) with the lo
 > - Confirm `StaffBookingDetailResponse` (from `M13-S04`) includes `loyaltyBalance: number | null` and `loyaltyConversionRate: number` (added per `M13-S04`'s note, sourced from `M13-S12`).
 > - Read `apps/web/lib/api/dashboard/bookings.ts` `completeBooking()` fetcher — confirm it accepts `CompleteBookingRequest` from `@ikaro/types` and that `discountByPoints` is now in the type (added in `M13-S12`).
 
-**Prototype reference:** `plan/journey/staff/prototypes/agenda/04-mark-complete.html` (loyalty strip section)
+**Prototype reference:** `journeys/staff/prototypes/agenda/04-mark-complete.html` (loyalty strip section)
 
 **What to add to `MarkCompleteBookingPage`:**
 
@@ -2879,9 +2879,9 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` § UC-006, UC-016
 **Prototype references:**
-- `plan/journey/shared/customer-dashboard.html` — Início tab (stat cards + upcoming preview)
-- `plan/journey/customer/prototypes/minha-conta/01-minha-conta.html` — Agendamentos tab (3 sections)
-- `plan/journey/customer/prototypes/minha-conta/01b-minha-conta-empty.html` — empty state
+- `journeys/shared/customer-dashboard.html` — Início tab (stat cards + upcoming preview)
+- `journeys/customer/prototypes/minha-conta/01-minha-conta.html` — Agendamentos tab (3 sections)
+- `journeys/customer/prototypes/minha-conta/01b-minha-conta-empty.html` — empty state
 
 > **Naming note:** prototypes above stay pt-BR (`minha-conta`, conceptual mockups). All production identifiers below — route, files, components — use the English `my-account`, per the code-standards English-only rule, established in `M13-S42`.
 
@@ -2989,11 +2989,11 @@ const canCancel =
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` § UC-006 step 5, UC-007, UC-005 A2
 **Prototype references:**
-- `plan/journey/customer/prototypes/minha-conta/02-agendamento-detail.html` — APPROVED detail
-- `plan/journey/customer/prototypes/minha-conta/02b-agendamento-info-requested.html` — INFO_REQUESTED + response form
-- `plan/journey/customer/prototypes/minha-conta/02c-agendamento-historico.html` — COMPLETED read-only
-- `plan/journey/customer/prototypes/minha-conta/03-cancel-confirm.html` — cancel confirmation page
-- `plan/journey/customer/prototypes/minha-conta/03b-cancel-error.html` — outside window error
+- `journeys/customer/prototypes/minha-conta/02-agendamento-detail.html` — APPROVED detail
+- `journeys/customer/prototypes/minha-conta/02b-agendamento-info-requested.html` — INFO_REQUESTED + response form
+- `journeys/customer/prototypes/minha-conta/02c-agendamento-historico.html` — COMPLETED read-only
+- `journeys/customer/prototypes/minha-conta/03-cancel-confirm.html` — cancel confirmation page
+- `journeys/customer/prototypes/minha-conta/03b-cancel-error.html` — outside window error
 
 > **Naming note:** prototypes above stay pt-BR (`minha-conta`/`agendamento`/`cancelar`, conceptual mockups). All production identifiers below use English (`my-account`, `bookings`, `cancel`), per the code-standards English-only rule, established in `M13-S42`.
 
@@ -3078,7 +3078,7 @@ submitInfo(bookingId: string, message: string): Promise<void>
 - "Voltar" → `router.back()`
 
 `apps/web/app/[slug]/my-account/bookings/[id]/cancel/error/page.tsx`:
-- Renders `<CancelErrorPage>` — static (no action needed, just shows error + "Voltar" + a real `wa.me` WhatsApp contact link, not a placeholder `href="#"` — see `plan/journey/customer/prototypes/minha-conta/03b-cancel-error.html`, fixed during the journey-prototype audit to use the tenant's contact number)
+- Renders `<CancelErrorPage>` — static (no action needed, just shows error + "Voltar" + a real `wa.me` WhatsApp contact link, not a placeholder `href="#"` — see `journeys/customer/prototypes/minha-conta/03b-cancel-error.html`, fixed during the journey-prototype audit to use the tenant's contact number)
 
 `apps/web/features/customer/components/my-account/InfoSubmitForm.tsx` — UC-005 A2:
 - Shows `infoRequestMessage` (admin's question) in a blue info box
@@ -3136,8 +3136,8 @@ submitInfo(bookingId: string, message: string): Promise<void>
 **Complexity:** M
 **Docs to load:** `docs/04-USE_CASES.md` § UC-016, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Prototype references:**
-- `plan/journey/customer/prototypes/minha-conta/04-fidelidade.html` — full view with tabs
-- `plan/journey/customer/prototypes/minha-conta/04b-fidelidade-empty.html` — 0 pts empty state
+- `journeys/customer/prototypes/minha-conta/04-fidelidade.html` — full view with tabs
+- `journeys/customer/prototypes/minha-conta/04b-fidelidade-empty.html` — 0 pts empty state
 
 > **Naming note:** prototypes above stay pt-BR (`minha-conta`/`fidelidade`, conceptual mockups). All production identifiers below use English (`my-account`, `loyalty`), per the code-standards English-only rule, established in `M13-S42`.
 
@@ -3225,7 +3225,7 @@ fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → Cust
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-026, `plan/journey/manager/configuracoes.md`, `plan/journey/manager/prototypes/configuracoes/dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-026, `journeys/manager/configuracoes.md`, `journeys/manager/prototypes/configuracoes/dev-notes.md`
 
 **Description:**
 The settings form — sections matching the prototype (Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato) plus a read-only Localização section and a Notificações section. See the "Scope expanded" note below for what changed after the original prototype/UC-026 scope.
@@ -3234,7 +3234,7 @@ The settings form — sections matching the prototype (Geral, Agendamento, Fidel
 
 > ✅ **Scope expanded (2026-07-04, user decision):** beyond the original prototype/UC-026 fields, the form also exposes: `booking.autoApproveEnabled` (switch), `booking.minBookingAdvanceHours`, `booking.maxBookingAdvanceDays`, `booking.slotGranularityMinutes` (15/30/60 select), `booking.welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `loyalty.enableNotifications` (switch), `loyalty.notificationMinPoints`; a new **Notificações** section for `notification.fromEmail` (this required new backend `TenantSettings.validateNotification` + BFF `NotificationSchema` support — it had no update path before this story); `businessInfo.socialLinks` (whatsapp/instagram/facebook) under Contato. A new read-only **Localização** section displays `localization.countryCode`/`currency`/`language` as plain text (not editable — changing a tenant's country post-onboarding risks invalidating already-validated E.164 phone numbers and address formats). `localization.decimalPlaces` is not exposed. The time picker for Horário de funcionamento uses a new shared `TimePicker` component (`apps/web/shared/components/ui/time-picker.tsx`, hour+minute selects, no seconds, 12h/24h driven by the tenant's own `useFormatting().timeFormat`) instead of a native `<input type="time">`; Monday has a "copy to weekdays" button that applies its open/close time to Tuesday–Friday.
 
-**Prototype reference:** `plan/journey/manager/prototypes/configuracoes/01-settings-form.html` (happy path), `01b-validation-error.html`, `01c-saved-success.html`
+**Prototype reference:** `journeys/manager/prototypes/configuracoes/01-settings-form.html` (happy path), `01b-validation-error.html`, `01c-saved-success.html`
 
 **What to create:**
 
@@ -3291,7 +3291,7 @@ renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse>          
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, UC-029; `plan/journey/manager/equipe.md`; `plan/journey/manager/prototypes/equipe/dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-028, UC-029; `journeys/manager/equipe.md`; `journeys/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The team list with Ativo / Convite pendente / Inativo filter tabs. The data model has no dedicated "pending invite" status — both a never-activated invitee and a deactivated former member have `isActive: false`. The displayed status is **precomputed in the BFF** (see discovery resolution below) — the web consumes it directly.
@@ -3303,7 +3303,7 @@ The team list with Ativo / Convite pendente / Inativo filter tabs. The data mode
 >
 > The TD09 drift flagged in the original note is **already fixed**: `@ikaro/types`'s `InviteStaffRequest` has `firstName`/`lastName` matching the live `InviteStaffBodySchema`, and `apps/web/features/staff/api.ts` is the canonical fetcher file (typed from `@ikaro/types`; the old `apps/web/lib/api/dashboard/staff.ts` no longer exists). Do **not** create a new `team.ts`.
 
-**Prototype reference:** `plan/journey/manager/prototypes/equipe/01-team-list.html`
+**Prototype reference:** `journeys/manager/prototypes/equipe/01-team-list.html`
 **Route:** `/dashboard/team`
 
 **What to create:**
@@ -3352,12 +3352,12 @@ All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` loca
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `plan/journey/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `plan/journey/manager/prototypes/equipe/dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `journeys/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `journeys/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The invite form — name, email, role selector. `POST /staff/invite` already exists and is fully guarded; this is a frontend-only story.
 
-> ✅ **Discovery resolved (2026-07-06):** M13-S32 already shipped `inviteStaff()` in the canonical `apps/web/features/staff/api.ts` and `InviteStaffRequest`/`InviteStaffResponse` in `@ikaro/types` — this story's earlier `apps/web/lib/api/dashboard/team.ts` / `apps/web/components/dashboard/team/InviteForm.tsx` paths were stale (that `lib/api/dashboard/` tree no longer exists, per M13-S32's own resolution note). Also, the system has no toast component anywhere and `plan/journey/README.md` documents floating toasts as an explicit anti-pattern ("the rest of the system uses inline banners") — so the success flow is redirect + inline banner, matching `ServiceListPage`'s `showCreatedBanner` mechanism, not a toast.
+> ✅ **Discovery resolved (2026-07-06):** M13-S32 already shipped `inviteStaff()` in the canonical `apps/web/features/staff/api.ts` and `InviteStaffRequest`/`InviteStaffResponse` in `@ikaro/types` — this story's earlier `apps/web/lib/api/dashboard/team.ts` / `apps/web/components/dashboard/team/InviteForm.tsx` paths were stale (that `lib/api/dashboard/` tree no longer exists, per M13-S32's own resolution note). Also, the system has no toast component anywhere and `journeys/README.md` documents floating toasts as an explicit anti-pattern ("the rest of the system uses inline banners") — so the success flow is redirect + inline banner, matching `ServiceListPage`'s `showCreatedBanner` mechanism, not a toast.
 
 **Route:** `/dashboard/team/invite`
 
@@ -3422,7 +3422,7 @@ Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `Se
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-029, `plan/journey/manager/prototypes/equipe/03-deactivate-confirm.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-029, `journeys/manager/prototypes/equipe/03-deactivate-confirm.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`
 
 **Description:**
 The deactivation confirmation flow, including the two business-rule error states already enforced server-side: self-deactivation (`403`) and last-active-MANAGER (`409`). `PATCH /staff/:id/deactivate` already exists with both guards implemented in `DeactivateStaffUseCase` — frontend-only story.
@@ -3466,7 +3466,7 @@ deactivateStaff(staffId: string): Promise<DeactivateStaffResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027, `plan/journey/manager/hotsite.md`, `plan/journey/manager/prototypes/hotsite/dev-notes.md`
+**Docs to load:** `docs/04-USE_CASES.md` § UC-027, `journeys/manager/hotsite.md`, `journeys/manager/prototypes/hotsite/dev-notes.md`
 
 **Description:**
 The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@ikaro/types` (`packages/types/src/hotsite.ts`) — frontend-only story.
@@ -3482,7 +3482,7 @@ The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client
 > **Layout pattern** must reuse the existing settings-page composition, not reinvent one: `apps/web/app/dashboard/settings/layout.tsx` → `DashboardSectionShell` → `page.tsx` (server) → client form. Inside the client component, mirror `SettingsForm.tsx`'s responsive structure exactly: `grid lg:grid-cols-[minmax(0,1fr)_22rem]` with a `sticky` desktop action pane (`<aside className="hidden lg:block lg:sticky lg:top-6">`) and a `fixed inset-x-0 bottom-0 ... lg:hidden` mobile action bar. `apps/web/shells/dashboard/components/BottomNav.tsx` explicitly hides itself (`return null`) on pages that own their own mobile action bar (`isSettingsPage`, team detail, booking detail, etc.) — **add `pathname === '/dashboard/hotsite'` to that hide-list** (one-line fix in `BottomNav.tsx`), otherwise the bottom nav and the hotsite action bar overlap on mobile.
 >
 > **Shared components to add** (repo has a real shadcn/ui setup — `apps/web/components.json`, Radix `Popover`/`Select` already installed, `Popover`+`Select` composition precedent in `ScheduleDateTimeRangeSheet.tsx`):
-> - `SectionCard` — currently duplicated as a local function inside `SettingsForm.tsx` (`Card`/`CardContent` wrapper + title). Extract to `apps/web/shared/components/ui/section-card.tsx` and refactor `SettingsForm.tsx` to import it. `BrandingTab.tsx` becomes the second consumer. This replaces the prototype's `.section-card`/`.section-card-title`/`.section-card-sub` CSS classes (those only exist in `plan/journey/shared/tokens.css`, a design reference — never imported into `apps/web`).
+> - `SectionCard` — currently duplicated as a local function inside `SettingsForm.tsx` (`Card`/`CardContent` wrapper + title). Extract to `apps/web/shared/components/ui/section-card.tsx` and refactor `SettingsForm.tsx` to import it. `BrandingTab.tsx` becomes the second consumer. This replaces the prototype's `.section-card`/`.section-card-title`/`.section-card-sub` CSS classes (those only exist in `journeys/shared/tokens.css`, a design reference — never imported into `apps/web`).
 > - `ColorPicker` — new shared primitive, `apps/web/shared/components/ui/color-picker.tsx`. `Popover` trigger showing the current swatch + hex value; panel uses **`react-colorful`'s `HexColorPicker`** (new dependency, ~2.8KB, zero sub-dependencies) — a real saturation/hue gradient, not the native `<input type="color">` (that opens the browser/OS color dialog, which is slow and visually inconsistent — rejected after an initial attempt). Generic — takes `value`/`onChange`, not hotsite-specific.
 > - `FontPicker` — new shared primitive, `apps/web/shared/components/ui/font-picker.tsx`, built on a new `apps/web/shared/components/ui/command.tsx` (`cmdk`, new dependency — the standard shadcn combobox primitive, zero network calls). `Popover` + searchable `Command` list; each option (and the trigger) renders in its own real font face. Hotsite feature code feeds it `Object.entries(FONT_MAP)` from `apps/web/features/platform/hotsite/font-config.ts` — the only 8 fonts actually available (Inter, Poppins, Playfair Display, Montserrat, Raleway, Oswald, Lato, Roboto). Do **not** reuse the prototype's hardcoded `<select>` options — they include "Open Sans" (not in `FONT_MAP`) and omit 4 of the 8 real fonts.
 >   - **Critical, easy to miss:** `FONT_MAP`'s CSS values are `next/font/google` custom properties (`var(--font-inter)`, etc.) that only exist where the corresponding loader's `.variable` class has been applied to an ancestor element. The public hotsite applies this per-tenant via `getActiveFontVariables()` in `[slug]/layout.tsx` — but that only loads the *2 currently-active* fonts, and nothing in the `/dashboard` tree loads any of them. Without applying `FONT_VARIABLES` (the full 8-variable list, already exported from `font-config.ts` but previously unused anywhere) to an ancestor of `FontPicker` — e.g. `BrandingTab`'s root `className` — every option silently renders in the same inherited fallback font. Verified live in a browser: without the fix every option looked identical; with `FONT_VARIABLES` applied, e.g. Playfair Display renders as a distinct serif and Oswald as visibly condensed.
@@ -3494,9 +3494,9 @@ The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client
 > **i18n** — add a new `dashboard.hotsitePage` namespace to `packages/i18n/locales/pt-BR/web.json` and `en/web.json`, matching the existing `dashboard.settingsPage`/`dashboard.teamPage` convention, for all Branding tab copy (labels, tab names, error/hint text, disabled-button hints).
 
 **Prototype references:**
-- `plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html` — shell + Branding tab
-- `plan/journey/manager/prototypes/hotsite/01b-color-error.html` — invalid hex color (UC-027 A1)
-- `plan/journey/manager/prototypes/hotsite/01c-image-upload-fallback.html` — upload failure → URL fallback (UC-027 A2)
+- `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` — shell + Branding tab
+- `journeys/manager/prototypes/hotsite/01b-color-error.html` — invalid hex color (UC-027 A1)
+- `journeys/manager/prototypes/hotsite/01c-image-upload-fallback.html` — upload failure → URL fallback (UC-027 A2)
 
 **Route:** `/dashboard/hotsite`
 
@@ -3556,7 +3556,7 @@ New shared components: `apps/web/shared/components/ui/section-card.tsx` (extract
 
 **Agent:** `frontend-ts` (+ small `backend-ts`/`bff-ts` prep pieces — see Phase 0)
 **Complexity:** XL (expanded from `M` — originally 1 module's config panel + toggle/reorder; now all 8 modules' config panels + drag-and-drop + a new backend image-delete capability + a booking-photo picker)
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section B, `plan/journey/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`, `packages/types/src/hotsite.ts` (all 8 module data interfaces — the ground truth for every field list below), `apps/web/features/platform/hotsite/module-schemas.ts` (existing Zod validation, already correct, no changes needed), `apps/web/shells/hotsite/components/*.tsx` (the public renderers — confirms exactly which fields are consumed vs. dead)
+**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section B, `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`, `packages/types/src/hotsite.ts` (all 8 module data interfaces — the ground truth for every field list below), `apps/web/features/platform/hotsite/module-schemas.ts` (existing Zod validation, already correct, no changes needed), `apps/web/shells/hotsite/components/*.tsx` (the public renderers — confirms exactly which fields are consumed vs. dead)
 
 **Description:**
 Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — see FOOTER note below) drag-to-reorder + enable/disable list, plus a full config panel for **every** module type (not just HERO — the original story's "defer the other 6" framing is superseded). Also adds real image lifecycle management (upload, large/prominent preview, and **actual deletion from the storage bucket**) everywhere an image is used, including a retrofit onto `LogoUpload.tsx` from M13-S35, and a "feature a photo from a completed booking" picker for the Gallery module.
@@ -3667,7 +3667,7 @@ Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — 
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section C, `plan/journey/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`, `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx`, `apps/web/features/platform/components/settings/SettingsForm.tsx` (inline success-banner pattern to mirror), `apps/backend/src/shared/value-objects/hex-color.vo.ts` (VO pattern to mirror)
+**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section C, `journeys/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`, `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx`, `apps/web/features/platform/components/settings/SettingsForm.tsx` (inline success-banner pattern to mirror), `apps/backend/src/shared/value-objects/hex-color.vo.ts` (VO pattern to mirror)
 
 **Description:**
 Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/Unpublish actions. Confirmed during story-discovery (2026-07-08) that this touches backend + BFF + web on one branch — not frontend-only as originally scoped.
@@ -3900,7 +3900,7 @@ GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token={{guestToken}}
 **Complexity:** M
 **Must co-deploy with:** M13-S38; M13-S39 optional (degrade gracefully if absent)
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md`
-**Prototype:** `plan/journey/guest/prototypes/submit-info/` — read `dev-notes.md` in full before starting
+**Prototype:** `journeys/guest/prototypes/submit-info/` — read `dev-notes.md` in full before starting
 
 **Description:**
 Create the standalone public page that guests arrive at via the info-request email link. No authentication required. The page validates the guest token server-side, applies the tenant's hotsite branding, optionally fetches the booking summary, and renders a form for the guest to type their response (photo upload omitted — see below).
@@ -4266,9 +4266,9 @@ apps/web/test-results/
 **Complexity:** M
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021, `docs/24-BFF_ARCHITECTURE.md`
 **Prototype references:**
-- `plan/journey/shared/hotsite.html` — logged-out auth bar ("Entrar" link; "Área da Equipe" is prototype-only, never built in production)
-- `plan/journey/shared/hotsite-logged-in.html` — logged-in auth bar (avatar + dropdown: "Minha conta" | "Sair")
-- `plan/journey/shared/login.html` — tenant-branded login screen
+- `journeys/shared/hotsite.html` — logged-out auth bar ("Entrar" link; "Área da Equipe" is prototype-only, never built in production)
+- `journeys/shared/hotsite-logged-in.html` — logged-in auth bar (avatar + dropdown: "Minha conta" | "Sair")
+- `journeys/shared/login.html` — tenant-branded login screen
 
 **Description:**
 Adds the persistent top auth bar to the public hotsite (`/{slug}` and `/{slug}/booking`), matching the prototypes: unauthenticated visitors see an "Entrar" link; authenticated customers see their initials avatar + name with a dropdown ("Minha conta" / "Sair"). Also adds the minimal tenant-branded login page the bar's "Entrar" link needs, and the BFF logout endpoint the dropdown's "Sair" needs — neither existed before this story.
@@ -4376,7 +4376,7 @@ export async function getHotsiteCustomerProfile(): Promise<CustomerProfileRespon
 - On mount: calls `getHotsiteCustomerProfile()`. While pending, render an empty `<div>` (no flash of "Entrar" before the authenticated state resolves — acceptable brief blank, same tradeoff `InformationCompletionPrompt` will use in `S14`).
 - `null` → unauthenticated: right-aligned "Entrar" link → `/{slug}/login`.
 - Profile returned → authenticated: initials avatar (derived from `name`, e.g. "João Silva" → "JS") + `name`, native `<details>/<summary>` dropdown (no client JS needed for the toggle itself) with two links: "Minha conta" → `/{slug}/my-account`, "Sair" → `${process.env.NEXT_PUBLIC_BFF_URL}/auth/logout?tenantSlug={slug}`.
-- Styled with Tailwind utility classes + `var(--ba-*)` branding tokens, matching `HeroModule.tsx`'s conventions — do **not** use the prototype's bespoke `.auth-bar`/`.auth-avatar` CSS classes (those exist only in `plan/journey/shared/tokens.css`, not in the production app).
+- Styled with Tailwind utility classes + `var(--ba-*)` branding tokens, matching `HeroModule.tsx`'s conventions — do **not** use the prototype's bespoke `.auth-bar`/`.auth-avatar` CSS classes (those exist only in `journeys/shared/tokens.css`, not in the production app).
 - Props: `{ readonly slug: string }`.
 
 Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/react`) covering: unauthenticated renders "Entrar" with correct `href`; authenticated renders initials + name; clicking the summary opens the dropdown (native `<details>` toggles in jsdom); "Minha conta" and "Sair" hrefs are correct.

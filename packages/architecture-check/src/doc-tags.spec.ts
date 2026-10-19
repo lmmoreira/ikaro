@@ -1,5 +1,6 @@
 import {
   docsForFiles,
+  isOrientationDoc,
   docsForTags,
   kindForTags,
   parseDocHeader,
@@ -45,6 +46,16 @@ describe('parseDocHeader', () => {
 
   it('returns an empty list for an empty Tags line', () => {
     expect(parseDocHeader('# T\n> **Tags:**\n', 15).tags).toEqual({ line: 2, value: [] });
+  });
+});
+
+describe('isOrientationDoc', () => {
+  it('accepts a top-level doc and the journeys index, and nothing else under them', () => {
+    expect(isOrientationDoc('docs/STORY_SCHEMA.md')).toBe(true);
+    expect(isOrientationDoc('journeys/README.md')).toBe(true);
+    expect(isOrientationDoc('docs/discovery/x/README.md')).toBe(false);
+    expect(isOrientationDoc('journeys/staff/agenda.md')).toBe(false);
+    expect(isOrientationDoc('journeys/staff/prototypes/agenda/dev-notes.md')).toBe(false);
   });
 });
 

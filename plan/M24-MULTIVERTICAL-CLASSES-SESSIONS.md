@@ -92,7 +92,7 @@ graph TD
 
 **Wave note (self-dry-run):** UC-092/UC-100/UC-106's own UC text explicitly says "same time-based check as UC-081's generation job (or piggybacked onto it)," which reads like they belong in S04. They were kept as a separate story (S10) instead, because all three require `ClassSessionBooking` rows to exist to have anything to check (an ended session's still-`WAITLISTED` entries, an unresolved `PENDING_APPROVAL` guest request, an expired `PROMOTION_PENDING` offer) — none of that exists until S07 ships. S10 reuses S04's cron-trigger *pattern* (same trigger-bus/`ITriggerBus` mechanism, same `CronBookingController`-style thin publisher), not its code.
 
-**Wave note (corrected during `/docs-audit`):** S15 (Manager Turmas frontend) originally depended on S06/S08 (session list/override, cancel/waitlist) — but `plan/journey/manager/turmas.md`'s own header scopes that journey to configuration only and explicitly delegates session-level daily operations to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped. Removed S06/S08 from S15's dependencies and the mermaid graph — S15's wave stays 8 regardless (its remaining dependencies, S11 at wave 6 and S13 at wave 7, already put its floor at 8).
+**Wave note (corrected during `/docs-audit`):** S15 (Manager Turmas frontend) originally depended on S06/S08 (session list/override, cancel/waitlist) — but `journeys/manager/turmas.md`'s own header scopes that journey to configuration only and explicitly delegates session-level daily operations to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped. Removed S06/S08 from S15's dependencies and the mermaid graph — S15's wave stays 8 regardless (its remaining dependencies, S11 at wave 6 and S13 at wave 7, already put its floor at 8).
 
 **Likely-independent stories (preview — not authoritative):** S01, S02, and S03 touch disjoint aggregates/tables (`class_schedule_templates`+slots+exceptions vs. `class_access_contracts` vs. two new columns on the existing `services` table) with no `Dependencies:` edge between them — a candidate 3-way `/run-batch` group once M21/M22/M23 land. `/run-batch` re-derives this live at run time; this is a courtesy preview, not a green light.
 
@@ -345,7 +345,7 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-075 (steps 4/A1), `plan/journey/manager/onboarding.md`
+**Docs to load:** `docs/04-USE_CASES.md` UC-075 (steps 4/A1), `journeys/manager/onboarding.md`
 **Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M24-S21 (extends its `BootstrapTenantSchedulingUseCase`; formerly M23-S10 — a forward reference by number only: S21 is built in an earlier wave than S05)
 **Pattern:** plain composition — extends an existing M23 use case.
 
@@ -800,10 +800,10 @@ Staff closes a session's roster after `endTime`, marks individual attendance, an
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § 4b
 **Dependencies:** M24-S01, M24-S02, M24-S11, M24-S13
 **Pattern:** plain composition — matches `apps/web/features/booking/components/dashboard/services/` shape.
-**Prototype references:** `plan/journey/manager/turmas.md`, `plan/journey/manager/prototypes/turmas/01-turmas-list.html` through `07b-nova-matricula-erro.html`, `dev-notes.md`.
+**Prototype references:** `journeys/manager/turmas.md`, `journeys/manager/prototypes/turmas/01-turmas-list.html` through `07b-nova-matricula-erro.html`, `dev-notes.md`.
 
 **Description:**
-Build the manager admin surface: template CRUD, contracts, and matrículas (enrollments) view — following `plan/journey/manager/prototypes/turmas/` exactly. **Session list/override/cancel is deliberately out of scope here** — `plan/journey/manager/turmas.md`'s own header scopes this journey to configuration only (UC-079/080/096/099/103/104) and explicitly says session-level daily operations belong to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped (`docs-audit` found `01-turmas-list.html`'s "Ver sessões"/"Editar" links were dead `#` placeholders with no destination screen — this correction removes that dangling scope rather than treating it as a gap to fill). A manager wanting to manage sessions day-to-day uses S16 directly, same as a staff member. New MANAGER-only sidebar item "Turmas" (`Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
+Build the manager admin surface: template CRUD, contracts, and matrículas (enrollments) view — following `journeys/manager/prototypes/turmas/` exactly. **Session list/override/cancel is deliberately out of scope here** — `journeys/manager/turmas.md`'s own header scopes this journey to configuration only (UC-079/080/096/099/103/104) and explicitly says session-level daily operations belong to `staff/turmas.md`'s shared STAFF|MANAGER surface (S16); no manager-only session-management screen was ever promoted or prototyped (`docs-audit` found `01-turmas-list.html`'s "Ver sessões"/"Editar" links were dead `#` placeholders with no destination screen — this correction removes that dangling scope rather than treating it as a gap to fill). A manager wanting to manage sessions day-to-day uses S16 directly, same as a staff member. New MANAGER-only sidebar item "Turmas" (`Sidebar.tsx`'s `MANAGER_NAV_KEYS`).
 
 **Files to create/modify:**
 - `apps/web/app/dashboard/turmas/page.tsx`, `new/page.tsx`, `[id]/page.tsx`, `[id]/matriculas/page.tsx` (new)
@@ -836,7 +836,7 @@ Build the manager admin surface: template CRUD, contracts, and matrículas (enro
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Dependencies:** M24-S06, M24-S08, M24-S09, M24-S14
 **Pattern:** plain composition.
-**Prototype references:** `plan/journey/staff/turmas.md`, `plan/journey/staff/prototypes/turmas/01-turmas-proximas.html` through `05b-guest-approval-erro.html`, `dev-notes.md`.
+**Prototype references:** `journeys/staff/turmas.md`, `journeys/staff/prototypes/turmas/01-turmas-proximas.html` through `05b-guest-approval-erro.html`, `dev-notes.md`.
 
 **Description:**
 Staff's own "Turmas" view — upcoming sessions (scoped to their own resource), roster, guest-approval queue, close-out with attendance/payment.
@@ -865,13 +865,13 @@ Staff's own "Turmas" view — upcoming sessions (scoped to their own resource), 
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer-facing pages follow the same transport rules), `docs/24-BFF_ARCHITECTURE.md`
 **Dependencies:** M24-S07, M24-S08
 **Pattern:** plain composition — actor-scoped view of the Booking domain's own aggregate, lives in the `booking` slice per `CLAUDE.md` §11, not `customer`.
-**Prototype references:** `plan/journey/customer/reservar-aula.md`, `plan/journey/customer/prototypes/reservar-aula/00-tipo-reserva.html` through `05b-success-waitlist.html`, `dev-notes.md`.
+**Prototype references:** `journeys/customer/reservar-aula.md`, `journeys/customer/prototypes/reservar-aula/00-tipo-reserva.html` through `05b-success-waitlist.html`, `dev-notes.md`.
 
 **Description:**
 Authenticated customer browses upcoming sessions for a SESSION service, books drop-in (contract or pay-per-class) or a recurring series, following the prototype's exact flow.
 
 **Files to create/modify:**
-- `apps/web/app/[slug]/aulas/page.tsx`, `[serviceId]/page.tsx` (new — hotsite route, verify exact segment naming against `plan/journey/guest/book-a-class.md`'s already-documented `/{slug}/aulas/agenda` route shape for consistency between the guest and customer paths)
+- `apps/web/app/[slug]/aulas/page.tsx`, `[serviceId]/page.tsx` (new — hotsite route, verify exact segment naming against `journeys/guest/book-a-class.md`'s already-documented `/{slug}/aulas/agenda` route shape for consistency between the guest and customer paths)
 - `apps/web/features/booking/components/public/ClassAgendaPage.tsx` (+ `.spec.tsx`) (new — lives in `public/` alongside the existing guest booking components per the actor-scoped-view rule, since an authenticated customer reaches this via the same hotsite route tree)
 - `apps/web/features/booking/components/public/ClassBookingConfirm.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/api/class-session-bookings.ts` (new)
@@ -893,7 +893,7 @@ Authenticated customer browses upcoming sessions for a SESSION service, books dr
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Dependencies:** M24-S08, M24-S11, M24-S12
 **Pattern:** plain composition — extends the existing, shipped Minha Conta bookings list.
-**Prototype references:** `plan/journey/customer/minha-conta.md` (extension section), `plan/journey/customer/prototypes/minha-conta/08-turmas-lista.html` through `12b-waitlist-confirmed.html`, `dev-notes.md`.
+**Prototype references:** `journeys/customer/minha-conta.md` (extension section), `journeys/customer/prototypes/minha-conta/08-turmas-lista.html` through `12b-waitlist-confirmed.html`, `dev-notes.md`.
 
 **Description:**
 Extend the existing `apps/web/features/customer/components/my-account/` surface with class-booking management: view upcoming class bookings/enrollments, cancel, skip an occurrence, reschedule ("reposição"), edit attendees, manage a waitlist offer.
@@ -923,10 +923,10 @@ Extend the existing `apps/web/features/customer/components/my-account/` surface 
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`
 **Dependencies:** M24-S03, M24-S07, M24-S08
 **Pattern:** plain composition.
-**Prototype references:** `plan/journey/guest/book-a-class.md`, `plan/journey/guest/prototypes/book-a-class/*.html`, `dev-notes.md`.
+**Prototype references:** `journeys/guest/book-a-class.md`, `journeys/guest/prototypes/book-a-class/*.html`, `dev-notes.md`.
 
 **Description:**
-Anonymous visitor browses a tenant's class agenda, verifies email, and requests a trial/drop-in seat (solo or named group) without an account — exactly per `plan/journey/guest/book-a-class.md`'s already-drafted flow.
+Anonymous visitor browses a tenant's class agenda, verifies email, and requests a trial/drop-in seat (solo or named group) without an account — exactly per `journeys/guest/book-a-class.md`'s already-drafted flow.
 
 **Files to create/modify:**
 - `apps/web/app/[slug]/aulas/agenda/page.tsx`, `[sessionId]/acesso/page.tsx`, `[sessionId]/fila/page.tsx` (new, per the journey's already-documented routes)
@@ -953,7 +953,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
 **Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11a (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
 **Pattern:** plain composition — one extra card variant in the existing `ServiceSelectionStep`; no new pattern.
-**Prototype references:** `plan/journey/guest/prototypes/book-a-service/` is unchanged by this story; the destination screens are `plan/journey/guest/prototypes/book-a-class/01-class-agenda.html` and `plan/journey/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `plan/journey/README.md`).
+**Prototype references:** `journeys/guest/prototypes/book-a-service/` is unchanged by this story; the destination screens are `journeys/guest/prototypes/book-a-class/01-class-agenda.html` and `journeys/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `journeys/README.md`).
 
 **Description:**
 `POST /bookings` rejects any service whose `bookingModel` is not `APPOINTMENT` (`request-booking.use-case.ts:153`), so the appointment flow's Step 1 (M23-S11a) lists only `APPOINTMENT` services — a `SESSION` (class) service must never be selectable there. Without this story a tenant that offers classes has no way to reach them from the booking page: the class agenda routes (`/[slug]/aulas`, M24-S17 for customers; `/[slug]/aulas/agenda`, M24-S19 for guests) exist but nothing links to them. This story adds the entry point: the Step 1 list shows each `SESSION` service as a non-selectable "Ver turmas" card, below the appointment services, that routes to the class agenda for that service (`serviceId` retained). It replaces the type-selector screen (16) that was removed from M23 — a class is just another service in the same list, rendered differently by `bookingModel`.
@@ -966,7 +966,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 - `apps/web/features/booking/components/public/ServiceSelectionStep.tsx` (+ `.spec.tsx`) (modify — render `SESSION` services as link cards, keep them out of the selectable basket and out of the total)
 - `apps/web/features/booking/components/public/ClassServiceLinkCard.tsx` (+ `.spec.tsx`) (new — hotsite-styled with `--ba-*` tokens)
 - `packages/i18n/locales/{pt-BR,en}/web.json` (modify — new keys under the existing `booking` namespace, both locales in the same commit)
-- `plan/journey/guest/book-a-service.md`, `plan/journey/customer/book-a-service.md` and both `dev-notes.md` (modify — the class-card variant; a new `01`-series prototype screen for it)
+- `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md` and both `dev-notes.md` (modify — the class-card variant; a new `01`-series prototype screen for it)
 
 **Acceptance criteria — product:**
 - [ ] A tenant offering both appointment and class services sees both in the booking page's Step 1; selecting an appointment service starts the booking flow, a class card links to the class agenda instead and cannot be added to the basket.
@@ -1047,7 +1047,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`
 **Dependencies:** M24-S21 (BFF endpoints), M24-S05 (SESSION presets — the wizard covers all seven). Moved from M23-S15 on 2026-10-10.
 **Pattern:** plain composition — a new multi-step wizard; no existing precedent to extend, but follows the same step-form conventions as the hotsite booking flow.
-**Prototype references:** `plan/journey/manager/onboarding.md`, `plan/journey/manager/prototypes/onboarding/01-onboarding-preset.html`, `01b-onboarding-preset-erro.html`, `dev-notes.md`
+**Prototype references:** `journeys/manager/onboarding.md`, `journeys/manager/prototypes/onboarding/01-onboarding-preset.html`, `01b-onboarding-preset-erro.html`, `dev-notes.md`
 
 **Description:**
 Build the preset-selection + minimum-answer wizard from the relocated prototype, ending in the "generated configuration as editable review" screen. Surfaces per-preset validation errors inline (422 → wizard step, per UC-075 A2).

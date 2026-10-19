@@ -7,7 +7,7 @@ import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messa
 import { SwitchTenantClient } from '@/features/customer/components/SwitchTenantClient';
 
 // SwitchTenantClient renders with the *current* tenant's hotsite branding AND locale (the
-// prototype it's based on, plan/journey/customer/prototypes/login/01-select-tenant.html, is
+// prototype it's based on, journeys/customer/prototypes/login/01-select-tenant.html, is
 // shown inside the hotsite visual context) — but this route lives outside the /[slug] tree, so
 // neither the --ba-* CSS variables nor the tenant's locale that [slug]/layout.tsx sets up are in
 // scope here. The root layout's next-intl config (i18n/request.ts -> resolveLocale) derives

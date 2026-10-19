@@ -1022,7 +1022,7 @@
     "packages/validation/tsconfig.json"
   ],
   "docLinkIntegrity": {
-    "markdownSources": ["docs/", "plan/", "td/", ".claude/commands/", ".copilot/"],
+    "markdownSources": ["docs/", "plan/", "td/", "journeys/", ".claude/commands/", ".copilot/"],
     "codeSources": ["apps/", "packages/"],
     "excluded": ["docs/discovery/", "archive/"],
     "frozen": [
@@ -1151,7 +1151,7 @@
       },
       "prototypes": {
         "description": "The validated UX journeys and HTML prototypes the UI is built from.",
-        "globs": ["plan/journey/**"]
+        "globs": ["journeys/**"]
       },
       "product": {
         "description": "Business context, product rules and cost: topics with no code to diff against.",

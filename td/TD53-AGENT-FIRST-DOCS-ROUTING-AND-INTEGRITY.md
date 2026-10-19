@@ -45,7 +45,7 @@ Principles:
 Rejected, with the condition to reopen:
 - **Regrouping `docs/` into subfolders and dropping the numbers.** About 3,930 rewrites across 640 files for a human-browsing gain; the transcripts show agents are not slowed by a flat layout. Reopen only if Story 3A's triage shows another agent navigating by directory.
 - **Splitting the large docs into smaller files.** The transcripts show they are already consumed by section. Reopen only if measurement shows an agent that reads them whole.
-- **Moving `plan/journey/` into `docs/`.** About 5.8 MB of HTML and CSS would add noise to the `docs/` greps agents run constantly. The journeys move to a top-level `journeys/` instead (Story 4), so `plan/` means delivery only and `docs/` stays text. Agent value of this move is low; it is chosen for clarity, and its cost (about 790 mechanical edits) is small once Story 0's checker exists.
+- **Moving `plan/journey/` into `docs/`.** About 5.8 MB of HTML and CSS would add noise to the `docs/` greps agents run constantly. The journeys move to a top-level `journeys/` instead (Story 4), so `plan/` means delivery only and `docs/` stays text. Agent value of this move is low; it is chosen for clarity, and its cost (about 790 mechanical edits) is small once Story 0's checker exists. <!-- doc-link:example -->
 
 ### Success metrics (baseline measured 2026-10-17; each story records its after-value in its PR)
 
@@ -261,7 +261,7 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 - **Upper bound, not a prediction.** Area and workflow units total 24,772 characters, about 55% of §0–§9. Story 5A decides whether a nested file loads in each agent tool at all, and Story 5B must still run the ablation on each bullet it proposes to move or shorten (Story 2's n=2 result: the CHECK-constraint bullet steers, the LIKE-escaping bullet currently does not).
 - **Duplicates inside the file.** §0's autonomous-chain bullet (861 characters) and §9's READY paragraph (212) state the same authorization; keep §0's gate and cut the §9 restatement. §8's table says it holds the 11 highest-severity rows; 7 of them name a single app (`useExisting`, the cross-context port, the VO error, raw SQL in a non-repository, `@Global()` exports, the BFF mapper, `--ba-*`), so they are movable, and 4 are cross-layer.
 - **Story 2's inventory stands** and is not redone here: the 13 CI-enforced bullets (about 3.5 KB) shrink to a name and the gate; the 1 KB of model-known content (PR body template, commit examples, CI-gates list) compresses without an experiment.
-- **Journeys.** The `prototypes` tag glob in `architecture-policy.json` and `plan/journey/README.md` are the only places that classify journeys; Story 4 updates both.
+- **Journeys.** The `prototypes` tag glob in `architecture-policy.json` and `plan/journey/README.md` are the only places that classify journeys; Story 4 updates both. <!-- doc-link:example -->
 
 **Journeys destination and root config (Story 4).** Destination confirmed: top-level `journeys/` (`docs/journeys` stays rejected: about 5.0 MB of HTML in 407 tracked files would sit inside the `docs/` greps). None of `.gitignore`, `.coderabbit.yaml`, `sonar-project.properties` or `knip.config.ts` names the path or a broader `plan/**` glob, so none needs an edit. The places that do:
 - `packages/architecture-check/architecture-policy.json` (the `prototypes` glob under `docOrientation`),
@@ -357,7 +357,7 @@ graph TD
 
 Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waited for its result. Story 5A (2026-10-19) cancelled 5B's nested-file move, so 5B now runs only if the owner wants the in-place trimming of `context.md`, and Story 6 does not wait for it when it is not run.
 
-**Closing audit — one final run, then stop.** Story 3A's convergence passes did not reach zero (about 169, 123, then 102 findings; see its Decision record), and a repeated audit can always find more in the largest docs, so the loop must have an end. The **last story that actually runs** (Story 6 if it gets its go; otherwise whichever of Stories 3C, 4, 5A and 5B runs last) ends with **one** full `/docs-audit` of `docs/`, `plan/`, `td/` and `plan/journey/` (or its new `journeys/` location), run once after every move, rename and trim has landed so it checks the final layout and not a layout that is about to change. Its findings are fixed in the same PR, its counts are recorded beside Story 3A's table, and that closes the documentation baseline: it is **not** repeated unless a later change to the code or the docs gives a specific reason. Story 3C's Decision record names which story carries it.
+**Closing audit — one final run, then stop.** Story 3A's convergence passes did not reach zero (about 169, 123, then 102 findings; see its Decision record), and a repeated audit can always find more in the largest docs, so the loop must have an end. The **last story that actually runs** (Story 6 if it gets its go; otherwise whichever of Stories 3C, 4, 5A and 5B runs last) ends with **one** full `/docs-audit` of `docs/`, `plan/`, `td/` and `plan/journey/` (or its new `journeys/` location), run once after every move, rename and trim has landed so it checks the final layout and not a layout that is about to change. Its findings are fixed in the same PR, its counts are recorded beside Story 3A's table, and that closes the documentation baseline: it is **not** repeated unless a later change to the code or the docs gives a specific reason. Story 3C's Decision record names which story carries it. <!-- doc-link:example -->
 
 ### Story 0 — Repo-wide link and anchor checker ✅ Done
 
@@ -452,7 +452,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 **Decisions locked in story-discovery (2026-10-18):**
 - Both fields mandatory on all 45 live top-level docs, no size threshold; `When to load` at least 20 characters; tags comma-separated, at least one, no maximum.
 - Docs that Story 3B later deletes, moves or rewrites (`ENGINEERING_RULES.md`, `TD37-ARCHITECTURE-CHECK-DECISIONS.md`, `README.md`) are tagged now, so the rule has no exception and 3B only moves or deletes them.
-- `plan/journey/README.md` and `td/` files are out of scope for the detector; prototypes are reached through the `prototypes` tag's globs. Story 4 moves the journeys and must update those globs (see Story 4).
+- `plan/journey/README.md` and `td/` files are out of scope for the detector; prototypes are reached through the `prototypes` tag's globs. Story 4 moves the journeys and must update those globs (see Story 4). <!-- doc-link:example -->
 - Glob matching uses `picomatch`, added to `packages/architecture-check/package.json` (explicit yes obtained in discovery).
 - Deep versus light is derived from the tags (a tag with globs makes a doc deep); there is no separate marker.
 - The `docs-for` helper is in this story, not a follow-up.
@@ -603,7 +603,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 **Decisions locked in story-discovery (2026-10-19):**
 - **Archived files are not edited.** Citations inside `archive/` files (about 60, all historical; the checker excludes them as sources) stay as they are. The acceptance criteria below therefore say "no tracked live file", meaning outside `archive/`, `docs/discovery/` and files with a `> Frozen:` header.
 - **No detector change.** `doc-link-integrity` is not given an `archive/` root; the rewritten citations are verified by `git grep`, not by the checker.
-- **Live files stop depending on the archive.** A live file's pointer to an archived file is removed, not repointed, and the fact it supported stays in the sentence (for example "bundles are offered from TD49 Story 2"). Before each removal, check what the live doc would lose; only when the pointer was the single home of a fact does one sentence move into the canonical live doc, and nothing is copied wholesale or bloats a doc. The known cases are `docs/04-USE_CASES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and its `dev-notes.md`, the M22 IA file, `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` and the precedent note in `story-discovery` (both copies).
+- **Live files stop depending on the archive.** A live file's pointer to an archived file is removed, not repointed, and the fact it supported stays in the sentence (for example "bundles are offered from TD49 Story 2"). Before each removal, check what the live doc would lose; only when the pointer was the single home of a fact does one sentence move into the canonical live doc, and nothing is copied wholesale or bloats a doc. The known cases are `docs/04-USE_CASES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and its `dev-notes.md`, the M22 IA file, `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` and the precedent note in `story-discovery` (both copies). <!-- doc-link:example -->
 - **Pointers that name the folder itself are repointed to `archive/`:** `.copilot/context.md` §10 ("Never load"), `.github/instructions/pr-review.instructions.md` (excluded paths) and `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (the checker's skipped folders). The policy's `excluded` list drops the dead `docs/archive` entry and keeps `archive/`.
 - **`ENGINEERING_RULES.md` citations:** the two non-frozen `plan/M17-CLOUD-DEPLOY.md` lines say "the former `ENGINEERING_RULES.md`" with no `docs/` path, so the history stays true; the "Split from" header lines in the five `ENGINEERING_RULES_*` files, `CI_TRAPS.md` and both skill copies are reworded the same way; `agent-context-file.spec.ts` uses a real doc path as its fixture instead. `doc-orientation.spec.ts` and the `docs-audit` folder example stop naming `docs/lean`. The `M12`/`M13` `_DEVELOPER.md` plans lose only the sentence citing `WEB_LEAN`.
 - **`docs/README.md`:** the placement and naming rule, the header-contract paragraph, and one ordered list (numbered docs in prefix order, then the unnumbered ones grouped by purpose, docs 27 and 28 included) with one line per entry instead of the long blurbs.
@@ -730,11 +730,11 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 - [ ] A final per-rule grep for the rule's distinctive wording returns the full explanation in the canonical doc only; the result is recorded in the PR body
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 4 — Move `plan/journey/` to `journeys/` ⚪
+### Story 4 — Move `plan/journey` to `journeys/` ⚪
 
 **Agent:** devops
 **Complexity:** L
-**Docs to load:** the Decision record above; `plan/journey/README.md`; `.copilot/context.md` §15
+**Docs to load:** the Decision record above; `journeys/README.md`; `.copilot/context.md` §15
 **Dependencies:** Story 0 (the checker proves the move), Story 3A (the audit baseline fixes journey drift first, so stale `dev-notes.md` content is not moved) and Story 3C (the go decision and destination). **Gated:** runs only on an explicit go in the Decision record; agent value is low and the cost is large. **Go recorded 2026-10-19** (Story 3C's Decision record, with the measured cost shown).
 **Pattern:** plain composition — no named pattern applies
 
@@ -754,15 +754,17 @@ This story rewrites lines across the whole repository, so it is **not batchable*
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- The `plan/journey/**` subtree (`git mv`, 407 files) to `journeys/**`
+- The `plan/journey/**` subtree (`git mv`, 407 files) to `journeys/**` <!-- doc-link:example -->
 - Every live file returned by `git grep -l "plan/journey"` outside `docs/discovery/` and `archive/` (36 measured; regenerate then)
 - `packages/architecture-check/architecture-policy.json` (`prototypes` glob under `docOrientation`; `markdownSources`)
 - `packages/architecture-check/src/detectors/doc-link-integrity.ts` and `doc-link-integrity.spec.ts` (new root)
 - `.prettierignore`, `.dockerignore`
+- `packages/architecture-check/src/doc-tags.ts` and its specs (`isOrientationDoc` also accepts `journeys/README.md`, so `docs-for --tag prototypes` lists the journeys index; found by Codex in review, the Tags line alone never made it discoverable)
+- Six prototype HTML files under `journeys/` (`href` values and one redirect only), repairing the 15 targets that were already broken before the move
 
 **Acceptance criteria — product:**
-- [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`.
-- [ ] Every relative `href`/`src` in the moved HTML prototypes still resolves (one-off script run, result recorded in the PR).
+- [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`, plus this TD's own narrative (it names the old path as the subject of the move and carries `doc-link:example` markers).
+- [ ] Every relative `href`/`src` in the moved HTML prototypes resolves (one-off script run, result recorded in the PR). The 15 targets that were already broken before the move (old discovery-era file names) are repaired in the same PR, so the count is 0 of 3,760.
 - [ ] `docs-for --tag prototypes` still lists the journeys.
 
 **Acceptance criteria — technical:**

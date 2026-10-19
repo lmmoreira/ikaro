@@ -57,7 +57,7 @@ Each tenant has dedicated hotsite accessible via path:
 **Customers: Can belong to MULTIPLE tenants**
 - One person can book services at multiple car wash companies
 - Each car wash company = separate Customer record + separate Loyalty record
-- Every customer login starts from one tenant's own hotsite login (`/{slug}/login`), so the session is scoped to that tenant from the start; there is no tenant-selection screen at login (descoped, `plan/journey/customer/login.md`)
+- Every customer login starts from one tenant's own hotsite login (`/{slug}/login`), so the session is scoped to that tenant from the start; there is no tenant-selection screen at login (descoped, `journeys/customer/login.md`)
 - Can switch between tenants after login (`POST /auth/switch-tenant`)
 
 **Staff: Can belong to MULTIPLE tenants**

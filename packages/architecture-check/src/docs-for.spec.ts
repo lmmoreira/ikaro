@@ -13,6 +13,7 @@ const POLICY = {
     tags: {
       backend: { description: 'backend', globs: ['apps/backend/**'] },
       product: { description: 'topic only', globs: [] },
+      prototypes: { description: 'journeys', globs: ['journeys/**'] },
     },
   },
 };
@@ -32,6 +33,7 @@ function repo(): string {
     'packages/architecture-check/architecture-policy.json': JSON.stringify(POLICY),
     'docs/BACKEND.md': doc('backend'),
     'docs/PRODUCT.md': doc('product'),
+    'journeys/README.md': doc('prototypes'),
     'apps/backend/src/a.ts': 'export {};',
     'scripts/x.sh': '#!/bin/sh',
   };
@@ -111,6 +113,13 @@ describe('runDocsFor', () => {
 
   it('--tag lists the docs carrying a tag', () => {
     expect(run(repo(), '--tag', 'product').out).toBe('light docs/PRODUCT.md [product]\n');
+  });
+
+  it('--tag lists the journeys index, and a changed prototype file selects it', () => {
+    expect(run(repo(), '--tag', 'prototypes').out).toBe('deep journeys/README.md [prototypes]\n');
+    expect(run(repo(), '--file', 'journeys/staff/prototypes/a/01.html').out).toContain(
+      'deep journeys/README.md [prototypes]',
+    );
   });
 
   it('--json returns the same data as structured output', () => {

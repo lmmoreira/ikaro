@@ -420,7 +420,7 @@ System prompt rebuilt fresh on every message (not frozen at session start) — f
 **Agent:** `frontend-ts` + `backend-ts`
 **Complexity:** L
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-033/UC-034, `docs/14-API_CONTRACTS.md` § Chatbot Widget, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer
-**Prototype references:** `plan/journey/guest/prototypes/ask-chatbot/` (`00-hotsite.html`, `01-active-chat.html`, `01b-interrupted.html`, `01c-not-available.html`, `01d-inline-variant.html`, `dev-notes.md`)
+**Prototype references:** `journeys/guest/prototypes/ask-chatbot/` (`00-hotsite.html`, `01-active-chat.html`, `01b-interrupted.html`, `01c-not-available.html`, `01d-inline-variant.html`, `dev-notes.md`)
 
 **Description:**
 Add `'CHATBOT'` to `HotsiteModuleType` union (`packages/types/src/hotsite.ts`) and the `ChatbotModuleData` interface (`variant?: 'bubble' | 'inline'`, `accentColor?: 'primary' | 'secondary'`, `botName?: string`, `welcomeMessage?: string`). Add a matching `ChatbotModuleDataSchema` to `apps/web/features/platform/hotsite/module-schemas.ts`, registered in `MODULE_DATA_SCHEMAS` — every `HotsiteModuleType` needs a schema before it ships (`docs/15` §7 step 3), otherwise `isValidModuleData('CHATBOT', data)` accepts any malformed payload.
@@ -437,7 +437,7 @@ Widget header reads `"{tenant name} — Assistente IA"` / `"— AI Assistant"` p
 
 **Fake LLM provider for CI/E2E (folded in from story-discovery — see Follow-up below):** add a DI-registered fake/noop `ILlmProvider` (`apps/backend/src/contexts/platform/infrastructure/llm/`), a new provider-name constant, and register it in `LlmProviderRegistry`'s map. Wire it as a selectable (never default) option for `CHATBOT_LLM_PROVIDER` — mirrors the existing `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, not a network-level mock). Production/staging keep `openrouter` as the default; only the E2E environment sets `CHATBOT_LLM_PROVIDER=fake`.
 
-On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags and "Pages referenced" table (all currently `Story: TBD`) to reflect the shipped flow — the GUEST-facing UC-033/UC-034 journey is complete end-to-end once this story ships (`docs/DEFINITION_OF_DONE.md` § Journey GAP-status drift).
+On completion, flip `journeys/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags and "Pages referenced" table (all currently `Story: TBD`) to reflect the shipped flow — the GUEST-facing UC-033/UC-034 journey is complete end-to-end once this story ships (`docs/DEFINITION_OF_DONE.md` § Journey GAP-status drift).
 
 **Acceptance Criteria:**
 - [ ] All 3 states implemented, matching the prototype's visual treatment
@@ -452,7 +452,7 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 - [ ] New locale keys (placeholder text, interrupted message, not-available fallback) in both `pt-BR` and `en` in the same commit, under `hotsite.chatbot.*`
 - [ ] A DI-registered fake/noop `ILlmProvider` exists, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`; a unit test confirms it never performs real network I/O; production/staging default (`openrouter`) unchanged
 - [ ] At minimum one Playwright E2E flow exercising a real conversation against the fake provider end to end (widget → BFF → backend → fake adapter), with the E2E environment set to `CHATBOT_LLM_PROVIDER=fake` — never a real billed model call in CI
-- [ ] `plan/journey/guest/ask-chatbot.md`'s mermaid flowchart and "Pages referenced" table updated (GAP tags cleared, Story column set to M19-S11) in the same commit
+- [ ] `journeys/guest/ask-chatbot.md`'s mermaid flowchart and "Pages referenced" table updated (GAP tags cleared, Story column set to M19-S11) in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09.
@@ -463,7 +463,7 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 3. **[RISK] `dev-notes.md`'s open reload-behavior question was never resolved.** Resolved: client-side cache (`messages` persisted to `sessionStorage` alongside `sessionId`) — no new backend endpoint, keeps the story frontend-scoped on this axis.
 4. **[RISK] `module-schemas.ts` had no path to a `CHATBOT` entry**, though `docs/15` §7 step 3 makes this mandatory before any new module type ships. Folded into this story's scope.
 5. **[RISK] `page.tsx`'s per-module divider didn't account for a `position: fixed` widget.** Resolved: `CHATBOT` gets the same no-divider treatment as `FOOTER`.
-6. **[RISK] `plan/journey/guest/ask-chatbot.md` still marks every node `❓ GAP`** even though this story completes the guest-facing flow end-to-end. Folded into this story's own Definition-of-Done scope rather than deferred to milestone close-out.
+6. **[RISK] `journeys/guest/ask-chatbot.md` still marks every node `❓ GAP`** even though this story completes the guest-facing flow end-to-end. Folded into this story's own Definition-of-Done scope rather than deferred to milestone close-out.
 
 **Follow-up (M19-S11 implementation, 2026-08-17) — 1 additional gap found and fixed, not caught at story-discovery:**
 1. **The backend and BFF independently hardcode their own module-type allow-lists, neither derived from `@ikaro/types`'s `HotsiteModuleType`, and neither included `CHATBOT`.** Two separate call sites: the shared Zod schema `packages/validation/src/hotsite.ts`'s `HotsiteModuleSchema` (used by both `apps/bff/src/features/platform/hotsite-admin.schemas.ts`'s `UpdateHotsiteContentBodySchema` and the backend's `update-hotsite-content.dto.ts` via `ZodValidationPipe`), and `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`'s own `HotsiteModuleType` union + `MODULE_TYPES` set (enforced in `validateLayout()`, throws `HotsiteModuleTypeInvalidError`). Without this fix, `PATCH /v1/tenants/hotsite` would reject any `{ type: 'CHATBOT', ... }` module outright — not just an E2E-test-blocking gap, but one that would've blocked the feature from ever working in production, regardless of which story eventually builds the admin config UI. Fixed: added `'CHATBOT'` to both the shared Zod enum and the backend aggregate's own type/set (plus a `ChatbotModuleData` interface in the aggregate, needed once a real `HotsiteModule` literal with `type: 'CHATBOT'` is constructed anywhere — TypeScript's structural typing caught this immediately via a literal-assignment error in the aggregate's own test file). Test coverage added at both layers (`packages/validation/src/hotsite.spec.ts`, `apps/backend/.../hotsite-config.spec.ts`). Found only because the E2E test needed to actually PATCH a CHATBOT module onto a real tenant's layout — a lesson for future new-module-type stories: verify the backend/BFF persistence-validation layer accepts the new type, not just the web-side schema and the type union.
@@ -484,7 +484,7 @@ On completion, flip `plan/journey/guest/ask-chatbot.md`'s mermaid `❓ GAP` tags
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT, `docs/04-USE_CASES.md` UC-027 A5, `docs/14-API_CONTRACTS.md` § Chatbot Cap Status
-**Prototype references:** `plan/journey/manager/prototypes/hotsite/01e-module-config-chatbot.html`
+**Prototype references:** `journeys/manager/prototypes/hotsite/01e-module-config-chatbot.html`
 
 **Description:**
 `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`), same drill-down pattern as the other 8 module panels (M13-S36 precedent). Fields: `variant` (bubble/inline pill-toggle), `accentColor` (primary/secondary), `botName`, `welcomeMessage`. Standing (non-dismissible) info note about the AI-provider-credit dependency. Conditional red banner — queries S10's `GET /v1/tenants/chatbot/cap-status` on mount, shown only when `dailyCapReachedToday` is `true`.
@@ -498,7 +498,7 @@ Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHAT
 - [ ] `'CHATBOT'` added to `default-layout.ts`'s `MODULE_ORDER` and `DEFAULT_MODULE_DATA`; the Layout tab shows a CHATBOT row for every tenant (new or existing) and the Manifesto tab accepts a pasted `CHATBOT` module
 - [ ] New locale keys (panel labels, disclosure text, banner text) in both `pt-BR` and `en` in the same commit
 - [ ] `.spec.tsx` covering both banner states (shown/hidden) and field editing/persistence
-- [ ] `plan/journey/manager/hotsite.md`'s open-question line and `index.html`'s GAP tag for `01e-module-config-chatbot.html` updated to resolved, in the same commit
+- [ ] `journeys/manager/hotsite.md`'s open-question line and `index.html`'s GAP tag for `01e-module-config-chatbot.html` updated to resolved, in the same commit
 - [ ] Coverage ≥80%; `tsc --noEmit`, lint, tests green
 
 **Dependencies:** S09, S10, S11.
@@ -506,7 +506,7 @@ Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHAT
 **Follow-up (M19-S12 story-discovery, 2026-08-18) — 1 blocker + 2 risks found and resolved before implementation:**
 1. **[BLOCKER] The story's original Description never mentioned `default-layout.ts`, but the panel is unreachable without editing it.** `MODULE_ORDER`/`DEFAULT_MODULE_DATA` both excluded `'CHATBOT'`, with the code already carrying an explicit forward-reference comment placed during S11 ("CHATBOT... ships in M19-S12"). `materializeLayout()` only walks `MODULE_ORDER`, so without this edit no tenant ever gets a CHATBOT row in the Layout tab and `manifest-schema.ts`'s `MODULE_TYPE_SET`/`tooManyModules` cap (both derived from `MODULE_ORDER.length`) keep rejecting a pasted `CHATBOT` module in the Manifesto tab. Resolved: folded into this story's own Description/AC above.
 2. **[RISK] No existing module panel does its own data fetch** — all 8 prior panels (`grep`-confirmed) are pure `{ data, onChange }` local-state editors with zero network I/O; `HotsiteEditor.tsx` owns all mutations. Resolved: `ChatbotConfigPanel` follows the existing hotsite hook convention (`api/tenant-settings.ts` + `useHotsite.ts`'s `useQuery` wrappers), not a bespoke fetch embedded in the component.
-3. **[RISK] Journey GAP-status drift not originally in scope** — `plan/journey/manager/hotsite.md` line 71 and `index.html`'s GAP tag on `01e-module-config-chatbot.html` were never flagged for this story, unlike S11's equivalent flip for the guest journey. Resolved: added as its own AC above.
+3. **[RISK] Journey GAP-status drift not originally in scope** — `journeys/manager/hotsite.md` line 71 and `index.html`'s GAP tag on `01e-module-config-chatbot.html` were never flagged for this story, unlike S11's equivalent flip for the guest journey. Resolved: added as its own AC above.
 
 ---
 
@@ -515,7 +515,7 @@ Also requires `apps/web/features/platform/hotsite/default-layout.ts`: add `'CHAT
 **Agent:** `frontend-ts`
 **Complexity:** S
 **Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 7, `docs/14-API_CONTRACTS.md` § Tenant Settings
-**Prototype references:** `plan/journey/manager/prototypes/configuracoes/01d-chatbot-section.html`
+**Prototype references:** `journeys/manager/prototypes/configuracoes/01d-chatbot-section.html`
 
 **Description:**
 Add a "Chatbot" section to `SettingsForm.tsx` (`apps/web/features/platform/components/`) — a single `knowledgeText` textarea, matching the prototype exactly. No caps shown, deliberately (per `docs/21` §7). Wired into the existing `PATCH /v1/tenants/settings` save flow, same as every other settings section — no new endpoint.

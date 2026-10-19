@@ -36,7 +36,7 @@ interface BookingStatusIconProps {
 }
 
 // Prototype's .booking-item-icon: a 2.125rem square, color-coded per status
-// (plan/journey/customer/prototypes/minha-conta/01-minha-conta.html).
+// (journeys/customer/prototypes/minha-conta/01-minha-conta.html).
 export function BookingStatusIcon({ status }: BookingStatusIconProps): React.JSX.Element {
   const Icon = ICON_BY_STATUS[status];
   return (

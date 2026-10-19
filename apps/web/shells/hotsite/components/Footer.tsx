@@ -12,7 +12,7 @@ interface FooterProps {
 }
 
 // Same brand-mark treatment as HotsiteAuthBar's BrandMark, sized for the footer (see
-// plan/journey/shared/hotsite.html's footer section) — falls back to an initial-letter badge.
+// journeys/shared/hotsite.html's footer section) — falls back to an initial-letter badge.
 function FooterBrandMark({
   logoUrl,
   tenantName,
