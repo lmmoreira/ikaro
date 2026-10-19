@@ -12,7 +12,7 @@ Full mandatory rules → `docs/08-TESTING_STRATEGY.md §Mandatory Patterns`.
 
 ### Builder pattern (mandatory)
 
-All test data uses builder classes with fluent `withXxx()` / `build()`. Never plain factory functions or raw object literals in specs.
+All test data uses builder classes with fluent `withXxx()` / `build()`. Never plain factory functions or raw object literals in specs. Naming, location and the coverage detector: `docs/08-TESTING_STRATEGY.md` § Builder class pattern (all test data).
 
 Builder types:
 - `XxxEntityBuilder` — TypeORM entity builders
@@ -68,7 +68,7 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-Full explanation and the worked before/after example now live in the `useExisting` row of `docs/ANTI_PATTERNS.md` (relocated 2026-09-20, TD41 — this rule was independently, fully explained in both that row and here, with no pointer between them; collapsed to one canonical copy).
+Register an adapter with `useClass`, never `useExisting`: see `docs/08-TESTING_STRATEGY.md` § Integration app helpers — mandatory default overrides for network-calling adapters (the root cause and the before/after example).
 
 ### Notification spec setup
 
@@ -76,7 +76,7 @@ Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain pro
 
 ### Migration / entity registration
 
-Every new migration class and TypeORM entity must be added to `src/test/integration-global-setup.ts` (and to any context-specific helper like `notification-integration-app.ts`) in the **same commit** as the migration file. Skipping causes silent failures — unit tests pass but integration tests error on the first DB query. This applies to a migration that only adds an index, not just one that creates a table — `pnpm architecture-check`'s `test-harness-registration` detector catches a missing entry either way.
+Every new migration class and TypeORM entity must be registered in `src/test/integration-global-setup.ts` (and any context helper) in the same commit as the migration: `docs/08-TESTING_STRATEGY.md` § Registering new migrations and entities in the global setup (MANDATORY).
 
 ### Migration specs
 

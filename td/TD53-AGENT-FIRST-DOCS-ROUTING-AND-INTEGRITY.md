@@ -57,7 +57,7 @@ Rejected, with the condition to reopen:
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
 | Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B | 0 (`docs/archive` and `docs/lean` no longer exist; the archive is the top-level `archive/`) |
-| Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | not yet measured |
+| Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | 0 (Story 3D re-inventory, 2026-10-19: 3 collapsed to a pointer, 1 table row corrected, 5 were already one sentence or a detector row, so no full explanation is duplicated) |
 
 ### Decision record (filled by Story 3C)
 

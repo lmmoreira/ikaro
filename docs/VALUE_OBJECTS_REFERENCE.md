@@ -22,6 +22,8 @@
 | SEO page title | `SeoTitle` | `seo-title.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 | SEO meta description | `SeoDescription` | `seo-description.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 
+The folder also holds two plain type files that are not validated VOs and have no `create()`: `business-hours.vo.ts` (the `BusinessHours`/`DayHours` shapes and `DAYS_OF_WEEK`) and `tenant-settings-data.ts` (the typed `tenants.settings` sections). Do not copy them as a VO template.
+
 ---
 
 ## Aggregate props pattern (Option A — mandatory)
