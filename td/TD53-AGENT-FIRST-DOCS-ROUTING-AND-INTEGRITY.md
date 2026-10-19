@@ -253,7 +253,7 @@ There is no size threshold: the rule is the same for a 2 KB doc and a 250 KB doc
 
 **The tag vocabulary** lives once in `architecture-policy.json`, under a new `docOrientation` section: each tag has a one-line description and zero or more code globs. Starting set: `backend`, `bff`, `web`, `database`, `events`, `tenancy`, `infra`, `testing`, `prototypes` (each with globs, verified against the real tree at implementation time) and `product`, `agent-process` (no globs). A doc is **deep-checked** when at least one of its tags has globs and **light-checked** otherwise, so there is no separate deep/light marker. A moved code folder is a one-line policy edit, and a moved doc keeps its tags.
 
-**The detector `doc-orientation`** (runs in `architecture-check`, hence in `ci:fast` and on every PR) fails when a top-level `docs/*.md` has no `When to load` line within 15 lines or one shorter than 20 characters, no `Tags` line, an empty tag list, or a tag outside the vocabulary; and when a vocabulary tag is used by no doc, or a tag with globs matches no tracked file. `docs/archive`, `docs/discovery/**` and `docs/lean/*` are excluded in the policy.
+**The detector `doc-orientation`** (runs in `architecture-check`, hence in `ci:fast` and on every PR) fails when a top-level `docs/*.md` has no `When to load` line within 15 lines or one shorter than 20 characters, no `Tags` line, an empty tag list, or a tag outside the vocabulary; and when a vocabulary tag is used by no doc, or a tag with globs matches no tracked file. `docs/archive`, `docs/discovery/**` and `docs/lean/*` are excluded in the policy. <!-- doc-link:example -->
 
 **The helper `docs-for`** (a second entry point of `packages/architecture-check`, same matcher as the detector, run as `pnpm --filter @ikaro/architecture-check docs-for …`):
 - `--file <path…>` prints each file's tags, then the docs carrying them;
@@ -301,7 +301,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
   - [ ] `doc-tags.spec.ts`: a `Tags` line is parsed; a file path is mapped to every tag whose globs match it (several tags possible); a doc is deep when any tag has globs and light otherwise.
   - [ ] `doc-orientation.spec.ts`: a doc with both fields in the first 15 lines passes; a missing `When to load`, one under 20 characters, a missing `Tags` line, an empty tag list and an unknown tag are each reported; a field on line 16 is reported.
   - [ ] `doc-orientation.spec.ts`: a vocabulary tag used by no doc is reported; a tag with globs that match no file is reported; a glob-less tag is not.
-  - [ ] `doc-orientation.spec.ts` (negative guarantees): files under `docs/archive`, `docs/discovery/**` and `docs/lean/*`, and `.md` files outside the top level of `docs/`, are not scanned.
+  - [ ] `doc-orientation.spec.ts` (negative guarantees): files under `docs/archive`, `docs/discovery/**` and `docs/lean/*`, and `.md` files outside the top level of `docs/`, are not scanned. <!-- doc-link:example -->
   - [ ] `docs-for.spec.ts`: `--file`, `--range` (a temporary git repository fixture) and `--tag` each return the expected docs marked deep or light; a file with no tag is listed as unmapped; `--json` returns the same data; an unknown tag exits non-zero.
 - Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
 - Tenant isolation: none — no tenant data
@@ -416,7 +416,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 2. **Move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `archive/td/`**, next to its own archived TD37 (`td/` holds live TDs only). Its two citations are in archived files and stay as they are. <!-- doc-link:example -->
 3. **Delete `docs/ENGINEERING_RULES.md`** (a 94-line redirect index) once no live file cites it. Live citations are reworded to the split file that now holds the rule or to "the former `ENGINEERING_RULES.md`" without a path. <!-- doc-link:example -->
 4. **Move `docs/archive` to a top-level `archive/`.** 59 files, about 1.5 MB of superseded content, moved by `git mv` with no edits inside it. About 10 live files cite it; see the decisions below. `docs/discovery/` stays where it is until its milestone is promoted.
-5. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation.
+5. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation. <!-- doc-link:example -->
 **Decisions locked in story-discovery (2026-10-19):**
 - **Archived files are not edited.** Citations inside `archive/` files (about 60, all historical; the checker excludes them as sources) stay as they are. The acceptance criteria below therefore say "no tracked live file", meaning outside `archive/`, `docs/discovery/` and files with a `> Frozen:` header.
 - **No detector change.** `doc-link-integrity` is not given an `archive/` root; the rewritten citations are verified by `git grep`, not by the checker.
@@ -435,10 +435,10 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` → `archive/td/TD37-ARCHITECTURE-CHECK-DECISIONS.md` (`git mv`; its citations are in archived files and stay) <!-- doc-link:example -->
 - `docs/ENGINEERING_RULES.md` (delete) and every file citing it (regenerate with `grep -rl "docs/ENGINEERING_RULES.md"`) <!-- doc-link:example -->
 - `docs/archive` → `archive/**` (`git mv`, 59 files) and the live files citing `docs/archive` (regenerate the list with `git grep -l docs/archive`, excluding `archive/`)
-- `docs/lean/WEB_LEAN.md` (delete) and its citations: `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md` (regenerated)
+- `docs/lean/WEB_LEAN.md` (delete) and its citations: `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md` (regenerated) <!-- doc-link:example -->
 
 **Acceptance criteria — product:**
-- [ ] `docs/lean/` is gone and no tracked live file cites it.
+- [ ] `docs/lean/` is gone and no tracked live file cites it. <!-- doc-link:example -->
 - [ ] `docs/archive` lives at `archive/` with its history intact, no file inside it was edited, and no tracked live file still cites the old path or depends on an archived file for a fact it states.
 - [ ] `docs/ENGINEERING_RULES.md` is gone and no tracked live file cites it by path. <!-- doc-link:example -->
 - [ ] `docs/README.md` states where a new doc goes and lists the docs in their former reading order.

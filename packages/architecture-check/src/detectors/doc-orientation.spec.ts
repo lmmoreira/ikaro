@@ -124,9 +124,8 @@ describe('checkDocOrientation', () => {
   it('does not scan docs outside the top level of docs/', () => {
     const result = scan({
       'docs/A.md': GOOD,
-      'docs/archive/OLD.md': '# Old\nno header',
+      'archive/OLD.md': '# Old\nno header',
       'docs/discovery/X/MAIN.md': '# Discovery\nno header',
-      'docs/lean/WEB_LEAN.md': '# Lean\nno header',
       'plan/M01.md': '# Plan\nno header',
       ...CODE,
     });

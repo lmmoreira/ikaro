@@ -1,6 +1,6 @@
 # M13 — Dashboard Frontend: Implementation Details (Developer Reference)
 
-> **Who this is for:** A developer continuing work on `apps/web`'s dashboard/customer-account/hotsite areas who wants to understand *why* M13 is built the way it is — not just what files exist. Pairs with `docs/lean/WEB_LEAN.md` (concept-by-concept learning journal) and `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` (token-efficient artifact reference). M13 is the largest milestone in this codebase to date — 44 stories, spanning the entire staff/manager dashboard, the customer account area, the hotsite editor, and the Playwright E2E infrastructure everything after it relies on.
+> **Who this is for:** A developer continuing work on `apps/web`'s dashboard/customer-account/hotsite areas who wants to understand *why* M13 is built the way it is — not just what files exist. Pairs with `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` (token-efficient artifact reference). M13 is the largest milestone in this codebase to date — 44 stories, spanning the entire staff/manager dashboard, the customer account area, the hotsite editor, and the Playwright E2E infrastructure everything after it relies on.
 
 ---
 
