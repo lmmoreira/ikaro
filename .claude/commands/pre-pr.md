@@ -41,6 +41,8 @@ This covers: checks 1, 5, 6, 7, 11, 12, 14, 15, 17, 18, 22–27; W1; WEB-1/WEB-4
 
 If the script exits with issues, fix them and re-run. Do not proceed to Step 2 with script failures outstanding.
 
+**Docs-only branches:** the pre-push hook skips `ci:fast` when a push touches only docs/tooling files, so `architecture-check` (dead pointers, `doc-orientation`, the `context.md` size budget) has not run. Run `pnpm architecture-check` yourself before this step and treat a non-zero exit as a script failure.
+
 ---
 
 ## Step 2 — Compiler checks
