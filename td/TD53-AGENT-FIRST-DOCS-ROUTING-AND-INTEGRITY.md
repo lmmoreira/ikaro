@@ -57,6 +57,7 @@ Rejected, with the condition to reopen:
 | `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
 | Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
 | Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B | 0 (`docs/archive` and `docs/lean` no longer exist; the archive is the top-level `archive/`) |
+| Rules explained in full in more than one doc | 9 (Story 3A) | 0 | 3D | not yet measured |
 
 ### Decision record (filled by Story 3C)
 
@@ -290,6 +291,10 @@ graph TD
   S0 --> S3A
   S0 --> S3B
   S3A --> S3C
+  S3C --> S3D
+  S0 --> S3D
+  S3D --> S5B
+  S3D --> S6
   S3A --> S4
   S3C --> S4
   S5A --> S5B
@@ -619,6 +624,60 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - E2E: none
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
+### Story 3D — Collapse the nine doubly-explained rules to one canonical home each ⚪
+
+**Agent:** devops
+**Complexity:** M
+**Docs to load:** the Decision record above (Story 3C's canonical-home table); `docs/STORY_SCHEMA.md`; the nine rules' canonical and copy docs listed under Files to create/modify
+**Dependencies:** Story 0 (the checker proves every rewritten pointer) and Story 3C (the canonical homes). Runs **before Story 5B and Story 6**: 5B moves rules into nested context files that must point at one home per rule, and Story 6 rewrites every `docs/` citation, so duplicates collapsed first are not rewritten twice. Not batchable with 4, 5B or 6 (they edit the same files).
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** Story 3A's audit (2026-10-18); canonical homes chosen by Story 3C (2026-10-19). Re-checked against the docs on 2026-10-19 while drafting this story: the copies are fewer and smaller than Story 3A's list implied (see the inventory below), so the first task is a fresh per-rule inventory.
+
+**Description:**
+Nine rules are explained in more than one doc, so a change to a rule has to be made in two or three places and the copies drift. Story 3C chose one canonical doc per rule. This story turns every other full explanation into a statement of at most one sentence plus a pointer to the canonical doc, and loses no fact in doing so.
+
+Decisions already made (not re-opened in discovery):
+- **What collapses.** A passage that restates a rule's explanation, table or worked example collapses. A one-line statement that already points at the canonical doc, a table row that exists so `/pre-pr` or a detector finds the rule (the `ANTI_PATTERNS` rows), and a tree comment in `REPOSITORY_STRUCTURE` all stay.
+- **No fact is lost.** Before a passage is cut, the canonical doc is read and must already hold every fact in it; a fact only the copy holds moves to the canonical doc first. The PR body lists, per rule, each removed passage next to the canonical line that carries it.
+- **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so `context.md` does not change. For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `08-TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
+- **Pointers use the exact `path § heading` form** so `doc-link-integrity` checks them. Use "see" wording, never a restated summary.
+
+Inventory found while drafting (to be re-run first; line numbers will have moved):
+
+| Rule | Canonical | Copies found |
+|---|---|---|
+| Value-object table | `VALUE_OBJECTS_REFERENCE` | `ENGINEERING_RULES_SHARED` (§ Value Objects, line 20 onward) |
+| Test-builder naming | `08-TESTING_STRATEGY` (§ Builder class pattern) | `ENGINEERING_RULES_TESTING` line 15; `08` also states it at line 615 |
+| InMemory over `jest.fn` for a port | `ENGINEERING_RULES_TESTING` | `ANTI_PATTERNS` rows at lines 33 and 49; `08` line 927 |
+| Migration and entity registration in `integration-global-setup.ts` | `08-TESTING_STRATEGY` (the numbered procedure, line 977 onward) | `ENGINEERING_RULES_TESTING` line 79. `REPOSITORY_STRUCTURE` holds no copy. |
+| `useExisting` versus `useClass` | `08-TESTING_STRATEGY` (line 1010) | `ANTI_PATTERNS` rows at lines 71 and 132; `ENGINEERING_RULES_TESTING` § NestJS module provider pattern (already a pointer, to be repointed) |
+| UI-primitive reuse | `ENGINEERING_RULES_FRONTEND` § Reuse the repo's UI primitives | `ANTI_PATTERNS` rows at lines 143 to 145 |
+| Barrel `index.ts` ban | `CODE_STANDARDS` | `ANTI_PATTERNS` line 37; `CI_TRAPS` lines 347 and 348; `08` line 658 |
+| Guard-placement rule | `ENGINEERING_RULES_SHARED` § RequestContext | `10-OBSERVABILITY_STRATEGY` lines 54 and 55; `24-BFF_ARCHITECTURE` line 274; `ANTI_PATTERNS` line 140 |
+| Shared date and address test helpers | `08-TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS` line 380 (a table row) |
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `docs/ENGINEERING_RULES_SHARED.md`, `docs/ENGINEERING_RULES_TESTING.md`, `docs/ANTI_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/08-TESTING_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/24-BFF_ARCHITECTURE.md`, `docs/AGENT_PATTERNS.md` (modify — collapse copies to pointers; each exists)
+- `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/CODE_STANDARDS.md`, `docs/ENGINEERING_RULES_FRONTEND.md` (modify only if a fact moves in from a copy)
+
+**Acceptance criteria — product:**
+- [ ] Each of the nine rules has its full explanation in exactly one doc, the canonical home Story 3C chose.
+- [ ] Every other doc that mentions a rule says it in one sentence at most and points at the canonical doc.
+- [ ] No fact is lost: the PR body maps every removed passage to the canonical line that now carries it.
+- [ ] `.copilot/context.md` is unchanged, and every pointer it already holds to a canonical home still resolves.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation story
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes after each commit
+- [ ] A final per-rule grep for the rule's distinctive wording returns the full explanation in the canonical doc only; the result is recorded in the PR body
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
 ### Story 4 — Move `plan/journey/` to `journeys/` ⚪
 
 **Agent:** devops
@@ -682,7 +741,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** `.copilot/context.md` §0, §7, §8, §9; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; the Decision record above (Story 3C's bullet classification, Story 5A's recommendation)
-**Dependencies:** Story 0, Story 3C (the bullet classification), Story 5A (the verified mechanism and recommendation). Does not run if 5A recommends no move.
+**Dependencies:** Story 0, Story 3C (the bullet classification), Story 3D (one canonical home per rule, so the nested files point at it), Story 5A (the verified mechanism and recommendation). Does not run if 5A recommends no move.
 **Pattern:** plain composition — no named pattern applies. The mechanism is progressive disclosure: a small always-on router, with area rules loaded by path.
 
 **Description:**
@@ -737,7 +796,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 **Agent:** devops
 **Complexity:** L
 **Docs to load:** `docs/README.md`; `.copilot/context.md` §10, §17; `.claude/commands/docs-audit.md`; the Decision record above
-**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 (if approved) and Story 5B (they edit the same files and lines; this story runs last so nothing is rewritten twice), Stories 3B and 3C (the deletions and moves are done first, and the go decision is recorded). **Gated:** runs only on an explicit go in the Decision record; an agent gains little from dropping the numbers, so the cost must be shown against the benefit first. **Go recorded 2026-10-19** (Story 3C's Decision record, with the measured cost shown); it also carries the closing audit.
+**Dependencies:** Story 0 (the checker proves the rewrite), Story 2, Story 4 (if approved) and Story 5B (they edit the same files and lines; this story runs last so nothing is rewritten twice), Stories 3B, 3C and 3D (the deletions and moves are done first, the go decision is recorded, and the duplicated rules are already collapsed so no copy is rewritten twice). **Gated:** runs only on an explicit go in the Decision record; an agent gains little from dropping the numbers, so the cost must be shown against the benefit first. **Go recorded 2026-10-19** (Story 3C's Decision record, with the measured cost shown); it also carries the closing audit.
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
