@@ -581,7 +581,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes after each commit
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 3C — Load measurement and Decision record ⚪
+### Story 3C — Load measurement and Decision record ✅ Done
 
 **Agent:** devops
 **Complexity:** M
