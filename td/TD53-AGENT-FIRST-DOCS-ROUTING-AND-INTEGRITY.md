@@ -642,6 +642,8 @@ Decisions already made (not re-opened in discovery):
 - **No fact is lost.** Before a passage is cut, the canonical doc is read and must already hold every fact in it; a fact only the copy holds moves to the canonical doc first. The PR body lists, per rule, each removed passage next to the canonical line that carries it.
 - **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so `context.md` does not change. For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `08-TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
 - **Pointers use the exact `path § heading` form** so `doc-link-integrity` checks them. Use "see" wording, never a restated summary.
+- **Extraction is conditional on benefit (locked in story-discovery, 2026-10-19).** A copy collapses only when that gains something real: maintainability (one place to edit), objectiveness (no two wordings that can disagree) or agent context (an agent landing on the copy no longer reads a stale or competing version). A copy that applies the rule to its own topic and adds a fact the canonical doc lacks is context-specific: that fact moves into the canonical doc only if it is general, and otherwise the copy stays as it is. A rule whose inventory finds no real copy is recorded as "already one home" and skipped. The decision and its reason are recorded per rule.
+- **Staleness sweep in the same story (scope added 2026-10-19).** Every doc the story touches (the canonical and copy docs of the nine rules, and any doc a fact moves into) gets a pass for stale, wrong or confusing claims, checked against the code where a claim names a file, class, detector, command or behaviour. Each finding is re-read at its cited line before it is edited, and is fixed in this story. A finding that needs a decision or is too large for the story is listed in the PR body and, if real, appended to `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md`. The sweep covers the touched files only; the repository-wide closing audit stays with the story named in the Decision record.
 
 Inventory found while drafting (to be re-run first; line numbers will have moved):
 
@@ -664,9 +666,11 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 - `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/CODE_STANDARDS.md`, `docs/ENGINEERING_RULES_FRONTEND.md` (modify only if a fact moves in from a copy)
 
 **Acceptance criteria — product:**
-- [ ] Each of the nine rules has its full explanation in exactly one doc, the canonical home Story 3C chose.
-- [ ] Every other doc that mentions a rule says it in one sentence at most and points at the canonical doc.
+- [ ] Each of the nine rules has its full explanation in exactly one doc, the canonical home Story 3C chose, except a context-specific copy kept under the benefit test above.
+- [ ] Every other doc that mentions a rule, apart from a kept context-specific copy, says it in one sentence at most and points at the canonical doc.
 - [ ] No fact is lost: the PR body maps every removed passage to the canonical line that now carries it.
+- [ ] The PR body records, per rule, one verdict with its reason: collapsed, kept as context-specific, or already one home.
+- [ ] Every stale, wrong or confusing claim found in the touched docs is fixed (each checked against the code where it names code) or listed in the PR body with why it was not.
 - [ ] `.copilot/context.md` is unchanged, and every pointer it already holds to a canonical home still resolves.
 
 **Acceptance criteria — technical:**
