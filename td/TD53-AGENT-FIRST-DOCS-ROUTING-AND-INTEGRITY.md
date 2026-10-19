@@ -730,7 +730,7 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 - [ ] A final per-rule grep for the rule's distinctive wording returns the full explanation in the canonical doc only; the result is recorded in the PR body
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 4 — Move `plan/journey` to `journeys/` ⚪
+### Story 4 — Move `plan/journey` to `journeys/` ✅ Done
 
 **Agent:** devops
 **Complexity:** L
