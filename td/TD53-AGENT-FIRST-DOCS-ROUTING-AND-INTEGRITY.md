@@ -304,17 +304,30 @@ Both stories were originally costed at about 790 and 2,662 occurrences; the tree
 1. **Claude Code loads on demand, on the action that matters.** A nested `CLAUDE.md` loads on `Read`, `Edit`, `Write` and a Bash file read, but not on `Grep`, `Glob` or a directory listing. A trap meant to fire before code is written fires, because writing and editing both trigger the load. Path-scoped rules behave the same way.
 2. **Codex does not.** Launched from the repository root, as sessions here are, it never sees a nested `AGENTS.md`; it would have to be launched from that directory. Rules moved out of the root file are therefore invisible to it unless the root file points at them and the agent follows the pointer, which the 2026-10-18 ablation shows is weaker than a bullet in context.
 3. **Gemini is unverified, and the root file may not load at all.** Its documented default is `GEMINI.md`, but this repository's root symlink is lowercase `gemini.md`. Linux filesystems are case-sensitive and the documentation says nothing about case, so whether Gemini loads the root context today is unknown. The nested symlinks in the fixture used the uppercase name. **Follow-up for the owner, not changed here:** confirm with a real Gemini session whether `gemini.md` loads, and rename the symlink (and the `agent-context-file` detector's expectation) if it does not.
-4. **Nested files and `.claude/rules` both work in Claude Code.** Nested files also serve Gemini if its documented behaviour holds and keep the one-file contract (one canonical file, three symlinks). `.claude/rules` serves Claude Code only and would be a second copy of any rule Codex also needs.
+4. **Nested files and `.claude/rules` both work in Claude Code, and the owner rejects nested context files.** A `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` inside each area directory, each with its own symlinks and detector coverage, scatters the rules across the tree; the owner's contract is one context file at the root that links to the docs (decision recorded 2026-10-19). The nested-file result above stays as a fact about the tools, not as the chosen design.
 5. **§9-as-a-skill (desk evaluation, not tested).** The repository already carries `/pre-pr`, `/pr-land`, `/mark-done` and `/story-discovery` as skills invoked by name, so §9's step mechanics belong there. The gates that must hold before any skill loads (the PR gate, the merge ask, the stuck conditions) stay inline.
 
-**Recommendation for Story 5B: a per-tool mix, with nested context files as the mechanism, not `.claude/rules`.** Do not cancel 5B.
-- Move area-scoped bullets into a nested `context.md` per area (three symlinks each) for Claude Code, where on-demand loading is confirmed.
-- Keep a one-line pointer per area in the always-on file ("rules for `apps/backend` live in `apps/backend/context.md`; read it before editing there") so Codex still reaches the rule. Gemini's rules stay in the always-on file until a real session confirms both the filename and the on-demand load; no pointer is relied on for it. The rule text itself exists once, in the nested file. 5B's discovery decides how many bullets this pointer approach can carry; for any bullet the ablation shows depends on being in context (the CHECK-constraint bullet), 5B keeps it always-on.
-- Treat Codex as always-on for any rule that must fire without the agent choosing to read a file. 5B's step 4 re-runs each moved trap in Codex with the pointer and records whether it fires; a trap that does not fire stays in the always-on file.
-- Do not move anything for Gemini until a real session confirms both the filename and the on-demand load.
-- The size saving is therefore for Claude Code sessions only; Codex and Gemini keep the always-on cost for rules the pointer cannot carry.
+**Routing test: does the single root file's `docs/` routing work?** The question the owner's design depends on, run after the mechanism test: the real root `context.md` and `docs/` in an isolated fixture (no nested files, no `.claude/rules`), a frontend, a backend and an infra planning prompt with no hint about which docs to read, two sessions per prompt per tool. Claude Code was run with `Read`/`Grep`/`Glob` only and judged by its recorded tool calls; Codex by its recorded shell commands (sandbox bypassed inside the fixture, as above). Run 1 asked for a 3-bullet outline "without writing code"; run 2 asked the agent to do "the groundwork you would normally do, including any reading", then plan.
 
-**Limits.** One session per cell, one model family per tool, tool versions as above. Codex's read-only sandbox could not start in this environment (`bwrap: loopback: Failed RTM_NEWADDR`), so its shell tests ran with the sandbox bypassed inside the throwaway fixture only. Nothing in the repository was exercised.
+| Prompt | Claude Code run 1 | Claude Code run 2 (docs opened, of 2 sessions) | Codex run 1 | Codex run 2 (docs opened) |
+|---|---|---|---|---|
+| Backend: cancel a recurring reservation | no tool calls; named `ENGINEERING_RULES_BACKEND` and the business-logic doc in its answer | 8 and 5: backend rules, events, use cases, lock catalog, shared rules and others | domain model, events, use cases, bounded contexts, business logic, backend rules | 7 and 10: the same family plus testing strategy, BFF and agent patterns |
+| Frontend: dashboard resources page | no tool calls; named the booking slice and shells | 0 and 1 (`ENGINEERING_RULES_FRONTEND`) | one session none; one read frontend rules, dashboard architecture, API contracts, BFF architecture | 10 and 8: frontend rules, dashboard architecture, API contracts, code standards |
+| Infra: Scheduler job and Pub/Sub topic | no tool calls; named the Terraform README playbook and `ENGINEERING_RULES_INFRA` | 1 and 4 (`ENGINEERING_RULES_INFRA`, runbooks, tech decisions) | one session read the infra setup doc; one none | 16 and 13: infra rules, deployment, tooling map, CI/CD docs, Terraform README |
+
+**Routing findings.**
+1. **The agent follows the links to the right area.** A backend task opens the backend docs and an infra task the infra docs; neither tool read every doc. Routing from one root file works as the contract intends.
+2. **It is not guaranteed.** Claude Code read nothing in the outline-only run and, in run 2, nothing in one frontend session; Codex read nothing in two run-1 sessions. A prompt phrased as "just outline it" skips the groundwork entirely, so a rule that must fire cannot depend on a doc being opened.
+3. **Codex read more, Claude Code read less but named the right docs.** Codex opened between 7 and 16 docs per session in run 2, some outside the area (domain model, BFF for a backend task). Claude Code opened 0 to 8. One session per cell, so this describes the sample, not a rate.
+4. **Cost shape.** Routing costs a read only when the task needs the doc, which is the on-demand behaviour the owner wants, delivered by the existing §10 table with no new files.
+
+**Recommendation for Story 5B: no nested context files. Cancel that part of 5B.** Keep one root context file that links to `docs/`, as today.
+- Keep §10's routing table as the area-scoping mechanism. The test shows both tools follow it, imperfectly.
+- Anything that must fire without the agent choosing to open a doc stays in the always-on text (the CHECK-constraint bullet is the measured example). 5B's remaining scope, if the owner wants it, is trimming the single `context.md` in place: shorten the CI-enforced bullets, move §9's step mechanics into the skills that already carry them, compress the generic-principle blocks. That needs its own discovery and the ablation on each bullet it shortens, and it adds no files.
+- No `.claude/rules` either: it serves Claude Code only and would be a second copy.
+- The Gemini filename question (finding 3) is unchanged and remains a follow-up for the owner.
+
+**Limits.** One session per cell, one model family per tool, tool versions as above. Codex's read-only sandbox could not start in this environment (`bwrap: loopback: Failed RTM_NEWADDR`), so its shell tests ran with the sandbox bypassed inside the throwaway fixture only. The routing test is two sessions per cell on one prompt wording each; Claude Code ran on `sonnet`, Codex on its default model. Nothing in the repository was exercised.
 
 ## Stories
 
@@ -775,6 +788,8 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
 ### Story 5B — Load area-scoped rules on demand instead of always-on ⚪
+
+> **Revised by Story 5A (2026-10-19).** The owner rejected nested context files (a context file per directory is a smell) and 5A's routing test shows the single root file's links to `docs/` already scope loading by task. Steps 1, 3 and 4 below, and every nested file in the file list, are **cancelled**. What remains is step 2's trimming of the single `context.md` in place, with its own discovery, and it is optional. The text below is kept as written for that discovery.
 
 **Agent:** devops
 **Complexity:** L
