@@ -361,7 +361,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 3A — Audit baseline and per-doc triage ⚪
+### Story 3A — Audit baseline and per-doc triage ✅ Done
 
 **Agent:** devops
 **Complexity:** M
