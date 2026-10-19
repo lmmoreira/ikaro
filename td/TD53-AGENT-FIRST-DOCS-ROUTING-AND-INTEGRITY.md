@@ -282,6 +282,40 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 
 Both stories were originally costed at about 790 and 2,662 occurrences; the tree grew since. The owner chose go for both for clarity and uniformity after seeing these figures. Order is fixed by the dependencies already in the TD: Story 4, then Story 5B, then Story 6, with Story 6 carrying the closing audit.
 
+#### Story 5A — which tools load path-scoped context (2026-10-19)
+
+**Method.** A throwaway fixture outside the repository (a `git init`'d directory shaped like this one: root `.copilot/context.md` with `CLAUDE.md`, `AGENTS.md` and `gemini.md` symlinks; `apps/backend` and `apps/web` each with a `context.md` and `CLAUDE.md`/`AGENTS.md`/`GEMINI.md` symlinks; `.claude/rules/infra.md` with `paths: ["infra/**"]`; each file carrying a unique canary string). Every session launched non-interactively from the fixture root unless noted, asked to act on one file and then list every canary visible in its context. Claude Code 2.1.303 (`sonnet`) was logged with an `InstructionsLoaded` hook, which records the file and a `load_reason`; Codex CLI 0.163.0 was judged by its final answer and its recorded tool calls. Gemini CLI is not installed here and no Gemini logs exist, so its row is from its published documentation and is marked as not tested. One session per cell, one model per tool.
+
+| Tool | Scenario | Result | Evidence |
+|---|---|---|---|
+| Claude Code | Root launch, no file touched | Only the root `CLAUDE.md` loads. `AGENTS.md`, `gemini.md` and nested files do not. | Hook log: one entry, `CLAUDE.md`, `session_start`; answer listed only `ROOT-7731`. |
+| Claude Code | Root launch, `Read` of `apps/backend/src/foo.ts` | The nested `apps/backend/CLAUDE.md` loads on the read. | Hook entry `apps/backend/CLAUDE.md`, `load_reason: nested_traversal`, trigger file `foo.ts`; the answer listed `BACKEND-4412`. |
+| Claude Code | `Edit` of `apps/web/src/bar.ts`; `Write` of a new `apps/backend/src/new.ts` | Loads on edit and on creating a file. | `nested_traversal` entries for `apps/web/CLAUDE.md` and `apps/backend/CLAUDE.md`. |
+| Claude Code | Bash `cat` of a nested file | Loads. | `nested_traversal` for `apps/backend/CLAUDE.md`. |
+| Claude Code | `Grep`, `Glob` and Bash `ls` over a nested directory | Does **not** load. | Only the `session_start` entry; answers listed `ROOT-7731` alone. |
+| Claude Code | Launch with the working directory in `apps/backend` | Nested file loads at start, with the root file. | Hook entries `CLAUDE.md` and `apps/backend/CLAUDE.md`, both `session_start`. |
+| Claude Code | `.claude/rules/infra.md` (`paths: ["infra/**"]`), `Read` of `infra/main.tf` | Loads on a matching read; not at start. | Hook entry `.claude/rules/infra.md`, `load_reason: path_glob_match`; the answer listed `RULE-INFRA-5503`. |
+| Codex | Root launch | Only the root `AGENTS.md` is in context. | Answer: `ROOT-7731`. |
+| Codex | Root launch, shell `cat` of a nested source file, and shell read-and-edit of a file under `apps/web` | Nested file does **not** load. A rule would be seen only if the agent opened the nested file itself. | Recorded `command_execution` items; answers `ROOT-7731` alone. When the prompt itself cat'ed `apps/backend/context.md`, the canary appeared as tool output, which is the agent reading the file, not the tool loading it. |
+| Codex | Launch with the working directory in `apps/backend` | Root and nested `AGENTS.md` both in context at start. | Answer: `ROOT-7731 BACKEND-4412`. |
+| Gemini CLI | Published documentation only; not tested | Loads `GEMINI.md` from the workspace and its parents at start, and, when a tool accesses a file or directory, scans that directory and its ancestors up to the trusted root for `GEMINI.md`. Default filename `GEMINI.md`; `context.fileName` changes it. | the google-gemini/gemini-cli repository, page cli/gemini-md.md on `main`, fetched 2026-10-19. |
+
+**Findings.**
+1. **Claude Code loads on demand, on the action that matters.** A nested `CLAUDE.md` loads on `Read`, `Edit`, `Write` and a Bash file read, but not on `Grep`, `Glob` or a directory listing. A trap meant to fire before code is written fires, because writing and editing both trigger the load. Path-scoped rules behave the same way.
+2. **Codex does not.** Launched from the repository root, as sessions here are, it never sees a nested `AGENTS.md`; it would have to be launched from that directory. Rules moved out of the root file are therefore invisible to it unless the root file points at them and the agent follows the pointer, which the 2026-10-18 ablation shows is weaker than a bullet in context.
+3. **Gemini is unverified, and the root file may not load at all.** Its documented default is `GEMINI.md`, but this repository's root symlink is lowercase `gemini.md`. Linux filesystems are case-sensitive and the documentation says nothing about case, so whether Gemini loads the root context today is unknown. The nested symlinks in the fixture used the uppercase name. **Follow-up for the owner, not changed here:** confirm with a real Gemini session whether `gemini.md` loads, and rename the symlink (and the `agent-context-file` detector's expectation) if it does not.
+4. **Nested files and `.claude/rules` both work in Claude Code.** Nested files also serve Gemini if its documented behaviour holds and keep the one-file contract (one canonical file, three symlinks). `.claude/rules` serves Claude Code only and would be a second copy of any rule Codex also needs.
+5. **§9-as-a-skill (desk evaluation, not tested).** The repository already carries `/pre-pr`, `/pr-land`, `/mark-done` and `/story-discovery` as skills invoked by name, so §9's step mechanics belong there. The gates that must hold before any skill loads (the PR gate, the merge ask, the stuck conditions) stay inline.
+
+**Recommendation for Story 5B: a per-tool mix, with nested context files as the mechanism, not `.claude/rules`.** Do not cancel 5B.
+- Move area-scoped bullets into a nested `context.md` per area (three symlinks each) for Claude Code, where on-demand loading is confirmed.
+- Keep a one-line pointer per area in the always-on file ("rules for `apps/backend` live in `apps/backend/context.md`; read it before editing there") so Codex, and Gemini until tested, still reach the rule. The rule text itself exists once, in the nested file. 5B's discovery decides how many bullets this pointer approach can carry; for any bullet the ablation shows depends on being in context (the CHECK-constraint bullet), 5B keeps it always-on.
+- Treat Codex as always-on for any rule that must fire without the agent choosing to read a file. 5B's step 4 re-runs each moved trap in Codex with the pointer and records whether it fires; a trap that does not fire stays in the always-on file.
+- Do not move anything for Gemini until a real session confirms both the filename and the on-demand load.
+- The size saving is therefore for Claude Code sessions only; Codex and Gemini keep the always-on cost for rules the pointer cannot carry.
+
+**Limits.** One session per cell, one model family per tool, tool versions as above. Codex's read-only sandbox could not start in this environment (`bwrap: loopback: Failed RTM_NEWADDR`), so its shell tests ran with the sandbox bypassed inside the throwaway fixture only. Nothing in the repository was exercised.
+
 ## Stories
 
 ```mermaid
