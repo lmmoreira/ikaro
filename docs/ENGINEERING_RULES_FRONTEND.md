@@ -1,7 +1,7 @@
 # Ikaro — Engineering Rules: Frontend (apps/web)
 
 > **When to load:** dashboard/admin frontend, hotsite/public frontend work.
-> Split from `docs/ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). Summary rules are in `CLAUDE.md §7`.
+> Split from the former single `ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). Summary rules are in `CLAUDE.md §7`.
 > **Tags:** agent-process, web
 
 ---

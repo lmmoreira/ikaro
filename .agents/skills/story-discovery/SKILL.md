@@ -81,7 +81,7 @@ For each entry in "Docs to load":
 Also load unconditionally:
 - `docs/CODE_STANDARDS.md`
 - `docs/AGENT_PATTERNS.md`
-- `docs/ENGINEERING_RULES_SHARED.md` always, plus `docs/ENGINEERING_RULES_BACKEND.md`/`_INFRA.md`/`_FRONTEND.md`/`_TESTING.md` for whichever layer(s) this story touches (TD41-S4 split the former single `docs/ENGINEERING_RULES.md`, which is now just a redirect index) — most "critical code invariants" (Transactions, Event Handlers, RequestContext, aggregate-events-outbox, Controller/Route boundaries) live in these files rather than inline in CLAUDE.md §7. A story can no longer be checked against them without loading the relevant file(s) explicitly.
+- `docs/ENGINEERING_RULES_SHARED.md` always, plus `docs/ENGINEERING_RULES_BACKEND.md`/`_INFRA.md`/`_FRONTEND.md`/`_TESTING.md` for whichever layer(s) this story touches (TD41-S4 split the former single `ENGINEERING_RULES.md` into these) — most "critical code invariants" (Transactions, Event Handlers, RequestContext, aggregate-events-outbox, Controller/Route boundaries) live in these files rather than inline in CLAUDE.md §7. A story can no longer be checked against them without loading the relevant file(s) explicitly.
 - `docs/DEFINITION_OF_DONE.md` — know the full completion bar before writing the story, not just at `/pre-pr` time (see 4p below).
 - The matching `plan/<milestone>_IMPLEMENTATION_DETAILS_IA.md` (if it exists — older milestones have one; use it to understand established patterns for this milestone)
 

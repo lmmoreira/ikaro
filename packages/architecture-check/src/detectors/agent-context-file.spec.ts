@@ -44,7 +44,7 @@ const validContext = `## 7. Engineering Rules
 
 - **PR GATE** stays verbatim.
 - **Stuck conditions** stays verbatim.
-- pointer to a heading → \`docs/ENGINEERING_RULES.md\` § Transactions
+- pointer to a heading → \`docs/ENGINEERING_RULES_SHARED.md\` § Transactions
 - pointer to a bold bullet → \`docs/ANTI_PATTERNS.md\` § Some Anti Pattern
 `;
 
@@ -70,7 +70,7 @@ describe('checkAgentContextFile', () => {
   it('passes on a fully valid file: required anchors present, pointers resolve (heading + table-row styles), symlinks intact', () => {
     root = buildRoot({
       '.copilot/context.md': validContext,
-      'docs/ENGINEERING_RULES.md': engineeringRulesFixture,
+      'docs/ENGINEERING_RULES_SHARED.md': engineeringRulesFixture,
       'docs/ANTI_PATTERNS.md': antiPatternsFixture,
     });
     symlinkAll(root);
@@ -82,7 +82,7 @@ describe('checkAgentContextFile', () => {
   it('flags a missing required anchor', () => {
     root = buildRoot({
       '.copilot/context.md': '## 7. Engineering Rules\n\nNo gates mentioned here at all.\n',
-      'docs/ENGINEERING_RULES.md': engineeringRulesFixture,
+      'docs/ENGINEERING_RULES_SHARED.md': engineeringRulesFixture,
       'docs/ANTI_PATTERNS.md': antiPatternsFixture,
     });
     symlinkAll(root);
@@ -168,8 +168,8 @@ describe('checkAgentContextFile', () => {
   it('flags a pointer whose § heading does not resolve in an existing target file', () => {
     root = buildRoot({
       '.copilot/context.md':
-        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- broken → `docs/ENGINEERING_RULES.md` § A Heading That Does Not Exist\n',
-      'docs/ENGINEERING_RULES.md': engineeringRulesFixture,
+        '## 7. Engineering Rules\n\n- **PR GATE** and **Stuck conditions**.\n- broken → `docs/ENGINEERING_RULES_SHARED.md` § A Heading That Does Not Exist\n',
+      'docs/ENGINEERING_RULES_SHARED.md': engineeringRulesFixture,
     });
     symlinkAll(root);
     const result = checkAgentContextFile(root, basePolicy());
