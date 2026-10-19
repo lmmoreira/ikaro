@@ -8,7 +8,7 @@
 
 ## Overview
 
-✅ **Fully shipped** (`M13-S31`). Updated 2026-07-31 — this file previously claimed the BFF endpoint didn't exist; it does, and the real form has 6 sections (7 until M18-S09 removed Notificações — emails now always go From the platform sender with Reply-To = the Contato email, so there is no tenant sender setting) / far more fields than originally scoped here (deliberate scope expansion during `M13-S31`, never backfilled into this handoff doc until now).
+✅ **Fully shipped** (`M13-S31`). Updated 2026-07-31 — this file previously claimed the BFF endpoint didn't exist; it does, and the real form has 8 sections (General, Booking, Loyalty, Hours, Contact, Chatbot, Lead Form, Localization; 9 until M18-S09 removed Notificações — emails now always go From the platform sender with Reply-To = the Contato email, so there is no tenant sender setting) / far more fields than originally scoped here (deliberate scope expansion during `M13-S31`, never backfilled into this handoff doc until now).
 
 ---
 
@@ -24,8 +24,9 @@
 
 | Action | Method + Path | Role guard | Status |
 |---|---|---|---|
-| Get settings | `GET /tenants/settings` | MANAGER | ✅ Exists |
+| Get settings | `GET /tenants/settings` | STAFF, MANAGER | ✅ Exists |
 | Update settings | `PATCH /tenants/settings` | MANAGER | ✅ Exists |
+| Chatbot cap status | `GET /tenants/chatbot/cap-status` | MANAGER | ✅ Exists |
 
 `apps/bff/src/features/platform/tenant-settings.controller.ts` (EXISTS) proxies to the backend:
 
@@ -71,7 +72,7 @@ Verify exact key casing (`businessHours` vs `business_hours`) against the actual
 
 ## Field set (real, ✅ shipped — expanded well beyond the original scope)
 
-The real `SettingsForm.tsx` has 6 sections, not the 5 this file originally described (the former Notificações section was removed in M18-S09):
+The real `SettingsForm.tsx` has 8 sections, not the 5 this file originally described (the former Notificações section was removed in M18-S09):
 
 | Section | Fields |
 |---|---|
@@ -81,7 +82,7 @@ The real `SettingsForm.tsx` has 6 sections, not the 5 this file originally descr
 | Horário | timezone + per-day open/close/closed |
 | Contato | phone, email (also the Reply-To of every customer email since M18-S09, and it can appear on the site and in chatbot answers — the field shows a hint saying so), **structured address** (zipCode with ViaCEP lookup, number, street, complement, neighborhood, city, state — not one free-text line as originally drafted), **social links** (whatsapp, instagram, facebook) |
 | **Chatbot** (✅ shipped — added 2026-08-08, built by the M19 chatbot milestone) | `chatbot.knowledgeText` only — see below |
-| **Formulário de contato** (❌ GAP — not yet built, added 2026-08-25, M20-S11) | `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` — see below |
+| **Formulário de contato** (✅ shipped, M20-S11) | `leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` — see below |
 | **Localização** (missing from the original draft entirely) | countryCode, currency, language — all read-only, set at tenant creation |
 
 Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirely absent from this doc and the prototype screen before the 2026-07-31 sync. Section render order in `SettingsForm.tsx` matches this table's order top to bottom.
@@ -91,7 +92,7 @@ Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirel
 ## Chatbot section (✅ shipped)
 
 Promoted from `docs/04-USE_CASES.md` UC-033–UC-036/§6 via `/discovery-to-milestone` (2026-08-08).
-Prototyped in `01d-chatbot-section.html` against the full, current 7-section form (not an excerpt).
+Prototyped in `01d-chatbot-section.html` against the full, current 8-section form (not an excerpt).
 
 **Field:** `chatbot.knowledgeText` — the only tenant-editable field in the `chatbot` settings
 category (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7). Free-form business info/policy/FAQ/tone text,
@@ -122,7 +123,7 @@ through this endpoint even if present in the request body (see
 
 ---
 
-## Formulário de contato (Lead Form) section (❌ GAP — not yet built)
+## Formulário de contato (Lead Form) section (✅ shipped)
 
 Implemented from the lead-form design promoted via `/discovery-to-milestone`
 (M20). Prototyped in `01e-lead-form-section.html` as an excerpt against the full, current

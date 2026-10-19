@@ -60,7 +60,94 @@ Rejected, with the condition to reopen:
 
 ### Decision record (filled by Story 3C)
 
-_Story 3A adds here: the per-doc triage table with its method, and the list of declined audit fixes._
+#### Story 3A — audit baseline (2026-10-18)
+
+**Triage method** (so Story 3C can re-run it): one row per top-level `docs/*.md` (45). *Size* is `wc -c`. *Citations* are distinct tracked files that cite the doc by path (`docs/<name>`): **live** = other top-level docs, `.claude/`, `.copilot/`, `apps/`, `packages/`, `scripts/`, `infra/`, `.github/`; **historical** = `plan/` and `td/`; `docs/archive/` and `docs/discovery/` are not scanned, as in `doc-link-integrity`. *Agent reads* is the number of session transcripts (127 `.jsonl` files under the Claude Code project folders for this repository, excluding the session that ran this audit and the TD53 worktree sessions) with a Read call or a shell command naming `docs/<name>`; 99 of the 127 read at least one doc. This counts any mention in a tool call, so it is wider than the Problem section's measurement (read/`grep`/`sed` actions only) and will not match its figures. Other agents (Codex, Gemini) are not visible in these transcripts. A verdict other than *keep* names its no-loss proof. The scripts live outside the repository (in the session scratchpad) and are described here rather than committed.
+
+| Doc | Size (bytes) | Live / historical citations | Agent reads (of 127 sessions) | Verdict | Evidence |
+|---|---:|---:|---:|---|---|
+| `01-BUSINESS_CONTEXT.md` | 13,418 | 0 / 1 | 1 | keep | Rarely read and not cited, but the only product-scope and glossary doc; reworded for the multivertical platform in this story. |
+| `02-DOMAIN_MODEL.md` | 125,002 | 56 / 45 | 53 | keep | Read in 53 of 127 sessions; 56 live and 45 historical citations. |
+| `03-DOMAIN_EVENTS.md` | 56,140 | 38 / 17 | 32 | keep | Read in 32 of 127 sessions; 38 live and 17 historical citations. |
+| `04-USE_CASES.md` | 252,115 | 43 / 50 | 72 | keep | Read in 72 of 127 sessions; 43 live and 50 historical citations. |
+| `05-BOUNDED_CONTEXTS.md` | 47,219 | 12 / 11 | 21 | keep | Read in 21 of 127 sessions; 12 live and 11 historical citations. |
+| `06-TENANT_ISOLATION_STRATEGY.md` | 13,810 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
+| `08-TESTING_STRATEGY.md` | 74,016 | 29 / 14 | 38 | keep | Read in 38 of 127 sessions; 29 live and 14 historical citations. |
+| `09-CI_CD_PIPELINE.md` | 4,813 | 7 / 5 | 7 | keep | Read in 7 of 127 sessions; 7 live and 5 historical citations. |
+| `10-OBSERVABILITY_STRATEGY.md` | 19,588 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
+| `11-ARCHITECTURE.md` | 10,594 | 4 / 4 | 7 | keep | Read in 7 of 127 sessions; 4 live and 4 historical citations. |
+| `12-DEPLOYMENT_STRATEGY.md` | 3,002 | 7 / 3 | 2 | keep; overlap question for 3C | Small; see the `19` row. |
+| `13-DATABASE_SCHEMA.md` | 121,009 | 86 / 25 | 56 | keep | Read in 56 of 127 sessions; 86 live and 25 historical citations. |
+| `14-API_CONTRACTS.md` | 158,612 | 68 / 56 | 68 | keep | Read in 68 of 127 sessions; 68 live and 56 historical citations. |
+| `15-HOTSITE_DYNAMIC_ARCHITECTURE.md` | 60,349 | 26 / 15 | 10 | keep | Read in 10 of 127 sessions; 26 live and 15 historical citations. |
+| `16-DASHBOARD_FRONTEND_ARCHITECTURE.md` | 25,796 | 5 / 14 | 30 | keep | Read in 30 of 127 sessions; 5 live and 14 historical citations. |
+| `17-GITHUB_WORKFLOWS_GUIDELINES.md` | 20,189 | 8 / 5 | 9 | keep | Read in 9 of 127 sessions; 8 live and 5 historical citations. |
+| `18-RELEASE_LIFECYCLE_OPERATIONS.md` | 7,231 | 7 / 1 | 3 | keep | Read in 3 of 127 sessions; 7 live and 1 historical citations. |
+| `19-INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 1 / 2 | 1 | keep; overlap question for 3C | Small and rarely read; shares ground with `12` and `23` (tools, deployment, setup). Each is distinct today (tool authority table, strategy, setup order); 3C decides whether one doc is clearer. |
+| `20-COST_OPTIMIZATION_STRATEGY.md` | 3,979 | 0 / 1 | 0 | keep; merge candidate for 3C | Zero reads in 127 sessions and no live citation. Its lean-startup rules and scaling roadmap are not duplicated in `22`, so a merge must move content, never point. |
+| `21-TENANTS_SETTINGS_SCHEMA.md` | 36,858 | 30 / 21 | 25 | keep | Read in 25 of 127 sessions; 30 live and 21 historical citations. |
+| `22-TECH_STACK_DECISIONS.md` | 45,147 | 7 / 4 | 2 | keep | A decision record: low reads, but cited by 7 live files and the only home of the technology rationale. Its Kafka/Vault/multi-cloud material is now labelled historical. |
+| `23-INFRASTRUCTURE_SETUP.md` | 5,131 | 5 / 5 | 1 | keep; overlap question for 3C | Small; see the `19` row. |
+| `24-BFF_ARCHITECTURE.md` | 48,988 | 19 / 18 | 27 | keep | Read in 27 of 127 sessions; 19 live and 18 historical citations. |
+| `25-ERROR_CATALOG.md` | 10,060 | 3 / 4 | 15 | keep | Read in 15 of 127 sessions; 3 live and 4 historical citations. |
+| `26-DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 0 / 1 | 2 | keep | Rarely read; the only home of the retention rules, verified accurate against the purge jobs and settings. |
+| `27-BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 16 / 7 | 75 | keep | Read in 75 of 127 sessions; 16 live and 7 historical citations. |
+| `28-LOCK_CATALOG.md` | 28,747 | 35 / 4 | 9 | keep | Read in 9 of 127 sessions; 35 live and 4 historical citations. |
+| `AGENT_CONTEXT_TRAP_SCENARIOS.md` | 8,389 | 1 / 1 | 6 | keep | Read in 6 of 127 sessions; 1 live and 1 historical citations. |
+| `AGENT_PATTERNS.md` | 43,415 | 10 / 8 | 45 | keep | Read in 45 of 127 sessions; 10 live and 8 historical citations. |
+| `ANTI_PATTERNS.md` | 112,047 | 55 / 10 | 43 | keep | Read in 43 of 127 sessions; 55 live and 10 historical citations. |
+| `CI_TRAPS.md` | 101,901 | 20 / 4 | 30 | keep | Read in 30 of 127 sessions; 20 live and 4 historical citations. |
+| `CODE_STANDARDS.md` | 18,828 | 55 / 11 | 48 | keep | Read in 48 of 127 sessions; 55 live and 11 historical citations. |
+| `DEFINITION_OF_DONE.md` | 14,673 | 7 / 5 | 53 | keep | Read in 53 of 127 sessions; 7 live and 5 historical citations. |
+| `ENGINEERING_RULES.md` | 6,163 | 8 / 3 | 11 | delete (3B, decided) | A 94-line redirect index; its content lives in the five split files. Still opened in 11 sessions and cited by 8 live and 3 historical files, so 3B rewrites those citations first (the checker proves it). |
+| `ENGINEERING_RULES_BACKEND.md` | 91,500 | 49 / 15 | 50 | keep | Read in 50 of 127 sessions; 49 live and 15 historical citations. |
+| `ENGINEERING_RULES_FRONTEND.md` | 20,540 | 10 / 6 | 37 | keep | Read in 37 of 127 sessions; 10 live and 6 historical citations. |
+| `ENGINEERING_RULES_INFRA.md` | 28,697 | 12 / 10 | 10 | keep | Read in 10 of 127 sessions; 12 live and 10 historical citations. |
+| `ENGINEERING_RULES_SHARED.md` | 37,474 | 25 / 13 | 51 | keep | Read in 51 of 127 sessions; 25 live and 13 historical citations. |
+| `ENGINEERING_RULES_TESTING.md` | 38,801 | 24 / 5 | 40 | keep | Read in 40 of 127 sessions; 24 live and 5 historical citations. |
+| `README.md` | 5,066 | 0 / 1 | 5 | keep, rewrite (3B, decided) | Never cited by agents. Its reading order stops at doc 26 and omits docs 27 and 28 and every unnumbered doc; 3B's rewrite starts from that finding. |
+| `REPOSITORY_STRUCTURE.md` | 12,657 | 5 / 16 | 10 | keep | Read in 10 of 127 sessions; 5 live and 16 historical citations. |
+| `RUNBOOKS.md` | 16,681 | 10 / 3 | 5 | keep | Read in 5 of 127 sessions; 10 live and 3 historical citations. |
+| `STORY_SCHEMA.md` | 10,167 | 8 / 1 | 65 | keep | Read in 65 of 127 sessions; 8 live and 1 historical citations. |
+| `TD37-ARCHITECTURE-CHECK-DECISIONS.md` | 1,805 | 0 / 1 | 4 | move to `td/` (3B, decided) | A TD decision record, not a reference doc; one historical citation and no live ones. |
+| `VALUE_OBJECTS_REFERENCE.md` | 4,743 | 3 / 2 | 5 | keep | Read in 5 of 127 sessions; 3 live and 2 historical citations. |
+
+**Findings for Story 3B** (from the audit of files 3B deletes or rewrites): `docs/README.md`'s reading order stops at doc 26 and omits docs 27 and 28 and every unnumbered doc (`AGENT_PATTERNS`, `ANTI_PATTERNS`, `CI_TRAPS`, `CODE_STANDARDS`, `DEFINITION_OF_DONE`, `ENGINEERING_RULES_*`, `REPOSITORY_STRUCTURE`, `RUNBOOKS`, `STORY_SCHEMA`, `VALUE_OBJECTS_REFERENCE`, `AGENT_CONTEXT_TRAP_SCENARIOS`); its rewrite should list them. `docs/ENGINEERING_RULES.md` and `docs/lean/` had no finding recorded (they were not audited, by decision). The `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` move is unaffected.
+
+**Audit baseline — what was found and fixed.** Four `/docs-audit` runs (`docs`, `plan`+`td`, `plan/journey`, then a `context.md` check), each with read-only agents whose every finding was re-read at the cited file and line before it became an edit. Pass 1 reported about 169 findings (`docs` 66, `plan`+`td` 10, `plan/journey` about 93; counts are approximate because the agents bundled items of unequal size). Dead `docs/`/`plan/`/`td/`/`infra/` pointers and dead anchors: 0 before and 0 after at every pass (`doc-link-integrity` was already clean). The rest were stale or wrong descriptive claims, missing inventory rows, missing "planned, not built" markers and stale journey status or dev-notes text, all fixed except the deferred items below. A few agent claims did not survive the re-read and were dropped or corrected (for example a wrong cron-job count in the light pass, an agent claim that `FOOTER` is not a layout module, which the code contradicts, and one constraint name an editing agent invented, which the migration disproved).
+
+**Owner decisions applied** (answered 2026-10-18): `08` isolation section and Builders section rewritten; `ENGINEERING_RULES_BACKEND`'s stale lock example replaced; `01-BUSINESS_CONTEXT` reworded for the multivertical platform; multi-cloud material in `22` labelled historical; the CI Variables-versus-Secrets rule and its non-compliance recorded in `docs/17`; follow-ups opened as `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md` (missing BFF component specs, identity-shaped Variables to Secrets, the report-only isolation scan). One code-side note is carried there: `scripts/relay-vm-up.sh:99` describes the wrong apply job.
+
+**Declined or deferred (recorded, not fixed):**
+- `.copilot/context.md` §3's aggregate table omits several aggregates (Booking: `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`; Platform: the chatbot and lead-form aggregates). Adding them breaks §3's 872-character budget in `agent-context-policy.json`; Story 5B decides whether to raise it. `docs/05`'s context-map diagram has the same omission.
+- `docs/04-USE_CASES.md`'s summary table has no rows for UC-010a to UC-010d.
+- About a dozen detector rule ids (for example `lock-catalog-coverage`, `closed-enum-registry`, `doc-link-integrity`) appear in no doc other than `17`'s table; `docs/ANTI_PATTERNS.md` also names the `di-alias` detector by its file name while its rules are `unsafe-use-existing` and `reverse-di-alias`, and still cites a removed `problem-detail.ts`.
+- Nine rules are explained in full in two docs each (the VO table in `VALUE_OBJECTS_REFERENCE` and `ENGINEERING_RULES_SHARED`; builder naming across `08`, `ENGINEERING_RULES_TESTING` and `AGENT_PATTERNS`; the InMemory-over-`jest.fn` rule across `ANTI_PATTERNS`, `ENGINEERING_RULES_TESTING` and `08`; the migration/entity registration rule across `ENGINEERING_RULES_TESTING`, `08` and `REPOSITORY_STRUCTURE`; the `useExisting` rule; the UI-primitive reuse rule; the barrel-import ban; the guard-placement rule; the shared date and address test helpers). Each needs a decision on which doc is canonical; Story 3C is the natural place.
+- `plan/` conformance, left for each story's own `/story-discovery`: M17's open stories lack the `Pattern` and `Files to create/modify` fields (the milestone predates `STORY_SCHEMA.md`) and use shorthand in "Docs to load"; M18-S11's heading is `###` while S01 to S10 are `##`.
+- Journey items that need a product or owner call: the unchecked "open question" boxes in `agenda.md`, `fidelidade.md` (phone search, manual redemption), `minha-conta` (loyalty card, `classDef gap` legend), the self-looping nav links in `plan/journey/shared/dashboard-shell.html` and the disabled `href="#"` in `customer-dashboard.html`, the horarios 07/08 prototype links the notes say were left on purpose, the missing Prototype tables in `horarios.md` and `fidelidade.md`, and the descoped login prototypes still on disk.
+- `docs/ANTI_PATTERNS.md`'s and `docs/AGENT_PATTERNS.md`'s builder and helper tables are non-exhaustive by their own statement; the omissions were not backfilled.
+
+**Convergence passes (three, not one).** After the fixes, read-only agents re-audited every touched doc group against the code and reported only what still existed, excluding the deferred list. Counts are the agents' reported findings, by `/docs-audit` category:
+
+| Category | Pass 2 | Pass 3 |
+|---|---:|---:|
+| Stale or conflicting (doc vs code, incl. inventory omissions) | 69 | 63 |
+| Internal inconsistency (doc vs doc) | 20 | 15 |
+| Dead pointer | 10 | 9 |
+| Context quality | 3 | 7 |
+| Header or tag drift | 5 | 0 |
+| IA gap (undocumented route) | 1 | 1 |
+| Journey or prototype issue | 10 | 5 |
+| Journey vs code | 4 | 2 |
+| TD or milestone issue | 1 | 0 |
+| **Total** | **123** | **102** |
+
+By group in pass 3: schema and data docs 15, standards docs 22, infrastructure docs 9, architecture and contract docs 31, plan and manager journeys 10, staff journeys 6, guest and customer journeys 9. Every pass-2 and pass-3 finding that held up on re-read was fixed in this PR.
+
+**Result: not converged.** The baseline is much cleaner (about 169 → 123 → 102, with the shallow layers such as journeys and infrastructure falling fastest), but a fourth pass would very likely still find items: the largest docs (`14`, `04`, `08`, `AGENT_PATTERNS`) keep yielding drift in deeper claims (examples, skeletons, status codes) each time agents check more of them. So the story's criterion that the convergence pass "reports nothing outside the declined list" is **not met**; what is established is zero dead pointers at every pass, every verified finding fixed, and a falling trend. **Owner decision (2026-10-19): accept the falling trend and stop repeating the audit here.** The remainder is covered by **one** closing `/docs-audit`, run in the last story that actually runs (see "Closing audit" under Stories), not by more passes inside Story 3A.
+
+**Deviation from the story text:** the story names a literal `/docs-audit changed` re-run and exact before/after counts per category. The passes above use the same read-only agent fan-out as `/docs-audit` but with a "report only what survives" brief; pass-1 counts are approximate and the pass-1 category split was not tracked.
+
 
 _Open. Story 3C writes here: the per-doc verdicts, the load measurements including any non-Claude agent evidence, the always-on `context.md` cost review, and the confirmed destination of the journeys move (top-level `journeys/` unless the measurements say otherwise), and an explicit go or no-go, with the cost shown, for Story 4 (journeys move) and Story 6 (numeric-prefix drop)._
 
@@ -86,6 +173,8 @@ graph TD
 ```
 
 Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waits for its result.
+
+**Closing audit — one final run, then stop.** Story 3A's convergence passes did not reach zero (about 169, 123, then 102 findings; see its Decision record), and a repeated audit can always find more in the largest docs, so the loop must have an end. The **last story that actually runs** (Story 6 if it gets its go; otherwise whichever of Stories 3C, 4, 5A and 5B runs last) ends with **one** full `/docs-audit` of `docs/`, `plan/`, `td/` and `plan/journey/` (or its new `journeys/` location), run once after every move, rename and trim has landed so it checks the final layout and not a layout that is about to change. Its findings are fixed in the same PR, its counts are recorded beside Story 3A's table, and that closes the documentation baseline: it is **not** repeated unless a later change to the code or the docs gives a specific reason. Story 3C's Decision record names which story carries it.
 
 ### Story 0 — Repo-wide link and anchor checker ✅ Done
 
@@ -303,7 +392,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] Every `docs/*.md` has a recorded verdict with evidence.
 - [ ] The audit baseline fixes are applied or each is explicitly declined.
 - [ ] The triage method (column definitions, the `git grep` rule and the transcript-read measurement) is recorded beside the table.
-- [ ] The PR records before/after finding counts per audit category, and the convergence pass reports nothing outside the declined list.
+- [ ] The PR records before/after finding counts per audit category, and the convergence pass reports nothing outside the declined list — **owner decision 2026-10-19:** not reached after three passes (about 169, 123, 102); deferred to the one closing audit named under Stories, not repeated in this story.
 - [ ] Every audit finding in a file Story 3B deletes or rewrites is listed under Story 3B's description.
 
 **Acceptance criteria — technical:**
@@ -366,6 +455,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 2. **Classify every bullet of `context.md` §0–§9** by the trigger that makes it relevant (global gate, area-scoped, workflow-scoped). The classification feeds Story 5B; this story removes nothing.
 3. **Journeys destination.** Confirm the destination for Story 4 (`journeys/` at the repository top level; `docs/journeys/` is rejected for the grep noise of about 5.8 MB of HTML in `docs/`) and list the root config that hardcodes the current path (`.gitignore`, `.coderabbit.yaml`, `sonar-project.properties`, `knip.config.ts`). <!-- doc-link:example -->
 4. **Go or no-go for Story 4 and Story 6**, recorded in the Decision record with the measured cost (files rewritten, non-markdown hits) beside the benefit. A no-go closes the story as cancelled and leaves the numbering and journeys where they are.
+5. **Name the story that carries the closing audit** (see "Closing audit" under Stories): Story 6 if it gets a go, otherwise the last story that will actually run. Record it in the Decision record so the one final `/docs-audit` has an owner and is not repeated.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -373,7 +463,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record, success metrics)
 
 **Acceptance criteria — product:**
-- [ ] The Decision record states the load measurement, the `context.md` always-on classification, the confirmed journeys destination and a go or no-go for Stories 4 and 6.
+- [ ] The Decision record states the load measurement, the `context.md` always-on classification, the confirmed journeys destination and a go or no-go for Stories 4 and 6, and names the story that carries the closing audit.
 
 **Acceptance criteria — technical:**
 - Unit: none — measurement story
@@ -533,6 +623,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - E2E: none
 - [ ] `pnpm architecture-check` (every detector, including `doc-link-integrity`, `agent-context-file`, `lock-catalog-coverage`) passes
 - [ ] `/docs-audit changed` over the rename range reports zero dead pointers
+- [ ] **Closing audit (if this is the last story that runs):** one full `/docs-audit` of `docs/`, `plan/`, `td/` and the journeys folder runs after the rename, every finding that holds up on re-read is fixed in the PR, and the per-category counts are recorded beside Story 3A's table (see "Closing audit" under Stories). It is run once and is not repeated.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

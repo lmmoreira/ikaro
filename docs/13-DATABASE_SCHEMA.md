@@ -17,7 +17,9 @@ Single PostgreSQL instance
 └── notification (Notification Context)
 ```
 
-**Multi-tenant isolation within each schema** is enforced by a mandatory `tenant_id` column on every table, composite indexes starting with `tenant_id`, and composite FK constraints within a context.
+Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
+
+**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself — see `docs/06-TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
 
 ---
 
@@ -42,7 +44,7 @@ All domain entities, value objects, and test factories that generate IDs must us
 ### 2. Cross-Schema FK Rules
 | Reference type | FK constraint? | Rule |
 |---|---|---|
-| `tenant_id` → `platform.tenants(id)` | ⚠️ Only for tables in the `platform` schema (`hotsite_configs`, `chatbot_*`, `lead_form_*`) | The `booking`, `customer`, `staff`, `loyalty` and `notification` migrations store `tenant_id` as a plain NOT NULL UUID with **no** FK, the same as any other cross-schema reference. Tenant existence is guaranteed by the request context (the BFF rejects unknown tenants), not by the database. Adding the FKs would be a deliberate design change (cross-schema coupling vs. DB-level integrity), not a doc fix. |
+| `tenant_id` → `platform.tenants(id)` | ⚠️ Only for tables in the `platform` schema (`hotsite_configs`, `lead_form_configs`, `lead_form_submissions`, `chatbot_sessions`; the child tables `chatbot_messages`, `lead_form_answers` and `lead_form_submission_question_refs` carry only a composite `(tenant_id, …)` FK to their parent) | The `booking`, `customer`, `staff`, `loyalty` and `notification` migrations store `tenant_id` as a plain NOT NULL UUID with **no** FK, the same as any other cross-schema reference. Tenant existence is guaranteed by the request context (the BFF rejects unknown tenants), not by the database. Adding the FKs would be a deliberate design change (cross-schema coupling vs. DB-level integrity), not a doc fix. |
 | Intra-context (same schema) | ✅ Yes | Always enforce referential integrity within a context |
 | Cross-context (different schemas) | ❌ No | Store UUID only. Integrity enforced at application level via events. |
 
@@ -50,14 +52,14 @@ This is a direct consequence of the Context Isolation Contract in `docs/05-BOUND
 
 ### 3. Audit Columns
 Every mutable table includes:
-- `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for `platform`-schema tables, see §2)
+- `tenant_id` UUID NOT NULL (+ FK → `platform.tenants(id)` only for the `platform` tables that have it, see §2)
 - `created_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 - `updated_at` TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now() (mutable rows only)
 
 > The per-table rows below that write `DEFAULT now()` without `NOT NULL` are shorthand: every migration declares both audit columns `NOT NULL`.
 
 Optional where relevant:
-- `deleted_at` TIMESTAMP WITH TIME ZONE — soft delete (bookings, services, staff)
+- No `deleted_at` soft-delete column exists on any table — records are retained and deactivated through status/active flags instead
 - `created_by` / `updated_by` UUID — where the actor matters for audit
 
 ---
@@ -119,7 +121,7 @@ The actual chat log — visitor questions and bot answers, both sides, not just 
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | session_id | UUID | NOT NULL |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL — first column of the composite FK `(tenant_id, session_id)` below; no direct FK to `platform.tenants` |
 | role | VARCHAR(9) | NOT NULL — `'USER'` \| `'ASSISTANT'` |
 | content | TEXT | NOT NULL |
 | input_tokens | INTEGER | NOT NULL DEFAULT 0 |
@@ -212,7 +214,7 @@ One row per **question** per submission (not one row per submission) — `MULTIP
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY (uuidv7) |
-| tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)` |
+| tenant_id | UUID | NOT NULL — first column of the composite FK `(tenant_id, submission_id)` below; no direct FK to `platform.tenants` |
 | submission_id | UUID | NOT NULL — composite FK `(tenant_id, submission_id)` → `platform.lead_form_submissions(tenant_id, id)`, tenant-safe (blocks cross-tenant reference at the DB level, same discipline as `chatbot_messages` → `chatbot_sessions`), `ON DELETE CASCADE` so retention purge cannot orphan answer rows. Requires `lead_form_submissions`'s own `UNIQUE (tenant_id, id)` above to exist first |
 | question_id | UUID | NOT NULL — the question's `id` at submission time (informational; matching is by `question_label`, not this, since a question can be edited/removed after submission — see below) |
 | question_label | TEXT | NOT NULL — snapshotted, not looked up live (same reasoning as the JSONB snapshot) |
@@ -1065,8 +1067,8 @@ One immutable row per `BookingLine` completed for an authenticated customer. App
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, no FK (cross-schema, §2) |
 | customer_id | UUID | NOT NULL — no FK (cross-context ref to `customer.customers`) |
-| booking_id | UUID | NULLABLE (widened by M24 Cluster 4 — see below) — no FK (cross-context ref to `booking.bookings`) |
-| booking_line_id | UUID | NULLABLE (widened by M24 Cluster 4) — no FK (cross-context ref to `booking.booking_lines`) |
+| booking_id | UUID | NOT NULL today (planned, M24 Cluster 4, not built: widened to NULLABLE — see below) — no FK (cross-context ref to `booking.bookings`) |
+| booking_line_id | UUID | NOT NULL today (planned, M24 Cluster 4, not built: widened to NULLABLE) — no FK (cross-context ref to `booking.booking_lines`) |
 | class_session_booking_id | UUID | NULLABLE, added by M24 Cluster 4 — no FK (cross-context ref to `booking.class_session_bookings`) |
 | service_id | UUID | NOT NULL — no FK (cross-context ref to `booking.services`; denormalised for per-service queries) |
 | points | INT | NOT NULL, CHECK > 0 — = `booking_lines.points_value_at_booking` (appointment) or `class_session_bookings.points_value_at_booking` (class), at completion |
@@ -1300,7 +1302,7 @@ await drainDomainEvents(booking, this.outboxPublisher); // 2. Insert outbox row,
 // inline on the happy path, or the scheduled sweep (SKIP LOCKED) if that fails/crashes.
 ```
 
-The event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 5 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `RecurringScheduleRenewalDue`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
+The 7 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmission`, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`) get this transactionally-safe path automatically via their repositories — no use case writes a publish loop for them anymore. The 5 cron-published `Command` events (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `RecurringScheduleRenewalDue`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system now goes through the same durable path. A crash between the DB commit and the Pub/Sub publish no longer loses the event: the outbox row is durable, and the sweep delivers it on the next tick (worst case ~5 minutes later, `var.outbox_relay_schedule`).
 
 ### Consume-side: shared inbox (TD24-S04)
 
@@ -1314,21 +1316,22 @@ Every event/command consumer — each domain-event handler (including the per-co
 
 Every index **MUST** start with `tenant_id` to ensure query plans use tenant isolation first, **except** a standalone index that exists specifically to support a system-triggered, cross-tenant retention-purge job's own unscoped scan (`chatbot_messages.IDX_platform_chatbot_messages_created_at`/`ChatbotRetentionPurgeJob`; `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at`/`LeadFormRetentionPurgeJob`, M20-S04) — these jobs deliberately delete across every tenant in one pass (no tenant_id predicate, matching `ExpirePointsJob`'s own precedent), so a tenant_id-leading composite index can't be seeked for that query; per-tenant queries on the same column continue to use their own composite index as normal (Codex review finding, PR #422 — documented here to avoid future confusion, not itself a new pattern):
 
+Representative indexes, under the names the migrations create (the authoritative list is each table's `INDEX` rows above and its migration):
+
 ```sql
 -- Booking context
-CREATE INDEX idx_bookings_tenant_status    ON booking.bookings (tenant_id, status);
-CREATE INDEX idx_bookings_tenant_scheduled ON booking.bookings (tenant_id, scheduled_at);
-CREATE INDEX idx_bookings_tenant_customer  ON booking.bookings (tenant_id, customer_id);
+CREATE INDEX "IDX_booking_bookings_tenant_status"    ON booking.bookings (tenant_id, status);
+CREATE INDEX "IDX_booking_bookings_tenant_scheduled" ON booking.bookings (tenant_id, scheduled_at);
+CREATE INDEX "IDX_booking_bookings_tenant_customer"  ON booking.bookings (tenant_id, customer_id);
 
 -- Loyalty context
-CREATE INDEX idx_loyalty_tenant_customer_expires   ON loyalty.loyalty_entries (tenant_id, customer_id, expires_at);
-CREATE INDEX idx_loyalty_tenant_customer_service   ON loyalty.loyalty_entries (tenant_id, customer_id, service_id, expires_at);
+CREATE INDEX "IDX_loyalty_entries_tenant_customer_expires" ON loyalty.loyalty_entries (tenant_id, customer_id, expires_at);
 
 -- Customer context
-CREATE INDEX idx_customers_tenant_google ON customer.customers (tenant_id, google_oauth_id);
+CREATE INDEX "IDX_customer_customers_tenant_oauth" ON customer.customers (tenant_id, google_oauth_id);
 
 -- Staff context
-CREATE INDEX idx_staff_tenant_google ON staff.staff (tenant_id, google_oauth_id);
+CREATE INDEX "IDX_staff_staff_tenant_oauth" ON staff.staff (tenant_id, google_oauth_id);
 ```
 
 ---

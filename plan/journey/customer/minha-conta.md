@@ -54,11 +54,11 @@ flowchart TD
 | `/{slug}/booking` (post-booking CTA) | `BookingForm` / confirmation | M12-S07 | ✅ Existente |
 | `/{slug}/my-account` (Início tab) | `HomeDashboard` | M13-S27 | ✅ Existente |
 | `/{slug}/my-account/bookings` (Agendamentos tab — the booking list prototyped as `01-minha-conta.html`) | `BookingsList` | M13-S27 | ✅ Existente |
-| `/{slug}/my-account/bookings/[id]` | `AgendamentoDetailPage` | M13-S28 | ✅ Existente |
+| `/{slug}/my-account/bookings/[id]` | `BookingDetailPage` | M13-S28 | ✅ Existente |
 | Cancel confirmation — full page, not a sheet | dedicated `.../bookings/[id]/cancel` page | M13-S28 | ✅ Existente |
 | Info submit form (UC-005 A2) | inline section on detail page (customer auth path) | M13-S28 | ✅ Existente |
-| `/{slug}/my-account/loyalty` | `MinhaFidelidadePage` | M13-S29 | ✅ Existente |
-| Tenant switch modal/page (UC-023) | `TrocarEmpresaPage` — avatar dropdown trigger | M13-S30 | ✅ Existente |
+| `/{slug}/my-account/loyalty` | `LoyaltyPage` | M13-S29 | ✅ Existente |
+| Tenant switch modal/page (UC-023) | `SwitchTenantPage` (`app/switch-tenant/page.tsx`) + `SwitchTenantClient` — avatar dropdown trigger | M13-S30 | ✅ Existente |
 
 **Início extension (✅ built — `M23-S41`, drawn in `plan/journey/shared/customer-dashboard.html`):** all four tiles link (Pontos to Fidelidade, Agendamentos to the list) and two are new, "Recorrências · N ativa(s)" and "Avisos · N ativo(s)", each linking to its list, shown only when the count is above zero (no tenant flag — zero hides them), and one amber "Renovar" card for the active schedule that ends first ("N reservas terminando" with several, whose button opens the recurring list), placed after the points-expiry strip. A customer with neither sees today's page. Frontend only; the card reads the `renewable` flag that `M23-S21` adds to the list item (S21 owns the renewal lead time; S22 only shows the button).
 
@@ -108,7 +108,7 @@ Folder: `customer/prototypes/minha-conta/`
 | `00-hotsite-logged-in.html` | Hotsite logged-in state (entry point) | — | — | ✅ Criado |
 | `01-minha-conta.html` | Minha Conta — booking list + entries to the recurring and alerts lists (the loyalty strip was removed 2026-10-09: points live on Início and Fidelidade) | UC-006 | M13-S27 | ✅ Criado |
 | `01b-minha-conta-empty.html` | Minha Conta — estado vazio (nenhum agendamento) | UC-006 A1 | M13-S27 | ✅ Criado |
-| `02-agendamento-detail.html` | Detalhe do Agendamento (APPROVED/PENDING). **Redesenhado 2026-10-15**: cartões novos (recursos, trajeto, participantes, suas respostas, endereço, origem) por `?forma=simples\|recurso\|pacote\|trajeto\|formulario\|retirada\|recorrente\|completo` — os cartões novos estão ✅ entregues (M23-S47, ver "Detalhe completo" abaixo); `02b`, `02c`, `02f`, `02g` e `02h` têm os mesmos cartões | UC-006 step 5 | M13-S28 | ✅ Criado (M23-S47) |
+| `02-agendamento-detail.html` | Detalhe do Agendamento (APPROVED/PENDING). **Redesenhado 2026-10-15**: cartões novos (recursos, trajeto, participantes, suas respostas, endereço, origem) por `?forma=simples\|recurso\|pacote\|trajeto\|formulario\|retirada\|recorrente\|equipe\|completo` — os cartões novos estão ✅ entregues (M23-S47, ver "Detalhe completo" abaixo); `02b`, `02c`, `02f`, `02g` e `02h` têm os mesmos cartões | UC-006 step 5 | M13-S28 | ✅ Criado (M23-S47) |
 | `02b-agendamento-info-requested.html` | Detalhe — INFO_REQUESTED + form de resposta | UC-005 A2 | M13-S28 | ✅ Criado |
 | `02c-agendamento-historico.html` | Detalhe — COMPLETED (read-only, sem ações) | UC-006 step 5 | M13-S28 | ✅ Criado |
 | `02f-agendamento-nao-compareceu.html` | Detalhe — NO_SHOW (read-only, sem ações; sem motivo interno; orienta a contatar o estabelecimento) | UC-006 step 5 · UC-074 | M23-S09 (status display) · M23-S27 | ✅ Criado |
@@ -210,7 +210,7 @@ flowchart TD
     MinhasTurmas -->|"Clica card em fila"| TurmaWaitlist["❓ GAP: mesma rota, status WAITLISTED/PROMOTION_PENDING<br/>Fila/oferta (09b-turma-detail-waitlist)"]
     MinhasTurmas -->|"'Ver agenda de turmas'"| Catalog["❓ GAP: /{slug}/aulas<br/>(journey: reservar-aula.md)"]
 
-    TurmaDetail["❓ GAP: /{slug}/my-account/turmas/[id]<br/>Detalhe (09-turma-detail)"] -->|"tipo série"| TurmaSerieDetail["❓ GAP: mesma rota, variante série<br/>(09c-turma-detail-serie)"]
+    TurmaDetail["❓ GAP: /{slug}/my-account/turmas/[enrollmentId]<br/>Detalhe (09-turma-detail)"] -->|"tipo série"| TurmaSerieDetail["❓ GAP: mesma rota, variante série<br/>(09c-turma-detail-serie)"]
     TurmaDetail -->|"'Pular' (sessão futura)"| PularSessao
     TurmaDetail -->|"'Cancelar matrícula'"| CancelarMatricula
 

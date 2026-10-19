@@ -26,7 +26,7 @@ The Dashboard is the authenticated area of Ikaro where **Customers** manage thei
 - **Key components (`apps/web/shells/dashboard/components/`):**
   - `DashboardShell.tsx` — `'use client'` shell wrapper: sidebar (desktop, `≥1024px`) + topbar + bottom nav (mobile, `<1024px`); conditionally renders manager-only nav based on `role`.
   - `Sidebar.tsx` — logo block, nav items (Agenda, Horários, Serviços, Fidelidade, plus Leads when the `LEAD_FORM` module is enabled — `leadFormEnabled`, `M20-S10`; and, for `role === 'MANAGER'` only, "Reservas a resolver" right below Agenda with an open-entries badge — `SchedulingExceptionsSidebarItem`, `M23-S14`, which alone mounts the count query so STAFF never fires it), and a "Somente Gerente" section (Recursos, Equipe, Configurações, Hotsite — `Recursos` added `M21-S04`) shown only when `role === 'MANAGER'`.
-  - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop.
+  - `Topbar.tsx` — back arrow + title on drill-down pages, page title on list pages, avatar + date on desktop. The pathname-to-title and back-link resolution lives in `shells/dashboard/model/topbar-route.ts` (`PAGE_TITLE_KEYS`, `TopbarRouteState`), which uses the route matchers beside it (`booking-route.ts`, `resource-route.ts`, `service-route.ts`, `team-route.ts`, `recurring-schedule-route.ts`, `scheduling-exception-route.ts`); a new dashboard section adds its title there, not only to `Sidebar.tsx`.
   - `BottomNav.tsx` — mobile-only tab bar mirroring the sidebar's nav items, role-aware. Hides itself only on genuine drill-down routes (booking/service/loyalty/team detail) that have their own topbar back arrow — top-level sections like `/dashboard/settings` and `/dashboard/hotsite` must stay visible here, or mobile users lose all navigation (a real bug found and fixed in `M13-S37`; see that story's implementation notes). Its "Mais" trigger also shows for STAFF once `leadFormEnabled` (`M20-S10`) — previously MANAGER-only. It also hides on the "Reservas a resolver" reschedule drill-down (`/dashboard/scheduling-exceptions/[id]/reschedule`, `scheduling-exception-route.ts`, `M23-S14`) but not on that section's list, whose fixed selection bar sits above it.
   - `MoreSheet.tsx` (renamed from `ManagerSheet.tsx`, `M20-S10`) — mobile "Mais" bottom-sheet. Renders a header-less "Leads" item for either role when `leadFormEnabled`, plus the manager-only nav items ("Reservas a resolver" first, with the badge — `M23-S14`; then Recursos, Equipe, Configurações, Hotsite — `Recursos` added `M21-S04`) when `role === 'MANAGER'`.
   - `topbar-status-context.tsx` (`DashboardTopbarStatusProvider`) — route-scoped chrome state (status badge, back-href/label/onBack overrides), mounted per-section above both the shell and the page.
@@ -114,16 +114,18 @@ The tree below reflects the current folder structure. Route files stay thin; fea
 apps/web/
 ├── app/
 │   ├── [slug]/
+│   ├── bookings/
 │   ├── dashboard/
 │   ├── auth/
 │   ├── select-staff-tenant/
 │   ├── switch-tenant/
+│   ├── v1/                 (the same-origin gateway to the BFF: [...path])
 │   └── api/
 ├── features/
 │   ├── auth/
 │   ├── booking/
 │   │   ├── api/
-│   │   ├── components/     (dashboard/{bookings,resources,schedule,services}/ and public/ — the booking flow)
+│   │   ├── components/     (dashboard/{bookings,resources,schedule,scheduling-exceptions,services}/, public/ — the booking flow — and booking-detail/, recurring/)
 │   │   ├── hooks/
 │   │   ├── model/
 │   │   ├── schedule/       (view-preference persistence, API layer — M13-S21)
@@ -136,24 +138,25 @@ apps/web/
 │   │   └── hooks/
 │   ├── loyalty/
 │   ├── platform/
-│   │   ├── api.ts, tenant-settings.ts, settings-form.ts   (flat files)
-│   │   ├── components/settings/    (SettingsForm.tsx — M13-S31)
-│   │   └── hotsite/
-│   │       ├── api/
-│   │       ├── model/
-│   │       └── utils/
+│   │   ├── api.ts, api.server.ts, settings-form*.ts   (flat files)
+│   │   ├── api/            (tenant-settings.ts, lead-form-submissions.server.ts, …)
+│   │   ├── components/     (hotsite/, leads/, public/, settings/)
+│   │   ├── hooks/
+│   │   ├── model/          (tenant-settings.ts, lead-form-search.ts)
+│   │   └── hotsite/        (manifest/branding/layout modules as flat files — apply-branding.ts,
+│   │                        default-layout.ts, page-model.ts, … — plus api/)
 │   └── staff/
-│       ├── api.ts          (flat file, not an api/ folder)
+│       ├── api/
 │       ├── components/
-│       └── hooks/
+│       ├── hooks/
+│       └── invite-form.ts, public.ts   (flat files)
 ├── shells/
 │   ├── dashboard/
 │   │   ├── components/
 │   │   ├── model/
 │   │   └── utils/
 │   └── hotsite/
-│       ├── components/
-│       └── utils/
+│       └── components/
 ├── shared/
 │   ├── components/
 │   │   └── ui/
@@ -166,9 +169,7 @@ apps/web/
 ├── i18n/
 │   └── request.ts
 ├── proxy.ts
-├── next.config.js
-└── public/
-    └── fonts/
+└── next.config.ts
 ```
 
 ---
@@ -217,18 +218,11 @@ pnpm dev
 
 **API calls in local dev:** Browser code calls `/v1`; the Next.js gateway forwards to `BFF_UPSTREAM_URL=http://localhost:3002/v1`.
 
-**MSW (Mock Service Worker):** Optional. Use to develop UI before BFF endpoints exist:
-```typescript
-// app/layout.tsx (dev only)
-if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_MSW === 'true') {
-  const { worker } = await import('../mocks/browser');
-  await worker.start();
-}
-```
+**Stubbing BFF calls:** the repo does not use MSW (no `msw` dependency, no `apps/web/mocks`, no `NEXT_PUBLIC_MSW` flag). To develop UI before a BFF endpoint exists, run against the local BFF (`pnpm dev`); in tests, `apps/web` specs stub the network with Vitest, either spying on `fetch` (e.g. `vi.spyOn(globalThis, 'fetch')`, see `apps/web/shared/lib/health/check-bff-readiness.spec.ts`) or mocking the shared BFF-transport helper with `vi.mock()` (see `apps/web/features/loyalty/dashboard-api.server.spec.ts`). Details: `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure.
 
 **Hotsite local testing:** Visit `http://localhost:3000/<tenant-slug>` (e.g. `http://localhost:3000/autowash-pro`). The `[slug]` route fetches the manifest from the local BFF which calls the local backend.
 
 ---
 
 **Status:** Phase 2 - Technical Architecture  
-**Validated:** Covers all authenticated use cases (UC-003 to UC-023).
+**Validated:** Covers the authenticated dashboard and account use cases (see the UC references in each section).

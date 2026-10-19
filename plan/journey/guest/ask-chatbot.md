@@ -55,7 +55,7 @@ one GUEST's perspective, it's indistinguishable from any other "not available" c
       by TD37-S05's length-rule enforcement — now split into `ChatbotWidget.tsx`/`ChatbotPanel.tsx`/
       `chatbot-icons.tsx`/`chatbot-widget-storage.ts`, no behavior change. See
       `guest/prototypes/ask-chatbot/dev-notes.md`.
-- [ ] Whether the collapsed-bubble state (`01-bubble-collapsed.html` in the original discovery
+- [x] Whether the collapsed-bubble state (`01-bubble-collapsed.html` in the original discovery
       prototype) needs its own numbered screen in this folder was resolved: no — `00-hotsite.html`
       (via `shared/hotsite.html`) already shows it, since the bubble lives on every hotsite page, not
       as a distinct step in this journey.

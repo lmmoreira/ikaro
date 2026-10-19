@@ -58,10 +58,7 @@ shared hotsite file, now additionally showing the collapsed chat bubble (bottom-
 
 ### 01-active-chat.html — `ChatbotWidget` (variant: bubble, state: active)
 
-**Props:** `variant: 'bubble' | 'inline'`, `accentColor: 'primary' | 'secondary'`, `botName?: string`,
-`welcomeMessage?: string`, `tenantSlug: string` — the first four come straight off
-`ChatbotModuleData` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT), read from the cached
-hotsite manifest; `tenantSlug` is ambient (`useTenant()`/route param), not part of the module data.
+**Props:** `data: ChatbotModuleData, slug, business, tenantName` (`apps/web/shells/hotsite/components/ChatbotWidget.tsx`) — `data` is the `ChatbotModuleData` (`variant`, `accentColor`, `botName?`, `welcomeMessage?`, …; `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) read from the cached hotsite manifest; `slug`, `business` and `tenantName` are passed in by the hotsite shell.
 
 **Internal state:** `sessionId: string | null` and `messages: ChatTurn[]` (each `ChatTurn` also
 carries a stable `id` for React's key prop, added during PR #385 review — SonarCloud S6479) are
@@ -76,7 +73,7 @@ POST /public/platform/chatbot/messages
   Header: X-Tenant-Slug: {slug}
   Body: { sessionId?: string, message: string }   // sessionId omitted on first message
   Response 200: { sessionId: string, reply: string }
-  400: message exceeds maxMessageLengthChars — inline validation, input stays enabled
+  400: message exceeds the cap — BFF rejects > 5000 chars; the tenant-resolved `maxMessageLengthChars` is enforced backend-side — inline validation, input stays enabled
   429: a volume cap rejected the request — widget moves to 'interrupted' (01b)
   503: LLM provider call failed mid-conversation — widget moves to 'interrupted' (01b)
   404: tenant slug not found, or sessionId doesn't belong to this tenant
@@ -117,12 +114,12 @@ Renders as its own section in manifest layout order instead of a fixed floating 
 
 | Field | Rule | Enforced where | Error |
 |---|---|---|---|
-| `message` (per send) | max `maxMessageLengthChars` (default 1000, tenant-overridable) | BFF, before backend/LLM | `400` — inline, input stays enabled |
+| `message` (per send) | max `maxMessageLengthChars` (default 1000, tenant-overridable) | BFF applies only `max(5000)` (`packages/validation/src/chatbot.ts`); the tenant-resolved cap is enforced backend-side in `SendChatMessageUseCase` | `400` — inline, input stays enabled |
 | new session — tenant-wide | `maxConversationsPerDay` (default 30) | Backend, `COUNT` on `chatbot_sessions` | `429` — widget interrupts |
 | new session — per visitor | `maxConversationsPerIpPerDay` (default 5) | Backend, same table + `client_ip` | `429` — widget interrupts |
 | new session — concurrency | `maxConcurrentConversations` (default 5, live-ness proxy `last_message_at` within 2 min) | Backend | `429` — widget interrupts |
 | existing session | `maxMessagesPerConversation` (default 20 = 10 exchanges, both roles) | Backend, `COUNT` on `chatbot_messages` | `429` — widget interrupts |
-| history sent to LLM | `maxHistoryMessagesSentToLlm` (default 10 = last 5 exchanges) — shaping, never rejects | BFF, before forwarding to backend | n/a (silent truncation) |
+| history sent to LLM | `maxHistoryMessagesSentToLlm` (default 10 = last 5 exchanges) — shaping, never rejects | Backend only (`chatbot-cap-check.helpers.ts`); the BFF forwards without truncating | n/a (silent truncation) |
 | LLM response | `maxOutputTokensPerResponse` (default 300) hard ceiling | Backend, passed to `ILlmProvider.complete()` | n/a (model-side cap) |
 | `settings.chatbot.knowledgeText` (tenant settings, not this widget) | max `maxKnowledgeTextLength` (default 4000) | BFF/backend, `PATCH /v1/tenants/settings` | `400` — see `manager/prototypes/configuracoes/dev-notes.md` |
 

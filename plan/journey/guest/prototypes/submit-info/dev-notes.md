@@ -11,7 +11,7 @@
 | `apps/web/app/bookings/[id]/submit-info/page.tsx` | ✅ Exists |
 | `apps/web/features/booking/components/public/SubmitInfoForm.tsx` | ✅ Exists |
 | `apps/web/features/booking/components/public/InvalidLinkView.tsx` | ✅ Exists |
-| `send-booking-info-requested-notification.use-case.ts` (`buildRespondLink()`) | ✅ Updated — emits `/submit-info`, not `/responder` |
+| `send-booking-info-requested-notification.use-case.ts` (`buildRespondLink()`) | ✅ Updated — emits `/submit-info` (guests only; a customer is linked to `/{slug}/my-account/bookings/{id}`), not `/responder` |
 
 The backend rename described below already shipped in the same story as the frontend page.
 
@@ -27,14 +27,10 @@ The backend rename described below already shipped in the same story as the fron
 
 **Token validation (server-side):**
 ```ts
-import jwt from 'jsonwebtoken';
-const secret = process.env.JWT_SECRET!;
-try {
-  const payload = jwt.verify(token, secret) as { bookingId: string; tenantId: string; contactEmail: string };
-  // validate payload.bookingId === params.id
-} catch {
-  // render 01b-invalid-link state
-}
+// page.tsx — verifyGuestToken / decodeUnverifiedTenantSlug from '@/features/booking/model/guest-token'
+const payload = token ? verifyGuestToken(token) : null;
+const brandingSlug = payload?.tenantSlug ?? (token ? decodeUnverifiedTenantSlug(token) : null);
+// no payload / payload.bookingId !== params.id -> render 01b-invalid-link state
 ```
 
 **BFF call to pre-fill booking summary:**
@@ -49,12 +45,13 @@ GET /v1/bookings/:id/guest?token=<JWT>
 interface SubmitInfoFormProps {
   readonly bookingId: string;
   readonly token: string;
-  readonly bookingSummary: {
-    readonly serviceName: string;
-    readonly scheduledAt: string;
-    readonly contactName: string;
-  } | null;
-  readonly infoRequestMessage: string;
+  readonly summary: SubmitInfoFormSummary | null;
+  readonly brandName?: string;
+  readonly brandingStyle?: React.CSSProperties;
+  readonly locale?: string;
+  readonly timezone?: string;
+  readonly timeFormat?: TimeFormat;
+  readonly tenantSlug?: string;
 }
 ```
 
@@ -70,7 +67,7 @@ PATCH /v1/bookings/:id/submit-info/guest?token=<JWT>
 | Field | Rule | Error message (pt-BR) |
 |---|---|---|
 | `response` | `min(1)` after trim | "Informe sua resposta antes de enviar." |
-| `photoUrls[]` | optional; each matches `tenants/*/uploads|bookings/*/**` pattern | (validated BFF-side only) |
+| `photoUrls[]` | optional; each matches the BFF regex `/^tmp\/[^/]+\/[^/]+\/.+$/` (`bookings.schemas.ts`) | (validated BFF-side only) |
 
 **States:**
 - `idle` → form shown, button enabled
@@ -98,7 +95,7 @@ Shows: reason list + "Ir para o site" CTA + "Entrar / Criar conta" link.
 
 **Detection order:**
 1. No `token` query param → invalid
-2. `jwt.verify()` throws → invalid
+2. `verifyGuestToken()` returns null (bad signature/expired) → invalid
 3. `payload.bookingId !== params.id` → invalid (token reuse attempt)
 4. Optional: fetch booking status; if not `INFO_REQUESTED` → show "já respondido ou processado" variant
 

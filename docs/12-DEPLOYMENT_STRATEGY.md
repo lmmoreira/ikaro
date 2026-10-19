@@ -10,14 +10,14 @@ Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. 
 | Component | Runtime | Exposure |
 |---|---|---|
 | Web | Cloud Run | Public |
-| BFF | Cloud Run | Public application API |
+| BFF | Cloud Run | Internal: staging ingress is internal-only (reached through the web service); production sits behind the internal load balancer via the edge |
 | Backend | Cloud Run | Internal service ingress |
 | Database | Cloud SQL for PostgreSQL 17 | Private; application access through the Cloud SQL connector |
 | Events and scheduled triggers | Pub/Sub + Cloud Scheduler | Push/trigger infrastructure managed by Terraform |
 | Object storage | GCS | Tenant-prefixed object paths |
 | Telemetry | OTel Collector Cloud Run sidecar for traces and metrics; stdout for logs | Cloud Trace, Managed Prometheus, Cloud Logging |
 
-There is no production observability VM and no self-hosted Grafana/Loki deployment.
+There is no production observability VM and no self-hosted Grafana/Loki deployment. (An on-demand, IAP-only relay VM does exist for developer access to the private database; it is inert unless enabled — `infra/terraform/modules/relay-vm/`, `docs/RUNBOOKS.md` — and is not an observability VM.)
 
 ## Delivery model
 

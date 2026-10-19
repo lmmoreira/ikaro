@@ -55,7 +55,7 @@ When a critical bug is found in Production:
 2. **Fix:** Implement the fix + a regression test.
 3. **Fast-Track PR:** ask for prioritized review in the PR description. (No workflow, PR template or label gate enforces an "Emergency" label — it is a convention only.)
 4. **CI Bypass:** (NEVER allowed) All tests must still pass.
-5. **Deploy:** Once merged to `main` (when `apps/**` or `packages/**` changed), it deploys to Staging automatically. Production is a separate manual promotion (`deploy-production.yml`, required-reviewer approval); its smoke job runs after the deploy.
+5. **Deploy:** Once merged to `main` (when `apps/**`, `packages/**`, `pnpm-lock.yaml` or `deploy-staging.yml` changed), it deploys to Staging automatically. Production is a separate manual promotion (`deploy-production.yml`, required-reviewer approval); its smoke job runs after the deploy.
 
 ---
 
@@ -75,7 +75,7 @@ If a deployment causes a regression:
 There is no timed auto-rollback. A new Cloud Run revision that fails its startup probe (about 180 s: 18 failures × 10 s) never becomes ready, so it does not receive traffic and the previous revision keeps serving. A revision that is already serving and degrades later is **not** rolled back automatically — use the manual rollback below.
 
 ### **Manual Rollback**
-1. **GitHub Action:** **"App — Production Emergency Rollback"** (`rollback-production.yml`, `workflow_dispatch`). Inputs: `service` (`backend`, `bff`, `web` or all three) and `revision` (optional — blank sends traffic back to each service's previous revision; or name an exact Cloud Run revision). Gated by the `production` environment approval.
+1. **GitHub Action:** **"App — Production Emergency Rollback"** (`rollback-production.yml`, `workflow_dispatch`). Inputs: `service` (`ikaro-backend`, `ikaro-bff`, `ikaro-web` or `all-three`) and `revision` (optional — blank sends traffic back to each service's previous revision; or name an exact Cloud Run revision, which is valid for a single service only: the workflow rejects a non-empty `revision` when `service` is `all-three`, so leave it blank then). Gated by the `production` environment approval.
 2. **Process:** 
    - An instant Cloud Run **traffic shift** to the chosen earlier revision — no rebuild and no image change. It is per service, not a guaranteed cross-service consistent state; see the workflow's header comment and `docs/RUNBOOKS.md`.
    - **Note on Migrations:** If the deployment included a breaking database migration, the rollback must be handled with extreme care (Expand/Contract pattern is preferred to avoid this).

@@ -70,37 +70,23 @@ export class XxxInvalidStateError extends XxxDomainError {
 
 ```typescript
 // src/contexts/<ctx>/infrastructure/http/xxx-error.mapper.ts
-import { HttpException, HttpStatus } from '@nestjs/common';
-import { ProblemDetail } from '../../../../shared/http/problem-detail';
+import { HttpStatus } from '@nestjs/common';
+import { throwProblemDetail } from '@ikaro/nestjs-http';
 import { XxxDomainError, XxxNotFoundError } from '../../domain/errors/xxx-domain.error';
 
 export function mapXxxError(err: unknown): never {
   if (err instanceof XxxNotFoundError) {
-    throw new HttpException(
-      {
-        type: 'about:blank',
-        title: 'Not Found',
-        status: HttpStatus.NOT_FOUND,
-        detail: err.message,
-      } satisfies ProblemDetail,
-      HttpStatus.NOT_FOUND,
-    );
+    throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
   }
   if (err instanceof XxxDomainError) {
-    throw new HttpException(
-      {
-        type: 'about:blank',
-        title: 'Bad Request',
-        status: HttpStatus.BAD_REQUEST,
-        detail: err.message,
-      } satisfies ProblemDetail,
-      HttpStatus.BAD_REQUEST,
-    );
+    throw throwProblemDetail(HttpStatus.BAD_REQUEST, err.code, err.message, err.field);
   }
   if (err instanceof Error) throw err;
   throw new Error(`Unexpected error: ${String(err)}`);
 }
 ```
+
+`code` is mandatory on every Problem Details body: the domain error carries a typed `code` (and optional `field`) from `@ikaro/types`, as `CustomerDomainError` does in `apps/backend/src/contexts/customer/domain/errors/customer-domain.error.ts`.
 
 Canonical example: `apps/backend/src/contexts/customer/infrastructure/http/customer-error.mapper.ts`
 
@@ -122,11 +108,11 @@ export const UpdateXxxSchema = z.object({
 export type UpdateXxxDto = z.infer<typeof UpdateXxxSchema>;
 ```
 
-**When NOT to add a Zod schema:** if the DTO only carries a `bookingId` (or similar) that comes from a `@Param` decorated with `ParseUUIDPipe`, there is no request body to validate — a Zod schema is dead code. Use a plain TypeScript interface instead:
+**When NOT to add a Zod schema:** if the DTO only carries a `bookingId` (or similar) that comes from a `@Param` decorated with `CanonicalParseUUIDPipe`, there is no request body to validate — a Zod schema is dead code. Use a plain TypeScript interface instead:
 
 ```typescript
 // src/contexts/<ctx>/application/dtos/approve-xxx.dto.ts
-// No Zod — bookingId comes from ParseUUIDPipe on the @Param
+// No Zod — bookingId comes from CanonicalParseUUIDPipe on the @Param
 export interface ApproveXxxDto {
   bookingId: string;
 }
@@ -181,7 +167,7 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/get
 
 ---
 
-### 6. Use Case — Write (with transaction + event flush)
+### 6. Use Case — Write (with transaction; events drained by the repository)
 
 ```typescript
 // src/contexts/<ctx>/application/use-cases/update-xxx.use-case.ts
@@ -206,7 +192,6 @@ export class UpdateXxxUseCase {
   constructor(
     @Inject(XXX_REPOSITORY) private readonly repo: IXxxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    // @Inject(EVENT_BUS) private readonly eventBus: IEventBus,  // add if aggregate emits events
   ) {}
 
   async execute(dto: UpdateXxxUseCaseInput): Promise<UpdateXxxUseCaseResult> {
@@ -224,10 +209,10 @@ export class UpdateXxxUseCase {
     // 4. Write inside transaction
     await this.txManager.run(() => this.repo.save(entity));
 
-    // 5. Flush domain events AFTER transaction — never inside txManager.run()
-    // for (const event of entity.clearDomainEvents()) {
-    //   await this.eventBus.publish(event);
-    // }
+    // 5. No event flush here: for an event-emitting aggregate, repo.save() drains its domain
+    //    events into the outbox inside the same transaction (ENGINEERING_RULES_BACKEND.md,
+    //    "Aggregate domain events → outbox (repo auto-flush)"). Never inject EVENT_BUS or call
+    //    clearDomainEvents() in a use case.
 
     return { id: entity.id /* ... */ };
   }
@@ -248,7 +233,7 @@ Canonical example: `apps/backend/src/contexts/customer/application/use-cases/upd
 // src/contexts/<ctx>/infrastructure/controllers/xxx.controller.ts
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { RequestContext } from '../../../../shared/request/request-context';
-import { ZodValidationPipe } from '../../../../shared/http/zod-validation.pipe';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { mapXxxError } from '../http/xxx-error.mapper';
 import { UpdateXxxDto, UpdateXxxSchema } from '../../application/dtos/update-xxx.dto';
 import { GetXxxUseCase, GetXxxUseCaseResult } from '../../application/use-cases/get-xxx.use-case';
@@ -390,12 +375,12 @@ These tables are **not exhaustive** — they show the common entries. `ls` the d
 
 | File | Export | Signature | Use for |
 |------|--------|-----------|---------|
-| `actor-headers.ts` | `actorHeaders` | `(tenantId, actorId, role?)` → `Record<string, string>` | supertest `.set()` calls in integration specs |
-| `wait-for.ts` | `waitFor` | `(fn: () => Promise<void>, opts?)` | polling async side effects in story integration specs |
+| `actor-headers.ts` | `actorHeaders` | `(tenantId, actorId, role?, correlationId?)` → `Record<string, string>` | supertest `.set()` calls in integration specs |
+| `wait-for.ts` | `waitFor` | `(condition: () => Promise<boolean>, timeoutMs = 8000)` | polling async side effects in story integration specs |
 | `date-helpers.ts` | various date utils | — | date manipulation in tests |
-| `booking-integration-app.ts` | `createBookingIntegrationApp` | `()` → `{ app, ds }` | booking context integration tests |
+| `booking-integration-app.ts` | `createBookingIntegrationApp` | `(options?: { extraModules?, overrideProviders? })` → `{ app, ds, eventBus, moduleRef }` | booking context integration tests |
 | `customer-integration-app.ts` | `createCustomerIntegrationApp` | `()` → `{ app, ds }` | customer context integration tests |
-| `notification-integration-app.ts` | `createNotificationIntegrationApp` | `()` → `{ app, ds, dispatcher }` | notification context integration tests |
+| `notification-integration-app.ts` | `createNotificationIntegrationApp` | `(options: { dispatcher, … })` (`dispatcher` required) → `{ app, ds, eventBus }` | notification context integration tests |
 
 #### Builders (`apps/backend/src/test/builders/<ctx>/`)
 
@@ -646,9 +631,14 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { EventBusModule } from '../../shared/infrastructure/event-bus.module';
+import { EventBusModule } from '../../shared/infrastructure/event-bus/event-bus.module';
+import { InboxModule } from '../../shared/infrastructure/inbox/inbox.module';
+import { InboxRecordEntity } from '../../shared/infrastructure/inbox/inbox-record.entity';
+import { OutboxModule } from '../../shared/infrastructure/outbox/outbox.module';
 import { TransactionManagerModule } from '../../shared/infrastructure/transaction-manager.module';
 import { EVENT_BUS } from '../../shared/ports/event-bus.port';
+import { OUTBOX_PUBLISHER } from '../../shared/ports/outbox-publisher.port';
+import { STORAGE_SERVICE } from '../../shared/ports/storage.service.port';
 import { RequestInterceptor } from '../../shared/request/request.interceptor';
 import { RequestModule } from '../../shared/request/request.module';
 import { HotsiteConfigEntity } from '../../contexts/platform/infrastructure/entities/hotsite-config.entity';
@@ -657,29 +647,42 @@ import { PlatformModule } from '../../contexts/platform/platform.module';
 import { XxxEntity } from '../../contexts/<ctx>/infrastructure/entities/xxx.entity';
 import { XxxModule } from '../../contexts/<ctx>/xxx.module';
 import { InMemoryEventBus } from '../infrastructure/in-memory-event-bus';
+import { InMemoryStorageService } from '../infrastructure/in-memory-storage.service';
+import { testCacheModule } from './test-cache-module';
+import { testConfigModule } from './test-config-module';
 
 export async function createXxxIntegrationApp(): Promise<{
   app: INestApplication;
   ds: DataSource;
 }> {
+  const eventBus = new InMemoryEventBus();
+
   const moduleRef = await Test.createTestingModule({
     imports: [
+      testConfigModule(), // never reads .env
+      testCacheModule(),
       TypeOrmModule.forRoot({
         type: 'postgres',
         url: process.env['TEST_DATABASE_URL'],
-        entities: [TenantEntity, HotsiteConfigEntity, XxxEntity /* add all entities used */],
+        entities: [TenantEntity, HotsiteConfigEntity, XxxEntity, InboxRecordEntity /* add all entities used */],
         synchronize: false,
       }),
       TransactionManagerModule, // ITransactionManager
       RequestModule,             // RequestContext + RequestInterceptor
       EventBusModule,           // PlatformModule.ProvisionTenantUseCase requires IEventBus
+      OutboxModule,
+      InboxModule,
       PlatformModule,           // exposes POST /internal/tenants for API-driven tenant seeding
       XxxModule,
     ],
     providers: [{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }],
   })
     .overrideProvider(EVENT_BUS)
-    .useValue(new InMemoryEventBus()) // suppress real Pub/Sub connections in tests
+    .useValue(eventBus) // suppress real Pub/Sub connections in tests
+    .overrideProvider(OUTBOX_PUBLISHER)
+    .useValue(eventBus) // same instance: publish and subscribe stay connected, no real outbox table
+    .overrideProvider(STORAGE_SERVICE)
+    .useValue(new InMemoryStorageService())
     .compile();
 
   const app = moduleRef.createNestApplication();
@@ -692,12 +695,15 @@ export async function createXxxIntegrationApp(): Promise<{
 
 | Module / provider | Why required |
 |-------------------|-------------|
+| `testConfigModule()` / `testCacheModule()` | A test never reads `.env`; supplies the config and cache the real modules expect |
 | `TypeOrmModule.forRoot(...)` | DB connection via `TEST_DATABASE_URL` |
 | `RequestModule` | `RequestContext` DI + populates `X-Tenant-ID` header |
 | `TransactionManagerModule` | `ITransactionManager` DI for write use cases |
 | `EventBusModule` | `PlatformModule` needs `IEventBus` for `ProvisionTenantUseCase` |
+| `OutboxModule` / `InboxModule` (+ `InboxRecordEntity`) | Write use cases publish through the outbox; event handlers dedupe through the inbox |
 | `PlatformModule` | Provides `POST /internal/tenants` — use it to seed tenants, never insert directly |
-| `.overrideProvider(EVENT_BUS).useValue(new InMemoryEventBus())` | Prevents real GCP Pub/Sub connections |
+| `.overrideProvider(EVENT_BUS)` and `.overrideProvider(OUTBOX_PUBLISHER)` → the same `InMemoryEventBus` | Prevents real GCP Pub/Sub connections and the real outbox relay |
+| `.overrideProvider(STORAGE_SERVICE).useValue(new InMemoryStorageService())` | Prevents real GCS access (add `TENANT_SETTINGS_PORT` → `InMemoryTenantSettingsPort` when the context reads tenant settings) |
 | `{ provide: APP_INTERCEPTOR, useClass: RequestInterceptor }` | Populates `RequestContext` from `X-Tenant-ID` header on each request |
 
 Canonical example: `apps/backend/src/test/utils/customer-integration-app.ts`
@@ -797,9 +803,9 @@ Canonical example: `apps/backend/src/contexts/customer/infrastructure/controller
 ### 17. BFF Module
 
 ```typescript
-// apps/bff/src/xxxs/xxxs.module.ts
+// apps/bff/src/features/<domain>/xxxs.module.ts
 import { Module } from '@nestjs/common';
-import { BackendHttpModule } from '../shared/http/backend-http.module';
+import { BackendHttpModule } from '../../shared/http/backend-http.module';
 import { XxxsController } from './xxxs.controller';
 
 @Module({
@@ -809,19 +815,19 @@ import { XxxsController } from './xxxs.controller';
 export class XxxsModule {}
 ```
 
-Register in `apps/bff/src/app.module.ts` imports array.
+Register in `apps/bff/src/app.module.ts` imports array (the module lives under `apps/bff/src/features/<domain>/`).
 
 ---
 
 ### 18. BFF Controller
 
 ```typescript
-// apps/bff/src/xxxs/xxxs.controller.ts
+// apps/bff/src/features/<domain>/xxxs.controller.ts
 import { Body, Controller, Get, HttpCode, HttpStatus, Patch } from '@nestjs/common';
 import { z } from 'zod';
-import { ZodValidationPipe } from '../shared/http/zod-validation.pipe';
-import { Roles } from '../shared/decorators/roles.decorator';
-import { BackendHttpService } from '../shared/http/backend-http.service';
+import { ZodValidationPipe } from '@ikaro/nestjs-http';
+import { Roles } from '../../shared/decorators/roles.decorator';
+import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { XxxResponse } from './xxxs.types';
 
 const UpdateXxxBodySchema = z.object({
@@ -849,7 +855,7 @@ export class XxxsController {
 }
 ```
 
-**`BackendHttpService` methods:** `.get<T>(path)` · `.post<T>(path, body)` · `.patch<T>(path, body)` · `.delete<T>(path)` · `.getForPublic<T>(path)` (no auth headers forwarded) · `.postForPublic<T>(path, body)`
+**`BackendHttpService` methods:** `.get<T>(path)` · `.post<T>(path, body)` · `.patch<T>(path, body)` · `.delete<T>(path)` · `.put<T>(path, body)` · `.getForPublic<T>(path)` (no auth headers forwarded) · `.postForPublic<T>(path, body)` · `.patchForPublic<T>(path, body, tenantId)`
 
 Canonical example: `apps/bff/src/features/customer/customers.controller.ts`
 
@@ -858,9 +864,9 @@ Canonical example: `apps/bff/src/features/customer/customers.controller.ts`
 ### 19. BFF Unit Spec
 
 ```typescript
-// apps/bff/src/xxxs/xxxs.controller.spec.ts
+// apps/bff/src/features/<domain>/xxxs.controller.spec.ts
 import { HttpException } from '@nestjs/common';
-import { makeBackendHttp } from '../test/backend-http.mock';
+import { makeBackendHttp } from '../../test/backend-http.mock';
 import { XxxsController } from './xxxs.controller';
 
 describe('XxxsController', () => {
@@ -892,7 +898,7 @@ Canonical example: `apps/bff/src/features/customer/customers.controller.spec.ts`
 ### 20. BFF Component Spec
 
 ```typescript
-// apps/bff/src/xxxs/xxxs.controller.component.spec.ts
+// apps/bff/src/features/<domain>/xxxs.controller.component.spec.ts
 import { INestApplication } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
@@ -902,7 +908,7 @@ import {
   makeCustomerJwt,   // or makeManagerJwt / makeStaffJwt
   setupActiveGuardMock,
   request,
-} from '../test/component-test.helpers';
+} from '../../test/component-test.helpers';
 
 describe('XxxsController (component)', () => {
   let app: INestApplication;
@@ -960,7 +966,7 @@ describe('XxxsController (component)', () => {
 ```
 
 **Component spec rules:**
-- Import from `../test/component-test.helpers` — never from `../test/backend-http.mock` (helper-file isolation)
+- Import from `../../test/component-test.helpers` — never from `../../test/backend-http.mock` (helper-file isolation)
 - Use `const { HttpException: HE } = await import('@nestjs/common')` for error propagation tests — dynamic import prevents circular references
 - `makeManagerJwt(jwtService, { role: 'STAFF' })` produces a STAFF JWT (pass `role` override)
 - `setupActiveGuardMock(httpService)` must be called before any request that goes through the active-staff guard
@@ -981,8 +987,8 @@ Every notification use case extends `BaseNotificationUseCase` (`notification/app
 ```typescript
 // inside execute(), after finding the templates and calling localizeTemplates():
 const managerEmails = await this.staffPort.getManagerEmails(dto.tenantId);
-if (managerEmails.length === 0) return { adminEmailSent: false };
-const adminEmailSent = await this.dispatchTemplatesToMany(
+if (managerEmails.length === 0) return { emailSent: false };
+const emailSent = await this.dispatchTemplatesToMany(
   adminTemplates,
   { tenantId: dto.tenantId, eventId: dto.eventId, correlationId: dto.correlationId },
   managerEmails,
@@ -1017,9 +1023,7 @@ export abstract class BaseRecurringScheduleCustomerNotificationUseCase<
   constructor(/* @Inject(...) ports */) { super(logRepo, inboxRepo, dispatcher, txManager); }
 
   protected abstract templateKeyFor(input: TInput): NotificationTemplateKey;
-  protected extraVariables(_input: TInput, _context: RecurringScheduleNotificationContext): Record<string, string> {
-    return {};
-  }
+  protected abstract variablesFor(input: TInput, context: RecurringScheduleNotificationContext): Record<string, string>;
 
   async execute(input: TInput): Promise<{ emailSent: boolean }> {
     // find template rows -> resolve customer/service/tenant (null -> warn and skip)

@@ -5,7 +5,7 @@
 
 **Audience:** any engineer or AI agent touching a transaction that writes shared rows, and anyone debugging a stuck request, a `40P01` deadlock or a duplicate/stale row.
 **Scope:** every mechanism the backend uses to serialize concurrent work. BFF and web were searched too (`mutex`, `semaphore`, `redlock`, advisory/`FOR UPDATE` patterns) and hold none.
-**Last verified against the code:** 2026-10-17 (docs-audit re-check of every lock, key, call site and §4 order; corrections the same day), after M23-S49 (read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
+**Verified against the code** (docs-audit re-check of every lock, key, call site and §4 order, after M23-S49; read from the source, not reproduced in a running system; items marked **unverified** are reasoning from the code and need a concurrent test before anyone relies on them).
 **How to keep it true:** a change that adds, removes or reorders a lock updates this file in the same commit (§7).
 
 The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive and § A lock only orders callers who both acquire it. This file is the *inventory*: what exists, what each one protects, and the order they may be combined in.
@@ -137,7 +137,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 | `UQ_booking_fce_open_impact` | `booking.future_commitment_exceptions` | One open entry per `(tenant, source, affected)` |
 | `UQ_booking_resources_tenant_ref_id`, `UQ_booking_resources_tenant_location` | `booking.resources` | One Resource per staff member; one location per tenant |
 | `UQ_booking_schedule_openings_*` | `booking.schedule_openings` | One opening per tenant, date and resource scope |
-| `UQ_booking_bookings_recurring_schedule_occurrence`, `UQ_booking_rbs_exceptions_schedule_occurrence` | `booking.bookings`, schedule exceptions | One booking or exception per schedule occurrence |
+| `UQ_booking_bookings_recurring_schedule_occurrence` | `booking.bookings` | One booking per schedule occurrence (the exceptions table and its constraint were dropped by M23-S24) |
 | `UQ_staff_tenant_google_oauth_id`, `UQ_staff_tenant_email`, `UQ_customer_customers_tenant_oauth` | `staff.staff`, `customer.customers` | Per-tenant identity (multi-tenancy invariants 5 and 6) |
 | `UQ_notification_logs_event_type_channel` (unique index; the earlier `UQ_notification_logs_event_channel` constraint was dropped by migration `1748200000010`), `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |
 | inbox `(event_id, consumer_name)`, outbox `UQ_shared_outbox_dedup_key` | `shared.*` | Consumer idempotency, publish dedup |

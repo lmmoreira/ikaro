@@ -51,14 +51,14 @@ The `layout` array is **ordered and fully controlled by the admin**. The admin c
 >
 > Both of those shells belong to the **SaaS product** whose colours are fixed and not per-tenant — they use Tailwind utility classes and shadcn/ui design tokens (`--primary`, `--secondary`, etc.), not the hotsite branding palette. When in doubt: if a component is visible to a logged-in staff member or inside a protected shell, it does not use `--ba-*`.
 
-Instead of exposing raw CSS to the admin, we use a **semantic design token** system. The admin configures 10 tokens — some are direct values (color pickers, font selectors), others are semantic choices (e.g. "Rounded" instead of "8px"). These tokens are injected as CSS custom properties and inherited by every module automatically.
+Instead of exposing raw CSS to the admin, we use a **semantic design token** system. The admin configures a set of branding tokens (the 11 core tokens below plus optional button-color overrides and visual-rhythm/brand-identity fields) — some are direct values (color pickers, font selectors), others are semantic choices (e.g. "Rounded" instead of "8px"). These tokens are injected as CSS custom properties and inherited by every module automatically.
 
 ### Token Definition
 
 ```typescript
 // packages/types/src/hotsite.ts
 
-interface HotsiteBranding {
+interface HotsiteBrandingResponse {
   // — Direct values (admin uses pickers) —
   primaryColor: string;       // hex — buttons, links, highlights
   secondaryColor: string;     // hex — section backgrounds, accents
@@ -77,8 +77,19 @@ interface HotsiteBranding {
   // — Optional button color overrides (M12-S11) — see "Button Color Tokens" below —
   buttonBackgroundColor?: string; // hex
   buttonTextColor?: string;       // hex
+
+  // — Visual rhythm (optional) —
+  heroBgStyle?: 'primary' | 'background';   // hero section background; default primary
+  alternateSectionBg?: boolean;              // alternate every other enabled module's background ('alt' variant)
+  dividerStyle?: 'none' | 'gradient' | 'solid'; // divider rendered between sections
+
+  // — Brand identity (optional; used by the brand-card rightPanel in hero/booking-cta) —
+  brandName?: string;
+  brandTagline?: string;
 }
 ```
+
+`alternateSectionBg` is not a CSS variable: the page model (`buildHotsiteModuleRenderPlan(layout, alternateSectionBg)`) uses it to give every second enabled module that participates in alternation the `'alt'` background variant.
 
 ### Font Allow-List
 
@@ -124,6 +135,10 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
     '--ba-section-py':    SECTION_PY[branding.spacing],
     '--ba-shadow':        SHADOW[branding.shadowStyle],
     '--ba-btn-variant':   branding.buttonStyle,
+    // + --ba-btn-bg / --ba-btn-text / --ba-btn-border / --ba-btn-hover-bg (see "Button Color Tokens" below)
+    '--ba-hero-bg':       deriveHeroBg(branding),        // primaryColor, or backgroundColor when heroBgStyle === 'background'
+    '--ba-hero-text':     deriveHeroTextColor(branding), // whichever of backgroundColor/textColor contrasts better with the hero bg
+    '--ba-divider':       deriveDivider(branding),       // gradient | secondaryColor | 'none' from dividerStyle
   } as React.CSSProperties;
 }
 ```
@@ -177,7 +192,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
-The `FOOTER` is always rendered automatically from tenant settings — it is **not** part of the `layout` array.
+The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
 ### Module Type Union
 
@@ -196,12 +211,15 @@ type HotsiteModuleType =
   | 'CHATBOT'
   | 'LEAD_FORM';
 
-interface HotsiteModule {
+// Shared contract (packages/types/src/hotsite.ts) — what the BFF returns and the web consumes:
+interface HotsiteModuleResponse {
   type: HotsiteModuleType;
   enabled: boolean;   // false = skip rendering without removing from layout
-  data: HotsiteModuleData[HotsiteModuleType];
+  data: Record<string, unknown>;   // parsed per-type on the web side
 }
 ```
+
+The typed `HotsiteModule { type; enabled; data: HotsiteModuleData }` and the `HotsiteModuleData` union exist only in the backend domain (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`); they are not part of the shared `@ikaro/types` contract.
 
 ---
 
@@ -234,6 +252,7 @@ interface HeroModuleData {
 ```typescript
 interface ServiceListModuleData {
   title?: string;        // section heading, default "Nossos Serviços"
+  eyebrow?: string;      // short label above the heading
   showPrices: boolean;
   showPoints: boolean;   // show loyalty points per service
   layout: 'grid' | 'list';  // default: 'grid'
@@ -257,6 +276,7 @@ interface GalleryImage {
 
 interface GalleryModuleData {
   title?: string;            // default "Nossos Resultados"
+  eyebrow?: string;          // short label above the heading
   images: GalleryImage[];    // admin-curated ordered list
   layout: 'grid' | 'masonry' | 'featured';   // default: 'grid'
   maxVisible: number;        // default 6 — "ver mais" shown if images.length > maxVisible
@@ -270,9 +290,9 @@ Hotsite images are **public marketing assets** — unlike booking photos, there 
 Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/14-API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
 
 **Image sources (both available in the dashboard editor):**
-- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
+- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
 - **From bookings (`source: 'booking'`):** Admin browses a completed booking's photos — **before** (`beforeServicePhotoUrls`, from UC-001/UC-002) *and* after (`afterServicePhotoUrls`, from UC-009) are both selectable, since a compelling "before/after" showcase needs both — and features one via `POST /v1/tenants/hotsite/gallery/feature-booking-photo { bookingId, photoUrl }` (M12-S10). The backend derives `photoType` itself by checking which list the photo came from (never trusts a client-supplied label — also doubles as an integrity check: a `photoUrl` absent from both lists is rejected), then **copies** the object from the private booking-photos path into the public bucket. It's a copy, not a live reference: the featured image becomes an independent, permanent editorial choice, decoupled from whatever later happens to the source booking (archival, customer-initiated erasure under LGPD, disputes, etc.) — and avoiding a live reference is also what keeps it consistent with the "no expiring URLs in a cached manifest" rule above. This works identically for guest-originated bookings (`customerId: null`) and authenticated-customer bookings; `tenantId` is the only access boundary that matters.
-- **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 hotsite-image-not-uploaded`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
+- **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
 
 ### TESTIMONIALS
 
@@ -281,11 +301,12 @@ interface Testimonial {
   authorName: string;
   text: string;
   rating?: 1 | 2 | 3 | 4 | 5;
-  avatarUrl?: string;    // GCS URL, optional
+  avatarUrl?: string | null;    // GCS URL, optional (null clears it)
 }
 
 interface TestimonialsModuleData {
   title?: string;        // default "O que nossos clientes dizem"
+  eyebrow?: string;      // short label above the heading
   items: Testimonial[];
   layout: 'grid' | 'carousel';  // default: 'grid'
 }
@@ -317,7 +338,8 @@ interface BookingCtaModuleData {
 interface AboutModuleData {
   title: string;                          // e.g. "Sobre nós" | "Conheça o Dr. Silva"
   body: string;                           // markdown supported
-  imageUrl?: string;                      // GCS URL — team/owner photo
+  eyebrow?: string;                       // short label above the heading
+  imageUrl?: string | null;               // GCS URL — team/owner photo (null clears it)
   imagePosition: 'left' | 'right';       // default: 'right'
 }
 ```
@@ -329,11 +351,16 @@ Useful for any business type: car wash owner story, dentist bio, salon team phot
 ```typescript
 interface ContactModuleData {
   title?: string;          // default "Fale conosco"
+  eyebrow?: string;        // short label above the heading
   showAddress: boolean;
   showPhone: boolean;
   showWhatsapp: boolean;
   showEmail: boolean;
   showMap: boolean;        // Google Maps embed using address from tenants.settings.businessInfo
+  showInstagram?: boolean; // show the Instagram link from business.socialLinks
+  showFacebook?: boolean;  // show the Facebook link from business.socialLinks
+  displayStyle?: 'list' | 'icon-cards';
+  whatsappCtaLabel?: string; // label of the WhatsApp call-to-action button
 }
 ```
 
@@ -345,28 +372,33 @@ Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleD
 
 ```typescript
 // packages/types/src/hotsite.ts
+interface HotsiteBusinessInfoAddress {
+  street: string;
+  number: string;
+  complement?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  zipCode: string;
+}
+
+interface HotsiteBusinessInfoSocialLinks {
+  whatsapp: string | null;   // validated phone number — used in wa.me/ links
+  instagram: string | null;  // free-form URL / handle
+  facebook: string | null;   // free-form URL / handle
+}
+
 interface HotsiteBusinessInfoResponse {
   phone: string | null;
   email: string | null;
-  address: {
-    street: string;
-    number: string;
-    complement?: string;
-    neighborhood: string;
-    city: string;
-    state: string;
-    zipCode: string;
-  } | null;
-  socialLinks: {
-    whatsapp: string | null;   // validated phone number — used in wa.me/ links
-    instagram: string | null;  // free-form URL / handle
-    facebook: string | null;   // free-form URL / handle
-  } | null;
+  address: HotsiteBusinessInfoAddress | null;
+  socialLinks: HotsiteBusinessInfoSocialLinks | null;
 }
 
 interface HotsiteManifestResponse extends HotsiteResponse {
   tenant: TenantInfoResponse;
   business: HotsiteBusinessInfoResponse;
+  // (partial: the full manifest also carries `localization` and `booking?`, see section 1)
 }
 ```
 
@@ -377,8 +409,20 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 - `showPhone` → render `business.phone` (formatted); omitted if `null`
 - `showEmail` → render `business.email` as a `mailto:` link; omitted if `null`
 - `showWhatsapp` → render a `https://wa.me/<digits>` link using `business.socialLinks.whatsapp`; omitted if `null`
-- `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present, independent of the `showXxx` flags above
+- `business.socialLinks.instagram` / `business.socialLinks.facebook` → rendered as links when present **and** the matching `showInstagram` / `showFacebook` flag is not `false` (an omitted flag means shown, for backward compatibility; `apps/web/shells/hotsite/components/ContactModule.tsx`)
 - `showMap` → embeds `https://maps.google.com/maps?q=<urlencoded address>&output=embed` (keyless query-based embed, no Google Maps API key needed) using `business.address`; omitted if `business.address` is `null`, even when `showMap: true`
+
+### FOOTER
+
+```typescript
+interface FooterModuleData {
+  tagline?: string;
+  copyrightNote?: string;
+  showWhatsapp?: boolean;
+}
+```
+
+`FooterModuleData` lives in `packages/types/src/hotsite.ts`; the footer shows the tenant's business info (see § CONTACT above) alongside these fields.
 
 ### CHATBOT
 
@@ -447,32 +491,36 @@ https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 **`app/[slug]/layout.tsx`** — fetches manifest and applies full branding token set:
 
 ```typescript
-import { fetchManifest } from '@/features/platform/hotsite/api/platform';
+import { fetchManifest } from '@/features/platform/api.server';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
-import { FONT_VARIABLES } from '@/features/platform/hotsite/font-config';
+import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+// … plus the locale, formatting and message helpers
 
-export default async function HotsiteLayout({
-  children,
-  params,
-}: {
-  children: React.ReactNode;
-  params: Promise<{ slug: string }>;  // Next.js 16: params is a Promise
-}) {
-  const { slug } = await params;
+export default async function HotsiteLayout({ children, params }: HotsiteLayoutProps) {
+  const { slug } = await params;  // Next.js 16: params is a Promise
   const manifest = await fetchManifest(slug);
+  // locale, currency, timezone and date/time formats come from manifest.localization
 
   return (
-    <html lang="pt-BR">
-      <body
-        style={applyBranding(manifest.branding)}
-        className={FONT_VARIABLES.join(' ')}
-      >
-        {children}
-      </body>
-    </html>
+    <div
+      id="hotsite-root"
+      style={{ ...applyBranding(manifest.branding), fontFamily: 'var(--ba-body-font)' }}
+      className={getActiveFontVariables(
+        manifest.branding.headingFontFamily,
+        manifest.branding.bodyFontFamily,
+      ).join(' ')}
+    >
+      <LocaleProvider locale={locale} messages={messages}>
+        <FormattingProvider locale={locale} currency={currency} timezone={timezone} /* … */>
+          {/* InformationCompletionPrompt, then */ children}
+        </FormattingProvider>
+      </LocaleProvider>
+    </div>
   );
 }
 ```
+
+The `<html>` and `<body>` elements live in the root `app/layout.tsx`, not in this layout; the hotsite layout wraps its pages in `#hotsite-root` so the `--ba-*` token set applies only inside the hotsite tree.
 
 **`app/[slug]/page.tsx`** — renders enabled modules in manifest order. **Corrected 2026-08-08 (docs-audit, promoted via `/discovery-to-milestone` for the CHATBOT module):** the actual implementation is not a `MODULE_MAP` lookup table — it's a direct per-type component-import chain, fed by `buildHotsiteModuleRenderPlan()` (`apps/web/features/platform/hotsite/page-model.ts`), which does the generic `enabled` filter (the outcome this doc originally described is still accurate — no per-module logic needed for the on/off toggle — just not via the mechanism previously documented here):
 
@@ -553,7 +601,7 @@ export const HOTSITE_REVALIDATE_SECONDS = 300;
 ```
 
 ```typescript
-// apps/web/app/[slug]/page.tsx  (and layout.tsx)
+// apps/web/app/[slug]/page.tsx  (and the booking/, login/ and lead-form/ page.tsx files; the layout has no `revalidate`)
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in features/platform/hotsite/revalidate.ts.
 export const revalidate = 300;
@@ -671,7 +719,7 @@ pnpm infra:up && pnpm dev
 Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 **Testing different branding / module configs:**
-1. Provision tenants via CLI (UC-024): `pnpm --filter backend tenant:create --slug autowash-pro ...`
+1. Provision tenants (UC-024) through `POST /internal/tenants` (operator-only; see `docs/RUNBOOKS.md`'s "Provision a tenant" flow), or load the local seed data with `pnpm db:seed` (there is no `tenant:create` script)
 2. Visit `http://localhost:3000/autowash-pro` — each slug resolves its own manifest
 3. Edit `hotsite_configs` directly in the local DB or use the dashboard at `http://localhost:3000/dashboard`
 
@@ -683,7 +731,7 @@ Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 **Custom domains (post-MVP):** Cloud Run domain mapping allows `autowashpro.com.br` to point to the same service. Next.js middleware reads the `Host` header and uses it as the slug lookup key — no code changes needed.
 
-**CI/CD:** Part of the `apps/web/` pipeline — `ci-frontend.yml` + `deploy-frontend.yml`. No separate pipeline.
+**CI/CD:** Part of the shared pipelines (`pr-quality.yml`, `pr-tests.yml`, `deploy-staging.yml`, `deploy-production.yml`); `apps/web/` is built and deployed there. No separate hotsite pipeline.
 
 ---
 
@@ -727,12 +775,12 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 ### Sitemap & robots
 
-- `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`lib/api/platform.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`
+- `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`apps/web/features/platform/api.server.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`
 - `app/robots.ts` allows `/`, disallows `/dashboard` and `/auth`, and references `${SITE_URL}/sitemap.xml`
 
 ### Published hotsites listing endpoint
 
-`GET /platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
+`GET /v1/public/platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
 
 ---
 

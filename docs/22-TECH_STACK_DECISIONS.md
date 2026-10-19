@@ -3,11 +3,13 @@
 > **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/12-DEPLOYMENT_STRATEGY.md` and `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12  
-**Status:** Final Pre-Development Decision Record  
+**Status:** Decision record. The stack below is implemented; the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
 
 ---
+
+> **Historical illustrations:** the Kafka, Vault, Kubernetes, AWS/Azure-provider and multi-cloud material in this document records Phase-2 options weighed at inception. The committed target is GCP only (`.copilot/context.md` §1) and none of them is planned; the sections that describe them are kept for the reasoning, not as a roadmap.
 
 ## Executive Summary
 
@@ -385,20 +387,13 @@ This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` - Client enforces tenant
 
 #### BFF Integration Pattern
 
-The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts.
+The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts. The session JWT lives in an httpOnly cookie, never in client-readable code; server-side web code calls the BFF only through the transport helpers (`bffServerFetch` for authenticated calls, `bffPublicFetch` for public ones, `bffClient` in client components), documented in `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
 
 ```typescript
-// apps/web/features/booking/api/bookings.ts — API client in Next.js
-export async function getBooking(id: string, jwt: string, tenantSlug: string) {
-  const res = await fetch(`${process.env.BFF_URL}/bookings/${id}`, {
-    headers: {
-      'Authorization': `Bearer ${jwt}`,
-      'X-Tenant-Slug': tenantSlug,
-    },
-  });
-  if (!res.ok) throw new ApiError(res);
-  return res.json();
-}
+// apps/web/features/booking/api/availability-alerts.server.ts — server-only fetcher
+const res = await bffServerFetch(token, '/availability-alerts');
+await assertOk(res, CustomerFetchError);
+return (await res.json()) as AvailabilityAlertListResponse;
 ```
 
 **Key:** Next.js never calls the backend or TypeORM directly. All API traffic goes through the NestJS BFF, which enforces multi-tenancy.
@@ -418,7 +413,7 @@ Ikaro's Next.js app requires **server-side rendering** — GCS static export is 
 
 | Stage | Timeline | Cloud Run config | Est. cost |
 |---|---|---|---|
-| MVP | Month 0–3 | `min=0, max=20, memory=256Mi` | ~$5–15/month |
+| MVP | Month 0–3 | `min=0, max=100, memory=512Mi` (the module default; a 256Mi spec was rejected by GCP) | ~$5–15/month |
 | Growth | Month 3–12 | `min=1, max=50, memory=512Mi` | ~$30–60/month |
 | Scale | Month 12+ | `min=2, max=100` + Cloud CDN in front | ~$80–150/month |
 
@@ -459,11 +454,11 @@ Per `docs/10-OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 
 ---
 
-## 4. EVENT BUS: GCP Pub/Sub (MVP) → Kafka (Future)
+## 4. EVENT BUS: GCP Pub/Sub (Kafka: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Pub/Sub (serverless, managed)  
-**Phase 2 (Year 1-2):** Apache Kafka (if needed for multi-cloud)
+**Historical option (not planned):** Apache Kafka, weighed at inception for a multi-cloud future
 
 ### Why GCP Pub/Sub for MVP
 
@@ -543,20 +538,9 @@ This pattern scales from day 1 → year 2 unchanged.
 
 ### Multi-Tenant Event Filtering
 
-Pub/Sub enforces tenant isolation at subscription level:
+Subscriptions are per consumer, not per tenant: every domain event has one topic (`ikaro-{event}`) and one push subscription per consuming handler (`ikaro-{event}-{consumer}`, each with its own DLQ), all generated from `infra/terraform/pubsub-catalog.json` by `modules/pubsub`. Tenant isolation happens in the message, not in the subscription: every event envelope carries `tenantId`, and each consumer scopes its work to that tenant and deduplicates by `eventId`.
 
-```typescript
-// Each tenant gets isolated subscriptions
-const subscriptionName = `projects/${projectId}/subscriptions/${tenantId}-booking-completed`;
-
-await subscriber.createSubscription({
-  subscription: subscriptionName,
-  topic: 'projects/ikaro/topics/booking-completed',
-  filter: `attributes.tenantId="${tenantId}"`, // Tenant-scoped
-});
-```
-
-This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules.
+Push delivery is at-least-once and may redeliver a message, so every consumer deduplicates by `eventId`. This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/03-DOMAIN_EVENTS.md`.
 
 ### Cost Model
 
@@ -571,22 +555,22 @@ This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules.
 
 ### Guaranteed Delivery
 
-Pub/Sub provides exactly-once semantics (critical for bookings):
+Pub/Sub push subscriptions deliver at-least-once and can redeliver a message; exactly-once is achieved in the consumer through `eventId` deduplication (critical for bookings):
 
 ```
 BookingCompleted Event
 ├─ Published once (idempotent eventId)
-├─ Delivered at-least-once (with retries)
+├─ Delivered at-least-once (with retries, so a message can arrive twice)
 ├─ Processed exactly-once (idempotency in consumer)
 └─ Result: LoyaltyEntry created once, guaranteed
 ```
 
-### Future: Kafka Migration Path
+### Historical: Kafka Migration Path
 
-If Phase 2 requires Kafka (analytics, stream processing), same interface:
+Had a later phase required Kafka (analytics, stream processing), the same interface would apply:
 
 ```typescript
-// Kafka Implementation (Phase 2+)
+// Kafka Implementation (historical option)
 @Injectable()
 export class KafkaPublisher implements EventPublisher {
   async publish(topic: string, event: DomainEvent): Promise<void> {
@@ -609,13 +593,14 @@ export class KafkaPublisher implements EventPublisher {
 Free emulator enables dev parity:
 
 ```yaml
-# docker-compose.yml
+# docker/docker-compose.yml
 pubsub-emulator:
-  image: google/cloud-sdk:emulators
+  image: gcr.io/google.com/cloudsdktool/google-cloud-cli:emulators
+  command: gcloud beta emulators pubsub start --host-port=0.0.0.0:8085 --project=ikaro-local
   ports:
-    - "8085:8085"
+    - '8085:8085'
   environment:
-    PUBSUB_PROJECT_ID: ikaro-local
+    CLOUDSDK_CORE_PROJECT: ikaro-local
 ```
 
 ### Cost Impact
@@ -630,11 +615,11 @@ pubsub-emulator:
 
 ---
 
-## 5. DEPLOYMENT: Cloud Run (MVP) → Kubernetes (Future)
+## 5. DEPLOYMENT: Cloud Run (Kubernetes: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Cloud Run (serverless)  
-**Phase 2 (Year 2+):** Kubernetes (GKE) only if needed
+**Historical option (not planned):** Kubernetes (GKE), only if ever needed
 
 ### Why Cloud Run for MVP
 
@@ -653,13 +638,14 @@ pubsub-emulator:
 #### Deployment Model
 
 ```bash
+# Illustrative only; real: images live in the Artifact Registry repo `ikaro-registry` (infra/terraform/modules/registry), the backend is capped at 3 max instances (infra/terraform/envs/prod/variables.tf, envs/staging/variables.tf), and it reads DB_HOST / DB_INSTANCE_CONNECTION_NAME / DB_PASSWORD, not DATABASE_URL (apps/backend/src/config/env.validation.ts)
 # Build Docker image
 docker build -t gcr.io/project/ikaro-backend:latest .
 
 # Deploy to Cloud Run
 gcloud run deploy ikaro-backend \
   --image gcr.io/project/ikaro-backend:latest \
-  --region us-central1 \
+  --region southamerica-east1 \
   --memory 512Mi \
   --cpu 1 \
   --concurrency 80 \
@@ -710,7 +696,7 @@ If Kubernetes becomes necessary later (multi-region orchestration), same Docker 
 # Year 2: Add Kubernetes
 gcloud container clusters create ikaro-gke \
   --num-nodes 3 \
-  --zone us-central1-a
+  --zone southamerica-east1-a
 
 # Deploy SAME IMAGE
 kubectl apply -f kubernetes/deployment.yaml
@@ -720,7 +706,9 @@ kubectl apply -f kubernetes/deployment.yaml
 
 ### Environment Variables
 
-Cloud Run integrates with secrets (See `docs/21-TENANTS_SETTINGS_SCHEMA.md`):
+Cloud Run integrates with secrets (the real list is `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`; they are injected through the `secret_env_vars` of `infra/terraform/modules/cloudrun-service`):
+
+Illustrative only; real: `infra/terraform/modules/cloudrun-service` (`secret_env_vars`) — there is no `.env.prod` file.
 
 ```bash
 gcloud run deploy ikaro-backend \
@@ -745,7 +733,7 @@ gcloud logging read "resource.type=cloud_run_revision AND severity=ERROR"
 
 ### Local Development
 
-Same Docker image runs locally:
+Illustrative only: the local stack (`docker/docker-compose.yml`, started with `pnpm infra:up`) runs just postgres, the Pub/Sub emulator, the GCS emulator and mailhog; the apps themselves run on the host with pnpm, not in compose. A backend service would look like this:
 
 ```yaml
 # docker-compose.yml
@@ -781,11 +769,11 @@ backend:
 |-----------|---|---|
 | **Backups** | You script/manage | Automatic, 7-day retention |
 | **Updates** | You schedule/test | Google handles (rolling) |
-| **High Availability** | You build/test | Built-in (replicas) |
+| **High Availability** | You build/test | Available as a Cloud SQL option (not configured here: the instance is ZONAL) |
 | **Monitoring** | You setup | Built-in (Cloud Console) |
 | **Day 1 Cost** | $0 + your time | $10-15/month |
 | **Day 100 Cost** | $100 + ops | $30-50/month |
-| **Reliability** | 99.0% | 99.95% SLA |
+| **Reliability** | 99.0% | Higher with a regional (HA) instance; ours is ZONAL, so the HA SLA does not apply |
 | **On-Call Cost** | Database down = $??? | Google guarantees it |
 
 ### Database Schema
@@ -801,9 +789,9 @@ Fully specified in `docs/13-DATABASE_SCHEMA.md` with:
 #### Automatic Backups
 
 ```
-Daily backups (7-day retention) included
-├─ Point-in-time recovery (35 days)
-├─ Automated for high availability
+Daily backups (7 retained) included
+├─ Point-in-time recovery: on in production (`enable_pitr`), off in staging
+├─ Instance is ZONAL (no HA failover configured; HA is a one-click upgrade)
 └─ Zero operational overhead
 ```
 
@@ -884,23 +872,24 @@ Original decision: PostgreSQL 15 (sweet spot of stability + modern features).
 
 ### Cloud SQL Terraform
 
+Illustrative; the real definition is `infra/terraform/modules/database/main.tf` (instance `ikaro-db-<env>`, private IP only).
+
 ```hcl
 resource "google_sql_database_instance" "ikaro" {
-  name             = "ikaro-postgres"
+  name             = "ikaro-db-${var.environment}"
   database_version = "POSTGRES_17"
-  region           = "us-central1"
+  region           = "southamerica-east1"
 
   settings {
     tier = "db-f1-micro"  # MVP
 
     backup_configuration {
       enabled                        = true
-      point_in_time_recovery_enabled = true
-      transaction_log_retention_days = 7
+      point_in_time_recovery_enabled = var.enable_pitr
     }
 
     ip_configuration {
-      ipv4_enabled                                  = true
+      ipv4_enabled                                  = false
       private_network                               = google_compute_network.private_net.id
       enable_private_path_access                    = true
     }
@@ -920,11 +909,11 @@ resource "google_sql_database_instance" "ikaro" {
 
 ---
 
-## 7. SECRETS MANAGEMENT: GCP Secret Manager (MVP) → Vault (Future)
+## 7. SECRETS MANAGEMENT: GCP Secret Manager (Vault: historical option, not planned)
 
 ### Decision
 **Phase 1 (MVP):** GCP Secret Manager (simple, managed)  
-**Phase 2 (Year 1-2):** HashiCorp Vault (cloud-agnostic, when multi-cloud needed)
+**Historical option (not planned):** HashiCorp Vault, weighed for a multi-cloud future
 
 ### Phase 1: GCP Secret Manager
 
@@ -942,18 +931,24 @@ resource "google_sql_database_instance" "ikaro" {
 
 #### Secrets Stored
 
-Per `docs/21-TENANTS_SETTINGS_SCHEMA.md` and `docs/14-API_CONTRACTS.md`:
+Per `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`:
 
 ```
-├─ database-url (PostgreSQL connection string)
+├─ db-password, db-migrator-password (runtime DML role and DDL-capable migrator role)
 ├─ jwt-secret (JWT signing key)
-├─ oauth-client-secret (OAuth provider secret)
-├─ pubsub-project-id (GCP project for Pub/Sub)
-├─ storage-bucket-url (GCP Cloud Storage URL)
-└─ email-api-key (Email provider API key)
+├─ google-oauth-client-id, google-oauth-client-secret (OAuth client)
+├─ internal-api-key, platform-admin-key, web-internal-key (service-to-service and operator keys)
+├─ hotsite-revalidate-secret, turnstile-secret-key
+├─ brevo-smtp-key (email provider)
+├─ openrouter-api-key, openrouter-management-api-key, anthropic-api-key, openai-api-key (chatbot LLM providers)
+└─ cloudflare-api-token (production only)
 ```
+
+The authoritative list is `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`. Non-secret values (the Pub/Sub project, bucket names) are plain environment variables, not secrets.
 
 #### Terraform Configuration
+
+Illustrative only; real: `infra/terraform/modules/secrets/main.tf` (no `database-url` secret exists; the backend gets `db-password` as `DB_PASSWORD` through Cloud Run `secret_env_vars`).
 
 ```hcl
 resource "google_secret_manager_secret" "database_url" {
@@ -979,6 +974,8 @@ resource "google_secret_manager_secret_iam_member" "backend_access" {
 
 #### NestJS Integration
 
+Illustrative only; real: `apps/backend/src/config/env.validation.ts` (Zod-validated `process.env`; secrets arrive as env vars from Cloud Run, no `.env.prod`).
+
 ```typescript
 @Module({
   imports: [
@@ -998,7 +995,7 @@ export class ConfigService {
 }
 ```
 
-### Phase 2: HashiCorp Vault
+### Historical option: HashiCorp Vault
 
 #### When to Migrate
 
@@ -1021,7 +1018,7 @@ export class GcpSecretsProvider implements SecretsProvider {
   }
 }
 
-// Phase 2: Vault
+// Historical option: Vault
 export class VaultSecretsProvider implements SecretsProvider {
   async getSecret(path: string): Promise<string> {
     // Call Vault API (works on GCP, AWS, Azure)
@@ -1043,11 +1040,11 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 
 ### Cost Impact
 - **Phase 1:** $0-6/month (GCP, minimal)
-- **Phase 2:** $200-500/month (Vault, enterprise-grade)
+- **Historical option (Vault):** $200-500/month, enterprise-grade
 - **No cost to switch:** Just configuration changes
 
 ### References
-- Tenants Settings: `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+- Secrets: `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`
 - API Contracts: `docs/14-API_CONTRACTS.md`
 - Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
 
@@ -1056,7 +1053,7 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 ## 8. INFRASTRUCTURE AS CODE: Terraform
 
 ### Decision
-**Terraform** with GCP provider (AWS/Azure providers as future paths)
+**Terraform** with the GCP provider (GCP only; other providers were a historical illustration)
 
 ### Why Terraform
 
@@ -1069,6 +1066,8 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 | **Team Onboarding** | ❌ Complex runbooks | ✅ Code review process |
 
 ### Repository Structure
+
+> Illustrative layout from the original plan. The real one is `infra/terraform/{foundation,envs/staging,envs/prod,modules}` (see `docs/23-INFRASTRUCTURE_SETUP.md`); bucket, topic and secret names in the snippets below are placeholders, the real ones come from the modules.
 
 ```
 terraform/
@@ -1095,33 +1094,33 @@ resource "google_sql_database_instance" "postgres" {
 # Cloud Run — backend, BFF, and web (Next.js SSR) all run as containers
 resource "google_cloud_run_v2_service" "backend" {
   name     = "ikaro-backend"
-  location = "us-central1"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — cloudrun.tf)
+  location = "southamerica-east1"
+  # ... (real definition: infra/terraform/modules/cloudrun-service/)
 }
 
 # Cloud Storage — media uploads only (tenant photos), NOT for the frontend
 resource "google_storage_bucket" "media" {
   name     = "ikaro-media-prod"
   location = "US"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — storage.tf)
+  # ... (real definition: infra/terraform/modules/storage/)
 }
 
 # Cloud Pub/Sub
 resource "google_pubsub_topic" "domain_events" {
   name = "ikaro-domain-events"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — pubsub.tf)
+  # ... (real definition: infra/terraform/modules/pubsub/)
 }
 
 # GCP Secret Manager
 resource "google_secret_manager_secret" "database_url" {
   secret_id = "database-url"
-  # ... (see docs/23-INFRASTRUCTURE_SETUP.md — secrets.tf)
+  # ... (real definition: infra/terraform/modules/secrets/)
 }
 
-# Full authoritative Terraform: docs/23-INFRASTRUCTURE_SETUP.md
+# Authoritative Terraform: infra/terraform/ (layout in docs/23-INFRASTRUCTURE_SETUP.md)
 ```
 
-### Multi-Cloud Ready (Future)
+### Multi-Cloud Ready (historical illustration — not planned)
 
 ```hcl
 # terraform/providers.tf
@@ -1183,7 +1182,7 @@ variable "environment" {
 # terraform/main.tf
 resource "google_sql_database_instance" "postgres" {
   settings {
-    tier = var.environment == "prod" ? "db-n1-standard-2" : "db-f1-micro"
+    tier = var.db_tier  # db-f1-micro in both environments today
     # Automatically different costs per environment
   }
 }
@@ -1191,9 +1190,11 @@ resource "google_sql_database_instance" "postgres" {
 
 ### Local Development
 
+Illustrative only; real: root `package.json` scripts (`pnpm infra:up`, `pnpm dev`, `pnpm up`; there is no `pnpm start`) and `apps/backend/src/config/env.validation.ts` (`DB_HOST` etc., not `DATABASE_URL`).
+
 ```bash
-# Local setup (docker-compose)
-docker-compose up -d
+# Local setup (docker/docker-compose.yml: postgres, pubsub, gcs, mailhog)
+pnpm infra:up
 
 # Local environment variables
 export DATABASE_URL=postgres://localhost/ikaro
@@ -1237,7 +1238,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $5 | 10K events/day |
 | Cloud Storage (media only) | $1 | Tenant photo uploads |
 | Cloud Scheduler | $1 | 8 cron jobs ($0.10/job/month) |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$43/month** | Lean, production-ready |
 
 ### Growth Phase (Month 12)
@@ -1249,7 +1250,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $40 | 100K events/day |
 | Cloud Storage (media) | $10 | Growing photo library |
 | Cloud Scheduler | $1 | 8 cron jobs |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$272/month** | Proven traffic |
 
 ### Scale Phase (Month 24)
@@ -1261,7 +1262,7 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 | Pub/Sub | $100 | 500K events/day |
 | Cloud Storage (media) | $30 | Large photo library |
 | Cloud Scheduler | $1 | 8 cron jobs |
-| Secret Manager | $1 | 6 secrets |
+| Secret Manager | $1 | ~15 secrets |
 | **TOTAL** | **~$732/month** | Approaching scale |
 
 ### vs. Wrong Approach
@@ -1339,12 +1340,11 @@ Per `docs/06-TENANT_ISOLATION_STRATEGY.md`:
 - ✅ **Database level:** Composite FKs enforce tenant isolation
 - ✅ **API level:** JWT includes tenantId, validated on every request
 - ✅ **Application level:** TypeORM queries automatically filtered by tenant
-- ✅ **Infrastructure level:** Cloud Run service accounts scoped to tenant data
+- ✅ **Infrastructure level:** Cloud Run runtime service accounts are per service (`ikaro-<service>`), not per tenant; tenant scoping is enforced in the application and the database
 
 ### Secrets Rotation
 
-Cloud SQL passwords auto-rotated by GCP.  
-JWT secrets managed via Secret Manager with rotation policies.
+No automatic rotation is configured: the database passwords (`db-password`, `db-migrator-password`) and the JWT secret are plain Secret Manager secrets, rotated by adding a new secret version.
 
 ### Encryption
 
@@ -1377,7 +1377,7 @@ This tech stack integrates with all architectural decisions:
 | `docs/11-ARCHITECTURE.md` | Hexagonal pattern with these technologies |
 | `docs/13-DATABASE_SCHEMA.md` | TypeORM entities + Cloud SQL |
 | `docs/14-API_CONTRACTS.md` | NestJS controllers + Next.js clients |
-| `docs/21-TENANTS_SETTINGS_SCHEMA.md` | Secrets in Secret Manager |
+| `infra/terraform/modules/secrets/main.tf` (`base_secret_ids`) | Secrets in Secret Manager |
 
 ---
 
@@ -1398,7 +1398,7 @@ This tech stack decision is **not immutable**:
 
 ---
 
-## ✅ DECISION CHECKLIST
+## ✅ DECISION CHECKLIST (historical — pre-development, all superseded by what shipped)
 
 Before development begins, confirm:
 
@@ -1413,7 +1413,7 @@ Before development begins, confirm:
 
 ---
 
-## 📋 NEXT STEPS
+## 📋 NEXT STEPS (historical — the original pre-development plan; delivery is tracked in `plan/`)
 
 ### Before Development (Week 1)
 1. [ ] Terraform scaffold created and tested
@@ -1451,7 +1451,7 @@ Before development begins, confirm:
 
 ---
 
-**Document Version:** 1.0  
-**Last Updated:** 2026-05-12  
-**Next Review:** 2026-08-12 (post-MVP)  
-**Status:** Approved for development
+**Document Version:** 1.0 (historical decision record; later edits are dated where they occur)  
+**Originally written:** 2026-05-12  
+**Next Review:** none scheduled  
+**Status:** Implemented (see the note under the title)

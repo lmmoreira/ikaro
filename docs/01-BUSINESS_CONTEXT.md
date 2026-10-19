@@ -5,7 +5,7 @@
 
 ## Executive Summary
 
-**Ikaro** is a multi-tenant car wash service management platform enabling multiple autonomous car wash companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
+**Ikaro** is a multi-tenant booking and loyalty platform for local service businesses. Car wash is the flagship vertical and the one this document's examples use; the platform also supports appointment-style services through resources and scheduling rules (`docs/05-BOUNDED_CONTEXTS.md`). It enables multiple autonomous companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
 
 **Key:** Single Ikaro platform, multiple independent companies.
 
@@ -18,7 +18,7 @@
 - **Tenant = Company** (e.g., "AutoWash Pro", "SuperClean", "QuickWash")
 - **Single Platform, Multiple Companies:** All tenants share one Ikaro instance
 - **Complete Isolation:** Each tenant's data is completely isolated from others
-- **User Constraint:** One user can belong to only ONE tenant (no cross-tenant access)
+- **User Constraint:** Customers and staff can each belong to several tenants, with one record per tenant (never shared data); a session is always scoped to a single tenant
 
 ### **Data Isolation**
 
@@ -57,13 +57,13 @@ Each tenant has dedicated hotsite accessible via path:
 **Customers: Can belong to MULTIPLE tenants**
 - One person can book services at multiple car wash companies
 - Each car wash company = separate Customer record + separate Loyalty record
-- On login, if customer has bookings in multiple tenants → must select which to enter
-- Can switch between tenants (switch session)
+- Every customer login starts from one tenant's own hotsite login (`/{slug}/login`), so the session is scoped to that tenant from the start; there is no tenant-selection screen at login (descoped, `plan/journey/customer/login.md`)
+- Can switch between tenants after login (`POST /auth/switch-tenant`)
 
-**Staff: Belong to ONLY ONE tenant**
-- One staff member works for exactly ONE car wash company
-- Staff cannot work for multiple companies
-- On login, directly enters their single tenant (no selection)
+**Staff: Can belong to MULTIPLE tenants**
+- One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/06-TENANT_ISOLATION_STRATEGY.md`)
+- Staff login is per-tenant: it starts from a specific tenant (`tenantSlug` carried in the OAuth state) and enters that tenant directly, with no selection step
+- With several active records, can switch tenant after login (`/select-staff-tenant`, `POST /auth/switch-staff-tenant`)
 
 **Example:**
 ```
@@ -75,18 +75,22 @@ As Customer:
   - Bookings with SuperClean (Tenant B)
     • 2 completed washes (lifetime), 8 active loyalty points
   
-  Login: "Which car wash would you like to use?
-          - AutoWash Pro (50 points)
-          - SuperClean (8 points)"
+  Login: from AutoWash Pro's hotsite → a session scoped to AutoWash Pro.
+  Switching: "Switch car wash" after login → SuperClean (a new session
+             scoped to SuperClean, with its own 8 points)
 
 As Staff:
-  - Works for AutoWash Pro ONLY (Tenant A)
-  - Cannot work for SuperClean
-  
-  Login: Direct entry to AutoWash Pro dashboard (no selection)
+  - Works for AutoWash Pro (Tenant A)
+  - Also works for SuperClean (Tenant B)
+
+  Login: starts from one tenant and enters it directly; the "Which car wash would you
+  like to manage?" screen (`/select-staff-tenant`) appears only as a post-login switch,
+  when more than one active Staff record exists
 ```
 
 ---
+
+## Problem and Solution
 
 Small car wash businesses face challenges:
 - Manual booking management (phone calls, spreadsheets)
@@ -110,7 +114,7 @@ Small car wash businesses face challenges:
 - Browse services, testimonials, before/after photos
 - Discover Ikaro through marketing hotsite
 - Learn about services and pricing
-- **Cannot book** (must authenticate first)
+- Can book without an account as a guest (see Guest Customer below)
 
 ### 2. **Guest Customer** (Booking without authentication)
 - Request booking: name, email, phone, service, preferred date/time
@@ -124,9 +128,9 @@ Small car wash businesses face challenges:
 - All guest features, plus:
 - Customer account with booking history
 - View past/upcoming bookings
-- Cancel bookings (with 48-hour notice)
+- Cancel bookings (default 48-hour notice, configurable per tenant through `cancellationWindowHours`)
 - View loyalty metrics (wash count, loyalty status)
-- Receive booking reminders (24h before appointment)
+- Receive booking reminders (sent between 06:00 and 06:29 tenant-local time, for tomorrow's and today's bookings)
 - Build history for future loyalty programs
 
 ### 4. **Staff / Admin** (Google OAuth + staff flag)
@@ -137,7 +141,7 @@ Small car wash businesses face challenges:
 - Mark bookings as completed (triggers loyalty tracking)
 - View customer wash logs and loyalty history
 - Upload photos, internal notes on bookings
-- **No granular permissions yet** (all staff can do all actions)
+- **Two roles:** `STAFF` and `MANAGER` (`MANAGER` is a superset; the manager-only areas are settings, team, hotsite, resources and scheduling exceptions)
 
 ---
 
@@ -165,7 +169,7 @@ Small car wash businesses face challenges:
 3. Customer selects service and preferred date/time
 4. Booking follows same workflow as Journey 1
 5. **Difference:** System knows customer history (wash count, etc.)
-6. Can cancel with 48h notice → loyalty system updated
+6. Can cancel within the tenant's cancellation window (default 48h notice) → loyalty system updated
 ```
 
 ### **Journey 3: Complete Wash (Staff/Admin)**
@@ -181,7 +185,7 @@ Small car wash businesses face challenges:
 ### **Journey 4: Customer Cancels Booking**
 ```
 1. Customer views upcoming booking
-2. Clicks "Cancel" (only if > 48h before appointment)
+2. Clicks "Cancel" (only if outside the tenant's cancellation window, default 48h before the appointment)
 3. Booking state: APPROVED → CANCELLED
 4. System triggers:
    - Loyalty tracking: mark cancellation (for future: may affect promotions)
@@ -207,7 +211,7 @@ Small car wash businesses face challenges:
 - ✓ Admin approval/rejection workflow
 - ✓ Request additional info workflow
 - ✓ Authenticated customer bookings
-- ✓ Booking cancellation (48h policy)
+- ✓ Booking cancellation (tenant cancellation window, 48h by default)
 - ✓ Mark booking complete
 
 ### **Service Management**
@@ -229,7 +233,7 @@ Small car wash businesses face challenges:
 - ✓ Google OAuth login for staff
 - ✓ Dashboard to manage bookings
 - ✓ View all customer bookings and history
-- ✓ All staff can perform all actions (no role-based permissions yet)
+- ✓ Two roles, `STAFF` and `MANAGER` (`MANAGER` is a superset)
 
 ### **Photo Management**
 - ✓ Guest/customer uploads multiple car photos when booking (optional but encouraged)
@@ -267,11 +271,10 @@ Small car wash businesses face challenges:
 - ❌ Payment processing (business handles cash/card at location)
 - ❌ SMS notifications (email only for now)
 - ❌ Multi-location support (single location MVP)
-- ❌ Role-based permissions (all staff equal)
 - ❌ Loyalty promotions (tracking only, business logic later)
 - ❌ Reporting/analytics dashboard (foundation ready, UI later)
 - ❌ Mobile app (responsive web only)
-- ❌ Appointment reminders (email only, no push notifications)
+- ❌ Push notifications (appointment reminders are email only)
 
 ---
 

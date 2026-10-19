@@ -86,7 +86,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 
 (This list is a summary, not exhaustive. Additional gating jobs: `architecture-check`, `actionlint`/`zizmor`, the Terraform env-var contract and `pubsub-catalog` (regenerates `infra/terraform/pubsub-catalog.json` and fails on a diff). **Report-only, never blocking:** the dependency-graph scan (`dependency-cruise`), the unused-dependency and dead-export scan (`knip`) and the package publish-shape check (`attw-check`) all run with `continue-on-error`.)
 
-**Aggregate jobs:** the aggregate jobs that summarise a PR's checks are `All Checks Passed` (`pr-tests.yml`: tests, Gitleaks, Trivy, Checkov, Sonar) and `Infra PR Checks Passed` (`infra-deploy.yml`), plus the individual `pr-quality.yml` jobs (ESLint, Prettier, TypeScript, Architecture validation); `pr-quality.yml` has no aggregator of its own.
+**Aggregate jobs:** the aggregate jobs that summarise a PR's checks are `All Checks Passed` (`pr-tests.yml`: tests, Gitleaks, Trivy, Checkov, Sonar) and `Infra PR Checks Passed` (`infra-deploy.yml`), plus `Test Suite Passed` (`pr-tests.yml`, the aggregate of the app test jobs that the `sonar` job needs, not a separate required check), plus the individual `pr-quality.yml` jobs (ESLint, Prettier, TypeScript, Architecture validation); `pr-quality.yml` has no aggregator of its own.
 
 **Infra PR-shape gates (both in `pr-quality.yml`):**
 - `no-infra-app-mix` — a PR touching Terraform and application code fails unless it carries the `infra-app-mix-ok` label. The label must already be on the PR **when CI first starts**: the check does not re-run on the `labeled` event. Details: `infra/terraform/README.md`.
@@ -116,7 +116,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 ## 6. Release Management
 
 - **Continuous Deployment:** Merges to `main` are automatically deployed to **Staging**.
-- **Production Promotion:** Merges to `main` that change `apps/**` or `packages/**` deploy to Staging automatically. **Production** is promoted manually through `deploy-production.yml` (`workflow_dispatch`); its `migrate-and-deploy` job needs the `production` environment's required-reviewer approval, and the smoke test runs after the deploy.
+- **Production Promotion:** Merges to `main` that change `apps/**`, `packages/**`, `pnpm-lock.yaml` or `deploy-staging.yml` itself deploy to Staging automatically. **Production** is promoted manually through `deploy-production.yml` (`workflow_dispatch`); its `migrate-and-deploy` job needs the `production` environment's required-reviewer approval, and the smoke test runs after the deploy.
 
 ---
 
@@ -131,7 +131,7 @@ All GitHub Actions — including GitHub-owned ones (`actions/checkout`, `actions
 - uses: actions/checkout@v4
 
 # ✅ Correct — immutable SHA with tag comment for readability
-- uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+- uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 ```
 
 **The workflow files are the source of truth for which SHA each action is pinned to** (`grep -rhn 'uses:' .github/workflows`). This doc used to carry a table of the current SHAs; it drifted from the workflows three times (Dependabot bumps the pins without touching the doc), so it was removed rather than corrected a fourth time. Pin format and the Dependabot flow stay as described above; `snyk/actions/node` is now used only in `weekly-jobs.yml`.
@@ -197,7 +197,7 @@ The `scope` parameter is **mandatory** in matrix jobs. Without it, the three Tri
 Coverage must be generated **once** per PR, not re-run by the Sonar job:
 
 1. Test jobs (`backend-unit`, `bff-unit`, `web-unit`) run `test:cov` and upload `lcov.info` via `actions/upload-artifact`
-2. The `sonar` job declares `needs: [backend-unit, bff-unit, web-unit]` and downloads those artifacts via `actions/download-artifact`
+2. The `sonar` job declares `needs: [detect-changes, test-suite-passed, backend-unit, bff-unit, web-unit]`, runs only when `needs.detect-changes.outputs.app == 'true'` (and `test-suite-passed` succeeded), and downloads those artifacts via `actions/download-artifact`
 3. The `sonar` job only runs `test:cov` for packages not covered by those sibling jobs (`@ikaro/observability`, `@ikaro/env-validation`, `@ikaro/validation`)
 
 Never add a Sonar job that re-runs all `test:cov` suites from scratch — see `docs/CI_TRAPS.md § CI workflow configuration traps`.
@@ -238,6 +238,7 @@ Established in M17-S08's WIF smoke-test workflow (`pull_request` + `push: branch
 
 For GCP identifiers used in CI (WIF provider resource paths, service-account emails, project IDs/numbers, region/registry host strings), the project's convention is:
 
-- **Secrets:** WIF provider resource names (`WIF_PROVIDER_*`) and CI service-account emails (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`). None of these are bearer credentials by themselves — WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims regardless of who can read the value — but Secrets auto-redact in every log line, which is free hygiene against a future workflow accidentally echoing one during debugging. Matches Google's own `google-github-actions/auth@v2` reference examples, and this repo's own M17-S08 smoke test (which used temporary repo secrets for the same values, citing public-repo log redaction).
+- **Secrets:** WIF provider resource names (`WIF_PROVIDER_*`) and CI service-account emails (`TF_DEPLOYER_SA_*`, `APP_DEPLOYER_SA_*`, `TF_PLANNER_SA_*`, `TF_FOUNDATION_SA_*`), plus every credential and personal value: `SONAR_TOKEN`, `SNYK_TOKEN`, `CLOUDFLARE_API_TOKEN`, `BREVO_SMTP_LOGIN`, and any email address or other personal identifier a workflow needs. **Rule: a secret or sensitive value is never a Variable and is never committed.** A Variable's value prints unmasked in workflow logs, and this repository's logs are public. None of these are bearer credentials by themselves — WIF trust is scoped to `repository == lmmoreira/ikaro` plus branch/environment claims regardless of who can read the value — but Secrets auto-redact in every log line, which is free hygiene against a future workflow accidentally echoing one during debugging. Matches Google's own `google-github-actions/auth@v2` reference examples, and this repo's own M17-S08 smoke test (which used temporary repo secrets for the same values, citing public-repo log redaction).
 - **Variables:** everything else non-identity-shaped — project IDs (`GCP_PROJECT_*`), region (`GCP_REGION`), registry host (`GAR_HOST`). These are already committed in plaintext elsewhere in this repo (`terraform.tfvars`, `plan/M17-CLOUD-DEPLOY.md`), so there's no hygiene benefit to hiding them, and being readable in logs helps debugging.
+- **Known gap — not compliant today (tracked by `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md`):** `IAM_ADMIN_USER` (16 workflow uses) and `NOTIFICATION_EMAIL` (8 uses) are email addresses stored as repo Variables, so they can print unmasked in public logs; they must move to Secrets under the rule above, and TD54 does that. `CLOUDFLARE_ACCOUNT_ID` (4 uses) is an account identifier stored as a Variable; whether it needs hiding is TD54's decision, so it stays a Variable until that decision is recorded. Until TD54 lands, never echo any of these values in a workflow step.
 - **Scope: repo-level, not environment-scoped**, for any value a PR-triggered `terraform plan`/`tf-planner` job needs — that job intentionally declares no `environment:` (so plans can run on every PR without an approval gate), and an environment-scoped secret/variable is invisible to a job that doesn't declare that environment. Established in M17-S23 — **and still violated once anyway, in M17-S24 (2026-07-21):** `IAM_ADMIN_USER`/`BREVO_SMTP_LOGIN` were both created as environment-scoped values despite this rule already being written down here, and resolved empty in every `plan-*`/`drift-*` job until caught and moved to repo-level. Knowing the rule exists isn't the same as checking a new addition against it — grep this section against every new Variable/Secret before creating it, don't rely on memory.

@@ -7,7 +7,7 @@
 
 > **Purpose:** Turn every audit finding into a **discrete, self-contained story** you can implement one at a time, ordered by **risk/urgency first, effort second**.
 > **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. Always cross-reference the cited `OPUS_AUDITORY.md §x.y` for the long-form rationale.
-> **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 43 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.
+> **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 46 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.
 
 ---
 
@@ -34,7 +34,7 @@
 | ID | Title | Risk | Effort | Phase | Depends on | Audit ref |
 |---|---|---|---|---|---|---|
 | **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
-| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock | ✅ Done | M | Now | — | §4.2, §4.3 |
+| **AUD-002** | Fix booking slot-conflict race + prove optimistic lock ✅ | 🔴 Critical | M | Now | — | §4.2, §4.3 |
 | **AUD-003** | Adversarial concurrency + event-failure test suite ✅ | 🔴 Critical | M | Now | AUD-001, AUD-002 | §11.1, §11.2 |
 | **AUD-004** | Event idempotency & duplicate-send prevention (crons + notifications) ✅ | 🟠 High | M | Now | AUD-001 | §12.4, §12.5 |
 | **AUD-005** | Graceful shutdown hooks (backend + BFF) ✅ | 🟠 High | XS | Now | — | §5.2 |
@@ -66,7 +66,7 @@
 | **AUD-030** | DB connection pool + PgBouncer + SSL | 🔴 Critical | M | Infra/Deploy | — | §13.1 |
 | **AUD-031** | Introduce Redis (unlocks 032/034/016/011) | 🟠 High | M | Infra/Deploy | — | §13.2 |
 | **AUD-032** | Distributed rate limiting + trust proxy + per-tenant | 🟠 High | S | Infra/Deploy | AUD-031 | §13.2 |
-| **AUD-033** | Readiness probe checks dependencies | ✅ Done | S | Infra/Deploy | M17-S04 | §13.3 |
+| **AUD-033** | Readiness probe checks dependencies ✅ | — | S | Infra/Deploy | M17-S04 | §13.3 |
 | **AUD-034** | Wire OpenTelemetry tracing + metrics ✅ | 🟠 High | M | Infra/Deploy | — | §13.4 |
 | **AUD-035** | LGPD / PII data-protection plan (design early) | 🟠 High | L | Pre-deploy | — | §13.5 |
 | **AUD-036** | Resilience: retry/backoff + circuit breaker (BFF→backend) | 🟡 Medium | M | Infra/Deploy | — | §13.6 |
@@ -77,9 +77,9 @@
 | **AUD-041** | Load / throughput regression tests (k6) | 🟡 Medium | M | Infra/Deploy | AUD-030 | §11.6 |
 | **AUD-042** | RUM / Core Web Vitals field monitoring | 🔵 Low | S | Infra/Deploy | — | §13.10 |
 | **AUD-043** | Rename `apps/web/middleware.ts` → `proxy.ts` (Next.js 16 deprecation) ✅ | 🔵 Low | XS | Now | — | (not in original audit — found during AUD-007) |
-| **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
-| **AUD-045** | Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test | 🟡 Medium | XS | Now | — | not in original audit — found 2026-09-16 while triaging PR #484's CI |
-| **AUD-046** | Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination) | 🟠 High | S | Now | — | not in original audit — found 2026-09-16 via Aikido dependency scan |
+| **AUD-044** | Explicit `--max-old-space-size` for backend Jest runs (heap OOM fix) ✅ | 🔵 Low | XS | Now | — | not in original audit — found 2026-09-16 |
+| **AUD-045** | Fix incomplete/asymmetric teardown causing flaky CI failures in a booking backfill migration integration test ✅ | 🟡 Medium | XS | Now | — | not in original audit — found 2026-09-16 while triaging PR #484's CI |
+| **AUD-046** | Bump `nodemailer` 9.1.1 → ^10.0.10 to close 2 Aikido-flagged CVEs (stack-exhaustion DoS + SNI cache cross-contamination) ✅ | 🟠 High | S | Now | — | not in original audit — found 2026-09-16 via Aikido dependency scan |
 
 ### Suggested execution order (the critical path)
 
@@ -472,7 +472,7 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-020 — Slim the `Booking` aggregate (event-payload factories)
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §5.3
-**Status:** ☐ Not started — and worse: re-verified 2026-08-19 at **709 lines**, up from the 615-line snapshot below. `lineSummaryPayload()`/`toAddressPayload()` are still inline, unextracted.
+**Status:** ☐ Not started — and worse: now **1050 lines** (up from the 615-line snapshot below). `lineSummaryPayload()`/`toAddressPayload()` are still inline, unextracted.
 
 **What's wrong:** `booking.aggregate.ts` was 615 lines (largest source file) at the original 2026-06-21 audit, well over the project's ≤200-line class rule, mostly inline event-payload serialization (`lineSummaryPayload`, `toAddressPayload`, large literal payloads in `complete()`/`approve()`).
 **Fix:** Extract event-payload assembly into dedicated factories/mappers (`BookingEventPayloadFactory`), leaving the aggregate with state-transition logic.
@@ -694,6 +694,8 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 The backend's own `NODE_OPTIONS` never raises V8's heap ceiling, so `test`/`test:integration` OOM-kill under load on any host/container where V8's ~2.2GB default is tight — independent of how much RAM is actually available to the process.
 
 **What needs to be fixed (solution)**
+> **Superseded by later tuning:** the entry points below are what this story shipped. `apps/backend/package.json` now sets `test` and `test:integration` to 5120 (`test:integration` also `--maxWorkers=1`) and `test:unit` and `test:cov` to 3072 (`--maxWorkers=2`); read the live values from that file.
+
 Set `--max-old-space-size=6144` on every backend Jest entry point:
 ```
 "test": "NODE_OPTIONS=\"--experimental-vm-modules --max-old-space-size=6144\" jest",

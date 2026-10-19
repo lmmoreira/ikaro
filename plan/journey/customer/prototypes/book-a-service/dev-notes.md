@@ -6,7 +6,7 @@
 
 ## Overview
 
-The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11a adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
+The authenticated customer path shares all of its steps with the guest path (4 by default; the real indicator is computed — M23-S11a adds an intake step, resource/duration steps and the booking-details success box) — there is no separate component or route branch. `BookingForm` (through `useBookingFormController`/`useBookingSubmission`) calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, the form treats the visitor as an authenticated customer for the rest of the flow (step 3 hides contact fields and pre-fills the pickup address; submit calls a different endpoint).
 
 ---
 
@@ -27,7 +27,8 @@ There is no `/api/auth/callback/google` Next.js route and no `/select-tenant` pa
 ## Authenticated-customer detection (real design)
 
 ```tsx
-// Inside BookingForm, on mount:
+// Detection now lives in the hooks, not inline in BookingForm:
+// useBookingFormController.ts (on mount) and useBookingSubmission.ts (at submit):
 const customerProfile = await getHotsiteCustomerProfile(slug); // resolves to null if not authenticated
 const isAuthenticatedCustomer = customerProfile !== null;
 
@@ -73,15 +74,8 @@ No separate review component was built — `PersonalInfoStep` handles both paths
 export async function createAuthenticatedBooking(
   payload: AuthenticatedBookingRequest,
 ): Promise<BookingResponse> {
-  const res = await fetch(`${process.env.NEXT_PUBLIC_BFF_URL}/bookings/authenticated`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    // JWT cookie sent automatically by browser (httpOnly, sameSite=lax)
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (!res.ok) throw new CreateBookingError(res.status, 'Failed to create authenticated booking');
-  return res.json() as Promise<BookingResponse>;
+  const res = await bffClient.post<BookingResponse>('/bookings/authenticated', payload);
+  return res.data;
 }
 ```
 
@@ -94,6 +88,7 @@ POST /bookings/authenticated
       scheduledAt:             string,     // ISO-8601 UTC
       serviceIds:              string[],   // uuid[]
       pickupAddress?:          Address,
+      notes?:                  string,     // trim, min 1, max 1000
       beforeServicePhotoUrls?: string[],
       // M23: resourceSelections?, durationMinutes?, participantCount?, intakeSchemaVersion?,
       //      intakeAnswers?, consentAccepted?, attendees?  (identical to the guest endpoint)
@@ -109,9 +104,9 @@ POST /bookings/authenticated
 `PhotoUpload` is reused unchanged. The BFF endpoint `POST /bookings/attachments/signed-url` handles both paths:
 
 - **Guest** (no auth): send `{ fileName, contentType, tenantSlug: slug }` in body
-- **Customer** (auth): send `{ fileName, contentType }` — BFF reads `tenantId` from JWT (Scenario 1 in `bookings.controller.ts`)
+- **Customer** (auth): send `{ fileName, contentType }` — the BFF resolves the tenant from the auth header, `guestToken` or `tenantSlug` (`resolveTenantIdForAttachmentUpload` in `apps/bff/src/features/booking/bookings-attachments.controller.ts`)
 
-`PhotoUpload` already calls `createAttachmentSignedUrl(slug, ...)` which passes `tenantSlug`. For the customer path, pass the JWT via `credentials: 'include'` instead — or update `PhotoUpload` to accept a `mode` prop. Simpler: pass `tenantSlug` for customer too (BFF accepts it if user is authenticated).
+`PhotoUpload` already calls `createAttachmentSignedUrl(slug, ...)` which passes `tenantSlug`. For the customer path, pass the JWT via `credentials: 'include'` instead (decided: no `mode` prop on `PhotoUpload`; `tenantSlug` is passed for the customer too).
 
 ---
 
@@ -120,7 +115,7 @@ POST /bookings/authenticated
 A small bar showing `"{name} · {email}"` at the top of steps 1–4 for the customer path. Options:
 - **Option A:** Rendered by `page.tsx` (reads JWT from cookie), passed as prop to `BookingForm`
 - **Option B:** Rendered by a layout wrapper at `app/[slug]/booking/layout.tsx`
-- **Recommended:** Option A — keeps the layout simple, `BookingForm` controls its own chrome
+- **Shipped:** as `HotsiteAuthBar` (`apps/web/shells/hotsite/components/HotsiteAuthBar.tsx`), rendered by `apps/web/app/[slug]/booking/page.tsx` — neither option as written
 
 ---
 
@@ -203,7 +198,7 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 | `16f-novo-aviso-servico-indisponivel.html` | Service not alert-eligible (422 `BOOKING_ALERT_INELIGIBLE_SERVICE`, e.g. a stale or hand-typed link) | M23-S31 |
 | `../../../guest/prototypes/book-a-service/17-login-aviso.html` | The login-required state of this page for a guest (no session) — "Entrar ou criar conta" returns to `16` | M23-S31 |
 
-**Route and page:** `/[slug]/booking/availability-alert` (expected; final path at implementation), a thin `page.tsx`. It checks the customer session client-side (`getHotsiteCustomerProfile`, as the lead form does): no session → `AvailabilityAlertLoginGate` (a login-required card, `LeadFormLoginRequiredGate` is the precedent) whose link is `/{slug}/login?returnTo=<encoded alert URL with its query string>`; a session → `NewAvailabilityAlertForm`, both under `apps/web/features/booking/components/public/`.
+**Route and page:** `/[slug]/booking/availability-alert` (`apps/web/app/[slug]/booking/availability-alert/page.tsx`), a thin `page.tsx`. It checks the customer session client-side (`getHotsiteCustomerProfile`, as the lead form does): no session → `AvailabilityAlertLoginGate` (a login-required card, `LeadFormLoginRequiredGate` is the precedent) whose link is `/{slug}/login?returnTo=<encoded alert URL with its query string>`; a session → `NewAvailabilityAlertForm`, both under `apps/web/features/booking/components/public/`.
 
 **Prefill (query parameters on the button's link):** `serviceId` (required — without a valid one, or for an ineligible service, the page shows `16f`), `preferredResourceId` (only when a flat service has exactly one resource pick; the alert holds **one** preferred resource, so a legged, bundled or multi-pick service passes none — `16h`), `durationMinutes` (always for a customer-selected-duration service). **No participant count:** it is only collected at the intake step, and matching ignores it.
 
@@ -214,7 +209,7 @@ Error routing, step paths and the design decisions: `plan/journey/guest/prototyp
 | Range: end after start and end in the future; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` / `16g` / `16i` |
 | Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
 | At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
-| A customer-selected-duration service needs a valid duration (M23-S34, once it lands) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
+| A customer-selected-duration service needs a valid duration (M23-S34, ✅ Done) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
 
 **State machine:** `17` (guest, no session) → login → `16` / `16h` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16g` / `16i` / `16e` / `16f` (errors; the validation states keep the form editable).
 

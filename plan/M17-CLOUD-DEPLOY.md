@@ -1,9 +1,9 @@
 # M17 — Cloud Deploy: GCP Infrastructure, CI/CD, Hardening & Observability
 
 **Phase:** Cloud ☁️ — GCP + Cloudflare charges begin in Wave 1
-**Goal:** The platform runs on GCP behind Cloudflare with fully automated trunk-based CI/CD: every merge to `main` auto-deploys to staging; production is promoted behind a single manual approval — same git SHA, backend/BFF as byte-identical image digests, web rebuilt from the same source SHA (Next.js public env vars are build-time, see D8). Terraform lives in this repo (`infra/terraform/`) with its own pipeline. Database migrations run as a dedicated pipeline stage (Cloud Run Job) separate from app deploys. Observability covers all three pillars (logs, metrics, traces) via OpenTelemetry + a collector sidecar — vendor-neutral instrumentation, GCP-managed storage, zero VMs.
+**Goal:** The platform runs on GCP behind Cloudflare with fully automated trunk-based CI/CD: every merge to `main` auto-deploys to staging; production is promoted behind a single manual approval — same git SHA, the same image SHA promoted for backend, BFF and web (web no longer needs a per-environment rebuild, see D8). Terraform lives in this repo (`infra/terraform/`) with its own pipeline. Database migrations run as a dedicated pipeline stage (Cloud Run Job) separate from app deploys. Observability covers all three pillars (logs, metrics, traces) via OpenTelemetry + a collector sidecar — vendor-neutral instrumentation, GCP-managed storage, zero VMs.
 **Depends on:** M13 (dashboard frontend complete)
-**Supersedes:** M14, M15, M16 (all stories reconciled against the implemented codebase as of 2026-07-07 and merged here; the original files remain as historical reference with supersession notes)
+**Supersedes:** M14, M15, M16 (all stories reconciled against the implemented codebase as of 2026-07-07 and merged here; the original files have since been deleted and stay recoverable from git history)
 
 ---
 
@@ -37,7 +37,7 @@
 |---|---|---|---|---|
 | Pub/Sub push (D2) | topics/subs/DLQ/OIDC push | `IEventBus` port + one adapter + push guard | ~weeks (new adapter, e.g. Service Bus/SNS-SQS) | port confines damage; push is the only $0-idle option |
 | Cloud Run (D1) | service/job definitions | plain Docker images | ~days (any container runtime) | containers, not Terraform, carry the portability |
-| Cloud SQL private networking | PSA peering, auth proxy | plain Postgres 15 + `pg_dump` | ~days | zero engine-specific features (guardrail 4) |
+| Cloud SQL private networking | PSA peering, auth proxy | plain PostgreSQL 17 + `pg_dump` | ~days | zero engine-specific features (guardrail 4) |
 | Cloud Run Jobs (migrations) | job trigger plumbing | `typeorm migration:run` in the image | ~hours (any runner with DB access) | trivial surface |
 | Cloud Monitoring/Trace (D9) | dashboards, alert policies, exporter YAML block | OTLP + collector config + structured stdout | ~days (swap exporter, rebuild dashboards) | dashboards are cheap; instrumentation is the expensive part and stays portable |
 | Secret Manager | secret refs in Cloud Run | env-var contract in `env.validation.ts` | ~hours | apps read env vars, not SM APIs |
@@ -134,8 +134,8 @@ not yet done) — still `INGRESS_TRAFFIC_INTERNAL_LOAD_BALANCER` with BFF reacha
 | 1 | S07–S10, S48 | Accounts & Day-0 bootstrap (GCP, Cloudflare, OAuth, Brevo) + legacy-doc banners | Starts |
 | 2 | S11–S22 | Terraform: modules + staging/prod envs | Yes |
 | 3 | S23–S26 | Pipelines: infra, staging deploy, prod promote | Yes |
-| 4 | S27–S28 | Staging live + E2E against staging | Yes |
-| 5 | S31, S33–S36, S49–S50, S54–S56 | Hardening + observability + DR & governance | Yes |
+| 4 | S27, S28 (Cut) | Staging live + E2E against staging | Yes |
+| 5 | S29 (Cut), S31, S33–S36, S49–S50, S54–S56 | Hardening + observability + DR & governance | Yes |
 | 6 | S53, S37 | Production go-live | Yes |
 | 7 | S38–S46, S51 | Post-launch product: custom domains, edge caching, photo cost/LGPD controls, docs refresh, managed connection pooling, LGPD lifecycle | Yes |
 
@@ -809,6 +809,8 @@ Non-secret config (`EMAIL_ADAPTER`, `EMAIL_FROM`, `FRONTEND_URL`, `ALLOWED_ORIGI
 **Docs to load:** M17 §2 security model
 
 **Description:**
+> **Superseded location:** `modules/iam` was deleted (dead code, M19-S02); the runtime service accounts now live in `infra/terraform/foundation/modules/runtime-identities/` and their bindings in `infra/terraform/foundation/modules/workload-iam/`. The text below is the original design.
+
 `modules/iam`: three runtime SAs per env — `ikaro-backend@`, `ikaro-bff@`, `ikaro-web@` — plus `ikaro-pubsub-invoker@` (the identity Pub/Sub push mints OIDC tokens as; the Pub/Sub **service agent** needs `iam.serviceAccountTokenCreator` on it — granted in S19). **No custom Scheduler SA** (corrected 2026-07-08): `pubsub_target` Scheduler jobs cannot run as a user SA — the **Cloud Scheduler service agent** performs the publish and gets `pubsub.publisher` on the three cron topics (S21). Takes `secret_ids` (the map output by S16's `modules/secrets`) as an input variable to reference the actual secret resources when granting per-SA accessor roles.
 
 **Scope split (clarified in discovery, 2026-07-18):** this module creates the 4 SAs and every binding resolvable against resources that already exist (S14 buckets, S16 secrets, project-level roles, self-grants). Bindings targeting resources created by *later* stories are documented in the table below for the full picture, but are actually created by the module that owns the target resource — `run.invoker` on a specific Cloud Run service is **S18's** (which already depends on S17 for the principal to exist); `pubsub.publisher` on a specific topic is **S19's** (same reasoning, transitively after S17 via S18).

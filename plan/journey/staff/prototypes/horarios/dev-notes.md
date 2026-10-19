@@ -20,10 +20,12 @@ Dashboard section for managing the weekly schedule of approved bookings and cont
 
 ## BFF calls (all verified — endpoints implemented)
 
+> The `{ type: '...' }` error shapes below are illustrative, not BFF error codes. Errors are RFC 9457 Problem Details carrying the backend codes in `packages/types/src/error-codes.ts` (`BookingErrorCode`; see `docs/25-ERROR_CATALOG.md`): date in the past → `BOOKING_CLOSURE_DATE_IN_PAST` / `BOOKING_OPENING_DATE_IN_PAST`; closure overlap → `BOOKING_SCHEDULE_ALREADY_CLOSED`; existing opening → `BOOKING_SCHEDULE_OPENING_ALREADY_EXISTS`; day already open in settings → `BOOKING_DAY_ALREADY_OPEN_IN_SETTINGS`.
+
 ```
 GET /v1/schedule/closures?from=YYYY-MM-DD&to=YYYY-MM-DD
   Header: Authorization: Bearer {jwt}
-  Response: { closures: ScheduleClosure[] }
+  Response: { items: ScheduleClosure[] }   // ScheduleClosureListResponse
 
 POST /v1/schedule/closures
   Header: Authorization: Bearer {jwt}
@@ -36,7 +38,7 @@ DELETE /v1/schedule/closures/:id → 204
 
 GET /v1/schedule/openings?from=YYYY-MM-DD&to=YYYY-MM-DD
   Header: Authorization: Bearer {jwt}
-  Response: { openings: ScheduleOpening[] }
+  Response: { items: ScheduleOpening[] }   // ScheduleOpeningListResponse
 
 POST /v1/schedule/openings
   Header: Authorization: Bearer {jwt}
@@ -230,7 +232,7 @@ POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId
 GET /v1/resources?type=&isActive=                            // UC-044 — feeds both ResourceFilterMenu and ResourceSelectField
 ```
 
-**Known limitation, found during the original promotion — still not resolved, and moot for the shipped design:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) not yet promoted. Since the shipped implementation never navigates to that illustrative screen at all (both controls live in-page on the existing route, not a drill-down page), this stops applying to the real product — left as-is in the illustrative file until those clusters are promoted.
+**Known limitation, found during the original promotion — still not resolved, and moot for the shipped design:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) from the discovery set; the Turmas screen has since been promoted as `../turmas/01-turmas-proximas.html`. Since the shipped implementation never navigates to that illustrative screen at all (both controls live in-page on the existing route, not a drill-down page), this stops applying to the real product — left as-is in the illustrative file.
 
 **Resolved decisions (`M21-S05`):**
 - [x] `ResourceFilterMenu` defaults to nothing checked — "Todo o negócio" (tenant-wide) — on first load. `LOCATION` is excluded from both controls' options entirely (functionally redundant with the tenant-wide default).

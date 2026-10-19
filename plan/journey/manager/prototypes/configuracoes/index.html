@@ -33,7 +33,7 @@
     <div class="screen-list">
       <a href="01-settings-form.html" class="screen-link">
         <span class="screen-num">01</span>
-        Formulário de configurações (6 seções)
+        Formulário de configurações (6 seções; o formulário completo de 8 seções está em 01d)
         <span class="exists-tag">EXISTS</span>
       </a>
       <a href="01c-saved-success.html" class="screen-link">
@@ -43,13 +43,13 @@
       </a>
       <a href="01d-chatbot-section.html" class="screen-link">
         <span class="screen-num">01d</span>
-        Formulário completo + nova seção "Chatbot" (não implementado)
-        <span class="gap-tag">GAP</span>
+        Formulário completo + seção "Chatbot" (M19-S13)
+        <span class="exists-tag">EXISTS</span>
       </a>
       <a href="01e-lead-form-section.html" class="screen-link">
         <span class="screen-num">01e</span>
-        Excerto + nova seção "Formulário de contato" (não implementado, M20)
-        <span class="gap-tag">GAP</span>
+        Excerto + seção "Formulário de contato" (M20-S11)
+        <span class="exists-tag">EXISTS</span>
       </a>
     </div>
   </div>
@@ -69,21 +69,21 @@
     <p class="section-title">Dry-run checklist</p>
     <ul class="checklist">
       <li>O campo "Slug" está correto como somente-leitura e visualmente diferenciado (fundo cinza)?</li>
-      <li>As 6 seções (Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato, Localização) estão todas presentes e na ordem certa?</li>
+      <li>As 8 seções (Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato, Chatbot, Formulário de contato, Localização) estão todas presentes e na ordem certa?</li>
       <li>Cada dia da semana tem horário de abertura/fechamento + toggle "Fechado"?</li>
       <li>Faz sentido o Domingo aparecer fechado por padrão (exemplo)?</li>
       <li>Os campos de Contato devem ser opcionais e começar vazios?</li>
       <li>Um valor inválido (ex: janela de cancelamento &gt; 720h) deixa claro o erro, com destaque inline + banner no topo?</li>
       <li>Ao salvar com sucesso, o formulário completo permanece visível abaixo da confirmação?</li>
-      <li>A nova seção "Chatbot" (01d, não implementada) mostra só <code>knowledgeText</code>, sem os limites de custo/volume?</li>
-      <li>A nova seção "Formulário de contato" (01e, não implementada, M20) mostra só <code>retentionMonths</code>, sem os limites de envio por dia?</li>
+      <li>A seção "Chatbot" (01d, M19-S13) mostra só <code>knowledgeText</code>, sem os limites de custo/volume?</li>
+      <li>A seção "Formulário de contato" (01e, M20-S11) mostra os 3 campos editáveis (<code>retentionMonths</code> e os limites de envio por dia)?</li>
     </ul>
   </div>
 
   <div class="section">
     <p class="section-title">Open questions — resolvidas (✅ shipped)</p>
     <ul class="checklist">
-      <li>Agrupamento em seções — resolvido: 6 `SectionCard`s (Geral/Agendamento/Fidelidade/Horário/Contato/Localização), sem abas</li>
+      <li>Agrupamento em seções — resolvido: 8 `SectionCard`s (Geral/Agendamento/Fidelidade/Horário/Contato/Chatbot/Formulário de contato/Localização), sem abas</li>
       <li>Auditoria de mudanças (UC-026 passo 6) — continua sem tela no MVP, conforme CLAUDE.md §6</li>
       <li>Fuso horário — resolvido: `&lt;select&gt;` via `resolveSettingsLocalization`, não uma lista curta hardcoded</li>
     </ul>

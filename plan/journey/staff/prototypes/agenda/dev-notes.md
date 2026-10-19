@@ -15,14 +15,14 @@
 |---|---|
 | `apps/web/proxy.ts` | Protects `/dashboard/**` |
 | `apps/web/shells/dashboard/components/Sidebar.tsx`, `Topbar.tsx`, `BottomNav.tsx`, `WeekNav.tsx` | Shared dashboard shell — `WeekNav` is shared with the horarios `SchedulePage` as originally planned |
-| `apps/web/app/dashboard/bookings/page.tsx` + `.../BookingQueuePage.tsx` | Queue list |
-| `apps/web/app/dashboard/bookings/[id]/page.tsx` + `.../BookingDetailPage.tsx` | Detail + triage actions |
-| `.../BookingActionPanel.tsx`, `RejectBookingSheet.tsx`, `RequestInfoSheet.tsx`, `SlotConflictAlert.tsx` | Triage sub-components |
-| `.../AdminCancelBookingSheet.tsx` | UC-008 cancel |
-| `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx` + `.../RescheduleBookingPage.tsx` | UC-008 A1 — dedicated page, not a modal over `[id]` |
-| `apps/web/app/dashboard/bookings/[id]/complete/page.tsx` + `.../MarkCompleteBookingPage.tsx` | UC-009 — dedicated page, not a sheet |
-| `.../BookingCompletionSummary.tsx`, `AfterServicePhotoUpload.tsx`, `BookingOutcomeActionRail.tsx`, `BookingDetailMain.tsx`, `BookingActionSheetShell.tsx`, `BookingClientCard.tsx`, `BookingCard.tsx` | Additional supporting sub-components not anticipated in the original draft |
-| `apps/web/features/booking/api/**` | BFF fetchers |
+| `apps/web/app/dashboard/bookings/page.tsx` + `apps/web/features/booking/components/dashboard/bookings/BookingQueuePage.tsx` | Queue list |
+| `apps/web/app/dashboard/bookings/[id]/page.tsx` + `apps/web/features/booking/components/dashboard/bookings/BookingDetailPage.tsx` | Detail + triage actions |
+| `apps/web/features/booking/components/dashboard/bookings/BookingActionPanel.tsx`, `RejectBookingSheet.tsx`, `RequestInfoSheet.tsx`, `SlotConflictAlert.tsx` | Triage sub-components (same folder) |
+| `apps/web/features/booking/components/dashboard/bookings/AdminCancelBookingSheet.tsx` | UC-008 cancel |
+| `apps/web/app/dashboard/bookings/[id]/reschedule/page.tsx` + `apps/web/features/booking/components/dashboard/bookings/RescheduleBookingPage.tsx` | UC-008 A1 — dedicated page, not a modal over `[id]` |
+| `apps/web/app/dashboard/bookings/[id]/complete/page.tsx` + `apps/web/features/booking/components/dashboard/bookings/MarkCompleteBookingPage.tsx` | UC-009 — dedicated page, not a sheet |
+| `BookingCompletionSummary.tsx`, `AfterServicePhotoUpload.tsx`, `BookingOutcomeActionRail.tsx`, `BookingDetailMain.tsx`, `BookingActionSheetShell.tsx`, `BookingClientCard.tsx`, `BookingCard.tsx` | Additional supporting sub-components not anticipated in the original draft |
+| `apps/web/features/booking/api/booking.ts` (+ `booking.server.ts`) | BFF fetchers (`listBookings`, `getBooking`, `approveBooking`, `rejectBooking`, ...) |
 
 The real composition doesn't have a single `BookingLifecyclePanel` component as originally planned — the APPROVED-state actions are composed across `BookingDetailMain`/`BookingOutcomeActionRail` instead. Verify the exact split by reading `BookingDetailPage.tsx` directly before extending it further; this file doesn't attempt to fully re-document that internal composition.
 
@@ -98,7 +98,7 @@ type ActionState =
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
 | `idle` | Click "Cancelar" | — | Opens `AdminCancelBookingSheet` (no state change yet) |
-| `AdminCancelBookingSheet` confirm | `PATCH .../cancel-admin` → 200 | `cancelled` | Red banner; no further actions (terminal) |
+| `AdminCancelBookingSheet` confirm | `PATCH /v1/bookings/:id/cancel` → 200 | `cancelled` | Red banner; no further actions (terminal) |
 
 ### Button visibility per `actionState` — lifecycle panel
 
@@ -112,7 +112,7 @@ type ActionState =
 
 ## BFF calls
 
-Wire these via `apps/web/lib/api/bookings-staff.ts`. All calls require `Authorization: Bearer <jwt>` (handled by the BFF session layer).
+The real fetchers live in `apps/web/features/booking/api/booking.ts` (`apps/web/lib/api/bookings-staff.ts` never existed). All calls require `Authorization: Bearer <jwt>` (handled by the BFF session layer).
 
 ### Queue list (M125-S02)
 
@@ -147,16 +147,21 @@ Sort order: "Precisa de ação" by `scheduledAt ASC` (oldest request first, rega
 GET /v1/bookings/:id
 Header: X-Tenant-ID: {tenantId}
 
-Response: StaffBookingDetailResponse  (@ikaro/types — add in M125-S04)
+Response: StaffBookingDetailResponse  (@ikaro/types — packages/types/src/booking.dto.ts)
+The shape is flat (no nested `customer` object) and has grown well past the original M125-S04 draft.
+Core fields:
 {
-  id, status, scheduledAt, durationMinutes,
-  customer: { id, name, email, phone },
+  bookingId, status, scheduledAt, type: 'GUEST' | 'CUSTOMER',
+  contactName, contactEmail, contactPhone,
+  customerId: string | null,
   loyaltyBalance: number | null,   // from Loyalty context via BFF orchestration
-  lines: { serviceId, serviceName, price, durationMinutes, points }[],
+  lines: StaffBookingLineResponse[],
   infoRequestMessage: string | null,     // UC-005 field name (not informationNeeded)
   infoResponseMessage: string | null,    // UC-005 customer reply
   rejectionReason: string | null,
-  createdAt, approvedAt, rejectedAt, infoRequestedAt, infoSubmittedAt
+  approvedAt, approvedBy, completedAt, createdAt,
+  statusHistory: BookingStatusHistoryEntry[]   // replaces the per-transition rejectedAt/infoRequestedAt/infoSubmittedAt timestamps
+  // ... plus totals, photos, notes/adminNotes, resources, itinerary, attendees — see the DTO for the full list
 }
 ```
 
@@ -249,16 +254,16 @@ app/dashboard/bookings/[id]/page.tsx     ← Server component
 
 | Field | Rule | Source |
 |---|---|---|
-| Reject reason | max 200 chars | UC-004 |
-| Info request message | max 200 chars | UC-005 |
-| Reject reason minimum | none in MVP | User confirmed — no minimum enforced |
-| Admin cancel reason | optional, no minimum length | UC-008 (confirmed against `CancelBookingAsAdminBody` in the 2026-06-16 UC audit) |
-| Reschedule `adminNotes` | optional, freeform | UC-008 A1 |
-| Complete `lines[].actualPriceCharged` | required per line, `>= 0` | UC-009 |
-| Complete `afterServicePhotoUrls` | optional | UC-009 A3 — completion must work with zero photos |
-| Complete `adminNotes` | optional | UC-009 |
+| Reject reason | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(10)` | UC-004 |
+| Info request message | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(20)` | UC-005 |
+| Reject reason minimum | none in MVP | User confirmed — no minimum in the product spec; note the BFF schema (`RejectBookingBodySchema`) currently rejects anything under 10 trimmed characters |
+| Admin cancel reason | optional; BFF `reason: z.string().min(1).optional()` (web sheet `maxLength={200}`) | UC-008 (confirmed against `CancelBookingAsAdminBody` in the 2026-06-16 UC audit) |
+| Reschedule `adminNotes` | optional; BFF `.trim().min(1).max(500)` | UC-008 A1 |
+| Complete `lines[].actualPriceCharged` | required per line, `>= 0` (BFF: `z.number().nonnegative()`, `lines` min 1) | UC-009 |
+| Complete `afterServicePhotoUrls` | optional (BFF default `[]`); each item is a `tmp/<...>` staging path, not a URL | UC-009 A3 — completion must work with zero photos |
+| Complete `adminNotes` | optional; BFF `.trim().min(1).max(500)` | UC-009 |
 
-Validate client-side in the Sheet before calling the BFF. Show a char counter (`{chars}/200`) below each textarea.
+Bounds above are from `apps/bff/src/features/booking/bookings.schemas.ts`; the 200-char caps are client-side only. Validate client-side in the Sheet before calling the BFF and show a char counter (`{chars}/200`) below each textarea.
 
 ---
 

@@ -708,7 +708,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 |---|---|---|---|
 | GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`, incl. combined-basket screens; ✅ built — `M23-S31` alert button on the calendar step) |
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Reviewed |
-| GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Draft |
+| GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Built (M19-S11) |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
 | STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Reviewed |
@@ -720,13 +720,13 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Reviewed |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Reviewed |
 | MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Reviewed |
-| GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Reviewed |
-| CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Reviewed |
-| MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Draft |
+| GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Built (M20-S07, M20-S09) |
+| CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Built (M20-S09) |
+| MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Shipped (M20-S08) |
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
-| MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M23 Cluster 3) |
+| MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |
 | MANAGER — Turmas (Class Configuration & Enrollment Management) | `manager/turmas.md` | `manager/prototypes/turmas/` | Draft (M24 Cluster 4) |
 | STAFF — Turmas (Daily Class Operations) | `staff/turmas.md` | `staff/prototypes/turmas/` | Draft (M24 Cluster 4) |

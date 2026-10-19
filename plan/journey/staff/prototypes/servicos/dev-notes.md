@@ -24,56 +24,51 @@ No `[slug]` segment on any of these — the staff/manager dashboard is JWT/sessi
 
 | Action | Method + Path | Role guard | Request body | Success |
 |---|---|---|---|---|
-| List services | `GET /v1/services` | STAFF \| MANAGER | — | `ServiceListResponse` |
-| Get single service | `GET /v1/services/:id` | STAFF \| MANAGER | — | `ServiceDetailResponse` |
-| Create service | `POST /v1/services` | STAFF \| MANAGER | `CreateServiceDto` | `201 ServiceDetailResponse` |
-| Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceDto` | `200 ServiceDetailResponse` |
+| List services | `GET /v1/services` | STAFF \| MANAGER | — | `StaffServiceListResponse` |
+| Get single service | `GET /v1/services/:id` | STAFF \| MANAGER | — | `StaffServiceResponse` |
+| Get edit view | `GET /v1/services/:id/edit-view` | STAFF \| MANAGER | — | `StaffServiceEditViewResponse` |
+| Create service | `POST /v1/services` | STAFF \| MANAGER | `CreateServiceBody` | `201 StaffServiceResponse` |
+| Update service | `PATCH /v1/services/:id` | STAFF \| MANAGER | `UpdateServiceBody` | `200 StaffServiceResponse` |
 | Deactivate service | `DELETE /v1/services/:id` | STAFF \| MANAGER | — | `204` |
 | Activate service | `PATCH /v1/services/:id/activate` | STAFF \| MANAGER | — | `200` |
 
-All confirmed existing in `apps/bff/src/features/booking/services.controller.ts`.
+Routes confirmed in; request/response types are `CreateServiceBody`/`UpdateServiceBody` (BFF) and `StaffService*Response` (`packages/types/src/service.dto.ts`); see `apps/bff/src/features/booking/services.controller.ts`.
 
 ---
 
 ## DTO shapes (from code — verify before using)
 
 ```typescript
-// packages/types — extend if fields are missing
-interface ServiceListItem {
-  serviceId: string;
-  name: string;
-  description: string | null;
-  price: MoneyAmount;           // { amount: number, currency: 'BRL' }
-  durationMins: number;
-  loyaltyPointsValue: number;
-  requiresPickupAddress: boolean;
-  isActive: boolean;
-}
+// Response shapes: StaffServiceResponse / StaffServiceListResponse in packages/types/src/service.dto.ts
+//   (price: MoneyAmount, durationMinutes, loyaltyPointsValue, requiresPickupAddress, isActive,
+//    bookingModel, bufferAfterMinutes, classResourceSlots, ...). `ServiceListItem` is not a real type.
 
-interface ServiceListResponse {
-  items: ServiceListItem[];
-  total: number;
-}
-
+// Request bodies — real BFF schemas: apps/bff/src/features/booking/services.schemas.ts
 interface CreateServiceDto {
-  name: string;
+  name: string;                    // min(1)
   description?: string;
-  price: number;                // cents or float? verify Money VO
-  durationMins: number;
-  loyaltyPointsValue?: number;  // default 0
-  requiresPickupAddress?: boolean; // default false
-  isActive?: boolean;           // default true
+  priceAmount: number;             // positive()
+  durationMinutes: number;         // int, positive()
+  loyaltyPointsValue: number;      // int, >= 0 (required by the BFF schema)
+  requiresPickupAddress?: boolean;
+  isActive?: boolean;              // create only
+  bookingModel?: BookingModel;
+  classResourceSlots?: ClassResourceSlot[]; // max 20
 }
 
-interface UpdateServiceDto {
+interface UpdateServiceDto {       // every field optional; there is NO isActive here
   name?: string;
-  description?: string;
-  price?: number;
-  durationMins?: number;
+  description?: string | null;
+  priceAmount?: number;
+  durationMinutes?: number;
   loyaltyPointsValue?: number;
   requiresPickupAddress?: boolean;
-  isActive?: boolean;           // reactivation: set to true
+  bufferAfterMinutes?: number;     // int, >= 0
+  bookingModel?: BookingModel;
+  classResourceSlots?: ClassResourceSlot[]; // required when the same request converts bookingModel to SESSION
 }
+// Reactivation is PATCH /v1/services/:id/activate; deactivation is DELETE /v1/services/:id.
+// The edit page also reads GET /v1/services/:id/edit-view (services.controller.ts).
 ```
 
 ---
@@ -93,16 +88,18 @@ const filtered = services.filter(s => {
 
 ## Form validation (UC-012 + UC-013)
 
+Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `priceAmount` positive(), `durationMinutes` int positive(), `loyaltyPointsValue` int >= 0. The tighter bounds below are client-side only (web form: `ServiceFormFields.tsx` caps name at 100 and description at 500 via `maxLength`):
+
 ```typescript
-// Zod v4 schema
+// Zod v4 schema — client-side form (illustrative; field names map to the BFF's priceAmount/durationMinutes)
 const ServiceFormSchema = z.object({
   name:                  z.string().min(2).max(100),
   description:           z.string().max(500).optional(),
-  price:                 z.number().min(0),
-  durationMins:          z.number().int().min(1).max(480),
+  priceAmount:           z.number().positive(),
+  durationMinutes:       z.number().int().min(1).max(480),
   loyaltyPointsValue:    z.number().int().min(0).optional().default(0),
   requiresPickupAddress: z.boolean().optional().default(false),
-  isActive:              z.boolean().optional().default(true),
+  isActive:              z.boolean().optional().default(true), // create form only
 });
 ```
 
@@ -121,7 +118,7 @@ const ServiceFormSchema = z.object({
 
 ## Price field — `Money` VO handling
 
-The backend `price` field is a `Money` value object with `{ amount, currency }`. The BFF returns it as `{ amount: number, currency: 'BRL' }`. The create/update DTO likely accepts `price` as a plain number (cents or BRL float — **verify before implementing**). Show `R$ {price.amount.toFixed(2).replace('.', ',')}` in the UI.
+The backend `price` field is a `Money` value object with `{ amount, currency }`. The BFF returns it as `{ amount: number, currency: 'BRL' }`. The create/update body sends it as `priceAmount` (a positive plain number, in BRL). Show `R$ {price.amount.toFixed(2).replace('.', ',')}` in the UI.
 
 ---
 

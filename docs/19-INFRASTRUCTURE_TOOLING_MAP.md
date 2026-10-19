@@ -17,6 +17,9 @@ This map identifies each maintained tool and its authority. Exact resource value
 | GCS | Booking and hotsite objects | Terraform storage module; tenant-prefixed paths |
 | Secret Manager | Runtime credentials and application secrets | Terraform secrets module and environment roots |
 | Artifact Registry | Immutable application and collector images | Terraform registry resources and deploy workflows |
+| VPC network | VPC, subnet with Private Google Access, Cloud SQL private peering, default-deny ingress | `infra/terraform/modules/network/` |
+| Edge (production only) | Global external load balancer, serverless NEGs and Cloudflare DNS in front of web and BFF | `infra/terraform/modules/edge/` |
+| Relay VM (on demand) | IAP-only VM inside the VPC, the way a developer reaches Cloud SQL's private IP and the internal backend; inert unless enabled | `infra/terraform/modules/relay-vm/`, `scripts/relay-vm-up.sh`, `scripts/relay-vm-down.sh`, `docs/RUNBOOKS.md` |
 
 The deployed region and repository are defined in Terraform. The current application registry is `ikaro-registry` in `southamerica-east1`.
 

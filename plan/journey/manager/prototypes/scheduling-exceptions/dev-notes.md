@@ -54,6 +54,8 @@ The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave
 ```
 GET /v1/scheduling-exceptions/count        (NEW at S14 — MANAGER) → { count: number }   the sidebar badge
 
+GET /v1/scheduling-exceptions/by-booking/:bookingId   (M23-S46 — MANAGER) → same list shape, the open entries of one booking with alternatives (booking detail's decision panel)
+
 GET /v1/scheduling-exceptions?status=OPEN
   Header: Authorization: Bearer {jwt}   (MANAGER)
   Response: { items: [{ id, sourceType, sourceId, affectedType, affectedId, status, alternatives: [{ resourceId, resourceName }],
@@ -114,7 +116,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 - **The "Reservas a resolver" nav item is built** (sidebar below "Agenda" + mobile "Mais" sheet, with the open-count badge from `GET /scheduling-exceptions/count`); the route is wired into `proxy.ts`, `BottomNav`, `topbar-route` and its own `layout.tsx`.
 - **Card link target (redrawn 2026-10-15, M23-S46):** every card opens `staff/prototypes/agenda/03j-booking-detail-precisa-decisao.html`, the detail of a booking that needs a decision (banner plus the manager's decision panel), not the normal detail. The prototype has only the approved variant, so the pending card (Ana Costa) opens it too; the real pending detail has the same banner and panel without Reagendar.
 - **Back navigation (built):** the card opens `/dashboard/bookings/{id}?returnTo=/dashboard/scheduling-exceptions`, so the detail page's back arrow returns to the worklist, not to the booking queue.
-- **Reactivating the original resource does not close its entries yet** (the entry stays open until `M23-S45`, which closes the reactivated resource's own entries); until then the manager uses Reagendar or Cancelar. Reactivating a *different* resource does show it as an alternative on the next read.
+- **Reactivating the original resource closes its entries** (`M23-S45`): `ReactivateResourceUseCase` dismisses the resource's still-open `RESOURCE_DEACTIVATION` entries, so they leave the worklist without a manager action. Reactivating a *different* resource does show it as an alternative on the next read.
 - **Reagendar cannot work on a booking whose customer chose the deactivated resource** (the reschedule keeps that pick); the row still shows the link and the error is the only feedback. Hiding it needs a per-item flag, not decided.
 - **Time and resource cannot be changed together:** with a customer-chosen resource and no free alternative at that time, only Cancelar is left. Not decided.
 - **A booking that needs a decision shows none of its normal action buttons on its queue card or its detail** (see `staff/prototypes/agenda/dev-notes.md` § "UC-073 / UC-077 — A booking that needs a decision is marked"). It can be resolved here, in bulk, or one at a time from the MANAGER's decision panel on the booking's own detail (`03j`), which reuses this page's `ReassignSheet`, `CancelSheet` and reschedule route (M23-S46; the reschedule route's own `returnTo` decides where the manager lands afterwards).

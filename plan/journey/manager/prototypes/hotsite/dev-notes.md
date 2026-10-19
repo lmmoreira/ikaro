@@ -8,7 +8,7 @@
 
 ## Overview
 
-Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via `/uc-audit UC-026,UC-027,UC-028,UC-029`, 2026-06-16). This is a **frontend-only** gap. Branding scope was expanded beyond the original UC text — see "Branding field set" below — per explicit user decision during the audit (2026-06-16): cover every field the aggregate already supports, not just the original 4.
+Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via `/uc-audit UC-026,UC-027,UC-028,UC-029`, 2026-06-16). All of it is shipped (the editor is built at `/dashboard/hotsite`). Branding scope was expanded beyond the original UC text — see "Branding field set" below — per explicit user decision during the audit (2026-06-16): cover every field the aggregate already supports, not just the original 4.
 
 ---
 
@@ -16,10 +16,10 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 
 | Prototype file | Production route | Page component |
 |---|---|---|
-| `01-hotsite-editor.html` | `/{slug}/dashboard/hotsite` | `HotsitePage` (tabbed: Branding / Layout / SEO) |
+| `01-hotsite-editor.html` | `/dashboard/hotsite` (no `[slug]` segment) | `HotsiteEditor` (tabbed: Branding / Layout / SEO / Manifest) |
 | `01d-module-config-hero.html` | drill-down within editor (no separate route, modal/sheet likely) | `ModuleConfigPanel` (HERO variant) |
 | `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (shipped `M19-S12`) |
-| `02-preview.html` | `/{slug}/dashboard/hotsite/preview` or iframe overlay | `HotsitePreview` |
+| `02-preview.html` | in-editor preview (no separate app route; see "preview semantics" below) | `HotsitePreview` |
 
 ---
 
@@ -31,9 +31,13 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 | Update branding/layout/SEO | `PATCH /tenants/hotsite` | MANAGER |
 | Publish | `POST /tenants/hotsite/publish` | MANAGER |
 | Unpublish | `POST /tenants/hotsite/unpublish` | MANAGER |
+| Generate image upload URL | `POST /tenants/hotsite/images/signed-url` | MANAGER |
+| Generate image read URL | `POST /tenants/hotsite/images/read-signed-url` | MANAGER |
+| Feature a booking photo in the gallery | `POST /tenants/hotsite/gallery/feature-booking-photo` | MANAGER |
+| Delete image | `POST /tenants/hotsite/images/delete` | MANAGER |
 | Chatbot cap status (new, feeds the `01e` red banner) | `GET /v1/tenants/chatbot/cap-status` → `{ dailyCapReachedToday: boolean }` | MANAGER |
 
-All four (branding/layout/publish/unpublish) exist in `apps/bff/src/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` shipped in `M19-S10`; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status, which reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
+All of the `tenants/hotsite` endpoints exist in `apps/bff/src/features/platform/hotsite-admin.controller.ts`, proxying `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.ts`. `.http` coverage confirmed on both sides. `GET /v1/tenants/chatbot/cap-status` shipped in `M19-S10`; per `docs/14-API_CONTRACTS.md` § Chatbot Cap Status, which reuses the identical per-tenant daily-cap `COUNT` query `POST /public/platform/chatbot/messages` already runs for cap enforcement, not a new counting mechanism.
 
 ---
 

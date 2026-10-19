@@ -32,7 +32,7 @@ We distinguish between two types of users to balance flexibility for customers a
 Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and cost-effectiveness, but enforces isolation through strict software patterns.
 
 ### **Logical Isolation (tenant_id)**
-- **Every Table:** Every single table in the database includes a `tenant_id` column, except the documented exemptions below (`shared.inbox`, which carries none, and `platform.chatbot_provider_balance`, platform-operator data).
+- **Every Table:** Every single table in the database includes a `tenant_id` column, except the documented exemptions below (`shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself).
 - **Query Pattern:** Every query **MUST** include a `tenant_id` filter.
   ```sql
   -- CORRECT
@@ -78,8 +78,8 @@ All events emitted by the system include the `tenant_id`.
 ```json
 {
   "eventName": "BookingCompleted",
-  "tenantId": "autowash-pro-001",
-  "payload": { "bookingId": "..." }
+  "tenantId": "<tenant uuid>",
+  "data": { "bookingId": "..." }
 }
 ```
 **Subscribers** must only process events that match their own tenant context or explicitly handle multi-tenancy (e.g., Notification service).
@@ -91,7 +91,7 @@ All events emitted by the system include the `tenant_id`.
 > Storage, logs and branding. Not related to the Booking context's `Resource` aggregate (people/rooms/equipment) — that one's tenant scoping follows the ordinary row-level rules in §2.
 
 - **File Storage:** Photos are stored in paths prefixed by the tenant: `/storage/tenant_a/bookings/photo_1.jpg`.
-- **Logs & Metrics:** Every log entry and Prometheus metric includes a `tenant_id` label for granular monitoring and debugging.
+- **Logs & Metrics:** Log entries carry `tenantId` (added by the logger's request-context enrichment) for granular monitoring and debugging. The apps emit no application-level metrics of their own yet — only OpenTelemetry auto-instrumentation (`packages/observability/src/otel-tracing.ts`) — so there is no per-tenant metric label today.
 - **Branding:** Email templates and hotsite content are fetched dynamically based on the `tenant_id`.
 
 ---
@@ -101,7 +101,7 @@ All events emitted by the system include the `tenant_id`.
 | Aspect | Customer | Staff |
 |--------|----------|-------|
 | **Tenancy** | Multi-tenant | Multi-tenant |
-| **Google ID** | Shared across records (no unique constraint) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
+| **Google ID** | Shared across records (not unique across tenants; each `(tenant_id, google_oauth_id)` pair is unique) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
 | **Login Flow** | Selection screen (if 2+) | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
 | **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
 | **Switching** | Allowed | Allowed |

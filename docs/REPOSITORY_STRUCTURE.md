@@ -29,7 +29,7 @@
 │   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
 ├── docker/               # Dockerfiles + docker-compose.yml (local dev)
-├── .copilot/context.md   # canonical agent context (symlinked as claude.md, CLAUDE.md, gemini.md)
+├── .copilot/context.md   # canonical agent context (symlinked as AGENTS.md, CLAUDE.md, gemini.md)
 └── docs/                 # source of truth documentation (see CLAUDE.md §10)
 ```
 
@@ -83,8 +83,8 @@ apps/backend/src/shared/
 │                     # localDayBounds*), escapeLikePattern, escapeHtml, redact-email/storage-path-for-logging, text-normalization —
 │                     # `ls apps/backend/src/shared/utils/` is the authoritative list
 ├── request/          # RequestContext (request-scoped), RequestInterceptor
-├── observability/    # Logger, OTel tracer, structured log helpers
-├── http/             # Pagination DTOs, RFC 9457 ProblemDetail base type
+├── observability/    # app-logger only (BaseAppLogger subclass); OTel/tracing code lives in packages/observability and apps/backend/src/tracing.ts
+├── http/             # Shared validation-error mappers (address, VO); the RFC 9457 ProblemDetail type lives in packages/types
 ├── guards/           # role guards used by more than one context
 ├── decorators/       # cross-cutting decorators (e.g. @Public())
 ├── filters/          # cross-cutting exception filters (RFC 9457 error filter)
@@ -186,7 +186,7 @@ apps/web/
 ### Web placement rules
 
 - Domain-owned code lives under `features/<domain>/`.
-- Feature-local transport helpers use a normalized API folder: `features/<domain>/api/<resource>.ts` for client-safe code and `features/<domain>/api/<resource>.server.ts` for server-only code.
+- Feature-local transport helpers: `customer` and `loyalty` use flat `api.ts` (client-safe) and `api.server.ts` (server-only) at the feature root, and `auth` only a flat `api.ts`; `booking` and `staff` use an `api/` folder with `<resource>.ts` / `<resource>.server.ts` files; `platform` has both the flat files and an `api/` folder. Follow the convention of the feature you are editing.
 - Feature-local non-transport shared logic belongs in sibling folders such as `model/`, `hooks/`, `components/`, or `utils/`, depending on the concern.
 - `features/platform/hotsite` owns hotsite page-model logic, manifest shaping, and public fetchers.
 - `shells/dashboard` owns authenticated dashboard composition and shell-only presentation.
@@ -202,7 +202,7 @@ apps/web/
 
 ## Guard placement
 
-- **`src/shared/guards/`** - role guards that enforce the `X-Actor-Role` header contract across multiple contexts (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`). Every guard has its own `.spec.ts`.
+- **`src/shared/guards/`** - guards used across multiple contexts: the role guards that enforce the `X-Actor-Role` header contract (`CustomerRoleGuard`, `ManagerRoleGuard`, `StaffOrManagerRoleGuard`, `AnyAuthenticatedRoleGuard`) and the service-to-service guards (`InternalApiGuard`, `PubSubPushGuard`). Every guard has its own `.spec.ts`.
 - **`src/contexts/<context>/infrastructure/guards/`** - guards with domain-specific logic tied to one context (e.g. `PlatformAdminGuard` which injects `ConfigService`). These stay local.
 - Never import a guard from another context's `infrastructure/guards/` path - that is a context-isolation violation.
 

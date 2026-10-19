@@ -20,15 +20,21 @@ Never commit credentials or service-account keys. CI authenticates to GCP throug
 
 | Path | Responsibility |
 |---|---|
-| `infra/terraform/foundation/` | Shared/project prerequisites and identities |
+| `infra/terraform/foundation/` | Separate control plane with its own `modules/` (`control-plane`, `custom-roles`, `project-services`, `runtime-identities`, `static-resource-iam`, `workload-iam`) and `envs/{staging,prod}`: project APIs, custom roles, runtime identities and IAM grants; also hosts the on-demand `relay-vm` module in both `envs/staging` and `envs/prod` (inert while `create_relay_vm = false`) |
 | `infra/terraform/envs/staging/` | Staging environment resources |
 | `infra/terraform/envs/prod/` | Production environment resources |
-| `infra/terraform/modules/` | Reusable infrastructure modules |
+| `infra/terraform/modules/` | Reusable infrastructure modules: `cloudrun-service`, `database`, `edge` (prod only), `migrate-job`, `monitoring`, `network`, `pubsub`, `registry` (prod only), `relay-vm`, `scheduler`, `secrets`, `storage` |
+| `infra/terraform/pubsub-catalog.json` | Generated event/consumer catalog the `pubsub` module reads (topics, subscriptions, DLQs) |
 | `infra/docker/otel-collector/` | Collector image and telemetry pipelines |
 | `.github/workflows/foundation-deploy.yml` | Foundation planning/deployment |
 | `.github/workflows/infra-deploy.yml` | Environment infrastructure planning/deployment |
 | `.github/workflows/deploy-staging.yml` | Application staging deployment |
 | `.github/workflows/deploy-production.yml` | Protected production promotion |
+| `.github/workflows/rollback-production.yml` | Manual emergency rollback of a production service |
+| `.github/workflows/pr-quality.yml` | PR quality gates (lint, type-check, architecture validation, Terraform env-contract and `pubsub-catalog` checks) |
+| `.github/workflows/pr-tests.yml` | PR test and security gates (unit, integration, E2E, Gitleaks, Trivy, Checkov, Sonar) |
+| `.github/workflows/weekly-jobs.yml` | Weekly security and quality baseline — three jobs: `trivy-unfixed` (full Trivy scan), `sonarcloud` (branch scan with `-Dsonar.qualitygate.wait=false`) and `snyk-sca` |
+| `.github/workflows/build-otel-collector.yml` | Collector sidecar image build |
 
 ## Provisioning order
 

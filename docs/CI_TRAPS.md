@@ -51,7 +51,7 @@ The chained forms are deprecated in Zod v4. ESLint and SonarCloud both flag them
 
 | Trap | Details |
 |------|---------|
-| Line > 80 chars | Prettier enforces 80-char max — break chained calls at each `.` |
+| Line > 100 chars | Prettier enforces `printWidth: 100` — break chained calls at each `.` |
 | Import not sorted | Prettier/ESLint auto-orders imports — don't manually reorder |
 | Trailing comma missing | Prettier adds trailing commas in multi-line — let it |
 
@@ -67,7 +67,7 @@ Run `pnpm prettier --write .` locally before committing. Never fix Prettier issu
 | `@ts-ignore` | Banned | Fix the underlying type error |
 | Passing `AddressProps` where `Address` VO is expected | Type mismatch | Use `Address.create({ ...dto.address, complement: dto.address.complement ?? undefined })` |
 | `complement: string \| null \| undefined` passed to VO | VO `create()` expects `string \| undefined` | Normalise: `complement: dto.complement ?? undefined` |
-| `testAddress()` return type | Returns `AddressProps` (plain object), not `Address` VO | Pass directly to use case DTO; don't pass to `Address.create()` |
+| `testAddress()` return type | Returns an `Address` VO (`testAddressProps()` returns the plain `AddressProps`) | For a use case DTO that takes raw props, use `testAddressProps()`; don't pass `testAddress()` to `Address.create()` |
 
 ---
 
@@ -174,7 +174,7 @@ curl -s -u "$SONAR_TOKEN:" "https://sonarcloud.io/api/duplications/show?key=<pro
 | Symptom | Root cause | Fix |
 |---------|-----------|-----|
 | A one-line, obviously-safe fix (e.g. adding `readonly`) fails `new_coverage` or `new_duplicated_lines_density` | The touched file already had 0% coverage, or the touched line sits inside a large pre-existing duplicate block (common between near-identical parallel implementations, e.g. backend/bff having their own copy of the same small class) — the gate only "sees" the problem once that line becomes part of the diff | Use the API calls above to find the exact file/line before changing anything else. If it's a real coverage hole, add a test for the touched code path (check branch coverage too — `new_uncovered_conditions`, not just line coverage). If it's pre-existing duplication between files that shouldn't be merged into this PR's scope, revert that specific edit and track the duplication as its own TD instead of forcing a refactor into an unrelated PR. |
-| `new_coverage` fails on a new file, but every line is verifiably covered locally — confirmed via a from-scratch `git worktree` + `pnpm install --frozen-lockfile` reproduction matching CI exactly | The new/changed code lives in a directory excluded from `sonar.sources` and/or not fed into `sonar.javascript.lcov.reportPaths` — its real coverage is invisible to the gate entirely. `packages/*` is excluded by default in this repo (only `apps/backend/src`, `apps/bff/src`, `apps/web` are wired in) since `packages/types`/`packages/config` never needed coverage tracking (type-only/config-only) | If the new code is a `packages/*` package with real runtime logic and its own test suite, add it to `sonar.sources` + `sonar.tests`, add its `coverage/lcov.info` to `sonar.javascript.lcov.reportPaths`, and add a `pnpm --filter <pkg> test:cov` step to every coverage-generating workflow (`pr-tests.yml` runs the per-package `test:cov` and the SonarCloud scan; `weekly-jobs.yml` runs the scheduled scan) — see the `packages/observability` PR for the exact diff |
+| `new_coverage` fails on a new file, but every line is verifiably covered locally — confirmed via a from-scratch `git worktree` + `pnpm install --frozen-lockfile` reproduction matching CI exactly | The new/changed code lives in a directory excluded from `sonar.sources` and/or not fed into `sonar.javascript.lcov.reportPaths` — its real coverage is invisible to the gate entirely. `packages/*` is excluded by default in this repo (wired in: `apps/backend/src`, `apps/bff/src`, `apps/web`, plus `packages/observability`, `packages/env-validation` and `packages/validation`) since `packages/types`/`packages/config` never needed coverage tracking (type-only/config-only) | If the new code is a `packages/*` package with real runtime logic and its own test suite, add it to `sonar.sources` + `sonar.tests`, add its `coverage/lcov.info` to `sonar.javascript.lcov.reportPaths`, and add a `pnpm --filter <pkg> test:cov` step to every coverage-generating workflow (`pr-tests.yml` runs the per-package `test:cov` and the SonarCloud scan; `weekly-jobs.yml` runs the scheduled scan) — see the `packages/observability` PR for the exact diff |
 | The "SonarCloud Analysis" check shows green / Quality Gate status is `OK`, but `sonarcloud.io`'s Issues tab still lists open MINOR/LOW-impact issues on the PR (e.g. `S7735` "Unexpected negated condition") | The default Sonar way gate only fails when a **new-code rating** (reliability/security/maintainability) drops below A; a rating of A tolerates some MINOR/LOW-severity issues. `sonar.qualitygate.wait=true` makes the scanner watch that rating only — it does not enforce "zero new issues" by itself | The `sonar` job in `pr-tests.yml` has its own "Fail on any new SonarCloud issue" step — a separate `curl` to `/api/issues/search?statuses=OPEN,CONFIRMED` that fails the job if `.total > 0`. This is the actual zero-new-issues enforcement; the gate rating is necessary but not sufficient. Don't remove this step assuming the gate already covers it — it was removed once on that exact (incorrect) assumption in AUD-024 and had to be restored during the M13-S13 PR #48 review after 2 MINOR issues slipped through a green gate. |
 | A PR-blocking SonarCloud MINOR/LOW issue is reported on a line that, diffed against the base commit, is byte-identical to before your change | The zero-new-issues gate (row above) determines "new" via SCM blame, not semantic diffing. Rewriting a whole file with a single `Write` (instead of targeted `Edit`s) makes git attribute every line — including untouched ones — to the latest commit, so pre-existing debt on those lines surfaces as a "new" finding | Diff the flagged line against the pre-change commit (`git show <base-sha>:<path>`) before assuming you introduced it. If it's genuinely pre-existing and just misattributed, fix it anyway — it's real debt and the gate won't pass otherwise — but don't waste time hunting for what you broke. To avoid the misattribution recurring, prefer `Edit` over a full-file `Write` when refactoring a file that has unchanged sections, so git's diff preserves blame on the unchanged lines. |
 | `new_duplicated_lines_density` fails on a PR | The PR introduced a duplicate block that is still counted in the live analysis, even if the code looks cleaner locally | Find the exact duplicated files/lines with `duplications/show`, extract the shared logic into one reusable component/helper, or remove one side entirely. If the duplicate lives across two parallel implementations, the right fix is usually a shared abstraction plus both call sites updated to use it. |
@@ -330,7 +330,7 @@ export default MockLink;
 
 Remove every per-file `vi.mock('next/link', ...)` that used JSX — the global alias takes over automatically.
 
-**Packages already aliased in `vitest.config.ts`:** `next/font/google`, `next/image`, `next/link`.
+**Packages already aliased in `vitest.config.ts`:** `next/font/google`, `next/image`, `next/link`, `client-only`, `server-only`.
 
 **Rule:** if you need to mock any external package whose factory would return a React component (JSX), **do not** write `vi.mock('package', () => ({ default: () => <...> }))`. Check `apps/web/__mocks__/` first; if no mock exists, create one using `React.createElement` and wire it in `vitest.config.ts`. JSX belongs in the component file, not in a mock factory.
 
@@ -338,7 +338,7 @@ Remove every per-file `vi.mock('next/link', ...)` that used JSX — the global a
 
 ## Pre-push hook failures (`ci:fast`)
 
-`ci:fast` = `pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm architecture-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit` (TD37-S22, 2026-09-01: added `pnpm architecture-check` after `type-check` — full-codebase static architecture validation now runs at push time, not just in a separate CI job)
+`ci:fast` = `pnpm build:test-deps && pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm architecture-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit` (TD37-S22, 2026-09-01: added `pnpm architecture-check` after `type-check` — full-codebase static architecture validation now runs at push time, not just in a separate CI job)
 
 Runs automatically on `git push`. Fix these before re-pushing.
 
@@ -394,7 +394,7 @@ SonarCloud gates on ≤ 3% duplicated lines on **new code**. A private method du
 
 **Per-class boilerplate counts too (M23-S36):** four handlers that each copied the same constructor + logger field + `handle()` body (24 lines) drove `new_duplicated_lines_density` to 9.3% against the 3% gate, even though every handler's own subscribe list was different. Put the shared half in a base class (`AuditLogHandlerBase`) and keep only the per-class parts in each subclass. Check the per-file numbers before reasoning about *where* the duplication is: `curl -s "https://sonarcloud.io/api/measures/component_tree?component=lmmoreira_ikaro&pullRequest=<N>&metricKeys=new_duplicated_lines,new_lines&qualifiers=FIL&ps=50"` — a bot review can name the wrong block (it blamed the subscribe calls; loyalty's whole subscribe block is 5 lines, yet the file showed 24 duplicated).
 
-**Sibling use cases count too (M23-S28):** the three customer-email use cases for the recurring-schedule events each repeated the same constructor, template lookup, customer and service resolution, skip guard and dispatch: 141 duplicated lines, 5.9% against the 3% gate, with SonarCloud reporting 0 open issues throughout (only the gate failed). They now extend `BaseRecurringScheduleCustomerNotificationUseCase`, which holds the flow and leaves each subclass its input type and two hooks (`templateKeyFor`, `extraVariables`): the template-method shape of `BaseBookingReminderNotificationUseCase` (`docs/AGENT_PATTERNS.md` #23). When writing the second sibling of a flow, ask whether a third will copy it, and extract before pushing.
+**Sibling use cases count too (M23-S28):** the three customer-email use cases for the recurring-schedule events each repeated the same constructor, template lookup, customer and service resolution, skip guard and dispatch: 141 duplicated lines, 5.9% against the 3% gate, with SonarCloud reporting 0 open issues throughout (only the gate failed). They now extend `BaseRecurringScheduleCustomerNotificationUseCase`, which holds the flow and leaves each subclass its input type and two hooks (`templateKeyFor`, `variablesFor`): the template-method shape of `BaseBookingReminderNotificationUseCase` (`docs/AGENT_PATTERNS.md` #23). When writing the second sibling of a flow, ask whether a third will copy it, and extract before pushing.
 
 **Cross-app exception:** removing a translation/mapping layer between two systems that previously used different naming conventions (e.g. a BFF dropping its snake_case↔camelCase translation once the backend itself switched to camelCase — M13-S10) can make their validation schemas become textually near-identical, even though nothing is functionally duplicated — each app independently re-validates the same business rules for a legitimate reason (the BFF gives fast feedback before round-tripping to the backend; the backend stays authoritative). Reuse `@ikaro/validation` where both apps can safely share the exact validation contract. Do not add a Sonar CPD exclusion merely to preserve an accidental duplicate; any intentional exception must be explicitly justified in the PR and remain narrow.
 
@@ -576,7 +576,7 @@ Before every `git commit`, verify:
 - [ ] `dto.x !== undefined ?` patterns → replaced with `??` or positive `=== undefined` branch
 - [ ] No nested ternaries — use `if/else`
 - [ ] No `z.string().uuid()` or `z.string().email()` — use `z.uuid()`, `z.email()`
-- [ ] Lines ≤ 80 chars — run `pnpm prettier --write .`
+- [ ] Lines ≤ 100 chars — run `pnpm prettier --write .`
 - [ ] Every generated ID uses `uuidv7()` — not `Date.now()`, not fixed strings
 - [ ] Slugs in integration tests are unique: `` `prefix-${uuidv7()}` ``
 - [ ] `RequestModule` in context module `imports[]` (not just the test app)

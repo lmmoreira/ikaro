@@ -29,13 +29,14 @@ This file is the fix: one schema, referenced everywhere. A new rule gets added o
 ### Core fields (every story, no exceptions)
 
 ```
-**Agent:** backend-ts | bff-ts | frontend-ts | web-ts | devops
+**Agent:** backend-ts | bff-ts | frontend-ts | web-ts | fullstack-ts | devops
 **Complexity:** S | M | L
 **Docs to load:** <doc path + § section, every one this story actually needs>
 **Dependencies:** <story IDs, own file or cross-TD/milestone — "none" if foundational>
 **Pattern:** <named architectural/GoF pattern, or "plain composition — no named pattern applies">
 ```
 
+- `Agent:` takes one value from the list, or a compound `a + b` (e.g. `backend-ts + bff-ts`, `devops + backend-ts`) when a story spans both; real files use the compound form widely.
 - Field name is **`Agent:`**, not `Agent target:` — matches every real file (`M20-S15`, `M12-S04`, `M17-S17`); the latter was a drafting-template-only variant, now retired.
 - `Pattern` is mandatory, not optional prose buried in the description. It's already required by `/story-discovery`'s Step 4q lock-in and `/create-td`'s own Step 6 self-dry-run — this just gives it a first-class line so it can't be silently skipped.
 
@@ -121,7 +122,7 @@ and add the Infra-specific fields below.
 ```
 
 - **IAM / permissions table**: required whenever the story grants roles. Note explicitly which bindings target a resource this story's own Terraform can't yet reference (created by a later/dependency story) — Terraform can't grant IAM on something that doesn't exist (`M17-S17`/`S18`/`S19` precedent).
-- **Live-verification check**: required for any story touching Terraform, IAM, Pub/Sub, or CI/CD — `CLAUDE.md` §9 Step 5 item 6 is explicit that "tests pass, bots clean" is insufficient for this category (three separate incidents — M19-S02, S07, S08 — each merged clean and broke on real deploy). A failed or un-runnable check is its own stuck condition, not something the merge review is expected to catch by reading source.
+- **Live-verification check**: required for any story touching Terraform, IAM, Pub/Sub, or CI/CD — the "Infra-touching stories — live-verification gate" item in `CLAUDE.md`'s autonomous implementation chain is explicit that "tests pass, bots clean" is insufficient for this category (three separate incidents — M19-S02, S07, S08 — each merged clean and broke on real deploy). A failed or un-runnable check is its own stuck condition, not something the merge review is expected to catch by reading source.
 - **PR sequence**: required whenever `Files to create/modify` spans `foundation/**` + any other `infra/terraform/**` path (CI-enforced, no escape hatch — TD39), or `infra/terraform/**` + `apps/**`/`packages/**` (CI-enforced, `infra-app-mix-ok` label escape hatch for genuinely coupled cases — TD30). If the story's shape doesn't match an existing playbook row, that's a signal to add a new row to `infra/terraform/README.md` first (via the doc gate), not to freehand a sequence. `PR sequence`'s per-PR ordering is distinct from the story-level `Dependencies` field: `Dependencies` orders stories against each other; `PR sequence` orders PRs *within* this one story (e.g. PR2's Foundation grant can't apply until PR1's `envs/*` change is live).
 
 ---
@@ -131,7 +132,7 @@ and add the Infra-specific fields below.
 ```
 ### <ID> — <Title> [confidence marker] [status]
 
-**Agent:** backend-ts | bff-ts | frontend-ts | web-ts | devops
+**Agent:** backend-ts | bff-ts | frontend-ts | web-ts | fullstack-ts | devops
 **Complexity:** S | M | L
 **Docs to load:** ...
 **Dependencies:** ...

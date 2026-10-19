@@ -2,8 +2,8 @@
 
 **Actor(s):** MANAGER
 **Goal:** Invite new staff members and deactivate departing ones, keeping the team list authoritative for the tenant
-**UCs covered:** UC-028, UC-029
-**Status:** Draft
+**UCs covered:** UC-028, UC-029, UC-030, UC-031
+**Status:** Reviewed
 
 ## Flow
 

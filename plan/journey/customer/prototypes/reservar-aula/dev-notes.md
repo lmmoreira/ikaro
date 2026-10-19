@@ -3,7 +3,7 @@
 **Journey:** CUSTOMER — Reservar Aula (Turmas)
 **UCs:** UC-085 (browse), UC-086/087 (book), UC-090 (waitlist), UC-093 (enroll)
 **Prototype:** `customer/prototypes/reservar-aula/`
-**Status:** ❓ Gap — M21 Cluster 4, no story assigned yet. Relocated from `docs/discovery/multivertical-booking/prototype/customer-reservaraula-*.html`.
+**Status:** ❓ Gap — M24 Cluster 4, stories `M24-S17`, `M24-S18`. Relocated from `docs/discovery/multivertical-booking/prototype/customer-reservaraula-*.html`.
 
 ## File map (❓ none exist yet)
 
@@ -53,5 +53,5 @@ POST /v1/recurring-enrollments
 
 ## Open questions / gaps
 
-- [ ] No story exists yet — needs `/story-discovery` once the M21 milestone file is drafted.
+- [x] Stories exist: `M24-S17`, `M24-S18` — each still begins with `/story-discovery`.
 - [ ] Whether `ReservaTypePicker` is a real intermediate page or a client-side branch within `ClassCatalogPage` is a routing decision for the implementing story.

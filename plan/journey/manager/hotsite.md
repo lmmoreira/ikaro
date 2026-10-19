@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Customize the public hotsite's branding (colors, fonts, button style) and content modules (toggle/reorder/configure), set SEO overrides, and publish changes live
 **UCs covered:** UC-027
-**Status:** Draft
+**Status:** Reviewed
 
 ## Flow
 
@@ -18,7 +18,7 @@ flowchart TD
     Editor --> ToggleModule(("Liga/desliga módulo"))
     Editor --> ReorderModule(("Arrasta para reordenar"))
     Editor --> ConfigModule(("Click 'Configurar' em um módulo (M13-S36)"))
-    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (9 tipos)"]
+    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (10 tipos)"]
     ModuleConfigPanel --> Editor
     Editor --> EditSeo(("Edita título/descrição SEO"))
 
@@ -53,7 +53,7 @@ flowchart TD
     class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfigPanel existing
 ```
 
-**Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. **Resolved** — `01-hotsite-editor.html` was already updated the same day (2026-07-31) to add all of this (see its inline "adicionado 2026-07-31" comments). **Module count updated again 2026-08-08:** now 9 (`CHATBOT` added — promoted from `docs/04-USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`, UC-027 Section B, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped 2026-08-18 (`M19-S12`):** `ChatbotConfigPanel.tsx` completes the 9th module type's config panel — see "Open questions / gaps" below. **Module count updated again 2026-08-23:** now 10 (`LEAD_FORM` added — promoted from `docs/04-USE_CASES.md` UC-037–UC-043 via `/discovery-to-milestone`, UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Draft — not yet shipped. Its own config panel and prototype screens are documented in a separate journey file, not this one: `manager/lead-form-config.md` / `manager/prototypes/lead-form/` — cross-referenced here rather than duplicated, since UC-037 is a standalone use case, unlike CHATBOT's UC-027 Section B.
+**Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. **Resolved** — `01-hotsite-editor.html` was already updated the same day (2026-07-31) to add all of this (see its inline "adicionado 2026-07-31" comments). **Module count updated again 2026-08-08:** now 9 (`CHATBOT` added — promoted from `docs/04-USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`, UC-027 Section B, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped 2026-08-18 (`M19-S12`):** `ChatbotConfigPanel.tsx` completes the 9th module type's config panel — see "Open questions / gaps" below. **Module count updated again 2026-08-23:** now 10 (`LEAD_FORM` added — promoted from `docs/04-USE_CASES.md` UC-037–UC-043 via `/discovery-to-milestone`, UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Shipped (`M20-S07` teaser module, `M20-S08` config panel). Its own config panel and prototype screens are documented in a separate journey file, not this one: `manager/lead-form-config.md` / `manager/prototypes/lead-form/` — cross-referenced here rather than duplicated, since UC-037 is a standalone use case, unlike CHATBOT's UC-027 Section B.
 
 ## Pages referenced
 
@@ -77,7 +77,7 @@ Folder: `manager/prototypes/hotsite/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
-| `01-hotsite-editor.html` | Editor — Branding (13 fields) / Layout (7 modules) / SEO tabs | UC-027 | ✅ Criado |
+| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (10 module types) / SEO tabs (prototype shows 3 tabs; the shipped editor adds a 4th, Manifest) | UC-027 | ✅ Criado |
 | `01b-color-error.html` | Invalid hex color error | UC-027 A1 | ✅ Criado |
 | `01c-image-upload-fallback.html` | Image upload failure → URL fallback | UC-027 A2 | ✅ Criado |
 | `01d-module-config-hero.html` | Per-module config drill-down (HERO, representative example) | — | ✅ Criado |

@@ -42,12 +42,12 @@ None of these are new routes — each is the same component in a different state
 |---|---|---|---|---|
 | `01b-pickup-address-error.html` | 1 | Pickup address required, fields empty, "Próximo" clicked | `step1-error` | |
 | `02b-loading.html` | 2 | `fetchAvailabilitySummary()` pending | — | |
-| `02c-availability-error.html` | 2 | `fetchAvailabilitySummary()` rejected | — | No retry button — see Known limitations |
-| `02d-fully-booked.html` | 2 | All days `available: false` | — | No explanatory copy — see Known limitations. ✅ Gains the "Avise-me quando abrir" button (M23-S31) |
+| `02c-availability-error.html` | 2 | `fetchAvailabilitySummary()` rejected | — | ✅ Retry button shipped (`handleRetry` in `AvailabilityCarousel`) — see Known limitations |
+| `02d-fully-booked.html` | 2 | All days `available: false` | — | ✅ Explanatory copy shipped (`fully-booked-message`) — see Known limitations. ✅ Gains the "Avise-me quando abrir" button (M23-S31) |
 | `02e-slot-conflict.html` | 2 | 409 on submit → back to step 2 | `step2-error` | |
-| `02f-slot-fetch-error.html` | 2 | `SlotPicker` day fetch rejected | — | Retry button shown is a **proposed fix, not yet built** — see Known limitations |
+| `02f-slot-fetch-error.html` | 2 | `SlotPicker` day fetch rejected | — | ✅ Retry button shipped (`handleRetry` in `SlotPicker`) — see Known limitations |
 | `03b-validation-error.html` | 3 | Invalid e-mail, "Próximo" clicked | `personal-info-error` | |
-| `03c-photo-states.html` | 3 | Photo items: done / uploading / error | — | Error item has no "Remover" — see Known limitations |
+| `03c-photo-states.html` | 3 | Photo items: done / uploading / error | — | ✅ Error item shows "Remover" (`PhotoUpload`) — see Known limitations |
 | `04b-submitting.html` | 4 | `status = 'submitting'` | — | |
 | `04c-submission-error.html` | 4 | `status = 'error'` (non-409) | `confirmation-error` | |
 | `04d-success.html` | 4 | `status = 'success'` | `booking-success` | Terminal state |
@@ -59,7 +59,7 @@ None of these are new routes — each is the same component in a different state
 
 ## Step 1 — Service Selection (`ServiceSelectionStep`)
 
-**Data source:** `HotsiteServiceResponse[]` — fetched server-side in `page.tsx` via `lib/api/services.ts`, passed as props. No client-side fetch on step 1.
+**Data source:** `HotsiteServiceResponse[]` — fetched server-side in `page.tsx` via `fetchServices` in `apps/web/features/platform/hotsite/api/services.server.ts`, passed as props. No client-side fetch on step 1.
 
 **State (in `BookingForm`):**
 - `selectedServiceIds: string[]`
@@ -73,7 +73,7 @@ None of these are new routes — each is the same component in a different state
 - `selected.length === 0` → button disabled (no error shown)
 - `requiresPickupAddress && !isAddressFilled(pickupAddress)` → `"Informe o endereço de coleta para continuar."` (data-testid: `step1-error`)
 
-**Address ZIP autocomplete:** `lib/address/viacep-address-lookup.adapter.ts` — fetches `https://viacep.com.br/ws/{cep}/json/` and fills street/neighborhood/city/state.
+**Address ZIP autocomplete:** `apps/web/shared/lib/address/viacep-address-lookup.adapter.ts` — fetches `https://viacep.com.br/ws/{cep}/json/` and fills street/neighborhood/city/state.
 
 ---
 
@@ -88,7 +88,7 @@ GET /schedule/availability/summary
 Response: AvailabilitySummaryResponse
   { dates: { date: string; available: boolean }[] }
 ```
-Fetcher: `lib/api/schedule.ts`
+Fetcher: `apps/web/features/platform/hotsite/api/schedule.ts`
 
 **BFF call 2 — slot picker (triggered when day is clicked):**
 ```
@@ -119,7 +119,7 @@ Response: AvailabilityResponse
 |---|---|---|---|
 | `contactName` | `string` | min 1 | `"Informe seu nome."` |
 | `contactEmail` | `string` | `z.email()` | `"Informe um e-mail válido."` |
-| `contactPhone` | `string` | 10–11 BR digits | `"Informe seu telefone."` |
+| `contactPhone` | `string` | E.164 (BFF `isValidPhoneNumber`, `PhoneErrorCode.FORMAT_INVALID`) | `"Informe seu telefone."` |
 | `contactAddress` | `Address` | optional (toggle) | — |
 | `photoFilePaths` | `string[]` | optional | — |
 
@@ -149,10 +149,11 @@ Body (CreateBookingRequest from @ikaro/types):
 {
   contactName:             string
   contactEmail:            string
-  contactPhone:            string          // 10–11 digits, no formatting
+  contactPhone:            string          // E.164 (BFF `isValidPhoneNumber`)
   scheduledAt:             string          // ISO-8601 UTC, e.g. "2026-06-18T13:00:00.000Z"
   serviceIds:              string[]        // uuid[]
   contactAddress?:         Address         // optional
+  notes?:                  string          // optional, trim, min 1, max 1000
   pickupAddress?:          Address         // optional, only when requiresPickupAddress
   beforeServicePhotoUrls?: string[]        // GCS keys, optional
 }
@@ -292,7 +293,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 | `BOOKING_RESOURCE_SELECTION_REQUIRED`, `BOOKING_SERVICE_RESOURCE_TYPE_UNAVAILABLE` | resource picker — the first picker step whose pick is missing/invalid after the options are re-fetched (the error names no leg) | `05e` | services, other picks | invalid pick |
 | `BOOKING_INTAKE_ANSWER_MISSING` | intake step | `13c` (summary only — no field names) | all answers | — |
 | `BOOKING_INVALID_MULTIPLE_VARIABLE_SERVICES` | Step 1 | `01d` | selection | — |
-| `BOOKING_SERVICE_NOT_ACTIVE` (verify the wire name in `error-codes.ts`) | Step 1 | `01d`-style inline error | rest of selection | — |
+| `BOOKING_SERVICE_NOT_ACTIVE` | Step 1 | `01d`-style inline error | rest of selection | — |
 | `field = pickupAddress` / `contactAddress` | their steps | existing `01b` / `03b` | — | — |
 | `401` (authenticated path) | hotsite login | existing handling | — | — |
 | anything else | Confirmation, generic message | `04c` | — | — |

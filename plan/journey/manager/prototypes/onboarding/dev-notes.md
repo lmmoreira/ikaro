@@ -2,7 +2,7 @@
 
 ## Overview
 
-New MANAGER-only wizard for M21 — Multi-Vertical Scheduling, Cluster 3. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/02-DOMAIN_MODEL.md` for the underlying domain model this wizard configures.
+New MANAGER-only wizard for M24 — Multi-Vertical Scheduling (`M24-S21` backend + BFF, `M24-S05` SESSION presets, `M24-S22` wizard frontend; moved from M23). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/02-DOMAIN_MODEL.md` for the underlying domain model this wizard configures.
 
 ## File map (❓ none exist yet)
 

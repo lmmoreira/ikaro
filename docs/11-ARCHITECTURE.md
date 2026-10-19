@@ -40,7 +40,7 @@ graph TD
         Secrets[GCP Secret Manager]
     end
 
-    Hotsite -->|GET /platform/manifest/:slug — manifest| BFF
+    Hotsite -->|GET /public/platform/manifest/:slug — manifest| BFF
     Dashboard -->|Authenticated API calls + JWT| BFF
     BFF -->|Validates JWT · injects tenantId| BC1
     BFF -->|Validates JWT · injects tenantId| BC2
@@ -63,7 +63,7 @@ graph TD
 ## Repository Slice Orientation
 
 - **Backend:** canonical bounded contexts live under `apps/backend/src/contexts/<context>/`.
-- **BFF:** business-owned code lives in `apps/bff/src/features/<capability>/`; `auth` and `uploads` are technical slices.
+- **BFF:** business-owned code lives in `apps/bff/src/features/<capability>/`; `auth` is the technical slice (the BFF has no `uploads` slice; uploads go through the booking and hotsite endpoints).
 - **Web:** business-owned code lives in `apps/web/features/<domain>/`; `dashboard` and `hotsite` are shell slices.
 - **Shared code:** `shared/` is cross-cutting only; it must not become a dumping ground for feature-owned logic.
 
@@ -75,7 +75,7 @@ graph TD
 The BFF serves a dynamic `Hotsite Manifest` (JSON) to the web hotsite shell. The manifest defines the branding (colors, logo) and the layout (which modules to render) for a specific tenant slug, while the route composition stays in `apps/web/shells/hotsite/` and the hotsite page model lives in `apps/web/features/platform/hotsite/`.
 
 ### **Role-Based Dashboard (UC-003+ )**
-The Dashboard shell uses the JWT role (`STAFF` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions. Composition stays in `apps/web/shells/dashboard/`; domain-owned booking, customer, staff, and platform logic stays in the matching feature slice.
+The Dashboard shell uses the JWT role (`STAFF`, `MANAGER` or `CUSTOMER`) to load the appropriate UI modules and enforce client-side permissions (manager-only routes such as settings, team, hotsite and resources are listed in `apps/web/proxy.ts`). Composition stays in `apps/web/shells/dashboard/`; domain-owned booking, customer, staff, and platform logic stays in the matching feature slice.
 
 ---
 
@@ -102,9 +102,9 @@ Each Bounded Context (e.g., Booking) follows the same internal structure to ensu
   - **Scheduled Tasks (Cron Jobs):** Cloud Scheduler publishes to `cron-*` Pub/Sub topics (full list and consumers: `infra/terraform/pubsub-catalog.json`). Consumers include booking and admin-schedule reminders, loyalty expiry and its warning, the availability-alert sweep and expiry, recurring-schedule approval expiry, the outbox relay, and the chatbot, lead-form and resource-occupancy retention purges.
   - CLI Commands.
 - **Driven Adapters (Output):**
-  - `PostgresBookingRepository` (TypeORM/Prisma).
+  - `TypeOrmBookingRepository` (TypeORM).
   - `BrevoEmailAdapter` (production) and `MailhogEmailAdapter` (local), behind the `IEmailSender` port.
-  - `GoogleCloudPhotoStorage`.
+  - `GcsSignedUrlAdapter` (GCS signed URLs for photo uploads, `apps/backend/src/shared/infrastructure/gcs/gcs-signed-url.adapter.ts`).
 
 ---
 
@@ -175,4 +175,4 @@ The architecture enforces tenant isolation at the **Adapter Layer**:
 ---
 
 **Status:** Phase 2 - Technical Architecture  
-**Next:** `12-DATABASE_SCHEMA.md` (Multi-tenant Table Design)
+**Next:** `13-DATABASE_SCHEMA.md` (Multi-tenant Table Design)

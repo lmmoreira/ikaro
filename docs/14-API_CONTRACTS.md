@@ -38,7 +38,7 @@ Any endpoint can answer `503` with `Retry-After: 1` (seconds) and a problem body
 
 #### **Pattern A — Offset-based, `items` key, no `nextOffset`**
 
-Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/features/booking/bookings.types.ts`) and `GET /recurring-booking-schedules` (`RecurringBookingScheduleListResponse`, `apps/bff/src/features/booking/recurring-booking-schedules.types.ts`).
+Used by `GET /bookings` (`BookingListResponse`, `apps/bff/src/features/booking/bookings.types.ts`) and `GET /recurring-booking-schedules` (`RecurringBookingScheduleListResponse`, defined in `packages/types/src/recurring-booking-schedule.dto.ts` and re-exported by `apps/bff/src/features/booking/recurring-booking-schedules.types.ts`).
 
 ```
 GET /bookings?status=APPROVED&limit=10&offset=0
@@ -48,6 +48,8 @@ Response:
   "pagination": { "limit": 10, "offset": 0, "total": 45, "hasMore": true }
 }
 ```
+
+The BFF's own `GET /bookings` request takes `page` (default 1) and `limit` (default 20, max 100), not `offset`; see § Booking Management.
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -59,7 +61,7 @@ Response:
 
 #### **Pattern B — Offset-based, `items` key, with `nextOffset`**
 
-Used by `GET /staff` (`StaffListResponse`, `apps/bff/src/features/staff/staff.types.ts`).
+Used by `GET /staff` (BFF-side `StaffItemListResponse` in `apps/bff/src/features/staff/staff.types.ts`, mapped to `StaffListResponse` from `@ikaro/types`, `packages/types/src/staff.dto.ts`).
 
 ```
 GET /staff?limit=25&offset=0
@@ -131,8 +133,18 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 - `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at.
 - `POST /auth/switch-staff-tenant` -> (UC-022, staff) Same shape as the customer switch, staff-scoped.
 - `GET /auth/session` -> (any authenticated role) One call for the hotsite's auth bar: `{ staff: { id, name } | null, customer: { customerId, name } | null }`. The BFF makes exactly one backend lookup (`/staff/me` for STAFF|MANAGER, `/customers/me` otherwise).
+- `POST /auth/dev-login` -> (public, **local/staging dev tooling and E2E harnesses only**, never reachable by real users; not rate-limited) signs a test actor in without Google OAuth; see `docs/24-BFF_ARCHITECTURE.md` § Public vs Protected Routes.
 - `GET /staff/me` -> (STAFF|MANAGER) The caller's own staff record, derived from the request context, never a URL param. The backend also has `GET /staff/me/tenants` and `GET /staff/me/status` (`{ isActive }`, the BFF's `ActiveStaffGuard` self-check); these two are backend-internal and not exposed by the BFF.
 - `GET /customers/tenants` -> (CUSTOMER, BFF; profile routes are under *Customer Management* below) Lists the tenants the customer has a profile in, backed by the backend's `GET /customers/me/tenants`.
+
+### **Staff Management (UC-028 – UC-031)**
+All BFF routes below are `MANAGER`-only (class-level `@Roles('MANAGER')` on `StaffController`), except `GET /staff/me` above; the flows, preconditions and error codes are in `docs/04-USE_CASES.md` (UC-028 invite, UC-029 deactivate, UC-030 edit profile, UC-031 reactivate).
+- `GET /staff` -> Paginated staff list (Pattern B under Base Standards).
+- `GET /staff/:id` -> One staff member.
+- `POST /staff/invite` -> (UC-028) Body `{ email, firstName, lastName, role: "MANAGER" | "STAFF" }`; `201 Created`.
+- `PATCH /staff/:id` -> (UC-030) Body `{ name, role: "MANAGER" | "STAFF" }`; `200 OK`.
+- `PATCH /staff/:id/deactivate` -> (UC-029) No body; `200 OK`.
+- `PATCH /staff/:id/activate` -> (UC-031) No body; `200 OK`.
 
 > **Removed (`M13-S14`):** `POST /auth/token` and `GET /auth/tenants` — the pre-login `/select-tenant` customer flow they backed was descoped as unreachable from any shipped UI (every customer login starts from a specific tenant's hotsite, which always supplies the tenant slug directly). Do not resurrect these without a real requirement driving them — see `docs/04-USE_CASES.md` UC-021's note.
 
@@ -189,7 +201,7 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
       "buttonTextColor": "#0f172a"
     },
     "layout": [
-      { "type": "HERO",         "enabled": true,  "data": { "variant": "centered", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking" } },
+      { "type": "HERO",         "enabled": true,  "data": { "variant": "centered", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking-form" } },
       { "type": "SERVICE_LIST", "enabled": true,  "data": { "showPrices": true, "showPoints": true, "layout": "grid" } },
       { "type": "GALLERY",      "enabled": false, "data": { "images": [], "layout": "grid", "maxVisible": 6 } }
     ],
@@ -200,24 +212,31 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
       "address": {
         "street": "Rua das Flores", "number": "123", "complement": "Loja 2",
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130000"
-      }
+      },
+      "socialLinks": { "whatsapp": null, "instagram": "https://instagram.com/lavacar", "facebook": null }
     },
-    "localization": { "language": "pt-BR" },
+    "localization": {
+      "language": "pt-BR", "currency": "BRL", "timezone": "America/Sao_Paulo", "phonePrefix": "+55",
+      "dateFormat": "...", "timeFormat": "24h", "numberFormat": "...", "firstDayOfWeek": 0,
+      "address": { /* HotsiteAddressSpec: postal/state/street/number/complement/city labels, requireNeighborhood, lookupService */ }
+    },
+    "booking": { "maxBookingAdvanceDays": 60 },
     "seo": { "title": null, "description": null, "ogImageUrl": "" }
   }
   ```
 
-- **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
+- **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT | FOOTER | CHATBOT | LEAD_FORM` (`HotsiteModuleType`, `packages/types/src/enums.ts`)
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
-- **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address` may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT.
-- **`localization`** (M12-S09) — `language` resolved from `tenants.settings.localization.language` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
+- **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address`/`socialLinks` (`{ whatsapp, instagram, facebook }`, each `string | null`) may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT.
+- **`localization`** (M12-S09) — `HotsiteLocalizationResponse`: `language`, `currency`, `timezone`, `phonePrefix`, `dateFormat`, `timeFormat`, `numberFormat`, `firstDayOfWeek` and an `address` spec, all resolved from `tenants.settings.localization`. `language` is resolved from `tenants.settings.localization.language` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
+- **`booking?`** — optional `HotsiteBookingSettingsResponse` (`{ maxBookingAdvanceDays }`), the booking-window setting the hotsite's booking flow reads; typed optional on the shared `HotsiteManifestResponse`, always populated by the BFF manifest route.
 - **`seo`** (M12-S09; `ogImageUrl` added M18-S03) — tenant-configured overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). `title`/`description` are `string | null`; `null` means the admin hasn't set an override, and the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state). `ogImageUrl` is `string` (never `null` — empty string means unset), a **permanent public address** like `branding.logoUrl`, resolved the same way; it's the source for the Open Graph share-image card and is intentionally separate from `branding.logoUrl` (small/square brand mark) — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §11.
 - **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
 - `404` — tenant slug not found (no `HotsiteConfig` reachable for this slug at all)
 
 ### **Published Hotsites Listing (Public — M12-S09)**
 Used by `app/sitemap.ts` to enumerate every published tenant hotsite for search-engine discovery.
-- `GET /platform/published-hotsites`
+- `GET /v1/public/platform/published-hotsites` (the BFF route, `PlatformPublicController`)
 - **Public** — no auth required
 - **Response:** `200 OK`
   ```json
@@ -273,13 +292,14 @@ The `LEAD_FORM` hotsite module's own endpoints — extends the existing `platfor
 ### **Tenant Settings (Admin — UC-026)**
 First documented entry for this route — it existed and was implemented (`M13-S31`) before it had a dedicated API contract entry; see `docs/04-USE_CASES.md` UC-026 and `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the full field-level rules this section doesn't repeat.
 
-- `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, notification, localization, businessInfo, chatbot, leadForm } }` — `STAFF`|`MANAGER` (read allowed to both roles)
+- `GET /v1/tenants/settings` → `200 { tenantId, name, slug, settings: { loyalty, booking, businessHours, localization, businessInfo, chatbot, leadForm } }` — `STAFF`|`MANAGER` (read allowed to both roles)
+- `PATCH /v1/tenants` → (MANAGER) rename the tenant: body `{ name: string }` (trimmed, non-empty); `200 OK` (`TenantController`, backend `PATCH /tenants`).
 - `PATCH /v1/tenants/settings` → body `{ settings: { <category>?: {...}, ... } }` — partial update, any subset of the category keys nested under `settings` (unspecified categories/fields unchanged); `200` returns updated state — `MANAGER` only, `STAFF` gets `403`
-  - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.schemas.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` and `leadForm` are categories in that fixed list alongside the six pre-existing ones.
+  - Request body is validated against a `.strict()` schema with a fixed category key list on both the BFF (`UpdateTenantSettingsBodySchema`, `apps/bff/src/features/platform/tenant-settings.schemas.ts`) and backend DTO layers (`UpdateTenantSettingsSchema`, `apps/backend/src/contexts/platform/application/dtos/update-tenant-settings.dto.ts`) — an unrecognized top-level key under `settings` is rejected as `400`, not silently ignored. `chatbot` and `leadForm` are categories in that fixed list alongside the five pre-existing ones (`loyalty`, `booking`, `businessHours`, `localization`, `businessInfo`; there is no `notification` category — removed in M18-S09, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`).
   - `chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7): optional string, no hardcoded length bound at the Zod layer — the resolved `maxKnowledgeTextLength` cap (default 4000, or a tenant's own Ikaro-granted override) is enforced solely by the domain-layer `ChatbotSettingsValidator`, `400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG` if exceeded (a static Zod max would make an above-4000 override unenforceable, since Zod would reject the request before the domain layer's resolved check ever ran — decided during M19-S04 `/story-discovery`, 2026-08-11). This is the **only** tenant-editable field in the `chatbot` settings category; the 8 volume/cost caps and `llmProvider`/`llmModel` are never accepted in this body — a request including any of them is rejected `400` (not silently stripped), same as any other unrecognized key under `chatbot`, since `chatbot` accepts only `knowledgeText` at the Zod layer (see `docs/04-USE_CASES.md` UC-033–UC-036 for why these stay Ikaro-only overrides)
 - `booking.recurringRenewalReminderDays` (M23-S21, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §2): integer 0-30, default 7 (`0` = no renewal reminder) — `400` with a violation on `settings.booking.recurringRenewalReminderDays` if out of range or not a whole number
 - `400 PLATFORM_SETTINGS_UPDATE_EMPTY` — body has no recognized fields at all
-- `leadForm` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8, UC-042): `leadForm` is a category in the fixed key list (added by M20) alongside the seven pre-existing ones. **All three fields are tenant-editable — unlike `chatbot`, this category has no Ikaro-only deviation** (these caps are abuse protection, not shared-cost protection, so there's no reason to deny a tenant control over their own value):
+- `leadForm` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8, UC-042): `leadForm` is a category in the fixed key list (added by M20) alongside the pre-existing ones (`loyalty`, `booking`, `businessHours`, `localization`, `businessInfo`, `chatbot`). **All three fields are tenant-editable — unlike `chatbot`, this category has no Ikaro-only deviation** (these caps are abuse protection, not shared-cost protection, so there's no reason to deny a tenant control over their own value):
   - `retentionMonths`: integer 1-24, default 6 — `400 PLATFORM_SETTINGS_LEAD_FORM_RETENTION_MONTHS_INVALID` if out of range
   - `maxSubmissionsPerDay`: integer 1-1000, default 100 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_DAY_INVALID` if out of range
   - `maxSubmissionsPerIpPerDay`: integer 1-100, default 3 — `400 PLATFORM_SETTINGS_LEAD_FORM_MAX_SUBMISSIONS_PER_IP_PER_DAY_INVALID` if out of range. Raising this is the documented mitigation for a tenant seeing false-positive blocks from legitimate visitors sharing one carrier-assigned IP (common on Brazilian mobile networks)
@@ -296,10 +316,10 @@ Lets a `MANAGER` configure branding, layout modules, and publish status. Mirrors
     - `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID` — a `SINGLE_CHOICE`/`MULTIPLE_CHOICE` question with < 2 or > 10 options
     - `400 GENERIC_FIELD_REQUIRED` — a question with an empty `label`
   - `branding.buttonBackgroundColor`/`branding.buttonTextColor` (M12-S11) are optional hex overrides for CTA button colors — see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 "Button Color Tokens" for `filled`/`outline`/`ghost` semantics
-  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 hotsite-image-not-uploaded`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
-  - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 70 chars, `description` max 160 chars; exceeding either → `400`
+  - Image promotion (TD22): every non-empty image path submitted (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, `GALLERY` images with `source: 'upload'`) is either a `tmp/<tenantId>/...` staging path — validated (tenant-owned, exists in the private bucket), promoted to a permanent `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` object in the public bucket, then rewritten and the tmp original deleted — or an already-permanent `tenants/<tenantId>/hotsite/...` path, validated as still existing and left untouched. A path matching neither shape, a cross-tenant `tmp/` path, or a nonexistent object → `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED`. A field that changed from one permanent object to another also deletes the superseded object from the public bucket (delete-previous-on-replace); an untouched field is never re-promoted or deleted. See "Hotsite Image Upload" below for the full contract.
+  - `seo.title`/`seo.description` (M12-S09) are optional `string | null` overrides for the public hotsite's `<title>`/meta description — `title` max 60 chars, `description` max 158 chars; exceeding either → `400`
   - `seo.ogImageUrl` (M18-S03) is an optional `string` — same path-shape validation as `branding.logoUrl` (empty, a permanent `tenants/<id>/hotsite/...` path, or a `tmp/<id>/...` staging path); goes through the same promotion/existence-check flow above. Uploaded via the `'seo-og-image'` purpose (see "Hotsite Image Upload" below), auto center-cropped client-side to 1200×630 before upload — unlike `branding.logoUrl` (auto-cropped to 1:1), since it's a landscape share-image card, not a small brand mark.
-- `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 publish-requires-enabled-module` if the layout has no `enabled: true` modules
+- `POST /v1/tenants/hotsite/publish` → `200 { isPublished: true }`; `400 PLATFORM_HOTSITE_NO_ENABLED_MODULES` if the layout has no `enabled: true` modules
 - `POST /v1/tenants/hotsite/unpublish` → `200 { isPublished: false }`
 - All four require JWT + `MANAGER` role — `STAFF` gets `403`
 
@@ -367,11 +387,11 @@ Generates a GCS signed **upload** URL for hotsite images (logo, hero/CTA backgro
 
 **Storage path rule:** `tmp/<tenantId>/<purpose>/<uuid>/<fileName>` — staged in the **private** media bucket. Not public, not permanent, not yet referenced by anything durable.
 
-`filePath` is what the frontend holds as the field's draft value until the next save. **`PATCH /v1/tenants/hotsite` promotes every `tmp/`-referenced field**: validates the tmp object exists in the private bucket and belongs to the caller's tenant, copies it to `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` in the **public** hotsite bucket, rewrites the stored reference to that permanent path, and deletes the tmp original. If the field previously pointed at a different permanent object, that old object is deleted too (delete-previous-on-replace); a field left untouched (still pointing at its existing permanent object) is neither re-promoted nor deleted. **Reading hotsite images back** (post-promotion) works differently from booking attachments: because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
+`filePath` is what the frontend holds as the field's draft value until the next save. **`PATCH /v1/tenants/hotsite` promotes every `tmp/`-referenced field**: validates the tmp object exists in the private bucket and belongs to the caller's tenant, copies it to `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>` in the **public** hotsite bucket, rewrites the stored reference to that permanent path, and deletes the tmp original. If the field previously pointed at a different permanent object, that old object is deleted too (delete-previous-on-replace); a field left untouched (still pointing at its existing permanent object) is neither re-promoted nor deleted. **Reading hotsite images back** (post-promotion) works differently from booking attachments: because the object lives in a public bucket, `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve `filePath` to a **permanent public URL** via `IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, nothing to regenerate. The admin endpoint (`GET /v1/tenants/hotsite`) and the public manifest (`GET /v1/public/platform/manifest/:slug`) both return this same resolved address. This is what makes the manifest safely cacheable (`Cache-Control: public, max-age=300`, ISR, future CDN) — an expiring signed URL embedded in cached content would eventually serve a broken image.
 
 (Contrast with booking attachments below, where the bucket is private and a fresh *read*-signed URL genuinely must be minted per display.)
 
-**Error responses:** same constraint set as booking attachments (`400 invalid-file-name`, `400 unsupported-media-type`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table. `PATCH /v1/tenants/hotsite` additionally returns `400 hotsite-image-not-uploaded` for a `tmp/` path that doesn't exist or belongs to another tenant.
+**Error responses:** same constraint set as booking attachments (a plain Zod `400` for a bad `fileName` or unsupported `contentType`, plus `400` for an unknown `purpose`) — see §3 Media Upload below for the shared validation table. `PATCH /v1/tenants/hotsite` additionally returns `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED` for a `tmp/` path that doesn't exist or belongs to another tenant.
 
 ### **Hotsite Image Preview — Private Read Signed URL (Admin — TD22)**
 A not-yet-promoted `tmp/` image lives in the private bucket, so it can't resolve via the public-bucket string template the admin editor otherwise uses for hotsite images. This endpoint mints a fresh private *read*-signed URL for previewing one — used whenever the editor re-mounts a field showing a `tmp/`-prefixed value with no local blob preview left (e.g. switching tabs before the first save).
@@ -392,7 +412,12 @@ A not-yet-promoted `tmp/` image lives in the private bucket, so it can't resolve
   }
   ```
 
-**Error responses:** `400 hotsite-image-not-uploaded` — `filePath` isn't a `tmp/<callerTenantId>/...` path.
+**Error responses:** `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED` — `filePath` isn't a `tmp/<callerTenantId>/...` path.
+
+### **Hotsite Image Delete (Admin)**
+**BFF:** `POST /v1/tenants/hotsite/images/delete` -> `204 No Content`
+- Requires JWT + `MANAGER` role
+- **Request body:** `{ "filePath": "tenants/<tenantId>/hotsite/..." }` — or a `tmp/<tenantId>/...` staging path (the BFF validates the shape with a regex; the backend route is `/tenants/hotsite/images/delete`).
 
 ### **Hotsite Gallery — Feature a Booking Photo (Admin — UC-027, M12-S02 + M12-S10)**
 Lets the admin curate the GALLERY module's "before/after" showcase by selecting a photo straight from one of the tenant's own bookings — guest or authenticated-customer, it makes no difference; `tenantId` is the only check that matters.
@@ -510,7 +535,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```json
   { "active": { "version": 2, "questions": [...], "consentText": "...", "consentVersion": 2, "requiresNamedAttendees": true, "participantCountRequired": true, "createdAt": "..." } }
   ```
-  - `200` on success — `active: null` if no version has ever been published (including for an inactive service — `IServiceRepository` has no lightweight active-only existence check, and an inactive service can't be booked regardless via the existing `invalid-services-inactive` guard on `POST /bookings`, so this read intentionally doesn't add one)
+  - `200` on success — `active: null` if no version has ever been published (including for an inactive service — `IServiceRepository` has no lightweight active-only existence check, and an inactive service can't be booked regardless via the existing `BOOKING_SERVICE_NOT_ACTIVE` guard on `POST /bookings`, so this read intentionally doesn't add one)
   - `404` if the service doesn't exist or belongs to another tenant
   - BFF: fronted by the existing `apps/bff/src/features/booking/services.public.controller.ts` (already exists — only had the services-list route before this story)
 
@@ -601,18 +626,18 @@ Single endpoint covering four authentication scenarios — all four now upload t
 #### **Upload Constraints (MVP):**
 | Constraint | Value | Notes |
 |---|---|---|
-| Accepted MIME types | `image/jpeg`, `image/png` | Others return `400`; also enforced by GCS at `PUT` time |
+| Accepted MIME types | `image/jpeg`, `image/png`, `image/webp` | Others return `400`; also enforced by GCS at `PUT` time |
 | Max file size | 10 MB | Enforced by GCS via `content-length-range` condition embedded in the signed URL — backend never sees the upload |
 | `fileName` | 1–255 chars, no path separators | `../` or `/` returns `400` |
 | URL expiration | 15 minutes | `signedUrl` expires 15 min after issuance |
 | Rate limit | 10 requests / minute per IP | `429` on the 11th request — protects the public guest path |
 
 #### **Error Responses:**
-- `400 invalid-file-name` — `fileName` contains `../` or `/`, or is empty
-- `400 unsupported-media-type` — `contentType` not `image/jpeg` or `image/png`
-- `400 missing-tenant` — scenario 2 called without `tenantSlug`
-- `401 invalid-guest-token` — scenario 3: `guestToken` missing, expired, or invalid
-- `429 too-many-requests` — rate limit exceeded
+- `400` (plain Zod validation, no dedicated error code) — `fileName` contains `../` or `/`, or is empty
+- `400` (plain Zod validation, no dedicated error code) — `contentType` not one of `image/jpeg`, `image/png`, `image/webp`
+- `400 BFF_TENANT_SLUG_HEADER_REQUIRED` — scenario 2 called without `tenantSlug`
+- `401 BFF_GUEST_TOKEN_INVALID` — scenario 3: `guestToken` missing, expired, or invalid
+- `429 AUTH_RATE_LIMITED` — rate limit exceeded
 
 (Promotion — not this endpoint — is what can return `400 BOOKING_PHOTO_NOT_UPLOADED` for a `tmp/` path that doesn't exist or belongs to another tenant; see the booking create/submit-info/complete endpoints.)
 
@@ -682,7 +707,7 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
       "street": "Rua das Flores", "number": "123", "complement": "Apto 4B",
       "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130010"
     },
-    "beforeServicePhotoUrls": ["https://..."],
+    "beforeServicePhotoUrls": ["tmp/<tid>/<uuid>/car-front.jpg"],
     "resourceSelections": [
       { "serviceId": "uuid-basic-wash", "legIndex": null, "resourceType": "STAFF", "resourceId": "uuid-staff-resource" }
     ],
@@ -709,12 +734,12 @@ Public — requires only `X-Tenant-Slug` header. No authentication.
 - **Response (`201 Created`):** see [Shared Response Shape](#shared-booking-201-response-shape) below.
 
 - **Errors (RFC 9457 Problem Details):**
-  - `400 invalid-services-empty` — `serviceIds` is empty.
+  - `400` (plain Zod validation, no dedicated error code) — `serviceIds` is empty (`min(1)`).
   - `404 BOOKING_SERVICE_NOT_FOUND` — one or more `serviceId` does not exist in the tenant's catalog.
   - `400 BOOKING_SERVICE_NOT_IN_TENANT` — one or more `serviceId` exists globally but does not belong to this tenant.
-  - `400 invalid-services-inactive` — one or more service has `is_active = false`.
+  - `400 BOOKING_SERVICE_NOT_ACTIVE` — one or more service has `is_active = false`.
   - `400 BOOKING_PICKUP_ADDRESS_REQUIRED` — one or more selected services require a pickup address but none was provided.
-  - `400 invalid-pickup-address` — `pickupAddress` fields fail validation (e.g. `zipCode` not 8 digits, `state` not a valid UF).
+  - `400` (plain Zod validation, no dedicated error code) — `pickupAddress` fields fail the shared address schema validation.
   - `400 BOOKING_PHOTO_NOT_UPLOADED` — one or more `beforeServicePhotoUrls` paths were never confirmed as uploaded to GCS (the backend calls `IStorageService.exists()` on each path before persisting — a stale, never-uploaded, or hand-crafted path is rejected rather than stored).
   - `409 BOOKING_SLOT_UNAVAILABLE` — the requested `scheduledAt + totalDurationMins` window overlaps another APPROVED booking or a `ScheduleClosure`.
   - `422 BOOKING_RESOURCE_SELECTION_REQUIRED` (M23-S01) — a `CUSTOMER_CHOICE` requirement has no matching `resourceSelections` entry.
@@ -741,7 +766,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
       "street": "Rua das Flores", "number": "123", "complement": "Apto 4B",
       "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130010"
     },
-    "beforeServicePhotoUrls": ["https://..."],
+    "beforeServicePhotoUrls": ["tmp/<tid>/<uuid>/car-front.jpg"],
     "resourceSelections": [
       { "serviceId": "uuid-basic-wash", "legIndex": null, "resourceType": "STAFF", "resourceId": "uuid-staff-resource" }
     ]
@@ -856,7 +881,7 @@ Requires JWT with `role: CUSTOMER`. Tenant resolved from JWT `tenantId` — no `
 
 ### **No-Show (UC-074, M23 Cluster 3)**
 - `POST /bookings/:id/no-show` -> Mark an appointment as a no-show (STAFF|MANAGER). Optional body: `{ "reason"?: string }` (max 500 chars). `404` unknown booking; `409 BOOKING_ALREADY_TERMINAL` if already `COMPLETED`/`CANCELLED`/`REJECTED`/`NO_SHOW`; `422 BOOKING_INVALID_TRANSITION` if still `PENDING`/`INFO_REQUESTED`; `422 BOOKING_NOT_YET_ENDED` if the scheduled end time hasn't passed.
-- `POST /bookings/:id/no-show/correct` -> Manager-only correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED", "reason": "..." }` — `COMPLETED` is the only accepted value and `reason` is required. Each line's actual price defaults to its booked price; loyalty is awarded by the `BookingCompleted` the correction publishes. `404` unknown booking; `422 BOOKING_INVALID_TRANSITION` if the booking is not `NO_SHOW`; `403` for a `STAFF` caller.
+- `POST /bookings/:id/no-show/correct` -> Manager-only correction (append-only audit transition). Body: `{ "correctedStatus": "COMPLETED", "reason": "..." }` (`reason` required, 10–500 characters) — `COMPLETED` is the only accepted value and `reason` is required. Each line's actual price defaults to its booked price; loyalty is awarded by the `BookingCompleted` the correction publishes. `404` unknown booking; `422 BOOKING_INVALID_TRANSITION` if the booking is not `NO_SHOW`; `403` for a `STAFF` caller.
 
 ### **Information Workflow (UC-005)**
 See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
@@ -870,14 +895,16 @@ See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
       { "lineId": "uuid-line-1", "actualPriceCharged": 80.00 },
       { "lineId": "uuid-line-2", "actualPriceCharged": 0.00 }
     ],
-    "afterServicePhotoUrls": ["tenants/<tenantId>/bookings/<bookingId>/after.jpg"],
-    "adminNotes": "Extra shine applied"
+    "afterServicePhotoUrls": ["tmp/<tid>/<uuid>/after.jpg"],
+    "adminNotes": "Extra shine applied",
+    "discountByPoints": { "pointsUsed": 200, "amountDeducted": 20.00 }
   }
   ```
   - `lines` is **required**, minimum 1 entry — every line on the booking must be listed with its actual charged price (`CompleteBookingBodySchema`, `apps/bff/src/features/booking/bookings.controller.ts`). There is no "omit lines charged at full price" shortcut.
   - `actualPriceCharged` must be `>= 0`. Zero is valid (waived service).
-  - `afterServicePhotoUrls` optional, defaults to `[]`. Paths must match `tenants/<tenantId>/bookings/<bookingId>/...`.
+  - `afterServicePhotoUrls` optional, defaults to `[]`. Each path must match `tmp/<a>/<b>/...` (the BFF Zod schema; same temp-upload path as the 3-step photo contract above), not a final `tenants/<tenantId>/bookings/...` path.
   - `adminNotes` optional, 1–500 chars.
+  - `discountByPoints` optional `{ pointsUsed, amountDeducted }` (`pointsUsed` positive integer, `amountDeducted` positive number) — the staff-applied loyalty-points discount (UC-009 A6); the booking is saved COMPLETED with the discount already applied to `totalActualPrice`.
 
 - **Response (`200 OK`):**
   ```json
@@ -891,9 +918,10 @@ See `PATCH /bookings/:id/submit-info` in the Booking Management section above.
   The response is flat — no per-line breakdown (`CompleteBookingResponse`, `apps/bff/src/features/booking/bookings.types.ts`). Per-line `actualPriceCharged` is persisted but only surfaced later via `GET /bookings/:id` (`BookingLineDetail`).
 
 - **Errors:**
-  - `400 invalid-line-id` — a `lineId` in `lines` does not belong to this booking.
-  - `400 invalid-actual-price` — `actualPriceCharged` is negative.
+  - `400 BOOKING_COMPLETE_LINES_INCOMPLETE` — `lines` omits one or more of this booking's lines.
+  - `400` (plain Zod validation, no dedicated error code) — `actualPriceCharged` is negative (`z.number().nonnegative()`) or `lines` is empty.
   - `400 BOOKING_PHOTO_NOT_UPLOADED` — one or more `afterServicePhotoUrls` paths were never confirmed as uploaded to GCS (verified via `IStorageService.exists()` before persisting).
+  - `422 BOOKING_DISCOUNT_NOT_AVAILABLE` (discount on a guest booking), `422 BOOKING_DISCOUNT_DISABLED` (tenant has loyalty redemption disabled), `422 BOOKING_DISCOUNT_MISMATCH`, `422 BOOKING_DISCOUNT_EXCEEDS_TOTAL` — `discountByPoints` rejected.
 
 ---
 
@@ -924,7 +952,8 @@ Response `200`:
 ```
 
 Errors:
-- `400` — serviceId not found, inactive, or from wrong tenant
+- `404 BOOKING_SERVICE_NOT_FOUND` — serviceId unknown or from another tenant
+- `400 BOOKING_SERVICE_NOT_ACTIVE` — serviceId exists but is inactive
 - `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — `from > to`, or range exceeds `maxBookingAdvanceDays` (default 90 days). The reads are not trimmed to the booking window itself (M23-S33): a day beyond it still returns its real availability, and `POST /bookings` rejects it.
 
@@ -954,7 +983,8 @@ Response `200`:
 ```
 
 Errors:
-- `400` — serviceId not found, inactive, or from wrong tenant
+- `404 BOOKING_SERVICE_NOT_FOUND` — serviceId unknown or from another tenant
+- `400 BOOKING_SERVICE_NOT_ACTIVE` — serviceId exists but is inactive
 - `404` — `resourceId` set and does not exist or belongs to another tenant
 - `422` — date is in the past
 
@@ -1176,13 +1206,13 @@ Auth: JWT + MANAGER only.
 - `GET /customers?search=&limit=20` -> (Admin) Search customers in tenant by name, email or phone.
   - Requires JWT with `MANAGER|STAFF` role.
   - Query params:
-    - `search` (optional, string, min 5 chars when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the phone is matched only when the term holds at least 4 digits, so a term like "Maria" never matches on phone; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
+    - `search` (optional, string, trimmed, min 1 char when present) — case-insensitive `ILIKE %search%` match on `name`, `email` and `phone` (a phone term is matched on its digits, so "(31) 99999-9999" and "31999999999" find the same customer — M23-S39; the phone is matched only when the term holds at least 4 digits, so a term like "Maria" never matches on phone; the wildcard characters in the term are escaped). When omitted, returns all customers up to `limit`.
     - `limit` (optional, integer, default 20) — max results to return.
   - Response:
     ```json
     {
       "items": [
-        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "31999999999", "currentPoints": 150 }
+        { "customerId": "uuid", "name": "João Silva", "email": "joao@example.com", "phone": "+5531999999999", "currentPoints": 150 }
       ],
       "total": 1
     }
@@ -1190,7 +1220,7 @@ Auth: JWT + MANAGER only.
   - `currentPoints` is read from `loyalty_balances.current_points` for the customer (`0` if no balance row).
   - Results are scoped to the caller's tenant — no cross-tenant leakage possible.
   - `CUSTOMER` role → `403`.
-- `GET /customers/:id` -> (Admin/Self) Detailed profile. Response includes `defaultAddress` (nullable).
+- `GET /customers/:customerId` -> (Admin: `STAFF|MANAGER` only; a customer reads their own profile via `GET /customers/me`) Detailed profile. Response includes `defaultAddress` (nullable).
 - `GET /customers/me` -> (Self) Current authenticated customer profile.
   - Requires JWT with `role: CUSTOMER`.
   - Response:
@@ -1199,14 +1229,14 @@ Auth: JWT + MANAGER only.
       "customerId": "uuid",
       "email": "cliente@example.com",
       "name": "João Silva",
-      "phone": "31999999999",
+      "phone": "+5531999999999",
       "defaultAddress": {
         "street": "Av. Afonso Pena", "number": "1000", "complement": null,
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
       }
     }
     ```
-  - `phone` is digits only (10–11 digits, no country prefix). `null` when not set.
+  - `phone` is E.164 (`^\+[1-9]\d{6,14}$`, e.g. `+5531999999999`). `null` when not set.
   - `defaultAddress` is `null` when not set.
 - `PATCH /customers/me` -> (Self) Update own profile.
   - Requires JWT with `role: CUSTOMER`.
@@ -1215,7 +1245,7 @@ Auth: JWT + MANAGER only.
     ```json
     {
       "name": "João Silva",
-      "phone": "31999999999",
+      "phone": "+5531999999999",
       "defaultAddress": {
         "street": "Av. Afonso Pena", "number": "1000", "complement": null,
         "neighborhood": "Centro", "city": "Belo Horizonte", "state": "MG", "zipCode": "30130921"
@@ -1223,7 +1253,7 @@ Auth: JWT + MANAGER only.
     }
     ```
   - Set `defaultAddress` to `null` to clear it. Set `phone` to `null` to clear it.
-  - `phone` must be 10–11 digits (digits only, no country prefix e.g. `31999999999`).
+  - `phone` must be E.164 (`^\+[1-9]\d{6,14}$`, e.g. `+5531999999999`).
   - `zipCode` must be 8 digits; hyphen is accepted and normalised (`"30130-921"` → `"30130921"`).
   - Returns the full updated profile (same shape as `GET /customers/me`).
 
@@ -1234,9 +1264,9 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 - `GET /loyalty/balance`
   - Response:
     ```json
-    { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30 }
+    { "currentPoints": 150, "nextExpiryDate": "2026-11-15T00:00:00.000Z", "nextExpiryPoints": 30, "conversionRate": 10 }
     ```
-  - **BFF note (M13-S06/M13-S12):** `GET /v1/loyalty/balance` returns `CustomerLoyaltyBalanceResponse`, which extends the backend response with `conversionRate: number` — the live `pointsPerCurrencyUnit` from tenant settings (`0` = redemption disabled).
+  - **`conversionRate` (M13-S06/M13-S12):** attached by the **backend** from the request tenant's settings (`pointsPerCurrencyUnit`; `0` = redemption disabled), and `null` when the balance was read cross-tenant (`?tenantId=`). The BFF (`GET /v1/loyalty/balance` returns `CustomerLoyaltyBalanceResponse`) forwards it, mapping `null` to `0`; it does not fetch tenant settings itself (that route is STAFF/MANAGER-only).
   - `currentPoints`: read from `loyalty_balances.current_points` (O(1) — no SUM).
   - `nextExpiryDate`: ISO-8601 datetime string (`Date.toISOString()`) of the earliest `expires_at` among active entries; `null` if no active entries.
   - `nextExpiryPoints`: sum of points expiring on `nextExpiryDate`; `null` if no active entries.
@@ -1250,6 +1280,7 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
     {
       "entries": [{
         "entryId": "uuid",
+        "bookingId": "uuid",
         "serviceId": "uuid",
         "serviceName": "Lavagem Completa",
         "points": 10,
@@ -1271,8 +1302,11 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
       "redemptions": [{
         "redemptionId": "uuid",
         "pointsRedeemed": 50,
+        "pointsPerCurrencyUnit": 10,
         "redeemedAt": "2026-05-28T10:00:00.000Z",
-        "notes": "Free basic wash"
+        "notes": "Free basic wash",
+        "bookingId": "uuid-or-null",
+        "bookingServices": [{ "serviceId": "uuid", "serviceName": "Lavagem Completa" }]
       }],
       "pagination": { "page": 1, "limit": 20, "total": 3 }
     }
@@ -1282,9 +1316,10 @@ All three endpoints require JWT with `CUSTOMER` role. The `customerId` is inferr
 
 All endpoints require JWT with `MANAGER|STAFF` role. The `customerId` is taken from the URL path. Returns `404` if `customerId` does not belong to the caller's tenant.
 
+- `GET /customers/:customerId/loyalty` — the composite detail view (`StaffCustomerLoyaltyDetailResponse`): the customer, balance, entries and redemptions fetched in one BFF call (`apps/bff/src/features/loyalty/loyalty.controller.ts`).
 - `GET /customers/:customerId/loyalty/balance` — returns `EnrichedLoyaltyBalanceResponse` (same fields as `CustomerLoyaltyBalanceResponse` including `conversionRate`).
-- `GET /customers/:customerId/loyalty/entries?page=1&limit=20` — same response shape as customer entries endpoint.
-- `GET /customers/:customerId/loyalty/redemptions?page=1&limit=20` — same response shape as customer redemptions endpoint.
+- `GET /customers/:customerId/loyalty/entries?page=1&limit=20` — `PaginatedLoyaltyEntriesResponse`: `{ items, total, page, limit }` (flattened pagination like the customer endpoint), but the staff item shape differs from the customer one: `{ id, bookingId, serviceName, points, earnedAt, expiresAt, isActive }` (`LoyaltyEntryItem`; no `pointsEarned`/`expired` renaming).
+- `GET /customers/:customerId/loyalty/redemptions?page=1&limit=20` — `PaginatedLoyaltyRedemptionsResponse`: `{ items, total, page, limit }` with items `{ id, pointsRedeemed, amountDeducted, redeemedAt, bookingId, notes }` (`LoyaltyRedemptionItem`; `amountDeducted` is a number computed from the redemption's snapshotted rate, not the customer endpoint's formatted `amountSaved`).
 
 ### **Loyalty Redemption — Admin (M10-S07)**
 
@@ -1325,6 +1360,8 @@ Errors:
 ---
 
 ## 6. System & Future
+
+> ⚠️ **Planned, not built:** neither endpoint below has a controller in the backend or BFF (UC-017 is out of MVP, and a notification-log view is listed under "Missing UCs" in `.copilot/context.md` §6).
 
 ### **Analytics (UC-017)**
 - `GET /analytics/summary` -> Dashboard stats for admins.
@@ -1513,6 +1550,25 @@ Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path on
 | `POST /cron/loyalty-expiry-warning` | `cron-loyalty-expiry-warning` | `loyalty-notify-expiring-points` |
 
 The outbox relay (`cron-outbox-relay`) has no HTTP trigger route; Cloud Scheduler publishes to its topic only. The authoritative topic/consumer list is `infra/terraform/pubsub-catalog.json`.
+
+### Backend-only read/lookup routes (BFF and operator tooling, no public contract)
+
+These backend routes are consumed by the BFF (or operator tooling) and have no `/v1` counterpart of their own. The `/internal/*` ones sit behind the global `InternalApiGuard` (`X-Internal-Key`) and need no `X-Tenant-ID`.
+
+| Route | Purpose | Guard |
+|---|---|---|
+| `GET /internal/tenants/by-slug/:slug` | Resolve a tenant by slug | `InternalApiGuard` |
+| `GET /internal/tenants/published-hotsites` | List tenants with a published hotsite | `InternalApiGuard` |
+| `GET /internal/tenants?ids=<uuid>,<uuid>` | Batch lookup of tenants by id (`ids` required) | `InternalApiGuard` |
+| `GET /internal/tenants/:tenantId` | Fetch one tenant by id | `InternalApiGuard` |
+| `GET /internal/staff/by-oauth?googleOAuthId=` | List the staff records linked to a Google account (multi-tenant) | `InternalApiGuard` |
+| `GET /internal/staff/by-email?email=&tenantId=` | Find a staff record by email within a tenant | `InternalApiGuard` |
+| `POST /internal/staff/:staffId/link-google` | Link a Google account to an invited staff record (`200`) | `InternalApiGuard` |
+| `GET /internal/customers/tenants?googleOAuthId=` | List the tenants a Google account has a customer profile in | `InternalApiGuard` |
+| `POST /internal/customers` | Find or create the customer row for a tenant + Google account (`200`) | `InternalApiGuard` |
+| `GET /hotsite` | The tenant's hotsite manifest (`GetHotsiteManifestUseCase`); the BFF's public manifest route calls it after resolving the slug | `X-Tenant-ID`, no role guard |
+| `GET /loyalty/balances?customerIds=<uuid>,<uuid>` | Batch loyalty balances for many customers in the caller's tenant (the BFF customer search calls it; not an `/internal` route) | `X-Tenant-ID` + `STAFF\|MANAGER` role guard |
+| `GET /loyalty/balances/own` | The calling customer's balances across tenants, resolved from their own identity (takes no params) | `CUSTOMER` role guard |
 
 ---
 

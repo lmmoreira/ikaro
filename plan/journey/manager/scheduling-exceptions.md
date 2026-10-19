@@ -55,6 +55,7 @@ flowchart TD
 | Call | When | Roles |
 |---|---|---|
 | `GET /v1/scheduling-exceptions/count` | **New in `M23-S14`:** the sidebar badge (`{ count }` of open entries); cached 60 s | MANAGER |
+| `GET /v1/scheduling-exceptions/by-booking/:bookingId` | **`M23-S46`:** the booking detail's decision panel — the open entries of that one booking, with alternatives, so the page does not load the whole worklist | MANAGER |
 | `GET /v1/scheduling-exceptions?status=OPEN` | Worklist page load (UC-073's output) — each item carries the booking summary and, for an open entry, the alternatives recomputed on that read (compatible and free now) | MANAGER |
 | `POST /v1/scheduling-exceptions/resolve` | Manager reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` (`KEEP` exists in the API but this page never sends it) | MANAGER |
 | `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page for `RESOURCE_DEACTIVATION` entries** (kept for the API and for future source types; see the 2026-10-14 decision above) | MANAGER |

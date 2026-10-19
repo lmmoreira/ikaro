@@ -26,8 +26,8 @@ flowchart TD
     ErrRetry --> Submit
     API -->|"Sucesso 200"| Success["✅ Confirmação\n/bookings/[id]/submit-info"]
 
-    AuthCustomer(["Cliente autenticado\nrecebe mesmo email"])
-    AuthCustomer -->|"Link → /dashboard/bookings/:id"| DashDetail["EXISTENTE: Detalhe do agendamento\n/dashboard/bookings/[id]"]
+    AuthCustomer(["Cliente autenticado\nrecebe o email com outro link"])
+    AuthCustomer -->|"Link → /{slug}/my-account/bookings/:id"| DashDetail["EXISTENTE: Detalhe do agendamento\n/{slug}/my-account/bookings/[id]"]
     DashDetail -->|"Clica 'Responder'"| CustomerForm["✅ Formulário embutido (InfoSubmitForm)\n(Minha Conta journey)"]
 
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
@@ -37,8 +37,6 @@ flowchart TD
 
 **Legend:** `existing` (green) = code already in production. `gap` (red, dashed) = no design or prototype exists yet — genuinely undesigned.
 
-**Open verification item:** `DashDetail` (`/dashboard/bookings/[id]`) renders `BookingDetailPage`, which is the STAFF/MANAGER-facing detail component. Whether an authenticated `CUSTOMER` role can load this same route was not re-confirmed during the 2026-07-31 docs audit — verify role access before relying on this node.
-
 ## Pages referenced
 
 | Page / Route | Component | Story | Status |
@@ -47,11 +45,11 @@ flowchart TD
 
 **Note on routing:** `bookings/` is a static Next.js segment and takes priority over the `[slug]/` dynamic segment — no conflict. The page lives outside both the hotsite (`[slug]/`) and the dashboard (`dashboard/`).
 
-**Note on authenticated path:** The customer's email links to `/dashboard/bookings/:id` (existing stub). The submission form for authenticated customers will be embedded in `BookingDetailPage` (Minha Conta journey — tracked separately as IA gap #2).
+**Note on authenticated path:** The customer's email links to `/{slug}/my-account/bookings/:id` (`buildRespondLink()` — only guests get the `/submit-info?token=` link; `/dashboard/bookings/:id` is the staff page). The submission form for authenticated customers will be embedded in `BookingDetailPage` (Minha Conta journey — tracked separately as IA gap #2).
 
 ## Implementation history
 
-`buildRespondLink()` in `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` was updated (and its `.spec.ts` companion) to emit `/bookings/:id/submit-info?token=` instead of the old `/responder` path, as part of the same story that shipped the frontend page.
+`buildRespondLink()` in `apps/backend/src/contexts/notification/application/use-cases/send-booking-info-requested-notification/send-booking-info-requested-notification.use-case.ts` was updated (and its `.spec.ts` companion) to emit `/bookings/:id/submit-info?token=` instead of the old `/responder` path, as part of the same story that shipped the frontend page (for a guest; an authenticated customer's email links to `/{slug}/my-account/bookings/{id}`, see the note above).
 
 ## Open questions / gaps
 

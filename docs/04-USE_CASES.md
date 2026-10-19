@@ -7,7 +7,7 @@ Use cases represent the business operations (user actions) that the system must 
 
 ## Multi-Tenancy Note
 
-All use cases operate within a **tenant scope**. When a user (staff or customer) interacts with the system, they are always scoped to their assigned tenant. A user can belong to only ONE tenant, and all their actions (viewing bookings, managing services, etc.) are isolated to that tenant's data.
+All use cases operate within a **tenant scope**. When a user (staff or customer) interacts with the system, they are always scoped to their assigned tenant. A single Google account can belong to several tenants (customers and staff are both multi-tenant — one row per tenant; see UC-021 to UC-023), but each session is scoped to exactly one tenant, and all the user's actions (viewing bookings, managing services, etc.) are isolated to that tenant's data.
 
 **Example:** Staff member logs into Tenant A. They can only see/manage Tenant A's bookings, services, and staff. They cannot access Tenant B's data even if they somehow try to manipulate URLs or requests.
 
@@ -309,7 +309,7 @@ UC-XXX: [Use Case Name]
   9. For each line: system sets `actualPriceCharged` (staff-entered value, or `priceAtBooking` if unchanged). System caches `totalActualPrice = SUM(lines.actualPriceCharged)`.
   10. System publishes `BookingCompleted` event with the full line list (including `actualPriceCharged` per line and `totalActualPrice`).
   11. If `customerId != null`: Loyalty Context inserts one `LoyaltyEntry` per line using `pointsValueAtBooking` — **loyalty points are not affected by the actual price charged**.
-  12. System shows success, displaying a summary:
+  12. System shows success, displaying a summary (the `PATCH` response itself is only the flat `{ bookingId, status, completedAt, totalActualPrice }`; it does not return the per-line figures):
       ```
       Serviço concluído!
       Basic Wash:  R$ 100,00 → cobrado R$ 80,00
@@ -329,7 +329,7 @@ UC-XXX: [Use Case Name]
     3. System shows live discount: "Desconto (200 pts): − R$ 20,00 · Total a cobrar: R$ 40,00".
     4. Staff clicks "Confirmar conclusão". System calls a single `PATCH /bookings/:id/complete` (body includes `discountByPoints: { pointsUsed, amountDeducted }`) — the booking is saved as COMPLETED with the discount already applied to `totalActualPrice`; no second HTTP call is made by the client.
     5. The `BookingCompleted` event (carrying `discountByPoints`) triggers the Loyalty Context asynchronously: the customer's balance is decremented and a `LoyaltyRedemption` is recorded, linked to the booking.
-    6. Completion summary (returned synchronously in the `PATCH` response) shows per-line charges plus the loyalty discount row.
+    6. The `PATCH` response is the flat `{ bookingId, status, completedAt, totalActualPrice }` (`totalActualPrice` already net of the discount); it carries no per-line charges or discount row.
     - Only shown when `customerId != null` AND `pointsPerCurrencyUnit > 0`. Not available for guest bookings (A4).
     - `amountDeducted` exceeding the booking's actual total → `422 Unprocessable` — discount cannot exceed the amount charged.
 
@@ -1346,6 +1346,8 @@ Returns:
 
 ## Classes/Sessions Use Cases (M24 Cluster 4)
 
+> ⚠️ **Planned, not built:** every use case in this section (UC-078 – UC-107 and the class parts of earlier UCs; UC-108, the last heading below, is the exception: it shipped in M23-S39/S40 as `POST /bookings/staff`) is a target design for the M24 plan; no controller for any of its endpoints (`/class-sessions`, `/class-session-bookings`, `/recurring-enrollments`, `/class-access-contracts`, `PATCH /services/:id/guest-access-policy`) exists in the backend or BFF yet. The Classes & Sessions section of `docs/14-API_CONTRACTS.md` carries the same marker.
+
 > Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
 
 ### **UC-078: Staff/Manager Configures a Session Service's Guest Access Policy**
@@ -2014,9 +2016,9 @@ The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_
    1. Widget `POST`s the message to `POST /public/platform/chatbot/messages` (BFF, public, `X-Tenant-Slug` header) with `{ sessionId?, message }`. First message of a session omits `sessionId`.
    2. If `sessionId` is omitted: backend enforces the volume caps (`COUNT`-based, against `chatbot_sessions`) — `maxConversationsPerDay` (30, per tenant), `maxConversationsPerIpPerDay` (5, per tenant+IP), `maxConcurrentConversations` (5, per tenant, live-ness proxy `last_message_at > now() - interval '2 minutes'`) — then creates a new `chatbot_sessions` row and returns a new `sessionId` for the widget to hold in `sessionStorage`.
    3. If `sessionId` is present: backend enforces `maxMessagesPerConversation` (20 = 10 exchanges, `COUNT` of all `chatbot_messages` rows for that session, both roles).
-   4. BFF validates `message.length <= maxMessageLengthChars` (1000, tenant-overridable) — a DTO-level check, before the request reaches the backend or the LLM.
+   4. The backend validates `message.length <= maxMessageLengthChars` (1000, tenant-overridable, an Ikaro-only override the BFF cannot see) in `SendChatMessageUseCase`'s `enforceMessageLength`, before any LLM call. The BFF's own Zod schema only applies a 5000-character outer bound as an absurd-payload guard.
    5. BFF assembles the system prompt (`chatbot.mapper.ts`'s `buildSystemPrompt()`): live services/prices from Booking context (`BackendHttpService.getForPublic('/services', tenantId)` — the same call the `SERVICE_LIST` module already makes), business info + `settings.chatbot.knowledgeText` from Platform tenant settings (via `CachingTenantRepository`, not a fresh query per message), and the hardcoded `buildAssistantRules(locale)` guardrail section — never sourced from tenant data, never admin-editable.
-   6. BFF truncates history to the last `maxHistoryMessagesSentToLlm` (10 = last 5 exchanges) messages from `chatbot_messages` and forwards `{ systemPrompt, sessionId, history, userMessage }` to backend's Platform "send chat message" use case.
+   6. BFF forwards `{ sessionId, systemPrompt, message, clientIp }` to backend's Platform "send chat message" use case. The backend itself loads the session's history from `chatbot_messages`, limited to the last `maxHistoryMessagesSentToLlm` (10 = last 5 exchanges) messages (`send-chat-message.use-case.ts`, `chatbot-cap-check.helpers.ts`).
    7. Backend resolves the tenant's LLM provider (`tenant.settings.chatbot?.llmProvider ?? process.env.CHATBOT_LLM_PROVIDER`) via a provider registry, calls `ILlmProvider.complete()` with `maxOutputTokensPerResponse` (300) as a hard ceiling.
    8. Backend persists both the user message and the assistant's reply as two `chatbot_messages` rows (`role USER`/`ASSISTANT`, `input_tokens`/`output_tokens`/`model_id` from the adapter's result), updates `chatbot_sessions.last_message_at`/`message_count`.
    9. Backend returns the reply; BFF forwards `{ sessionId, reply }` to the widget, which renders it as a chat bubble.
@@ -2024,7 +2026,7 @@ The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_
 - **Alternative Flows:**
    - **A1: Daily/per-IP/concurrency cap exceeded on session creation** → `429`, specific cap-exceeded error code; widget shows the interrupted state — input disables, tenant's phone/WhatsApp offered as a fallback contact.
    - **A2: `maxMessagesPerConversation` reached mid-conversation** → same interrupted-state behavior as A1, distinct error code.
-   - **A3: `message.length > maxMessageLengthChars`** → `400`, rejected before reaching the backend or the LLM; inline validation message, input stays enabled (not conversation-ending).
+   - **A3: `message.length > maxMessageLengthChars`** → `400`, rejected by the backend before any LLM call; inline validation message, input stays enabled (not conversation-ending).
    - **A4: LLM provider call fails mid-conversation** (timeout, `insufficient credits`, upstream error) after being healthy at the last pre-flight check → interrupted state, generic "assistant unavailable" message, phone/WhatsApp fallback offered.
    - **A5: Visitor attempts prompt injection** (e.g. "ignore your instructions," a fake-authority booking-confirmation attempt) → the hardcoded guardrail section causes the model to refuse/redirect; empirically validated 7/7 during M19 discovery (7/7 scenarios, 2026-08-07). This is a model-behavior outcome, not a server-side detection branch — the bot has zero tools/write access (§2 scope boundary), so even an unlikely successful jailbreak has nothing to execute.
    - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously, `429` (same status as A1 — decided during M19-S05 story-discovery, 2026-08-12). Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between one visitor's session-start and the next visitor's. **New-session creation only** — an already-open conversation is exempt, per `docs/04-USE_CASES.md` UC-033 A6: "already-open conversations remain bounded by their own per-session caps regardless" (clarified after a PR #360 review finding that an earlier implementation misread this alternative flow as also blocking existing sessions).
@@ -2334,22 +2336,20 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 > **Updated (`M13-S13`/`M13-S15`):** staff are multi-tenant-capable, the same way customers are (`UNIQUE(tenant_id, google_oauth_id)`, not a global unique constraint — see `CLAUDE.md` §2 invariant 6). A staff member is always provisioned `is_active=true` at invite time; there is no "invite not yet accepted" `is_active=false` state to activate from. The `/auth/first-login` flow this UC previously routed into was deleted — Google-callback login either succeeds directly or redirects to `/auth/error?reason=<code>`.
 
 - **Actor:** Staff member (unauthenticated)
-- **Preconditions:** Staff has a Google account already linked to at least one active `Staff` record (via a prior accepted invite — see UC-028).
+- **Preconditions:** An active `Staff` record exists in the target tenant for the staff member's email (created by an invite, UC-028); the Google account is linked to it on the first successful login.
 - **Trigger:** Staff clicks "Login" on `/dashboard/login` (requires `?tenantSlug=` — see UC-025's linked note on invite-link format)
 - **Main Flow:**
   1. System redirects to Google OAuth
   2. Staff logs in with Google account
   3. Google returns: googleOAuthId, email, name
-  4. System queries every active `Staff` record with this `google_oauth_id`
-  5. **Case A: Exactly one active `Staff` record found**
-     - Session created scoped to that tenant; staff redirected to `/dashboard`
-  6. **Case B: 2+ active `Staff` records found (multiple tenants)**
-     - System issues a short-lived selection token and redirects to `/select-staff-tenant` (an **authenticated** post-login screen — not a pre-login chooser) — see Alternative Flow A1
-  7. **Case C: No matching `Staff` record found, or the matched record is `is_active=false`**
-     - System redirects to `/auth/error?reason=<code>`, one of: `not-a-staff-member`, `invite-not-found`, `staff-deactivated`, `email-mismatch`, `account-linked-elsewhere`, `tenant-not-found`
+  4. System resolves the tenant from the `tenantSlug` carried in the OAuth state (staff login is **per-tenant**, not a lookup across every tenant the Google account belongs to) and finds the `Staff` record in that tenant by the Google account's email
+  5. **Case A: An active `Staff` record is found in that tenant**
+     - If the record is not yet linked to this Google account, the BFF links it (invite acceptance, UC-028); session created scoped to that tenant; staff redirected to `/dashboard`
+  6. **Case B: No usable record, or the login cannot complete**
+     - System redirects to `/auth/error?reason=<code>` (with `tenantSlug` appended). The BFF emits: `tenant-not-found` (unknown slug), `invite-not-found` (no `Staff` record with this email in the tenant), `staff-deactivated` (record is `is_active=false`, or the link call was refused as deactivated), `email-mismatch` (link rejected: the Google email does not match the invited one), `account-linked-elsewhere` (the record is already linked to a different Google account), and `no-tenant` (the login started without a `tenantSlug`). `not-a-staff-member` is also rendered by the error page but is not emitted by this flow today
 
 - **Alternative Flows:**
-  - **A1: Staff selects a tenant from `/select-staff-tenant`** → Session created scoped to the chosen tenant. This same screen/endpoint (`GET /auth/staff-tenants`, `POST /auth/switch-staff-tenant`) also supports switching tenants **after** login, not just at initial sign-in. (`GET /staff/me/tenants` is a separate, internal-only backend route — not the BFF-exposed one the client actually calls.)
+  - **A1: Staff switches tenant from `/select-staff-tenant`** → a staff member whose Google account is linked to 2+ active `Staff` records can switch tenant **after** login from the `/select-staff-tenant` screen (`GET /auth/staff-tenants` lists them, `POST /auth/switch-staff-tenant` issues the new tenant-scoped session). It is a post-login switch screen, not a step of the sign-in itself. (`GET /staff/me/tenants` is a separate, internal-only backend route — not the BFF-exposed one the client actually calls.)
 
 - **Postconditions:** Staff logged in, session scoped to the selected tenant.
 - **Events Triggered:** None (read operation)
@@ -2360,7 +2360,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 
 - **Actor:** Authenticated customer (logged in)
 - **Preconditions:** Customer belongs to multiple tenants. Currently in one tenant.
-- **Trigger:** Customer clicks "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown — shown only when `GET /v1/customers/tenants` returns at least one other tenant (the JWT itself carries no tenant count, just `{ sub, tenantId, tenantSlug, role }`)
+- **Trigger:** Customer clicks "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown — shown only when `GET /v1/customers/tenants` returns at least one other tenant (the JWT itself carries no tenant count, just `{ sub, tenantId, tenantSlug, tenantName, userName, role, locale }`)
 - **Endpoint:** `GET /v1/customers/tenants` (list) + `POST /v1/auth/switch-tenant { targetTenantId }` (CUSTOMER)
 - **Main Flow:**
   1. System shows list of other tenants customer belongs to (excluding current), via `/switch-tenant` page
@@ -2417,7 +2417,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
       ```json
       { "tenantId": "uuid-v7", "name": "AutoWash Pro", "slug": "autowash-pro" }
       ```
-   8. **Asynchronously** — Staff context (M04-S06) handles `TenantProvisioned` → creates first MANAGER `Staff` row (`is_active = false`) → publishes `StaffInvited`.
+   8. **Asynchronously** — Staff context (M04-S06) handles `TenantProvisioned` → creates first MANAGER `Staff` row (always `is_active = true`; there is no inactive-until-accepted state) → publishes `StaffInvited`.
    9. **Asynchronously** — Notification context (M11) handles `StaffInvited` → sends invitation email to `adminEmail` in pt-BR.
 
 - **Alternative Flows:**
@@ -2467,7 +2467,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 - **Actor:** Staff member with `MANAGER` role (to save changes)
 - **Preconditions:** Admin is authenticated. `GET /tenants/settings` (viewing the screen) allows `STAFF`|`MANAGER`; `PATCH /tenants/settings` (saving changes) is `MANAGER`-only — STAFF can view the settings screen but not edit it.
 - **Trigger:** Admin clicks "Configurações" → "Geral" in the dashboard.
-> **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (accepted in the UI but currently inert; no booking use case reads it yet), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; read-only **Localização** (`countryCode`-driven, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. (The former **Notificações** section / `notification.fromEmail` was removed in `M18-S09` — emails are always sent From the platform sender with Reply-To = `businessInfo.email`.) See `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
+> **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (the tenant default approval mode: a service with no `defaultApprovalMode` of its own inherits `AUTO_CONFIRM` when true, `MANUAL_APPROVAL` when false — read via `getAutoApproveEnabled` in the recurring-schedule request use case and `resolveApprovalMode` in `service-result.mapper.ts`), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; read-only **Localização** (`countryCode`-driven, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. (The former **Notificações** section / `notification.fromEmail` was removed in `M18-S09` — emails are always sent From the platform sender with Reply-To = `businessInfo.email`.) See `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
 
 - **Main Flow:**
    1. System loads current `tenants.settings` JSONB and displays form with current values:
@@ -2522,7 +2522,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
       - Button background color (optional, overrides primary color on buttons)
       - Button text color (optional)
       
-      **Section B: Layout / Modules** (drag-drop list of module types — the 8 types built in M12/M13-S36: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER; CHATBOT added as a 9th type)
+      **Section B: Layout / Modules** (drag-drop list of module types — the 10 `HotsiteModuleType` values: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER built in M12/M13-S36, then CHATBOT and LEAD_FORM added later)
       - [x] HERO (title, subtitle, optional background image upload) — toggle on/off
       - [x] SERVICE_LIST (services from catalog, with price/points badges) — toggle on/off
       - [x] GALLERY (booking after-photos + curated images) — toggle on/off + limit (6 default)
@@ -2530,6 +2530,8 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
       - [x] TESTIMONIALS (author, text, optional rating; grid or carousel) — toggle on/off
       - [x] ABOUT (markdown body + optional image, configurable position) — toggle on/off
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off
+      - [x] FOOTER (site footer showing the tenant's business info plus its own `FooterModuleData` fields; see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` section 4) — toggle on/off
+      - [x] LEAD_FORM (configurable lead-capture form with up to 20 custom questions; configured per UC-037) — toggle on/off
       - [x] CHATBOT (AI-assisted FAQ widget scoped to the tenant's own business data) — toggle on/off; drill-down config carries only `variant` (`bubble`|`inline`), `accentColor`, `botName`, `welcomeMessage` — everything cost/security-sensitive (`knowledgeText`, the volume/cost caps) is deliberately excluded from this module data and lives on the tenant settings page instead (UC-026) or isn't tenant-editable at all (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). This config screen also carries a standing (non-dismissible) disclosure note: the assistant depends on Ikaro-managed AI provider credits, and a temporary provider/credit shortfall disables the widget automatically until resolved — no tenant action needed
 
       **Section C: SEO** (M12-S09; share image added M18-S03)
@@ -2684,7 +2686,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-019 | Customer reminder (day before) | System | Cron emits `BookingReminderDue`; Notification sends email at 6 AM |
 | UC-020 | Customer reminder (day of) | System | Cron emits `BookingReminderDueToday`; Notification sends email at 6 AM |
 | UC-021 | Customer login | Customer | OAuth, tenant-scoped (login-time multi-tenant selection descoped — see UC-021 note) |
-| UC-022 | Staff login (single or multi-tenant) | Staff | OAuth; 2+ active tenants → `/select-staff-tenant`, also used to switch post-login |
+| UC-022 | Staff login (single or multi-tenant) | Staff | OAuth, per-tenant from the OAuth state (`tenantSlug`); `/select-staff-tenant` is the post-login tenant switch |
 | UC-023 | Customer switches tenant | Customer | Switch session to different tenant |
 | UC-024 | Platform operator provisions new tenant (REST API) | Platform operator | `tenants` row + first MANAGER staff row; invite email sent |
 | UC-025 | Admin first login (accepts invite) | Invited staff | `staff.google_oauth_id` set (row is already `is_active=true` from invite) |
