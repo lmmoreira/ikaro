@@ -510,7 +510,7 @@ await expect(page.locator('input[name="cf-turnstile-response"]')).toHaveValue(/.
 });
 ```
 
-If a future story adds a *second*, differently-configured Turnstile widget (a real production sitekey exercised against a different environment), re-verify this assumption for that specific sitekey before reusing the hidden-input wait — this behavior is a documented property of the test key, not necessarily every key. (Relocated from `docs/ENGINEERING_RULES.md`, 2026-09-20, TD41 — this is a test-execution nuance, not a code anti-pattern.)
+If a future story adds a *second*, differently-configured Turnstile widget (a real production sitekey exercised against a different environment), re-verify this assumption for that specific sitekey before reusing the hidden-input wait — this behavior is a documented property of the test key, not necessarily every key. (Relocated from the former `ENGINEERING_RULES.md`, 2026-09-20, TD41 — this is a test-execution nuance, not a code anti-pattern.)
 
 ---
 

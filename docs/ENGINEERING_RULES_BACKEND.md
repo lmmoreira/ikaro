@@ -1,7 +1,7 @@
 # Ikaro — Engineering Rules: Backend (+ Database, BFF)
 
 > **When to load:** backend use cases, transactions, migrations, event handlers, BFF implementation, database work.
-> Split from `docs/ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). BFF content is folded in here — too small (~30 lines) to justify its own file. Summary rules are in `CLAUDE.md §7`.
+> Split from the former single `ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). BFF content is folded in here — too small (~30 lines) to justify its own file. Summary rules are in `CLAUDE.md §7`.
 > **Tags:** agent-process, backend, bff, database
 
 ---

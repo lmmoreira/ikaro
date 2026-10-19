@@ -1024,7 +1024,7 @@
   "docLinkIntegrity": {
     "markdownSources": ["docs/", "plan/", "td/", ".claude/commands/", ".copilot/"],
     "codeSources": ["apps/", "packages/"],
-    "excluded": ["docs/archive/", "docs/discovery/", "archive/"],
+    "excluded": ["docs/discovery/", "archive/"],
     "frozen": [
       "plan/M00-MONOREPO-FOUNDATION.md",
       "plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_DEVELOPER.md",

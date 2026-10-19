@@ -1,6 +1,6 @@
 # M12 — Hotsite Frontend: Implementation Details (Developer Reference)
 
-> **Who this is for:** A developer continuing work on `apps/web` (M13+ dashboard, future hotsite stories) who wants to understand *why* M12 is built the way it is — not just what files exist. Pairs with `docs/lean/WEB_LEAN.md` (concept-by-concept learning journal) and `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` (token-efficient artifact reference).
+> **Who this is for:** A developer continuing work on `apps/web` (M13+ dashboard, future hotsite stories) who wants to understand *why* M12 is built the way it is — not just what files exist. Pairs with `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md` (token-efficient artifact reference).
 
 ---
 

@@ -1,7 +1,7 @@
 # Ikaro — Engineering Rules: Infra / Cloud Run
 
 > **When to load:** writing Terraform/infra code, observability/deployment work, anything touching Cloud Run networking or CPU throttling.
-> Split from `docs/ENGINEERING_RULES.md` (TD41-S4, 2026-09-23) as its own file — these are infra-authoring conventions, not backend business-logic ones, and this fixes the confirmed §10 routing mismatch (Story 3) where "Writing Terraform / infra code" never loaded this content.
+> Split from the former single `ENGINEERING_RULES.md` (TD41-S4, 2026-09-23) as its own file — these are infra-authoring conventions, not backend business-logic ones, and this fixes the confirmed §10 routing mismatch (Story 3) where "Writing Terraform / infra code" never loaded this content.
 > **Tags:** agent-process, infra
 
 ---
