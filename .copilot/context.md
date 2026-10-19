@@ -404,7 +404,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Anything not listed above (infra setup, data retention, business context, cost) | `pnpm --filter @ikaro/architecture-check docs-for --file <path>` (or `--tag <tag>`) lists the docs for a file or tag; read a doc's `When to load` line before the rest |
 
 **Anti-patterns reference:** `docs/ANTI_PATTERNS.md` — full table; loaded automatically by `/pre-pr`.
-**Never load:** `docs/archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
+**Never load:** `archive/` (superseded) · `plan/*_DEVELOPER.md` (written for humans, not agents).
 
 **Drafting a new milestone:** Consolidate into the single canonical `plan/M0X-<NAME>.md` before any story starts. Sequence backend/BFF-only stories in an early wave before any frontend story that depends on them.
 

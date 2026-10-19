@@ -11,7 +11,7 @@ Review every PR with high standards. Be precise, actionable, and reference the e
 Do **not** review, flag, or comment on any file matching these patterns — they are outside the scope of code quality standards:
 
 - `plan/journey/*/prototypes/**` — raw HTML UX prototypes used for design reference only
-- `docs/archive/**` — superseded documentation
+- `archive/**` — superseded documentation
 
 ---
 
