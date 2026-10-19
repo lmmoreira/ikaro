@@ -413,25 +413,34 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 
 **Description:**
 1. **`docs/README.md`.** State where a new doc goes and the one naming rule (`UPPER_SNAKE.md`; the numeric prefix is removed by Story 6 only if that story is approved), keeping the former reading order as an ordered list. The convention paragraph also states the header contract Story 1 enforces: every doc opens with `When to load` and `Tags` lines, so a new doc is not a surprise CI failure.
-2. **Move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `td/`** (citations rewritten, proven by Story 0).
-3. **Delete `docs/ENGINEERING_RULES.md`** (a 94-line redirect index, cited by about 21 files outside archive and discovery) once the checker shows no citation still needs it.
-4. **Move `docs/archive/` to a top-level `archive/`.** 59 files, about 1.5 MB of superseded content; about 52 citations to rewrite. History is preserved by `git mv`. `docs/discovery/` stays where it is until its milestone is promoted.
+2. **Move `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` to `archive/td/`**, next to its own archived TD37 (`td/` holds live TDs only). Its two citations are in archived files and stay as they are.
+3. **Delete `docs/ENGINEERING_RULES.md`** (a 94-line redirect index) once no live file cites it. Live citations are reworded to the split file that now holds the rule or to "the former `ENGINEERING_RULES.md`" without a path.
+4. **Move `docs/archive/` to a top-level `archive/`.** 59 files, about 1.5 MB of superseded content, moved by `git mv` with no edits inside it. About 10 live files cite it; see the decisions below. `docs/discovery/` stays where it is until its milestone is promoted.
 5. **Delete `docs/lean/`.** `docs/lean/WEB_LEAN.md` (139 KB) is a "Frontend Learning Journal" written for a human learning Next.js; the owner confirmed on 2026-10-17 that it can be deleted. It is cited only by the `M12`/`M13` `_DEVELOPER.md` plan files (which agents never load per `.copilot/context.md` §10) and as a scope example in the two `docs-audit` copies. Remove the file and fix every citation.
+**Decisions locked in story-discovery (2026-10-19):**
+- **Archived files are not edited.** Citations inside `archive/` files (about 60, all historical; the checker excludes them as sources) stay as they are. The acceptance criteria below therefore say "no tracked live file", meaning outside `archive/`, `docs/discovery/` and files with a `> Frozen:` header.
+- **No detector change.** `doc-link-integrity` is not given an `archive/` root; the rewritten citations are verified by `git grep`, not by the checker.
+- **Live files stop depending on the archive.** A live file's pointer to an archived file is removed, not repointed, and the fact it supported stays in the sentence (for example "bundles are offered from TD49 Story 2"). Before each removal, check what the live doc would lose; only when the pointer was the single home of a fact does one sentence move into the canonical live doc, and nothing is copied wholesale or bloats a doc. The known cases are `docs/04-USE_CASES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and its `dev-notes.md`, the M22 IA file, `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` and the precedent note in `story-discovery` (both copies).
+- **Pointers that name the folder itself are repointed to `archive/`:** `.copilot/context.md` §10 ("Never load"), `.github/instructions/pr-review.instructions.md` (excluded paths) and `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (the checker's skipped folders). The policy's `excluded` list drops the dead `docs/archive/` entry and keeps `archive/`.
+- **`ENGINEERING_RULES.md` citations:** the two non-frozen `plan/M17-CLOUD-DEPLOY.md` lines say "the former `ENGINEERING_RULES.md`" with no `docs/` path, so the history stays true; the "Split from" header lines in the five `ENGINEERING_RULES_*` files, `CI_TRAPS.md` and both skill copies are reworded the same way; `agent-context-file.spec.ts` uses a real doc path as its fixture instead. `doc-orientation.spec.ts` and the `docs-audit` folder example stop naming `docs/lean`. The `M12`/`M13` `_DEVELOPER.md` plans lose only the sentence citing `WEB_LEAN`.
+- **`docs/README.md`:** the placement and naming rule, the header-contract paragraph, and one ordered list (numbered docs in prefix order, then the unnumbered ones grouped by purpose, docs 27 and 28 included) with one line per entry instead of the long blurbs.
+- **Test plan:** `pnpm architecture-check` (with `doc-link-integrity`) after each commit; a final `git grep` for `docs/archive`, `docs/lean`, `WEB_LEAN` and `ENGINEERING_RULES.md` that returns hits only inside `archive/`, frozen files and this TD; `git log --follow` on a sample of moved files; the Codex skill copies compared with a fresh `scripts/codex-skill.sh` run.
+
 Each of items 2–5 is its own commit in the PR, so a bad one can be reverted alone. The Codex skill copies are regenerated with `scripts/codex-skill.sh`.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
 - `docs/README.md` (modify — convention paragraph and reading order)
-- `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` → `td/TD37-ARCHITECTURE-CHECK-DECISIONS.md` (`git mv`) and every file citing it (regenerate with `grep -rl TD37-ARCHITECTURE-CHECK-DECISIONS` at implementation time) <!-- doc-link:example -->
+- `docs/TD37-ARCHITECTURE-CHECK-DECISIONS.md` → `archive/td/TD37-ARCHITECTURE-CHECK-DECISIONS.md` (`git mv`; its citations are in archived files and stay)
 - `docs/ENGINEERING_RULES.md` (delete) and every file citing it (regenerate with `grep -rl "docs/ENGINEERING_RULES.md"`)
-- `docs/archive/**` → `archive/**` (`git mv`, 59 files) and every file citing `docs/archive` (regenerate the list)
+- `docs/archive/**` → `archive/**` (`git mv`, 59 files) and the live files citing `docs/archive` (regenerate the list with `git grep -l docs/archive`, excluding `archive/`)
 - `docs/lean/WEB_LEAN.md` (delete) and its citations: `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `plan/M13-DASHBOARD-FRONTEND_IMPLEMENTATION_DETAILS_DEVELOPER.md`, `.claude/commands/docs-audit.md`, `.agents/skills/docs-audit/SKILL.md` (regenerated)
 
 **Acceptance criteria — product:**
-- [ ] `docs/lean/` is gone and no tracked file cites it.
-- [ ] `docs/archive/` lives at `archive/` with its history intact, and no tracked live file still cites the old path.
-- [ ] `docs/ENGINEERING_RULES.md` is gone and no tracked file cites it.
+- [ ] `docs/lean/` is gone and no tracked live file cites it.
+- [ ] `docs/archive/` lives at `archive/` with its history intact, no file inside it was edited, and no tracked live file still cites the old path or depends on an archived file for a fact it states.
+- [ ] `docs/ENGINEERING_RULES.md` is gone and no tracked live file cites it by path.
 - [ ] `docs/README.md` states where a new doc goes and lists the docs in their former reading order.
 
 **Acceptance criteria — technical:**
