@@ -739,27 +739,42 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-`git mv` the whole subtree to the destination Story 3C confirmed (`journeys/`), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working. Rewrite all 879 occurrences with a script (828 outside the subtree in 139 files, 51 inside it in 40 files; measured by Story 3C, regenerate at implementation time), including `.copilot/context.md` §10/§15, the skills under `.claude/commands/`, `.github`, `.agents`, `apps/` comments and `td/TD50`. No root config needs an edit (Story 3C checked `.gitignore`, `.coderabbit.yaml`, `sonar-project.properties` and `knip.config.ts`: none names the path). No stub is left at the old path; Story 0's checker proves nothing still points there. The rewrite script lives in the scratchpad and is not committed. **Tags:** update the `prototypes` tag's globs in `architecture-policy.json` (`docOrientation`) to the new location, and give the journeys index doc (`plan/journey/README.md`, or its replacement at the new path) a `Tags` line, so `docs-for --tag prototypes` keeps finding the journeys; Story 1's `doc-orientation` fails if that tag's globs match nothing, which makes a forgotten update visible. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+`git mv` the whole subtree to `journeys/` (top level; confirmed by Story 3C), preserving its structure so the prototypes' relative links (`../../../shared/...`) keep working (re-checked 2026-10-19: no relative link in the subtree reaches outside it). `journeys/` becomes the canonical home of journeys, prototypes, and their shared assets, so `plan/` means delivery only and `docs/` stays text.
+
+**Scope of the rewrite (re-measured 2026-10-19, `docs/discovery/` and `archive/` excluded by owner decision):** 354 hits in 36 files outside the subtree, plus 51 hits in 40 files inside it, about 405 edits in about 76 files. Story 3C's 879 / 139 figure included 100 files in `docs/discovery/` (96) and `archive/td/` (4); those are historical and keep the old path on purpose (the checker already excludes both). Regenerate the list at implementation time. Every live file is rewritten, with no exception: `.copilot/context.md` §10/§15 (and so `CLAUDE.md`, `AGENTS.md`, `gemini.md`), the skills in **both** `.claude/commands/` and `.agents/skills/` (separate copies, not symlinks), `.github/instructions/pr-review.instructions.md` (its prototype review exemption must follow the path), `docs/*`, `plan/M*` milestones, `td/` files, and the `apps/web` source comments. The seven milestone plans the policy lists as frozen (M13, M18, M19, M20, M21 ×2, M22) get the same path-only rewrite: the checker skips frozen files, so CI would not catch a missed one. No stub is left at the old path. The rewrite script lives in the scratchpad and is not committed.
+
+**Things that depend on the old location without naming it (found in discovery, 2026-10-19):**
+- **`doc-link-integrity` roots.** Its citation regex knows only `docs|plan|td|infra`, and `markdownSources` lists `docs/ plan/ td/ .claude/commands/ .copilot/`. Left alone, the move would silently stop checking `journeys/*.md` and every `journeys/...` pointer. Add `journeys/` to the regex, to `markdownSources` in `architecture-policy.json`, and to the detector's spec; update the "four doc roots" comment in the detector.
+- **`.prettierignore`** lists `plan/`, which is the only thing keeping `prettier --check .` (in `ci:fast`) off the 352 html/css prototypes. Add `journeys/`.
+- **`.dockerignore`** lists `plan`; add `journeys` so 5.8 MB does not enter build contexts.
+- **Tags.** Update the `prototypes` tag's globs in `architecture-policy.json` (`docOrientation`) to `journeys/**`, and give the journeys index doc (`journeys/README.md`) a `Tags` line, so `docs-for --tag prototypes` keeps finding the journeys; Story 1's `doc-orientation` fails if that tag's globs match nothing.
+
+This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- The `plan/journey/**` subtree (`git mv`, 407 files)
-- Every file returned by `grep -rl "plan/journey"` at implementation time (139 measured outside the subtree; regenerate then)
-- `packages/architecture-check/architecture-policy.json` (the `prototypes` glob under `docOrientation`); no root config edit is required
+- The `plan/journey/**` subtree (`git mv`, 407 files) to `journeys/**`
+- Every live file returned by `git grep -l "plan/journey"` outside `docs/discovery/` and `archive/` (36 measured; regenerate then)
+- `packages/architecture-check/architecture-policy.json` (`prototypes` glob under `docOrientation`; `markdownSources`)
+- `packages/architecture-check/src/detectors/doc-link-integrity.ts` and `doc-link-integrity.spec.ts` (new root)
+- `.prettierignore`, `.dockerignore`
 
 **Acceptance criteria — product:**
-- [ ] No tracked file cites the old path after the move.
+- [ ] `git grep "plan/journey"` returns hits only under `docs/discovery/` and `archive/`.
 - [ ] Every relative `href`/`src` in the moved HTML prototypes still resolves (one-off script run, result recorded in the PR).
+- [ ] `docs-for --tag prototypes` still lists the journeys.
 
 **Acceptance criteria — technical:**
-- Unit: none — mechanical move, verified by Story 0's detector
+- Unit: `doc-link-integrity.spec.ts` gains three cases: a `journeys/...` citation that resolves passes, a dead one fails, and a `journeys/*.md` file is scanned as a source.
 - Integration: none
 - Tenant isolation: none — no tenant data
 - E2E: none
-- [ ] `pnpm architecture-check` (including `doc-link-integrity`) passes
+- [ ] `pnpm architecture-check` (including `doc-link-integrity` and `doc-orientation`) passes
+- [ ] `pnpm prettier --check .` passes (proves the `.prettierignore` entry)
 - [ ] `/docs-audit changed` over the move range reports zero dead pointers
 - [ ] `tsc --noEmit` clean, lint clean
+
 
 ### Story 5A — Spike: which agent tools load path-scoped context, and how ✅ Done
 
