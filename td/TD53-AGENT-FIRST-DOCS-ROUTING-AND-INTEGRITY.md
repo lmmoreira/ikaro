@@ -49,14 +49,14 @@ Rejected, with the condition to reopen:
 
 ### Success metrics (baseline measured 2026-10-17; each story records its after-value in its PR)
 
-| Metric | Baseline | Target | Story |
-|---|---|---|---|
-| Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 |
-| Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 |
-| Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 |
-| `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 |
-| Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B |
-| Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B |
+| Metric | Baseline | Target | Story | After (Story 3C, 2026-10-19) |
+|---|---|---|---|---|
+| Dead `docs/`, `plan/`, `td/`, `infra/` citations and dead `§` anchors in live text | counted by Story 0's first run | 0, enforced by CI | 0 | 0 at each of Story 3A's passes; held by `doc-link-integrity` in CI |
+| Top-level docs with a "When to load" line | 8 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 (two docs deleted or moved by 3B) |
+| Top-level docs with a `Tags` line from the vocabulary | 0 of 45 | 45 of 45, enforced by CI | 1 | 43 of 43 |
+| `context.md` §10 rows citing a `§ section` or stating "whole file" with a reason | 8 of 34 | every row | 2 | 19 of 37 rows cite a `§`; the other 18 name a skill or a small doc read whole with its size shown (the §10 header states that convention) |
+| Always-on `context.md` size | 57,647 chars | set by Story 5A's measurement | 5B | 59,709 chars (up 2,062 since the baseline; §7 24,152, §9 8,724, §10 8,047). Unchanged by design until 5B |
+| Superseded or historical files under `docs/` (archive, lean) | 59 + 1 | 0 | 3B | 0 (`docs/archive` and `docs/lean` no longer exist; the archive is the top-level `archive/`) |
 
 ### Decision record (filled by Story 3C)
 
@@ -149,7 +149,137 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 **Deviation from the story text:** the story names a literal `/docs-audit changed` re-run and exact before/after counts per category. The passes above use the same read-only agent fan-out as `/docs-audit` but with a "report only what survives" brief; pass-1 counts are approximate and the pass-1 category split was not tracked.
 
 
-_Open. Story 3C writes here: the per-doc verdicts, the load measurements including any non-Claude agent evidence, the always-on `context.md` cost review, and the confirmed destination of the journeys move (top-level `journeys/` unless the measurements say otherwise), and an explicit go or no-go, with the cost shown, for Story 4 (journeys move) and Story 6 (numeric-prefix drop)._
+#### Story 3C — load measurement and decisions (2026-10-19)
+
+**Summary of decisions**
+
+| Decision | Outcome |
+|---|---|
+| Story 4 (journeys move) | **Go** (owner, 2026-10-19), against the measurement's no-go lean: the benefit is clarity, not findability |
+| Story 6 (numeric-prefix drop) | **Go** (owner, 2026-10-19), against the measurement's no-go lean: the benefit is one uniform naming rule, not findability |
+| Journeys destination | Top-level `journeys/` (confirmed) |
+| Closing audit | Carried by **Story 6**, which runs last now that both gated stories are a go |
+| Story 5B input | Classification of `context.md` §0–§9 below: about 24.8 KB of 44.8 KB is area- or workflow-scoped; 5A and the ablation decide how much may actually move |
+| Doc overlaps | All four overlap candidates stay as separate docs; canonical homes chosen for the nine doubly-explained rules (collapse deferred to a TD54 story) |
+
+**Load measurement.** Run with Story 3A's method over both Claude Code config folders (`~/.claude` and `~/.claude-two`; Story 3A's 127 sessions came from both) plus the Codex logs (`~/.codex/sessions`), read-only, counts only. A session counts for a doc when any tool call names `docs/<name>`; the sessions run in the TD53 worktrees (including this one) are excluded. Scripts stay in the scratchpad.
+
+| Source | Sessions | With a doc named | Cohort |
+|---|---:|---:|---|
+| Claude Code | 129 | 101 | 124 up to 2026-10-17, 5 since |
+| Codex | 406 | 346 | 2026-09-15 onward; many are headless `codex exec` review runs, which inflates its counts |
+| Gemini | 0 | 0 | no logs exist |
+
+- **Tool mix is unchanged.** Of the calls that read or search a doc through a shell, Claude used `grep`/`rg` 72%, `sed -n` ranges 14%, `head`/`tail` 10%, `cat` 4% (1,391 / 275 / 197 / 77). Codex used `grep`/`rg` 73%, `sed -n` 21%, `head`/`tail` 6%, `cat` 0.3% (866 / 248 / 72 / 3), plus 170 unclassified `exec` calls. Both agents search for a handle and then read a range; no agent read whole files as a habit, so the "findability, not file layout" principle holds for the second agent too. Whole-versus-partial `Read` calls were not re-measured; nothing contradicts the baseline.
+- **Agents hold the paths and numbered names as handles.** Calls naming a numbered doc by its full name (`14-API_CONTRACTS`) outnumber calls naming it without the prefix 4,260 to 207 for Claude and 2,020 to 78 for Codex. `plan/journey` is named in tool calls in 75 of 129 Claude sessions (1,622 calls) and 108 of 406 Codex sessions (240 calls).
+- **Reads by doc** (sessions naming the doc; the Story 3A table's verdicts are unchanged: every doc stays except the ones 3B already deleted, moved or rewrote):
+
+| Doc | Size (bytes) | Claude sessions (of 129) | Codex sessions (of 406) |
+|---|---:|---:|---:|
+| `01-BUSINESS_CONTEXT.md` | 14,016 | 2 | 1 |
+| `02-DOMAIN_MODEL.md` | 127,261 | 56 | 94 |
+| `03-DOMAIN_EVENTS.md` | 56,377 | 37 | 56 |
+| `04-USE_CASES.md` | 254,061 | 75 | 242 |
+| `05-BOUNDED_CONTEXTS.md` | 49,138 | 25 | 15 |
+| `06-TENANT_ISOLATION_STRATEGY.md` | 14,129 | 11 | 30 |
+| `08-TESTING_STRATEGY.md` | 76,253 | 46 | 56 |
+| `09-CI_CD_PIPELINE.md` | 5,033 | 9 | 0 |
+| `10-OBSERVABILITY_STRATEGY.md` | 19,588 | 9 | 33 |
+| `11-ARCHITECTURE.md` | 10,803 | 8 | 1 |
+| `12-DEPLOYMENT_STRATEGY.md` | 3,334 | 3 | 3 |
+| `13-DATABASE_SCHEMA.md` | 121,964 | 58 | 161 |
+| `14-API_CONTRACTS.md` | 164,600 | 73 | 125 |
+| `15-HOTSITE_DYNAMIC_ARCHITECTURE.md` | 62,749 | 13 | 6 |
+| `16-DASHBOARD_FRONTEND_ARCHITECTURE.md` | 26,178 | 39 | 24 |
+| `17-GITHUB_WORKFLOWS_GUIDELINES.md` | 20,394 | 11 | 11 |
+| `18-RELEASE_LIFECYCLE_OPERATIONS.md` | 7,372 | 4 | 0 |
+| `19-INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 2 | 0 |
+| `20-COST_OPTIMIZATION_STRATEGY.md` | 4,204 | 1 | 0 |
+| `21-TENANTS_SETTINGS_SCHEMA.md` | 37,642 | 29 | 38 |
+| `22-TECH_STACK_DECISIONS.md` | 48,143 | 4 | 0 |
+| `23-INFRASTRUCTURE_SETUP.md` | 5,868 | 2 | 0 |
+| `24-BFF_ARCHITECTURE.md` | 51,431 | 42 | 30 |
+| `25-ERROR_CATALOG.md` | 10,060 | 18 | 6 |
+| `26-DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 2 | 0 |
+| `27-BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 81 | 71 |
+| `28-LOCK_CATALOG.md` | 28,703 | 11 | 11 |
+| `AGENT_CONTEXT_TRAP_SCENARIOS.md` | 8,389 | 8 | 2 |
+| `AGENT_PATTERNS.md` | 45,232 | 47 | 30 |
+| `ANTI_PATTERNS.md` | 112,399 | 48 | 159 |
+| `CI_TRAPS.md` | 102,095 | 32 | 3 |
+| `CODE_STANDARDS.md` | 19,110 | 53 | 48 |
+| `DEFINITION_OF_DONE.md` | 14,673 | 55 | 63 |
+| `ENGINEERING_RULES_BACKEND.md` | 91,513 | 57 | 69 |
+| `ENGINEERING_RULES_FRONTEND.md` | 20,678 | 44 | 26 |
+| `ENGINEERING_RULES_INFRA.md` | 28,738 | 14 | 3 |
+| `ENGINEERING_RULES_SHARED.md` | 37,883 | 59 | 32 |
+| `ENGINEERING_RULES_TESTING.md` | 38,965 | 47 | 29 |
+| `README.md` | 3,734 | 7 | 1 |
+| `REPOSITORY_STRUCTURE.md` | 12,931 | 13 | 29 |
+| `RUNBOOKS.md` | 16,795 | 6 | 0 |
+| `STORY_SCHEMA.md` | 10,459 | 66 | 3 |
+| `VALUE_OBJECTS_REFERENCE.md` | 4,795 | 7 | 1 |
+
+  Docs both agents barely touch (at most 4 sessions in each column): `01`, `12`, `18`, `19`, `20`, `22`, `23`, `26`. Their rarity follows the task (provisioning, release, cost, retention), which an agent meets rarely; it is not evidence of staleness, and none of them is made a deletion candidate by this measurement. Codex reads `ANTI_PATTERNS` (159) and `13-DATABASE_SCHEMA` (161) far more than `CI_TRAPS` (3) and `STORY_SCHEMA` (3): a Codex review run loads the review rules, not the workflow docs.
+
+**Overlap candidates (left open by Story 3A) — verdicts.** Each doc already carries a distinct "When to load" line and a different Tags value, and the two agents read them 0 to 3 times; merging three small docs would rewrite their citations and save no reading.
+
+| Candidate | Verdict | Reason |
+|---|---|---|
+| `12-DEPLOYMENT_STRATEGY`, `19-INFRASTRUCTURE_TOOLING_MAP`, `23-INFRASTRUCTURE_SETUP` | keep all three | Strategy, tool-authority map and provisioning order answer different questions, and each points at the others in its "When to load" line |
+| `20-COST_OPTIMIZATION_STRATEGY` | keep | Its lean-startup rules and scaling roadmap are not stated in `22`; a merge would move content for a 4 KB doc read once in 129 sessions |
+
+**Rules explained in full in two or three docs — canonical home chosen** (Story 3A's list). Each non-canonical copy becomes a one-line pointer in a follow-up story appended to `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md` after this PR merges; S3C itself edits none of these docs. Where `.copilot/context.md` already names a home, that choice is kept.
+
+| Rule | Canonical doc | Becomes a pointer |
+|---|---|---|
+| Value-object table | `VALUE_OBJECTS_REFERENCE` | `ENGINEERING_RULES_SHARED` |
+| Test-builder naming | `08-TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `AGENT_PATTERNS` |
+| InMemory double over `jest.fn` for a port | `ENGINEERING_RULES_TESTING` (CI-enforced by `jest-fn-port-mock`) | `ANTI_PATTERNS` (one row stays), `08-TESTING_STRATEGY` |
+| Migration and entity registration in `integration-global-setup.ts` | `08-TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `REPOSITORY_STRUCTURE` |
+| `useExisting` versus `useClass` | `08-TESTING_STRATEGY` (the root cause; named in `context.md` §7) | `ANTI_PATTERNS` (one row stays; `di-alias` is CI-enforced) |
+| UI-primitive reuse | `ENGINEERING_RULES_FRONTEND` (named in `context.md` §7) | any other copy |
+| Barrel `index.ts` ban | `CODE_STANDARDS` (ESLint-enforced) | `ANTI_PATTERNS` row, `CI_TRAPS` rows, `REPOSITORY_STRUCTURE` |
+| Guard-placement rule (middleware, not an Interceptor, for a rejected request) | `ENGINEERING_RULES_SHARED` (named in `context.md` §7) | `ANTI_PATTERNS`, `24-BFF_ARCHITECTURE` |
+| Shared date and address test helpers | `08-TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS`, `ENGINEERING_RULES_TESTING` |
+
+**Always-on `context.md` cost review.** The file is 59,709 characters (baseline 57,647): §7 24,152, §10 8,047, §9 8,724, §0 3,536, §8 3,052, §11 1,826, §1 1,761, §17 1,571, §2 1,488. §7 alone is 40% of the file. The split below covers §0–§9 (44,811 characters in 108 units). A unit is a top-level bullet, a bold-lead paragraph or a subsection heading with its text; §1–§6 and §8 are classified whole. §10, §11 and §17 are outside the story's scope and are not classified, but §10 alone is 8,047 characters and is the router, so it stays.
+
+| Trigger class | Units | Characters | What it holds | Destination for 5B |
+|---|---:|---:|---|---|
+| Global gate or invariant | 36 | 20,039 | §0 gates, §1–§6, the three NON-NEGOTIABLE principles and the layer, value-object, transaction and event-handler rules, §8's table, the PR gate, the merge ask, the stuck conditions, the READY authorization | stays always-on |
+| Area: backend | 20 | 5,715 | transactions, race-condition primitives, locks, cross-context access, TypeORM and migration traps, the OpenRouter and event-audit rules | nested context for `apps/backend` |
+| Area: testing | 11 | 3,444 | builder dates, SonarCloud duplicate-test rule, Jest heap, integration-fixture and E2E traps, Vitest, the component-spec rule | nested context per app (spec and e2e files), or a docs pointer |
+| Area: infra | 11 | 2,876 | Terraform and Cloud Run traps, `vpc_egress`, IAM and output rules, Dependabot digests | nested context for `infra` |
+| Area: web | 10 | 2,848 | locale, `generateMetadata`, hotsite CSS and CSP traps, UI-primitive reuse, localization-ready components, Web to BFF transport | nested context for `apps/web` |
+| Area: tooling | 6 | 2,093 | `architecture-check` detector rules, ESLint selector rules, schema-boundary rule, the Snyk note | nested context for `packages` or a docs pointer |
+| Area: bff | 3 | 1,222 | Guard-rejected middleware, `Request.user` typing, BFF naming | nested context for `apps/bff` |
+| Workflow-scoped | 11 | 6,574 | §9's step mechanics (commit format, push, `/pre-pr`, PR body, bot-fix loop), worktree and mark-done steps, three bot-review discipline bullets, the infra live-verification bullet | the skills that already carry them (`/pre-pr`, `/pr-land`, `/mark-done`, `/story-discovery`); only the gates stay inline |
+
+- **Upper bound, not a prediction.** Area and workflow units total 24,772 characters, about 55% of §0–§9. Story 5A decides whether a nested file loads in each agent tool at all, and Story 5B must still run the ablation on each bullet it proposes to move or shorten (Story 2's n=2 result: the CHECK-constraint bullet steers, the LIKE-escaping bullet currently does not).
+- **Duplicates inside the file.** §0's autonomous-chain bullet (861 characters) and §9's READY paragraph (212) state the same authorization; keep §0's gate and cut the §9 restatement. §8's table says it holds the 11 highest-severity rows; 7 of them name a single app (`useExisting`, the cross-context port, the VO error, raw SQL in a non-repository, `@Global()` exports, the BFF mapper, `--ba-*`), so they are movable, and 4 are cross-layer.
+- **Story 2's inventory stands** and is not redone here: the 13 CI-enforced bullets (about 3.5 KB) shrink to a name and the gate; the 1 KB of model-known content (PR body template, commit examples, CI-gates list) compresses without an experiment.
+- **Journeys.** The `prototypes` tag glob in `architecture-policy.json` and `plan/journey/README.md` are the only places that classify journeys; Story 4 updates both.
+
+**Journeys destination and root config (Story 4).** Destination confirmed: top-level `journeys/` (`docs/journeys` stays rejected: about 5.0 MB of HTML in 407 tracked files would sit inside the `docs/` greps). None of `.gitignore`, `.coderabbit.yaml`, `sonar-project.properties` or `knip.config.ts` names the path or a broader `plan/**` glob, so none needs an edit. The places that do:
+- `packages/architecture-check/architecture-policy.json` (the `prototypes` glob under `docOrientation`),
+- `.copilot/context.md` (§10, §15), `.claude/commands/**`, `.agents/skills/**` (five skills: `create-discovery`, `discovery-to-milestone`, `docs-audit`, `pr-review`, `story-discovery`), `.github/instructions/pr-review.instructions.md`,
+- `docs/` (`01`, `04`, `15`, `16`, `DEFINITION_OF_DONE`, `README`, `STORY_SCHEMA` and the like), `td/`, `plan/`, `archive/` and `docs/discovery/` text,
+- five `apps/web` comments (`switch-tenant/page.tsx`, `ScheduleBufferBlock.tsx`, `BookingStatusIcon.tsx`, `Footer.tsx`, `HotsiteAuthBar.tsx`),
+- no workflow under `.github/workflows` and nothing under `scripts/` or `infra/` cites the path.
+
+**Cost of Stories 4 and 6, measured against the tracked tree on 2026-10-19** (Story 0's checker proves every rewrite; the rewrite scripts live in the scratchpad):
+
+| | Story 4 (`plan/journey` to `journeys/`) | Story 6 (drop `NN-` from 27 docs) |
+|---|---|---|
+| Occurrences to rewrite | 879 (828 outside the subtree in 139 files, 51 inside in 40 files) | 3,275 in 452 files |
+| Of which in `plan/`, `td/`, `archive/`, `docs/discovery` | 111 of the 139 outside files | 138 of the 452 files |
+| Non-markdown | 92 files, 260 occurrences (mostly HTML prototypes under `docs/discovery`) | 264 files, 362 occurrences (code comments, `apps/web/eslint.config.js`, spec files) |
+| Moved or renamed | 407 files, 5.0 MB | 27 files |
+| Measured agent benefit | none for findability; it changes a handle used in 58% of Claude and 27% of Codex sessions | none for findability; agents use the numbered names 21 to 26 times as often as bare ones |
+| Batchable | no | no |
+
+Both stories were originally costed at about 790 and 2,662 occurrences; the tree grew since. The owner chose go for both for clarity and uniformity after seeing these figures. Order is fixed by the dependencies already in the TD: Story 4, then Story 5B, then Story 6, with Story 6 carrying the closing audit.
 
 ## Stories
 
