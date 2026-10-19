@@ -144,7 +144,7 @@ Rejected, with the condition to reopen:
 
 By group in pass 3: schema and data docs 15, standards docs 22, infrastructure docs 9, architecture and contract docs 31, plan and manager journeys 10, staff journeys 6, guest and customer journeys 9. Every pass-2 and pass-3 finding that held up on re-read was fixed in this PR.
 
-**Result: not converged.** The baseline is much cleaner (about 169 → 123 → 102, with the shallow layers such as journeys and infrastructure falling fastest), but a fourth pass would very likely still find items: the largest docs (`14`, `04`, `08`, `AGENT_PATTERNS`) keep yielding drift in deeper claims (examples, skeletons, status codes) each time agents check more of them. So the story's criterion that the convergence pass "reports nothing outside the declined list" is **not met**; what is established is zero dead pointers at every pass, every verified finding fixed, and a falling trend. The honest options are to accept the baseline as is and continue the remainder in Story 3C's measurement, or to run further passes; that is the owner's call.
+**Result: not converged.** The baseline is much cleaner (about 169 → 123 → 102, with the shallow layers such as journeys and infrastructure falling fastest), but a fourth pass would very likely still find items: the largest docs (`14`, `04`, `08`, `AGENT_PATTERNS`) keep yielding drift in deeper claims (examples, skeletons, status codes) each time agents check more of them. So the story's criterion that the convergence pass "reports nothing outside the declined list" is **not met**; what is established is zero dead pointers at every pass, every verified finding fixed, and a falling trend. **Owner decision (2026-10-19): accept the falling trend and stop repeating the audit here.** The remainder is covered by **one** closing `/docs-audit`, run in the last story that actually runs (see "Closing audit" under Stories), not by more passes inside Story 3A.
 
 **Deviation from the story text:** the story names a literal `/docs-audit changed` re-run and exact before/after counts per category. The passes above use the same read-only agent fan-out as `/docs-audit` but with a "report only what survives" brief; pass-1 counts are approximate and the pass-1 category split was not tracked.
 
@@ -173,6 +173,8 @@ graph TD
 ```
 
 Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decision record. 5A is independent and can run at any time; 5B waits for its result.
+
+**Closing audit — one final run, then stop.** Story 3A's convergence passes did not reach zero (about 169, 123, then 102 findings; see its Decision record), and a repeated audit can always find more in the largest docs, so the loop must have an end. The **last story that actually runs** (Story 6 if it gets its go; otherwise whichever of Stories 3C, 4, 5A and 5B runs last) ends with **one** full `/docs-audit` of `docs/`, `plan/`, `td/` and `plan/journey/` (or its new `journeys/` location), run once after every move, rename and trim has landed so it checks the final layout and not a layout that is about to change. Its findings are fixed in the same PR, its counts are recorded beside Story 3A's table, and that closes the documentation baseline: it is **not** repeated unless a later change to the code or the docs gives a specific reason. Story 3C's Decision record names which story carries it.
 
 ### Story 0 — Repo-wide link and anchor checker ✅ Done
 
@@ -390,7 +392,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - [ ] Every `docs/*.md` has a recorded verdict with evidence.
 - [ ] The audit baseline fixes are applied or each is explicitly declined.
 - [ ] The triage method (column definitions, the `git grep` rule and the transcript-read measurement) is recorded beside the table.
-- [ ] The PR records before/after finding counts per audit category, and the convergence pass reports nothing outside the declined list.
+- [ ] The PR records before/after finding counts per audit category, and the convergence pass reports nothing outside the declined list — **owner decision 2026-10-19:** not reached after three passes (about 169, 123, 102); deferred to the one closing audit named under Stories, not repeated in this story.
 - [ ] Every audit finding in a file Story 3B deletes or rewrites is listed under Story 3B's description.
 
 **Acceptance criteria — technical:**
@@ -453,6 +455,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 2. **Classify every bullet of `context.md` §0–§9** by the trigger that makes it relevant (global gate, area-scoped, workflow-scoped). The classification feeds Story 5B; this story removes nothing.
 3. **Journeys destination.** Confirm the destination for Story 4 (`journeys/` at the repository top level; `docs/journeys/` is rejected for the grep noise of about 5.8 MB of HTML in `docs/`) and list the root config that hardcodes the current path (`.gitignore`, `.coderabbit.yaml`, `sonar-project.properties`, `knip.config.ts`). <!-- doc-link:example -->
 4. **Go or no-go for Story 4 and Story 6**, recorded in the Decision record with the measured cost (files rewritten, non-markdown hits) beside the benefit. A no-go closes the story as cancelled and leaves the numbering and journeys where they are.
+5. **Name the story that carries the closing audit** (see "Closing audit" under Stories): Story 6 if it gets a go, otherwise the last story that will actually run. Record it in the Decision record so the one final `/docs-audit` has an owner and is not repeated.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -460,7 +463,7 @@ Each of items 2–5 is its own commit in the PR, so a bad one can be reverted al
 - `td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md` (modify — Decision record, success metrics)
 
 **Acceptance criteria — product:**
-- [ ] The Decision record states the load measurement, the `context.md` always-on classification, the confirmed journeys destination and a go or no-go for Stories 4 and 6.
+- [ ] The Decision record states the load measurement, the `context.md` always-on classification, the confirmed journeys destination and a go or no-go for Stories 4 and 6, and names the story that carries the closing audit.
 
 **Acceptance criteria — technical:**
 - Unit: none — measurement story
@@ -620,6 +623,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - E2E: none
 - [ ] `pnpm architecture-check` (every detector, including `doc-link-integrity`, `agent-context-file`, `lock-catalog-coverage`) passes
 - [ ] `/docs-audit changed` over the rename range reports zero dead pointers
+- [ ] **Closing audit (if this is the last story that runs):** one full `/docs-audit` of `docs/`, `plan/`, `td/` and the journeys folder runs after the rename, every finding that holds up on re-read is fixed in the PR, and the per-category counts are recorded beside Story 3A's table (see "Closing audit" under Stories). It is run once and is not repeated.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
