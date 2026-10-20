@@ -930,8 +930,6 @@ Example: `InMemoryBookingPlatformPort` (`src/test/infrastructure/in-memory-booki
 
 ### BFF: two test files per controller (mandatory)
 
-> **Known gap:** four BFF controllers have no `*.controller.component.spec.ts` yet (`bookings-attachments`, `recurring-booking-schedules`, `bookings-guest`, `bookings-no-show`, all under `apps/bff/src/features/booking/`); the rule below is not enforced by `architecture-check`. Adding them is tracked by `td/TD54-FOLLOW-UPS-FROM-THE-TD53-DOCS-AUDIT.md`.
-
 Every `*.controller.ts` in `apps/bff/src/` must have:
 - `*.controller.spec.ts` — unit spec
 - `*.controller.component.spec.ts` — boots full `AppModule` via `createTestApp()`, mocks `BackendHttpService`; must cover: 401, 403, 400 (Zod), happy path per allowed role, backend error propagation
