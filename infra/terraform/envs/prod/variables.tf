@@ -23,17 +23,17 @@ variable "bootstrap_mode" {
 }
 
 variable "brevo_smtp_login" {
-  description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, the BREVO_SMTP_LOGIN repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
   default     = ""
 }
 
 variable "cloudflare_account_id" {
-  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier, required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Not sensitive, but sourced from the vars.CLOUDFLARE_ACCOUNT_ID GitHub Actions repository variable (injected as TF_VAR_cloudflare_account_id in infra-deploy.yml) rather than committed to terraform.tfvars — same TF_VAR_* injection pattern as iam_admin_user/notification_email, by the user's preference. Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
+  description = "Cloudflare account ID (M20-S05) — plain, non-secret identifier, required by the cloudflare_turnstile_widget resource below (Turnstile widgets are account-scoped, not zone-scoped, unlike the DNS/ruleset resources in modules/edge). Not sensitive, but sourced from the CLOUDFLARE_ACCOUNT_ID GitHub Actions repository secret (injected as TF_VAR_cloudflare_account_id in infra-deploy.yml) rather than committed to terraform.tfvars — same TF_VAR_* injection pattern as iam_admin_user/notification_email, by the user's preference. Discover via: the account's Overview page sidebar in the Cloudflare dashboard, or `cloudflare account list`."
   type        = string
 
   # A required variable with no default still silently accepts an empty string — confirmed live
-  # (2026-08-25): an unset vars.CLOUDFLARE_ACCOUNT_ID resolved to TF_VAR_cloudflare_account_id="",
+  # (2026-08-25): an unset CLOUDFLARE_ACCOUNT_ID repository value resolved to TF_VAR_cloudflare_account_id="",
   # and `terraform plan` planned cloudflare_turnstile_widget.site for creation anyway, since
   # Terraform doesn't call Cloudflare's API to validate account_id at plan time — the exact same
   # class of gap var.turnstile_site_key had before it was replaced by this resource. This
@@ -117,7 +117,7 @@ variable "environment" {
 }
 
 variable "iam_admin_user" {
-  description = "Google account email for passwordless Cloud SQL IAM access — value never committed: gitignored local.auto.tfvars locally, TF_VAR_iam_admin_user in the pipeline (S24)"
+  description = "Google account email for passwordless Cloud SQL IAM access — value never committed: gitignored local.auto.tfvars locally, TF_VAR_iam_admin_user from the IAM_ADMIN_USER repository secret in the pipeline (S24)"
   type        = string
   default     = ""
 }
@@ -129,7 +129,7 @@ variable "labels" {
 }
 
 variable "notification_email" {
-  description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, the NOTIFICATION_EMAIL repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
   default     = ""
 }

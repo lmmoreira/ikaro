@@ -17,7 +17,7 @@ variable "booking_photo_retention_days" {
 }
 
 variable "brevo_smtp_login" {
-  description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  description = "Brevo SMTP account login (non-secret per the S16 catalog — only BREVO_SMTP_KEY is a Secret Manager secret). Value never committed: gitignored local.auto.tfvars locally, the BREVO_SMTP_LOGIN repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
   default     = ""
 }
@@ -68,7 +68,7 @@ variable "labels" {
 }
 
 variable "notification_email" {
-  description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, the NOTIFICATION_EMAIL repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
   default     = ""
 }
