@@ -12,7 +12,7 @@ Cost decision (S13 discovery, 2026-07-17): each env root instantiated this modul
 
 ## Human access — passwordless (IAM database authentication)
 
-The `cloudsql.iam_authentication` flag is on, and the admin identity (`var.iam_admin_user`) is registered as a `CLOUD_IAM_USER` with `roles/cloudsql.client` + `roles/cloudsql.instanceUser`. **The email value is never committed** (public repo): locally it lives in the gitignored `envs/<env>/local.auto.tfvars`; the S24 pipeline supplies `TF_VAR_iam_admin_user` from a GitHub environment variable.
+The `cloudsql.iam_authentication` flag is on, and the admin identity (`var.iam_admin_user`) is registered as a `CLOUD_IAM_USER` with `roles/cloudsql.client` + `roles/cloudsql.instanceUser`. **The email value is never committed** (public repo): locally it lives in the gitignored `envs/<env>/local.auto.tfvars`; the S24 pipeline supplies `TF_VAR_iam_admin_user` from the IAM_ADMIN_USER repository secret.
 
 Connect from a dev machine (no password at any step). The instance has no public IP, so `--private-ip` is required — the proxy defaults to a public IPv4 connection even when the instance also has a private IP, and fails without the flag. The proxy host also needs VPC reachability (a machine inside the VPC, a VPN, or a bastion — plain internet access is not enough):
 

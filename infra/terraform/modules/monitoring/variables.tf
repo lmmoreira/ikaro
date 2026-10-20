@@ -70,7 +70,7 @@ variable "notification_email" {
   # finding, 2026-08-08).
   validation {
     condition     = can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.notification_email))
-    error_message = "notification_email must be a non-empty email address — set TF_VAR_notification_email (pipeline: the NOTIFICATION_EMAIL GitHub Variable)."
+    error_message = "notification_email must be a non-empty email address — set TF_VAR_notification_email (pipeline: the NOTIFICATION_EMAIL GitHub repository Secret)."
   }
 }
 

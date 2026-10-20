@@ -25,17 +25,16 @@ name: Infra — Terraform Deploy Pipeline
 # the same `github.ref` — a workflow-level `cancel-in-progress: true` would
 # risk cancelling an in-flight prod apply on the next merge.
 #
-# `IAM_ADMIN_USER` is a repo-level GitHub Variable, not environment-scoped:
+# `IAM_ADMIN_USER`, `NOTIFICATION_EMAIL` and `CLOUDFLARE_ACCOUNT_ID` are
+# repo-level GitHub Secrets (TD54-S2), not environment-scoped:
 # environment-scoped values are only visible to jobs that declare that
 # exact `environment:`, and `plan-*`/`drift-*` jobs deliberately declare
 # none (same reasoning as the tf-planner WIF binding — PR plans and drift
 # checks must run without an approval gate). Repo-level is the only scope
 # every job here can see (review finding, 2026-07-21). `BREVO_SMTP_LOGIN`
-# is a repo-level Secret instead of a Variable, even though it's non-secret
-# per the S16 catalog: GitHub does not mask Variables in logs the way it
-# masks Secrets, and this value (unlike `IAM_ADMIN_USER`, already public
-# throughout docs/BOOTSTRAP_LOG.md) had never appeared anywhere else in
-# this repo before — a live run confirmed it printing in plaintext in the
+# is a repo-level Secret too, even though it's non-secret per the S16
+# catalog: GitHub does not mask Variables in logs the way it masks
+# Secrets, and a live run confirmed a Variable printing in plaintext in the
 # job's `env:` log block (review finding, 2026-07-21).
 
 on:
