@@ -247,9 +247,9 @@ jobs:
         id: plan
         working-directory: infra/terraform/envs/staging
         env:
-          TF_VAR_iam_admin_user: sentinel-iam-admin@example.invalid
+          TF_VAR_iam_admin_user: ${{ secrets.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
-          TF_VAR_notification_email: sentinel-notify@example.invalid
+          TF_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
         run: |
           terraform init -input=false -lockfile=readonly
           terraform plan -input=false -no-color -lock-timeout=60s -out=tfplan
@@ -347,9 +347,6 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "=== SENTINEL RUN: job summary follows ==="
-          cat "$GITHUB_STEP_SUMMARY"
-          echo "=== SENTINEL RUN: end ==="
 
       # Deliberately no "Upload plan artifact" step here — apply-staging
       # replans and applies fresh instead of reusing a saved plan, same as
@@ -399,13 +396,13 @@ jobs:
         id: plan
         working-directory: infra/terraform/envs/prod
         env:
-          TF_VAR_iam_admin_user: sentinel-iam-admin@example.invalid
+          TF_VAR_iam_admin_user: ${{ secrets.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
-          TF_VAR_notification_email: sentinel-notify@example.invalid
+          TF_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
           # Cloudflare account ID: an identifier, not a bearer credential, but a
           # Secret and `sensitive` all the same — same TF_VAR_* injection
           # pattern as iam_admin_user/notification_email above.
-          TF_VAR_cloudflare_account_id: 0123456789abcdef0123456789abcdef
+          TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
           # plan output (terraform show, CLI text) and GitHub also masks
@@ -501,9 +498,6 @@ jobs:
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
           fi
-          echo "=== SENTINEL RUN: job summary follows ==="
-          cat "$GITHUB_STEP_SUMMARY"
-          echo "=== SENTINEL RUN: end ==="
 
       # Deliberately no "Upload plan artifact" step here (same as
       # plan-staging): this plan's TF_VAR_cloudflare_api_token is a genuine
