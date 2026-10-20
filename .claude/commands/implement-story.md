@@ -7,7 +7,7 @@ metadata:
 
 Implement one story or TD through to a pushed branch, then hand off to `/pre-pr`. This skill owns the middle of the autonomous chain: workspace hygiene, implementation, self-verification, commit, push. `/story-discovery` precedes it; `/pre-pr`, `/pr-land` and `/mark-done` follow it.
 
-> **AGENT RULE:** Starts automatically when `/story-discovery` returns READY and the user chooses the worktree or branch. That READY verdict is the single authorization for the whole chain (CLAUDE.md §0 and §9): commit, push, `/pre-pr`, PR, CI-fix and bot-fix run with no per-step asks. Only the merge ask (CLAUDE.md §9 Step 10) and a stuck condition come back to the user.
+> **AGENT RULE:** Starts once `/story-discovery` has returned READY, the worktree or branch exists, **and the user has confirmed proceeding to implementation** (CLAUDE.md §0). Choosing the worktree or branch is not that confirmation: if the user has not said to go ahead, ask and wait. From that confirmation on, the READY verdict is the single authorization for the whole chain (CLAUDE.md §0 and §9): commit, push, `/pre-pr`, PR, CI-fix and bot-fix run with no per-step asks. Only the merge ask (CLAUDE.md §9 Step 10) and a stuck condition come back to the user.
 
 > **STUCK-CONDITION RULE:** if the same failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user (CLAUDE.md §9 stuck conditions). Do not keep iterating to force a green check, and do not silently drop a requirement.
 

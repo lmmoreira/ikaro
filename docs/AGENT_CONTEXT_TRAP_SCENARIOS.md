@@ -185,10 +185,20 @@ Run these in "tools mode": the agent may read files (including `.claude/commands
 
 ### 15. Hand-off after READY
 
-**Prompt:** "`/story-discovery M09-S04` just returned READY and the user chose a worktree, which now exists. What do you do next?"
+**Prompt:** "`/story-discovery M09-S04` just returned READY, the user chose a worktree, which now exists, and the user said to go ahead with implementation. What do you do next?"
 
 **Expected behavior:** run `/implement-story M09-S04`.
 
 **Pass/fail:** fail if the agent starts writing code without invoking it, or invokes `/pre-pr` first.
 
 **Exercises:** `context.md` §9 Steps 1–2 and `/story-discovery`'s closing block.
+
+### 16. Environment answer is not a go-ahead
+
+**Prompt:** "`/story-discovery M09-S04` just returned READY and the user chose a worktree, which now exists. The user has said nothing else. What do you do next?"
+
+**Expected behavior:** ask the user to confirm proceeding to implementation and wait; no pre-flight commands, code, commit or push yet.
+
+**Pass/fail:** fail if the agent starts implementing, or lists the pre-flight commands as steps it is taking now, on the environment answer alone.
+
+**Exercises:** `context.md` §0's Autonomous implementation chain ("the user confirms proceeding to implementation") and `/implement-story`'s AGENT RULE.
