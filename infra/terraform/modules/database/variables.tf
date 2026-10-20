@@ -35,6 +35,7 @@ variable "environment" {
 variable "iam_admin_user" {
   description = "Google account email registered as a passwordless CLOUD_IAM_USER for human DB access — the value is never committed (gitignored local.auto.tfvars locally, TF_VAR_iam_admin_user in the pipeline)"
   type        = string
+  sensitive   = true
 
   validation {
     condition     = can(regex("^[^@\\s]+@[^@\\s]+$", var.iam_admin_user))
