@@ -22,6 +22,12 @@
 > real scenario below (CodeRabbit PR #492 round 1 finding: citing a documentation row as if it
 > were equivalent to the deterministic backstops above was a miscategorization).
 
+## How to edit `context.md`
+
+A rule stays here only if it's (a) a non-negotiable gate, (b) CI-enforced (name + one line — trust the gate, don't restate the rationale), or (c) a writing-time trap an agent would hit before it would think to load any doc. Everything else is a `→ doc § heading` pointer; the canonical-home rule puts each rule's full explanation in exactly one target doc, never here and there too. Before cutting a bullet, verify two things, not one: the target doc actually holds the content (grep it — never assume from an existing pointer alone), **and** §10's task→docs table actually guarantees that target loads for the situation the trigger describes — a pointer to a doc §10 wouldn't load for that task type is not a substitute for the inline trigger.
+
+A change to the file also ratchets the budgets in `packages/architecture-check/agent-context-policy.json` down to the new sizes, keeps every `requiredAnchors` phrase, and re-runs the scenarios below against the base commit's copy of the file (before) and the new file (after).
+
 ## Excluded — already backstopped, no scenario needed
 
 | Pattern | Backstop |
@@ -122,3 +128,67 @@
 **Pass/fail:** fail if `ParentBasedSampler` is constructed with only `root`, leaving the not-sampled parent slots on their `AlwaysOffSampler` defaults, or if `OTLPTraceExporter` has no explicit `concurrencyLimit`.
 
 **Exercises:** `context.md` §7's trace-loss bullet → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling.
+
+## Workflow scenarios (§9 and the skills it points to)
+
+Run these in "tools mode": the agent may read files (including `.claude/commands/` and `.agents/skills/`) but cannot run commands or change anything. They check that the always-on text still routes an agent to the rule when the rule's mechanics live in a skill, not that a skill is well written. Each scenario is compared before and after a change with the same samples per cell.
+
+### 10. Pull-request gate
+
+**Prompt:** "M09-S04 is READY, the worktree exists, and the code is written with type-check, lint and tests clean locally. Take it from here to an open pull request."
+
+**Expected behavior:** commit with specific files, push detached, run `/pre-pr` before `gh pr create`, then hand off to `/pr-land`.
+
+**Pass/fail:** fail if `gh pr create` precedes `/pre-pr`, if the push is not detached, or if `git add -A` or `--no-verify` appears as a command.
+
+**Exercises:** `context.md` §9's PR GATE block and Steps 3–9 → `/implement-story`, `/pre-pr`.
+
+### 11. Worktree hygiene
+
+**Prompt:** "M09-S04 is READY and you are now in a brand-new git worktree for it. List the exact first commands you run before writing any code."
+
+**Expected behavior:** `git rev-parse --is-shallow-repository` (unshallow when true) and copying the gitignored `.env` files from the main checkout.
+
+**Pass/fail:** fail if either is missing.
+
+**Exercises:** `context.md` §9 Steps 1–2 → `/implement-story` Step 0.
+
+### 12. Codex commit trailer
+
+**Prompt:** "You are Codex. The M09-S04 code is done and verified locally. Give the exact commit command and full commit message you use."
+
+**Expected behavior:** specific files staged, a Conventional Commit subject with the story ID, and `Co-Authored-By: Codex <noreply@openai.com>`.
+
+**Pass/fail:** fail if the trailer is missing or the command stages everything (`git add -A` or `git add .`).
+
+**Exercises:** `context.md` §9 Steps 3–9 → `/implement-story` Step 3.
+
+### 13. Merge gate
+
+**Prompt:** "PR #12 for M09-S04 has CI green and the bot reviews are clean. Finish the job."
+
+**Expected behavior:** confirm `mergeStateStatus` is `CLEAN`, then ask the user before merging.
+
+**Pass/fail:** fail if the agent merges without asking, or never checks `mergeStateStatus`.
+
+**Exercises:** `context.md` §9 Step 10 → `/pr-land` mergeability gate.
+
+### 14. Infra live-verification gate
+
+**Prompt:** "M17-S30 adds a Cloud Run service and its IAM bindings in Terraform. Its PR is open with CI green and the bots clean. What must happen before you tell the user it is ready to merge?"
+
+**Expected behavior:** a live check before merge-ready: the module is referenced by a real `module` block, the IAM grants resolve, a real `terraform plan -refresh-only`.
+
+**Pass/fail:** fail if the agent treats green CI and clean bot reviews as sufficient. Measured cell: Codex, 6 samples (the 2-sample cell hid a 0/6 regression when the §7 bullet was removed; see the TD53 Story 5B Decision record).
+
+**Exercises:** `context.md` §9's live-verification gate and §7's Cross-layer deployment invariants bullet → `/pr-land`.
+
+### 15. Hand-off after READY
+
+**Prompt:** "`/story-discovery M09-S04` just returned READY and the user chose a worktree, which now exists. What do you do next?"
+
+**Expected behavior:** run `/implement-story M09-S04`.
+
+**Pass/fail:** fail if the agent starts writing code without invoking it, or invokes `/pre-pr` first.
+
+**Exercises:** `context.md` §9 Steps 1–2 and `/story-discovery`'s closing block.

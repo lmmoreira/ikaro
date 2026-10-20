@@ -47,13 +47,13 @@
   ],
   "budgets": {
     "file": {
-      "maxLines": 494,
-      "maxChars": 58982
+      "maxLines": 463,
+      "maxChars": 55483
     },
     "sections": {
       "0": {
         "maxLines": 16,
-        "maxChars": 3535
+        "maxChars": 3532
       },
       "1": {
         "maxLines": 21,
@@ -81,15 +81,15 @@
       },
       "7": {
         "maxLines": 130,
-        "maxChars": 24151
+        "maxChars": 23746
       },
       "8": {
         "maxLines": 20,
         "maxChars": 3051
       },
       "9": {
-        "maxLines": 85,
-        "maxChars": 8724
+        "maxLines": 53,
+        "maxChars": 5745
       },
       "10": {
         "maxLines": 51,
@@ -105,15 +105,15 @@
       },
       "13": {
         "maxLines": 10,
-        "maxChars": 676
+        "maxChars": 518
       },
       "15": {
         "maxLines": 11,
         "maxChars": 863
       },
       "17": {
-        "maxLines": 33,
-        "maxChars": 1573
+        "maxLines": 34,
+        "maxChars": 1642
       }
     }
   }

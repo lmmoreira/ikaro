@@ -54,7 +54,7 @@ Extract the story block's fields per **the canonical schema, `docs/STORY_SCHEMA.
 - **Files to create/modify** — if listed, verify each modified-file path actually exists (same Explore-agent discipline as the dependency-symbol check below); flag a missing declared path as a **RISK**, not silently
 - **Prototype references** — every `journeys/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
 - **Acceptance criteria — product / technical** — if the story predates the product/technical split (an older milestone or pre-standardization TD), treat its single flat AC list as-is rather than blocking on the missing split; note the gap as a RISK only if it makes verification ambiguous
-- **Infra-specific fields** (IAM/permissions, Live-verification check, PR sequence) — for any `devops`-agent story, confirm these are present; a missing Live-verification check on an infra-touching story is a RISK per CLAUDE.md §9 Step 5 item 6, not silently assumed unnecessary
+- **Infra-specific fields** (IAM/permissions, Live-verification check, PR sequence) — for any `devops`-agent story, confirm these are present; a missing Live-verification check on an infra-touching story is a RISK per CLAUDE.md §9's infra live-verification gate, not silently assumed unnecessary
 - Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
 
 **Also check story status:** Look for `✅ Done` next to the story heading (Step 0 check #3).
@@ -408,7 +408,7 @@ Wait for reply, then:
   Then verify with `git worktree list` and `ls .claude/worktrees/` — don't trust a success message alone.
 
 **If direct branch:**
-- Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
+- Output the branch creation command for the user to run (CLAUDE.md §9 Steps 1–2; `/implement-story` verifies it afterwards):
   ```bash
   git checkout -b feat/M<N>-S<NN>-<short-description>
   ```
@@ -416,7 +416,9 @@ Wait for reply, then:
 
 Either way, end with:
 ```
-Ready. Next: implement per §9 Step 2 — write all files from the story spec.
+Ready. Next: run `/implement-story <ID>` — it verifies the branch, implements all files
+from the story spec (§9 Steps 1–2), self-verifies, commits, pushes, and hands off to /pre-pr.
+Start it as soon as the user confirms proceeding to implementation (CLAUDE.md §0).
 This READY verdict already authorizes the rest of the chain (§9 Steps 3–9) —
 commit, push, /pre-pr, PR, CI-fix, and bot-fix all proceed autonomously from
 here with no further per-step asks. I'll come back to you only for the merge

@@ -14,7 +14,7 @@
 
 **Doc/config gate:** Before writing or editing any `.md`, `.tf`, `.yml`, or config file: discuss → summarise → ask "May I now create/update `<path>`?" → write only after an explicit yes. Exception: once a story is approved, `.ts`/`.spec.ts` code files can be created autonomously — and so can the files a code change cannot ship without: i18n locale JSON (`packages/i18n/locales/**/*.json`, both locales in the same change), `.http` request files, test fixtures and generated-by-tool files that must be committed. Every other config-shaped file (`.tf`, `.yml`, CI workflows, `package.json`, `tsconfig`, policy/registry JSON such as `architecture-policy.json`, env files) still needs the explicit yes. Read-only ops (`Read`, `grep`, `ls`, `git status`, memory) are always free.
 
-**Autonomous implementation chain — one authorization, not per-step asks:** Once `/story-discovery` returns READY and the user confirms proceeding to implementation, that single authorization covers the entire chain through to an open, bot-reviewed PR — commit → push → `/pre-pr` → `gh pr create` → CI-fix loop → CodeRabbit/Codex bot-fix loop. No separate "may I commit / may I push / may I run pre-pr" prompts inside that chain. Full mechanics, the stuck-condition definitions, and the bot-finding verification discipline: §9. The **merge gate is separate and stays mandatory** — always ask before merging (§9 Step 10) — and that review must be substantive: it is now the primary point where implementation-time surprises get caught, not a formality. For doc-only changes on `main` outside a story, still ask whether to use a feature branch or commit direct.
+**Autonomous implementation chain — one authorization, not per-step asks:** Once `/story-discovery` returns READY and the user confirms proceeding to implementation, that single authorization covers the entire chain through to an open, bot-reviewed PR — commit → push → `/pre-pr` → `gh pr create` → CI-fix loop → CodeRabbit/Codex bot-fix loop. No separate "may I commit / may I push / may I run pre-pr" prompts inside that chain. Mechanics: `/implement-story` → `/pre-pr` → `/pr-land`; stuck conditions, live-check gate: §9. The **merge gate is separate and stays mandatory** — always ask before merging (§9 Step 10) — and that review must be substantive: it is now the primary point where implementation-time surprises get caught, not a formality. For doc-only changes on `main` outside a story, still ask whether to use a feature branch or commit direct.
 
 **Pre-push validation — NON-NEGOTIABLE:** `git push` automatically runs `ci:fast`; never use `git push --no-verify` to bypass it. If a terminal/session detaches while the hook runs, its result is unknown — capture the command's log, inspect the live process, and wait for its real exit status before treating the push as complete. A detached output stream is never evidence of a failed hook and never authorization to skip validation. **In an agent session, run the push detached** (`nohup git push </dev/null >/tmp/push.log 2>&1 &`) and wait on the real process (`pgrep -f '^git push'`, or a Monitor on it): a foreground push held open by a tool call was SIGKILLed (exit 137) mid-hook twice in the M22-S04 session, leaving the commit unpushed while the hook died. Confirm with `git log origin/<branch> -1` that the remote head actually moved — an exit status alone is not proof. **Never `pkill -f <pattern>` in a session** — it can match the agent's own shell (exit 144/137); list PIDs with `pgrep`/`ss -ltnp` and kill those.
 
@@ -128,7 +128,7 @@ COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal; NO_SHOW → COMPLETED by 
 
 → Full detail split by task type across `docs/ENGINEERING_RULES_*.md` (see §10's loading table); baseline for any code: `docs/ENGINEERING_RULES_SHARED.md` + `docs/CODE_STANDARDS.md`.
 
-**How to edit this file:** a rule stays here only if it's (a) a non-negotiable gate, (b) CI-enforced (name + one line — trust the gate, don't restate the rationale), or (c) a writing-time trap an agent would hit before it would think to load any doc. Everything else is a `→ doc § heading` pointer; the canonical-home rule puts each rule's full explanation in exactly one target doc, never here and there too. Before cutting a bullet, verify two things, not one: the target doc actually holds the content (grep it — never assume from an existing pointer alone), **and** §10's task→docs table actually guarantees that target loads for the situation the trigger describes — a pointer to a doc §10 wouldn't load for that task type is not a substitute for the inline trigger.
+**How to edit this file:** a rule stays here only if it is (a) a non-negotiable gate, (b) CI-enforced (name + one line), or (c) a writing-time trap an agent would hit before it would think to load a doc; everything else is a `→ doc § heading` pointer. Before cutting or adding a bullet, read `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` § How to edit `context.md`.
 
 ### No workarounds — best long-term solution only (NON-NEGOTIABLE)
 
@@ -238,7 +238,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
 - `shared/lib/**`: `node` env · `features/**/components/**`, `shells/**/components/**`, `shared/components/**`: `jsdom` + `@testing-library/react` · pages/layouts: Playwright E2E only.
 - Keep `app/**/page.tsx` and `app/**/layout.tsx` thin — extract reusable logic to `apps/web/shared/lib/**` and unit-test it there.
-- **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit** (§9 Step 2 restates this at the point it applies — one rule, not two).
+- **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit** (`/implement-story` Step 1 restates this at the point it applies — one rule, not two).
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy — wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
 - Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
 
@@ -285,53 +285,22 @@ Full list (narrower single-incident precedents included) in `docs/ANTI_PATTERNS.
 **Before the first story of a new milestone:** offer to run `/docs-audit M0X` first.
 
 ### Step 0 — Run story discovery (BEFORE any code)
-Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Never skip for any story or TD. Discovery is the one deep, front-loaded decision point: beyond doc consistency, it also locks in the architectural pattern the story will use (or explicitly states none is needed), a concrete test/e2e coverage plan (named scenarios, not just "at least one"), and any business-rule ambiguity — asking the user as many questions as needed to resolve every open decision before implementation starts (`story-discovery.md` § Pattern & test-strategy lock-in). Discovery ends by rewriting the story's own spec to capture every decision and committing + pushing that update (`story-discovery.md` Step 7).
+Run `/story-discovery M0X-SYY` — wait for READY verdict before proceeding. Never skip for any story or TD. Discovery is the one deep, front-loaded decision point: it locks in the architectural pattern, a concrete test/e2e coverage plan and every business-rule ambiguity with the user (`story-discovery.md` § Pattern & test-strategy lock-in), rewrites the story's own spec, commits + pushes that update, and sets up the worktree or branch. Its READY verdict is the single authorization for everything through Step 9 (§0).
 
-**A READY verdict is the single authorization for everything through Step 9** — the entire commit → push → `/pre-pr` → PR → CI-fix → bot-fix chain below runs unattended from here, with no further per-step asks.
-
-### Step 1 — Create feature branch (BEFORE any code)
-`git checkout -b feat/M0X-SYY-<short-description>` — never code on `main`. (Already done here if story-discovery's Step 9 set up a worktree/branch.)
-
-**First thing in any worktree or fresh clone:** `git rev-parse --is-shallow-repository` — if `true`, `git fetch --unshallow origin` before drawing any "behind/ahead of `main`" conclusion (a shallow clone's `git log HEAD..origin/main` lists phantom commits and `git merge origin/main` fails with "refusing to merge unrelated histories"). A worktree also carries none of the gitignored env files (`apps/backend/.env`, `apps/bff/.env`, `apps/web/.env.local`) — copy them from the main checkout before running the stack.
-
-### Step 2 — Implement
-Write all files from the story spec, following the pattern and test plan locked in during discovery. For any frontend story referencing a prototype:
-- Read the prototype HTML **before** writing components.
-- Use exact CSS class names from the story's reference table — do not substitute Tailwind for `tokens.css` names.
-- Every new component file needs a co-located `.spec.tsx` in the **same commit** (§7 Testing).
+### Steps 1–2 — Branch and implement: `/implement-story`
+Never code on `main`. Discovery ends by invoking `/implement-story` (`.claude/commands/implement-story.md`), which verifies the branch, runs the worktree hygiene checks (shallow clone, gitignored env files), implements per the story spec and the pattern and test plan locked in discovery, self-verifies, commits, pushes and hands off to `/pre-pr`.
 
 ### Steps 3–9 — Autonomous chain (no per-step confirmation)
-Once implementation is self-verified locally (type-check, lint, tests all clean), proceed through the rest of this chain without asking again — the Step 0 READY verdict already authorized it.
+Once implementation is self-verified locally (type-check, lint, tests all clean), the rest runs without asking again: commit (stage specific files, never `git add -A`; **Codex adds `Co-Authored-By: Codex <noreply@openai.com>` explicitly — not optional**) → push (§0: detached, `ci:fast` runs) → `/pre-pr` (script, agent checks, bad-smell-audit, integration tests; fix and re-run until zero issues) → `gh pr create` only after it clears → `/pr-land` (CI, SonarCloud and bot-review loop, Codex re-dispatched only for each code-changing round). Mechanics live in `/implement-story`, `/pre-pr` and `/pr-land`.
 
-**1. Commit** — stage specific files only (never `git add -A`), list them for visibility, then commit. Format:
-```
-feat(<context>): <description> (M0X-SYY)
-
-Co-Authored-By: <your-name> <your-noreply-email>
-```
-Claude Code adds its own trailer automatically. **Codex:** add `Co-Authored-By: Codex <noreply@openai.com>` explicitly on every commit you author — it does not happen by default, it is not optional, and it is the record of who actually wrote the code. (`/pre-pr` does *not* need it to decide which tool reviews the PR — it already knows its own identity.)
-
-**2. Push** — `ci:fast` (lint + type-check + architecture-check + unit tests) runs automatically and blocks if it fails. (`ci:local`, `pnpm ci:local` ~5 min Docker, is optional and only worth running first when touching Dockerfiles, infra, or integration-test paths.)
-
-**3. `/pre-pr`** — runs automatically once pushed (no permission prompt to start it): script, agent checks, bad-smell-audit, integration tests. Fix any failure and re-run; do not proceed until it reports zero issues across all steps.
-
-**4. Open the PR** once `/pre-pr` clears:
-```bash
-gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
-  --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
-  --repo lmmoreira/ikaro
-```
-
-**5. Monitor CI; triage bot reviews** — `/pre-pr` already posted the CodeRabbit trigger and dispatched Codex's round-1 review; hand off to `/pr-land`, which loads its own mechanics (`.claude/commands/pr-land.md`: its Core Rule on batching a round, and § Step 3's mandatory bot-finding discipline). It loops, re-dispatching Codex only for each code-changing round (never CodeRabbit again), until CI is green and Codex reports 0 unresolved Critical/Important.
-
-**6. Infra-touching stories — live-verification gate:** if this story touches Terraform, IAM, Pub/Sub, or CI/CD, run the concrete live check the change implies (confirm a Terraform module is referenced by a real `module` block, confirm an IAM grant actually resolves, a real `terraform plan -refresh-only`) **before** treating the PR as ready for the human merge review — see §7's Cross-layer deployment invariants for why "tests pass, bots clean" isn't sufficient for this category. A failed or un-runnable check is its own stuck condition.
+**Infra-touching stories — live-verification gate:** if this story touches Terraform, IAM, Pub/Sub, or CI/CD, run the concrete live check the change implies (a module referenced by a real `module` block, an IAM grant that actually resolves, a real `terraform plan -refresh-only`) **before** presenting the PR as ready for the human merge review — see §7's Cross-layer deployment invariants for why "tests pass, bots clean" isn't sufficient for this category. A failed or un-runnable check is its own stuck condition.
 
 **If the branch conflicts with `main` after it's already been pushed and reviewed:** merge, never rebase — full rule + fix: `docs/CI_TRAPS.md` § A compile/test failure only exists in CI, and won't reproduce even in a clean clone.
 
 **Stuck conditions — escalate to the user, never force through:**
 1. A CI/test failure that doesn't resolve within a reasonable number of genuine fix attempts, or whose only apparent fix would be a workaround the "no workarounds" rule (§7) forbids.
-2. A bot finding whose relevance can't be confidently determined either way (bot-finding discipline step 6 above), or one that needs a business/design decision (step 7 above) — the latter escalates immediately, not gated on round count.
-3. A failed or un-runnable live-verification check on an infra-touching story (item 6 above).
+2. A bot finding whose relevance can't be confidently determined either way (`/pr-land` Step 3 item 7), or one that needs a business/design decision (item 6) — the latter escalates immediately, not gated on round count.
+3. A failed or un-runnable live-verification check on an infra-touching story (the gate above).
 4. `/pr-land` reaches round 5 with Codex still reporting ≥1 unresolved Critical or Important finding (Minor-only doesn't count). Describe what's recurring across rounds and what's been tried — don't attempt a 6th round unprompted.
 
 When stuck, stop and describe the specific blocker — don't keep iterating to force a green check, and don't silently drop the finding either.
@@ -339,7 +308,7 @@ When stuck, stop and describe the specific blocker — don't keep iterating to f
 ### Step 10 — Ask user before merging
 This is now the primary point where implementation-time surprises get caught, not a formality — treat it as a substantive read of the actual diff.
 
-**Before asking, confirm mergeability directly** — a green Codex/CI/SonarCloud-issues read is not sufficient on its own. Run `gh pr view <PR-number> --repo lmmoreira/ikaro --json mergeStateStatus,mergeable` and only ask once `mergeStateStatus` is `CLEAN`. → `docs/CI_TRAPS.md` § A green Codex/CI/SonarCloud-issues read is not sufficient proof a PR can merge
+**Before asking, confirm mergeability directly** — a green Codex/CI/SonarCloud-issues read is not sufficient on its own. Run `gh pr view <PR-number> --repo lmmoreira/ikaro --json mergeStateStatus,mergeable` and only ask once `mergeStateStatus` is `CLEAN` (`/pr-land` runs this check before reporting merge-ready). → `docs/CI_TRAPS.md` § A green Codex/CI/SonarCloud-issues read is not sufficient proof a PR can merge
 
 Ask: *"All checks are green on PR #N — happy to merge?"* Then:
 `gh pr merge <PR-number> --repo lmmoreira/ikaro --squash --delete-branch && git checkout main && git pull origin main && git branch -D <branch-name>`
@@ -347,11 +316,10 @@ Ask: *"All checks are green on PR #N — happy to merge?"* Then:
 Always delete the local branch with `-D` (not `-d` — squash merges aren't recognized as fully merged).
 
 ### Step 11 — Mark done
-`/mark-done M0X-SYY` (or `TDNN-SYY` for a TD story, e.g. `TD49-S02` — same flow, after the merge) — the last-mile check, not just bookkeeping: independently re-verifies AC evidence and that any Critical/Important `/pr-review`/bot finding on the merged PR was actually resolved, opening a bug-fix TD via `/create-td` for any real gap rather than silently marking done — then updates the plan file, commits to main, alerts if milestone complete.
-**If a worktree was used, clean it up immediately after — no need to ask:** `git worktree remove .claude/worktrees/<name> --force`, delete the local branch(es) with `-D`, prune the stale remote-tracking ref (`git fetch --prune origin`). Verify the removal actually took with `git worktree list` — don't trust a success message alone.
+`/mark-done M0X-SYY` (or `TDNN-SYY` for a TD story) after the merge — the last-mile check, not just bookkeeping: it re-verifies AC evidence and that every Critical/Important finding on the merged PR was resolved, opens a bug-fix TD via `/create-td` for any real gap, then updates the plan file and commits to main. **If a worktree was used, `/mark-done` cleans it up immediately — no need to ask** (remove it, `-D` the local branch, prune the remote-tracking ref, verify with `git worktree list`).
 
 ### Step 12 — Milestone complete?
-If all stories are `✅ Done`: create `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`; add IA file to §10. Also do the stale-documentation sweep described in `/mark-done`'s milestone-complete reminder — a safety net for any story that skipped `docs/DEFINITION_OF_DONE.md`'s stale-reference-sweep item.
+If all stories are `✅ Done`: `/mark-done`'s milestone block creates `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`, adds the IA file to §10, and runs the stale-documentation sweep.
 
 ### Parallel batch execution (optional)
 
@@ -440,11 +408,11 @@ Three slice types, consistent across all three apps:
 
 ## 13. Self-Check Before Submitting
 
-1. **`/story-discovery M0X-SYY` ran and returned READY** — first action, no exceptions (§9 Step 0)
-2. **Feature branch created before any code** — `git checkout -b feat/M0X-SYY-<desc>` (§9 Step 1)
-3. **One authorization obtained at story-discovery's READY verdict** covers commit/push/pre-pr/PR/CI-fix/bot-fix — no per-step asks after that (§0); the merge ask (§9 Step 10) is still separate and mandatory.
-4. **`/pre-pr` ran and cleared before `gh pr create`, and any stuck condition was escalated rather than forced through** (§9 Steps 3–9)
-5. **Milestone complete?** — see §9 Step 12 for the wrap-up-doc + stale-doc-sweep sequence.
+1. `/story-discovery M0X-SYY` ran and returned READY — first action, no exceptions (§9 Step 0)
+2. Feature branch created before any code (§9 Steps 1–2, `/implement-story`)
+3. One authorization (the READY verdict) covers commit → push → `/pre-pr` → PR → CI-fix → bot-fix (§0); the merge ask (§9 Step 10) is separate and mandatory
+4. `/pre-pr` cleared before `gh pr create`; any stuck condition was escalated, not forced through (§9 Steps 3–9)
+5. Milestone complete? §9 Step 12
 
 ---
 
@@ -485,6 +453,7 @@ Pinned Terraform skills live in `.claude/skills/`; refresh them by re-vendoring 
 | `/discovery-to-milestone <discovery-doc-path>` | `.claude/commands/discovery-to-milestone.md` |
 | `/docs-audit [UC\|M0X\|TDNN\|path\|changed]` | `.claude/commands/docs-audit.md` |
 | `/grill-me` | `.claude/commands/grill-me.md` |
+| `/implement-story M0X-SYY` | `.claude/commands/implement-story.md` |
 | `/mark-done <story-id>` | `.claude/commands/mark-done.md` |
 | `/pre-pr` | `.claude/commands/pre-pr.md` |
 | `/pr-land [PR#]` | `.claude/commands/pr-land.md` |

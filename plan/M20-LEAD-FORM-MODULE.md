@@ -740,7 +740,7 @@ Distinct empty state when search/filters/date-range yield zero matches (UC-041 A
 
 **IAM / permissions:** no new principal or role — this rides the existing generic `backend_publisher_${event}`/`service_agent_dlq_publisher_*`/`service_agent_subscriber_*` grants every other catalog entry already receives (TD39-confirmed generic derivation); a new entry appears automatically once Foundation re-applies against the regenerated catalog.
 
-**Live-verification check (mandatory before merge review, per CLAUDE.md §9 Step 5 item 6):**
+**Live-verification check (mandatory before merge review, per CLAUDE.md §9's infra live-verification gate):**
 1. After PR1's `envs/*` apply: `gcloud pubsub topics describe ikaro-LeadFormSubmissionReceived --project=ikaro-staging` succeeds; subscription + DLQ topic also exist.
 2. After the manual Foundation `workflow_dispatch` (apply=true, staging): `gcloud pubsub topics get-iam-policy ikaro-LeadFormSubmissionReceived --project=ikaro-staging` shows the backend SA with publisher role; subscription/DLQ grants likewise.
 3. `gcloud logging read` confirms the 4 previously-stuck `outboxRowId`s (`01a0489e-e1f7-...`, `01a0489e-b6d1-...`, `01a04936-afcf-...`, `01a0489d-c532-...`) stop producing `[outbox] sweep publish failed` entries after the next sweep tick, and a subsequent `[outbox] unpublished backlog` log line shows the count/oldest-age dropping accordingly.

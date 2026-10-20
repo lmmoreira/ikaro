@@ -330,6 +330,55 @@ Both stories were originally costed at about 790 and 2,662 occurrences; the tree
 
 **Limits.** One session per cell, one model family per tool, tool versions as above. Codex's read-only sandbox could not start in this environment (`bwrap: loopback: Failed RTM_NEWADDR`), so its shell tests ran with the sandbox bypassed inside the throwaway fixture only. The routing test is two sessions per cell on one prompt wording each; Claude Code ran on `sonnet`, Codex on its default model. Nothing in the repository was exercised.
 
+#### Story 5B — trim result (2026-10-20)
+
+**Size.** `.copilot/context.md` went from 58,946 to 55,481 characters (−3,465, 5.9%). §9 went from 8,724 to 5,745, §13 from 677 to 518, §7 from 24,144 to 23,746; §0 is unchanged and §17 grew by one registry row (1,571 to 1,642). The section and file budgets in `agent-context-policy.json` were ratcheted to these sizes. The 8 to 11 KB estimate from discovery was an upper bound; what survived the test is smaller, by design.
+
+**Method.** The harness lives in the session scratchpad and is not committed. Each scenario of `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` ran in an isolated fixture directory (the context file as `CLAUDE.md`/`AGENTS.md`, a copy of `docs/`, a slice of the backend and the web UI primitives) with `codex exec` (0.163.0) and `claude -p` (2.1.303, `sonnet`), 2 samples per cell, 8 where a cell dipped. Trap scenarios 1 to 9 ran with no tools (the answer comes from the loaded context alone). Workflow scenarios 10 to 15 ran in tools mode: the agent could read the files, including the skills, but not run anything. A regex judged each answer and every non-pass was re-read by hand (the first judge version mis-scored sentences that forbid a command as if they ran it, and was corrected before any conclusion).
+
+| Scenario | Codex base → final | Claude base → final |
+|---|---|---|
+| 1 outbox event consumer | 5/8 → 4/8 | 2/2 → 2/2 |
+| 2 LIKE escaping | 7/8 → 6/8 | 2/2 → 2/2 |
+| 3 Turnstile wait | 2/2 → 2/2 | 2/2 → 2/2 |
+| 4 CHECK constraint | 3/3 → 2/2 | 3/3 → 2/2 |
+| 5 upsert | 1/2 → 2/2 | 2/2 → 2/2 |
+| 6 tenant filter | 2/2 → 2/2 | 2/2 → 2/2 |
+| 7 UI primitives (lists the ui folder) | 0/2 → 2/2 | 2/2 → 2/2 |
+| 8 story-discovery first | 2/2 → 2/2 | 2/2 → 2/2 |
+| 9 OTel sampler | 1/2 → 2/2 | 2/2 → 2/2 |
+| 10 PR gate | 1/2 → 2/2 | 2/2 → 2/2 |
+| 11 worktree hygiene | 0/2 → 0/2 | 2/2 → 2/2 |
+| 12 Codex commit trailer | 0/2 → 0/2 | 2/2 → 2/2 |
+| 13 merge gate | 1/2 → 1/2 | 2/2 → 2/2 |
+| 14 infra live-verification | 6/6 → 6/6 | 2/2 → 2/2 |
+| 15 hand-off to `/implement-story` | — → 2/2 | — → 2/2 |
+
+The two Codex dips (scenarios 1 and 2) are one sample each at 8 samples per cell, inside the noise of this harness. Codex scores 0/2 on scenarios 11 and 12 on the unmodified file as well: the hygiene and trailer rules did not steer Codex before this change either, so they are not a regression and are recorded here as an existing weakness. `/implement-story` now carries both rules where the commit step happens.
+
+**Tried and rejected by the test.** Merging §7's "autonomous chain must not treat tests-pass as sufficient" bullet into §9's live-verification gate (candidate c) dropped scenario 14 on Codex from 6/6 to 0/6 (two samples had shown 0/2 against 2/2, which is why six were run). Restoring the bullet verbatim recovered 6/6. The two copies are a pair by design: §7 next to the Terraform rules is what Codex acts on, and §9's gate now only points at it. This is the evidence that a deduplication that looks lossless can still change behaviour.
+
+**Not done, deliberately.** Candidate (d), compressing the three NON-NEGOTIABLE principle blocks, saves about 120 characters of whitespace and would only shorten the owner's own wording. Candidate (g), model-known content (the CI-gates list and the stack rows), saves under 500 characters. Candidate (h), the §8 single-app rows, needs its own test cell per row and was not attempted. Candidate (i), emphasis, changes no size. None was worth the risk to the rules' wording; they stay open for a later pass if the size matters.
+
+**Where each removed piece went** (nothing deleted; every row verified at its target):
+
+| Removed from `context.md` | Now at |
+|---|---|
+| §9 PR-body template | `/pre-pr` Step 4 |
+| §9 commit format, Codex `Co-Authored-By` trailer | `/implement-story` Step 3 and `/pre-pr` Step 0; the trailer clause also stays inline in Steps 3–9 |
+| §9 push, `ci:fast`, `ci:local` | `/implement-story` Steps 2 and 4; the detached-push rule stays in §0 |
+| §9 Step 1 shallow-clone check, gitignored env files | `/implement-story` Step 0 |
+| §9 Step 2 prototype rules, component-spec rule | `/implement-story` Step 1 (the rule itself stays in §7 Testing) |
+| §9 Step 5 `/pr-land` description | `/pr-land` (already carried it) |
+| §9 item 6 live-verification gate | §9 gate (one pointer sentence) plus §7's Cross-layer deployment invariants bullet, restored verbatim; mechanics in `/pr-land` Step 4 |
+| §9 Step 10 `mergeStateStatus` check | kept in §9 Step 10; also `/pr-land` Step 4 mergeability gate |
+| §9 Step 11 worktree cleanup commands | `/mark-done` step 8a (already carried it); one clause stays inline |
+| §9 Step 12 milestone wrap-up | `/mark-done` milestone block (already carried it); stub stays |
+| §9 READY paragraph | folded into Step 0 and §0's chain bullet |
+| "step 6/7 above" in the stuck conditions (a stale pointer) | `/pr-land` Step 3 items 6 and 7 |
+| §7 "How to edit this file" | `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` § How to edit `context.md`, verbatim; one sentence stays inline |
+| §13 Self-Check | the same five checks, shortened |
+
 ## Stories
 
 ```mermaid
@@ -852,10 +901,10 @@ Limits as before: n=2, no shell in the session, so each answer comes from the lo
 
 **Files to create/modify:**
 - `.copilot/context.md` (modify — the candidates above; edit this file directly, never through the symlinks)
-- `.claude/commands/implement-story.md` (new) <!-- doc-link:example -->
-- `.agents/skills/implement-story/SKILL.md` (new, generated by `scripts/codex-skill.sh`) <!-- doc-link:example -->
+- `.claude/commands/implement-story.md` (new)
+- `.agents/skills/implement-story/SKILL.md` (new, generated by `scripts/codex-skill.sh`)
 - `.claude/commands/story-discovery.md` and its `.agents/skills/story-discovery/SKILL.md` copy (modify — closing block hands off to `/implement-story`)
-- `.claude/commands/pre-pr.md`, `.claude/commands/pr-land.md`, `.claude/commands/mark-done.md` and their `.agents/skills/` copies (modify — receive the facts the old §9 held)
+- `.claude/commands/pre-pr.md`, `.claude/commands/pr-land.md` and their `.agents/skills/` copies (modify — receive the facts the old §9 held). As built: `mark-done.md` needed no change (it already carried the Step 11 and Step 12 content), and `.claude/commands/run-batch.md` plus its copy changed instead, because it told its worktree agents to run "§9 Steps 1–9" and now names `/implement-story`.
 - `packages/architecture-check/agent-context-policy.json` (modify — section and file budgets ratchet down to the new sizes; `requiredAnchors` unchanged unless a gate's wording changes)
 - `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify — new scenarios, the moved editing rule)
 - Every file that cites a `§9 Step N` whose meaning moves (modify, only if a step number changes; the plan above keeps the numbers stable)
@@ -865,7 +914,7 @@ Limits as before: n=2, no shell in the session, so each answer comes from the lo
 - [ ] Every removed line is accounted for in a table of old text to new location, verified at the target; no rule is deleted.
 - [ ] `/implement-story` exists, its Codex copy is generated, `/story-discovery` ends by invoking it, and `/implement-story` ends by invoking `/pre-pr`.
 - [ ] The facts listed under "Facts no skill holds today" are present in the skills before they leave `context.md`.
-- [ ] Every touched bullet passed the before/after test with both `codex exec` and `claude -p`; any that regressed stayed inline and is listed.
+- [ ] Every touched bullet shows no regression against the unmodified file in the before/after test, with both `codex exec` and `claude -p` (the bar locked in discovery: pass means no regression). A cell that already failed on the unmodified file is recorded in the Decision record as an existing weakness of that tool, not counted against this change; any bullet that did regress stayed inline and is listed.
 - [ ] No `§9 Step N` citation in a live file points at a step that moved without a stub or an update.
 
 **Acceptance criteria — technical:**
