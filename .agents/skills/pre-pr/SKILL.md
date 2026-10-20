@@ -26,7 +26,7 @@ If a PR exists → print its number and URL, then **stop**:
 ```bash
 git status --short
 ```
-If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format in `/implement-story` Step 3: `feat(<context>): <description> (M0X-SYY)`, with the `Co-Authored-By` trailer (Codex adds `Co-Authored-By: Codex <noreply@openai.com>` explicitly; Claude Code adds its own).
+If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format in `/implement-story` Step 3: `feat(<context>): <description> (<story-id>)` (`<story-id>` is `M0X-SYY` or `TDNN-SYY`), with the `Co-Authored-By` trailer (Codex adds `Co-Authored-By: Codex <noreply@openai.com>` explicitly; Claude Code adds its own).
 
 ---
 
