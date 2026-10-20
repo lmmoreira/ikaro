@@ -81,7 +81,7 @@ describe('BookingsAttachmentsController (component)', () => {
 
     it('scenario 2 — no JWT, tenantSlug in body: resolves tenant then returns 201', async () => {
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
-      backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(mockSignedUrlResponse);
+      backendHttpService.postForPublic.mockResolvedValueOnce(mockSignedUrlResponse);
 
       const res = await request(app.getHttpServer())
         .post('/v1/bookings/attachments/signed-url')
@@ -106,7 +106,7 @@ describe('BookingsAttachmentsController (component)', () => {
         tenantId: TENANT_ID,
         contactEmail: 'guest@example.com',
       });
-      backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(mockSignedUrlResponse);
+      backendHttpService.postForPublic.mockResolvedValueOnce(mockSignedUrlResponse);
 
       const res = await request(app.getHttpServer())
         .post('/v1/bookings/attachments/signed-url')
@@ -150,7 +150,7 @@ describe('BookingsAttachmentsController (component)', () => {
 
     it('accepts contentType image/webp (client-side compressed upload)', async () => {
       backendHttpService.get.mockResolvedValueOnce(tenantInfo);
-      backendHttpService.postForPublic = jest.fn().mockResolvedValueOnce(mockSignedUrlResponse);
+      backendHttpService.postForPublic.mockResolvedValueOnce(mockSignedUrlResponse);
 
       const res = await request(app.getHttpServer())
         .post('/v1/bookings/attachments/signed-url')

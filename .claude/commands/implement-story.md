@@ -69,9 +69,12 @@ In an agent session, run the push detached and wait on the real process; a foreg
 ```bash
 git rev-parse HEAD                    # note the commit being pushed
 nohup git push --porcelain </dev/null >/tmp/push-<story-id>-<unix-time>.log 2>&1 &    # one log per push: put the current epoch seconds in the name as a literal
-pgrep -af '^git push'                 # wait until it is gone, then read the log: a ref line for the branch, or "Everything up-to-date"
-git ls-remote origin refs/heads/<branch>   # the remote head must equal the commit noted above
+pgrep -af '^git push'                 # one-shot: note the PID it prints
+while kill -0 <pid> 2>/dev/null; do sleep 10; done   # separate foreground call, timeout 600000; if it times out, run it again
+git ls-remote origin refs/heads/<branch>   # the remote head must equal the commit noted above; read the log too: a ref line for the branch, or "Everything up-to-date"
 ```
+
+**Never end a turn to wait for a detached push, and never wait with a `pgrep -f <pattern>` loop.** Nothing wakes the session when the process exits, so a turn that ends with "I'll continue when the push finishes" stalls the chain until the user prods it (TD54-S1: it did). A `pgrep -f` pattern also matches the waiting shell's own command line, and another session's, so that loop never ends. Wait on the exact PID with `kill -0`, in the same turn, then check the log and the remote head yourself. A background-task notice that the launcher shell exited says nothing about the push.
 
 The push is done only when that remote head equals the commit you noted and the log shows no rejected ref or hook failure: an exit status alone is not proof, and an older commit already on the remote branch looks like success if you only check that the branch exists.
 
