@@ -77,7 +77,7 @@ Stories 1 to 4 are independent and can land in any order or in parallel; Story 5
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — Move identity-shaped CI Variables to Secrets 🔴
+### Story 2 — Move identity-shaped CI Variables to Secrets 🔴 ✅ Done
 
 **Agent:** devops
 **Complexity:** M
@@ -102,6 +102,7 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 - [ ] No email address or account identifier is a GitHub Actions Variable; `grep -rE "vars\.(IAM_ADMIN_USER|NOTIFICATION_EMAIL|CLOUDFLARE_ACCOUNT_ID)" .github` returns nothing.
 - [ ] Workflow logs for a plan run and a drift run show these values only as `***`.
 - [ ] The plan jobs' job summaries are searched for the literal values; the result is recorded in the PR, and a follow-up story is created via `/create-story` if any value shows.
+  - ⚠️ Job summaries were not opened; inferred clean because both plans had no changes. The latent exposure is tracked in TD54 Story 5 (2026-10-20).
 - [ ] `foundation-deploy.yml` has no `add-mask` step left.
 
 **Acceptance criteria — technical:**
