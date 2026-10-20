@@ -8,7 +8,7 @@ const PORT = `
 describe('checkOccupancyReleaseChokePoint', () => {
   it('flags releaseBookingOccupancy() called from a use case', () => {
     const project = fixtureProject({
-      '/repo/apps/backend/src/contexts/booking/application/use-cases/resource-occupancy-assignment.helpers.ts': `
+      '/repo/apps/backend/src/contexts/booking/application/helpers/resource-occupancy-assignment.helpers.ts': `
         export async function releaseBookingOccupancy(): Promise<void> {}
       `,
       '/repo/apps/backend/src/contexts/booking/application/use-cases/cancel-something.use-case.ts': `
@@ -53,13 +53,13 @@ describe('checkOccupancyReleaseChokePoint', () => {
     const project = fixtureProject({
       '/repo/apps/backend/src/contexts/booking/application/ports/resource-occupancy-repository.port.ts':
         PORT,
-      '/repo/apps/backend/src/contexts/booking/application/use-cases/resource-occupancy-assignment.helpers.ts': `
+      '/repo/apps/backend/src/contexts/booking/application/helpers/resource-occupancy-assignment.helpers.ts': `
         import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
         export async function releaseBookingOccupancy(repo: IResourceOccupancyRepository) {
           await repo.release('t', ['l']);
         }
       `,
-      '/repo/apps/backend/src/contexts/booking/application/use-cases/booking-exception-closing.helpers.ts': `
+      '/repo/apps/backend/src/contexts/booking/application/helpers/booking-exception-closing.helpers.ts': `
         import { releaseBookingOccupancy } from './resource-occupancy-assignment.helpers';
         export async function saveTerminalBookingsInTransaction() { await releaseBookingOccupancy(undefined as never); }
       `,

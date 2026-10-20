@@ -193,6 +193,25 @@ test('a use case may not import another use case, a job or infrastructure', () =
   );
 });
 
+test('a service may use the helpers and base classes beside the use cases but not a use case', () => {
+  const useCaseRule = rule('no-booking-application-internal-imports');
+  const from = `${booking}/services/availability-query.service.ts`;
+  for (const allowed of [
+    `${booking}/use-cases/availability-lines.helpers.ts`,
+    `${booking}/use-cases/booking-request.mapper.ts`,
+    `${booking}/use-cases/base-booking-reminder-notification.use-case.ts`,
+    `${booking}/helpers/booking-exception-closing.helpers.ts`,
+  ]) {
+    assert.ok(!isDenied(useCaseRule, from, allowed), `should be allowed: ${allowed}`);
+  }
+  for (const denied of [
+    `${booking}/use-cases/get-availability.use-case.ts`,
+    `${booking}/jobs/booking-reminder.job.ts`,
+  ]) {
+    assert.ok(isDenied(useCaseRule, from, denied), `should be denied: ${denied}`);
+  }
+});
+
 test('a job sits above use cases but may not reach infrastructure or use-case helpers', () => {
   const jobRule = rule('no-booking-job-internal-imports');
   const from = `${booking}/jobs/booking-reminder.job.ts`;
@@ -208,7 +227,7 @@ test('a job sits above use cases but may not reach infrastructure or use-case he
   }
   for (const denied of [
     'src/contexts/booking/infrastructure/entities/booking.entity.ts',
-    `${booking}/use-cases/booking-exception-closing.helpers.ts`,
+    `${booking}/use-cases/booking-request.helpers.ts`,
     `${booking}/use-cases/booking-request.mapper.ts`,
     `${booking}/jobs/some-other.job.ts`,
     'src/contexts/loyalty/domain/loyalty-entry.aggregate.ts',
