@@ -17,8 +17,8 @@ Argument: a story ID (`M09-S04`) or TD ID (`TD13`), the same one `/story-discove
 
 ## Step 0 — Pre-flight
 
-1. **READY check.** `/story-discovery <ID>` must have returned READY in this conversation. If it did not, stop and run it first; never implement from an unreviewed spec.
-2. **Branch.** `git branch --show-current` must be the story's feature branch (`feat/M0X-SYY-<short-description>`), never `main`. If a worktree or branch was not set up, `/story-discovery` Step 9 does it; do not code on `main`.
+1. **READY check.** `/story-discovery <ID>` must have returned READY for this story, either in this conversation or as the story's discovery output handed to you in your prompt (`/run-batch` passes it to each isolated worktree agent; that is the verified READY result for the story). If neither is true, stop and run `/story-discovery` first; never implement from an unreviewed spec.
+2. **Branch.** `git branch --show-current` must be a feature branch for this story, never `main`. `/story-discovery` Step 9 names it `feat/<story-id-lowercase>-<short-description>` for a worktree (for example `feat/m09-s04-booking-reschedule`) and `feat/M0X-SYY-<short-description>` for a direct branch; accept whichever it created. If no worktree or branch was set up, `/story-discovery` Step 9 does it; do not code on `main`.
 3. **Shallow clone.** First thing in any worktree or fresh clone: `git rev-parse --is-shallow-repository`. If `true`, run `git fetch --unshallow origin` before drawing any "behind/ahead of `main`" conclusion. A shallow clone's `git log HEAD..origin/main` lists phantom commits and `git merge origin/main` fails with "refusing to merge unrelated histories".
 4. **Gitignored env files.** A worktree carries none of them. Copy `apps/backend/.env`, `apps/bff/.env` and `apps/web/.env.local` from the main checkout before running anything that needs them (reading from outside the worktree is fine; only git-mutating commands must stay inside it). A worktree's `.env` can also go stale relative to stories merged after it was created.
 5. **Rebuilt packages.** A merge that changed a workspace package's exports needs that package rebuilt before trusting a local type-check (`docs/CI_TRAPS.md` § Stale local state).
@@ -65,10 +65,13 @@ Conventional Commits types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. 
 In an agent session, run the push detached and wait on the real process; a foreground push held open by a tool call was SIGKILLed (exit 137) mid-hook:
 
 ```bash
-nohup git push </dev/null >/tmp/push.log 2>&1 &
-pgrep -f '^git push'      # wait until it is gone, then read /tmp/push.log
-git log origin/<branch> -1   # the remote head must have moved; an exit status alone is not proof
+git rev-parse HEAD                    # note the commit being pushed
+nohup git push </dev/null >/tmp/push-<story-id>.log 2>&1 &    # one log per story, so concurrent worktrees never share it
+pgrep -af '^git push'                 # wait until it is gone, then read the log
+git ls-remote origin refs/heads/<branch>   # the remote head must equal the commit noted above
 ```
+
+The push is done only when that remote head equals the commit you noted: an exit status alone is not proof, and an older commit already on the remote branch looks like success if you only check that the branch exists.
 
 Never `pkill -f <pattern>` in a session: it can match the agent's own shell. List PIDs with `pgrep` or `ss -ltnp` and kill those. If the session detached while the hook ran, its result is unknown: read the log and wait for the real exit status before treating the push as done.
 
