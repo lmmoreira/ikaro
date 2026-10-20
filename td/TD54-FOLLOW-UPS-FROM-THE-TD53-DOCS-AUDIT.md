@@ -113,39 +113,68 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 **PR sequence:** 1 PR touching `.github/workflows/**`, `docs/` and a description-only edit under `infra/terraform/envs/prod/` (no `foundation/**`, no `apps/**`, so `infra-app-mix-ok` does not apply; the Terraform edit is what makes the credentialed plan jobs run on the PR).
 - PR1: the two workflow files, `variables.tf` and `docs/17`. **Ordered manual step, first:** the owner creates the three repo-level secrets before this PR is merged or its plan job is trusted; a missing secret resolves to an empty string and the plan jobs fail or silently change their input. **Ordered manual step, last:** after the live check passes, delete the three old Variables.
 
-### Story 3 — Make the cross-context isolation scan a blocking gate 🟡
+### Story 3 — Make the dependency-graph scan a blocking gate, with a zero baseline 🟡
 
-**Agent:** devops
-**Complexity:** M
-**Docs to load:** `docs/08-TESTING_STRATEGY.md` § Architecture Isolation Test; `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only; `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/ENGINEERING_RULES_SHARED.md` (the architecture-policy rules)
+**Agent:** backend-ts
+**Complexity:** L
+**Docs to load:** `docs/08-TESTING_STRATEGY.md` § Architecture Isolation Test; `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only; `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/11-ARCHITECTURE.md`; `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers and the jobs rules; `docs/AGENT_PATTERNS.md`; `docs/ENGINEERING_RULES_SHARED.md` (the architecture-policy rules)
 **Dependencies:** none
-**Pattern:** plain composition — the policy and generator already exist (`architecture-policy.json` `contextDependencyMatrix` feeding `scripts/dependency-cruiser.config.cjs`); this story only clears the baseline and removes the non-blocking flag
+**Pattern:** plain composition — the policy and generator already exist (`architecture-policy.json` feeding `scripts/dependency-cruiser.config.cjs`). The story encodes the intended layering as directional rules, clears the baseline at its root, then removes the non-blocking flag.
 
 **Description:**
-`pnpm dep-cruise` is the only check that sees a context importing another context's internals, and it is report-only (`continue-on-error: true` in `.github/workflows/pr-quality.yml`), so it cannot stop a bad import. Make it blocking in three steps: (1) run `pnpm dep-cruise` on `main` and list every finding; (2) triage each one: either fix the import (preferably through the existing `infrastructure/cross-context/` adapter or a domain event, per `.copilot/context.md` §7's cross-context order) or add a `permittedEdges` entry with an exact source path, exact target paths, rationale and owner (a wildcard is forbidden); (3) remove `continue-on-error: true` from the scan step so a finding fails the job, and update `docs/08-TESTING_STRATEGY.md` (§ Architecture Isolation Test and the Quality Gates row, both currently stating "report-only") and `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` to match. If the baseline turns out too large to clear in one PR, split it: PR1 clears or permits the findings, PR2 flips the gate; a gate flipped before the baseline is clean would block every PR. If the story's discovery concludes the scan should stay report-only, that must be argued and recorded, and the docs left as they are today.
+`pnpm dep-cruise` is the only check that sees a context importing another context's internals (`pnpm architecture-check` runs 27 detectors, none of them on imports), and it is report-only (`continue-on-error: true` in `.github/workflows/pr-quality.yml`), so nothing can stop a bad import. Make the whole scan blocking. Its baseline on `main` is 215 violations (measured 2026-10-20), so the gate is flipped only after the baseline is zero: 4 cross-context imports, 202 `no-<ctx>-application-internal-imports` and 9 `no-circular`. Clear it at the root, in line with the "no workarounds" rule: register what is legitimate, encode the intended layering in the rules, and fix what is actually wrong.
+
+**Discovery decisions (2026-10-20):**
+- (a) **Events and commands stay in the publisher's `domain/`** (its published language; not moved to `@ikaro/types`). The 4 cross-context findings are handler imports of a subscribed event or command, the shape about 20 handlers are already registered for. Each becomes one `permittedEdges` entry: exact handler as `source`, exact event or command file as its single `targetPaths` entry, plus rationale, owner and review date; no globs. Entries: `notification/.../resource-deactivation-impact.handler.ts` → `booking/domain/events/resource-deactivation-impact-raised.event.ts`; `notification/.../recurring-schedule-renewal.handler.ts` → `booking/domain/commands/recurring-schedule-renewal-due.command.ts`; `notification/.../booking-resource-reassigned.handler.ts` → `booking/domain/events/booking-resource-reassigned.event.ts`; `booking/.../tenant-provisioned.handler.ts` → `platform/domain/events/tenant-provisioned.event.ts`.
+- (b) **Locality rule for shared code inside `application/`:** a helper used only by use cases stays in `use-cases/`; a helper used only by jobs stays in `jobs/`; a helper used by both goes in a new `application/helpers/` folder beside `jobs/` and `use-cases/`. Baseline check: the only helper crossing that line is `booking/application/use-cases/booking-exception-closing.helpers.ts` (imported by `expire-booking-holds.job.ts` and 11 use cases), which moves to `booking/application/helpers/`.
+- (c) **Directional rules (replace the flat allowlist):** `use-cases/` may import same-folder `*.helpers.ts`, `*.mapper.ts`, `*.util.ts`, `*.types.ts`, plus `application/helpers/`, services, ports, DTOs and domain; never `jobs/`, and no `*.use-case.ts` from another use case. `jobs/` may import same-folder `*.helpers.ts` and `*.base.ts`, plus `application/helpers/`, services, ports, DTOs, domain and `*.use-case.ts` (a job is a batch orchestrator above use cases, called by its `infrastructure/events/*-trigger.handler.ts`, and stays in `application/`). `application/helpers/` may import domain, ports and DTOs only. `layerTaxonomy.application.sameContextAllowedApplicationPaths` in `architecture-policy.json` carries these patterns; the cross-context no-wildcard rule applies to `permittedEdges`, not to this same-context list.
+- (d) **A use case is not a reusable building block.** Use case → use case calls are fixed by extracting the shared logic: `RaiseFutureCommitmentExceptionsForResourceUseCase` (called by `deactivate-resource` and `cascade-staff-deactivation`) and the availability computation `match-availability-alerts` takes from `GetAvailabilityUseCase` become `application/services/` classes; a type or enum imported from a use case file (`FutureCommitmentExceptionResolutionOutcome`, every `*UseCaseInput`) moves to the matching `*.types.ts`. Two notification/platform findings (`send-availability-alert-matched-notification` → `send-availability-alert-matched-email` use case; `create-lead-form-submission` → `get-lead-form-public-config`) are inspected at implementation and fixed with the same two moves.
+- (e) **Renames so the suffix patterns apply with no named exceptions:** `booking/application/jobs/tenant-local-window.ts` → `tenant-local-window.helpers.ts` (and its spec); `windowed-tenant.job.ts` → `windowed-tenant-job.base.ts` (an abstract base, not a job; the class name `WindowedTenantJob` is unchanged); `booking-day-reminder-job.base.ts` already fits. Grep `docs/`, `plan/`, `.claude/**` and `scripts/` for the old file names (stale-reference sweep).
+- (f) **`chatbot-balance-poll.job.ts` imports `OpenRouterCreditsClient` from `infrastructure/llm/` directly.** A real layering fault: add a port in `platform/application/ports/`, have the client implement it, and inject the port. `platform/lead-form.constants.ts` becomes one named entry beside `chatbot.constants.ts` in `sameContextAllowedApplicationPathsByContext`.
+- (g) **Cycles are fixed, not exempted** (9 findings, 3 backend cycles and 1 web cluster): `chatbot-cap-check.helpers` ↔ `send-chat-message.use-case` and `recurring-booking-schedule-window.helpers` ↔ `request-recurring-booking-schedule.use-case` (both close through an `…UseCaseInput` type, fixed by (d)); `resource-candidate-locking.helpers` ↔ `resource-occupancy.helpers` (a real runtime cycle, shared function extracted to a third file); web `features/platform/settings-form*` (the `settings-form.ts` barrel re-exports from `-validation`, which imports values back from it; move `WEEK_DAYS`, the shared types and the re-export so nothing imports the barrel).
+- (h) **Everything blocks.** No `warn` split, no `continue-on-error`. A stale `permittedEdges` check was run: all 34 existing entries resolve to files that exist.
+- (j) **Required status checks.** Read from branch protection on 2026-10-20: the required checks on `main` do not include "Architecture validation" or "Dependency graph validation", so a red result from either does not block a merge today. After PR2 merges the owner adds both job names as required checks in the repository settings (a repository setting, not a file in this repo; the exact names are those of the jobs in `pr-quality.yml` after the rename). The step is listed in the PR2 body and the live check confirms a red scan shows as a blocked merge.
+- (i) **Conventions are written where the author reads them, so a future agent cannot repeat the mistake:** `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers (a handler registers its subscribed event or command in `permittedEdges` in the same change) and its jobs rules (job placement, the `helpers/` locality rule, the shared-file naming); `docs/05-BOUNDED_CONTEXTS.md` § Rule 2; `docs/11-ARCHITECTURE.md` (the file tree gains `helpers/`); `docs/ANTI_PATTERNS.md` (rows: a use case calling another use case, a use case importing a job, a job importing `infrastructure/`, a handler subscribing to another context's event without its `permittedEdges` entry); `.copilot/context.md` §7 (the cross-context bullet and Architecture policy bullet say the scan is CI-enforced and name the locality rule; edit the file directly, never through the symlinks, and keep within the `agent-context-file` section budget); `docs/AGENT_PATTERNS.md` (a short pattern: shared logic goes to a service, a helper used by both jobs and use cases goes to `helpers/`).
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `.github/workflows/pr-quality.yml` (modify — remove `continue-on-error: true` from the `pnpm dep-cruise` step)
-- `packages/architecture-check/architecture-policy.json` (modify — `contextDependencyMatrix.permittedEdges`, only for reviewed edges)
+- `.github/workflows/pr-quality.yml` (modify — remove `continue-on-error: true` from the scan step; rename the job and step so neither says report-only)
+- `packages/architecture-check/architecture-policy.json` (modify — the 4 exact `permittedEdges` entries; `sameContextAllowedApplicationPaths`/by-context patterns per (c) and (f))
+- `scripts/dependency-cruiser.config.cjs` (modify — directional jobs/use-cases/helpers rules per (c))
+- `scripts/dependency-cruiser-config.spec.cjs` (modify — pin the rules and the new entries)
+- `apps/backend/src/contexts/booking/application/**` (move `booking-exception-closing.helpers.ts` to `helpers/`; rename the two job files and their spec; extract the services and `*.types.ts` per (d); import updates)
+- `apps/backend/src/contexts/platform/application/**` (new credits port, `chatbot-cap-check` cycle, `send-chat-message` input type), `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-credits.client.ts` (implement the port) and the platform module providers
+- `apps/backend/src/contexts/notification/application/**` (per (d), after inspection)
+- `apps/web/features/platform/settings-form*.ts` (modify — break the cycle per (g))
 - `docs/08-TESTING_STRATEGY.md` (modify — § Architecture Isolation Test and the Quality Gates row)
-- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — the job's blocking status)
-- Any `apps/backend/src/contexts/**` file the baseline shows importing across a context boundary (list produced by the first run; regenerate with `pnpm dep-cruise` at implementation time)
+- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — the job's blocking status and the report-only line in the gating-jobs summary)
+- `docs/05-BOUNDED_CONTEXTS.md` (modify — § Rule 2, handler imports of a subscribed event or command)
+- `docs/ENGINEERING_RULES_BACKEND.md` (modify — § Event Handlers and the jobs rules)
+- `docs/11-ARCHITECTURE.md` (modify — the `application/` tree gains `helpers/`)
+- `docs/ANTI_PATTERNS.md`, `docs/AGENT_PATTERNS.md`, `.copilot/context.md` (modify — the rules above, so agents are told before they write the code)
 
 **Acceptance criteria — product:**
 - [ ] A PR that adds an import from one bounded context into another's internals fails CI.
-- [ ] `pnpm dep-cruise` exits 0 on `main` with no finding that lacks either a fix or a reviewed `permittedEdges` entry.
+- [ ] A PR that adds a use case → use case import, a use case → job import, a job importing `infrastructure/`, or a circular import fails CI.
+- [ ] `pnpm dep-cruise` exits 0 on `main` for every workspace, with no `warn` downgrade and no finding hidden.
+- [ ] The 4 new `permittedEdges` entries each name an exact source and a single exact target.
+- [ ] After PR2, "Architecture validation" and "Dependency graph validation" are required status checks on `main` (owner action in repository settings, recorded in the PR2 body).
+- [ ] Behaviour is unchanged: every touched context's existing unit and integration suites pass.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `scripts/dependency-cruiser-config.spec.cjs` still passes, and covers a newly added `permittedEdges` entry if any is added.
+  - [ ] `scripts/dependency-cruiser-config.spec.cjs` passes and covers the 4 new entries.
+  - [ ] Negative guarantees pinned: a jobs → use case import is allowed, a use case → job import is not; an `application/helpers/` file importing a use case is not allowed; a use case importing another `*.use-case.ts` is not allowed.
+  - [ ] Specs for each new service and the new credits port adapter; the renamed `tenant-local-window.helpers.spec.ts` still passes.
+- Integration: the existing job and use-case integration specs of booking, notification and platform pass unchanged.
+- Tenant isolation: unchanged by this story; the extracted services keep passing `tenantId` and the existing isolation specs still pass.
 - [ ] Checkov / Tfsec clean
 - [ ] `actionlint` and `zizmor` pass on `pr-quality.yml`
+- [ ] Coverage ≥80% on changed code; `tsc --noEmit` and lint clean
 
-**Live-verification check:** after the flag is removed, open a throwaway draft PR that adds a single cross-context import (for example `booking` importing a `loyalty` domain file) and confirm the scan job turns red; close the PR without merging. Pass = the job fails on the deliberate violation and passes on `main`. A failed or un-runnable check is a stuck condition.
-**PR sequence:** 1 PR if the baseline is empty or small; otherwise 2 PRs — PR1: fixes and reviewed `permittedEdges` entries (no workflow change); PR2: remove `continue-on-error`, update the two docs. Neither mixes `infra/terraform/**` with `apps/**`, so `infra-app-mix-ok` does not apply.
-
+**Live-verification check:** after the flag is removed, open a throwaway draft PR with one deliberate cross-context import (for example `booking` importing a `loyalty` domain file) and one use case → use case import, and confirm the scan job turns red; close the PR without merging. Pass = the job fails on the deliberate violations and passes on `main`. Opening the PR needs the owner's yes at that point. A failed or un-runnable check is a stuck condition.
+**PR sequence:** 2 PRs, neither mixes `infra/terraform/**` with `apps/**`, so `infra-app-mix-ok` does not apply. PR1: clear the baseline (policy, config and rule changes, renames and moves, extractions, port, cycle fixes, the 4 entries, and the `docs/05`, `docs/11` and `ENGINEERING_RULES_BACKEND.md` conventions); no workflow change, so `pnpm dep-cruise` exits 0 but is still non-blocking. PR2: remove `continue-on-error`, rename the job, update `docs/08` and `docs/17`, run the live check. A gate flipped before the baseline is clean would block every PR, so PR2 merges only after PR1.
 
 ### Story 4 — Make unescaped `%…%` LIKE/ILIKE patterns fail lint, and fix the three that exist 🔴
 
