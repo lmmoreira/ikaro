@@ -6,17 +6,18 @@
 - **Context**: `apps/bff` (tests), `.github/workflows/`, `packages/architecture-check`, `scripts/`
 - **Created**: 2026-10-18
 - **Discovered**: `/docs-audit` baseline run by TD53-S3A (2026-10-18). Each item is a place where a doc stated a rule or a gate that the code and CI do not actually enforce; the docs were corrected to say what is true, and each gap is recorded here so it is fixed instead of just described.
-- **Decision status**: Drafted 2026-10-18 from the owner's decisions in the TD53-S3A discovery session. Four independent stories (Story 4 has a sequencing note against TD53 Story 5B), no dependency between them; each still begins with `/story-discovery`.
+- **Decision status**: Drafted 2026-10-18 from the owner's decisions in the TD53-S3A discovery session. Five stories: Stories 1 to 4 are independent (Story 4 has a sequencing note against TD53 Story 5B); Story 5 was added 2026-10-20 as a follow-up found while landing Story 2 and depends on it. Each still begins with `/story-discovery`.
 - **Related**: TD53 (`td/TD53-AGENT-FIRST-DOCS-ROUTING-AND-INTEGRITY.md`), `docs/08-TESTING_STRATEGY.md`, `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Repository Secrets vs. Variables, `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`
 
 ## Problem
 
-Four gaps surfaced while the docs were checked against the code. In each, the documented rule is the right one and the implementation lags it.
+Four gaps surfaced while the docs were checked against the code (a fifth, below, surfaced while landing Story 2). In each, the documented rule is the right one and the implementation lags it.
 
 1. **BFF controllers without a component spec.** `docs/08-TESTING_STRATEGY.md` § BFF: two test files per controller says every `*.controller.ts` ships a `*.controller.component.spec.ts`. 4 of the 25 BFF controllers have none: `apps/bff/src/features/booking/bookings-attachments.controller.ts`, `recurring-booking-schedules.controller.ts`, `bookings-guest.controller.ts` and `bookings-no-show.controller.ts`. No `architecture-check` detector enforces the rule, so nothing flagged them.
 2. **Identity-shaped values stored as Variables.** The owner's requirement is that secrets and sensitive information are never exposed, and that anything not compliant is fixed. `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` already says identity-shaped values default to Secrets. Today `vars.IAM_ADMIN_USER` (16 uses, `infra-deploy.yml` and `foundation-deploy.yml`) and `vars.NOTIFICATION_EMAIL` (8 uses) hold email addresses, and `vars.CLOUDFLARE_ACCOUNT_ID` (4 uses) holds an account identifier. A Variable's value prints unmasked in workflow logs, and this repository's logs are public. No real address is committed in tracked files (the audit grepped `docs`, `plan`, `td`, `infra`, `.github`, `scripts`); the exposure is the CI log path only.
 3. **Cross-context isolation is not a blocking gate.** The isolation contract is expressed as `contextDependencyMatrix` (default deny plus exact `permittedEdges`) in `packages/architecture-check/architecture-policy.json` and enforced by `scripts/dependency-cruiser.config.cjs`. In `.github/workflows/pr-quality.yml` the scan step `pnpm dep-cruise` runs with `continue-on-error: true`, so only `pnpm dep-cruise:test` (the config's own spec) blocks. A cross-context import therefore does not fail a PR. The docs previously claimed an ESLint rule that blocks merge; `docs/08-TESTING_STRATEGY.md` now states the real, weaker position.
 4. **Unescaped `%…%` LIKE/ILIKE patterns are not mechanically blocked.** `docs/ANTI_PATTERNS.md` and `.copilot/context.md` §7 require `escapeLikePattern()` on any user-supplied search term, but nothing enforces it, and the 2026-10-18 ablation showed models do not follow the prose (0 of 2 with the bullet, 0 of 2 without). Three repository call sites already ship the bug: the staff search, the service search and the tenant name filter.
+5. **The identity-shaped Terraform inputs are not `sensitive`.** Found while landing Story 2: `iam_admin_user`, `notification_email` and `cloudflare_account_id` are plain string inputs, so a plan with a diff touching one prints it in the public job summary even though the Secret masks it in logs. No plan has shown it yet; Story 5 closes it at the source.
 
 **Note, not a story:** `scripts/relay-vm-up.sh:99` writes a PR body saying merging "triggers the pipeline's `apply-${ENV}` job". That job belongs to `infra-deploy.yml`, which excludes `foundation/**` (`infra-deploy.yml:52-54`). The correct flow is a Foundation dispatch with `apply=true` (`docs/RUNBOOKS.md` § Provision a tenant). Fix the script's text the next time that file is touched.
 
@@ -30,9 +31,11 @@ graph TD
   S2
   S3
   S4
+  S5
+  S2 --> S5
 ```
 
-The four stories are independent and can land in any order or in parallel; they touch different files (`apps/bff/**/*.spec.ts`; `.github/workflows/{infra,foundation}-deploy.yml`; `.github/workflows/pr-quality.yml` plus the isolation policy; `apps/backend/eslint.config.js` plus three backend repositories).
+Stories 1 to 4 are independent and can land in any order or in parallel; Story 5 follows Story 2. They touch different files (`apps/bff/**/*.spec.ts`; `.github/workflows/{infra,foundation}-deploy.yml`; `.github/workflows/pr-quality.yml` plus the isolation policy; `apps/backend/eslint.config.js` plus three backend repositories).
 
 ## Stories
 
@@ -188,3 +191,43 @@ A caller's `%` or `_` is a LIKE wildcard, not text, so an unescaped term lets `%
 - [ ] `pnpm lint` clean on the whole repository after the selector lands
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+### Story 5 — Mark the identity-shaped Terraform inputs `sensitive = true` 🟡
+
+**Agent:** devops
+**Complexity:** M
+**Docs to load:** `infra/terraform/README.md` § Layout and § Public-repository security; `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Repository Secrets vs. Variables; `docs/ENGINEERING_RULES_INFRA.md`; `docs/CI_TRAPS.md` (the failing tool's own section if a plan job fails)
+**Dependencies:** TD54 Story 2 (the three values are repository Secrets and `plan-staging`/`plan-prod` already run on `infra/terraform/**` changes)
+**Pattern:** plain composition — `sensitive = true` on an input variable, the same attribute `cloudflare_api_token` already carries (the `cloudflare_api_token` variable in `infra/terraform/envs/prod/variables.tf`); no named pattern applies
+
+**Discovered:** 2026-10-20, Codex round-1 review of PR #644 (TD54-S2), triaged as real but out of that PR's scope.
+**Root cause:** `iam_admin_user`, `notification_email` and `cloudflare_account_id` are plain `type = string` inputs (`envs/prod/variables.tf:31,119,131`, `envs/staging/variables.tf:58,70`, `modules/{database,relay-vm,monitoring}/variables.tf`). Terraform therefore prints their values wherever a plan renders them as resource attributes (the Cloud SQL IAM user name, the relay VM IAM members, the monitoring channel's `email_address`, the Turnstile widget's `account_id`). Both `plan-staging` and `plan-prod` write the full `terraform show` output to `$GITHUB_STEP_SUMMARY` (`infra-deploy.yml`, "Write plan to job summary"), a public page, and GitHub masks a Secret in logs only. Today's plans have no diff touching these values, so nothing is exposed yet.
+
+**Description:**
+TD54 Story 2 moved the three values to Secrets so logs mask them. A plan with a diff that touches one of them still renders it in the job summary, which keeps the full plan on purpose (the 2026-07-08 decision stays). Fix it at the source: declare the three variables `sensitive = true`, so Terraform itself prints `(sensitive value)` in any plan, log or summary, and leave the summary's detail for everything else.
+
+Decided here: (a) mark every declaration of the three names that feeds an `envs/*` plan: both env roots and the `database`, `relay-vm` and `monitoring` module variables, so a module's own plan and `terraform test` behave the same; (b) Foundation (`foundation/envs/*/variables.tf`) is out of scope: its plan jobs run `terraform plan … >/dev/null` and publish addresses and actions only, so it does not leak, and including it would force the two-PR `foundation/**` split (`infra/terraform/README.md`'s playbook) and a conditional `var.iam_admin_user != ""` that feeds the `workload_cloud_run_invokers` map. Discovery may reverse (b) with a reason; (c) no `nonsensitive()` wrapper is added to make a plan pass unless discovery shows the wrapped value is not itself secret.
+
+Hazards verified in the code, to check with a real plan rather than assume: a sensitive value cannot be a `for_each` key or argument (no use of these three as keys found; re-grep at implementation); `terraform test` assertions comparing `var.notification_email` and `iam_admin_user` in `modules/{monitoring,relay-vm}/tests/*.tftest.hcl` must still pass; values derived from a sensitive input become sensitive-marked (`google_sql_user.iam_admin` `name`, the monitoring channel label), which is wanted but changes the `[id=…]` text in refresh lines; no `output` block exports any of the three (checked: none).
+
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+- `infra/terraform/envs/prod/variables.tf` (modify — `sensitive = true` on `cloudflare_account_id`, `iam_admin_user`, `notification_email`; update the `cloudflare_account_id` description's "Not sensitive" wording)
+- `infra/terraform/envs/staging/variables.tf` (modify — `iam_admin_user`, `notification_email`)
+- `infra/terraform/modules/database/variables.tf` (modify — `iam_admin_user`)
+- `infra/terraform/modules/relay-vm/variables.tf` (modify — `iam_admin_user`)
+- `infra/terraform/modules/monitoring/variables.tf` (modify — `notification_email`)
+- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — drop the "check a job summary" caveat in the identity-values bullet once the redaction is demonstrated)
+
+**Acceptance criteria — product:**
+- [ ] A plan with a diff touching `iam_admin_user`, `notification_email` or `cloudflare_account_id` prints `(sensitive value)` for it in the log and in the job summary; the literal value never appears in either.
+- [ ] `plan-staging` and `plan-prod` on the PR still report `No changes` (no error from a sensitive value in a `for_each`, an output or a derived value).
+
+**Acceptance criteria — technical:**
+- [ ] Checkov / Tfsec clean
+- [ ] `terraform validate` and the module `terraform test` suites for `database`, `relay-vm` and `monitoring` pass
+- [ ] Negative guarantee pinned: a named check proves the redaction (see the live-verification check); "the value is not printed" holds by construction and nothing else fails if it regresses
+
+**Live-verification check:** before merge review, (1) read the PR's `plan-staging` and `plan-prod` jobs: both complete with `No changes`. (2) Demonstrate the redaction, since a no-diff plan proves nothing about it: run a plan-only job (never apply) with one of the three values deliberately changed, by a throwaway `workflow_dispatch` on the branch, and confirm the log and the job summary show `(sensitive value)` and a search of both for the literal returns nothing. Discovery fixes how the changed value is injected without touching the real Secret. A failed or un-runnable check is a stuck condition.
+**PR sequence:** 1 PR touching only `infra/terraform/envs/**`, `infra/terraform/modules/**` and `docs/` (no `foundation/**`, no `apps/**`, so neither mixed-PR rule applies). Merging applies through `apply-staging` then `apply-prod`; with no resource diff they change nothing. If discovery reverses decision (b), cite the playbook's `foundation/**` row and split into two PRs.
