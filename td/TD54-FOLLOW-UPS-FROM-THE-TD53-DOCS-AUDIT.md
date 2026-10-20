@@ -45,7 +45,7 @@ The four stories are independent and can land in any order or in parallel; they 
 **Pattern:** plain composition — follows the existing `*.controller.component.spec.ts` files next to the controllers that have one (for example `apps/bff/src/features/staff/staff.controller.component.spec.ts`)
 
 **Description:**
-`docs/08-TESTING_STRATEGY.md` makes a `*.controller.component.spec.ts` mandatory for every BFF controller: it boots the real Nest pipeline (guards, pipes, filters) with the backend call stubbed, so route paths, `@Roles`, body validation and header forwarding are exercised the way a request would hit them, which the plain `*.controller.spec.ts` unit test does not. Four controllers have none: `bookings-attachments` (its one route, `POST /bookings/attachments/signed-url`, `@Public`), `recurring-booking-schedules` (GET, GET `:id`, POST, POST `:id/end`, `:id/approve`, `:id/reject`), `bookings-guest` (the public `PATCH :id/submit-info/guest` and `GET :id/guest` routes) and `bookings-no-show` (`POST :id/no-show` for MANAGER/STAFF and `POST :id/no-show/correct` for MANAGER). For each, read a sibling spec first and copy its harness; do not invent a new one. Once the four exist, remove the "Known gap" note in `docs/08-TESTING_STRATEGY.md` § BFF: two test files per controller.
+`docs/08-TESTING_STRATEGY.md` makes a `*.controller.component.spec.ts` mandatory for every BFF controller: it boots the real Nest pipeline (guards, pipes, filters) with the backend call stubbed, so route paths, `@Roles`, body validation and header forwarding are exercised the way a request would hit them, which the plain `*.controller.spec.ts` unit test does not. Four controllers have none: `bookings-attachments` (its one route, `POST /bookings/attachments/signed-url`, `@Public`), `recurring-booking-schedules` (GET, GET `:id`, POST, POST `:id/end`, `:id/approve`, `:id/reject`), `bookings-guest` (the public `PATCH :id/submit-info/guest` and `GET :id/guest` routes) and `bookings-no-show` (`POST :id/no-show` for MANAGER/STAFF and `POST :id/no-show/correct` for MANAGER). For each, read a sibling spec first and copy its harness; do not invent a new one. `bookings-guest` and `bookings-attachments` are already exercised by `bookings.controller.component.spec.ts` (the Nest app boots whole, so the split-out controllers get hit). Move its `PATCH :id/submit-info/guest` and `POST attachments/signed-url` describe blocks into the two new specs, with their helpers (`makeGuestToken`, `tenantInfo`), instead of duplicating them. The parent spec keeps no copy. `GET :id/guest`, both no-show routes and all six recurring routes have no coverage today. Once the four exist, remove the "Known gap" note in `docs/08-TESTING_STRATEGY.md` § BFF: two test files per controller.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
@@ -54,6 +54,7 @@ The four stories are independent and can land in any order or in parallel; they 
 - `apps/bff/src/features/booking/recurring-booking-schedules.controller.component.spec.ts` (new)
 - `apps/bff/src/features/booking/bookings-guest.controller.component.spec.ts` (new)
 - `apps/bff/src/features/booking/bookings-no-show.controller.component.spec.ts` (new)
+- `apps/bff/src/features/booking/bookings.controller.component.spec.ts` (modify — remove the two moved describe blocks)
 - `docs/08-TESTING_STRATEGY.md` (modify — remove the "Known gap" note)
 
 **Acceptance criteria — product:**
@@ -61,13 +62,14 @@ The four stories are independent and can land in any order or in parallel; they 
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `bookings-no-show.controller.component.spec.ts`: a STAFF caller reaches `POST /bookings/:id/no-show` and a MANAGER reaches `/no-show/correct`; a STAFF caller on `/no-show/correct` gets 403; the correction body rejects a `reason` shorter than 10 or longer than 500 characters.
-  - [ ] `recurring-booking-schedules.controller.component.spec.ts`: each route returns the backend response unchanged for the allowed role, a disallowed role gets 403, and an invalid body on POST gets 400 with the standard problem-details shape.
-  - [ ] `bookings-guest.controller.component.spec.ts`: both routes are reachable with no JWT (`@Public`) but still require the web-only key; a malformed body on `submit-info` gets 400.
-  - [ ] `bookings-attachments.controller.component.spec.ts`: the tenant is resolved from the auth header, the guest token or the tenant slug (the three paths named in the controller), and a request with none of them is rejected.
+  - [ ] `bookings-no-show.controller.component.spec.ts`: STAFF and MANAGER reach `POST :id/no-show`, including with no body (defaults to `{}`); MANAGER reaches `/no-show/correct`; STAFF on `/no-show/correct` gets 403 and CUSTOMER gets 403 on both; no JWT gets 401; the correction body rejects a `reason` shorter than 10 or longer than 500 characters and any `correctedStatus` other than `COMPLETED`; a non-UUID `:id` gets 400; a backend error propagates.
+  - [ ] `recurring-booking-schedules.controller.component.spec.ts`: no JWT gets 401; CUSTOMER, STAFF and MANAGER each reach list, get, create and end and receive the backend response unchanged; CUSTOMER gets 403 on `approve` and `reject`, and STAFF and MANAGER reach them; an invalid POST body or list query gets 400 (problem-details shape); a non-UUID `:id` gets 400; a backend error propagates.
+  - [ ] `bookings-guest.controller.component.spec.ts`: both routes work with no JWT, using the guest token; a missing token gets 400, an invalid token 401, and a token whose booking id does not match the route 400; a malformed `submit-info` body gets 400; `GET :id/guest` gets 409 `GUEST_BOOKING_NOT_AWAITING_INFO` when the booking is not `INFO_REQUESTED`; a backend error propagates. The web-only key guard is global and already covered by `web-only.guard.spec.ts`, so these specs do not re-test it.
+  - [ ] `bookings-attachments.controller.component.spec.ts`: the existing scenarios move over unchanged — the tenant resolves from a JWT, a guest token or a slug; no auth and no slug gets 400, a bad guest token 401, and an invalid body 400.
 - Integration: none — covered by the component specs
 - Tenant isolation:
-  - [ ] each spec asserts the forwarded `X-Tenant-ID` comes from the caller's JWT or resolved tenant, never from a body or query value.
+  - [ ] Public routes: the tenant argument of `postForPublic`/`patchForPublic`/`getForPublic` comes from the JWT, guest token or resolved slug, never from the body. Authenticated routes: a `tenantId` or `customerId` sent in the body or query does not reach the backend call. `X-Tenant-ID` construction stays covered by `backend-http.service.spec.ts`.
+  - [ ] Mutation check, recorded in the PR: removing the `@Roles('MANAGER')` on `correctNoShow` and the `@Roles('MANAGER','STAFF')` on `approve`/`reject` each makes a named test fail.
 - E2E: none — covered by the component specs
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
