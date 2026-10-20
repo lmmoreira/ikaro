@@ -26,7 +26,7 @@ If a PR exists → print its number and URL, then **stop**:
 ```bash
 git status --short
 ```
-If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format from CLAUDE.md §9.
+If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format in `/implement-story` Step 3: `feat(<context>): <description> (M0X-SYY)`, with the `Co-Authored-By` trailer (Codex adds `Co-Authored-By: Codex <noreply@openai.com>` explicitly; Claude Code adds its own).
 
 ---
 
@@ -210,7 +210,13 @@ Step 4   integration tests   ✅  X suites, Y tests
 Total issues: 0
 ```
 
-**If all steps pass**, proceed directly to `gh pr create` (per CLAUDE.md §9) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it.
+**If all steps pass**, proceed directly to `gh pr create` (CLAUDE.md §9 PR GATE: forbidden until this skill clears) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it:
+
+```bash
+gh pr create --title "feat(<context>): <description> (M0X-SYY)" \
+  --body "## Summary\n- <bullet>\n\n## Story\nM0X-SYY\n\n## Test plan\n- [ ] Unit tests pass\n- [ ] Type-check clean\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)" \
+  --repo lmmoreira/ikaro
+```
 
 **If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
 

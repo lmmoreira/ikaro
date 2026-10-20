@@ -104,7 +104,7 @@ If any story comes back ❌ NOT READY, drop it from this batch — run it solo l
 
 ## Step 5 — Parallel implementation
 
-For each READY story, in one message, spawn one `Agent` call with `isolation: "worktree"`, instructing it to run CLAUDE.md §9 Steps 1–9 for that story exactly: create the branch, implement per the pattern and test plan locked in during discovery, then the autonomous chain (commit → push → `/pre-pr` → PR → CI-fix loop → bot-fix loop → infra live-verification if applicable) through to "PR ready for merge" or a defined stuck condition. Give each agent that story's full discovery output (decisions, doc updates already committed) so it isn't rediscovering anything already settled.
+For each READY story, in one message, spawn one `Agent` call with `isolation: "worktree"`, instructing it to run `/implement-story` for that story (CLAUDE.md §9 Steps 1–2 plus the commit and push; the isolated worktree supplies the branch, so it only verifies it), then the rest of the autonomous chain (`/pre-pr` → PR → `/pr-land` CI-fix and bot-fix loops → infra live-verification if applicable) through to "PR ready for merge" or a defined stuck condition. Give each agent that story's full discovery output (decisions, doc updates already committed) so it isn't rediscovering anything already settled.
 
 Report once dispatched:
 ```

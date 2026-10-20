@@ -408,7 +408,7 @@ Wait for reply, then:
   Then verify with `git worktree list` and `ls .claude/worktrees/` — don't trust a success message alone.
 
 **If direct branch:**
-- Output the branch creation command for the user to run (per §9 Step 1 of CLAUDE.md):
+- Output the branch creation command for the user to run (CLAUDE.md §9 Steps 1–2; `/implement-story` verifies it afterwards):
   ```bash
   git checkout -b feat/M<N>-S<NN>-<short-description>
   ```
@@ -416,7 +416,9 @@ Wait for reply, then:
 
 Either way, end with:
 ```
-Ready. Next: implement per §9 Step 2 — write all files from the story spec.
+Ready. Next: run `/implement-story <ID>` — it verifies the branch, implements all files
+from the story spec (§9 Steps 1–2), self-verifies, commits, pushes, and hands off to /pre-pr.
+Start it as soon as the user confirms proceeding to implementation (CLAUDE.md §0).
 This READY verdict already authorizes the rest of the chain (§9 Steps 3–9) —
 commit, push, /pre-pr, PR, CI-fix, and bot-fix all proceed autonomously from
 here with no further per-step asks. I'll come back to you only for the merge
