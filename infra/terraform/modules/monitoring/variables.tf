@@ -59,7 +59,7 @@ variable "labels" {
 }
 
 variable "notification_email" {
-  description = "Email address for Cloud Monitoring alert notifications. Value never committed — gitignored local.auto.tfvars locally, a GitHub environment variable in the pipeline (S24, same treatment as iam_admin_user)."
+  description = "Email address for Cloud Monitoring alert notifications. Value never committed — gitignored local.auto.tfvars locally, the NOTIFICATION_EMAIL repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
 
   # Both env roots default this to "" (matching iam_admin_user's
