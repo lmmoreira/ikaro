@@ -854,7 +854,7 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 - E2E: none
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 5B — Trim `context.md` in place and give the implementation chain its own skill ⚪
+### Story 5B — Trim `context.md` in place and give the implementation chain its own skill ✅ Done
 
 > **Revised by Story 5A (2026-10-19) and by this story's `/story-discovery` (2026-10-20).** The owner rejected nested context files (a context file per directory is a smell) and 5A's routing test shows the single root file's links to `docs/` already scope loading by task, so every nested file, the `agent-context-file` detector change and its unit tests are **cancelled**. What remains: lossless trimming of the single `context.md`, and one new skill, `/implement-story`, that becomes the canonical home of §9's step mechanics. **Context quality comes first.** Nothing is removed unless its full content is verified in its new home, a before/after test shows the rule still fires, and a rule that cannot be shown to fire stays inline. Token savings are a result, not a target.
 
