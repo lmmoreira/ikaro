@@ -36,7 +36,7 @@ The four stories are independent and can land in any order or in parallel; they 
 
 ## Stories
 
-### Story 1 — Component specs for the four BFF controllers that lack one 🟡
+### Story 1 — Component specs for the four BFF controllers that lack one 🟡 ✅ Done
 
 **Agent:** bff-ts
 **Complexity:** S
