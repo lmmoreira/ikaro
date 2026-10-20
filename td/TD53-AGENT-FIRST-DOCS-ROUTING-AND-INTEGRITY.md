@@ -805,62 +805,86 @@ Story 5B only makes sense for a tool that loads area context when the agent work
 - E2E: none
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 5B — Load area-scoped rules on demand instead of always-on ⚪
+### Story 5B — Trim `context.md` in place and give the implementation chain its own skill ⚪
 
-> **Revised by Story 5A (2026-10-19).** The owner rejected nested context files (a context file per directory is a smell) and 5A's routing test shows the single root file's links to `docs/` already scope loading by task. Steps 1, 3 and 4 below, and every nested file in the file list, are **cancelled**. What remains is step 2's trimming of the single `context.md` in place, with its own discovery, and it is optional. The text below is kept as written for that discovery.
+> **Revised by Story 5A (2026-10-19) and by this story's `/story-discovery` (2026-10-20).** The owner rejected nested context files (a context file per directory is a smell) and 5A's routing test shows the single root file's links to `docs/` already scope loading by task, so every nested file, the `agent-context-file` detector change and its unit tests are **cancelled**. What remains: lossless trimming of the single `context.md`, and one new skill, `/implement-story`, that becomes the canonical home of §9's step mechanics. **Context quality comes first.** Nothing is removed unless its full content is verified in its new home, a before/after test shows the rule still fires, and a rule that cannot be shown to fire stays inline. Token savings are a result, not a target.
 
 **Agent:** devops
 **Complexity:** L
-**Docs to load:** `.copilot/context.md` §0, §7, §8, §9; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; the Decision record above (Story 3C's bullet classification, Story 5A's recommendation)
-**Dependencies:** Story 0, Story 3C (the bullet classification), Story 3D (one canonical home per rule, so the nested files point at it), Story 5A (the verified mechanism and recommendation). Does not run if 5A recommends no move.
-**Pattern:** plain composition — no named pattern applies. The mechanism is progressive disclosure: a small always-on router, with area rules loaded by path.
+**Docs to load:** `.copilot/context.md` §0, §7, §8, §9, §13, §17; `packages/architecture-check/agent-context-policy.json`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`; `.claude/commands/pre-pr.md`, `.claude/commands/pr-land.md`, `.claude/commands/mark-done.md`, `.claude/commands/story-discovery.md` (Step 9 and its closing block); `scripts/codex-skill.sh`; the Decision record above (Story 3C's bullet classification, Story 5A's recommendation and the ablation results below)
+**Dependencies:** Story 0, Story 3C (the bullet classification), Story 3D (one canonical home per rule), Story 5A (no nested files). Story 6 runs after this story.
+**Pattern:** plain composition — no named pattern applies. The only mechanism is a handoff: `/story-discovery` ends by invoking `/implement-story`, which hands off to `/pre-pr`, which hands off to `/pr-land`, so each phase's mechanics load when that phase starts.
 
 **Description:**
-`.copilot/context.md` is 57,647 characters loaded in every session, 42% of it §7. Many of its bullets are writing-time traps that live there only because an agent would not think to load a doc before writing that code (the keep-in-file criterion (c) in §7). A path-scoped context file solves the same trigger problem at lower cost: it loads when the agent works under that directory.
-1. **Use the mechanism Story 5A verified.** Move rules only for the tools where 5A confirmed on-demand loading, using the mechanism it recommended (nested files or path-scoped rules). For a tool where it is not confirmed, the rules stay in the always-on file; to avoid two divergent copies, the always-on file keeps them and the area file holds only a pointer, or 5A's recommendation says how the single source is shared.
-2. **Move by classification.** Using Story 3C's classification, move area-scoped bullets to the nested context file of their area, with the same wording and their `→ doc § heading` pointers intact. Story 2 already shortened the OTel, OpenRouter, Terraform and testing traps to headlines; this story moves those, and any others its classification finds, using the headlines as they stand. Global gates (§0, the multi-tenancy invariants, the PR gate) stay always-on. Workflow-scoped content (§9) is evaluated for a skill invoked by name.
-3. **Keep the one-file contract.** `CLAUDE.md`, `AGENTS.md` and `gemini.md` remain symlinks to one canonical file at each level; extend the `agent-context-file` detector to every nested context file (symlink agreement, pointers resolve, per-file budget).
-4. **Prove each moved rule still fires.** Every moved trap keeps its scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, re-run against the new location; a rule whose new trigger cannot be shown to fire does not move.
-5. **The always-on target comes from the measurement**, not from a number chosen here. The always-on file stays free of dates and PR numbers (already enforced), so its text stays stable for prompt caching.
+`.copilot/context.md` is 58,946 characters loaded in every session. Story 2 already cut every §7 trap to a headline and a `→ doc § heading` pointer, so the remaining room is smaller than Story 3C's 24.8 KB upper bound: about 8 to 11 KB (15 to 19%) by this story's discovery estimate. The biggest single item is §9's step mechanics (about 8.7 KB), which duplicate what the skills carry and have no skill for the middle of the chain (branch hygiene, implementing, committing, pushing).
+
+**Decisions locked in story-discovery (2026-10-20):**
+- **One new skill, `/implement-story`.** It carries §9 Steps 1 and 2 and the commit and push part of Steps 3 to 9, then invokes `/pre-pr`. `/story-discovery` keeps creating the worktree or branch (its Step 9) and its closing block now says to run `/implement-story` instead of "implement per §9 Step 2". `/pr-land` gains the `mergeStateStatus` check before the merge ask. No other new skill: one is enough, and several small ones would recreate the scatter this story removes.
+- **Facts no skill holds today are written into a skill first** (verified by grep on 2026-10-20): the shallow-clone check and copying the gitignored `.env` files into a worktree, the Codex `Co-Authored-By` trailer, `ci:local` guidance, the infra live-verification gate (§9 item 6), and the `mergeStateStatus == CLEAN` check. Only then does the line leave `context.md`.
+- **Stay inline, always:** §0 gates, §1 to §6 invariants, §8's cross-layer rows, the PR GATE block, the push-detached rule, the merge ask, the stuck conditions, the CHECK-constraint bullet (measured to steer), every rule that must fire without the agent choosing to open a doc or invoke a skill. §10 and §17 stay.
+- **Step numbers 0 to 12 in §9 stay stable**: about 30 files cite `§9 Step N` (the skills, the `.agents/skills/` copies, `run-batch`, `DEFINITION_OF_DONE`, two plan files); a step becomes a one-line stub that names its skill, or every citation is updated in the same change.
+- **Not in this story:** the LIKE/ILIKE bullet is left untouched. It did not steer in either arm of the 2026-10-18 ablation, so a deterministic backstop is the fix, not prose; that is a follow-up story in TD54, not part of a documentation trim.
+- **Closing audit** stays with Story 6. This story sweeps its own changes for dead `§9 Step` citations instead.
+
+**Candidate inventory** (every candidate is lossless and subject to the proof below; one that fails the proof stays):
+
+| # | Candidate | Approx. chars | Lands in |
+|---|---|---:|---|
+| a | §9 step mechanics: Steps 1, 3 to 9 detail, 11, 12, parallel batch, PR body template | 4,500 to 5,500 | `/implement-story`, `/pre-pr`, `/pr-land`, `/mark-done`, `/story-discovery`, after the missing facts above are added |
+| b | §9 READY paragraph, a duplicate of §0's chain bullet | 212 | §0 |
+| c | §7 "autonomous chain must not treat tests-pass as sufficient" bullet, a duplicate of §9 item 6 | about 600 | one copy kept |
+| d | The three NON-NEGOTIABLE principle blocks, compressed | about 900 | same rules, tighter; titles, tags and every rule sentence kept, only generic examples cut |
+| e | §13 Self-Check, which restates §0 and §9 | about 400 | pointer to the gates |
+| f | §7 "How to edit this file" | about 500 | `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, with a pointer from the top notice |
+| g | Model-known content: CI-gates list, stack rows that `package.json` states | about 1,000 | stays where the repository already states it |
+| h | §8 rows for single-app patterns (7 of 11), headline plus pointer | about 1,200 | `docs/ANTI_PATTERNS.md` (only rows whose full text it already holds) |
+| i | Emphasis: 6 `NON-NEGOTIABLE`, about 48 `never`, 25 `must` | about 0 | strong form kept for the gates that cost most when broken |
+
+**Proof ("still fires") — required for every touched bullet and every moved step:**
+1. **Before/after ablation.** Run `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` scenarios 1 to 9 that touch a changed bullet against `git show <base-sha>:.copilot/context.md` and the new file, in an isolated fixture directory, n=2 per cell, with `codex exec`.
+2. **Second view.** Repeat the same cells with `claude -p` (a different model family) and compare; a regression in either arm blocks the change.
+3. **New scenarios** appended to `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` for the moved §9 rules: after READY the agent invokes `/implement-story`; the agent does not run `gh pr create` before `/pre-pr`; the agent checks `--is-shallow-repository` first in a fresh worktree; the agent pushes detached; the agent does not run the merge before asking.
+4. **Accounting.** Every removed line appears verbatim or compressed-with-no-fact-lost in its new home; the PR records a table of old text to new location. No rule is deleted.
+5. A change that regresses any cell is reverted or the bullet stays; the story reports it rather than forcing it.
+Limits as before: n=2, no shell in the session, so each answer comes from the loaded context alone.
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `.copilot/context.md` (modify — remove moved bullets, add one pointer per nested file; edit this file directly, never through the symlinks)
-- Nested context files and their three symlinks each, at the directories the measurement confirms (candidates: `apps/backend`, `apps/bff`, `apps/web`, `infra`, `packages`) (new)
-- `packages/architecture-check/src/detectors/agent-context-file.ts` and `agent-context-file.spec.ts` (modify — nested files)
-- `packages/architecture-check/agent-context-policy.json` (modify — per-file budgets, new symlink entries)
-- `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify — moved-trap locations)
-- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — detector row wording)
+- `.copilot/context.md` (modify — the candidates above; edit this file directly, never through the symlinks)
+- `.claude/commands/implement-story.md` (new) <!-- doc-link:example -->
+- `.agents/skills/implement-story/SKILL.md` (new, generated by `scripts/codex-skill.sh`) <!-- doc-link:example -->
+- `.claude/commands/story-discovery.md` and its `.agents/skills/story-discovery/SKILL.md` copy (modify — closing block hands off to `/implement-story`)
+- `.claude/commands/pre-pr.md`, `.claude/commands/pr-land.md`, `.claude/commands/mark-done.md` and their `.agents/skills/` copies (modify — receive the facts the old §9 held)
+- `packages/architecture-check/agent-context-policy.json` (modify — section and file budgets ratchet down to the new sizes; `requiredAnchors` unchanged unless a gate's wording changes)
+- `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (modify — new scenarios, the moved editing rule)
+- Every file that cites a `§9 Step N` whose meaning moves (modify, only if a step number changes; the plan above keeps the numbers stable)
 
 **Acceptance criteria — product:**
-- [ ] The measured always-on size before and after is recorded, and the after is smaller by the amount the classification predicts.
-- [ ] Every removed line is accounted for: it appears verbatim in a nested context file or a doc, or is a verified duplicate collapsed to a pointer. No rule is deleted.
-- [ ] For each moved rule, a recorded session test shows it loads when the matching files are touched, in every agent tool it was moved for.
+- [ ] The measured always-on size before and after is recorded in this document's Decision record, with the per-section breakdown.
+- [ ] Every removed line is accounted for in a table of old text to new location, verified at the target; no rule is deleted.
+- [ ] `/implement-story` exists, its Codex copy is generated, `/story-discovery` ends by invoking it, and `/implement-story` ends by invoking `/pre-pr`.
+- [ ] The facts listed under "Facts no skill holds today" are present in the skills before they leave `context.md`.
+- [ ] Every touched bullet passed the before/after test with both `codex exec` and `claude -p`; any that regressed stayed inline and is listed.
+- [ ] No `§9 Step N` citation in a live file points at a step that moved without a stub or an update.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] `agent-context-file.spec.ts`: a nested context file whose symlink target disagrees is reported.
-  - [ ] `agent-context-file.spec.ts`: a nested context file with an unresolvable pointer is reported.
-  - [ ] `agent-context-file.spec.ts`: a nested context file over its budget is reported.
-  - [ ] `agent-context-file.spec.ts`: the existing root-file cases still pass unchanged.
-- Integration: none — covered by unit tests plus a clean `pnpm architecture-check` on the real repository
+- Unit: none — no code changes
+- Integration: none — covered by a clean `pnpm architecture-check` on the real repository (`agent-context-file`, `doc-link-integrity`)
 - Tenant isolation: none — no tenant data
 - E2E: none
-- [ ] Coverage ≥80% on changed code
+- [ ] `pnpm architecture-check` passes with the ratcheted budgets
+- [ ] The three symlinks still agree and `.agents/skills/` copies are in sync with `.claude/commands/`
 - [ ] `tsc --noEmit` clean, lint clean
 
-**Open items for `/story-discovery`:** the per-file budget values; how a rule shared by tools with and without on-demand loading avoids being kept twice.
+**Out of scope, tracked elsewhere:** a deterministic backstop for the unescaped `%…%` LIKE/ILIKE pattern (TD54); the Gemini `gemini.md` filename question (5A finding 3).
 
-**Inventory handed over by Story 2's discovery (2026-10-18), to be classified by Story 3C and acted on here:**
-- **CI-enforced bullets.** 13 bullets in §7 are marked CI-enforced (about 3.5 KB). A deterministic gate catches each one, so the always-on text needs only the trap's name and the gate; several still carry long rationale. Shrink them, with the rationale left in the doc each already points at.
-- **§9 step mechanics.** §9 is about 9 KB and applies only while implementing a story. Evaluate moving the step-by-step mechanics (commit format, push, `/pre-pr`, PR body, bot-fix loop detail) to the skills that already carry them (`/pre-pr`, `/pr-land`), keeping inline only the gates that must hold before any skill loads: the PR gate, the merge ask and the stuck conditions.
-- **Emphasis.** The file has 6 `NON-NEGOTIABLE`, about 48 `never`/`Never` and 25 `must`. Reserve the strong form for the gates that cost the most when broken, so it still stands out.
-- **Content current models likely already know (judgment, 2026-10-18; not yet measured except where stated below).** About 1 KB is safe to compress without an experiment: the `gh pr create` body template in §9, the "stage specific files" and Conventional Commit examples in §9, the CI-gates list in §7 (keep the 80% differential coverage figure and the SonarCloud rule) and the stack rows in §1 that `package.json` already states (keep the decisions: shared-schema multi-tenancy, no migrations at startup, the feature-flag convention). The three "no workarounds / never improvise / mounting complexity" blocks (about 2 KB) are generic principles but are the owner's explicit rules, so compress them to a few lines and do not remove them. The §17 registry (1.5 KB) and the §3 and §11 tables duplicate what the harness or the linked docs show; they stay for non-Claude agents unless 5A shows those tools list skills themselves.
+**Inventory handed over by Story 2's discovery (2026-10-18), kept for the record:**
+- **CI-enforced bullets.** 13 bullets in §7 are marked CI-enforced (about 3.5 KB). A deterministic gate catches each one, so the always-on text needs only the trap's name and the gate; Story 2 already shortened them.
 - **Ablation results (2026-10-18; fresh read-only `codex exec` sessions, no shell available, so each answered from the loaded context alone; same prompt per arm; arm A the full file, arm B the file without the two bullets; 2 samples per cell).** Method: `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` scenarios 4 and 2, in an isolated directory holding `context.md`, `docs/` and `apps/backend/src`.
-  - **CHECK constraint on a live table (scenario 4):** with the bullet 2 of 2 used `NOT VALID` plus a separate `VALIDATE CONSTRAINT`; without it 0 of 2 did (both wrote a plain `ADD CONSTRAINT … CHECK`). The bullet is doing real work: keep it.
-  - **LIKE/ILIKE escaping (scenario 2):** 0 of 2 escaped the search term **with** the bullet present and 0 of 2 without it. Models do not escape on their own, and in a file this long the bullet did not make them. This is a bullet that does not fire, which is worse than an unnecessary one. This bullet is not CI-backed. Candidate: a deterministic backstop (an ESLint `no-restricted-syntax` selector or an `architecture-check` detector for an unescaped `%…%` pattern), after which the prose can shrink; also re-test it after the file is smaller, since the size of the file may be why it is not followed.
-  - **Limits:** n=2 per cell, one model family, no shell in the session. The result says the CHECK bullet matters and the LIKE bullet currently does not steer; it does not rank the other bullets. Run the same ablation (scenarios 1 to 7) on any bullet 5B proposes to remove or shorten.
+  - **CHECK constraint on a live table (scenario 4):** with the bullet 2 of 2 used `NOT VALID` plus a separate `VALIDATE CONSTRAINT`; without it 0 of 2 did. The bullet is doing real work: keep it.
+  - **LIKE/ILIKE escaping (scenario 2):** 0 of 2 escaped the search term with the bullet present and 0 of 2 without it. This bullet is not CI-backed; the deterministic backstop is the TD54 follow-up above.
+  - **Limits:** n=2 per cell, one model family, no shell in the session. The result says the CHECK bullet matters and the LIKE bullet currently does not steer; it does not rank the other bullets.
 
 ### Story 6 — Drop the numeric prefix from every numbered doc ⚪
 
