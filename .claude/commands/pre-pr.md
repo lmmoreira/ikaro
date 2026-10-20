@@ -247,7 +247,7 @@ gh pr comment <N> --repo lmmoreira/ikaro --body "@coderabbitai review"
 
 This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on later rounds.
 
-**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: verify that the reviewer actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment.
+**5b. Dispatch `/pr-review` to Codex.** First capture the round-1 timestamp `/pr-land` needs to distinguish this round's comments from anything later: `since=$(date -u +%Y-%m-%dT%H:%M:%SZ)`. Then dispatch. Do not merely state that it was dispatched: verify that the reviewer actually started before reporting success. `/pr-review` handles review, verification, and posting its own mandatory PR comment. Verify the launch in the same turn with a one-shot `pgrep -af "codex exec.*PR #<N>"` and carry straight on to Step 5c: never end a turn to wait (`/implement-story` Step 4 has the wait rule).
 
 **A PR with no story or TD ID** (a test-infrastructure fix, a chore) must say so before dispatching: put a `## Story` section in the PR body stating it is intentionally story-less, and add to the prompt *"This PR is intentionally story-less (its body says so under '## Story'). Do not stop to ask for an ID; skip acceptance-criteria and UC-flow verification, review correctness, security, performance, architecture and test quality, and post the review comment as usual."* Otherwise the headless Codex finds no resolvable ID, asks for one, and exits without posting (PR #569, 2026-10-07), and `/pr-land` waits for a comment that never comes.
 
@@ -274,4 +274,4 @@ Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) 
 
 Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include the PID/log for Claude, or session ID/thread ID for Codex). Do not wait for completion before considering pre-pr complete. If Codex exits before the relevant launch verification, report the launch failure; never claim a review was dispatched.
 
-**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number.
+**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number, in the same turn; its Step 1 says how the wait is run (a forked background agent, so the main session stays free).
