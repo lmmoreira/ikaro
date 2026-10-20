@@ -229,7 +229,7 @@ EOF
 )"
 ```
 
-`<story-id>` is `M0X-SYY` for a milestone story or `TDNN-SYY` for a TD story. A PR with no story or TD ID (a chore or test-infrastructure fix) drops `(<story-id>)` from the title, and its `## Story` section says it is intentionally story-less (see Step 5b). The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
+`<story-id>` is `M0X-SYY` for a milestone story or `TDNN-SYY` for a TD story. A PR with no story or TD ID (a chore or test-infrastructure fix) drops `(<story-id>)` from the title, and its `## Story` section says it is intentionally story-less (see Step 5b). In a worktree session the heredoc form is refused as too complex to verify: write the body to a file in the scratchpad and pass `--body-file`. The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
 
 **If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
 
@@ -274,4 +274,4 @@ Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) 
 
 Tell the user the PR is open, the CodeRabbit trigger was posted, and Codex review was **verified started** (include the PID/log for Claude, or session ID/thread ID for Codex). Do not wait for completion before considering pre-pr complete. If Codex exits before the relevant launch verification, report the launch failure; never claim a review was dispatched.
 
-**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number, in the same turn; its Step 1 says how the wait is run (a forked background agent, so the main session stays free).
+**5c. Hand off to `/pr-land`.** This is where `/pre-pr`'s own scope ends — round 1's CI, CodeRabbit, and Codex results are collected and triaged by `/pr-land`, not here. Invoke it with the PR number, in the same turn; its Step 1 says how the wait is run (a fresh background agent, so the main session stays free).

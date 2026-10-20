@@ -78,7 +78,7 @@ Argument: `$ARGUMENTS` — the story ID to mark done: a milestone story (`M03-S0
 
    No Co-Authored-By line needed for plan-only commits.
 
-   **Push it detached, per CLAUDE.md §0** — `git push` runs `ci:fast` as a hook and a foreground push held open by a tool call has been SIGKILLed mid-hook (M22-S04): `nohup git push </dev/null >/tmp/push.log 2>&1 &`, then wait on the real process (`pgrep -f '^git push'`) and confirm with `git fetch origin && git log origin/main -1` that the remote head moved — an exit status alone is not proof. Never `--no-verify`, and never `pkill -f` (it can match the agent's own shell).
+   **Push it detached, per CLAUDE.md §0** — `git push` runs `ci:fast` as a hook and a foreground push held open by a tool call has been SIGKILLed mid-hook (M22-S04): `nohup git push </dev/null >/tmp/push.log 2>&1 &`, then wait on its exact PID in the same turn, never with a `pgrep -f` loop and never by ending the turn (`/implement-story` Step 4), and confirm with `git fetch origin && git log origin/main -1` that the remote head moved — an exit status alone is not proof. Never `--no-verify`, and never `pkill -f` (it can match the agent's own shell).
 
    **If the push is rejected or fails because `main` moved** (another session merged while you worked; `git status -sb` shows `ahead 1, behind N`), the plan commit exists only locally, so `git pull --rebase origin main` it onto the new head — the merge-never-rebase rule is for branches already pushed and reviewed — and push again. Confirm with `git log origin/main -1`, not the exit status.
 

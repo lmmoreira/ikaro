@@ -20,7 +20,7 @@ Argument: a story ID (`M09-S04`) or TD ID (`TD13`), the same one `/story-discove
 1. **READY check.** `/story-discovery <ID>` must have returned READY for this story, either in this conversation or as the story's discovery output handed to you in your prompt (`/run-batch` passes it to each isolated worktree agent; that is the verified READY result for the story). If neither is true, stop and run `/story-discovery` first; never implement from an unreviewed spec.
 2. **Branch.** `git branch --show-current` must be a feature branch for this story, never `main`. `/story-discovery` Step 9 names it `feat/<story-id-lowercase>-<short-description>` for a worktree (for example `feat/m09-s04-booking-reschedule`) and `feat/M0X-SYY-<short-description>` for a direct branch; accept whichever it created. If no worktree or branch was set up, `/story-discovery` Step 9 does it; do not code on `main`.
 3. **Shallow clone.** First thing in any worktree or fresh clone: `git rev-parse --is-shallow-repository`. If `true`, run `git fetch --unshallow origin` before drawing any "behind/ahead of `main`" conclusion. A shallow clone's `git log HEAD..origin/main` lists phantom commits and `git merge origin/main` fails with "refusing to merge unrelated histories".
-4. **Gitignored env files.** A worktree carries none of them. Copy `apps/backend/.env`, `apps/bff/.env` and `apps/web/.env.local` from the main checkout before running anything that needs them (reading from outside the worktree is fine; only git-mutating commands must stay inside it). A worktree's `.env` can also go stale relative to stories merged after it was created.
+4. **Gitignored env files.** A worktree carries none of them. Copy `apps/backend/.env`, `apps/bff/.env` and `apps/web/.env.local` from the main checkout before running anything that needs them (reading from outside the worktree is fine; only git-mutating commands must stay inside it). A worktree's `.env` can also go stale relative to stories merged after it was created. A fresh worktree has no `node_modules` either: run `pnpm install --frozen-lockfile` in it before any type-check, lint or test.
 5. **Rebuilt packages.** A merge that changed a workspace package's exports needs that package rebuilt before trusting a local type-check (`docs/CI_TRAPS.md` § Stale local state).
 
 ---
@@ -38,7 +38,7 @@ Write every file the story's "Files to create/modify" lists, following the patte
 
 ## Step 2 — Self-verify locally
 
-Run type-check, lint and the tests for every app the change touches, plus `pnpm architecture-check` for a docs-only or tooling change. All clean before moving on. `pnpm ci:local` (about 5 minutes, Docker) is optional and worth running first only when touching Dockerfiles, `infra/`, or integration-test paths.
+Run type-check, lint and the tests for every app the change touches, plus `pnpm architecture-check` whenever the diff touches docs, `.claude/**` or `.copilot/context.md` (the file has an enforced size budget), not only for a docs-only change. Judge it by its exit status (`pnpm architecture-check >/tmp/ac.log 2>&1; echo $?`) and read the `file:line [detector]` lines: its output is long, and filtering it hid a violation that then failed the push (TD54-S1). All clean before moving on. `pnpm ci:local` (about 5 minutes, Docker) is optional and worth running first only when touching Dockerfiles, `infra/`, or integration-test paths.
 
 Do not start a dev server or run Playwright/Chromium to verify visually without asking the user first (CLAUDE.md §0, local verification gate).
 
@@ -75,6 +75,8 @@ git ls-remote origin refs/heads/<branch>   # the remote head must equal the comm
 ```
 
 **Never end a turn to wait for a detached push, and never wait with a `pgrep -f <pattern>` loop.** Nothing wakes the session when the process exits, so a turn that ends with "I'll continue when the push finishes" stalls the chain until the user prods it (TD54-S1: it did). A `pgrep -f` pattern also matches the waiting shell's own command line, and another session's, so that loop never ends. Wait on the exact PID with `kill -0`, in the same turn, then check the log and the remote head yourself. A background-task notice that the launcher shell exited says nothing about the push.
+
+**If the push is rejected, the hook failed.** Read the log for the cause (`grep -E '^\S+:[0-9]+ \[' <log>` lists `architecture-check` violations), fix it, re-stage and `git commit --amend --no-edit` the still-unpushed commit, then push again; never `--no-verify`. The hook reads the working tree, so do not edit tracked files while it runs. Two known push traps are already written up in `docs/CI_TRAPS.md`: the row on a background `nohup git push` reporting "completed (exit code 0)" and the row on a push failing in `ci:fast` on a file edited meanwhile.
 
 The push is done only when that remote head equals the commit you noted and the log shows no rejected ref or hook failure: an exit status alone is not proof, and an older commit already on the remote branch looks like success if you only check that the branch exists.
 

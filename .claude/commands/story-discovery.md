@@ -398,6 +398,7 @@ Wait for reply, then:
 
 **If worktree:**
 - Use the `EnterWorktree` tool with branch name `feat/<story-id-lowercase>-<short-description>` (e.g. `feat/m09-s04-booking-reschedule`).
+- `EnterWorktree` names the branch `worktree-<name>` (a `/` in the name becomes `+`), not the name you passed. Rename it right away with `git branch -m feat/<story-id-lowercase>-<short-description>` so the pushed branch and the PR carry the intended name.
 - After `EnterWorktree` completes, confirm the worktree path and branch to the user.
 - Cleanup is automatic, not a reminder to the user: CLAUDE.md §9 Step 11 (mark-done) removes the worktree immediately afterward, no permission needed —
   ```bash
