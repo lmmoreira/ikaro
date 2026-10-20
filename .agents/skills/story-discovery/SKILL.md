@@ -54,7 +54,7 @@ Extract the story block's fields per **the canonical schema, `docs/STORY_SCHEMA.
 - **Files to create/modify** — if listed, verify each modified-file path actually exists (same Explore-agent discipline as the dependency-symbol check below); flag a missing declared path as a **RISK**, not silently
 - **Prototype references** — every `journeys/...` path listed under a "Prototype references:", "Prototype reference:", or milestone-level "Journey prototype:" line
 - **Acceptance criteria — product / technical** — if the story predates the product/technical split (an older milestone or pre-standardization TD), treat its single flat AC list as-is rather than blocking on the missing split; note the gap as a RISK only if it makes verification ambiguous
-- **Infra-specific fields** (IAM/permissions, Live-verification check, PR sequence) — for any `devops`-agent story, confirm these are present; a missing Live-verification check on an infra-touching story is a RISK per CLAUDE.md §9 Step 5 item 6, not silently assumed unnecessary
+- **Infra-specific fields** (IAM/permissions, Live-verification check, PR sequence) — for any `devops`-agent story, confirm these are present; a missing Live-verification check on an infra-touching story is a RISK per CLAUDE.md §9's infra live-verification gate, not silently assumed unnecessary
 - Any mention of: new DB migration/entity, new i18n keys, new env vars, new Pub/Sub topics, feature flags
 
 **Also check story status:** Look for `✅ Done` next to the story heading (Step 0 check #3).

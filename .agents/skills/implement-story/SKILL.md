@@ -49,10 +49,12 @@ Do not start a dev server or run Playwright/Chromium to verify visually without 
 Stage specific files only (never `git add -A`), list them for visibility, then commit. No permission prompt: the READY verdict covers it.
 
 ```
-feat(<context>): <description> (M0X-SYY)
+feat(<context>): <description> (<story-id>)
 
 Co-Authored-By: <your-name> <your-noreply-email>
 ```
+
+`<story-id>` is the ID this skill was invoked with: `M0X-SYY` for a milestone story, `TDNN-SYY` for a TD story (for example `TD49-S02`).
 
 Conventional Commits types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`. Claude Code adds its own trailer automatically. **Codex:** add `Co-Authored-By: Codex <noreply@openai.com>` explicitly on every commit you author; it does not happen by default, it is not optional, and it is the record of who actually wrote the code.
 
@@ -66,12 +68,12 @@ In an agent session, run the push detached and wait on the real process; a foreg
 
 ```bash
 git rev-parse HEAD                    # note the commit being pushed
-nohup git push </dev/null >/tmp/push-<story-id>.log 2>&1 &    # one log per story, so concurrent worktrees never share it
-pgrep -af '^git push'                 # wait until it is gone, then read the log
+nohup git push --porcelain </dev/null >/tmp/push-<story-id>-<unix-time>.log 2>&1 &    # one log per push: put the current epoch seconds in the name as a literal
+pgrep -af '^git push'                 # wait until it is gone, then read the log: a ref line for the branch, or "Everything up-to-date"
 git ls-remote origin refs/heads/<branch>   # the remote head must equal the commit noted above
 ```
 
-The push is done only when that remote head equals the commit you noted: an exit status alone is not proof, and an older commit already on the remote branch looks like success if you only check that the branch exists.
+The push is done only when that remote head equals the commit you noted and the log shows no rejected ref or hook failure: an exit status alone is not proof, and an older commit already on the remote branch looks like success if you only check that the branch exists.
 
 Never `pkill -f <pattern>` in a session: it can match the agent's own shell. List PIDs with `pgrep` or `ss -ltnp` and kill those. If the session detached while the hook ran, its result is unknown: read the log and wait for the real exit status before treating the push as done.
 

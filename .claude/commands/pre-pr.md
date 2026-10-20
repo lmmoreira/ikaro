@@ -213,12 +213,12 @@ Total issues: 0
 **If all steps pass**, proceed directly to `gh pr create` (CLAUDE.md §9 PR GATE: forbidden until this skill clears) — no permission prompt; this was authorized when `/story-discovery` returned READY. State that all checks passed and the PR is being opened, then open it:
 
 ```bash
-gh pr create --title "feat(<context>): <description> (M0X-SYY)" --repo lmmoreira/ikaro --body "$(cat <<'EOF'
+gh pr create --title "feat(<context>): <description> (<story-id>)" --repo lmmoreira/ikaro --body "$(cat <<'EOF'
 ## Summary
 - <bullet>
 
 ## Story
-M0X-SYY
+<story-id>
 
 ## Test plan
 - [ ] Unit tests pass
@@ -229,7 +229,7 @@ EOF
 )"
 ```
 
-The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
+`<story-id>` is `M0X-SYY` for a milestone story or `TDNN-SYY` for a TD story. The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
 
 **If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
 

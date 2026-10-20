@@ -914,7 +914,7 @@ Limits as before: n=2, no shell in the session, so each answer comes from the lo
 - [ ] Every removed line is accounted for in a table of old text to new location, verified at the target; no rule is deleted.
 - [ ] `/implement-story` exists, its Codex copy is generated, `/story-discovery` ends by invoking it, and `/implement-story` ends by invoking `/pre-pr`.
 - [ ] The facts listed under "Facts no skill holds today" are present in the skills before they leave `context.md`.
-- [ ] Every touched bullet passed the before/after test with both `codex exec` and `claude -p`; any that regressed stayed inline and is listed.
+- [ ] Every touched bullet shows no regression against the unmodified file in the before/after test, with both `codex exec` and `claude -p` (the bar locked in discovery: pass means no regression). A cell that already failed on the unmodified file is recorded in the Decision record as an existing weakness of that tool, not counted against this change; any bullet that did regress stayed inline and is listed.
 - [ ] No `§9 Step N` citation in a live file points at a step that moved without a stub or an update.
 
 **Acceptance criteria — technical:**
