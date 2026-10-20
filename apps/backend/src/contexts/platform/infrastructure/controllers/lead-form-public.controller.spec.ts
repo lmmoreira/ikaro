@@ -17,6 +17,7 @@ import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-confi
 import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-config-repository.port';
 import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-form-submission-repository.port';
 import { CreateLeadFormSubmissionUseCase } from '../../application/use-cases/create-lead-form-submission.use-case';
+import { LeadFormPublicConfigService } from '../../application/services/lead-form-public-config.service';
 import { GetLeadFormPublicConfigUseCase } from '../../application/use-cases/get-lead-form-public-config.use-case';
 import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 import { CLOUDFLARE_TURNSTILE_PROVIDER } from '../../application/ports/turnstile-verifier.port';
@@ -51,6 +52,7 @@ describe('LeadFormPublicController', () => {
     const moduleRef = await Test.createTestingModule({
       controllers: [LeadFormPublicController],
       providers: [
+        LeadFormPublicConfigService,
         GetLeadFormPublicConfigUseCase,
         CreateLeadFormSubmissionUseCase,
         { provide: HOTSITE_CONFIG_REPOSITORY, useValue: hotsiteConfigRepo },

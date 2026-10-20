@@ -7,8 +7,8 @@ import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { BookingReminderDue } from '../../domain/commands/booking-reminder-due.command';
 import { BookingReminderDueToday } from '../../domain/commands/booking-reminder-due-today.command';
 import { BookingDayReminderJobBase } from './booking-day-reminder-job.base';
-import { REMINDER_WINDOW } from './tenant-local-window';
-import { WindowedTenant } from './windowed-tenant.job';
+import { REMINDER_WINDOW } from './tenant-local-window.helpers';
+import { WindowedTenant } from './windowed-tenant-job.base';
 
 interface ReminderData extends Record<string, unknown> {
   bookingId: string;

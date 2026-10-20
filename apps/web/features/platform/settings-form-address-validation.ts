@@ -4,7 +4,7 @@ import type {
   SettingsAddressValues,
   SettingsFormErrors,
   SettingsFormTranslator,
-} from './settings-form';
+} from './settings-form-types';
 
 export type NormalizedAddress = NonNullable<
   NonNullable<UpdateTenantSettingsRequest['settings']['businessInfo']>['address']

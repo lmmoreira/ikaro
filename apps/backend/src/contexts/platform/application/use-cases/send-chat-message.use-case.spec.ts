@@ -27,7 +27,8 @@ import {
   ChatbotProviderUnavailableError,
   ChatbotSessionNotFoundError,
 } from '../../domain/errors/chatbot-domain.error';
-import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
+import { SendChatMessageUseCaseInput } from './send-chat-message.types';
+import { SendChatMessageUseCase } from './send-chat-message.use-case';
 
 class FakeTracingPort implements ITracingPort {
   readonly calls: Array<Record<string, SpanAttributeValue>> = [];

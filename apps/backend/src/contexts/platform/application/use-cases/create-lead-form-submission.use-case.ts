@@ -31,7 +31,7 @@ import {
   CLOUDFLARE_TURNSTILE_PROVIDER,
   ITurnstileVerifierPort,
 } from '../ports/turnstile-verifier.port';
-import { GetLeadFormPublicConfigUseCase } from './get-lead-form-public-config.use-case';
+import { LeadFormPublicConfigService } from '../services/lead-form-public-config.service';
 
 export interface CreateLeadFormSubmissionAnswerInput {
   questionId: string;
@@ -68,15 +68,15 @@ function isAnswerEmpty(value: string | string[]): boolean {
  * case rather than an artificial split into a orchestrating "submit" use case delegating to a
  * "create" one (M20-S05 PR #423 review discussion, 2026-08-25).
  *
- * Depends on GetLeadFormPublicConfigUseCase — unlike the submit/create split this replaces, that
- * dependency *is* genuinely justified: GetLeadFormPublicConfigUseCase has two real, independent
+ * Depends on LeadFormPublicConfigService — unlike the submit/create split this replaces, that
+ * dependency *is* genuinely justified: LeadFormPublicConfigService has two real, independent
  * callers (this use case, and LeadFormPublicController's own GET config endpoint for the page's
  * initial load), so delegating to it here is real reuse, not an artificial seam.
  */
 @Injectable()
 export class CreateLeadFormSubmissionUseCase {
   constructor(
-    private readonly getLeadFormPublicConfig: GetLeadFormPublicConfigUseCase,
+    private readonly getLeadFormPublicConfig: LeadFormPublicConfigService,
     @Inject(LEAD_FORM_SUBMISSION_REPOSITORY)
     private readonly repo: ILeadFormSubmissionRepository,
     @Inject(TENANT_SETTINGS_PORT) private readonly settingsPort: ITenantSettingsPort,
@@ -100,7 +100,7 @@ export class CreateLeadFormSubmissionUseCase {
     // Throws LeadFormNotEnabledError (404) if the module is absent/disabled — the second check
     // of a fill session, re-verified here since a submission can arrive well after the page's own
     // GET (the config could have changed mid-fill).
-    const config = await this.getLeadFormPublicConfig.execute({ tenantId });
+    const config = await this.getLeadFormPublicConfig.read({ tenantId });
 
     if (config.audienceMode === 'CUSTOMER_ONLY' && customerId === null) {
       throw new LeadFormCustomerOnlyError();

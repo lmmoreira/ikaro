@@ -9,7 +9,7 @@ import {
   FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
-import { FutureCommitmentExceptionResolutionOutcome } from './resolve-future-commitment-exceptions.use-case';
+import { FutureCommitmentExceptionResolutionOutcome } from './future-commitment-exception-resolution.types';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 
 export interface DismissFutureCommitmentExceptionsUseCaseInput {

@@ -5,7 +5,7 @@ import {
   AVAILABILITY_ALERT_OUTCOME_PORT,
   IAvailabilityAlertOutcomePort,
 } from '../../ports/availability-alert-outcome.port';
-import { SendAvailabilityAlertMatchedEmailUseCase } from '../send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
+import { SendAvailabilityAlertMatchedEmailService } from '../../services/send-availability-alert-matched-email.service';
 import { RecurringScheduleNotificationInput } from '../recurring-schedule-notification.helpers';
 
 export interface SendAvailabilityAlertMatchedNotificationUseCaseInput extends RecurringScheduleNotificationInput {
@@ -35,7 +35,7 @@ export class SendAvailabilityAlertMatchedNotificationUseCase {
   private readonly logger = new AppLogger(SendAvailabilityAlertMatchedNotificationUseCase.name);
 
   constructor(
-    private readonly sendEmail: SendAvailabilityAlertMatchedEmailUseCase,
+    private readonly sendEmail: SendAvailabilityAlertMatchedEmailService,
     @Inject(AVAILABILITY_ALERT_OUTCOME_PORT)
     private readonly outcomePort: IAvailabilityAlertOutcomePort,
   ) {}

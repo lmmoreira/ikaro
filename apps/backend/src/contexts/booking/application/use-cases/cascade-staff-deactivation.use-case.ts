@@ -6,7 +6,7 @@ import {
 import { IInboxRepository, INBOX_REPOSITORY } from '../../../../shared/ports/inbox.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
-import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './raise-future-commitment-exceptions-for-resource.use-case';
+import { RaiseFutureCommitmentExceptionsForResourceService } from '../services/raise-future-commitment-exceptions-for-resource.service';
 
 export interface CascadeStaffDeactivationUseCaseInput {
   tenantId: string;
@@ -33,7 +33,7 @@ export class CascadeStaffDeactivationUseCase {
     @Inject(INBOX_REPOSITORY) private readonly inboxRepo: IInboxRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     @Inject(TENANT_LOCK_PORT) private readonly tenantLock: ITenantLockPort,
-    private readonly raiseExceptions: RaiseFutureCommitmentExceptionsForResourceUseCase,
+    private readonly raiseExceptions: RaiseFutureCommitmentExceptionsForResourceService,
   ) {}
 
   async execute(
@@ -66,7 +66,7 @@ export class CascadeStaffDeactivationUseCase {
       // UC-048 → UC-073: the cascade deactivates the resource itself (it never goes through
       // DeactivateResourceUseCase), so it raises the worklist entries too. A redelivered event
       // never gets here twice — the inbox row below commits in the same transaction.
-      await this.raiseExceptions.execute({
+      await this.raiseExceptions.raiseForResource({
         tenantId: input.tenantId,
         resourceId: resource.id,
         correlationId: input.correlationId,

@@ -84,7 +84,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 4. **Security:** Gitleaks scan for secrets, Trivy image scan, and Checkov IaC scan.
 5. **Quality Gate:** SonarCloud analysis must be "GREEN".
 
-(This list is a summary, not exhaustive. Additional gating jobs: `architecture-check`, `actionlint`/`zizmor`, the Terraform env-var contract and `pubsub-catalog` (regenerates `infra/terraform/pubsub-catalog.json` and fails on a diff). **Report-only, never blocking:** the dependency-graph scan (`dependency-cruise`), the unused-dependency and dead-export scan (`knip`) and the package publish-shape check (`attw-check`) all run with `continue-on-error`.)
+(This list is a summary, not exhaustive. Additional gating jobs: `architecture-check`, `actionlint`/`zizmor`, the Terraform env-var contract and `pubsub-catalog` (regenerates `infra/terraform/pubsub-catalog.json` and fails on a diff). The dependency-graph scan (`dependency-cruise`, job "Dependency graph validation") **blocks** on any finding (cross-context imports, application layering, import cycles). **Report-only, never blocking:** the unused-dependency and dead-export scan (`knip`) and the package publish-shape check (`attw-check`) run with `continue-on-error`.)
 
 **Aggregate jobs:** the aggregate jobs that summarise a PR's checks are `All Checks Passed` (`pr-tests.yml`: tests, Gitleaks, Trivy, Checkov, Sonar) and `Infra PR Checks Passed` (`infra-deploy.yml`), plus `Test Suite Passed` (`pr-tests.yml`, the aggregate of the app test jobs that the `sonar` job needs, not a separate required check), plus the individual `pr-quality.yml` jobs (ESLint, Prettier, TypeScript, Architecture validation); `pr-quality.yml` has no aggregator of its own.
 

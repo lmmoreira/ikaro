@@ -654,7 +654,7 @@ The Context Isolation Contract (Rule 1 in `docs/05-BOUNDED_CONTEXTS.md`) is expr
 
 - **The policy:** `contextDependencyMatrix` in `packages/architecture-check/architecture-policy.json` — `default: "deny"` plus a `permittedEdges` list. Each permitted edge names the exact source file (a cross-context adapter), the target context and the exact target paths it may import, with a rationale and an owner. There is no wildcard entry.
 - **The checker:** `scripts/dependency-cruiser.config.cjs` turns that policy into dependency-cruiser rules (denied by default; a permitted source may import only its exact target paths). `pnpm dep-cruise` runs it over the codebase.
-- **What is a blocking gate today:** `pnpm dep-cruise:test` (`scripts/dependency-cruiser-config.spec.cjs`), which proves that every permitted edge in the policy produces an exception limited to that edge's exact source and target paths (it does not scan the code). **The scan itself, `pnpm dep-cruise`, runs in `pr-quality.yml` as a report-only step (`continue-on-error: true`), so a cross-context import does not fail a PR on its own.** Treat a finding in that report as a defect all the same, and add a permitted edge to the policy only with the rationale and review the policy requires.
+- **What blocks merge:** two checks in `pr-quality.yml`'s "Dependency graph validation" job. `pnpm dep-cruise:test` (`scripts/dependency-cruiser-config.spec.cjs`) proves that every permitted edge in the policy produces an exception limited to that edge's exact source and target paths, and that the application-layer rules keep their severity (it does not scan the code). `pnpm dep-cruise` is the scan itself and exits non-zero on any finding, so a cross-context import, a use case importing another use case or a job, a job importing `infrastructure/`, or a circular import fails the PR; the baseline is zero. A handler that subscribes to another context's event or command needs its exact `permittedEdges` entry (`docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers); where shared application code goes is in § Layering inside `application/`. Add a permitted edge only with the rationale and review the policy requires. For a job to block a merge it must also be a required status check on `main` (a repository setting).
 - **ESLint** still bans related shortcuts through `no-restricted-imports` in `apps/backend/eslint.config.js` (the ports barrel, the shared-domain barrel, direct TypeORM use outside repository adapters); those do block merge.
 
 > **Note on `src/shared/`:** the policy governs context-to-context imports. Imports from `src/shared/` are the intended cross-cutting path and are allowed.
@@ -806,7 +806,7 @@ describe('RescheduleBookingUseCase', () => {
 | Gate | Tool | Failure action |
 |---|---|---|
 | Zero lint errors | ESLint + Prettier | Block merge |
-| Zero cross-context imports | dependency-cruiser, driven by `contextDependencyMatrix` (`pnpm dep-cruise`) | **Report-only today** (`continue-on-error`); only `pnpm dep-cruise:test` blocks |
+| Zero cross-context imports, clean application layering, no import cycles | dependency-cruiser, driven by `contextDependencyMatrix` and `layerTaxonomy.application` (`pnpm dep-cruise`, `pnpm dep-cruise:test`) | **Blocking** (job "Dependency graph validation") |
 | Type check passes | `tsc --noEmit` | Block merge |
 | All tests pass (100%) | Jest / Vitest | Block merge |
 | Coverage ≥ 80% on **changed code** | SonarCloud (differential) | Block merge |

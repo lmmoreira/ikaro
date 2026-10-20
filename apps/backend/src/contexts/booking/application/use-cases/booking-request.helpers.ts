@@ -32,12 +32,10 @@ import {
   PhotoPromotionOperation,
   PhotoExistenceService,
 } from '../services/photo-existence.service';
-import { assignBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
-import {
-  resolveBookingLinesResourceCandidates,
-  ResolvedLineCandidates,
-  ResourceSelectionInput,
-} from './resource-occupancy.helpers';
+import { assignBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
+import { resolveBookingLinesResourceCandidates } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
+import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 
 // Transactional orchestration only — see booking-request.mapper.ts for the pure DTO/domain shape
 // translation functions this file's callers also need (docs/CODE_STANDARDS.md: a function that

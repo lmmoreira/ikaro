@@ -1,21 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { buildBookingDeepLinkUrl } from '@ikaro/types';
-import { utcDateToLocalDate } from '../../../../../shared/utils/calendar-date';
-import { escapeHtml } from '../../../../../shared/utils/escape-html';
-import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
-import { TemplateVariables } from '../../../domain/notification-template-key.mapping';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { escapeHtml } from '../../../../shared/utils/escape-html';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { TemplateVariables } from '../../domain/notification-template-key.mapping';
 import {
   BaseRecurringScheduleCustomerNotificationUseCase,
   RecurringScheduleCustomerNotificationUseCaseResult,
-} from '../base-recurring-schedule-customer-notification.use-case';
-import { formatEmailDateTime } from '../notification-email-format.helpers';
+} from '../use-cases/base-recurring-schedule-customer-notification.use-case';
+import { formatEmailDateTime } from '../use-cases/notification-email-format.helpers';
 import {
   customerVariables,
   RecurringScheduleNotificationContext,
   RecurringScheduleNotificationInput,
-} from '../recurring-schedule-notification.helpers';
+} from '../use-cases/recurring-schedule-notification.helpers';
 
-export interface SendAvailabilityAlertMatchedEmailUseCaseInput extends RecurringScheduleNotificationInput {
+export interface SendAvailabilityAlertMatchedEmailInput extends RecurringScheduleNotificationInput {
   // ISO-8601 UTC instant the matching window opens (the event's matchingWindowStart).
   matchingWindowStart: string;
   // The alert's preferred resource and duration; absent on an event published before the event
@@ -24,20 +24,20 @@ export interface SendAvailabilityAlertMatchedEmailUseCaseInput extends Recurring
   durationMinutes?: number | null;
 }
 
-export type SendAvailabilityAlertMatchedEmailUseCaseResult =
+export type SendAvailabilityAlertMatchedEmailResult =
   RecurringScheduleCustomerNotificationUseCaseResult;
 
 // UC-072 (M23-S38): the email half of the availability-alert notification — tells the customer a
 // slot opened inside their alert's window. Reporting how the send went is the job of
 // SendAvailabilityAlertMatchedNotificationUseCase, which wraps this one.
 @Injectable()
-export class SendAvailabilityAlertMatchedEmailUseCase extends BaseRecurringScheduleCustomerNotificationUseCase<SendAvailabilityAlertMatchedEmailUseCaseInput> {
+export class SendAvailabilityAlertMatchedEmailService extends BaseRecurringScheduleCustomerNotificationUseCase<SendAvailabilityAlertMatchedEmailInput> {
   protected templateKeyFor(): NotificationTemplateKey {
     return NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER;
   }
 
   protected variablesFor(
-    input: SendAvailabilityAlertMatchedEmailUseCaseInput,
+    input: SendAvailabilityAlertMatchedEmailInput,
     context: RecurringScheduleNotificationContext,
   ): TemplateVariables<NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER> {
     return {

@@ -38,17 +38,7 @@ import {
   resolveNewSession,
 } from './chatbot-cap-check.helpers';
 import { ChatbotCapCheckDeps } from './chatbot-cap-check.types';
-
-export interface SendChatMessageUseCaseInput {
-  tenantId: string;
-  clientIp: string;
-  sessionId?: string;
-  systemPrompt: string;
-  userMessage: string;
-  chatbotSettings: ChatbotSettings;
-  /** Tenant's businessHours.timezone — for computing the tenant-local conversation_date bucket. */
-  timezone: string;
-}
+import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 
 export interface SendChatMessageUseCaseResult {
   sessionId: string;

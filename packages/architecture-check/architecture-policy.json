@@ -19,14 +19,29 @@
         "application/dtos/**",
         "application/ports/**",
         "application/services/**",
-        "application/use-cases/base-*.use-case.ts"
+        "application/helpers/**",
+        "application/use-cases/base-*.use-case.ts",
+        "application/use-cases/*.helpers.ts",
+        "application/use-cases/*.mapper.ts",
+        "application/use-cases/*.util.ts",
+        "application/use-cases/*.types.ts"
+      ],
+      "sameContextAllowedJobPaths": [
+        "application/dtos/**",
+        "application/ports/**",
+        "application/services/**",
+        "application/helpers/**",
+        "application/jobs/*.helpers.ts",
+        "application/jobs/*.base.ts",
+        "application/use-cases/*.use-case.ts"
+      ],
+      "sameContextAllowedHelperPaths": [
+        "application/dtos/**",
+        "application/ports/**",
+        "application/helpers/**"
       ],
       "sameContextAllowedApplicationPathsByContext": {
-        "booking": [
-          "application/use-cases/booking-request.helpers.ts",
-          "application/use-cases/booking-request.types.ts"
-        ],
-        "platform": ["chatbot.constants.ts"]
+        "platform": ["chatbot.constants.ts", "lead-form.constants.ts"]
       }
     },
     "infrastructure": {
@@ -368,6 +383,46 @@
         "rationale": "Notification dispatches the booking daily-schedule reminder command contract.",
         "owner": "notification",
         "reviewBy": "2026-09-30"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/resource-deactivation-impact.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/resource-deactivation-impact-raised.event.ts"
+        ],
+        "rationale": "Notification subscribes to the booking resource-deactivation-impact event contract.",
+        "owner": "notification",
+        "reviewBy": "2027-04-20"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/recurring-schedule-renewal.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/commands/recurring-schedule-renewal-due.command.ts"
+        ],
+        "rationale": "Notification consumes the booking recurring-schedule renewal-due command contract.",
+        "owner": "notification",
+        "reviewBy": "2027-04-20"
+      },
+      {
+        "source": "apps/backend/src/contexts/notification/infrastructure/events/booking-resource-reassigned.handler.ts",
+        "target": "booking",
+        "targetPaths": [
+          "apps/backend/src/contexts/booking/domain/events/booking-resource-reassigned.event.ts"
+        ],
+        "rationale": "Notification subscribes to the booking resource-reassigned event contract.",
+        "owner": "notification",
+        "reviewBy": "2027-04-20"
+      },
+      {
+        "source": "apps/backend/src/contexts/booking/infrastructure/events/tenant-provisioned.handler.ts",
+        "target": "platform",
+        "targetPaths": [
+          "apps/backend/src/contexts/platform/domain/events/tenant-provisioned.event.ts"
+        ],
+        "rationale": "Booking reacts to the platform tenant-provisioned domain event.",
+        "owner": "booking",
+        "reviewBy": "2027-04-20"
       }
     ]
   },

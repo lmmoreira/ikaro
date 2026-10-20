@@ -1,7 +1,7 @@
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { MatchAvailabilityAlertsForBookingUseCase } from './match-availability-alerts-for-booking.use-case';
-import { MatchAvailabilityAlertsUseCase } from './match-availability-alerts.use-case';
+import { AvailabilityAlertMatchingService } from '../services/availability-alert-matching.service';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TENANT_ID = '99999999-0000-7000-8000-000000000099';
@@ -9,15 +9,15 @@ const CORRELATION_ID = 'corr-for-booking-1';
 
 describe('MatchAvailabilityAlertsForBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
-  let matchAlerts: jest.Mocked<Pick<MatchAvailabilityAlertsUseCase, 'execute'>>;
+  let matchAlerts: jest.Mocked<Pick<AvailabilityAlertMatchingService, 'match'>>;
   let useCase: MatchAvailabilityAlertsForBookingUseCase;
 
   beforeEach(() => {
     bookingRepo = new InMemoryBookingRepository();
-    matchAlerts = { execute: jest.fn().mockResolvedValue({ notified: 1 }) };
+    matchAlerts = { match: jest.fn().mockResolvedValue({ notified: 1 }) };
     useCase = new MatchAvailabilityAlertsForBookingUseCase(
       bookingRepo,
-      matchAlerts as unknown as MatchAvailabilityAlertsUseCase,
+      matchAlerts as unknown as AvailabilityAlertMatchingService,
     );
   });
 
@@ -32,8 +32,8 @@ describe('MatchAvailabilityAlertsForBookingUseCase', () => {
     });
 
     expect(result).toEqual({ notified: 1 });
-    expect(matchAlerts.execute).toHaveBeenCalledTimes(1);
-    expect(matchAlerts.execute).toHaveBeenCalledWith({
+    expect(matchAlerts.match).toHaveBeenCalledTimes(1);
+    expect(matchAlerts.match).toHaveBeenCalledWith({
       tenantId: TENANT_ID,
       correlationId: CORRELATION_ID,
       serviceIds: booking.lines.map((line) => line.serviceId),
@@ -49,7 +49,7 @@ describe('MatchAvailabilityAlertsForBookingUseCase', () => {
     });
 
     expect(result).toEqual({ notified: 0 });
-    expect(matchAlerts.execute).not.toHaveBeenCalled();
+    expect(matchAlerts.match).not.toHaveBeenCalled();
   });
 
   it("tenant isolation: never resolves another tenant's booking", async () => {
@@ -63,6 +63,6 @@ describe('MatchAvailabilityAlertsForBookingUseCase', () => {
     });
 
     expect(result).toEqual({ notified: 0 });
-    expect(matchAlerts.execute).not.toHaveBeenCalled();
+    expect(matchAlerts.match).not.toHaveBeenCalled();
   });
 });

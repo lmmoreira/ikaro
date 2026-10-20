@@ -1,6 +1,6 @@
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { ResourceOccupancyLockState } from '../../domain/resource-occupancy-lock-state';
-import { ResolvedLineCandidates } from './resource-occupancy.helpers';
+import { ResolvedLineCandidates } from './resolved-line-candidates.types';
 
 // A request-time HOLD for a degenerate (LOCATION-fallback) service downgrades to REQUESTED,
 // which the exclusion constraint's WHERE clause excludes — concurrent PENDING requests for the

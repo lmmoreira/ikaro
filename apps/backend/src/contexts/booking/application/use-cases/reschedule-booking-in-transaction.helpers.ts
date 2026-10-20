@@ -11,10 +11,10 @@ import { BookingSlotConflictService } from '../services/booking-slot-conflict.se
 import {
   dismissStaleExceptionsAfterMove,
   occupiedResourceIds,
-} from './booking-exception-closing.helpers';
-import { ResourceSelectionInput } from './resource-occupancy.helpers';
+} from '../helpers/booking-exception-closing.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
 import { ResolutionSnapshot } from './resource-resolution-context.helpers';
-import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
+import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
 import {
   QuoteRevisionResult,
   recordQuoteRevisionIfPriceChanged,

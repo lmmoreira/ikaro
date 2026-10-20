@@ -74,7 +74,7 @@ import { RecurringScheduleApprovalRequestedNotificationHandler } from './infrast
 import { RecurringScheduleRejectedNotificationHandler } from './infrastructure/events/recurring-schedule-rejected.handler';
 import { RecurringScheduleEndedNotificationHandler } from './infrastructure/events/recurring-schedule-ended.handler';
 import { RecurringScheduleRenewalNotificationHandler } from './infrastructure/events/recurring-schedule-renewal.handler';
-import { SendAvailabilityAlertMatchedEmailUseCase } from './application/use-cases/send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
+import { SendAvailabilityAlertMatchedEmailService } from './application/services/send-availability-alert-matched-email.service';
 import { SendAvailabilityAlertMatchedNotificationUseCase } from './application/use-cases/send-availability-alert-matched-notification/send-availability-alert-matched-notification.use-case';
 import { AvailabilityAlertMatchedNotificationHandler } from './infrastructure/events/availability-alert-matched.handler';
 import { AVAILABILITY_ALERT_OUTCOME_PORT } from './application/ports/availability-alert-outcome.port';
@@ -145,7 +145,7 @@ import { DeadLetterHandler } from './infrastructure/events/dead-letter.handler';
     SendRecurringScheduleRejectedNotificationUseCase,
     SendRecurringScheduleEndedNotificationUseCase,
     SendRecurringScheduleRenewalNotificationUseCase,
-    SendAvailabilityAlertMatchedEmailUseCase,
+    SendAvailabilityAlertMatchedEmailService,
     SendAvailabilityAlertMatchedNotificationUseCase,
     StaffInvitedHandler,
     BookingRequestedHandler,

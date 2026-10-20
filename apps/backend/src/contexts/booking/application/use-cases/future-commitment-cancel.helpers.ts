@@ -6,7 +6,7 @@ import {
   occupiedResourceIds,
   saveTerminalBookingsInTransaction,
   TerminalBookingDeps,
-} from './booking-exception-closing.helpers';
+} from '../helpers/booking-exception-closing.helpers';
 
 export interface WorklistCancelInput {
   tenantId: string;

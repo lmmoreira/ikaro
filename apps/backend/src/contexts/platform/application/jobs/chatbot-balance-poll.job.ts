@@ -4,7 +4,7 @@ import {
   ITransactionManager,
   TRANSACTION_MANAGER,
 } from '../../../../shared/ports/transaction-manager.port';
-import { OpenRouterCreditsClient } from '../../infrastructure/llm/openrouter-credits.client';
+import { IOpenRouterCreditsPort, OPENROUTER_CREDITS_PORT } from '../ports/openrouter-credits.port';
 import { OPENROUTER_PROVIDER_NAME } from '../ports/llm-provider.port';
 import {
   CHATBOT_PROVIDER_BALANCE_REPOSITORY,
@@ -21,7 +21,7 @@ export class ChatbotBalancePollJob {
   private readonly logger = new AppLogger(ChatbotBalancePollJob.name);
 
   constructor(
-    private readonly creditsClient: OpenRouterCreditsClient,
+    @Inject(OPENROUTER_CREDITS_PORT) private readonly creditsClient: IOpenRouterCreditsPort,
     @Inject(CHATBOT_PROVIDER_BALANCE_REPOSITORY)
     private readonly balanceRepo: IChatbotProviderBalanceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,

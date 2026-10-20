@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
-import { forEachTenantInWindow, LocalTimeWindow } from './tenant-local-window';
+import { forEachTenantInWindow, LocalTimeWindow } from './tenant-local-window.helpers';
 
 export interface WindowedTenant {
   id: string;

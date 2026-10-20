@@ -4,7 +4,7 @@ import {
   forEachTenantInWindow,
   isInLocalWindow,
   REMINDER_WINDOW,
-} from './tenant-local-window';
+} from './tenant-local-window.helpers';
 
 const logger = new AppLogger('tenant-local-window.spec');
 const options = { logger, label: 'Test job' };

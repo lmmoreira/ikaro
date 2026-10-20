@@ -6,7 +6,7 @@ import type {
   SettingsFormErrors,
   SettingsFormTranslator,
   SettingsSocialLinksValues,
-} from './settings-form';
+} from './settings-form-types';
 import type { NormalizedAddress } from './settings-form-address-validation';
 import { trimmedOrNull } from './settings-form-shared';
 

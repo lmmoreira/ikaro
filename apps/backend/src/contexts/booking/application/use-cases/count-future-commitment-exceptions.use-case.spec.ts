@@ -21,7 +21,7 @@ describe('CountFutureCommitmentExceptionsUseCase', () => {
     const service = await world.addService();
     await world.addBooking({ service, resource: source, startsInHours: 24 });
     await world.addBooking({ service, resource: source, startsInHours: 48 });
-    await world.raise.execute({
+    await world.raise.raiseForResource({
       tenantId: TENANT_ID,
       resourceId: source.id,
       correlationId: 'corr-count-1',

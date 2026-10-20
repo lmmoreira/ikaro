@@ -5,7 +5,8 @@ import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import { BookingRequestResult } from './booking-request.types';
 import { LineOverride } from './booking-request.helpers';
-import { ResolvedLineCandidates, ResourceSelectionInput } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
+import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 
 // Pure DTO/domain shape translation shared by RequestBookingUseCase and
 // RequestAuthenticatedBookingUseCase — no I/O, no transaction, no business-rule enforcement. See

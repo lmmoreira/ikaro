@@ -16,7 +16,7 @@ import { BOOKING_STATUS_TRANSITION_REPOSITORY } from './application/ports/bookin
 import { RECURRING_BOOKING_SCHEDULE_REPOSITORY } from './application/ports/recurring-booking-schedule-repository.port';
 import { AVAILABILITY_ALERT_REPOSITORY } from './application/ports/availability-alert-repository.port';
 import { FUTURE_COMMITMENT_EXCEPTION_REPOSITORY } from './application/ports/future-commitment-exception-repository.port';
-import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
+import { RaiseFutureCommitmentExceptionsForResourceService } from './application/services/raise-future-commitment-exceptions-for-resource.service';
 import { ListFutureCommitmentExceptionsUseCase } from './application/use-cases/list-future-commitment-exceptions.use-case';
 import { CountFutureCommitmentExceptionsUseCase } from './application/use-cases/count-future-commitment-exceptions.use-case';
 import { ResolveFutureCommitmentExceptionsUseCase } from './application/use-cases/resolve-future-commitment-exceptions.use-case';
@@ -245,7 +245,7 @@ export const bookingModuleProviders: Provider[] = [
   CancelAvailabilityAlertUseCase,
   RecordAvailabilityAlertOutcomeUseCase,
   ...availabilityAlertMatchingProviders,
-  RaiseFutureCommitmentExceptionsForResourceUseCase,
+  RaiseFutureCommitmentExceptionsForResourceService,
   ListFutureCommitmentExceptionsUseCase,
   CountFutureCommitmentExceptionsUseCase,
   ResolveFutureCommitmentExceptionsUseCase,

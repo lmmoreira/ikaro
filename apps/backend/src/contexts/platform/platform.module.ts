@@ -43,6 +43,7 @@ import { GetHotsiteManifestUseCase } from './application/use-cases/get-hotsite-m
 import { CreateLeadFormSubmissionUseCase } from './application/use-cases/create-lead-form-submission.use-case';
 import { GetLeadFormConfigUseCase } from './application/use-cases/get-lead-form-config.use-case';
 import { GetLeadFormFilterOptionsUseCase } from './application/use-cases/get-lead-form-filter-options.use-case';
+import { LeadFormPublicConfigService } from './application/services/lead-form-public-config.service';
 import { GetLeadFormPublicConfigUseCase } from './application/use-cases/get-lead-form-public-config.use-case';
 import { GetLeadFormStatusUseCase } from './application/use-cases/get-lead-form-status.use-case';
 import { GetLeadFormSubmissionUseCase } from './application/use-cases/get-lead-form-submission.use-case';
@@ -71,6 +72,7 @@ import { PlatformTenantSettingsAdapter } from './infrastructure/cross-context/pl
 import { AnthropicLlmAdapter } from './infrastructure/llm/anthropic-llm.adapter';
 import { FakeLlmAdapter } from './infrastructure/llm/fake-llm.adapter';
 import { OpenAiLlmAdapter } from './infrastructure/llm/openai-llm.adapter';
+import { OPENROUTER_CREDITS_PORT } from './application/ports/openrouter-credits.port';
 import { OpenRouterCreditsClient } from './infrastructure/llm/openrouter-credits.client';
 import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapter';
 import { CloudflareTurnstileAdapter } from './infrastructure/turnstile/cloudflare-turnstile.adapter';
@@ -189,7 +191,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     GenerateHotsiteImageSignedUrlUseCase,
     ChatbotBalancePollJob,
     ChatbotBalancePollTriggerHandler,
-    OpenRouterCreditsClient,
+    { provide: OPENROUTER_CREDITS_PORT, useClass: OpenRouterCreditsClient },
     ChatbotRetentionPurgeJob,
     ChatbotRetentionPurgeTriggerHandler,
     LeadFormRetentionPurgeJob,
@@ -202,6 +204,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     GetHotsiteManifestUseCase,
     GetLeadFormConfigUseCase,
     GetLeadFormFilterOptionsUseCase,
+    LeadFormPublicConfigService,
     GetLeadFormPublicConfigUseCase,
     GetLeadFormStatusUseCase,
     GetLeadFormSubmissionUseCase,

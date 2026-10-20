@@ -10,7 +10,7 @@ import { ResourceType } from '../../domain/resource.types';
 
 const CORRELATION_ID = 'corr-raise-1';
 
-describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
+describe('RaiseFutureCommitmentExceptionsForResourceService', () => {
   let world: FutureCommitmentFixture;
 
   beforeEach(() => {
@@ -18,7 +18,11 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
   });
 
   const raise = (resourceId: string) =>
-    world.raise.execute({ tenantId: TENANT_ID, resourceId, correlationId: CORRELATION_ID });
+    world.raise.raiseForResource({
+      tenantId: TENANT_ID,
+      resourceId,
+      correlationId: CORRELATION_ID,
+    });
 
   it('raises one entry per affected booking whatever its live status', async () => {
     const resource = await world.addResource('Sala 1');
@@ -178,12 +182,12 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
     const service = await observed.addService();
     await observed.addBooking({ service, resource: source });
 
-    await observed.raise.execute({
+    await observed.raise.raiseForResource({
       tenantId: TENANT_ID,
       resourceId: source.id,
       correlationId: CORRELATION_ID,
     });
-    await observed.raise.execute({
+    await observed.raise.raiseForResource({
       tenantId: TENANT_ID,
       resourceId: source.id,
       correlationId: CORRELATION_ID,
@@ -212,7 +216,7 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
       await observed.addBooking({ service, resource, startsInHours: 48 });
       await observed.addBooking({ service, resource, startsInHours: 72 });
 
-      await observed.raise.execute({
+      await observed.raise.raiseForResource({
         tenantId: TENANT_ID,
         resourceId: resource.id,
         correlationId: CORRELATION_ID,
@@ -234,7 +238,7 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
       const { observed, published } = observedWorld();
       const resource = await observed.addResource('Sala 1');
 
-      await observed.raise.execute({
+      await observed.raise.raiseForResource({
         tenantId: TENANT_ID,
         resourceId: resource.id,
         correlationId: CORRELATION_ID,
@@ -249,7 +253,7 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
       const service = await observed.addService();
       await observed.addBooking({ service, resource, status: BookingStatus.CANCELLED });
 
-      await observed.raise.execute({
+      await observed.raise.raiseForResource({
         tenantId: TENANT_ID,
         resourceId: resource.id,
         correlationId: CORRELATION_ID,
@@ -266,7 +270,7 @@ describe('RaiseFutureCommitmentExceptionsForResourceUseCase', () => {
     const service = await world.addService();
     await world.addBooking({ service, resource: source });
 
-    const result = await world.raise.execute({
+    const result = await world.raise.raiseForResource({
       tenantId: FCE_OTHER_TENANT_ID,
       resourceId: source.id,
       correlationId: CORRELATION_ID,

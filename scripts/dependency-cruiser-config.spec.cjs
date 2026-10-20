@@ -122,34 +122,160 @@ test('BFF backend-context rule matches a backend context source path', () => {
   );
 });
 
-test('application boundary denies use-case imports but allows declared shared abstractions', () => {
-  const rule = config.forbidden.find(
-    (candidate) => candidate.name === 'no-notification-application-internal-imports',
-  );
-  assert.ok(rule);
+const rule = (name) => {
+  const found = config.forbidden.find((candidate) => candidate.name === name);
+  assert.ok(found, `missing rule: ${name}`);
+  return found;
+};
+const matchesAny = (patterns, value) =>
+  [patterns].flat().some((pattern) => new RegExp(pattern).test(value));
+// A rule fires when the importing file is in its `from` and the imported file is in its `to`
+// without being in the allowed `pathNot`.
+const isDenied = (forbidden, from, to) =>
+  new RegExp(forbidden.from.path).test(from) &&
+  matchesAny(forbidden.to.path, to) &&
+  !matchesAny(forbidden.to.pathNot ?? [], to);
 
-  const useCasePath =
-    'src/contexts/notification/application/use-cases/send-booking-requested-notification/send-booking-requested-notification.use-case.ts';
-  const basePath = 'src/contexts/notification/application/use-cases/base-notification.use-case.ts';
-  assert.ok(
-    rule.to.path.some((restrictedPath) => new RegExp(restrictedPath).test(useCasePath)),
-    'a same-context use case must be in the restricted application target set',
-  );
-  assert.ok(
-    !rule.to.pathNot.some((allowedPath) => new RegExp(allowedPath).test(useCasePath)),
-    'a concrete use case must not be an allowed application dependency',
-  );
-  assert.ok(
-    !rule.to.pathNot.some((allowedPath) =>
-      new RegExp(allowedPath).test(
-        'src/contexts/notification/application/use-cases/booking-request.types.ts',
-      ),
+const booking = 'src/contexts/booking/application';
+const notification = 'src/contexts/notification/application';
+
+test('every application-boundary rule is an error, nothing is downgraded to a warning', () => {
+  const boundaryRules = config.forbidden.filter((candidate) =>
+    /^no-[a-z]+-(application-internal|job-internal|application-helper)-imports$/.test(
+      candidate.name,
     ),
-    'booking-specific application paths must not be allowlisted for other contexts',
+  );
+  assert.ok(boundaryRules.length > 0);
+  for (const boundaryRule of boundaryRules) {
+    assert.equal(boundaryRule.severity, 'error', boundaryRule.name);
+  }
+  assert.equal(rule('no-circular').severity, 'error');
+});
+
+test('a use case may import its same-folder helper, mapper, util and types files and shared abstractions', () => {
+  const useCaseRule = rule('no-notification-application-internal-imports');
+  const from = `${notification}/use-cases/send-booking-requested-notification/send-booking-requested-notification.use-case.ts`;
+  for (const allowed of [
+    `${notification}/use-cases/notification-email-format.helpers.ts`,
+    `${notification}/use-cases/booking-request.mapper.ts`,
+    `${notification}/use-cases/active-resource-types.util.ts`,
+    `${notification}/use-cases/booking-request.types.ts`,
+    `${notification}/use-cases/base-notification.use-case.ts`,
+    `${notification}/helpers/shared-between-jobs-and-use-cases.helpers.ts`,
+    `${notification}/services/some.service.ts`,
+    `${notification}/ports/some.port.ts`,
+    `${notification}/dtos/some.dto.ts`,
+    'src/contexts/notification/domain/notification-log.aggregate.ts',
+  ]) {
+    assert.ok(!isDenied(useCaseRule, from, allowed), `should be allowed: ${allowed}`);
+  }
+});
+
+test('a use case may not import another use case, a job or infrastructure', () => {
+  const useCaseRule = rule('no-booking-application-internal-imports');
+  const from = `${booking}/use-cases/deactivate-resource.use-case.ts`;
+  for (const denied of [
+    `${booking}/use-cases/raise-future-commitment-exceptions.use-case.ts`,
+    `${booking}/jobs/windowed-tenant-job.base.ts`,
+    `${booking}/jobs/booking-reminder.job.ts`,
+    'src/contexts/booking/infrastructure/entities/booking.entity.ts',
+    'src/shared/infrastructure/typeorm-transaction-manager.ts',
+  ]) {
+    assert.ok(isDenied(useCaseRule, from, denied), `should be denied: ${denied}`);
+  }
+  assert.ok(
+    !new RegExp(useCaseRule.from.path).test(`${booking}/jobs/booking-reminder.job.ts`),
+    'a job is governed by the job rule, not the use-case rule',
   );
   assert.ok(
-    rule.to.pathNot.some((allowedPath) => new RegExp(allowedPath).test(basePath)),
-    'an explicitly named base abstraction must remain allowed',
+    !new RegExp(useCaseRule.from.path).test(`${booking}/helpers/some.helpers.ts`),
+    'a shared helper is governed by the helper rule, not the use-case rule',
+  );
+});
+
+test('a job sits above use cases but may not reach infrastructure or use-case helpers', () => {
+  const jobRule = rule('no-booking-job-internal-imports');
+  const from = `${booking}/jobs/booking-reminder.job.ts`;
+  for (const allowed of [
+    `${booking}/use-cases/match-availability-alerts.use-case.ts`,
+    `${booking}/jobs/tenant-local-window.helpers.ts`,
+    `${booking}/jobs/windowed-tenant-job.base.ts`,
+    `${booking}/helpers/booking-exception-closing.helpers.ts`,
+    `${booking}/services/some.service.ts`,
+    `${booking}/ports/some.port.ts`,
+  ]) {
+    assert.ok(!isDenied(jobRule, from, allowed), `should be allowed: ${allowed}`);
+  }
+  for (const denied of [
+    'src/contexts/booking/infrastructure/entities/booking.entity.ts',
+    `${booking}/use-cases/booking-exception-closing.helpers.ts`,
+    `${booking}/use-cases/booking-request.mapper.ts`,
+    `${booking}/jobs/some-other.job.ts`,
+    'src/contexts/loyalty/domain/loyalty-entry.aggregate.ts',
+  ]) {
+    assert.ok(isDenied(jobRule, from, denied), `should be denied: ${denied}`);
+  }
+});
+
+test('shared application helpers see only domain, ports, DTOs and other helpers', () => {
+  const helperRule = rule('no-booking-application-helper-imports');
+  const from = `${booking}/helpers/booking-exception-closing.helpers.ts`;
+  for (const allowed of [
+    'src/contexts/booking/domain/booking.aggregate.ts',
+    `${booking}/ports/booking-repository.port.ts`,
+    `${booking}/dtos/some.dto.ts`,
+    `${booking}/helpers/resolved-line-candidates.types.ts`,
+  ]) {
+    assert.ok(!isDenied(helperRule, from, allowed), `should be allowed: ${allowed}`);
+  }
+  for (const denied of [
+    `${booking}/use-cases/approve-booking.use-case.ts`,
+    `${booking}/use-cases/some.helpers.ts`,
+    `${booking}/jobs/booking-reminder.job.ts`,
+    `${booking}/services/some.service.ts`,
+    'src/contexts/booking/infrastructure/entities/booking.entity.ts',
+  ]) {
+    assert.ok(isDenied(helperRule, from, denied), `should be denied: ${denied}`);
+  }
+});
+
+test('platform context-root constants stay allowed only for platform', () => {
+  const platformRule = rule('no-platform-application-internal-imports');
+  const from =
+    'src/contexts/platform/application/use-cases/create-lead-form-submission.use-case.ts';
+  assert.ok(!isDenied(platformRule, from, 'src/contexts/platform/lead-form.constants.ts'));
+  assert.ok(!isDenied(platformRule, from, 'src/contexts/platform/chatbot.constants.ts'));
+  assert.ok(
+    isDenied(
+      rule('no-notification-application-internal-imports'),
+      'src/contexts/notification/application/use-cases/a.use-case.ts',
+      'src/contexts/notification/lead-form.constants.ts',
+    ),
+  );
+});
+
+test('a handler-to-event import is denied unless the exact pair is a permitted edge', () => {
+  const crossContext = rule('no-notification-to-booking-context-import');
+  const handler =
+    'src/contexts/notification/infrastructure/events/booking-resource-reassigned.handler.ts';
+  assert.ok(
+    !new RegExp(crossContext.from.path).test(handler) ||
+      matchesAny(crossContext.from.pathNot, handler),
+    'a registered handler is excluded from the blanket rule',
+  );
+  const exactRule = rule(
+    'no-apps-backend-src-contexts-notification-infrastructure-events-booking-resource-reassigned-handler-to-unapproved-booking-imports',
+  );
+  assert.ok(
+    !isDenied(
+      exactRule,
+      handler,
+      'src/contexts/booking/domain/events/booking-resource-reassigned.event.ts',
+    ),
+  );
+  assert.ok(
+    isDenied(exactRule, handler, 'src/contexts/booking/domain/booking.aggregate.ts'),
+    'a registered handler may import only its exact event file',
   );
 });
 
@@ -158,12 +284,13 @@ function nodeSupportsDependencyCruiser() {
   return major === 22 || major === 24 || major >= 26;
 }
 
-function assertFixtureIsRejected(source) {
+function assertFixtureIsRejected(
+  source,
+  { directory = '', expectedRule = 'no-booking-application-internal-imports' } = {},
+) {
   const backendRoot = path.join(root, 'apps/backend');
-  const fixture = path.join(
-    backendRoot,
-    'src/contexts/booking/application/dependency-cruiser-boundary.fixture.ts',
-  );
+  const fixtureRelativePath = `src/contexts/booking/application/${directory}dependency-cruiser-boundary.fixture.ts`;
+  const fixture = path.join(backendRoot, fixtureRelativePath);
   fs.writeFileSync(fixture, source);
   try {
     const result = spawnSync(
@@ -178,7 +305,7 @@ function assertFixtureIsRejected(source) {
         'err',
         '--progress',
         'none',
-        'src/contexts/booking/application/dependency-cruiser-boundary.fixture.ts',
+        fixtureRelativePath,
       ],
       {
         cwd: backendRoot,
@@ -187,7 +314,7 @@ function assertFixtureIsRejected(source) {
       },
     );
     assert.notEqual(result.status, 0, result.stdout + result.stderr);
-    assert.match(result.stdout + result.stderr, /no-booking-application-internal-imports/);
+    assert.match(result.stdout + result.stderr, new RegExp(expectedRule));
   } finally {
     fs.rmSync(fixture, { force: true });
   }
@@ -202,6 +329,29 @@ test(
     );
     assertFixtureIsRejected(
       "import { BookingEntity } from '../infrastructure/entities/booking.entity'; export { BookingEntity };",
+    );
+  },
+);
+
+test(
+  'dependency-cruiser rejects a use case importing a use case, a job importing infrastructure, and one context importing another',
+  { skip: !nodeSupportsDependencyCruiser() },
+  () => {
+    assertFixtureIsRejected(
+      "import { ApproveBookingUseCase } from './approve-booking.use-case'; export { ApproveBookingUseCase };",
+      { directory: 'use-cases/', expectedRule: 'no-booking-application-internal-imports' },
+    );
+    assertFixtureIsRejected(
+      "import { BookingEntity } from '../../infrastructure/entities/booking.entity'; export { BookingEntity };",
+      { directory: 'jobs/', expectedRule: 'no-booking-job-internal-imports' },
+    );
+    assertFixtureIsRejected(
+      "import { ApproveBookingUseCase } from '../use-cases/approve-booking.use-case'; export { ApproveBookingUseCase };",
+      { directory: 'helpers/', expectedRule: 'no-booking-application-helper-imports' },
+    );
+    assertFixtureIsRejected(
+      "import { LoyaltyBalance } from '../../loyalty/domain/loyalty-balance.aggregate'; export { LoyaltyBalance };",
+      { expectedRule: 'no-booking-to-loyalty-context-import' },
     );
   },
 );

@@ -22,9 +22,9 @@ import {
   mergeResourceSelections,
   resolveBookingLinesResourceCandidates,
   ResolveBookingLinesResourceCandidatesParams,
-  ResolvedLineCandidates,
-  ResourceSelectionInput,
 } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
+import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 
 // UC-069 — at most one line can be durationPolicy=CUSTOMER_SELECTED (UC-067 A4's own invariant,
 // carried unchanged from booking creation), so a reschedule's optional durationMinutes always

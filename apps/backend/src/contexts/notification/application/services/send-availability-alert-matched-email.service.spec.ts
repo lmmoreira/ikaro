@@ -6,9 +6,9 @@ import {
   RECURRING_SERVICE_ID,
   RECURRING_TENANT_ID,
   RecurringScheduleNotificationFixture,
-} from '../../../../../test/utils/recurring-schedule-notification-fixture';
-import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
-import { SendAvailabilityAlertMatchedEmailUseCase } from './send-availability-alert-matched-email.use-case';
+} from '../../../../test/utils/recurring-schedule-notification-fixture';
+import { NotificationTemplateKey } from '../../domain/notification-template-key.enum';
+import { SendAvailabilityAlertMatchedEmailService } from './send-availability-alert-matched-email.service';
 
 // 13:00 UTC is 10:00 in America/Sao_Paulo.
 const baseInput = {
@@ -23,7 +23,7 @@ const baseInput = {
 function build(locale = 'pt-BR') {
   const fx = new RecurringScheduleNotificationFixture(locale);
   fx.seedTemplate(NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER);
-  const useCase = new SendAvailabilityAlertMatchedEmailUseCase(
+  const useCase = new SendAvailabilityAlertMatchedEmailService(
     fx.logRepo,
     fx.inboxRepo,
     fx.dispatcher,
@@ -37,7 +37,7 @@ function build(locale = 'pt-BR') {
   return { fx, useCase };
 }
 
-describe('SendAvailabilityAlertMatchedEmailUseCase', () => {
+describe('SendAvailabilityAlertMatchedEmailService', () => {
   it('emails the customer in pt-BR with the service, the window and the booking link', async () => {
     const { fx, useCase } = build();
 

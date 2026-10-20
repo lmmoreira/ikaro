@@ -1,54 +1,23 @@
-import { Inject, Injectable } from '@nestjs/common';
-import { LeadFormNotEnabledError } from '../../domain/errors/lead-form-domain.error';
-import { LeadFormAudienceMode, LeadFormQuestion } from '../../domain/lead-form-config.aggregate';
+import { Injectable } from '@nestjs/common';
 import {
-  HOTSITE_CONFIG_REPOSITORY,
-  IHotsiteConfigRepository,
-} from '../ports/hotsite-config-repository.port';
-import {
-  ILeadFormConfigRepository,
-  LEAD_FORM_CONFIG_REPOSITORY,
-} from '../ports/lead-form-config-repository.port';
+  LeadFormPublicConfigInput,
+  LeadFormPublicConfigResult,
+  LeadFormPublicConfigService,
+} from '../services/lead-form-public-config.service';
 
-export interface GetLeadFormPublicConfigUseCaseInput {
-  tenantId: string;
-}
+export type GetLeadFormPublicConfigUseCaseInput = LeadFormPublicConfigInput;
+export type GetLeadFormPublicConfigUseCaseResult = LeadFormPublicConfigResult;
 
-export interface GetLeadFormPublicConfigUseCaseResult {
-  audienceMode: LeadFormAudienceMode;
-  questions: LeadFormQuestion[];
-}
-
-/**
- * Public/guest-reachable counterpart to GetLeadFormConfigUseCase (M20-S01, MANAGER-only) — never
- * returns the teaser fields that use case does, and 404s instead of defaulting when the module
- * isn't enabled (docs/14-API_CONTRACTS.md § Lead Form Widget).
- */
+// The read itself lives in LeadFormPublicConfigService so that CreateLeadFormSubmissionUseCase can
+// re-verify the config at submit time without one use case calling another. The page's initial
+// load (LeadFormPublicController's GET config) calls this use case.
 @Injectable()
 export class GetLeadFormPublicConfigUseCase {
-  constructor(
-    @Inject(HOTSITE_CONFIG_REPOSITORY)
-    private readonly hotsiteConfigRepo: IHotsiteConfigRepository,
-    @Inject(LEAD_FORM_CONFIG_REPOSITORY)
-    private readonly leadFormConfigRepo: ILeadFormConfigRepository,
-  ) {}
+  constructor(private readonly publicConfig: LeadFormPublicConfigService) {}
 
-  async execute(
+  execute(
     input: GetLeadFormPublicConfigUseCaseInput,
   ): Promise<GetLeadFormPublicConfigUseCaseResult> {
-    const { tenantId } = input;
-
-    const hotsiteConfig = await this.hotsiteConfigRepo.findByTenantId(tenantId);
-    const leadFormModule = hotsiteConfig?.layout.find((module) => module.type === 'LEAD_FORM');
-    if (!leadFormModule?.enabled) {
-      throw new LeadFormNotEnabledError();
-    }
-
-    const leadFormConfig = await this.leadFormConfigRepo.findByTenantId(tenantId);
-
-    return {
-      audienceMode: leadFormConfig?.audienceMode ?? 'GUEST_AND_CUSTOMER',
-      questions: leadFormConfig?.questions ?? [],
-    };
+    return this.publicConfig.read(input);
   }
 }

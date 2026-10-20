@@ -18,6 +18,8 @@ const contexts = fs
   .map((entry) => entry.name);
 const permittedEdges = policy.contextDependencyMatrix.permittedEdges;
 const applicationAllowedPaths = policy.layerTaxonomy.application.sameContextAllowedApplicationPaths;
+const jobAllowedPaths = policy.layerTaxonomy.application.sameContextAllowedJobPaths;
+const helperAllowedPaths = policy.layerTaxonomy.application.sameContextAllowedHelperPaths;
 const applicationAllowedPathsByContext =
   policy.layerTaxonomy.application.sameContextAllowedApplicationPathsByContext ?? {};
 const testPath =
@@ -81,33 +83,65 @@ function crossContextRules() {
   );
 }
 
+const applicationRestrictedTargets = [
+  `^${backendSourcePrefix}contexts/`,
+  `^${backendSourcePrefix}shared/infrastructure/`,
+  '(^|/)node_modules/@nestjs/(?!common/)',
+  '(^|/)node_modules/(typeorm|axios|express)(/|$)',
+];
+
+// Three sources inside application/, each with its own allowed set: use cases (and services,
+// ports, DTOs) are self-contained; a job sits above use cases; shared helpers see only the
+// layers below them. A target outside the set is denied, including another context's code.
 function applicationBoundaryRules() {
   if (workspace !== 'backend') return [];
-  return contexts.map((context) => ({
-    name: `no-${context}-application-internal-imports`,
-    comment:
-      'Use cases are self-contained: application imports may target domain code, ports, DTOs, services, and explicitly named shared abstractions only.',
-    severity: 'error',
-    from: {
-      path: `^${backendSourcePrefix}contexts/${context}/application/`,
-      pathNot: testPath,
-    },
-    to: {
-      path: [
-        `^${backendSourcePrefix}contexts/`,
-        `^${backendSourcePrefix}shared/infrastructure/`,
-        '(^|/)node_modules/@nestjs/(?!common/)',
-        '(^|/)node_modules/(typeorm|axios|express)(/|$)',
-      ],
-      pathNot: [
-        `^${backendSourcePrefix}contexts/${context}/domain/`,
-        ...[...applicationAllowedPaths, ...(applicationAllowedPathsByContext[context] ?? [])].map(
-          (allowedPath) =>
-            policyPathPattern(`${backendSourcePrefix}contexts/${context}/${allowedPath}`),
-        ),
-      ],
-    },
-  }));
+  const allowedFor = (context, allowedPaths) => [
+    `^${backendSourcePrefix}contexts/${context}/domain/`,
+    ...[...allowedPaths, ...(applicationAllowedPathsByContext[context] ?? [])].map((allowedPath) =>
+      policyPathPattern(`${backendSourcePrefix}contexts/${context}/${allowedPath}`),
+    ),
+  ];
+  return contexts.flatMap((context) => {
+    const applicationRoot = `^${backendSourcePrefix}contexts/${context}/application/`;
+    return [
+      {
+        name: `no-${context}-application-internal-imports`,
+        comment:
+          'Use cases are self-contained: they may import domain code, ports, DTOs, services, application/helpers and their own same-folder helper, mapper, util and types files only. Shared logic belongs in a service, not in another use case.',
+        severity: 'error',
+        from: {
+          path: `${applicationRoot}(?!jobs/|helpers/)`,
+          pathNot: testPath,
+        },
+        to: {
+          path: applicationRestrictedTargets,
+          pathNot: allowedFor(context, applicationAllowedPaths),
+        },
+      },
+      {
+        name: `no-${context}-job-internal-imports`,
+        comment:
+          'A job is a batch orchestrator above use cases: it may import use cases, ports, DTOs, services, application/helpers and its own same-folder helper and base files only. It never reaches infrastructure directly.',
+        severity: 'error',
+        from: { path: `${applicationRoot}jobs/`, pathNot: testPath },
+        to: {
+          path: applicationRestrictedTargets,
+          pathNot: allowedFor(context, jobAllowedPaths),
+        },
+      },
+      {
+        name: `no-${context}-application-helper-imports`,
+        comment:
+          'application/helpers holds code shared by use cases and jobs: it may import domain code, ports, DTOs and other helpers only, never a use case or a job.',
+        severity: 'error',
+        from: { path: `${applicationRoot}helpers/`, pathNot: testPath },
+        to: {
+          path: applicationRestrictedTargets,
+          pathNot: allowedFor(context, helperAllowedPaths),
+        },
+      },
+    ];
+  });
 }
 
 module.exports = {

@@ -18,7 +18,8 @@ import {
   ChatbotMessageCapReachedError,
 } from '../../domain/errors/chatbot-domain.error';
 import { LlmProviderRegistry } from '../services/llm-provider-registry.service';
-import { SendChatMessageUseCase, SendChatMessageUseCaseInput } from './send-chat-message.use-case';
+import { SendChatMessageUseCaseInput } from './send-chat-message.types';
+import { SendChatMessageUseCase } from './send-chat-message.use-case';
 
 // Never a real network call — the LLM adapter itself is stubbed via FakeLlmProviderBuilder, same
 // as every unit test; only the Postgres cap-enforcement path is genuinely exercised here.

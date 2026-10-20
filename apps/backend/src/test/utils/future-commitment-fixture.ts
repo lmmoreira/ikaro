@@ -13,7 +13,7 @@ import { InMemoryFutureCommitmentExceptionRepository } from '../repositories/boo
 import { InMemoryResourceOccupancyRepository } from '../repositories/booking/in-memory-resource-occupancy.repository';
 import { InMemoryResourceRepository } from '../repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../repositories/booking/in-memory-service.repository';
-import { RaiseFutureCommitmentExceptionsForResourceUseCase } from '../../contexts/booking/application/use-cases/raise-future-commitment-exceptions-for-resource.use-case';
+import { RaiseFutureCommitmentExceptionsForResourceService } from '../../contexts/booking/application/services/raise-future-commitment-exceptions-for-resource.service';
 import { Booking, BookingStatus } from '../../contexts/booking/domain/booking.aggregate';
 import {
   ResourceRequirement,
@@ -53,14 +53,14 @@ export class FutureCommitmentFixture {
   readonly occupancyRepo = new InMemoryResourceOccupancyRepository();
   readonly exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
   readonly tenantLock = new InMemoryTenantLock();
-  readonly raise: RaiseFutureCommitmentExceptionsForResourceUseCase;
+  readonly raise: RaiseFutureCommitmentExceptionsForResourceService;
 
   // Pass an outbox publisher to observe the events the worklist and booking aggregates drain on
   // save(), and the impact summary the raise step publishes.
   constructor(outboxPublisher?: IOutboxPublisher) {
     this.bookingRepo = new InMemoryBookingRepository(outboxPublisher);
     this.exceptionRepo = new InMemoryFutureCommitmentExceptionRepository(outboxPublisher);
-    this.raise = new RaiseFutureCommitmentExceptionsForResourceUseCase(
+    this.raise = new RaiseFutureCommitmentExceptionsForResourceService(
       this.bookingRepo,
       this.serviceRepo,
       this.resourceRepo,

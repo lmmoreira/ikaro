@@ -26,7 +26,7 @@ import {
   ChatbotSessionNotFoundError,
 } from '../../domain/errors/chatbot-domain.error';
 import { ChatTurn } from '../ports/llm-provider.port';
-import { SendChatMessageUseCaseInput } from './send-chat-message.use-case';
+import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 import { ChatbotCapCheckDeps, ResolvedSession } from './chatbot-cap-check.types';
 
 // Cap layer 3's live-ness proxy window (docs/04-USE_CASES.md UC-033): a session counts

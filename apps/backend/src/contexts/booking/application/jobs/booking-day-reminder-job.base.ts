@@ -7,7 +7,7 @@ import {
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import { WindowedTenantJob } from './windowed-tenant.job';
+import { WindowedTenantJob } from './windowed-tenant-job.base';
 
 // The dependencies the two "bookings of a tenant-local day" reminder jobs share (the customer
 // reminders and the admin digest): the bookings of the day, the customer profile for the recipient,

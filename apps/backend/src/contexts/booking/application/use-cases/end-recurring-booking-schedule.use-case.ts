@@ -23,7 +23,7 @@ import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import {
   saveTerminalBookingsInTransaction,
   TerminalBookingDeps,
-} from './booking-exception-closing.helpers';
+} from '../helpers/booking-exception-closing.helpers';
 import { assertScheduleOwnership } from './recurring-booking-schedule-ownership.helpers';
 
 export interface EndRecurringBookingScheduleUseCaseInput {

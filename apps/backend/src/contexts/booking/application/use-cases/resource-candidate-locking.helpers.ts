@@ -1,9 +1,6 @@
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { Service } from '../../domain/service.aggregate';
-import type {
-  BookingLineForResolution,
-  ResourceSelectionInput,
-} from './resource-occupancy.helpers';
+import type { BookingLineForResolution, ResourceSelectionInput } from './resource-occupancy.types';
 import { DEGENERATE_LOCATION_REQUIREMENT } from './resource-occupancy-candidate-builders.helpers';
 import { resolveEligibleResources } from './resource-requirement-resolution.helpers';
 import { ResolutionContext } from './resource-resolution-context.helpers';

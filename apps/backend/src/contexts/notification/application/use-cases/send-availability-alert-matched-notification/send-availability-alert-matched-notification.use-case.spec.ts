@@ -7,7 +7,7 @@ import {
 } from '../../../../../test/utils/recurring-schedule-notification-fixture';
 import { InMemoryAvailabilityAlertOutcomePort } from '../../../../../test/infrastructure/in-memory-availability-alert-outcome.port';
 import { NotificationTemplateKey } from '../../../domain/notification-template-key.enum';
-import { SendAvailabilityAlertMatchedEmailUseCase } from '../send-availability-alert-matched-email/send-availability-alert-matched-email.use-case';
+import { SendAvailabilityAlertMatchedEmailService } from '../../services/send-availability-alert-matched-email.service';
 import { SendAvailabilityAlertMatchedNotificationUseCase } from './send-availability-alert-matched-notification.use-case';
 
 const ALERT_ID = 'ffffffff-0000-4000-8000-0000000000f1';
@@ -26,7 +26,7 @@ function build() {
   const fx = new RecurringScheduleNotificationFixture();
   const outcomePort = new InMemoryAvailabilityAlertOutcomePort();
   fx.seedTemplate(NotificationTemplateKey.AVAILABILITY_ALERT_MATCHED_CUSTOMER);
-  const sendEmail = new SendAvailabilityAlertMatchedEmailUseCase(
+  const sendEmail = new SendAvailabilityAlertMatchedEmailService(
     fx.logRepo,
     fx.inboxRepo,
     fx.dispatcher,

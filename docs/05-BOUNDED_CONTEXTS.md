@@ -547,6 +547,8 @@ NestJS module files (`*.module.ts`) MUST NOT `imports:` or `providers:` any clas
 
 > **Sanctioned exception — cross-context Port+Adapter:** a narrow, CI-governed exception to Rules 1 and 2 exists for same-process synchronous reads that don't fit the event/BFF patterns above — an `infrastructure/cross-context/*.adapter.ts` file importing a use case directly from another context. Every such import must be an exact-path entry in `packages/architecture-check/architecture-policy.json`'s `contextDependencyMatrix.permittedEdges` (with rationale, owner, review date) — an edge not in that allowlist is still forbidden. Grep `infrastructure/cross-context/` before adding a new port; extend an existing adapter rather than creating a duplicate. See `docs/ANTI_PATTERNS.md` and CLAUDE.md §7 Architecture.
 
+> **Sanctioned exception — event/command subscription:** an `infrastructure/events/*.handler.ts` that subscribes to another context's event or command imports that one class from the publisher's `domain/events/` or `domain/commands/`. The class is the publisher's published contract (it gives the subscription its name and the handler its payload type), so it stays in the publisher's domain and is not moved to `@ikaro/types`. The import is an exact-path `permittedEdges` entry like any other (handler as `source`, the one event or command file as its single `targetPaths` entry, no globs), which keeps the list a map of who consumes which contract. `pnpm dep-cruise` is a blocking CI gate: a handler without its entry fails the PR. See `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers.
+
 ---
 
 ### Rule 2 — Communication via Events or BFF Only
