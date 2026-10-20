@@ -229,7 +229,7 @@ EOF
 )"
 ```
 
-`<story-id>` is `M0X-SYY` for a milestone story or `TDNN-SYY` for a TD story. The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
+`<story-id>` is `M0X-SYY` for a milestone story or `TDNN-SYY` for a TD story. A PR with no story or TD ID (a chore or test-infrastructure fix) drops `(<story-id>)` from the title, and its `## Story` section says it is intentionally story-less (see Step 5b). The body needs real line breaks (a heredoc, as above, or `--body-file`): inside shell double quotes `\n` stays a literal backslash-n, so `## Story` would not be a Markdown section, and Step 5b's headless Codex review depends on finding it.
 
 **If the diff touches both `infra/terraform/**` and `apps/**`/`packages/**`** (typically a regenerated `infra/terraform/pubsub-catalog.json` beside app code), pass `--label infra-app-mix-ok` in the same `gh pr create` call and put the playbook's PR-body note in the body. The `no-infra-app-mix` check reads the labels present when the PR event fires, so a label added afterwards does not clear it (`docs/CI_TRAPS.md` § CI workflow configuration traps).
 
