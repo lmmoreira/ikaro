@@ -12,8 +12,8 @@ import { ChatbotMessageFieldsSchema } from '@ikaro/validation';
 // any caller reaching this endpoint directly, bypassing the BFF's check). This schema's own
 // 5000-char ceiling (inherited from ChatbotMessageFieldsSchema) stays deliberately generous and
 // non-tenant-resolved — an outer bound against an absurd payload before the request even reaches
-// the use case, never the tenant's real cap (docs/04-USE_CASES.md UC-033 layer 5; same
-// reasoning docs/21-TENANTS_SETTINGS_SCHEMA.md §7, which already applies to knowledgeText — a static
+// the use case, never the tenant's real cap (docs/USE_CASES.md UC-033 layer 5; same
+// reasoning docs/TENANTS_SETTINGS_SCHEMA.md §7, which already applies to knowledgeText — a static
 // bound here must never be the tenant's real cap, or an Ikaro-granted override above this ceiling
 // would be silently unenforceable).
 export const SendChatMessageSchema = ChatbotMessageFieldsSchema.extend({

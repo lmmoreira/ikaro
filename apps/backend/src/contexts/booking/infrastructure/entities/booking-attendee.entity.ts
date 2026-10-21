@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-// docs/13-DATABASE_SCHEMA.md § booking.service_booking_intake_schema / booking.booking_attendees
+// docs/DATABASE_SCHEMA.md § booking.service_booking_intake_schema / booking.booking_attendees
 // (M22-S02) — optional child of a booking, populated only when the effective intake schema's
 // requiresNamedAttendees is true. Schema-only in this story (reachable once a booking actually
 // submits attendees in M23) — same "table exists now, consumed later" precedent as

@@ -14,7 +14,7 @@ export interface GetLeadFormFilterOptionsUseCaseResult {
 
 /** UC-041 step 4's advanced-filter dropdown (M20-S12). Deliberately includes labels from
  * questions since edited or removed from the live LeadFormConfig — matches the submission's own
- * snapshot, not the current config (docs/13-DATABASE_SCHEMA.md § platform.lead_form_answers). */
+ * snapshot, not the current config (docs/DATABASE_SCHEMA.md § platform.lead_form_answers). */
 @Injectable()
 export class GetLeadFormFilterOptionsUseCase {
   constructor(

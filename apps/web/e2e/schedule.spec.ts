@@ -19,7 +19,7 @@ import { createResource, deactivateResource } from '@/e2e/helpers/booking';
 
 // TD44 Story 4 — lavacar-beloauto's own seed data: the default schedule service
 // (SCHEDULE_DEFAULT_SERVICE_ID, 'Lavagem Simples') is a 30-minute service, and this tenant's own
-// `slotGranularityMinutes` (docs/21-TENANTS_SETTINGS_SCHEMA.md) is also 30 — so every booking
+// `slotGranularityMinutes` (docs/TENANTS_SETTINGS_SCHEMA.md) is also 30 — so every booking
 // created via the default helper below is already exactly at minimum granularity, with no extra
 // service setup needed. 'Lavagem Completa' (60 min) is this tenant's shortest longer-than-minimum
 // service, used as the non-regression counterpart.
@@ -344,7 +344,7 @@ test.describe('schedule page coverage', () => {
         await page.goto(scheduleRoute(dateKey));
 
         // Locale-independent: matched by the closure's own id, not by any rendered text
-        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
+        // (docs/TESTING_STRATEGY.md § E2E Selector Strategy forbids matching translated copy —
         // the block's title/subtitle are the translated reason label and time range).
         const closureButton = page.getByTestId(`schedule-closure-block-${closure.id}`);
 
@@ -422,7 +422,7 @@ test.describe('schedule page coverage', () => {
 
         // Resource-scoped block carries a resource-name label; the tenant-wide one doesn't (there's
         // no single resource to name). Matched by testid, not by the rendered name text
-        // (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+        // (docs/TESTING_STRATEGY.md § E2E Selector Strategy).
         await expect(resourceBlock.getByTestId('timeline-block-resource-name')).toHaveText(
           resource.name,
         );
@@ -460,7 +460,7 @@ test.describe('schedule page coverage', () => {
       );
       const dateKey = tenantWideOpening.dateKey;
       // A resource-scoped opening requires the tenant-wide one to already exist for the same
-      // date (docs/02-DOMAIN_MODEL.md) — pinned to it directly, not via a second
+      // date (docs/DOMAIN_MODEL.md) — pinned to it directly, not via a second
       // createUniqueScheduleOpening call (see createScheduleOpeningAt's own note).
       const resourceOpening = await createScheduleOpeningAt(page, dateKey, {
         startTime: '11:00',

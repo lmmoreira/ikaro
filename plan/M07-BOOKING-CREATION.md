@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** L  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking aggregate, `docs/05-BOUNDED_CONTEXTS.md` § Booking context, `docs/03-DOMAIN_EVENTS.md` § booking events
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Booking aggregate, `docs/BOUNDED_CONTEXTS.md` § Booking context, `docs/DOMAIN_EVENTS.md` § booking events
 
 **Description:**  
 Implement the core domain layer for `Booking` and `BookingLine`. This is the most important aggregate in the system — it owns the state machine, invariants, and emits all booking lifecycle events. Zero framework dependencies.
@@ -23,7 +23,7 @@ Implement the core domain layer for `Booking` and `BookingLine`. This is the mos
 **`Booking` aggregate (`apps/backend/src/contexts/booking/domain/`):**
 - Properties: `id` (UUID v7), `tenantId`, `status` (BookingStatus enum), `type` (GUEST | CUSTOMER), `customerId?`, `guestEmail`, `guestName`, `guestPhone` (Phone), `guestAddress?` (Address, optional general address), `pickupAddress?` (Address, required when any line has `requiresPickupAddressAtBooking=true`), `scheduledAt` (UTC), `totalDurationMins` (derived), `totalPrice` (Money, derived), `totalActualPrice?` (Money, null until COMPLETED), `lines` (BookingLine[]), `beforeServicePhotoUrls?[]`, `afterServicePhotoUrls?[]`, `adminNotes?`, `infoRequestMessage?`, `infoResponseMessage?`, `approvedAt?`, `completedAt?`, `cancelledAt?`, `createdAt`
 
-- **State machine methods:** *[Superseded by M23-S26 (2026-10-06): the `staffId` / `cancelledBy` / `isBusiness` / `customerId` arguments below became one required `BookingActor` (`{ type, id }`); `isBusiness` is derived from `actor.type`. See `docs/02-DOMAIN_MODEL.md` § `Booking` — modified (M23 Cluster 3).]*
+- **State machine methods:** *[Superseded by M23-S26 (2026-10-06): the `staffId` / `cancelledBy` / `isBusiness` / `customerId` arguments below became one required `BookingActor` (`{ type, id }`); `isBusiness` is derived from `actor.type`. See `docs/DOMAIN_MODEL.md` § `Booking` — modified (M23 Cluster 3).]*
   - `requestBooking(tenantId, guestEmail, guestName, guestPhone, scheduledAt, lines, type, customerId?, guestAddress?, pickupAddress?)` — static factory, status=PENDING, emits `BookingRequested`
   - `approve(staffId)` — PENDING|INFO_REQUESTED → APPROVED, freezes lines, emits `BookingApproved`
   - `reject(staffId, reason)` — PENDING|INFO_REQUESTED → REJECTED, emits `BookingRejected`
@@ -46,7 +46,7 @@ Implement the core domain layer for `Booking` and `BookingLine`. This is the mos
 - Properties: `lineId` (UUID v7), `serviceId`, `serviceNameAtBooking`, `priceAtBooking` (Money), `durationMinsAtBooking`, `pointsValueAtBooking`, `requiresPickupAddressAtBooking` (boolean), `actualPriceCharged?` (Money)
 - Snapshots service data at booking time — price/duration changes to Service never affect this
 
-**Domain events emitted (from `docs/03-DOMAIN_EVENTS.md`):**
+**Domain events emitted (from `docs/DOMAIN_EVENTS.md`):**
 All events must use the standard 7-field envelope + their specific `data` payload.
 
 **Acceptance criteria:**
@@ -68,7 +68,7 @@ All events must use the standard 7-field envelope + their specific `data` payloa
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § booking schema — bookings + booking_lines tables
+**Docs to load:** `docs/DATABASE_SCHEMA.md` § booking schema — bookings + booking_lines tables
 
 **Description:**  
 Create the TypeORM migrations for `booking.bookings` and `booking.booking_lines` tables. Booking lines are stored as child rows (not JSONB) so they can be indexed and queried individually for loyalty and reporting.
@@ -153,7 +153,7 @@ INDEX (tenant_id, service_id)
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/05-BOUNDED_CONTEXTS.md` § event publishing pattern
+**Docs to load:** `docs/ARCHITECTURE.md` § hexagonal layers, `docs/BOUNDED_CONTEXTS.md` § event publishing pattern
 
 **Description:**  
 Implement the TypeORM entities, repository adapter, and event publishing wiring for the Booking aggregate. Follows the established post-commit flush pattern used by every other use case in this codebase: the use case wraps `repo.save()` in `txManager.run()`, then calls `booking.clearDomainEvents()` and flushes each event to `eventBus.publish()` after the transaction completes. This is NOT a transactional outbox (no relay table, no background worker) — event publishing is best-effort post-commit.
@@ -201,7 +201,7 @@ Implement the TypeORM entities, repository adapter, and event publishing wiring 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-001, `docs/14-API_CONTRACTS.md` § POST /bookings
+**Docs to load:** `docs/USE_CASES.md` § UC-001, `docs/API_CONTRACTS.md` § POST /bookings
 
 **Description:**  
 Implement the guest booking request use case. No authentication required — only `X-Tenant-Slug`. The slot is re-validated at submission time (not just when the calendar was viewed), and a `BookingRequested` event is emitted.
@@ -294,7 +294,7 @@ Injected dependencies: `TenantContext`, `IServiceRepository` (`SERVICE_REPOSITOR
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-002, `docs/14-API_CONTRACTS.md` § POST /bookings/authenticated
+**Docs to load:** `docs/USE_CASES.md` § UC-002, `docs/API_CONTRACTS.md` § POST /bookings/authenticated
 
 **Description:**  
 Implement the authenticated variant of booking creation via two new dedicated endpoints (separate from the existing guest `POST /bookings` route):
@@ -458,7 +458,7 @@ async createAuthenticated(
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § BookingRequested, `docs/05-BOUNDED_CONTEXTS.md` § Notification context
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § BookingRequested, `docs/BOUNDED_CONTEXTS.md` § Notification context
 
 **Description:**  
 Implement the Notification context's consumer for `BookingRequested`. One use case sends two emails: one to all MANAGER-role staff (new booking alert) and one to the customer/guest (booking acknowledgement). Both are in pt-BR. Each email has its own `NotificationLog` entry for independent idempotency.
@@ -543,7 +543,7 @@ Execution flow:
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/14-API_CONTRACTS.md` § customers endpoints, `docs/02-DOMAIN_MODEL.md` § Customer aggregate
+**Docs to load:** `docs/API_CONTRACTS.md` § customers endpoints, `docs/DOMAIN_MODEL.md` § Customer aggregate
 
 **Description:**  
 Expose a `GET /v1/customers/me` endpoint so the frontend can pre-fill the booking form with the authenticated customer's profile. Also allows the customer to update their default address.

@@ -28,8 +28,8 @@ import {
 // M23-S49 — the choke point against a real Postgres: a transaction that waits longer than
 // DB_LOCK_TIMEOUT_MS for a lock fails fast with a TransactionContentionError instead of hanging,
 // a deadlock victim fails with the same type, and the lock holder is never affected. Each scenario
-// builds its own tenant, so nothing is shared between them (docs/08-TESTING_STRATEGY.md §
-// Concurrency tests). Mutation check (docs/28-LOCK_CATALOG.md § 7 step 8): removing the
+// builds its own tenant, so nothing is shared between them (docs/TESTING_STRATEGY.md §
+// Concurrency tests). Mutation check (docs/LOCK_CATALOG.md § 7 step 8): removing the
 // set_config call in runInNewTransaction makes the two "waits" tests hang until Jest's own timeout.
 describe('runInNewTransaction — lock contention (integration)', () => {
   let app: INestApplication;

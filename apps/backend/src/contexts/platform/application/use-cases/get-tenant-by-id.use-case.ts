@@ -32,7 +32,7 @@ export class GetTenantByIdUseCase {
         ...tenant.settings.toJSON(),
         // `chatbot` getter — unlike toJSON()'s raw props — always resolves knowledgeText even for
         // a tenant whose stored settings predate M19-S04, and never leaks an Ikaro-only override
-        // (maxConversationsPerDay, llmProvider, ...) into the API response (docs/21 §7).
+        // (maxConversationsPerDay, llmProvider, ...) into the API response (docs/TENANTS_SETTINGS_SCHEMA §7).
         chatbot: { knowledgeText: tenant.settings.chatbot.knowledgeText },
       },
     };

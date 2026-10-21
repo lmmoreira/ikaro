@@ -17,7 +17,7 @@ export interface WorklistReassignResult {
 
 // The worklist's REASSIGN (UC-077): the booking keeps its time and moves to another resource. The
 // lock set is the candidate target resources only, never the deactivated source, so it takes no
-// lock a reactivation of the source could be holding (docs/28-LOCK_CATALOG.md hazard H2).
+// lock a reactivation of the source could be holding (docs/LOCK_CATALOG.md hazard H2).
 export async function reassignThroughWorklist(
   deps: WorklistRescheduleDeps,
   input: WorklistReassignInput,

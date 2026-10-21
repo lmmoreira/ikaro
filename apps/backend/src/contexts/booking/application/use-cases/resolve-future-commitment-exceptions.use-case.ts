@@ -174,7 +174,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
   }
 
   // The resource locks come before the entry row lock for every choice that frees or moves the
-  // booking (docs/28-LOCK_CATALOG.md § 2), so a cancel, a reschedule or a reactivation racing this
+  // booking (docs/LOCK_CATALOG.md § 2), so a cancel, a reschedule or a reactivation racing this
   // resolve cannot deadlock with it. KEEP and REASSIGN take none here: REASSIGN's lock set never
   // contains the deactivated source resource.
   private async lockResourcesFirst(

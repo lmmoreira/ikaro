@@ -14,6 +14,55 @@ export type { DocOrientationPolicy, DocTagDefinition };
 const RULE = 'doc-orientation';
 const POLICY_FILE = 'packages/architecture-check/architecture-policy.json';
 
+const README_FILE = 'docs/README.md';
+const README_LIST_HEADING = '## Reading order';
+const README_DOC_NAME_REGEX = /`([A-Z][A-Z0-9_]*\.md)`/g;
+
+// `docs/README.md`'s "Reading order" section names every top-level doc once the numeric prefixes
+// are gone, so the list is the only place the original order survives. It must not drift from the
+// folder: a doc missing from it is invisible to a reader, a listed name with no file is a dead pointer.
+function checkReadmeListsEveryDoc(rootDir: string, files: string[]): Finding[] {
+  if (!files.includes(README_FILE) || !existsSync(resolve(rootDir, README_FILE))) return [];
+  const lines = readFileSync(resolve(rootDir, README_FILE), 'utf8').split('\n');
+  const start = lines.findIndex((line) => line.trim() === README_LIST_HEADING);
+  const report = (line: number, message: string): Finding => ({
+    rule: RULE,
+    file: README_FILE,
+    line,
+    message,
+  });
+  if (start === -1) {
+    return [report(1, `No "${README_LIST_HEADING}" section: the list of every doc lives there.`)];
+  }
+  const end = lines.findIndex((line, index) => index > start && line.startsWith('## '));
+  const listed = new Map<string, number>();
+  lines.slice(start, end === -1 ? undefined : end).forEach((text, offset) => {
+    for (const match of text.matchAll(README_DOC_NAME_REGEX)) {
+      if (!listed.has(match[1])) listed.set(match[1], start + offset + 1);
+    }
+  });
+
+  const existing = new Set(
+    files
+      .filter((file) => /^docs\/[^/]+\.md$/.test(file) && file !== README_FILE)
+      .map((file) => file.slice('docs/'.length)),
+  );
+  const findings: Finding[] = [];
+  for (const [name, line] of listed) {
+    if (!existing.has(name)) {
+      findings.push(report(line, `"${name}" is listed but docs/${name} does not exist.`));
+    }
+  }
+  for (const name of [...existing].sort()) {
+    if (!listed.has(name)) {
+      findings.push(
+        report(start + 1, `docs/${name} is missing from the "${README_LIST_HEADING}" list.`),
+      );
+    }
+  }
+  return findings;
+}
+
 // Every top-level docs/*.md (and journeys/README.md) opens with a `When to load` line and a `Tags` line, so an agent can
 // decide from the first lines whether to read on, and `docs-for` can map changed code to docs.
 // `files` is every repository file that exists, so a tag's globs are judged against the live tree.
@@ -71,6 +120,8 @@ export function checkDocOrientation(
       }
     }
   }
+
+  findings.push(...checkReadmeListsEveryDoc(rootDir, files));
 
   for (const [name, definition] of Object.entries(policy.tags)) {
     if (!usedTags.has(name)) {

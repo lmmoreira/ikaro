@@ -31,7 +31,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Phone precondition for CUSTOMER (UC-021 A3):** after login/tenant-selection, a CUSTOMER with `phone === null` is prompted inline (bottom sheet) to complete it before proceeding. STAFF/MANAGER never see this.
 
-**Multi-tenant support:** a login-time `/select-tenant` selection screen was designed but descoped in `M13-S14`'s discovery session — every customer login starts from a specific tenant's hotsite, which always supplies the tenant context directly, so the BFF's multi-tenant OAuth branch is unreachable in practice (see `docs/04-USE_CASES.md` UC-021). Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use `/switch-tenant` (UC-023, built in `M13-S14`) to move between tenants they already belong to, triggered from "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown.
+**Multi-tenant support:** a login-time `/select-tenant` selection screen was designed but descoped in `M13-S14`'s discovery session — every customer login starts from a specific tenant's hotsite, which always supplies the tenant context directly, so the BFF's multi-tenant OAuth branch is unreachable in practice (see `docs/USE_CASES.md` UC-021). Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use `/switch-tenant` (UC-023, built in `M13-S14`) to move between tenants they already belong to, triggered from "Trocar empresa" in `HotsiteAuthBar`'s avatar dropdown.
 
 **Customer account area naming:** the journey prototype folder is `journeys/customer/prototypes/minha-conta/` and stays pt-BR — prototypes are conceptual mockups, not code. The production route/file/component names are English: `/{slug}/my-account` (not `/{slug}/minha-conta`), per the code-standards English-only rule (`CLAUDE.md` §7). This was established in `M13-S42` (hotsite auth bar) and carried through `S16`/`S27`–`S30`. UI-facing pt-BR copy ("Minha conta", "Agendamentos", "Fidelidade") is unaffected — only identifiers and paths changed.
 
@@ -70,7 +70,7 @@ This file replaces six previously separate draft milestone files — `M124-LOGIN
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` § state management + API client
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § state management + API client
 
 **Description:**
 Set up TanStack Query (React Query) as the global data-fetching layer and create typed client functions for every BFF endpoint. This is the foundation all dashboard pages build on — pages import typed hooks, not raw `fetch` calls.
@@ -114,7 +114,7 @@ Set up TanStack Query (React Query) as the global data-fetching layer and create
 
 **Agent:** `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-021 UC-023, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`
 **Journey prototypes:** `journeys/customer/prototypes/login/` · `journeys/staff/prototypes/login/` — reviewed; UC audit done 2026-06-16
 
 **Description:**
@@ -181,7 +181,7 @@ export interface TenantOption {
 
 `TenantOption` is consumed by the `/select-tenant` page (`M13-S14`). `IssueTokenResponse` and `SwitchTenantResponse` replace the old `{ accessToken, expiresIn }` shape — since neither endpoint has a frontend consumer yet (those pages are built in `M13-S13`/`M13-S14`), this is a safe breaking change.
 
-> **Superseded by `M13-S14`'s discovery session (2026-06-24):** `/select-tenant` and `POST /auth/token` (`issueToken`) were never reachable from any shipped UI — every customer login entry point supplies a `tenantSlug` directly, so `handleMultiTenantLogin`'s 2+-tenant branch never triggers. Both were removed as dead code in `M13-S14`. `TenantOption` survives — it's reused by `M13-S14`'s switch-tenant feature (folded in from the original `M13-S30`). `SwitchTenantResponse` also survives (used by `switch-tenant`). See `docs/04-USE_CASES.md` UC-021 for the corresponding use-case update.
+> **Superseded by `M13-S14`'s discovery session (2026-06-24):** `/select-tenant` and `POST /auth/token` (`issueToken`) were never reachable from any shipped UI — every customer login entry point supplies a `tenantSlug` directly, so `handleMultiTenantLogin`'s 2+-tenant branch never triggers. Both were removed as dead code in `M13-S14`. `TenantOption` survives — it's reused by `M13-S14`'s switch-tenant feature (folded in from the original `M13-S30`). `SwitchTenantResponse` also survives (used by `switch-tenant`). See `docs/USE_CASES.md` UC-021 for the corresponding use-case update.
 
 **Tests to update:**
 
@@ -210,7 +210,7 @@ export interface TenantOption {
 
 **Agent:** `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Bookings, `docs/24-BFF_ARCHITECTURE.md`
+**Docs to load:** `docs/API_CONTRACTS.md` § Bookings, `docs/BFF_ARCHITECTURE.md`
 
 **Description:**
 Provide a paginated, filterable booking list endpoint shaped for the booking queue UI. The queue shows a summary card per booking — customer name, services, scheduled time, status badge, total price.
@@ -276,7 +276,7 @@ interface StaffBookingListResponse {
 
 **Agent:** `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Bookings + Loyalty, `docs/24-BFF_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-003
+**Docs to load:** `docs/API_CONTRACTS.md` § Bookings + Loyalty, `docs/BFF_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-003
 
 **Description:**
 Provide the full booking detail, enriched with the customer's loyalty balance. UC-003 step 1 explicitly says "The dashboard shows the customer's current active-points balance so the admin can decide." This requires BFF orchestration: backend booking detail + loyalty balance lookup.
@@ -376,14 +376,14 @@ Before-service photo URLs: call `IStorageService.getSignedReadUrl(path)` per pho
 
 **Agent:** `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Services, `docs/24-BFF_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-012, UC-013
+**Docs to load:** `docs/API_CONTRACTS.md` § Services, `docs/BFF_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-012, UC-013
 
 **Description:**
 Verify and fill the BFF surface for staff service management. `POST /v1/services`, `PATCH /v1/services/:id`, and `DELETE /v1/services/:id` were implemented in M05 — this story confirms they exist and adds any missing pieces: a staff-authenticated list endpoint that returns **inactive** services (the public hotsite endpoint only returns `isActive: true`), and a single-service fetch for edit pre-fill.
 
 > **Note (resolved during M13-S05):** `@ikaro/types`'s `CreateServiceRequest`/`UpdateServiceRequest` were fixed to the dominant `priceAmount`/`loyaltyPointsValue` convention (matching the backend Zod schema, the BFF Zod schema, and the web fetcher — all three already agreed; `@ikaro/types` was the one out of sync). `apps/web/lib/api/dashboard/services.ts` now imports these (plus the new `StaffServiceResponse`/`StaffServiceListResponse`) from `@ikaro/types` instead of redeclaring them locally. The story's own proposed `priceAmountCents`/`durationMins` shapes below were **not** adopted — `priceAmountCents` would have implied an integer-cents semantic that doesn't match `Money.from(dto.priceAmount, currency)`'s actual decimal usage; almost certainly a leftover from the older `M125-S07` draft. See `docs/ANTI_PATTERNS.md` for the full writeup (the `services` case there is now resolved; `customers`/`loyalty`/`staff` remain open).
 >
-> **Also resolved:** the bare `GET /v1/services` already belonged to the public hotsite controller (`ServicesPublicController`), which would have collided with the new staff-guarded list at the same path. Moved the public controller to `public/services` (and, for the same reason, `platform.public.controller.ts` to `public/platform`) — see `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions for the new default rule. `ListServicesUseCase` now branches on `RequestContext.actorRole` (mirroring `GetBookingUseCase` from `M13-S04`) to return inactive services to STAFF/MANAGER only. `DELETE /v1/services/:id` now returns `204` (was `200` + body) to match this story's AC.
+> **Also resolved:** the bare `GET /v1/services` already belonged to the public hotsite controller (`ServicesPublicController`), which would have collided with the new staff-guarded list at the same path. Moved the public controller to `public/services` (and, for the same reason, `platform.public.controller.ts` to `public/platform`) — see `docs/BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions for the new default rule. `ListServicesUseCase` now branches on `RequestContext.actorRole` (mirroring `GetBookingUseCase` from `M13-S04`) to return inactive services to STAFF/MANAGER only. `DELETE /v1/services/:id` now returns `204` (was `200` + body) to match this story's AC.
 
 > 🔍 **Discover before starting:** Open `apps/bff/src/` and locate the services module (likely `platform/` or `catalog/`). Check: (a) does `GET /v1/services` already exist with a STAFF|MANAGER guard? Does it return `isActive`? (b) does `GET /v1/services/:id` exist for authenticated staff? (c) do `POST`, `PATCH`, `DELETE` endpoints exist with correct `@Roles('STAFF','MANAGER')` guard and `.http` blocks? List every gap — this story fills all of them.
 >
@@ -460,7 +460,7 @@ export interface UpdateServiceRequest {
 
 **Agent:** `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Bookings + Loyalty, `docs/24-BFF_ARCHITECTURE.md`
+**Docs to load:** `docs/API_CONTRACTS.md` § Bookings + Loyalty, `docs/BFF_ARCHITECTURE.md`
 
 **Description:**
 Provide the two data endpoints needed for the Minha Conta list page: a customer-scoped booking list and the loyalty balance strip.
@@ -537,7 +537,7 @@ export interface CustomerLoyaltyBalanceResponse {
 
 **Agent:** `bff-ts` (+ a small backend addition — see "Backend changes" below)
 **Complexity:** M
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Bookings, `docs/24-BFF_ARCHITECTURE.md`
+**Docs to load:** `docs/API_CONTRACTS.md` § Bookings, `docs/BFF_ARCHITECTURE.md`
 
 **Description:**
 Provide the full booking detail for a customer viewing their own booking. Ownership is mandatory: a CUSTOMER may only fetch bookings where `customerId === JWT.sub`.
@@ -610,7 +610,7 @@ Also add `notes?: string` to `CreateBookingRequest` in the same file, per the ba
 
 **Agent:** `bff-ts` (+ a small backend addition — see "Backend changes" below)
 **Complexity:** M
-**Docs to load:** `docs/14-API_CONTRACTS.md` § Loyalty, `docs/24-BFF_ARCHITECTURE.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/API_CONTRACTS.md` § Loyalty, `docs/BFF_ARCHITECTURE.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
 
 **Description:**
 Provide the two paginated endpoints needed for the customer's full loyalty history page: earning entries and redemptions scoped to the authenticated customer.
@@ -624,13 +624,13 @@ Provide the two paginated endpoints needed for the customer's full loyalty histo
 > **Pagination default:** keeping the existing shared `PaginationSchema` default of `limit=20` (not the `limit=50` originally noted here) — that schema is also used by the admin/balance routes, and bumping its default has wider blast radius than this story intends. The `50` was an unvalidated draft preference.
 >
 > ✅ **Resolved — `amountSaved` is computed from the rate stored on the redemption itself, not a live/current one.** An earlier version of this story computed `amountSaved` at **read time** using whatever `pointsPerCurrencyUnit` is *currently* configured (`REDEMPTION_CONVERSION_RATE` hardcoded to `0` in the BFF). This is a real correctness bug, not just an interim placeholder: if a tenant ever changes their rate, every *past* redemption's displayed `amountSaved` would silently get reinterpreted under the new rate, corrupting historical/audit data. The fix captures the rate **at the moment of redemption** instead:
-> - `pointsPerCurrencyUnit` didn't exist anywhere in code yet (`docs/21-TENANTS_SETTINGS_SCHEMA.md` marked it "planned — see M13-S11"). Pulled in **only Part A** of `M13-S11` (the `TenantSettingsVO`/`LoyaltySettings` field itself, validated 0–10000, default 0) — not Parts B–D, which move redemption-recording to be triggered by `BookingCompleted` during booking completion; that's a separate, larger architectural change, untouched here.
+> - `pointsPerCurrencyUnit` didn't exist anywhere in code yet (`docs/TENANTS_SETTINGS_SCHEMA.md` marked it "planned — see M13-S11"). Pulled in **only Part A** of `M13-S11` (the `TenantSettingsVO`/`LoyaltySettings` field itself, validated 0–10000, default 0) — not Parts B–D, which move redemption-recording to be triggered by `BookingCompleted` during booking completion; that's a separate, larger architectural change, untouched here.
 > - `LoyaltyRedemption` aggregate/entity/migration gain `pointsPerCurrencyUnit: number` — a snapshot, never recomputed after the fact.
 > - `LoyaltyController.recordRedemption()` (backend) reads `this.tenantContext.settings.loyalty.pointsPerCurrencyUnit` and passes it into `RedeemPointsUseCase` as a plain DTO field — **deliberately not** injecting `RequestContext` directly into the use case itself, even though that's the pattern used elsewhere (e.g. `GetBookingUseCase`). `RedeemPointsUseCase` is documented in `M13-S11`'s own plan to soon gain a second caller (`BookingCompletedHandler`, an event handler) where `RequestContext` is never populated — keeping the use case invocation-context-agnostic avoids a guaranteed rework when that lands.
 > - `GetLoyaltyRedemptionsUseCase` projects the stored `pointsPerCurrencyUnit` (not an externally-supplied one); the BFF mapper computes `amountSaved` from it directly — no `conversionRate` parameter on `toCustomerLoyaltyRedemption()` at all anymore.
 > - Out of scope (unchanged): the admin "edit tenant settings" endpoint still can't actually *set* `pointsPerCurrencyUnit` to a non-zero value (`update-tenant-settings.dto.ts`'s `LoyaltySchema` wasn't touched) — that's `M13-S12`'s job. Until then this is `0` everywhere, identical to today's behavior, but now structurally correct. `getBalance()`'s separate `BALANCE_DISPLAY_CONVERSION_RATE` (renamed from `REDEMPTION_CONVERSION_RATE`) is a forward-looking display rate, conceptually different from a historical redemption record, and stays hardcoded pending `M13-S12`.
 
-> ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`journeys/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/14-API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
+> ✅ **Resolved — `bookingReference` (redemptions) gets a real backend lookup, not `null`.** `LoyaltyRedemption.bookingId` exists (nullable) but nothing resolves it to a service name today. The prototype (`journeys/customer/prototypes/minha-conta/04-fidelidade.html`, "Resgate — Lavagem Completa") confirms this is UX-validated, not speculative. A pickup-requiring service creates its own separate line (`docs/API_CONTRACTS.md`'s shared booking response example has a dedicated `"uuid-pickup"` line alongside the wash service line), so resolving only the first line would silently drop services from multi-line bookings. **The backend returns structured data, not a pre-joined display string** — joining into `", "`-separated text is a presentation decision that belongs in the BFF mapper (which already owns customer-facing shaping), not in a cross-context backend port. **Backend changes required (extends an existing cross-context port — does not create a new one, per the cross-context reuse rule):**
 > - `loyalty-booking.port.ts` (`ILoyaltyBookingPort`) — add `findBookingServices(tenantId: string, bookingId: string): Promise<ServiceSummary[]>` (reuses the existing `ServiceSummary` shape from `findServicesByIds`; empty array when the booking has no lines or doesn't exist).
 > - `loyalty-booking.adapter.ts` (`LoyaltyBookingAdapter`) — inject `BookingQueryService` (already exists in `apps/backend/src/contexts/booking/application/services/booking-query.service.ts`, no new service needed) alongside the existing `ServiceQueryService`; implement via `bookingQueryService.findById(bookingId, tenantId)` → `booking.lines.map(l => ({ serviceId: l.serviceId, serviceName: l.serviceNameAtBooking }))` — **all** lines, not just the first.
 > - `get-loyalty-redemptions.use-case.ts` — `LoyaltyRedemptionItem.bookingReference: string | null` becomes `bookingServices: ServiceSummary[]` (empty array when no `bookingId`); the use case stays at the structured-data layer, no string formatting.
@@ -700,7 +700,7 @@ export interface CustomerLoyaltyRedemptionsResponse {
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/02-DOMAIN_MODEL.md` (Tenant aggregate), `docs/04-USE_CASES.md` § UC-026
+**Docs to load:** `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/DOMAIN_MODEL.md` (Tenant aggregate), `docs/USE_CASES.md` § UC-026
 
 **Description:**
 Add a read endpoint for tenant settings. Today the only way to read `tenants.settings` is the internal `GET /internal/tenants/:tenantId` route (gated by `InternalApiGuard` + `X-Internal-Key` — wrong audience for a `MANAGER`-authenticated dashboard request). This story adds a tenant-scoped, `MANAGER`-guarded GET mirroring the existing `PATCH`'s shape, so the settings form has something to load before editing.
@@ -738,7 +738,7 @@ Add a read endpoint for tenant settings. Today the only way to read `tenants.set
 
 **Agent:** `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/API_CONTRACTS.md`
 
 **Description:**
 Add the BFF module surface that doesn't exist today. At the time this story was drafted, the backend spoke snake_case (`cancellation_window_hours`, `business_hours.monday`, …) while everything `apps/web` consumes elsewhere speaks camelCase — this story was originally the translation layer. Mid-implementation, the backend's `tenants.settings` JSONB was itself normalized to camelCase end-to-end (see the resolved-during-implementation note below), which removed the need for a translation layer entirely — the BFF controller is a thin passthrough, not a mapper.
@@ -899,7 +899,7 @@ Note: `M13-S12`'s plan already expects to "extend `UpdateTenantSettingsRequest` 
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` §1, `docs/04-USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES_BACKEND.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/TENANTS_SETTINGS_SCHEMA.md` §1, `docs/USE_CASES.md` § UC-009 A6, `docs/ENGINEERING_RULES_BACKEND.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`
 
 **Description:**
 Three targeted additions across two bounded contexts. No new use cases in the booking context — Part B extends `CompleteBookingUseCase`. The loyalty context gets one new use case (Part C) so the event handler can keep calling exactly one use case.
@@ -1150,7 +1150,7 @@ Update the `PATCH /bookings/:id/complete` request block to include an example wi
 
 **Agent:** `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/API_CONTRACTS.md`
 
 **Description:**
 Three additions to the BFF: a new staff-facing customer search endpoint, enriching the loyalty balance response with the conversion rate, and forwarding `discountByPoints` through the booking completion body. Also fixes the stale `@ikaro/types` loyalty shapes.
@@ -1345,7 +1345,7 @@ export interface CompleteBookingRequest {
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-022 UC-025
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-022 UC-025
 
 **Description:**
 Full-stack overhaul of the staff auth flow, driven by three bugs found during discovery: (1) staff was provisioned as `is_active=false` requiring a separate activation step that could be bypassed; (2) a deactivated staff who still had their invite link could re-activate their own account; (3) the global `UNIQUE(google_oauth_id)` constraint prevented the same person from being staff at multiple tenants.
@@ -1647,12 +1647,12 @@ Show reason code in small grey text at bottom: `"Código: <reason>"`.
 
 **Agent:** `frontend-ts` (frontend) + `bff-ts` (two new/changed BFF endpoints) + `backend-ts` (one new internal endpoint)
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021 UC-023, `journeys/customer/prototypes/login/dev-notes.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-021 UC-023, `journeys/customer/prototypes/login/dev-notes.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`
 
 **Scope-change rationale (read before starting):** the story originally planned three deliverables: the tenant-branded login screen, a multi-tenant selection screen (`/select-tenant`, UC-021 Case B), and the phone-completion prompt. A discovery session found:
 1. The login screen was already built in `M13-S42` (out of build order) — nothing left to do there.
-2. `/select-tenant` and its supporting BFF machinery (`handleMultiTenantLogin`'s 2+-tenant branch, `POST /auth/token`) are **unreachable from any shipped UI** — every customer login entry point supplies a `tenantSlug` directly (`handleTenantLogin`), so the multi-tenant OAuth branch never triggers. Building the page would ship dead UI on top of dead BFF code. **Descoped permanently** — see `docs/04-USE_CASES.md` UC-021's updated text.
-3. `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` documents that any client component outside an authenticated shell must reach the BFF only through a same-origin Next.js proxy route (cookies don't reliably travel cross-origin in production). `M13-S13`'s `/select-staff-tenant` violates this — it calls the BFF directly. Fixing it is folded into this story since it's the same architecture this story already has to get right for the items below.
+2. `/select-tenant` and its supporting BFF machinery (`handleMultiTenantLogin`'s 2+-tenant branch, `POST /auth/token`) are **unreachable from any shipped UI** — every customer login entry point supplies a `tenantSlug` directly (`handleTenantLogin`), so the multi-tenant OAuth branch never triggers. Building the page would ship dead UI on top of dead BFF code. **Descoped permanently** — see `docs/USE_CASES.md` UC-021's updated text.
+3. `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` documents that any client component outside an authenticated shell must reach the BFF only through a same-origin Next.js proxy route (cookies don't reliably travel cross-origin in production). `M13-S13`'s `/select-staff-tenant` violates this — it calls the BFF directly. Fixing it is folded into this story since it's the same architecture this story already has to get right for the items below.
 4. The original `M13-S30` (UC-023 tenant switch) reuses the exact same `TenantOption` card pattern this story already needs, and its trigger doesn't actually require the not-yet-built `CustomerShell` (`M13-S16`) — it fits naturally into the already-shipped `HotsiteAuthBar` avatar dropdown. Folded in here rather than left as a separate story waiting on `M13-S16`.
 
 What's actually left to build: the phone-completion prompt, the staff proxy-route fix, and the customer tenant-switch feature.
@@ -1824,7 +1824,7 @@ switchTenant(targetTenantId: string): Promise<SwitchTenantResponse>  // POST /ap
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/REPOSITORY_STRUCTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/REPOSITORY_STRUCTURE.md`
 **Journey prototype:** `journeys/staff/prototypes/agenda/` — reviewed; UC-003/004/005 audit done 2026-06-16; UC-008/009 audit done same day
 
 **Description:**
@@ -1835,7 +1835,7 @@ The shell matches `journeys/shared/dashboard-shell.html` and `journeys/staff/pro
 - **Desktop (`≥1024px`):** fixed left sidebar (logo, nav, manager section, user footer) + topbar (page title + date + avatar) + `main`
 - **Role-aware nav:** "Somente Gerente" section in sidebar is only rendered when JWT role = MANAGER
 
-> 🔍 **Discover before starting:** Check `apps/web/app/dashboard/` — there may be a `layout.tsx` stub or middleware already. If `apps/web/proxy.ts` exists, read it in full before adding route protection. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for canonical folder structure before placing any new files.
+> 🔍 **Discover before starting:** Check `apps/web/app/dashboard/` — there may be a `layout.tsx` stub or middleware already. If `apps/web/proxy.ts` exists, read it in full before adding route protection. Read `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` for canonical folder structure before placing any new files.
 
 **What to create:**
 
@@ -1909,13 +1909,13 @@ The shell matches `journeys/shared/dashboard-shell.html` and `journeys/staff/pro
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/REPOSITORY_STRUCTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/REPOSITORY_STRUCTURE.md`
 **Parallel with:** M13-S06–M13-S08 (already landed in Phase 1, so no actual blocking here)
 
 **Description:**
 Implement the foundational shell for the customer area. All `/{slug}/my-account/**` routes require a valid CUSTOMER JWT — unauthenticated users must be redirected to login. The visual shell matches `journeys/shared/customer-dashboard.html` and `journeys/customer/prototypes/minha-conta/01-minha-conta.html` (prototype folder stays pt-BR — see naming note below; the production route is `my-account`, not `minha-conta`).
 
-> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/proxy.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
+> 🔍 **Discover before starting:** Check `apps/web/app/[slug]/` for any existing `my-account/` folder or `layout.tsx`. Check `apps/web/proxy.ts` — read it in full before extending it; the staff guard (added in `M13-S15`) must not be broken. Read `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` for the canonical folder structure before placing any files.
 
 > **Naming note:** the prototype folder/journey doc use the pt-BR concept name `minha-conta` (kept as-is — prototypes are conceptual mockups, not code). All production identifiers — route segment, folder, file, component names — use the English `my-account`, per the code-standards English-only rule. This was established in `M13-S42` (hotsite auth bar), which already links to `/{slug}/my-account` from the logged-in dropdown.
 
@@ -2002,7 +2002,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 - Three sections, each a `<BookingSection title="..." items={...} />`: "Precisa de ação", "Hoje", "Próximos dias"
 - Each card in "Precisa de ação" and "Próximos dias" shows its own date inline (e.g. "Hoje · 10:00", "Amanhã · 09:00", "Qui, 18 de junho · 09:00") since these sections span multiple days — "Hoje" cards show time only (date is implied by the section)
 - Empty state per section: "Nenhum agendamento precisa de ação." / "Nenhum agendamento confirmado para hoje." / "Nenhum agendamento confirmado nos próximos dias." (pt-BR, not an error)
-- **Superseded by implementation:** the week-strip (`journeys/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/21-TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
+- **Superseded by implementation:** the week-strip (`journeys/staff/prototypes/agenda/00-agenda.html`'s `.week-strip`) was originally planned as scroll-only, NOT a filter. The shipped `WeekNav.tsx` is a real, configurable date-window navigator instead — clicking a day genuinely filters "Próximos dias" to that day, and the window size itself is driven by the tenant's `welcomeStaffScreenDays` setting (`docs/TENANTS_SETTINGS_SCHEMA.md`), added in a same-story follow-up. Do not implement against the scroll-only description above.
 
 `apps/web/components/dashboard/bookings/BookingCard.tsx`:
 - Customer name (truncated with ellipsis if long)
@@ -2038,7 +2038,7 @@ fetchStaffBookings(params: { status: string; date?: string; from?: string; page?
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-003, UC-004, UC-005, `journeys/staff/prototypes/agenda/01-booking-detail.html`, `journeys/staff/prototypes/agenda/01b-slot-conflict.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-003, UC-004, UC-005, `journeys/staff/prototypes/agenda/01-booking-detail.html`, `journeys/staff/prototypes/agenda/01b-slot-conflict.html`
 
 **Description:**
 The booking detail page where staff triage pending requests. The shipped implementation keeps the user on `/dashboard/bookings/[id]`, uses localized copy throughout, and handles approve / reject / request info inline. Approval has an error branch for slot conflict. Later lifecycle actions are split into `M13-S19` and `M13-S20`.
@@ -2120,7 +2120,7 @@ requestMoreInfo(bookingId: string, message: string): Promise<void>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-008, `journeys/staff/prototypes/agenda/03-booking-detail-approved.html`, `05-reschedule.html`, `05b-reschedule-conflict.html`, `dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-008, `journeys/staff/prototypes/agenda/03-booking-detail-approved.html`, `05-reschedule.html`, `05b-reschedule-conflict.html`, `dev-notes.md`
 
 **Description:**
 Approved-booking lifecycle actions. The shipped implementation keeps the same detail shell from `M13-S18`, but when `booking.status === 'APPROVED'` the action panel switches to the lifecycle actions: complete, reschedule, and cancel. Cancel stays inline as a sheet; reschedule is a dedicated route; complete routes to `M13-S20`. Booking stays `APPROVED` after a reschedule — it is not a status transition.
@@ -2175,7 +2175,7 @@ rescheduleBooking(bookingId: string, scheduledAt: string, adminNotes?: string): 
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-009, `journeys/staff/prototypes/agenda/04-mark-complete.html`, `04b-complete-success.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-009, `journeys/staff/prototypes/agenda/04-mark-complete.html`, `04b-complete-success.html`
 
 **Description:**
 The "Marcar concluído" action from the approved booking lifecycle. The shipped implementation uses a dedicated `/dashboard/bookings/[id]/complete` route rather than a popup or sheet. Staff can adjust the actual price charged per line, add notes, and confirm completion. Triggers loyalty point earning server-side (computed from `pointsValueAtBooking`, unaffected by `actualPriceCharged`).
@@ -2269,7 +2269,7 @@ completeBooking(body: CompleteBookingRequest): Promise<CompleteBookingResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-010, `journeys/staff/prototypes/horarios/dev-notes.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CODE_STANDARDS.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-010, `journeys/staff/prototypes/horarios/dev-notes.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/CODE_STANDARDS.md`
 
 **Description:**
 Implement the Horários section of the staff dashboard. This is a **frontend-only story**, but it must follow the current repository conventions:
@@ -2467,12 +2467,12 @@ export interface CreateOpeningRequest {
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/prototypes/servicos/01-servicos-list.html` (reference)
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/prototypes/servicos/01-servicos-list.html` (reference)
 
 **Description:**
 The main service management page — a filterable list of all services (active + inactive) with quick visual indicators and entry points to create or edit.
 
-> 🔍 **Discover before starting:** Check whether a `lib/api/dashboard/services.ts` fetcher file exists. If not, create it. Verify `apps/web/app/dashboard/` folder structure matches `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` — place the route at `/dashboard/services`.
+> 🔍 **Discover before starting:** Check whether a `lib/api/dashboard/services.ts` fetcher file exists. If not, create it. Verify `apps/web/app/dashboard/` folder structure matches `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` — place the route at `/dashboard/services`.
 
 **Prototype reference:** `journeys/staff/prototypes/servicos/01-servicos-list.html`
 **Route:** `/dashboard/services`
@@ -2526,7 +2526,7 @@ fetchStaffServices(): Promise<StaffServiceListResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-012, `journeys/staff/prototypes/servicos/02-service-create.html`, `journeys/staff/prototypes/servicos/02b-service-create-error.html`, `journeys/staff/prototypes/servicos/02c-service-create-success.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-012, `journeys/staff/prototypes/servicos/02-service-create.html`, `journeys/staff/prototypes/servicos/02b-service-create-error.html`, `journeys/staff/prototypes/servicos/02c-service-create-success.html`
 
 **Description:**
 The service creation form. The prototype shows a clean single-page form with two toggles and inline validation for the duplicate-name 409 error, followed by a confirmation state on the list page.
@@ -2590,7 +2590,7 @@ createService(body: CreateServiceRequest): Promise<StaffServiceResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-013, `journeys/staff/prototypes/servicos/03-service-edit.html`, `journeys/staff/prototypes/servicos/03b-deactivate-confirm.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-013, `journeys/staff/prototypes/servicos/03-service-edit.html`, `journeys/staff/prototypes/servicos/03b-deactivate-confirm.html`
 
 **Description:**
 The service edit form (pre-filled, price-change warning, status badge in topbar) and the deactivation flow (danger zone → confirmation page → `DELETE /v1/services/:id`).
@@ -2681,7 +2681,7 @@ deactivateService(serviceId: string): Promise<void>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/fidelidade.md`, `journeys/staff/prototypes/fidelidade/dev-notes.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/staff/fidelidade.md`, `journeys/staff/prototypes/fidelidade/dev-notes.md`
 
 **Description:**
 Two pages under a new `/dashboard/loyalty` route. The search page lets staff find any customer by name/email; the detail page shows their active balance (with currency equivalent), earning history tab (active vs. expired entries), and redemption history tab.
@@ -2785,7 +2785,7 @@ interface Props {
 
 **Agent:** `frontend-ts` (extended scope also touched `backend-ts` + `bff-ts` — read-path/mapper fields only, no migration; see "Extended scope" below)
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-009 A6, `journeys/staff/prototypes/agenda/04-mark-complete.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-009 A6, `journeys/staff/prototypes/agenda/04-mark-complete.html`
 
 **Description:**
 Extends the `MarkCompleteBookingPage` component (built in `M13-S20`) with the loyalty redemption strip. Visible only when `booking.customerId != null` AND `conversionRate > 0`. Staff enters points to use (or clicks "Usar todos"), sees the BRL discount live, and the discount is included in the completion request body.
@@ -2877,7 +2877,7 @@ On confirm: pass `discountByPoints` to `completeBooking()` fetcher.
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-006, UC-016
+**Docs to load:** `docs/USE_CASES.md` § UC-006, UC-016
 **Prototype references:**
 - `journeys/shared/customer-dashboard.html` — Início tab (stat cards + upcoming preview)
 - `journeys/customer/prototypes/minha-conta/01-minha-conta.html` — Agendamentos tab (3 sections)
@@ -2987,7 +2987,7 @@ const canCancel =
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-006 step 5, UC-007, UC-005 A2
+**Docs to load:** `docs/USE_CASES.md` § UC-006 step 5, UC-007, UC-005 A2
 **Prototype references:**
 - `journeys/customer/prototypes/minha-conta/02-agendamento-detail.html` — APPROVED detail
 - `journeys/customer/prototypes/minha-conta/02b-agendamento-info-requested.html` — INFO_REQUESTED + response form
@@ -3134,7 +3134,7 @@ submitInfo(bookingId: string, message: string): Promise<void>
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-016, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-016, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Prototype references:**
 - `journeys/customer/prototypes/minha-conta/04-fidelidade.html` — full view with tabs
 - `journeys/customer/prototypes/minha-conta/04b-fidelidade-empty.html` — 0 pts empty state
@@ -3225,7 +3225,7 @@ fetchLoyaltyRedemptions(token): // GET /v1/loyalty/redemptions?limit=50 → Cust
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-026, `journeys/manager/configuracoes.md`, `journeys/manager/prototypes/configuracoes/dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-026, `journeys/manager/configuracoes.md`, `journeys/manager/prototypes/configuracoes/dev-notes.md`
 
 **Description:**
 The settings form — sections matching the prototype (Geral, Agendamento, Fidelidade, Horário de funcionamento, Contato) plus a read-only Localização section and a Notificações section. See the "Scope expanded" note below for what changed after the original prototype/UC-026 scope.
@@ -3291,7 +3291,7 @@ renameTenant(body: RenameTenantRequest): Promise<RenameTenantResponse>          
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, UC-029; `journeys/manager/equipe.md`; `journeys/manager/prototypes/equipe/dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-028, UC-029; `journeys/manager/equipe.md`; `journeys/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The team list with Ativo / Convite pendente / Inativo filter tabs. The data model has no dedicated "pending invite" status — both a never-activated invitee and a deactivated former member have `isActive: false`. The displayed status is **precomputed in the BFF** (see discovery resolution below) — the web consumes it directly.
@@ -3352,7 +3352,7 @@ All visible copy via `useTranslations()` with keys in both `pt-BR` and `en` loca
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `journeys/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `journeys/manager/prototypes/equipe/dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-028, `journeys/manager/prototypes/equipe/02-invite-form.html`, `02b-invite-error.html`, `journeys/manager/prototypes/equipe/dev-notes.md`
 
 **Description:**
 The invite form — name, email, role selector. `POST /staff/invite` already exists and is fully guarded; this is a frontend-only story.
@@ -3422,7 +3422,7 @@ Layout follows the established two-pane pattern used by `SettingsForm.tsx` / `Se
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-029, `journeys/manager/prototypes/equipe/03-deactivate-confirm.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`
+**Docs to load:** `docs/USE_CASES.md` § UC-029, `journeys/manager/prototypes/equipe/03-deactivate-confirm.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`
 
 **Description:**
 The deactivation confirmation flow, including the two business-rule error states already enforced server-side: self-deactivation (`403`) and last-active-MANAGER (`409`). `PATCH /staff/:id/deactivate` already exists with both guards implemented in `DeactivateStaffUseCase` — frontend-only story.
@@ -3466,7 +3466,7 @@ deactivateStaff(staffId: string): Promise<DeactivateStaffResponse>
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027, `journeys/manager/hotsite.md`, `journeys/manager/prototypes/hotsite/dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-027, `journeys/manager/hotsite.md`, `journeys/manager/prototypes/hotsite/dev-notes.md`
 
 **Description:**
 The Hotsite editor page itself — tabbed shell (Branding / Layout / SEO, client-side tab state, no separate routes, matching the prototype) — plus the Branding tab's full field set. `GET`/`PATCH /tenants/hotsite` and the image signed-URL endpoint already exist and are fully typed in `@ikaro/types` (`packages/types/src/hotsite.ts`) — frontend-only story.
@@ -3556,7 +3556,7 @@ New shared components: `apps/web/shared/components/ui/section-card.tsx` (extract
 
 **Agent:** `frontend-ts` (+ small `backend-ts`/`bff-ts` prep pieces — see Phase 0)
 **Complexity:** XL (expanded from `M` — originally 1 module's config panel + toggle/reorder; now all 8 modules' config panels + drag-and-drop + a new backend image-delete capability + a booking-photo picker)
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section B, `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`, `packages/types/src/hotsite.ts` (all 8 module data interfaces — the ground truth for every field list below), `apps/web/features/platform/hotsite/module-schemas.ts` (existing Zod validation, already correct, no changes needed), `apps/web/shells/hotsite/components/*.tsx` (the public renderers — confirms exactly which fields are consumed vs. dead)
+**Docs to load:** `docs/USE_CASES.md` § UC-027 Section B, `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` (Layout tab), `01d-module-config-hero.html`, `packages/types/src/hotsite.ts` (all 8 module data interfaces — the ground truth for every field list below), `apps/web/features/platform/hotsite/module-schemas.ts` (existing Zod validation, already correct, no changes needed), `apps/web/shells/hotsite/components/*.tsx` (the public renderers — confirms exactly which fields are consumed vs. dead)
 
 **Description:**
 Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — see FOOTER note below) drag-to-reorder + enable/disable list, plus a full config panel for **every** module type (not just HERO — the original story's "defer the other 6" framing is superseded). Also adds real image lifecycle management (upload, large/prominent preview, and **actual deletion from the storage bucket**) everywhere an image is used, including a retrofit onto `LogoUpload.tsx` from M13-S35, and a "feature a photo from a completed booking" picker for the Gallery module.
@@ -3667,12 +3667,12 @@ Extends `HotsiteEditor` (`M13-S35`) with the Layout tab: an 8-module (not 7 — 
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027 Section C, `journeys/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`, `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx`, `apps/web/features/platform/components/settings/SettingsForm.tsx` (inline success-banner pattern to mirror), `apps/backend/src/shared/value-objects/hex-color.vo.ts` (VO pattern to mirror)
+**Docs to load:** `docs/USE_CASES.md` § UC-027 Section C, `journeys/manager/prototypes/hotsite/02-preview.html`, `03-publish-success.html`, `03b-unpublish-success.html`, `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx`, `apps/web/features/platform/components/settings/SettingsForm.tsx` (inline success-banner pattern to mirror), `apps/backend/src/shared/value-objects/hex-color.vo.ts` (VO pattern to mirror)
 
 **Description:**
 Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/Unpublish actions. Confirmed during story-discovery (2026-07-08) that this touches backend + BFF + web on one branch — not frontend-only as originally scoped.
 
-> **SEO limits tightened during discovery:** title max 60 chars (not 70), description max 158 chars (not 160) — real-world Google truncation points, not the rough placeholder numbers in the original UC/prototype. Promote `HotsiteSeo.title`/`description` from plain `string | null` fields validated procedurally in `hotsite-config.aggregate.ts`'s `validateSeo()` to proper value objects, mirroring the `HexColor` VO already in the same file (`create()`/`reconstitute()`/`value`). New `SeoTitle`/`SeoDescription` VOs under `apps/backend/src/shared/value-objects/`, throwing `PlatformDomainError` (a typed domain error, not a plain `Error`, per `docs/ANTI_PATTERNS.md`'s VO-error rule). Update `SEO_TITLE_MAX_LENGTH`/`SEO_DESCRIPTION_MAX_LENGTH` (70→60, 160→158) and the matching Zod `.max()` in `packages/validation/src/hotsite.ts`'s `HotsiteSeoSchema` — the single shared schema both `apps/bff/src/features/platform/hotsite-admin.schemas.ts` and the backend's `update-hotsite-content.dto.ts` import (not two independently maintained copies). `docs/04-USE_CASES.md` UC-027 §C updated in the same story.
+> **SEO limits tightened during discovery:** title max 60 chars (not 70), description max 158 chars (not 160) — real-world Google truncation points, not the rough placeholder numbers in the original UC/prototype. Promote `HotsiteSeo.title`/`description` from plain `string | null` fields validated procedurally in `hotsite-config.aggregate.ts`'s `validateSeo()` to proper value objects, mirroring the `HexColor` VO already in the same file (`create()`/`reconstitute()`/`value`). New `SeoTitle`/`SeoDescription` VOs under `apps/backend/src/shared/value-objects/`, throwing `PlatformDomainError` (a typed domain error, not a plain `Error`, per `docs/ANTI_PATTERNS.md`'s VO-error rule). Update `SEO_TITLE_MAX_LENGTH`/`SEO_DESCRIPTION_MAX_LENGTH` (70→60, 160→158) and the matching Zod `.max()` in `packages/validation/src/hotsite.ts`'s `HotsiteSeoSchema` — the single shared schema both `apps/bff/src/features/platform/hotsite-admin.schemas.ts` and the backend's `update-hotsite-content.dto.ts` import (not two independently maintained copies). `docs/USE_CASES.md` UC-027 §C updated in the same story.
 >
 > **Preview fidelity note (validated in the journey-prototype pass):** the prototype originally rendered its preview mock with a hardcoded `--ba-primary` value regardless of the form's edited color — meaning the "preview" never actually reflected what was being edited. This was fixed at the prototype level with a lightweight `localStorage`-based live-binding purely to validate the UX. **The production implementation must not reuse that mechanism** — bind the preview to actual component state (the same `draft` object `HotsiteEditor` already holds in memory), not `localStorage`.
 >
@@ -3694,7 +3694,7 @@ Closes out the Hotsite editor: the SEO tab, the Preview action, and the Publish/
 >
 > **Fix, corrected during implementation (found the "omit unchanged fields" idea below doesn't actually work):** `branding` is shallow-merged server-side (`{...config.branding, ...dto.branding}`), so omitting an unchanged `logoUrl` key is safe. But `layout`'s per-module `data` is **not** merged — `UpdateHotsiteContentUseCase.toDomainLayout()` replaces each module's whole `data` object with exactly what's sent. Omitting an untouched field there wouldn't preserve the old value, it would delete the image reference entirely. The actual fix: `HotsiteImageUrlResolver.getPublicUrl()` builds resolved URLs as a plain `${publicBaseUrl}/${publicBucketName}/${storagePath}` concatenation (not signed/expiring), so the raw path can be recovered directly from any resolved URL by locating the `tenants/<tenantId>/` segment inside it and slicing from there (`apps/web/features/platform/hotsite/strip-resolved-image-urls.ts`). Applied unconditionally to every image field (branding.logoUrl + every module field + gallery/testimonial sub-items) right before the PATCH payload is built — a value without that segment (a fresh `tmp/`/`tenants/` upload, or an empty `logoUrl`) passes through unchanged, so this needs no per-field dirty-tracking and works whether the field changed this session or not. See the two follow-on bugs below for the opposite-direction (raw path → displayable URL) fixes this same field set also needed.
 >
-> **Historical sequencing note:** the tmp-staging/promote-on-save upload flow was implemented after this story. Its current contract is documented in `docs/14-API_CONTRACTS.md`; this completed story remains only as historical context.
+> **Historical sequencing note:** the tmp-staging/promote-on-save upload flow was implemented after this story. Its current contract is documented in `docs/API_CONTRACTS.md`; this completed story remains only as historical context.
 >
 > ⚠️ **Bug found during manual verification (2026-07-08): Preview crashed on a freshly-uploaded, not-yet-saved image.** A field the admin just uploaded this session holds the raw storage path the upload flow returned (resolution only happens server-side, on the next GET) — passed straight into `next/image`'s `src` by the M12 render components, it throws `Failed to parse src`. Fix: `resolveDraftImageUrls()` (`apps/web/features/platform/hotsite/resolve-draft-image-urls.ts`) — the mirror-image of `stripResolvedImageUrls()`, sharing the same field-traversal (`map-hotsite-image-fields.ts`, extracted so both directions can't drift out of sync) — resolves any non-absolute value against `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` before `HotsitePreview` renders anything. Called inside `HotsitePreview`, not on `HotsiteEditor`'s `draft` itself — the raw path is exactly what PATCH still needs later.
 >
@@ -3825,7 +3825,7 @@ Update the assertion that checks the constructed link (grep for `responder`, rep
 **Agent:** `bff-ts`
 **Complexity:** S
 **Optional:** `M13-S40` can ship without this. Without it, the form shows no booking summary card (graceful degradation). Implement if time allows — it meaningfully improves UX.
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` (bookings section), `plan/M08-BOOKING-APPROVAL_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/API_CONTRACTS.md` (bookings section), `plan/M08-BOOKING-APPROVAL_IMPLEMENTATION_DETAILS_IA.md`
 
 **Description:**
 Add `GET /v1/bookings/:id/guest?token=` to the BFF — a `@Public()` endpoint that validates the guest token and returns the minimal booking fields needed to pre-fill the form (service name, date, info request message). Without this, the frontend form has no way to show a booking summary to the guest.
@@ -3899,7 +3899,7 @@ GET {{bffUrl}}/v1/bookings/{{bookingId}}/guest?token={{guestToken}}
 **Agent:** `web-ts`
 **Complexity:** M
 **Must co-deploy with:** M13-S38; M13-S39 optional (degrade gracefully if absent)
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `plan/M12-HOTSITE-FRONTEND_IMPLEMENTATION_DETAILS_IA.md`
 **Prototype:** `journeys/guest/prototypes/submit-info/` — read `dev-notes.md` in full before starting
 
 **Description:**
@@ -4119,7 +4119,7 @@ Use `vi.mock` for `fetch`. Do NOT test `page.tsx` — server component, Playwrig
 
 > **Implement this story first** — before M13-S01. Every other M13 story that builds a `page.tsx` route must add an E2E test file alongside it (`apps/web/e2e/<feature>.spec.ts`). This scaffolding must exist before those stories start.
 
-> **Superseded — the `getByLabel(/nome/i)`/`getByLabel(/telefone/i)` locators below are stale.** This story's own original guidance recommended `getByLabel`/`getByText` as a first-choice selector; that was walked back during this same story after four follow-up commits were needed to strip usages that had crept in under it (see `docs/08-TESTING_STRATEGY.md` § E2E Selector Strategy). `getByLabel`/`getByText` are now forbidden everywhere in `apps/web/e2e/*.spec.ts` with no exception, enforced by the E2E-1 ESLint rule (`apps/web/eslint.config.js`, TD37-S23). Use `data-testid` for form fields instead — the historical example below is left as-is for planning-doc accuracy, not as current guidance.
+> **Superseded — the `getByLabel(/nome/i)`/`getByLabel(/telefone/i)` locators below are stale.** This story's own original guidance recommended `getByLabel`/`getByText` as a first-choice selector; that was walked back during this same story after four follow-up commits were needed to strip usages that had crept in under it (see `docs/TESTING_STRATEGY.md` § E2E Selector Strategy). `getByLabel`/`getByText` are now forbidden everywhere in `apps/web/e2e/*.spec.ts` with no exception, enforced by the E2E-1 ESLint rule (`apps/web/eslint.config.js`, TD37-S23). Use `data-testid` for form fields instead — the historical example below is left as-is for planning-doc accuracy, not as current guidance.
 
 **Goal:** Install Playwright in `apps/web`; write the first E2E test for the UC-001 guest booking golden path (M12-S07 already built the code — this adds the test). Establish the convention: every `app/**/page.tsx` route added in M13 ships with a Playwright test in the same story.
 
@@ -4264,7 +4264,7 @@ apps/web/test-results/
 
 **Agent:** `frontend-ts` (frontend + a small BFF addition)
 **Complexity:** M
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-021, `docs/24-BFF_ARCHITECTURE.md`
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-021, `docs/BFF_ARCHITECTURE.md`
 **Prototype references:**
 - `journeys/shared/hotsite.html` — logged-out auth bar ("Entrar" link; "Área da Equipe" is prototype-only, never built in production)
 - `journeys/shared/hotsite-logged-in.html` — logged-in auth bar (avatar + dropdown: "Minha conta" | "Sair")
@@ -4274,7 +4274,7 @@ apps/web/test-results/
 Adds the persistent top auth bar to the public hotsite (`/{slug}` and `/{slug}/booking`), matching the prototypes: unauthenticated visitors see an "Entrar" link; authenticated customers see their initials avatar + name with a dropdown ("Minha conta" / "Sair"). Also adds the minimal tenant-branded login page the bar's "Entrar" link needs, and the BFF logout endpoint the dropdown's "Sair" needs — neither existed before this story.
 
 **Scope decisions (already discussed and agreed):**
-- "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope — `M13-S14`'s discovery session found this BFF branch is unreachable from any shipped UI and descoped it permanently rather than building it (see `docs/04-USE_CASES.md` UC-021).
+- "Entrar" links to a new minimal `/{slug}/login` page (not directly to the BFF OAuth URL) — matches the prototype's branded login screen exactly. Multi-tenant selection (`/select-tenant`) stays out of scope — `M13-S14`'s discovery session found this BFF branch is unreachable from any shipped UI and descoped it permanently rather than building it (see `docs/USE_CASES.md` UC-021).
 - The avatar dropdown's "Minha conta" links to `/{slug}/my-account`, which will 404 until `M13-S27` ships. Accepted — see the naming-convention note in "Architecture & conventions" above.
 - The bar must not break the existing `revalidate = 300` ISR on `[slug]/page.tsx` / `[slug]/booking/page.tsx`. It is rendered as a `'use client'` component that fetches its own auth state after hydration via a Next.js API proxy route — it does **not** call `cookies()` inside the statically-rendered page tree.
 - The JWT cookie carries no display name (`JwtPayload` is `{ sub, tenantId, tenantSlug, role }` only — see `apps/bff/src/auth/jwt-issuer.service.ts`). The customer's name is fetched from the already-existing `GET /v1/customers/me` BFF endpoint, via a new same-origin proxy route (`/api/customers/me`) that `M13-S14`'s `InformationCompletionPrompt` will also reuse — built once, here.
@@ -4427,7 +4427,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 **Dependencies:** none (deliberately self-contained — see scope decisions above)
 
 **Known gaps, intentionally deferred:**
-- ~~Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.~~ Resolved by `M13-S14`'s discovery session: `/select-tenant` was descoped entirely, not built. See `docs/04-USE_CASES.md` UC-021.
+- ~~Multi-tenant customer login still 404s at `/select-tenant` until `M13-S14`.~~ Resolved by `M13-S14`'s discovery session: `/select-tenant` was descoped entirely, not built. See `docs/USE_CASES.md` UC-021.
 - "Minha conta" 404s until `M13-S27`.
 - `InformationCompletionPrompt` (the other consumer of `/api/customers/me`) is still `M13-S14`'s job.
 
@@ -4439,7 +4439,7 @@ Add `HotsiteAuthBar.spec.tsx` (`@vitest-environment jsdom`, `@testing-library/re
 
 **Agent:** `frontend-ts` (full-stack — backend + BFF + web)
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` § UC-030
+**Docs to load:** `docs/USE_CASES.md` § UC-030
 
 **Description:**
 Clicking a staff member's row in the team list now goes to a detail page where the admin can edit `name` and `role` (`MANAGER`/`STAFF`). `email` is always read-only — it's the lookup key used on every staff Google login (`findStaffByEmail` in the BFF auth flow), not just at first activation, so editing it here would risk locking the member out. No UX prototype needed — the screen reuses `InviteForm`'s field/layout conventions (extracting its `RoleOption` card-select to a shared file) rather than inventing new visual language.
@@ -4490,7 +4490,7 @@ Clicking a staff member's row in the team list now goes to a detail page where t
 
 **Agent:** `frontend-ts` (full-stack — backend + BFF + web)
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` § UC-031
+**Docs to load:** `docs/USE_CASES.md` § UC-031
 
 **Description:**
 While verifying M13-S34 (deactivate member flow) live in the browser, we discovered there was no working path back for a deactivated staff member — `InviteStaffUseCase` throws `StaffAlreadyExistsError` for any email that has ever linked a Google account, active or deactivated, so re-inviting never reactivates one. This story adds a real, symmetric "activate" capability. One-click action on the row — mirrors the existing "Reenviar convite" pattern on PENDING rows, not a dedicated confirmation page — since reactivation is low-stakes and reversible (deactivate again if clicked in error). No dedicated UX prototype was produced — this mirrors an already-validated one-click interaction rather than introducing new UX.
@@ -4533,8 +4533,8 @@ While verifying M13-S34 (deactivate member flow) live in the browser, we discove
 
 ### Auth (Phase 1–2, M13-S02/M13-S13/M13-S14)
 
-- [x] **BFF API route prefix in `apps/web`:** resolved in `M13-S14`'s discovery session — full-page navigations (OAuth, logout) go directly to the BFF (`${NEXT_PUBLIC_BFF_URL}/auth/...`); any client-side JSON exchange that needs the session cookie must go through a same-origin Next.js proxy route (`apps/web/app/api/...`), per `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`'s documented rule. `M13-S13`'s `/select-staff-tenant` violated this (called the BFF directly cross-origin) and was refactored to match in `M13-S14`.
-- [x] **Selection token decode strategy:** moot — `/select-tenant` was descoped entirely in `M13-S14` (no UI ever reaches the multi-tenant OAuth branch). See `docs/04-USE_CASES.md` UC-021.
+- [x] **BFF API route prefix in `apps/web`:** resolved in `M13-S14`'s discovery session — full-page navigations (OAuth, logout) go directly to the BFF (`${NEXT_PUBLIC_BFF_URL}/auth/...`); any client-side JSON exchange that needs the session cookie must go through a same-origin Next.js proxy route (`apps/web/app/api/...`), per `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`'s documented rule. `M13-S13`'s `/select-staff-tenant` violated this (called the BFF directly cross-origin) and was refactored to match in `M13-S14`.
+- [x] **Selection token decode strategy:** moot — `/select-tenant` was descoped entirely in `M13-S14` (no UI ever reaches the multi-tenant OAuth branch). See `docs/USE_CASES.md` UC-021.
 - [x] **`TenantOption.primaryColor`:** not carried by the BFF today; `/select-tenant` is moot (see above). The switch-tenant feature (folded into `M13-S14` from the original `M13-S30`) also still reuses `TenantOption` and uses the same neutral `--ba-primary` placeholder for the avatar background.
 - [x] **Post-login redirect from customer area:** confirmed — the customer lands on `/{slug}` (the hotsite), which already reads the `access_token` cookie server-side (M12) and shows the logged-in nav bar. No follow-up story needed.
 - [x] **Staff login Google button href prefix:** resolved in M13-S13 — uses `${NEXT_PUBLIC_BFF_URL}/auth/google?state=__staff__` (absolute BFF URL, same pattern as the customer login page). `NEXT_PUBLIC_BFF_URL` includes the `/v1` prefix (`http://localhost:3002/v1` in dev).

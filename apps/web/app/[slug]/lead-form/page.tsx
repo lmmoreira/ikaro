@@ -29,8 +29,8 @@ export async function generateMetadata({ params }: LeadFormPageProps): Promise<M
 
 // Disabled-module handling is new logic for this page — unlike /[slug]/booking (which only
 // checks manifest.isPublished), /[slug]/lead-form checks the LEAD_FORM module's own `enabled`
-// flag directly (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM). An unpublished hotsite
-// already stubs `layout: []` at the source (docs/14-API_CONTRACTS.md), so the "module not found"
+// flag directly (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM). An unpublished hotsite
+// already stubs `layout: []` at the source (docs/API_CONTRACTS.md), so the "module not found"
 // branch below covers that case too, with no separate isPublished check needed.
 export default async function LeadFormPage({ params }: LeadFormPageProps) {
   const { slug } = await params;

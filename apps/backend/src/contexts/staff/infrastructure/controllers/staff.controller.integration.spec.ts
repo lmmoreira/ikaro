@@ -433,7 +433,7 @@ describe('StaffController (integration) — management endpoints', () => {
       expect(body.status).toBe(409);
     });
 
-    // docs/28-LOCK_CATALOG.md R5. The first deactivation has locked the manager rows and changed
+    // docs/LOCK_CATALOG.md R5. The first deactivation has locked the manager rows and changed
     // one of them but not committed; the second one must wait for it and then see one manager
     // left. Without the row lock it counts two from its snapshot and both managers end up inactive.
     it('the last-manager guard waits for an uncommitted manager deactivation, then refuses (M23-S48)', async () => {

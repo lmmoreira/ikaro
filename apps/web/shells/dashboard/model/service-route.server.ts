@@ -29,7 +29,7 @@ export const loadServiceDetailRouteData = cache(async function loadServiceDetail
 });
 
 // Edit page: service + intake schema from ONE BFF composite call (the BFF owns the fan-out,
-// docs/24). `cache()` dedupes the layout's and the page's calls for the same request.
+// docs/BFF_ARCHITECTURE). `cache()` dedupes the layout's and the page's calls for the same request.
 export const loadServiceEditRouteData = cache(async function loadServiceEditRouteData(
   token: string,
   serviceId: string,

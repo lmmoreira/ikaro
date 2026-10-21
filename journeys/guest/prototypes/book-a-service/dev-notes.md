@@ -8,7 +8,7 @@
 
 The guest booking flow is a 4-step React form orchestrated by `BookingForm`. All step components live under `apps/web/features/booking/components/public/`. No shadcn/ui is currently used in this path — components use Tailwind + `--ba-*` custom properties directly.
 
-**Also handles the authenticated-customer path** (see `customer/prototypes/book-a-service/`): `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, it switches to `createAuthenticatedBooking()` and passes `hideContactFields={true}` + a pre-filled `pickupAddress` to `PersonalInfoStep`. This isn't a separate flow/component — it's the same `BookingForm` reused for both actors.
+**Also handles the authenticated-customer path** (see `customer/prototypes/book-a-service/`): `BookingForm` (state in `useBookingFormController`, submit in `useBookingSubmission`) calls `getHotsiteCustomerProfile(slug)`; if it resolves, it switches to `createAuthenticatedBooking()`, passes `hideContactFields={true}` to `PersonalInfoStep` and feeds the profile's `defaultAddress` into the form core as the pickup-address default. This isn't a separate flow/component — it's the same `BookingForm` reused for both actors.
 
 ---
 
@@ -105,7 +105,7 @@ Response: AvailabilityResponse
 - `selectedSlot: AvailableSlot | null`
 - `step2Error: string | null`
 
-**409 handling:** After `POST /bookings` returns 409 → `setStep(2)` + `setStep2Error('Horário indisponível, escolha outro')` (data-testid: `step2-error`).
+**Error handling:** a failed `POST /bookings` is routed by its error code through `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`), which returns the step to go back to and the catalogue message from `packages/i18n/locales/{pt-BR,en}/errors.json` (for example `BOOKING_SLOT_UNAVAILABLE` returns to the availability step with "O horário solicitado não está mais disponível."; data-testid: `step2-error`). A code with no mapped step falls back to Confirmation with the generic message.
 
 **Loading states:** `AvailabilityCarousel` renders skeleton placeholders while fetching (already implemented).
 
@@ -169,7 +169,7 @@ Body (CreateBookingRequest from @ikaro/types):
 | `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) |
 
 **Error messages:**
-- `errorMessage = 'Não foi possível enviar sua solicitação. Tente novamente.'` (all non-409 errors)
+- `errorMessage` is the catalogue message for the response's error code (see Error handling above); the generic message (`resolveErrorMessage(undefined, locale)`) is the fallback when the code has no mapped step
 - 409 → navigate back to step 2, not shown in step 4
 
 ---
@@ -216,7 +216,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ## M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29; frontend = M23-S11a ✅ built, M23-S11b ✅ built)
 
-> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are built too (✅). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
+> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are built too (✅). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md` § Booking Requests.
 
 ### Design decisions (settled in the 2026-10-03 prototype review)
 
@@ -271,7 +271,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ✅ Built (S11b) |
 | `apps/web/features/booking/model/basket-lines.ts` (the one row composition behind `03e`/`04g`/`10c`/`04h`/`04i`), `duration-options.ts`, `hooks/useServiceQuote.ts`, `components/public/BasketLines.tsx` | ✅ Built (S11b) |
 
-**BFF calls (new/extended — see `docs/14-API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
+**BFF calls (new/extended — see `docs/API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
 ```
 GET  /public/services/:id/resource-options                  -- feeds ResourcePicker (CUSTOMER_CHOICE options, names only)  [M23-S29]
 GET  /public/services/:id/quote?durationMinutes=            -- "Total" on the variable-duration step               [M23-S29]

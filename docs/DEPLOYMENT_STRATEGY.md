@@ -1,6 +1,6 @@
 # Deployment Strategy
 
-> **When to load:** checking how Ikaro is deployed: the Cloud Run runtime topology, the delivery model, database changes in a deploy, infrastructure ordering, availability and rollback; provisioning steps are in `docs/23-INFRASTRUCTURE_SETUP.md`, operator procedures in `docs/RUNBOOKS.md`.
+> **When to load:** checking how Ikaro is deployed: the Cloud Run runtime topology, the delivery model, database changes in a deploy, infrastructure ordering, availability and rollback; provisioning steps are in `docs/INFRASTRUCTURE_SETUP.md`, operator procedures in `docs/RUNBOOKS.md`.
 > **Tags:** infra
 
 Ikaro deploys immutable containers to Google Cloud Run in `southamerica-east1`. Terraform is the infrastructure source of truth; GitHub Actions builds, scans, migrates, deploys, promotes, and rolls back.
@@ -23,7 +23,7 @@ There is no production observability VM and no self-hosted Grafana/Loki deployme
 
 Pull requests run the quality and test workflows. A merge to `main` can build digest-addressed images, scan them, push them to the `ikaro-registry` Artifact Registry repository, run migrations, deploy to staging, and smoke-test the result. Production uses the protected promotion workflow; it does not rebuild a different artifact.
 
-See `docs/09-CI_CD_PIPELINE.md` and the actual files under `.github/workflows/`.
+See `docs/CI_CD_PIPELINE.md` and the actual files under `.github/workflows/`.
 
 ## Database changes
 
@@ -42,7 +42,7 @@ Database rollback is a separately designed operation. Prefer forward-compatible 
 ## Canonical references
 
 - Terraform roots, modules, apply order, and gotchas: `infra/terraform/README.md`
-- CI/CD workflow map: `docs/09-CI_CD_PIPELINE.md`
-- Release and rollback procedure: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
-- Observability deployment: `docs/10-OBSERVABILITY_STRATEGY.md`
+- CI/CD workflow map: `docs/CI_CD_PIPELINE.md`
+- Release and rollback procedure: `docs/RELEASE_LIFECYCLE_OPERATIONS.md`
+- Observability deployment: `docs/OBSERVABILITY_STRATEGY.md`
 - Container implementation: application Dockerfiles and `infra/docker/otel-collector/`

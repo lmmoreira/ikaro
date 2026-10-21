@@ -16,7 +16,7 @@ export const RESOURCE_NO_LONGER_USED = 'RESOURCE_NO_LONGER_USED';
 // M23-S48 — a "Reservas a resolver" entry says "this booking has a problem with this resource".
 // It is obsolete the moment the booking no longer occupies that resource, so every change that
 // releases or moves a booking's occupancy closes the booking's open entries in the same
-// transaction (docs/28-LOCK_CATALOG.md). Lock order, always: resource locks → entry rows →
+// transaction (docs/LOCK_CATALOG.md). Lock order, always: resource locks → entry rows →
 // booking save → occupancy; the callers below must not take them in another order.
 export interface StaleExceptionDeps {
   occupancyRepo: IResourceOccupancyRepository;

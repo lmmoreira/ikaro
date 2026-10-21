@@ -35,7 +35,6 @@ const isAuthenticatedCustomer = customerProfile !== null;
 // Step 3:
 <PersonalInfoStep
   hideContactFields={isAuthenticatedCustomer}
-  pickupAddress={isAuthenticatedCustomer ? customerProfile.defaultAddress : undefined}
   ...
 />
 
@@ -61,7 +60,7 @@ No separate review component was built — `PersonalInfoStep` handles both paths
 | `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) — see `04c-submission-error.html` |
 
 **Error messages:**
-- `errorMessage = 'Não foi possível enviar sua solicitação. Tente novamente.'` (all non-409 errors)
+- `errorMessage` is the catalogue message for the response's error code, routed by `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`); the generic message is the fallback when the code has no mapped step
 - 409 → navigate back to step 2, not shown in step 4
 
 ---
@@ -136,7 +135,7 @@ New files require Vitest unit tests (`*.spec.tsx` alongside each new component);
 For a service with an active `service_booking_intake_schema`, the authenticated-customer flow gains one step between Review (Step 3) and Confirmation: Services → Calendar → Review → **Intake (`IntakeAnswersStep`)** → Confirm ("Passo N de 5"). Services without a schema skip it and the flow stays 4 steps.
 
 - Prototype: `03b-intake-answers.html` + `03c-intake-answers-error.html` (client field errors) + `03e-intake-answers-erro-servidor.html` (server rejection, summary only) — the same component and behavior as the guest path; full spec (schema-driven rendering, version kept as `intakeSchemaVersion`, no submit on this step, `#b91c1c` error text, `422 intake-answer-missing`) lives in `journeys/guest/prototypes/book-a-service/dev-notes.md` § Intake step placement.
-- Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/14-API_CONTRACTS.md`).
+- Customer-specific: the final `POST /bookings/authenticated` on Confirmation carries `intakeSchemaVersion`/`intakeAnswers`/`consentAccepted`/`attendees`/`participantCount` (identical shape to the guest endpoint, `docs/API_CONTRACTS.md`).
 - Files: `apps/web/features/booking/components/public/IntakeAnswersStep.tsx` (+ `IntakeQuestionField.tsx`, `IntakeAttendeesList.tsx`) — one component for both actors, not duplicated.
 
 **Validation (client-side, `IntakeAnswersStep`; the backend re-validates and returns `422 BOOKING_INTAKE_ANSWER_MISSING`, whose missing field names are only in `detail` and never rendered — field-level errors here are client-side only; a server-only rejection shows the summary banner (`03e`)):**
@@ -206,13 +205,13 @@ Error routing, step paths and the design decisions: `journeys/guest/prototypes/b
 
 | Rule | Source | Error |
 |---|---|---|
-| Range: end after start and end in the future; weekly: at least one weekday and end time after start time | `docs/14-API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` / `16g` / `16i` |
+| Range: end after start and end in the future; weekly: at least one weekday and end time after start time | `docs/API_CONTRACTS.md` § Availability Alerts | `422 BOOKING_ALERT_CRITERIA_INVALID` → `16b` / `16g` / `16i` |
 | Service must be alert-eligible | UC-055 | `422 BOOKING_ALERT_INELIGIBLE_SERVICE` → `16f` |
 | At most 10 active alerts per customer | UC-072 A3 | `409 BOOKING_ALERT_CAP_REACHED` → `16e` |
 | A customer-selected-duration service needs a valid duration (M23-S34, ✅ Done) | UC-072 | `422 BOOKING_DURATION_OUT_OF_RANGE` → a generic form error |
 
 **State machine:** `17` (guest, no session) → login → `16` / `16h` (idle) → `16c` (saving) → `16d` (saved, "Voltar ao site") | `16b` / `16g` / `16i` / `16e` / `16f` (errors; the validation states keep the form editable).
 
-**UI building blocks:** hotsite tree — tenant branding via `--ba-*` for the page's own surfaces (frame, cards, buttons, weekday pills), painting its own `backgroundColor: 'var(--ba-background)'`. The date, time and duration controls are the project's shared shadcn/ui primitives, used as the rest of the app uses them (CLAUDE.md § Web styling boundary "prefer shadcn/ui primitives"; the M20 plan's rule that a date control is "shadcn/ui's `Calendar` via `Popover` + `Calendar`, not a native date input"): a day is a `Popover` + `Button` + `Calendar` (`LeadFormDateRangeControl`, `ScheduleDateTimeRangeSheet`; two months shown, outside days hidden), an hour is the shared `TimePicker` (settings business hours; `timeFormat` from `useFormatting()`), and the alert duration is the shadcn `Select`. The shadcn tokens are defined globally (`app/globals.css`), so these render in the fixed SaaS palette inside the tenant-branded page, as they do wherever they are used; the page's own surfaces (frame, cards, buttons, pills) keep the tenant's `--ba-*` branding. The prototypes draw native date/time inputs only because that is this repo's prototype convention — they are not the implementation. Do **not** use dashboard/account patterns here. Rule: `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
+**UI building blocks:** hotsite tree — tenant branding via `--ba-*` for the page's own surfaces (frame, cards, buttons, weekday pills), painting its own `backgroundColor: 'var(--ba-background)'`. The date, time and duration controls are the project's shared shadcn/ui primitives, used as the rest of the app uses them (CLAUDE.md § Web styling boundary "prefer shadcn/ui primitives"; the M20 plan's rule that a date control is "shadcn/ui's `Calendar` via `Popover` + `Calendar`, not a native date input"): a day is a `Popover` + `Button` + `Calendar` (`LeadFormDateRangeControl`, `ScheduleDateTimeRangeSheet`; two months shown, outside days hidden), an hour is the shared `TimePicker` (settings business hours; `timeFormat` from `useFormatting()`), and the alert duration is the shadcn `Select`. The shadcn tokens are defined globally (`app/globals.css`), so these render in the fixed SaaS palette inside the tenant-branded page, as they do wherever they are used; the page's own surfaces (frame, cards, buttons, pills) keep the tenant's `--ba-*` branding. The prototypes draw native date/time inputs only because that is this repo's prototype convention — they are not the implementation. Do **not** use dashboard/account patterns here. Rule: `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §2, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
 
 **BFF call:** `POST /availability-alerts` (customer-only) — body `{ serviceId, preferredResourceId?, criteriaType, acceptableStartAt?, acceptableEndAt?, weekdays?, localStartTime?, localEndTime?, durationMinutes?, expiresAt? }` (`participantCount` exists in the API but this page never sends it).

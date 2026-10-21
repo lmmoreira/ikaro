@@ -166,7 +166,7 @@ export class Resource extends AggregateRoot {
   deactivate(): void {
     // A tenant must always retain exactly one active LOCATION resource — it's never manually
     // created (only the M21-S02 backfill produces it) and, symmetrically, never manually
-    // deactivated either (docs/02-DOMAIN_MODEL.md § Resource: "Exactly one active LOCATION
+    // deactivated either (docs/DOMAIN_MODEL.md § Resource: "Exactly one active LOCATION
     // resource per tenant"; Codex round-6 finding, PR #457).
     if (this.props.type === ResourceType.LOCATION) {
       throw new ResourceLocationCannotBeDeactivatedError(this.props.id);
@@ -193,7 +193,7 @@ export class Resource extends AggregateRoot {
       throw new ResourceTypeRefIdMismatchError();
     }
     // maxCapacity is a physical ceiling for LOCATION/ROOM/EQUIPMENT only — never set for
-    // STAFF (docs/02-DOMAIN_MODEL.md § Resource, docs/13-DATABASE_SCHEMA.md § booking.resources,
+    // STAFF (docs/DOMAIN_MODEL.md § Resource, docs/DATABASE_SCHEMA.md § booking.resources,
     // Codex round-5 finding, PR #457).
     if (type === ResourceType.STAFF && maxCapacity !== null) {
       throw new ResourceMaxCapacityInvalidError('must-be-null-for-staff');

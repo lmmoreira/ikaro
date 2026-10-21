@@ -19,7 +19,7 @@ export interface BookingListFilters extends BookingFilters {
 }
 
 // A display-only projection of booking_line_resource_assignments (the immutable audit record —
-// see docs/13-DATABASE_SCHEMA.md), deliberately kept out of the Booking aggregate itself: which
+// see docs/DATABASE_SCHEMA.md), deliberately kept out of the Booking aggregate itself: which
 // physical resource a line resolved to has no bearing on Booking's own state-transition business
 // rules, unlike `lines`, which the aggregate genuinely owns and reasons about (pricing, duration).
 // One entry per physical resource per booking (deduplicated — a booking with the same resource

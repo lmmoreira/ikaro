@@ -18,7 +18,7 @@ export function isValidSeoDescription(description: string): boolean {
   return description.length <= SEO_DESCRIPTION_MAX_LENGTH;
 }
 
-// Single source of truth for the tmp/ staging path shapes (see docs/14-API_CONTRACTS.md).
+// Single source of truth for the tmp/ staging path shapes (see docs/API_CONTRACTS.md).
 // Booking uploads use tmp/<tenantId>/<uuid>/<fileName> (no purpose segment); hotsite uploads use
 // tmp/<tenantId>/<purpose>/<uuid>/<fileName> — one segment longer. The two shapes must stay
 // distinguishable: HOTSITE_TMP_PATH_FRAGMENT requires exactly the hotsite segment count so a
@@ -27,7 +27,7 @@ export function isValidSeoDescription(description: string): boolean {
 export const HOTSITE_TMP_PATH_FRAGMENT = 'tmp/[^/]+/[^/]+/[^/]+/[^/]+';
 
 // Accepts empty (to clear), an already-permanent hotsite image, or a not-yet-promoted tmp/
-// staging upload — see docs/14-API_CONTRACTS.md.
+// staging upload — see docs/API_CONTRACTS.md.
 export const HOTSITE_LOGO_URL_REGEX = new RegExp(
   `^$|^tenants/[^/]+/hotsite/.+$|^${HOTSITE_TMP_PATH_FRAGMENT}$`,
 );
@@ -106,7 +106,7 @@ export const HotsiteModuleSchema = z
       (!('audienceMode' in module.data) && !('questions' in module.data)),
     {
       // audienceMode/questions live in LeadFormConfig, never in HotsiteConfig.layout[] — that blob
-      // feeds the public-cached manifest (docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
+      // feeds the public-cached manifest (docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
       // save"). Without this check, `data`'s otherwise-unconstrained z.record() would let a caller
       // smuggle both fields into the cached layout entry directly, bypassing LeadFormConfig's own
       // validation (the 20-question cap included) entirely (M20-S08 PR #429 Codex review finding,
@@ -141,7 +141,7 @@ export const LeadFormQuestionSchema = z.object({
 
 export const LeadFormAudienceModeSchema = z.enum(['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY']);
 
-// Teaser fields mirror BookingCtaModuleData's own shape family (docs/15-HOTSITE_DYNAMIC_
+// Teaser fields mirror BookingCtaModuleData's own shape family (docs/HOTSITE_DYNAMIC_
 // ARCHITECTURE.md § LEAD_FORM) — standard hotsite-layout enum validation for variant/bgStyle/
 // backgroundImagePosition, same as every other module's teaser data.
 export const HotsiteSeoSchema = z

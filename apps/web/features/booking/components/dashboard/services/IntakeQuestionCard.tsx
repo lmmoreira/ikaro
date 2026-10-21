@@ -25,7 +25,7 @@ interface IntakeQuestionCardProps {
 }
 
 // One question row inside ServiceIntakeSchemaPanel's builder — data-testid stays static across
-// every row (E2E-3, docs/08-TESTING_STRATEGY.md), disambiguated by the sibling
+// every row (E2E-3, docs/TESTING_STRATEGY.md), disambiguated by the sibling
 // data-question-index attribute instead of a template-literal testid.
 export function IntakeQuestionCard({
   question,

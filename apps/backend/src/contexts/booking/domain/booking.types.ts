@@ -7,7 +7,7 @@ import { BookingLine, BookingLineInput } from './booking-line.entity';
 
 // M23-S02 (UC-068) — a booking's intake snapshot is either fully set or fully absent together,
 // mirroring the DB's own CHECK (intake_schema_version IS NULL) = (intake_answers IS NULL)
-// (docs/13-DATABASE_SCHEMA.md). Modeled as one discriminated field instead of two independently
+// (docs/DATABASE_SCHEMA.md). Modeled as one discriminated field instead of two independently
 // nullable ones so that invariant is structurally impossible to violate from the domain layer.
 export interface BookingIntakeSnapshot {
   intakeSchemaVersion: number;
@@ -88,12 +88,12 @@ export interface BookingProps {
   version?: number;
   // M23-S02 — UC-067 has no dedicated Booking-level field: the customer-selected duration/price
   // land on the affected BookingLine itself (durationMinsAtBooking/priceAtBooking, reusing the
-  // existing per-line snapshot columns — docs/13-DATABASE_SCHEMA.md, no new column needed).
+  // existing per-line snapshot columns — docs/DATABASE_SCHEMA.md, no new column needed).
   participantCount: number | null;
   intake: BookingIntakeSnapshot | null;
   attendees: BookingAttendee[];
   // Set only when M23-S05 materializes a recurring schedule's occurrences — always null for a
-  // one-off booking (requestBooking() never sets it). docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule.
+  // one-off booking (requestBooking() never sets it). docs/DOMAIN_MODEL.md § RecurringBookingSchedule.
   recurringScheduleId: string | null;
   // Set only when staff created the booking on the customer's behalf (UC-108, M23-S39) — null for
   // every self-service booking and every recurring occurrence. No FK: a cross-context reference.
@@ -122,7 +122,7 @@ export interface RequestBookingInput {
    * Pre-generated booking ID — pass this when the caller needs to know the ID before the
    * aggregate exists (e.g. to promote `tmp/`-staged photos to their permanent
    * `tenants/<id>/bookings/<bookingId>/...` path before construction; see
-   * docs/14-API_CONTRACTS.md). Omit to keep the existing behavior of generating a
+   * docs/API_CONTRACTS.md). Omit to keep the existing behavior of generating a
    * fresh `uuidv7()` inside the factory.
    */
   id?: string;

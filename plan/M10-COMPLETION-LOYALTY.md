@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-009, `docs/03-DOMAIN_EVENTS.md` § BookingCompleted
+**Docs to load:** `docs/USE_CASES.md` § UC-009, `docs/DOMAIN_EVENTS.md` § BookingCompleted
 
 **Description:**  
 Implement booking completion. The admin sets the `actualPriceCharged` for each line (defaults to `priceAtBooking` if not overridden), uploads after-service photos, and marks the booking COMPLETED. This triggers the loyalty points flow.
@@ -66,7 +66,7 @@ Implement booking completion. The admin sets the `actualPriceCharged` for each l
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Loyalty context, `docs/05-BOUNDED_CONTEXTS.md` § Loyalty context, `docs/13-DATABASE_SCHEMA.md` § loyalty schema
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Loyalty context, `docs/BOUNDED_CONTEXTS.md` § Loyalty context, `docs/DATABASE_SCHEMA.md` § loyalty schema
 
 **Description:**  
 Implement the `LoyaltyEntry` aggregate domain layer and its migration. Loyalty entries are immutable (insert-only). No updates, no deletes. Idempotency is guaranteed by a unique constraint on `(tenant_id, booking_line_id)`.
@@ -119,7 +119,7 @@ Also creates `loyalty.processed_events` (idempotency table for Loyalty consumers
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Loyalty context, `docs/13-DATABASE_SCHEMA.md` § loyalty schema
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Loyalty context, `docs/DATABASE_SCHEMA.md` § loyalty schema
 
 **Description:**  
 Implement the `LoyaltyBalance` and `LoyaltyRedemption` aggregates, their migrations, and repository ports. `LoyaltyBalance` is the source of truth for a customer's current active point balance — a single row per `(tenant_id, customer_id)` that is incremented on earn (S04), decremented on redemption (S07) and expiry (S08). `LoyaltyRedemption` is an immutable audit record of each admin-triggered redemption.
@@ -197,13 +197,13 @@ processed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Loyalty context, `docs/03-DOMAIN_EVENTS.md` § BookingCompleted + ServicePointsEarned
+**Docs to load:** `docs/BOUNDED_CONTEXTS.md` § Loyalty context, `docs/DOMAIN_EVENTS.md` § BookingCompleted + ServicePointsEarned
 
 **Description:**  
 Implement the Loyalty context's consumer for `BookingCompleted`. For each line in the booking that has a customer (`customerId != null`), create a `LoyaltyEntry`, increment `LoyaltyBalance`, and emit `ServicePointsEarned`. The consumer is fully idempotent. Entries and balance are written atomically in a single transaction — they must never be split across two transactions.
 
 **Preparatory fix (before main S04 code):**  
-Add `earnedAt: string` (ISO-8601) to `ServicePointsEarned` event class (`loyalty/domain/events/service-points-earned.event.ts`) and populate it in `LoyaltyEntry.record()`. This field is documented in `docs/03-DOMAIN_EVENTS.md` but missing from the class — S06 (notification email) requires it.
+Add `earnedAt: string` (ISO-8601) to `ServicePointsEarned` event class (`loyalty/domain/events/service-points-earned.event.ts`) and populate it in `LoyaltyEntry.record()`. This field is documented in `docs/DOMAIN_EVENTS.md` but missing from the class — S06 (notification email) requires it.
 
 ---
 
@@ -294,7 +294,7 @@ static readonly CONSUMER_NAME = 'RECORD_LOYALTY_ENTRY'; // used as consumerName 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-016, `docs/14-API_CONTRACTS.md` § Loyalty Metrics
+**Docs to load:** `docs/USE_CASES.md` § UC-016, `docs/API_CONTRACTS.md` § Loyalty Metrics
 
 **Description:**  
 Implement three read-only endpoints for customers to view their active balance, earning history, and redemption history — plus the admin variants that let staff view any customer's loyalty data within the tenant. Balance is read from `loyalty_balances` (O(1)). History comes from `loyalty_entries` and `loyalty_redemptions`. Service names in the entry response are resolved via a new `IServiceCatalogPort` cross-context adapter.
@@ -382,7 +382,7 @@ Admin-facing (JWT role `MANAGER|STAFF`):
 
 ---
 
-**Response shapes** (from `docs/14-API_CONTRACTS.md` § Loyalty Metrics):
+**Response shapes** (from `docs/API_CONTRACTS.md` § Loyalty Metrics):
 
 Balance: `{ currentPoints: number, nextExpiryDate: string | null, nextExpiryPoints: number | null }`
 
@@ -415,7 +415,7 @@ Redemptions: `{ redemptions: [{ redemptionId, pointsRedeemed, redeemedAt, notes 
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § ServicePointsEarned
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § ServicePointsEarned
 
 **Description:**  
 Implement the Notification consumer for `ServicePointsEarned`. Sends a thank-you email to the customer after their booking is completed with the points earned. One email per event (one per line — acceptable for MVP).
@@ -487,7 +487,7 @@ const CHANNEL = 'EMAIL';
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Loyalty context, `docs/14-API_CONTRACTS.md` § loyalty endpoints
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Loyalty context, `docs/API_CONTRACTS.md` § loyalty endpoints
 
 **Description:**  
 Implement the admin-facing redemption flow. When a customer uses their points (e.g., for a free or discounted wash), the admin records the redemption in the system. This decrements `LoyaltyBalance.current_points` and creates an immutable `LoyaltyRedemption` audit record — both atomically.
@@ -533,7 +533,7 @@ Implement the admin-facing redemption flow. When a customer uses their points (e
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Loyalty context
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Loyalty context
 
 **Description:**  
 Implement the points expiry logic as a cron HTTP endpoint. A GCP Cloud Scheduler job calls `POST /cron/loyalty-expiry` at 02:00 UTC daily, which decrements `loyalty_balances.current_points` for all `loyalty_entries` whose `expires_at` has passed. Fully idempotent via `balance_expiry_log` — if the scheduler fires twice, no entry is double-processed.

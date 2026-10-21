@@ -35,7 +35,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
     await this.persistQuestionRefs(submission, manager);
     await this.persistAnswers(submission, manager);
     // TD24-S02 pattern — 4th aggregate on the transactional-outbox pattern: drains events into
-    // shared.outbox inside the same ambient transaction as the row above (docs/03-DOMAIN_EVENTS.md).
+    // shared.outbox inside the same ambient transaction as the row above (docs/DOMAIN_EVENTS.md).
     await drainDomainEvents(submission, this.outboxPublisher);
   }
 
@@ -229,7 +229,7 @@ export class TypeOrmLeadFormSubmissionRepository implements ILeadFormSubmissionR
   // M20-S12 — one row per selected option (MULTIPLE_CHOICE's string[] flattened, TEXT/
   // SINGLE_CHOICE's single string wrapped), maintained in the same transaction as the parent
   // row. Never a second aggregate — purely a repository-owned search projection
-  // (docs/13-DATABASE_SCHEMA.md § platform.lead_form_answers).
+  // (docs/DATABASE_SCHEMA.md § platform.lead_form_answers).
   private async persistAnswers(
     submission: LeadFormSubmission,
     manager: ReturnType<typeof getActiveEntityManager>,

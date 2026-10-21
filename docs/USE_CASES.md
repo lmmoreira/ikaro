@@ -1,6 +1,6 @@
 # Use Cases - Ikaro
 
-> **When to load:** implementing, testing or reviewing a use case (UC-NNN): its actors, main flow, alternative flows and behavior, grouped by area (booking, schedule, resources, services, auth, loyalty, chatbot, lead form, platform); read the one UC section you need, not the whole file. Algorithms spanning several UCs are in `docs/27-BUSINESS_LOGIC_REFERENCE.md`, endpoints in `docs/14-API_CONTRACTS.md`.
+> **When to load:** implementing, testing or reviewing a use case (UC-NNN): its actors, main flow, alternative flows and behavior, grouped by area (booking, schedule, resources, services, auth, loyalty, chatbot, lead form, platform); read the one UC section you need, not the whole file. Algorithms spanning several UCs are in `docs/BUSINESS_LOGIC_REFERENCE.md`, endpoints in `docs/API_CONTRACTS.md`.
 > **Tags:** product, backend
 
 Use cases represent the business operations (user actions) that the system must support. Each use case describes the sequence of steps to achieve a business goal.
@@ -128,7 +128,7 @@ UC-XXX: [Use Case Name]
 
 - **Alternative Flows:**
   - **A1: Slot no longer available** → System shows error and suggests adjacent free slots that also fit `totalDurationMins`.
-  - **A1b: The request's approval deadline has passed (TD51)** → On a resource-scoped `MANUAL_APPROVAL` booking the hold (`Service.bookingPolicy.manualHoldMinutes`, default 30 minutes from the request) has run out → `409 BOOKING_APPROVAL_HOLD_EXPIRED`, nothing is committed. Applies to `PENDING` and `INFO_REQUESTED` alike, even when the expiry job has not run yet; the booking is then cancelled by the system on the job's next run (`ExpireBookingHoldsJob`: slot released, the customer sent the "expired unanswered" email, managers none, as UC-070 A5 does for a recurring schedule; `docs/27-BUSINESS_LOGIC_REFERENCE.md` § `resource_occupancy.lock_state` lifecycle). Reject and cancel are still available until then.
+  - **A1b: The request's approval deadline has passed (TD51)** → On a resource-scoped `MANUAL_APPROVAL` booking the hold (`Service.bookingPolicy.manualHoldMinutes`, default 30 minutes from the request) has run out → `409 BOOKING_APPROVAL_HOLD_EXPIRED`, nothing is committed. Applies to `PENDING` and `INFO_REQUESTED` alike, even when the expiry job has not run yet; the booking is then cancelled by the system on the job's next run (`ExpireBookingHoldsJob`: slot released, the customer sent the "expired unanswered" email, managers none, as UC-070 A5 does for a recurring schedule; `docs/BUSINESS_LOGIC_REFERENCE.md` § `resource_occupancy.lock_state` lifecycle). Reject and cancel are still available until then.
   - **A2: Admin adds internal notes** → System stores notes on the booking (optional).
   - **A3: Admin spots an issue with the line list** → For MVP, admin asks the customer to cancel and re-book (no "edit lines on approval" UC yet).
 
@@ -447,7 +447,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 > Extends UC-010a's exact mechanism with an optional `resourceId` — see the `Resource` aggregate (Resource Management Use Cases, below). Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Leaving `resourceId` unset behaves identically to UC-010a (tenant-wide) and stays open to STAFF|MANAGER; setting `resourceId` is deliberately **MANAGER-only** — the same restriction the discovery applies to every Resource Management use case below (dev-notes.md's own review call, no existing precedent to derive it from).
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010a)
-- **Endpoint:** `POST /schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
+- **Endpoint:** `POST /v1/schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
 - **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided.
 - **Trigger:** Admin creates a closure and selects a specific resource instead of leaving "whole business" selected (e.g. "Maria — day off").
 - **Main Flow:**
@@ -468,8 +468,8 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 > Extends UC-010c's exact mechanism with an optional `resourceId`, same relationship as UC-010e has to UC-010a. Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Setting `resourceId` is **MANAGER-only**, same restriction as UC-010e.
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
-- **Endpoint:** `POST /schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
-- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/13-DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
+- **Endpoint:** `POST /v1/schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
+- **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
 - **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
 - **Main Flow:** Same as UC-010c, with `resourceId` set.
 - **Alternative Flows:**
@@ -477,7 +477,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
   - **A3: `resourceId` does not exist or belongs to another tenant** → `404 Not Found`.
   - **A4: the target day is normally closed for the tenant (`businessHours[day]` is `null`) and no tenant-wide opening exists yet for that date** → `422 Unprocessable Entity` (`BOOKING_TENANT_OPENING_REQUIRED`). The manager/staff must open the tenant level for that date first, then open the specific resource.
   - **A5: the requested window extends beyond the bounding tenant window for the same date** → `422 Unprocessable Entity` (`BOOKING_OPENING_EXCEEDS_TENANT_WINDOW`). Which window bounds it depends on the tenant's own day state: when the day is normally *open* for the tenant (A4 doesn't apply), the bound is the tenant's own `businessHours[day]` window directly, no explicit opening row needed — this is the case whenever the resource is closed on a day the *tenant* is open (e.g. one stylist's day off). When the day is normally *closed* for the tenant (A4 applies first), the bound is that prerequisite tenant-wide opening's own window.
-- **Postconditions:** Only that resource's calendar opens for the date, and always within the bounding tenant window (A5); the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/13-DATABASE_SCHEMA.md`).
+- **Postconditions:** Only that resource's calendar opens for the date, and always within the bounding tenant window (A5); the rest of the tenant is unaffected. **Constraint note:** `schedule_openings`' `UNIQUE(tenant_id, date)` is replaced by two partial unique indexes — `UNIQUE(tenant_id, date) WHERE resource_id IS NULL` and `UNIQUE(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` — so a tenant-wide opening and a resource-scoped opening for the same date no longer collide (see `docs/DATABASE_SCHEMA.md`).
 - **Events Triggered:** None.
 
 ---
@@ -502,7 +502,7 @@ booking_duration_minutes = SUM(service.duration_minutes for each service in bask
 buffer = the last service's own bufferAfterMinutes (UC-053), else tenants.settings.booking.serviceBufferMinutes
 ```
 
-For a resource-scoped service the gap is the larger of the service buffer and the resource's turnover (UC-059; `docs/27` § Buffer / turnover / transition-gap formulas).
+For a resource-scoped service the gap is the larger of the service buffer and the resource's turnover (UC-059; `docs/BUSINESS_LOGIC_REFERENCE` § Buffer / turnover / transition-gap formulas).
 
 Example: basket = [Basic Wash (30 min), Wax (25 min)], buffer = 60 min, granularity = 30 min:
 - Raw duration: 30 + 25 + 60 = 115 minutes
@@ -539,7 +539,7 @@ for each candidate slot in effectiveHours at slotGranularityMinutes:
         → slot is available
 ```
 
-**Resource-scoped variant (M21 Cluster 1):** the resolution above is the tenant-wide case — UC-011's own Guest flow doesn't select a resource today, so this stays exactly what a Guest query resolves. `GET /schedule/availability(/summary)` also accepts an optional `resourceId` (staff/manager-facing use, e.g. checking one professional's calendar) that scopes the same three-layer resolution to that resource's own closures/openings/workingHours — see `docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution for the full resource-aware precedence, not duplicated here to avoid the two copies drifting apart.
+**Resource-scoped variant (M21 Cluster 1):** the resolution above is the tenant-wide case — UC-011's own Guest flow doesn't select a resource today, so this stays exactly what a Guest query resolves. `GET /schedule/availability(/summary)` also accepts an optional `resourceId` (staff/manager-facing use, e.g. checking one professional's calendar) that scopes the same three-layer resolution to that resource's own closures/openings/workingHours — see `docs/DOMAIN_MODEL.md` § Three-Layer Schedule Resolution for the full resource-aware precedence, not duplicated here to avoid the two copies drifting apart.
 
 1. Load `slotGranularityMinutes`, `serviceBufferMinutes`, business hours, and timezone from `tenants.settings`
 2. Compute `bookingDurationMins` from basket + buffer
@@ -622,7 +622,7 @@ Returns:
 
 ## Resource Management Use Cases
 
-> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). `Resource` is a new aggregate in the Booking Context — see `docs/02-DOMAIN_MODEL.md` § Booking Context. Every existing tenant receives one active `LOCATION` resource during migration (M21-S0x's backfill story); `resourceId = null` on a closure/opening remains a separate "close/open the whole business" sentinel, not a legacy path. Resource-scoped closures/openings are UC-010e/UC-010f above.
+> Introduced by M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation). `Resource` is a new aggregate in the Booking Context — see `docs/DOMAIN_MODEL.md` § Booking Context. Every existing tenant receives one active `LOCATION` resource during migration (M21-S0x's backfill story); `resourceId = null` on a closure/opening remains a separate "close/open the whole business" sentinel, not a legacy path. Resource-scoped closures/openings are UC-010e/UC-010f above.
 
 ### **UC-044: MANAGER Views the Resource List**
 
@@ -646,7 +646,7 @@ Returns:
 - **Preconditions:** None beyond an active tenant.
 - **Trigger:** Admin clicks "Add Resource" in dashboard settings.
 - **Main Flow:**
-  1. Admin selects resource type: `STAFF` (picks an existing `Staff` row to wrap), `ROOM`, or `EQUIPMENT`. (`LOCATION` is never manually created — every tenant already has exactly one, created by the M21 backfill migration; see `docs/02-DOMAIN_MODEL.md` § Booking Context.)
+  1. Admin selects resource type: `STAFF` (picks an existing `Staff` row to wrap), `ROOM`, or `EQUIPMENT`. (`LOCATION` is never manually created — every tenant already has exactly one, created by the M21 backfill migration; see `docs/DOMAIN_MODEL.md` § Booking Context.)
   2. For `ROOM`/`EQUIPMENT`, admin enters a display name.
   3. Admin sets initial working hours (defaults to the tenant's `businessHours` if left blank); every window must be a subset of the tenant's recurring hours.
   4. System creates the `Resource` row, `isActive = true`.
@@ -702,7 +702,7 @@ Returns:
 
 ### **UC-048: System Cascades a Staff Deactivation to the Wrapping STAFF Resource**
 
-> Closes a gap where `UC-029` (admin deactivates staff member) and this discovery's `Resource` wrapper were otherwise never wired together. This is `StaffDeactivated`'s first consumer — see `docs/03-DOMAIN_EVENTS.md` and `docs/05-BOUNDED_CONTEXTS.md`.
+> Closes a gap where `UC-029` (admin deactivates staff member) and this discovery's `Resource` wrapper were otherwise never wired together. This is `StaffDeactivated`'s first consumer — see `docs/DOMAIN_EVENTS.md` and `docs/BOUNDED_CONTEXTS.md`.
 
 - **Actor:** System
 - **Preconditions:** A `Staff` row is deactivated via `UC-029`, and a `Resource` row exists with `type = STAFF` and `refId` pointing at that staff member.
@@ -792,7 +792,7 @@ Returns:
 
 ## Service Extensions & Availability Engine Use Cases (M22 Cluster 2)
 
-> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). Depends on Cluster 1 (`Resource`). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate, `resource_occupancy`) and `docs/13-DATABASE_SCHEMA.md` for the full schema. UC-050–055 configure a `Service`; UC-056 chooses its booking model at creation; UC-057–060 are the availability/exclusivity engine both appointment and (eventually, Cluster 4) session bookings depend on.
+> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). Depends on Cluster 1 (`Resource`). See `docs/DOMAIN_MODEL.md` § Booking Context (`Service` aggregate, `resource_occupancy`) and `docs/DATABASE_SCHEMA.md` for the full schema. UC-050–055 configure a `Service`; UC-056 chooses its booking model at creation; UC-057–060 are the availability/exclusivity engine both appointment and (eventually, Cluster 4) session bookings depend on.
 
 ### **UC-050: STAFF | MANAGER Configures a Service's Resource Requirement**
 
@@ -953,7 +953,7 @@ Returns:
 - **Preconditions:** Service has `resourceRequirements` referencing one or more resources.
 - **Trigger:** Any availability query (extends UC-011) for a resource-scoped or bundled service.
 - **Main Flow:**
-  1. `IBookingAvailabilityPort` is queried with `tenantId` + `resourceId(s)` instead of `tenantId` alone (see `docs/02-DOMAIN_MODEL.md`).
+  1. `IBookingAvailabilityPort` is queried with `tenantId` + `resourceId(s)` instead of `tenantId` alone (see `docs/DOMAIN_MODEL.md`).
   2. For a bundle, a slot is available only if **every** required resource is simultaneously free (intersection).
   3. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
 - **Alternative Flows:**
@@ -988,7 +988,7 @@ Returns:
 - **Preconditions:** Two different APPOINTMENT-style services share the same resource (e.g. one piece of equipment used by two different appointment types). Cross-family (an APPOINTMENT service and a SESSION `ClassScheduleTemplate` sharing a resource) is not testable until Cluster 4 ships.
 - **Trigger:** A booking attempt would overlap an already-committed window on the shared resource.
 - **Main Flow:**
-  1. Availability computation for the new request is scoped to `tenantId` + the shared `resourceId`, same as UC-058 step 1, and includes existing approved bookings against that shared resource via `booking.resource_occupancy` (see `docs/13-DATABASE_SCHEMA.md`).
+  1. Availability computation for the new request is scoped to `tenantId` + the shared `resourceId`, same as UC-058 step 1, and includes existing approved bookings against that shared resource via `booking.resource_occupancy` (see `docs/DATABASE_SCHEMA.md`).
   2. Overlapping candidate slots are excluded or blocked at both the query layer and, for a genuine race, the DB's shared GIST exclusion constraint.
 - **Alternative Flows:**
   - **A1: The two windows are adjacent, not overlapping** (one ends exactly when the other starts, ignoring buffer/turnover which UC-059 already accounts for separately) → Not a conflict; both are allowed.
@@ -1000,7 +1000,7 @@ Returns:
 
 ## Customer/Guest Appointment Booking & Extensions Use Cases (M23 Cluster 3)
 
-> Introduced by M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Depends on Cluster 1 (`Resource`) and Cluster 2 (`Service` extensions, availability engine). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException` and `docs/13-DATABASE_SCHEMA.md`. Approval throughout: every CAND below uses the service's effective approval policy (UC-055) — `AUTO_CONFIRM` creates `APPROVED`, `MANUAL_APPROVAL` creates capacity-holding `PENDING` with the snapshotted hold duration.
+> Introduced by M23 — Multi-Vertical Scheduling, Cluster 3 (Customer/guest appointment booking + extensions). Depends on Cluster 1 (`Resource`) and Cluster 2 (`Service` extensions, availability engine). See `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`/`FutureCommitmentException` and `docs/DATABASE_SCHEMA.md`. Approval throughout: every CAND below uses the service's effective approval policy (UC-055) — `AUTO_CONFIRM` creates `APPROVED`, `MANUAL_APPROVAL` creates capacity-holding `PENDING` with the snapshotted hold duration.
 
 ### **UC-061: Customer Books With a Specific Chosen Staff Member**
 
@@ -1094,7 +1094,7 @@ Returns:
 ### **UC-066: Customer Views a Specific Staff Member's Own Calendar**
 
 - **Actor:** Customer or Guest
-- **Endpoint:** `GET /v1/schedule/availability?...` with the chosen staff member passed as a `resourceSelections` entry for the service's `CUSTOMER_CHOICE` requirement (M23-S29 — requirement-aware availability, `docs/14-API_CONTRACTS.md`). The explicit `resourceId` param (M22-S03) stays a single-resource schedule view that ignores the service's other requirements; the guest/customer flow does not use it.
+- **Endpoint:** `GET /v1/schedule/availability?...` with the chosen staff member passed as a `resourceSelections` entry for the service's `CUSTOMER_CHOICE` requirement (M23-S29 — requirement-aware availability, `docs/API_CONTRACTS.md`). The explicit `resourceId` param (M22-S03) stays a single-resource schedule view that ignores the service's other requirements; the guest/customer flow does not use it.
 - **Preconditions:** Tenant has `STAFF`-type resources with `CUSTOMER_CHOICE` on at least one service.
 - **Trigger:** Customer picks a staff member in UC-061's picker.
 - **Main Flow:**
@@ -1118,14 +1118,14 @@ Returns:
 - **Main Flow:**
   1. Customer chooses a duration within the service's minimum, maximum, and increment rules (a duration-only step, with the server-quoted total), then a start from the normal availability step, which lists only slots that fit that duration.
   2. System validates the whole interval and the required quantity. (No participant-limit rule exists: `participantCount` is a recorded input only and is never checked against a capacity.)
-  3. System quotes the service-level per-increment price (`docs/13-DATABASE_SCHEMA.md`'s round-up rule), resolves every required resource atomically.
+  3. System quotes the service-level per-increment price (`docs/DATABASE_SCHEMA.md`'s round-up rule), resolves every required resource atomically.
   4. System creates the normal booking under its snapshotted approval policy.
 - **Alternative Flows:**
   - **A1: Another booking takes any required resource before submission** → `409 Conflict`; customer keeps their chosen criteria and selects another compatible interval.
   - **A2: Interval crosses midnight** → Allowed only when the full span is within the configured maximum and every required resource is open for its own occupied window. Hotel/accommodation stays out of scope.
   - **A3: Fungible requirement has `requiredQuantity > 1`** → System assigns that many distinct eligible units in the same transaction or offers no slot; never partially creates a reservation. `participantCount` is a customer-supplied capacity/attendee-count input only — it never overrides `requiredQuantity`, which stays the service's static configured value.
   - **A4: `serviceIds` (the request basket) contains more than one service that is `durationPolicy = CUSTOMER_SELECTED` and/or carries an active intake schema (UC-068)** → `422 Unprocessable` — at most one such service is allowed per request; a customer-built cart combining multiple variable-duration/intake services in one submission is out of scope (multi-service bookings remain business-configured bundles/journeys, per `docs/discovery/multivertical-booking/multivertical-booking.md` (coworking/rental note)).
-  - **A5: `durationMinutes` is omitted for a `CUSTOMER_SELECTED` service** → `422 Unprocessable` (`BOOKING_DURATION_OUT_OF_RANGE`) — no fallback to any service-level default; `Service.durationMinutes` is not authoritative once `durationPolicy = CUSTOMER_SELECTED` (`docs/02-DOMAIN_MODEL.md`).
+  - **A5: `durationMinutes` is omitted for a `CUSTOMER_SELECTED` service** → `422 Unprocessable` (`BOOKING_DURATION_OUT_OF_RANGE`) — no fallback to any service-level default; `Service.durationMinutes` is not authoritative once `durationPolicy = CUSTOMER_SELECTED` (`docs/DOMAIN_MODEL.md`).
 - **Postconditions:** The selected span is protected by normal occupancy; fixed-duration services remain unchanged.
 - **Events Triggered:** Existing appointment booking events, per the resulting `PENDING`/`APPROVED` state.
 
@@ -1156,14 +1156,14 @@ Returns:
 ### **UC-069: Customer Reschedules an Appointment or Reservation**
 
 - **Actor:** Customer, or STAFF | MANAGER acting for the customer (audited)
-- **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/14-API_CONTRACTS.md`). Same customer/staff role-dispatch pattern as UC-007/UC-008's `PATCH /bookings/:id/cancel`: the BFF forwards to the backend's `reschedule-customer` route for a `CUSTOMER`-role JWT, `reschedule-admin` for `STAFF`/`MANAGER` — two backend use cases, one public path.
+- **Endpoint:** `PATCH /bookings/:id/reschedule` (existing UC-008 endpoint, extended — see `docs/API_CONTRACTS.md`). Same customer/staff role-dispatch pattern as UC-007/UC-008's `PATCH /bookings/:id/cancel`: the BFF forwards to the backend's `reschedule-customer` route for a `CUSTOMER`-role JWT, `reschedule-admin` for `STAFF`/`MANAGER` — two backend use cases, one public path.
 - **Preconditions:** Booking is eligible under its snapshotted-effective per-service reschedule policy (`rescheduleWindowHoursOverride ?? tenant cancellationWindowHours` — there is no separate tenant-level reschedule default; UC-055) — customer path only; a staff override (A3) bypasses this check by design, the same way staff already bypasses the cancellation window.
 - **Trigger:** Customer chooses "Reagendar" on an eligible future appointment/reservation.
 - **Main Flow:**
   1. System releases the original resource/span and locks the replacement inside one transaction — a losing race (a concurrent booking wins the replacement resource) throws and rolls back the entire attempt, so the release is never actually committed and the booking keeps its original slot (transaction atomicity + the resource_occupancy exclusion constraint's insert-time blocking are what make this safe, not a specific statement order).
   2. System recalculates and displays the new quote — a body-supplied `resourceSelections` entry overrides the default replay of the booking's existing `CUSTOMER_CHOICE` picks (same precedence as `POST /bookings`); a body-supplied `durationMinutes` re-quotes via the same duration/pricing engine as UC-067.
   3. System records an append-only `booking_quote_revisions` row and a link to the prior arrangement.
-  4. System notifies the customer after commit (`BookingRescheduled`, extended scope — see `docs/03-DOMAIN_EVENTS.md`).
+  4. System notifies the customer after commit (`BookingRescheduled`, extended scope — see `docs/DOMAIN_EVENTS.md`).
 - **Alternative Flows:**
   - **A1: Replacement is no longer available** → Original remains intact; customer selects another option.
   - **A2: Bundle/journey** → Every resource/leg revalidated as one atomic change; no partial move possible.
@@ -1171,7 +1171,7 @@ Returns:
   - **A3: Staff policy override** → Staff records reason and actor, but never bypasses capacity, verification, or resource exclusivity, and never runs the reschedule-window eligibility check (staff acts outside that customer-facing guardrail, same as the existing cancellation-window override).
 - **Postconditions:** Customer never loses the original slot merely because a replacement submit races.
 - **Events Triggered:** `BookingRescheduled`.
-- **Customer UI (M23-S30, 2026-10-03):** the customer screen changes the date and time only — the booking's `CUSTOMER_CHOICE` picks and duration are kept (shown read-only), so it sends `{ scheduledAt }` and the price never changes; only an `APPROVED` booking inside the reschedule window offers the action. The body-supplied `resourceSelections`/`durationMinutes` remain API capabilities (staff override), not customer-screen features. The screen's inputs come from the `reschedule` block of `GET /bookings/:id` (`docs/14-API_CONTRACTS.md`): the button shows only while `reschedule` is non-null and now is before its `eligibleUntil`, the day strip and slot list are limited to its `window`, and the kept picks and duration are pinned from it. The A4 window errors, like any other failure after submit, show their catalogue message, clear the chosen slot and reload the list. The booking's own current window shows as unavailable in the slot list (the availability reads are public and do not exclude it) — the same limitation as the staff reschedule.
+- **Customer UI (M23-S30, 2026-10-03):** the customer screen changes the date and time only — the booking's `CUSTOMER_CHOICE` picks and duration are kept (shown read-only), so it sends `{ scheduledAt }` and the price never changes; only an `APPROVED` booking inside the reschedule window offers the action. The body-supplied `resourceSelections`/`durationMinutes` remain API capabilities (staff override), not customer-screen features. The screen's inputs come from the `reschedule` block of `GET /bookings/:id` (`docs/API_CONTRACTS.md`): the button shows only while `reschedule` is non-null and now is before its `eligibleUntil`, the day strip and slot list are limited to its `window`, and the kept picks and duration are pinned from it. The A4 window errors, like any other failure after submit, show their catalogue message, clear the chosen slot and reload the list. The booking's own current window shows as unavailable in the slot list (the availability reads are public and do not exclude it) — the same limitation as the staff reschedule.
 
 ---
 
@@ -1179,7 +1179,7 @@ Returns:
 
 - **Actor:** Authenticated customer, or STAFF | MANAGER acting on their behalf
 - **Endpoint:** `POST /recurring-booking-schedules`, `POST /recurring-booking-schedules/:id/end`
-- **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055) and is an `APPOINTMENT` service with no `legs` and `requiresPickupAddress = false`, whose resource requirements (none, one, or several) all have `requiredQuantity = 1` and can be resolved per occurrence: mode `CUSTOMER_CHOICE`, `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, or `NONE` only on the unrestricted `LOCATION` (see `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`). Shapes: (1) **no resource requirement**, or exactly one unrestricted `LOCATION` requirement with mode `NONE` (the older stored form of the same default) — the default "degenerate" shape, booked against the tenant's single location (TD49-S03); (2) **one** explicit requirement; (3) a **bundle**: two or more such requirements (staff + room, an older location + staff service) — every requirement is checked and held in every occurrence (TD49 Story 0). The caller does not choose the assignment policy: the server derives it from the service — `FIXED_ASSIGNMENT` when any requirement is `CUSTOMER_CHOICE` (the request carries one `resourceSelections` entry per such requirement, keyed by resource type; the others are resolved per occurrence), otherwise `RESOLVE_PER_OCCURRENCE`. Guest bookings are not eligible. A requirement of quantity above 1, or `legs`, **cannot recur**: A7. The customer form offers all three shapes: for a bundle it shows one pick group per `CUSTOMER_CHOICE` requirement and an info line for each automatic one, and sends one `resourceSelections` entry per pick, keyed by its resource type (a flat service has at most one requirement per type, so the type identifies it; TD49 Story 2). The staff form that creates on a customer's behalf (M23-S19; STAFF and MANAGER, a registered customer chosen first — a guest can never have a recurrence) offers the same three shapes through the same rules and the same request body plus `customerId`, creates directly (no review step), is exempt from the booking window (A10) but not from the past rule, and — because the staff member is the approver — creates an `ACTIVE` schedule even for an approval-required service (step 3).
+- **Preconditions:** Service enables recurrence (`recurrenceEligible`, UC-055) and is an `APPOINTMENT` service with no `legs` and `requiresPickupAddress = false`, whose resource requirements (none, one, or several) all have `requiredQuantity = 1` and can be resolved per occurrence: mode `CUSTOMER_CHOICE`, `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, or `NONE` only on the unrestricted `LOCATION` (see `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`). Shapes: (1) **no resource requirement**, or exactly one unrestricted `LOCATION` requirement with mode `NONE` (the older stored form of the same default) — the default "degenerate" shape, booked against the tenant's single location (TD49-S03); (2) **one** explicit requirement; (3) a **bundle**: two or more such requirements (staff + room, an older location + staff service) — every requirement is checked and held in every occurrence (TD49 Story 0). The caller does not choose the assignment policy: the server derives it from the service — `FIXED_ASSIGNMENT` when any requirement is `CUSTOMER_CHOICE` (the request carries one `resourceSelections` entry per such requirement, keyed by resource type; the others are resolved per occurrence), otherwise `RESOLVE_PER_OCCURRENCE`. Guest bookings are not eligible. A requirement of quantity above 1, or `legs`, **cannot recur**: A7. The customer form offers all three shapes: for a bundle it shows one pick group per `CUSTOMER_CHOICE` requirement and an info line for each automatic one, and sends one `resourceSelections` entry per pick, keyed by its resource type (a flat service has at most one requirement per type, so the type identifies it; TD49 Story 2). The staff form that creates on a customer's behalf (M23-S19; STAFF and MANAGER, a registered customer chosen first — a guest can never have a recurrence) offers the same three shapes through the same rules and the same request body plus `customerId`, creates directly (no review step), is exempt from the booking window (A10) but not from the past rule, and — because the staff member is the approver — creates an `ACTIVE` schedule even for an approval-required service (step 3).
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern with an explicit end date.
 - **Main Flow:**
   1. System validates the term: `endsOn` is required and must fall no later than `startsOn` + the service's maximum term (`Service.bookingPolicy.recurringHorizonDays`, 90-day default). A schedule is a fixed-term commitment, never open-ended — a customer who wants to continue creates a new schedule when the term ends.
@@ -1201,7 +1201,7 @@ Returns:
   - **A10: The first occurrence is outside the booking window** (customer actor, new schedule) → `422` `BOOKING_SCHEDULED_IN_PAST` (it has already started), `BOOKING_TOO_SOON` (inside the minimum notice) or `BOOKING_TOO_FAR_AHEAD` (beyond the maximum days ahead), checked in that order; no schedule is created. A start in the past is refused for staff too. A renewal whose every occurrence is already past is refused with `BOOKING_SCHEDULED_IN_PAST`.
   - **A11: A renewal reference that is not the customer's own** (`renewsScheduleId` unknown in the tenant, or another customer's) → `404` `BOOKING_RECURRING_SCHEDULE_NOT_FOUND`, never an exemption. The reference is not stored.
   - **A12: An `AUTO_CONFIRM` schedule is materialized for a customer who has no phone on file** → `422` `BOOKING_CUSTOMER_PHONE_NOT_SET` (the same shared materialization step UC-071 uses on approval); no schedule is created.
-  - **A13: The schedule is about to end** (M23-S21) → once a day, in each tenant's own 06:00–06:29 window, the system finds `ACTIVE` schedules whose `endsOn` is exactly `settings.booking.recurringRenewalReminderDays` (N) days away and e-mails the customer once, in the tenant's language, with a link that opens the creation form pre-filled from that schedule (`…/my-account/recurring-schedules/new?renewFrom=<id>`). N is 0–30, default 7, and `0` turns the reminder off. A schedule whose whole term is no longer than N, one that is not `ACTIVE`, and one whose customer already holds a successor (another `ACTIVE` or `PENDING_APPROVAL` schedule for the same service starting on or after its `endsOn`) is not reminded. The list and the by-id read carry `renewable` for the same window (an `ACTIVE` schedule with `today ≤ endsOn ≤ today + N`, or an `ENDED` one, with no successor), which the client uses to offer "Renovar". Rule: `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Renewal window and reminder.
+  - **A13: The schedule is about to end** (M23-S21) → once a day, in each tenant's own 06:00–06:29 window, the system finds `ACTIVE` schedules whose `endsOn` is exactly `settings.booking.recurringRenewalReminderDays` (N) days away and e-mails the customer once, in the tenant's language, with a link that opens the creation form pre-filled from that schedule (`…/my-account/recurring-schedules/new?renewFrom=<id>`). N is 0–30, default 7, and `0` turns the reminder off. A schedule whose whole term is no longer than N, one that is not `ACTIVE`, and one whose customer already holds a successor (another `ACTIVE` or `PENDING_APPROVAL` schedule for the same service starting on or after its `endsOn`) is not reminded. The list and the by-id read carry `renewable` for the same window (an `ACTIVE` schedule with `today ≤ endsOn ≤ today + N`, or an `ENDED` one, with no successor), which the client uses to offer "Renovar". Rule: `docs/BUSINESS_LOGIC_REFERENCE.md` § Renewal window and reminder.
 - **Postconditions:** Recurrence is a fixed-term commitment, not a best-effort reminder, once `ACTIVE`; once `endsOn` has passed a scheduled job moves it to `ENDED` (no event, nothing to cancel), and every occurrence it holds was checked when it was created. A `PENDING_APPROVAL` request is not yet a commitment and blocks no one else's booking beyond the resource-conflict check already performed at request time.
 - **Events Triggered:** `RecurringBookingScheduleCreated` (`AUTO_CONFIRM`, or a `STAFF|MANAGER` actor creating it on a customer's behalf for any service, since the staff member is the approver) or `RecurringBookingScheduleApprovalRequested` (a customer's own `MANUAL_APPROVAL` request) at creation; `RecurringBookingScheduleEnded`. The materialized occurrences raise no booking events of their own (step 4). Emails (M23-S28): `Created` → the customer's confirmation (service, weekdays and time, first and last date; also when staff created the schedule on their behalf); `ApprovalRequested` → an alert to the tenant's managers, nothing to the customer; `Ended` → the customer, as described in A2. The renewal reminder (A13) is a cron-published Command, `RecurringScheduleRenewalDue`, not a domain event; it goes to the customer only.
 
@@ -1346,9 +1346,9 @@ Returns:
 
 ## Classes/Sessions Use Cases (M24 Cluster 4)
 
-> ⚠️ **Planned, not built:** every use case in this section (UC-078 – UC-107 and the class parts of earlier UCs; UC-108, the last heading below, is the exception: it shipped in M23-S39/S40 as `POST /bookings/staff`) is a target design for the M24 plan; no controller for any of its endpoints (`/class-sessions`, `/class-session-bookings`, `/recurring-enrollments`, `/class-access-contracts`, `PATCH /services/:id/guest-access-policy`) exists in the backend or BFF yet. The Classes & Sessions section of `docs/14-API_CONTRACTS.md` carries the same marker.
+> ⚠️ **Planned, not built:** every use case in this section (UC-078 – UC-107 and the class parts of earlier UCs; UC-108, the last heading below, is the exception: it shipped in M23-S39/S40 as `POST /bookings/staff`) is a target design for the M24 plan; no controller for any of its endpoints (`/class-sessions`, `/class-session-bookings`, `/recurring-enrollments`, `/class-access-contracts`, `PATCH /services/:id/guest-access-policy`) exists in the backend or BFF yet. The Classes & Sessions section of `docs/API_CONTRACTS.md` carries the same marker.
 
-> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/13-DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
+> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions), the final and largest cluster. Depends on Clusters 1–3. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract` and `docs/DATABASE_SCHEMA.md`. This cluster also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable) and UC-058's forward-referenced class-template availability check, and delivers UC-075's Presets D/E/F.
 
 ### **UC-078: Staff/Manager Configures a Session Service's Guest Access Policy**
 
@@ -2005,7 +2005,7 @@ Returns:
 
 ## Chatbot Use Cases
 
-The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module, and in `docs/21-TENANTS_SETTINGS_SCHEMA.md` for configuration. It folds into the Platform context, not a new bounded context (`docs/05-BOUNDED_CONTEXTS.md`). MVP scope boundary: informational-only — the bot never confirms/creates/modifies a booking, never quotes a binding price as a commitment, never accesses any customer/staff/booking record.
+The promoted chatbot design is canonical here for behavior, in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module, and in `docs/TENANTS_SETTINGS_SCHEMA.md` for configuration. It folds into the Platform context, not a new bounded context (`docs/BOUNDED_CONTEXTS.md`). MVP scope boundary: informational-only — the bot never confirms/creates/modifies a booking, never quotes a binding price as a commitment, never accesses any customer/staff/booking record.
 
 ### **UC-033: Guest Asks Chatbot a Question**
 
@@ -2029,10 +2029,10 @@ The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_
    - **A3: `message.length > maxMessageLengthChars`** → `400`, rejected by the backend before any LLM call; inline validation message, input stays enabled (not conversation-ending).
    - **A4: LLM provider call fails mid-conversation** (timeout, `insufficient credits`, upstream error) after being healthy at the last pre-flight check → interrupted state, generic "assistant unavailable" message, phone/WhatsApp fallback offered.
    - **A5: Visitor attempts prompt injection** (e.g. "ignore your instructions," a fake-authority booking-confirmation attempt) → the hardcoded guardrail section causes the model to refuse/redirect; empirically validated 7/7 during M19 discovery (7/7 scenarios, 2026-08-07). This is a model-behavior outcome, not a server-side detection branch — the bot has zero tools/write access (§2 scope boundary), so even an unlikely successful jailbreak has nothing to execute.
-   - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously, `429` (same status as A1 — decided during M19-S05 story-discovery, 2026-08-12). Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between one visitor's session-start and the next visitor's. **New-session creation only** — an already-open conversation is exempt, per `docs/04-USE_CASES.md` UC-033 A6: "already-open conversations remain bounded by their own per-session caps regardless" (clarified after a PR #360 review finding that an earlier implementation misread this alternative flow as also blocking existing sessions).
+   - **A6: Platform-wide daily spend circuit breaker or provider balance floor already tripped** → new session creation refused for every tenant simultaneously, `429` (same status as A1 — decided during M19-S05 story-discovery, 2026-08-12). Normally caught earlier at UC-034's pre-flight check; listed here too since the breaker could trip between one visitor's session-start and the next visitor's. **New-session creation only** — an already-open conversation is exempt, per `docs/USE_CASES.md` UC-033 A6: "already-open conversations remain bounded by their own per-session caps regardless" (clarified after a PR #360 review finding that an earlier implementation misread this alternative flow as also blocking existing sessions).
 
 - **Postconditions:** One or more `chatbot_messages` rows persisted per exchange; `chatbot_sessions.message_count`/`last_message_at` updated. No booking, customer, or staff record is ever read or written.
-- **Events Triggered:** None — no other bounded context needs to react synchronously to a chat message (`docs/03-DOMAIN_EVENTS.md` deliberately unchanged by this feature).
+- **Events Triggered:** None — no other bounded context needs to react synchronously to a chat message (`docs/DOMAIN_EVENTS.md` deliberately unchanged by this feature).
 - **Out of scope (MVP):** availability-aware answers (reading live schedule data), booking actions from chat, multi-turn memory across sessions (visitor is anonymous).
 
 ---
@@ -2092,7 +2092,7 @@ The promoted chatbot design is canonical here for behavior, in `docs/15-HOTSITE_
 
 ## Lead Form Use Cases
 
-The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DOMAIN_MODEL.md` for the domain model, and in `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module. A `LEAD_FORM` module lets a manager configure up to 20 custom questions which guests and/or logged-in customers answer on a dedicated page; name, email, and phone are mandatory on every submission, protected by Cloudflare Turnstile and per-IP/per-tenant rate limits.
+The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAIN_MODEL.md` for the domain model, and in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` for the hotsite module. A `LEAD_FORM` module lets a manager configure up to 20 custom questions which guests and/or logged-in customers answer on a dedicated page; name, email, and phone are mandatory on every submission, protected by Cloudflare Turnstile and per-IP/per-tenant rate limits.
 
 ### **UC-037: Manager Configures the Lead Form Module**
 
@@ -2105,12 +2105,12 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
    3. Manager sets `audienceMode`: "Visitantes e clientes" (`GUEST_AND_CUSTOMER`) or "Somente clientes logados" (`CUSTOMER_ONLY`).
    4. Manager adds a question inline, on the same page (expandable card — never a separate screen per question): picks a type (free text / single-choice / multiple-choice), types a label, marks required or not, and — for choice types — adds 2–10 options. A small constants-file catalog of starter question templates (e.g. "Qual serviço te interessa?") is offered as a starting point; every question stays freely editable.
    5. Manager repeats step 4 up to 20 questions, reordering as needed.
-   6. Manager clicks "Aplicar" once — commits the complete edit (teaser + `audienceMode` + `questions`) to the hotsite editor's own temporary local draft, no network request yet (same "Aplicar defers to Publicar" contract every other module panel uses). Manager clicks "Publicar" — `PATCH /v1/tenants/hotsite`, a single request carrying the whole editor draft plus `audienceMode`/`questions` as two extra fields (folded into this generic endpoint at M20-S08), saved atomically in one backend transaction (spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` — see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). Not two independent REST calls — an earlier draft of this design had the teaser save and the audience/questions save as two separate, unsynchronized requests, which could leave the manager's edit half-applied on a partial failure; that design was replaced.
+   6. Manager clicks "Aplicar" once — commits the complete edit (teaser + `audienceMode` + `questions`) to the hotsite editor's own temporary local draft, no network request yet (same "Aplicar defers to Publicar" contract every other module panel uses). Manager clicks "Publicar" — `PATCH /v1/tenants/hotsite`, a single request carrying the whole editor draft plus `audienceMode`/`questions` as two extra fields (folded into this generic endpoint at M20-S08), saved atomically in one backend transaction (spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` — see `docs/DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). Not two independent REST calls — an earlier draft of this design had the teaser save and the audience/questions save as two separate, unsynchronized requests, which could leave the manager's edit half-applied on a partial failure; that design was replaced.
 - **Alternative Flows:**
    - **A1: 20-question cap reached** → "Adicionar pergunta" disabled with an inline note; existing questions can still be edited/removed. `400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED` if bypassed client-side.
    - **A2: Choice-type question with < 2 or > 10 options** → blocked on save: "Adicione entre 2 e 10 opções." `400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID`.
    - **A3: Empty question label** → blocked on save: "Informe o texto da pergunta." `400 GENERIC_FIELD_REQUIRED` (`field: questions[n].label` — a plain required-string check with no dedicated VO behind it, same category as `AddressErrorCode.FIELD_REQUIRED` reused across address fields).
-   - **A4: Manager removes a question that already has submissions** → allowed; a confirmation dialog explains existing submissions keep their own snapshot of the question (`docs/02-DOMAIN_MODEL.md` § `LeadFormSubmission`) and won't be affected.
+   - **A4: Manager removes a question that already has submissions** → allowed; a confirmation dialog explains existing submissions keep their own snapshot of the question (`docs/DOMAIN_MODEL.md` § `LeadFormSubmission`) and won't be affected.
    - **A5: Manager disables the module entirely** → teaser stops rendering on the hotsite; `/[slug]/lead-form` checks the manifest's `layout` array for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled — **new logic**, not a reuse of an existing "disabled module → dedicated page unavailable" precedent (none existed prior to this milestone; verified against `apps/web/app/[slug]/booking/page.tsx`, which only checks `!manifest.isPublished`, never per-module `enabled`). Existing submissions and config are preserved, not deleted.
 - **Postconditions:** `lead_form_configs` row reflects the new config; teaser section in `hotsite_configs.layout` updated.
 - **Events Triggered:** none (config change, matches how other module config edits behave).
@@ -2184,9 +2184,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
    - **A1: No submissions yet** → empty state with a short explainer and a link back to the module config (if not yet enabled).
    - **A2: A submission's `answers` snapshot references a question no longer in the current config** → renders fine regardless, since the snapshot is self-contained (no live lookup needed) — this is also why the advanced filter's question dropdown includes historical, now-removed questions (A4).
    - **A3: Search/filters/date range yield no matches** → distinct empty state from A1 ("nenhum resultado para esta busca", not "nenhum envio ainda") — the module may well have real submissions, just none matching the current criteria.
-   - **A4: Advanced filter's question dropdown includes a question no longer in the live `LeadFormConfig`** → selectable and searchable like any other; matches by the snapshotted `questionLabel` text, never a live lookup against the current config (see `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_answers`).
+   - **A4: Advanced filter's question dropdown includes a question no longer in the live `LeadFormConfig`** → selectable and searchable like any other; matches by the snapshotted `questionLabel` text, never a live lookup against the current config (see `docs/DATABASE_SCHEMA.md` § `platform.lead_form_answers`).
    - **A5: `submittedFrom` is after `submittedTo`** → `400`, rejected before the query runs.
-   - **A6: `search` and `filters` both provided in the same request** → `400 GENERIC_VALUE_INVALID`, rejected before the query runs (they are mutually exclusive — see `docs/14-API_CONTRACTS.md`).
+   - **A6: `search` and `filters` both provided in the same request** → `400 GENERIC_VALUE_INVALID`, rejected before the query runs (they are mutually exclusive — see `docs/API_CONTRACTS.md`).
 - **Postconditions:** none (read-only).
 - **Events Triggered:** none.
 - **Not implemented:** CSV export — removed from this milestone's scope entirely, not merely deferred behind a smaller replacement. This is a real, accepted trade-off, not an oversight: `UC-043`'s daily retention purge is unconditional and permanent (no export, no backup, no bulk-download path exists before a submission is deleted at the end of its retention window). A manager who wants to preserve lead data long-term today has only the read-only detail view, one submission at a time.
@@ -2467,7 +2467,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 - **Actor:** Staff member with `MANAGER` role (to save changes)
 - **Preconditions:** Admin is authenticated. `GET /tenants/settings` (viewing the screen) allows `STAFF`|`MANAGER`; `PATCH /tenants/settings` (saving changes) is `MANAGER`-only — STAFF can view the settings screen but not edit it.
 - **Trigger:** Admin clicks "Configurações" → "Geral" in the dashboard.
-> **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (the tenant default approval mode: a service with no `defaultApprovalMode` of its own inherits `AUTO_CONFIRM` when true, `MANUAL_APPROVAL` when false — read via `getAutoApproveEnabled` in the recurring-schedule request use case and `resolveApprovalMode` in `service-result.mapper.ts`), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; read-only **Localização** (`countryCode`-driven, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. (The former **Notificações** section / `notification.fromEmail` was removed in `M18-S09` — emails are always sent From the platform sender with Reply-To = `businessInfo.email`.) See `docs/21-TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
+> **Scope expanded (`M13-S31`):** the shipped settings form covers substantially more than the original draft below — `booking.autoApproveEnabled` (the tenant default approval mode: a service with no `defaultApprovalMode` of its own inherits `AUTO_CONFIRM` when true, `MANUAL_APPROVAL` when false — read via `getAutoApproveEnabled` in the recurring-schedule request use case and `resolveApprovalMode` in `service-result.mapper.ts`), `minBookingAdvanceHours`, `maxBookingAdvanceDays`, `slotGranularityMinutes`, `welcomeStaffScreenDays`; `loyalty.expiryWarningDays`, `enableNotifications`, `notificationMinPoints`; read-only **Localização** (`countryCode`-driven, see `docs/TENANTS_SETTINGS_SCHEMA.md`); and `businessInfo.socialLinks`. (The former **Notificações** section / `notification.fromEmail` was removed in `M18-S09` — emails are always sent From the platform sender with Reply-To = `businessInfo.email`.) See `docs/TENANTS_SETTINGS_SCHEMA.md` for the authoritative field list — the list below is illustrative, not exhaustive.
 
 - **Main Flow:**
    1. System loads current `tenants.settings` JSONB and displays form with current values:
@@ -2478,12 +2478,12 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
       - **Horário de funcionamento** — days of week + open/close times
       - **Fuso horário** — required; default `America/Sao_Paulo`
       - **Buffer entre agendamentos** (minutos) — prep time between bookings, default 60
-      - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT, `docs/21-TENANTS_SETTINGS_SCHEMA.md` §6)
-      - **Conhecimento do assistente (chatbot)** — `settings.chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7); free-form textarea (policies, FAQ, tone notes), max 4000 characters (`maxKnowledgeTextLength`, a fixed platform default, not shown in this form — see below). Read by UC-033's system-prompt assembly alongside live services/prices. The other `settings.chatbot` fields (the 8 volume/cost caps, `llmProvider`/`llmModel`) are deliberately **not** in this form — fixed platform defaults for MVP, resolved `tenant override ?? platform default` at read time, only ever set by a developer directly on a specific tenant's row when Ikaro grants an explicit override (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7 for the full rationale)
+      - **Endereço, telefone e e-mail do estabelecimento** — `settings.businessInfo` (M12-S06); all optional. Shown on the hotsite `CONTACT` module when its `showAddress`/`showPhone`/`showEmail`/`showMap` flags are enabled (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT, `docs/TENANTS_SETTINGS_SCHEMA.md` §6)
+      - **Conhecimento do assistente (chatbot)** — `settings.chatbot.knowledgeText` (`docs/TENANTS_SETTINGS_SCHEMA.md` §7); free-form textarea (policies, FAQ, tone notes), max 4000 characters (`maxKnowledgeTextLength`, a fixed platform default, not shown in this form — see below). Read by UC-033's system-prompt assembly alongside live services/prices. The other `settings.chatbot` fields (the 8 volume/cost caps, `llmProvider`/`llmModel`) are deliberately **not** in this form — fixed platform defaults for MVP, resolved `tenant override ?? platform default` at read time, only ever set by a developer directly on a specific tenant's row when Ikaro grants an explicit override (see `docs/TENANTS_SETTINGS_SCHEMA.md` §7 for the full rationale)
       - (see scope-expansion note above for the full M13-S31 field set)
    2. Admin updates values.
    3. Admin clicks "Salvar".
-   4. System validates all fields (see `docs/21-TENANTS_SETTINGS_SCHEMA.md` for rules).
+   4. System validates all fields (see `docs/TENANTS_SETTINGS_SCHEMA.md` for rules).
    5. System updates `tenants.settings` JSONB, and `tenants.name` via a separate call if changed.
    6. Admin sees: "Configurações salvas com sucesso."
 
@@ -2530,9 +2530,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
       - [x] TESTIMONIALS (author, text, optional rating; grid or carousel) — toggle on/off
       - [x] ABOUT (markdown body + optional image, configurable position) — toggle on/off
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off
-      - [x] FOOTER (site footer showing the tenant's business info plus its own `FooterModuleData` fields; see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` section 4) — toggle on/off
+      - [x] FOOTER (site footer showing the tenant's business info plus its own `FooterModuleData` fields; see `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` section 4) — toggle on/off
       - [x] LEAD_FORM (configurable lead-capture form with up to 20 custom questions; configured per UC-037) — toggle on/off
-      - [x] CHATBOT (AI-assisted FAQ widget scoped to the tenant's own business data) — toggle on/off; drill-down config carries only `variant` (`bubble`|`inline`), `accentColor`, `botName`, `welcomeMessage` — everything cost/security-sensitive (`knowledgeText`, the volume/cost caps) is deliberately excluded from this module data and lives on the tenant settings page instead (UC-026) or isn't tenant-editable at all (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). This config screen also carries a standing (non-dismissible) disclosure note: the assistant depends on Ikaro-managed AI provider credits, and a temporary provider/credit shortfall disables the widget automatically until resolved — no tenant action needed
+      - [x] CHATBOT (AI-assisted FAQ widget scoped to the tenant's own business data) — toggle on/off; drill-down config carries only `variant` (`bubble`|`inline`), `accentColor`, `botName`, `welcomeMessage` — everything cost/security-sensitive (`knowledgeText`, the volume/cost caps) is deliberately excluded from this module data and lives on the tenant settings page instead (UC-026) or isn't tenant-editable at all (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). This config screen also carries a standing (non-dismissible) disclosure note: the assistant depends on Ikaro-managed AI provider credits, and a temporary provider/credit shortfall disables the widget automatically until resolved — no tenant action needed
 
       **Section C: SEO** (M12-S09; share image added M18-S03)
       - Title (text input, max 60 chars) — overrides the generated `<title>` for search results and social sharing
@@ -2674,7 +2674,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-006 | Customer views bookings | Customer | Read operation |
 | UC-007 | Customer cancels booking | Customer | APPROVED (with time window) \| PENDING \| INFO_REQUESTED → CANCELLED |
 | UC-008 | Admin cancels / reschedules booking | Admin | APPROVED/PENDING/INFO_REQUESTED → CANCELLED (`BookingCancelled`) or scheduledAt updated (`BookingRescheduled`) |
-| UC-009 | Mark booking complete | Staff | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
+| UC-009 | Mark booking complete | Staff \| Manager | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
 | UC-010 | Manage schedule closures and openings | STAFF \| MANAGER | ScheduleClosure or ScheduleOpening created/removed |
 | UC-011 | View calendar | Any | Read available slots filtered by basket's total duration |
 | UC-012 | Create service | STAFF \| MANAGER | Service created with points value |
@@ -2699,13 +2699,13 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-033 | Guest asks chatbot a question | Guest | `chatbot_messages` rows persisted (USER+ASSISTANT); no booking/customer/staff record touched |
 | UC-034 | Guest checks chatbot availability | Guest | Read-only: `{ available: boolean }` |
 | UC-035 | System purges expired chatbot conversations | System (cron) | Daily — deletes `chatbot_messages`/`chatbot_sessions` rows past 180-day retention |
-| UC-036 | System polls LLM provider balance | System (cron) | Every 15-30 min — upserts `chatbot_provider_balance` row |
+| UC-036 | System polls LLM provider balance | System (cron) | Every 15 min — upserts `chatbot_provider_balance` row |
 | UC-037 | Manager configures the lead form module | MANAGER staff | `lead_form_configs` upserted |
 | UC-038 | Visitor sees the lead form teaser | Guest \| Customer | Read-only render |
 | UC-039 | Guest submits the lead form | Guest | `lead_form_submissions` row created (`customerId: null`); `LeadFormSubmissionReceived` |
 | UC-040 | Logged-in customer submits the lead form | Customer | `lead_form_submissions` row created (`customerId` set); `LeadFormSubmissionReceived` |
 | UC-041 | Staff/manager views leads submissions | STAFF \| MANAGER | Read-only |
-| UC-042 | Manager configures the lead form retention window | MANAGER staff | `settings.leadForm.retentionMonths` updated |
+| UC-042 | Manager configures the lead form settings | MANAGER staff | `settings.leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` updated |
 | UC-043 | System purges expired lead form submissions | System (cron) | Daily — deletes `lead_form_submissions` rows past retention |
 | UC-010e | Manager creates a resource-scoped schedule closure | MANAGER | `ScheduleClosure` created with `resourceId` set |
 | UC-010f | Manager creates a resource-scoped schedule opening | MANAGER | `ScheduleOpening` created with `resourceId` set |
@@ -2740,37 +2740,37 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/02-DO
 | UC-072 | Authenticated customer creates an availability alert | Customer | `AvailabilityAlert` created |
 | UC-073 | System identifies and queues a future commitment exception | System | `FutureCommitmentException` created |
 | UC-074 | Staff or manager marks an appointment as no-show | STAFF \| MANAGER | `Booking.status → NO_SHOW`; `BookingNoShow` event |
-| UC-075 | System bootstraps a new tenant from a preset | MANAGER | `TenantSchedulingBootstrapped`; initial Resource/Service graph |
+| UC-075 | System bootstraps a new tenant from a preset *(planned, not built)* | MANAGER | `TenantSchedulingBootstrapped`; initial Resource/Service graph |
 | UC-076 | Customer manages an availability alert | Customer | `AvailabilityAlert` updated/cancelled |
 | UC-077 | Manager resolves a future commitment exception | MANAGER | `FutureCommitmentException.status → RESOLVED`\|`DISMISSED` |
-| UC-078 | Staff/manager configures a session service's guest access policy | STAFF \| MANAGER | `Service.guestAccessEnabled`/`guestTrialPolicy` updated |
-| UC-079 | Staff/manager creates a recurring class schedule template | STAFF \| MANAGER | `ClassScheduleTemplate` created |
-| UC-080 | Staff/manager edits or deactivates a template | STAFF \| MANAGER | Template updated; future sessions only |
-| UC-081 | System generates upcoming class sessions | System | `ClassSession` rows materialized on rolling horizon |
-| UC-082 | Staff/manager views a list of upcoming class sessions | STAFF \| MANAGER | Read operation |
-| UC-083 | Staff/manager overrides a single session's capacity or resources | STAFF \| MANAGER | `ClassSession` instance override |
-| UC-084 | Staff/manager cancels a class session with existing bookings | STAFF \| MANAGER | `ClassSession.status → CANCELLED`; bookings cancelled |
-| UC-085 | Customer browses upcoming sessions with remaining capacity | Customer \| Guest | Read operation |
-| UC-086 | Contract customer books into a session | Customer | `ClassSessionBooking` created `CONFIRMED` |
-| UC-087 | Authenticated customer without a contract books pay-per-class | Customer | `ClassSessionBooking` created, no contract |
-| UC-088 | Verified guest books multiple named units in one action | Guest | One `ClassSessionBooking` consuming N units |
-| UC-089 | Customer cancels a single class session booking | Customer | `ClassSessionBooking.status → CANCELLED` |
-| UC-090 | Authenticated customer joins a waitlist when a session is full | Customer | `ClassSessionBooking(status=WAITLISTED)` |
-| UC-091 | System auto-promotes the next waitlisted customer | System | `ClassSessionBooking.status → PROMOTION_PENDING` |
-| UC-092 | System auto-cancels unpromoted waitlist entries when a session ends | System | Waitlisted bookings → `CANCELLED` |
-| UC-093 | Customer enrolls in a recurring weekly session | Customer | `RecurringEnrollment` created `ACTIVE` |
-| UC-094 | Customer cancels a single occurrence of a recurring enrollment | Customer | One occurrence's booking cancelled |
-| UC-095 | Customer cancels an entire recurring enrollment | Customer | `RecurringEnrollment.status → CANCELLED` |
-| UC-096 | Staff/manager cancels template occurrences for a date range | STAFF \| MANAGER | `ClassScheduleTemplateException` created; sessions cancelled |
-| UC-097 | Guest verifies email before requesting a class seat | Guest | `PENDING_EMAIL_VERIFICATION` → `CONFIRMED`\|`PENDING_APPROVAL` |
-| UC-098 | Staff approves or rejects a verified guest class reservation | STAFF \| MANAGER | `ClassSessionBooking.status → CONFIRMED`\|`CANCELLED` |
-| UC-099 | Manager creates or cancels a customer class-access contract | MANAGER | `ClassAccessContract` created/cancelled |
-| UC-100 | System expires unresolved guest requests at session start | System | `PENDING_APPROVAL` → `CANCELLED` |
-| UC-101 | Staff closes a session with individual attendance | STAFF \| MANAGER | `ClassSession.status → CLOSED`; attendee outcomes recorded |
-| UC-102 | Customer reschedules a skipped fixed-class occurrence | Customer | New one-off booking linked via `rescheduledFromId` |
-| UC-103 | Staff/manager views enrollments for a class type | STAFF \| MANAGER | Read operation |
-| UC-104 | Staff manually creates an enrollment on a customer's behalf | STAFF \| MANAGER | Same as UC-086/093, `createdByStaff = true` |
-| UC-105 | Customer edits a group reservation's attendees | Customer | Attendee removed; `quantity`/quote adjusted |
-| UC-106 | System expires a waitlist offer | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
-| UC-107 | Staff records a manually reported charge at session close-out | STAFF \| MANAGER | `class_session_payments` row created |
+| UC-078 | Staff/manager configures a session service's guest access policy *(planned, not built)* | STAFF \| MANAGER | `Service.guestAccessEnabled`/`guestTrialPolicy` updated |
+| UC-079 | Staff/manager creates a recurring class schedule template *(planned, not built)* | STAFF \| MANAGER | `ClassScheduleTemplate` created |
+| UC-080 | Staff/manager edits or deactivates a template *(planned, not built)* | STAFF \| MANAGER | Template updated; future sessions only |
+| UC-081 | System generates upcoming class sessions *(planned, not built)* | System | `ClassSession` rows materialized on rolling horizon |
+| UC-082 | Staff/manager views a list of upcoming class sessions *(planned, not built)* | STAFF \| MANAGER | Read operation |
+| UC-083 | Staff/manager overrides a single session's capacity or resources *(planned, not built)* | STAFF \| MANAGER | `ClassSession` instance override |
+| UC-084 | Staff/manager cancels a class session with existing bookings *(planned, not built)* | STAFF \| MANAGER | `ClassSession.status → CANCELLED`; bookings cancelled |
+| UC-085 | Customer browses upcoming sessions with remaining capacity *(planned, not built)* | Customer \| Guest | Read operation |
+| UC-086 | Contract customer books into a session *(planned, not built)* | Customer | `ClassSessionBooking` created `CONFIRMED` |
+| UC-087 | Authenticated customer without a contract books pay-per-class *(planned, not built)* | Customer | `ClassSessionBooking` created, no contract |
+| UC-088 | Verified guest books multiple named units in one action *(planned, not built)* | Guest | One `ClassSessionBooking` consuming N units |
+| UC-089 | Customer cancels a single class session booking *(planned, not built)* | Customer | `ClassSessionBooking.status → CANCELLED` |
+| UC-090 | Authenticated customer joins a waitlist when a session is full *(planned, not built)* | Customer | `ClassSessionBooking(status=WAITLISTED)` |
+| UC-091 | System auto-promotes the next waitlisted customer *(planned, not built)* | System | `ClassSessionBooking.status → PROMOTION_PENDING` |
+| UC-092 | System auto-cancels unpromoted waitlist entries when a session ends *(planned, not built)* | System | Waitlisted bookings → `CANCELLED` |
+| UC-093 | Customer enrolls in a recurring weekly session *(planned, not built)* | Customer | `RecurringEnrollment` created `ACTIVE` |
+| UC-094 | Customer cancels a single occurrence of a recurring enrollment *(planned, not built)* | Customer | One occurrence's booking cancelled |
+| UC-095 | Customer cancels an entire recurring enrollment *(planned, not built)* | Customer | `RecurringEnrollment.status → CANCELLED` |
+| UC-096 | Staff/manager cancels template occurrences for a date range *(planned, not built)* | STAFF \| MANAGER | `ClassScheduleTemplateException` created; sessions cancelled |
+| UC-097 | Guest verifies email before requesting a class seat *(planned, not built)* | Guest | `PENDING_EMAIL_VERIFICATION` → `CONFIRMED`\|`PENDING_APPROVAL` |
+| UC-098 | Staff approves or rejects a verified guest class reservation *(planned, not built)* | STAFF \| MANAGER | `ClassSessionBooking.status → CONFIRMED`\|`CANCELLED` |
+| UC-099 | Manager creates or cancels a customer class-access contract *(planned, not built)* | MANAGER | `ClassAccessContract` created/cancelled |
+| UC-100 | System expires unresolved guest requests at session start *(planned, not built)* | System | `PENDING_APPROVAL` → `CANCELLED` |
+| UC-101 | Staff closes a session with individual attendance *(planned, not built)* | STAFF \| MANAGER | `ClassSession.status → CLOSED`; attendee outcomes recorded |
+| UC-102 | Customer reschedules a skipped fixed-class occurrence *(planned, not built)* | Customer | New one-off booking linked via `rescheduledFromId` |
+| UC-103 | Staff/manager views enrollments for a class type *(planned, not built)* | STAFF \| MANAGER | Read operation |
+| UC-104 | Staff manually creates an enrollment on a customer's behalf *(planned, not built)* | STAFF \| MANAGER | Same as UC-086/093, `createdByStaff = true` |
+| UC-105 | Customer edits a group reservation's attendees *(planned, not built)* | Customer | Attendee removed; `quantity`/quote adjusted |
+| UC-106 | System expires a waitlist offer *(planned, not built)* | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
+| UC-107 | Staff records a manually reported charge at session close-out *(planned, not built)* | STAFF \| MANAGER | `class_session_payments` row created |
 | UC-108 | Staff creates a one-off booking on a customer's behalf | STAFF \| MANAGER | `Booking` created directly `APPROVED`, `type = CUSTOMER` or `GUEST` |

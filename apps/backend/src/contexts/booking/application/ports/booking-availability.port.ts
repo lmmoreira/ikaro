@@ -19,7 +19,7 @@ export interface IBookingAvailabilityPort {
   // method from findOccupancyByTenantAndResource above, not a shared one with an extra flag:
   // this one (a) includes REQUESTED-state rows (a PENDING booking on a degenerate/LOCATION-
   // fallback service) alongside HOLD/COMMITTED, since the day grid is REQUESTED's only reader
-  // anywhere in the codebase (docs/13-DATABASE_SCHEMA.md's resource_occupancy EXCLUDE constraint
+  // anywhere in the codebase (docs/DATABASE_SCHEMA.md's resource_occupancy EXCLUDE constraint
   // note), and (b) resolves `refId` (the booking/session id to drill into), which the
   // availability-computation callers of the method above never need. `date` is a single
   // tenant-local calendar date (YYYY-MM-DD); `timezone` converts it the same way as above.

@@ -17,7 +17,7 @@
 | `04-serie-confirmar.html` | `/{slug}/aulas/[classTypeId]/reservar/serie/confirmar` | `SeriesConfirmPage` |
 | `05-success-ativo.html` / `05b-success-waitlist.html` | `/{slug}/aulas/[classTypeId]/reservar/sucesso` | `EnrollmentSuccessPage` |
 
-## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md` § Classes & Sessions)
+## BFF calls (endpoints not yet implemented — contract per `docs/API_CONTRACTS.md` § Classes & Sessions)
 
 ```
 GET /v1/class-types
@@ -44,7 +44,7 @@ POST /v1/recurring-enrollments
 - **`00-tipo-reserva.html`** — only shown when `classType.allowsDropIn && classType.allowsSeries` are both true; otherwise the catalog links directly to `02-dropin.html` or `03b-serie-dias.html`.
 - **`02-dropin.html` / `02b-dropin-lotada.html`** — capacity badge (`remainingSpots`) drives whether "Reservar" or "Entrar na fila" renders; the lotada variant routes into UC-090's waitlist creation, not a dead end.
 - **`03-dropin-confirmar.html` / `04-serie-confirmar.html`** — must branch the confirmation copy on the resulting `status` (`CONFIRMED` vs `PENDING_APPROVAL`, the latter per UC-087's `trialSlots` threshold) — never assume instant confirmation.
-- **`05-success-ativo.html` / `05b-success-waitlist.html`** — the waitlist variant must show queue position (computed client-side from a value the BFF returns at read time, never a stored field — see `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`) and link into `minha-conta.md`'s Turmas section for ongoing management.
+- **`05-success-ativo.html` / `05b-success-waitlist.html`** — the waitlist variant must show queue position (computed client-side from a value the BFF returns at read time, never a stored field — see `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`) and link into `minha-conta.md`'s Turmas section for ongoing management.
 
 ## Known limitations
 

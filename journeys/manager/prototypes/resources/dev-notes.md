@@ -34,7 +34,7 @@ Dashboard section for creating and managing the tenant's `Resource` rows (`LOCAT
 | Reactivate resource | `POST /v1/resources/:id/reactivate` | MANAGER | — | `200` |
 | STAFF picker options | `GET /v1/resources/staff-options?excludeResourceId=` | MANAGER | — | `ResourceStaffOptionsResponse` (BFF-composed from Staff + Resource reads) |
 
-All endpoints exist (`apps/bff/src/features/booking/resource.controller.ts`; backend `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts`). Full contract: `docs/14-API_CONTRACTS.md` § Resource Management.
+All endpoints exist (`apps/bff/src/features/booking/resource.controller.ts`; backend `apps/backend/src/contexts/booking/infrastructure/controllers/resource.controller.ts`). Full contract: `docs/API_CONTRACTS.md` § Resource Management.
 
 ## Screen: ResourceListPage (`/dashboard/resources`, UC-044)
 
@@ -52,7 +52,7 @@ Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or 
 |---|---|---|
 | `type` | 3-card selector: Profissional (STAFF) / Sala (ROOM) / Equipamento (EQUIPMENT) | required — `LOCATION` is never manually created |
 | `refId` (STAFF only) | `<Select>` of existing, not-yet-wrapped, active `Staff` rows (currently-selected staff stays visible-but-disabled if since deactivated) | required when `type = STAFF` |
-| `name` | `<Input type="text">` — for STAFF, auto-seeded from the picked staff member's own name but independently editable after (`Resource.name` is denormalized, per `docs/02-DOMAIN_MODEL.md` § Resource) | required for every type |
+| `name` | `<Input type="text">` — for STAFF, auto-seeded from the picked staff member's own name but independently editable after (`Resource.name` is denormalized, per `docs/DOMAIN_MODEL.md` § Resource) | required for every type |
 | `workingHours` | per-weekday open/close editor (`ResourceWorkingHoursEditor`, shared `WeekDayRow` primitive with the tenant `businessHours` editor) | optional — blank inherits tenant hours; every window must be a subset of the tenant's own hours |
 | `turnoverMinutes` | `<Input type="number">` | optional, default 0, `>= 0` |
 | `maxCapacity` | `<Input type="number">` (hidden for STAFF — discarded on submit even if a stale value exists from a prior type selection) | optional, `> 0` when set |

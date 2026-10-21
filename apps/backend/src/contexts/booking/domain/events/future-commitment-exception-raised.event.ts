@@ -13,7 +13,7 @@ interface FutureCommitmentExceptionRaisedData extends Record<string, unknown> {
   ownerStaffId: string | null;
 }
 
-// docs/03-DOMAIN_EVENTS.md § FutureCommitmentExceptionRaised (UC-073) — audit-log consumer only.
+// docs/DOMAIN_EVENTS.md § FutureCommitmentExceptionRaised (UC-073) — audit-log consumer only.
 export class FutureCommitmentExceptionRaised extends DomainEvent<FutureCommitmentExceptionRaisedData> {
   readonly eventVersion = 1;
   readonly data: FutureCommitmentExceptionRaisedData;

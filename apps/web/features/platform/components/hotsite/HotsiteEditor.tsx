@@ -78,7 +78,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // converges to once its GET fetch resolves (audienceMode/questions, sans hasSubmissions — a
   // read-only annotation, never something the manager edits). Without this, cancelModuleConfig's
   // committed value (draft.layout[].data alone, which never carries audienceMode/questions — see
-  // docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") can never equal the panel's
+  // docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") can never equal the panel's
   // own localData once it syncs, so the discard-confirm dialog showed unconditionally, even with
   // zero real edits (found live, 2026-08-26).
   const leadFormConfigBaseline =

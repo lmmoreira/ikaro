@@ -5,7 +5,7 @@
 
 ## Purpose
 
-A **journey** documents one cohesive sequence of screens/actions a specific actor moves through to accomplish a goal, built from one or more use cases (`docs/04-USE_CASES.md`). Journeys bridge **use cases** (atomic business actions) and **wireframes/pages** (what gets built) — and are the primary tool for finding IA gaps: places where a use case implies a step but no page/route exists yet.
+A **journey** documents one cohesive sequence of screens/actions a specific actor moves through to accomplish a goal, built from one or more use cases (`docs/USE_CASES.md`). Journeys bridge **use cases** (atomic business actions) and **wireframes/pages** (what gets built) — and are the primary tool for finding IA gaps: places where a use case implies a step but no page/route exists yet.
 
 A **prototype** is a folder of static HTML files that makes the journey clickable in a browser. It uses the real `--ba-*` branding tokens and serves as the handoff spec from UX validation to React implementation.
 
@@ -57,7 +57,7 @@ journeys/
 
 ### Why MANAGER, not ADMIN
 
-`docs/04-USE_CASES.md` uses "Admin" loosely to mean "Staff or Manager." The system has exactly two staff-side JWT roles (CLAUDE.md §1): `STAFF` and `MANAGER`. `MANAGER` is a **superset** — everything `STAFF` can do, plus settings/team/hotsite management.
+`docs/USE_CASES.md` uses "Admin" loosely to mean "Staff or Manager." The system has exactly two staff-side JWT roles (CLAUDE.md §1): `STAFF` and `MANAGER`. `MANAGER` is a **superset** — everything `STAFF` can do, plus settings/team/hotsite management.
 
 - A journey belongs in `staff/` if both `STAFF` and `MANAGER` can perform it.
 - A journey belongs in `manager/` only if the use case explicitly restricts it to the `MANAGER` role.
@@ -697,8 +697,8 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 
 ## Relationship to other docs
 
-- `docs/04-USE_CASES.md` — source of UCs (link UC numbers, don't restate UC text)
-- `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` — canonical page/folder structure; update if a journey reveals a new page
+- `docs/USE_CASES.md` — source of UCs (link UC numbers, don't restate UC text)
+- `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` — canonical page/folder structure; update if a journey reveals a new page
 - `plan/M13-DASHBOARD-FRONTEND.md` — stories implementing these pages; update AC or add stories per gap
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts` — source of truth for token default values
 - `apps/web/features/platform/hotsite/apply-branding.ts` — token derivation logic (button tokens, hero text contrast)

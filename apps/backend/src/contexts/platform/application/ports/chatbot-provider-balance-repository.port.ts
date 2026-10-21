@@ -6,7 +6,7 @@ export const CHATBOT_PROVIDER_BALANCE_REPOSITORY = Symbol('IChatbotProviderBalan
 // two independent writers (S08's balance poll, S05/S06's health signal) sharing one row by
 // provider, and each write must touch only its own columns via a partial upsert. A single
 // generic save(entity) mapping every aggregate field onto the entity would silently clobber
-// whichever columns the other writer owns. See docs/13-DATABASE_SCHEMA.md's "Write discipline"
+// whichever columns the other writer owns. See docs/DATABASE_SCHEMA.md's "Write discipline"
 // note for the full rationale.
 export interface IChatbotProviderBalanceRepository {
   findByProvider(provider: string): Promise<ChatbotProviderBalance | null>;

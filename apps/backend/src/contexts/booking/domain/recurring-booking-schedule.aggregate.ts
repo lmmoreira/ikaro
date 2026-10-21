@@ -195,7 +195,7 @@ export class RecurringBookingSchedule extends AggregateRoot {
   }
 
   // The term is over: nothing was cancelled and no consumer needs an event, so none is raised
-  // (docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleEnded).
+  // (docs/DOMAIN_EVENTS.md § RecurringBookingScheduleEnded).
   markEnded(): void {
     this.assertActive();
     this.props.status = 'ENDED';

@@ -92,7 +92,7 @@ export class ListLeadFormSubmissionsUseCase {
   // given — every other request (plain pagination, search, or filters alone) skips this I/O
   // entirely. Half-open UTC instant range [submittedFrom's tenant-local midnight, day-after-
   // submittedTo's tenant-local midnight) — both dates inclusive from the caller's own perspective
-  // (docs/14-API_CONTRACTS.md § Leads Submissions).
+  // (docs/API_CONTRACTS.md § Leads Submissions).
   private async resolveDateRange(
     tenantId: string,
     submittedFrom: string | undefined,

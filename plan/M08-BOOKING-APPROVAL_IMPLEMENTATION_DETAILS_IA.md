@@ -79,7 +79,7 @@ BFF guest endpoint: `PATCH /v1/bookings/:id/submit-info/guest?token=<token>` (`@
 - Asserts `payload.bookingId === id`
 - Calls `backendHttp.patchForPublic(...)` with `tenantId` from token
 
-### BFF controller additions (`apps/bff/src/bookings/bookings.controller.ts`)
+### BFF controller additions (`apps/bff/src/features/booking/bookings.controller.ts`)
 
 | Method | Path | Auth | Zod schema |
 |---|---|---|---|
@@ -88,7 +88,7 @@ BFF guest endpoint: `PATCH /v1/bookings/:id/submit-info/guest?token=<token>` (`@
 
 `ListBookingsQuerySchema` uses `z.coerce.number()` for `limit`/`offset` (query params are strings).
 
-### BFF types (`apps/bff/src/bookings/bookings.types.ts`)
+### BFF types (`apps/bff/src/features/booking/bookings.types.ts`)
 
 Three response interfaces: `BookingResponse` (create), `BookingListResponse` (list), `BookingDetailResponse` (get-one — richer: phone, notes, infoRequest/Response, actualPriceCharged).
 

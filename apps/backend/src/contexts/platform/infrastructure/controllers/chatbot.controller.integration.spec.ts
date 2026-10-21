@@ -39,7 +39,7 @@ class SwitchableLlmProvider implements ILlmProvider {
 // itself stubbed. Proves the wiring the layered unit/integration specs can't: real
 // ZodValidationPipe behavior, real RequestContext population from headers, real mapPlatformError
 // -> HTTP status mapping, and that POST /messages and GET /status agree on the same underlying
-// DB state (docs/08-TESTING_STRATEGY.md Layer 3 explicitly scopes "REST controllers").
+// DB state (docs/TESTING_STRATEGY.md Layer 3 explicitly scopes "REST controllers").
 describe('ChatbotController (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
@@ -70,9 +70,9 @@ describe('ChatbotController (integration)', () => {
   beforeEach(async () => {
     llmProvider.mode = 'success';
     // chatbot_provider_balance is platform-wide, not tenant-scoped (by design — see
-    // docs/13-DATABASE_SCHEMA.md) — a prior test's simulated outage on 'openrouter' would
+    // docs/DATABASE_SCHEMA.md) — a prior test's simulated outage on 'openrouter' would
     // otherwise leak into every later test's health check via the same shared row. Truncate
-    // (not drop) between tests, matching docs/08-TESTING_STRATEGY.md's Layer 3 convention.
+    // (not drop) between tests, matching docs/TESTING_STRATEGY.md's Layer 3 convention.
     await ds.query('TRUNCATE platform.chatbot_provider_balance');
   });
 
@@ -222,7 +222,7 @@ describe('ChatbotController (integration)', () => {
         .expect(({ body }) => expect(body).toEqual({ available: false }));
 
       // Health-only cooldown default is 5 minutes — a real subsequent success is what actually
-      // clears it (docs/13-DATABASE_SCHEMA.md's half-open rule), not time passing in this test.
+      // clears it (docs/DATABASE_SCHEMA.md's half-open rule), not time passing in this test.
       llmProvider.mode = 'success';
       await request(app.getHttpServer())
         .post('/platform/chatbot/messages')

@@ -37,7 +37,7 @@ export class RemoveScheduleOpeningUseCase {
       // A resource-scoped opening on a date the tenant is normally closed can only exist
       // because this tenant-wide opening let it be created in the first place (see
       // OpenScheduleUseCase's tenant-window prerequisite) — removing it first would leave those
-      // resource openings outside any window the tenant has open (docs/13-DATABASE_SCHEMA.md §
+      // resource openings outside any window the tenant has open (docs/DATABASE_SCHEMA.md §
       // schedule_openings Rules). Block the removal instead; the resource-scoped openings must
       // be removed first. The lock is the same (tenantId, date) key OpenScheduleUseCase takes
       // before its own dependent-check, so a concurrent create can't slip a new dependent in

@@ -133,7 +133,7 @@ export class OpenScheduleUseCase {
 
   // A resource with its own workingHours gates the "day closed" check against its own
   // schedule, not the tenant's — a resource with workingHours: null inherits the tenant's
-  // businessHours instead (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md
+  // businessHours instead (Resource's own documented inheritance rule, docs/DOMAIN_MODEL.md
   // § Resource). Tenant-wide openings (resource === null) always use businessHours.
   private effectiveDayHours(
     resource: Resource | null,
@@ -144,7 +144,7 @@ export class OpenScheduleUseCase {
   }
 
   // A resource-scoped opening's window must always fit inside something the tenant itself has
-  // open for that date (docs/13-DATABASE_SCHEMA.md § booking.schedule_openings: "never... extends
+  // open for that date (docs/DATABASE_SCHEMA.md § booking.schedule_openings: "never... extends
   // beyond a tenant opening/window"). What that "something" is depends on whether the day is
   // normally open for the tenant:
   //  - Normally open (businessHours[day] set): that window IS the bound — no explicit

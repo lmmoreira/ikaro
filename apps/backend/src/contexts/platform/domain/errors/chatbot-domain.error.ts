@@ -2,7 +2,7 @@ import { PlatformErrorCode } from '@ikaro/types/protocol/errors';
 import { PlatformDomainError } from './platform-domain.error';
 
 /**
- * Chatbot cap-rejection errors (docs/04-USE_CASES.md UC-033) — all mapped to
+ * Chatbot cap-rejection errors (docs/USE_CASES.md UC-033) — all mapped to
  * HTTP 429 in platform-error.mapper.ts. Covers both layer 1 (tenant-wide) and layer 2 (per-IP)
  * daily caps: same visitor-facing outcome ("come back tomorrow"), same error code.
  */
@@ -90,7 +90,7 @@ export class ChatbotMessageTooLongError extends PlatformDomainError {
   }
 }
 
-/** docs/14-API_CONTRACTS.md: "404 — ... sessionId doesn't belong to this tenant". */
+/** docs/API_CONTRACTS.md: "404 — ... sessionId doesn't belong to this tenant". */
 export class ChatbotSessionNotFoundError extends PlatformDomainError {
   constructor(sessionId: string) {
     super(

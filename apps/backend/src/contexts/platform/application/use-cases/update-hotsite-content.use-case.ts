@@ -43,7 +43,7 @@ export interface UpdateHotsiteContentUseCaseResult {
  * Also writes LeadFormConfig (audienceMode/questions) in the same transaction when either is
  * present in the request — folded in at M20-S08 (previously a separate, near-duplicate
  * UpdateLeadFormModuleUseCase behind its own PATCH /v1/tenants/lead-form/config endpoint; see
- * docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save"). LeadFormConfig stays a
+ * docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save"). LeadFormConfig stays a
  * genuinely separate aggregate/table from HotsiteConfig.layout[] — audienceMode/questions must
  * never be persisted into a module's own layout[].data, since that's what the public manifest
  * cache serves; only this use case's own two extra fields carry them.

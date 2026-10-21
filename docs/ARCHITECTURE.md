@@ -1,6 +1,6 @@
 # System Architecture & Hexagonal Design - Ikaro
 
-> **When to load:** orienting on the system: the modular monolith with hexagonal layers, the high-level diagram, the repository slice shape and how multi-tenancy is enforced; full trees are in `docs/REPOSITORY_STRUCTURE.md`, context boundaries in `docs/05-BOUNDED_CONTEXTS.md`.
+> **When to load:** orienting on the system: the modular monolith with hexagonal layers, the high-level diagram, the repository slice shape and how multi-tenancy is enforced; full trees are in `docs/REPOSITORY_STRUCTURE.md`, context boundaries in `docs/BOUNDED_CONTEXTS.md`.
 > **Tags:** backend, bff, web
 
 ## Overview
@@ -134,7 +134,7 @@ src/contexts/booking/
 │   ├── events/            # event/trigger handlers
 │   ├── http/              # <context>-error.mapper.ts
 │   ├── migrations/
-│   └── cross-context/     # sanctioned cross-context Port+Adapter (docs/05-BOUNDED_CONTEXTS.md § Rule 1)
+│   └── cross-context/     # sanctioned cross-context Port+Adapter (docs/BOUNDED_CONTEXTS.md § Rule 1)
 └── booking.module.ts      # NestJS Module definition — at the context root, not inside infrastructure/
 ```
 
@@ -154,7 +154,7 @@ src/contexts/booking/
 - **Technology Mapping:**
   - *Publisher:* `BookingContext` completes a wash → `eventBus.publish(new BookingCompleted(data))`.
   - *Subscriber:* `LoyaltyContext` → `eventBus.subscribe('BookingCompleted', handleLoyaltyUpdate)`.
-- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side, **for consumers whose write path is idempotency-safe** (loyalty/staff via a DB unique constraint, notification via `shared.inbox`'s atomic `tryClaim`/`unclaim`). One known exception: notification's multi-recipient dispatch (`dispatchTemplatesToMany`) can still resend to already-successful recipients after a partial batch failure — see `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, still open. Both `shared.outbox`/`shared.inbox` are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 7th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section and `docs/03-DOMAIN_EVENTS.md` for the full design.
+- **Transactional guarantee (`shared.outbox` / `shared.inbox`, TD24):** `IEventBus.publish()`'s implied contract — a published fact reaches consumers exactly-once *in effect* — is made real by a transactional outbox on the publish side and a shared inbox on the consume side, **for consumers whose write path is idempotency-safe** (loyalty/staff via a DB unique constraint, notification via `shared.inbox`'s atomic `tryClaim`/`unclaim`). One known exception: notification's multi-recipient dispatch (`dispatchTemplatesToMany`) can still resend to already-successful recipients after a partial batch failure — see `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, still open. Both `shared.outbox`/`shared.inbox` are **shared transport infrastructure, not a bounded context** — the same category as Pub/Sub itself, not a 7th context alongside Booking/Loyalty/Notification/Customer/Staff/Platform. See `docs/DATABASE_SCHEMA.md`'s `Schema: shared` section and `docs/DOMAIN_EVENTS.md` for the full design.
 
 ---
 
@@ -176,4 +176,4 @@ The architecture enforces tenant isolation at the **Adapter Layer**:
 ---
 
 **Status:** Phase 2 - Technical Architecture  
-**Next:** `13-DATABASE_SCHEMA.md` (Multi-tenant Table Design)
+**Next:** `DATABASE_SCHEMA.md` (Multi-tenant Table Design)

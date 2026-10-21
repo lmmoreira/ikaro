@@ -15,7 +15,7 @@ export interface ResourceOccupancyRetentionPurgeJobResult {
   rowsDeleted: number;
 }
 
-// docs/13-DATABASE_SCHEMA.md § booking.resource_occupancy: "safely garbage-collectable after its
+// docs/DATABASE_SCHEMA.md § booking.resource_occupancy: "safely garbage-collectable after its
 // window elapses (retention: 90 days past ends_at, trickle-deleted the same way
 // shared.outbox/shared.inbox already are)". Purges every lock_state (REQUESTED, HOLD,
 // COMMITTED alike) — this is the 90-day retention sweep only, not the active hold-expiry

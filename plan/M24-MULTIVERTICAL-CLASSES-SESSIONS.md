@@ -4,7 +4,7 @@
 **Goal:** Deliver the SESSION booking model end-to-end — recurring class schedule templates, generated sessions, capacity/waitlist-managed bookings (contract, pay-per-class, verified-guest group), recurring enrollments, class-access contracts, and staff close-out/attendance — completing the fourth and final cluster of the Multi-Vertical Scheduling discovery. This is the largest cluster: it also completes UC-056's SESSION branch (`Service.classResourceSlots` becomes actionable), UC-058's forward-referenced class-template availability check, UC-060's cross-family `resource_occupancy` exclusivity, and UC-075 — the whole tenant onboarding bootstrap and wizard, all seven presets, moved here from M23 on 2026-10-10 and scheduled last.
 **Depends on:** M21 (`Resource` aggregate), M22 (`Service.bookingModel`/`classResourceSlots`, availability engine, `resource_occupancy`), M23 (`booking_quote_revisions` precedent, `FutureCommitmentException`/no-show shape, nothing for onboarding: the UC-075 bootstrap and wizard (formerly M23-S10/S15) are now built in this milestone as S21/S05/S22). Where a story needs one specific M21/M22/M23 story it cites its exact ID (e.g. `M21-S01`, `M23-S11a`, `M23-S29`); a bare `M21`/`M22` means the milestone as a whole. Verify against `plan/M21-*.md`/`plan/M22-*.md`/`plan/M23-*.md` before running `/story-discovery` on any M24 story.
 **Blocks:** none — this is the final milestone of the Multi-Vertical Scheduling sequence.
-**Design rationale:** `docs/discovery/multivertical-booking/multivertical-booking.md` (Cluster 4, promoted via `/discovery-to-milestone` on 2026-08-31) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/04-USE_CASES.md` UC-078–107, `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract`/`ClassScheduleTemplateException`, `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § 4b, `docs/21-TENANTS_SETTINGS_SCHEMA.md`) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
+**Design rationale:** `docs/discovery/multivertical-booking/multivertical-booking.md` (Cluster 4, promoted via `/discovery-to-milestone` on 2026-08-31) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/USE_CASES.md` UC-078–107, `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassSession`/`ClassSessionBooking`/`RecurringEnrollment`/`ClassAccessContract`/`ClassScheduleTemplateException`, `docs/DOMAIN_EVENTS.md`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md` § 4b, `docs/TENANTS_SETTINGS_SCHEMA.md`) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
 ## Non-Goals
 
@@ -12,7 +12,7 @@
 - **Hotel/multi-day session models** — a `ClassSession` is a single bounded time window; no overnight/multi-day session support.
 - **Adding/replacing attendees mid-reservation, or partially changing an APPOINTMENT booking's attendees** — UC-105 A1 explicitly defers this; only removal is supported.
 - **A family-account/dependent hierarchy for minors** — UC-068's "a responsible authenticated adult may be the booker" note applies unchanged; no separate minor-account model.
-- **Dynamic per-day session duration ("span to closing time")** — a `ClassScheduleTemplate`'s occurrence duration always comes from the one `Service.durationMinutes` value, uniform across every day in its `recurrence` (see `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`). A business whose hours vary by weekday and wants a full-day session on each (e.g. a coworking-style day pass, shorter Saturday) creates one template per distinct-hours weekday group instead — zero new machinery, reuses the existing "two independent instances" pattern. A `durationMode: FIXED | SPAN_TO_CLOSE`-style field is deliberately deferred until a real discovery pass validates a vertical that actually needs it — raised 2026-09-02 while reasoning through a hypothetical coworking/hot-desk vertical (not a discovered one; no such vertical is in scope for this milestone).
+- **Dynamic per-day session duration ("span to closing time")** — a `ClassScheduleTemplate`'s occurrence duration always comes from the one `Service.durationMinutes` value, uniform across every day in its `recurrence` (see `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`). A business whose hours vary by weekday and wants a full-day session on each (e.g. a coworking-style day pass, shorter Saturday) creates one template per distinct-hours weekday group instead — zero new machinery, reuses the existing "two independent instances" pattern. A `durationMode: FIXED | SPAN_TO_CLOSE`-style field is deliberately deferred until a real discovery pass validates a vertical that actually needs it — raised 2026-09-02 while reasoning through a hypothetical coworking/hot-desk vertical (not a discovered one; no such vertical is in scope for this milestone).
 
 ## Build order
 
@@ -102,12 +102,12 @@ graph TD
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`, `ClassScheduleTemplateException`, `docs/13-DATABASE_SCHEMA.md` § `booking.class_schedule_templates`/`class_schedule_template_slots`/`class_schedule_template_exceptions`, `docs/14-API_CONTRACTS.md` § Session Templates (UC-078–080), `docs/04-USE_CASES.md` UC-079, UC-080, UC-096, `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter)
+**Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`, `ClassScheduleTemplateException`, `docs/DATABASE_SCHEMA.md` § `booking.class_schedule_templates`/`class_schedule_template_slots`/`class_schedule_template_exceptions`, `docs/API_CONTRACTS.md` § Session Templates (UC-078–080), `docs/USE_CASES.md` UC-079, UC-080, UC-096, `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter)
 **Dependencies:** M22 (`Service.bookingModel=SESSION`, `Service.classResourceSlots` pool), M21 (`Resource`)
 **Pattern:** Repository + Adapter (`IClassScheduleTemplateRepository`), matches every other Booking-context aggregate.
 
 **Description:**
-Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTemplateSlot` child collection and the separate `ClassScheduleTemplateException` aggregate, per `docs/02-DOMAIN_MODEL.md`'s exact field lists. A template picks exactly one resource per slot from the service's already-declared `classResourceSlots` pool (M22), sets a recurrence rule, capacity, and optional `trialSlots`.
+Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTemplateSlot` child collection and the separate `ClassScheduleTemplateException` aggregate, per `docs/DOMAIN_MODEL.md`'s exact field lists. A template picks exactly one resource per slot from the service's already-declared `classResourceSlots` pool (M22), sets a recurrence rule, capacity, and optional `trialSlots`.
 
 **Aggregate invariants (enforced in `ClassScheduleTemplate.create()`/`update()`, not just the DB):**
 - Each `resourceIds` entry must be a member of `Service.classResourceSlots` for the same `(serviceId, resourceType)` — app-enforced.
@@ -125,11 +125,11 @@ Create the `ClassScheduleTemplate` aggregate (root) with its `ClassScheduleTempl
 
 This story defines and persists `ClassScheduleTemplateException`, but deliberately does not expose range cancellation. The atomic UC-096 operation depends on materialized `ClassSession` rows and lands in M24-S08 after both session and booking cancellation semantics exist. No temporary no-op or cross-story TODO is permitted.
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `GET /class-schedule-templates`. `POST /class-schedule-templates/:id/cancel-range` lands atomically in M24-S08. `STAFF|MANAGER` per `docs/14-API_CONTRACTS.md` § 4b (blanket auth note).
+**Backend HTTP surface:** new controller `infrastructure/controllers/class-schedule-template.controller.ts` — `POST /class-schedule-templates`, `PATCH /class-schedule-templates/:id`, `DELETE /class-schedule-templates/:id`, `GET /class-schedule-templates`. `POST /class-schedule-templates/:id/cancel-range` lands atomically in M24-S08. `STAFF|MANAGER` per `docs/API_CONTRACTS.md` § 4b (blanket auth note).
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/class-schedule-template.controller.ts` + `.schemas.ts` + `.types.ts`, forwarding via `BackendHttpService`. Register in the existing `apps/bff/src/features/booking/` module.
 
-**New migration:** `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateClassScheduleTemplates.ts` — `class_schedule_templates`, `class_schedule_template_slots`, `class_schedule_template_exceptions` exactly per `docs/13-DATABASE_SCHEMA.md`. Verify the current highest migration timestamp at implementation time (`1748500000006` as of this milestone's drafting — M21/M22/M23 will have added more by the time this story starts).
+**New migration:** `apps/backend/src/contexts/booking/infrastructure/migrations/<timestamp>-CreateClassScheduleTemplates.ts` — `class_schedule_templates`, `class_schedule_template_slots`, `class_schedule_template_exceptions` exactly per `docs/DATABASE_SCHEMA.md`. Verify the current highest migration timestamp at implementation time (`1748500000006` as of this milestone's drafting — M21/M22/M23 will have added more by the time this story starts).
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/class-schedule-template.aggregate.ts` (+ `.spec.ts`) (new)
@@ -178,7 +178,7 @@ This story defines and persists `ClassScheduleTemplateException`, but deliberate
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassAccessContract`, `docs/13-DATABASE_SCHEMA.md` § `booking.class_access_contracts`, `docs/14-API_CONTRACTS.md` § Class Access Contracts, `docs/04-USE_CASES.md` UC-099
+**Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassAccessContract`, `docs/DATABASE_SCHEMA.md` § `booking.class_access_contracts`, `docs/API_CONTRACTS.md` § Class Access Contracts, `docs/USE_CASES.md` UC-099
 **Dependencies:** M22 (`Service.bookingModel=SESSION`)
 **Pattern:** Repository + Adapter (`IClassAccessContractRepository`).
 
@@ -186,13 +186,13 @@ This story defines and persists `ClassScheduleTemplateException`, but deliberate
 Create the `ClassAccessContract` aggregate — a minimal, date-bounded eligibility record. Manager grants a customer booking eligibility for one or more SESSION services over a date range; the contract reserves no seat itself.
 
 **Aggregate invariants:**
-- Overlapping active contracts for the same customer are permitted only when `eligibleServiceIds` don't overlap (UC-099 A2) — checked via `(tenant_id, customer_id, status)` index + app-side array-overlap check (no DB constraint for array overlap across rows, per `docs/13-DATABASE_SCHEMA.md`).
+- Overlapping active contracts for the same customer are permitted only when `eligibleServiceIds` don't overlap (UC-099 A2) — checked via `(tenant_id, customer_id, status)` index + app-side array-overlap check (no DB constraint for array overlap across rows, per `docs/DATABASE_SCHEMA.md`).
 - Cancelling early cancels every future booking it funded and ends dependent recurring enrollments (this milestone's S11), releasing capacity.
 - Reaching `endsOn` expires the contract the same way — a later contract never silently resumes what an earlier one covered.
 
 **Backend use case steps:**
 1. **`CreateClassAccessContractUseCase`** (UC-099 steps 1-2): validates customer exists (cross-context lookup via a narrow adapter, grep `infrastructure/cross-context/` first per `CLAUDE.md` §8), validates no overlapping eligibility, persists.
-2. **Expiry**: a lightweight query-time check (`endsOn < today`) marks a contract `EXPIRED` when read, mirroring how `LoyaltyBalance` expiry is query-time-only (`docs/13-DATABASE_SCHEMA.md`'s Loyalty precedent) — no separate cron needed for this aggregate alone.
+2. **Expiry**: a lightweight query-time check (`endsOn < today`) marks a contract `EXPIRED` when read, mirroring how `LoyaltyBalance` expiry is query-time-only (`docs/DATABASE_SCHEMA.md`'s Loyalty precedent) — no separate cron needed for this aggregate alone.
 
 Early cancellation is intentionally deferred to M24-S11, where contract, booking, and recurring-enrollment transitions can be committed atomically. This story must not ship a partial cancellation that leaves funded future commitments active.
 
@@ -200,7 +200,7 @@ Early cancellation is intentionally deferred to M24-S11, where contract, booking
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/class-access-contract.controller.ts` + `.schemas.ts`.
 
-**New migration:** `<timestamp>-CreateClassAccessContracts.ts` — `class_access_contracts` exactly per `docs/13-DATABASE_SCHEMA.md`.
+**New migration:** `<timestamp>-CreateClassAccessContracts.ts` — `class_access_contracts` exactly per `docs/DATABASE_SCHEMA.md`.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/class-access-contract.aggregate.ts` (+ `.spec.ts`) (new)
@@ -237,7 +237,7 @@ Early cancellation is intentionally deferred to M24-S11, where contract, booking
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-078, `docs/14-API_CONTRACTS.md` § Session Templates
+**Docs to load:** `docs/USE_CASES.md` UC-078, `docs/API_CONTRACTS.md` § Session Templates
 **Dependencies:** M22 (`Service.bookingModel=SESSION`)
 **Pattern:** plain composition — extends the existing `Service` aggregate; no new pattern.
 
@@ -284,7 +284,7 @@ Add `guestAccessEnabled: boolean` (default `false`) and `guestTrialPolicy: 'NONE
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassSession`, `docs/13-DATABASE_SCHEMA.md` § `booking.class_sessions`/`class_session_resources`, `docs/04-USE_CASES.md` UC-081, `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling (timer/async work can be silently starved — this worker must run via the trigger-bus/Pub-Sub-push path, never a bare in-process `setInterval`)
+**Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassSession`, `docs/DATABASE_SCHEMA.md` § `booking.class_sessions`/`class_session_resources`, `docs/USE_CASES.md` UC-081, `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling (timer/async work can be silently starved — this worker must run via the trigger-bus/Pub-Sub-push path, never a bare in-process `setInterval`)
 **Dependencies:** M24-S01 (templates to generate from)
 **Pattern:** plain composition, mirrors the existing loyalty-expiry cron shape (`apps/backend/src/contexts/loyalty/application/jobs/expire-points.job.ts` + `apps/backend/src/contexts/loyalty/infrastructure/events/expire-points-trigger.handler.ts` + `apps/backend/src/contexts/booking/infrastructure/controllers/cron-booking.controller.ts`'s thin-publisher pattern) — real, verified precedent, not invented.
 
@@ -301,9 +301,9 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 1. **`GenerateClassSessionsJob`** (UC-081): for each active template, computes next occurrences in horizon, creates `ClassSession` + `ClassSessionResource` rows, skips already-materialized `(templateId, startTime)` keys, records an operational metric on partial failure (A1).
 2. **`ListClassSessionsUseCase`** (UC-085): read-only, `findByTenant(tenantId, { serviceId?, from?, to? })` — used by both S06 (staff) and S17/S19 (customer/guest browse); this is the one shared read model both surfaces call, per `CLAUDE.md` §8's "duplicate read endpoints" anti-pattern.
 
-**Backend HTTP surface:** extend `cron-booking.controller.ts`-style pattern with a new `infrastructure/controllers/cron-class-sessions.controller.ts` — `POST /cron/class-sessions/generate`, publishing a new trigger via `ITriggerBus`; new `infrastructure/events/generate-class-sessions-trigger.handler.ts` subscribes and calls the job. `GET /class-sessions` — public/authenticated variant per `docs/14-API_CONTRACTS.md`.
+**Backend HTTP surface:** extend `cron-booking.controller.ts`-style pattern with a new `infrastructure/controllers/cron-class-sessions.controller.ts` — `POST /cron/class-sessions/generate`, publishing a new trigger via `ITriggerBus`; new `infrastructure/events/generate-class-sessions-trigger.handler.ts` subscribes and calls the job. `GET /class-sessions` — public/authenticated variant per `docs/API_CONTRACTS.md`.
 
-**New migration:** `<timestamp>-CreateClassSessions.ts` — `class_sessions`, `class_session_resources` exactly per `docs/13-DATABASE_SCHEMA.md`.
+**New migration:** `<timestamp>-CreateClassSessions.ts` — `class_sessions`, `class_session_resources` exactly per `docs/DATABASE_SCHEMA.md`.
 
 **Cross-story completion item:** S01's `CancelTemplateRangeUseCase` (UC-096 step 4, "cancels every already-materialized affected future session") has a placeholder no-op for the `ClassSession.cancel()` call until this story lands — wire the real call here.
 
@@ -345,7 +345,7 @@ Create the `ClassSession` aggregate (root, event-emitting) with its `ClassSessio
 
 **Agent:** `backend-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-075 (steps 4/A1), `journeys/manager/onboarding.md`
+**Docs to load:** `docs/USE_CASES.md` UC-075 (steps 4/A1), `journeys/manager/onboarding.md`
 **Dependencies:** M24-S01 (`ClassScheduleTemplate` to create), M24-S21 (extends its `BootstrapTenantSchedulingUseCase`; formerly M23-S10 — a forward reference by number only: S21 is built in an earlier wave than S05)
 **Pattern:** plain composition — extends an existing M23 use case.
 
@@ -380,7 +380,7 @@ Extend the tenant-onboarding bootstrap use case (built in M24-S21 for Presets A/
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-082, UC-083, `docs/14-API_CONTRACTS.md` § Sessions
+**Docs to load:** `docs/USE_CASES.md` UC-082, UC-083, `docs/API_CONTRACTS.md` § Sessions
 **Dependencies:** M24-S04 (`ClassSession` must exist)
 **Pattern:** plain composition.
 
@@ -420,9 +420,9 @@ Staff/manager list view over generated sessions (scoped "mine" for STAFF, "all" 
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`, `docs/13-DATABASE_SCHEMA.md` § `class_session_bookings`/`class_session_booking_attendees`/`class_session_booking_transitions`/`guest_class_booking_email_verifications`/`guest_class_trial_redemptions`, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionBookingConfirmed`, `docs/04-USE_CASES.md` UC-086, UC-087, UC-088, UC-097, `docs/14-API_CONTRACTS.md` § Class Session Bookings
+**Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`, `docs/DATABASE_SCHEMA.md` § `class_session_bookings`/`class_session_booking_attendees`/`class_session_booking_transitions`/`guest_class_booking_email_verifications`/`guest_class_trial_redemptions`, `docs/DOMAIN_EVENTS.md` § `ClassSessionBookingConfirmed`, `docs/USE_CASES.md` UC-086, UC-087, UC-088, UC-097, `docs/API_CONTRACTS.md` § Class Session Bookings
 **Dependencies:** M24-S04 (sessions to book into), M24-S02 (contracts, for UC-086 eligibility), M24-S03 (guest access policy, for UC-087/088 gating)
-**Pattern:** Repository + Adapter, full `AggregateRoot` with outbox-aware repository (matches `Booking`'s own pattern exactly, per `docs/03-DOMAIN_EVENTS.md`'s explicit note).
+**Pattern:** Repository + Adapter, full `AggregateRoot` with outbox-aware repository (matches `Booking`'s own pattern exactly, per `docs/DOMAIN_EVENTS.md`'s explicit note).
 
 **Description:**
 The biggest story in this milestone — the core session-booking write path. One `POST /class-session-bookings` endpoint branches on caller context: an authenticated customer with a qualifying `ClassAccessContract` books a single contract-funded seat (UC-086); an authenticated customer without one, on a `guestAccessEnabled` service, books pay-per-class (UC-087); an anonymous guest, after email verification, books 1..N named seats (UC-088/097).
@@ -444,11 +444,11 @@ The biggest story in this milestone — the core session-booking write path. One
 2. **`RequestGuestClassVerificationUseCase`** (UC-097 step 1): stores non-capacity-holding `PENDING_EMAIL_VERIFICATION` draft row, creates `guest_class_booking_email_verifications` token, sends one-time email.
 3. **`ConfirmGuestClassVerificationUseCase`** (UC-097 steps 2-3): validates token not expired, re-checks capacity + threshold atomically, transitions the draft to `CONFIRMED`/`PENDING_APPROVAL`, or — if capacity is now gone — leaves it unconfirmed and the frontend offers login/waitlist (A3).
 
-**Backend HTTP surface:** new controller `infrastructure/controllers/class-session-booking.controller.ts` — `POST /class-session-bookings`, `POST /class-session-bookings/guest-verification`, `POST /class-session-bookings/guest-verification/:token/confirm`. Customer/Guest actors per `docs/14-API_CONTRACTS.md` § 4b.
+**Backend HTTP surface:** new controller `infrastructure/controllers/class-session-booking.controller.ts` — `POST /class-session-bookings`, `POST /class-session-bookings/guest-verification`, `POST /class-session-bookings/guest-verification/:token/confirm`. Customer/Guest actors per `docs/API_CONTRACTS.md` § 4b.
 
-**BFF endpoint spec:** new `apps/bff/src/features/booking/class-session-booking.public.controller.ts` (guest/unauthenticated paths — `.public.controller.ts` prefix per `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming) + `class-session-booking.controller.ts` (authenticated customer path) + `.schemas.ts`.
+**BFF endpoint spec:** new `apps/bff/src/features/booking/class-session-booking.public.controller.ts` (guest/unauthenticated paths — `.public.controller.ts` prefix per `docs/BFF_ARCHITECTURE.md` § Module & Controller Naming) + `class-session-booking.controller.ts` (authenticated customer path) + `.schemas.ts`.
 
-**New migration:** `<timestamp>-CreateClassSessionBookings.ts` — `class_session_bookings`, `class_session_booking_attendees`, `class_session_booking_transitions`, `guest_class_booking_email_verifications`, `guest_class_trial_redemptions` exactly per `docs/13-DATABASE_SCHEMA.md`.
+**New migration:** `<timestamp>-CreateClassSessionBookings.ts` — `class_session_bookings`, `class_session_booking_attendees`, `class_session_booking_transitions`, `guest_class_booking_email_verifications`, `guest_class_trial_redemptions` exactly per `docs/DATABASE_SCHEMA.md`.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/class-session-booking.aggregate.ts` (+ `.spec.ts`) (new)
@@ -495,7 +495,7 @@ The biggest story in this milestone — the core session-booking write path. One
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` UC-084, UC-089, UC-090, UC-091, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionCancelled`/`ClassSessionBookingCancelled`/`ClassSessionBookingWaitlisted`/`WaitlistPromoted`, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § `classCancellationWindowHours`
+**Docs to load:** `docs/USE_CASES.md` UC-084, UC-089, UC-090, UC-091, `docs/DOMAIN_EVENTS.md` § `ClassSessionCancelled`/`ClassSessionBookingCancelled`/`ClassSessionBookingWaitlisted`/`WaitlistPromoted`, `docs/TENANTS_SETTINGS_SCHEMA.md` § `classCancellationWindowHours`
 **Dependencies:** M24-S01 (template exceptions), M24-S04 (materialized sessions), M24-S07 (bookings must exist), M24-S06 (session-level cancel action surface)
 **Pattern:** plain composition — extends S07's aggregate with cancellation/waitlist methods.
 
@@ -547,7 +547,7 @@ Customer self-cancellation (within `classCancellationWindowHours`), waitlist joi
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-098
+**Docs to load:** `docs/USE_CASES.md` UC-098
 **Dependencies:** M24-S07 (`PENDING_APPROVAL` bookings must exist)
 **Pattern:** plain composition.
 
@@ -581,7 +581,7 @@ Staff reviews a verified-guest reservation that crossed the `trialSlots` thresho
 
 **Agent:** `backend-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-092, UC-100, UC-106
+**Docs to load:** `docs/USE_CASES.md` UC-092, UC-100, UC-106
 **Dependencies:** M24-S07 (bookings), M24-S08 (waitlist/offer mechanics), M24-S04 (cron-trigger infra pattern)
 **Pattern:** plain composition, same trigger-bus pattern as S04.
 
@@ -622,7 +622,7 @@ Three time-based cleanup checks, all triggered the same way (piggybacked onto or
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § `RecurringEnrollment`, `docs/13-DATABASE_SCHEMA.md` § `booking.recurring_enrollments`, `docs/04-USE_CASES.md` UC-093, UC-094, UC-095, UC-102, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § `classSkipWindowHours`/`classAllowsReschedule`/`classRescheduleWindowDays`/`classMaxReschedulesPerCycle`
+**Docs to load:** `docs/DOMAIN_MODEL.md` § `RecurringEnrollment`, `docs/DATABASE_SCHEMA.md` § `booking.recurring_enrollments`, `docs/USE_CASES.md` UC-093, UC-094, UC-095, UC-102, `docs/TENANTS_SETTINGS_SCHEMA.md` § `classSkipWindowHours`/`classAllowsReschedule`/`classRescheduleWindowDays`/`classMaxReschedulesPerCycle`
 **Dependencies:** M24-S07 (bookings), M24-S02 (contracts — enrollment requires one), M24-S01 (templates), M24-S08 (atomic booking cancellation and waitlist promotion)
 **Pattern:** Repository + Adapter (`IRecurringEnrollmentRepository`).
 
@@ -645,7 +645,7 @@ Standing customer enrollment in a recurring class — one aggregate whose 4 key 
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/recurring-enrollment.controller.ts` + `.schemas.ts`.
 
-**New migration:** `<timestamp>-CreateRecurringEnrollments.ts` — `recurring_enrollments` exactly per `docs/13-DATABASE_SCHEMA.md`.
+**New migration:** `<timestamp>-CreateRecurringEnrollments.ts` — `recurring_enrollments` exactly per `docs/DATABASE_SCHEMA.md`.
 
 **Files to create/modify:**
 - `apps/backend/src/contexts/booking/domain/recurring-enrollment.aggregate.ts` (+ `.spec.ts`) (new)
@@ -682,7 +682,7 @@ Standing customer enrollment in a recurring class — one aggregate whose 4 key 
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
-**Docs to load:** `docs/04-USE_CASES.md` UC-105
+**Docs to load:** `docs/USE_CASES.md` UC-105
 **Dependencies:** M24-S07 (bookings + attendees must exist)
 **Pattern:** plain composition.
 
@@ -715,7 +715,7 @@ Customer removes one or more named attendees from their own group reservation be
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-103, UC-104
+**Docs to load:** `docs/USE_CASES.md` UC-103, UC-104
 **Dependencies:** M24-S11 (enrollments), M24-S07 (bookings)
 **Pattern:** plain composition.
 
@@ -753,7 +753,7 @@ Staff/manager admin views over enrollments and one-off bookings for a class type
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Aggregate: ClassSession (`close()`), `docs/13-DATABASE_SCHEMA.md` § `class_session_payments`, `docs/03-DOMAIN_EVENTS.md` § `ClassSessionBookingCompleted`/`NoShow`/`InPersonPaymentRecorded`/`Reversed`, `docs/04-USE_CASES.md` UC-101, UC-107
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Aggregate: ClassSession (`close()`), `docs/DATABASE_SCHEMA.md` § `class_session_payments`, `docs/DOMAIN_EVENTS.md` § `ClassSessionBookingCompleted`/`NoShow`/`InPersonPaymentRecorded`/`Reversed`, `docs/USE_CASES.md` UC-101, UC-107
 **Dependencies:** M24-S07 (bookings/attendees)
 **Pattern:** plain composition.
 
@@ -797,7 +797,7 @@ Staff closes a session's roster after `endTime`, marks individual attendance, an
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § 4b
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/API_CONTRACTS.md` § 4b
 **Dependencies:** M24-S01, M24-S02, M24-S11, M24-S13
 **Pattern:** plain composition — matches `apps/web/features/booking/components/dashboard/services/` shape.
 **Prototype references:** `journeys/manager/turmas.md`, `journeys/manager/prototypes/turmas/01-turmas-list.html` through `07b-nova-matricula-erro.html`, `dev-notes.md`.
@@ -833,7 +833,7 @@ Build the manager admin surface: template CRUD, contracts, and matrículas (enro
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Dependencies:** M24-S06, M24-S08, M24-S09, M24-S14
 **Pattern:** plain composition.
 **Prototype references:** `journeys/staff/turmas.md`, `journeys/staff/prototypes/turmas/01-turmas-proximas.html` through `05b-guest-approval-erro.html`, `dev-notes.md`.
@@ -842,7 +842,7 @@ Build the manager admin surface: template CRUD, contracts, and matrículas (enro
 Staff's own "Turmas" view — upcoming sessions (scoped to their own resource), roster, guest-approval queue, close-out with attendance/payment.
 
 **Files to create/modify:**
-- `apps/web/app/dashboard/turmas/staff/page.tsx` (new — or a role-adaptive branch of S15's list page; verify against `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`'s role-adaptive precedent, mirroring UC-057's own STAFF-vs-MANAGER split)
+- `apps/web/app/dashboard/turmas/staff/page.tsx` (new — or a role-adaptive branch of S15's list page; verify against `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`'s role-adaptive precedent, mirroring UC-057's own STAFF-vs-MANAGER split)
 - `apps/web/features/booking/components/dashboard/turmas/SessionRoster.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/turmas/GuestApprovalQueue.tsx` (+ `.spec.tsx`) (new)
 - `apps/web/features/booking/components/dashboard/turmas/CloseSessionSheet.tsx` (+ `.spec.tsx`) (new)
@@ -862,7 +862,7 @@ Staff's own "Turmas" view — upcoming sessions (scoped to their own resource), 
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer-facing pages follow the same transport rules), `docs/24-BFF_ARCHITECTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (customer-facing pages follow the same transport rules), `docs/BFF_ARCHITECTURE.md`
 **Dependencies:** M24-S07, M24-S08
 **Pattern:** plain composition — actor-scoped view of the Booking domain's own aggregate, lives in the `booking` slice per `CLAUDE.md` §11, not `customer`.
 **Prototype references:** `journeys/customer/reservar-aula.md`, `journeys/customer/prototypes/reservar-aula/00-tipo-reserva.html` through `05b-success-waitlist.html`, `dev-notes.md`.
@@ -890,7 +890,7 @@ Authenticated customer browses upcoming sessions for a SESSION service, books dr
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`
 **Dependencies:** M24-S08, M24-S11, M24-S12
 **Pattern:** plain composition — extends the existing, shipped Minha Conta bookings list.
 **Prototype references:** `journeys/customer/minha-conta.md` (extension section), `journeys/customer/prototypes/minha-conta/08-turmas-lista.html` through `12b-waitlist-confirmed.html`, `dev-notes.md`.
@@ -920,7 +920,7 @@ Extend the existing `apps/web/features/customer/components/my-account/` surface 
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`
 **Dependencies:** M24-S03, M24-S07, M24-S08
 **Pattern:** plain composition.
 **Prototype references:** `journeys/guest/book-a-class.md`, `journeys/guest/prototypes/book-a-class/*.html`, `dev-notes.md`.
@@ -950,7 +950,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 
 **Agent:** `frontend-ts`
 **Complexity:** S
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (hotsite equivalent conventions), `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components
 **Dependencies:** M24-S17, M24-S19 (the class-agenda routes this story links to), M23-S11a (the Step 1 service list this story extends), M23-S29 (the public service list exposes `bookingModel`)
 **Pattern:** plain composition — one extra card variant in the existing `ServiceSelectionStep`; no new pattern.
 **Prototype references:** `journeys/guest/prototypes/book-a-service/` is unchanged by this story; the destination screens are `journeys/guest/prototypes/book-a-class/01-class-agenda.html` and `journeys/customer/prototypes/reservar-aula/`. This story needs one new prototype variant of the booking-page Step 1 showing a class card (drafted at its own `/story-discovery`, per `journeys/README.md`).
@@ -990,7 +990,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` UC-075, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` (preset taxonomy, minimum-answer shape per preset), `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/03-DOMAIN_EVENTS.md` § `TenantSchedulingBootstrapped`, `docs/02-DOMAIN_MODEL.md` § `Resource` (M21), `Service` extensions (M22)
+**Docs to load:** `docs/USE_CASES.md` UC-075, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` (preset taxonomy, minimum-answer shape per preset), `docs/API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/DOMAIN_EVENTS.md` § `TenantSchedulingBootstrapped`, `docs/DOMAIN_MODEL.md` § `Resource` (M21), `Service` extensions (M22)
 **Dependencies:** M21-S01 (`Resource`), M22 (`Service` extensions). Moved from M23-S10 on 2026-10-10; no M23 story depends on it. `M24-S05` (the SESSION presets) extends it.
 **Pattern:** Orchestration use case — one transaction creating a `Resource`/`Service` graph in dependency order; no new named pattern, but this is the first use case in the Booking context to orchestrate two aggregate types' creation atomically, so verify the transaction-manager usage against `docs/ENGINEERING_RULES_BACKEND.md` § Transactions — read closely (cross-aggregate writes, single `txManager.run()`).
 
@@ -1003,7 +1003,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 3. Publish `TenantSchedulingBootstrapped` after commit.
 4. Return the generated configuration as an editable review (a read projection of what was just created, not a new aggregate).
 
-**Backend HTTP surface:** new `POST /onboarding/bootstrap`. `MANAGER`-only. Body/response exactly per `docs/14-API_CONTRACTS.md`.
+**Backend HTTP surface:** new `POST /onboarding/bootstrap`. `MANAGER`-only. Body/response exactly per `docs/API_CONTRACTS.md`.
 
 **BFF endpoint spec:** new `apps/bff/src/features/booking/onboarding.controller.ts` + `.schemas.ts` + `.types.ts` — the per-preset minimum-answer shape needs its own Zod union, one variant per preset; don't collapse into a loose `Record<string, unknown>` (violates the schema-level-enforcement rule in `CLAUDE.md` §7's critical invariants list for a similar per-type-data shape).
 
@@ -1044,7 +1044,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 
 **Agent:** `frontend-ts`
 **Complexity:** L
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `docs/API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md`
 **Dependencies:** M24-S21 (BFF endpoints), M24-S05 (SESSION presets — the wizard covers all seven). Moved from M23-S15 on 2026-10-10.
 **Pattern:** plain composition — a new multi-step wizard; no existing precedent to extend, but follows the same step-form conventions as the hotsite booking flow.
 **Prototype references:** `journeys/manager/onboarding.md`, `journeys/manager/prototypes/onboarding/01-onboarding-preset.html`, `01b-onboarding-preset-erro.html`, `dev-notes.md`

@@ -10,7 +10,7 @@ import type { LeadFormAudienceMode, LeadFormQuestion, TenantInfoResponse } from 
 
 export type { HotsiteModuleType };
 
-// ─── Module data contracts (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §4) ──────
+// ─── Module data contracts (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §4) ──────
 
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — a single source of truth for this repeated union shape rather than
@@ -140,7 +140,7 @@ export interface ContactModuleData {
   whatsappCtaLabel?: string;
 }
 
-// Only fields rendered verbatim to every visitor — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md
+// Only fields rendered verbatim to every visitor — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md
 // § CHATBOT for why knowledgeText and the volume/cost caps are deliberately excluded here and
 // fetched separately, never shipped into the cached public manifest.
 export interface ChatbotModuleData {
@@ -150,7 +150,7 @@ export interface ChatbotModuleData {
   welcomeMessage?: string;
 }
 
-// Teaser-only — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM for why the manager-
+// Teaser-only — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM for why the manager-
 // authored question catalog (up to 20 questions) stays out of this manifest-embedded shape and is
 // fetched separately, only when a visitor actually reaches /[slug]/lead-form. Deliberately
 // excludes audienceMode/questions, which live behind their own endpoints, not the cached manifest.

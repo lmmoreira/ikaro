@@ -10,7 +10,7 @@ import { ChatbotMessageFieldsSchema, LeadFormSubmissionFieldsSchema } from '@ika
 // discussion: this schema previously duplicated those two fields verbatim). The BFF has no
 // fields beyond this shared shape, so it's reused as-is with no `.extend()`.
 //
-// `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/21-TENANTS_SETTINGS_SCHEMA.md
+// `maxMessageLengthChars` (default 1000) is an Ikaro-only override (docs/TENANTS_SETTINGS_SCHEMA.md
 // §7 — "No" tenant-editable, set only via a direct DB update, never returned by any BFF-reachable
 // read) — the BFF has no way to know a tenant's real resolved value, so it must never guess at a
 // business-rule ceiling here (same reasoning §7 already applies to knowledgeText/maxKnowledgeTextLength:

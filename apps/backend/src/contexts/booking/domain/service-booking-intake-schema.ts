@@ -44,7 +44,7 @@ export interface PublishServiceBookingIntakeSchemaProps {
 
 // A genuinely new pattern for this codebase (story-discovery, M22-S02, 2026-09-15) — an
 // independent aggregate root, own repository, "new version supersedes, never edits the previous
-// one" (docs/13-DATABASE_SCHEMA.md § service_booking_intake_schema). Field-format validation
+// one" (docs/DATABASE_SCHEMA.md § service_booking_intake_schema). Field-format validation
 // (question count/uniqueness, consent text length) lives at the Zod boundary
 // (PublishServiceIntakeSchemaSchema, packages/validation/src/booking.ts) — mirrors
 // UpdateServiceLegsSchema's own "no domain-level duplicate check for a format-only rule"

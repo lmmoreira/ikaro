@@ -14,7 +14,7 @@ const primaryBtnStyle: React.CSSProperties = {
 
 // UC-040 A1 — audienceMode === 'CUSTOMER_ONLY' and the visitor is unauthenticated. No existing
 // reusable "login required" component to extend (story-discovery, M20-S09). Links to /[slug]/login
-// with a returnTo pointing back at this same page — see docs/24-BFF_ARCHITECTURE.md § OAuth state
+// with a returnTo pointing back at this same page — see docs/BFF_ARCHITECTURE.md § OAuth state
 // returnTo.
 export function LeadFormLoginRequiredGate({
   slug,

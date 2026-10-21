@@ -59,7 +59,7 @@ function DeactivateActions({
 // 03-deactivate-confirm.html's shape per dev-notes.md's own flagged gap. Future approved
 // appointments/materialized sessions this resource is referenced by would be listed here as
 // explicit commitments — empty until Cluster 2+ wires Service.resourceRequirements
-// (docs/02-DOMAIN_MODEL.md § Resource; matches UC-047 step 1's own Cluster-1-scope deferral).
+// (docs/DOMAIN_MODEL.md § Resource; matches UC-047 step 1's own Cluster-1-scope deferral).
 export function ResourceDeactivateConfirm({
   resource,
 }: ResourceDeactivateConfirmProps): React.JSX.Element {

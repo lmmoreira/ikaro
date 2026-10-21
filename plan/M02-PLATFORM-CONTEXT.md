@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Platform context, `docs/03-DOMAIN_EVENTS.md` § Platform events, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Platform context, `docs/DOMAIN_EVENTS.md` § Platform events, `docs/TENANTS_SETTINGS_SCHEMA.md`
 
 **Description:**  
 Implement the pure domain layer for the Platform bounded context. No framework, no database, no HTTP — only aggregates, value objects, and domain events. This is the business logic heart of tenant management.
@@ -33,7 +33,7 @@ Implement the pure domain layer for the Platform bounded context. No framework, 
 - Methods: `updateContent(branding, layout)`, `publish()`, `unpublish()`
 - Invariants: `layout` array must have at least one module; `primaryColor` must be a valid hex color
 
-`TenantSettings` value object (from `docs/21-TENANTS_SETTINGS_SCHEMA.md`):
+`TenantSettings` value object (from `docs/TENANTS_SETTINGS_SCHEMA.md`):
 - `booking.cancellation_window_hours` (default 48)
 - `booking.buffer_minutes` (default 15)
 - `loyalty.expiry_days` (default 180)
@@ -49,7 +49,7 @@ Domain events:
 - [ ] `Tenant.create('Ikaro', 'ikaro', 'America/Sao_Paulo')` returns a valid `Tenant` aggregate
 - [ ] `Tenant.create('', 'slug')` throws a domain error (empty name invalid)
 - [ ] `Tenant.create('name', 'INVALID SLUG!')` throws a domain error (slug format invalid)
-- [ ] `TenantSettings.default()` returns settings with all default values as specified in `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+- [ ] `TenantSettings.default()` returns settings with all default values as specified in `docs/TENANTS_SETTINGS_SCHEMA.md`
 - [ ] `HotsiteConfig.publish()` sets `isPublished = true`
 - [ ] Zero imports from `@nestjs/*` or any ORM in the domain layer
 - [ ] Unit tests cover all invariants and state transitions
@@ -62,7 +62,7 @@ Domain events:
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § platform schema
+**Docs to load:** `docs/DATABASE_SCHEMA.md` § platform schema
 
 **Description:**  
 Create the TypeORM migration files for the `platform` schema. This is the first migration to run — it must exist before any other context's migrations because other tables reference `platform.tenants(id)` via application-level UUID references (no cross-schema FK constraints, but the tenant must exist logically first).
@@ -109,7 +109,7 @@ UNIQUE(tenant_id)
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+**Docs to load:** `docs/ARCHITECTURE.md` § hexagonal layers, `docs/TENANT_ISOLATION_STRATEGY.md`
 
 **Description:**  
 Implement the infrastructure layer for the Platform context: TypeORM entities mapped to the tables from M02-S02, repository adapters implementing the domain ports, and the NestJS `PlatformModule` that wires everything together.
@@ -149,7 +149,7 @@ NestJS module:
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/06-TENANT_ISOLATION_STRATEGY.md`, `docs/24-BFF_ARCHITECTURE.md` § request lifecycle
+**Docs to load:** `docs/TENANT_ISOLATION_STRATEGY.md`, `docs/BFF_ARCHITECTURE.md` § request lifecycle
 
 **Description:**  
 Implement the request-scoped `TenantContext` and the `TenantInterceptor` that resolves the tenant from the `X-Tenant-ID` header (injected by the BFF after JWT validation) and makes it available throughout the request lifecycle. This is the mechanism that makes `WHERE tenant_id = :tenantId` possible in every repository.
@@ -179,7 +179,7 @@ Implement the request-scoped `TenantContext` and the `TenantInterceptor` that re
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-024, `docs/14-API_CONTRACTS.md` § Internal Platform API, `docs/03-DOMAIN_EVENTS.md` § TenantProvisioned, `docs/02-DOMAIN_MODEL.md` § Tenant + HotsiteConfig aggregates
+**Docs to load:** `docs/USE_CASES.md` § UC-024, `docs/API_CONTRACTS.md` § Internal Platform API, `docs/DOMAIN_EVENTS.md` § TenantProvisioned, `docs/DOMAIN_MODEL.md` § Tenant + HotsiteConfig aggregates
 
 **Background — why REST instead of CLI (decision 2026-05-15):**
 The original plan specified a CLI command. Replaced with a REST endpoint for production readiness: no direct database/server access needed, three-layer security achievable (Cloud Armor + Cloud IAP + API key), HTTP requests are auditable via Cloud Audit Logs. Self-service signup (future) can reuse the same use case without backend changes.
@@ -302,7 +302,7 @@ The original plan specified a CLI command. Replaced with a REST endpoint for pro
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-026, `docs/21-TENANTS_SETTINGS_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § tenants endpoints
+**Docs to load:** `docs/USE_CASES.md` § UC-026, `docs/TENANTS_SETTINGS_SCHEMA.md`, `docs/API_CONTRACTS.md` § tenants endpoints
 
 **Description:**  
 Implement the use case and REST endpoint that allows an admin to update the tenant's settings JSONB. Settings include the cancellation window, loyalty expiry, business hours, timezone, and booking buffer. All configurable values referenced throughout the app must come from this settings object — never hardcoded.
@@ -311,7 +311,7 @@ Implement the use case and REST endpoint that allows an admin to update the tena
 - Use case: `UpdateTenantSettingsUseCase` in `platform/application/use-cases/`
 - DTO: `UpdateTenantSettingsDto` — validates each settings field with `class-validator` decorators
 - Controller method: `PATCH /tenants/settings` (protected — requires MANAGER role)
-- Validation rules from `docs/21-TENANTS_SETTINGS_SCHEMA.md`:
+- Validation rules from `docs/TENANTS_SETTINGS_SCHEMA.md`:
   - `cancellation_window_hours`: integer 0–168
   - `loyalty.expiry_days`: integer 1–365
   - `business_hours`: each day has `open: HH:MM`, `close: HH:MM`, or `null` (closed that day)

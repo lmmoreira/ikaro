@@ -169,7 +169,7 @@ export class TypeOrmResourceOccupancyRepository implements IResourceOccupancyRep
   }
 
   // Deletes only the short-lived lock rows — booking_line_resource_assignments is the immutable
-  // business/audit record (docs/13-DATABASE_SCHEMA.md § booking.booking_line_resource_assignments,
+  // business/audit record (docs/DATABASE_SCHEMA.md § booking.booking_line_resource_assignments,
   // "Resource utilization / professional-history BI queries") and is never deleted here, including
   // on reject/cancel: a cancelled booking's resolved-resource history stays queryable.
   async release(tenantId: string, bookingLineIds: string[]): Promise<void> {

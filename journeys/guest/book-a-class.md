@@ -5,7 +5,7 @@
 **UCs covered:** UC-085 (browse), UC-090 (waitlist boundary), UC-097 (email verification + request), UC-088 (verified guest books multiple named units in one action — a state within `02-class-access.html`'s existing verification flow, not a separate screen)  
 **Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Stories: `M24-S19` (frontend), `M24-S20` (class entry point).
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-21, 24 A3, 33) via `/discovery-to-milestone`. Parallel to `guest/book-a-service.md` (appointment booking) — this is the SESSION-family equivalent for an anonymous visitor. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-21, 24 A3, 33) via `/discovery-to-milestone`. Parallel to `guest/book-a-service.md` (appointment booking) — this is the SESSION-family equivalent for an anonymous visitor. See `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`.
 
 ## Flow
 
@@ -49,7 +49,7 @@ flowchart TD
 | `POST /v1/class-session-bookings/guest-verification/:token/confirm` | Confirma e-mail (UC-097 step 2–3) | Guest |
 | `POST /v1/class-sessions/:id/waitlist` | Entrar na fila — requer autenticação (UC-090 A3) | Customer only |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Classes & Sessions.
 
 ## Prototype
 

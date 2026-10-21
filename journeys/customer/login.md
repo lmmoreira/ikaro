@@ -5,7 +5,7 @@
 **UCs covered:** UC-021, UC-023  
 **Status:** Reviewed
 
-> **Scope change (2026-06-24, `M13-S14` discovery session):** the original design included a login-time tenant-selection screen (`/select-tenant`, UC-021 Case B) for a customer logging in via a generic, tenant-agnostic entry point. No such entry point exists in this product — every login starts from a specific tenant's hotsite, which always supplies the tenant slug directly. That branch (`handleMultiTenantLogin`'s 2+-tenant case, `POST /auth/token`) is unreachable from any shipped UI and was descoped permanently — see `docs/04-USE_CASES.md` UC-021. Multi-tenant customers are still fully supported via UC-023 (switch tenant after login), which is now part of this same flow/story.
+> **Scope change (2026-06-24, `M13-S14` discovery session):** the original design included a login-time tenant-selection screen (`/select-tenant`, UC-021 Case B) for a customer logging in via a generic, tenant-agnostic entry point. No such entry point exists in this product — every login starts from a specific tenant's hotsite, which always supplies the tenant slug directly. That branch (`handleMultiTenantLogin`'s 2+-tenant case, `POST /auth/token`) is unreachable from any shipped UI and was descoped permanently — see `docs/USE_CASES.md` UC-021. Multi-tenant customers are still fully supported via UC-023 (switch tenant after login), which is now part of this same flow/story.
 
 ## Flow
 
@@ -70,7 +70,7 @@ flowchart TD
 - [x] **Phone completion placement (UC-021 A3):** is this a separate page or an inline modal/banner on the first screen after login? — **Resolved.** Implemented as a mandatory, non-dismissible inline bottom-sheet component (`M13-S14`) — no "skip" option, unlike the original draft.
 - [x] **`/auth/error` shared route:** staff and customer auth failures both redirect to `/auth/error?reason=...`. — **Resolved.** One shared page (`apps/web/app/auth/error/page.tsx`), content driven by `?reason`. Already built (`M13-S02`/`M13-S42`).
 - [x] **UC-023 trigger:** the "Trocar empresa" action lives somewhere in the customer area after login. Which component holds it? — **Resolved.** `HotsiteAuthBar`'s avatar dropdown (already shipped, `M13-S42`) — not `CustomerShell` (`M13-S16`, since built as `apps/web/features/customer/components/CustomerShell.tsx`). `M13-S14` adds the item there directly.
-- [x] **Generic login entry (no tenantSlug):** is there a branded entry point for a slug-less login? — **Resolved: not needed for MVP.** No current product flow requires logging in without first knowing which tenant's hotsite you're on. The BFF's slug-less branch (`handleMultiTenantLogin`) and `/select-tenant` were descoped rather than built — see `docs/04-USE_CASES.md` UC-021. Revisit only if a tenant-agnostic entry point (e.g. a unified cross-tenant customer portal) is ever scoped as its own feature.
+- [x] **Generic login entry (no tenantSlug):** is there a branded entry point for a slug-less login? — **Resolved: not needed for MVP.** No current product flow requires logging in without first knowing which tenant's hotsite you're on. The BFF's slug-less branch (`handleMultiTenantLogin`) and `/select-tenant` were descoped rather than built — see `docs/USE_CASES.md` UC-021. Revisit only if a tenant-agnostic entry point (e.g. a unified cross-tenant customer portal) is ever scoped as its own feature.
 
 ## Prototype
 

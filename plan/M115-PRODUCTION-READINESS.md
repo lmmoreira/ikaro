@@ -17,7 +17,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/14-API_CONTRACTS.md` § media endpoints, `docs/23-INFRASTRUCTURE_SETUP.md` § GCS emulator
+**Docs to load:** `docs/API_CONTRACTS.md` § media endpoints, `docs/INFRASTRUCTURE_SETUP.md` § GCS emulator
 
 **Description:**  
 Photos (before-service from customer/guest, after-service from staff) are uploaded directly from the browser to GCS using a pre-signed URL, avoiding routing large files through the backend. Locally, the service points to the GCS emulator (`http://localhost:4443`).
@@ -214,7 +214,7 @@ Content-Type: application/json
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/14-API_CONTRACTS.md` § internal endpoints
+**Docs to load:** `docs/API_CONTRACTS.md` § internal endpoints
 
 **Description:**  
 All backend controllers — `/internal/*` and `/v1/*` alike — rely solely on network topology (backend not publicly exposed). This story adds a shared `InternalApiGuard` registered **globally** via `APP_GUARD` in `AppModule`, so every request to the backend must carry an `X-Internal-Key` header matching `INTERNAL_API_KEY`. The BFF propagates this key automatically on all backend calls. Network isolation + shared secret gives us two independent layers of protection, and future controllers are automatically covered without any per-file decoration.
@@ -404,7 +404,7 @@ All three backend internal HTTP files currently omit the header (the guard didn'
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Booking context, `docs/03-DOMAIN_EVENTS.md` § Booking events
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Booking context, `docs/DOMAIN_EVENTS.md` § Booking events
 
 **Description:**  
 The four `guest*` fields on the `Booking` aggregate (`guestEmail`, `guestName`, `guestPhone`, `guestAddress`) are naming artefacts from when only anonymous guest bookings existed. When an authenticated customer books (UC-002), `RequestAuthenticatedBookingUseCase` reads the customer's contact details and stores them in these fields — so they work correctly for both personas, but the names are misleading. This story renames all four to `contact*` throughout: aggregate, domain events, notification handlers and DTOs, TypeORM entity, DB columns, BFF types and schemas, shared types package, test builders, and all docs.
@@ -482,15 +482,15 @@ The four `guest*` fields on the `Booking` aggregate (`guestEmail`, `guestName`, 
 - `apps/backend/http/booking/bookings.http` — all JSON request bodies
 
 **Docs (10 files):**
-- `docs/02-DOMAIN_MODEL.md` — `BookingProps` table, `requestBooking()` signature, defaultAddress note
-- `docs/03-DOMAIN_EVENTS.md` — all 7 event payload definitions
-- `docs/04-USE_CASES.md` — UC-001 steps 2, 11; UC-002 steps 1, 7, 8
-- `docs/13-DATABASE_SCHEMA.md` — rename column entries to `contact_*`
-- `docs/14-API_CONTRACTS.md` — request body examples and field descriptions
-- `docs/05-BOUNDED_CONTEXTS.md` — `event.guestEmail` code snippet (line ~578)
+- `docs/DOMAIN_MODEL.md` — `BookingProps` table, `requestBooking()` signature, defaultAddress note
+- `docs/DOMAIN_EVENTS.md` — all 7 event payload definitions
+- `docs/USE_CASES.md` — UC-001 steps 2, 11; UC-002 steps 1, 7, 8
+- `docs/DATABASE_SCHEMA.md` — rename column entries to `contact_*`
+- `docs/API_CONTRACTS.md` — request body examples and field descriptions
+- `docs/BOUNDED_CONTEXTS.md` — `event.guestEmail` code snippet (line ~578)
 - `docs/AGENT_PATTERNS.md` — `{ guestName: 'Ana', … }` example (line ~818)
 - `docs/CODE_STANDARDS.md` — `guestPhone` validation example (line ~122)
-- `docs/02-DOMAIN_MODEL.md` — canonical field and aggregate definitions
+- `docs/DOMAIN_MODEL.md` — canonical field and aggregate definitions
 - `plan/M115-PRODUCTION-READINESS.md` — this file (already updated)
 
 ---

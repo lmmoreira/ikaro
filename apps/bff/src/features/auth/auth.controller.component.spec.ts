@@ -39,7 +39,7 @@ describe('AuthController (component) — non-OAuth routes', () => {
   // ─────────────────────────────────────────────────────────────────────────────
   // POST /auth/switch-tenant  (authenticated — CUSTOMER role only)
   // (Login-time multi-tenant selection — POST /v1/auth/token — was removed: no shipped UI
-  //  ever reaches it. See docs/04-USE_CASES.md UC-021.)
+  //  ever reaches it. See docs/USE_CASES.md UC-021.)
   // ─────────────────────────────────────────────────────────────────────────────
 
   describe('POST /v1/auth/switch-tenant', () => {

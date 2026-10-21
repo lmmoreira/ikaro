@@ -4,7 +4,7 @@ import {
   AvailabilityAlertAttemptOutcome,
 } from '../../domain/availability-alert.types';
 
-// docs/13-DATABASE_SCHEMA.md § booking.availability_alert_notification_attempts (M23 Cluster 3).
+// docs/DATABASE_SCHEMA.md § booking.availability_alert_notification_attempts (M23 Cluster 3).
 // Append-only history of "this alert was matched by this slot" — one row per (alert, window,
 // channel), enforced by the table's UNIQUE constraint. The composite FK to availability_alerts is
 // created by the migration (its UNIQUE (tenant_id, alert_id, matching_window, channel) also serves

@@ -1,6 +1,6 @@
 # Dev Notes — CUSTOMER: Submit Lead Form (prefilled)
 
-**Status:** ✅ Shipped in M20-S09. The authenticated, prefilled variant shares the production `LeadFormPage` with the guest flow (`docs/04-USE_CASES.md` UC-040).
+**Status:** ✅ Shipped in M20-S09. The authenticated, prefilled variant shares the production `LeadFormPage` with the guest flow (`docs/USE_CASES.md` UC-040).
 
 ---
 
@@ -22,7 +22,7 @@ Same as `guest/prototypes/lead-form/dev-notes.md` — `apps/web/app/[slug]/lead-
 
 ## BFF calls
 
-Same as guest (`docs/14-API_CONTRACTS.md` § Lead Form Widget), plus a client-side customer-profile fetch (`getHotsiteCustomerProfile` in `LeadFormWidget`, existing endpoint) to resolve the prefill values after mount.
+Same as guest (`docs/API_CONTRACTS.md` § Lead Form Widget), plus a client-side customer-profile fetch (`getHotsiteCustomerProfile` in `LeadFormWidget`, existing endpoint) to resolve the prefill values after mount.
 
 ## Validation
 

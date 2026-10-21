@@ -131,7 +131,7 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 
 **Before writing any interactive control (a calendar, a date or time picker, a select, a popover, a dialog, a switch, a badge, a card), list `apps/web/shared/components/ui/` and grep the app for an existing usage — and build on that.** Writing the control from raw HTML or Tailwind (a hand-built month grid, a bare `<input type="date">`, a homemade popover or modal, a `<div>` styled as a button) when a primitive already exists is a defect, whatever the story's prototype looks like: the prototype shows the *result*, the repo already knows how to build it. A hand-rolled control also forfeits what the primitive carries for free — keyboard handling, focus management, WCAG 2.1 AA, the fixed shadcn palette, and a layout that has already been verified in a real browser (jsdom cannot catch broken layout or hit-testing, which is how M18-S01's calendar shipped three bugs).
 
-**The inventory (account and dashboard shells — Tailwind + shadcn; hotsite pages have their own `--ba-*` building blocks, see `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`):**
+**The inventory (account and dashboard shells — Tailwind + shadcn; hotsite pages have their own `--ba-*` building blocks, see `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`):**
 
 | Need | Use | A real usage to copy |
 |---|---|---|
@@ -170,7 +170,7 @@ The root layout sets `export const dynamic = 'force-dynamic'` (`apps/web/app/lay
 - **Before locking a design on "this page is cached" (or "static", "ISR", "stays cacheable"), read `app/layout.tsx` and the build's route table** (`pnpm --filter @ikaro/web build`, the `Route (app)` list: `○` static, `ƒ` dynamic; a local build needs the user's yes, CLAUDE.md §0) — not the page's `revalidate` export. (M23-S44 locked "the booking page stays cached" and an acceptance criterion on it in discovery, on the strength of that export; the build showed `ƒ` before and after the change, so there was nothing to preserve and the criterion had to be rewritten after merge.)
 - On a dynamic route `useSearchParams` is available during the server render, so the component that reads it renders with the real query string and a `Suspense` fallback is never shown. The boundary is still worth keeping, with the plain component as its fallback: Next client-renders everything up to the nearest boundary on a prerendered route and fails the production build without one, so it keeps the route correct if the layout ever stops forcing dynamic rendering.
 - Live booking data (availability, quotes, resource options) is fetched in the browser through `bffClient` and is never cached by Next.
-- The caching model in full — the Data Cache that is in effect, the Full Route Cache that is not, and how on-demand revalidation uses tags — is `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § 6 Manifest Caching.
+- The caching model in full — the Data Cache that is in effect, the Full Route Cache that is not, and how on-demand revalidation uses tags — is `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 6 Manifest Caching.
 
 ## A mutation that changes server state owned by another feature must invalidate that feature's query keys — and the E2E must navigate client-side to see it
 

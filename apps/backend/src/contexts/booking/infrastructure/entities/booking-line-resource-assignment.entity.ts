@@ -2,7 +2,7 @@ import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { ResourceType } from '../../domain/resource.types';
 
 // Immutable business/audit record for a booking line's resolved resource(s) — see
-// docs/13-DATABASE_SCHEMA.md § booking.booking_line_resource_assignments. Distinct from
+// docs/DATABASE_SCHEMA.md § booking.booking_line_resource_assignments. Distinct from
 // resource_occupancy, which is the separate, short-lived locking projection.
 @Entity('booking_line_resource_assignments', { schema: 'booking' })
 @Index(['tenantId'])

@@ -15,17 +15,17 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § tenants/slug endpoint
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/API_CONTRACTS.md` § tenants/slug endpoint
 
 **Description:**  
 Implement the hotsite manifest API that powers the frontend rendering engine. The manifest bundles the full branding token set and ordered layout configuration into a single JSON response. Also complete the `HotsiteConfig` domain layer fully (M02-S01 created a stub) with the module types and branding tokens from the architecture doc.
 
-**Module types (from `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`):**
+**Module types (from `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`):**
 `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT`
 
 Each module has `type`, `enabled` flag, and a `data` object specific to the type. The `enabled` flag allows hiding a module without removing it from the layout array.
 
-**Full branding token set (from `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2):**
+**Full branding token set (from `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §2):**
 
 ```typescript
 interface HotsiteBranding {
@@ -122,7 +122,7 @@ interface HotsiteBranding {
 
 **Agent:** `backend-ts` + `bff-ts` — spans both the `platform` context (hotsite content/publish/upload) and the `booking` context (photo-existence retrofit, see cross-cutting addition below)  
 **Complexity:** L  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-027, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-027, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`
 
 **Description:**  
 Implement the admin endpoint for updating hotsite content (full branding token set + layout modules) and toggling publish status, plus the signed-URL flow that lets admins upload hotsite images (logo, hero/CTA backgrounds, gallery, about photos). The backend stores and returns GCS **paths** only — `filePath`, never signed URLs — fresh read-signed URLs are generated at display time. M115-S01 built the `IStorageService`/`GcsSignedUrlAdapter` and a booking-specific signed-URL endpoint; M12-S02 reuses that same port/adapter behind a hotsite-specific endpoint and path convention (M115-S01's note explicitly defers "the BFF endpoint for [hotsite uploads]" to "a separate story in M12" — this is that story).
@@ -186,7 +186,7 @@ Implement the admin endpoint for updating hotsite content (full branding token s
 
 **Agent:** `frontend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § routing + manifest caching + CSS variables
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § routing + manifest caching + CSS variables
 
 **Description:**  
 Implement the Next.js App Router foundation for the hotsite: the `[slug]/layout.tsx` fetches the manifest (with ISR 5-minute revalidation), applies the full branding token set via CSS custom properties using `applyBranding()`, and makes it available to child pages. Also includes the shared types migration and env var additions required before any module story starts.
@@ -215,7 +215,7 @@ Implement the Next.js App Router foundation for the hotsite: the `[slug]/layout.
 Each font is loaded once at build time with a CSS variable (`variable` option in `next/font/google`). `applyBranding()` resolves the manifest font key to the matching CSS variable; unknown keys fall back to `"Inter"`.
 
 **Shared types migration (same branch — do first):**
-1. Create `packages/types/src/hotsite.ts` — move `HotsiteManifestResponse`, `HotsiteBrandingResponse`, `HotsiteModuleResponse`, `HotsiteAdminContentResponse`, `PublishHotsiteResponse`, `UnpublishHotsiteResponse`, `GenerateHotsiteImageSignedUrlResponse`, `FeatureBookingPhotoResponse` from `apps/bff/src/tenants/tenants.types.ts`; **also define all 7 module data interfaces** (`HeroModuleData`, `ServiceListModuleData`, `GalleryModuleData`, `TestimonialsModuleData`, `BookingCtaModuleData`, `AboutModuleData`, `ContactModuleData`) from `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 — so S04–S09 module components import from `@ikaro/types` rather than defining local interfaces that can drift from the BFF
+1. Create `packages/types/src/hotsite.ts` — move `HotsiteManifestResponse`, `HotsiteBrandingResponse`, `HotsiteModuleResponse`, `HotsiteAdminContentResponse`, `PublishHotsiteResponse`, `UnpublishHotsiteResponse`, `GenerateHotsiteImageSignedUrlResponse`, `FeatureBookingPhotoResponse` from `apps/bff/src/tenants/tenants.types.ts`; **also define all 7 module data interfaces** (`HeroModuleData`, `ServiceListModuleData`, `GalleryModuleData`, `TestimonialsModuleData`, `BookingCtaModuleData`, `AboutModuleData`, `ContactModuleData`) from `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 — so S04–S09 module components import from `@ikaro/types` rather than defining local interfaces that can drift from the BFF
 2. Add `export * from './hotsite'` to `packages/types/src/index.ts`
 3. Delete `apps/bff/src/tenants/tenants.types.ts`
 4. Update 5 BFF files to import from `@ikaro/types`: `tenants.controller.ts`, `hotsite-admin.controller.ts`, `tenants.controller.spec.ts`, `tenants.controller.component.spec.ts`, `hotsite-admin.controller.spec.ts`
@@ -282,7 +282,7 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
 
 **Agent:** `frontend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § HERO module
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § HERO module
 
 **Description:**  
 Implement the HERO hotsite module. A full-width section with optional background image, headline, subtitle, and a call-to-action button. Supports two layout variants: `centered` (default) and `left-aligned`.
@@ -377,7 +377,7 @@ All subsequent module components (S05–S07) follow this same pattern.
 
 **Agent:** `frontend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § SERVICE_LIST module
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § SERVICE_LIST module
 
 **Description:**  
 Implement the SERVICE_LIST hotsite module. Fetches active services from the BFF and renders them as cards with name, description, price, and duration.
@@ -425,12 +425,12 @@ interface ServiceListModuleData {
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § module data contracts (esp. CONTACT) + `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Business Info Settings
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § module data contracts (esp. CONTACT) + `docs/TENANTS_SETTINGS_SCHEMA.md` § Business Info Settings
 
 **Description:**  
 Implement the 4 remaining hotsite modules. All render data from the manifest `data` object. GALLERY is the most important — it displays admin-curated before/after images that come from two sources: completed booking after-photos and custom admin uploads.
 
-> **Note (story-discovery, M12-S06):** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` documented CONTACT's address/phone/email as "pulled from `tenants.settings`", but no such field existed anywhere — `TenantSettings`, the `tenants` table, and the manifest's `tenant` object only ever carried `{ id, name, slug }`. This story adds a `business_info` block to `tenants.settings` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6, added 2026-06-10) and resolves it into a new `business` field on the public manifest — bumping this story from S to M and adding `apps/backend`/`apps/bff`/`packages/types` to its scope, on top of the 3 frontend-only modules (GALLERY, TESTIMONIALS, ABOUT).
+> **Note (story-discovery, M12-S06):** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` documented CONTACT's address/phone/email as "pulled from `tenants.settings`", but no such field existed anywhere — `TenantSettings`, the `tenants` table, and the manifest's `tenant` object only ever carried `{ id, name, slug }`. This story adds a `business_info` block to `tenants.settings` (`docs/TENANTS_SETTINGS_SCHEMA.md` §6, added 2026-06-10) and resolves it into a new `business` field on the public manifest — bumping this story from S to M and adding `apps/backend`/`apps/bff`/`packages/types` to its scope, on top of the 3 frontend-only modules (GALLERY, TESTIMONIALS, ABOUT).
 
 **Part A — `tenants.settings.business_info` (backend domain):**
 1. `apps/backend/src/contexts/platform/domain/value-objects/tenant-settings.vo.ts` — add `BusinessInfoAddress` (`street, number, complement?, neighborhood, city, state, zip_code`) and `BusinessInfo` (`phone: string | null`, `email: string | null`, `address: BusinessInfoAddress | null`); add optional `business_info?: BusinessInfo` to `TenantSettingsProps`. **Unlike `notification` (single-field, whole-object fallback), the `business_info` getter must default per-field** — `{ phone: this.props.business_info?.phone ?? null, email: this.props.business_info?.email ?? null, address: this.props.business_info?.address ?? null }` — because a partial PATCH (e.g. `{ phone: "..." }` only) survives `deepMerge` as a partial object, and a whole-object fallback would silently drop the other fields. `TenantSettings.default()` includes the all-null shape. Split validation into `validateBusinessInfo()` (checks `phone` via `PhoneNumber.isValid`, `email` via `Email.isValid`, delegates `address` to `validateBusinessAddress()`) and `validateBusinessAddress()` (checks `zip_code` is exactly 8 digits, `state` is a 2-letter uppercase UF, and required sub-fields `street/number/neighborhood/city/state/zip_code` are present) — both ≤20 lines (CLAUDE.md §7); both called from `validate()` alongside `validateLoyalty`/`validateBooking`/`validateBusinessHours`
@@ -554,7 +554,7 @@ interface ContactModuleData {
 
 **Agent:** `frontend-ts`  
 **Complexity:** XL  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § BOOKING_CTA module, `docs/04-USE_CASES.md` § UC-001, UC-011, `docs/14-API_CONTRACTS.md` § Bookings, § Schedule Availability
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § BOOKING_CTA module, `docs/USE_CASES.md` § UC-001, UC-011, `docs/API_CONTRACTS.md` § Bookings, § Schedule Availability
 
 **Description:**  
 Implement the BOOKING_CTA module and the full booking form page — the most interactive part of the hotsite. The form is a 4-step flow: (1) select services, (2) pick a day from a horizontal availability carousel then a time slot, (3) fill personal info (contact + optional contact address + conditional pickup address + optional before-service photos), (4) submit. Calls UC-001 (guest booking) and UC-011 (availability, two-phase).
@@ -787,7 +787,7 @@ Each component (except `page.tsx`) gets a `*.spec.tsx` (Vitest + RTL, `// @vites
 
 **Agent:** `frontend-ts` + `backend-ts` (small)  
 **Complexity:** S  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Unpublished state, `docs/14-API_CONTRACTS.md` § Tenant Hotsite Manifest
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § Unpublished state, `docs/API_CONTRACTS.md` § Tenant Hotsite Manifest
 
 **Description:**  
 Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve" placeholder for unpublished hotsites. These are two distinct cases with two distinct UIs:
@@ -824,7 +824,7 @@ Implement the hotsite edge cases: a 404 page for unknown slugs, and an "Em breve
 
 **Agent:** `backend-ts` + `bff-ts` + `frontend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Manifest Schema + § SEO & Discoverability, `docs/14-API_CONTRACTS.md` § Tenant & Service Discovery, `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § Manifest Schema + § SEO & Discoverability, `docs/API_CONTRACTS.md` § Tenant & Service Discovery, `docs/BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions
 
 **Description:**  
 Implement per-tenant SEO metadata. Brazilian businesses depend on Google search and WhatsApp link previews. Without this, every tenant shows the same generic `<title>Ikaro</title>` in search results. Also adds a small Platform-context "published hotsites" listing endpoint so `app/sitemap.ts` can enumerate every published tenant for search-engine discovery.
@@ -973,18 +973,18 @@ export default function robots(): MetadataRoute.Robots {
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § branding, § GALLERY, § manifest caching; `docs/14-API_CONTRACTS.md` § hotsite media
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § branding, § GALLERY, § manifest caching; `docs/API_CONTRACTS.md` § hotsite media
 
 **Description:**  
-Corrects a gap identified before M12-S03 starts consuming the manifest contract. M12-S01/S02 routed hotsite branding/layout images through the same "private bucket + freshly-regenerated read-signed URL at display time" pattern documented for booking attachments (`docs/14-API_CONTRACTS.md`). That pattern is correct for booking photos — they're genuinely private — but wrong for hotsite images, which are public marketing assets by definition. Worse, it actively conflicts with the manifest's caching strategy (`Cache-Control: public, max-age=300`, Next.js ISR, future CDN per `docs/15` §10): a cached manifest would embed signed URLs that can expire before the cache revalidates, serving broken images to visitors. (As of this story, `GetHotsiteManifestUseCase` doesn't yet resolve `filePath` → any URL at all — it returns the raw stored path — so this is a "settle the contract before the frontend builds on it" fix, not a behavioral regression.)
+Corrects a gap identified before M12-S03 starts consuming the manifest contract. M12-S01/S02 routed hotsite branding/layout images through the same "private bucket + freshly-regenerated read-signed URL at display time" pattern documented for booking attachments (`docs/API_CONTRACTS.md`). That pattern is correct for booking photos — they're genuinely private — but wrong for hotsite images, which are public marketing assets by definition. Worse, it actively conflicts with the manifest's caching strategy (`Cache-Control: public, max-age=300`, Next.js ISR, future CDN per `docs/HOTSITE_DYNAMIC_ARCHITECTURE` §10): a cached manifest would embed signed URLs that can expire before the cache revalidates, serving broken images to visitors. (As of this story, `GetHotsiteManifestUseCase` doesn't yet resolve `filePath` → any URL at all — it returns the raw stored path — so this is a "settle the contract before the frontend builds on it" fix, not a behavioral regression.)
 
 This story:
 1. Gives hotsite images a separate **public** bucket with fixed, permanently-cacheable addresses (no signed-URL regeneration, no expiry) — booking photos keep the existing private/signed-read pattern untouched.
-2. Implements the backend mechanism for `GalleryImage.source: 'booking'` (speced in `docs/15` §4 but never given an implementation path): admin selects a completed booking's before **or** after photo to feature, and the backend copies it into the public bucket at the moment of selection — not a live reference (which would reintroduce the same caching conflict and couple the gallery's lifecycle to the booking's).
+2. Implements the backend mechanism for `GalleryImage.source: 'booking'` (speced in `docs/HOTSITE_DYNAMIC_ARCHITECTURE` §4 but never given an implementation path): admin selects a completed booking's before **or** after photo to feature, and the backend copies it into the public bucket at the moment of selection — not a live reference (which would reintroduce the same caching conflict and couple the gallery's lifecycle to the booking's).
 3. Wires hotsite publish/unpublish to trigger on-demand Next.js revalidation, so changes go live immediately rather than waiting up to 5 minutes for ISR.
 
 **Backend changes:**
-- New public GCS bucket (e.g. `ikaro-hotsite-public-${var.environment}` / `GCS_PUBLIC_BUCKET_NAME`), `allUsers: roles/storage.objectViewer`, fronted by Cloud CDN per the existing scaling plan (`docs/22-TECH_STACK_DECISIONS.md`). New env var `GCS_PUBLIC_BASE_URL` (default `https://storage.googleapis.com`; local `.env` sets `http://localhost:4443` to match the `fake-gcs-server` `-external-url` in `docker/docker-compose.yml`) — see `getPublicUrl()` below
+- New public GCS bucket (e.g. `ikaro-hotsite-public-${var.environment}` / `GCS_PUBLIC_BUCKET_NAME`), `allUsers: roles/storage.objectViewer`, fronted by Cloud CDN per the existing scaling plan (`docs/TECH_STACK_DECISIONS.md`). New env var `GCS_PUBLIC_BASE_URL` (default `https://storage.googleapis.com`; local `.env` sets `http://localhost:4443` to match the `fake-gcs-server` `-external-url` in `docker/docker-compose.yml`) — see `getPublicUrl()` below
 - `IStorageService` (shared port, `storage.service.port.ts`) gains:
   - `getPublicUrl(storagePath: string): string` — pure one-line template `${GCS_PUBLIC_BASE_URL}/${GCS_PUBLIC_BUCKET_NAME}/${storagePath}`; no GCS API round-trip, no expiry, **no environment branching**: the emulator's `-external-url` gives it the same `<base>/<bucket>/<path>` serving shape as real public GCS buckets, so only the configured base differs between dev and prod — exactly like `DB_HOST`/`FRONTEND_URL`/`GCS_BUCKET_NAME` already do
   - `copy(sourcePath: string, destinationPath: string): Promise<void>` — server-side object copy, private bucket → public bucket (`file.copy()`)
@@ -998,7 +998,7 @@ This story:
 - `UpdateHotsiteContentUseCase`'s `exists()` check now validates every gallery image — `source: 'upload'` and `source: 'booking'` alike — against the public bucket uniformly (no branching by origin)
 - `PublishHotsiteUseCase` / `UnpublishHotsiteUseCase` call a new internal port `IFrontendRevalidationPort` after persisting, hitting `${FRONTEND_URL}/api/revalidate?secret=${HOTSITE_REVALIDATE_SECRET}&slug=<tenant.slug>` for that tenant. New env var `HOTSITE_REVALIDATE_SECRET` (≥32 chars — same convention as `PLATFORM_ADMIN_KEY`/`INTERNAL_API_KEY`) is the shared secret verified by the route built in M12-S03 — **both stories must use this exact name**. The adapter **catches and logs** any failure (network error, 404, secret mismatch) — publish/unpublish always succeed regardless, both because ISR's 5-minute fallback already covers the gap and because M12-S10 ships *before* M12-S03's route exists (see `Blocks` below), so the call is expected to 404 until that story lands
 
-**`GalleryImage` contract addition** (`packages/types/src/hotsite.ts`, `docs/15` §4 — JSONB `data` field, no migration required):
+**`GalleryImage` contract addition** (`packages/types/src/hotsite.ts`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE` §4 — JSONB `data` field, no migration required):
 ```typescript
 interface GalleryImage {
   url: string;
@@ -1034,7 +1034,7 @@ interface GalleryImage {
 
 **Agent:** `backend-ts` + `frontend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § Branding & Design Token System · `docs/14-API_CONTRACTS.md` § Tenant Hotsite Manifest / Hotsite Admin Management
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § Branding & Design Token System · `docs/API_CONTRACTS.md` § Tenant Hotsite Manifest / Hotsite Admin Management
 
 **Description:**  
 Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a tenant's CTA button color can be set independently of `primaryColor`. Today every button color is derived from `primaryColor` + `buttonStyle` via `BTN_STYLES` in `apply-branding.ts`. When a section's background is also `var(--ba-primary)` (e.g. the `left-aligned` HERO variant, or `centered` without a background image), a `filled` button's fill and border become identical to the section behind it — the button is effectively invisible. These two fields are optional overrides: when unset, `applyBranding()` produces output identical to today (zero impact on existing tenants); when set, they take precedence. For `outline`/`ghost` styles — which have no permanent fill to recolor — `buttonBackgroundColor` instead drives a **hover-fill** effect via a new `--ba-btn-hover-bg` token.
@@ -1069,8 +1069,8 @@ Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a
 - `HeroModule.spec.tsx` — assert the CTA className includes `hover:bg-[var(--ba-btn-hover-bg)]`
 
 **Docs:**
-- Update `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 — add the 2 new fields and `--ba-btn-hover-bg` to the `HotsiteBranding` token definition snippet and the `applyBranding()` CSS variable mapping snippet, with a one-line note on the filled-fill / outline-ghost-hover-fill semantics
-- Update `docs/14-API_CONTRACTS.md` — add `buttonBackgroundColor`/`buttonTextColor` (both optional) to the canonical `branding` JSON example shared by the public manifest and `GET/PATCH /v1/tenants/hotsite`, with a one-line validation note
+- Update `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §2 — add the 2 new fields and `--ba-btn-hover-bg` to the `HotsiteBranding` token definition snippet and the `applyBranding()` CSS variable mapping snippet, with a one-line note on the filled-fill / outline-ghost-hover-fill semantics
+- Update `docs/API_CONTRACTS.md` — add `buttonBackgroundColor`/`buttonTextColor` (both optional) to the canonical `branding` JSON example shared by the public manifest and `GET/PATCH /v1/tenants/hotsite`, with a one-line validation note
 
 **Acceptance criteria:**
 - [ ] `buttonBackgroundColor`/`buttonTextColor` both unset → `applyBranding()` output identical to current behavior for all 3 `buttonStyle` values, including `--ba-btn-hover-bg` (regression — existing `apply-branding.spec.ts` cases unchanged)
@@ -1095,10 +1095,10 @@ Add two optional hex tokens, `buttonBackgroundColor` and `buttonTextColor`, so a
 
 **Agent:** `frontend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` § linting, `docs/CODE_STANDARDS.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § linting, `docs/CODE_STANDARDS.md`
 
 **Description:**  
-`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §3 mandates `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` for `apps/web`, but neither is installed anywhere in the monorepo. Without `react-hooks`, Rules-of-Hooks violations (conditional hooks, stale closures from missing `useEffect`/`useMemo`/`useCallback` deps) go undetected until runtime — a real risk once M12-S07 (booking form state) and M13 (TanStack Query hooks throughout the dashboard) land. Without `jsx-a11y`, accessibility issues (missing `alt`, invalid ARIA attributes, non-interactive elements with click handlers, etc.) aren't caught in CI — relevant since Ikaro hotsites are public-facing for small businesses unlikely to run their own a11y audits.
+`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3 mandates `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` for `apps/web`, but neither is installed anywhere in the monorepo. Without `react-hooks`, Rules-of-Hooks violations (conditional hooks, stale closures from missing `useEffect`/`useMemo`/`useCallback` deps) go undetected until runtime — a real risk once M12-S07 (booking form state) and M13 (TanStack Query hooks throughout the dashboard) land. Without `jsx-a11y`, accessibility issues (missing `alt`, invalid ARIA attributes, non-interactive elements with click handlers, etc.) aren't caught in CI — relevant since Ikaro hotsites are public-facing for small businesses unlikely to run their own a11y audits.
 
 **What to do:**
 - Add `eslint-plugin-react-hooks` and `eslint-plugin-jsx-a11y` to `apps/web` devDependencies

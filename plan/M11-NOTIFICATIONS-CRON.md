@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Notification context, `docs/13-DATABASE_SCHEMA.md` § notification schema
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Notification context, `docs/DATABASE_SCHEMA.md` § notification schema
 
 **Description:**  
 Implement the `NotificationTemplate` aggregate, its database migration, and the `NotificationTemplateKey` enum. Templates are per-tenant (or global-default when `tenantId` is null) and hold the pt-BR subject and body for one `(triggerEvent, channel)` pair. All pt-BR copy lives in the DB — no hardcoded strings in use cases.
@@ -116,7 +116,7 @@ A new `TenantProvisionedNotificationHandler` subscribes to the `TenantProvisione
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Notification context, `docs/13-DATABASE_SCHEMA.md` § notification schema
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Notification context, `docs/DATABASE_SCHEMA.md` § notification schema
 
 **Description:**  
 Evolve the existing `NotificationLog` entity (bootstrapped in M04-S05 with minimal columns) into a full audit-trail aggregate, and add the `processed_events` idempotency table. Every send attempt (PENDING → SENT or FAILED) is logged. `BaseNotificationUseCase` idempotency check moves from querying `notification_logs` to querying `processed_events`, so `notification_logs` becomes a pure audit trail and the UNIQUE constraint on it is dropped.
@@ -198,7 +198,7 @@ This allows the same domain event to produce notifications across multiple templ
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
+**Docs to load:** `docs/BOUNDED_CONTEXTS.md` § Notification context, `docs/TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
 
 **Description:**  
 Introduce `IEmailSender` as a thin email-only transport port, distinct from `IDeliveryChannel` (which covers all channels: EMAIL, SMS, WhatsApp). Implement `SendGridEmailAdapter` (production) and `MailhogEmailAdapter` (local dev, renamed from `SmtpEmailAdapter`) as pure-transport `IEmailSender` implementations — no rendering logic. Rename the existing `SmtpEmailAdapter` into `MailhogEmailAdapter` (transport) + a new `EmailDeliveryChannelAdapter` that bridges `IDeliveryChannel` → `IEmailSender`. The `EmailDeliveryChannelAdapter` retains the existing `render()` switch for now; M11-S07 moves rendering to use cases and removes it.
@@ -266,7 +266,7 @@ export class EmailDeliveryException extends NotificationDomainError {
 ```
 
 **Per-tenant `from_email`:**
-- `settings.notification.from_email` (nullable string) is defined in `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
+- `settings.notification.from_email` (nullable string) is defined in `docs/TENANTS_SETTINGS_SCHEMA.md` § Notification Settings
 - `NotificationTenantInfo` gains `fromEmail: string | null`
 - `TenantInfoAdapter.getTenantInfo()` reads `tenant.settings?.notification?.from_email ?? null`
 - `EmailDeliveryChannelAdapter` resolves: `tenantInfo.fromEmail ?? config.get('EMAIL_FROM')`
@@ -342,7 +342,7 @@ SendGrid requires the sender email to be verified before any email sends. One-ti
 
 **Agent:** `backend-ts`  
 **Complexity:** L  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-018, UC-019, UC-020, `docs/23-INFRASTRUCTURE_SETUP.md` § Cloud Scheduler cron jobs
+**Docs to load:** `docs/USE_CASES.md` § UC-018, UC-019, UC-020, `docs/INFRASTRUCTURE_SETUP.md` § Cloud Scheduler cron jobs
 
 **Description:**  
 Implement the `POST /cron/reminders` endpoint. GCP Cloud Scheduler fires it every 30 minutes; the handler checks which tenants have local time between 06:00–06:29 and emits reminder events for those tenants. The endpoint only raises events — all email logic lives in the Notification context consumers (M11-S05). Handles UC-018 (admin daily digest), UC-019 (customer day-before reminder), and UC-020 (customer day-of reminder).
@@ -385,11 +385,11 @@ export interface IReminderTenantPort {
 4. `correlationId`: fresh `uuidv7()` per tenant loop iteration
 5. Idempotent — re-running within the window emits duplicate events but Notification handlers deduplicate via `processed_events`
 
-**Endpoint security:** No auth guard in MVP — backend is not publicly reachable (BFF-only path). M115-S03 adds `CronAuthGuard` (OIDC token from GCP Cloud Scheduler, same design as `docs/23-INFRASTRUCTURE_SETUP.md § Authentication`).
+**Endpoint security:** No auth guard in MVP — backend is not publicly reachable (BFF-only path). M115-S03 adds `CronAuthGuard` (OIDC token from GCP Cloud Scheduler, same design as `docs/INFRASTRUCTURE_SETUP.md § Authentication`).
 
 **`cron-booking.controller.ts`:**
 ```typescript
-// MVP: no auth guard — M115-S03 adds CronAuthGuard (OIDC, see docs/23-INFRASTRUCTURE_SETUP.md)
+// MVP: no auth guard — M115-S03 adds CronAuthGuard (OIDC, see docs/INFRASTRUCTURE_SETUP.md)
 @Controller('cron')
 export class CronBookingController {
   constructor(
@@ -466,7 +466,7 @@ export class CronBookingController {
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § BookingReminderDue, BookingReminderDueToday, AdminDailyScheduleReminder
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § BookingReminderDue, BookingReminderDueToday, AdminDailyScheduleReminder
 
 **Description:**  
 Implement the 3 Notification context consumers for reminder events. All emails in pt-BR.
@@ -513,7 +513,7 @@ Implement the 3 Notification context consumers for reminder events. All emails i
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-016b, `docs/03-DOMAIN_EVENTS.md` § PointsExpiringSoon
+**Docs to load:** `docs/USE_CASES.md` § UC-016b, `docs/DOMAIN_EVENTS.md` § PointsExpiringSoon
 
 **Description:**  
 Implement the weekly loyalty expiry warning: GCP Cloud Scheduler fires `POST /cron/loyalty-expiry-warning` once a week (Mondays 06:00 UTC). Find all customers with loyalty points expiring within the configured window (`settings.loyalty.expiry_warning_days`, default 7) and send them a warning email.
@@ -555,7 +555,7 @@ Implement the weekly loyalty expiry warning: GCP Cloud Scheduler fires `POST /cr
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context
+**Docs to load:** `docs/BOUNDED_CONTEXTS.md` § Notification context
 
 **Description:**  
 Upgrade all existing notification use cases (from M04-S05, M07-S06, M08-S05, M09-S04, M10-S06) to load and render templates from the DB, route dispatches through the correct channel, and log every send attempt. This story wires together the `NotificationTemplate` aggregate (M11-S01), the `NotificationLog` (M11-S02), and the `IEmailSender` adapter (M11-S03) into a complete, database-driven notification pipeline.
@@ -686,7 +686,7 @@ No use case changes needed.
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Communication Patterns, `docs/09-CI_CD_PIPELINE.md` § Event Reliability
+**Docs to load:** `docs/BOUNDED_CONTEXTS.md` § Communication Patterns, `docs/CI_CD_PIPELINE.md` § Event Reliability
 
 **Description:**  
 Implement dead-letter queue (DLQ) handling for Pub/Sub. After `PUBSUB_MAX_DELIVERY_ATTEMPTS` failed nacks (default 5), the `GcpPubSubEventBusAdapter` programmatically routes the original message to the `ikaro-dead-letter` topic and ACKs it, preventing Pub/Sub from retrying indefinitely. `DeadLetterHandler` subscribes to that topic and logs the event at ERROR level so ops can investigate without silent data loss.

@@ -48,7 +48,7 @@ export class ResourceController {
   // (see ANTI_PATTERNS.md, matches StaffController's 'me' route precedent).
   //
   // Merges Staff + Resource reads here so the STAFF picker on Resource create/edit forms never
-  // needs apps/web to orchestrate two BFF calls itself (docs/24-BFF_ARCHITECTURE.md § Web-facing
+  // needs apps/web to orchestrate two BFF calls itself (docs/BFF_ARCHITECTURE.md § Web-facing
   // composite views).
   @Get('staff-options')
   async staffOptions(

@@ -23,8 +23,8 @@ Staff and managers can look up any customer's loyalty balance, earning history, 
 **BFF call:**
 ```
 GET /v1/customers?search=:term&limit=:limit
-Headers: X-Actor-Role: STAFF|MANAGER, X-Tenant-ID, X-Actor-ID
-Response: CustomerSearchListResponse { items: [{ customerId, name, email, currentPoints }], total }
+Auth: Bearer JWT, role STAFF or MANAGER (the BFF forwards the actor headers to the backend)
+Response: CustomerSearchListResponse { items: [{ customerId, name, email, phone, currentPoints }], total }
 ```
 
 **States (real, all implemented):**
@@ -56,7 +56,7 @@ GET /v1/customers/:customerId/loyalty/redemptions?page=1&limit=20
   LoyaltyRedemptionItem: { id, pointsRedeemed, amountDeducted, redeemedAt, bookingId: string | null, notes: string | null }
 ```
 
-All three require `X-Actor-Role: STAFF|MANAGER`.
+All three require a STAFF or MANAGER JWT (`@Roles` on the BFF controller).
 
 **States (real, all implemented):**
 - Loaded with entries: balance card (fixed blue-600→800 gradient — NOT `--ba-primary`, this page is tenant-agnostic) + tabs with entry/redemption lists

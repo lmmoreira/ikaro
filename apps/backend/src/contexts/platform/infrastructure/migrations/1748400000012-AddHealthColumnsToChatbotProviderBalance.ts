@@ -11,7 +11,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // implies a balance poll happened when it didn't. down() intentionally does not restore the NOT
 // NULL/DEFAULT: re-tightening NOT NULL would fail against any health-only row already inserted
 // by that point, and undoing that data-dependent state isn't this rollback's job — see
-// docs/13-DATABASE_SCHEMA.md's chatbot_provider_balance section for the full read/write design.
+// docs/DATABASE_SCHEMA.md's chatbot_provider_balance section for the full read/write design.
 export class AddHealthColumnsToChatbotProviderBalance1748400000012 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

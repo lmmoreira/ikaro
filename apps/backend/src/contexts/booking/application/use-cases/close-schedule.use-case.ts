@@ -67,7 +67,7 @@ export class CloseScheduleUseCase {
       // Re-check the overlap invariant under the same per-(tenant, date) advisory lock
       // OpenScheduleUseCase/RemoveScheduleOpeningUseCase use, so two concurrent closure creates
       // for overlapping windows on the same date can't both pass the check before either
-      // commits (docs/13-DATABASE_SCHEMA.md § booking.schedule_closures — this overlap check has
+      // commits (docs/DATABASE_SCHEMA.md § booking.schedule_closures — this overlap check has
       // no DB constraint backing it, since arbitrary time-range overlap can't be expressed as a
       // simple unique index).
       await this.tenantLock.lockTenantDay(tenantId, input.date);

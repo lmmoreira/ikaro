@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-007, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § cancellation_window_hours
+**Docs to load:** `docs/USE_CASES.md` § UC-007, `docs/TENANTS_SETTINGS_SCHEMA.md` § cancellation_window_hours
 
 **Description:**  
 Implement customer-initiated booking cancellation. The cancellation window is read from `tenants.settings.booking.cancellation_window_hours` — if fewer than that many hours remain before `scheduledAt`, cancellation is refused. The window is never hardcoded.
@@ -49,7 +49,7 @@ Implement customer-initiated booking cancellation. The cancellation window is re
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-008
+**Docs to load:** `docs/USE_CASES.md` § UC-008
 
 **Description:**  
 Implement admin-initiated booking cancellation. Unlike customer cancellation, admins can cancel any booking at any time regardless of the cancellation window. Both PENDING and APPROVED bookings can be cancelled by staff.
@@ -81,7 +81,7 @@ Note: The same BFF endpoint `PATCH /v1/bookings/:id/cancel` handles both custome
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-008 alt flow A1, `docs/03-DOMAIN_EVENTS.md` § BookingRescheduled
+**Docs to load:** `docs/USE_CASES.md` § UC-008 alt flow A1, `docs/DOMAIN_EVENTS.md` § BookingRescheduled
 
 **Description:**  
 Implement booking rescheduling. Only an admin can reschedule, and only APPROVED bookings can be rescheduled (moving from APPROVED to a new slot, staying APPROVED). The new slot must be available.
@@ -115,7 +115,7 @@ Implement booking rescheduling. Only an admin can reschedule, and only APPROVED 
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § BookingCancelled, BookingRescheduled
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § BookingCancelled, BookingRescheduled
 
 **Description:**  
 Implement the 2 Notification context consumers for cancellation and rescheduling events. Each event triggers emails to both customer and admin in pt-BR.

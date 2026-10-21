@@ -2,7 +2,7 @@
 
 ## Overview
 
-New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S08`/`S11`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`.
+New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S08`/`S11`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`.
 
 ## File map (❓ none exist yet)
 
@@ -14,7 +14,7 @@ New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical 
 | `apps/web/features/booking/components/dashboard/turmas/EnrollmentListPage.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/turmas/AdminEnrollmentForm.tsx` | ❓ Gap |
 
-## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md` § Classes & Sessions)
+## BFF calls (endpoints not yet implemented — contract per `docs/API_CONTRACTS.md` § Classes & Sessions)
 
 ```
 GET/POST/PATCH/DELETE  /v1/class-schedule-templates[/:id]

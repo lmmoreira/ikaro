@@ -1,7 +1,7 @@
 # Booking — Resource Management endpoints (M21-S01, UC-044–UC-049)
 # TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 # MANAGER-only on every route — a deliberate, self-consistent restriction distinct from
-# every other Booking-context admin surface (docs/14-API_CONTRACTS.md § Resource Management).
+# every other Booking-context admin surface (docs/API_CONTRACTS.md § Resource Management).
 #
 # Prerequisites:
 #   1. pnpm infra:up

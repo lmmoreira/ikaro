@@ -319,4 +319,100 @@ describe('checkDocLinkIntegrity', () => {
       expect(result.scannedTargets).toBe(0);
     });
   });
+
+  describe('retired numbered doc names', () => {
+    // Built from parts so this spec never spells an old name itself.
+    const oldName = `${'14'}-API_CONTRACTS`;
+    const shortForm = `docs/${'13'}`;
+
+    it('reports the full old path, naming the replacement', () => {
+      const result = scan({
+        'docs/API_CONTRACTS.md': '# API',
+        'docs/OTHER.md': `see docs/${oldName}.md`,
+      });
+
+      expect(result.findings).toContainEqual(
+        expect.objectContaining({
+          file: 'docs/OTHER.md',
+          line: 1,
+          message: expect.stringContaining('cite docs/API_CONTRACTS.md'),
+        }),
+      );
+    });
+
+    it('reports a bare filename citation in prose', () => {
+      const result = scan({ 'docs/OTHER.md': `# Other\n\nSee ${oldName}.md for the routes.` });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({ file: 'docs/OTHER.md', line: 3 }),
+      ]);
+    });
+
+    it('reports a bare name written without the .md extension', () => {
+      const result = scan({ 'docs/OTHER.md': `See ${oldName} § Base Standards.` });
+
+      expect(result.findings).toHaveLength(1);
+    });
+
+    it('reports a short docs/NN citation, naming the replacement', () => {
+      const result = scan({ 'docs/OTHER.md': `See ${shortForm} § Global Standards.` });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('docs/DATABASE_SCHEMA.md') }),
+      ]);
+    });
+
+    it('reports an abbreviated docs/NN- citation that spells no full name', () => {
+      const result = scan({ 'docs/OTHER.md': `see \`docs/${'15'}-...\` § Y` });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({
+          message: expect.stringContaining('docs/HOTSITE_DYNAMIC_ARCHITECTURE.md'),
+        }),
+      ]);
+    });
+
+    it('reports a bare filename citation exactly once, not once per matching rule', () => {
+      const result = scan({ 'docs/OTHER.md': `See ${oldName}.md.` });
+
+      expect(result.findings).toHaveLength(1);
+    });
+
+    it('reports an old name in a .ts comment', () => {
+      const result = scan({ 'apps/backend/src/a.ts': `// ${shortForm} § Schema\nexport {};` });
+
+      expect(result.findings).toHaveLength(1);
+    });
+
+    it('reports an old name inside a frozen plan file', () => {
+      const result = scan({ 'plan/M01.md': `# M01\n> Frozen: 2026-10-17\nsee ${oldName}.md` });
+
+      expect(result.findings).toHaveLength(1);
+    });
+
+    it('passes the same forms inside archive/ and docs/discovery/', () => {
+      const result = scan({
+        'archive/old.md': `see ${oldName}.md and ${shortForm}`,
+        'docs/discovery/idea.md': `see ${oldName}.md and ${shortForm}`,
+      });
+
+      expect(result.findings).toEqual([]);
+    });
+
+    it('passes the same forms in a fenced block and on an example-marker line', () => {
+      const result = scan({
+        'docs/OTHER.md': `\`\`\`\n${oldName}.md\n\`\`\`\nrenamed from ${oldName}.md <!-- doc-link:example -->`,
+      });
+
+      expect(result.findings).toEqual([]);
+    });
+
+    it('does not read an unrelated number-and-word pair or a longer id as an old name', () => {
+      const result = scan({
+        'docs/OTHER.md': `a 24-HOUR clock, M20-LEAD-FORM-MODULE.md, docs/${'13'}0 and TD${'14'}-API_CONTRACTS`,
+      });
+
+      expect(result.findings).toEqual([]);
+    });
+  });
 });

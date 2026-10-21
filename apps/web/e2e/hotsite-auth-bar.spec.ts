@@ -4,7 +4,7 @@ import { completeCustomerProfile } from './helpers/customer';
 import { gotoBookingPage } from './helpers/booking-form/goto';
 
 // HotsiteAuthBar resolves auth state client-side, after hydration, via /api/session (not
-// synchronously in server-rendered HTML — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6),
+// synchronously in server-rendered HTML — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §6),
 // rendering a loading skeleton until it resolves — so *every* final state (including
 // "unauthenticated") requires that round trip, not just the authenticated ones. The default 5s
 // Playwright timeout can be too tight for that extra network round trip (browser -> web -> BFF ->

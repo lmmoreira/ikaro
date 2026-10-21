@@ -20,7 +20,7 @@ import { TenantEntityBuilder } from '../builders/platform/tenant-entity.builder'
 import { futureDate } from './date-helpers';
 import { seedResource, seedService } from './future-commitment-db-fixture';
 
-// Concurrency integration tests (docs/08-TESTING_STRATEGY.md § Concurrency tests). Every scenario
+// Concurrency integration tests (docs/TESTING_STRATEGY.md § Concurrency tests). Every scenario
 // builds its OWN world: a fresh tenant id, two rooms and one service that needs a room. Nothing is
 // shared between scenarios, so a failure never leaves rows another test can trip over, no cleanup
 // is needed on the reused test database, and the scenarios stay independent of their order.

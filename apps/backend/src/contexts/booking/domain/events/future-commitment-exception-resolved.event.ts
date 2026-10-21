@@ -12,7 +12,7 @@ interface FutureCommitmentExceptionResolvedData extends Record<string, unknown> 
   affectedId: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § FutureCommitmentExceptionResolved (UC-077) — audit-log consumer only.
+// docs/DOMAIN_EVENTS.md § FutureCommitmentExceptionResolved (UC-077) — audit-log consumer only.
 export class FutureCommitmentExceptionResolved extends DomainEvent<FutureCommitmentExceptionResolvedData> {
   readonly eventVersion = 1;
   readonly data: FutureCommitmentExceptionResolvedData;

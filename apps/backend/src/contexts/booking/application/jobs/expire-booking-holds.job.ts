@@ -76,7 +76,7 @@ export class ExpireBookingHoldsJob {
   }
 
   // Approve, reject, cancel and a customer's answer to an information request all change the
-  // booking (and take the resource locks first, docs/28-LOCK_CATALOG.md): reloading it inside the
+  // booking (and take the resource locks first, docs/LOCK_CATALOG.md): reloading it inside the
   // transaction and saving it through the optimistic version check makes exactly one of them win.
   // A loser is a skip, which is the outcome the job wanted anyway; any other failure is retried.
   private async expireOne(tenantId: string, bookingId: string, now: Date): Promise<boolean> {

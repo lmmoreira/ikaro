@@ -5,7 +5,7 @@
 **UCs covered:** UC-073 (System raises), UC-077 (Manager resolves)  
 **Status:** Built — M23, Multi-Vertical Scheduling, Cluster 3. Backend + BFF shipped in `M23-S08` (✅); this frontend shipped in `M23-S14` (✅). Prototypes redrawn 2026-10-14 inside the real dashboard shell, reusing the agenda's cards, sheets and the staff reschedule picker (`dev-notes.md` § Design system). Customer/manager notifications for the worklist: `M23-S23`.
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-47, CAND-56) via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` for the full domain model. This worklist never silently moves or invalidates a commitment — every entry ends in an explicit manager decision (keep, reassign, reschedule, cancel) or a dismissal.
 
 > **Decided in `M23-S08` (2026-09-30):**
 > - An entry is one **future booking** (`PENDING`, `INFO_REQUESTED` or `APPROVED`) occupying a resource that was deactivated — either directly (UC-047) or because its staff member was deactivated (UC-048). A recurring schedule has **no entry of its own**: each of its occurrences is a booking and appears as its own entry.
@@ -60,7 +60,7 @@ flowchart TD
 | `POST /v1/scheduling-exceptions/resolve` | Manager reassigns/cancels one or many entries (`exceptionIds[]`), or reschedules one; per-entry result `RESOLVED` / `STILL_OPEN` (`KEEP` exists in the API but this page never sends it) | MANAGER |
 | `POST /v1/scheduling-exceptions/dismiss` | **Not called by this page for `RESOURCE_DEACTIVATION` entries** (kept for the API and for future source types; see the 2026-10-14 decision above) | MANAGER |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Future Commitment Exceptions.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Future Commitment Exceptions.
 
 ## Prototype
 
@@ -85,6 +85,6 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 - [x] Slot source for `01e` — the existing staff availability endpoint; the route reuses the staff `RescheduleBookingPage` with an injected confirm (decided at `M23-S14`'s discovery, 2026-10-14).
 - [x] `M23-S45` (reactivation closes the open entries) is related to this page but not blocking it.
 - [ ] **Selecting "all from this resource from a time":** the prototype draws a per-resource "Selecionar todos" control; a free time filter ("a partir de …") is a proposal, not decided.
-- [ ] **Reagendar on a booking whose customer chose the deactivated resource** (`CUSTOMER_CHOICE`) can only fail: the reschedule keeps the customer's pick and cannot re-resolve a resource that is gone (`docs/27` § RESCHEDULE). The row still shows the link and the manager sees the error. A per-item flag computed on read could hide it; not decided.
+- [ ] **Reagendar on a booking whose customer chose the deactivated resource** (`CUSTOMER_CHOICE`) can only fail: the reschedule keeps the customer's pick and cannot re-resolve a resource that is gone (`docs/BUSINESS_LOGIC_REFERENCE` § RESCHEDULE). The row still shows the link and the manager sees the error. A per-item flag computed on read could hide it; not decided.
 - [ ] **No single action changes the time and the resource together.** With a customer-chosen resource and no free alternative at the same time (Reatribuir disabled), only Cancelar is left, so the customer has to book again; a Reagendar that also takes a target resource is an idea, not decided.
 - [ ] **A `PENDING` / `INFO_REQUESTED` booking** has no Reagendar (only a confirmed booking can be rescheduled); how the manager moves such a booking's time is the normal approval flow, not this screen.

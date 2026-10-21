@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // M23-S38 — the Notification context reports how each availability-alert email went:
 // `attempt_count` (tries made) and `last_error` (redacted reason of the last failure), next to the
-// existing `outcome`, whose new values SENT and FAILED need no migration (no CHECK, docs/13).
+// existing `outcome`, whose new values SENT and FAILED need no migration (no CHECK, docs/DATABASE_SCHEMA).
 //
 // Expand-only and backward compatible: a constant default makes the ADD COLUMN a metadata-only
 // change in PostgreSQL 11+, so there is no table rewrite, and old code that never writes the

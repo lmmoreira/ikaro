@@ -1,6 +1,6 @@
 ---
 name: discovery-to-milestone
-description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone (or, for a large discovery, a sequenced set of milestones) of stories ready for /story-discovery. Scales from a small, single-context discovery to a large, multi-aggregate one: Phase A promotes discovery content into docs/04-USE_CASES.md, docs/02-DOMAIN_MODEL.md, docs/03-DOMAIN_EVENTS.md, docs/13-DATABASE_SCHEMA.md, docs/14-API_CONTRACTS.md, and other canonical docs, plus the real journeys/ prototype structure (per CLAUDE.md §15), promoted in logical clusters and independently verified via /docs-audit as each lands. Phase B checks whether the promoted scope is one milestone or several, sequences the promoted use cases into dependency-ordered waves, proactively works out milestone-level design/aggregate/database/performance/test-strategy decisions no single story can see on its own — scaled to how many aggregates are actually in play — and drafts each story with inline context and pre-decided architectural choices in the exact format /story-discovery parses. Never writes code.
+description: Promote a mature docs/discovery/ doc set into canonical documentation, then draft a dependency-sequenced milestone (or, for a large discovery, a sequenced set of milestones) of stories ready for /story-discovery. Scales from a small, single-context discovery to a large, multi-aggregate one: Phase A promotes discovery content into docs/USE_CASES.md, docs/DOMAIN_MODEL.md, docs/DOMAIN_EVENTS.md, docs/DATABASE_SCHEMA.md, docs/API_CONTRACTS.md, and other canonical docs, plus the real journeys/ prototype structure (per CLAUDE.md §15), promoted in logical clusters and independently verified via /docs-audit as each lands. Phase B checks whether the promoted scope is one milestone or several, sequences the promoted use cases into dependency-ordered waves, proactively works out milestone-level design/aggregate/database/performance/test-strategy decisions no single story can see on its own — scaled to how many aggregates are actually in play — and drafts each story with inline context and pre-decided architectural choices in the exact format /story-discovery parses. Never writes code.
 metadata:
   short-description: Promote discovery docs into a sequenced milestone
 ---
@@ -70,18 +70,18 @@ Execute clusters **sequentially**, not in parallel: write one cluster's changes 
 
 ### 2a. Candidate use cases → real UC-XXX entries
 
-For each candidate use case (`CAND-XX` or equivalent) the Decisions log didn't cut, draft a real entry in `docs/04-USE_CASES.md`, in the file's existing field format (summary table row + detail section: actor, main flow, alt flows). Assign the next available `UC-XXX` numbers — check CLAUDE.md §6 first for any trap/superseded/reserved numbers to skip. A discovery doc that already claims to mirror the UC field format (many will, since that's good discovery-doc practice) makes this closer to a format-conformance pass than a rewrite — don't invent new structure where the discovery doc already has the right shape.
+For each candidate use case (`CAND-XX` or equivalent) the Decisions log didn't cut, draft a real entry in `docs/USE_CASES.md`, in the file's existing field format (summary table row + detail section: actor, main flow, alt flows). Assign the next available `UC-XXX` numbers — check CLAUDE.md §6 first for any trap/superseded/reserved numbers to skip. A discovery doc that already claims to mirror the UC field format (many will, since that's good discovery-doc practice) makes this closer to a format-conformance pass than a rewrite — don't invent new structure where the discovery doc already has the right shape.
 
 ### 2b. Domain model, events, schema, contracts, settings, errors
 
 Using `/docs-audit`'s tag-derived deep-check set as the checklist (`pnpm --filter @ikaro/architecture-check docs-for --tag <tags>` lists the docs for the areas the discovery touches, each marked deep or light; not a fresh list invented here), fold the discovery doc's content into whichever of these actually apply:
-- `docs/02-DOMAIN_MODEL.md` — new/modified aggregates
-- `docs/03-DOMAIN_EVENTS.md` — new domain events, full payload definitions
-- `docs/13-DATABASE_SCHEMA.md` — new tables, modified tables, migration ordering
-- `docs/14-API_CONTRACTS.md` — new REST endpoints implied by the promoted UCs
-- `docs/05-BOUNDED_CONTEXTS.md` — if a new event gets cross-context consumers (check whether the discovery doc says something mirrors an existing event's consumer list, e.g. "mirrors BookingCompleted's consumers")
-- `docs/21-TENANTS_SETTINGS_SCHEMA.md` — any settings key added, moved, or deprecated
-- `docs/25-ERROR_CATALOG.md` — new RFC 9457 error codes
+- `docs/DOMAIN_MODEL.md` — new/modified aggregates
+- `docs/DOMAIN_EVENTS.md` — new domain events, full payload definitions
+- `docs/DATABASE_SCHEMA.md` — new tables, modified tables, migration ordering
+- `docs/API_CONTRACTS.md` — new REST endpoints implied by the promoted UCs
+- `docs/BOUNDED_CONTEXTS.md` — if a new event gets cross-context consumers (check whether the discovery doc says something mirrors an existing event's consumer list, e.g. "mirrors BookingCompleted's consumers")
+- `docs/TENANTS_SETTINGS_SCHEMA.md` — any settings key added, moved, or deprecated
+- `docs/ERROR_CATALOG.md` — new RFC 9457 error codes
 - `docs/ENGINEERING_RULES_*.md` (whichever of the 5 topic files fits — Shared/Backend/Infra/Frontend/Testing) — a genuinely new critical invariant the discovery doc establishes (not every detail — same bar as everything already in that file)
 
 The discovery doc's own deeper rationale (a taxonomy, a worked comparison of alternatives, the "why" behind a modeling choice) does **not** need to migrate word-for-word into these canonical docs — same principle as the `docs/ENGINEERING_RULES_*.md` files holding full incident narratives while CLAUDE.md keeps only the rule. Canonical docs get the *what*; the discovery doc stays as the permanent *why*, referenced by path, not deleted or archived once promoted (it's still real project history, not a stale bootstrap doc).
@@ -218,7 +218,7 @@ For every story in the confirmed wave sequence, write a `### M<N>-S<NN> — <tit
 
 **Apply the NON-NEGOTIABLE principles while drafting, not after:** before finalizing each story, check it against the same lens as `/story-discovery`'s own 4o — does this story's design need multiple stacked safeguards where a simpler approach (an existing port/adapter, an existing pattern) would need none of it? Does it reuse what already exists rather than reinventing it? A story drafted with a workaround baked in guarantees rework the moment `/pr-review`'s Agent D catches it later — cheaper to not write it that way in the first place.
 
-**Cross-check the finished story against CLAUDE.md §8's anti-pattern table explicitly, not just the 3 NON-NEGOTIABLE principles above** — loading the doc that documents a rule (e.g. `docs/24-BFF_ARCHITECTURE.md`'s public/private controller split, already in this story's own "Docs to load") does not guarantee the drafted design actually follows it. (M20 test-slice precedent, 2026-08-22: a BFF story cited the correct naming-convention doc in its own "Docs to load" line and still put 3 JWT-gated write routes under `/public/` in a `.public.controller.ts` — caught only by an independent `/docs-audit` dispatch, not by drafting with the doc open. This is exactly why Step 5b's independent dispatch exists and is not optional — but checking the anti-pattern table explicitly here, before that dispatch ever runs, is strictly cheaper than relying on it to catch every instance of this class of mistake.)
+**Cross-check the finished story against CLAUDE.md §8's anti-pattern table explicitly, not just the 3 NON-NEGOTIABLE principles above** — loading the doc that documents a rule (e.g. `docs/BFF_ARCHITECTURE.md`'s public/private controller split, already in this story's own "Docs to load") does not guarantee the drafted design actually follows it. (M20 test-slice precedent, 2026-08-22: a BFF story cited the correct naming-convention doc in its own "Docs to load" line and still put 3 JWT-gated write routes under `/public/` in a `.public.controller.ts` — caught only by an independent `/docs-audit` dispatch, not by drafting with the doc open. This is exactly why Step 5b's independent dispatch exists and is not optional — but checking the anti-pattern table explicitly here, before that dispatch ever runs, is strictly cheaper than relying on it to catch every instance of this class of mistake.)
 
 ---
 
@@ -255,7 +255,7 @@ If any PRODUCT-DECISION items exist (Step 1 or 3b), give them a standard, guaran
 ## Milestone draft — M<N>-<NAME>
 
 ### Phase A promotion summary
-- N new UC-XXX entries in docs/04-USE_CASES.md
+- N new UC-XXX entries in docs/USE_CASES.md
 - Domain model / events / schema / contracts / settings / error-catalog changes: <list of docs touched>
 - Journeys created/updated: <list of journeys/<actor>/<slug>.md paths>
 

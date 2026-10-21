@@ -12,7 +12,7 @@
 
 ## Problem
 
-Backend and BFF have `AppLogger` (structured JSON, OTel-integrated — `docs/10-OBSERVABILITY_STRATEGY.md`). `apps/web` has no equivalent: no structured client-side logging, no error-reporting/telemetry service. Any frontend code that needs to signal a runtime gap has nowhere real to send it — raw `console.*` is the only option, and it's banned in production code by `scripts/pre-pr.sh` check 17 everywhere except the single exception carved out for TD23-S12.
+Backend and BFF have `AppLogger` (structured JSON, OTel-integrated — `docs/OBSERVABILITY_STRATEGY.md`). `apps/web` has no equivalent: no structured client-side logging, no error-reporting/telemetry service. Any frontend code that needs to signal a runtime gap has nowhere real to send it — raw `console.*` is the only option, and it's banned in production code by `scripts/pre-pr.sh` check 17 everywhere except the single exception carved out for TD23-S12.
 
 ## Not yet scoped
 

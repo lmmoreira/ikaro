@@ -74,7 +74,7 @@ export function mapPlatformError(err: unknown): never {
   ) {
     throw throwProblemDetail(HttpStatus.NOT_FOUND, err.code, err.message, err.field);
   }
-  // Chatbot cap-rejection family (docs/04-USE_CASES.md UC-033) — all map to 429,
+  // Chatbot cap-rejection family (docs/USE_CASES.md UC-033) — all map to 429,
   // including the 2 platform-wide backstops (M19-S05 story-discovery, 2026-08-12).
   if (
     err instanceof ChatbotDailyCapReachedError ||

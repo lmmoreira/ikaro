@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Contract phase (3 of 3) — docs/13-DATABASE_SCHEMA.md § booking.resource_occupancy (migration)
+// Contract phase (3 of 3) — docs/DATABASE_SCHEMA.md § booking.resource_occupancy (migration)
 // ordering. Drops the old whole-tenant exclusion constraint now that resource_occupancy's own
 // shared GIST exclusion constraint (EX_booking_resource_occupancy_locked_window, created in
 // 1748500000012) is live, dual-written (every booking creation/approval path, M22-S03), and

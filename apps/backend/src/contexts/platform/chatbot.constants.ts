@@ -1,4 +1,4 @@
-// Platform-wide chatbot defaults (docs/21-TENANTS_SETTINGS_SCHEMA.md §7, docs/04-USE_CASES.md UC-033).
+// Platform-wide chatbot defaults (docs/TENANTS_SETTINGS_SCHEMA.md §7, docs/USE_CASES.md UC-033).
 // A tenant's row stays empty for all of these unless Ikaro grants an explicit per-tenant override —
 // resolve as `tenant.settings.chatbot?.X ?? DEFAULT_X`. Changing a default here is a normal reviewed
 // deploy, applying instantly to every tenant with no migration.

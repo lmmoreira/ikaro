@@ -30,7 +30,7 @@ export class BookingServiceNotInTenantError extends BookingDomainError {
 }
 
 // A SESSION service has no bookable class-session machinery until M24 ships
-// ClassScheduleTemplate/ClassSession (docs/04-USE_CASES.md UC-056 step 3) — until then, the
+// ClassScheduleTemplate/ClassSession (docs/USE_CASES.md UC-056 step 3) — until then, the
 // ordinary appointment-booking flow must reject it outright rather than silently create a
 // one-off appointment against what is meant to be a shared-capacity class.
 export class BookingServiceSessionNotBookableError extends BookingDomainError {

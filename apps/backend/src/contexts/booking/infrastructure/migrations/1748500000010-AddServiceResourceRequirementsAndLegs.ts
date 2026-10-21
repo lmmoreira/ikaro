@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M22-S01 — expand + backfill only (docs/13-DATABASE_SCHEMA.md's Cluster 2 migration-ordering
+// M22-S01 — expand + backfill only (docs/DATABASE_SCHEMA.md's Cluster 2 migration-ordering
 // steps 1-2). This story creates service_resource_requirements, so it also owns backfilling it;
 // resource_occupancy/booking_line_resource_assignments' own dual-write/validate/contract phases
 // belong to S03. Today's car wash is the degenerate case: every existing service gets exactly

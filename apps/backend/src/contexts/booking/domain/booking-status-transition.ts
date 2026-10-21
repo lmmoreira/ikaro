@@ -41,7 +41,7 @@ export interface RecordBookingStatusTransitionInput {
 
 // M23 Cluster 3 (UC-074) — one append-only row per booking status change, written in the same
 // transaction as the booking's own save. Same shape as BookingQuoteRevision: an immutable audit
-// record with its own repository (rows are never edited or deleted — docs/13-DATABASE_SCHEMA.md
+// record with its own repository (rows are never edited or deleted — docs/DATABASE_SCHEMA.md
 // § booking_status_transitions). The Booking aggregate records each new transition beside its
 // domain events and TypeOrmBookingRepository.save() drains them, so a Booking read never loads
 // its history. It has no behavior, invariants or domain events, so it extends no base class.

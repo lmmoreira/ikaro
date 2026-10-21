@@ -38,7 +38,7 @@ export const WorkingHoursSchema = z.object({
 });
 
 // Accepts all 4 domain ResourceType values, including 'LOCATION' — the "never manually
-// created" rule (docs/14-API_CONTRACTS.md § Resource Management) is a domain-level 422
+// created" rule (docs/API_CONTRACTS.md § Resource Management) is a domain-level 422
 // (ResourceTypeNotCreatableError), not a transport-level 400. Rejecting 'LOCATION' here
 // instead would surface a generic Zod 400 rather than the documented Problem Details 422
 // (Codex round-4 finding, PR #457).
@@ -48,7 +48,7 @@ export const CreateResourceSchema = z
   .object({
     type: ResourceTypeSchema,
     refId: z.uuid().optional(),
-    // Matches booking.resources.name's VARCHAR(255) column (docs/13-DATABASE_SCHEMA.md) — without
+    // Matches booking.resources.name's VARCHAR(255) column (docs/DATABASE_SCHEMA.md) — without
     // this, oversized input reaches persistence and can surface as a raw DB error instead of a
     // clean validation response (Codex round-5 finding, PR #457).
     name: z.string().min(1).max(255),
@@ -237,7 +237,7 @@ export const ServicePricingPolicySchema = z.enum(['FIXED', 'PER_TIME_INCREMENT']
 // Every override field is independently nullable+optional: omitted = leave unchanged, null =
 // explicitly clear back to the inherited tenant/platform default (mirrors UpdateResourceSchema's
 // refId precedent above). Bounds mirror each field's tenant-setting counterpart
-// (docs/21-TENANTS_SETTINGS_SCHEMA.md) where one exists.
+// (docs/TENANTS_SETTINGS_SCHEMA.md) where one exists.
 // Every cross-field business invariant (durationMaxMinutes >= durationMinMinutes, the
 // durationPolicy/pricingPolicy pairing, and each policy's own detail-field completeness) is
 // deliberately NOT checked here: PATCH semantics resolve a request against the *current* saved
@@ -318,7 +318,7 @@ export const ScheduleClosuresRangeQuerySchema = z.object({
 
 // M23-S04 — the backend DTO and the BFF schema need this identically, with no per-app deviation
 // (bad-smell-audit BFF-5), so it lives here once instead of as two hand-written copies. WEEKLY-only
-// for MVP (locked in during M23-S04 story-discovery) — docs/02-DOMAIN_MODEL.md §
+// for MVP (locked in during M23-S04 story-discovery) — docs/DOMAIN_MODEL.md §
 // RecurringBookingSchedule.
 export const RecurrenceRuleSchema = z.object({
   frequency: z.literal('WEEKLY'),

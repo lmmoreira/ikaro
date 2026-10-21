@@ -93,7 +93,7 @@ export function ResourceIdentityFields({
               onChange={(event) => {
                 const newRefId = event.target.value;
                 onRefIdChange(newRefId);
-                // Resource.name is denormalized, independent of Staff.name (docs/02-DOMAIN_MODEL.md)
+                // Resource.name is denormalized, independent of Staff.name (docs/DOMAIN_MODEL.md)
                 // — seed it as a default from the picked staff member so the field never starts
                 // blank, but it stays independently editable below, not re-derived on every save.
                 const picked = staffOptions.find((staff) => staff.id === newRefId);

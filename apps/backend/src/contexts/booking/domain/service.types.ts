@@ -13,7 +13,7 @@ export type { ServiceBookingModel };
 
 // M22-S02 — booking-policy fields (UC-055). APPOINTMENT only; every override field is null on a
 // SESSION service and inherits the matching tenant/platform default when null on an APPOINTMENT
-// one — see docs/02-DOMAIN_MODEL.md's own field-by-field inheritance notes.
+// one — see docs/DOMAIN_MODEL.md's own field-by-field inheritance notes.
 export type ServiceApprovalMode = 'AUTO_CONFIRM' | 'MANUAL_APPROVAL';
 export type ServiceDurationPolicy = 'FIXED' | 'CUSTOMER_SELECTED';
 export type ServicePricingPolicy = 'FIXED' | 'PER_TIME_INCREMENT';
@@ -40,7 +40,7 @@ export interface ServiceBookingPolicyProps {
   minimumChargeAmount: number | null;
 }
 
-// The DB-documented defaults (docs/13-DATABASE_SCHEMA.md § booking.services — modified) — every
+// The DB-documented defaults (docs/DATABASE_SCHEMA.md § booking.services — modified) — every
 // override/duration/pricing field starts unset on service creation; only set via
 // PATCH /services/:id/booking-policy (UC-055).
 export function defaultServiceBookingPolicyProps(): ServiceBookingPolicyProps {

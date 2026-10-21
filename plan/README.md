@@ -95,20 +95,20 @@ Additional docs are listed per story. Quick map:
 
 | Task type | Docs to load |
 |-----------|-------------|
-| Domain / aggregate | `docs/02-DOMAIN_MODEL.md` (relevant section) |
-| Use case implementation | `docs/04-USE_CASES.md` (that UC) |
-| Events | `docs/03-DOMAIN_EVENTS.md` |
-| Database migration | `docs/13-DATABASE_SCHEMA.md` |
-| BFF / API | `docs/14-API_CONTRACTS.md` + `docs/24-BFF_ARCHITECTURE.md` |
-| Multi-tenancy | `docs/06-TENANT_ISOLATION_STRATEGY.md` |
-| Testing patterns | `docs/08-TESTING_STRATEGY.md` |
-| CI/CD | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` |
-| GCP Infrastructure | `docs/23-INFRASTRUCTURE_SETUP.md` + `docs/12-DEPLOYMENT_STRATEGY.md` |
-| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` |
-| Hotsite frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` |
-| Dashboard frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` |
-| Tenant settings schema | `docs/21-TENANTS_SETTINGS_SCHEMA.md` |
-| Error handling | `docs/25-ERROR_CATALOG.md` |
+| Domain / aggregate | `docs/DOMAIN_MODEL.md` (relevant section) |
+| Use case implementation | `docs/USE_CASES.md` (that UC) |
+| Events | `docs/DOMAIN_EVENTS.md` |
+| Database migration | `docs/DATABASE_SCHEMA.md` |
+| BFF / API | `docs/API_CONTRACTS.md` + `docs/BFF_ARCHITECTURE.md` |
+| Multi-tenancy | `docs/TENANT_ISOLATION_STRATEGY.md` |
+| Testing patterns | `docs/TESTING_STRATEGY.md` |
+| CI/CD | `docs/CI_CD_PIPELINE.md` + `docs/GITHUB_WORKFLOWS_GUIDELINES.md` |
+| GCP Infrastructure | `docs/INFRASTRUCTURE_SETUP.md` + `docs/DEPLOYMENT_STRATEGY.md` |
+| Observability | `docs/OBSERVABILITY_STRATEGY.md` |
+| Hotsite frontend | `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` |
+| Dashboard frontend | `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` |
+| Tenant settings schema | `docs/TENANTS_SETTINGS_SCHEMA.md` |
+| Error handling | `docs/ERROR_CATALOG.md` |
 
 ---
 

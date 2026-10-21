@@ -1,7 +1,7 @@
 # Booking — Manager Combined Multi-Resource Day Grid (M22-S05, UC-057)
 # TenantContext populated from X-Tenant-ID / X-Actor-ID headers (set by BFF).
 # MANAGER-only — same restriction tier as Resource Management
-# (docs/14-API_CONTRACTS.md § GET /schedule/day-grid).
+# (docs/API_CONTRACTS.md § GET /schedule/day-grid).
 #
 # Prerequisites:
 #   1. pnpm infra:up

@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Backfill phase (2 of 3) — docs/13-DATABASE_SCHEMA.md § booking.resource_occupancy (migration)
+// Backfill phase (2 of 3) — docs/DATABASE_SCHEMA.md § booking.resource_occupancy (migration)
 // ordering. Backfills every pre-existing APPROVED booking (M22-S03's own AC — no time-window
 // qualifier), not just ones with a still-future scheduled_end_at: M22-S04's day grid depends on
 // every pre-existing booking having a resource assignment, including past ones, to render

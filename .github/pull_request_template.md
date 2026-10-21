@@ -6,7 +6,7 @@
 
 <!-- Link to the story or use case this PR implements. -->
 - Story: M0X-SXX
-- UC: [UC-XXX](../docs/04-USE_CASES.md)
+- UC: [UC-XXX](../docs/USE_CASES.md)
 
 ## Verification
 

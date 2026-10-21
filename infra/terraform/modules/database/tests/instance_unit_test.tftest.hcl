@@ -27,7 +27,7 @@ run "instance_is_private_ssl_enforced_postgres_17" {
 
   assert {
     condition     = google_sql_database_instance.main.database_version == "POSTGRES_17"
-    error_message = "Database engine must stay PostgreSQL 17 (matches the app and local dev — revised 2026-07-17, see docs/22)."
+    error_message = "Database engine must stay PostgreSQL 17 (matches the app and local dev — revised 2026-07-17, see docs/TECH_STACK_DECISIONS)."
   }
 
   assert {

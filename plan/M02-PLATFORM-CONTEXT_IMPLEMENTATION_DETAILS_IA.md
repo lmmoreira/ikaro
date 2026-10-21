@@ -28,7 +28,7 @@
 | TenantInterceptor | `src/shared/tenant/tenant.interceptor.ts` | Skips `/health` and `/internal` — reads `X-Tenant-ID` header |
 | TenantModule | `src/shared/tenant/tenant.module.ts` | Exported from AppModule; also imported by PlatformModule — safe due to shared AsyncLocalStorage |
 | PlatformAdminGuard | `src/contexts/platform/infrastructure/guards/platform-admin.guard.ts` | `crypto.timingSafeEqual` + SHA-256 normalisation |
-| ManagerRoleGuard | `src/contexts/platform/infrastructure/guards/manager-role.guard.ts` | **Stub — always returns true.** M03-S05 must enforce real MANAGER check via `X-Actor-Role` header |
+| ManagerRoleGuard | `src/shared/guards/manager-role.guard.ts` | Shipped as a stub in M02 (always returned true); enforces the real MANAGER check via `X-Actor-Role` since M03-S05 and now lives in `src/shared/guards/` |
 | platform-error.mapper.ts | `src/contexts/platform/infrastructure/http/platform-error.mapper.ts` | Maps `SlugAlreadyTakenError`→409, `TenantInactiveError`→409, `TenantNotFoundError`→404, `PlatformDomainError`→400 |
 | ProvisionTenantUseCase | `src/contexts/platform/application/use-cases/provision-tenant.use-case.ts` | Writes Tenant + HotsiteConfig atomically; publishes `TenantProvisioned` |
 | InternalTenantController | `src/contexts/platform/infrastructure/controllers/internal-tenant.controller.ts` | `POST /internal/tenants` — guarded by `PlatformAdminGuard` |
@@ -131,7 +131,7 @@ Never `DATABASE_URL`.
 `timingSafeEqual` requires equal-length buffers. Rather than padding, we hash both sides with SHA-256 first. This also prevents key-length leaks (different-length tokens take the same time to compare).
 
 **#6 — ManagerRoleGuard is fully implemented (since M03-S05)**  
-`apps/backend/src/contexts/platform/infrastructure/guards/manager-role.guard.ts` reads `TenantContext.actorRole` (populated from the `X-Actor-Role` header forwarded by BFF) and blocks any role other than `MANAGER` with a 403. No longer a stub.
+`apps/backend/src/shared/guards/manager-role.guard.ts` reads `TenantContext.actorRole` (populated from the `X-Actor-Role` header forwarded by BFF) and blocks any role other than `MANAGER` with a 403. No longer a stub.
 
 **#7 — TenantInactiveError is enforced at the domain level**  
 `Tenant.updateSettings()` and `Tenant.updateName()` both throw `TenantInactiveError` if `isActive=false`. This means no use case can bypass it — even future use cases that add update operations must also call these domain methods.

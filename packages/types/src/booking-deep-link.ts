@@ -1,6 +1,6 @@
 // The link the availability-alert email opens: the booking page on the alert's service, the day the
 // slot opened and, when the alert has them, its duration and preferred resource
-// (docs/27 § Availability Alerts). The backend builds it and the web booking page parses it, so
+// (docs/BUSINESS_LOGIC_REFERENCE § Availability Alerts). The backend builds it and the web booking page parses it, so
 // the parameter names and their shape live here once.
 
 export interface BookingDeepLinkInput {

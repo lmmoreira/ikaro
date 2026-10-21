@@ -5,7 +5,7 @@
 **UCs covered:** UC-079, UC-080, UC-096 (templates) · UC-099 (class-access contracts) · UC-103, UC-104 (enrollments)  
 **Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Stories in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`: `M24-S01`/`S02`/`S13` (backend; `S08` adds template `cancel-range`, `S11` adds contract cancel), `M24-S15` (manager Turmas frontend).
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-11, 12, 32, 35, 39, 40) via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`. Complements `staff/turmas.md`, which covers the daily operational side (roster, close-out, capacity override, guest approval) rather than configuration.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-11, 12, 32, 35, 39, 40) via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`. Complements `staff/turmas.md`, which covers the daily operational side (roster, close-out, capacity override, guest approval) rather than configuration.
 
 ## Flow
 
@@ -52,7 +52,7 @@ flowchart TD
 | `GET /v1/class-schedule-templates/:serviceId/enrollments?status=&type=` | Lista de matrículas (UC-103) | STAFF \| MANAGER |
 | `POST /v1/class-session-bookings` / `POST /v1/recurring-enrollments` (`createdByStaff: true`) | Matrícula manual (UC-104) | STAFF \| MANAGER |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Classes & Sessions.
 
 ## Prototype
 

@@ -42,7 +42,7 @@ import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.type
 // awaits a port, holds a transaction, or enforces a business rule is not a "helper" in the same
 // sense as a no-I/O mapper, even when both are used by the same use cases).
 
-const DEFAULT_MANUAL_HOLD_MINUTES = 30; // platform default, docs/02-DOMAIN_MODEL.md
+const DEFAULT_MANUAL_HOLD_MINUTES = 30; // platform default, docs/DOMAIN_MODEL.md
 
 export interface PersistRequestedBookingParams {
   booking: Booking;
@@ -272,7 +272,7 @@ export async function persistRequestedBooking(
 
   return deps.txManager.run(async () => {
     // Service rows before resource locks: the recurring request takes them in this order, so the
-    // two can never wait on each other (docs/28-LOCK_CATALOG.md § 2, L2 before L3).
+    // two can never wait on each other (docs/LOCK_CATALOG.md § 2, L2 before L3).
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
     await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
     const candidatesByLine = await resolveAndCheckCandidates(deps, {

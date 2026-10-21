@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-003, `docs/03-DOMAIN_EVENTS.md` § BookingApproved
+**Docs to load:** `docs/USE_CASES.md` § UC-003, `docs/DOMAIN_EVENTS.md` § BookingApproved
 
 **Description:**  
 Implement the approval use case. Before approving, the system re-checks that the requested slot is still available (another booking may have been approved in the meantime). Lines are frozen on approval — no further changes to `lines[]` are allowed.
@@ -48,7 +48,7 @@ Implement the approval use case. Before approving, the system re-checks that the
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-004, `docs/03-DOMAIN_EVENTS.md` § BookingRejected
+**Docs to load:** `docs/USE_CASES.md` § UC-004, `docs/DOMAIN_EVENTS.md` § BookingRejected
 
 **Description:**  
 Implement the rejection use case. Rejection is a terminal state — the booking cannot be re-opened after rejection.
@@ -78,7 +78,7 @@ Implement the rejection use case. Rejection is a terminal state — the booking 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-005, `docs/03-DOMAIN_EVENTS.md` § BookingInfoRequested
+**Docs to load:** `docs/USE_CASES.md` § UC-005, `docs/DOMAIN_EVENTS.md` § BookingInfoRequested
 
 **Description:**  
 Implement the info-request use case: admin sends a message to the customer asking for more details before approving. Booking transitions PENDING → INFO_REQUESTED.
@@ -108,7 +108,7 @@ Implement the info-request use case: admin sends a message to the customer askin
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-005 (alt flow), `docs/03-DOMAIN_EVENTS.md` § BookingInfoSubmitted
+**Docs to load:** `docs/USE_CASES.md` § UC-005 (alt flow), `docs/DOMAIN_EVENTS.md` § BookingInfoSubmitted
 
 **Description:**  
 Implement the customer-side response to an info request. The booking transitions INFO_REQUESTED → PENDING (back to pending, ready for admin to review again and approve/reject).
@@ -148,7 +148,7 @@ Implement the customer-side response to an info request. The booking transitions
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § BookingApproved, BookingRejected, BookingInfoRequested, BookingInfoSubmitted
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § BookingApproved, BookingRejected, BookingInfoRequested, BookingInfoSubmitted
 
 **Description:**  
 Implement the 4 Notification context event consumers for the approval workflow. Each handler sends one email in pt-BR, verified in MailHog. All handlers must be idempotent on `eventId`.
@@ -189,7 +189,7 @@ Implement the 4 Notification context event consumers for the approval workflow. 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/14-API_CONTRACTS.md` § bookings endpoints, `docs/04-USE_CASES.md` § UC-006
+**Docs to load:** `docs/API_CONTRACTS.md` § bookings endpoints, `docs/USE_CASES.md` § UC-006
 
 **Description:**  
 Implement the booking list and detail endpoints. The list endpoint returns different views depending on the caller's role: customers see their own bookings; staff see all bookings for the tenant (the admin queue). This is UC-006 (customer views bookings) and the staff queue view.

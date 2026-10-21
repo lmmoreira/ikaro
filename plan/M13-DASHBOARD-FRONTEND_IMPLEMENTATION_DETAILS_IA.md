@@ -165,7 +165,7 @@ Action panel branches purely on `booking.status`: `PENDING`/`INFO_REQUESTED` →
 
 - **`ScheduleClosure`/`ScheduleOpening` are hard-deleted; `Service` is soft-deleted (`isActive` flip).** Two different lifecycle models in one milestone — don't assume uniform soft-delete.
 - **`Service.update()` is active-only** — throws `ServiceDeactivatedError` if `isActive=false`; BFF surfaces as `409`. `ServiceEditPage` swaps to a locked "Reativar" view instead of editable fields for inactive services.
-- **Service reactivation exists** (`PATCH /v1/services/:id/activate`, `useActivateService`) but is undocumented in `docs/04-USE_CASES.md` UC-013 (no alt-flow) — same gap pattern as staff (see below).
+- **Service reactivation exists** (`PATCH /v1/services/:id/activate`, `useActivateService`) but is undocumented in `docs/USE_CASES.md` UC-013 (no alt-flow) — same gap pattern as staff (see below).
 - **Deactivating a service does not touch existing bookings** — no cascade; only blocks *new* bookings against it (`BookingServiceNotActiveError`).
 - Time inputs in schedule sheets are constrained to the tenant's `slotGranularityMinutes` via a `<Select>` (`buildTimeOptions`), not free-form `<input type="time">`.
 - **Booking-overlap warning for a new closure is computed client-side against the *currently loaded* week's bookings** — a closure dated outside the visible week can under-report `overlapCount` (stale/empty data for that range). Verify before relying on this AC for far-future dates.

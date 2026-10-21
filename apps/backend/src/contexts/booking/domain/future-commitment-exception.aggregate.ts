@@ -16,7 +16,7 @@ import {
 
 export * from './future-commitment-exception.types';
 
-// docs/02-DOMAIN_MODEL.md § FutureCommitmentException. A manager-owned worklist entry: it only
+// docs/DOMAIN_MODEL.md § FutureCommitmentException. A manager-owned worklist entry: it only
 // records an impact and its advisory alternatives. The booking change a resolution implies is
 // applied by the resolving use case in the same transaction, never by this aggregate.
 export class FutureCommitmentException extends AggregateRoot {

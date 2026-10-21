@@ -12,7 +12,7 @@ interface RecurringBookingScheduleCreatedData extends Record<string, unknown> {
   endsOn: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleCreated — fired by RecurringBookingSchedule
+// docs/DOMAIN_EVENTS.md § RecurringBookingScheduleCreated — fired by RecurringBookingSchedule
 // .request() when the service's effective approval mode is AUTO_CONFIRM (UC-070 step 2). M23-S05
 // also fires this on UC-071 approval of a PENDING_APPROVAL request.
 export class RecurringBookingScheduleCreated extends DomainEvent<RecurringBookingScheduleCreatedData> {

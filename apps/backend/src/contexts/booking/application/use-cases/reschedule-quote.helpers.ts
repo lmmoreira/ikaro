@@ -53,7 +53,7 @@ export function resolveRescheduleDurationChange(
 }
 
 // UC-069 precondition (customer path only) — Service.rescheduleWindowHoursOverride, null inherits
-// the tenant cancellationWindowHours default (docs/02-DOMAIN_MODEL.md — no separate tenant-level
+// the tenant cancellationWindowHours default (docs/DOMAIN_MODEL.md — no separate tenant-level
 // reschedule default exists). A multi-line basket has no documented precedence rule for divergent
 // per-service overrides; this resolves to the MAX override across the basket's lines (the most
 // business-protective reading — a reschedule must clear every line's own notice requirement, not

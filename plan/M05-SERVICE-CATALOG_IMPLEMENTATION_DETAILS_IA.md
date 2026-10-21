@@ -28,9 +28,9 @@
 | TypeOrmServiceRepository | `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts` |
 | Services migration | `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices.ts` |
 | BookingModule | `apps/backend/src/contexts/booking/booking.module.ts` |
-| BFF ServicesController | `apps/bff/src/services/services.controller.ts` |
-| BFF ServicesModule | `apps/bff/src/services/services.module.ts` |
-| BFF services types | `apps/bff/src/services/services.types.ts` |
+| BFF ServicesController | `apps/bff/src/features/booking/services.controller.ts` |
+| BFF ServicesModule | `apps/bff/src/features/booking/services.module.ts` |
+| BFF services types | `apps/bff/src/features/booking/services.types.ts` |
 | InMemoryServiceRepository | `apps/backend/src/test/repositories/booking/in-memory-service.repository.ts` |
 | ServiceBuilder | `apps/backend/src/test/builders/booking/service.builder.ts` |
 | ServiceEntityBuilder | `apps/backend/src/test/builders/booking/service-entity.builder.ts` |

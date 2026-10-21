@@ -8,11 +8,11 @@ import { EligiblePoolPicker } from './EligiblePoolPicker';
 // Shared by ServiceResourceRequirementsPanel (flat/bundle mode) and ServiceLegsPanel (per leg,
 // scoped by leg index) — one resource-type row: checkbox → quantity → eligible-pool chips → a
 // 3-way "who picks" radio (NONE/CUSTOMER_CHOICE/AUTO). Uniform across every ResourceType
-// (decided at /story-discovery, 2026-09-18 — neither docs/02-DOMAIN_MODEL.md nor UC-050 scope
+// (decided at /story-discovery, 2026-09-18 — neither docs/DOMAIN_MODEL.md nor UC-050 scope
 // selectionMode by resource type, unlike the prototype's Profissional-only CUSTOMER_CHOICE
 // mockup).
 //
-// AUTO_ANY vs. AUTO_FUNGIBLE_POOL is never asked directly — docs/27-BUSINESS_LOGIC_REFERENCE.md
+// AUTO_ANY vs. AUTO_FUNGIBLE_POOL is never asked directly — docs/BUSINESS_LOGIC_REFERENCE.md
 // confirms it's a UX signal tied to requiredQuantity, not independent resolution logic, so it's
 // derived on save: requiredQuantity === 1 → AUTO_ANY, > 1 → AUTO_FUNGIBLE_POOL.
 
@@ -31,7 +31,7 @@ interface ServiceResourceTypeFieldsProps {
   readonly radioGroupName: string;
   // Disambiguates repeated instances of this component (the flat checklist vs. each leg) for
   // both the `id`/`htmlFor` pairing below and the data-scope query attribute — data-testid itself
-  // must stay a static string (E2E-3, docs/08-TESTING_STRATEGY.md § Never encode data into
+  // must stay a static string (E2E-3, docs/TESTING_STRATEGY.md § Never encode data into
   // data-testid).
   readonly scope: string;
   // False while the active-resource list is still loading (or failed): the eligibility checks
@@ -49,7 +49,7 @@ function deriveAutoSelectionMode(
 }
 
 // The 3 real choices a manager picks from — AUTO_ANY/AUTO_FUNGIBLE_POOL collapse into one radio
-// (derived from requiredQuantity, docs/27-BUSINESS_LOGIC_REFERENCE.md), but NONE is its own
+// (derived from requiredQuantity, docs/BUSINESS_LOGIC_REFERENCE.md), but NONE is its own
 // distinct, selectable choice (UC-050 step 2, story-discovery 2026-09-18: "all 4 selectionMode
 // options... are offered uniformly for every resource type") — not a fallback/default value.
 type SelectionModeChoice = 'NONE' | 'CUSTOMER_CHOICE' | 'AUTO';

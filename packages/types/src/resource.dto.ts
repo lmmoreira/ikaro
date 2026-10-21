@@ -52,7 +52,7 @@ export interface UpdateResourceRequest {
 
 // Staff candidates for a STAFF-type resource's picker, pre-merged server-side (BFF composes
 // Staff + Resource reads and computes isWrapped) rather than in the browser — the BFF, not
-// apps/web, owns multi-read composition (docs/24-BFF_ARCHITECTURE.md § Web-facing composite
+// apps/web, owns multi-read composition (docs/BFF_ARCHITECTURE.md § Web-facing composite
 // views).
 export interface ResourceStaffOptionItem {
   id: string;

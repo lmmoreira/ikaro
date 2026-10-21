@@ -63,10 +63,10 @@ Token-efficient reference for AI agents. No prose — facts, gotchas, structural
 
 | Artifact | Path |
 |---|---|
-| Schedule closures/openings controller | `apps/bff/src/schedule/schedule.controller.ts`, `schedule-opening.controller.ts` |
-| Availability controller | `apps/bff/src/schedule/schedule-availability.controller.ts` — `@Public()` |
-| Summary controller | `apps/bff/src/schedule/schedule-availability-summary.controller.ts` — `@Public()` |
-| BFF types | `apps/bff/src/schedule/schedule.types.ts` |
+| Schedule closures/openings controller | `apps/bff/src/features/booking/schedule.controller.ts`, `schedule-opening.controller.ts` |
+| Availability controller | `apps/bff/src/features/booking/schedule-availability.controller.ts` — `@Public()` |
+| Summary controller | `apps/bff/src/features/booking/schedule-availability-summary.controller.ts` — `@Public()` |
+| BFF types | `apps/bff/src/features/booking/schedule.types.ts` |
 
 ### Shared utilities (added in M06)
 

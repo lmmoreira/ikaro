@@ -12,7 +12,7 @@ name: Infra — Terraform Deploy Pipeline
 # no-op "skipped" — on a PR that never touches infra/terraform/**. A
 # workflow-level path filter would mean the job never runs at all on such a
 # PR, and GitHub blocks merges forever on a required check that never
-# reports (docs/17-GITHUB_WORKFLOWS_GUIDELINES.md § Manual/throwaway
+# reports (docs/GITHUB_WORKFLOWS_GUIDELINES.md § Manual/throwaway
 # workflow triggers documents the same class of gotcha for a different
 # trigger; this is the PR-path-filter analogue).
 #

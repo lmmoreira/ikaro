@@ -192,7 +192,7 @@ describe('ResourceController (component)', () => {
     it('forwards type=LOCATION to the backend and propagates its 422 (domain-level rejection, not a BFF-level Zod one)', async () => {
       // LOCATION is a valid ResourceTypeSchema member — "never manually created" is a
       // domain rule (ResourceTypeNotCreatableError -> 422), not a BFF transport-level 400
-      // (docs/14-API_CONTRACTS.md § Resource Management, Codex round-4 finding PR #457).
+      // (docs/API_CONTRACTS.md § Resource Management, Codex round-4 finding PR #457).
       setupActiveGuardMock(httpService);
       backendHttpService.post.mockRejectedValueOnce(new HttpException('Unprocessable Entity', 422));
 

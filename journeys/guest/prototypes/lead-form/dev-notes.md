@@ -1,6 +1,6 @@
 # Dev Notes — GUEST: Submit Lead Form
 
-**Status:** ✅ Shipped in M20-S07/S09. The teaser, dedicated page, validation states, authentication return flow, and submission path are implemented. Canonical behavior: `docs/04-USE_CASES.md` UC-038–UC-040.
+**Status:** ✅ Shipped in M20-S07/S09. The teaser, dedicated page, validation states, authentication return flow, and submission path are implemented. Canonical behavior: `docs/USE_CASES.md` UC-038–UC-040.
 
 ---
 
@@ -62,7 +62,7 @@ POST /public/platform/lead-form/:slug/submissions
   404 — tenant slug not found, or module isn't enabled
 ```
 
-Full contract: `docs/14-API_CONTRACTS.md` § Lead Form Widget (Public).
+Full contract: `docs/API_CONTRACTS.md` § Lead Form Widget (Public).
 
 ---
 

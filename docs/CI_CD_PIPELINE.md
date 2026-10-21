@@ -1,6 +1,6 @@
 # CI/CD Pipeline
 
-> **When to load:** understanding which GitHub workflows run on a pull request, on push, on a staging deploy, a production promotion or a schedule, and how they fit together; the YAML under `.github/workflows/` is authoritative, branching and PR rules are in `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`.
+> **When to load:** understanding which GitHub workflows run on a pull request, on push, on a staging deploy, a production promotion or a schedule, and how they fit together; the YAML under `.github/workflows/` is authoritative, branching and PR rules are in `docs/GITHUB_WORKFLOWS_GUIDELINES.md`.
 > **Tags:** infra
 
 This document describes the workflow topology that exists in the repository. Workflow YAML under `.github/workflows/` is authoritative for triggers, permissions, and job implementation; this guide explains how those workflows fit together.
@@ -9,7 +9,7 @@ This document describes the workflow topology that exists in the repository. Wor
 
 Two workflows provide the main PR gates:
 
-- `.github/workflows/pr-quality.yml` ("PR — Quality Gates") — formatting, linting, architecture/policy checks, the `pubsub-catalog` and `env-contract` checks, the infra PR-shape guards (`no-infra-app-mix`, `no-foundation-plus-other-infra-mix`), and other static quality gates. See `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § 5.
+- `.github/workflows/pr-quality.yml` ("PR — Quality Gates") — formatting, linting, architecture/policy checks, the `pubsub-catalog` and `env-contract` checks, the infra PR-shape guards (`no-infra-app-mix`, `no-foundation-plus-other-infra-mix`), and other static quality gates. See `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § 5.
 - `.github/workflows/pr-tests.yml` ("PR — Quality And Security") — the applicable unit, component, integration, and E2E suites, plus SonarCloud, dependency review, Gitleaks, Trivy, Checkov, and the `all-checks-passed` aggregate.
 
 Additional path-scoped validation:
@@ -17,7 +17,7 @@ Additional path-scoped validation:
 - `.github/workflows/build-otel-collector.yml` builds, validates, and scans the custom collector image when its Docker/configuration surface changes.
 - `.github/workflows/infra-deploy.yml` and `.github/workflows/foundation-deploy.yml` own Terraform planning/deployment concerns for their separate roots.
 
-The exact job list can evolve; do not duplicate it in milestone plans. Read the workflow being changed and follow `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`.
+The exact job list can evolve; do not duplicate it in milestone plans. Read the workflow being changed and follow `docs/GITHUB_WORKFLOWS_GUIDELINES.md`.
 
 ## Local pre-push validation
 
@@ -60,21 +60,21 @@ They do not exchange Terraform outputs automatically. Apply ordering and manuall
 
 ## SonarCloud and coverage
 
-SonarCloud enforces the quality gate, including at least 80% coverage on changed code. Local aggregate coverage percentages are useful diagnostics but do not replace the differential gate. Test strategy and suite ownership live in `docs/08-TESTING_STRATEGY.md`.
+SonarCloud enforces the quality gate, including at least 80% coverage on changed code. Local aggregate coverage percentages are useful diagnostics but do not replace the differential gate. Test strategy and suite ownership live in `docs/TESTING_STRATEGY.md`.
 
 ## Security model
 
 - Prefer GitHub OIDC/workload identity over long-lived cloud service-account keys.
 - Keep workflow `permissions:` minimal per job.
-- Pin third-party actions according to `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`.
+- Pin third-party actions according to `docs/GITHUB_WORKFLOWS_GUIDELINES.md`.
 - Image and dependency findings must be fixed at their maintained source rather than hidden through workflow exclusions.
 - Terraform security scanning must target the real roots under `infra/terraform/`.
 
 ## Canonical references
 
 - Workflow implementation: `.github/workflows/*.yml`
-- Workflow authoring rules: `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`
-- Testing: `docs/08-TESTING_STRATEGY.md`
-- Release operations: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
+- Workflow authoring rules: `docs/GITHUB_WORKFLOWS_GUIDELINES.md`
+- Testing: `docs/TESTING_STRATEGY.md`
+- Release operations: `docs/RELEASE_LIFECYCLE_OPERATIONS.md`
 - Terraform deployment and gotchas: `infra/terraform/README.md`
 - CI failure patterns: `docs/CI_TRAPS.md`
