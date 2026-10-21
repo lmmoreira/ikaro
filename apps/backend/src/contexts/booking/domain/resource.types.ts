@@ -8,7 +8,7 @@ export enum ResourceType {
 }
 
 // Same per-weekday shape as tenants.settings.businessHours, without a `timezone` key —
-// a Resource always inherits the tenant's own timezone (docs/02-DOMAIN_MODEL.md § Resource).
+// a Resource always inherits the tenant's own timezone (docs/DOMAIN_MODEL.md § Resource).
 export interface ResourceWorkingHours {
   monday: DayHours;
   tuesday: DayHours;

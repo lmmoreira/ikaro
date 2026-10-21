@@ -43,7 +43,7 @@ export function assertClassResourceSlotsMatchBookingModel(
 // Resolved by the caller (IResourceRepository.findByTenant) — every active resource id per
 // requested type, so the aggregate can validate both "does this type have any active resource"
 // (UC-050 A1/UC-051) and "is this specific resourcePoolIds entry an active resource of the
-// matching type" (docs/02-DOMAIN_MODEL.md's "subset of active resources" definition) without
+// matching type" (docs/DOMAIN_MODEL.md's "subset of active resources" definition) without
 // touching a repository itself.
 export type ActiveResourceIdsByType = ReadonlyMap<ResourceType, ReadonlySet<string>>;
 
@@ -79,7 +79,7 @@ function assertRequirementAvailable(
     }
   }
   // requiredQuantity is how many DISTINCT candidates one booking needs simultaneously
-  // (docs/27-BUSINESS_LOGIC_REFERENCE.md), so a requirement asking for more than its candidate set
+  // (docs/BUSINESS_LOGIC_REFERENCE.md), so a requirement asking for more than its candidate set
   // can hold is unsatisfiable — availability would silently show no slots and every booking would
   // fail at occupancy resolution. Candidates are the explicit pool when non-empty, otherwise every
   // active resource of the type (an empty array means "unset", same as the resolution helpers).

@@ -40,7 +40,7 @@ export interface SeededWorklistBooking {
 export interface SeedOptions {
   // CUSTOMER_CHOICE (default): every booking is pinned to one room. AUTO_ANY: the system picks a
   // room of the pool, so a deactivated room can be re-resolved on a reschedule (a customer-chosen
-  // one cannot — docs/27). Use AUTO_ANY with a single plan: the bookings would not share a room.
+  // one cannot — docs/BUSINESS_LOGIC_REFERENCE). Use AUTO_ANY with a single plan: the bookings would not share a room.
   readonly selection?: 'CUSTOMER_CHOICE' | 'AUTO_ANY';
   // false: leave the source room active, so the spec deactivates it itself (through the UI).
   readonly deactivateSource?: boolean;

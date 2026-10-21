@@ -46,10 +46,83 @@ const SECTION_TAIL_REGEX = /^[`'")\]*]*\s*§\s*(.+)$/;
 const SECTION_END_REGEX =
   /\s(?:—|–|-{2})(?:\s|$)|[;,|)§–]|:\s|\.\s|\.$|\s\*?\(|\s["“]|\s(?:and|or|for|plus|with|\+)\s/;
 
+// The 27 docs that carried a creation-order prefix until TD53 Story 6, as [number, name] pairs so
+// this file never spells an old name itself. An explicit list, not an `NN-NAME` pattern: a pattern
+// would also flag unrelated text such as "24-HOUR".
+const RETIRED_NUMBERED_DOCS: Array<[string, string]> = [
+  ['01', 'BUSINESS_CONTEXT'],
+  ['02', 'DOMAIN_MODEL'],
+  ['03', 'DOMAIN_EVENTS'],
+  ['04', 'USE_CASES'],
+  ['05', 'BOUNDED_CONTEXTS'],
+  ['06', 'TENANT_ISOLATION_STRATEGY'],
+  ['08', 'TESTING_STRATEGY'],
+  ['09', 'CI_CD_PIPELINE'],
+  ['10', 'OBSERVABILITY_STRATEGY'],
+  ['11', 'ARCHITECTURE'],
+  ['12', 'DEPLOYMENT_STRATEGY'],
+  ['13', 'DATABASE_SCHEMA'],
+  ['14', 'API_CONTRACTS'],
+  ['15', 'HOTSITE_DYNAMIC_ARCHITECTURE'],
+  ['16', 'DASHBOARD_FRONTEND_ARCHITECTURE'],
+  ['17', 'GITHUB_WORKFLOWS_GUIDELINES'],
+  ['18', 'RELEASE_LIFECYCLE_OPERATIONS'],
+  ['19', 'INFRASTRUCTURE_TOOLING_MAP'],
+  ['20', 'COST_OPTIMIZATION_STRATEGY'],
+  ['21', 'TENANTS_SETTINGS_SCHEMA'],
+  ['22', 'TECH_STACK_DECISIONS'],
+  ['23', 'INFRASTRUCTURE_SETUP'],
+  ['24', 'BFF_ARCHITECTURE'],
+  ['25', 'ERROR_CATALOG'],
+  ['26', 'DATA_RETENTION_AND_PRIVACY'],
+  ['27', 'BUSINESS_LOGIC_REFERENCE'],
+  ['28', 'LOCK_CATALOG'],
+];
+const RETIRED_NAME_BY_NUMBER = new Map(RETIRED_NUMBERED_DOCS);
+// The full old name (path, bare filename or bare name) or the short `docs/NN` form.
+const RETIRED_FULL_NAME_REGEX = new RegExp(
+  `(?<![A-Za-z0-9_-])(${RETIRED_NUMBERED_DOCS.map(([number, name]) => `${number}-${name}`).join('|')})(?![A-Za-z0-9_])`,
+  'g',
+);
+const RETIRED_SHORT_FORM_REGEX = new RegExp(
+  `(?<![A-Za-z0-9_./-])docs/(${RETIRED_NUMBERED_DOCS.map(([number]) => number).join('|')})(?!-[A-Z]|[0-9A-Za-z_]|\\.\\d)`,
+  'g',
+);
+
 interface Citation {
   path: string;
   line: number;
   tail: string;
+}
+
+interface RetiredName {
+  line: number;
+  text: string;
+  replacement: string;
+}
+
+// A numbered doc name is gone for good, so unlike a path it needs no target lookup: every use is stale.
+function findRetiredDocNames(content: string, skipFences: boolean): RetiredName[] {
+  const found: RetiredName[] = [];
+  let inFence = false;
+  content.split('\n').forEach((text, index) => {
+    if (skipFences && FENCE_REGEX.test(text)) {
+      inFence = !inFence;
+      return;
+    }
+    if (inFence || text.includes(EXAMPLE_MARKER)) return;
+    for (const match of text.matchAll(RETIRED_FULL_NAME_REGEX)) {
+      found.push({ line: index + 1, text: match[1], replacement: match[1].slice(3) });
+    }
+    for (const match of text.matchAll(RETIRED_SHORT_FORM_REGEX)) {
+      found.push({
+        line: index + 1,
+        text: `docs/${match[1]}`,
+        replacement: RETIRED_NAME_BY_NUMBER.get(match[1]) ?? match[1],
+      });
+    }
+  });
+  return found;
 }
 
 function isSpec(path: string): boolean {
@@ -186,6 +259,15 @@ export function checkDocLinkIntegrity(
     const absolutePath = resolve(rootDir, file);
     if (!existsSync(absolutePath)) continue;
     const content = readFileSync(absolutePath, 'utf8');
+    // Checked before the frozen skip: the rename rewrote frozen files too.
+    for (const retired of findRetiredDocNames(content, isMarkdown)) {
+      findings.push({
+        rule: RULE,
+        file,
+        line: retired.line,
+        message: `Retired numbered doc name "${retired.text}": the numeric prefix was dropped, cite docs/${retired.replacement}.md.`,
+      });
+    }
     if (isMarkdown && isFrozen(file, content, policy)) continue;
 
     const citations = isMarkdown

@@ -47,7 +47,7 @@ export function selectionKey(
   return `${serviceId}|${legIndex ?? -1}|${resourceType}`;
 }
 
-// Two lines booking the same service (docs/14-API_CONTRACTS.md's "duplicates are allowed — two
+// Two lines booking the same service (docs/API_CONTRACTS.md's "duplicates are allowed — two
 // Basic Wash lines = two cars") share one selectionKey(), so a single selectionsByKey.get(key)
 // can't tell which occurrence it's for. consumeSelections() instead shifts the next `count` (=
 // requirement.requiredQuantity) ids off the front of that key's submitted-order queue and mutates

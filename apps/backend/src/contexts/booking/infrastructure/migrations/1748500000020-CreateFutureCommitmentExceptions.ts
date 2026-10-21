@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M23 Cluster 3 (UC-073, UC-077) — docs/13-DATABASE_SCHEMA.md § booking.future_commitment_exceptions.
+// M23 Cluster 3 (UC-073, UC-077) — docs/DATABASE_SCHEMA.md § booking.future_commitment_exceptions.
 // source_id / affected_id are polymorphic (a resource today, a class session from M24), so they
 // carry no foreign key. The partial unique index is the DB-level guarantee that a repeated raise
 // for the same unresolved impact updates the open row instead of duplicating manager work.

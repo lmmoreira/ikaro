@@ -79,7 +79,7 @@ export function renderHotsitePreviewModule(
   }
   if (parsed.type === 'CHATBOT') {
     // Same component the public page renders — CHATBOT's real availability is always a live
-    // pre-flight check (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § CHATBOT), never derivable from
+    // pre-flight check (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § CHATBOT), never derivable from
     // the manifest/draft alone, so reusing ChatbotWidget as-is is the only faithful preview.
     return (
       <ChatbotWidget

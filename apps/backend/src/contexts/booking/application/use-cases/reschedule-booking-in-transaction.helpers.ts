@@ -101,7 +101,7 @@ export async function rescheduleBookingInTransaction(
 }
 
 // Resource locks (the old resources included) first, then the booking's open entries (R4), both
-// before the booking row is written (docs/28-LOCK_CATALOG.md § 2).
+// before the booking row is written (docs/LOCK_CATALOG.md § 2).
 async function resolveAndLockExceptions(
   deps: RescheduleBookingInTransactionDeps,
   params: RescheduleBookingInTransactionParams,

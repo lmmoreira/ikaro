@@ -3,7 +3,7 @@
 **Journey:** MANAGER/STAFF — View Leads Submissions
 **UCs:** UC-041
 **Prototype:** `manager/prototypes/leads/`
-**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), search frontend UI (M20-S13, basic/advanced/date-range, button-driven — see below). Canonical behavior: `docs/04-USE_CASES.md` UC-041 and `docs/14-API_CONTRACTS.md` § Leads Submissions.
+**Status:** ✅ Done — base list/detail + gated nav (M20-S10), search backend/BFF (M20-S12), search frontend UI (M20-S13, basic/advanced/date-range, button-driven — see below). Canonical behavior: `docs/USE_CASES.md` UC-041 and `docs/API_CONTRACTS.md` § Leads Submissions.
 
 ---
 
@@ -23,7 +23,7 @@ A new top-level sidebar item "Leads" — a simple paginated list (name/email/pho
 
 **Button-driven, not live/debounced (M20-S13 story-discovery, 2026-08-27 — overrides an earlier debounced draft):** typing into the search box, editing a filter row, or picking a date range does nothing by itself. Basic mode shares one "Aplicar"/"Limpar" pair between the search box and the date range; advanced mode shares one "Aplicar filtros"/"Limpar filtros" pair between the filter rows and the date range (neither is live-typed in that mode either). No 3-character minimum (M20-S13 implementation, 2026-08-27, reversing S12's original design — see BFF calls below): any non-empty search/filter value works, so "Aplicar"/"Aplicar filtros" have no disabled state to guard against beyond an empty box. "Limpar"/"Limpar filtros" reset that mode's own inputs + the date range, without leaving the current mode. The "Busca avançada"/"Voltar para busca simples" toggle is the only action that drops the *other* mode's active query — it never touches the date range.
 
-Backed by a new `platform.lead_form_answers` child table — one row per question per submission, written once alongside the JSONB snapshot at insert time (`docs/13-DATABASE_SCHEMA.md`), never a live/derived query. An earlier draft of this design used a single flattened `search_text` column instead; replaced once it became clear a flattened blob can't support the advanced (ANDed, per-question) case at all.
+Backed by a new `platform.lead_form_answers` child table — one row per question per submission, written once alongside the JSONB snapshot at insert time (`docs/DATABASE_SCHEMA.md`), never a live/derived query. An earlier draft of this design used a single flattened `search_text` column instead; replaced once it became clear a flattened blob can't support the advanced (ANDed, per-question) case at all.
 
 **Date range (`submittedFrom`/`submittedTo`), added the same day — orthogonal to both search modes**, not a third mode: combines via AND with basic search, with advanced filters, or stands alone with neither active. Resolved server-side using the tenant's own `settings.businessHours.timezone` — "Aug 1" means a different UTC instant per tenant, so this reuses `localDateTimeToUTCIso()` (`apps/backend/src/shared/utils/calendar-date.ts`), the same real utility Chatbot's own `conversationDate` daily-cap bucketing already relies on, not the UTC-naive `startOfDayUTC()`/`todayUTC()` pair from the same file (those exist only for a platform-wide, not tenant-scoped, breaker). **Prototype uses a native `<input type="date">` pair** — no existing range-calendar mockup to copy from elsewhere in this repo's prototypes. **The real implementation must use shadcn/ui's `Calendar` in range mode** (e.g. `Popover` + `Calendar`), per this codebase's own "prefer shadcn/ui primitives" convention — the native date input here is a prototype-only stand-in, not the intended final UI.
 
@@ -104,7 +104,7 @@ GET /v1/tenants/lead-form/submissions/:id                STAFF|MANAGER
   404 — submission doesn't exist in this tenant
 ```
 
-Full contract: `docs/14-API_CONTRACTS.md` § Leads Submissions (Admin).
+Full contract: `docs/API_CONTRACTS.md` § Leads Submissions (Admin).
 
 ## Mobile notes
 

@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-// docs/13-DATABASE_SCHEMA.md § booking.booking_status_transitions (M23 Cluster 3) — append-only
+// docs/DATABASE_SCHEMA.md § booking.booking_status_transitions (M23 Cluster 3) — append-only
 // audit of a booking's status changes. Tenant-first composite primary key (partition-ready) and a
 // (tenant_id, booking_id, occurred_at) index, because every read is per booking.
 @Entity('booking_status_transitions', { schema: 'booking' })

@@ -25,7 +25,7 @@ interface TransactionRoot {
 // apps/web/shared/lib/api/bff-server.ts) and the BFF gives up on the backend after 10s, so two
 // waits must fit inside the web's budget or the caller sees a timeout instead of the retryable
 // 503. A constant, not an env var: no known reason for it to differ per environment
-// (docs/28-LOCK_CATALOG.md, hazard H5).
+// (docs/LOCK_CATALOG.md, hazard H5).
 export const DB_LOCK_TIMEOUT_MS = 2000;
 
 const logger = new AppLogger('runInNewTransaction');

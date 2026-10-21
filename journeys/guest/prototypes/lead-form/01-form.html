@@ -23,7 +23,7 @@
     SUBMIT: POST /public/platform/lead-form/:slug/submissions
       Body: { name, email, phone, answers: [{questionId, value}], turnstileToken }
       BFF verifies turnstileToken via Cloudflare siteverify BEFORE forwarding to backend.
-      Backend enforces maxSubmissionsPerDay/maxSubmissionsPerIpPerDay (docs/04-USE_CASES.md UC-039 step 6).
+      Backend enforces maxSubmissionsPerDay/maxSubmissionsPerIpPerDay (docs/USE_CASES.md UC-039 step 6).
   -->
 
   <!-- BRAND + AUTH BAR -->

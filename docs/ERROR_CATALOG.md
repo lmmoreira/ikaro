@@ -1,6 +1,6 @@
 # API Error Catalog - Ikaro
 
-> **When to load:** adding or mapping an error code, or showing an API error in the UI: the RFC 9457 format, HTTP status usage, where each code originates and how frontend and API code should use them; endpoint contracts are in `docs/14-API_CONTRACTS.md`.
+> **When to load:** adding or mapping an error code, or showing an API error in the UI: the RFC 9457 format, HTTP status usage, where each code originates and how frontend and API code should use them; endpoint contracts are in `docs/API_CONTRACTS.md`.
 > **Tags:** backend, bff, web
 
 **Status:** Live — reflects the shipped `code`-driven pattern

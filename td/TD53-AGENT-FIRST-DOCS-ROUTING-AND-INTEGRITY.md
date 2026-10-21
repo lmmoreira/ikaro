@@ -17,7 +17,7 @@ This repository is mainly maintained by AI agents running a mostly unattended fl
 ### Measured: how agents read docs (2026-10-17, 114 transcripts, 37 with doc reads, mostly Claude Code on this repo)
 
 - Agents **search, then read a line range**. Of 1,381 Bash commands that touched `docs/`, 944 were `grep`/`rg`, 515 were `sed -n` ranges and 809 `head`/`tail`; only 130 were `cat`.
-- **Large docs are never read whole.** Whole-file reads occurred only for small docs (up to about 28 KB: `STORY_SCHEMA`, `DEFINITION_OF_DONE`, `LOCK_CATALOG`). Every large doc was read partially — `04-USE_CASES` (251 KB) 11 of 11 reads, `14-API_CONTRACTS` (156 KB) 12 of 12, `13-DATABASE_SCHEMA` (121 KB) 10 of 10; overall 145 partial Read calls vs 31 whole.
+- **Large docs are never read whole.** Whole-file reads occurred only for small docs (up to about 28 KB: `STORY_SCHEMA`, `DEFINITION_OF_DONE`, `LOCK_CATALOG`). Every large doc was read partially — `USE_CASES` (251 KB) 11 of 11 reads, `API_CONTRACTS` (156 KB) 12 of 12, `DATABASE_SCHEMA` (121 KB) 10 of 10; overall 145 partial Read calls vs 31 whole.
 - **Routing is coarse.** Only 8 of the 36 rows of `.copilot/context.md` §10 cite a `§ section`; the rest point at a whole file.
 - **The always-on context is the biggest fixed cost.** `.copilot/context.md` is 57,647 characters loaded in every session, whatever the task: §7 Engineering Rules alone is 24,439 (42%), §9 Story Workflow 9,029, §10 5,379. No nested context file exists anywhere in the repo, so nothing is loaded by area.
 - **The grep surface is mostly not live docs.** `docs/` holds about 4.9 MB, of which the 45 live top-level docs are about 1.9 MB; `docs/archive` (59 files, 1.46 MB, superseded) and `docs/discovery` (115 files, 1.59 MB) make up the rest. Ten archive files still mention the superseded UC-014/UC-015, so a grep of `docs/` can land on wrong context.
@@ -35,7 +35,7 @@ File size is not what costs an agent; **findability** is — the agent greps for
 Principles:
 - **Optimise findability and routing, not file layout.** Stable paths and stable `§ heading` handles are an asset; every move spends it.
 - **Verify before changing.** The link and anchor checker lands first, so every later change is proven by CI, not trusted.
-- **One uniform naming rule.** The 27 numbered docs (`01`–`28`, no `07`) carry a creation-order number that means nothing to an agent, while the other 16 are unnumbered. Story 6 drops the prefix from all of them (`14-API_CONTRACTS.md` → `API_CONTRACTS.md`), so one rule covers every doc and `grep -l API_CONTRACTS` finds it as well as before. It runs last, and only if the Decision record confirms it (the gain for an agent is low; the cost is about 2,662 citation rewrites), all proven by Story 0's checker.
+- **One uniform naming rule.** The 27 numbered docs (`01`–`28`, no `07`) carry a creation-order number that means nothing to an agent, while the other 16 are unnumbered. Story 6 drops the prefix from all of them (`14-API_CONTRACTS.md` → `API_CONTRACTS.md`), so one rule covers every doc and `grep -l API_CONTRACTS` finds it as well as before. It runs last, and only if the Decision record confirms it (the gain for an agent is low; the cost is about 2,662 citation rewrites), all proven by Story 0's checker. <!-- doc-link:example -->
 - **Keep the grep surface to live, agent-facing text.** Superseded material moves out of `docs/` to a top-level `archive/`; it stays in the repository and keeps its history, it just stops appearing in docs searches.
 - **Optimise tokens by loading less up front and more on demand.** Always-on context stays small; everything else loads by trigger (a `§ section` pointer, a path-scoped context file, a skill invoked by name).
 - **Context is never sacrificed.** Nothing is deleted to save size; the only deletions allowed are verified duplicates collapsed to pointers and content code contradicts (`/docs-audit`'s guiding principle). Moving a rule from always-on to on-demand is not a deletion, but only when its new trigger is proven to fire (Story 5B).
@@ -67,33 +67,33 @@ Rejected, with the condition to reopen:
 
 | Doc | Size (bytes) | Live / historical citations | Agent reads (of 127 sessions) | Verdict | Evidence |
 |---|---:|---:|---:|---|---|
-| `01-BUSINESS_CONTEXT.md` | 13,418 | 0 / 1 | 1 | keep | Rarely read and not cited, but the only product-scope and glossary doc; reworded for the multivertical platform in this story. |
-| `02-DOMAIN_MODEL.md` | 125,002 | 56 / 45 | 53 | keep | Read in 53 of 127 sessions; 56 live and 45 historical citations. |
-| `03-DOMAIN_EVENTS.md` | 56,140 | 38 / 17 | 32 | keep | Read in 32 of 127 sessions; 38 live and 17 historical citations. |
-| `04-USE_CASES.md` | 252,115 | 43 / 50 | 72 | keep | Read in 72 of 127 sessions; 43 live and 50 historical citations. |
-| `05-BOUNDED_CONTEXTS.md` | 47,219 | 12 / 11 | 21 | keep | Read in 21 of 127 sessions; 12 live and 11 historical citations. |
-| `06-TENANT_ISOLATION_STRATEGY.md` | 13,810 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
-| `08-TESTING_STRATEGY.md` | 74,016 | 29 / 14 | 38 | keep | Read in 38 of 127 sessions; 29 live and 14 historical citations. |
-| `09-CI_CD_PIPELINE.md` | 4,813 | 7 / 5 | 7 | keep | Read in 7 of 127 sessions; 7 live and 5 historical citations. |
-| `10-OBSERVABILITY_STRATEGY.md` | 19,588 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
-| `11-ARCHITECTURE.md` | 10,594 | 4 / 4 | 7 | keep | Read in 7 of 127 sessions; 4 live and 4 historical citations. |
-| `12-DEPLOYMENT_STRATEGY.md` | 3,002 | 7 / 3 | 2 | keep; overlap question for 3C | Small; see the `19` row. |
-| `13-DATABASE_SCHEMA.md` | 121,009 | 86 / 25 | 56 | keep | Read in 56 of 127 sessions; 86 live and 25 historical citations. |
-| `14-API_CONTRACTS.md` | 158,612 | 68 / 56 | 68 | keep | Read in 68 of 127 sessions; 68 live and 56 historical citations. |
-| `15-HOTSITE_DYNAMIC_ARCHITECTURE.md` | 60,349 | 26 / 15 | 10 | keep | Read in 10 of 127 sessions; 26 live and 15 historical citations. |
-| `16-DASHBOARD_FRONTEND_ARCHITECTURE.md` | 25,796 | 5 / 14 | 30 | keep | Read in 30 of 127 sessions; 5 live and 14 historical citations. |
-| `17-GITHUB_WORKFLOWS_GUIDELINES.md` | 20,189 | 8 / 5 | 9 | keep | Read in 9 of 127 sessions; 8 live and 5 historical citations. |
-| `18-RELEASE_LIFECYCLE_OPERATIONS.md` | 7,231 | 7 / 1 | 3 | keep | Read in 3 of 127 sessions; 7 live and 1 historical citations. |
-| `19-INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 1 / 2 | 1 | keep; overlap question for 3C | Small and rarely read; shares ground with `12` and `23` (tools, deployment, setup). Each is distinct today (tool authority table, strategy, setup order); 3C decides whether one doc is clearer. |
-| `20-COST_OPTIMIZATION_STRATEGY.md` | 3,979 | 0 / 1 | 0 | keep; merge candidate for 3C | Zero reads in 127 sessions and no live citation. Its lean-startup rules and scaling roadmap are not duplicated in `22`, so a merge must move content, never point. |
-| `21-TENANTS_SETTINGS_SCHEMA.md` | 36,858 | 30 / 21 | 25 | keep | Read in 25 of 127 sessions; 30 live and 21 historical citations. |
-| `22-TECH_STACK_DECISIONS.md` | 45,147 | 7 / 4 | 2 | keep | A decision record: low reads, but cited by 7 live files and the only home of the technology rationale. Its Kafka/Vault/multi-cloud material is now labelled historical. |
-| `23-INFRASTRUCTURE_SETUP.md` | 5,131 | 5 / 5 | 1 | keep; overlap question for 3C | Small; see the `19` row. |
-| `24-BFF_ARCHITECTURE.md` | 48,988 | 19 / 18 | 27 | keep | Read in 27 of 127 sessions; 19 live and 18 historical citations. |
-| `25-ERROR_CATALOG.md` | 10,060 | 3 / 4 | 15 | keep | Read in 15 of 127 sessions; 3 live and 4 historical citations. |
-| `26-DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 0 / 1 | 2 | keep | Rarely read; the only home of the retention rules, verified accurate against the purge jobs and settings. |
-| `27-BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 16 / 7 | 75 | keep | Read in 75 of 127 sessions; 16 live and 7 historical citations. |
-| `28-LOCK_CATALOG.md` | 28,747 | 35 / 4 | 9 | keep | Read in 9 of 127 sessions; 35 live and 4 historical citations. |
+| `BUSINESS_CONTEXT.md` | 13,418 | 0 / 1 | 1 | keep | Rarely read and not cited, but the only product-scope and glossary doc; reworded for the multivertical platform in this story. |
+| `DOMAIN_MODEL.md` | 125,002 | 56 / 45 | 53 | keep | Read in 53 of 127 sessions; 56 live and 45 historical citations. |
+| `DOMAIN_EVENTS.md` | 56,140 | 38 / 17 | 32 | keep | Read in 32 of 127 sessions; 38 live and 17 historical citations. |
+| `USE_CASES.md` | 252,115 | 43 / 50 | 72 | keep | Read in 72 of 127 sessions; 43 live and 50 historical citations. |
+| `BOUNDED_CONTEXTS.md` | 47,219 | 12 / 11 | 21 | keep | Read in 21 of 127 sessions; 12 live and 11 historical citations. |
+| `TENANT_ISOLATION_STRATEGY.md` | 13,810 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
+| `TESTING_STRATEGY.md` | 74,016 | 29 / 14 | 38 | keep | Read in 38 of 127 sessions; 29 live and 14 historical citations. |
+| `CI_CD_PIPELINE.md` | 4,813 | 7 / 5 | 7 | keep | Read in 7 of 127 sessions; 7 live and 5 historical citations. |
+| `OBSERVABILITY_STRATEGY.md` | 19,588 | 11 / 8 | 7 | keep | Read in 7 of 127 sessions; 11 live and 8 historical citations. |
+| `ARCHITECTURE.md` | 10,594 | 4 / 4 | 7 | keep | Read in 7 of 127 sessions; 4 live and 4 historical citations. |
+| `DEPLOYMENT_STRATEGY.md` | 3,002 | 7 / 3 | 2 | keep; overlap question for 3C | Small; see the `19` row. |
+| `DATABASE_SCHEMA.md` | 121,009 | 86 / 25 | 56 | keep | Read in 56 of 127 sessions; 86 live and 25 historical citations. |
+| `API_CONTRACTS.md` | 158,612 | 68 / 56 | 68 | keep | Read in 68 of 127 sessions; 68 live and 56 historical citations. |
+| `HOTSITE_DYNAMIC_ARCHITECTURE.md` | 60,349 | 26 / 15 | 10 | keep | Read in 10 of 127 sessions; 26 live and 15 historical citations. |
+| `DASHBOARD_FRONTEND_ARCHITECTURE.md` | 25,796 | 5 / 14 | 30 | keep | Read in 30 of 127 sessions; 5 live and 14 historical citations. |
+| `GITHUB_WORKFLOWS_GUIDELINES.md` | 20,189 | 8 / 5 | 9 | keep | Read in 9 of 127 sessions; 8 live and 5 historical citations. |
+| `RELEASE_LIFECYCLE_OPERATIONS.md` | 7,231 | 7 / 1 | 3 | keep | Read in 3 of 127 sessions; 7 live and 1 historical citations. |
+| `INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 1 / 2 | 1 | keep; overlap question for 3C | Small and rarely read; shares ground with `12` and `23` (tools, deployment, setup). Each is distinct today (tool authority table, strategy, setup order); 3C decides whether one doc is clearer. |
+| `COST_OPTIMIZATION_STRATEGY.md` | 3,979 | 0 / 1 | 0 | keep; merge candidate for 3C | Zero reads in 127 sessions and no live citation. Its lean-startup rules and scaling roadmap are not duplicated in `22`, so a merge must move content, never point. |
+| `TENANTS_SETTINGS_SCHEMA.md` | 36,858 | 30 / 21 | 25 | keep | Read in 25 of 127 sessions; 30 live and 21 historical citations. |
+| `TECH_STACK_DECISIONS.md` | 45,147 | 7 / 4 | 2 | keep | A decision record: low reads, but cited by 7 live files and the only home of the technology rationale. Its Kafka/Vault/multi-cloud material is now labelled historical. |
+| `INFRASTRUCTURE_SETUP.md` | 5,131 | 5 / 5 | 1 | keep; overlap question for 3C | Small; see the `19` row. |
+| `BFF_ARCHITECTURE.md` | 48,988 | 19 / 18 | 27 | keep | Read in 27 of 127 sessions; 19 live and 18 historical citations. |
+| `ERROR_CATALOG.md` | 10,060 | 3 / 4 | 15 | keep | Read in 15 of 127 sessions; 3 live and 4 historical citations. |
+| `DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 0 / 1 | 2 | keep | Rarely read; the only home of the retention rules, verified accurate against the purge jobs and settings. |
+| `BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 16 / 7 | 75 | keep | Read in 75 of 127 sessions; 16 live and 7 historical citations. |
+| `LOCK_CATALOG.md` | 28,747 | 35 / 4 | 9 | keep | Read in 9 of 127 sessions; 35 live and 4 historical citations. |
 | `AGENT_CONTEXT_TRAP_SCENARIOS.md` | 8,389 | 1 / 1 | 6 | keep | Read in 6 of 127 sessions; 1 live and 1 historical citations. |
 | `AGENT_PATTERNS.md` | 43,415 | 10 / 8 | 45 | keep | Read in 45 of 127 sessions; 10 live and 8 historical citations. |
 | `ANTI_PATTERNS.md` | 112,047 | 55 / 10 | 43 | keep | Read in 43 of 127 sessions; 55 live and 10 historical citations. |
@@ -117,11 +117,11 @@ Rejected, with the condition to reopen:
 
 **Audit baseline — what was found and fixed.** Four `/docs-audit` runs (`docs`, `plan`+`td`, `plan/journey`, then a `context.md` check), each with read-only agents whose every finding was re-read at the cited file and line before it became an edit. Pass 1 reported about 169 findings (`docs` 66, `plan`+`td` 10, `plan/journey` about 93; counts are approximate because the agents bundled items of unequal size). Dead `docs/`/`plan/`/`td/`/`infra/` pointers and dead anchors: 0 before and 0 after at every pass (`doc-link-integrity` was already clean). The rest were stale or wrong descriptive claims, missing inventory rows, missing "planned, not built" markers and stale journey status or dev-notes text, all fixed except the deferred items below. A few agent claims did not survive the re-read and were dropped or corrected (for example a wrong cron-job count in the light pass, an agent claim that `FOOTER` is not a layout module, which the code contradicts, and one constraint name an editing agent invented, which the migration disproved).
 
-**Owner decisions applied** (answered 2026-10-18): `08` isolation section and Builders section rewritten; `ENGINEERING_RULES_BACKEND`'s stale lock example replaced; `01-BUSINESS_CONTEXT` reworded for the multivertical platform; multi-cloud material in `22` labelled historical; the CI Variables-versus-Secrets rule and its non-compliance recorded in `docs/17`; follow-ups opened as TD54 (missing BFF component specs, identity-shaped Variables to Secrets, the report-only isolation scan, then the LIKE lint rule and sensitive Terraform inputs). All five TD54 stories shipped and the file was removed from `td/` (recoverable from git history). The code-side note it carried, `scripts/relay-vm-up.sh` describing the wrong apply job, was fixed in `relay-vm-up.sh` and `relay-vm-down.sh` in that cleanup.
+**Owner decisions applied** (answered 2026-10-18): `08` isolation section and Builders section rewritten; `ENGINEERING_RULES_BACKEND`'s stale lock example replaced; `BUSINESS_CONTEXT` reworded for the multivertical platform; multi-cloud material in `22` labelled historical; the CI Variables-versus-Secrets rule and its non-compliance recorded in `docs/GITHUB_WORKFLOWS_GUIDELINES`; follow-ups opened as TD54 (missing BFF component specs, identity-shaped Variables to Secrets, the report-only isolation scan, then the LIKE lint rule and sensitive Terraform inputs). All five TD54 stories shipped and the file was removed from `td/` (recoverable from git history). The code-side note it carried, `scripts/relay-vm-up.sh` describing the wrong apply job, was fixed in `relay-vm-up.sh` and `relay-vm-down.sh` in that cleanup.
 
 **Declined or deferred (recorded, not fixed):**
-- `.copilot/context.md` §3's aggregate table omits several aggregates (Booking: `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`; Platform: the chatbot and lead-form aggregates). Adding them breaks §3's 872-character budget in `agent-context-policy.json`; Story 5B decides whether to raise it. `docs/05`'s context-map diagram has the same omission.
-- `docs/04-USE_CASES.md`'s summary table has no rows for UC-010a to UC-010d.
+- `.copilot/context.md` §3's aggregate table omits several aggregates (Booking: `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`; Platform: the chatbot and lead-form aggregates). Adding them breaks §3's 872-character budget in `agent-context-policy.json`; Story 5B decides whether to raise it. `docs/BOUNDED_CONTEXTS`'s context-map diagram has the same omission.
+- `docs/USE_CASES.md`'s summary table has no rows for UC-010a to UC-010d.
 - About a dozen detector rule ids (for example `lock-catalog-coverage`, `closed-enum-registry`, `doc-link-integrity`) appear in no doc other than `17`'s table; `docs/ANTI_PATTERNS.md` also names the `di-alias` detector by its file name while its rules are `unsafe-use-existing` and `reverse-di-alias`, and still cites a removed `problem-detail.ts`.
 - Nine rules are explained in full in two docs each (the VO table in `VALUE_OBJECTS_REFERENCE` and `ENGINEERING_RULES_SHARED`; builder naming across `08`, `ENGINEERING_RULES_TESTING` and `AGENT_PATTERNS`; the InMemory-over-`jest.fn` rule across `ANTI_PATTERNS`, `ENGINEERING_RULES_TESTING` and `08`; the migration/entity registration rule across `ENGINEERING_RULES_TESTING`, `08` and `REPOSITORY_STRUCTURE`; the `useExisting` rule; the UI-primitive reuse rule; the barrel-import ban; the guard-placement rule; the shared date and address test helpers). Each needs a decision on which doc is canonical; Story 3C is the natural place.
 - `plan/` conformance, left for each story's own `/story-discovery`: M17's open stories lack the `Pattern` and `Files to create/modify` fields (the milestone predates `STORY_SCHEMA.md`) and use shorthand in "Docs to load"; M18-S11's heading is `###` while S01 to S10 are `##`.
@@ -149,6 +149,22 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 
 **Deviation from the story text:** the story names a literal `/docs-audit changed` re-run and exact before/after counts per category. The passes above use the same read-only agent fan-out as `/docs-audit` but with a "report only what survives" brief; pass-1 counts are approximate and the pass-1 category split was not tracked.
 
+**Closing audit (Story 6, 2026-10-21): one run, after the rename.** Ten read-only agents covered `docs/` (schema and data, architecture and contracts, standards, process and infrastructure), the use cases against the code (two agents), the four actor journeys (three agents) and the plan and TD files. Counts are taken from the agents' reports. Every fix was re-read against the cited file and line by the main agent before it was written; a finding that did not hold was dropped.
+
+| Group | Reported | Fixed in the PR | Deferred (story) | Left as is |
+|---|---|---|---|---|
+| Schema and data docs | 4 | 4 | 0 | 0 |
+| Architecture and contract docs | 6 | 5 | 0 | 1 (a historical "Replaces" note) |
+| Standards docs | 10, plus 7 duplications | 8 | 7 duplications (Story 7) | 2 |
+| Process and infrastructure docs | 7 | 1 | 0 | 6 (soft tensions or lists the docs call non-exhaustive) |
+| Use cases against the code | 17 | 5 | 2 (Story 9) | 10 (route and title omissions; two reports did not hold) |
+| Manager journeys | 9 | 3 | 6 (Story 9) | 0 |
+| Guest and customer journeys | 12 | 2 | 10 (Story 9) | 0 |
+| Staff journeys | 12 | 4 | 8 (Story 9) | 0 |
+| Plan and TD files | 14, plus 9 IA-file clusters | BFF path layout across the IA files, `ManagerRoleGuard` path | structure, M18 close-out, remaining IA paths (Story 8) | 0 |
+
+Also found and recorded, not changed: four backend routes absent from `docs/API_CONTRACTS.md`'s backend-only table (`POST /pubsub/push`, the backend health routes, the backend halves of the public chatbot and lead-form routes), and MVP cost stated as $50-100, $43 and $50 in different places in `docs/TECH_STACK_DECISIONS.md`. Stories 7, 8 and 9 below carry the deferred items. This closes the documentation baseline; the audit is not repeated unless a later change gives a specific reason.
+
 
 #### Story 3C — load measurement and decisions (2026-10-19)
 
@@ -172,38 +188,38 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 | Gemini | 0 | 0 | no logs exist |
 
 - **Tool mix is unchanged.** Of the calls that read or search a doc through a shell, Claude used `grep`/`rg` 72%, `sed -n` ranges 14%, `head`/`tail` 10%, `cat` 4% (1,391 / 275 / 197 / 77). Codex used `grep`/`rg` 73%, `sed -n` 21%, `head`/`tail` 6%, `cat` 0.3% (866 / 248 / 72 / 3), plus 170 unclassified `exec` calls. Both agents search for a handle and then read a range; no agent read whole files as a habit, so the "findability, not file layout" principle holds for the second agent too. Whole-versus-partial `Read` calls were not re-measured; nothing contradicts the baseline.
-- **Agents hold the paths and numbered names as handles.** Calls naming a numbered doc by its full name (`14-API_CONTRACTS`) outnumber calls naming it without the prefix 4,260 to 207 for Claude and 2,020 to 78 for Codex. `plan/journey` is named in tool calls in 75 of 129 Claude sessions (1,622 calls) and 108 of 406 Codex sessions (240 calls).
+- **Agents hold the paths and numbered names as handles.** Calls naming a numbered doc by its full name (`14-API_CONTRACTS`) outnumber calls naming it without the prefix 4,260 to 207 for Claude and 2,020 to 78 for Codex. `plan/journey` is named in tool calls in 75 of 129 Claude sessions (1,622 calls) and 108 of 406 Codex sessions (240 calls). <!-- doc-link:example -->
 - **Reads by doc** (sessions naming the doc; the Story 3A table's verdicts are unchanged: every doc stays except the ones 3B already deleted, moved or rewrote):
 
 | Doc | Size (bytes) | Claude sessions (of 129) | Codex sessions (of 406) |
 |---|---:|---:|---:|
-| `01-BUSINESS_CONTEXT.md` | 14,016 | 2 | 1 |
-| `02-DOMAIN_MODEL.md` | 127,261 | 56 | 94 |
-| `03-DOMAIN_EVENTS.md` | 56,377 | 37 | 56 |
-| `04-USE_CASES.md` | 254,061 | 75 | 242 |
-| `05-BOUNDED_CONTEXTS.md` | 49,138 | 25 | 15 |
-| `06-TENANT_ISOLATION_STRATEGY.md` | 14,129 | 11 | 30 |
-| `08-TESTING_STRATEGY.md` | 76,253 | 46 | 56 |
-| `09-CI_CD_PIPELINE.md` | 5,033 | 9 | 0 |
-| `10-OBSERVABILITY_STRATEGY.md` | 19,588 | 9 | 33 |
-| `11-ARCHITECTURE.md` | 10,803 | 8 | 1 |
-| `12-DEPLOYMENT_STRATEGY.md` | 3,334 | 3 | 3 |
-| `13-DATABASE_SCHEMA.md` | 121,964 | 58 | 161 |
-| `14-API_CONTRACTS.md` | 164,600 | 73 | 125 |
-| `15-HOTSITE_DYNAMIC_ARCHITECTURE.md` | 62,749 | 13 | 6 |
-| `16-DASHBOARD_FRONTEND_ARCHITECTURE.md` | 26,178 | 39 | 24 |
-| `17-GITHUB_WORKFLOWS_GUIDELINES.md` | 20,394 | 11 | 11 |
-| `18-RELEASE_LIFECYCLE_OPERATIONS.md` | 7,372 | 4 | 0 |
-| `19-INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 2 | 0 |
-| `20-COST_OPTIMIZATION_STRATEGY.md` | 4,204 | 1 | 0 |
-| `21-TENANTS_SETTINGS_SCHEMA.md` | 37,642 | 29 | 38 |
-| `22-TECH_STACK_DECISIONS.md` | 48,143 | 4 | 0 |
-| `23-INFRASTRUCTURE_SETUP.md` | 5,868 | 2 | 0 |
-| `24-BFF_ARCHITECTURE.md` | 51,431 | 42 | 30 |
-| `25-ERROR_CATALOG.md` | 10,060 | 18 | 6 |
-| `26-DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 2 | 0 |
-| `27-BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 81 | 71 |
-| `28-LOCK_CATALOG.md` | 28,703 | 11 | 11 |
+| `BUSINESS_CONTEXT.md` | 14,016 | 2 | 1 |
+| `DOMAIN_MODEL.md` | 127,261 | 56 | 94 |
+| `DOMAIN_EVENTS.md` | 56,377 | 37 | 56 |
+| `USE_CASES.md` | 254,061 | 75 | 242 |
+| `BOUNDED_CONTEXTS.md` | 49,138 | 25 | 15 |
+| `TENANT_ISOLATION_STRATEGY.md` | 14,129 | 11 | 30 |
+| `TESTING_STRATEGY.md` | 76,253 | 46 | 56 |
+| `CI_CD_PIPELINE.md` | 5,033 | 9 | 0 |
+| `OBSERVABILITY_STRATEGY.md` | 19,588 | 9 | 33 |
+| `ARCHITECTURE.md` | 10,803 | 8 | 1 |
+| `DEPLOYMENT_STRATEGY.md` | 3,334 | 3 | 3 |
+| `DATABASE_SCHEMA.md` | 121,964 | 58 | 161 |
+| `API_CONTRACTS.md` | 164,600 | 73 | 125 |
+| `HOTSITE_DYNAMIC_ARCHITECTURE.md` | 62,749 | 13 | 6 |
+| `DASHBOARD_FRONTEND_ARCHITECTURE.md` | 26,178 | 39 | 24 |
+| `GITHUB_WORKFLOWS_GUIDELINES.md` | 20,394 | 11 | 11 |
+| `RELEASE_LIFECYCLE_OPERATIONS.md` | 7,372 | 4 | 0 |
+| `INFRASTRUCTURE_TOOLING_MAP.md` | 3,929 | 2 | 0 |
+| `COST_OPTIMIZATION_STRATEGY.md` | 4,204 | 1 | 0 |
+| `TENANTS_SETTINGS_SCHEMA.md` | 37,642 | 29 | 38 |
+| `TECH_STACK_DECISIONS.md` | 48,143 | 4 | 0 |
+| `INFRASTRUCTURE_SETUP.md` | 5,868 | 2 | 0 |
+| `BFF_ARCHITECTURE.md` | 51,431 | 42 | 30 |
+| `ERROR_CATALOG.md` | 10,060 | 18 | 6 |
+| `DATA_RETENTION_AND_PRIVACY.md` | 6,353 | 2 | 0 |
+| `BUSINESS_LOGIC_REFERENCE.md` | 103,827 | 81 | 71 |
+| `LOCK_CATALOG.md` | 28,703 | 11 | 11 |
 | `AGENT_CONTEXT_TRAP_SCENARIOS.md` | 8,389 | 8 | 2 |
 | `AGENT_PATTERNS.md` | 45,232 | 47 | 30 |
 | `ANTI_PATTERNS.md` | 112,399 | 48 | 159 |
@@ -221,28 +237,28 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 | `STORY_SCHEMA.md` | 10,459 | 66 | 3 |
 | `VALUE_OBJECTS_REFERENCE.md` | 4,795 | 7 | 1 |
 
-  Docs both agents barely touch (at most 4 sessions in each column): `01`, `12`, `18`, `19`, `20`, `22`, `23`, `26`. Their rarity follows the task (provisioning, release, cost, retention), which an agent meets rarely; it is not evidence of staleness, and none of them is made a deletion candidate by this measurement. Codex reads `ANTI_PATTERNS` (159) and `13-DATABASE_SCHEMA` (161) far more than `CI_TRAPS` (3) and `STORY_SCHEMA` (3): a Codex review run loads the review rules, not the workflow docs.
+  Docs both agents barely touch (at most 4 sessions in each column): `01`, `12`, `18`, `19`, `20`, `22`, `23`, `26`. Their rarity follows the task (provisioning, release, cost, retention), which an agent meets rarely; it is not evidence of staleness, and none of them is made a deletion candidate by this measurement. Codex reads `ANTI_PATTERNS` (159) and `DATABASE_SCHEMA` (161) far more than `CI_TRAPS` (3) and `STORY_SCHEMA` (3): a Codex review run loads the review rules, not the workflow docs.
 
 **Overlap candidates (left open by Story 3A) — verdicts.** Each doc already carries a distinct "When to load" line and a different Tags value, and the two agents read them 0 to 3 times; merging three small docs would rewrite their citations and save no reading.
 
 | Candidate | Verdict | Reason |
 |---|---|---|
-| `12-DEPLOYMENT_STRATEGY`, `19-INFRASTRUCTURE_TOOLING_MAP`, `23-INFRASTRUCTURE_SETUP` | keep all three | Strategy, tool-authority map and provisioning order answer different questions, and each points at the others in its "When to load" line |
-| `20-COST_OPTIMIZATION_STRATEGY` | keep | Its lean-startup rules and scaling roadmap are not stated in `22`; a merge would move content for a 4 KB doc read once in 129 sessions |
+| `DEPLOYMENT_STRATEGY`, `INFRASTRUCTURE_TOOLING_MAP`, `INFRASTRUCTURE_SETUP` | keep all three | Strategy, tool-authority map and provisioning order answer different questions, and each points at the others in its "When to load" line |
+| `COST_OPTIMIZATION_STRATEGY` | keep | Its lean-startup rules and scaling roadmap are not stated in `22`; a merge would move content for a 4 KB doc read once in 129 sessions |
 
 **Rules explained in full in two or three docs — canonical home chosen** (Story 3A's list). Each non-canonical copy becomes a one-line pointer in a follow-up story after this PR merges (it landed as Story 3D below, not in TD54); S3C itself edits none of these docs. Where `.copilot/context.md` already names a home, that choice is kept.
 
 | Rule | Canonical doc | Becomes a pointer |
 |---|---|---|
 | Value-object table | `VALUE_OBJECTS_REFERENCE` | `ENGINEERING_RULES_SHARED` |
-| Test-builder naming | `08-TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `AGENT_PATTERNS` |
-| InMemory double over `jest.fn` for a port | `ENGINEERING_RULES_TESTING` (CI-enforced by `jest-fn-port-mock`) | `ANTI_PATTERNS` (one row stays), `08-TESTING_STRATEGY` |
-| Migration and entity registration in `integration-global-setup.ts` | `08-TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `REPOSITORY_STRUCTURE` |
-| `useExisting` versus `useClass` | `08-TESTING_STRATEGY` (the root cause; named in `context.md` §7) | `ANTI_PATTERNS` (one row stays; `di-alias` is CI-enforced) |
+| Test-builder naming | `TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `AGENT_PATTERNS` |
+| InMemory double over `jest.fn` for a port | `ENGINEERING_RULES_TESTING` (CI-enforced by `jest-fn-port-mock`) | `ANTI_PATTERNS` (one row stays), `TESTING_STRATEGY` |
+| Migration and entity registration in `integration-global-setup.ts` | `TESTING_STRATEGY` (named in `context.md` §7 Testing) | `ENGINEERING_RULES_TESTING`, `REPOSITORY_STRUCTURE` |
+| `useExisting` versus `useClass` | `TESTING_STRATEGY` (the root cause; named in `context.md` §7) | `ANTI_PATTERNS` (one row stays; `di-alias` is CI-enforced) |
 | UI-primitive reuse | `ENGINEERING_RULES_FRONTEND` (named in `context.md` §7) | any other copy |
 | Barrel `index.ts` ban | `CODE_STANDARDS` (ESLint-enforced) | `ANTI_PATTERNS` row, `CI_TRAPS` rows, `REPOSITORY_STRUCTURE` |
-| Guard-placement rule (middleware, not an Interceptor, for a rejected request) | `ENGINEERING_RULES_SHARED` (named in `context.md` §7) | `ANTI_PATTERNS`, `24-BFF_ARCHITECTURE` |
-| Shared date and address test helpers | `08-TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS`, `ENGINEERING_RULES_TESTING` |
+| Guard-placement rule (middleware, not an Interceptor, for a rejected request) | `ENGINEERING_RULES_SHARED` (named in `context.md` §7) | `ANTI_PATTERNS`, `BFF_ARCHITECTURE` |
+| Shared date and address test helpers | `TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS`, `ENGINEERING_RULES_TESTING` |
 
 **Always-on `context.md` cost review.** The file is 59,709 characters (baseline 57,647): §7 24,152, §10 8,047, §9 8,724, §0 3,536, §8 3,052, §11 1,826, §1 1,761, §17 1,571, §2 1,488. §7 alone is 40% of the file. The split below covers §0–§9 (44,811 characters in 108 units). A unit is a top-level bullet, a bold-lead paragraph or a subsection heading with its text; §1–§6 and §8 are classified whole. §10, §11 and §17 are outside the story's scope and are not classified, but §10 alone is 8,047 characters and is the router, so it stays.
 
@@ -412,7 +428,7 @@ Stories 4 and 6 are gated: each runs only on an explicit go in Story 3C's Decisi
 
 **Agent:** devops
 **Complexity:** M
-**Docs to load:** `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/ENGINEERING_RULES_TESTING.md`; `docs/STORY_SCHEMA.md`
+**Docs to load:** `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `docs/ENGINEERING_RULES_TESTING.md`; `docs/STORY_SCHEMA.md`
 **Dependencies:** none
 **Pattern:** plain composition — follows `lock-catalog-coverage.ts` / `agent-context-file.ts` (policy in, `ScanResult` out)
 
@@ -429,7 +445,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - **Historical names quoted in prose** (e.g. "formerly `docs/07-…`") are reworded in this PR, not allowlisted.
 - **Gitignored paths** (`docs/BOOTSTRAP_LOG.md`) are listed under `gitignoredAllowed` in `architecture-policy.json` with a rationale, so a worktree and CI give the same result.
 - **Policy shape:** `docLinkIntegrity.{sources,excluded,frozen,gitignoredAllowed,allowlist}` in `architecture-policy.json`; allowlist entries carry rationale, owner and `reviewBy`; the detector takes an injectable `now` so the expiry test is deterministic.
-- **Scope added during implementation (owner's decision):** the superseded M14 (observability), M15 (GCP infrastructure) and M16 (deploy pipelines) plan files are deleted in this PR (their stories were merged into M17; recoverable from git history) and `plan/README.md` is brought up to date; `docs/10-OBSERVABILITY_STRATEGY.md` is rewritten against the code, the collector config and the Terraform module, because the baseline run showed old plans citing headings that no longer existed. The shared heading helpers also accept a bold lead-in paragraph (`**Label:**`) and `6.` versus `6` numbering as the same anchor.
+- **Scope added during implementation (owner's decision):** the superseded M14 (observability), M15 (GCP infrastructure) and M16 (deploy pipelines) plan files are deleted in this PR (their stories were merged into M17; recoverable from git history) and `plan/README.md` is brought up to date; `docs/OBSERVABILITY_STRATEGY.md` is rewritten against the code, the collector config and the Terraform module, because the baseline run showed old plans citing headings that no longer existed. The shared heading helpers also accept a bold lead-in paragraph (`**Label:**`) and `6.` versus `6` numbering as the same anchor.
 - **Overlap:** `.copilot/context.md` pointers are also checked by `agent-context-file`; double reporting is accepted and `agent-context-file` changes only by the helper extraction.
 
 **New migration / i18n keys / env vars / feature flags:** none
@@ -440,7 +456,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 - `packages/architecture-check/src/detectors/agent-context-file.ts` (modify — extract shared citation helpers)
 - `packages/architecture-check/src/index.ts`, `packages/architecture-check/src/cli.ts` (modify — export, register)
 - `packages/architecture-check/architecture-policy.json` (modify — `docLinkIntegrity` section: sources, excluded, frozen, gitignoredAllowed, allowlist)
-- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — one detector-table row)
+- `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (modify — one detector-table row)
 - Docs the baseline run finds dead links in (listed by the run; each is a `.md` the doc gate covers)
 
 **Acceptance criteria — product:**
@@ -471,7 +487,7 @@ Only `.copilot/context.md` has its `docs|infra/` pointers and `§ heading` citat
 
 **Agent:** devops
 **Complexity:** L
-**Docs to load:** `docs/STORY_SCHEMA.md` (the existing header pattern); `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `.claude/commands/docs-audit.md` Step 1, Step 2b and the `changed` mode; `packages/architecture-check/src/detectors/doc-link-integrity.ts` (the model for policy in, `ScanResult` out)
+**Docs to load:** `docs/STORY_SCHEMA.md` (the existing header pattern); `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § `architecture-check`; `.claude/commands/docs-audit.md` Step 1, Step 2b and the `changed` mode; `packages/architecture-check/src/detectors/doc-link-integrity.ts` (the model for policy in, `ScanResult` out)
 **Dependencies:** Story 0 (so every path a header or a tag glob cites is checked by CI)
 **Pattern:** plain composition — one shared module (`doc-tags.ts`) consumed by a CI detector and a CLI, so the two cannot disagree
 
@@ -494,7 +510,7 @@ There is no size threshold: the rule is the same for a 2 KB doc and a 250 KB doc
 - output is one doc per line marked `deep` or `light`; `--json` gives the same data; an unknown tag exits non-zero.
 It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer instead of an agent reading the policy JSON and guessing.
 
-**Skills.** `.claude/commands/docs-audit.md` drops its inline deep-check and light-check lists, the "unclassified" rule and the bucket doc lists. Scope resolution calls `docs-for` (a doc path reads its `Tags`, `changed` uses `--range`, a tag uses `--tag`); the four Step 2b agents keep their grep instructions, keyed by tag: `database` and `events` to the schema/data agent; `agent-process` and `testing` to the standards/structure agent; `infra` to the process/infra agent; `backend`, `bff`, `web`, `tenancy` and `prototypes` to the architecture/contracts agent; a doc with several tags goes to the first agent in that priority order whose tags it carries, so a `backend, database` doc is checked for its claimed shapes by the schema/data agent. Its stale `docs/ENGINEERING_RULES.md` wording is corrected. `.claude/commands/mark-done.md` Step 4 states that its docs audit is tag-driven and that "mapped to no doc" now means "mapped to no tag". `.claude/commands/discovery-to-milestone.md` line 77 stops citing "`/docs-audit`'s own deep-check docs bucketing" and uses the tags and `docs-for --tag`. The Codex copies are regenerated with `scripts/codex-skill.sh`. `docs/10-OBSERVABILITY_STRATEGY.md` carries the retired `Verified against` and `Audit bucket` lines (added by Story 0); they are replaced by `Tags`. `docs/DEFINITION_OF_DONE.md` gains one line: a story that adds a doc gives it both header fields. <!-- doc-link:example -->
+**Skills.** `.claude/commands/docs-audit.md` drops its inline deep-check and light-check lists, the "unclassified" rule and the bucket doc lists. Scope resolution calls `docs-for` (a doc path reads its `Tags`, `changed` uses `--range`, a tag uses `--tag`); the four Step 2b agents keep their grep instructions, keyed by tag: `database` and `events` to the schema/data agent; `agent-process` and `testing` to the standards/structure agent; `infra` to the process/infra agent; `backend`, `bff`, `web`, `tenancy` and `prototypes` to the architecture/contracts agent; a doc with several tags goes to the first agent in that priority order whose tags it carries, so a `backend, database` doc is checked for its claimed shapes by the schema/data agent. Its stale `docs/ENGINEERING_RULES.md` wording is corrected. `.claude/commands/mark-done.md` Step 4 states that its docs audit is tag-driven and that "mapped to no doc" now means "mapped to no tag". `.claude/commands/discovery-to-milestone.md` line 77 stops citing "`/docs-audit`'s own deep-check docs bucketing" and uses the tags and `docs-for --tag`. The Codex copies are regenerated with `scripts/codex-skill.sh`. `docs/OBSERVABILITY_STRATEGY.md` carries the retired `Verified against` and `Audit bucket` lines (added by Story 0); they are replaced by `Tags`. `docs/DEFINITION_OF_DONE.md` gains one line: a story that adds a doc gives it both header fields. <!-- doc-link:example -->
 
 **Header placement.** Before the detector lands, the story checks that no doc has a preamble that pushes the fields past line 15; where one does, the fields go above it. This adds context only; no existing text is changed or removed. No contents block is added (see Chosen approach).
 
@@ -517,9 +533,9 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 - `packages/architecture-check/package.json` (modify — `picomatch` and the `docs-for` script)
 - `packages/architecture-check/architecture-policy.json` (modify — `docOrientation` section: header lines, minimum length, exclusions, tag vocabulary with descriptions and globs)
 - `.claude/commands/docs-audit.md`, `.claude/commands/mark-done.md`, `.claude/commands/discovery-to-milestone.md` (modify) and their regenerated copies under `.agents/skills/` (via `scripts/codex-skill.sh`, not by hand)
-- `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (modify — the detector row and the `docs-for` helper)
+- `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (modify — the detector row and the `docs-for` helper)
 - `docs/DEFINITION_OF_DONE.md` (modify — one line)
-- `docs/10-OBSERVABILITY_STRATEGY.md` (modify — replace the two retired lines with `Tags`)
+- `docs/OBSERVABILITY_STRATEGY.md` (modify — replace the two retired lines with `Tags`)
 - Every other top-level `docs/*.md` (modify — add `When to load` where missing, and `Tags` on all 45; each line written from reading the doc; re-measure the inventory at implementation time)
 
 **Acceptance criteria — product:**
@@ -553,7 +569,7 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 
 **Description:**
 `context.md` §10 has 34 rows (the TD's earlier "36" was wrong); about 8 cite a `§ section`, the rest send the agent to a whole 100–250 KB file, so it greps and ranges to find the part the task needs. The file has 177 characters of budget headroom (§10: 14), so the pointers have to be paid for by lossless trims or a reviewed budget increase.
-1. **§10 routing.** Each row cites a `§ section` that exists, or says "whole file" and why. A row whose target depends on the task (a UC, an API resource, a milestone) says so and how to locate it (`grep -n 'UC-0NN'`), without a placeholder `§`. "Writing any code" stays three whole files, stated as such: they are the general rules for any code. Add rows for the unrouted docs agents work on often: `25-ERROR_CATALOG`, `21-TENANTS_SETTINGS_SCHEMA`, and `RUNBOOKS` with `18-RELEASE_LIFECYCLE_OPERATIONS`; and one catch-all row, "anything not listed: `docs-for --tag <tag>` and read the doc's `When to load` line", which covers `23-INFRASTRUCTURE_SETUP`, `19-INFRASTRUCTURE_TOOLING_MAP`, `26-DATA_RETENTION_AND_PRIVACY`, `01-BUSINESS_CONTEXT` and `20-COST_OPTIMIZATION_STRATEGY` through Story 1's headers and tags instead of one row each. (No separate "LLM / OpenRouter call" row: §7's OpenRouter bullet already points at its section of `ENGINEERING_RULES_BACKEND.md`, so a row would duplicate it.)
+1. **§10 routing.** Each row cites a `§ section` that exists, or says "whole file" and why. A row whose target depends on the task (a UC, an API resource, a milestone) says so and how to locate it (`grep -n 'UC-0NN'`), without a placeholder `§`. "Writing any code" stays three whole files, stated as such: they are the general rules for any code. Add rows for the unrouted docs agents work on often: `ERROR_CATALOG`, `TENANTS_SETTINGS_SCHEMA`, and `RUNBOOKS` with `RELEASE_LIFECYCLE_OPERATIONS`; and one catch-all row, "anything not listed: `docs-for --tag <tag>` and read the doc's `When to load` line", which covers `INFRASTRUCTURE_SETUP`, `INFRASTRUCTURE_TOOLING_MAP`, `DATA_RETENTION_AND_PRIVACY`, `BUSINESS_CONTEXT` and `COST_OPTIMIZATION_STRATEGY` through Story 1's headers and tags instead of one row each. (No separate "LLM / OpenRouter call" row: §7's OpenRouter bullet already points at its section of `ENGINEERING_RULES_BACKEND.md`, so a row would duplicate it.)
    **Where the value is.** Measured 2026-10-18, the rows that name whole docs load these many bytes if read whole: Implement a UC 422 KB, Database/migration/lock 357 KB, BFF implementation 289 KB, Hotsite frontend 254 KB, Dashboard frontend 197 KB, Event handler 190 KB, API endpoint 153 KB, Testing patterns 112 KB, CI failure 99 KB. These rows get the pointers first (for example `ENGINEERING_RULES_BACKEND.md`, 91 KB, is named whole by three rows). **Pointer rules:** one or two sections per row, or the locate method for a task-dependent row; never a list of every section, which would restate a table of contents; the cited text is a specific heading, never a generic one (`Overview`, `References`), because the checker accepts any heading that exists.
 2. **Lossless trims.** Delete the `**Last updated:**` line, and with it `LAST_UPDATED_LINE_REGEX` and its test in `agent-context-file.ts`. Correct the editing notice to the three symlinks that exist (`CLAUDE.md`, `AGENTS.md`, `gemini.md`; there is no `claude.md`). Drop the two "kept per safeguard" notes. Cut §9 Step 5's parenthetical that restates `pr-land.md` (the skill loads its own Core Rule and Step 3).
 3. **Dynamic-loading trims.** Only these four groups (any other candidate is left to Story 5B's classification): the Cloud Run/OTel bullet, the OpenRouter bullet, the Terraform/infra "cross-layer deployment invariants" and the testing traps that point at `ENGINEERING_RULES_TESTING.md`: keep each trap's one-line headline and its `→ doc § heading` pointer in the file, and move nothing out that is not already in the target doc. Before shortening a bullet, grep the target section and confirm it holds every fact the bullet drops (dates, incident history, caveats). A bullet whose target section does not hold it stays unchanged. No trap's existence is removed from the always-on file; only its explanation moves to the doc.
@@ -652,8 +668,8 @@ It exists so `/docs-audit changed` and `/mark-done` get a deterministic answer i
 **Decisions locked in story-discovery (2026-10-19):**
 - **Archived files are not edited.** Citations inside `archive/` files (about 60, all historical; the checker excludes them as sources) stay as they are. The acceptance criteria below therefore say "no tracked live file", meaning outside `archive/`, `docs/discovery/` and files with a `> Frozen:` header.
 - **No detector change.** `doc-link-integrity` is not given an `archive/` root; the rewritten citations are verified by `git grep`, not by the checker.
-- **Live files stop depending on the archive.** A live file's pointer to an archived file is removed, not repointed, and the fact it supported stays in the sentence (for example "bundles are offered from TD49 Story 2"). Before each removal, check what the live doc would lose; only when the pointer was the single home of a fact does one sentence move into the canonical live doc, and nothing is copied wholesale or bloats a doc. The known cases are `docs/04-USE_CASES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and its `dev-notes.md`, the M22 IA file, `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` and the precedent note in `story-discovery` (both copies). <!-- doc-link:example -->
-- **Pointers that name the folder itself are repointed to `archive/`:** `.copilot/context.md` §10 ("Never load"), `.github/instructions/pr-review.instructions.md` (excluded paths) and `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (the checker's skipped folders). The policy's `excluded` list drops the dead `docs/archive` entry and keeps `archive/`.
+- **Live files stop depending on the archive.** A live file's pointer to an archived file is removed, not repointed, and the fact it supported stays in the sentence (for example "bundles are offered from TD49 Story 2"). Before each removal, check what the live doc would lose; only when the pointer was the single home of a fact does one sentence move into the canonical live doc, and nothing is copied wholesale or bloats a doc. The known cases are `docs/USE_CASES.md`, `plan/journey/customer/use-cases.md`, `plan/journey/staff/agenda.md`, `plan/journey/staff/horarios.md` and its `dev-notes.md`, the M22 IA file, `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING.md` and the precedent note in `story-discovery` (both copies). <!-- doc-link:example -->
+- **Pointers that name the folder itself are repointed to `archive/`:** `.copilot/context.md` §10 ("Never load"), `.github/instructions/pr-review.instructions.md` (excluded paths) and `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (the checker's skipped folders). The policy's `excluded` list drops the dead `docs/archive` entry and keeps `archive/`.
 - **`ENGINEERING_RULES.md` citations:** the two non-frozen `plan/M17-CLOUD-DEPLOY.md` lines say "the former `ENGINEERING_RULES.md`" with no `docs/` path, so the history stays true; the "Split from" header lines in the five `ENGINEERING_RULES_*` files, `CI_TRAPS.md` and both skill copies are reworded the same way; `agent-context-file.spec.ts` uses a real doc path as its fixture instead. `doc-orientation.spec.ts` and the `docs-audit` folder example stop naming `docs/lean`. The `M12`/`M13` `_DEVELOPER.md` plans lose only the sentence citing `WEB_LEAN`.
 - **`docs/README.md`:** the placement and naming rule, the header-contract paragraph, and one ordered list (numbered docs in prefix order, then the unnumbered ones grouped by purpose, docs 27 and 28 included) with one line per entry instead of the long blurbs.
 - **Test plan:** `pnpm architecture-check` (with `doc-link-integrity`) after each commit; a final `git grep` for `docs/archive`, `docs/lean`, `WEB_LEAN` and `ENGINEERING_RULES.md` that returns hits only inside `archive/`, frozen files and this TD; `git log --follow` on a sample of moved files; the Codex skill copies compared with a fresh `scripts/codex-skill.sh` run.
@@ -737,7 +753,7 @@ Nine rules are explained in more than one doc, so a change to a rule has to be m
 Decisions already made (not re-opened in discovery):
 - **What collapses.** A passage that restates a rule's explanation, table or worked example collapses. A one-line statement that already points at the canonical doc, a table row that exists so `/pre-pr` or a detector finds the rule (the `ANTI_PATTERNS` rows), and a tree comment in `REPOSITORY_STRUCTURE` all stay.
 - **No fact is lost.** Before a passage is cut, the canonical doc is read and must already hold every fact in it; a fact only the copy holds moves to the canonical doc first. The PR body lists, per rule, each removed passage next to the canonical line that carries it.
-- **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so no canonical home or pointer in `context.md` changes (the only edit is to its §7 CI-enforced line: four detector names corrected to the rule ids CI prints, plus about 60 characters of wording trimmed on that same line with no information removed, because the longer ids otherwise put the file over its `agent-context-file` size budget; owner approved it in this PR, 2026-10-19). For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `08-TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
+- **Canonical homes are Story 3C's.** `context.md` §7 already names several of them, so no canonical home or pointer in `context.md` changes (the only edit is to its §7 CI-enforced line: four detector names corrected to the rule ids CI prints, plus about 60 characters of wording trimmed on that same line with no information removed, because the longer ids otherwise put the file over its `agent-context-file` size budget; owner approved it in this PR, 2026-10-19). For `useExisting`, `ENGINEERING_RULES_TESTING` currently points at the `ANTI_PATTERNS` row, so that pointer is repointed to `TESTING_STRATEGY`, and `ANTI_PATTERNS` keeps its row (its detector, `di-alias`, is CI-enforced).
 - **Pointers use the exact `path § heading` form** so `doc-link-integrity` checks them. Use "see" wording, never a restated summary.
 - **Extraction is conditional on benefit (locked in story-discovery, 2026-10-19).** A copy collapses only when that gains something real: maintainability (one place to edit), objectiveness (no two wordings that can disagree) or agent context (an agent landing on the copy no longer reads a stale or competing version). A copy that applies the rule to its own topic and adds a fact the canonical doc lacks is context-specific: that fact moves into the canonical doc only if it is general, and otherwise the copy stays as it is. A rule whose inventory finds no real copy is recorded as "already one home" and skipped. The decision and its reason are recorded per rule. The copies in question are those in `docs/` and the live agent files; a closed milestone's wrap-up records under `plan/` (its `_IMPLEMENTATION_DETAILS_IA.md` and `_DEVELOPER.md` lessons-learned passages) are historical statements of what was learned then, are not collapsed, and are listed in the PR body so the final grep is honest about them (the `_DEVELOPER.md` files are never loaded by agents).
 - **Staleness sweep in the same story (scope added 2026-10-19).** Every doc the story touches (the canonical and copy docs of the nine rules, and any doc a fact moves into) gets a pass for stale, wrong or confusing claims, checked against the code where a claim names a file, class, detector, command or behaviour. Each finding is re-read at its cited line before it is edited, and is fixed in this story. A finding that needs a decision or is too large for the story is listed in the PR body and, if real, appended to TD54 (since removed from `td/`; recoverable from git history). The sweep covers the touched files only; the repository-wide closing audit stays with the story named in the Decision record.
@@ -747,19 +763,19 @@ Inventory found while drafting (to be re-run first; line numbers will have moved
 | Rule | Canonical | Copies found |
 |---|---|---|
 | Value-object table | `VALUE_OBJECTS_REFERENCE` | `ENGINEERING_RULES_SHARED` (§ Value Objects, line 20 onward) |
-| Test-builder naming | `08-TESTING_STRATEGY` (§ Builder class pattern) | `ENGINEERING_RULES_TESTING` line 15; `08` also states it at line 615 |
+| Test-builder naming | `TESTING_STRATEGY` (§ Builder class pattern) | `ENGINEERING_RULES_TESTING` line 15; `08` also states it at line 615 |
 | InMemory over `jest.fn` for a port | `ENGINEERING_RULES_TESTING` | `ANTI_PATTERNS` rows at lines 33 and 49; `08` line 927 |
-| Migration and entity registration in `integration-global-setup.ts` | `08-TESTING_STRATEGY` (the numbered procedure, line 977 onward) | `ENGINEERING_RULES_TESTING` line 79. `REPOSITORY_STRUCTURE` holds no copy. |
-| `useExisting` versus `useClass` | `08-TESTING_STRATEGY` (line 1010) | `ANTI_PATTERNS` rows at lines 71 and 132; `ENGINEERING_RULES_TESTING` § NestJS module provider pattern (already a pointer, to be repointed) |
+| Migration and entity registration in `integration-global-setup.ts` | `TESTING_STRATEGY` (the numbered procedure, line 977 onward) | `ENGINEERING_RULES_TESTING` line 79. `REPOSITORY_STRUCTURE` holds no copy. |
+| `useExisting` versus `useClass` | `TESTING_STRATEGY` (line 1010) | `ANTI_PATTERNS` rows at lines 71 and 132; `ENGINEERING_RULES_TESTING` § NestJS module provider pattern (already a pointer, to be repointed) |
 | UI-primitive reuse | `ENGINEERING_RULES_FRONTEND` § Reuse the repo's UI primitives | `ANTI_PATTERNS` rows at lines 143 to 145 |
 | Barrel `index.ts` ban | `CODE_STANDARDS` | `ANTI_PATTERNS` line 37; `CI_TRAPS` lines 347 and 348; `08` line 658 |
-| Guard-placement rule | `ENGINEERING_RULES_SHARED` § RequestContext | `10-OBSERVABILITY_STRATEGY` lines 54 and 55; `24-BFF_ARCHITECTURE` line 274; `ANTI_PATTERNS` line 140 |
-| Shared date and address test helpers | `08-TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS` line 380 (a table row) |
+| Guard-placement rule | `ENGINEERING_RULES_SHARED` § RequestContext | `OBSERVABILITY_STRATEGY` lines 54 and 55; `BFF_ARCHITECTURE` line 274; `ANTI_PATTERNS` line 140 |
+| Shared date and address test helpers | `TESTING_STRATEGY` (own subsections) | `AGENT_PATTERNS` line 380 (a table row) |
 
 **New migration / i18n keys / env vars / feature flags:** none
 
 **Files to create/modify:**
-- `docs/ENGINEERING_RULES_SHARED.md`, `docs/ENGINEERING_RULES_TESTING.md`, `docs/ANTI_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/08-TESTING_STRATEGY.md`, `docs/10-OBSERVABILITY_STRATEGY.md`, `docs/24-BFF_ARCHITECTURE.md`, `docs/AGENT_PATTERNS.md` (modify — collapse copies to pointers; each exists)
+- `docs/ENGINEERING_RULES_SHARED.md`, `docs/ENGINEERING_RULES_TESTING.md`, `docs/ANTI_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/TESTING_STRATEGY.md`, `docs/OBSERVABILITY_STRATEGY.md`, `docs/BFF_ARCHITECTURE.md`, `docs/AGENT_PATTERNS.md` (modify — collapse copies to pointers; each exists)
 - `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/CODE_STANDARDS.md`, `docs/ENGINEERING_RULES_FRONTEND.md` (modify only if a fact moves in from a copy)
 
 **Acceptance criteria — product:**
@@ -944,14 +960,14 @@ Limits as before: n=2, no shell in the session, so each answer comes from the lo
 **Pattern:** plain composition — no named pattern applies
 
 **Description:**
-Rename the 27 numbered docs by removing the `NN-` prefix, keeping the `UPPER_SNAKE` name, with `git mv` so history is preserved: `01-BUSINESS_CONTEXT`, `02-DOMAIN_MODEL`, `03-DOMAIN_EVENTS`, `04-USE_CASES`, `05-BOUNDED_CONTEXTS`, `06-TENANT_ISOLATION_STRATEGY`, `08-TESTING_STRATEGY`, `09-CI_CD_PIPELINE`, `10-OBSERVABILITY_STRATEGY`, `11-ARCHITECTURE`, `12-DEPLOYMENT_STRATEGY`, `13-DATABASE_SCHEMA`, `14-API_CONTRACTS`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `16-DASHBOARD_FRONTEND_ARCHITECTURE`, `17-GITHUB_WORKFLOWS_GUIDELINES`, `18-RELEASE_LIFECYCLE_OPERATIONS`, `19-INFRASTRUCTURE_TOOLING_MAP`, `20-COST_OPTIMIZATION_STRATEGY`, `21-TENANTS_SETTINGS_SCHEMA`, `22-TECH_STACK_DECISIONS`, `23-INFRASTRUCTURE_SETUP`, `24-BFF_ARCHITECTURE`, `25-ERROR_CATALOG`, `26-DATA_RETENTION_AND_PRIVACY`, `27-BUSINESS_LOGIC_REFERENCE`, `28-LOCK_CATALOG` (each `.md`; confirm no name collision with an existing doc before running).
-Rewrite every citation with a script kept in the scratchpad, not committed. Three citation shapes exist and all must be covered: the full path (`docs/14-API_CONTRACTS.md`), the bare filename in prose (`14-API_CONTRACTS.md`), and the short numeric form already used in prose (`docs/13`, `docs/27`, `docs/28`). Citations of a `§ heading` are unaffected. `archive/` and `docs/discovery/` are excluded from the rewrite and from the checker (the owner's decision: they are historical, so their internal citations of the old names are left as they are; the policy says so).
-**Pre-rename impact inventory (before any `git mv`).** A read-only scan lists every place that cites each of the 27 old names, in all three shapes, across all tracked files except the two exclusions above and `node_modules`, `dist`, `.next` and the lockfile. It must cover more than markdown: `.ts`/`.tsx` comments, `.json` policy and config, `.yaml`/`.yml` (`.coderabbit.yaml`, workflows, issue and PR templates), `.tf`, `.sh`/`.cjs` scripts, `.html`, `sonar-project.properties`, `knip.config.ts`, the skills, and code that builds a doc path from parts or reads a doc by name (grep for `readFileSync`/`resolve(` calls and string concatenations containing `docs/`). It also lists gitignored local files that cite a doc (for example `docs/BOOTSTRAP_LOG.md`), which a commit cannot rewrite. The inventory (counts per file type and the list of non-markdown hits) goes in the PR, and every hit is either rewritten or explicitly justified. After the rename the same scan must return zero hits. Extend `doc-link-integrity` so that, after the rename, any `docs/NN` or `NN-NAME.md` form fails CI, which guarantees no short form survives. The Codex skill copies are regenerated with `scripts/codex-skill.sh`. This story rewrites lines across the whole repository, so it is **not batchable** with any other story.
+Rename the 27 numbered docs by removing the `NN-` prefix, keeping the `UPPER_SNAKE` name, with `git mv` so history is preserved: `01-BUSINESS_CONTEXT`, `02-DOMAIN_MODEL`, `03-DOMAIN_EVENTS`, `04-USE_CASES`, `05-BOUNDED_CONTEXTS`, `06-TENANT_ISOLATION_STRATEGY`, `08-TESTING_STRATEGY`, `09-CI_CD_PIPELINE`, `10-OBSERVABILITY_STRATEGY`, `11-ARCHITECTURE`, `12-DEPLOYMENT_STRATEGY`, `13-DATABASE_SCHEMA`, `14-API_CONTRACTS`, `15-HOTSITE_DYNAMIC_ARCHITECTURE`, `16-DASHBOARD_FRONTEND_ARCHITECTURE`, `17-GITHUB_WORKFLOWS_GUIDELINES`, `18-RELEASE_LIFECYCLE_OPERATIONS`, `19-INFRASTRUCTURE_TOOLING_MAP`, `20-COST_OPTIMIZATION_STRATEGY`, `21-TENANTS_SETTINGS_SCHEMA`, `22-TECH_STACK_DECISIONS`, `23-INFRASTRUCTURE_SETUP`, `24-BFF_ARCHITECTURE`, `25-ERROR_CATALOG`, `26-DATA_RETENTION_AND_PRIVACY`, `27-BUSINESS_LOGIC_REFERENCE`, `28-LOCK_CATALOG` (each `.md`; confirm no name collision with an existing doc before running). <!-- doc-link:example -->
+Rewrite every citation with a script kept in the scratchpad, not committed. Three citation shapes exist and all must be covered: the full path (`docs/14-API_CONTRACTS.md`), the bare filename in prose (`14-API_CONTRACTS.md`), and the short numeric form already used in prose (`docs/13`, `docs/27`, `docs/28`). Citations of a `§ heading` are unaffected. `archive/` and `docs/discovery/` are excluded from the rewrite and from the checker (the owner's decision: they are historical, so their internal citations of the old names are left as they are; the policy says so). <!-- doc-link:example -->
+**Pre-rename impact inventory (before any `git mv`).** A read-only scan lists every place that cites each of the 27 old names, in all three shapes, across all tracked files except the two exclusions above and `node_modules`, `dist`, `.next` and the lockfile. It must cover more than markdown: `.ts`/`.tsx` comments, `.json` policy and config, `.yaml`/`.yml` (`.coderabbit.yaml`, workflows, issue and PR templates), `.tf`, `.sh`/`.cjs` scripts, `.html`, `sonar-project.properties`, `knip.config.ts`, the skills, and code that builds a doc path from parts or reads a doc by name (grep for `readFileSync`/`resolve(` calls and string concatenations containing `docs/`). It also lists gitignored local files that cite a doc (for example `docs/BOOTSTRAP_LOG.md`), which a commit cannot rewrite. The inventory (counts per file type and the list of non-markdown hits) goes in the PR, and every hit is either rewritten or explicitly justified. After the rename the same scan must return zero hits. Extend `doc-link-integrity` so that, after the rename, any `docs/NN` or `NN-NAME.md` form fails CI, which guarantees no short form survives. The Codex skill copies are regenerated with `scripts/codex-skill.sh`. This story rewrites lines across the whole repository, so it is **not batchable** with any other story. <!-- doc-link:example -->
 
 **Decisions locked in story-discovery (2026-10-21):**
 - **Measured scope at discovery:** 426 tracked files outside `archive/` and `docs/discovery/` cite a numbered doc, about 2,700 citations. By type: 219 `.ts`, 145 `.md`, 25 `.tsx`, 12 `.html`, 11 `.js`, 5 `.http`, 4 `.tf`, 2 `.yml`, and 1 each of `.json`, `.hcl` and `.example`. Of these, 77 are bare `NN-NAME` forms without `.md` and 97 are short `docs/NN` forms. The "about 640 files" figure above is superseded.
 - **Frozen files are rewritten too.** `doc-link-integrity` skips frozen plan files, but the rewrite still updates their citations so the zero-hit scan is clean; only link text changes, not the record.
-- **Odd shapes are in scope.** The 77 bare `NN-NAME` citations and the prose forms (`docs 27`, `doc 26`, `docs/08/09`, `docs 22`, `docs 15`, `doc 15`) are rewritten, the prose forms by hand. `doc-link-integrity` rejects the bare `NN-NAME` form as well as `docs/NN` and `NN-NAME.md`.
+- **Odd shapes are in scope.** The 77 bare `NN-NAME` citations and the prose forms (`docs 27`, `doc 26`, `docs/08/09`, `docs 22`, `docs 15`, `doc 15`) are rewritten, the prose forms by hand. `doc-link-integrity` rejects the bare `NN-NAME` form as well as `docs/NN` and `NN-NAME.md`. <!-- doc-link:example -->
 - **The script uses the explicit list of 27 names** with lookbehinds, never a loose `NN-[A-Z_]+` pattern (it would hit names such as `M20-LEAD-FORM-MODULE.md`).
 - **One PR.** The closing audit is in the same PR as separate commits. Descriptive fixes are auto-applied and normative ones go to the owner in one batched round (the Story 3A rule). If a bot review is truncated by the diff size, escalate; do not treat it as clean.
 - **Verification beyond the checker.** The checker covers markdown and non-spec `.ts`/`.tsx` only, so the `.html`, `.http`, `.yml`, `.tf`, `.js` and `.json` hits and frozen files are guarded by the zero-hit scan. Run the full unit test suite as well, since specs that pin doc paths or message text can break.
@@ -961,7 +977,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 **Files to create/modify:**
 - The 27 `docs/NN-NAME.md` files listed above (`git mv` to `docs/NAME.md`) <!-- doc-link:example -->
 - Every file returned by `grep -rlE "docs/[0-9]{2}\b|[0-9]{2}-[A-Z_]+\.md"` at implementation time, excluding `archive/` and `docs/discovery/` (up to about 640 files; regenerate then, since stories land in between)
-- `.coderabbit.yaml`, `packages/architecture-check/src/cli.ts` (the `docs/28-LOCK_CATALOG.md` read), `packages/architecture-check/src/detectors/lock-catalog-coverage.ts` and its spec (error text), `packages/architecture-check/agent-context-policy.json` (anchors, if any name a numbered doc), `.copilot/context.md`, `.claude/commands/*.md`, `.agents/skills/*/SKILL.md` (regenerated)
+- `.coderabbit.yaml`, `packages/architecture-check/src/cli.ts` (the `docs/LOCK_CATALOG.md` read), `packages/architecture-check/src/detectors/lock-catalog-coverage.ts` and its spec (error text), `packages/architecture-check/agent-context-policy.json` (anchors, if any name a numbered doc), `.copilot/context.md`, `.claude/commands/*.md`, `.agents/skills/*/SKILL.md` (regenerated)
 - `packages/architecture-check/src/detectors/doc-link-integrity.ts` and `doc-link-integrity.spec.ts` (modify — the numeric-form rule)
 - `docs/README.md` (modify — the ordered reading list)
 
@@ -984,6 +1000,146 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - [ ] **Closing audit (if this is the last story that runs):** one full `/docs-audit` of `docs/`, `plan/`, `td/` and the journeys folder runs after the rename, every finding that holds up on re-read is fixed in the PR, and the per-category counts are recorded beside Story 3A's table (see "Closing audit" under Stories). It is run once and is not repeated.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+### Story 7 — Collapse five cross-doc duplications to one canonical home each ⚪
+
+**Agent:** devops
+**Complexity:** M
+**Docs to load:** `.copilot/context.md` §7 (the canonical-home rule at "How to edit this file"); `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` § How to edit `context.md`; `docs/STORY_SCHEMA.md`; the two or three docs of each pair named below, read whole at the cited headings
+**Dependencies:** Story 6 (it renames every doc these pairs cite, and edits the same lines; this story runs after Story 6 merges so no pointer is written twice)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (standards/structure agent; the pairs below were reported with both locations but the no-loss proof was not made, so the owner deferred the collapse to this story).
+
+**Description:**
+`/docs-audit` Step 3g found rules explained in full, independently, in more than one place. Collapsing a duplicate is only allowed with a no-loss proof (the audit's guiding principle: context is never sacrificed for size): the canonical copy is Read and confirmed to hold the full information, any detail only the other copy has is merged into the canonical one first, and the pointer's target heading exists. The canonical-home rule in `.copilot/context.md` §7 decides where each rule lives: `ANTI_PATTERNS.md` for "what not to do and why", `ENGINEERING_RULES_*.md` and `CODE_STANDARDS.md` for "how to do it correctly", `CI_TRAPS.md` for CI and deploy gotchas. The proposed homes below are starting points; `/story-discovery` confirms each after reading both copies.
+
+1. **Domain error base class** (the `Object.setPrototypeOf(this, new.target.prototype)` snippet) is shown in full in `docs/CODE_STANDARDS.md` § Domain error contract (mandatory) and `docs/AGENT_PATTERNS.md` § 2. Domain Error Class. `CODE_STANDARDS.md` itself says skeletons live in `AGENT_PATTERNS.md`. Proposed home: the rule in `CODE_STANDARDS.md`, the skeleton in `AGENT_PATTERNS.md`, a pointer in the other direction.
+2. **Repository port signatures** (`findById`, `findAllByTenant`, `save`) are listed in both `docs/CODE_STANDARDS.md` § Repository signatures (mandatory) and `docs/AGENT_PATTERNS.md` § 1. Repository Port, and had already drifted: Story 6's audit fix made the `AGENT_PATTERNS.md` skeleton match the real port (`findAllByTenant(tenantId, filters?)`, `apps/backend/src/contexts/booking/application/ports/booking-repository.port.ts`). Proposed home: `CODE_STANDARDS.md` for the signatures, `AGENT_PATTERNS.md` keeps one skeleton that points to it.
+3. **Zod v4 `z.uuid()` / `z.email()` instead of the chained forms** is explained in `docs/CODE_STANDARDS.md` § Zod v4 validators, `docs/CI_TRAPS.md` § Zod v4 format (which adds `z.url()`, plus a checklist item) and a row of `docs/ANTI_PATTERNS.md`. Proposed home: `CODE_STANDARDS.md`; `CI_TRAPS.md` keeps the CI symptom and a pointer; the `ANTI_PATTERNS.md` row becomes trigger plus pointer.
+4. **Integration test DB isolation** is stated in full in `docs/ENGINEERING_RULES_TESTING.md` (§ Integration test DB isolation) and, more fully, in `docs/TESTING_STRATEGY.md` (§ Integration test DB isolation), with no pointer between them. Proposed home: `TESTING_STRATEGY.md` (the fuller copy); the other becomes a pointer after any extra detail is merged.
+5. **`.skip()` / `.only()` enforced by the jest/vitest `no-disabled-tests` and `no-focused-tests` rules** is enumerated in a row of `docs/ANTI_PATTERNS.md`, in `docs/TESTING_STRATEGY.md` § Philosophy (item 3) and again in § Forbidden Patterns of the same doc. Proposed home: `TESTING_STRATEGY.md` § Forbidden Patterns; the other two become pointers.
+6. **Borderline, decide in discovery (keep unless a real divergence shows):** the builder type list (`XxxEntityBuilder`, `XxxBuilder`, event and command builders, `RequestContextBuilder`) re-enumerated in `docs/ENGINEERING_RULES_TESTING.md` § Builder pattern and in `docs/TESTING_STRATEGY.md` (two sections); and the `PhoneNumber` strict E.164 explanation in `docs/VALUE_OBJECTS_REFERENCE.md` and `docs/CODE_STANDARDS.md` § PhoneNumber HTTP format. A deliberate per-audience restatement is not a finding.
+
+Already checked and **not** duplicates (do not touch): the Turnstile test sitekey stub, LIKE escaping stub, the `useExisting` explanation (full text only in `TESTING_STRATEGY.md`), and the VO Option A summary in `ENGINEERING_RULES_SHARED.md`.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `docs/CODE_STANDARDS.md`, `docs/AGENT_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES_TESTING.md`, `docs/TESTING_STRATEGY.md` (modify — canonical copies receive any merged detail, the others become `→ doc § heading` pointers)
+- `docs/VALUE_OBJECTS_REFERENCE.md` (modify — only if the `PhoneNumber` pair is collapsed)
+- `packages/architecture-check/agent-context-policy.json` (modify only if a `requiredAnchors` entry names a heading that moves; check first)
+
+**Acceptance criteria — product:**
+- [ ] Each of items 1 to 5 has exactly one full explanation; every other location is a trigger plus a `→ doc § heading` pointer whose target heading exists.
+- [ ] For each collapsed pair the PR records the no-loss proof (canonical copy Read, extra detail merged first, target heading present). Any pair where the proof cannot be made stays as is and is listed in the PR with the reason.
+- [ ] Items in 6 are each either collapsed with the same proof or recorded as a deliberate per-audience restatement.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` passes (`doc-link-integrity` proves every new pointer and heading; `agent-context-file` and `doc-orientation` unchanged)
+- [ ] `/docs-audit changed` over the story's range reports zero dead pointers
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 8 — Plan and TD structure: schema conformance, stale IA paths, M18 close-out ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `docs/STORY_SCHEMA.md`; `.claude/commands/mark-done.md` (milestone-complete block); `.claude/commands/run-batch.md` (what it reads from a story); `.copilot/context.md` §9 Step 12 and §10; `plan/README.md`
+**Dependencies:** Story 6 (same files, renamed citations)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (plans and TD files agent). Every item was re-read against the file before filing; items that need an owner decision say so.
+
+**Description:**
+Bring the planning documents into the canonical story shape where a tool reads them, and correct stale references in the completed-milestone records.
+
+1. **`plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`:** M24-S05 depends on M24-S21, defined later in the file. The line itself calls it "a forward reference by number only" (S21 is built in an earlier wave), so the dependency is correct but a reader meets S05 first. Decide in discovery: reorder the stories, or keep and state the build order in the milestone's wave table. M24-S01, S02, S03 and S21 cite whole milestones (M21, M22) in `Dependencies:`; replace with the exact story IDs.
+2. **`plan/M17-CLOUD-DEPLOY.md`:** almost every story (S01 to S56 except the cut S28 and S29) has no `**Pattern:**` line and no `**Files to create/modify:**` line. Both are core schema fields, and `/run-batch`'s overlap check reads the files field, so the pending stories (S36 to S42, S44, S46, S49 to S51, S53) cannot be safety-checked. Backfill those pending stories; done stories are exempt (their record is the merged PR). Fix the non-schema `Agent:` lines of M17-S54 and S55 (free-text suffixes, a `/` alternative instead of `a + b`) and the `Dependencies:` of M17-S37 ("all of Waves 2 to 5" is not a story ID list). State in `docs/STORY_SCHEMA.md` whether a story marked "❌ Cut" is exempt from the core fields.
+3. **`plan/M18-BOOKING-IMPROVEMENTS.md`:** S01 to S10 use `## M18-Sxx` headers (only S11 uses `###`); S01 to S08 lack `Dependencies`, `Pattern`, `Files to create/modify` and the product/technical AC split. All eleven stories are `✅ Done`, yet there is no `plan/M18-BOOKING-IMPROVEMENTS_IMPLEMENTATION_DETAILS_IA.md` <!-- doc-link:example --> and `plan/README.md` lists M18 as a normal milestone. Decide with the owner whether the milestone is complete (then run `/mark-done`'s milestone-complete block: IA and DEVELOPER files, the §10 row, the stale-documentation sweep) or intentionally open. Fix the headers to `###`; do not backfill fields on stories that are already merged.
+4. **`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`:** stories are `### AUD-NNN`, status lives in a master table and a `**Status:**` line rather than the header, and the fields are Risk, Effort, Phase and Depends on rather than the schema. It predates the schema. Decide: add a one-line "predates STORY_SCHEMA" note at the top and leave it, or convert the open stories (AUD-009 to AUD-042) when they are scheduled. It cites `OPUS_AUDITORY.md` at the repo root, which does not exist (nor under `archive/`); record the audit as unavailable instead of leaving a dead source reference.
+5. **Stale paths in completed-milestone IA files** (the BFF path layout was fixed in Story 6; these remain): `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` (uploads controller listed as "Pending M09", health check "Pending M07", both since shipped elsewhere); `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` (cites a workflow `pr-security.yml` that does not exist); `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md` (`selection-token.service.ts`, `issue-token.dto.ts`, `zod-validation.pipe.ts` under the old BFF layout, removed or moved); `plan/M04`, `M05`, `M07`, `M10` (notification, customer-profile and loyalty port and adapter files that were renamed or moved, for example `notification-log.entity.ts` to `notification-log.aggregate.ts`), `plan/M20` (`lead-form-submission-received.handler.ts`) and `plan/M22` (`resource-requirement-quantity.ts`) IA files. For each, either point to the file's current location or mark the line as historical ("removed in <story>").
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`, `plan/M17-CLOUD-DEPLOY.md`, `plan/M18-BOOKING-IMPROVEMENTS.md`, `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` (modify)
+- `plan/M18-BOOKING-IMPROVEMENTS_IMPLEMENTATION_DETAILS_IA.md` <!-- doc-link:example --> and its `_DEVELOPER.md` twin (create via `/mark-done`, only if the owner confirms M18 is complete)
+- `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md`, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M04-STAFF-MANAGEMENT_IMPLEMENTATION_DETAILS_IA.md`, `plan/M05-SERVICE-CATALOG_IMPLEMENTATION_DETAILS_IA.md`, `plan/M07-BOOKING-CREATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`, `plan/M20-LEAD-FORM-MODULE_IMPLEMENTATION_DETAILS_IA.md`, `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` (modify)
+- `docs/STORY_SCHEMA.md` (modify — cut stories and the TD-heading note)
+- `.copilot/context.md` (modify — §10 row for the M18 IA file, only if created)
+
+**Acceptance criteria — product:**
+- [ ] No pending story in M17 and M24 lacks `Pattern` or `Files to create/modify`, and every `Dependencies:` line names story IDs (or "none").
+- [ ] M18's headers use the same level as its sibling milestones, and its completion state is recorded: either the IA and DEVELOPER files exist and are indexed, or the plan says why the milestone is open.
+- [ ] TD08 states that it predates the schema and no longer cites a file that does not exist.
+- [ ] Every path cited in the nine IA files resolves, or the line says it is historical.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` passes (`doc-link-integrity` proves every cited path; `agent-context-file` if `context.md` changes)
+- [ ] A scripted check lists every story header in `plan/M17-*`, `M18-*` and `M24-*` and shows each of the core schema fields present for the pending ones (output attached to the PR)
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 9 — Journeys: stale dev-notes, template gaps, prototype and `.http` follow-ups ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `journeys/README.md` (template at "dev-notes.md" and Parts 3 and 4); `.copilot/context.md` §15 (the hard stop: `/docs-audit` baseline first, journey `.md` before prototype files); `docs/CODE_STANDARDS.md` (`.http` convention)
+**Dependencies:** Story 6 (renamed doc citations in the same files)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (four journey agents). Story 6 already fixed the clear-cut dev-notes text (manager settings and lead-form, guest and customer book-a-service error handling, agenda auth headers and `MarkComplete`, fidelidade headers, horarios navigation notes). What remains needs a rewrite that was not verified line by line, an owner decision, or a prototype redraw.
+
+**Description:**
+Each item below was reported by an audit agent against code with a file:line; re-read the cited code before editing (`/story-discovery` does this).
+
+1. **Stale dev-notes to rewrite (code wins, shipped journeys):**
+   - `journeys/guest/prototypes/book-a-service/dev-notes.md`: Step 2 response shapes (the summary is a bare `DaySummary[]` with `slotCount`, the availability response is `{date, slots, available}`, both accept `resourceSelections` and `durationMinutes`, `packages/types/src/schedule.dto.ts`); the availability-alert entry row still says the component path is "expected" though `AvailabilityAlertEntry.tsx` exists.
+   - `journeys/customer/prototypes/login/dev-notes.md`: the "Open questions (resolve before M124-S02)" block is moot, the label is "Trocar empresa" not "Trocar estabelecimento", the BFF response is `{tenantSlug, expiresIn}`, and the superseded `/select-tenant` and `POST /v1/auth/token` history should be collapsed.
+   - `journeys/customer/minha-conta.md` BFF table: the loyalty balance row says "Minha-conta page load — points card"; the call is made only by the Início and Fidelidade pages. `journeys/customer/prototypes/minha-conta/dev-notes.md` has a "see the Cluster 4 section of ../../minha-conta.md above" cross-reference that points at a different file.
+   - `journeys/guest/prototypes/submit-info/dev-notes.md`: the `GET /v1/bookings/:id/guest` "optional / fallback if M13-S39 hasn't shipped" text; the endpoint shipped.
+   - `journeys/guest/prototypes/lead-form/dev-notes.md` and the customer twin: the file map omits `LeadFormWidget` and `LeadFormTerminalCard`, calls `page.tsx` a component that fetches the catalog (the widget does), and the `NEXT_PUBLIC_TURNSTILE_SITE_KEY` limitation is already resolved (`apps/web/shared/lib/runtime-env/public-env.ts`).
+   - `journeys/staff/prototypes/agenda/dev-notes.md`: the `actionState` type (no `completed`, `rescheduled` or `reschedule-conflict`; the no-show states are missing) and the staff-booking file map headings ("none exist yet", "Route (proposed)") although those files shipped in M23-S39 and S40; the `fidelidade.md` "Busca por telefone" open question is answered by the phone search in `GET /customers`.
+   - `journeys/manager/prototypes/hotsite/dev-notes.md` and `journeys/manager/hotsite.md`: `ModuleConfigPanel` is not a component; the per-type panels (for example `HeroConfigPanel`) and `ModuleConfigShell` are.
+   - `journeys/manager/prototypes/onboarding/dev-notes.md` and `journeys/manager/prototypes/turmas/dev-notes.md`: a changelog line ("No index.html existed … added as part of this promotion") sits in the Known limitations list.
+2. **Template gaps:** the `journeys/README.md` template asks for Overview, File map, per-screen sections and Known limitations. Older shipped dev-notes lack some: the manager `configuracoes`, `equipe`, `hotsite` (no File map or screens), `lead-form` and `leads` (no screen or state sections), `resources` (no File map); customer `book-a-service`, `ask-chatbot` and `login` (no Known limitations); customer `minha-conta` and staff `agenda` and `servicos` (no Overview). Decide with the owner: backfill, or relax the template for journeys shipped before it existed and say so in `journeys/README.md`.
+3. **Index and prototype tables:** `journeys/README.md` rows 723 to 730 still say "Reviewed" for shipped manager journeys (lead-form-submissions says "Done" in its own file); `journeys/staff/horarios.md` and `journeys/staff/fidelidade.md` have no Prototype table (the prototype screens are cited nowhere); `journeys/staff/servicos.md` mermaid Start node shows `/{slug}/dashboard` though the route has no slug.
+4. **Orphan folder:** `journeys/manager/prototypes/hotsite/hotsite-impl/` holds `beloauto.html` and `manifesto-beloauto.json`, cited by no index, dev-notes or journey. Owner decision: document it as a reference artifact in the hotsite dev-notes, or remove it.
+5. **Agenda prototype redraw (an `.html` change, so the `.copilot/context.md` §15 workflow applies):** `journeys/staff/prototypes/agenda/00-agenda.html` draws the "+ Novo" menu with one item ("Agendamento"); the shipped `NewMenu.tsx` has two (`agendamento`, `recorrencia`). The mermaid in `agenda.md` already says "Recorrência"; the HTML comment ("ONE item today"), `agenda.md` ("Agendamento only") and `dev-notes.md` ("planned: not drawn until S19 ships") must change with the redraw.
+6. **Navigation target decision:** `journeys/staff/prototypes/horarios/07-horarios-recurso.html` (sidebar and bottom-nav) links "Horários" to `08-visao-geral-manager.html`, while every other staff page links `horarios/00-schedule.html`. Decide whether `08` is the canonical manager entry (`journeys/README.md` Part 4: nav items link the canonical entry file) and either keep or repoint.
+7. **`.http` coverage (request files, so real payload and auth knowledge is needed):** `apps/bff/http/auth/auth.http` has a `POST /v1/auth/staff-token` block (and a `GET /v1/auth/staff-tenants?token=` block) for a flow that no longer exists — no `staff-token` route exists in `apps/` or `packages/`; `POST /v1/auth/switch-staff-tenant` (`apps/bff/src/features/auth/auth.controller.ts`) has no block. Also lacking blocks: `GET /v1/customers/:customerId` and `GET /v1/customers/:customerId/loyalty`. Remove or rewrite the stale blocks and add the missing ones.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- The dev-notes and journey `.md` files named in items 1 to 3 and 6 (modify)
+- `journeys/README.md` (modify — index status labels; template note if relaxed)
+- `journeys/staff/prototypes/agenda/00-agenda.html` (modify — item 5, §15 workflow)
+- `journeys/manager/prototypes/hotsite/hotsite-impl/` (remove or document — item 4, owner decision)
+- `apps/bff/http/auth/auth.http`, `apps/bff/http/customers/customers.http`, `apps/bff/http/loyalty/loyalty.http` (modify — item 7)
+
+**Acceptance criteria — product:**
+- [ ] Every dev-notes statement listed in item 1 matches the code it cites (file:line re-read in the PR).
+- [ ] Items 2, 4 and 6 each carry a recorded owner decision in the PR.
+- [ ] `journeys/README.md` index status labels match each journey file's own status.
+- [ ] `00-agenda.html`, `agenda.md` and the agenda `dev-notes.md` all describe the two-item "+ Novo" menu.
+- [ ] `auth.http` has no block for a route that does not exist, and has a block for `switch-staff-tenant`.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation and request-file change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `/docs-audit` baseline reported clean before the `.html` change (§15 hard stop), and re-run over `journeys/staff` and `journeys/manager` afterwards with zero journey-vs-code drift for the touched files
+- [ ] `pnpm architecture-check` passes
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
 ## Follow-ups (not scheduled)
 

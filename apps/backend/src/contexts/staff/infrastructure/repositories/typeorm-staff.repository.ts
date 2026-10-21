@@ -82,7 +82,7 @@ export class TypeOrmStaffRepository implements IStaffRepository {
       // FOR UPDATE cannot be combined with aggregate functions in PostgreSQL.
       // Select the row IDs to acquire locks, then count the results in application code. The
       // explicit ORDER BY makes every caller lock the manager rows in the same order
-      // (docs/28-LOCK_CATALOG.md R5); without it the order is whatever the plan happens to scan.
+      // (docs/LOCK_CATALOG.md R5); without it the order is whatever the plan happens to scan.
       const rows = await manager.query(
         `SELECT id FROM staff.staff
          WHERE tenant_id = $1 AND role = 'MANAGER' AND is_active = true

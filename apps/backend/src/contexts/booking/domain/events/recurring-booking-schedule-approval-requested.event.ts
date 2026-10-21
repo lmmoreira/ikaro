@@ -13,7 +13,7 @@ interface RecurringBookingScheduleApprovalRequestedData extends Record<string, u
   approvalHoldExpiresAt: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleApprovalRequested — fired by
+// docs/DOMAIN_EVENTS.md § RecurringBookingScheduleApprovalRequested — fired by
 // RecurringBookingSchedule.request() when the service's effective approval mode is
 // MANUAL_APPROVAL (UC-070 step 2).
 export class RecurringBookingScheduleApprovalRequested extends DomainEvent<RecurringBookingScheduleApprovalRequestedData> {

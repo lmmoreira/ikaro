@@ -208,7 +208,7 @@ export const PlatformErrorCode = {
   SETTINGS_UPDATE_EMPTY: 'PLATFORM_SETTINGS_UPDATE_EMPTY',
   HOTSITE_UPDATE_EMPTY: 'PLATFORM_HOTSITE_UPDATE_EMPTY',
   FEATURED_PHOTO_PATH_MISMATCH: 'PLATFORM_FEATURED_PHOTO_PATH_MISMATCH',
-  // Chatbot cap-rejection reasons (docs/04-USE_CASES.md UC-033) — all 5 map to
+  // Chatbot cap-rejection reasons (docs/USE_CASES.md UC-033) — all 5 map to
   // HTTP 429 (M19-S05 story-discovery, 2026-08-12). DAILY_CAP_REACHED covers both layer 1
   // (tenant-wide) and layer 2 (per-IP) — both are the same "come back tomorrow" outcome from the
   // visitor's perspective, matching UC-033 A1's own grouping of the two.
@@ -221,22 +221,22 @@ export const PlatformErrorCode = {
   CHATBOT_PROVIDER_UNAVAILABLE: 'PLATFORM_CHATBOT_PROVIDER_UNAVAILABLE',
   // UC-033 A3 (message exceeds resolved maxMessageLengthChars) — 400, PR #360 review finding.
   CHATBOT_MESSAGE_TOO_LONG: 'PLATFORM_CHATBOT_MESSAGE_TOO_LONG',
-  // docs/14-API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
+  // docs/API_CONTRACTS.md Chatbot Widget: "404 — ... sessionId doesn't belong to this tenant".
   CHATBOT_SESSION_NOT_FOUND: 'PLATFORM_CHATBOT_SESSION_NOT_FOUND',
-  // LeadFormConfig.updateQuestions() bounds (UC-037 A1/A2, docs/02-DOMAIN_MODEL.md § LeadFormConfig).
+  // LeadFormConfig.updateQuestions() bounds (UC-037 A1/A2, docs/DOMAIN_MODEL.md § LeadFormConfig).
   LEAD_FORM_QUESTION_LIMIT_REACHED: 'PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED',
   LEAD_FORM_QUESTION_OPTIONS_INVALID: 'PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID',
   // Defensive integrity check — two questions sharing the same client-assigned id in one save.
   LEAD_FORM_QUESTION_DUPLICATE_ID: 'PLATFORM_LEAD_FORM_QUESTION_DUPLICATE_ID',
-  // M20-S02 — Lead Form submission rate-limit (docs/21-TENANTS_SETTINGS_SCHEMA.md §8). Covers
+  // M20-S02 — Lead Form submission rate-limit (docs/TENANTS_SETTINGS_SCHEMA.md §8). Covers
   // both the tenant-wide daily cap and the per-IP daily cap — same "come back tomorrow" outcome
   // from the submitter's perspective, matching CHATBOT_DAILY_CAP_REACHED's own grouping.
   LEAD_FORM_DAILY_CAP_REACHED: 'PLATFORM_LEAD_FORM_DAILY_CAP_REACHED',
   // M20-S05 — the public GET/POST lead-form endpoints 404 when the LEAD_FORM module is absent or
-  // disabled in the tenant's hotsite layout (docs/14-API_CONTRACTS.md § Lead Form Widget).
+  // disabled in the tenant's hotsite layout (docs/API_CONTRACTS.md § Lead Form Widget).
   LEAD_FORM_NOT_ENABLED: 'PLATFORM_LEAD_FORM_NOT_ENABLED',
   // M20-S06 — GET .../submissions/:id when the id doesn't exist or belongs to a different tenant
-  // (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
+  // (docs/API_CONTRACTS.md § Leads Submissions (Admin)).
   LEAD_FORM_SUBMISSION_NOT_FOUND: 'PLATFORM_LEAD_FORM_SUBMISSION_NOT_FOUND',
   // M20-S08 — mirrors HOTSITE_CONCURRENT_MODIFICATION's own version-guarded UPDATE (same gap,
   // caught the same way, on the sibling aggregate PATCH /v1/tenants/hotsite now also writes in

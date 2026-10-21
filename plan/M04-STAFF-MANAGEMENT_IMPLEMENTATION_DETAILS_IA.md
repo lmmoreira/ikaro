@@ -50,7 +50,7 @@
 | TypeORM notification repo | `apps/backend/src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts` |
 | Notification migration | `apps/backend/src/contexts/notification/infrastructure/migrations/1748000000010-CreateNotificationLogs.ts` |
 | NotificationModule | `apps/backend/src/contexts/notification/notification.module.ts` |
-| BFF staff controller | `apps/bff/src/staff/staff.controller.ts` |
+| BFF staff controller | `apps/bff/src/features/staff/staff.controller.ts` |
 | BFF active-staff guard | `apps/bff/src/shared/guards/active-staff.guard.ts` |
 | InMemoryNotificationDispatcher | `apps/backend/src/test/infrastructure/in-memory-notification-dispatcher.ts` |
 | InMemoryNotificationLogRepository | `apps/backend/src/test/repositories/notification/in-memory-notification-log.repository.ts` |

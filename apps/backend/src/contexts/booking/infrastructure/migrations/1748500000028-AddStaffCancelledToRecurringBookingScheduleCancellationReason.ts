@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // M23-S28 — a schedule ended by staff on the customer's behalf is recorded as STAFF_CANCELLED
-// instead of CUSTOMER_CANCELLED (docs/04-USE_CASES.md UC-070 A2), so the cancellation reason and
+// instead of CUSTOMER_CANCELLED (docs/USE_CASES.md UC-070 A2), so the cancellation reason and
 // the `endedBy` of RecurringBookingScheduleEnded agree.
 //
 // Existing rows are left as they are: a CANCELLED/CUSTOMER_CANCELLED row cannot be told apart

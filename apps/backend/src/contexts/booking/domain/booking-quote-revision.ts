@@ -32,7 +32,7 @@ export interface RecordBookingQuoteRevisionInput {
 // Booking-owned child collection (that would load every revision on each Booking read) and not an
 // aggregate root either: it has no behavior, invariants or domain events of its own, so it extends
 // no base class. Source-exclusive with the (not-yet-reachable) class_session_booking_id column —
-// see docs/13-DATABASE_SCHEMA.md § booking_quote_revisions.
+// see docs/DATABASE_SCHEMA.md § booking_quote_revisions.
 export class BookingQuoteRevision {
   private readonly props: BookingQuoteRevisionProps;
 

@@ -2,7 +2,7 @@ import { QueryFailedError } from 'typeorm';
 import { BookingSlotUnavailableError } from '../../domain/errors/booking-domain.error';
 
 // Mirrors typeorm-booking.persistence-errors.ts's APPROVED_SLOT_EXCLUSION mapping, for the new
-// shared resource_occupancy GIST exclusion constraint (docs/13-DATABASE_SCHEMA.md).
+// shared resource_occupancy GIST exclusion constraint (docs/DATABASE_SCHEMA.md).
 export const RESOURCE_OCCUPANCY_EXCLUSION = 'EX_booking_resource_occupancy_locked_window';
 
 export function rethrowOccupancyInsertError(err: unknown): never {

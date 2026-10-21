@@ -7,7 +7,7 @@
 - **Created**: 2026-10-10
 - **Discovered**: reviewing M23-S39 (staff books on a customer's behalf, PR #586): a staff booking on a closed day returned 201, and probing showed a guest booking does too
 - **Decision status**: Ready for discovery. Story 0 first; Story 1 depends on it; Story 2 depends on Story 0. Each story still begins with `/story-discovery`.
-- **Related**: M23-S18 (the recurring-schedule check this reuses), M23-S39, M23-S33 (the booking-window check this sits beside), M23-S08 (the future-commitment worklist reschedule), UC-001, UC-002, UC-004, UC-069, UC-108, `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy
+- **Related**: M23-S18 (the recurring-schedule check this reuses), M23-S39, M23-S33 (the booking-window check this sits beside), M23-S08 (the future-commitment worklist reschedule), UC-001, UC-002, UC-004, UC-069, UC-108, `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy
 
 ## Problem
 
@@ -28,7 +28,7 @@ Reproduced on 2026-10-10 against a real database (default tenant hours Mon–Fri
 
 The staff route (`POST /bookings/staff`) returned 201 on a closed day as well, with status `APPROVED`. Reschedule (customer and admin) and approve-with-a-new-time go through the same occupancy-only step; no hours or closure reference exists in `reschedule-booking-in-transaction.helpers.ts`, `reschedule-booking-as-customer.use-case.ts`, `reschedule-booking.use-case.ts` or `approve-booking.use-case.ts`. The web submit hook (`useBookingSubmission.ts`) sends the slot chosen earlier and re-fetches only the resource options after an error, so nothing between the page and the database re-checks the schedule.
 
-The rule already exists and is already enforced for one flow: a **recurring schedule** checks working hours and closures when it is requested and again when it is approved (M23-S18, `recurring-booking-schedule-hours.helpers.ts`: `loadHoursScheduleData` + `evaluateHours`, whose verdict per window is `AvailabilityService.windowHoursVerdict` — "the same rule availability applies"). `docs/27-BUSINESS_LOGIC_REFERENCE.md` documents it as "Creation-time checks — hours and closures, occupancy". One-off bookings have only the occupancy half.
+The rule already exists and is already enforced for one flow: a **recurring schedule** checks working hours and closures when it is requested and again when it is approved (M23-S18, `recurring-booking-schedule-hours.helpers.ts`: `loadHoursScheduleData` + `evaluateHours`, whose verdict per window is `AvailabilityService.windowHoursVerdict` — "the same rule availability applies"). `docs/BUSINESS_LOGIC_REFERENCE.md` documents it as "Creation-time checks — hours and closures, occupancy". One-off bookings have only the occupancy half.
 
 ### Why this matters
 The booking page hides closed slots, so the promise "the business is closed then" is kept only by the client. A page open while a manager adds a closure, a hand-built request, or any second client (the staff screen, an integration) can create a booking the business has said it cannot serve. A `PENDING` booking is then in a manager's queue for a time that is closed; a staff booking is `APPROVED` straight away.
@@ -50,7 +50,7 @@ The booking page hides closed slots, so the promise "the business is closed then
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-001, UC-002, UC-108, UC-010 (closures and openings), UC-070 A1; `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy and § Booking Window; `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Business Hours; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, § Choosing a race-condition primitive; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/14-API_CONTRACTS.md` § Booking Requests; `docs/ANTI_PATTERNS.md`
+**Docs to load:** `docs/USE_CASES.md` UC-001, UC-002, UC-108, UC-010 (closures and openings), UC-070 A1; `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy and § Booking Window; `docs/TENANTS_SETTINGS_SCHEMA.md` § Business Hours; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, § Choosing a race-condition primitive; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/API_CONTRACTS.md` § Booking Requests; `docs/ANTI_PATTERNS.md`
 **Dependencies:** none (the recurring check from M23-S18 is already merged)
 **Pattern:** plain composition — one shared pure check (`evaluateHours`) called from the existing `persistRequestedBooking` step, so guest, authenticated and staff creation get it from one place; no new named pattern.
 
@@ -66,7 +66,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 3. **Resource-scoped closures** for a service whose requirements span several resources (a bundle): all considered resources must be open for a bundle, one is enough for `AUTO_ANY` — confirm the recurring per-mode rule applies unchanged.
 
 **Backend use case steps:** the three creation use cases are unchanged; `persistRequestedBooking` gains the hours step between "resolve candidates / lock" and "assert slot free", throwing the new typed errors.
-**Backend HTTP surface:** reuses `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff`; each gains the new refusal in its error list in `docs/14-API_CONTRACTS.md`.
+**Backend HTTP surface:** reuses `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff`; each gains the new refusal in its error list in `docs/API_CONTRACTS.md`.
 **BFF endpoint spec:** none — the BFF forwards the backend problem response unchanged; add the new error blocks to the BFF `.http` file.
 **New migration / i18n keys / env vars / feature flags:** no migration; new error codes in `packages/types/src/error-codes.ts` with entries in **both** `packages/i18n/locales/pt-BR/errors.json` and `packages/i18n/locales/en/errors.json` (the web exhaustiveness test fails otherwise); no env var, no flag.
 
@@ -82,7 +82,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 - `packages/types/src/error-codes.ts`, `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json` (modify)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-by-staff.controller.integration.spec.ts`, `booking.controller.integration.spec.ts` (modify — the closed-day and off-hours scenarios)
 - `apps/backend/http/booking/bookings.http`, `apps/bff/http/bookings/bookings.http` (modify)
-- `docs/04-USE_CASES.md`, `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify)
+- `docs/USE_CASES.md`, `docs/API_CONTRACTS.md`, `docs/BUSINESS_LOGIC_REFERENCE.md` (modify)
 
 **Acceptance criteria — product:**
 - [ ] A guest, a customer and a staff member cannot create a booking for a time the business is closed (day of week, full-day closure, partial closure) or outside its working hours; the response says why.
@@ -112,7 +112,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
-**Docs to load:** `docs/04-USE_CASES.md` UC-004, UC-069 (reschedule), UC-073; `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy, § Booking Window and the future-commitment worklist section; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/14-API_CONTRACTS.md` § Booking lifecycle; `docs/ANTI_PATTERNS.md`
+**Docs to load:** `docs/USE_CASES.md` UC-004, UC-069 (reschedule), UC-073; `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy, § Booking Window and the future-commitment worklist section; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/API_CONTRACTS.md` § Booking lifecycle; `docs/ANTI_PATTERNS.md`
 **Dependencies:** TD50 Story 0 (the shared check and its errors)
 **Pattern:** plain composition — the same `schedule-hours.helpers.ts` call from the shared reschedule transaction helper and from the approval step; no new pattern.
 
@@ -136,7 +136,7 @@ Apply Story 0's check wherever a booking's start changes after creation: the cus
 - `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ spec) (modify — owns the reschedule routes; pass the tenant business hours)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — reschedule and approve scenarios)
 - `apps/backend/http/booking/bookings.http`, `apps/bff/http/bookings/bookings.http` (modify)
-- `docs/04-USE_CASES.md`, `docs/14-API_CONTRACTS.md`, `docs/27-BUSINESS_LOGIC_REFERENCE.md` (modify)
+- `docs/USE_CASES.md`, `docs/API_CONTRACTS.md`, `docs/BUSINESS_LOGIC_REFERENCE.md` (modify)
 
 **Acceptance criteria — product:**
 - [ ] A customer or staff member cannot reschedule a booking to a closed or off-hours time; the booking keeps its old time.
@@ -160,7 +160,7 @@ Apply Story 0's check wherever a booking's start changes after creation: the cus
 
 **Agent:** web-ts
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`
 **Dependencies:** TD50 Story 0; TD50 Story 1 for the reschedule screen
 **Pattern:** plain composition — extends the existing submit-error routing table (`resolveBookingSubmitErrorRoute` in `booking-steps.ts`); no new pattern.
 

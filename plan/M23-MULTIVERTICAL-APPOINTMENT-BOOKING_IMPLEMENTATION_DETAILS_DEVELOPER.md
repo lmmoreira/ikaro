@@ -1,6 +1,6 @@
 # M23 — Multi-Vertical Scheduling: Appointment Booking & Extensions — Implementation Details (Developer)
 
-This document explains what M23 built, why it was built that way, and which mistakes are worth not repeating. For file paths and tables see the IA twin (`…_IMPLEMENTATION_DETAILS_IA.md`); for the algorithms see `docs/27-BUSINESS_LOGIC_REFERENCE.md`; for locks see `docs/28-LOCK_CATALOG.md`.
+This document explains what M23 built, why it was built that way, and which mistakes are worth not repeating. For file paths and tables see the IA twin (`…_IMPLEMENTATION_DETAILS_IA.md`); for the algorithms see `docs/BUSINESS_LOGIC_REFERENCE.md`; for locks see `docs/LOCK_CATALOG.md`.
 
 ---
 
@@ -88,5 +88,5 @@ S33 centralized "how far ahead and how soon" in one helper: a per-service overri
 ## 7. Known gaps
 
 - A cancelled recurring schedule shows only "Cancelada" — the read carries no reason.
-- `hold_expires_at` on a pending `HOLD` was written for a while with nothing enforcing it; TD51 added the enforcement (`docs/27`): a manual-approval request on a resource-scoped service is now cancelled by the system once its hold passes, and staff can no longer approve it after that.
+- `hold_expires_at` on a pending `HOLD` was written for a while with nothing enforcing it; TD51 added the enforcement (`docs/BUSINESS_LOGIC_REFERENCE`): a manual-approval request on a resource-scoped service is now cancelled by the system once its hold passes, and staff can no longer approve it after that.
 - M24 (classes and sessions) reuses `booking_quote_revisions` and the resource-resolution precedent, and owns its own rolling session generation — M23 deliberately left no generation pattern to reuse.

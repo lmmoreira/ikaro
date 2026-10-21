@@ -5,15 +5,15 @@
 Built end to end by M19-S11 (2026-08-17) — the widget, its client fetchers, the fake/noop LLM
 adapter, and page.tsx registration all ship in that story; see the File map below for exact
 status per file. Promoted into canonical docs from the chatbot discovery process
-(`docs/04-USE_CASES.md` UC-033/UC-034, `docs/05-BOUNDED_CONTEXTS.md`, `docs/13-DATABASE_SCHEMA.md`,
-`docs/14-API_CONTRACTS.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT,
-`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) via `/discovery-to-milestone` on 2026-08-08.
+(`docs/USE_CASES.md` UC-033/UC-034, `docs/BOUNDED_CONTEXTS.md`, `docs/DATABASE_SCHEMA.md`,
+`docs/API_CONTRACTS.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT,
+`docs/TENANTS_SETTINGS_SCHEMA.md` §7) via `/discovery-to-milestone` on 2026-08-08.
 
 ---
 
 ## File map
 
-Paths below follow this repo's domain-slice conventions (`docs/24-BFF_ARCHITECTURE.md`,
+Paths below follow this repo's domain-slice conventions (`docs/BFF_ARCHITECTURE.md`,
 `docs/REPOSITORY_STRUCTURE.md`). All rows are now built — kept for the implementation-decision
 context each row's Action column records.
 
@@ -21,18 +21,18 @@ context each row's Action column records.
 |---|---|---|
 | `apps/web/shells/hotsite/components/ChatbotWidget.tsx` | ✅ Done (M19-S11) | Bubble/inline widget, owns pre-flight check + conversation state (checking/idle/sending/interrupted) |
 | `apps/web/shells/hotsite/components/ChatbotWidget.spec.tsx` | ✅ Done (M19-S11) | Shipped in the same commit (CLAUDE.md §7 — every new `shells/hotsite/components/**` ships its spec) |
-| `apps/web/features/platform/hotsite/api/chatbot.ts` | ✅ Done (M19-S11) | Client-only fetchers using `bffClient` with an explicit `X-Tenant-Slug` header, mirroring `apps/web/features/platform/hotsite/api/services.ts`'s existing `fetchServicesClient()` pattern exactly. Story-discovery's first pass proposed two new Route Handler proxies (neither `bffPublicFetch` nor `bffClient` looked like an exact fit against `docs/24`'s abstract decision table); corrected during implementation once `fetchServicesClient()` was found as a working precedent for this exact case — `bffClient`'s `/v1` baseURL already reaches `/public/...` BFF routes via the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`, since the BFF's `setGlobalPrefix('v1')` makes them live at `/v1/public/...`). No new Route Handlers needed. |
-| `apps/web/features/platform/hotsite/module-schemas.ts` | ✅ Done (M19-S11) | Added `ChatbotModuleDataSchema`, registered in `MODULE_DATA_SCHEMAS.CHATBOT` (`docs/15` §7 step 3 — mandatory before any module type ships) |
+| `apps/web/features/platform/hotsite/api/chatbot.ts` | ✅ Done (M19-S11) | Client-only fetchers using `bffClient` with an explicit `X-Tenant-Slug` header, mirroring `apps/web/features/platform/hotsite/api/services.ts`'s existing `fetchServicesClient()` pattern exactly. Story-discovery's first pass proposed two new Route Handler proxies (neither `bffPublicFetch` nor `bffClient` looked like an exact fit against `docs/BFF_ARCHITECTURE`'s abstract decision table); corrected during implementation once `fetchServicesClient()` was found as a working precedent for this exact case — `bffClient`'s `/v1` baseURL already reaches `/public/...` BFF routes via the existing generic same-origin gateway (`apps/web/app/v1/[...path]/route.ts`, since the BFF's `setGlobalPrefix('v1')` makes them live at `/v1/public/...`). No new Route Handlers needed. |
+| `apps/web/features/platform/hotsite/module-schemas.ts` | ✅ Done (M19-S11) | Added `ChatbotModuleDataSchema`, registered in `MODULE_DATA_SCHEMAS.CHATBOT` (`docs/HOTSITE_DYNAMIC_ARCHITECTURE` §7 step 3 — mandatory before any module type ships) |
 | `apps/bff/src/features/platform/platform.public.controller.ts` | ✅ Done (M19-S09) | `GET chatbot/status` / `POST chatbot/messages` added directly to the existing `PlatformPublicController` — **not** a new nested `chatbot/public/chatbot.public.controller.ts` as originally predicted below; no domain nests controllers below the domain folder |
-| `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (behavior in `docs/04-USE_CASES.md` UC-033) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
+| `apps/bff/src/features/platform/chatbot.mapper.ts` | ✅ Done (M19-S09) | `buildSystemPrompt()` (behavior in `docs/USE_CASES.md` UC-033) — flat file directly in `features/platform/`, not under a `chatbot/` subfolder as originally predicted |
 | `apps/bff/src/features/platform/chatbot-context.ts` | ✅ Done (M19-S09) | Merged `getBusinessContext()` (services + business info + hours in one call) — flat file, not under a `chatbot/` subfolder; the original two-function split (`getBusinessInfoContext`/`getKnowledgeTextContext`) was consolidated during S09 to avoid a redundant duplicate fetch (PR #373 review) |
-| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ✅ Done (M19-S02) | `ILlmProvider`, `ChatCompletionRequest`/`Result` (`docs/14-API_CONTRACTS.md` § Chatbot Widget) |
+| `apps/backend/src/contexts/platform/application/ports/llm-provider.port.ts` | ✅ Done (M19-S02) | `ILlmProvider`, `ChatCompletionRequest`/`Result` (`docs/API_CONTRACTS.md` § Chatbot Widget) |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openrouter-llm.adapter.ts` | ✅ Done (M19-S02) | Primary, DeepSeek V4 Flash 0731, always `reasoning: { effort: "none" }` |
 | `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/fake-llm.adapter.ts` | ✅ Done (M19-S11) | DI-registered fake/noop `ILlmProvider`, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`. Resolved at M19-S11 story-discovery: the AC requiring a real Playwright E2E flow (widget → BFF → backend → adapter) against a non-billed response has no existing infrastructure to satisfy it — the existing `FakeLlmProviderBuilder` is Jest-only, not DI-registered. Mirrors the `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, never the production default) — including an `APP_ENV`-gated guard added during PR #385 review rejecting `fake` outside `local`, mirroring `EMAIL_ADAPTER=mailhog`'s own guard exactly (`apps/backend/src/config/env.validation.ts`) |
 | Chatbot backend controller | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
-| Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/13-DATABASE_SCHEMA.md` |
+| Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/DATABASE_SCHEMA.md` |
 
 **Resolved at M19-S11 story-discovery (2026-08-17):** `sessionId` **and** the visible `messages` transcript
 both persist to `sessionStorage`, so a reload restores the visible conversation client-side — closes the
@@ -58,7 +58,7 @@ shared hotsite file, now additionally showing the collapsed chat bubble (bottom-
 
 ### 01-active-chat.html — `ChatbotWidget` (variant: bubble, state: active)
 
-**Props:** `data: ChatbotModuleData, slug, business, tenantName` (`apps/web/shells/hotsite/components/ChatbotWidget.tsx`) — `data` is the `ChatbotModuleData` (`variant`, `accentColor`, `botName?`, `welcomeMessage?`, …; `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) read from the cached hotsite manifest; `slug`, `business` and `tenantName` are passed in by the hotsite shell.
+**Props:** `data: ChatbotModuleData, slug, business, tenantName` (`apps/web/shells/hotsite/components/ChatbotWidget.tsx`) — `data` is the `ChatbotModuleData` (`variant`, `accentColor`, `botName?`, `welcomeMessage?`, …; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT) read from the cached hotsite manifest; `slug`, `business` and `tenantName` are passed in by the hotsite shell.
 
 **Internal state:** `sessionId: string | null` and `messages: ChatTurn[]` (each `ChatTurn` also
 carries a stable `id` for React's key prop, added during PR #385 review — SonarCloud S6479) are
@@ -78,7 +78,7 @@ POST /public/platform/chatbot/messages
   503: LLM provider call failed mid-conversation — widget moves to 'interrupted' (01b)
   404: tenant slug not found, or sessionId doesn't belong to this tenant
 ```
-Full contract: `docs/14-API_CONTRACTS.md` § Chatbot Widget.
+Full contract: `docs/API_CONTRACTS.md` § Chatbot Widget.
 
 ### 01b-interrupted.html — `ChatbotWidget` (state: interrupted)
 
@@ -125,7 +125,7 @@ Renders as its own section in manifest layout order instead of a fixed floating 
 
 All defaults above are fixed platform constants, individually overridable per tenant
 (`tenant.settings.chatbot?.X ?? DEFAULT_X`) — never tenant-editable through this widget or any admin
-form. Full values and rationale: `docs/21-TENANTS_SETTINGS_SCHEMA.md` §7.
+form. Full values and rationale: `docs/TENANTS_SETTINGS_SCHEMA.md` §7.
 
 ---
 
@@ -149,8 +149,8 @@ interrupted                                              // terminal for this se
   check and may start a brand-new session if caps have since cleared (e.g. next day for the daily
   cap), but there is no in-widget "retry" action.
 
-Per `docs/04-USE_CASES.md` UC-033/UC-034 — full detail (five pre-flight conditions, cap-rejection
-error codes) in the UC text and `docs/14-API_CONTRACTS.md` § Chatbot Widget.
+Per `docs/USE_CASES.md` UC-033/UC-034 — full detail (five pre-flight conditions, cap-rejection
+error codes) in the UC text and `docs/API_CONTRACTS.md` § Chatbot Widget.
 
 ---
 

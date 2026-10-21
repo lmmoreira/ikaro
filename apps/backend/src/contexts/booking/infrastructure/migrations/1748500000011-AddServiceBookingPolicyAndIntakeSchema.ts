@@ -3,7 +3,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 // M22-S02 — Service booking-policy/duration/pricing columns (UC-055), the versioned
 // service_booking_intake_schema + booking_attendees tables (UC-054), and the matching
 // schema-versioning columns on bookings (nothing writes them until M23's booking flow exists —
-// see docs/13-DATABASE_SCHEMA.md's own note on this). Sequenced after S01's migration (both
+// see docs/DATABASE_SCHEMA.md's own note on this). Sequenced after S01's migration (both
 // modify services).
 export class AddServiceBookingPolicyAndIntakeSchema1748500000011 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
@@ -92,7 +92,7 @@ export class AddServiceBookingPolicyAndIntakeSchema1748500000011 implements Migr
         ADD COLUMN IF NOT EXISTS "consent_accepted_at" TIMESTAMPTZ,
         ADD COLUMN IF NOT EXISTS "consent_version" INTEGER
     `);
-    // NOT VALID + a separate VALIDATE CONSTRAINT (expand/contract, docs/13-DATABASE_SCHEMA.md) —
+    // NOT VALID + a separate VALIDATE CONSTRAINT (expand/contract, docs/DATABASE_SCHEMA.md) —
     // ADD CONSTRAINT alone takes ACCESS EXCLUSIVE for the full existing-row scan; NOT VALID skips
     // that scan (ACCESS EXCLUSIVE held only for the instant catalog change), and the follow-up
     // VALIDATE CONSTRAINT takes the much weaker SHARE UPDATE EXCLUSIVE, which still allows

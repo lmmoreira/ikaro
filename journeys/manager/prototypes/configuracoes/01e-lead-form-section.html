@@ -41,7 +41,7 @@
     shown here (an excerpt, not the full 8-section form) — same content otherwise as
     01-settings-form.html/01d-chatbot-section.html, not repeated to avoid drift between copies.
     ACTION: PATCH /tenants/settings (leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay})
-    All three fields are tenant-editable (docs/21-TENANTS_SETTINGS_SCHEMA.md §8, post-review
+    All three fields are tenant-editable (docs/TENANTS_SETTINGS_SCHEMA.md §8, post-review
     redesign 2026-08-24): retentionMonths integer 1-24 default 6; maxSubmissionsPerDay integer
     1-1000 default 100; maxSubmissionsPerIpPerDay integer 1-100 default 3. An earlier draft
     treated the two caps as fixed platform defaults (Ikaro-only override, copying Chatbot's own
@@ -52,7 +52,7 @@
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — excerto do formulário: nova seção "Formulário de contato" (GAP, ver docs/21-TENANTS_SETTINGS_SCHEMA.md §8) — demais seções omitidas, ver 01-settings-form.html/01d-chatbot-section.html
+    Protótipo — excerto do formulário: nova seção "Formulário de contato" (GAP, ver docs/TENANTS_SETTINGS_SCHEMA.md §8) — demais seções omitidas, ver 01-settings-form.html/01d-chatbot-section.html
   </div>
 
   <div class="dashboard-topbar">
@@ -101,7 +101,7 @@
           ⋯ demais seções (Geral, Agendamento, Fidelidade, Horário, Contato, Chatbot, Localização) omitidas neste excerto — ver <a href="01-settings-form.html">01-settings-form.html</a> / <a href="01d-chatbot-section.html">01d-chatbot-section.html</a> ⋯
         </div>
 
-        <!-- Formulário de contato — NEW (GAP, docs/21-TENANTS_SETTINGS_SCHEMA.md §8) -->
+        <!-- Formulário de contato — NEW (GAP, docs/TENANTS_SETTINGS_SCHEMA.md §8) -->
         <div class="section-card" style="margin-bottom:0;">
           <div class="section-card-title">Formulário de contato</div>
           <div class="section-card-sub">Retenção de envios e limites de proteção contra abuso</div>

@@ -1,6 +1,6 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 
-// docs/13-DATABASE_SCHEMA.md § booking.booking_quote_revisions (M23 Cluster 3) — append-only,
+// docs/DATABASE_SCHEMA.md § booking.booking_quote_revisions (M23 Cluster 3) — append-only,
 // source-exclusive across the two booking families (appointment reschedule now; class attendee
 // removal once M24 ships). classSessionBookingId stays unreachable (always null) until then.
 @Entity('booking_quote_revisions', { schema: 'booking' })

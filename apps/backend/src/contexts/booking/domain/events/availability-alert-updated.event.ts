@@ -6,7 +6,7 @@ interface AvailabilityAlertUpdatedData extends Record<string, unknown> {
   serviceId: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § AvailabilityAlertUpdated (UC-076) — audit-log consumer only (M23-S06).
+// docs/DOMAIN_EVENTS.md § AvailabilityAlertUpdated (UC-076) — audit-log consumer only (M23-S06).
 export class AvailabilityAlertUpdated extends DomainEvent<AvailabilityAlertUpdatedData> {
   readonly eventVersion = 1;
   readonly data: AvailabilityAlertUpdatedData;

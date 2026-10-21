@@ -2,7 +2,7 @@ import type { HotsiteLeadFormAnswerRequest, HotsiteLeadFormConfigResponse } from
 import { bffClient } from '@/shared/lib/api/bff-client';
 
 // Client-only — LeadFormWidget.tsx's question-catalog fetch, a live, guest-facing read that
-// needs no identity (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM). Same pattern as
+// needs no identity (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § LEAD_FORM). Same pattern as
 // fetchChatbotStatusClient() (./chatbot.ts): bffClient's /v1 baseURL is proxied by the existing
 // generic same-origin gateway straight through to the BFF, whose setGlobalPrefix('v1') makes
 // /public/platform/lead-form/* live at /v1/public/platform/lead-form/*.

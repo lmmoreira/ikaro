@@ -6,7 +6,7 @@ import { AddressProps } from '../../../../shared/value-objects/address';
 @Index(['tenantId', 'status'])
 @Index(['tenantId', 'customerId'])
 @Index(['tenantId', 'scheduledAt'])
-// occurrence_start (docs/13-DATABASE_SCHEMA.md's own wording) is this same booking's own
+// occurrence_start (docs/DATABASE_SCHEMA.md's own wording) is this same booking's own
 // scheduledAt — no separate column: a generated occurrence's Booking row *is* the occurrence.
 @Index(['tenantId', 'recurringScheduleId', 'scheduledAt'], {
   unique: true,
@@ -139,7 +139,7 @@ export class BookingEntity {
   @Column({ name: 'updated_at', type: 'timestamptz' })
   updatedAt!: Date;
 
-  // M22-S02 — schema-only in this story (docs/13-DATABASE_SCHEMA.md § Rules for bookings, added
+  // M22-S02 — schema-only in this story (docs/DATABASE_SCHEMA.md § Rules for bookings, added
   // M22 Cluster 2): nothing writes these columns until M23's booking flow exists to snapshot a
   // service's effective intake schema/consent at submission time.
   @Column({ name: 'intake_schema_version', type: 'int', nullable: true })
@@ -162,7 +162,7 @@ export class BookingEntity {
   // pattern would be same-context here, but the referenced table doesn't exist until this same
   // migration creates it in the same transaction, so a literal FK constraint is added by the
   // migration's own DDL instead of declared here (matches recurring_schedule_id's own
-  // docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules).
+  // docs/DATABASE_SCHEMA.md § booking.recurring_booking_schedules).
   @Column({ name: 'recurring_schedule_id', type: 'uuid', nullable: true })
   recurringScheduleId!: string | null;
 

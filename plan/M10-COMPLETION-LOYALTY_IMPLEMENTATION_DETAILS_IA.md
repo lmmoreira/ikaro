@@ -36,7 +36,7 @@
 | Migration 1 (entries only — the `processed_events` block this migration originally also created was removed when migration history was squashed pre-production, TD24-S04 D16) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries.ts` |
 | Migration 2 (balances + redemptions + expiry_log) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog.ts` |
 | `LoyaltyModule` | `apps/backend/src/contexts/loyalty/loyalty.module.ts` |
-| BFF loyalty controller | `apps/bff/src/loyalty/loyalty.controller.ts` |
+| BFF loyalty controller | `apps/bff/src/features/loyalty/loyalty.controller.ts` |
 | Loyalty error mapper | `apps/backend/src/contexts/loyalty/infrastructure/http/loyalty-error.mapper.ts` |
 | HTTP file (customer/admin routes) | `apps/backend/http/loyalty/loyalty.http` |
 | HTTP file (expiry trigger) | `apps/backend/http/loyalty/cron-loyalty-expiry.http` |
@@ -92,7 +92,7 @@ processed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 ```
 
 ### `loyalty.processed_events` — never existed (migration history squashed pre-production, TD24-S04 D16)
-Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instead — see `docs/13-DATABASE_SCHEMA.md`'s `Schema: shared` section for its shape.
+Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instead — see `docs/DATABASE_SCHEMA.md`'s `Schema: shared` section for its shape.
 
 ---
 
@@ -117,7 +117,7 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 `ServiceCatalogAdapter` queries `booking.services` table via `@InjectDataSource()` and raw TypeORM `DataSource`. Same pattern for `INotificationServicePort`. Never import a repository token from another context — context isolation invariant.
 
 ### ServicePointsEarned emitted once per booking, inside txManager.run() (corrected — was originally built as one event per line, published after commit; both since changed)
-One `ServicePointsEarned` event per booking (not per line), carrying a `lines[]` summary array of all entries earned in that booking (see the event's current payload shape in `docs/03-DOMAIN_EVENTS.md`). `LoyaltyEntry`/`LoyaltyBalance` aren't among the auto-draining aggregates (`Booking`/`Staff`/`Tenant`/`LeadFormSubmission`), so the use case publishes directly via `OUTBOX_PUBLISHER` as the last call **inside** the same `txManager.run()` block as the entry/balance/inbox writes — not a post-commit flush. Publishing inside the transaction closed a real bug (TD24-S03, "the loyalty re-emit"): a crash between commit and a post-commit publish used to lose `ServicePointsEarned` forever, since `hasBeenProcessed` already short-circuits any `BookingCompleted` redelivery. `currentBalance` field added to the event so the notification use case doesn't need a second DB query for the balance.
+One `ServicePointsEarned` event per booking (not per line), carrying a `lines[]` summary array of all entries earned in that booking (see the event's current payload shape in `docs/DOMAIN_EVENTS.md`). `LoyaltyEntry`/`LoyaltyBalance` aren't among the auto-draining aggregates (`Booking`/`Staff`/`Tenant`/`LeadFormSubmission`), so the use case publishes directly via `OUTBOX_PUBLISHER` as the last call **inside** the same `txManager.run()` block as the entry/balance/inbox writes — not a post-commit flush. Publishing inside the transaction closed a real bug (TD24-S03, "the loyalty re-emit"): a crash between commit and a post-commit publish used to lose `ServicePointsEarned` forever, since `hasBeenProcessed` already short-circuits any `BookingCompleted` redelivery. `currentBalance` field added to the event so the notification use case doesn't need a second DB query for the balance.
 
 ### Clamped decrement in ExpirePointsUseCase
 If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redemptions since entries were created), the use case decrements `Math.min(expiredPoints, balance.currentPoints)` — clamps to 0 rather than throwing `LoyaltyInsufficientPointsError`. Entry IDs are still marked processed.

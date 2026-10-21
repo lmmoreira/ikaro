@@ -27,7 +27,7 @@ interface LeadFormAdvancedFiltersProps {
 }
 
 // One row per `filterOptionLabels` entry is the realistic ceiling — MAX_FILTER_ROWS (5) is a
-// separate, smaller cap on the request itself (docs/14-API_CONTRACTS.md), enforced here too so
+// separate, smaller cap on the request itself (docs/API_CONTRACTS.md), enforced here too so
 // "+ Adicionar filtro" never builds a request the backend will reject outright.
 export function LeadFormAdvancedFilters({
   rows,

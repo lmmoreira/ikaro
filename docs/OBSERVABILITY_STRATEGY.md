@@ -29,7 +29,7 @@ backend / BFF process
 | Variable | Default | Effect |
 |---|---|---|
 | `APP_ENV` | `local` | `local` turns the OTel SDK off (so tests and local dev make no export attempts); `staging`/`production` turn it on. Also sets the `deployment.environment.name` resource attribute. |
-| `OTEL_SDK_DISABLED` | unset | When set, always wins over the `APP_ENV` default, in either direction. |
+| `OTEL_SDK_DISABLED` | unset | When set, always wins over the `APP_ENV` default, in either direction. Only the exact string `true` disables the SDK; any other set value (`false`, `1`, empty) enables it (`packages/observability/src/otel-sdk-disabled.ts`). |
 | `OTEL_TRACES_SAMPLER_ARG` | `1.0` | Sampling ratio. Prod sets `0.1`; staging leaves the default (100%). Never branch on `NODE_ENV` for this: both cloud environments build with `NODE_ENV=production`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` (and `_TRACES_` / `_METRICS_` variants) | `http://localhost:4318/v1/traces` and `/v1/metrics` | Where the SDK sends OTLP. The default is the sidecar, which shares the instance's network namespace. Terraform sets none of these. |
 | `SERVICE_NAME` | `ikaro-backend` / `ikaro-bff` | `service.name` resource attribute. |
@@ -97,7 +97,7 @@ Pass extra fields through the `LogContext` argument. They are spread first, so t
 | collector stderr text `Exporting failed. Dropping data.` | `collector_export_failure` metric and alert |
 | `severity = ERROR` on any Cloud Run revision | `error_count` metric and the ERROR-burst alert |
 
-**Lock contention.** `runInNewTransaction` writes a `warn` "Transaction aborted by lock contention" with a `sqlState` field (`55P03` lock wait over the 2 s timeout, `40P01` deadlock victim) whenever a transaction loses a lock fight (M23-S49). `tenantId` and `correlationId` are added when it happens inside an HTTP request and are absent in an event handler or job; the SQL text and lock key are never logged. The `error.code` span attribute `AUTH_TRANSACTION_CONTENTION` is set by the shared error filter. A rising count is the signal for a slow lock holder or a lock-order cycle (`docs/28-LOCK_CATALOG.md` § 6).
+**Lock contention.** `runInNewTransaction` writes a `warn` "Transaction aborted by lock contention" with a `sqlState` field (`55P03` lock wait over the 2 s timeout, `40P01` deadlock victim) whenever a transaction loses a lock fight (M23-S49). `tenantId` and `correlationId` are added when it happens inside an HTTP request and are absent in an event handler or job; the SQL text and lock key are never logged. The `error.code` span attribute `AUTH_TRANSACTION_CONTENTION` is set by the shared error filter. A rising count is the signal for a slow lock holder or a lock-order cycle (`docs/LOCK_CATALOG.md` § 6).
 
 **Never log** credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content or other secrets. Redact query strings the same way span attributes are redacted (`otel-query-redaction.ts`).
 
@@ -179,6 +179,6 @@ To debug telemetry locally, run a collector with `infra/docker/otel-collector/co
 - Instrumentation invariants and incident lessons: `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling
 - Terraform monitoring resources and their tests: `infra/terraform/modules/monitoring/`
 - Alert verification procedure: `docs/RUNBOOKS.md` § Simulate an incident (verify alerts)
-- Deployment lifecycle: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
+- Deployment lifecycle: `docs/RELEASE_LIFECYCLE_OPERATIONS.md`
 - Design decisions D9 and the vendor-lock-in guardrails: `plan/M17-CLOUD-DEPLOY.md`
 - Current workflows: `.github/workflows/`

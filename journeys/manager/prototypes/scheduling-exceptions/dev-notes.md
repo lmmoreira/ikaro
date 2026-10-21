@@ -2,7 +2,7 @@
 
 ## Overview
 
-A MANAGER-only worklist at `/dashboard/scheduling-exceptions` for `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). Built in `M23-S14` (backend + BFF: `M23-S08`). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/02-DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
+A MANAGER-only worklist at `/dashboard/scheduling-exceptions` for `M23-S14`, backed by `M23-S08` (backend + BFF; notifications are `M23-S23`). Built in `M23-S14` (backend + BFF: `M23-S08`). An entry is one **future booking** affected by a deactivated resource (directly, or because its staff member was deactivated); the manager resolves entries **one by one or many at once**. See `docs/DOMAIN_MODEL.md` § `FutureCommitmentException` and `../../scheduling-exceptions.md` for the decisions.
 
 ## Design system — what the prototypes reuse (redrawn 2026-10-14)
 
@@ -49,7 +49,7 @@ The first drawings offered "Manter" (KEEP) and "Dispensar" (dismiss). Both leave
 | `apps/bff/http/bookings/scheduling-exceptions.http`, `apps/backend/http/booking/scheduling-exceptions.http` | ✅ Built (count route added) |
 | `apps/web/e2e/scheduling-exceptions.spec.ts` (+ `e2e/helpers/scheduling-exceptions.ts`) | ✅ Built |
 
-## BFF calls (live since `M23-S08` — contract per `docs/14-API_CONTRACTS.md`)
+## BFF calls (live since `M23-S08` — contract per `docs/API_CONTRACTS.md`)
 
 ```
 GET /v1/scheduling-exceptions/count        (NEW at S14 — MANAGER) → { count: number }   the sidebar badge

@@ -44,7 +44,7 @@ function BrandMark({
 
 // Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
 // render forces Next.js to treat the whole route as dynamic per-request, silently disabling the
-// ISR/CDN cache the hotsite depends on (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6).
+// ISR/CDN cache the hotsite depends on (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §6).
 // /api/session is a thin same-origin proxy to the BFF's GET /auth/session, which does the actual
 // staff-vs-customer branching (BFF orchestration, not web) — staff/customer roles are mutually
 // exclusive by construction, so at most one of the two is ever non-null for a real session.

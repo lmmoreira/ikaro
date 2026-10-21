@@ -31,8 +31,8 @@
 | `UpdateCustomerProfileUseCase` | `apps/backend/src/contexts/customer/application/use-cases/update-customer-profile.use-case.ts` |
 | `CustomerController` (backend) | `apps/backend/src/contexts/customer/infrastructure/controllers/customer.controller.ts` |
 | `CustomerModule` | `apps/backend/src/contexts/customer/customer.module.ts` |
-| `BookingsController` (BFF) | `apps/bff/src/bookings/bookings.controller.ts` |
-| `CustomersController` (BFF) | `apps/bff/src/customers/customers.controller.ts` |
+| `BookingsController` (BFF) | `apps/bff/src/features/booking/bookings.controller.ts` |
+| `CustomersController` (BFF) | `apps/bff/src/features/customer/customers.controller.ts` |
 | Migrations | `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts` + `…015-AddBookingVersion.ts` |
 | `createBookingIntegrationApp()` | `apps/backend/src/test/utils/booking-integration-app.ts` |
 | `BookingBuilder` | `apps/backend/src/test/builders/booking/booking.builder.ts` |

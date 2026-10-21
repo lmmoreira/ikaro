@@ -1,6 +1,6 @@
 # Tenant Isolation Strategy - Ikaro
 
-> **When to load:** touching anything that must stay tenant-scoped: the staff and customer tenant model, data, communication and infrastructure isolation, or tenant timezone handling; settings keys are in `docs/21-TENANTS_SETTINGS_SCHEMA.md`, schema-level rules in `docs/13-DATABASE_SCHEMA.md`.
+> **When to load:** touching anything that must stay tenant-scoped: the staff and customer tenant model, data, communication and infrastructure isolation, or tenant timezone handling; settings keys are in `docs/TENANTS_SETTINGS_SCHEMA.md`, schema-level rules in `docs/DATABASE_SCHEMA.md`.
 > **Tags:** tenancy, backend, database
 
 ## Overview
@@ -16,13 +16,13 @@ We distinguish between two types of users to balance flexibility for customers a
 ### **Customers: Multi-Tenant ✓**
 - **Person:** `maria@email.com` can use multiple car wash companies.
 - **Isolation:** Each company = separate `Customer` record + separate `Loyalty` record.
-- **Login:** If Maria has bookings in 2+ tenants, she sees a **Tenant Selection** screen after Google OAuth.
+- **Login:** Every customer login starts from one tenant's hotsite, which supplies the tenant slug, so login always targets that tenant. The pre-login tenant chooser was removed in `M13-S14`; only the post-login switch below remains.
 - **Switching:** Customers can switch between their tenants via a "Switch Car Wash" button.
 
 ### **Staff: Multi-Tenant ✓** (updated `M13-S13`/`M13-S22`)
 - **Person:** `john@autowash.com` can work for multiple companies — same model as customers, not a single-tenant restriction.
 - **Isolation:** Each company = separate `Staff` record. `UNIQUE(tenant_id, google_oauth_id)` (per-tenant, not global) is enforced at the database level, so the same Google account can hold an active `Staff` row at 2+ tenants.
-- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant` — the same shape as the customer selection screen, and also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
+- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant`, also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
 - **Provisioning:** A staff row is always created `is_active=true` (never inactive) — "pending invite" is signaled by `google_oauth_id IS NULL`, not by `is_active`. See `CLAUDE.md` §2 invariant 6.
 
 ---
@@ -43,7 +43,7 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
   ```
 
 ### **The "Tenant Context" Flow**
-1. **Detection:** Tenant identity comes exclusively from the JWT/session cookie (post-TD35 — see `docs/24-BFF_ARCHITECTURE.md` § Request Lifecycle). The BFF reads `tenantId` from `req.user` and forwards it to the backend as the `X-Tenant-ID` header — the browser never sends a tenant header itself.
+1. **Detection:** Tenant identity comes exclusively from the JWT/session cookie (post-TD35 — see `docs/BFF_ARCHITECTURE.md` § Request Lifecycle). The BFF reads `tenantId` from `req.user` and forwards it to the backend as the `X-Tenant-ID` header — the browser never sends a tenant header itself.
 2. **Injection:** The `RequestInterceptor` injects this ID into the Request Context.
 3. **Enforcement:** By convention, not automatically: every repository method takes `tenantId` and filters on it explicitly, and use cases always receive it from the request context. There is no shared base class, subscriber or row-level security that adds it for you, so a missing `WHERE tenant_id` is a defect that only review, the composite `(tenant_id, id)` FKs and the tenant-isolation tests catch.
 
@@ -66,7 +66,7 @@ Ikaro uses the **"Shared Database, Shared Schema"** pattern for simplicity and c
 - A third, different category from both above: the tables themselves **are** ordinary tenant-scoped business data (loyalty point entries, real chatbot conversation content) — every business-facing read/write against them still filters by `tenant_id`, no exception. The exemption is narrow and applies only to a system-actor cron job's own bounded set of sweep queries — one or more queries, each finding or deleting rows past a time-based threshold, across every tenant, in one pass — by design, since the whole point of the job is a platform-wide sweep, not a per-tenant one.
 - Precedent: `ILoyaltyEntryRepository.findExpiringBefore(date)` (the loyalty-expiry cron, UC-016) reads across all tenants with no `tenant_id` filter, then groups the results by `tenantId:customerId` in the job itself before writing any tenant-scoped decrement.
 - `ChatbotRetentionPurgeJob` (UC-035, M19-S07) follows the same shape: `IChatbotMessageRepository.deleteOlderThan(cutoff)` and `IChatbotSessionRepository.deleteOrphanedStartedBefore(cutoff)` both delete across all tenants in one statement, matching UC-035's own acceptance criteria ("across all tenants in one pass").
-- `ResourceOccupancyRetentionPurgeJob` (M22) calls `IResourceOccupancyRepository.deleteOlderThan(cutoff)` — one unscoped delete of `booking.resource_occupancy` rows well past their window, across every tenant, with no `tenant_id` predicate. `LeadFormRetentionPurgeJob` (UC-043) does the same for expired `platform.lead_form_submissions` (`deleteExpired`). Both are served by standalone indexes (see `docs/13-DATABASE_SCHEMA.md`).
+- `ResourceOccupancyRetentionPurgeJob` (M22) calls `IResourceOccupancyRepository.deleteOlderThan(cutoff)` — one unscoped delete of `booking.resource_occupancy` rows well past their window, across every tenant, with no `tenant_id` predicate. `LeadFormRetentionPurgeJob` (UC-043) does the same for expired `platform.lead_form_submissions` (`deleteExpired`). Both are served by standalone indexes (see `docs/DATABASE_SCHEMA.md`).
 - What makes this safe despite crossing tenant boundaries: (1) the actor is always "System (Cloud Scheduler)", never a request carrying tenant context that could leak into another tenant's data; (2) the operation is a pure time-based sweep (an age comparison), never a lookup keyed by any tenant-supplied identifier; (3) the job's own output (an entry, a session, a message) never crosses back into a response to any tenant or customer — it's deleted or aggregated, not returned. Contrast with a genuine violation: a query filtering by a caller-supplied `id` with no `tenant_id` check, which *would* leak cross-tenant data into a response.
 
 ---
@@ -102,7 +102,7 @@ All events emitted by the system include the `tenant_id`.
 |--------|----------|-------|
 | **Tenancy** | Multi-tenant | Multi-tenant |
 | **Google ID** | Shared across records (not unique across tenants; each `(tenant_id, google_oauth_id)` pair is unique) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
-| **Login Flow** | Selection screen (if 2+) | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
+| **Login Flow** | Direct entry into the tenant whose hotsite the login started from | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
 | **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
 | **Switching** | Allowed | Allowed |
 

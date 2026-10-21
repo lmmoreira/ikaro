@@ -1,6 +1,6 @@
 # GitHub Workflows & Collaboration Guidelines - Ikaro
 
-> **When to load:** branching, commits, pull requests, code review, the automated CI gates and the architecture-check detector list, or CI implementation conventions; the workflow topology is in `docs/09-CI_CD_PIPELINE.md`, repeated CI failures in `docs/CI_TRAPS.md`.
+> **When to load:** branching, commits, pull requests, code review, the automated CI gates and the architecture-check detector list, or CI implementation conventions; the workflow topology is in `docs/CI_CD_PIPELINE.md`, repeated CI failures in `docs/CI_TRAPS.md`.
 > **Tags:** infra
 
 ## Overview
@@ -49,7 +49,7 @@ A PR is a request to merge code into `main`. It must meet the following criteria
 ### **The PR Template**
 Every PR must include:
 - **Description:** What was changed and WHY.
-- **Related Use Cases:** Link to the specific UC-xxx from `docs/04-USE_CASES.md`.
+- **Related Use Cases:** Link to the specific UC-xxx from `docs/USE_CASES.md`.
 - **Verification:** Proof that the code works (e.g., screenshots of tests passing, logs).
 - **Checklist:**
   - [ ] Lint & Type-check passed.
@@ -68,7 +68,7 @@ Snyk (dependency SCA) is **not** part of this per-PR gate — see §5 below.
 
 ## 4. Code Review Guidelines
 
-- **Focus on the Domain:** Does the code correctly implement the business logic defined in `02-DOMAIN_MODEL.md`?
+- **Focus on the Domain:** Does the code correctly implement the business logic defined in `DOMAIN_MODEL.md`?
 - **Security First:** Is there any potential for tenant data leaks?
 - **Architecture:** Does the code respect the Hexagonal layers (Domain → Application → Adapter)?
 - **Aesthetics:** Is the code idiomatic, clean, and well-named?
@@ -107,7 +107,7 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 | `bff-controller-inline-type`, `ikaro-types-drift`, `closed-enum-registry` | BFF response types live in `.types.ts`; web and BFF interfaces agree with `@ikaro/types`; mirrored closed enums have identical members |
 | `test-builder-coverage`, `entity-builder-pk-uuidv7-default`, `test-harness-registration`, `no-jest-fn-for-repository-or-port` | every entity has a builder defaulting to `uuidv7()`; integration helpers are registered; ports are faked with `InMemory*`, never `jest.fn()` |
 | `domain-event-audit-coverage` | every domain event has an `audit-log` subscription |
-| `lock-catalog-coverage`, `occupancy-release-choke-point` | every lock in the code is in `docs/28-LOCK_CATALOG.md`; occupancy is released only through the shared choke-point helper |
+| `lock-catalog-coverage`, `occupancy-release-choke-point` | every lock in the code is in `docs/LOCK_CATALOG.md`; occupancy is released only through the shared choke-point helper |
 
 **Snyk SCA is not part of the per-PR gate** — it runs only as a weekly scheduled scan (`weekly-jobs.yml`, every Monday, `--all-projects`), not as a required PR check. Removed from `pr-tests.yml` and from `main`'s required status checks 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s iterative bot-review rounds (each dependency-file-touching push re-ran a full-workspace scan). Trivy Image Scan still runs per-PR and substantially overlaps Snyk's coverage for any CVE that ends up in a built image.
 

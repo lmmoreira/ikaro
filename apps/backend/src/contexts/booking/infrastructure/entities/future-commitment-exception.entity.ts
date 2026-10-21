@@ -7,7 +7,7 @@ import {
   FutureCommitmentExceptionStatus,
 } from '../../domain/future-commitment-exception.types';
 
-// docs/13-DATABASE_SCHEMA.md § booking.future_commitment_exceptions (M23 Cluster 3). The partial
+// docs/DATABASE_SCHEMA.md § booking.future_commitment_exceptions (M23 Cluster 3). The partial
 // unique index on the still-OPEN impact is created by the migration (TypeORM's @Index can't
 // express its WHERE clause here) — it is what makes a repeated raise update instead of duplicate.
 @Entity('future_commitment_exceptions', { schema: 'booking' })

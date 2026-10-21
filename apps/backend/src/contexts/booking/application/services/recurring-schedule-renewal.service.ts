@@ -9,7 +9,7 @@ import {
 } from '../ports/recurring-booking-schedule-repository.port';
 
 // M23-S21: the one place that decides `renewable` for the schedule list and the by-id read, so the
-// two cannot drift (docs/27 § Renewal window and reminder). A customer cannot read the tenant
+// two cannot drift (docs/BUSINESS_LOGIC_REFERENCE § Renewal window and reminder). A customer cannot read the tenant
 // settings the window comes from, which is why the server computes it.
 @Injectable()
 export class RecurringScheduleRenewalService {

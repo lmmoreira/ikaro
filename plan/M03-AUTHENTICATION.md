@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Customer context, `docs/06-TENANT_ISOLATION_STRATEGY.md` § customer multi-tenant model
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Customer context, `docs/TENANT_ISOLATION_STRATEGY.md` § customer multi-tenant model
 
 **Description:**  
 Implement the `Customer` aggregate domain layer and its database migration. Customers are multi-tenant: the same Google `sub` can appear as multiple `Customer` rows — one per tenant. There must be NO unique constraint on `google_oauth_id` alone.
@@ -63,7 +63,7 @@ INDEX (tenant_id, google_oauth_id)    ← lookup by OAuth ID per tenant
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Staff context, `docs/06-TENANT_ISOLATION_STRATEGY.md` § staff single-tenant model
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Staff context, `docs/TENANT_ISOLATION_STRATEGY.md` § staff single-tenant model
 
 **Description:**  
 Implement the `Staff` aggregate domain layer and its database migration. Staff are single-tenant: a `UNIQUE(tenant_id, google_oauth_id)` constraint prevents the same person from being staff at multiple tenants. The `google_oauth_id` is `NULL` until the staff member completes their first login (UC-025).
@@ -113,7 +113,7 @@ INDEX(tenant_id, email)
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § OAuth + JWT flow, `docs/14-API_CONTRACTS.md` § auth endpoints
+**Docs to load:** `docs/BFF_ARCHITECTURE.md` § OAuth + JWT flow, `docs/API_CONTRACTS.md` § auth endpoints
 
 **Description:**  
 Implement the Google OAuth 2.0 authentication flow in the BFF using `passport-google-oauth20`. When Google redirects back, the BFF receives the user's profile (name, email, Google `sub`) and uses it to resolve the correct Customer or Staff records in the backend.
@@ -142,7 +142,7 @@ Implement the Google OAuth 2.0 authentication flow in the BFF using `passport-go
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § JWT flow, `docs/14-API_CONTRACTS.md` § JWT structure
+**Docs to load:** `docs/BFF_ARCHITECTURE.md` § JWT flow, `docs/API_CONTRACTS.md` § JWT structure
 
 **Description:**  
 Implement the `JwtService` in the BFF that signs JWTs containing the tenant and user identity. The JWT payload must match the exact structure from the API contracts doc. No refresh tokens in MVP — 7-day TTL only.
@@ -189,7 +189,7 @@ Implement the `JwtService` in the BFF that signs JWTs containing the tenant and 
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md` § request lifecycle, `docs/14-API_CONTRACTS.md` § authentication
+**Docs to load:** `docs/BFF_ARCHITECTURE.md` § request lifecycle, `docs/API_CONTRACTS.md` § authentication
 
 **Description:**  
 Implement the three guards that protect every authenticated BFF endpoint. They execute in order: JWT validation → tenant match → role check. A request that fails any guard returns the appropriate HTTP error.
@@ -254,7 +254,7 @@ After a request passes the guards, a `BackendRequestInterceptor` (or equivalent)
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-021, `docs/14-API_CONTRACTS.md` § auth endpoints
+**Docs to load:** `docs/USE_CASES.md` § UC-021, `docs/API_CONTRACTS.md` § auth endpoints
 
 **Description:**  
 Implement the full UC-021 flow: after Google OAuth callback, find all tenants where this Google `sub` has a `Customer` record. If exactly 1 tenant → issue JWT and redirect to dashboard. If 2+ tenants → return a tenant list (with active loyalty points per tenant) for the frontend to show the tenant selection screen.
@@ -286,7 +286,7 @@ Implement the full UC-021 flow: after Google OAuth callback, find all tenants wh
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-022, `docs/14-API_CONTRACTS.md` § auth endpoints
+**Docs to load:** `docs/USE_CASES.md` § UC-022, `docs/API_CONTRACTS.md` § auth endpoints
 
 **Description:**  
 Implement UC-022: staff members belong to exactly one tenant. After Google OAuth callback, look up a `Staff` record by `google_oauth_id`. If found and active → issue JWT. If the staff row exists but `is_active=false` → the admin provisioned them but they haven't accepted their invite yet — redirect them through the first-login flow (UC-025, implemented in M04).
@@ -313,7 +313,7 @@ Implement UC-022: staff members belong to exactly one tenant. After Google OAuth
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-023, `docs/14-API_CONTRACTS.md` § auth/switch-tenant
+**Docs to load:** `docs/USE_CASES.md` § UC-023, `docs/API_CONTRACTS.md` § auth/switch-tenant
 
 **Description:**  
 Implement the tenant-switching endpoint. An authenticated customer can switch to a different tenant they have a `Customer` record in. This issues a new JWT with the new `tenantId` and `tenantSlug`, replacing the current session.

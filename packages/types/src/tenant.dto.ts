@@ -72,7 +72,7 @@ export interface TenantBusinessInfo {
 
 // The only chatbot field exposed through this wire contract — the 8 volume/cost caps and
 // llmProvider/llmModel are Ikaro-only overrides, never accepted or returned via this form
-// (docs/21-TENANTS_SETTINGS_SCHEMA.md §7).
+// (docs/TENANTS_SETTINGS_SCHEMA.md §7).
 export interface TenantChatbotSettings {
   knowledgeText: string;
 }
@@ -133,16 +133,16 @@ export interface RenameTenantResponse {
 }
 
 // UC-027 A5 — powers the CHATBOT module config screen's own red banner. Deliberately narrow:
-// only the daily-cap condition, not concurrency/spend/balance (docs/14-API_CONTRACTS.md §
+// only the daily-cap condition, not concurrency/spend/balance (docs/API_CONTRACTS.md §
 // Chatbot Cap Status).
 export interface ChatbotCapStatusResponse {
   dailyCapReachedToday: boolean;
 }
 
 // M20-S01 — consolidated admin config read for the LEAD_FORM hotsite module (UC-037,
-// docs/14-API_CONTRACTS.md § Lead Form Admin Config). Teaser fields (HotsiteConfig's layout[]
+// docs/API_CONTRACTS.md § Lead Form Admin Config). Teaser fields (HotsiteConfig's layout[]
 // entry) and audienceMode/questions (LeadFormConfig) are merged into one response shape here —
-// see docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save" for why they're saved
+// see docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save" for why they're saved
 // atomically despite living in two separate aggregates. The write side is PATCH
 // /v1/tenants/hotsite (UpdateHotsiteRequest, apps/web/features/platform/api/tenant-settings.ts)
 // as of M20-S08 — folded into that consolidated endpoint rather than a parallel request shape.
@@ -180,7 +180,7 @@ export interface LeadFormStatusResponse {
   enabled: boolean;
 }
 
-// M20-S06 — UC-041 main flow steps 1-2/6 (docs/14-API_CONTRACTS.md § Leads Submissions (Admin)).
+// M20-S06 — UC-041 main flow steps 1-2/6 (docs/API_CONTRACTS.md § Leads Submissions (Admin)).
 // The response shape is unchanged by M20-S12's search/filters/submittedFrom/submittedTo —
 // those are request query params only (ListLeadFormSubmissionsSchema, @ikaro/validation).
 export interface LeadFormSubmissionListItem {
@@ -200,12 +200,12 @@ export interface LeadFormSubmissionsListResponse {
 
 // M20-S12 — GET /v1/tenants/lead-form/submissions/filter-options. Powers UC-041's advanced-filter
 // question dropdown; includes labels from questions since edited/removed from the live
-// LeadFormConfig (docs/13-DATABASE_SCHEMA.md § platform.lead_form_answers).
+// LeadFormConfig (docs/DATABASE_SCHEMA.md § platform.lead_form_answers).
 export interface LeadFormFilterOptionsResponse {
   questionLabels: string[];
 }
 
-// answerValue is a snapshot, not a live lookup — see docs/02-DOMAIN_MODEL.md § LeadFormSubmission.
+// answerValue is a snapshot, not a live lookup — see docs/DOMAIN_MODEL.md § LeadFormSubmission.
 export interface LeadFormSubmissionAnswer {
   questionLabel: string;
   questionType: LeadFormQuestionType;

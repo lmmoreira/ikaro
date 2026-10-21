@@ -26,7 +26,7 @@ import {
 
 // Thin proxy (UC-072, UC-076) — authenticated customers only; the backend derives the customer
 // from the forwarded actor headers and every ownership decision (own alerts only) is made there,
-// matching docs/24-BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split.
+// matching docs/BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split.
 @Controller('availability-alerts')
 @Roles('CUSTOMER')
 export class AvailabilityAlertsController {

@@ -53,7 +53,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
     carouselDays,
     datePickerType,
     // manifest.booking is optional (see @ikaro/types) — falls back to the documented tenant
-    // settings default (docs/21-TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
+    // settings default (docs/TENANTS_SETTINGS_SCHEMA.md) rather than dereferencing unconditionally.
     maxBookingAdvanceDays: manifest.booking?.maxBookingAdvanceDays ?? 90,
     timezone: manifest.localization.timezone,
     phonePrefix: manifest.localization.phonePrefix,

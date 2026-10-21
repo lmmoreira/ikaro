@@ -190,7 +190,7 @@ export class Service extends AggregateRoot {
     // pool (validated prototype + UC-056 step 3: pool/schedule config is a Cluster 4/M24 Turmas
     // capability, not this milestone's). Still rejects a non-empty pool on a non-SESSION create.
     assertClassResourceSlotsMatchBookingModel(bookingModel, classResourceSlots, false);
-    // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/02-DOMAIN_MODEL.md) —
+    // Same eligibility checklist as UC-050's flat case (UC-056 step 3, docs/DOMAIN_MODEL.md) —
     // duplicate-type rejection plus "each eligibleResourceIds entry is an active resource of the
     // matching type." See resource-requirement-availability.ts's identical treatment of
     // resourceRequirements/legs. No-ops on an empty pool.
@@ -305,7 +305,7 @@ export class Service extends AggregateRoot {
 
   // Split out of setBookingPolicy() to stay under docs/CODE_STANDARDS.md's function-length
   // limit. Clears detail fields that are meaningless under the resolved policy's own governing
-  // field (docs/02-DOMAIN_MODEL.md: "the four [duration] fields... are meaningless (null) unless
+  // field (docs/DOMAIN_MODEL.md: "the four [duration] fields... are meaningless (null) unless
   // durationPolicy=CUSTOMER_SELECTED") — matches changeBookingModel()'s own clear-on-switch
   // convention for the same class of mutual-exclusivity invariant, so a PATCH that switches a
   // policy back to FIXED never silently carries a stale CUSTOMER_SELECTED-era value forward.
@@ -321,7 +321,7 @@ export class Service extends AggregateRoot {
     if (normalized.pricingPolicy === 'FIXED') {
       normalized.pricingIncrementMinutes = null;
       normalized.pricePerIncrementAmount = null;
-      // docs/02-DOMAIN_MODEL.md: "optional floor applied after the per-increment calculation" —
+      // docs/DOMAIN_MODEL.md: "optional floor applied after the per-increment calculation" —
       // meaningless outside PER_TIME_INCREMENT, same as the two fields above.
       normalized.minimumChargeAmount = null;
     }
@@ -353,7 +353,7 @@ export class Service extends AggregateRoot {
     ) {
       throw new ServiceBookingPolicyInvalidError('custom-duration-details-required');
     }
-    // docs/02-DOMAIN_MODEL.md: "pricingPolicy... PER_TIME_INCREMENT requires CUSTOMER_SELECTED"
+    // docs/DOMAIN_MODEL.md: "pricingPolicy... PER_TIME_INCREMENT requires CUSTOMER_SELECTED"
     // — the reverse direction of the CUSTOMER_SELECTED-requires-non-FIXED-pricing check above
     // (ServiceDurationPolicyRequiresPricingError), not the same invariant restated.
     if (
@@ -367,7 +367,7 @@ export class Service extends AggregateRoot {
   // Compare-before-validate (CLAUDE.md §8): resubmitting the current value is always a no-op,
   // even with booking history. hasBookingHistory is resolved by the caller (existsByServiceId).
   // Switching model normalizes the fields that only apply to the other model (mutual-exclusivity
-  // invariant, docs/02-DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
+  // invariant, docs/DOMAIN_MODEL.md) — never leaves a stale resourceRequirements/legs/buffer
   // behind on a SESSION service, nor a stale classResourceSlots behind on an APPOINTMENT one, nor
   // a stale bookingPolicy (APPOINTMENT-only, M22-S02) behind on a SESSION one. Resetting
   // bookingPolicy only needs to happen on the -> SESSION transition: setBookingPolicy() itself

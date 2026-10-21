@@ -31,7 +31,7 @@ import {
   LlmProviderRegistry,
 } from '../services/llm-provider-registry.service';
 
-// Cap layer 3's live-ness proxy window (docs/04-USE_CASES.md UC-033) — same window
+// Cap layer 3's live-ness proxy window (docs/USE_CASES.md UC-033) — same window
 // SendChatMessageUseCase's own concurrency check uses. Not tenant-configurable.
 const CONCURRENCY_WINDOW_MS = 2 * 60 * 1000;
 

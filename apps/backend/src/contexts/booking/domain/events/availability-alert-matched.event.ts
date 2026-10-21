@@ -11,7 +11,7 @@ interface AvailabilityAlertMatchedData extends Record<string, unknown> {
   durationMinutes?: number | null;
 }
 
-// docs/03-DOMAIN_EVENTS.md § AvailabilityAlertMatched — a slot matching an ACTIVE alert's criteria
+// docs/DOMAIN_EVENTS.md § AvailabilityAlertMatched — a slot matching an ACTIVE alert's criteria
 // became bookable (UC-072 step 3). Consumed by the audit log (M23-S07) and by the Notification
 // context, which emails the customer and reports the attempt's outcome (M23-S38).
 export class AvailabilityAlertMatched extends DomainEvent<AvailabilityAlertMatchedData> {

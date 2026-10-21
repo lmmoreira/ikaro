@@ -151,7 +151,7 @@ Reference shell: `journeys/shared/customer-dashboard.html`
 
 ## M23 Cluster 3 extension (UC-070 create + manage ✅ built by M23-S12/S17; UC-072 creation ✅ M23-S31, UC-076 alerts management ✅ built by M23-S43)
 
-> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts management (UC-076) is shipped too (M23-S43); the scope was promoted from `docs/discovery/multivertical-booking/`. A cancelled alert is gone for the customer: the list, the detail and the Agendamentos row never show it. A `409` on cancel (notified or expired meanwhile) returns to the list, where the alert already sits under Histórico — there is no separate screen for it. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+> Everything above is shipped, and so are the recurring-reservation screens below (M23-S12, M23-S17). The availability alerts management (UC-076) is shipped too (M23-S43); the scope was promoted from `docs/discovery/multivertical-booking/`. A cancelled alert is gone for the customer: the list, the detail and the Agendamentos row never show it. A `409` on cancel (notified or expired meanwhile) returns to the list, where the alert already sits under Histórico — there is no separate screen for it. See `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`/`AvailabilityAlert`, `docs/API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 ### Overview
 
@@ -321,7 +321,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 
 ## ❓ GAP — M24 Cluster 4 extension (UC-089–095, UC-102, not yet built)
 
-> Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+> Relocated from `docs/discovery/multivertical-booking/prototype/customer-minhasturmas-*.html` and `customer-08*.html` — already implementation-grade (route tables, BFF contracts) per `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md`, which this section carries forward. See `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`/`RecurringEnrollment`, `docs/API_CONTRACTS.md` § Classes & Sessions.
 
 **New prototype screens:**
 

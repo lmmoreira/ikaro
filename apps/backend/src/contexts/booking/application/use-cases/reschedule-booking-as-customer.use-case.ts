@@ -171,7 +171,7 @@ export class RescheduleBookingAsCustomerUseCase {
   }
 
   // Resource locks (the old resources included) first, then the booking's open entries, both before
-  // the booking row is written (docs/28-LOCK_CATALOG.md § 2).
+  // the booking row is written (docs/LOCK_CATALOG.md § 2).
   private async resolveAndLockExceptions(
     booking: Booking,
     serviceMap: Map<string, Service>,

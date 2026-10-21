@@ -58,7 +58,7 @@ export interface BusinessInfo {
 // Every other field here is an Ikaro-only per-tenant override — absent unless Ikaro explicitly
 // grants one for that tenant — resolved as `tenant.settings.chatbot?.X ?? DEFAULT_X` at read time,
 // where DEFAULT_X lives in `contexts/platform/chatbot.constants.ts`
-// (docs/21-TENANTS_SETTINGS_SCHEMA.md §7).
+// (docs/TENANTS_SETTINGS_SCHEMA.md §7).
 export interface ChatbotSettings {
   knowledgeText?: string;
   maxKnowledgeTextLength?: number;
@@ -74,7 +74,7 @@ export interface ChatbotSettings {
 }
 
 // Unlike `chatbot`, these are normal, tenant-editable settings rather than Ikaro-only overrides
-// (docs/21-TENANTS_SETTINGS_SCHEMA.md §8). TenantSettings.reconstitute() supplies these defaults
+// (docs/TENANTS_SETTINGS_SCHEMA.md §8). TenantSettings.reconstitute() supplies these defaults
 // for rows created before M20-S03, so the domain contract can remain required.
 export interface LeadFormSettings {
   retentionMonths: number;

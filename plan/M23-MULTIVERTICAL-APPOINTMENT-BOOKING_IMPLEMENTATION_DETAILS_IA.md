@@ -1,6 +1,6 @@
 # M23 — Multi-Vertical Scheduling: Appointment Booking & Extensions — Implementation Details (IA)
 
-49 stories shipped 2026-09-01 → 2026-10-16 (PRs #515–#622). S10 (onboarding bootstrap) and S15 (wizard) moved to `M24-S21`/`M24-S22`. Rules and algorithms live in `docs/27-BUSINESS_LOGIC_REFERENCE.md`; locks in `docs/28-LOCK_CATALOG.md`; this file is the map.
+49 stories shipped 2026-09-01 → 2026-10-16 (PRs #515–#622). S10 (onboarding bootstrap) and S15 (wizard) moved to `M24-S21`/`M24-S22`. Rules and algorithms live in `docs/BUSINESS_LOGIC_REFERENCE.md`; locks in `docs/LOCK_CATALOG.md`; this file is the map.
 
 ## Artifacts
 
@@ -67,11 +67,11 @@ All ride the existing `cron-reminders` trigger (every 30 min, no new Scheduler j
 
 ## Structural Decisions / Gotchas
 
-- **Recurrence is materialize-once.** No rolling generation, no `PAUSED`, no per-occurrence exception table: an occurrence is its linked booking, so skip = that booking's cancel and reschedule = its reschedule, under the tenant's normal windows. Availability sees occurrences as ordinary bookings (`docs/04` § resource availability was corrected after the milestone).
+- **Recurrence is materialize-once.** No rolling generation, no `PAUSED`, no per-occurrence exception table: an occurrence is its linked booking, so skip = that booking's cancel and reschedule = its reschedule, under the tenant's normal windows. Availability sees occurrences as ordinary bookings (`docs/USE_CASES` § resource availability was corrected after the milestone).
 - **Nothing moves a booking silently.** Deactivation only records a `FutureCommitmentException`; a manager keeps, reassigns, reschedules or cancels (bulk, one request).
 - **`booking_line_resource_assignments` is the durable record; `resource_occupancy` is not** — cancel/reject delete occupancy rows. The detail read takes the *latest* assignment per slot, and leg times only while occupancy rows exist (`null` otherwise).
 - **Cross-actor disclosure:** a customer's own cancel stores no reason; the customer sees `Você` / `O estabelecimento` as a role label only. A leg's resource name is revealed to the customer whatever its selection mode (UC-065); a flat resource whose requirement was later removed is hidden.
-- **Lock order** (`docs/28` §2): tenant row → entity keys → service rows → resource advisory locks → exception rows → booking → occupancy. S48 closes entries inside the same transaction under that order.
+- **Lock order** (`docs/LOCK_CATALOG` §2): tenant row → entity keys → service rows → resource advisory locks → exception rows → booking → occupancy. S48 closes entries inside the same transaction under that order.
 - **New Pub/Sub topic = a Foundation apply step**, otherwise the topic exists but is not publishable (#537; M23-S04 precedent: three topics shipped ungranted).
 - **`includeDetailExtras` defaults off.** Any caller that doesn't need the extras (loyalty adapter) must not pay for them.
 - **Customer vs staff `GET /bookings/:id`:** one backend read, two BFF subsets; guard any new field with a negative mapper test.
@@ -88,4 +88,4 @@ Builders in `src/test/builders/booking/` for every new entity; `InMemory*` doubl
 ## Follow-ups tracked, not dropped
 
 - A cancelled recurring schedule can't say whether it was rejected, expired or ended by someone (the read carries no `cancellationReason`).
-- **`hold_expires_at` is enforced since TD51, not by an M23 story** (`docs/27` § `lock_state` lifecycle): `ExpireBookingHoldsJob` (consumer `booking-hold-expiry` on `cron-reminders`) cancels a `PENDING` request past its hold as the system; `INFO_REQUESTED` is never expired and a customer's answer restarts the hold; approve refuses a passed deadline (`BOOKING_APPROVAL_HOLD_EXPIRED`).
+- **`hold_expires_at` is enforced since TD51, not by an M23 story** (`docs/BUSINESS_LOGIC_REFERENCE` § `lock_state` lifecycle): `ExpireBookingHoldsJob` (consumer `booking-hold-expiry` on `cron-reminders`) cancels a `PENDING` request past its hold as the system; `INFO_REQUESTED` is never expired and a customer's answer restarts the hold; approve refuses a passed deadline (`BOOKING_APPROVAL_HOLD_EXPIRED`).

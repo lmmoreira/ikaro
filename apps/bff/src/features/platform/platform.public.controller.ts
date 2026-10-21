@@ -94,7 +94,7 @@ export class PlatformPublicController {
   }
 
   // Never cached — always evaluates live state, unlike the 5-minute-cached manifest above
-  // (docs/14-API_CONTRACTS.md § Chatbot Widget). Explicit no-store, not just an absent header,
+  // (docs/API_CONTRACTS.md § Chatbot Widget). Explicit no-store, not just an absent header,
   // so no intermediate HTTP cache can ever serve a stale "available: true" (PR #373 review, Codex).
   @Get('chatbot/status')
   @Public()
@@ -217,7 +217,7 @@ export class PlatformPublicController {
 
   // The lead-form routes carry the tenant slug in both the URL path (:slug, matching
   // getManifest's own path-slug convention) and the X-Tenant-Slug header (the documented,
-  // authoritative resolver — docs/14-API_CONTRACTS.md § Lead Form Widget, same convention as
+  // authoritative resolver — docs/API_CONTRACTS.md § Lead Form Widget, same convention as
   // Chatbot). Without this check, the header alone drove resolution and the path segment was
   // silently ignored: a request to /lead-form/tenant-a with X-Tenant-Slug: tenant-b resolved
   // against tenant B while the URL visually named tenant A (PR #423 review round 6, Codex).

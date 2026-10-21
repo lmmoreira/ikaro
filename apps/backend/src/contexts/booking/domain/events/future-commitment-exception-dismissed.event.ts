@@ -6,7 +6,7 @@ interface FutureCommitmentExceptionDismissedData extends Record<string, unknown>
   resolutionReason: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § FutureCommitmentExceptionDismissed (UC-077 A2) — audit-log consumer
+// docs/DOMAIN_EVENTS.md § FutureCommitmentExceptionDismissed (UC-077 A2) — audit-log consumer
 // only. resolvedByStaffId is null when the system closed the entry (M23-S48).
 export class FutureCommitmentExceptionDismissed extends DomainEvent<FutureCommitmentExceptionDismissedData> {
   readonly eventVersion = 1;

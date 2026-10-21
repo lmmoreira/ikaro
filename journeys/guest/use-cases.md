@@ -1,6 +1,6 @@
 # GUEST — Use Case Inventory
 
-Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder — the unauthenticated visitor on a tenant's public hotsite.
+Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — the unauthenticated visitor on a tenant's public hotsite.
 
 | UC | Title | Notes | Journey file |
 |---|---|---|---|

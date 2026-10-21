@@ -7,7 +7,7 @@
 
 resource "google_sql_database_instance" "main" {
   #checkov:skip=CKV_GCP_6:ssl_mode ENCRYPTED_ONLY enforces TLS on every connection; the check additionally demands TRUSTED_CLIENT_CERTIFICATE_REQUIRED (per-client mTLS certs), a posture M17 deliberately did not adopt
-  #checkov:skip=CKV_GCP_79:PostgreSQL 17 is pinned for parity with the app and local dev (docs/22 §6 PostgreSQL Choice, revised 2026-07-17); re-evaluate this pin against Checkov's definition of "latest" the next time the app's engine version is deliberately revisited
+  #checkov:skip=CKV_GCP_79:PostgreSQL 17 is pinned for parity with the app and local dev (docs/TECH_STACK_DECISIONS §6 PostgreSQL Choice, revised 2026-07-17); re-evaluate this pin against Checkov's definition of "latest" the next time the app's engine version is deliberately revisited
   name                = "ikaro-db-${var.environment}"
   project             = var.project_id
   region              = var.region

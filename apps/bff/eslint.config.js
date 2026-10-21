@@ -42,7 +42,7 @@ module.exports = [
   // TD37-S15: no .skip()/.only() — a skipped test hides a real regression behind a green CI
   // run, and a focused describe/it silently stops every sibling test in the file from running
   // at all. Scoped to spec files only; zero baseline violations confirmed repo-wide before this
-  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/08-TESTING_STRATEGY.md).
+  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/TESTING_STRATEGY.md).
   {
     files: ['src/**/*.spec.ts', 'src/**/*.integration.spec.ts'],
     plugins: { jest: jestPlugin },

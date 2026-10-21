@@ -8,7 +8,7 @@ interface AvailabilityAlertCreatedData extends Record<string, unknown> {
   expiresAt: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § AvailabilityAlertCreated (UC-072) — audit-log consumer only (M23-S06).
+// docs/DOMAIN_EVENTS.md § AvailabilityAlertCreated (UC-072) — audit-log consumer only (M23-S06).
 export class AvailabilityAlertCreated extends DomainEvent<AvailabilityAlertCreatedData> {
   readonly eventVersion = 1;
   readonly data: AvailabilityAlertCreatedData;

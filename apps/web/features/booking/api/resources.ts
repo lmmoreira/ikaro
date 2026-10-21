@@ -30,7 +30,7 @@ export async function getResource(id: string): Promise<ResourceResponse> {
   return res.data;
 }
 
-// Merges Staff + Resource reads server-side (docs/24-BFF_ARCHITECTURE.md § Web-facing
+// Merges Staff + Resource reads server-side (docs/BFF_ARCHITECTURE.md § Web-facing
 // composite views) — the STAFF picker's data source; each item already carries isWrapped.
 export async function getResourceStaffOptions(
   excludeResourceId?: string,

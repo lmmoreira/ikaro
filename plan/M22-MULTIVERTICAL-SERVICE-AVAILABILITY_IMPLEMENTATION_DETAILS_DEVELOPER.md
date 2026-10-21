@@ -22,7 +22,7 @@ The throughline worth taking away from all six: **complex features that touch ex
 
 ### Four shapes, one field pair
 
-A `Service`'s `resourceRequirements`/`legs` fields determine which of four shapes applies to a booking against it — this is the single most important mental model for the rest of the milestone, and it's spelled out precisely in `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, not restated here in full. The short version:
+A `Service`'s `resourceRequirements`/`legs` fields determine which of four shapes applies to a booking against it — this is the single most important mental model for the rest of the milestone, and it's spelled out precisely in `docs/BUSINESS_LOGIC_REFERENCE.md` § Booking — Resource-Scoped Scheduling & Availability, not restated here in full. The short version:
 
 ```
 Degenerate        — resourceRequirements: [] (the default) → falls back to the

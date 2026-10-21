@@ -6,7 +6,7 @@ import { IResourceRepository } from '../ports/resource-repository.port';
 // every active Resource id per requested type before calling the aggregate's
 // setResourceRequirements()/setLegs(), which validate both "does this type have >= 1 active
 // Resource" (UC-050 A1 / UC-051's own precondition) and "is this specific resourcePoolIds entry
-// itself an active resource of the matching type" (docs/02-DOMAIN_MODEL.md).
+// itself an active resource of the matching type" (docs/DOMAIN_MODEL.md).
 export async function resolveActiveResourceIdsByType(
   resourceRepo: IResourceRepository,
   tenantId: string,

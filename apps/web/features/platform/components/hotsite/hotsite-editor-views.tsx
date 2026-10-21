@@ -113,7 +113,7 @@ export function updateEditorDraft(
 }
 
 // Folds a LEAD_FORM module's teaser data (layout[].data — never carries audienceMode/questions,
-// see docs/02-DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") and its separate
+// see docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") and its separate
 // LeadFormConfig portion (audienceMode/questions) into the one merged shape the panel's own
 // `data` prop actually is — the same merge configureModule already does for the initial
 // `localData`, reused here so the dirty-check's two sides are built the identical way.

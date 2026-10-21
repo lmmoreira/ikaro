@@ -43,7 +43,7 @@ Not drawn as a separate node: a module disabled between teaser render and page l
 
 ## Open questions / gaps
 
-- [x] Milestone/story for the `/[slug]/lead-form` page: `M20-S09` (`plan/M20-LEAD-FORM-MODULE.md`) — shipped, including the OAuth `returnTo` extension so a customer redirected to login from the gate returns to this same page (`docs/24-BFF_ARCHITECTURE.md` § OAuth state `returnTo`).
+- [x] Milestone/story for the `/[slug]/lead-form` page: `M20-S09` (`plan/M20-LEAD-FORM-MODULE.md`) — shipped, including the OAuth `returnTo` extension so a customer redirected to login from the gate returns to this same page (`docs/BFF_ARCHITECTURE.md` § OAuth state `returnTo`).
 - [x] The login-required gate screen has no prior canonical `journeys/` precedent to reuse — verified during promotion that only a discovery-stage mockup existed (`docs/discovery/multivertical-booking/prototype/public-15-login-required.html`, itself unpromoted). `01g-login-required.html` here is this milestone's own, real, first promoted instance of this pattern.
 - [x] What happens after login from `01g-login-required.html` is covered by `customer/submit-lead-form.md`, not repeated here — this journey ends at the handoff to login.
 

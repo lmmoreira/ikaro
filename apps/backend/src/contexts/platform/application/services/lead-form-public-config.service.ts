@@ -22,7 +22,7 @@ export interface LeadFormPublicConfigResult {
 /**
  * Public/guest-reachable counterpart to GetLeadFormConfigUseCase (M20-S01, MANAGER-only) — never
  * returns the teaser fields that use case does, and 404s instead of defaulting when the module
- * isn't enabled (docs/14-API_CONTRACTS.md § Lead Form Widget).
+ * isn't enabled (docs/API_CONTRACTS.md § Lead Form Widget).
  */
 @Injectable()
 export class LeadFormPublicConfigService {

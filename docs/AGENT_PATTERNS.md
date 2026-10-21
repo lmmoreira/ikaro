@@ -21,7 +21,7 @@ export const XXX_REPOSITORY = Symbol('IXxxRepository');
 
 export interface IXxxRepository {
   findById(id: string, tenantId: string): Promise<XxxAggregate | null>;
-  findAllByTenant(tenantId: string): Promise<XxxAggregate[]>;
+  findAllByTenant(tenantId: string, filters?: XxxFilters): Promise<XxxAggregate[]>;
   save(entity: XxxAggregate): Promise<void>;
 }
 ```
@@ -377,10 +377,10 @@ These tables are **not exhaustive** — they show the common entries. `ls` the d
 |------|--------|-----------|---------|
 | `actor-headers.ts` | `actorHeaders` | `(tenantId, actorId, role?, correlationId?)` → `Record<string, string>` | supertest `.set()` calls in integration specs |
 | `wait-for.ts` | `waitFor` | `(condition: () => Promise<boolean>, timeoutMs = 8000)` | polling async side effects in story integration specs |
-| `date-helpers.ts` | `futureDate`, `pastDate`, `addDays`, `nextWeekday` | `YYYY-MM-DD` strings, UTC | any date a spec needs — see `docs/08-TESTING_STRATEGY.md` § Shared date helpers (mandatory — never inline) |
-| `address-helpers.ts` | `testAddress`, `testAddressProps` | `testAddress(overrides?, countryCode = 'BR')` → `Address`; `testAddressProps(overrides?)` → `AddressProps` | any `Address` a spec needs — see `docs/08-TESTING_STRATEGY.md` § Shared address helper (mandatory — never inline) |
+| `date-helpers.ts` | `futureDate`, `pastDate`, `addDays`, `nextWeekday` | `YYYY-MM-DD` strings, UTC | any date a spec needs — see `docs/TESTING_STRATEGY.md` § Shared date helpers (mandatory — never inline) |
+| `address-helpers.ts` | `testAddress`, `testAddressProps` | `testAddress(overrides?, countryCode = 'BR')` → `Address`; `testAddressProps(overrides?)` → `AddressProps` | any `Address` a spec needs — see `docs/TESTING_STRATEGY.md` § Shared address helper (mandatory — never inline) |
 | `booking-integration-app.ts` | `createBookingIntegrationApp` | `(options?: { extraModules?, overrideProviders? })` → `{ app, ds, eventBus, moduleRef }` | booking context integration tests |
-| `customer-integration-app.ts` | `createCustomerIntegrationApp` | `()` → `{ app, ds }` | customer context integration tests |
+| `customer-integration-app.ts` | `createCustomerIntegrationApp` | `(options?: CustomerIntegrationAppOptions)` → `{ app, ds }` | customer context integration tests |
 | `notification-integration-app.ts` | `createNotificationIntegrationApp` | `(options: { dispatcher, … })` (`dispatcher` required) → `{ app, ds, eventBus }` | notification context integration tests |
 
 #### Builders (`apps/backend/src/test/builders/<ctx>/`)
@@ -1048,7 +1048,7 @@ export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurring
 
 ## Application Layering Patterns
 
-### 23. Shared application logic — a service under thin use cases
+### 24. Shared application logic — a service under thin use cases
 
 Two entry points (two use cases, or a use case and a job) need the same logic: it goes in `application/services/`, never in one use case that the other imports. Each entry point stays a thin use case over the service, which keeps its own `{ClassName}Input`/`{ClassName}Result` naming.
 

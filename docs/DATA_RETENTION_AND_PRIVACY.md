@@ -1,6 +1,6 @@
 # Data Retention & Privacy — Reference
 
-> **When to load:** answering how long personal data is kept (booking photos, public marketing assets, booking-context personal data) or changing storage lifecycle and LGPD behavior; it is a stub, so read what it does not yet cover; the storage layout is in `docs/13-DATABASE_SCHEMA.md`.
+> **When to load:** answering how long personal data is kept (booking photos, public marketing assets, booking-context personal data) or changing storage lifecycle and LGPD behavior; it is a stub, so read what it does not yet cover; the storage layout is in `docs/DATABASE_SCHEMA.md`.
 > **Tags:** backend, database
 
 **Audience:** Platform operators and tenants. This is the source-of-truth reference for how long customer data is kept — tenants can draw from it to tell their own customers how long photos are kept, since the app has no live product-facing terms/privacy page yet.

@@ -495,7 +495,7 @@ describe('AvailabilityAlertController (integration)', () => {
     ).toBe(10);
   });
 
-  // docs/28-LOCK_CATALOG.md A5. The race test above passes without this key (the service row lock
+  // docs/LOCK_CATALOG.md A5. The race test above passes without this key (the service row lock
   // serializes those creates too), so this one holds only the customer's key and proves the create
   // waits for it.
   it('a create waits for the customer’s alert key, then succeeds (A5)', async () => {

@@ -18,7 +18,7 @@ export interface WorklistCancelInput {
 
 // The worklist's CANCEL (UC-077). The resource locks come before the entry row lock, the same
 // order a cancel from the booking detail takes, so the two cannot deadlock on one booking
-// (docs/28-LOCK_CATALOG.md § 2). The entry id is read unlocked only to find its booking; the row
+// (docs/LOCK_CATALOG.md § 2). The entry id is read unlocked only to find its booking; the row
 // lock that follows rechecks that it is still OPEN.
 export async function lockResourcesBeforeEntry(
   deps: TerminalBookingDeps,

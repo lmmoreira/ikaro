@@ -10,7 +10,7 @@ export interface BuilderIndexEntry {
 // Indexes every class declared under src/test/builders/<context>/*.builder.ts, keyed by class
 // name, in a SINGLE pass over the project — shared by every detector that needs to look up a
 // builder by (name, context) instead of by name alone. A same-named builder in the WRONG context
-// must never satisfy coverage (docs/08-TESTING_STRATEGY.md's builder-location rule).
+// must never satisfy coverage (docs/TESTING_STRATEGY.md's builder-location rule).
 export function indexBuilderClasses(project: Project): Map<string, BuilderIndexEntry[]> {
   const index = new Map<string, BuilderIndexEntry[]>();
   for (const sourceFile of project.getSourceFiles()) {

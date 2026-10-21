@@ -8,11 +8,11 @@
 
 ## Testing Patterns (detail)
 
-Full mandatory rules → `docs/08-TESTING_STRATEGY.md §Mandatory Patterns`.
+Full mandatory rules → `docs/TESTING_STRATEGY.md §Mandatory Patterns`.
 
 ### Builder pattern (mandatory)
 
-All test data uses builder classes with fluent `withXxx()` / `build()`. Never plain factory functions or raw object literals in specs. Naming, location and the coverage detector: `docs/08-TESTING_STRATEGY.md` § Builder class pattern (all test data).
+All test data uses builder classes with fluent `withXxx()` / `build()`. Never plain factory functions or raw object literals in specs. Naming, location and the coverage detector: `docs/TESTING_STRATEGY.md` § Builder class pattern (all test data).
 
 Builder types:
 - `XxxEntityBuilder` — TypeORM entity builders
@@ -60,7 +60,7 @@ Confirmed to recur twice with the identical root cause and symptom:
 
 ### Integration app helpers — mandatory default overrides
 
-Every integration app helper that imports a module with a network-calling adapter must default-override that adapter's token with an in-memory stub **before** the caller's overrides run (caller wins). The code pattern, the current per-helper override table and the `EVENT_BUS`/`OUTBOX_PUBLISHER` dual-token rule live once, in `docs/08-TESTING_STRATEGY.md` (§ Integration app helpers — mandatory default overrides for network-calling adapters); when adding a new shared module with a network-calling adapter, update every helper that imports it.
+Every integration app helper that imports a module with a network-calling adapter must default-override that adapter's token with an in-memory stub **before** the caller's overrides run (caller wins). The code pattern, the current per-helper override table and the `EVENT_BUS`/`OUTBOX_PUBLISHER` dual-token rule live once, in `docs/TESTING_STRATEGY.md` (§ Integration app helpers — mandatory default overrides for network-calling adapters); when adding a new shared module with a network-calling adapter, update every helper that imports it.
 
 ### Reuse the shared Nest cache test module
 
@@ -68,15 +68,15 @@ Any integration test harness that needs `CacheModule` wiring must import `apps/b
 
 ### NestJS module provider pattern (useClass not useExisting)
 
-Register a replaceable adapter token with `useClass`; `useExisting` is wrong only when its target class is also registered as its own provider. See `docs/08-TESTING_STRATEGY.md` § Integration app helpers — mandatory default overrides for network-calling adapters (the root cause and the before/after example).
+Register a replaceable adapter token with `useClass`; `useExisting` is wrong only when its target class is also registered as its own provider. See `docs/TESTING_STRATEGY.md` § Integration app helpers — mandatory default overrides for network-calling adapters (the root cause and the before/after example).
 
 ### Notification spec setup
 
-Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain provisioning noise before recording idempotency baseline. See `docs/08-TESTING_STRATEGY.md`.
+Use `createNotificationIntegrationApp()`; suppress unrelated handlers; drain provisioning noise before recording idempotency baseline. See `docs/TESTING_STRATEGY.md`.
 
 ### Migration / entity registration
 
-Every new migration class and TypeORM entity must be registered in `src/test/integration-global-setup.ts` (and any context helper) in the same commit as the migration: `docs/08-TESTING_STRATEGY.md` § Registering new migrations and entities in the global setup (MANDATORY).
+Every new migration class and TypeORM entity must be registered in `src/test/integration-global-setup.ts` (and any context helper) in the same commit as the migration: `docs/TESTING_STRATEGY.md` § Registering new migrations and entities in the global setup (MANDATORY).
 
 ### Migration specs
 
@@ -84,7 +84,7 @@ Do not write an integration spec for a migration. A migration's correctness is e
 
 ### Standalone index for a cross-tenant system job
 
-`docs/13-DATABASE_SCHEMA.md`'s Indexing Strategy rule ("every index MUST start with `tenant_id`") has one narrow, explicit exception: a system-triggered job that deletes/scans across **every tenant in one pass, with no `tenant_id` predicate at all** — a daily retention purge (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`), matching `ExpirePointsJob`'s own precedent. A `(tenant_id, X)` composite index can't be seeked by a query that never filters on `tenant_id` — Postgres has to fall back to a full index/table scan regardless of how well `X` alone would narrow the search, which degrades as the table grows.
+`docs/DATABASE_SCHEMA.md`'s Indexing Strategy rule ("every index MUST start with `tenant_id`") has one narrow, explicit exception: a system-triggered job that deletes/scans across **every tenant in one pass, with no `tenant_id` predicate at all** — a daily retention purge (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`), matching `ExpirePointsJob`'s own precedent. A `(tenant_id, X)` composite index can't be seeked by a query that never filters on `tenant_id` — Postgres has to fall back to a full index/table scan regardless of how well `X` alone would narrow the search, which degrades as the table grows.
 
 When drafting a new job of this shape, check the table's existing indexes for a **standalone** index on the job's own filter column, not just a composite one that happens to include it as a trailing column. Confirmed to be missed twice in a row before being caught by review: `chatbot_messages.IDX_chatbot_messages_created_at` (added after the fact by `AddStartedAtIndexToChatbotSessions`, M19-S07) and `lead_form_submissions.IDX_platform_lead_form_submissions_expires_at` (added after the fact in M20-S04, 2026-08-25, Codex review finding on PR #422 — the story's own draft named only the pre-existing `(tenant_id, expires_at)` composite index, by habit, without checking whether the job's actual query could seek it). When a new story's job description says "mirror `<X>RetentionPurgeJob`'s shape exactly," that includes checking whether `<X>`'s table needed this same standalone-index fix — not just copying the job/handler/controller file shapes.
 
@@ -162,7 +162,7 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 
 ## An E2E fixture or assertion that depends on "what is bookable now" must trim to the clock and leave room — the availability read lists elapsed slots, and the last half hour of a day has nothing to spare
 
-**The availability read lists the whole business day, including hours already behind the clock.** Staff and the alert sweep read the same endpoint, so it is deliberately not trimmed (`docs/27-BUSINESS_LOGIC_REFERENCE.md` § Booking — Booking Window). Booking a start at or before now is `422 BOOKING_SCHEDULED_IN_PAST`, and the public booking page hides slots before `now + minimum notice`. Four consequences, each of which failed CI for a different spec:
+**The availability read lists the whole business day, including hours already behind the clock.** Staff and the alert sweep read the same endpoint, so it is deliberately not trimmed (`docs/BUSINESS_LOGIC_REFERENCE.md` § Booking — Booking Window). Booking a start at or before now is `422 BOOKING_SCHEDULED_IN_PAST`, and the public booking page hides slots before `now + minimum notice`. Four consequences, each of which failed CI for a different spec:
 
 1. **A count compared with the page** (`toHaveCount(apiSlots.length)`) must come from the slots that start after now. `slotsOnDate()` in `apps/web/e2e/helpers/booking-form/flow.ts` already does this; a raw API list over-counts by every elapsed slot of today.
 2. **A spec that books "the first slot" and then expects other slots for the same resource needs a day with room.** Booking blocks the slot's duration plus the service buffer, so in the last ~30 minutes before a service's final slot of the day the one slot left is also the last, everything else is already past, and the page shows none. `findFirstSlot()` therefore takes the first day with at least 8 upcoming slots and falls back to the roomiest day for a long multi-leg service that never lists that many.
@@ -245,7 +245,7 @@ The booking page wraps its form in a Suspense boundary, so for a moment after `l
 
 ## Concurrency tests — a tenant per scenario, deterministic first, and a test that passes without the lock is not coverage
 
-Where the strategy lives: `docs/08-TESTING_STRATEGY.md` § Concurrency Tests; the lock-to-test map: `docs/28-LOCK_CATALOG.md` § 3.1. The rules a new concurrency test follows:
+Where the strategy lives: `docs/TESTING_STRATEGY.md` § Concurrency Tests; the lock-to-test map: `docs/LOCK_CATALOG.md` § 3.1. The rules a new concurrency test follows:
 
 - **A tenant of its own per scenario** (`createLockRaceWorld`: fresh tenant id, tenant row, two rooms, one service). Nothing is shared, so a failing scenario leaves nothing another test can trip over and no cleanup is needed on a reused database (the staff race test failed once on rows left by an earlier run). The tenant row is required: the events these flows publish are handled by listeners that read the tenant's settings.
 - **Prefer the deterministic lock contract to a race.** Hold the lock (`holdTransaction`, `holdResourceLocks`), start the operation, `Promise.race` the blocked-lock probe against the operation finishing (so a missing lock fails with a clear message instead of a timeout), assert it has not finished, release in a `finally`, then assert the result. Use a race loop only to check an invariant a contract test cannot, with 3 to 6 rounds, a fresh world per round, and `expectNoDeadlock`.

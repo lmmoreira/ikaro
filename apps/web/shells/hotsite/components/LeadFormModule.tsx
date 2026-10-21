@@ -70,7 +70,7 @@ function LeadFormContent({
   );
 }
 
-// Teaser section only — mirrors BookingCtaModule.tsx (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md
+// Teaser section only — mirrors BookingCtaModule.tsx (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md
 // § 7 Developer Checklist, UC-038). Links out to the dedicated /[slug]/lead-form page (M20-S09),
 // which is where the actual question form lives — this component never fetches the question
 // catalog itself. LeadFormModuleData is deliberately smaller than BookingCtaModuleData (no

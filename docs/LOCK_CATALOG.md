@@ -142,7 +142,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 | `UQ_notification_logs_event_type_channel` (unique index; the earlier `UQ_notification_logs_event_channel` constraint was dropped by migration `1748200000010`), `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |
 | inbox `(event_id, consumer_name)`, outbox `UQ_shared_outbox_dedup_key` | `shared.*` | Consumer idempotency, publish dedup |
 
-The meaning of the unique constraints is taken from their names and `docs/13-DATABASE_SCHEMA.md`; confirm there before relying on one for a new design.
+The meaning of the unique constraints is taken from their names and `docs/DATABASE_SCHEMA.md`; confirm there before relying on one for a new design.
 
 ### 3.1 Which test proves each lock
 

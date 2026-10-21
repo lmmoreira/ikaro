@@ -1,11 +1,11 @@
 # Business Context - Ikaro
 
-> **When to load:** understanding what Ikaro is, who the tenants and users are, the MVP scope and out-of-scope list, success metrics or the glossary; the use cases themselves are in `docs/04-USE_CASES.md`, technology choices in `docs/22-TECH_STACK_DECISIONS.md`.
+> **When to load:** understanding what Ikaro is, who the tenants and users are, the MVP scope and out-of-scope list, success metrics or the glossary; the use cases themselves are in `docs/USE_CASES.md`, technology choices in `docs/TECH_STACK_DECISIONS.md`.
 > **Tags:** product
 
 ## Executive Summary
 
-**Ikaro** is a multi-tenant booking and loyalty platform for local service businesses. Car wash is the flagship vertical and the one this document's examples use; the platform also supports appointment-style services through resources and scheduling rules (`docs/05-BOUNDED_CONTEXTS.md`). It enables multiple autonomous companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
+**Ikaro** is a multi-tenant booking and loyalty platform for local service businesses. Car wash is the flagship vertical and the one this document's examples use; the platform also supports appointment-style services through resources and scheduling rules (`docs/BOUNDED_CONTEXTS.md`). It enables multiple autonomous companies (tenants) to each manage customer bookings, service scheduling, and customer loyalty tracking through a modern, cloud-native web application. Each tenant is completely isolated with their own services, customers, staff, and loyalty programs.
 
 **Key:** Single Ikaro platform, multiple independent companies.
 
@@ -61,7 +61,7 @@ Each tenant has dedicated hotsite accessible via path:
 - Can switch between tenants after login (`POST /auth/switch-tenant`)
 
 **Staff: Can belong to MULTIPLE tenants**
-- One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/06-TENANT_ISOLATION_STRATEGY.md`)
+- One person can work for several car wash companies: one Staff record per tenant (`UNIQUE(tenant_id, google_oauth_id)`, see `docs/TENANT_ISOLATION_STRATEGY.md`)
 - Staff login is per-tenant: it starts from a specific tenant (`tenantSlug` carried in the OAuth state) and enters that tenant directly, with no selection step
 - With several active records, can switch tenant after login (`/select-staff-tenant`, `POST /auth/switch-staff-tenant`)
 
@@ -293,14 +293,14 @@ Small car wash businesses face challenges:
 ## Technical Constraints & Decisions
 
 - **Architecture:** Hexagonal (ports & adapters) with DDD principles.
-- **Deployment:** **Docker-centric**. The entire platform is containerized and runs on GCP Cloud Run (the committed, GCP-only target; see `docs/22-TECH_STACK_DECISIONS.md`).
+- **Deployment:** **Docker-centric**. The entire platform is containerized and runs on GCP Cloud Run (the committed, GCP-only target; see `docs/TECH_STACK_DECISIONS.md`).
 - **No Vendor Lock-in:** 
   - Strict use of standard PostgreSQL (no proprietary extensions).
   - Observability using open standards: **OpenTelemetry** exported to Google Cloud Trace, Logging and Managed Service for Prometheus.
   - Infrastructure as Code (Terraform) focused on portable resources.
 - **Stack:** NestJS backend, React frontend, BFF gateway.
 - **Authentication:** Google OAuth 2.0 (standard implementation, not cloud-specific).
-- **Email:** Standard SMTP or API adapters with easy swapability — see `docs/22-TECH_STACK_DECISIONS.md` §9 for the current provider.
+- **Email:** Standard SMTP or API adapters with easy swapability — see `docs/TECH_STACK_DECISIONS.md` §9 for the current provider.
 - **Storage:** Standard S3-compatible or local-disk adapters.
 
 ---

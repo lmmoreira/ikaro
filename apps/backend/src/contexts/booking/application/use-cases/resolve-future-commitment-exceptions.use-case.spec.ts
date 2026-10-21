@@ -272,7 +272,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   });
 
   describe('REASSIGN', () => {
-    it('never asks for a lock on the deactivated source resource (M23-S48, docs/28 H2)', async () => {
+    it('never asks for a lock on the deactivated source resource (M23-S48, docs/LOCK_CATALOG H2)', async () => {
       const source = await world.addResource('Sala 1');
       const target = await world.addResource('Sala 2');
       const service = await world.addService();
@@ -568,7 +568,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   });
 
   describe('RESCHEDULE', () => {
-    describe('lock order (M23-S48, docs/28 H2)', () => {
+    describe('lock order (M23-S48, docs/LOCK_CATALOG H2)', () => {
       async function setup() {
         const source = await world.addResource('Sala 1');
         await world.addResource('Sala 2');

@@ -5,7 +5,7 @@ import {
   AvailabilityAlertStatus,
 } from '../../domain/availability-alert.types';
 
-// docs/13-DATABASE_SCHEMA.md § booking.availability_alerts (M23 Cluster 3).
+// docs/DATABASE_SCHEMA.md § booking.availability_alerts (M23 Cluster 3).
 @Entity('availability_alerts', { schema: 'booking' })
 @Index(['tenantId', 'serviceId', 'status'])
 @Index(['tenantId', 'customerId', 'status'])

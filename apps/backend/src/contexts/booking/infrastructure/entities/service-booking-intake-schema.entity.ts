@@ -1,7 +1,7 @@
 import { Column, Entity, Index, PrimaryColumn } from 'typeorm';
 import { ServiceIntakeQuestion } from '../../domain/service-booking-intake-schema';
 
-// docs/13-DATABASE_SCHEMA.md § booking.service_booking_intake_schema (M22-S02) — a versioned,
+// docs/DATABASE_SCHEMA.md § booking.service_booking_intake_schema (M22-S02) — a versioned,
 // service-owned booking-intake definition; a new version supersedes, never edits, the previous
 // one (UC-054).
 @Entity('service_booking_intake_schema', { schema: 'booking' })

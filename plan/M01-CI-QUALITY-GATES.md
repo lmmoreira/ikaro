@@ -15,7 +15,7 @@
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § PR gates, `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md`
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § PR gates, `docs/GITHUB_WORKFLOWS_GUIDELINES.md`
 
 **Description:**  
 Create the GitHub Actions workflow that runs on every pull request targeting `main`. It must enforce ESLint (zero warnings), Prettier formatting check, and TypeScript `tsc --noEmit` across all workspaces. A single failure blocks the merge.
@@ -44,7 +44,7 @@ Create the GitHub Actions workflow that runs on every pull request targeting `ma
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § test stages, `docs/08-TESTING_STRATEGY.md` § tools
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § test stages, `docs/TESTING_STRATEGY.md` § tools
 
 **Description:**  
 Create the GitHub Actions workflow that runs all Jest tests (unit + integration) on every PR. Integration tests use Testcontainers which spin up a real PostgreSQL and Pub/Sub emulator inside the CI runner — no mocks for persistence or messaging.
@@ -74,7 +74,7 @@ Create the GitHub Actions workflow that runs all Jest tests (unit + integration)
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § security gates
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § security gates
 
 **Description:**  
 Add Gitleaks to the PR pipeline to scan the full git history and staged changes for leaked secrets (API keys, passwords, tokens). Any detected secret blocks the merge with a clear error pointing to the offending commit and file.
@@ -96,11 +96,11 @@ Add Gitleaks to the PR pipeline to scan the full git history and staged changes 
 
 ### M01-S04 — Snyk SCA vulnerability scanning ✅ Done
 
-> **Superseded 2026-09-14 (M21-S05):** the per-PR gate described below was removed after the org's Snyk free-tier quota (200 tests/month) was repeatedly exhausted by `/pr-land`'s own iterative bot-review rounds. Snyk now runs only as a weekly scheduled scan (`weekly-jobs.yml`), not as a required PR status check — see `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` § 1.3 and `.copilot/context.md`'s CI gates section for the current, accurate state. The description/AC below are kept as the historical record of what this story originally shipped.
+> **Superseded 2026-09-14 (M21-S05):** the per-PR gate described below was removed after the org's Snyk free-tier quota (200 tests/month) was repeatedly exhausted by `/pr-land`'s own iterative bot-review rounds. Snyk now runs only as a weekly scheduled scan (`weekly-jobs.yml`), not as a required PR status check — see `docs/INFRASTRUCTURE_TOOLING_MAP.md` § 1.3 and `.copilot/context.md`'s CI gates section for the current, accurate state. The description/AC below are kept as the historical record of what this story originally shipped.
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § security gates, `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` § Snyk
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § security gates, `docs/INFRASTRUCTURE_TOOLING_MAP.md` § Snyk
 
 **Description:**  
 Add Snyk software composition analysis (SCA) to the PR pipeline. Snyk scans `package.json` and `pnpm-lock.yaml` for known CVEs in dependencies. Any HIGH or CRITICAL vulnerability blocks the merge. `SNYK_TOKEN` must be stored as a GitHub Actions secret.
@@ -126,7 +126,7 @@ Add Snyk software composition analysis (SCA) to the PR pipeline. Snyk scans `pac
 
 **Agent:** `devops`  
 **Complexity:** M  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § SonarCloud, `docs/CODE_STANDARDS.md` § Testing Standards
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § SonarCloud, `docs/CODE_STANDARDS.md` § Testing Standards
 
 **Description:**  
 Integrate SonarCloud to enforce the differential coverage gate (≥80% on changed code, not global). SonarCloud also catches new bugs, code smells, and security hotspots. The Quality Gate must be GREEN for a PR to merge. `SONAR_TOKEN` and `SONAR_ORGANIZATION` must be stored as GitHub Secrets.
@@ -157,7 +157,7 @@ Integrate SonarCloud to enforce the differential coverage gate (≥80% on change
 
 **Agent:** `devops`  
 **Complexity:** M  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § image build + scan, `docs/12-DEPLOYMENT_STRATEGY.md` § immutable artifacts
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § image build + scan, `docs/DEPLOYMENT_STRATEGY.md` § immutable artifacts
 
 **Description:**  
 Create Dockerfiles for all three apps and add a CI job that builds the Docker images and scans them with Trivy for OS and application CVEs. At this stage the images are built but NOT pushed anywhere — the push to Google Artifact Registry happens in M16. HIGH and CRITICAL CVEs in the image block the PR.
@@ -188,7 +188,7 @@ Create Dockerfiles for all three apps and add a CI job that builds the Docker im
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/09-CI_CD_PIPELINE.md` § IaC scan, `docs/19-INFRASTRUCTURE_TOOLING_MAP.md` § Checkov
+**Docs to load:** `docs/CI_CD_PIPELINE.md` § IaC scan, `docs/INFRASTRUCTURE_TOOLING_MAP.md` § Checkov
 
 **Description:**  
 Add Checkov to the PR pipeline to scan Terraform files for security misconfigurations. This job only runs when files under `infrastructure/terraform/` change. Any HIGH severity finding blocks the merge. The `infrastructure/terraform/` directory will be created in M15 — this story creates the workflow job that will activate once Terraform files exist.

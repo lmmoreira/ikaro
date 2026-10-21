@@ -133,4 +133,72 @@ describe('checkDocOrientation', () => {
     expect(result.findings).toEqual([]);
     expect(result.scannedTargets).toBe(1);
   });
+
+  describe('docs/README.md reading order', () => {
+    const readme = (items: string) =>
+      `# Docs\n\n${WHEN}> **Tags:** backend, product\n\n## Where a new doc goes\n\nSee \`UPPER_SNAKE.md\`.\n\n## Reading order\n\n${items}\n\n## Other\n\nSee \`EXTRA.md\`.\n`;
+
+    it('passes when the list names exactly the top-level docs', () => {
+      const result = scan({
+        'docs/README.md': readme('1. `A.md`: first.\n- **Group:** `B.md`.'),
+        'docs/A.md': GOOD,
+        'docs/B.md': GOOD,
+        ...CODE,
+      });
+
+      expect(result.findings).toEqual([]);
+    });
+
+    it('reports a doc missing from the list', () => {
+      const result = scan({
+        'docs/README.md': readme('1. `A.md`: first.'),
+        'docs/A.md': GOOD,
+        'docs/B.md': GOOD,
+        ...CODE,
+      });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({
+          file: 'docs/README.md',
+          message: expect.stringContaining('docs/B.md is missing'),
+        }),
+      ]);
+    });
+
+    it('reports a listed name that has no file', () => {
+      const result = scan({
+        'docs/README.md': readme('1. `A.md`: first.\n2. `GONE.md`: removed.'),
+        'docs/A.md': GOOD,
+        ...CODE,
+      });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({
+          line: 13,
+          message: expect.stringContaining('docs/GONE.md does not exist'),
+        }),
+      ]);
+    });
+
+    it('reads only the Reading order section, not names mentioned elsewhere in the README', () => {
+      const result = scan({
+        'docs/README.md': readme('1. `A.md`: first.'),
+        'docs/A.md': GOOD,
+        ...CODE,
+      });
+
+      expect(result.findings).toEqual([]);
+    });
+
+    it('reports a README with no Reading order section', () => {
+      const result = scan({
+        'docs/README.md': `# Docs\n\n${WHEN}> **Tags:** backend, product\n\nBody\n`,
+        ...CODE,
+      });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({ message: expect.stringContaining('No "## Reading order"') }),
+      ]);
+    });
+  });
 });

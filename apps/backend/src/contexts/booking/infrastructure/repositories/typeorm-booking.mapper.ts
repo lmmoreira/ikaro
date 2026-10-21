@@ -38,7 +38,7 @@ function toDomainAttendee(a: BookingAttendeeEntity): BookingAttendee {
   });
 }
 
-// Both null or both set together — mirrors the DB's own CHECK (docs/13-DATABASE_SCHEMA.md).
+// Both null or both set together — mirrors the DB's own CHECK (docs/DATABASE_SCHEMA.md).
 function toDomainIntake(entity: BookingEntity): BookingIntakeSnapshot | null {
   if (entity.intakeSchemaVersion === null || entity.intakeAnswers === null) return null;
   return {

@@ -5,7 +5,7 @@
 **UCs covered:** UC-075 (Presets A/B/C/G — appointment-only, `M24-S21`; Presets D/E/F SESSION completion, `M24-S05`)  
 **Status:** ❓ Gap — not yet shipped. Assigned to M24: `M24-S21` (backend + BFF, Presets A/B/C/G), `M24-S05` (SESSION presets D/E/F), `M24-S22` (wizard frontend); moved from M23-S10/S15.
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` and `multivertical-booking_USECASES.md` (CAND-51) via `/discovery-to-milestone`. This wizard is the **only** path allowed to create an empty tenant's first resource/service graph — ordinary resource/service CRUD (UC-045, UC-050 etc.) only makes sense once bootstrap has run. See `docs/02-DOMAIN_MODEL.md` and `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full preset taxonomy (7 presets, 13 underlying scheduling models) this wizard translates into plain business questions.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` and `multivertical-booking_USECASES.md` (CAND-51) via `/discovery-to-milestone`. This wizard is the **only** path allowed to create an empty tenant's first resource/service graph — ordinary resource/service CRUD (UC-045, UC-050 etc.) only makes sense once bootstrap has run. See `docs/DOMAIN_MODEL.md` and `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full preset taxonomy (7 presets, 13 underlying scheduling models) this wizard translates into plain business questions.
 
 ## Flow
 
@@ -36,7 +36,7 @@ flowchart TD
 |---|---|---|
 | `POST /v1/onboarding/bootstrap` | Wizard confirms preset + answers | MANAGER |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Tenant Onboarding Bootstrap.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Tenant Onboarding Bootstrap.
 
 ## Prototype
 

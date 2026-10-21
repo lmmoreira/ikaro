@@ -47,7 +47,7 @@ interface InviteStaffDto {
 }
 ```
 
-**Important:** the API accepts `firstName`/`lastName` as separate fields, but the backend concatenates them into a single `name` field before persisting (`invite-staff.use-case.ts`: `` `${firstName} ${lastName}`.trim() ``). `docs/04-USE_CASES.md` UC-028 was corrected to reflect this (2026-06-16) — don't expect a `firstName`/`lastName` split when reading the staff list back; only `name` comes back from `GET /staff`.
+**Important:** the API accepts `firstName`/`lastName` as separate fields, but the backend concatenates them into a single `name` field before persisting (`invite-staff.use-case.ts`: `` `${firstName} ${lastName}`.trim() ``). `docs/USE_CASES.md` UC-028 was corrected to reflect this (2026-06-16) — don't expect a `firstName`/`lastName` split when reading the staff list back; only `name` comes back from `GET /staff`.
 
 ---
 

@@ -82,7 +82,7 @@ Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case 
 ## Comments and abstraction discipline (mandatory)
 
 - **Default to no comments.** Well-named identifiers already say *what* the code does. Add a comment only when the *why* is genuinely non-obvious — a hidden constraint, a subtle invariant, a workaround for a specific bug, behavior that would surprise a reader. Never restate what the code visibly does, and never a comment referencing the current task/story/ticket ("added for M0X-SYY", "fix for #123") — that belongs in the commit message, not the source.
-- **No speculative abstraction.** Don't add a pattern, interface, or extension point the current task doesn't need on the assumption a future task might. A bug fix doesn't need surrounding refactoring; a one-shot operation doesn't need a reusable helper. Three similar lines beat a premature abstraction. Extract only once a second real caller exists (see `docs/24-BFF_ARCHITECTURE.md`'s "second mapper function" convention for the canonical example of this threshold).
+- **No speculative abstraction.** Don't add a pattern, interface, or extension point the current task doesn't need on the assumption a future task might. A bug fix doesn't need surrounding refactoring; a one-shot operation doesn't need a reusable helper. Three similar lines beat a premature abstraction. Extract only once a second real caller exists (see `docs/BFF_ARCHITECTURE.md`'s "second mapper function" convention for the canonical example of this threshold).
 - These two rules apply identically regardless of which agent/tool authors the code — Claude, Codex, or a human — since neither is enforced by a linter.
 
 ---

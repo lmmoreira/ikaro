@@ -1,6 +1,6 @@
 # BFF Architecture - Ikaro
 
-> **When to load:** implementing or changing the BFF (`apps/bff/`): module and controller naming, the web-to-BFF transport helpers, the Google OAuth and JWT flow, the protected-request lifecycle, error passthrough, rate limiting and environment variables; endpoint shapes are in `docs/14-API_CONTRACTS.md`.
+> **When to load:** implementing or changing the BFF (`apps/bff/`): module and controller naming, the web-to-BFF transport helpers, the Google OAuth and JWT flow, the protected-request lifecycle, error passthrough, rate limiting and environment variables; endpoint shapes are in `docs/API_CONTRACTS.md`.
 > **Tags:** bff
 
 ## Purpose
@@ -190,7 +190,7 @@ BFF (GoogleStrategy.validate()):
 ```
 
 ### Step 3 — Tenant selection (customers only) — **removed, `M13-S14`**
-> **Descoped:** the pre-login `/select-tenant` chooser + `POST /auth/token { code, tenantSlug }` described here were **deleted as dead code** during `M13-S14`'s discovery session — confirmed unreachable from any shipped UI, since every customer login starts from a specific tenant's hotsite (which always supplies the tenant slug directly). `IssueTokenResponse` was removed from `@ikaro/types`. Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use Step 5/UC-023 below to move between tenants they already belong to. See `docs/04-USE_CASES.md` UC-021's note for the full rationale.
+> **Descoped:** the pre-login `/select-tenant` chooser + `POST /auth/token { code, tenantSlug }` described here were **deleted as dead code** during `M13-S14`'s discovery session — confirmed unreachable from any shipped UI, since every customer login starts from a specific tenant's hotsite (which always supplies the tenant slug directly). `IssueTokenResponse` was removed from `@ikaro/types`. Multi-tenant customers are still fully supported — they log into whichever tenant's hotsite they started from, then use Step 5/UC-023 below to move between tenants they already belong to. See `docs/USE_CASES.md` UC-021's note for the full rationale.
 
 ### Step 4 — JWT issuance
 ```typescript
@@ -217,7 +217,7 @@ POST /auth/switch-tenant { targetTenantId: uuid }
   → issues new JWT with the new tenantId/tenantSlug
   → invalidates nothing (previous JWT remains valid until TTL — acceptable for MVP)
 ```
-Staff have the analogous `POST /auth/switch-staff-tenant`, driven by `GET /auth/staff-tenants` and the `/select-staff-tenant` screen — staff are multi-tenant-capable since `M13-S13` (see `docs/06-TENANT_ISOLATION_STRATEGY.md`).
+Staff have the analogous `POST /auth/switch-staff-tenant`, driven by `GET /auth/staff-tenants` and the `/select-staff-tenant` screen — staff are multi-tenant-capable since `M13-S13` (see `docs/TENANT_ISOLATION_STRATEGY.md`).
 
 ---
 
@@ -504,7 +504,7 @@ The full schema is `apps/bff/src/config/env.validation.ts`; `apps/bff/.env.examp
 
 > **Stale (pre-M17 Terraform infra) — flagged, not fully rewritten in this PR.** This whole
 > section predates the real Terraform-managed deployment (`infra/terraform/envs/*`,
-> `docs/12-DEPLOYMENT_STRATEGY.md`): service names, region, memory, and the
+> `docs/DEPLOYMENT_STRATEGY.md`): service names, region, memory, and the
 > `gcloud run deploy --set-secrets`/`--set-env-vars` commands below no longer match how BFF is
 > actually deployed. Out of scope for TD38 to fully correct — needs a dedicated `/docs-audit`
 > pass. The **Ingress** row directly below is corrected as part of TD38, since leaving it
@@ -546,7 +546,7 @@ gcloud run deploy ikaro-bff \
 
 ## CI/CD
 
-The BFF has no workflow of its own; it runs through the shared pipelines described in `docs/09-CI_CD_PIPELINE.md`. Summary:
+The BFF has no workflow of its own; it runs through the shared pipelines described in `docs/CI_CD_PIPELINE.md`. Summary:
 
 | Stage | Workflow | What runs |
 |---|---|---|
@@ -586,7 +586,7 @@ pnpm --filter bff type-check   # tsc --noEmit
 5. Gateway forwards the callback; BFF issues the httpOnly cookie on the web origin
 6. All subsequent browser API calls use same-origin `/v1/*`; server-side calls use `BFF_UPSTREAM_URL`
 
-> **Google OAuth locally:** The Google Console must have `http://localhost:3000/v1/auth/google/callback` in the authorised redirect URIs. See Day 0 §9 in `docs/23-INFRASTRUCTURE_SETUP.md`.
+> **Google OAuth locally:** The Google Console must have `http://localhost:3000/v1/auth/google/callback` in the authorised redirect URIs. See Day 0 §9 in `docs/INFRASTRUCTURE_SETUP.md`.
 
 ---
 
@@ -683,9 +683,9 @@ export interface OAuthState {
 
 | Topic | Document |
 |---|---|
-| Full API surface (all endpoints) | `docs/14-API_CONTRACTS.md` |
-| Infrastructure, Cloud Run, IAM, secrets | `docs/23-INFRASTRUCTURE_SETUP.md` |
-| CI/CD pipeline YAML | `docs/09-CI_CD_PIPELINE.md` |
-| Architecture overview | `docs/11-ARCHITECTURE.md` |
-| Frontend that calls this BFF | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` |
-| Hotsite manifest endpoint | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` |
+| Full API surface (all endpoints) | `docs/API_CONTRACTS.md` |
+| Infrastructure, Cloud Run, IAM, secrets | `docs/INFRASTRUCTURE_SETUP.md` |
+| CI/CD pipeline YAML | `docs/CI_CD_PIPELINE.md` |
+| Architecture overview | `docs/ARCHITECTURE.md` |
+| Frontend that calls this BFF | `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` |
+| Hotsite manifest endpoint | `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` |

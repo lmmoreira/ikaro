@@ -6,7 +6,7 @@ interface AvailabilityAlertExpiredData extends Record<string, unknown> {
   serviceId: string;
 }
 
-// docs/03-DOMAIN_EVENTS.md § AvailabilityAlertExpired (system, expiresAt passed) — audit-log consumer only (M23-S06).
+// docs/DOMAIN_EVENTS.md § AvailabilityAlertExpired (system, expiresAt passed) — audit-log consumer only (M23-S06).
 export class AvailabilityAlertExpired extends DomainEvent<AvailabilityAlertExpiredData> {
   readonly eventVersion = 1;
   readonly data: AvailabilityAlertExpiredData;

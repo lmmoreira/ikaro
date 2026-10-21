@@ -111,7 +111,7 @@ export async function generateHotsiteImageSignedUrl(
 
 // Only for tmp/-prefixed values (not-yet-promoted uploads) — an already-permanent
 // tenants/<id>/hotsite/... path resolves via the pure NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL
-// template instead (see resolveHotsiteImageDisplayUrl). See docs/14-API_CONTRACTS.md.
+// template instead (see resolveHotsiteImageDisplayUrl). See docs/API_CONTRACTS.md.
 export async function generateHotsiteImageReadSignedUrl(
   filePath: string,
 ): Promise<GenerateHotsiteImageReadSignedUrlResponse> {
@@ -137,7 +137,7 @@ export async function deleteHotsiteImage(filePath: string): Promise<void> {
 }
 
 // Powers the CHATBOT module config panel's own red banner (UC-027 A5) — MANAGER-only,
-// docs/14-API_CONTRACTS.md § Chatbot Cap Status.
+// docs/API_CONTRACTS.md § Chatbot Cap Status.
 export async function getChatbotCapStatus(): Promise<ChatbotCapStatusResponse> {
   const res = await bffClient.get<ChatbotCapStatusResponse>('/tenants/chatbot/cap-status');
   return res.data;

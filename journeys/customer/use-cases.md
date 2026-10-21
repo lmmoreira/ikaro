@@ -1,6 +1,6 @@
 # CUSTOMER — Use Case Inventory
 
-Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder — the authenticated `CUSTOMER` role.
+Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — the authenticated `CUSTOMER` role.
 
 | UC | Title | Notes | Journey file |
 |---|---|---|---|

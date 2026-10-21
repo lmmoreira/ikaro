@@ -142,7 +142,7 @@ function toClassResourceSlots(rows: ServiceClassResourcePoolEntity[]): ClassReso
 }
 
 // A SESSION service always carries a (possibly empty) classResourceSlots array — an APPOINTMENT
-// service always carries null (mutual exclusivity, docs/02-DOMAIN_MODEL.md) — so the empty-rows
+// service always carries null (mutual exclusivity, docs/DOMAIN_MODEL.md) — so the empty-rows
 // case still has to branch on entity.bookingModel to know which of those two it means.
 function toClassResourceSlotsOrDefault(
   entity: ServiceEntity,

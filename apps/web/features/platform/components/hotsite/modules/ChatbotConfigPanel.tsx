@@ -11,8 +11,8 @@ import {
 } from './module-config-panel.types';
 
 // The only module config panel that reads its own data (GET /tenants/chatbot/cap-status) rather
-// than operating purely on `data`/`onChange` — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §
-// CHATBOT and docs/04-USE_CASES.md UC-027 A5. Every other module type's availability is fully
+// than operating purely on `data`/`onChange` — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §
+// CHATBOT and docs/USE_CASES.md UC-027 A5. Every other module type's availability is fully
 // derived from the manifest; CHATBOT's isn't (platform-wide provider health, per-tenant caps),
 // which is why this panel carries a standing disclosure note no other panel has, plus a
 // conditional daily-cap-reached banner sourced from a live read instead of `draft.layout`.

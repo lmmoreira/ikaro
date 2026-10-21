@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// Expand phase (1 of 3) — docs/13-DATABASE_SCHEMA.md § booking.booking_line_resource_assignments
+// Expand phase (1 of 3) — docs/DATABASE_SCHEMA.md § booking.booking_line_resource_assignments
 // / booking.resource_occupancy. Creates every new table + the booking_lines UNIQUE(tenant_id,
 // line_id) the new composite FKs depend on. Does NOT drop EX_booking_bookings_approved_slot —
 // that's the contract phase (1748500000014), only after the backfill (1748500000013) and this
@@ -40,7 +40,7 @@ export class CreateResourceOccupancy1748500000012 implements MigrationInterface 
     // constraint would silently fail to dedupe the flat/non-legged/single-unit degenerate case
     // (leg_index and quantity_position both null — nearly every row in M22), since Postgres
     // treats NULL <> NULL. A unique index on the COALESCE'd values is the null-safe substitute
-    // this table's own docs/13-DATABASE_SCHEMA.md note calls for.
+    // this table's own docs/DATABASE_SCHEMA.md note calls for.
     await queryRunner.query(`
       CREATE UNIQUE INDEX IF NOT EXISTS "UQ_booking_bkg_line_res_assign_null_safe"
         ON "booking"."booking_line_resource_assignments"

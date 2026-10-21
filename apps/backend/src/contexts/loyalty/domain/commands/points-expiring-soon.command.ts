@@ -7,7 +7,7 @@ interface PointsExpiringSoonData extends Record<string, unknown> {
 }
 
 // A Command, not a fact (TD24-S03): no state change (the weekly cron only computes and warns —
-// see docs/03-DOMAIN_EVENTS.md), so a retried/overlapping run must not double-notify. dedupKey
+// see docs/DOMAIN_EVENTS.md), so a retried/overlapping run must not double-notify. dedupKey
 // uses the UTC calendar date of the run (runDate), not a tenant-local one: unlike the two booking
 // jobs, this job has no existing tenant-timezone lookup (it iterates LoyaltyEntry rows grouped by
 // tenantId, not Tenant records with a timezone field) — and at a weekly cadence the UTC-vs-local

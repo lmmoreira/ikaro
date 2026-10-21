@@ -89,7 +89,7 @@ export function checkTestBuilderCoverage(project: Project): ScanResult {
           rule: 'test-builder-coverage',
           file: filePath,
           line: sourceLine(sourceFile, declaration.getStart()),
-          message: `${name} has no matching ${expected} in src/test/builders/${entityContext}/ — every TypeORM entity needs a builder (docs/08-TESTING_STRATEGY.md § Builder class pattern).`,
+          message: `${name} has no matching ${expected} in src/test/builders/${entityContext}/ — every TypeORM entity needs a builder (docs/TESTING_STRATEGY.md § Builder class pattern).`,
         });
         continue;
       }

@@ -63,7 +63,7 @@ type ActionState =
   | 'reschedule-conflict' // UC-008 A1 → 409 — RescheduleConflictAlert shown, retry available
 ```
 
-`BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info); `APPROVED` renders `BookingLifecyclePanel` (Marcar concluído/Reagendar/Cancelar). Both panels write into the same `actionState` machine.
+`BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info); `APPROVED` renders the lifecycle actions (Marcar concluído/Reagendar/Cancelar), composed across `BookingDetailMain`/`BookingOutcomeActionRail` (there is no `BookingLifecyclePanel` component). Both panels write into the same `actionState` machine.
 
 ### Transition rules — triage (PENDING / INFO_REQUESTED)
 
@@ -92,8 +92,8 @@ type ActionState =
 
 | From | Event | To | UI change |
 |---|---|---|---|
-| `idle` | Click "Marcar concluído" | — | Navigates to `MarkCompleteSheet` (full screen/route — too much content for a bottom sheet) |
-| `MarkCompleteSheet` confirm | `PATCH .../complete` → 200 | `completed` | Green banner with cotado-vs-cobrado summary; no further actions (terminal) |
+| `idle` | Click "Marcar concluído" | — | Navigates to the dedicated `/dashboard/bookings/[id]/complete` page (`MarkCompleteBookingPage`; too much content for a bottom sheet) |
+| `MarkCompleteBookingPage` confirm | `PATCH .../complete` → 200 | `completed` | Green banner with cotado-vs-cobrado summary; no further actions (terminal) |
 | `idle` | Click "Reagendar" | — | Navigates to `RescheduleBookingPage` (full screen/route) |
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 200 | `rescheduled` | Green banner with old/new slot; **status stays APPROVED — action buttons return** (not terminal, unlike approve/reject/complete/cancel) |
 | `RescheduleBookingPage` confirm | `PATCH .../reschedule` → 409 | `reschedule-conflict` | Inline error + adjacent slot suggestions, same pattern as `slot-conflict` |
@@ -121,15 +121,15 @@ Three calls, one per urgency section (resolved 2026-06-16 — see `agenda.md` "Q
 ```
 # "Precisa de ação" — no date filter, ALL pending/info-requested regardless of day
 GET /v1/bookings?status=PENDING,INFO_REQUESTED&page=1&limit=20
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 
 # "Hoje" — today's approved only
 GET /v1/bookings?status=APPROVED&date=YYYY-MM-DD&page=1&limit=20
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 
 # "Próximos dias" — approved, future
 GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&page=1&limit=20
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 
 Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
 {
@@ -145,7 +145,7 @@ Sort order: "Precisa de ação" by `scheduledAt ASC` (oldest request first, rega
 ### Booking detail (M125-S04)
 ```
 GET /v1/bookings/:id
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 
 Response: StaffBookingDetailResponse  (@ikaro/types — packages/types/src/booking.dto.ts)
 The shape is flat (no nested `customer` object) and has grown well past the original M125-S04 draft.
@@ -168,7 +168,7 @@ Core fields:
 ### Approve (M125-S05)
 ```
 PATCH /v1/bookings/:id/approve
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 
 → 200: { id, status: 'APPROVED', approvedAt }
 → 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }
@@ -177,7 +177,7 @@ Header: X-Tenant-ID: {tenantId}
 ### Reject (M125-S05)
 ```
 PATCH /v1/bookings/:id/reject
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { reason: string }   // max 200 chars
 
 → 200: { id, status: 'REJECTED', rejectedAt }
@@ -186,7 +186,7 @@ Body: { reason: string }   // max 200 chars
 ### Request more info (M125-S05)
 ```
 PATCH /v1/bookings/:id/request-info
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { message: string }   // max 200 chars
 
 → 200: { id, status: 'INFO_REQUESTED', infoRequestedAt }
@@ -195,7 +195,7 @@ Body: { message: string }   // max 200 chars
 ### Cancel — admin (UC-008, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/cancel        ← unified BFF route, not a literal .../cancel-admin path
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { reason?: string }   // OPTIONAL — no minimum length (unlike Reject's 10-char rule)
 
 → 200: { id, status: 'CANCELLED', cancelledAt }
@@ -205,18 +205,18 @@ The BFF's `PATCH /v1/bookings/:id/cancel` (`apps/bff/src/features/booking/bookin
 ### Reschedule (UC-008 A1, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/reschedule
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }
 
 → 200: { id, status: 'APPROVED', scheduledAt }
 → 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }   // same shape as approve's 409
 ```
-Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/04-USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
+Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
 
 ### Mark complete (UC-009, ✅ shipped)
 ```
 PATCH /v1/bookings/:id/complete
-Header: X-Tenant-ID: {tenantId}
+Auth: Bearer JWT (the tenant comes from the JWT)
 Body: {
   lines: [{ lineId: string /* uuid */, actualPriceCharged: number }],  // required, >= 1 entry
   afterServicePhotoUrls?: string[],
@@ -415,7 +415,7 @@ export interface CompleteBookingResponse {
 
 ## M23 Cluster 3 extension (UC-071 approval ✅ shipped by M23-S13; UC-074 no-show ✅ shipped by M23-S27; UC-070 staff variant ✅ shipped by M23-S19)
 
-> Everything above this line is shipped, as are the UC-071 approval screens below (M23-S13) and the UC-074 section (M23-S27). The staff creation of a recurring schedule (M23-S19) shipped too. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+> Everything above this line is shipped, as are the UC-071 approval screens below (M23-S13) and the UC-074 section (M23-S27). The staff creation of a recurring schedule (M23-S19) shipped too. See `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 **Prototype screens (revised 2026-10-08):**
 - `00-agenda.html` (built in M23-S13; the former `00c` was folded in) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.

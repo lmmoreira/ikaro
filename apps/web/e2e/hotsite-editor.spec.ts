@@ -1190,7 +1190,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     );
   });
 
-  // Both PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID (docs/14-API_CONTRACTS.md) and this
+  // Both PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID (docs/API_CONTRACTS.md) and this
   // client-side check exist for the same rule — this proves they agree, same rationale as the
   // branding-color and SEO-title tests above. Also exercises the module-config-preview -> Publish
   // path specifically (not Aplicar), which is the one path that skipped this validation until a

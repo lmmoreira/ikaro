@@ -45,7 +45,7 @@ export class UpdateTenantSettingsUseCase {
       // TOCTOU race where a resource-scoped opening could be validated against a businessHours
       // value that's about to be superseded by this write. An earlier advisory-lock design here
       // didn't actually close this, since the "fresh" read it guarded still went through the
-      // cache regardless of lock ordering (see docs/13-DATABASE_SCHEMA.md).
+      // cache regardless of lock ordering (see docs/DATABASE_SCHEMA.md).
       const tenant = await this.tenantRepo.findByIdForUpdate(tenantId);
       if (!tenant) throw new TenantNotFoundError(tenantId);
 
@@ -60,7 +60,7 @@ export class UpdateTenantSettingsUseCase {
           ...tenant.settings.toJSON(),
           // `chatbot` getter — unlike toJSON()'s raw props — always resolves knowledgeText even
           // for a tenant whose stored settings predate M19-S04, and never leaks an Ikaro-only
-          // override (maxConversationsPerDay, llmProvider, ...) into the API response (docs/21
+          // override (maxConversationsPerDay, llmProvider, ...) into the API response (docs/TENANTS_SETTINGS_SCHEMA
           // §7).
           chatbot: { knowledgeText: tenant.settings.chatbot.knowledgeText },
         },

@@ -37,7 +37,7 @@
 </head>
 <body>
   <!--
-    VARIANT OF: 04d-success.html — legged service: the leg timeline comes from the response `itinerary` (UC-065), which lists EVERY resolved resource of EVERY leg regardless of its selectionMode (docs/14-API_CONTRACTS.md): entries sharing a legIndex are grouped under that leg (Massagem has two: its staff and its room). So, unlike the pre-booking review (10), where an automatic leg shows only its resource type, the success box names the assigned resources of all legs — including the automatic rooms. Times match 10-multi-leg-itinerary.
+    VARIANT OF: 04d-success.html — legged service: the leg timeline comes from the response `itinerary` (UC-065), which lists EVERY resolved resource of EVERY leg regardless of its selectionMode (docs/API_CONTRACTS.md): entries sharing a legIndex are grouped under that leg (Massagem has two: its staff and its room). So, unlike the pre-booking review (10), where an automatic leg shows only its resource type, the success box names the assigned resources of all legs — including the automatic rooms. Times match 10-multi-leg-itinerary.
     COMPONENTS: ConfirmationStep + BookingSubmittedDetails  apps/web/features/booking/components/public/BookingSubmittedDetails.tsx
     The success block is unchanged; the details box (data from the 201 response `lines[]`, never an assignment preview) is added
     for EVERY booking. Resource line rules: CUSTOMER_CHOICE -> the customer's own pick; AUTO_ANY -> `assignedResourceName`;

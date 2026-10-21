@@ -25,7 +25,7 @@ interface ChatbotWidgetProps {
 }
 
 // checking/unavailable: pre-flight in flight or resolved false — widget renders null either way
-// (UC-034). idle/sending/interrupted: the 3 states the prototype validates (docs/15 § CHATBOT).
+// (UC-034). idle/sending/interrupted: the 3 states the prototype validates (docs/HOTSITE_DYNAMIC_ARCHITECTURE § CHATBOT).
 type ConversationStatus = 'checking' | 'unavailable' | 'idle' | 'sending' | 'interrupted';
 
 export function ChatbotWidget({

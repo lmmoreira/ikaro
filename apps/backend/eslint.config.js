@@ -46,7 +46,7 @@ const OPENTELEMETRY_PATTERN = {
 const EVENT_BUS_PORT_PATTERN = {
   regex: '\\/event-bus\\.port$',
   message:
-    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see docs/03-DOMAIN_EVENTS.md D14.',
+    'Publish sites depend on OUTBOX_PUBLISHER/IOutboxPublisher (shared/ports/outbox-publisher.port), not EVENT_BUS — see docs/DOMAIN_EVENTS.md D14.',
 };
 // Use cases and application services must not inject RequestContext — caller context is
 // passed via the input DTO instead, keeping use cases callable from event handlers, scheduled
@@ -533,7 +533,7 @@ module.exports = [
   // TD37-S15: no .skip()/.only() — a skipped test hides a real regression behind a green CI
   // run, and a focused describe/it silently stops every sibling test in the file from running
   // at all. Scoped to spec files only; zero baseline violations confirmed repo-wide before this
-  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/08-TESTING_STRATEGY.md).
+  // shipped directly as `error` (docs/ANTI_PATTERNS.md, docs/TESTING_STRATEGY.md).
   {
     files: ['src/**/*.spec.ts', 'src/**/*.integration.spec.ts'],
     plugins: { jest: jestPlugin },

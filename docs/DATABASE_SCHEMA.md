@@ -1,6 +1,6 @@
 # Database Schema - Ikaro
 
-> **When to load:** writing a migration or an entity, or checking a table, column, index or constraint: the schema per context, global standards, the indexing strategy and migration rules; aggregate meaning is in `docs/02-DOMAIN_MODEL.md`, locking and race rules in `docs/28-LOCK_CATALOG.md`.
+> **When to load:** writing a migration or an entity, or checking a table, column, index or constraint: the schema per context, global standards, the indexing strategy and migration rules; aggregate meaning is in `docs/DOMAIN_MODEL.md`, locking and race rules in `docs/LOCK_CATALOG.md`.
 > **Tags:** database, backend
 
 ## Overview
@@ -19,7 +19,7 @@ Single PostgreSQL instance
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
 
-**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself — see `docs/06-TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
+**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; and `platform.tenants`, which is the tenant itself — see `docs/TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
 
 ---
 
@@ -48,7 +48,7 @@ All domain entities, value objects, and test factories that generate IDs must us
 | Intra-context (same schema) | ✅ Yes | Always enforce referential integrity within a context |
 | Cross-context (different schemas) | ❌ No | Store UUID only. Integrity enforced at application level via events. |
 
-This is a direct consequence of the Context Isolation Contract in `docs/05-BOUNDED_CONTEXTS.md` (Rule 3).
+This is a direct consequence of the Context Isolation Contract in `docs/BOUNDED_CONTEXTS.md` (Rule 3).
 
 ### 3. Audit Columns
 Every mutable table includes:
@@ -74,7 +74,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | id | UUID | PRIMARY KEY |
 | name | VARCHAR(255) | NOT NULL |
 | slug | VARCHAR(100) | UNIQUE, NOT NULL |
-| settings | JSONB | NOT NULL DEFAULT `'{}'` — full schema → `docs/21-TENANTS_SETTINGS_SCHEMA.md` |
+| settings | JSONB | NOT NULL DEFAULT `'{}'` — full schema → `docs/TENANTS_SETTINGS_SCHEMA.md` |
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
@@ -84,18 +84,18 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)`, UNIQUE |
-| branding | JSONB | `HotsiteBranding` shape — ~17 fields (colors, fonts, logo, borderRadius, buttonStyle, spacing, shadowStyle, brand identity); see `docs/02-DOMAIN_MODEL.md`'s `HotsiteConfig` aggregate for the full field list, not just `primary_color`/`logo_url`/`font` |
+| branding | JSONB | `HotsiteBranding` shape — ~17 fields (colors, fonts, logo, borderRadius, buttonStyle, spacing, shadowStyle, brand identity); see `docs/DOMAIN_MODEL.md`'s `HotsiteConfig` aggregate for the full field list, not just `primary_color`/`logo_url`/`font` |
 | layout | JSONB | Array of modules: `[{ type, data }]` |
 | seo | JSONB | NOT NULL DEFAULT `'{"title": null, "description": null}'::jsonb` — `{ title, description }`, both nullable; tenant-configured SEO overrides |
 | is_published | BOOLEAN | NOT NULL DEFAULT false |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column |
-| **INDEX** | (tenant_id) | |
+| **UNIQUE** | (tenant_id) | `UQ_platform_hotsite_configs_tenant_id`; no separate index |
 
 ### `platform.chatbot_sessions`
 
-One chat widget conversation. Cap enforcement (`docs/04-USE_CASES.md` UC-033) `COUNT`s rows here directly — no separate counter table.
+One chat widget conversation. Cap enforcement (`docs/USE_CASES.md` UC-033) `COUNT`s rows here directly — no separate counter table.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -142,7 +142,7 @@ Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write
 | Column | Type | Constraints |
 |--------|------|-------------|
 | provider | VARCHAR(32) | PRIMARY KEY — e.g. `'openrouter'` |
-| remaining_usd | NUMERIC(10,4) | NULL — absent until S08's first successful poll for this provider; also genuinely absent for Anthropic/OpenAI, which have no prepaid-balance concept (`docs/04-USE_CASES.md` UC-034) |
+| remaining_usd | NUMERIC(10,4) | NULL — absent until S08's first successful poll for this provider; also genuinely absent for Anthropic/OpenAI, which have no prepaid-balance concept (`docs/USE_CASES.md` UC-034) |
 | checked_at | TIMESTAMP WITH TIME ZONE | NULL, no DEFAULT — set alongside `remaining_usd`. The original migration's `DEFAULT now()` is dropped along with `NOT NULL`, not just the latter — otherwise Postgres would silently substitute `now()` on an INSERT that deliberately omits this column (the health-only write path), producing a value that misleadingly implies a balance poll happened when it didn't |
 | last_success_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` success for this provider, across any tenant |
 | last_failure_at | TIMESTAMP WITH TIME ZONE | NULL — most recent real `ILlmProvider.complete()` failure for this provider, across any tenant. **Never set by a cap/volume rejection** (daily/IP/concurrency/message/length caps, global spend breaker, balance floor) — only by a genuine provider-call failure (timeout/upstream error/insufficient credits) |
@@ -155,7 +155,7 @@ Single-row-per-provider, platform-wide, not tenant-scoped. Two independent write
 
 ### `platform.lead_form_configs`
 
-One row per tenant — question catalog + audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037). The promoted domain rationale lives in `docs/02-DOMAIN_MODEL.md`.
+One row per tenant — question catalog + audience gating for the `LEAD_FORM` hotsite module (`docs/USE_CASES.md` UC-037). The promoted domain rationale lives in `docs/DOMAIN_MODEL.md`.
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -169,7 +169,7 @@ One row per tenant — question catalog + audience gating for the `LEAD_FORM` ho
 
 ### `platform.lead_form_submissions`
 
-One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
+One row per visitor submission (`docs/USE_CASES.md` UC-039/UC-040).
 
 | Column | Type | Constraints |
 |--------|------|-------------|
@@ -179,12 +179,12 @@ One row per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040).
 | name | VARCHAR | NOT NULL |
 | email | VARCHAR | NOT NULL — validated via the existing `Email` VO |
 | phone | VARCHAR | NOT NULL — validated via the existing `PhoneNumber` VO |
-| answers | JSONB | NOT NULL — array of `{questionId, questionLabel, questionType, answerValue}` (full snapshot — see `docs/02-DOMAIN_MODEL.md` § `LeadFormSubmission` for why) |
+| answers | JSONB | NOT NULL — array of `{questionId, questionLabel, questionType, answerValue}` (full snapshot — see `docs/DOMAIN_MODEL.md` § `LeadFormSubmission` for why) |
 | submitted_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | expires_at | TIMESTAMP WITH TIME ZONE | NOT NULL — computed once at insert from the tenant's `retentionMonths` at that moment, never recomputed live |
 | ip_address | VARCHAR(45) | NOT NULL — abuse-investigation trail, also the rate-limit key (same `VARCHAR(45)` sizing as `chatbot_sessions.client_ip` — IPv4/IPv6) |
 | **UNIQUE** | (tenant_id, id) | Composite FK target for `lead_form_answers` (M20-S12) — same discipline as `chatbot_messages` → `chatbot_sessions` and `booking_lines` → `bookings`. **Required, not optional**: Postgres rejects a composite FK whose referenced columns have no unique constraint/index — this must land in the same migration that first creates the table (S02), not be added later, so `lead_form_answers`'s FK (S12) has something to reference |
-| **INDEX** | (tenant_id, submitted_at DESC) | Paginated Leads Submissions list (UC-041), the tenant-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, conversation_date)` layer-1 cap index), and UC-041's `submittedFrom`/`submittedTo` date-range filter (M20-S12, `docs/14-API_CONTRACTS.md`) — a plain range scan on `submitted_at` already served by this same index, no new index needed |
+| **INDEX** | (tenant_id, submitted_at DESC) | Paginated Leads Submissions list (UC-041), the tenant-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, conversation_date)` layer-1 cap index), and UC-041's `submittedFrom`/`submittedTo` date-range filter (M20-S12, `docs/API_CONTRACTS.md`) — a plain range scan on `submitted_at` already served by this same index, no new index needed |
 | **INDEX** | (tenant_id, ip_address, submitted_at) | Per-IP-daily-cap `COUNT` query (mirrors `chatbot_sessions`'s `(tenant_id, client_ip, conversation_date)` layer-2 cap index) |
 | **INDEX** | (tenant_id, expires_at) | Per-tenant `expires_at` range queries — not the retention purge itself (see standalone index below); this composite serves any future tenant-scoped expiry lookup |
 | **INDEX** | (expires_at) | Standalone, added M20-S04 (Codex review finding, PR #422): `LeadFormRetentionPurgeJob`'s daily purge (UC-043) is an unscoped cross-tenant `WHERE expires_at < now()` — matching `ExpirePointsJob`/`ChatbotRetentionPurgeJob`'s own precedent, no per-tenant loop — so it cannot seek the composite index above (led by `tenant_id`, which this query never filters on). Mirrors `chatbot_messages.IDX_platform_chatbot_messages_created_at` |
@@ -219,9 +219,9 @@ One row per **question** per submission (not one row per submission) — `MULTIP
 | question_id | UUID | NOT NULL — the question's `id` at submission time (informational; matching is by `question_label`, not this, since a question can be edited/removed after submission — see below) |
 | question_label | TEXT | NOT NULL — snapshotted, not looked up live (same reasoning as the JSONB snapshot) |
 | answer_value | TEXT | NOT NULL — one row per **selected option** for `MULTIPLE_CHOICE` (2 selected options → 2 rows, same `question_id`/`question_label`), one row for `TEXT`/`SINGLE_CHOICE`. Always a scalar string — the array-flattening happens once, at write time, so every row here is trivially `ILIKE`-able |
-| **INDEX** | (tenant_id, submission_id, question_label) | The advanced filter's per-question `EXISTS` lookup — `question_label` matched by **exact equality** (the manager picks it from a dropdown, never types it — see `docs/14-API_CONTRACTS.md`), so a plain B-tree is the right and faster tool here, not trigram |
+| **INDEX** | (tenant_id, submission_id, question_label) | The advanced filter's per-question `EXISTS` lookup — `question_label` matched by **exact equality** (the manager picks it from a dropdown, never types it — see `docs/API_CONTRACTS.md`), so a plain B-tree is the right and faster tool here, not trigram |
 | **INDEX** | (tenant_id, question_label) | The `filter-options` endpoint's `SELECT DISTINCT question_label ... ORDER BY question_label` — the `(tenant_id, submission_id, question_label)` index above doesn't serve this well (`submission_id` sits between `tenant_id` and `question_label`, so it isn't sorted by label within one tenant); this dedicated index is |
-| **INDEX (GIN)** | `answer_value gin_trgm_ops` | Partial/substring match on the answer text — both the basic free-text search box and every advanced filter's value side. Requires `CREATE EXTENSION IF NOT EXISTS pg_trgm` (this repo already has a precedent for extension-creating migrations: `btree_gist`, `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts`). **Verified against the PostgreSQL docs (`pgtrgm.html`), not assumed:** a GIN index with `gin_trgm_ops` genuinely accelerates `LIKE`/`ILIKE` with a leading wildcard ("the search string need not be left-anchored," documented since PG 9.1) — a plain B-tree cannot do this at all, since a leading `%` has no fixed prefix to seek on. One real limitation from the same docs: "a pattern with no extractable trigrams will degenerate to a full scan" — a search term under 3 characters yields no trigrams and falls back to a sequential scan. The API/UI originally enforced a 3-character minimum to avoid this (M20-S12); revised in M20-S13 to only require non-empty. The unindexed fallback isn't a flat scan of this whole table: `applySearch()`'s per-question match is an `EXISTS` correlated on `(tenant_id, submission_id)`, covered by the `(tenant_id, submission_id, question_label)` index above, so it only costs a short ILIKE over one submission's own ≤20 answer rows — the real cost bound is a tenant's own submission count (up to ~730,000 at this feature's absolute configured ceiling), not this table's much larger cross-submission row total (see `packages/validation/src/lead-form-submission.ts` for the full reasoning and `docs/14-API_CONTRACTS.md`) |
+| **INDEX (GIN)** | `answer_value gin_trgm_ops` | Partial/substring match on the answer text — both the basic free-text search box and every advanced filter's value side. Requires `CREATE EXTENSION IF NOT EXISTS pg_trgm` (this repo already has a precedent for extension-creating migrations: `btree_gist`, `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000014-CreateBookingBookings.ts`). **Verified against the PostgreSQL docs (`pgtrgm.html`), not assumed:** a GIN index with `gin_trgm_ops` genuinely accelerates `LIKE`/`ILIKE` with a leading wildcard ("the search string need not be left-anchored," documented since PG 9.1) — a plain B-tree cannot do this at all, since a leading `%` has no fixed prefix to seek on. One real limitation from the same docs: "a pattern with no extractable trigrams will degenerate to a full scan" — a search term under 3 characters yields no trigrams and falls back to a sequential scan. The API/UI originally enforced a 3-character minimum to avoid this (M20-S12); revised in M20-S13 to only require non-empty. The unindexed fallback isn't a flat scan of this whole table: `applySearch()`'s per-question match is an `EXISTS` correlated on `(tenant_id, submission_id)`, covered by the `(tenant_id, submission_id, question_label)` index above, so it only costs a short ILIKE over one submission's own ≤20 answer rows — the real cost bound is a tenant's own submission count (up to ~730,000 at this feature's absolute configured ceiling), not this table's much larger cross-submission row total (see `packages/validation/src/lead-form-submission.ts` for the full reasoning and `docs/API_CONTRACTS.md`) |
 | **INDEX (GIN)** | `question_label gin_trgm_ops` | Same mechanism, for the **basic** free-text search box only (which also matches partially against question labels, unlike the advanced filter's exact-match dropdown) |
 
 **Basic search** (the single search box), always `tenant_id`-scoped on both sides of the query, never left implicit via the FK alone (per `CLAUDE.md` §2 invariant 2 — "every query filters `tenant_id`, no exceptions"):
@@ -471,7 +471,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 
 ### `booking.services` — modified (M22 Cluster 2)
 
-> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) for the domain rationale.
+> Introduced by M22 — Multi-Vertical Scheduling, Cluster 2 (Service extensions + availability/exclusivity engine). See `docs/DOMAIN_MODEL.md` § Booking Context (`Service` aggregate) for the domain rationale.
 
 | New column | Type | Constraints |
 |--------|------|-------------|
@@ -497,7 +497,7 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 | **CHECK** | `(duration_policy = 'CUSTOMER_SELECTED') = (pricing_policy IS NOT NULL AND pricing_policy != 'FIXED' OR duration_policy = 'FIXED')` (app-enforced, not expressible as a single clean CHECK) | A variable-duration service must declare a non-default pricing policy in the same save — UC-055 A2 |
 | **INDEX** | (tenant_id, booking_model) | Filtering services by family |
 
-`bookingModel`, `resourceRequirements`, `legs`, and `classResourceSlots` (the array-shaped fields) are normalized into the child tables below, not stored as JSONB columns on `services` itself — matching this schema's existing normalization discipline (`docs/13`'s own convention, not JSONB-for-everything).
+`bookingModel`, `resourceRequirements`, `legs`, and `classResourceSlots` (the array-shaped fields) are normalized into the child tables below, not stored as JSONB columns on `services` itself — matching this schema's existing normalization discipline (`docs/DATABASE_SCHEMA`'s own convention, not JSONB-for-everything).
 
 ### `booking.service_resource_requirements` / `booking.service_resource_requirement_pool`
 
@@ -597,7 +597,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 ### `booking.booking_line_resource_assignments` and `booking.resource_occupancy`
 
-> The single physical mechanism that makes cross-family resource exclusivity (UC-060) DB-enforceable. See `docs/02-DOMAIN_MODEL.md`'s UC-060 note for why this has to be one shared table, not one per family. In Cluster 2, only the `BOOKING_LINE` source type is reachable — `CLASS_SESSION` activates once Cluster 4 ships `class_sessions`.
+> The single physical mechanism that makes cross-family resource exclusivity (UC-060) DB-enforceable. See `docs/DOMAIN_MODEL.md`'s UC-060 note for why this has to be one shared table, not one per family. In Cluster 2, only the `BOOKING_LINE` source type is reachable — `CLASS_SESSION` activates once Cluster 4 ships `class_sessions`.
 
 `booking_line_resource_assignments` is the immutable business/audit record for an appointment's resolved resources:
 
@@ -646,7 +646,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 | **INDEX** | (ends_at) | Standalone, TD40 Story 2 — supports `ResourceOccupancyRetentionPurgeJob`'s cross-tenant `WHERE ends_at < cutoff` sweep, which drops the `tenant_id` predicate and can't seek the composite index above (`docs/ENGINEERING_RULES_TESTING.md` § Standalone index for a cross-tenant system job) |
 
 **Rules:**
-- Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.bookingPolicy.manualHoldMinutes`, default 30); approval atomically converts it to `COMMITTED`. **`ExpireBookingHoldsJob` enforces the expiry (TD51):** a `PENDING` booking whose `HOLD` row is past `hold_expires_at` is cancelled by the system (`bookings.cancellation_reason = 'APPROVAL_EXPIRED'`, `cancelled_by` NULL, a `booking_status_transitions` row with actor `SYSTEM`) and its rows are deleted; `INFO_REQUESTED` bookings are not expired, and a customer's answer restarts the deadline (`docs/27-BUSINESS_LOGIC_REFERENCE.md` § `resource_occupancy.lock_state` lifecycle). Recurring schedules expire separately, through `approval_hold_expires_at`. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly. A PENDING booking on a degenerate (LOCATION-fallback) service inserts `REQUESTED` instead of `HOLD` — approval converts it to `COMMITTED`, same as `HOLD`.
+- Every manual-approval appointment inserts `lock_state='HOLD'` with its snapshotted expiry (`Service.bookingPolicy.manualHoldMinutes`, default 30); approval atomically converts it to `COMMITTED`. **`ExpireBookingHoldsJob` enforces the expiry (TD51):** a `PENDING` booking whose `HOLD` row is past `hold_expires_at` is cancelled by the system (`bookings.cancellation_reason = 'APPROVAL_EXPIRED'`, `cancelled_by` NULL, a `booking_status_transitions` row with actor `SYSTEM`) and its rows are deleted; `INFO_REQUESTED` bookings are not expired, and a customer's answer restarts the deadline (`docs/BUSINESS_LOGIC_REFERENCE.md` § `resource_occupancy.lock_state` lifecycle). Recurring schedules expire separately, through `approval_hold_expires_at`. An `AUTO_CONFIRM` appointment inserts `COMMITTED` directly. A PENDING booking on a degenerate (LOCATION-fallback) service inserts `REQUESTED` instead of `HOLD` — approval converts it to `COMMITTED`, same as `HOLD`.
 - Every template create/edit/deactivate, appointment approval, and session-resource override acquires transaction-scoped advisory locks for its resources in canonical `resource_id` order — this serializes the read-check/write boundary for a not-yet-materialized future pattern (a `ClassScheduleTemplate` or `RecurringBookingSchedule` recurrence rule, Clusters 3–4), while the exclusion constraint above protects already-materialized occurrences. The mechanism shipped in Cluster 2 and is exercised from Cluster 3: a recurring-schedule request and its approval take the same locks (`FIXED_ASSIGNMENT` locks the chosen resources, `RESOLVE_PER_OCCURRENCE` locks the service), and the cap check runs under them.
 
 **`booking.booking_lines` — modified (M22 Cluster 2):** `+ UNIQUE(tenant_id, line_id)` — today only `PRIMARY KEY (line_id)` exists; required so `resource_occupancy`/`booking_line_resource_assignments`' composite FKs to it are expressible.
@@ -662,7 +662,7 @@ A versioned, service-owned definition of booking questions, consent text/version
 
 ### `booking.recurring_booking_schedules` / assignments (M23 Cluster 3)
 
-> Private appointment/reservation recurrence — distinct from `recurring_enrollments` (session family, Cluster 4). See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
+> Private appointment/reservation recurrence — distinct from `recurring_enrollments` (session family, Cluster 4). See `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`.
 
 `recurring_booking_schedules`:
 
@@ -833,7 +833,7 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 
 ### `booking.class_schedule_templates` / `booking.class_schedule_template_slots` (M24 Cluster 4)
 
-> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/02-DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
+> Introduced by M24 — Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`.
 
 `class_schedule_templates`:
 
@@ -900,7 +900,7 @@ Append-only audit of a booking's status changes — who moved it, from what, to 
 
 ### `booking.class_session_bookings` / `booking.class_session_booking_attendees` (M24 Cluster 4)
 
-> See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking` for the full property list — table below is the physical column mapping.
+> See `docs/DOMAIN_MODEL.md` § `ClassSessionBooking` for the full property list — table below is the physical column mapping.
 
 `class_session_bookings`:
 
@@ -1098,6 +1098,7 @@ One row per `(tenant_id, customer_id)`. Maintained as a running total: increment
 | current_points | INT | NOT NULL DEFAULT 0, CHECK >= 0 |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **PRIMARY KEY** | (tenant_id, customer_id) | One balance row per customer per tenant |
+| **INDEX** | (tenant_id, customer_id) | `IDX_loyalty_balances_tenant_customer` (redundant with the primary key) |
 
 **Rules:**
 - Upserted on every `LoyaltyEntry` insert: `INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE SET current_points = current_points + excluded.current_points`.
@@ -1219,7 +1220,7 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `shared`
 
-Transport infrastructure for the transactional outbox/inbox pattern (TD24) — not a bounded context, and deliberately not tenant-scoped in its primary key (see `docs/06-TENANT_ISOLATION_STRATEGY.md` for the documented exemption rationale).
+Transport infrastructure for the transactional outbox/inbox pattern (TD24) — not a bounded context, and deliberately not tenant-scoped in its primary key (see `docs/TENANT_ISOLATION_STRATEGY.md` for the documented exemption rationale).
 
 ### `shared.outbox`
 
@@ -1289,7 +1290,7 @@ try {
 
 ## Event Publishing
 
-> **Context:** `docs/03-DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. TD24 (S01–S03) implemented the transactional-outbox solution below for both aggregate-driven and cron-published events; TD24-S04 (above) closed the equivalent gap on the consumer/dedup side.
+> **Context:** `docs/DOMAIN_EVENTS.md` states that event publication must be transactional with the state change that produced it. TD24 (S01–S03) implemented the transactional-outbox solution below for both aggregate-driven and cron-published events; TD24-S04 (above) closed the equivalent gap on the consumer/dedup side.
 
 ### Publish-side: transactional outbox (TD24-S01/S02/S03)
 
@@ -1306,9 +1307,9 @@ The 7 event-emitting aggregates (`Booking`, `Staff`, `Tenant`, `LeadFormSubmissi
 
 ### Consume-side: shared inbox (TD24-S04)
 
-Every event/command consumer — each domain-event handler (including the per-context `audit-log` handlers: `LogDomainEventUseCase` claims with `tryClaim`) and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `docs/03-DOMAIN_EVENTS.md` for the full design.
+Every event/command consumer — each domain-event handler (including the per-context `audit-log` handlers: `LogDomainEventUseCase` claims with `tryClaim`) and `create-initial-manager.use-case.ts` (`TenantProvisioned` → staff) — checks `shared.inbox` before applying its effect and marks the row processed inside the same transaction as that effect, so Pub/Sub's at-least-once redelivery never produces more than one effect per consumer. See `shared.inbox` above for the table shape and `docs/DOMAIN_EVENTS.md` for the full design.
 
-**Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `docs/03-DOMAIN_EVENTS.md`.
+**Remaining evolution:** further evolution is operational (e.g. tightening the sweep interval, alerting on outbox/inbox lag — TD24-S05) rather than a new mechanism — see `docs/DOMAIN_EVENTS.md`.
 
 ---
 

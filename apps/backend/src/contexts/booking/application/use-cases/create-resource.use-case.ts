@@ -48,7 +48,7 @@ export class CreateResourceUseCase {
     const type = input.type as ResourceType;
 
     // LOCATION is never manually created — every tenant's one LOCATION resource comes from
-    // the M21-S02 backfill migration only (docs/14-API_CONTRACTS.md § Resource Management,
+    // the M21-S02 backfill migration only (docs/API_CONTRACTS.md § Resource Management,
     // plan/M21-MULTIVERTICAL-FOUNDATION.md M21-S01). The schema accepts the value so this
     // rejects with a domain-level 422, not a generic transport-level 400 (Codex round-4
     // finding, PR #457).

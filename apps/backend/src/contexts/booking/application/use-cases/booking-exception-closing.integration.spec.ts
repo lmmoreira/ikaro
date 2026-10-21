@@ -96,7 +96,7 @@ describe('closing a booking’s worklist entries (integration)', () => {
   });
 
   // Only the entry a manager resolves closes. The booking still holds its other resource, so that
-  // resource's entry is still a decision to make (docs/27 § Close with the booking change).
+  // resource's entry is still a decision to make (docs/BUSINESS_LOGIC_REFERENCE § Close with the booking change).
   it('reassigning one resource of a two-resource booking leaves the other resource’s entry open', async () => {
     const world = await createLockRaceWorld(env);
     const target = await seedResource(ds, world.tenantId, 'Sala C');

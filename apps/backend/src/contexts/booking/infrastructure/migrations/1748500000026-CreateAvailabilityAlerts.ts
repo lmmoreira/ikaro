@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M23 Cluster 3 (UC-072, UC-076) — docs/13-DATABASE_SCHEMA.md § booking.availability_alerts /
+// M23 Cluster 3 (UC-072, UC-076) — docs/DATABASE_SCHEMA.md § booking.availability_alerts /
 // availability_alert_notification_attempts. Both tables are created here; the attempts table is
 // only written by M23-S07's matching worker. `customer_id` carries no FK (cross-context), exactly
 // like recurring_booking_schedules. Brand-new tables, so the CHECKs are part of CREATE TABLE.

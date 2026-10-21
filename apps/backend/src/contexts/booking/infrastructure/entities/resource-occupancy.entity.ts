@@ -8,8 +8,8 @@ export type ResourceOccupancySourceType = 'BOOKING_LINE' | 'CLASS_SESSION';
 // The shared exclusivity lock — one row per resource-assignment, one GIST exclusion constraint
 // spanning both BOOKING_LINE (reachable from M22) and CLASS_SESSION (inert until M24) so a
 // resource shared across families can never be double-booked at the DB level. Pure locking
-// projection, not a business record — see docs/13-DATABASE_SCHEMA.md § booking.resource_occupancy
-// and docs/02-DOMAIN_MODEL.md's UC-060 note for why this must be one shared table.
+// projection, not a business record — see docs/DATABASE_SCHEMA.md § booking.resource_occupancy
+// and docs/DOMAIN_MODEL.md's UC-060 note for why this must be one shared table.
 @Entity('resource_occupancy', { schema: 'booking' })
 @Index(['tenantId', 'resourceId', 'startsAt'])
 export class ResourceOccupancyEntity {
@@ -35,7 +35,7 @@ export class ResourceOccupancyEntity {
   legIndex!: number | null;
 
   // FK target table (class_sessions) doesn't exist until M24 — plain UUID column, no FK
-  // constraint, exactly as docs/13-DATABASE_SCHEMA.md documents ("unreachable in Cluster 2/3").
+  // constraint, exactly as docs/DATABASE_SCHEMA.md documents ("unreachable in Cluster 2/3").
   @Column({ name: 'class_session_id', type: 'uuid', nullable: true })
   classSessionId!: string | null;
 

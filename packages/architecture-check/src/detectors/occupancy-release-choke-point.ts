@@ -26,7 +26,7 @@ function isReleaseCall(call: CallExpression): boolean {
 // A booking that stops occupying its resources makes every open worklist entry about it obsolete.
 // Calling the release anywhere but the shared helper would leave those entries open on a booking
 // that no longer needs a decision, so a new cancel-like path has to go through the helper
-// (docs/28-LOCK_CATALOG.md § 2, docs/ENGINEERING_RULES_BACKEND.md).
+// (docs/LOCK_CATALOG.md § 2, docs/ENGINEERING_RULES_BACKEND.md).
 export function checkOccupancyReleaseChokePoint(project: Project): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;

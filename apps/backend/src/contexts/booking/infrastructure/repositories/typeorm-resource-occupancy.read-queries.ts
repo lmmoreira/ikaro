@@ -125,7 +125,7 @@ export async function queryOccupancyByBookingLines(
 // no-longer-occupying resource ids alongside the current one. Ordered primarily by each row's
 // own booking_line_id's position within the caller-supplied bookingLineIds array — the same
 // order resolveBookingLinesResourceCandidates() re-iterates lines in — so two lines booking the
-// same duplicated service (docs/14-API_CONTRACTS.md) group their own assignments together, in
+// same duplicated service (docs/API_CONTRACTS.md) group their own assignments together, in
 // resolution order, rather than interleaving arbitrarily (Postgres gives no defined secondary
 // order among rows tied on quantity_position alone, which is NULL for every single-unit
 // requirement — the common case). quantity_position is still the secondary tiebreaker within one

@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § ScheduleClosure, `docs/04-USE_CASES.md` § UC-010a/b, `docs/13-DATABASE_SCHEMA.md` § booking schema
+**Docs to load:** `docs/DOMAIN_MODEL.md` § ScheduleClosure, `docs/USE_CASES.md` § UC-010a/b, `docs/DATABASE_SCHEMA.md` § booking schema
 
 **Description:**  
 Implement (or update) the `ScheduleClosure` aggregate with support for both **full-day** and **partial-day** closures. A full-day closure has `startTime = null, endTime = null`. A partial closure carries explicit `startTime`/`endTime` (HH:MM). The availability algorithm (M06-S03) will treat them differently: a full-day closure voids the whole date; a partial closure blocks only the overlapping slots.
@@ -24,7 +24,7 @@ Implement (or update) the `ScheduleClosure` aggregate with support for both **fu
 
 **Domain layer — `ScheduleClosure` aggregate:**
 - Properties: `id` (UUID v7), `tenantId`, `date` (YYYY-MM-DD), `startTime: string | null` (HH:MM), `endTime: string | null` (HH:MM), `reason` (`STAFF_DAY_OFF | MAINTENANCE | HOLIDAY`), `notes: string | null`, `createdBy` (staffId), `createdAt`
-- Factory: `ScheduleClosure.close({ tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/02-DOMAIN_MODEL.md`)
+- Factory: `ScheduleClosure.close({ tenantId, date, reason, createdBy, resourceId?, startTime?, endTime?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/DOMAIN_MODEL.md`)
 - Invariants:
   - `date` is not in the past (UTC date comparison)
   - `startTime` and `endTime` are both null or both set (never one without the other)
@@ -90,7 +90,7 @@ CHECK (
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-010a/b, `docs/14-API_CONTRACTS.md` § Schedule Closures
+**Docs to load:** `docs/USE_CASES.md` § UC-010a/b, `docs/API_CONTRACTS.md` § Schedule Closures
 
 **Description:**  
 Implement the use cases and endpoints for creating, listing, and removing schedule closures. Supports both full-day and partial closures. The use case enforces the no-overlap invariant that the DB cannot express as a unique index.
@@ -140,7 +140,7 @@ if existing.any(c => c.overlaps(newStartTime, newEndTime)):
 
 **Agent:** `backend-ts`  
 **Complexity:** L  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-011 (full algorithm), `docs/02-DOMAIN_MODEL.md` § Three-Layer Schedule Resolution, `docs/21-TENANTS_SETTINGS_SCHEMA.md` § business_hours + buffer_minutes
+**Docs to load:** `docs/USE_CASES.md` § UC-011 (full algorithm), `docs/DOMAIN_MODEL.md` § Three-Layer Schedule Resolution, `docs/TENANTS_SETTINGS_SCHEMA.md` § business_hours + buffer_minutes
 
 **Description:**  
 Implement the `AvailabilityService` domain service — the core algorithm that calculates free booking slots. Implements the three-layer schedule resolution: `ScheduleOpening` > `ScheduleClosure` > `business_hours`. Must be thoroughly unit-tested with no database or HTTP dependencies.
@@ -205,7 +205,7 @@ Implement the `AvailabilityService` domain service — the core algorithm that c
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-011, `docs/14-API_CONTRACTS.md` § schedule/availability endpoint
+**Docs to load:** `docs/USE_CASES.md` § UC-011, `docs/API_CONTRACTS.md` § schedule/availability endpoint
 
 **Description:**  
 Wire up the availability domain service (M06-S03) into a use case and expose it as a public REST endpoint. This endpoint is called by the hotsite booking form — no authentication required, only `X-Tenant-Slug`.
@@ -244,7 +244,7 @@ Wire up the availability domain service (M06-S03) into a use case and expose it 
 
 **Agent:** `test-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/08-TESTING_STRATEGY.md` § tenant isolation pattern, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+**Docs to load:** `docs/TESTING_STRATEGY.md` § tenant isolation pattern, `docs/TENANT_ISOLATION_STRATEGY.md`
 
 **Description:**  
 Write a dedicated integration test suite for both availability endpoints (single-date detail and range summary) covering edge cases and tenant isolation. Requires Testcontainers.
@@ -292,7 +292,7 @@ Booking + tenant isolation:
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-011 two-phase flow, `docs/14-API_CONTRACTS.md` § Customer Availability, `docs/02-DOMAIN_MODEL.md` § IBookingAvailabilityPort
+**Docs to load:** `docs/USE_CASES.md` § UC-011 two-phase flow, `docs/API_CONTRACTS.md` § Customer Availability, `docs/DOMAIN_MODEL.md` § IBookingAvailabilityPort
 
 **Description:**  
 Implement the range-based availability summary endpoint — Phase 1 of the two-phase calendar UX. A single call loads all data for the requested date range in 3 DB queries, runs `AvailabilityService.calculate()` per day in memory, and returns a lightweight per-day summary `[{ date, available, slotCount }]`.
@@ -349,14 +349,14 @@ Result type: `GetAvailabilitySummaryUseCaseResult = Array<{ date: string; availa
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § ScheduleOpening, `docs/04-USE_CASES.md` § UC-010c/d, `docs/13-DATABASE_SCHEMA.md` § booking.schedule_openings
+**Docs to load:** `docs/DOMAIN_MODEL.md` § ScheduleOpening, `docs/USE_CASES.md` § UC-010c/d, `docs/DATABASE_SCHEMA.md` § booking.schedule_openings
 
 **Description:**  
 Implement the `ScheduleOpening` aggregate and its infrastructure. `ScheduleOpening` is the inverse of `ScheduleClosure`: it opens a normally-closed day (one whose day-of-week is `null` in `business_hours`) for a specific time window. The availability algorithm (M06-S03) checks for an opening first, before consulting `business_hours`.
 
 **Domain layer — `ScheduleOpening` aggregate:**
 - Properties: `id` (UUID v7), `tenantId`, `date` (YYYY-MM-DD), `startTime` (HH:MM, required), `endTime` (HH:MM, required), `notes: string | null`, `createdBy` (staffId), `createdAt`
-- Factory: `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/02-DOMAIN_MODEL.md`)
+- Factory: `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03 refactor; `resourceId` added by M21 Cluster 1 — see `docs/DOMAIN_MODEL.md`)
 - Invariants:
   - `date` is not in the past
   - `endTime > startTime` (HH:MM string comparison)
@@ -378,7 +378,7 @@ INDEX (tenant_id)
 UNIQUE (tenant_id, date)   ← one opening per date per tenant
 ```
 
-> **Superseded by M21-S03:** the schema above and the port signatures below reflect M06's own original scope only. M21 Cluster 1 added a nullable `resource_id` column (see the factory note above), replaced the plain `UNIQUE (tenant_id, date)` with two partial unique indexes, and added an optional `resourceId` parameter to every repository method below. The current, accurate schema and port shape live in `docs/13-DATABASE_SCHEMA.md` § `schedule_openings`/`schedule_closures` and `docs/02-DOMAIN_MODEL.md` § ScheduleOpening/ScheduleClosure — this section is kept as the historical record of what M06 itself built, not a current reference.
+> **Superseded by M21-S03:** the schema above and the port signatures below reflect M06's own original scope only. M21 Cluster 1 added a nullable `resource_id` column (see the factory note above), replaced the plain `UNIQUE (tenant_id, date)` with two partial unique indexes, and added an optional `resourceId` parameter to every repository method below. The current, accurate schema and port shape live in `docs/DATABASE_SCHEMA.md` § `schedule_openings`/`schedule_closures` and `docs/DOMAIN_MODEL.md` § ScheduleOpening/ScheduleClosure — this section is kept as the historical record of what M06 itself built, not a current reference.
 
 **Repository port `IScheduleOpeningRepository`:**
 - `findByTenantAndDate(tenantId, date): Promise<ScheduleOpening | null>`
@@ -410,7 +410,7 @@ UNIQUE (tenant_id, date)   ← one opening per date per tenant
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-010c/d, `docs/14-API_CONTRACTS.md` § Schedule Openings
+**Docs to load:** `docs/USE_CASES.md` § UC-010c/d, `docs/API_CONTRACTS.md` § Schedule Openings
 
 **Description:**  
 Implement use cases and endpoints for creating and removing schedule openings. The use case must validate that the selected date's day-of-week is `null` in `business_hours` — creating an opening for a day that is already open in the regular schedule is not allowed.

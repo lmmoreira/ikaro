@@ -1,6 +1,6 @@
 # BFF — Resource Management endpoints (M21-S01, UC-044–UC-049)
 # JWT required. Role: MANAGER only — a deliberate, self-consistent restriction distinct from
-# every other Booking-context admin surface (docs/14-API_CONTRACTS.md § Resource Management).
+# every other Booking-context admin surface (docs/API_CONTRACTS.md § Resource Management).
 #
 # Prerequisites:
 #   1. pnpm infra:up
@@ -60,7 +60,7 @@ Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — STAFF picker options for a Resource create/edit form (added M21-S04)
-# Merges Staff + Resource reads server-side (docs/24-BFF_ARCHITECTURE.md § Web-facing
+# Merges Staff + Resource reads server-side (docs/BFF_ARCHITECTURE.md § Web-facing
 # composite views) — each item carries isWrapped so the picker can disable already-taken staff.
 # ─────────────────────────────────────────────────────────────────────────────
 

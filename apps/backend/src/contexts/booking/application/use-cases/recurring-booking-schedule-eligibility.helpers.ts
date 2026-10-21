@@ -46,7 +46,7 @@ function isResolvablePerOccurrence(requirement: ResourceRequirement): boolean {
 
 // A schedule stores a resource only for a CUSTOMER_CHOICE requirement (its automatic requirements
 // are resolved per occurrence). `requirement_id` stays null: a service save replaces its
-// requirement rows, so the column could not reference one (docs/13-DATABASE_SCHEMA.md); the
+// requirement rows, so the column could not reference one (docs/DATABASE_SCHEMA.md); the
 // requirement is identified by `resource_type`.
 export function buildResourceAssignments(
   picks: CustomerChoicePick[],

@@ -45,7 +45,7 @@ export async function loadServiceMap(
 // The worklist's RESCHEDULE takes every resource lock it will need in one call BEFORE the entry
 // row lock: the booking's current resources, the entry's source resource and the candidates for
 // the new window. Reactivating the source resource takes the resource lock first and the entry
-// rows after, so the two meet in the same order (docs/28-LOCK_CATALOG.md § 2, hazard H2). The
+// rows after, so the two meet in the same order (docs/LOCK_CATALOG.md § 2, hazard H2). The
 // entry and the booking are read unlocked only to know which resources to lock; the locks that
 // follow re-read them. The reschedule below asks for the same ids again, which it already holds.
 export async function lockRescheduleResourcesBeforeEntry(

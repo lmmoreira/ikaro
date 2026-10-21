@@ -34,7 +34,7 @@ async function readBodyWithLimit(request: NextRequest, maxBytes: number): Promis
 }
 
 // The lead-form submission (UC-039/UC-040) optionally carries the logged-in customer's identity
-// via Authorization: Bearer <jwt> (docs/14-API_CONTRACTS.md's decodeUserJwt() note) -- the JWT
+// via Authorization: Bearer <jwt> (docs/API_CONTRACTS.md's decodeUserJwt() note) -- the JWT
 // lives in an httpOnly cookie, unreadable by client JS, so LeadFormWidget.tsx cannot attach it
 // with a direct bffClient call. This mirrors /api/bookings/attachments/signed-url/route.ts's
 // exact branch: read the session cookie server-side, forward it as Authorization when present,

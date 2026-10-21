@@ -33,7 +33,7 @@
 | **Branch** | `main` · Trunk-Based Development · short-lived `feat/M0X-SYY-*` / `fix/*` branches |
 | **Commits** | Conventional Commits: `feat(booking):`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:` |
 | **Stack** | TypeScript strict · NestJS v11 backend + BFF · Next.js 16 + React 19 frontend · pnpm workspaces |
-| **DB** | PostgreSQL 17 · TypeORM v1.0+ · shared-schema multi-tenancy (tenant_id-scoped rows, not schema-per-tenant; physically schema-per-context — see `docs/13-DATABASE_SCHEMA.md`) · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
+| **DB** | PostgreSQL 17 · TypeORM v1.0+ · shared-schema multi-tenancy (tenant_id-scoped rows, not schema-per-tenant; physically schema-per-context — see `docs/DATABASE_SCHEMA.md`) · `tenant_id` everywhere · migrations via separate CI job (never auto at startup) |
 | **Event bus** | GCP Pub/Sub (prod) · emulator (local) · behind `IEventBus` port |
 | **Auth** | Google OAuth 2.0 · JWT (`sub` = backend UUID, `tenantId`, `tenantSlug`, `tenantName`, `userName`, `role`, `locale`) · httpOnly cookie, not a client-readable token · BFF forwards `X-Actor-ID`/`X-Actor-Type`/`X-Actor-Role` to the backend |
 | **Storage** | GCS/S3-compatible · paths: `tenants/<tenant_id>/bookings/<booking_id>/<file>` |
@@ -54,7 +54,7 @@ Any code that breaks these is a defect regardless of test coverage.
 3. Every domain event includes `tenantId`, `eventId` (idempotency key), `occurredAt` (ISO-8601 UTC), `correlationId`.
 4. Composite FKs use `(tenant_id, id)` to block cross-tenant references at DB level.
 5. **Customers are multi-tenant** — same Google `sub` → multiple `Customer` rows (one per tenant). No unique on `google_oauth_id` alone.
-6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`, same shape as customers. Multiple active records → issue selection token → `/select-staff-tenant`. Full invite/activate/deactivate lifecycle: `docs/06-TENANT_ISOLATION_STRATEGY.md`.
+6. **Staff can be multi-tenant** — `UNIQUE(tenant_id, google_oauth_id)`, same shape as customers. Multiple active records → issue selection token → `/select-staff-tenant`. Full invite/activate/deactivate lifecycle: `docs/TENANT_ISOLATION_STRATEGY.md`.
 7. File paths prefixed by tenant (see Storage in §1).
 8. Logs, metrics, traces include `tenant_id`. OTel span attrs: `tenant.id`, `user.id`, `correlation.id`.
 9. Event consumers are idempotent (at-least-once). Dedup via `eventId`.
@@ -65,7 +65,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 ---
 
-## 3. Bounded Contexts (brief — load `docs/05-BOUNDED_CONTEXTS.md` for detail)
+## 3. Bounded Contexts (brief — load `docs/BOUNDED_CONTEXTS.md` for detail)
 
 | Context | Type | Aggregates |
 |---|---|---|
@@ -78,7 +78,7 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also the canonical `features/` slice names in the BFF and web — see §11.
 
-→ Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/05-BOUNDED_CONTEXTS.md`
+→ Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/BOUNDED_CONTEXTS.md`
 
 ---
 
@@ -96,7 +96,7 @@ These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also t
 }
 ```
 
-→ Full payload definitions: `docs/03-DOMAIN_EVENTS.md`
+→ Full payload definitions: `docs/DOMAIN_EVENTS.md`
 
 ---
 
@@ -109,18 +109,18 @@ APPROVED       → COMPLETED | CANCELLED | NO_SHOW   -- NO_SHOW added by M23 Clu
 COMPLETED / REJECTED / CANCELLED / NO_SHOW  (terminal; NO_SHOW → COMPLETED by manager correction only)
 ```
 
-`NO_SHOW` (`docs/04-USE_CASES.md` UC-074) is reachable only from `APPROVED`, after the appointment's end time; only a manager can correct it, and only to `COMPLETED`. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
+`NO_SHOW` (`docs/USE_CASES.md` UC-074) is reachable only from `APPROVED`, after the appointment's end time; only a manager can correct it, and only to `COMPLETED`. UC-014 and UC-015 are **superseded** by UC-021/UC-022 — do not implement.
 
 ---
 
-## 6. Use Cases (full index + detail: `docs/04-USE_CASES.md`)
+## 6. Use Cases (full index + detail: `docs/USE_CASES.md`)
 
 **Traps — don't implement these as written:**
 - UC-014 (customer login), UC-015 (staff login) — superseded by UC-021/UC-022
 - UC-017 (booking analytics) — future, out of MVP
-- UC-030 today means "Admin Edits Staff Member Profile" — a different concept from an earlier draft where UC-030 covered staff deactivate/reactivate; that pair now lives at UC-029 (deactivate) / UC-031 (reactivate). Don't confuse the two when citing UC-030 — check `docs/04-USE_CASES.md`'s table first.
+- UC-030 today means "Admin Edits Staff Member Profile" — a different concept from an earlier draft where UC-030 covered staff deactivate/reactivate; that pair now lives at UC-029 (deactivate) / UC-031 (reactivate). Don't confuse the two when citing UC-030 — check `docs/USE_CASES.md`'s table first.
 
-**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — see `docs/04-USE_CASES.md` UC-016's note).
+**Missing UCs (do not implement until documented):** Customer profile edit beyond phone-collection (UC-021 A3), audit log view, notification template management, failed-notification retry, manual admin loyalty-point redemption (`POST /v1/loyalty/redeem` exists and is implemented but has no UC — see `docs/USE_CASES.md` UC-016's note).
 
 ---
 
@@ -156,7 +156,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **Race conditions — 3 primitives, picked by shape, not "add a lock":** DB exclusion constraint (rows exist, "no two can overlap") / `findByIdForUpdate()` row lock (a row exists, must be read-then-written consistently) / `pg_advisory_xact_lock` (no row exists yet). → `docs/ENGINEERING_RULES_BACKEND.md` § Choosing a race-condition primitive, and where its lock port should live
 - **Event handlers:** `handle()` calls exactly one use case and rethrows, zero domain logic, pass `event.correlationId` into the DTO. → `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers
 - **Cross-context data access (in priority order):** domain events (async, preferred) → BFF orchestration (sync reads, preferred) → Port+Adapter (last resort, same process). Never a SQL JOIN across contexts. CI: dep-cruise. → `docs/ENGINEERING_RULES_BACKEND.md` § Layering inside `application/`
-- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — cross-context imports go in `contextDependencyMatrix.permittedEdges`, other reviewed detector exceptions go in `exceptions`; every entry needs an exact path, rationale, owner, review date. Never a wildcard exception. → `docs/05-BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
+- **Architecture policy:** `packages/architecture-check/architecture-policy.json` is the canonical registry for dependency exceptions — cross-context imports go in `contextDependencyMatrix.permittedEdges`, other reviewed detector exceptions go in `exceptions`; every entry needs an exact path, rationale, owner, review date. Never a wildcard exception. → `docs/BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only
 - **Platform tenant cache:** keep tenant read caching in `CachingTenantRepository` behind `CachePort`, not in `TypeOrmTenantRepository`; invalidate best-effort, after the transaction commits. → `docs/ENGINEERING_RULES_TESTING.md` § Platform tenant cache — adapter boundary and invalidation timing
 
 ### Critical code invariants (compressed — full narrative, dates, PR numbers: the relevant `docs/ENGINEERING_RULES_*.md` split file, cited per bullet below. Items marked **CI-enforced** fail a mechanical check even if unread.)
@@ -166,7 +166,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **Never put cross-service network I/O inside `txManager.run()`.** **CI-enforced**: `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR`. A transaction fails after a 2s lock wait (retryable 503); a spec stubbing its `EntityManager` needs a `query` stub. → `docs/ENGINEERING_RULES_BACKEND.md` § Transactions
 - **A `declare global` augmenting an interface member a dependency already declares silently no-ops** under `skipLibCheck: true` — `tsc --noEmit` still passes. → `docs/ENGINEERING_RULES_BACKEND.md` § Express `Request.user` typing
 - **A Server Component's `generateMetadata()` needing the same data as the page/layout body must share one fetch via React's `cache()`.** → `docs/CODE_STANDARDS.md` § shared data fetch between `generateMetadata()`
-- **A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* value or an *implicit* engine default.** → `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § implicit vs. explicit CSS defaults
+- **A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* value or an *implicit* engine default.** → `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § implicit vs. explicit CSS defaults
 - **Cloud Run timer/async starvation, OTel sampler defaults, and exporter limits have each independently caused silent trace loss.** A timer-driven flush/queue on a CPU-throttled Cloud Run instance can starve (every container, sidecars included; real but low-frequency); `ParentBasedSampler` needs `remoteParentNotSampled`/`localParentNotSampled` set explicitly or it silently drops most spans (the dominant cause); `OTLPTraceExporter` needs an explicit `concurrencyLimit`; every dispatcher branch needs its own tracing span; a traces-only bootstrap's metric-reader config must match the collector's real pipeline (`metricReaders: []` is outdated). Check a root cause against the target system's own direct evidence before documenting it as confirmed. → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling
 - **There is no `InsertQueryBuilder.onConflict()`** — use `.orUpdate(overwrite, conflictTarget, { overwriteCondition })` with real DB column names, not entity property names. → `docs/ANTI_PATTERNS.md` § InsertQueryBuilder.onConflict
 - **Adding a `CHECK` constraint to an existing table with live rows via a plain `ADD CONSTRAINT` takes `ACCESS EXCLUSIVE`** — split into `ADD CONSTRAINT ... NOT VALID` + a separate `VALIDATE CONSTRAINT`. → `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`
@@ -204,9 +204,9 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 
 ### BFF naming & transport
 
-**BFF module/controller naming, mapper extraction:** full rules: `docs/24-BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
+**BFF module/controller naming, mapper extraction:** full rules: `docs/BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions.
 
-**Web → BFF transport:** three helpers cover all calls — never write a raw `fetch()` URL outside them: `bffServerFetch` (authenticated server-only), `bffPublicFetch` (unauthenticated server-only), `bffClient` (axios, client-only, React Query hooks). `useTenant()` is the only source of `tenantId` in hooks. Full signatures, import paths, and the same-origin gateway mechanics: `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
+**Web → BFF transport:** three helpers cover all calls — never write a raw `fetch()` URL outside them: `bffServerFetch` (authenticated server-only), `bffPublicFetch` (unauthenticated server-only), `bffClient` (axios, client-only, React Query hooks). `useTenant()` is the only source of `tenantId` in hooks. Full signatures, import paths, and the same-origin gateway mechanics: `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
 
 ### Cross-layer deployment invariants
 
@@ -216,7 +216,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **A CI gate built on a path-diff filter checks a static fact about one commit's diff, never live state — `gh run rerun` cannot clear it.** Verify against a system reflecting current reality instead. → `docs/CI_TRAPS.md` (path-diff CI gate row)
 - **Migrations that grant privileges to infrastructure-created database roles must enforce provisioning order or provide convergent reconciliation.** → `docs/ENGINEERING_RULES_BACKEND.md` § Migration-driven privilege grants to infrastructure-created roles
 - **Security dependency overrides are temporary compatibility boundaries, not permanent pins.** → `docs/CI_TRAPS.md` § Snyk SCA failures
-- **A Dependabot Docker base-image digest bump must be verified to stay within the same image variant/family before merging** — a digest-only pin gives Dependabot no tag to anchor to. → `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` § Docker base-image digest pinning
+- **A Dependabot Docker base-image digest bump must be verified to stay within the same image variant/family before merging** — a digest-only pin gives Dependabot no tag to anchor to. → `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § Docker base-image digest pinning
 - **The autonomous implementation chain must not treat "tests pass, lint clean, bots clean" as sufficient for a story touching Terraform/IAM/Pub/Sub/CI-CD** — run the concrete live check the change implies (a module wired into a real root, an IAM grant that actually resolves, a real `terraform plan -refresh-only`) before presenting the PR as merge-ready; a failed or un-runnable check is its own stuck condition (3 separate M19 stories broke on live deploy despite clean bot review — none were spec-ambiguity or code-reading failures). *(§9's own live-verification gate cites this bullet as its "why" — kept substantive on purpose, not further compressed.)*
 - **A Terraform `type = string` variable with no `default` does not reject an empty string** — only an explicit `validation` block fails closed. → `infra/terraform/README.md` § Gotchas (empty-string var precedent)
 - **When a bot review flags "this PR deletes/removes X" and X should obviously still exist, check whether the branch is simply stale relative to `main`** (`git merge origin/main`, never rebase). → `docs/CI_TRAPS.md` (stale-branch / shallow-clone entry)
@@ -227,12 +227,12 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 *(`--ba-*` dashboard/hotsite boundary already covered in §8's anti-patterns excerpt below — not restated here.)*
 - If a new component needs both SaaS and hotsite variants, build separate implementations rather than one component reading both branding systems.
 - **Before writing a UI control (calendar, picker, select, dialog, switch), `ls apps/web/shared/components/ui/` and reuse it — never hand-roll.** → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives
-- Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`).
+- Route-scoped chrome state visible in a shell header/topbar lives in a provider above both shell and page — never shell-local state or effect-based sync (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`).
 - If Sonar flags a UI smell that seems to change behavior, reproduce it in the browser before applying the suggested refactor — static analysis identifies a smell, not the runtime cause.
 
 ### Testing
 
-**Backend + BFF:** Unit (`.spec.ts`) · Integration (`.integration.spec.ts`) · E2E (Playwright). Builders (class + `withXxx()`/`build()`, never a plain factory), the `integration-global-setup.ts` registration requirement, and the `useClass`-not-`useExisting` root cause are all fully detailed in `docs/08-TESTING_STRATEGY.md` — don't restate them here.
+**Backend + BFF:** Unit (`.spec.ts`) · Integration (`.integration.spec.ts`) · E2E (Playwright). Builders (class + `withXxx()`/`build()`, never a plain factory), the `integration-global-setup.ts` registration requirement, and the `useClass`-not-`useExisting` root cause are all fully detailed in `docs/TESTING_STRATEGY.md` — don't restate them here.
 - If an E2E/Playwright workflow fails before the browser step starts, inspect migrations, seeds, and service bootstrap first. A red "Playwright" job is often a backend DB bootstrap failure, not a frontend/browser regression.
 
 - **apps/web:** Vitest (not Jest) — config at `apps/web/vitest.config.ts`.
@@ -240,7 +240,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - Keep `app/**/page.tsx` and `app/**/layout.tsx` thin — extract reusable logic to `apps/web/shared/lib/**` and unit-test it there.
 - **Every new `features/**/components/**/*.tsx`, `shells/**/components/**/*.tsx`, or `shared/components/**/*.tsx` must ship its `.spec.tsx` in the same commit** (`/implement-story` Step 1 restates this at the point it applies — one rule, not two).
 - **Every new dashboard UI component must be localization-ready from the start.** No hardcoded visible copy — wire `useTranslations()` and add locale keys in both `pt-BR` and `en` in the same change.
-- Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/08-TESTING_STRATEGY.md`
+- Playwright specs are test cases only; reusable flows/helpers live in `apps/web/e2e/helpers/<feature>/**`. → Vitest config, mocks, axe testing, E2E helper/dev-login conventions: `docs/TESTING_STRATEGY.md`
 
 ### CI gates (block merge)
 ESLint + Prettier · `tsc --noEmit` · all tests · coverage ≥ 80% on changed code · SonarCloud GREEN · Gitleaks · Trivy · Checkov
@@ -336,31 +336,31 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Writing any code | `docs/CODE_STANDARDS.md` (19 KB) + `docs/AGENT_PATTERNS.md` (43 KB) + `docs/ENGINEERING_RULES_SHARED.md` (37 KB) — read whole: the general rules for any code |
 | Finishing a story / before PR | `docs/DEFINITION_OF_DONE.md` (15 KB) |
 | CI failure / pre-PR | `docs/CI_TRAPS.md` (100 KB) — the failing tool's own section only: `grep -n '^## ' docs/CI_TRAPS.md` |
-| Implement a UC | `docs/04-USE_CASES.md` (250 KB) — the UC's own section only: `grep -n 'UC-0NN'` + `docs/02-DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects (the aggregate's subsection) + `docs/03-DOMAIN_EVENTS.md` § Event Categories (the event's entry) |
-| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates); booking scheduling: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/27-BUSINESS_LOGIC_REFERENCE.md` (104 KB) — its bounded-context section only (booking: the matching `Booking — …` section, + DB/migration, UC rows) before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
-| Database / migration; a lock, a deadlock or a hung request | `docs/13-DATABASE_SCHEMA.md` § Global Standards + the context's `Schema:` section (`grep -n '^## Schema'`) + `docs/02-DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects + `docs/ENGINEERING_RULES_BACKEND.md` § Transactions (a migration: also § Migration backfills); locks: `docs/28-LOCK_CATALOG.md` § The order locks are taken in (every lock, its order, its business case) |
-| API endpoint | `docs/14-API_CONTRACTS.md` § Base Standards + the resource's own numbered section (`grep -n '^## ' docs/14-API_CONTRACTS.md`; 157 KB) + the cited UC |
-| Event handler | `docs/03-DOMAIN_EVENTS.md` § Event Publishing & Consumption (the event's entry: `grep -n '<EventName>'`) + `docs/05-BOUNDED_CONTEXTS.md` § Communication Patterns + `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers |
+| Implement a UC | `docs/USE_CASES.md` (250 KB) — the UC's own section only: `grep -n 'UC-0NN'` + `docs/DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects (the aggregate's subsection) + `docs/DOMAIN_EVENTS.md` § Event Categories (the event's entry) |
+| Complex/cross-cutting business logic (algorithm/state machine/formula spanning multiple UCs or aggregates); booking scheduling: resources, window, recurrence, worklist, alerts, no-show (M21–M23) | `docs/BUSINESS_LOGIC_REFERENCE.md` (104 KB) — its bounded-context section only (booking: the matching `Booking — …` section, + DB/migration, UC rows) before re-deriving from scattered prose (see also `/story-discovery` 4r, `/mark-done` Step 4) |
+| Database / migration; a lock, a deadlock or a hung request | `docs/DATABASE_SCHEMA.md` § Global Standards + the context's `Schema:` section (`grep -n '^## Schema'`) + `docs/DOMAIN_MODEL.md` § Aggregates, Entities, and Value Objects + `docs/ENGINEERING_RULES_BACKEND.md` § Transactions (a migration: also § Migration backfills); locks: `docs/LOCK_CATALOG.md` § The order locks are taken in (every lock, its order, its business case) |
+| API endpoint | `docs/API_CONTRACTS.md` § Base Standards + the resource's own numbered section (`grep -n '^## ' docs/API_CONTRACTS.md`; 157 KB) + the cited UC |
+| Event handler | `docs/DOMAIN_EVENTS.md` § Event Publishing & Consumption (the event's entry: `grep -n '<EventName>'`) + `docs/BOUNDED_CONTEXTS.md` § Communication Patterns + `docs/ENGINEERING_RULES_BACKEND.md` § Event Handlers |
 | Staff OAuth login / invite link | `docs/ENGINEERING_RULES_BACKEND.md` § Staff OAuth login URL format |
 | New notification type | `docs/ENGINEERING_RULES_BACKEND.md` § Adding a new notification type |
-| New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) + `docs/25-ERROR_CATALOG.md` § Code Origins (where each code originates) |
+| New error code (`@ikaro/types`) | `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist (step 2: translation entry in **both** locale files, or CI's exhaustiveness test fails) + `docs/ERROR_CATALOG.md` § Code Origins (where each code originates) |
 | New UI copy / locale key | `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys + `docs/CODE_STANDARDS.md` (19 KB) |
-| Hotsite / public frontend | `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` (58 KB) — the task's numbered section only: `grep -n '^## ' docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` (a new module: § Adding a New Module) + `docs/14-API_CONTRACTS.md` § Tenant Hotsite Manifest + `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
-| Dashboard / admin frontend | `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/14-API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
-| BFF implementation | `docs/24-BFF_ARCHITECTURE.md` (48 KB) — the task's own section only (a new controller: § Module & Controller Naming Conventions) + `docs/14-API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_BACKEND.md` § Backend read use cases for cross-context access (also § Express `Request.user` typing) |
-| Web → BFF transport | `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
-| Architecture question; repo layout / new file location | `docs/11-ARCHITECTURE.md` (11 KB) + `docs/05-BOUNDED_CONTEXTS.md` § Context Descriptions (the context concerned) + `docs/REPOSITORY_STRUCTURE.md` § Web target structure (or the Backend / BFF one); §11 below has the quick summary |
-| Multi-tenancy / isolation | `docs/06-TENANT_ISOLATION_STRATEGY.md` (14 KB) |
-| Testing patterns | `docs/08-TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (39 KB, independent traps: read whole) |
-| apps/web test infrastructure | `docs/08-TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
+| Hotsite / public frontend | `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (58 KB) — the task's numbered section only: `grep -n '^## ' docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (a new module: § Adding a New Module) + `docs/API_CONTRACTS.md` § Tenant Hotsite Manifest + `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
+| Dashboard / admin frontend | `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (25 KB) + `docs/API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_FRONTEND.md` (20 KB) |
+| BFF implementation | `docs/BFF_ARCHITECTURE.md` (48 KB) — the task's own section only (a new controller: § Module & Controller Naming Conventions) + `docs/API_CONTRACTS.md` § Base Standards + the resource's numbered section + `docs/ENGINEERING_RULES_BACKEND.md` § Backend read use cases for cross-context access (also § Express `Request.user` typing) |
+| Web → BFF transport | `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer |
+| Architecture question; repo layout / new file location | `docs/ARCHITECTURE.md` (11 KB) + `docs/BOUNDED_CONTEXTS.md` § Context Descriptions (the context concerned) + `docs/REPOSITORY_STRUCTURE.md` § Web target structure (or the Backend / BFF one); §11 below has the quick summary |
+| Multi-tenancy / isolation | `docs/TENANT_ISOLATION_STRATEGY.md` (14 KB) |
+| Testing patterns | `docs/TESTING_STRATEGY.md` § Mandatory Patterns (+ the layer's section) + `docs/ENGINEERING_RULES_TESTING.md` (39 KB, independent traps: read whole) |
+| apps/web test infrastructure | `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
 | Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (37 KB) |
-| CI / pipelines | `docs/09-CI_CD_PIPELINE.md` + `docs/17-GITHUB_WORKFLOWS_GUIDELINES.md` (19 KB) |
-| Deployment / infra | `docs/12-DEPLOYMENT_STRATEGY.md` + `docs/22-TECH_STACK_DECISIONS.md` (44 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/22-TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
+| CI / pipelines | `docs/CI_CD_PIPELINE.md` + `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (19 KB) |
+| Deployment / infra | `docs/DEPLOYMENT_STRATEGY.md` + `docs/TECH_STACK_DECISIONS.md` (44 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 (299 KB doc: those sections only) + `infra/terraform/README.md` § Layout (60 KB; a new resource: § New-resource PR-sequencing playbook; IAM: § IAM binding review discipline) + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
 | Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` § IAM binding review discipline, before editing Terraform or workflows |
-| Observability | `docs/10-OBSERVABILITY_STRATEGY.md` § Where a change belongs (then the section it names) + `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling |
-| Production incident, rollback or release path | `docs/RUNBOOKS.md` (17 KB) — the procedure's own section only (Rollback, Staging, Pub/Sub and scheduled jobs) + `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md` (7 KB) |
-| Reading, adding or validating a `tenants.settings` key | `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Settings by Category (the key's own entry; 37 KB) |
+| Observability | `docs/OBSERVABILITY_STRATEGY.md` § Where a change belongs (then the section it names) + `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling |
+| Production incident, rollback or release path | `docs/RUNBOOKS.md` (17 KB) — the procedure's own section only (Rollback, Staging, Pub/Sub and scheduled jobs) + `docs/RELEASE_LIFECYCLE_OPERATIONS.md` (7 KB) |
+| Reading, adding or validating a `tenants.settings` key | `docs/TENANTS_SETTINGS_SCHEMA.md` § Settings by Category (the key's own entry; 37 KB) |
 | Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | Multivertical scheduling: `Resource` aggregate (M21); `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22); recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` · `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` · `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `journeys/README.md` |
@@ -380,7 +380,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 
 ## 11. Repository Layout — Domain-Slice Architecture
 
-Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/11-ARCHITECTURE.md` · BFF detail: `docs/24-BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
+Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/ARCHITECTURE.md` · BFF detail: `docs/BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
 
 Three slice types, consistent across all three apps:
 - **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`

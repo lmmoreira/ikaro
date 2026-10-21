@@ -226,7 +226,7 @@ flowchart TD
     CancelMatriculaCall -->|"erro rede/5xx"| CancelMatriculaErro["❓ GAP: mesma rota, erro<br/>(11b-cancelar-matricula-erro)"]
 ```
 
-**BFF calls (new endpoints — see `docs/14-API_CONTRACTS.md` § Classes & Sessions):**
+**BFF calls (new endpoints — see `docs/API_CONTRACTS.md` § Classes & Sessions):**
 ```
 GET /v1/enrollments?status=CONFIRMED,WAITLISTED,PROMOTION_PENDING   -- Minhas Turmas list (composed from RecurringEnrollment + ClassSessionBooking)
 GET /v1/enrollments/:id                                              -- detail, ownership enforced (404 if customerId != JWT.sub)
@@ -238,8 +238,8 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 
 **Open questions / gaps:**
 - [ ] Stories for this extension live in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`; each still begins with `/story-discovery`.
-- [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, see `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
-- [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved, UC-094 A3, `docs/21-TENANTS_SETTINGS_SCHEMA.md`.
+- [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, see `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`.
+- [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved, UC-094 A3, `docs/TENANTS_SETTINGS_SCHEMA.md`.
 - [ ] Reposição (UC-102) needs its own prototype pass beyond `10-pular-sessao.html`'s existing "reagendar" link — the discovery's own `customer-04d-reagendada.html` screen was discovery-stage only, not relocated at implementation-grade rigor; the implementing story should design this properly rather than treating that screen as a shortcut.
 - [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive offer state from a local 24-hour calculation.
 - [x] **The canonical persistence/domain names are `Service`, `ClassScheduleTemplate`, `ClassSessionBooking`, and `RecurringEnrollment`.** `ClassType`/`Enrollment` are BFF read-model labels only, never aggregates.
@@ -287,7 +287,7 @@ flowchart TD
     ErroForm -->|"'Tentar novamente'"| Padrao
 ```
 
-**BFF calls (existing endpoints — see `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules):**
+**BFF calls (existing endpoints — see `docs/API_CONTRACTS.md` § Recurring Private Reservation Schedules):**
 ```
 POST  /recurring-booking-schedules        -- create (UC-070) → 201 { id, status, approvalHoldExpiresAt } | 409 | 422
 GET   /recurring-booking-schedules        -- list (own schedules; CUSTOMER sees only theirs)

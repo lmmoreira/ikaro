@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-025, `docs/02-DOMAIN_MODEL.md` § Staff aggregate
+**Docs to load:** `docs/USE_CASES.md` § UC-025, `docs/DOMAIN_MODEL.md` § Staff aggregate
 
 **Description:**  
 When a staff member with `is_active=false` completes Google OAuth for the first time, their account must be activated: `google_oauth_id` is set to their Google `sub`, `is_active` is set to `true`, and a JWT is issued. This story implements the activation use case in the backend and the BFF routing to trigger it.
@@ -48,7 +48,7 @@ When a staff member with `is_active=false` completes Google OAuth for the first 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/14-API_CONTRACTS.md` § staff endpoints, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+**Docs to load:** `docs/API_CONTRACTS.md` § staff endpoints, `docs/TENANT_ISOLATION_STRATEGY.md`
 
 **Description:**  
 Expose the staff list and detail endpoints so the dashboard frontend can render the staff management page. Both endpoints are tenant-scoped and require `MANAGER` role.
@@ -88,7 +88,7 @@ Expose the staff list and detail endpoints so the dashboard frontend can render 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-028, `docs/03-DOMAIN_EVENTS.md` § StaffInvited
+**Docs to load:** `docs/USE_CASES.md` § UC-028, `docs/DOMAIN_EVENTS.md` § StaffInvited
 
 **Description:**  
 Implement the invite staff flow. A MANAGER sends an invitation to an email address with a role. The system creates an inactive staff row and emits a `StaffInvited` domain event. The Notification context (wired in M11) will consume this event and send the invitation email.
@@ -121,7 +121,7 @@ Implement the invite staff flow. A MANAGER sends an invitation to an email addre
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-029, `docs/03-DOMAIN_EVENTS.md` § StaffDeactivated
+**Docs to load:** `docs/USE_CASES.md` § UC-029, `docs/DOMAIN_EVENTS.md` § StaffDeactivated
 
 **Description:**  
 Implement staff deactivation. A MANAGER can deactivate any staff member except themselves and except the last active MANAGER in the tenant (which would lock everyone out). The deactivated staff member's JWT remains valid until expiry but the backend rejects requests from inactive staff on every call.
@@ -155,7 +155,7 @@ Implement staff deactivation. A MANAGER can deactivate any staff member except t
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/05-BOUNDED_CONTEXTS.md` § Notification context, `docs/03-DOMAIN_EVENTS.md` § StaffInvited, `docs/10-OBSERVABILITY_STRATEGY.md` § email adapter
+**Docs to load:** `docs/BOUNDED_CONTEXTS.md` § Notification context, `docs/DOMAIN_EVENTS.md` § StaffInvited, `docs/OBSERVABILITY_STRATEGY.md` § email adapter
 
 > **Note (M04-S06 implemented):** The GCP Pub/Sub adapter is already built — `GcpPubSubEventBusAdapter` in `src/shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`. Do NOT rebuild or modify `EventBusModule`. Follow the established handler pattern: thin `handle()` → calls use case, subscribes in `onModuleInit()` with `consumerName = 'notification'`. See CLAUDE.md §7 "Event handlers" for the full pattern and test wiring.
 
@@ -194,7 +194,7 @@ Bootstrap the Notification bounded context infrastructure enough to send the sta
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/03-DOMAIN_EVENTS.md` § TenantProvisioned + StaffInvited, `docs/02-DOMAIN_MODEL.md` § Staff aggregate, `docs/04-USE_CASES.md` § UC-024, `docs/06-TENANT_ISOLATION_STRATEGY.md`
+**Docs to load:** `docs/DOMAIN_EVENTS.md` § TenantProvisioned + StaffInvited, `docs/DOMAIN_MODEL.md` § Staff aggregate, `docs/USE_CASES.md` § UC-024, `docs/TENANT_ISOLATION_STRATEGY.md`
 
 **Context — why this story exists:**
 When `POST /internal/tenants` (M02-S05) provisions a new tenant, it publishes a `TenantProvisioned` event but does NOT create the first MANAGER staff — the Staff context doesn't exist yet in M02. This story closes that gap: the Staff context subscribes to `TenantProvisioned` and creates the first MANAGER staff row, then publishes `StaffInvited` so M04-S05 / M11 send the invitation email.

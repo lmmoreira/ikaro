@@ -7,7 +7,7 @@ interface RecurringBookingScheduleRejectedData extends Record<string, unknown> {
   reason: 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED';
 }
 
-// docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleRejected — a pending request that staff
+// docs/DOMAIN_EVENTS.md § RecurringBookingScheduleRejected — a pending request that staff
 // rejected (UC-071) or that reached its hold deadline unresolved (UC-070 A5).
 export class RecurringBookingScheduleRejected extends DomainEvent<RecurringBookingScheduleRejectedData> {
   readonly eventVersion = 1;

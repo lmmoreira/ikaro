@@ -66,7 +66,7 @@ interface UpdateTenantSettingsDto {
 }
 ```
 
-Verify exact key casing (`businessHours` vs `business_hours`) against the actual DTO/Zod schema — `docs/21-TENANTS_SETTINGS_SCHEMA.md` uses snake_case for the JSONB keys but the BFF layer typically exposes camelCase to the frontend; don't assume, check the schema file directly when the BFF story lands.
+Verify exact key casing (`businessHours` vs `business_hours`) against the actual DTO/Zod schema — `docs/TENANTS_SETTINGS_SCHEMA.md` uses snake_case for the JSONB keys but the BFF layer typically exposes camelCase to the frontend; don't assume, check the schema file directly when the BFF story lands.
 
 ---
 
@@ -91,11 +91,11 @@ Bold fields (excluding Chatbot/Lead Form, tracked separately below) were entirel
 
 ## Chatbot section (✅ shipped)
 
-Promoted from `docs/04-USE_CASES.md` UC-033–UC-036/§6 via `/discovery-to-milestone` (2026-08-08).
+Promoted from `docs/USE_CASES.md` UC-033–UC-036/§6 via `/discovery-to-milestone` (2026-08-08).
 Prototyped in `01d-chatbot-section.html` against the full, current 8-section form (not an excerpt).
 
 **Field:** `chatbot.knowledgeText` — the only tenant-editable field in the `chatbot` settings
-category (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7). Free-form business info/policy/FAQ/tone text,
+category (`docs/TENANTS_SETTINGS_SCHEMA.md` §7). Free-form business info/policy/FAQ/tone text,
 assembled into the chatbot's system prompt alongside live services/prices (UC-033).
 
 **BFF call:** part of the existing `PATCH /v1/tenants/settings` call — no new endpoint. Body adds
@@ -118,7 +118,7 @@ interface UpdateTenantSettingsDto {
 **Deliberately absent from this form:** the 8 volume/cost caps (`maxConversationsPerDay`, etc.) and
 `llmProvider`/`llmModel` — fixed platform defaults, Ikaro-only per-tenant override, never accepted
 through this endpoint even if present in the request body (see
-`docs/04-USE_CASES.md` UC-033–UC-036 for the full rationale, `docs/21-TENANTS_SETTINGS_SCHEMA.md`
+`docs/USE_CASES.md` UC-033–UC-036 for the full rationale, `docs/TENANTS_SETTINGS_SCHEMA.md`
 §7 for the complete field list).
 
 ---
@@ -129,7 +129,7 @@ Implemented from the lead-form design promoted via `/discovery-to-milestone`
 (M20). Prototyped in `01e-lead-form-section.html` as an excerpt against the full, current
 8-section form (not a standalone screen) — see that file's own comment block for the excerpt note.
 
-**Fields:** all 3 tenant-editable, unlike Chatbot's caps (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §8 —
+**Fields:** all 3 tenant-editable, unlike Chatbot's caps (`docs/TENANTS_SETTINGS_SCHEMA.md` §8 —
 these are genuinely per-tenant abuse-protection knobs, not a shared platform-cost concern):
 
 | Field | Rule | Default | Suffix |
@@ -162,7 +162,7 @@ all 3 bounds are fully client-checkable — validated client-side the same way a
 | businessInfo.phone | 10–11 digits, optional | "Telefone inválido." |
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 
-Slug is never submitted — input stays `readonly`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.
+Slug is never submitted — input stays `disabled`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.
 
 Address uses a ViaCEP-backed zip lookup (`PostalCodeField`), matching the pattern already used in the guest/customer booking flow's pickup address — not a single free-text field.
 

@@ -31,7 +31,7 @@ export interface GetLeadFormSubmissionUseCaseResult {
 
 /**
  * UC-041 main flow step 6 — read-only detail view. `answers` is served entirely from the
- * submission's own JSONB snapshot (docs/02-DOMAIN_MODEL.md § LeadFormSubmission) — never a live
+ * submission's own JSONB snapshot (docs/DOMAIN_MODEL.md § LeadFormSubmission) — never a live
  * lookup against LeadFormConfig's current question catalog, so a since-edited/removed question
  * still renders exactly as it was answered (UC-041 A2).
  */

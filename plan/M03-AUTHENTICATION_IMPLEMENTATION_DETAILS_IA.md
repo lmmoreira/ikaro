@@ -25,15 +25,15 @@
 | `InternalCustomerController` | `src/contexts/customer/infrastructure/controllers/` | `GET /internal/customers/tenants` · `GET /internal/customers/:customerId/tenants` · `POST /internal/customers` |
 | `InternalStaffController` | `src/contexts/staff/infrastructure/controllers/` | `GET /internal/staff/by-oauth?googleOAuthId=<sub>` |
 | `InternalTenantReadController` | `src/contexts/platform/infrastructure/controllers/` | `GET /internal/tenants/by-slug/:slug` (static first) · `GET /internal/tenants/:tenantId` |
-| `GoogleStrategy` | `apps/bff/src/auth/strategies/google.strategy.ts` | `passReqToCallback: true` — validate signature is `(req, access, refresh, profile, done)` |
-| `GoogleAuthGuard` | `apps/bff/src/auth/guards/google-auth.guard.ts` | Overrides `getAuthenticateOptions()` — `type=staff` → `state='__staff__'`, `tenantSlug` → `state=<slug>` |
-| `JwtStrategy` | `apps/bff/src/auth/strategies/jwt.strategy.ts` | Reads Bearer header AND `access_token` cookie (inline regex — no cookie-parser) |
-| `JwtIssuerService` | `apps/bff/src/auth/jwt-issuer.service.ts` | `issueToken({ sub, tenantId, tenantSlug, role }): string`; `sub` = backend entity UUID always |
+| `GoogleStrategy` | `apps/bff/src/features/auth/strategies/google.strategy.ts` | `passReqToCallback: true` — validate signature is `(req, access, refresh, profile, done)` |
+| `GoogleAuthGuard` | `apps/bff/src/features/auth/guards/google-auth.guard.ts` | Overrides `getAuthenticateOptions()` — `type=staff` → `state='__staff__'`, `tenantSlug` → `state=<slug>` |
+| `JwtStrategy` | `apps/bff/src/features/auth/strategies/jwt.strategy.ts` | Reads Bearer header AND `access_token` cookie (inline regex — no cookie-parser) |
+| `JwtIssuerService` | `apps/bff/src/features/auth/jwt-issuer.service.ts` | `issueToken({ sub, tenantId, tenantSlug, role }): string`; `sub` = backend entity UUID always |
 | `SelectionTokenService` | `apps/bff/src/auth/selection-token.service.ts` | 5-min JWTs with `type:'selection'` — prevents misuse as access token |
-| `JWT_COOKIE_OPTIONS` | `apps/bff/src/auth/cookie-options.ts` | `httpOnly, secure, sameSite:'lax', maxAge:7d, path:'/'` — import from here, never `main.ts` |
+| `JWT_COOKIE_OPTIONS` | `apps/bff/src/features/auth/cookie-options.ts` | `httpOnly, secure, sameSite:'lax', maxAge:7d, path:'/'` — import from here, never `main.ts` |
 | `IssueTokenDto` | `apps/bff/src/auth/dtos/issue-token.dto.ts` | Zod schema for `POST /auth/token` body |
-| `SwitchTenantDto` | `apps/bff/src/auth/dtos/switch-tenant.dto.ts` | Zod schema for `POST /auth/switch-tenant` body |
-| `AuthController` | `apps/bff/src/auth/auth.controller.ts` | `GET /auth/google` · `GET /auth/google/callback` · `POST /auth/token` · `POST /auth/switch-tenant` |
+| `SwitchTenantDto` | `apps/bff/src/features/auth/dtos/switch-tenant.dto.ts` | Zod schema for `POST /auth/switch-tenant` body |
+| `AuthController` | `apps/bff/src/features/auth/auth.controller.ts` | `GET /auth/google` · `GET /auth/google/callback` · `POST /auth/token` · `POST /auth/switch-tenant` |
 | `ZodValidationPipe` (BFF) | `apps/bff/src/shared/http/zod-validation.pipe.ts` | Separate copy from backend — BFF has no shared package dependency |
 | `JwtAuthGuard` | `apps/bff/src/shared/guards/jwt-auth.guard.ts` | Global; `@Public()` bypasses it |
 | `TenantGuard` | `apps/bff/src/shared/guards/tenant.guard.ts` | Compares `X-Tenant-Slug` header with JWT `tenantSlug` |
@@ -61,7 +61,7 @@ validate(req, _access, _refresh, profile, done): void
 Without this, the signature is `(_access, _refresh, profile, done)` — wrong argument count causes silent failures.
 
 **#3 — `JWT_COOKIE_OPTIONS` must NOT be in `main.ts`**
-`import { X } from '../main'` triggers bootstrap → `validateEnv()` → `process.exit(1)` in tests. Constant lives in `apps/bff/src/auth/cookie-options.ts`.
+`import { X } from '../main'` triggers bootstrap → `validateEnv()` → `process.exit(1)` in tests. Constant lives in `apps/bff/src/features/auth/cookie-options.ts`.
 
 **#4 — `sub` is always backend entity UUID, never Google's OAuth sub**
 - Staff/Manager → `staffId` (from `staff.staff` table)

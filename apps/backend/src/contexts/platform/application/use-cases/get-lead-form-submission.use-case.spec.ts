@@ -44,7 +44,7 @@ describe('GetLeadFormSubmissionUseCase', () => {
           questionId: 'q1',
           // Deliberately stale relative to any hypothetical "current" catalog label — proves
           // the detail view renders the submission's own snapshot, never a live lookup
-          // (UC-041 A2, docs/02-DOMAIN_MODEL.md § LeadFormSubmission).
+          // (UC-041 A2, docs/DOMAIN_MODEL.md § LeadFormSubmission).
           questionLabel: 'Qual seu bairro? (pergunta removida depois)',
           questionType: 'TEXT',
           answerValue: 'Centro',

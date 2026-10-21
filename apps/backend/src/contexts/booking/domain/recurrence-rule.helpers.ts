@@ -11,7 +11,7 @@ import {
 
 // WEEKLY-only for MVP (locked in during M23-S04 story-discovery, 2026-09-27) — one shared
 // time-of-day across every listed weekday, no per-day override, no other frequency value.
-// docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule.
+// docs/DOMAIN_MODEL.md § RecurringBookingSchedule.
 export interface RecurrenceRule {
   frequency: 'WEEKLY';
   daysOfWeek: WeekDayName[];
@@ -54,7 +54,7 @@ export function assertValidTerm(startsOn: string, endsOn: string, maxTermDays: n
 
 // Enumerates every occurrence start implied by `recurrence` within the whole term
 // [startsOn, endsOn] — the one enumeration shared by the creation-time checks and the
-// materialization of the term (docs/02-DOMAIN_MODEL.md § RecurringBookingSchedule), so nothing
+// materialization of the term (docs/DOMAIN_MODEL.md § RecurringBookingSchedule), so nothing
 // checked at creation can diverge from what is materialized. Both bounds are tenant-local
 // calendar dates (YYYY-MM-DD), inclusive; the caller has already validated the term
 // (assertValidTerm).

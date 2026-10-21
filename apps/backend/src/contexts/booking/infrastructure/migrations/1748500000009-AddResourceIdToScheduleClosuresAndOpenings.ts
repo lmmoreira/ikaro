@@ -2,7 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 // Adds an optional resource_id to schedule_closures/schedule_openings, scoping a
 // closure/opening to one Resource instead of the whole tenant. NULL = tenant-wide, today's
-// exact unchanged behavior — see docs/02-DOMAIN_MODEL.md § Aggregate: ScheduleClosure.
+// exact unchanged behavior — see docs/DOMAIN_MODEL.md § Aggregate: ScheduleClosure.
 //
 // Constraint fix (schedule_openings): the original plain UNIQUE(tenant_id, date) would
 // silently stop enforcing "one opening per date" the moment resource_id became nullable
