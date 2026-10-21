@@ -6,21 +6,42 @@
   <title>Preview — Hotsite — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
-    .preview-banner {
-      position: sticky; top: 0; z-index: 10;
-      background: #111827; color: white; padding: 0.75rem 1.25rem;
-      display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem;
-    }
-    .preview-banner .btn-primary { padding: 0.4375rem 1rem; font-size: 0.8125rem; margin-left: auto; }
-    .preview-banner .btn-secondary { padding: 0.4375rem 1rem; font-size: 0.8125rem; color: white; border-color: rgba(255,255,255,0.3); }
+    .preview-layout { display:block; padding:1rem; padding-bottom:7rem; }
+    .preview-frame { overflow:hidden; border:1px solid #e5e7eb; border-radius:.375rem; }
+    .preview-aside { display:none; }
     .mock-hero { background: var(--ba-primary); color: white; text-align: center; padding: 4rem 1.5rem; }
     .mock-hero h2 { font-size: 1.75rem; font-weight: 700; margin-bottom: 0.75rem; }
     .mock-hero p { opacity: 0.9; margin-bottom: 1.5rem; }
     .mock-section { padding: 2.5rem 1.5rem; max-width: 960px; margin: 0 auto; }
     .mock-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .preview-actions { position:fixed; bottom:3.75rem; left:0; right:0; z-index:20; padding:1rem; background:#fff; border-top:1px solid #e5e7eb; box-shadow:0 -2px 8px rgba(0,0,0,.06); }
+    .preview-actions .btn-primary { display:block; text-align:center; }
+    @media (min-width:1024px) {
+      .preview-layout { display:grid; grid-template-columns:minmax(0,1fr) 22rem; gap:1.5rem; align-items:start; padding:1.5rem; }
+      .preview-aside { display:block; position:sticky; top:1.5rem; }
+      .preview-actions { display:none; }
+    }
   </style>
 </head>
 <body>
+
+  <div class="dashboard-topbar">
+    <a href="01-hotsite-editor.html" style="display:flex;align-items:center;gap:.375rem;color:var(--ba-text);text-decoration:none;font-size:.9375rem;font-weight:500;">← <span class="topbar-brand">Voltar a editar</span></a>
+    <h1 class="topbar-page-title">Preview</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:.75rem;"><a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a><span class="topbar-date">Hoje, 21 de outubro de 2026</span></div>
+  </div>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header"><div class="sidebar-logo">B</div><div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div></div>
+      <nav class="sidebar-nav" style="margin-top:.5rem;"><a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a><a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a><a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a><a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a></nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav"><a class="sidebar-nav-item" href="../equipe/01-team-list.html">Equipe</a><a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html">Configurações</a><a class="sidebar-nav-item active" href="01-hotsite-editor.html">Hotsite</a></nav>
+      <div class="sidebar-footer"><div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:.8125rem;">AP</div><div><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div></div>
+    </aside>
+    <main class="main-content">
+
+      <div class="preview-layout">
+        <div class="preview-frame">
 
   <!--
     Engineering question — RESOLVED (see dev-notes.md): "Preview" must render
@@ -32,26 +53,10 @@
     or is needed. This mock shows that UX.
   -->
 
-  <!--
-    PROTOTYPE-ONLY SIMULATION: this reads the draft branding color from
-    localStorage (written by 01-hotsite-editor.html) or a ?primaryColor=
-    query param, purely so a reviewer clicking Editor → Preview sees the
-    edited color reflected here. The real implementation does NOT use
-    localStorage or a BFF fetch — it binds directly to the in-memory draft
-    state via the `draft` prop passed into HotsitePreview.tsx, per the
-    resolution above.
-  -->
-
-  <div class="preview-banner">
-    <span>👁️ Visualizando alterações não publicadas</span>
-    <a href="01-hotsite-editor.html" class="btn-secondary">Voltar a editar</a>
-    <a href="03-publish-success.html" class="btn-primary">Publicar agora</a>
-  </div>
-
   <div class="mock-hero" id="mock-hero">
     <h2 id="mock-hero-title">Seu carro impecável, sem complicação</h2>
     <p>Agende em segundos e acompanhe tudo pelo celular</p>
-    <a href="#" class="btn-secondary" id="mock-hero-cta" style="background:white;color:var(--ba-primary);border-color:white;">Agendar agora</a>
+    <button type="button" class="btn-secondary" id="mock-hero-cta" style="background:white;color:var(--ba-primary);border-color:white;">Agendar agora</button>
   </div>
 
   <div class="mock-section">
@@ -63,32 +68,28 @@
     </div>
   </div>
 
+        </div>
+        <aside class="preview-aside">
+          <div class="card" style="padding:1rem;">
+            <p style="font-size:.875rem;line-height:1.5;color:#6b7280;margin:0 0 1rem;">Visualizando alterações não publicadas.</p>
+            <a href="03-publish-success.html" class="btn-primary" style="display:block;text-align:center;">Publicar agora</a>
+          </div>
+        </aside>
+      </div>
+
+    </main>
+  </div>
+  <nav class="bottom-nav"><a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a><a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a><a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a><a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a><button class="bottom-nav-item active" type="button" onclick="openSheet()">Mais</button></nav>
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet"><div class="bottom-sheet-handle"></div><p class="bottom-sheet-label">Somente Gerente</p><a class="bottom-sheet-item" href="../equipe/01-team-list.html">Equipe</a><a class="bottom-sheet-item" href="../configuracoes/01-settings-form.html">Configurações</a><a class="bottom-sheet-item active" href="01-hotsite-editor.html">Hotsite</a></div>
+
+  <div class="preview-actions">
+    <a href="03-publish-success.html" class="btn-primary">Publicar agora</a>
+  </div>
+
   <script>
-    // PROTOTYPE-ONLY: simulate live draft preview. Real implementation
-    // must read draft state from the BFF, not localStorage/query params.
-    (function applyDraftBranding() {
-      var STORAGE_KEY = 'beloauto_hotsite_draft';
-      var params = new URLSearchParams(window.location.search);
-      var draft = {};
-      try {
-        var stored = localStorage.getItem(STORAGE_KEY);
-        if (stored) draft = JSON.parse(stored);
-      } catch (e) { /* ignore malformed storage */ }
-
-      var primaryColor = params.get('primaryColor') || draft.primaryColor;
-      var heroText = params.get('heroText') || draft.heroText;
-
-      if (primaryColor) {
-        document.documentElement.style.setProperty('--ba-primary', primaryColor);
-        var cta = document.getElementById('mock-hero-cta');
-        if (cta) cta.style.color = primaryColor;
-      }
-      if (heroText) {
-        var title = document.getElementById('mock-hero-title');
-        if (title) title.textContent = heroText;
-      }
-      // No stored/query value → falls back to the default --ba-primary already in tokens.css.
-    })();
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
   </script>
 
 </body>
