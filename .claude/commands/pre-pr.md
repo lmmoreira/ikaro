@@ -28,6 +28,8 @@ git status --short
 ```
 If there are staged or modified files → list all of them for visibility, then commit with specific file names (never `git add -A`) — no permission prompt needed, this is already covered by the chain-wide authorization from story-discovery's READY verdict (CLAUDE.md §9). Follow the commit format in `/implement-story` Step 3: `feat(<context>): <description> (<story-id>)` (`<story-id>` is `M0X-SYY` or `TDNN-SYY`), with the `Co-Authored-By` trailer (Codex adds `Co-Authored-By: Codex <noreply@openai.com>` explicitly; Claude Code adds its own).
 
+**3. Check the branch is mergeable with `main` before `gh pr create`.** Run `git fetch origin`, then `git merge-tree --write-tree origin/main HEAD` as its own call (a non-zero exit means conflicts). On a conflict, `git merge origin/main` (never rebase), resolve, re-run the affected checks, push, and only then open the PR. A PR that opens `CONFLICTING` runs no CI at all, and the first sign is a status script that sees one check instead of dozens (TD53-S6, PR #650: a 430-file rename conflicted with hotsite work that landed during the story). A large rename or rewrite also needs a fresh citation scan after the merge, because the merged-in files can carry the old form.
+
 ---
 
 ## Step 1 — Script checks (automated)
@@ -187,6 +189,8 @@ or:
 ❌ FAIL — [failing suite and test names]
 Blocked: fix failures before opening the PR.
 ```
+
+If the BFF component suite fails every spec with `ENV validation failed: ... received undefined`, the worktree is missing its gitignored env files (`apps/bff/.env`, `apps/backend/.env`, `apps/web/.env.local`): copy them from the main checkout (`/implement-story` Step 0 item 4) and re-run. It is not a code failure, and the first run in a fresh worktree is where it shows.
 
 If a failure survives a couple of genuine fix attempts, or the only apparent fix would be a workaround CLAUDE.md §7 forbids, stop and escalate to the user as a stuck condition (CLAUDE.md §9) rather than continuing to iterate.
 

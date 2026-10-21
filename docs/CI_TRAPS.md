@@ -246,6 +246,15 @@ cd - && git worktree remove /tmp/<name>-main-test --force
 
 **What to do:** read the failing job's log (never assume the cause), then `gh run rerun <run-id> --failed`, which re-runs only the failed jobs. A re-run minutes later usually meets the same throttle, so space retries out by tens of minutes. After about three failed re-runs over ~20 minutes it is a stuck condition for `/pr-land`: tell the user, quoting the exact error. The durable fix — authenticated Docker Hub pulls in the Trivy jobs, or a mirrored base image — is its own TD, not a patch in the story's PR. (M23-S44, PR #581, 2026-10-10: Docker Hub throttled and then its auth service returned 504s for about an hour; all three scans passed on a re-run once it recovered.)
 
+
+## A `Trivy Image Scan` that fails on every PR at once is usually a newly published CVE in a transitive package
+
+**Symptom:** `Trivy Image Scan (bff)` and `(web)` fail after minutes (the images build), `(backend)` passes, and `All Checks Passed` fails only because of those rows. The job log ends with a table of `HIGH`/`CRITICAL` findings with a `Fixed Version`, naming a package your diff never touched. Every other open PR fails the same way.
+
+**It is not your diff** when no dependency changed, and a re-run will not help: the advisory is new and the image still ships the old version. Find who pulls the package in with `pnpm why <package>`.
+
+**What to do:** if the fixed version is inside the allowed range, refresh only that package's entries in `pnpm-lock.yaml` in their own commit on the branch (`pnpm update <package> --recursive --depth Infinity --lockfile-only` can rewrite unrelated peer-resolution suffixes; keep only the lines that name the package, its `resolution` block and its dependents). No `overrides` entry and no manifest change: an override is a temporary pin the "No workarounds" rule forbids when the range already allows the fix. Confirm with a frozen install after deleting `node_modules/.pnpm-workspace-state-v1.json` (pnpm otherwise reports "Already up to date" against a stale state file), then push. If the fix is outside the range, upgrade the direct dependency that pulls it in. (TD53-S6, PR #650: `follow-redirects` 1.16.0 to 1.16.1, five lockfile lines.)
+
 ---
 
 ## `proxy.ts` unit tests passing does not mean the CSP actually works in a browser
