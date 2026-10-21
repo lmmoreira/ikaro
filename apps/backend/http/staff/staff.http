@@ -33,6 +33,30 @@ X-Actor-Type: STAFF
 X-Actor-Role: MANAGER
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — me (own profile)
+# Self-service profile lookup — the target is always RequestContext.actorId, never a URL param,
+# so a plain STAFF actor can fetch their own record (GET /staff/:id is manager-only).
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Get the currently authenticated staff member's own profile (MANAGER)
+GET {{baseUrl}}/staff/me
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Get the currently authenticated staff member's own profile (STAFF, non-manager)
+GET {{baseUrl}}/staff/me
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffWorkerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — me/tenants (UC-022 switch-staff-tenant)
 # Returns all tenants the authenticated staff account is registered at.
 # ─────────────────────────────────────────────────────────────────────────────

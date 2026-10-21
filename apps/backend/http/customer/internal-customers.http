@@ -27,6 +27,20 @@ GET {{baseUrl}}/internal/customers/tenants?googleOAuthId=unknown-sub-xyz
 X-Internal-Key: {{internalKey}}
 
 
+###
+
+### Find or create the customer row for (tenantId, googleOAuthId) — BFF Google-callback call (UC-021 step 4)
+POST {{baseUrl}}/internal/customers
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "googleOAuthId": "{{sub}}",
+  "email": "cliente@example.com",
+  "name": "Cliente Exemplo"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR CASES
 # ─────────────────────────────────────────────────────────────────────────────
@@ -39,3 +53,30 @@ GET {{baseUrl}}/internal/customers/tenants?googleOAuthId={{sub}}
 ### 400 — Missing googleOAuthId query parameter
 GET {{baseUrl}}/internal/customers/tenants
 X-Internal-Key: {{internalKey}}
+
+###
+
+### 401 — POST /internal/customers without X-Internal-Key (global guard)
+POST {{baseUrl}}/internal/customers
+Content-Type: application/json
+
+{
+  "tenantId": "{{tenantId}}",
+  "googleOAuthId": "{{sub}}",
+  "email": "cliente@example.com",
+  "name": "Cliente Exemplo"
+}
+
+###
+
+### 400 — Invalid body (tenantId is not a UUID)
+POST {{baseUrl}}/internal/customers
+X-Internal-Key: {{internalKey}}
+Content-Type: application/json
+
+{
+  "tenantId": "not-a-uuid",
+  "googleOAuthId": "{{sub}}",
+  "email": "cliente@example.com",
+  "name": "Cliente Exemplo"
+}

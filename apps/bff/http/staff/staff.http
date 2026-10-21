@@ -69,6 +69,52 @@ GET {{bffUrl}}/v1/staff?limit=10&offset=0
 Authorization: Bearer {{managerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH — invite staff (UC-028)
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### Invite a new STAFF member
+POST {{bffUrl}}/v1/staff/invite
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "email": "novo@lavacar.com.br",
+  "firstName": "João",
+  "lastName": "Silva",
+  "role": "STAFF"
+}
+
+###
+
+### Invite a new MANAGER
+POST {{bffUrl}}/v1/staff/invite
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "email": "gerente2@lavacar.com.br",
+  "firstName": "Maria",
+  "lastName": "Costa",
+  "role": "MANAGER"
+}
+
+###
+
+### 403 — STAFF role (non-manager) attempts to invite
+POST {{bffUrl}}/v1/staff/invite
+Authorization: Bearer {{staffToken}}
+Content-Type: application/json
+
+{
+  "email": "outro@lavacar.com.br",
+  "firstName": "Ana",
+  "lastName": "Lima",
+  "role": "STAFF"
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — get staff by id
 # ─────────────────────────────────────────────────────────────────────────────
 

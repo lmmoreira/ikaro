@@ -53,6 +53,26 @@ X-Correlation-ID: test-corr-id
 
 ###
 
+### GET /customers/:customerId — staff/manager reads one customer's profile
+GET {{baseUrl}}/customers/{{customerId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF
+X-Correlation-ID: test-corr-id
+
+###
+
+### ERROR — CUSTOMER role on GET /customers/:customerId → 403
+GET {{baseUrl}}/customers/{{customerId}}
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-id
+
+###
+
 ### GET /customers/me/tenants — all tenants the authenticated customer is registered at (UC-023)
 GET {{baseUrl}}/customers/me/tenants
 X-Tenant-ID: {{tenantId}}
