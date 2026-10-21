@@ -101,7 +101,7 @@ interface RetiredName {
   replacement: string;
 }
 
-// A numbered doc name is gone for good, so unlike a path it needs no target lookup: any use is stale.
+// A numbered doc name is gone for good, so unlike a path it needs no target lookup: every use is stale.
 function findRetiredDocNames(content: string, skipFences: boolean): RetiredName[] {
   const found: RetiredName[] = [];
   let inFence = false;
