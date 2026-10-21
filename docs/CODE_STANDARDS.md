@@ -18,11 +18,7 @@ Detailed mandatory rules for all TypeScript code. CLAUDE.md §7 holds the conden
 
 ## Repository signatures (mandatory)
 
-```typescript
-findById(id: string, tenantId: string): Promise<T | null>
-findAllByTenant(tenantId: string, filters?: XxxFilters): Promise<T[]>
-save(entity: T): Promise<void>
-```
+Every repository port exposes `findById(id, tenantId)`, `findAllByTenant(tenantId, filters?)` and `save(entity)`. → the full port skeleton and its exact signatures: `docs/AGENT_PATTERNS.md` § 1. Repository Port.
 
 ---
 
@@ -49,15 +45,7 @@ Before writing any use case, define failure modes in `domain/errors/<context>-do
 - Controller method = one line: `return this.useCase.execute(dto).catch(mapXxxError)`.
 - **Controller early-exit guards:** use `return Promise.reject(new HttpException({...}, status))` — not `throw`. A synchronous `throw` bypasses the `.catch(mapXxxError)` chain when the method returns `Promise<T>`.
 
-**Domain error base class (mandatory):**
-```typescript
-export class XxxDomainError extends Error {
-  constructor(message: string) {
-    super(message);
-    Object.setPrototypeOf(this, new.target.prototype); // ← required — instanceof fails without this
-  }
-}
-```
+**Domain error base class (mandatory):** every context's `XxxDomainError extends Error` must call `Object.setPrototypeOf(this, new.target.prototype)` in its constructor — `instanceof` fails without it. → the skeleton: `docs/AGENT_PATTERNS.md` § 2. Domain Error Class.
 
 ---
 
@@ -107,7 +95,7 @@ Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case 
 
 ## Zod v4 validators
 
-Use `z.uuid()` and `z.email()` — **never** `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud.
+Use `z.uuid()` and `z.email()` — **never** `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud (S1874) and ESLint. The same applies to `z.url()` instead of `z.string().url()`. `z.uuid()` rejects UUIDs that are not RFC 4122 compliant, so test fixtures must use a compliant one such as `'10000000-0000-4000-8000-000000000001'`.
 
 ---
 

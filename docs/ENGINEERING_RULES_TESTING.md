@@ -46,7 +46,7 @@ Tenant read caching lives in `CachingTenantRepository` behind `CachePort`, never
 
 ### Integration test DB isolation
 
-Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination.
+Unique inline tenant UUID for any `it()` sensitive to aggregate counts. Never reuse `TENANT_A`/`TENANT_B` for count assertions — cross-test contamination. → the full rule, including full-table-sweep tests that must not assert an aggregate mock call count: `docs/TESTING_STRATEGY.md` § Integration test DB isolation.
 
 ### Shared test-builder date defaults
 
