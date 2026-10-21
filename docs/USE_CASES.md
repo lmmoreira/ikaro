@@ -446,7 +446,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 
 > Extends UC-010a's exact mechanism with an optional `resourceId` — see the `Resource` aggregate (Resource Management Use Cases, below). Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Leaving `resourceId` unset behaves identically to UC-010a (tenant-wide) and stays open to STAFF|MANAGER; setting `resourceId` is deliberately **MANAGER-only** — the same restriction the discovery applies to every Resource Management use case below (dev-notes.md's own review call, no existing precedent to derive it from).
 
-- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010a)
+- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010a) (the MANAGER requirement is enforced in the backend controller, which rejects a STAFF actor with a `resourceId` as `403`; the BFF `@Roles` on this route allows STAFF | MANAGER)
 - **Endpoint:** `POST /v1/schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
 - **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided.
 - **Trigger:** Admin creates a closure and selects a specific resource instead of leaving "whole business" selected (e.g. "Maria — day off").
@@ -467,7 +467,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 
 > Extends UC-010c's exact mechanism with an optional `resourceId`, same relationship as UC-010e has to UC-010a. Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Setting `resourceId` is **MANAGER-only**, same restriction as UC-010e.
 
-- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
+- **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c) (the MANAGER requirement is enforced in the backend controller, which rejects a STAFF actor with a `resourceId` as `403`; the BFF `@Roles` on this route allows STAFF | MANAGER)
 - **Endpoint:** `POST /v1/schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
 - **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
 - **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
