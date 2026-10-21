@@ -120,19 +120,21 @@ The real fetchers live in `apps/web/features/booking/api/booking.ts` (`apps/web/
 Three calls, one per urgency section (resolved 2026-06-16 — see `agenda.md` "Queue scope"). All use the same `StaffBookingListResponse` shape; only the query params differ. Every `YYYY-MM-DD` value below is a **tenant-local** calendar day (TD48) — the backend converts it with the tenant's `businessHours.timezone`, so "today" is the tenant's today, never the UTC date.
 
 ```
-# "Precisa de ação" — no date filter, ALL pending/info-requested regardless of day
-GET /v1/bookings?status=PENDING,INFO_REQUESTED&page=1&limit=20
+# "Precisa de ação" — pending/info-requested inside the visible window (today .. today + welcomeStaffScreenDays - 1)
+GET /v1/bookings?status=PENDING,INFO_REQUESTED&from=YYYY-MM-DD&to=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
 # "Hoje" — today's approved only
-GET /v1/bookings?status=APPROVED&date=YYYY-MM-DD&page=1&limit=20
+GET /v1/bookings?status=APPROVED&date=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
-# "Próximos dias" — approved, future
-GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&page=1&limit=20
+# "Próximos dias" — approved, from tomorrow to the end of the window
+GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
-Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
+The server page (`app/dashboard/bookings/page.tsx`) issues the three calls through `listAllBookings()` (`features/booking/api/booking.server.ts`), which walks every page at `limit=100` so a window holding more bookings than one page never loses its last rows. The window keys come from `resolveBookingQueueWindow()` (`features/booking/model/booking-queue-window.ts`) in the tenant's timezone.
+
+Response: StaffBookingListResponse  (@ikaro/types, `packages/types/src/booking.dto.ts`)
 {
   items: StaffBookingCardResponse[]
   total: number
@@ -141,7 +143,7 @@ Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
 }
 ```
 
-Sort order: "Precisa de ação" by `scheduledAt ASC` (oldest request first, regardless of date — a 3-day-old pending request should outrank a fresh one). "Hoje" and "Próximos dias" likewise by `scheduledAt ASC`.
+Sort order: "Precisa de ação" by `scheduledAt ASC` (earliest appointment first). "Hoje" and "Próximos dias" likewise by `scheduledAt ASC`.
 
 ### Booking detail (M125-S04)
 ```
@@ -234,12 +236,14 @@ Every line in the booking must have an entry in `lines[]` (backend requires it, 
 
 ```
 app/dashboard/bookings/page.tsx          ← Server component
-  └── calls getStaffBookings(tenantId, date)
-  └── renders <BookingQueuePage initialData={...} />   ← 'use client'
+  └── calls listAllBookings(token, filters) three times (see "Queue list")
+  └── renders <BookingQueuePage initialActionNeeded initialToday initialUpcoming
+                                today tomorrow welcomeStaffScreenDays />   ← 'use client'
 
 app/dashboard/bookings/[id]/page.tsx     ← Server component
-  └── calls getStaffBookingById(tenantId, id)
-  └── renders <BookingDetailPage booking={...} />      ← 'use client'
+  └── calls loadBookingDetailRouteData(token, id)   (shells/dashboard/model/booking-route.server.ts)
+  └── renders <BookingDetailPage booking tenantSlug showHeaderStatusBadge
+                                initialActionState returnTo />      ← 'use client'
         └── <BookingActionPanel />                     ← receives actionState + callbacks
         └── <RejectBookingSheet />                     ← Sheet, unmounts when closed
         └── <RequestInfoSheet />                       ← Sheet, unmounts when closed
@@ -257,7 +261,7 @@ app/dashboard/bookings/[id]/page.tsx     ← Server component
 |---|---|---|
 | Reject reason | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(10)` | UC-004 |
 | Info request message | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(20)` | UC-005 |
-| Reject reason minimum | none in MVP | User confirmed — no minimum in the product spec; note the BFF schema (`RejectBookingBodySchema`) currently rejects anything under 10 trimmed characters |
+| Reject reason minimum | 10 trimmed characters (BFF `RejectBookingBodySchema`, `bookings.schemas.ts`) | The product spec set no minimum; the BFF schema enforces `.trim().min(10)` and that is what ships |
 | Admin cancel reason | optional; BFF `reason: z.string().min(1).optional()` (web sheet `maxLength={200}`) | UC-008 (confirmed against `CancelBookingAsAdminBody` in the 2026-06-16 UC audit) |
 | Reschedule `adminNotes` | optional; BFF `.trim().min(1).max(500)` | UC-008 A1 |
 | Complete `lines[].actualPriceCharged` | required per line, `>= 0` (BFF: `z.number().nonnegative()`, `lines` min 1) | UC-009 |
@@ -303,12 +307,7 @@ After any successful action, **the admin stays on the detail page**. Do not call
 
 ## BottomNav — hide on detail pages
 
-The `BottomNav` component must not render on `/dashboard/bookings/[id]`. Two approaches:
-
-1. `DashboardShell` accepts a `hideBottomNav?: boolean` prop — `[id]/page.tsx` passes it
-2. `usePathname()` in `BottomNav` — hide when pathname matches `/dashboard/bookings/[id pattern]`
-
-Option 1 is preferred (explicit, no regex in component).
+The `BottomNav` does not render on `/dashboard/bookings/[id]`. It hides itself: `BottomNav.tsx` reads `usePathname()` and calls `matchBookingDetailRoute(pathname)` from `shells/dashboard/model/booking-route.ts` (the same matcher also excludes the static `new` segment). There is no `hideBottomNav` prop on `DashboardShell`.
 
 ---
 
@@ -338,72 +337,12 @@ These `tokens.css` classes do not exist in production — map them as follows:
 
 ---
 
-## @ikaro/types additions (M125-S02 + S04)
+## Types (all shipped)
 
-Add these types to `packages/types/src/index.ts` in the same commit as the BFF endpoints that produce them:
+Not copied here, so they cannot drift: read the real definitions.
 
-```ts
-// M125-S02
-export interface StaffBookingCardResponse {
-  id: string;
-  status: 'PENDING' | 'INFO_REQUESTED';
-  scheduledAt: string;
-  customerName: string;
-  serviceNames: string[];
-  totalPrice: number;
-}
-export interface StaffBookingListResponse {
-  items: StaffBookingCardResponse[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-// M125-S04
-export interface StaffBookingDetailResponse {
-  id: string;
-  status: string;
-  scheduledAt: string;
-  durationMinutes: number;
-  customer: { id: string; name: string; email: string; phone: string };
-  loyaltyBalance: number | null;
-  lines: { serviceId: string; serviceName: string; price: number; durationMinutes: number; points: number }[];
-  infoRequestMessage: string | null;
-  infoResponseMessage: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-  approvedAt: string | null;
-  rejectedAt: string | null;
-  infoRequestedAt: string | null;
-  infoSubmittedAt: string | null;
-}
-
-// M125-S05 — re-add types dropped in M12-S07
-export interface ApproveBookingRequest { bookingId: string; }
-export interface ApproveBookingResponse { id: string; status: 'APPROVED'; approvedAt: string; }
-export interface RejectBookingRequest { bookingId: string; reason: string; }
-export interface RequestMoreInfoRequest { bookingId: string; message: string; }
-export interface SlotConflictSuggestion { startsAt: string; endsAt: string; }
-export interface SlotConflictError { message: string; suggestions: SlotConflictSuggestion[]; }
-
-// UC-008/UC-009 — not yet scoped to a story; add when this work is picked up
-export interface CancelBookingAsAdminRequest { bookingId: string; reason?: string; }
-export interface CancelBookingAsAdminResponse { id: string; status: 'CANCELLED'; cancelledAt: string; }
-export interface RescheduleBookingRequest { bookingId: string; scheduledAt: string; adminNotes?: string; }
-export interface RescheduleBookingResponse { id: string; status: 'APPROVED'; scheduledAt: string; }
-export interface CompleteBookingLineInput { lineId: string; actualPriceCharged: number; }
-export interface CompleteBookingRequest {
-  bookingId: string;
-  lines: CompleteBookingLineInput[];
-  afterServicePhotoUrls?: string[];
-  adminNotes?: string;
-}
-export interface CompleteBookingResponse {
-  id: string; status: 'COMPLETED'; completedAt: string; totalActualPrice: number;
-}
-```
-
----
+- `packages/types/src/booking.dto.ts` — `StaffBookingCardResponse` (a flat card: `bookingId`, `contactName`, `isCustomer`, `assignedResources`, `hasOpenException`, …), `StaffBookingListResponse`, `StaffBookingDetailResponse` (flat, no nested `customer`; carries the resources, itinerary, attendees, intake, cancellation/rejection data, `createdAt` and `createdByName`), `ApproveBookingRequest/Response`, `RejectBookingRequest`, `RequestMoreInfoRequest`, `SlotConflictSuggestion`, `SlotConflictError`.
+- `apps/web/features/booking/api/booking.ts` — the request/response types the web sends for the lifecycle actions (`CancelBookingRequest/Response`, `RescheduleBookingRequest/Response`, `CompleteBookingRequest/Response`, `MarkNoShowRequest/Response`, `CorrectNoShowRequest/Response`), next to the fetchers that use them.
 
 ## Resolved decisions (all shipped)
 
@@ -579,23 +518,9 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 
 ## Full booking detail — what the page must show (audit of 2026-10-15)
 
-The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `completo` — every card; the real page shows only the cards that have data) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
+When this audit was written the staff detail (`BookingDetailMain.tsx`) rendered customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields; `M23-S47` has since built every card. The card-by-card table (fields and where each one comes from in the shipped `StaffBookingDetailResponse`) lives once, in `journeys/staff/agenda.md` § "Full booking detail — what the page must show". `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `completo` — every card; the real page shows only the cards that have data) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
 
-| Card (screen) | Fields | Where the data is today |
-|---|---|---|
-| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none. Source for every status, a cancelled or rejected booking included: the latest `booking_line_resource_assignments` row per slot (the audit table a cancel does not delete), through a new query beside `LATEST_RESOURCE_ASSIGNMENTS_SQL` that also returns line, leg and quantity position (M23-S47 decision 2) |
-| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not. Leg order and resource come from the assignments; the leg times come from `resource_occupancy` and exist only while those rows do (never after a cancel or reject, and not after the 90-day purge): such a leg is drawn without a time (`03i`) |
-| Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | **Needs backend + BFF** — on the aggregate, not in the detail response |
-| Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | **Needs backend + BFF** (`intake`, `consentAcceptedAt`) |
-| Observações do cliente | `notes` | Backend detail has it; **the BFF staff mapper drops it** |
-| Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
-| Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
-| Notas internas (`03h`: one card, shown whenever `adminNotes` is set; `?forma=completo` elsewhere) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
-| Cobrança (`03h`) | **Not S47 work** — the completed banner already shows quoted, discount, charged and points earned (`BookingCompletionSummary`); the separate card drawn on 2026-10-15 was removed on 2026-10-16 | Already built |
-| Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
-| Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
-
-Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows in `journeys/staff/agenda.md`); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
 - ⚠ **Prototype mechanics:** `?forma=` is a query parameter (not a hash) because `03f` already uses the hash for its role switch. The service name on the line changes per shape for illustration only.
 - ⚠ **Photos label** in `01`/`03` is now "Fotos enviadas pelo cliente" (was "do veículo", a car-wash leftover).

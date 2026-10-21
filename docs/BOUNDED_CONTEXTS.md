@@ -445,7 +445,7 @@ Same Person, Multiple Tenants:
 - Tables: staff.staff
 - Every row has: `tenant_id` (required, indexed)
 - Queries: Always filtered by `WHERE tenant_id = ?`
-- Unique constraint: UNIQUE(tenantId, googleOAuthId) — per-tenant unique, which is what *allows* the same person to have separate active `Staff` rows at multiple tenants, not what prevents it. 2+ active rows → selection token → `/select-staff-tenant`.
+- Unique constraint: UNIQUE(tenantId, googleOAuthId) — per-tenant unique, which is what *allows* the same person to have separate active `Staff` rows at multiple tenants, not what prevents it. 2+ active rows → a post-login tenant switch at `/select-staff-tenant` (login itself is always per-tenant; no selection token).
 
 **Published Events:**
 - `StaffInvited`, `StaffDeactivated`, `StaffActivated`

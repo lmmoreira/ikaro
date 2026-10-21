@@ -21,7 +21,7 @@ flowchart TD
     InviteBtn --> InviteForm["/dashboard/team/invite<br/>Invite Member Form"]
     InviteForm --> InviteSubmit(("Click 'Enviar convite'"))
     InviteSubmit --> EmailCheck{"E-mail já tem<br/>staff ativo?"}
-    EmailCheck -- "sim → 409 (A1)" --> EmailError["erro inline<br/>'Este e-mail já está cadastrado na sua equipe'"]
+    EmailCheck -- "sim → 409 (A1)" --> EmailError["erro inline<br/>'Já existe um membro da equipe com este e-mail neste estabelecimento.'"]
     EmailError --> InviteForm
     EmailCheck -- "inativo → reativa (A2)" --> ReactivateSuccess["toast verde<br/>'Convite reenviado'"]
     EmailCheck -- "não → 201" --> InviteSuccess["toast verde<br/>'Convite enviado para [email]'"]
@@ -29,14 +29,14 @@ flowchart TD
     InviteSuccess --> List
 
     %% UC-029 — Deactivate
-    DeactivateBtn --> DeactivateConfirm["confirmação<br/>'Tem certeza? [Nome] perderá acesso'"]
+    DeactivateBtn --> DeactivateConfirm["confirmação<br/>'Desativar membro? {name} perderá o acesso imediatamente.'"]
     DeactivateConfirm --> ConfirmYes(("Confirmar"))
     DeactivateConfirm --> ConfirmNo(("Cancelar"))
     ConfirmNo --> List
     ConfirmYes --> SelfCheck{"É a própria conta? (A1)"}
-    SelfCheck -- "sim → 403" --> SelfError["erro<br/>'Você não pode desativar sua própria conta'"]
+    SelfCheck -- "sim → 403" --> SelfError["erro<br/>'Você não pode desativar sua própria conta.'"]
     SelfCheck -- "não" --> LastManagerCheck{"Último MANAGER ativo? (A2)"}
-    LastManagerCheck -- "sim → 409" --> LastManagerError["erro<br/>'O estabelecimento precisa de pelo menos um gerente ativo'"]
+    LastManagerCheck -- "sim → 409" --> LastManagerError["erro<br/>'Não é possível remover o último gerente ativo.'"]
     LastManagerCheck -- "não → 200" --> DeactivateSuccess["toast verde<br/>'[Nome] foi desativado(a) com sucesso'"]
     SelfError --> List
     LastManagerError --> List
@@ -51,7 +51,7 @@ flowchart TD
 
     %% UC-031 — Reactivate
     List --> ActivateBtn(("Click 'Ativar' em uma linha inativa"))
-    ActivateBtn --> ActivateSuccess["toast verde<br/>'[Nome] foi reativado(a)'"]
+    ActivateBtn --> ActivateSuccess["toast verde<br/>'Membro ativado!'"]
     ActivateSuccess --> List
 
     class List,InviteForm,EmailError,ReactivateSuccess,InviteSuccess,DeactivateConfirm,SelfError,LastManagerError,DeactivateSuccess,EditDetail,EditSuccess,ActivateSuccess existing
@@ -71,7 +71,7 @@ flowchart TD
 
 ## Open questions / gaps
 
-- [x] **Backend/BFF status** — both fully implemented and `MANAGER`-guarded: `POST /staff/invite`, `PATCH /staff/:id/deactivate`. Shipped as part of `M13-S43`.
+- [x] **Backend/BFF status** — fully implemented and `MANAGER`-guarded: `POST /staff/invite`, `GET /staff`, `GET /staff/:id`, `PATCH /staff/:id`, `PATCH /staff/:id/deactivate`, `PATCH /staff/:id/activate`. Shipped as part of `M13-S43`.
 - [x] **List scope** — **Resolved/shipped.** `TeamListPage` shows Ativos / Convites pendentes / Inativos, matching the prototype.
 - [x] **Invite form surface** — **Resolved/shipped.** Full page (`InviteForm`), matching `staff/servicos.md`'s pattern.
 - [x] **Resend invite affordance** — resolved on the `M13-S43` branch (2026-07-06): `MemberRow.tsx`'s "Reenviar convite" is a direct one-click button, not a link back to the invite form. It calls `POST /staff/invite` with the row's existing name (split into firstName/lastName) and role — no retyping, no navigation.

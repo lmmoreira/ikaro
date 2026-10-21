@@ -68,30 +68,9 @@ GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD
 
 **Client component** (`'use client'`) — handles selected day state and sheet open/close.
 
-**Props:**
-```ts
-interface ScheduleViewProps {
-  readonly initialClosures: ScheduleClosure[];
-  readonly initialOpenings: ScheduleOpening[];
-  readonly initialBookings: BookingListItem[];
-  readonly businessHours: BusinessHours;   // from tenants.settings.business_hours
-  readonly tenantSlug: string;
-}
-```
+**Props** (`SchedulePageProps`, `SchedulePage.tsx`): `initialClosures`, `initialOpenings`, `initialBookings`, `businessHours`, `todayKey`, `weekStartKey`, `initialSelectedDateKey?`, `slotGranularityMinutes`. The route (`app/dashboard/schedule/page.tsx`) reads `?weekStart=` and `?date=` from the URL, resolves them in the tenant's timezone, and fetches closures, openings and the week's bookings (`listAllBookings`) before rendering. The earlier `ScheduleViewProps` / `ScheduleState` shapes are gone: the page's state and handlers live in `useSchedulePageController` (`features/booking/schedule/`), which `SchedulePage` calls.
 
-**State:**
-```ts
-type ScheduleState = {
-  startOfWeek: Date;                         // Mon of selected week; defaults to current week
-  selectedDate: Date;                        // day selected within the strip; defaults to today
-  closureSheet: 'closed' | 'open' | 'submitting' | 'conflict' | 'warning';
-  openingSheet: 'closed' | 'open' | 'submitting' | 'conflict';
-  removeClosureTarget: ScheduleClosure | null;
-  removeOpeningTarget: ScheduleOpening | null;
-}
-```
-
-**Week navigation:** `startOfWeek` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). The header label covers the whole visible week, so a week crossing a month reads `Outubro – Novembro 2026` (M18-S11, shared `WeekNav`). Advancing a week = `startOfWeek + 7 days`. The time grid re-fetches when `startOfWeek` changes.
+**Week navigation:** `weekStartKey` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). The header label covers the whole visible week, so a week crossing a month reads `Outubro – Novembro 2026` (M18-S11, shared `WeekNav`). Advancing a week = `weekStartKey + 7 days`. The time grid re-fetches when `weekStartKey` changes.
 
 **Time grid:**
 - Show slots from `businessHours[dayOfWeek].open` to `businessHours[dayOfWeek].close`
@@ -172,7 +151,7 @@ Same pattern as `RemoveClosureDialog`. Shows date + window. "Remover abertura" =
 
 ## Route registration
 
-Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav under the clock icon ("Horários"). The sidebar link already exists in all prototype files — just needs the real route to resolve.
+Shipped: `apps/web/app/dashboard/schedule/page.tsx` is in the dashboard sidebar nav (`MAIN_NAV_KEYS` in `shells/dashboard/components/Sidebar.tsx`, `Clock` icon, label key `nav.schedule`).
 
 ## shadcn/ui component map
 
