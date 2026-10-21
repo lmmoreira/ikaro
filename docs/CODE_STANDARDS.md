@@ -95,7 +95,7 @@ Both `{UseCaseName}Input` and `{UseCaseName}Result` are defined in the use case 
 
 ## Zod v4 validators
 
-Use `z.uuid()` and `z.email()` — **never** `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud (S1874) and ESLint. The same applies to `z.url()` instead of `z.string().url()`. `z.uuid()` rejects UUIDs that are not RFC 4122 compliant, so test fixtures must use a compliant one such as `'10000000-0000-4000-8000-000000000001'`.
+Use `z.uuid()` and `z.email()` — **never** `z.string().uuid()` / `z.string().email()`. The chained forms are deprecated in Zod v4 and flagged by SonarCloud (S1874). The same applies to `z.url()` instead of `z.string().url()`. `z.uuid()` rejects UUIDs that are not RFC 4122 compliant, so test fixtures must use a compliant one such as `'10000000-0000-4000-8000-000000000001'`.
 
 ---
 
