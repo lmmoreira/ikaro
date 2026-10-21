@@ -36,7 +36,7 @@
 | Migration 1 (entries only — the `processed_events` block this migration originally also created was removed when migration history was squashed pre-production, TD24-S04 D16) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries.ts` |
 | Migration 2 (balances + redemptions + expiry_log) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog.ts` |
 | `LoyaltyModule` | `apps/backend/src/contexts/loyalty/loyalty.module.ts` |
-| BFF loyalty controller | `apps/bff/src/loyalty/loyalty.controller.ts` |
+| BFF loyalty controller | `apps/bff/src/features/loyalty/loyalty.controller.ts` |
 | Loyalty error mapper | `apps/backend/src/contexts/loyalty/infrastructure/http/loyalty-error.mapper.ts` |
 | HTTP file (customer/admin routes) | `apps/backend/http/loyalty/loyalty.http` |
 | HTTP file (expiry trigger) | `apps/backend/http/loyalty/cron-loyalty-expiry.http` |

@@ -75,10 +75,10 @@ Full contract: `docs/API_CONTRACTS.md` § Lead Form Admin Config.
 All panel copy belongs under `dashboard.hotsitePage.layout.panels.leadForm` in both
 `packages/i18n/locales/pt-BR/web.json` and `packages/i18n/locales/en/web.json`; no visible string is hardcoded.
 
-## Mobile nav — open item
+## Mobile nav
 
 The existing bottom-nav icons remain unchanged. When the module is enabled, "Leads" is exposed inside the existing "Mais" sheet rather than added as a new bottom-nav icon. When the module is disabled, it is absent from the sheet as well.
 
 ## Known limitations (flagged, not silently dropped)
 
-- Question-level drag-and-drop is an implementation addition requested by M20-S08; it should follow the existing hotsite Layout tab's `@dnd-kit` pattern and preserve keyboard accessibility.
+- Question-level drag-and-drop is an implementation addition requested by M20-S08, built with the same `@dnd-kit` pattern as the hotsite Layout tab (`LeadFormSortableQuestion.tsx`).

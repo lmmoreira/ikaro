@@ -1549,7 +1549,7 @@ Same shape as `POST /cron/loyalty-expiry` above — local/manual trigger path on
 | `POST /cron/resource-occupancy-retention-purge` | `cron-resource-occupancy-retention-purge` | `resource-occupancy-retention-purge` |
 | `POST /cron/loyalty-expiry-warning` | `cron-loyalty-expiry-warning` | `loyalty-notify-expiring-points` |
 
-The outbox relay (`cron-outbox-relay`) has no HTTP trigger route; Cloud Scheduler publishes to its topic only. The authoritative topic/consumer list is `infra/terraform/pubsub-catalog.json`.
+The outbox relay (`cron-outbox-relay`) is triggered like the other cron jobs: `POST /cron/outbox-relay` (`OutboxRelayController`, `apps/backend/src/shared/infrastructure/outbox/outbox-relay.controller.ts`) publishes `CRON_OUTBOX_RELAY_TRIGGER` and returns `200 {ok:true}`, and Cloud Scheduler publishes to the same topic in deployed environments. The authoritative topic/consumer list is `infra/terraform/pubsub-catalog.json`.
 
 ### Backend-only read/lookup routes (BFF and operator tooling, no public contract)
 

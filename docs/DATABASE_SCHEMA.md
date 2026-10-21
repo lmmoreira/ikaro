@@ -91,7 +91,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | version | INTEGER | NOT NULL DEFAULT 1 — optimistic-locking column |
-| **INDEX** | (tenant_id) | |
+| **UNIQUE** | (tenant_id) | `UQ_platform_hotsite_configs_tenant_id`; no separate index |
 
 ### `platform.chatbot_sessions`
 
@@ -1098,6 +1098,7 @@ One row per `(tenant_id, customer_id)`. Maintained as a running total: increment
 | current_points | INT | NOT NULL DEFAULT 0, CHECK >= 0 |
 | updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **PRIMARY KEY** | (tenant_id, customer_id) | One balance row per customer per tenant |
+| **INDEX** | (tenant_id, customer_id) | `IDX_loyalty_balances_tenant_customer` (redundant with the primary key) |
 
 **Rules:**
 - Upserted on every `LoyaltyEntry` insert: `INSERT … ON CONFLICT (tenant_id, customer_id) DO UPDATE SET current_points = current_points + excluded.current_points`.

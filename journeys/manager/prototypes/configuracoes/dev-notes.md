@@ -162,7 +162,7 @@ all 3 bounds are fully client-checkable — validated client-side the same way a
 | businessInfo.phone | 10–11 digits, optional | "Telefone inválido." |
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 
-Slug is never submitted — input stays `readonly`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.
+Slug is never submitted — input stays `disabled`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.
 
 Address uses a ViaCEP-backed zip lookup (`PostalCodeField`), matching the pattern already used in the guest/customer booking flow's pickup address — not a single free-text field.
 

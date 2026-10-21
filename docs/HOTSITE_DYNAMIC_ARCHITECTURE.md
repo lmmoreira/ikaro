@@ -535,7 +535,7 @@ import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-m
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
 import { ContactModule } from '@/shells/hotsite/components/ContactModule';
-// ...one import per module component, including ChatbotModule once built
+// ...one import per module component (the CHATBOT module renders ChatbotWidget)
 import { Footer } from '@/shells/hotsite/components/Footer';
 
 export default async function HotsitePage({
@@ -556,7 +556,7 @@ export default async function HotsitePage({
         if (parsed.type === 'HERO') moduleEl = <HeroModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
         else if (parsed.type === 'SERVICE_LIST') moduleEl = <ServiceListModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
         else if (parsed.type === 'CONTACT') moduleEl = <ContactModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
-        else if (parsed.type === 'CHATBOT') moduleEl = <ChatbotModule data={parsed.data} slug={slug} />;
+        else if (parsed.type === 'CHATBOT') moduleEl = <ChatbotWidget data={parsed.data} slug={slug} business={business} tenantName={displayName} />;
         // ...one branch per module type
         else if (parsed.type === 'FOOTER') moduleEl = <Footer slug={slug} />; // FOOTER is one more branch here, not unconditionally appended outside the loop
         return moduleEl;
@@ -601,7 +601,7 @@ export const HOTSITE_REVALIDATE_SECONDS = 300;
 ```
 
 ```typescript
-// apps/web/app/[slug]/page.tsx  (and the booking/, login/ and lead-form/ page.tsx files; the layout has no `revalidate`)
+// apps/web/app/[slug]/page.tsx  (and the booking/, booking/availability-alert/, login/ and lead-form/ page.tsx files; the layout has no `revalidate`)
 // Next.js statically analyses segment config exports — imported variables are not resolved.
 // Must be a literal. Keep in sync with HOTSITE_REVALIDATE_SECONDS in features/platform/hotsite/revalidate.ts.
 export const revalidate = 300;
@@ -614,20 +614,26 @@ export const revalidate = 300;
 import { HOTSITE_REVALIDATE_SECONDS, hotsiteManifestCacheTag } from '@/features/platform/hotsite/revalidate';
 import { bffPublicFetch } from '@/shared/lib/api/bff-server';
 
-export async function fetchManifest(slug: string): Promise<HotsiteManifestResponse> {
+export async function fetchManifestResponse(slug: string): Promise<Response> {
   const isDev = process.env.NODE_ENV === 'development';
-  const res = await bffPublicFetch(`/public/platform/manifest/${slug}`, {
+  return bffPublicFetch(`/public/platform/manifest/${slug}`, {
     next: {
       revalidate: isDev ? 0 : HOTSITE_REVALIDATE_SECONDS,
       tags: [hotsiteManifestCacheTag(slug)],
     },
   });
+}
+
+// Memoized per request with React cache(): the layout, the page and their generateMetadata()
+// each call this for the same slug, and without the memo each fired its own network round-trip.
+export const fetchManifest = cache(async (slug: string): Promise<HotsiteManifestResponse> => {
+  const res = await fetchManifestResponse(slug);
 
   if (res.status === 404) notFound();
-  if (!res.ok) throw new Error('Failed to fetch manifest');
+  if (!res.ok) throw new Error(`Failed to fetch manifest for slug "${slug}"`);
 
-  return res.json();
-}
+  return res.json() as Promise<HotsiteManifestResponse>;
+});
 ```
 
 `apps/web/features/platform/api.ts` (no `server-only`/`client-only` suffix distinction in the filename, but client-only in practice — imports `bffClient`, which asserts `'client-only'`) exports a separate `fetchManifestClient()` for the one caller that needs the manifest from the browser: `HotsitePreview.tsx`, the dashboard's live-preview-while-editing component. It carries no `next.revalidate`/`next.tags` — Next's Data Cache doesn't exist in the browser, so those options would be silently ignored there anyway; the preview is deliberately always-fresh, not cached. `features/platform/hotsite/api/services.ts`/`services.server.ts` follow the identical split for the services list.

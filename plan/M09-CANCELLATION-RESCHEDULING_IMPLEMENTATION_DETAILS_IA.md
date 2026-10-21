@@ -20,8 +20,8 @@
 | SendBookingRescheduledNotificationUseCase | `apps/backend/src/contexts/notification/application/use-cases/send-booking-rescheduled-notification/` |
 | BaseNotificationUseCase | `apps/backend/src/contexts/notification/application/use-cases/base-notification.use-case.ts` |
 | Base DTOs | `apps/backend/src/contexts/notification/application/dtos/base-notification.dto.ts`, `base-guest-notification.dto.ts` |
-| BFF cancel endpoint | `apps/bff/src/bookings/bookings.controller.ts` — `PATCH /v1/bookings/:id/cancel` |
-| BFF reschedule endpoint | `apps/bff/src/bookings/bookings.controller.ts` — `PATCH /v1/bookings/:id/reschedule` |
+| BFF cancel endpoint | `apps/bff/src/features/booking/bookings.controller.ts` — `PATCH /v1/bookings/:id/cancel` |
+| BFF reschedule endpoint | `apps/bff/src/features/booking/bookings.controller.ts` — `PATCH /v1/bookings/:id/reschedule` |
 | Error mapper additions | `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` |
 
 ---

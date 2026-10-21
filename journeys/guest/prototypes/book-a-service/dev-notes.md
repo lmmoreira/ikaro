@@ -8,7 +8,7 @@
 
 The guest booking flow is a 4-step React form orchestrated by `BookingForm`. All step components live under `apps/web/features/booking/components/public/`. No shadcn/ui is currently used in this path — components use Tailwind + `--ba-*` custom properties directly.
 
-**Also handles the authenticated-customer path** (see `customer/prototypes/book-a-service/`): `BookingForm` calls `getHotsiteCustomerProfile(slug)` on mount; if it resolves, it switches to `createAuthenticatedBooking()` and passes `hideContactFields={true}` + a pre-filled `pickupAddress` to `PersonalInfoStep`. This isn't a separate flow/component — it's the same `BookingForm` reused for both actors.
+**Also handles the authenticated-customer path** (see `customer/prototypes/book-a-service/`): `BookingForm` (state in `useBookingFormController`, submit in `useBookingSubmission`) calls `getHotsiteCustomerProfile(slug)`; if it resolves, it switches to `createAuthenticatedBooking()`, passes `hideContactFields={true}` to `PersonalInfoStep` and feeds the profile's `defaultAddress` into the form core as the pickup-address default. This isn't a separate flow/component — it's the same `BookingForm` reused for both actors.
 
 ---
 
@@ -105,7 +105,7 @@ Response: AvailabilityResponse
 - `selectedSlot: AvailableSlot | null`
 - `step2Error: string | null`
 
-**409 handling:** After `POST /bookings` returns 409 → `setStep(2)` + `setStep2Error('Horário indisponível, escolha outro')` (data-testid: `step2-error`).
+**Error handling:** a failed `POST /bookings` is routed by its error code through `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`), which returns the step to go back to and the catalogue message from `packages/i18n/locales/{pt-BR,en}/errors.json` (for example `BOOKING_SLOT_UNAVAILABLE` returns to the availability step with "O horário solicitado não está mais disponível."; data-testid: `step2-error`). A code with no mapped step falls back to Confirmation with the generic message.
 
 **Loading states:** `AvailabilityCarousel` renders skeleton placeholders while fetching (already implemented).
 
@@ -169,7 +169,7 @@ Body (CreateBookingRequest from @ikaro/types):
 | `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) |
 
 **Error messages:**
-- `errorMessage = 'Não foi possível enviar sua solicitação. Tente novamente.'` (all non-409 errors)
+- `errorMessage` is the catalogue message for the response's error code (see Error handling above); the generic message (`resolveErrorMessage(undefined, locale)`) is the fallback when the code has no mapped step
 - 409 → navigate back to step 2, not shown in step 4
 
 ---

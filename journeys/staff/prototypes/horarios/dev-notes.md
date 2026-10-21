@@ -232,7 +232,7 @@ POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId
 GET /v1/resources?type=&isActive=                            // UC-044 — feeds both ResourceFilterMenu and ResourceSelectField
 ```
 
-**Known limitation, found during the original promotion — still not resolved, and moot for the shipped design:** `07-horarios-recurso.html`'s own sidebar/bottom-nav still has "Horários" pointing at a Cluster-2/4 screen (`manager-05-visao-geral.html`, the combined multi-resource day grid) rather than back at this file, and "Serviços"/"Turmas" point at Cluster 2/4 screens (`manager-02-service-resource-config.html`, `staff-04-turmas-proximas.html`) from the discovery set; the Turmas screen has since been promoted as `../turmas/01-turmas-proximas.html`. Since the shipped implementation never navigates to that illustrative screen at all (both controls live in-page on the existing route, not a drill-down page), this stops applying to the real product — left as-is in the illustrative file.
+**Navigation links (resolved):** `07-horarios-recurso.html`'s sidebar/bottom-nav no longer points at the discovery-set screens: "Horários" links `08-visao-geral-manager.html`, "Serviços" links `../servicos/01-servicos-list.html` and "Turmas" links `../turmas/01-turmas-proximas.html`. The shipped implementation never navigates to this illustrative screen (both controls live in-page on the existing route).
 
 **Resolved decisions (`M21-S05`):**
 - [x] `ResourceFilterMenu` defaults to nothing checked — "Todo o negócio" (tenant-wide) — on first load. `LOCATION` is excluded from both controls' options entirely (functionally redundant with the tenant-wide default).
@@ -335,7 +335,7 @@ A rejected intermediate idea (worth recording so it isn't re-proposed): labeling
 
 **Prototype notes:** both files are built from `08-visao-geral-manager.html` using the real Oct 8 Lavacar BeloAuto occupancy (bookings 11:00/13:00/16:00 → held until 12:30/15:00/17:30) plus an illustrative 09:00 Lavagem rápida with a 30-min Walace turnover (not Walace's real turnover, which is 5 min) to contrast the two origins. `09b-so-walace.html` is the one-resource-checked case. Free cells are tinted green only in the prototype so gaps are readable; the real board does not tint free time. Nav links point at real, existing screens (`../turmas/01-turmas-proximas.html`).
 
-**Known limitation carried from `08`:** `08-visao-geral-manager.html` still links `staff-02-session-roster.html` and `staff-04-turmas-proximas.html`, which do not exist (the real screens are `../turmas/02-roster-dia.html` and `../turmas/01-turmas-proximas.html`); left unchanged, flagged by the 2026-10-03 docs-audit.
+**Navigation links (resolved):** `08-visao-geral-manager.html` links the real screens `../turmas/02-roster-dia.html` and `../turmas/01-turmas-proximas.html`.
 
 ## ✅ Done — M23-S50: both filters move together as a dock (`10-filtros-flutuantes.html`)
 

@@ -291,7 +291,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-#### **BookingReminderDue**
+#### **BookingReminderDue** *(Command — `booking/domain/commands/booking-reminder-due.command.ts`, published through the outbox like the other cron-emitted messages)*
 - **Trigger:** Scheduled cron job (06:00 tenant-local) finds APPROVED bookings whose appointment is **tomorrow**. The cron emits one event per booking; Notification Context sends the email.
 - **State change:** none (booking stays APPROVED)
 - **Data:**
@@ -313,7 +313,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-#### **BookingReminderDueToday**
+#### **BookingReminderDueToday** *(Command — `booking/domain/commands/booking-reminder-due-today.command.ts`, published through the outbox like the other cron-emitted messages)*
 - **Trigger:** Scheduled cron job (06:00 tenant-local) finds APPROVED bookings whose appointment is **today**. The cron emits one event per booking; Notification Context sends the email.
 - **State change:** none
 - **Data:**
@@ -358,7 +358,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 
 ---
 
-#### **AdminDailyScheduleReminder**
+#### **AdminDailyScheduleReminder** *(Command — `booking/domain/commands/admin-daily-schedule-reminder.command.ts`, published through the outbox like the other cron-emitted messages)*
 - **Trigger:** Scheduled cron job (06:00 tenant-local) builds the day's schedule digest. One event emitted **per tenant** — the Notification handler fans out to all managers via `INotificationStaffPort.getManagerEmails()`.
 - **State change:** none
 - **Data:**

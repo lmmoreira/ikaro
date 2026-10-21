@@ -35,7 +35,6 @@ const isAuthenticatedCustomer = customerProfile !== null;
 // Step 3:
 <PersonalInfoStep
   hideContactFields={isAuthenticatedCustomer}
-  pickupAddress={isAuthenticatedCustomer ? customerProfile.defaultAddress : undefined}
   ...
 />
 
@@ -61,7 +60,7 @@ No separate review component was built — `PersonalInfoStep` handles both paths
 | `'error'` | "Confirmar agendamento" | enabled | Error message shown (data-testid: `confirmation-error`) — see `04c-submission-error.html` |
 
 **Error messages:**
-- `errorMessage = 'Não foi possível enviar sua solicitação. Tente novamente.'` (all non-409 errors)
+- `errorMessage` is the catalogue message for the response's error code, routed by `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`); the generic message is the fallback when the code has no mapped step
 - 409 → navigate back to step 2, not shown in step 4
 
 ---

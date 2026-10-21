@@ -29,7 +29,7 @@ backend / BFF process
 | Variable | Default | Effect |
 |---|---|---|
 | `APP_ENV` | `local` | `local` turns the OTel SDK off (so tests and local dev make no export attempts); `staging`/`production` turn it on. Also sets the `deployment.environment.name` resource attribute. |
-| `OTEL_SDK_DISABLED` | unset | When set, always wins over the `APP_ENV` default, in either direction. |
+| `OTEL_SDK_DISABLED` | unset | When set, always wins over the `APP_ENV` default, in either direction. Only the exact string `true` disables the SDK; any other set value (`false`, `1`, empty) enables it (`packages/observability/src/otel-sdk-disabled.ts`). |
 | `OTEL_TRACES_SAMPLER_ARG` | `1.0` | Sampling ratio. Prod sets `0.1`; staging leaves the default (100%). Never branch on `NODE_ENV` for this: both cloud environments build with `NODE_ENV=production`. |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` (and `_TRACES_` / `_METRICS_` variants) | `http://localhost:4318/v1/traces` and `/v1/metrics` | Where the SDK sends OTLP. The default is the sidecar, which shares the instance's network namespace. Terraform sets none of these. |
 | `SERVICE_NAME` | `ikaro-backend` / `ikaro-bff` | `service.name` resource attribute. |

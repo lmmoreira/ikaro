@@ -16,13 +16,13 @@ We distinguish between two types of users to balance flexibility for customers a
 ### **Customers: Multi-Tenant ✓**
 - **Person:** `maria@email.com` can use multiple car wash companies.
 - **Isolation:** Each company = separate `Customer` record + separate `Loyalty` record.
-- **Login:** If Maria has bookings in 2+ tenants, she sees a **Tenant Selection** screen after Google OAuth.
+- **Login:** Every customer login starts from one tenant's hotsite, which supplies the tenant slug, so login always targets that tenant. The pre-login tenant chooser was removed in `M13-S14`; only the post-login switch below remains.
 - **Switching:** Customers can switch between their tenants via a "Switch Car Wash" button.
 
 ### **Staff: Multi-Tenant ✓** (updated `M13-S13`/`M13-S22`)
 - **Person:** `john@autowash.com` can work for multiple companies — same model as customers, not a single-tenant restriction.
 - **Isolation:** Each company = separate `Staff` record. `UNIQUE(tenant_id, google_oauth_id)` (per-tenant, not global) is enforced at the database level, so the same Google account can hold an active `Staff` row at 2+ tenants.
-- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant` — the same shape as the customer selection screen, and also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
+- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant`, also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
 - **Provisioning:** A staff row is always created `is_active=true` (never inactive) — "pending invite" is signaled by `google_oauth_id IS NULL`, not by `is_active`. See `CLAUDE.md` §2 invariant 6.
 
 ---
@@ -102,7 +102,7 @@ All events emitted by the system include the `tenant_id`.
 |--------|----------|-------|
 | **Tenancy** | Multi-tenant | Multi-tenant |
 | **Google ID** | Shared across records (not unique across tenants; each `(tenant_id, google_oauth_id)` pair is unique) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
-| **Login Flow** | Selection screen (if 2+) | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
+| **Login Flow** | Direct entry into the tenant whose hotsite the login started from | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
 | **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
 | **Switching** | Allowed | Allowed |
 

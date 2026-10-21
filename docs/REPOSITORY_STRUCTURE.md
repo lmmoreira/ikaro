@@ -28,7 +28,7 @@
 ├── infra/
 │   └── terraform/        # GCP resources (Cloud Run, Cloud SQL, Pub/Sub, Secret Manager) — modules/, envs/{staging,prod}/, foundation/; see infra/terraform/README.md
 ├── .github/workflows/    # CI/CD pipeline YAML files
-├── docker/               # Dockerfiles + docker-compose.yml (local dev)
+├── docker/               # docker-compose.yml, init-db.sh (local dev); each app owns its Dockerfile
 ├── .copilot/context.md   # canonical agent context (symlinked as AGENTS.md, CLAUDE.md, gemini.md)
 ├── docs/                 # source of truth documentation (see CLAUDE.md §10)
 ├── journeys/             # canonical journeys + HTML prototypes per actor (guest/customer/staff/manager/shared); index: journeys/README.md
@@ -59,7 +59,10 @@ apps/backend/src/
 ├── eslint/            # local ESLint rule specs (persistence-boundary, restricted-imports-syntax)
 ├── health/
 ├── shared/
-└── test/
+├── test/
+├── app.module.ts
+├── main.ts
+└── tracing.ts
 ```
 
 ### Per-context structure (`apps/backend/src/contexts/<context>/`)
@@ -117,7 +120,9 @@ apps/bff/src/
 ├── shared/                   # cross-cutting transport and infra helpers only
 ├── config/
 ├── health/
+├── test/
 ├── main.ts
+├── tracing.ts
 └── app.module.ts
 ```
 
@@ -133,8 +138,8 @@ apps/bff/src/
 - `schedule`, `services`, and booking-related attachment flows belong inside `features/booking/`.
 - `platform/hotsite` belongs inside `features/platform/`, not a standalone hotsite domain.
 - Public and authenticated endpoints for the same capability stay together unless auth boundaries require a hard split.
-- Controllers belong in the feature slice's presentation layer.
-- Response shaping and repeated mapping belong in slice-local application helpers or mappers.
+- Controllers sit at the feature slice's root (`<domain>.controller.ts`, `<domain>.public.controller.ts`); the BFF has no `presentation/application/infrastructure` subfolders (`docs/BFF_ARCHITECTURE.md` § Module & Controller Naming Conventions).
+- Response shaping and repeated mapping belong in the slice's `<domain>.mapper.ts` (plain functions).
 
 ---
 

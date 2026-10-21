@@ -496,7 +496,6 @@ When a developer provisions a new tenant (UC-024), if settings are not provided,
   "localization": {
     "countryCode": "BR",
     "currency": "BRL",
-    "currencySymbol": "R$",
     "language": "pt-BR",
     "decimalPlaces": 2
   },

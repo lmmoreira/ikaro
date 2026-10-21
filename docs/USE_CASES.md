@@ -447,7 +447,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 > Extends UC-010a's exact mechanism with an optional `resourceId` — see the `Resource` aggregate (Resource Management Use Cases, below). Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Leaving `resourceId` unset behaves identically to UC-010a (tenant-wide) and stays open to STAFF|MANAGER; setting `resourceId` is deliberately **MANAGER-only** — the same restriction the discovery applies to every Resource Management use case below (dev-notes.md's own review call, no existing precedent to derive it from).
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010a)
-- **Endpoint:** `POST /schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
+- **Endpoint:** `POST /v1/schedule/closures` (existing endpoint, `resourceId` is a new optional body field)
 - **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided.
 - **Trigger:** Admin creates a closure and selects a specific resource instead of leaving "whole business" selected (e.g. "Maria — day off").
 - **Main Flow:**
@@ -468,7 +468,7 @@ Used when `businessHours[dayOfWeek] = null` (e.g., Sunday is always closed) but 
 > Extends UC-010c's exact mechanism with an optional `resourceId`, same relationship as UC-010e has to UC-010a. Introduced alongside `Resource` (M21 — Multi-Vertical Scheduling, Cluster 1/Foundation). Setting `resourceId` is **MANAGER-only**, same restriction as UC-010e.
 
 - **Actor:** MANAGER (when `resourceId` is set) — STAFF | MANAGER still applies to the unscoped, tenant-wide case (UC-010c)
-- **Endpoint:** `POST /schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
+- **Endpoint:** `POST /v1/schedule/openings` (existing endpoint, `resourceId` is a new optional body field)
 - **Preconditions:** Resource exists and belongs to the tenant, when `resourceId` is provided. The target day is closed in the *effective* hours source for the scope being opened: the resource's own `workingHours[day]` when the resource has a non-null `workingHours`, falling back to the tenant's `businessHours[day]` when the resource inherits (`workingHours: null`) — see `docs/DATABASE_SCHEMA.md` § `booking.schedule_openings` Rules.
 - **Trigger:** Admin opens a normally-closed day for one resource only (e.g. a stylist takes an extra Saturday).
 - **Main Flow:** Same as UC-010c, with `resourceId` set.
@@ -2674,7 +2674,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-006 | Customer views bookings | Customer | Read operation |
 | UC-007 | Customer cancels booking | Customer | APPROVED (with time window) \| PENDING \| INFO_REQUESTED → CANCELLED |
 | UC-008 | Admin cancels / reschedules booking | Admin | APPROVED/PENDING/INFO_REQUESTED → CANCELLED (`BookingCancelled`) or scheduledAt updated (`BookingRescheduled`) |
-| UC-009 | Mark booking complete | Staff | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
+| UC-009 | Mark booking complete | Staff \| Manager | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
 | UC-010 | Manage schedule closures and openings | STAFF \| MANAGER | ScheduleClosure or ScheduleOpening created/removed |
 | UC-011 | View calendar | Any | Read available slots filtered by basket's total duration |
 | UC-012 | Create service | STAFF \| MANAGER | Service created with points value |
@@ -2699,13 +2699,13 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-033 | Guest asks chatbot a question | Guest | `chatbot_messages` rows persisted (USER+ASSISTANT); no booking/customer/staff record touched |
 | UC-034 | Guest checks chatbot availability | Guest | Read-only: `{ available: boolean }` |
 | UC-035 | System purges expired chatbot conversations | System (cron) | Daily — deletes `chatbot_messages`/`chatbot_sessions` rows past 180-day retention |
-| UC-036 | System polls LLM provider balance | System (cron) | Every 15-30 min — upserts `chatbot_provider_balance` row |
+| UC-036 | System polls LLM provider balance | System (cron) | Every 15 min — upserts `chatbot_provider_balance` row |
 | UC-037 | Manager configures the lead form module | MANAGER staff | `lead_form_configs` upserted |
 | UC-038 | Visitor sees the lead form teaser | Guest \| Customer | Read-only render |
 | UC-039 | Guest submits the lead form | Guest | `lead_form_submissions` row created (`customerId: null`); `LeadFormSubmissionReceived` |
 | UC-040 | Logged-in customer submits the lead form | Customer | `lead_form_submissions` row created (`customerId` set); `LeadFormSubmissionReceived` |
 | UC-041 | Staff/manager views leads submissions | STAFF \| MANAGER | Read-only |
-| UC-042 | Manager configures the lead form retention window | MANAGER staff | `settings.leadForm.retentionMonths` updated |
+| UC-042 | Manager configures the lead form settings | MANAGER staff | `settings.leadForm.{retentionMonths,maxSubmissionsPerDay,maxSubmissionsPerIpPerDay}` updated |
 | UC-043 | System purges expired lead form submissions | System (cron) | Daily — deletes `lead_form_submissions` rows past retention |
 | UC-010e | Manager creates a resource-scoped schedule closure | MANAGER | `ScheduleClosure` created with `resourceId` set |
 | UC-010f | Manager creates a resource-scoped schedule opening | MANAGER | `ScheduleOpening` created with `resourceId` set |
@@ -2740,37 +2740,37 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-072 | Authenticated customer creates an availability alert | Customer | `AvailabilityAlert` created |
 | UC-073 | System identifies and queues a future commitment exception | System | `FutureCommitmentException` created |
 | UC-074 | Staff or manager marks an appointment as no-show | STAFF \| MANAGER | `Booking.status → NO_SHOW`; `BookingNoShow` event |
-| UC-075 | System bootstraps a new tenant from a preset | MANAGER | `TenantSchedulingBootstrapped`; initial Resource/Service graph |
+| UC-075 | System bootstraps a new tenant from a preset *(planned, not built)* | MANAGER | `TenantSchedulingBootstrapped`; initial Resource/Service graph |
 | UC-076 | Customer manages an availability alert | Customer | `AvailabilityAlert` updated/cancelled |
 | UC-077 | Manager resolves a future commitment exception | MANAGER | `FutureCommitmentException.status → RESOLVED`\|`DISMISSED` |
-| UC-078 | Staff/manager configures a session service's guest access policy | STAFF \| MANAGER | `Service.guestAccessEnabled`/`guestTrialPolicy` updated |
-| UC-079 | Staff/manager creates a recurring class schedule template | STAFF \| MANAGER | `ClassScheduleTemplate` created |
-| UC-080 | Staff/manager edits or deactivates a template | STAFF \| MANAGER | Template updated; future sessions only |
-| UC-081 | System generates upcoming class sessions | System | `ClassSession` rows materialized on rolling horizon |
-| UC-082 | Staff/manager views a list of upcoming class sessions | STAFF \| MANAGER | Read operation |
-| UC-083 | Staff/manager overrides a single session's capacity or resources | STAFF \| MANAGER | `ClassSession` instance override |
-| UC-084 | Staff/manager cancels a class session with existing bookings | STAFF \| MANAGER | `ClassSession.status → CANCELLED`; bookings cancelled |
-| UC-085 | Customer browses upcoming sessions with remaining capacity | Customer \| Guest | Read operation |
-| UC-086 | Contract customer books into a session | Customer | `ClassSessionBooking` created `CONFIRMED` |
-| UC-087 | Authenticated customer without a contract books pay-per-class | Customer | `ClassSessionBooking` created, no contract |
-| UC-088 | Verified guest books multiple named units in one action | Guest | One `ClassSessionBooking` consuming N units |
-| UC-089 | Customer cancels a single class session booking | Customer | `ClassSessionBooking.status → CANCELLED` |
-| UC-090 | Authenticated customer joins a waitlist when a session is full | Customer | `ClassSessionBooking(status=WAITLISTED)` |
-| UC-091 | System auto-promotes the next waitlisted customer | System | `ClassSessionBooking.status → PROMOTION_PENDING` |
-| UC-092 | System auto-cancels unpromoted waitlist entries when a session ends | System | Waitlisted bookings → `CANCELLED` |
-| UC-093 | Customer enrolls in a recurring weekly session | Customer | `RecurringEnrollment` created `ACTIVE` |
-| UC-094 | Customer cancels a single occurrence of a recurring enrollment | Customer | One occurrence's booking cancelled |
-| UC-095 | Customer cancels an entire recurring enrollment | Customer | `RecurringEnrollment.status → CANCELLED` |
-| UC-096 | Staff/manager cancels template occurrences for a date range | STAFF \| MANAGER | `ClassScheduleTemplateException` created; sessions cancelled |
-| UC-097 | Guest verifies email before requesting a class seat | Guest | `PENDING_EMAIL_VERIFICATION` → `CONFIRMED`\|`PENDING_APPROVAL` |
-| UC-098 | Staff approves or rejects a verified guest class reservation | STAFF \| MANAGER | `ClassSessionBooking.status → CONFIRMED`\|`CANCELLED` |
-| UC-099 | Manager creates or cancels a customer class-access contract | MANAGER | `ClassAccessContract` created/cancelled |
-| UC-100 | System expires unresolved guest requests at session start | System | `PENDING_APPROVAL` → `CANCELLED` |
-| UC-101 | Staff closes a session with individual attendance | STAFF \| MANAGER | `ClassSession.status → CLOSED`; attendee outcomes recorded |
-| UC-102 | Customer reschedules a skipped fixed-class occurrence | Customer | New one-off booking linked via `rescheduledFromId` |
-| UC-103 | Staff/manager views enrollments for a class type | STAFF \| MANAGER | Read operation |
-| UC-104 | Staff manually creates an enrollment on a customer's behalf | STAFF \| MANAGER | Same as UC-086/093, `createdByStaff = true` |
-| UC-105 | Customer edits a group reservation's attendees | Customer | Attendee removed; `quantity`/quote adjusted |
-| UC-106 | System expires a waitlist offer | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
-| UC-107 | Staff records a manually reported charge at session close-out | STAFF \| MANAGER | `class_session_payments` row created |
+| UC-078 | Staff/manager configures a session service's guest access policy *(planned, not built)* | STAFF \| MANAGER | `Service.guestAccessEnabled`/`guestTrialPolicy` updated |
+| UC-079 | Staff/manager creates a recurring class schedule template *(planned, not built)* | STAFF \| MANAGER | `ClassScheduleTemplate` created |
+| UC-080 | Staff/manager edits or deactivates a template *(planned, not built)* | STAFF \| MANAGER | Template updated; future sessions only |
+| UC-081 | System generates upcoming class sessions *(planned, not built)* | System | `ClassSession` rows materialized on rolling horizon |
+| UC-082 | Staff/manager views a list of upcoming class sessions *(planned, not built)* | STAFF \| MANAGER | Read operation |
+| UC-083 | Staff/manager overrides a single session's capacity or resources *(planned, not built)* | STAFF \| MANAGER | `ClassSession` instance override |
+| UC-084 | Staff/manager cancels a class session with existing bookings *(planned, not built)* | STAFF \| MANAGER | `ClassSession.status → CANCELLED`; bookings cancelled |
+| UC-085 | Customer browses upcoming sessions with remaining capacity *(planned, not built)* | Customer \| Guest | Read operation |
+| UC-086 | Contract customer books into a session *(planned, not built)* | Customer | `ClassSessionBooking` created `CONFIRMED` |
+| UC-087 | Authenticated customer without a contract books pay-per-class *(planned, not built)* | Customer | `ClassSessionBooking` created, no contract |
+| UC-088 | Verified guest books multiple named units in one action *(planned, not built)* | Guest | One `ClassSessionBooking` consuming N units |
+| UC-089 | Customer cancels a single class session booking *(planned, not built)* | Customer | `ClassSessionBooking.status → CANCELLED` |
+| UC-090 | Authenticated customer joins a waitlist when a session is full *(planned, not built)* | Customer | `ClassSessionBooking(status=WAITLISTED)` |
+| UC-091 | System auto-promotes the next waitlisted customer *(planned, not built)* | System | `ClassSessionBooking.status → PROMOTION_PENDING` |
+| UC-092 | System auto-cancels unpromoted waitlist entries when a session ends *(planned, not built)* | System | Waitlisted bookings → `CANCELLED` |
+| UC-093 | Customer enrolls in a recurring weekly session *(planned, not built)* | Customer | `RecurringEnrollment` created `ACTIVE` |
+| UC-094 | Customer cancels a single occurrence of a recurring enrollment *(planned, not built)* | Customer | One occurrence's booking cancelled |
+| UC-095 | Customer cancels an entire recurring enrollment *(planned, not built)* | Customer | `RecurringEnrollment.status → CANCELLED` |
+| UC-096 | Staff/manager cancels template occurrences for a date range *(planned, not built)* | STAFF \| MANAGER | `ClassScheduleTemplateException` created; sessions cancelled |
+| UC-097 | Guest verifies email before requesting a class seat *(planned, not built)* | Guest | `PENDING_EMAIL_VERIFICATION` → `CONFIRMED`\|`PENDING_APPROVAL` |
+| UC-098 | Staff approves or rejects a verified guest class reservation *(planned, not built)* | STAFF \| MANAGER | `ClassSessionBooking.status → CONFIRMED`\|`CANCELLED` |
+| UC-099 | Manager creates or cancels a customer class-access contract *(planned, not built)* | MANAGER | `ClassAccessContract` created/cancelled |
+| UC-100 | System expires unresolved guest requests at session start *(planned, not built)* | System | `PENDING_APPROVAL` → `CANCELLED` |
+| UC-101 | Staff closes a session with individual attendance *(planned, not built)* | STAFF \| MANAGER | `ClassSession.status → CLOSED`; attendee outcomes recorded |
+| UC-102 | Customer reschedules a skipped fixed-class occurrence *(planned, not built)* | Customer | New one-off booking linked via `rescheduledFromId` |
+| UC-103 | Staff/manager views enrollments for a class type *(planned, not built)* | STAFF \| MANAGER | Read operation |
+| UC-104 | Staff manually creates an enrollment on a customer's behalf *(planned, not built)* | STAFF \| MANAGER | Same as UC-086/093, `createdByStaff = true` |
+| UC-105 | Customer edits a group reservation's attendees *(planned, not built)* | Customer | Attendee removed; `quantity`/quote adjusted |
+| UC-106 | System expires a waitlist offer *(planned, not built)* | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
+| UC-107 | Staff records a manually reported charge at session close-out *(planned, not built)* | STAFF \| MANAGER | `class_session_payments` row created |
 | UC-108 | Staff creates a one-off booking on a customer's behalf | STAFF \| MANAGER | `Booking` created directly `APPROVED`, `type = CUSTOMER` or `GUEST` |
