@@ -436,6 +436,8 @@ Also update the "what this prototype validates" checklist in `index.html` to inc
 
 This file is the bridge between prototype and implementation. A future agent reading it must be able to write production React + TypeScript without asking questions.
 
+**Scope of the template:** it applies to new `dev-notes.md` files. Prototypes that shipped before it existed may lack some of its sections (Overview, File map, per-screen sections, Known limitations); they are not backfilled, and a missing section is not a defect to fix unless the prototype is being changed.
+
 ```markdown
 # Dev Notes — <ROLE>: <Journey Title>
 

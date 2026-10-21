@@ -232,7 +232,7 @@ POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId
 GET /v1/resources?type=&isActive=                            // UC-044 — feeds both ResourceFilterMenu and ResourceSelectField
 ```
 
-**Navigation links (resolved):** `07-horarios-recurso.html`'s sidebar/bottom-nav no longer points at the discovery-set screens: "Horários" links `08-visao-geral-manager.html`, "Serviços" links `../servicos/01-servicos-list.html` and "Turmas" links `../turmas/01-turmas-proximas.html`. The shipped implementation never navigates to this illustrative screen (both controls live in-page on the existing route).
+**Navigation links (resolved):** `07-horarios-recurso.html`'s sidebar/bottom-nav no longer points at the discovery-set screens: "Horários" links `08-visao-geral-manager.html` — kept deliberately (owner decision, TD53-S9, 2026-10-21): `07` and `08` are both manager screens and `08` is the manager entry file, whereas the staff pages link `00-schedule.html` (`journeys/README.md` Part 4: nav items link the canonical entry file). "Serviços" links `../servicos/01-servicos-list.html` and "Turmas" links `../turmas/01-turmas-proximas.html`. The shipped implementation never navigates to this illustrative screen (both controls live in-page on the existing route).
 
 **Resolved decisions (`M21-S05`):**
 - [x] `ResourceFilterMenu` defaults to nothing checked — "Todo o negócio" (tenant-wide) — on first load. `LOCATION` is excluded from both controls' options entirely (functionally redundant with the tenant-wide default).
