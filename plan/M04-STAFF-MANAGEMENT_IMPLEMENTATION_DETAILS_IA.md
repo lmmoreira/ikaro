@@ -20,7 +20,7 @@
 | ActivateStaffUseCase | `apps/backend/src/contexts/staff/application/use-cases/activate-staff.use-case.ts` |
 | InviteStaffUseCase | `apps/backend/src/contexts/staff/application/use-cases/invite-staff.use-case.ts` |
 | DeactivateStaffUseCase | `apps/backend/src/contexts/staff/application/use-cases/deactivate-staff.use-case.ts` |
-| ListStaffUseCase | `apps/backend/src/contexts/staff/application/use-cases/list-staff.use-case.ts` |
+| ListStaffUseCase | `apps/backend/src/contexts/staff/application/use-cases/list-staff.use-case.ts` *(historical: no longer in the codebase)* |
 | GetStaffByIdUseCase | `apps/backend/src/contexts/staff/application/use-cases/get-staff-by-id.use-case.ts` |
 | GetStaffByEmailUseCase | `apps/backend/src/contexts/staff/application/use-cases/get-staff-by-email.use-case.ts` |
 | GetStaffByOAuthIdUseCase | `apps/backend/src/contexts/staff/application/use-cases/get-staff-by-oauth-id.use-case.ts` |
@@ -34,17 +34,17 @@
 | Staff migrations | `apps/backend/src/contexts/staff/infrastructure/migrations/` (4 files) |
 | StaffModule | `apps/backend/src/contexts/staff/staff.module.ts` |
 | SYSTEM_ACTOR_ID | `apps/backend/src/shared/domain/system-actor.ts` |
-| NotificationLog domain entity | `apps/backend/src/contexts/notification/domain/notification-log.entity.ts` |
+| NotificationLog domain entity | `apps/backend/src/contexts/notification/domain/notification-log.aggregate.ts` (moved from `apps/backend/src/contexts/notification/domain/notification-log.entity.ts`) |
 | IDeliveryChannel port | `apps/backend/src/contexts/notification/application/ports/delivery-channel.port.ts` |
 | INotificationDispatcher port | `apps/backend/src/contexts/notification/application/ports/notification-dispatcher.port.ts` |
 | INotificationLogRepository port | `apps/backend/src/contexts/notification/application/ports/notification-log-repository.port.ts` |
 | INotificationStaffPort | `apps/backend/src/contexts/notification/application/ports/notification-staff.port.ts` |
-| INotificationTenantPort | `apps/backend/src/contexts/notification/application/ports/notification-tenant.port.ts` |
+| INotificationTenantPort | `apps/backend/src/contexts/notification/application/ports/notification-tenant.port.ts` *(historical: no longer in the codebase)* |
 | SendStaffInvitationUseCase | `apps/backend/src/contexts/notification/application/use-cases/send-staff-invitation/send-staff-invitation.use-case.ts` |
-| SmtpEmailAdapter | `apps/backend/src/contexts/notification/infrastructure/delivery/smtp-email.adapter.ts` |
+| SmtpEmailAdapter | `apps/backend/src/contexts/notification/infrastructure/delivery/smtp-email.adapter.ts` *(historical: no longer in the codebase)* |
 | NotificationDispatcherAdapter | `apps/backend/src/contexts/notification/infrastructure/delivery/notification-dispatcher.adapter.ts` |
-| StaffInfoAdapter | `apps/backend/src/contexts/notification/infrastructure/cross-context/staff-info.adapter.ts` |
-| TenantInfoAdapter | `apps/backend/src/contexts/notification/infrastructure/cross-context/tenant-info.adapter.ts` |
+| StaffInfoAdapter | `apps/backend/src/contexts/notification/infrastructure/cross-context/staff-info.adapter.ts` *(historical: no longer in the codebase)* |
+| TenantInfoAdapter | `apps/backend/src/contexts/notification/infrastructure/cross-context/tenant-info.adapter.ts` *(historical: no longer in the codebase)* |
 | StaffInvitedHandler | `apps/backend/src/contexts/notification/infrastructure/events/staff-invited.handler.ts` |
 | NotificationLogEntity | `apps/backend/src/contexts/notification/infrastructure/entities/notification-log.entity.ts` |
 | TypeORM notification repo | `apps/backend/src/contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts` |

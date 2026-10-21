@@ -220,8 +220,8 @@ Fixed IDs are in the `IDS` constant at the top of the file. Use these when writi
 | `RolesGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
 | Auth module | `apps/bff/src/auth/` | ✅ Implemented M03 |
 | `GcpPubSubEventBusAdapter` | `apps/backend/src/shared/infrastructure/` | ✅ Implemented M04 (replaced NoopEventBusAdapter) |
-| `GET /health/ready` DB check | `apps/backend/src/health/` | Pending M07 (DB-connected health) |
-| Signed URL actual GCS | `apps/bff/src/uploads/uploads.controller.ts` | Pending M09 |
+| `GET /health/ready` DB check | `apps/backend/src/health/` | ✅ Implemented (`pingCheck('database')` in `health.controller.ts`) |
+| Signed URL actual GCS | `apps/bff/src/features/booking/bookings-attachments.controller.ts` (`POST attachments/signed-url`; listed here at `apps/bff/src/uploads/uploads.controller.ts`, which no longer exists) | ✅ Implemented |
 | `app.useLogger()` in BFF | Already wired | — |
 
 ---

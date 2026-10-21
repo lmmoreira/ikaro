@@ -12,7 +12,7 @@
 |---|---|---|
 | Quality gates workflow | `.github/workflows/pr-quality.yml` | lint, format, type-check, SonarCloud |
 | Test workflow | `.github/workflows/pr-tests.yml` | unit tests + integration tests (Testcontainers) |
-| Security workflow | `.github/workflows/pr-security.yml` | Gitleaks, Snyk SCA, Trivy, Checkov |
+| Security workflow | `.github/workflows/pr-tests.yml` (jobs `gitleaks`, `trivy-scan`, `checkov`) and `.github/workflows/weekly-jobs.yml` (job `snyk-sca`, weekly) | Gitleaks, Trivy, Checkov per PR; Snyk SCA weekly. Originally one file, `.github/workflows/pr-security.yml`, which no longer exists |
 | Backend Dockerfile | `apps/backend/Dockerfile` | multi-stage builder/runner, port 3001 |
 | BFF Dockerfile | `apps/bff/Dockerfile` | multi-stage builder/runner, port 3002 |
 | Web Dockerfile | `apps/web/Dockerfile` | multi-stage Next.js build, port 3000 |
@@ -37,7 +37,7 @@ pr-tests.yml
   ├── backend-unit          (pnpm --filter @ikaro/backend test:cov → uploads lcov.info artifact)
   └── backend-integration   (pnpm --filter @ikaro/backend test:integration + TESTCONTAINERS_REUSE_ENABLE=true)
 
-pr-security.yml
+pr-security.yml  (historical: its jobs now live in pr-tests.yml, except snyk-sca in weekly-jobs.yml)
   ├── gitleaks      (gitleaks/gitleaks-action@v2 — fetch-depth: 0 required)
   ├── snyk-sca      (snyk/actions/node@master — --severity-threshold=high --all-projects)
   ├── trivy-scan    (matrix: backend/bff/web — fail-fast: false — aquasecurity/trivy-action@master)
@@ -194,7 +194,7 @@ When adding new test fixtures with fake credentials, add a regex to the `[allowl
 
 | Secret | Used by | Notes |
 |---|---|---|
-| `SNYK_TOKEN` | `pr-security.yml` (snyk-sca job) | From snyk.io account |
+| `SNYK_TOKEN` | `weekly-jobs.yml` (snyk-sca job; originally `pr-security.yml`) | From snyk.io account |
 | `SONAR_TOKEN` | `pr-quality.yml` (sonarcloud job) | From sonarcloud.io account |
 | `GITHUB_TOKEN` | All workflows | Auto-provided by Actions — no setup needed |
 

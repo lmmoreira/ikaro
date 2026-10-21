@@ -27,12 +27,12 @@
 | `ILoyaltyRedemptionRepository` port | `apps/backend/src/contexts/loyalty/application/ports/loyalty-redemption-repository.port.ts` |
 | `IBalanceExpiryLogRepository` port | `apps/backend/src/contexts/loyalty/application/ports/balance-expiry-log-repository.port.ts` |
 | `IInboxRepository` port (shared, replaces the deleted `IProcessedEventRepository` — TD24-S04) | `apps/backend/src/shared/ports/inbox.port.ts` |
-| `ILoyaltyTenantSettingsPort` | `apps/backend/src/contexts/loyalty/application/ports/loyalty-tenant-settings.port.ts` |
-| `IServiceCatalogPort` | `apps/backend/src/contexts/loyalty/application/ports/service-catalog.port.ts` |
-| `LoyaltyTenantSettingsAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-tenant-settings.adapter.ts` |
-| `ServiceCatalogAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/service-catalog.adapter.ts` |
+| `ILoyaltyTenantSettingsPort` | `apps/backend/src/contexts/loyalty/application/ports/loyalty-tenant-settings.port.ts` *(historical: no longer in the codebase)* |
+| `IServiceCatalogPort` | `apps/backend/src/contexts/loyalty/application/ports/service-catalog.port.ts` *(historical: no longer in the codebase)* |
+| `LoyaltyTenantSettingsAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/loyalty-tenant-settings.adapter.ts` *(historical: no longer in the codebase)* |
+| `ServiceCatalogAdapter` | `apps/backend/src/contexts/loyalty/infrastructure/cross-context/service-catalog.adapter.ts` *(historical: no longer in the codebase)* |
 | `INotificationCustomerPort` | `apps/backend/src/contexts/notification/application/ports/notification-customer.port.ts` |
-| `INotificationServicePort` | `apps/backend/src/contexts/notification/application/ports/notification-service.port.ts` |
+| `INotificationServicePort` | `apps/backend/src/contexts/notification/application/ports/notification-service.port.ts` *(historical: no longer in the codebase)* |
 | Migration 1 (entries only — the `processed_events` block this migration originally also created was removed when migration history was squashed pre-production, TD24-S04 D16) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000016-CreateLoyaltyLoyaltyEntries.ts` |
 | Migration 2 (balances + redemptions + expiry_log) | `apps/backend/src/contexts/loyalty/infrastructure/migrations/1748000000017-CreateLoyaltyBalancesRedemptionsExpiryLog.ts` |
 | `LoyaltyModule` | `apps/backend/src/contexts/loyalty/loyalty.module.ts` |

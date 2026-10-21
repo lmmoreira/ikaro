@@ -103,7 +103,7 @@ graph TD
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
 **Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`, `ClassScheduleTemplateException`, `docs/DATABASE_SCHEMA.md` § `booking.class_schedule_templates`/`class_schedule_template_slots`/`class_schedule_template_exceptions`, `docs/API_CONTRACTS.md` § Session Templates (UC-078–080), `docs/USE_CASES.md` UC-079, UC-080, UC-096, `docs/AGENT_PATTERNS.md` Pattern #1 (port+adapter)
-**Dependencies:** M22 (`Service.bookingModel=SESSION`, `Service.classResourceSlots` pool), M21 (`Resource`)
+**Dependencies:** M22-S01 (`Service.bookingModel=SESSION`, `Service.classResourceSlots` pool), M21-S01 (`Resource`)
 **Pattern:** Repository + Adapter (`IClassScheduleTemplateRepository`), matches every other Booking-context aggregate.
 
 **Description:**
@@ -179,7 +179,7 @@ This story defines and persists `ClassScheduleTemplateException`, but deliberate
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** M
 **Docs to load:** `docs/DOMAIN_MODEL.md` § `ClassAccessContract`, `docs/DATABASE_SCHEMA.md` § `booking.class_access_contracts`, `docs/API_CONTRACTS.md` § Class Access Contracts, `docs/USE_CASES.md` UC-099
-**Dependencies:** M22 (`Service.bookingModel=SESSION`)
+**Dependencies:** M22-S01 (`Service.bookingModel=SESSION`)
 **Pattern:** Repository + Adapter (`IClassAccessContractRepository`).
 
 **Description:**
@@ -238,7 +238,7 @@ Early cancellation is intentionally deferred to M24-S11, where contract, booking
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** S
 **Docs to load:** `docs/USE_CASES.md` UC-078, `docs/API_CONTRACTS.md` § Session Templates
-**Dependencies:** M22 (`Service.bookingModel=SESSION`)
+**Dependencies:** M22-S01 (`Service.bookingModel=SESSION`)
 **Pattern:** plain composition — extends the existing `Service` aggregate; no new pattern.
 
 **Description:**
@@ -991,7 +991,7 @@ Anonymous visitor browses a tenant's class agenda, verifies email, and requests 
 **Agent:** `backend-ts` + `bff-ts`
 **Complexity:** L
 **Docs to load:** `docs/USE_CASES.md` UC-075, `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` (preset taxonomy, minimum-answer shape per preset), `docs/API_CONTRACTS.md` § Tenant Onboarding Bootstrap, `docs/DOMAIN_EVENTS.md` § `TenantSchedulingBootstrapped`, `docs/DOMAIN_MODEL.md` § `Resource` (M21), `Service` extensions (M22)
-**Dependencies:** M21-S01 (`Resource`), M22 (`Service` extensions). Moved from M23-S10 on 2026-10-10; no M23 story depends on it. `M24-S05` (the SESSION presets) extends it.
+**Dependencies:** M21-S01 (`Resource`), M22-S01 (`Service` extensions: `resourceRequirements`). Moved from M23-S10 on 2026-10-10; no M23 story depends on it. `M24-S05` (the SESSION presets) extends it.
 **Pattern:** Orchestration use case — one transaction creating a `Resource`/`Service` graph in dependency order; no new named pattern, but this is the first use case in the Booking context to orchestrate two aggregate types' creation atomically, so verify the transaction-manager usage against `docs/ENGINEERING_RULES_BACKEND.md` § Transactions — read closely (cross-aggregate writes, single `txManager.run()`).
 
 **Description:**

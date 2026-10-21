@@ -16,10 +16,10 @@
 | `RequestBookingUseCase` (guest) | `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts` |
 | `RequestAuthenticatedBookingUseCase` | `apps/backend/src/contexts/booking/application/use-cases/request-authenticated-booking.use-case.ts` |
 | `booking-request.helpers.ts` | `apps/backend/src/contexts/booking/application/use-cases/booking-request.helpers.ts` |
-| `ICustomerProfilePort` | `apps/backend/src/contexts/booking/application/ports/customer-profile.port.ts` |
-| `CustomerProfileAdapter` | `apps/backend/src/contexts/booking/infrastructure/adapters/customer-profile.adapter.ts` |
+| `ICustomerProfilePort` | `apps/backend/src/contexts/booking/application/ports/customer-profile.port.ts` *(historical: no longer in the codebase)* |
+| `CustomerProfileAdapter` | `apps/backend/src/contexts/booking/infrastructure/adapters/customer-profile.adapter.ts` *(historical: no longer in the codebase)* |
 | `IBookingAvailabilityPort` | `apps/backend/src/contexts/booking/application/ports/booking-availability.port.ts` |
-| `TypeOrmBookingAvailabilityAdapter` | `apps/backend/src/contexts/booking/infrastructure/adapters/typeorm-booking-availability.adapter.ts` |
+| `TypeOrmBookingAvailabilityAdapter` | `apps/backend/src/contexts/booking/infrastructure/cross-context/typeorm-booking-availability.adapter.ts` (moved from `apps/backend/src/contexts/booking/infrastructure/adapters/typeorm-booking-availability.adapter.ts`) |
 | `TypeOrmBookingRepository` | `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-booking.repository.ts` |
 | `BookingEntity` | `apps/backend/src/contexts/booking/infrastructure/entities/booking.entity.ts` |
 | `BookingLineEntity` | `apps/backend/src/contexts/booking/infrastructure/entities/booking-line.entity.ts` |
@@ -27,7 +27,7 @@
 | `BookingModule` | `apps/backend/src/contexts/booking/booking.module.ts` |
 | `BookingRequestedHandler` | `apps/backend/src/contexts/notification/infrastructure/events/booking-requested.handler.ts` |
 | `SendBookingRequestedNotificationUseCase` | `apps/backend/src/contexts/notification/application/use-cases/send-booking-requested-notification/` |
-| `GetCustomerProfileUseCase` | `apps/backend/src/contexts/customer/application/use-cases/get-customer-profile.use-case.ts` |
+| `GetCustomerProfileUseCase` | `apps/backend/src/contexts/customer/application/use-cases/get-customer-profile.use-case.ts` *(historical: no longer in the codebase)* |
 | `UpdateCustomerProfileUseCase` | `apps/backend/src/contexts/customer/application/use-cases/update-customer-profile.use-case.ts` |
 | `CustomerController` (backend) | `apps/backend/src/contexts/customer/infrastructure/controllers/customer.controller.ts` |
 | `CustomerModule` | `apps/backend/src/contexts/customer/customer.module.ts` |

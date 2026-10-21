@@ -1322,7 +1322,8 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ### M17-S54 — Business/audit log-based counters ✅ Done
 
-**Agent:** `backend-ts` (new logger calls in booking/notification use cases) + `bff-ts` (new logger calls in the auth login flow) + `devops` (Terraform log-based metrics)
+**Agent:** `backend-ts` + `bff-ts` + `devops`
+> Agent scope: `backend-ts` = new logger calls in booking/notification use cases; `bff-ts` = new logger calls in the auth login flow; `devops` = Terraform log-based metrics.
 **Complexity:** S
 **Docs to load:** `docs/OBSERVABILITY_STRATEGY.md` § Dashboards, alerts and uptime checks, `docs/OBSERVABILITY_STRATEGY.md` § Logs (gauge vs. event logging — corrected 2026-08-12 via story-discovery: this content lives in this file, not the former `ENGINEERING_RULES.md`, which had no such section)
 
@@ -1356,7 +1357,8 @@ Runtime SA already has `cloudtrace.agent` (S17) — no new IAM needed.
 
 ### M17-S55 — OTel metrics + Managed Prometheus export pipeline ✅ Done
 
-**Agent:** `devops` + `backend-ts`/`bff-ts` (instrumentation)
+**Agent:** `devops` + `backend-ts` + `bff-ts`
+> Agent scope: `backend-ts` and `bff-ts` = instrumentation.
 **Complexity:** M
 **Docs to load:** `docs/OBSERVABILITY_STRATEGY.md`, `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling (the OTel-pipeline incident history), `infra/docker/otel-collector/README.md`
 
@@ -1597,7 +1599,7 @@ Runbook story mirroring S27 for prod, plus DNS cutover and the first real tenant
 
 **Acceptance criteria:** checklist fully executed and recorded; prod serving on `ikaro.online` behind Cloudflare; first tenant live; zero critical alerts in the first 24h.
 
-**Dependencies:** all of Waves 2–5 (explicitly including S49's executed restore drill), M17-S26, M17-S53
+**Dependencies:** M17-S11 to M17-S27, M17-S31, M17-S33 to M17-S36, M17-S49 (its executed restore drill included), M17-S50, M17-S54 to M17-S56 (that is all of Waves 2–5 per the wave table, except the cut S28 and S29), M17-S26, M17-S53
 
 ---
 
