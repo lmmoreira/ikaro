@@ -63,6 +63,25 @@ Authorization: Bearer {{customerToken}}
 
 ###
 
+### GET /v1/customers/:customerId/loyalty — admin views the combined loyalty detail
+# Returns StaffCustomerLoyaltyDetailResponse: { customer, balance, entries, redemptions } —
+# entries and redemptions are the first page (page=1, limit=20) of the sub-routes below
+GET {{bffUrl}}/v1/customers/{{customerId}}/loyalty
+Authorization: Bearer {{managerToken}}
+
+###
+
+### 401 — no JWT
+GET {{bffUrl}}/v1/customers/{{customerId}}/loyalty
+
+###
+
+### 403 — customer JWT (wrong role)
+GET {{bffUrl}}/v1/customers/{{customerId}}/loyalty
+Authorization: Bearer {{customerToken}}
+
+###
+
 ### GET /v1/customers/:customerId/loyalty/balance — admin views customer balance
 # Returns EnrichedLoyaltyBalanceResponse: { currentPoints, nextExpiryDate, nextExpiryPoints,
 # conversionRate } — conversionRate from live tenant settings

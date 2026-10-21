@@ -16,7 +16,9 @@ A single-page public form at `/[slug]/lead-form`, reached from the `LEAD_FORM` h
 
 | File | Status | Role |
 |---|---|---|
-| `apps/web/app/[slug]/lead-form/page.tsx` | ✅ Shipped M20-S09 | Server component — fetches the question catalog and renders the form |
+| `apps/web/app/[slug]/lead-form/page.tsx` | ✅ Shipped M20-S09 | Server component — reads the manifest, resolves the `LEAD_FORM` module (`Unavailable` when disabled), renders `HotsiteAuthBar` + `LeadFormWidget`; it does **not** fetch the question catalog |
+| `apps/web/features/platform/components/public/LeadFormWidget.tsx` | ✅ Shipped M20-S09 | Client component — fetches the question catalog (`fetchLeadFormConfigClient`), owns the state machine below and the submit |
+| `apps/web/features/platform/components/public/LeadFormTerminalCard.tsx` | ✅ Shipped M20-S09 | Shared card for the terminal error states (submission error, rate-limited) |
 | `apps/web/shells/hotsite/components/LeadFormModule.tsx` | ✅ Shipped M20-S07 | Teaser section on the hotsite itself, mirroring `BookingCtaModule.tsx` |
 | `packages/types/src/hotsite.ts` | ✅ Shipped M20-S01/S07 | Defines `LEAD_FORM` and `LeadFormModuleData` |
 
@@ -89,4 +91,4 @@ Single-column `step-container` layout throughout (same wrapper `guest/prototypes
 - No manual delete/edit of a single submission — the retention cron (UC-043) is the only deletion path.
 - No LGPD erasure-before-expiry path — explicitly out of scope for M20 (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals).
 - No per-submission notification (email/webhook) to the manager for MVP — dashboard + list view only (CSV export also removed from scope, see Non-Goals).
-- `NEXT_PUBLIC_TURNSTILE_SITE_KEY` must be added to `apps/web/shared/lib/runtime-env/public-env.ts`'s `PUBLIC_ENV_KEYS` allowlist and read via `getPublicEnv()` — not a raw build-time `NEXT_PUBLIC_*` read (TD29 precedent — a build artifact is shared across environments).
+- ~~`NEXT_PUBLIC_TURNSTILE_SITE_KEY` must be added to the runtime-env allowlist.~~ — **Resolved.** It is in `PUBLIC_ENV_KEYS` in `apps/web/shared/lib/runtime-env/public-env.ts` (read via `getPublicEnv()`, not a raw build-time `NEXT_PUBLIC_*` read — TD29 precedent).

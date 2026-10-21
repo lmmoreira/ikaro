@@ -1143,7 +1143,7 @@ Each item below was reported by an audit agent against code with a file:line; re
 - Integration: none
 - Tenant isolation: none — no tenant data
 - E2E: none
-- [ ] §15 baseline for the `.html` change is Story 6's closing audit of 2026-10-21 (nothing in `journeys/` changed since; no new repo-wide audit, TD53 runs it once); a scoped `/docs-audit` over the touched `journeys/staff` and `journeys/manager` files afterwards shows zero journey-vs-code drift
+- [ ] §15 baseline for the `.html` change is Story 6's closing audit of 2026-10-21 (nothing in `journeys/` changed since; no new repo-wide audit, TD53 runs it once); a scoped `/docs-audit` over the touched `journeys/staff` and `journeys/manager` files afterwards shows no journey-vs-code drift **in the statements this story's items 1 to 7 edit**. **Scope set 2026-10-21 (owner), after the PR's scoped audit:** the criterion covers the files this PR touches, not the whole repository. The older drift that the audit found in those files (the agenda dev-notes queue, server/client split, BottomNav and `@ikaro/types` sections, the `agenda.md` and dev-notes booking-detail table, the horarios dev-notes props, the equipe copy strings and endpoint list) and the two canonical docs that described a staff selection token (`docs/TENANT_ISOLATION_STRATEGY.md`, `docs/BOUNDED_CONTEXTS.md`) were fixed in the same PR after re-reading each against the code. Drift outside the touched files is left to a later repository-wide `/docs-audit`, run after TD53
 - [ ] `pnpm architecture-check` passes
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 

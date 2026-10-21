@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Customize the public hotsite's branding (colors, fonts, button style) and content modules (toggle/reorder/configure), set SEO overrides, and publish changes live
 **UCs covered:** UC-027
-**Status:** Reviewed
+**Status:** ✅ Built — all pages ✅ Done (M13-S35, S36, S37; see "Pages referenced")
 
 ## Flow
 
@@ -18,8 +18,8 @@ flowchart TD
     Editor --> ToggleModule(("Liga/desliga módulo"))
     Editor --> ReorderModule(("Arrasta para reordenar"))
     Editor --> ConfigModule(("Click 'Configurar' em um módulo (M13-S36)"))
-    ConfigModule --> ModuleConfigPanel["drill-down config panel<br/>por tipo de módulo (10 tipos)"]
-    ModuleConfigPanel --> Editor
+    ConfigModule --> ModuleConfig["ModuleConfigShell + painel por tipo<br/>(ex.: HeroConfigPanel, 10 tipos)"]
+    ModuleConfig --> Editor
     Editor --> EditSeo(("Edita título/descrição SEO"))
 
     EditBranding --> ColorValid{"Cor em hex válido?"}
@@ -50,7 +50,7 @@ flowchart TD
     UnpublishSuccess --> PublishBtn
     UnpublishSuccess --> Editor
 
-    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfigPanel existing
+    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfig existing
 ```
 
 **Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. **Resolved** — `01-hotsite-editor.html` was already updated the same day (2026-07-31) to add all of this (see its inline "adicionado 2026-07-31" comments). **Module count updated again 2026-08-08:** now 9 (`CHATBOT` added — promoted from `docs/USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`, UC-027 Section B, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped 2026-08-18 (`M19-S12`):** `ChatbotConfigPanel.tsx` completes the 9th module type's config panel — see "Open questions / gaps" below. **Module count updated again 2026-08-23:** now 10 (`LEAD_FORM` added — promoted from `docs/USE_CASES.md` UC-037–UC-043 via `/discovery-to-milestone`, UC-037, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Shipped (`M20-S07` teaser module, `M20-S08` config panel). Its own config panel and prototype screens are documented in a separate journey file, not this one: `manager/lead-form-config.md` / `manager/prototypes/lead-form/` — cross-referenced here rather than duplicated, since UC-037 is a standalone use case, unlike CHATBOT's UC-027 Section B.
@@ -68,7 +68,7 @@ flowchart TD
 - [x] **Per-module configuration** — **Resolved/shipped (`M13-S36`).** Each module type has its own drill-down config panel (e.g. `FooterConfigPanel.tsx` for the `FOOTER` module type, added in the same story). The prototype's `01d-module-config-hero.html` shows only the HERO case; the other 7 module types' panels were built directly from the real types without new UX prototypes (an explicit `M13-S36` decision) — candidate for the next prototype touch-up pass if more panels are wanted for review.
 - [x] **Preview semantics** — resolved — client-side live preview, confirmed shipped. `HotsiteEditor` passes a `draft: HotsiteAdminContentResponse` prop directly into `apps/web/features/platform/components/hotsite/HotsitePreview.tsx`, which renders the module tree client-side from that prop. No BFF preview-mode parameter/token exists or is needed.
 - [x] **Unpublish action** — resolved: the editor exposes "Despublicar hotsite" in a danger-zone section (per `01-hotsite-editor.html`), with its own confirmation screen (`03b-unpublish-success.html`). See the `Unpublish`/`UnpublishSuccess` nodes in the flow above.
-- [x] **CHATBOT config panel** — **Resolved/shipped (`M19-S12`, 2026-08-18).** `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`) follows the same drill-down pattern as the other 8 panels, plus a standing AI-provider-credit disclosure note and a conditional daily-cap-reached banner (`GET /v1/tenants/chatbot/cap-status`, UC-027 A5) that no other module panel has. `default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` also updated so the Layout tab and Manifesto tab both reach the 9th module type. See `manager/prototypes/hotsite/01e-module-config-chatbot.html` and its `dev-notes.md` entry.
+- [x] **CHATBOT config panel** — **Resolved/shipped (`M19-S12`, 2026-08-18).** `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`) follows the same drill-down pattern as the other module panels, plus a standing AI-provider-credit disclosure note and a conditional daily-cap-reached banner (`GET /v1/tenants/chatbot/cap-status`, UC-027 A5) that no other module panel has. `default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` also updated so the Layout tab and Manifesto tab both reach the 9th module type. See `manager/prototypes/hotsite/01e-module-config-chatbot.html` and its `dev-notes.md` entry.
 
 ## Prototype
 

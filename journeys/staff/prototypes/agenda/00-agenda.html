@@ -105,7 +105,7 @@
       - Topbar / Sidebar / BottomNav / MoreSheet: apps/web/shells/dashboard/components/* (Leads shows only when the LEAD_FORM module is on — not drawn for this tenant)
       - WeekNav (shells/dashboard/components/WeekNav.tsx): month label + chevrons, then a strip of `welcomeStaffScreenDays` days (default 14, scrolls on mobile).
         Today = filled blue, a picked day = near-black, a dot = the day has a booking. Picking a day filters "Próximos dias" to it (click again to clear).
-      - NewMenu: ONE item today ("Agendamento"); "Recorrência" is added by M23-S19.
+      - NewMenu: two items ("Agendamento" and "Recorrência", shipped by M23-S40 and M23-S19; NEW_MENU_ITEMS in NewMenu.tsx).
       - RecurringScheduleCard (M23-S13, UC-071): a PENDING_APPROVAL recurring schedule, pinned at the top of "Precisa de ação" ordered by its
         decision deadline ("Decidir até HH:mm", the 30-minute hold). Teal "Recorrência" pill and left border, the customer's name, the pattern and the
         term as lines, one button "Ver pedido" and NO quick "Aprovar": one decision creates every reservation of the term, so it always goes through
@@ -209,7 +209,7 @@
       <div class="dashboard-body">
         <div class="new-row">
           <button type="button" class="new-btn" id="new-btn" aria-haspopup="menu" onclick="toggleNew()">+ Novo</button>
-          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a></div>
+          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a><a role="menuitem" href="09-escolher-cliente.html?tipo=recorrencia#recentes"><strong>Recorrência</strong><span>Uma reserva que se repete toda semana, em nome de um cliente</span></a></div>
         </div>
 
         <section class="qsection" id="sec-action">

@@ -2,7 +2,7 @@
 
 ## Overview
 
-New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S08`/`S11`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`.
+New STAFF|MANAGER-shared class-configuration journey for M24 — Multi-Vertical Scheduling, Cluster 4 (`M24-S01`/`S02`/`S08`/`S11`/`S13` backend, `M24-S15` frontend). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-{turmas-list,nova-aula,adicionar-horario,definir-staff,07,07b,09,09b,09c}*.html`. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`. The discovery folder had no `index.html` for this consolidated set; it was added when the set was promoted here.
 
 ## File map (❓ none exist yet)
 
@@ -34,7 +34,6 @@ POST                    /v1/class-session-bookings | /v1/recurring-enrollments  
 
 ## Known limitations
 
-- No `index.html` existed in the discovery folder for this consolidated set — added as part of this promotion.
 - `01-turmas-list.html`'s per-row "Editar"/"Staff"/"Ver sessões" actions have no dedicated destination screens yet.
 
 ## Open questions / gaps

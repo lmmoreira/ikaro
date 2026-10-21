@@ -69,7 +69,7 @@ flowchart TD
 | Call | When | Roles |
 |---|---|---|
 | `GET /v1/bookings` | Minha-conta page load — full booking list | CUSTOMER (filtered to own bookings) |
-| `GET /v1/loyalty/balance` | Minha-conta page load — points card | CUSTOMER |
+| `GET /v1/loyalty/balance` | Início page (`my-account/page.tsx`) and Fidelidade page load — points card; the Agendamentos list no longer calls it | CUSTOMER |
 | `GET /v1/loyalty/entries` | Fidelidade page — earning history (paginated) | CUSTOMER |
 | `GET /v1/loyalty/redemptions` | Fidelidade page — redemption history (paginated) | CUSTOMER |
 | `POST /v1/auth/switch-tenant { targetTenantId }` | UC-023 — customer selects new tenant | CUSTOMER |

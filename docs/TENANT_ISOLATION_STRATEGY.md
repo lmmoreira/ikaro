@@ -22,7 +22,7 @@ We distinguish between two types of users to balance flexibility for customers a
 ### **Staff: Multi-Tenant ✓** (updated `M13-S13`/`M13-S22`)
 - **Person:** `john@autowash.com` can work for multiple companies — same model as customers, not a single-tenant restriction.
 - **Isolation:** Each company = separate `Staff` record. `UNIQUE(tenant_id, google_oauth_id)` (per-tenant, not global) is enforced at the database level, so the same Google account can hold an active `Staff` row at 2+ tenants.
-- **Login:** If John has an active `Staff` row at exactly one tenant, he's directed straight to his dashboard. If he has active rows at 2+ tenants, he's issued a selection token and redirected to `/select-staff-tenant`, also reusable post-login to switch tenants (`POST /auth/switch-staff-tenant`).
+- **Login:** John signs in from a specific tenant (the tenant slug travels in the OAuth state) and is directed straight to that tenant's dashboard. If he has active rows at 2+ tenants, `/select-staff-tenant` is a post-login switch (`GET /auth/staff-tenants`, `POST /auth/switch-staff-tenant`), not a login-time selection (no selection token exists).
 - **Provisioning:** A staff row is always created `is_active=true` (never inactive) — "pending invite" is signaled by `google_oauth_id IS NULL`, not by `is_active`. See `CLAUDE.md` §2 invariant 6.
 
 ---

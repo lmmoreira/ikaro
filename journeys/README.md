@@ -436,6 +436,8 @@ Also update the "what this prototype validates" checklist in `index.html` to inc
 
 This file is the bridge between prototype and implementation. A future agent reading it must be able to write production React + TypeScript without asking questions.
 
+**Scope of the template:** it applies to new `dev-notes.md` files. Prototypes that shipped before it existed may lack some of its sections (Overview, File map, per-screen sections, Known limitations); they are not backfilled, and a missing section is not a defect to fix unless the prototype is being changed.
+
 ```markdown
 # Dev Notes — <ROLE>: <Journey Title>
 
@@ -718,16 +720,16 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
 | CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`) |
-| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Reviewed |
+| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04) |
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
-| MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Reviewed |
-| MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Reviewed |
-| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Reviewed |
+| MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |
+| MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Built (M13-S31) |
+| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Built (M13-S35, S36, S37) |
 | GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Built (M20-S07, M20-S09) |
 | CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Built (M20-S09) |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Shipped (M20-S08) |
-| MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Reviewed |
-| MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Reviewed |
+| MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Built (M20-S10, S12, S13) |
+| MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Shipped (M21-S01, M21-S04) |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |

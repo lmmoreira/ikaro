@@ -12,7 +12,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard /{slug}/dashboard"]) --> List["/dashboard/services<br/>Service List"]
+    Start(["Dashboard /dashboard"]) --> List["/dashboard/services<br/>Service List"]
 
     List --> CreateBtn(("Click '+ Criar serviço'"))
     List --> EditClick(("Click serviço existente"))

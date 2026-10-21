@@ -17,7 +17,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 | Prototype file | Production route | Page component |
 |---|---|---|
 | `01-hotsite-editor.html` | `/dashboard/hotsite` (no `[slug]` segment) | `HotsiteEditor` (tabbed: Branding / Layout / SEO / Manifest) |
-| `01d-module-config-hero.html` | drill-down within editor (no separate route) | `HeroConfigPanel` |
+| `01d-module-config-hero.html` | drill-down within editor (no separate route) | `HeroConfigPanel`, inside `ModuleConfigShell` (there is no `ModuleConfigPanel` component: the shell is `ModuleConfigShell.tsx` and each module type has its own `<Type>ConfigPanel.tsx`, all in `apps/web/features/platform/components/hotsite/modules/`) |
 | `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (shipped `M19-S12`) |
 | `02-preview.html` | in-editor preview (no separate app route; see "preview semantics" below) | `HotsitePreview` |
 
@@ -100,6 +100,11 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 
 ---
 
+## Reference artifacts in this folder
+
+- `hotsite-impl/` holds examples of live manifestos for the **current** hotsite: `beloauto.html` and `manifesto-beloauto.json` (a real tenant's branding, layout and SEO as the editor stores them). They are reference material for how a complete manifest looks, not a spec and not a screen of this prototype.
+- `editor-vision/` is the **redesign** proposal (TD55, `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html`. The screens above are the shipped editor; do not mix the two.
+
 ## Error handling
 
 | Scenario | UI response |
@@ -109,4 +114,4 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 
 ## Unpublish (new — not in original UC text)
 
-`POST /tenants/hotsite/unpublish` exists in the backend/BFF but UC-027's text never describes a take-down flow. The prototype places it in a "Zona de risco" panel inside the editor (`01-hotsite-editor.html`, bottom of page) as a secondary, visually de-emphasized action. Confirm placement before implementing — could equally live in `manager/configuracoes.md` instead.
+`POST /tenants/hotsite/unpublish` exists in the backend/BFF but UC-027's text never describes a take-down flow. The prototype places it in a "Zona de risco" panel inside the editor (`01-hotsite-editor.html`, bottom of page) as a secondary, visually de-emphasized action. Shipped (the "Despublicar hotsite" action; `hotsite-admin.controller.ts`).

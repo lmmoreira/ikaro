@@ -2,7 +2,7 @@
 
 ## Overview
 
-New MANAGER-only wizard for M24 — Multi-Vertical Scheduling (`M24-S21` backend + BFF, `M24-S05` SESSION presets, `M24-S22` wizard frontend; moved from M23). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/DOMAIN_MODEL.md` for the underlying domain model this wizard configures.
+New MANAGER-only wizard for M24 — Multi-Vertical Scheduling (`M24-S21` backend + BFF, `M24-S05` SESSION presets, `M24-S22` wizard frontend; moved from M23). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/DOMAIN_MODEL.md` for the underlying domain model this wizard configures. The discovery folder had no `index.html` for these 2 screens; it was added when they were promoted here.
 
 ## File map (❓ none exist yet)
 
@@ -47,7 +47,6 @@ Whole bootstrap rolls back atomically on any mid-transaction failure (UC-075 A3)
 
 ## Known limitations
 
-- No `index.html` existed in the discovery folder for these 2 screens — added as part of this promotion.
 - Final preset names/copy are explicitly deferred to a copy round (`ONBOARDING_PRESETS.md` §6 item 4) — not a product/schema blocker.
 
 ## Open questions / gaps

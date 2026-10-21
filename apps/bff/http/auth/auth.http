@@ -123,48 +123,75 @@ Authorization: Bearer paste-customer-jwt-here
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
-# MULTI-TENANT STAFF SELECTION — GET /v1/auth/staff-tenants + POST /v1/auth/staff-token
-# UC-022 (staff in 2+ tenants): after browser redirects to /select-staff-tenant?token=<...>,
-# the frontend GETs the list then POSTs to exchange the selection token for a JWT.
+# MULTI-TENANT STAFF — GET /v1/auth/staff-tenants + POST /v1/auth/switch-staff-tenant
+# UC-022 (staff in 2+ tenants): the /select-staff-tenant page GETs the caller's active staff
+# records, then POSTs the chosen staffId; the BFF re-issues the session cookie for that tenant.
+# Both require a valid STAFF or MANAGER JWT (access_token cookie or Bearer header).
+# (The earlier selection-token flow — POST /v1/auth/staff-token and ?token= — was removed.)
+#
+# Cookie jar: a successful switch-staff-tenant sets the access_token cookie, and the BFF reads the
+# cookie before the Authorization header (jwt.strategy.ts). REST Client keeps that cookie, so clear
+# or disable its cookie jar before the "No JWT", customer-JWT and other-identity cases below, or
+# they run as the staff member the switch just logged in.
 # ─────────────────────────────────────────────────────────────────────────────
 
-### List tenants where the staff member has an active record (multi-tenant selection)
-# Replace token with the value from the ?token= query param in the redirect URL
-GET {{bffUrl}}/v1/auth/staff-tenants?token=paste-selection-token-here
+### List tenants where the authenticated staff member has an active record
+# Returns StaffTenantOption[]: { staffId, tenantId, tenantSlug, tenantName, role }
+GET {{bffUrl}}/v1/auth/staff-tenants
+Authorization: Bearer paste-staff-jwt-here
 
 ###
 
-### Exchange staff selection token for JWT
-POST {{bffUrl}}/v1/auth/staff-token
+### 401 — No JWT provided
+GET {{bffUrl}}/v1/auth/staff-tenants
+
+###
+
+### 403 — Customer JWT (wrong role)
+GET {{bffUrl}}/v1/auth/staff-tenants
+Authorization: Bearer paste-customer-jwt-here
+
+###
+
+### Switch to another tenant the staff member belongs to
+# staffId comes from the staff-tenants list above. Returns { tenantSlug, expiresIn } and sets
+# the access_token cookie for the target tenant.
+POST {{bffUrl}}/v1/auth/switch-staff-tenant
 Content-Type: application/json
+Authorization: Bearer paste-staff-jwt-here
 
 {
-  "selectionToken": "paste-selection-token-here",
   "staffId": "paste-target-staff-uuid-here"
 }
 
 ###
 
-### 400 — Selection token missing or invalid for staff-tenants
-GET {{bffUrl}}/v1/auth/staff-tenants?token=invalid.token.signature
-
-###
-
-### 400 — selectionToken missing from staff-token body
-POST {{bffUrl}}/v1/auth/staff-token
+### 401 — No JWT provided
+POST {{bffUrl}}/v1/auth/switch-staff-tenant
 Content-Type: application/json
 
 {
-  "staffId": "{{staffId}}"
+  "staffId": "paste-target-staff-uuid-here"
 }
 
 ###
 
-### 403 — staffId not in the selection token's tenant list (or inactive)
-POST {{bffUrl}}/v1/auth/staff-token
+### 400 — staffId missing or not a UUID
+POST {{bffUrl}}/v1/auth/switch-staff-tenant
 Content-Type: application/json
+Authorization: Bearer paste-staff-jwt-here
 
 {
-  "selectionToken": "paste-valid-selection-token-here",
+  "staffId": "not-a-uuid"
+}
+
+###
+
+### 403 — staffId not in the authenticated staff member's active records
+POST {{bffUrl}}/v1/auth/switch-staff-tenant
+Content-Type: application/json
+Authorization: Bearer paste-staff-jwt-here
+
+{
   "staffId": "00000000-0000-4000-8000-000000009999"
 }

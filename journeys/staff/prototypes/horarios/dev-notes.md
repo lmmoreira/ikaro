@@ -68,30 +68,9 @@ GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD
 
 **Client component** (`'use client'`) — handles selected day state and sheet open/close.
 
-**Props:**
-```ts
-interface ScheduleViewProps {
-  readonly initialClosures: ScheduleClosure[];
-  readonly initialOpenings: ScheduleOpening[];
-  readonly initialBookings: BookingListItem[];
-  readonly businessHours: BusinessHours;   // from tenants.settings.business_hours
-  readonly tenantSlug: string;
-}
-```
+**Props** (`SchedulePageProps`, `SchedulePage.tsx`): `initialClosures`, `initialOpenings`, `initialBookings`, `businessHours`, `todayKey`, `weekStartKey`, `initialSelectedDateKey?`, `slotGranularityMinutes`. The route (`app/dashboard/schedule/page.tsx`) reads `?weekStart=` and `?date=` from the URL, resolves them in the tenant's timezone, and fetches closures, openings and the week's bookings (`listAllBookings`) before rendering. The earlier `ScheduleViewProps` / `ScheduleState` shapes are gone: the page's state and handlers live in `useSchedulePageController` (`features/booking/schedule/`), which `SchedulePage` calls.
 
-**State:**
-```ts
-type ScheduleState = {
-  startOfWeek: Date;                         // Mon of selected week; defaults to current week
-  selectedDate: Date;                        // day selected within the strip; defaults to today
-  closureSheet: 'closed' | 'open' | 'submitting' | 'conflict' | 'warning';
-  openingSheet: 'closed' | 'open' | 'submitting' | 'conflict';
-  removeClosureTarget: ScheduleClosure | null;
-  removeOpeningTarget: ScheduleOpening | null;
-}
-```
-
-**Week navigation:** `startOfWeek` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). The header label covers the whole visible week, so a week crossing a month reads `Outubro – Novembro 2026` (M18-S11, shared `WeekNav`). Advancing a week = `startOfWeek + 7 days`. The time grid re-fetches when `startOfWeek` changes.
+**Week navigation:** `weekStartKey` drives the `from`/`to` query params on all BFF calls and the `WeekNav` component (prev/next arrows). The header label covers the whole visible week, so a week crossing a month reads `Outubro – Novembro 2026` (M18-S11, shared `WeekNav`). Advancing a week = `weekStartKey + 7 days`. The time grid re-fetches when `weekStartKey` changes.
 
 **Time grid:**
 - Show slots from `businessHours[dayOfWeek].open` to `businessHours[dayOfWeek].close`
@@ -172,7 +151,7 @@ Same pattern as `RemoveClosureDialog`. Shows date + window. "Remover abertura" =
 
 ## Route registration
 
-Add `apps/web/app/dashboard/schedule/page.tsx` to the dashboard sidebar nav under the clock icon ("Horários"). The sidebar link already exists in all prototype files — just needs the real route to resolve.
+Shipped: `apps/web/app/dashboard/schedule/page.tsx` is in the dashboard sidebar nav (`MAIN_NAV_KEYS` in `shells/dashboard/components/Sidebar.tsx`, `Clock` icon, label key `nav.schedule`).
 
 ## shadcn/ui component map
 
@@ -232,7 +211,7 @@ POST /v1/schedule/openings   { ..., resourceId?: string }   // 404 if resourceId
 GET /v1/resources?type=&isActive=                            // UC-044 — feeds both ResourceFilterMenu and ResourceSelectField
 ```
 
-**Navigation links (resolved):** `07-horarios-recurso.html`'s sidebar/bottom-nav no longer points at the discovery-set screens: "Horários" links `08-visao-geral-manager.html`, "Serviços" links `../servicos/01-servicos-list.html` and "Turmas" links `../turmas/01-turmas-proximas.html`. The shipped implementation never navigates to this illustrative screen (both controls live in-page on the existing route).
+**Navigation links (resolved):** `07-horarios-recurso.html`'s sidebar/bottom-nav no longer points at the discovery-set screens: "Horários" links `08-visao-geral-manager.html` — kept deliberately (owner decision, TD53-S9, 2026-10-21): `07` and `08` are both manager screens and `08` is the manager entry file, whereas the staff pages link `00-schedule.html` (`journeys/README.md` Part 4: nav items link the canonical entry file). "Serviços" links `../servicos/01-servicos-list.html` and "Turmas" links `../turmas/01-turmas-proximas.html`. The shipped implementation never navigates to this illustrative screen (both controls live in-page on the existing route).
 
 **Resolved decisions (`M21-S05`):**
 - [x] `ResourceFilterMenu` defaults to nothing checked — "Todo o negócio" (tenant-wide) — on first load. `LOCATION` is excluded from both controls' options entirely (functionally redundant with the tenant-wide default).

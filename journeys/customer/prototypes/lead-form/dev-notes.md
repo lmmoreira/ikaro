@@ -16,7 +16,7 @@ Loading, validation error, captcha error, rate-limited, and submission-error are
 
 ## File map
 
-Same as `guest/prototypes/lead-form/dev-notes.md` — `apps/web/app/[slug]/lead-form/page.tsx` is one shared component for both actors, not two.
+Same as `guest/prototypes/lead-form/dev-notes.md` — `apps/web/app/[slug]/lead-form/page.tsx` and `LeadFormWidget` (which fetches the catalog and the customer profile) are shared by both actors, not duplicated.
 
 ---
 

@@ -58,10 +58,11 @@ type ActionState =
   | 'info-requested'    // UC-005 success — blue banner, Approve+Reject still visible
   | 'slot-conflict'     // UC-003 → 409 — SlotConflictAlert shown, retry available
   | 'cancelled'         // UC-008 success — red banner, no action buttons (terminal)
-  | 'completed'         // UC-009 success — green banner, no action buttons (terminal)
-  | 'rescheduled'       // UC-008 A1 success — green banner, status stays APPROVED, action buttons return
-  | 'reschedule-conflict' // UC-008 A1 → 409 — RescheduleConflictAlert shown, retry available
+  | BookingNoShowActionState // UC-074 (M23-S27): 'no-show' | 'no-show-terminal' | 'no-show-not-ended'
+                             //   | 'no-show-error' | 'corrected' | 'correct-error' | 'correct-forbidden'
 ```
+
+(`BookingDetailActionState` in `BookingDetailMainBanner.tsx`; the no-show members are `BookingNoShowActionState` in `BookingNoShowBanner.tsx`.) There is **no** `completed`, `rescheduled` or `reschedule-conflict` member: "Marcar concluído" and "Reagendar" leave this page for `MarkCompleteBookingPage` and `RescheduleBookingPage`, which render their own `MarkCompleteSuccessView` / `RescheduleSuccessView` and, on a 409, their own `SlotConflictAlert` (the `conflictStartsAt` / `slotSuggestions` state in `RescheduleBookingPage`). The tables below keep those names as the *screen* states they draw.
 
 `BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info); `APPROVED` renders the lifecycle actions (Marcar concluído/Reagendar/Cancelar), composed across `BookingDetailMain`/`BookingOutcomeActionRail` (there is no `BookingLifecyclePanel` component). Both panels write into the same `actionState` machine.
 
@@ -119,19 +120,21 @@ The real fetchers live in `apps/web/features/booking/api/booking.ts` (`apps/web/
 Three calls, one per urgency section (resolved 2026-06-16 — see `agenda.md` "Queue scope"). All use the same `StaffBookingListResponse` shape; only the query params differ. Every `YYYY-MM-DD` value below is a **tenant-local** calendar day (TD48) — the backend converts it with the tenant's `businessHours.timezone`, so "today" is the tenant's today, never the UTC date.
 
 ```
-# "Precisa de ação" — no date filter, ALL pending/info-requested regardless of day
-GET /v1/bookings?status=PENDING,INFO_REQUESTED&page=1&limit=20
+# "Precisa de ação" — pending/info-requested inside the visible window (today .. today + welcomeStaffScreenDays - 1)
+GET /v1/bookings?status=PENDING,INFO_REQUESTED&from=YYYY-MM-DD&to=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
 # "Hoje" — today's approved only
-GET /v1/bookings?status=APPROVED&date=YYYY-MM-DD&page=1&limit=20
+GET /v1/bookings?status=APPROVED&date=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
-# "Próximos dias" — approved, future
-GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&page=1&limit=20
+# "Próximos dias" — approved, from tomorrow to the end of the window
+GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD&page=N&limit=100
 Auth: Bearer JWT (the tenant comes from the JWT)
 
-Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
+The server page (`app/dashboard/bookings/page.tsx`) issues the three calls through `listAllBookings()` (`features/booking/api/booking.server.ts`), which walks every page at `limit=100` so a window holding more bookings than one page never loses its last rows. The window keys come from `resolveBookingQueueWindow()` (`features/booking/model/booking-queue-window.ts`) in the tenant's timezone.
+
+Response: StaffBookingListResponse  (@ikaro/types, `packages/types/src/booking.dto.ts`)
 {
   items: StaffBookingCardResponse[]
   total: number
@@ -140,7 +143,7 @@ Response: StaffBookingListResponse  (@ikaro/types — add in M125-S02)
 }
 ```
 
-Sort order: "Precisa de ação" by `scheduledAt ASC` (oldest request first, regardless of date — a 3-day-old pending request should outrank a fresh one). "Hoje" and "Próximos dias" likewise by `scheduledAt ASC`.
+Sort order: "Precisa de ação" by `scheduledAt ASC` (earliest appointment first). "Hoje" and "Próximos dias" likewise by `scheduledAt ASC`.
 
 ### Booking detail (M125-S04)
 ```
@@ -233,12 +236,14 @@ Every line in the booking must have an entry in `lines[]` (backend requires it, 
 
 ```
 app/dashboard/bookings/page.tsx          ← Server component
-  └── calls getStaffBookings(tenantId, date)
-  └── renders <BookingQueuePage initialData={...} />   ← 'use client'
+  └── calls listAllBookings(token, filters) three times (see "Queue list")
+  └── renders <BookingQueuePage initialActionNeeded initialToday initialUpcoming
+                                today tomorrow welcomeStaffScreenDays />   ← 'use client'
 
 app/dashboard/bookings/[id]/page.tsx     ← Server component
-  └── calls getStaffBookingById(tenantId, id)
-  └── renders <BookingDetailPage booking={...} />      ← 'use client'
+  └── calls loadBookingDetailRouteData(token, id)   (shells/dashboard/model/booking-route.server.ts)
+  └── renders <BookingDetailPage booking tenantSlug showHeaderStatusBadge
+                                initialActionState returnTo />      ← 'use client'
         └── <BookingActionPanel />                     ← receives actionState + callbacks
         └── <RejectBookingSheet />                     ← Sheet, unmounts when closed
         └── <RequestInfoSheet />                       ← Sheet, unmounts when closed
@@ -256,7 +261,7 @@ app/dashboard/bookings/[id]/page.tsx     ← Server component
 |---|---|---|
 | Reject reason | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(10)` | UC-004 |
 | Info request message | max 200 chars (client-side: web sheet `maxLength={200}`); BFF enforces `.trim().min(20)` | UC-005 |
-| Reject reason minimum | none in MVP | User confirmed — no minimum in the product spec; note the BFF schema (`RejectBookingBodySchema`) currently rejects anything under 10 trimmed characters |
+| Reject reason minimum | 10 trimmed characters (BFF `RejectBookingBodySchema`, `bookings.schemas.ts`) | The product spec set no minimum; the BFF schema enforces `.trim().min(10)` and that is what ships |
 | Admin cancel reason | optional; BFF `reason: z.string().min(1).optional()` (web sheet `maxLength={200}`) | UC-008 (confirmed against `CancelBookingAsAdminBody` in the 2026-06-16 UC audit) |
 | Reschedule `adminNotes` | optional; BFF `.trim().min(1).max(500)` | UC-008 A1 |
 | Complete `lines[].actualPriceCharged` | required per line, `>= 0` (BFF: `z.number().nonnegative()`, `lines` min 1) | UC-009 |
@@ -289,7 +294,7 @@ After any successful action, **the admin stays on the detail page**. Do not call
 - **Card** = `BookingCard.tsx`: name + two pills (Cliente/Visitante, then the status), service line, date/time left and `price · duration` right, one small button, the whole card links to the detail (`z-20` buttons above the link). Variants: `action-needed` (Aprovar; `INFO_REQUESTED` has a blue left border), `today` (time only, Marcar concluído), `upcoming` (dimmed, no button). The prototype CSS (`.qcard`, `.qbadge`, `.qbtn`) mirrors the component's Tailwind classes; `tokens.css`' `.booking-card` is the older shape and is not used on these screens.
 - **`WeekNav`**: period label + chevrons (the label covers every visible date: "Agosto 2026", "Outubro – Novembro 2026" across a month, "Dezembro 2026 – Janeiro 2027" across a year; `00b-agenda-month-boundary.html`, M18-S11), a strip of `welcomeStaffScreenDays` days (default 14, scrolls on mobile); today = filled blue, a picked day = near-black with a ring, a dot = the day has a booking. Picking a day filters "Próximos dias" (title "Próximos dias — dd/mm", cards emphasized); picking it again clears it. The ‹ chevron of the first window and the › of the second are not drawn (only two windows exist).
 - **Shell**: sidebar and "Mais" sheet list Recursos, Equipe, Configurações, Hotsite under "Somente Gerente"; "Leads" appears only when the LEAD_FORM module is on, so it is not drawn for this tenant.
-- **M23-S13 folded in (2026-10-15):** `00-agenda.html` now also draws the recurrence card and the "Filtrar agenda" balloon (the former `00c-agenda-s13.html`, deleted). The second "+ Novo" item, "Recorrência" (M23-S19), is not drawn until S19 ships: it reads "Recorrência — Uma reserva que se repete toda semana, em nome de um cliente" and leads to `09-escolher-cliente.html?tipo=recorrencia#recentes`. `00-agenda-next.html` and `00d-agenda-precisa-decisao.html` omit the S13 parts.
+- **M23-S13 folded in (2026-10-15):** `00-agenda.html` now also draws the recurrence card and the "Filtrar agenda" balloon (the former `00c-agenda-s13.html`, deleted). The second "+ Novo" item, "Recorrência" (M23-S19), is drawn in all three queue prototypes (`00-agenda.html`, `00-agenda-next.html`, `00d-agenda-precisa-decisao.html`); it reads "Recorrência — Uma reserva que se repete toda semana, em nome de um cliente" and leads to `09-escolher-cliente.html?tipo=recorrencia#recentes`. `00-agenda-next.html` and `00d-agenda-precisa-decisao.html` omit the S13 parts.
 - **Not yet re-checked against the code:** the other screens in this folder (`01`–`10b`) — a separate pass; `01-booking-detail.html` and `03-…` may carry the same kind of drift.
 
 ---
@@ -302,12 +307,7 @@ After any successful action, **the admin stays on the detail page**. Do not call
 
 ## BottomNav — hide on detail pages
 
-The `BottomNav` component must not render on `/dashboard/bookings/[id]`. Two approaches:
-
-1. `DashboardShell` accepts a `hideBottomNav?: boolean` prop — `[id]/page.tsx` passes it
-2. `usePathname()` in `BottomNav` — hide when pathname matches `/dashboard/bookings/[id pattern]`
-
-Option 1 is preferred (explicit, no regex in component).
+The `BottomNav` does not render on `/dashboard/bookings/[id]`. It hides itself: `BottomNav.tsx` reads `usePathname()` and calls `matchBookingDetailRoute(pathname)` from `shells/dashboard/model/booking-route.ts` (the same matcher also excludes the static `new` segment). There is no `hideBottomNav` prop on `DashboardShell`.
 
 ---
 
@@ -337,72 +337,12 @@ These `tokens.css` classes do not exist in production — map them as follows:
 
 ---
 
-## @ikaro/types additions (M125-S02 + S04)
+## Types (all shipped)
 
-Add these types to `packages/types/src/index.ts` in the same commit as the BFF endpoints that produce them:
+Not copied here, so they cannot drift: read the real definitions.
 
-```ts
-// M125-S02
-export interface StaffBookingCardResponse {
-  id: string;
-  status: 'PENDING' | 'INFO_REQUESTED';
-  scheduledAt: string;
-  customerName: string;
-  serviceNames: string[];
-  totalPrice: number;
-}
-export interface StaffBookingListResponse {
-  items: StaffBookingCardResponse[];
-  total: number;
-  page: number;
-  limit: number;
-}
-
-// M125-S04
-export interface StaffBookingDetailResponse {
-  id: string;
-  status: string;
-  scheduledAt: string;
-  durationMinutes: number;
-  customer: { id: string; name: string; email: string; phone: string };
-  loyaltyBalance: number | null;
-  lines: { serviceId: string; serviceName: string; price: number; durationMinutes: number; points: number }[];
-  infoRequestMessage: string | null;
-  infoResponseMessage: string | null;
-  rejectionReason: string | null;
-  createdAt: string;
-  approvedAt: string | null;
-  rejectedAt: string | null;
-  infoRequestedAt: string | null;
-  infoSubmittedAt: string | null;
-}
-
-// M125-S05 — re-add types dropped in M12-S07
-export interface ApproveBookingRequest { bookingId: string; }
-export interface ApproveBookingResponse { id: string; status: 'APPROVED'; approvedAt: string; }
-export interface RejectBookingRequest { bookingId: string; reason: string; }
-export interface RequestMoreInfoRequest { bookingId: string; message: string; }
-export interface SlotConflictSuggestion { startsAt: string; endsAt: string; }
-export interface SlotConflictError { message: string; suggestions: SlotConflictSuggestion[]; }
-
-// UC-008/UC-009 — not yet scoped to a story; add when this work is picked up
-export interface CancelBookingAsAdminRequest { bookingId: string; reason?: string; }
-export interface CancelBookingAsAdminResponse { id: string; status: 'CANCELLED'; cancelledAt: string; }
-export interface RescheduleBookingRequest { bookingId: string; scheduledAt: string; adminNotes?: string; }
-export interface RescheduleBookingResponse { id: string; status: 'APPROVED'; scheduledAt: string; }
-export interface CompleteBookingLineInput { lineId: string; actualPriceCharged: number; }
-export interface CompleteBookingRequest {
-  bookingId: string;
-  lines: CompleteBookingLineInput[];
-  afterServicePhotoUrls?: string[];
-  adminNotes?: string;
-}
-export interface CompleteBookingResponse {
-  id: string; status: 'COMPLETED'; completedAt: string; totalActualPrice: number;
-}
-```
-
----
+- `packages/types/src/booking.dto.ts` — `StaffBookingCardResponse` (a flat card: `bookingId`, `contactName`, `isCustomer`, `assignedResources`, `hasOpenException`, …), `StaffBookingListResponse`, `StaffBookingDetailResponse` (flat, no nested `customer`; carries the resources, itinerary, attendees, intake, cancellation/rejection data, `createdAt` and `createdByName`), `ApproveBookingRequest/Response`, `RejectBookingRequest`, `RequestMoreInfoRequest`, `SlotConflictSuggestion`, `SlotConflictError`.
+- `apps/web/features/booking/api/booking.ts` — the request/response types the web sends for the lifecycle actions (`CancelBookingRequest/Response`, `RescheduleBookingRequest/Response`, `CompleteBookingRequest/Response`, `MarkNoShowRequest/Response`, `CorrectNoShowRequest/Response`), next to the fetchers that use them.
 
 ## Resolved decisions (all shipped)
 
@@ -423,11 +363,11 @@ export interface CompleteBookingResponse {
 - `08b-recurring-approval-result.html` — the detail page in its decided/failed states (`#aprovada`, `#recusada`, `#conflito`, `#expirada`, `#telefone`, `#falha`) — result banner on top of the centre column, the request data kept visible, the right-hand action panel (mobile bar) swapped to "Voltar à agenda" or, when the request is still pending, to retry/reject. Same convention as `01c`/`04b`/`05c`. `09` and `09b` follow the create-form convention of `servicos/02` (form in the centre, action panel on the right, fixed action bar on mobile), and `09c` follows the inline-state convention too: the staff-creation outcomes are banners over a recap of the pattern with an action panel, not a separate result page.
 - **Expired hold, not drawn (added 2026-10-15 after manual testing):** a request still `PENDING_APPROVAL` whose 30-minute hold has passed (the expiry job has not cancelled it yet — in local development it never does). The Agenda card reads "Prazo encerrado" in red instead of "Decidir até HH:mm"; `08` shows a red banner "O prazo para decidir terminou às HH:mm. Não é mais possível aprovar este pedido. Recuse-o para tirá-lo da fila; se ninguém o fizer, o sistema o cancela sozinho." in place of the amber deadline banner, hides the approve button and the approve paragraph of "O que acontece", and keeps **Recusar**. A `409 NOT_PENDING_APPROVAL` on such a request (still pending after the re-read) is shown the same way, not as `#expirada`.
 
-**"+ Novo" menu (added 2026-10-08):** one button above the queue opening a menu — *Agendamento* (UC-108, M23-S39/S40, live: in `00-agenda.html`) and *Recorrência* (UC-070, M23-S19, planned: not drawn in `00-agenda.html` until S19 ships). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
+**"+ Novo" menu (added 2026-10-08):** one button above the queue opening a menu — *Agendamento* (UC-108, M23-S39/S40) and *Recorrência* (UC-070, M23-S19), both live and both drawn in `00-agenda.html` (`NEW_MENU_ITEMS` in `NewMenu.tsx`). Both start at the shared customer chooser `09-escolher-cliente.html?tipo=agendamento|recorrencia`.
 
 ### Staff creates a booking on a customer's behalf — `09`, `10`, `10b` (UC-108, M23-S39 backend/BFF + M23-S40 frontend)
 
-| File | Screen | Route (proposed) |
+| File | Screen | Route |
 |---|---|---|
 | `09-escolher-cliente.html` | Who is it for: *Cliente cadastrado* (search) or *Novo contato* (guest) — shared with the recurrence flow | `/dashboard/bookings/new?tipo=…` |
 | `10-novo-agendamento.html` | The booking steps in the dashboard skin; summary + actions in the right pane | `/dashboard/bookings/new/booking` |
@@ -441,13 +381,13 @@ export interface CompleteBookingResponse {
 
 **The steps are not fixed at three.** `resolveStaffBookingSteps()` is the public `resolveBookingSteps()` minus the `personal` step: services (with the pickup address when a service needs it), then one resource-picker step per requirement that needs a choice (one per leg for a legged service), a duration step for a customer-selected duration, date and time, intake (skippable for staff), and the confirmation (a legged service lists its itinerary). `10` draws the simplest basket; the other steps are the dashboard skin of the public prototypes' states (`customer/prototypes/book-a-service/`) and are not drawn here. A pickup address for a new contact is typed on the Services step; for a registered customer it is pre-filled from `GET /v1/customers/:id` (`defaultAddress`) and editable.
 
-**Chooser details:** the initial list is the first page of `GET /customers` (alphabetical — the backend has no recency order), so it is headed "Clientes", not "Clientes recentes" as drawn in `09`; the 5-character minimum applies only once a term is typed. A registered customer travels as `?customerId=` in the URL; a guest contact stays in memory only. The date step always uses the carousel, with `minBookingAdvanceHours = 0` (the existing components apply the notice client-side) and the dot on slots inside the notice. "Recorrência" is not in the menu until M23-S19 ships.
+**Chooser details:** the initial list is the first page of `GET /customers` (alphabetical — the backend has no recency order), so it is headed "Clientes", not "Clientes recentes" as drawn in `09`; the 5-character minimum applies only once a term is typed. A registered customer travels as `?customerId=` in the URL; a guest contact stays in memory only. The date step always uses the carousel, with `minBookingAdvanceHours = 0` (the existing components apply the notice client-side) and the dot on slots inside the notice. "Recorrência" joined the menu with M23-S19.
 
 **Synced component:** the balloon reuses the shape of `ScheduleStatusFilterMenu.tsx` / `ResourceFilterMenu.tsx` (`apps/web/features/booking/components/dashboard/schedule/`). The balloon is built on the shared `FloatingFilterMenu` (extracted in M23-S13), not a third copy.
 
 **Error → screen map (`POST /recurring-booking-schedules/:id/approve|reject`):** `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve) → `#conflito`, with the same `conflicts[{ occurrenceStart, reason }]` list creation returns; `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` → `#expirada`; `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (approve) → `#telefone`; network/5xx → `#falha`.
 
-**File map (❓ none exist yet):**
+**File map (all ✅ shipped):**
 
 | File | Status |
 |---|---|
@@ -477,17 +417,17 @@ POST /bookings/:id/no-show/correct                             -- UC-074 A3 (MAN
 
 ### Staff creating a recurring schedule on a customer's behalf — `09`, `09b`, `09c` (M23-S19)
 
-Added 2026-09-29 as a deliberately small first pass in the same staff dashboard shell as `08`; **redrawn 2026-10-15 after TD49** (every service shape the server accepts, the empty states, the pattern refusals and the customer-without-phone outcome); every choice is still a default to recheck at `M23-S19`'s story-discovery. The flow diagram is in `../../agenda.md`. UC-070 allows staff to create on a customer's behalf and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER','MANAGER','STAFF')`, body `customerId`), so this is a frontend story.
+Added 2026-09-29 as a deliberately small first pass in the same staff dashboard shell as `08`; **redrawn 2026-10-15 after TD49** (every service shape the server accepts, the empty states, the pattern refusals and the customer-without-phone outcome); every choice below was a default when drafted; `M23-S19` has since shipped. The flow diagram is in `../../agenda.md`. UC-070 allows staff to create on a customer's behalf and `POST /recurring-booking-schedules` already accepts it (`@Roles('CUSTOMER','MANAGER','STAFF')`, body `customerId`), so this is a frontend story.
 
 | File | Screen | Route |
 |---|---|---|
 | `09-escolher-cliente.html` | Step 1 — pick the customer (the shared chooser, `?tipo=recorrencia`; shipped by M23-S40) | `/dashboard/bookings/new?tipo=recorrencia` |
-| `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer; variants in the hash (see the header comment of the file) | `/dashboard/bookings/recurring/new?customerId=` (proposed — two segments after `/dashboard/bookings/`) |
+| `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer; variants in the hash (see the header comment of the file) | `/dashboard/bookings/recurring/new?customerId=` (shipped, M23-S19; `apps/web/app/dashboard/bookings/recurring/new/page.tsx`) |
 | `09c-nova-recorrencia-resultado.html` | Outcomes of an accepted pattern (one panel each; `?forma=` switches the recap between the service shapes) | same route, result states |
 
-**Customer picker:** there is none of this story's own. `CustomerChooserStep` (S40) already searches (`GET /customers`, name / e-mail / phone, 5-character minimum once a term is typed, alphabetical first page — see "Chooser details" above) and already disables the guest option for `kind="recorrencia"`; the registered customer travels as `?customerId=`. S19 only makes `NewBookingChooserPage` read `?tipo=` (it hard-codes `agendamento` today) and send a recurrence to the pattern route. A guest can never have a recurrence.
+**Customer picker:** there is none of this story's own. `CustomerChooserStep` (S40) already searches (`GET /customers`, name / e-mail / phone, 5-character minimum once a term is typed, alphabetical first page — see "Chooser details" above) and already disables the guest option for `kind="recorrencia"`; the registered customer travels as `?customerId=`. `NewBookingChooserPage` reads `?tipo=` (`apps/web/app/dashboard/bookings/new/page.tsx`) and sends a recurrence to the pattern route. A guest can never have a recurrence.
 
-**Pattern form (`NewRecurringScheduleForStaff`):** the same fields and rules as the customer flow (`customer/prototypes/minha-conta/13-nova-recorrencia.html`, which owns the service filter, the resource field, the duration rule and the validation table) plus the chosen customer's chip with "Trocar cliente". The service list has no server-side recurrence filter, so the client filters with the shared `recurrence-shape.ts` / `recurring-service-eligibility.ts` (one code for the customer and the staff form, mirroring `assertServiceEligible`): `recurrenceEligible`, `APPOINTMENT`, no `legs`, no pickup address, every requirement of quantity 1 with mode `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` (or `NONE` only on the default location), and a duration the customer does not choose. That makes three shapes eligible — **no requirement** (`09b #padrao`, no resource field), **one requirement** (`#simples`) and a **bundle** (`#pacote`, `#pacote-duas`). The form model is `apps/web/features/booking/model/recurring-schedule-form.ts` + `recurring-requirements.ts`: one pick per `CUSTOMER_CHOICE` requirement keyed by its resource type, all picks or none sent, every group required (`RESOURCE_REQUIRED`), the first option preselected. A group whose options are loading, failed or empty blocks submit without hiding the other groups (`#opcoes`). **Staff are exempt from the minimum notice and the maximum days ahead** (UC-070 A10), so the customer's first-occurrence pre-check (`checkFirstOccurrence()`: `TOO_SOON` / `TOO_FAR_AHEAD`) must not run here; only "in the past" and "no occurrence" do. The form components and `useRecurringResourceOptions` live in `features/customer/` today — S19 extracts or re-implements them for the dashboard (decision D of the story).
+**Pattern form (`NewRecurringScheduleForStaff`):** the same fields and rules as the customer flow (`customer/prototypes/minha-conta/13-nova-recorrencia.html`, which owns the service filter, the resource field, the duration rule and the validation table) plus the chosen customer's chip with "Trocar cliente". The service list has no server-side recurrence filter, so the client filters with the shared `recurrence-shape.ts` / `recurring-service-eligibility.ts` (one code for the customer and the staff form, mirroring `assertServiceEligible`): `recurrenceEligible`, `APPOINTMENT`, no `legs`, no pickup address, every requirement of quantity 1 with mode `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` (or `NONE` only on the default location), and a duration the customer does not choose. That makes three shapes eligible — **no requirement** (`09b #padrao`, no resource field), **one requirement** (`#simples`) and a **bundle** (`#pacote`, `#pacote-duas`). The form model is `apps/web/features/booking/model/recurring-schedule-form.ts` + `recurring-requirements.ts`: one pick per `CUSTOMER_CHOICE` requirement keyed by its resource type, all picks or none sent, every group required (`RESOURCE_REQUIRED`), the first option preselected. A group whose options are loading, failed or empty blocks submit without hiding the other groups (`#opcoes`). **Staff are exempt from the minimum notice and the maximum days ahead** (UC-070 A10), so the customer's first-occurrence pre-check (`checkFirstOccurrence()`: `TOO_SOON` / `TOO_FAR_AHEAD`) must not run here; only "in the past" and "no occurrence" do. The fields and `useRecurringResourceOptions` were extracted into `features/booking/components/recurring/RecurringScheduleFields.tsx` and `features/booking/hooks/useRecurringResourceOptions.ts`, shared by the customer and the staff form (M23-S19).
 
 **BFF call:**
 ```
@@ -578,23 +518,9 @@ POST /bookings/:id/no-show/correct   body { correctedStatus: 'COMPLETED', reason
 
 ## Full booking detail — what the page must show (audit of 2026-10-15)
 
-The shipped staff detail (`BookingDetailMain.tsx`) renders customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields. `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `completo` — every card; the real page shows only the cards that have data) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
+When this audit was written the staff detail (`BookingDetailMain.tsx`) rendered customer, info exchange, date and time, a services table, photos and the status history — nothing about the new scheduling fields; `M23-S47` has since built every card. The card-by-card table (fields and where each one comes from in the shipped `StaffBookingDetailResponse`) lives once, in `journeys/staff/agenda.md` § "Full booking detail — what the page must show". `01`, `03` and `03f` were redrawn with **shape variants** (`?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo`, default `completo` — every card; the real page shows only the cards that have data) and two read-only states were added: `03h` (COMPLETED, with the charge summary) and `03i` (CANCELLED, with who/when/why). The same cards appear in all of them.
 
-| Card (screen) | Fields | Where the data is today |
-|---|---|---|
-| Recursos reservados (`?forma=recurso\|pacote`) | One row per requirement, labelled by resource type; name when there is a resource (tag "escolhido pelo cliente" / "atribuído pelo sistema"), "Do conjunto" for a fungible pool | **Needs backend + BFF.** The list card already has `assignedResources`; the detail response has none. Source for every status, a cancelled or rejected booking included: the latest `booking_line_resource_assignments` row per slot (the audit table a cancel does not delete), through a new query beside `LATEST_RESOURCE_ASSIGNMENTS_SQL` that also returns line, leg and quantity position (M23-S47 decision 2) |
-| Trajeto (`?forma=trajeto`) | Per leg: resource, start–end | **Needs backend + BFF.** `BookingResponse` (the create response) has `itinerary`; the staff detail does not. Leg order and resource come from the assignments; the leg times come from `resource_occupancy` and exist only while those rows do (never after a cancel or reject, and not after the 90-day purge): such a leg is drawn without a time (`03i`) |
-| Participantes (`?forma=formulario`) | `participantCount`, `attendees` (name, minor) | **Needs backend + BFF** — on the aggregate, not in the detail response |
-| Formulário de entrada (`?forma=formulario\|equipe`) | Answers by question, schema version, consent date; "não coletado" for a staff-created booking | **Needs backend + BFF** (`intake`, `consentAcceptedAt`) |
-| Observações do cliente | `notes` | Backend detail has it; **the BFF staff mapper drops it** |
-| Endereços (`?forma=retirada\|completo`) | `pickupAddress`, `contactAddress` | In `StaffBookingDetailResponse` already; **the page never renders them** |
-| Origem | "Solicitado em" (`createdAt`), recurrence link (`recurringScheduleId`), "Criado por" (`createdByStaffId`) | `createdAt` in backend detail, dropped by the BFF mapper; `recurringScheduleId` and `createdByStaffId` **need backend + BFF** (M23-S40 decision 14 deferred "Criado por") |
-| Notas internas (`03h`: one card, shown whenever `adminNotes` is set; `?forma=completo` elsewhere) | `adminNotes` | Backend detail has it; **dropped by the BFF mapper**. Staff only |
-| Cobrança (`03h`) | **Not S47 work** — the completed banner already shows quoted, discount, charged and points earned (`BookingCompletionSummary`); the separate card drawn on 2026-10-15 was removed on 2026-10-16 | Already built |
-| Cancelamento / Rejeição (`03i`) | Who, when, reason (a customer's own cancel has no reason) | `rejectionReason` is in the DTO; `cancelledAt/By`, `cancellationReason`, `rejectedAt/By` are on the aggregate and **need backend + BFF** |
-| Duração escolhida (service line note) | **Dropped from M23-S47 (2026-10-16):** the line already shows the duration; saying it was chosen would need the service's current duration mode, which may have changed | — |
-
-Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
+Built by M23-S47 (the "Cobrança" and "Duração escolhida" rows excluded, see their rows in `journeys/staff/agenda.md`); the screens were the reference for a "full staff booking detail" story (backend + BFF fields, then the web cards). The customer detail has the matching cards in `customer/prototypes/minha-conta/02*`.
 
 - ⚠ **Prototype mechanics:** `?forma=` is a query parameter (not a hash) because `03f` already uses the hash for its role switch. The service name on the line changes per shape for illustration only.
 - ⚠ **Photos label** in `01`/`03` is now "Fotos enviadas pelo cliente" (was "do veículo", a car-wash leftover).

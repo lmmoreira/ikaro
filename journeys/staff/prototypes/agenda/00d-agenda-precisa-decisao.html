@@ -86,7 +86,7 @@
       - Topbar / Sidebar / BottomNav / MoreSheet: apps/web/shells/dashboard/components/* (Leads shows only when the LEAD_FORM module is on — not drawn for this tenant)
       - WeekNav (shells/dashboard/components/WeekNav.tsx): month label + chevrons, then a strip of `welcomeStaffScreenDays` days (default 14, scrolls on mobile).
         Today = filled blue, a picked day = near-black, a dot = the day has a booking. Picking a day filters "Próximos dias" to it (click again to clear).
-      - NewMenu: ONE item today ("Agendamento"); "Recorrência" is added by M23-S19.
+      - NewMenu: two items ("Agendamento" and "Recorrência", shipped by M23-S40 and M23-S19; NEW_MENU_ITEMS in NewMenu.tsx).
       - BookingQueueSection + BookingCard (3 variants): "Precisa de ação" (PENDING + INFO_REQUESTED, any date, button Aprovar — a 409 sends the manager to the
         detail with ?conflict=1) · "Hoje — confirmados" (time only, button Marcar concluído) · "Próximos dias — confirmados" (read-only, dimmed).
         The whole card is a link to the booking detail; the buttons sit above it. INFO_REQUESTED has a blue left border.
@@ -185,7 +185,7 @@
       <div class="dashboard-body">
         <div class="new-row">
           <button type="button" class="new-btn" id="new-btn" aria-haspopup="menu" onclick="toggleNew()">+ Novo</button>
-          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a></div>
+          <div class="new-menu" id="new-menu" role="menu"><a role="menuitem" href="09-escolher-cliente.html?tipo=agendamento#recentes"><strong>Agendamento</strong><span>Reserva avulsa para um cliente que ligou ou escreveu</span></a><a role="menuitem" href="09-escolher-cliente.html?tipo=recorrencia#recentes"><strong>Recorrência</strong><span>Uma reserva que se repete toda semana, em nome de um cliente</span></a></div>
         </div>
 
         <section class="qsection" id="sec-action">

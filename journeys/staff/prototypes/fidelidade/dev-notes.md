@@ -13,7 +13,7 @@ Staff and managers can look up any customer's loyalty balance, earning history, 
 | `apps/web/features/loyalty/components/dashboard/LoyaltySearchPage.tsx` | ✅ Exists |
 | `apps/web/features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx` | ✅ Exists |
 | `apps/web/features/loyalty/dashboard-api.ts` (`getCustomerLoyaltyEntries`, `getCustomerLoyaltyRedemptions`) | ✅ Exists |
-| `apps/web/features/customer/api` (`searchCustomers`) | ✅ Exists |
+| `apps/web/features/customer/api.ts` (`searchCustomers`) | ✅ Exists |
 
 ## Screen 00 — Customer Search (`LoyaltySearchPage`)
 
