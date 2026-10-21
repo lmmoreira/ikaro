@@ -36,7 +36,7 @@ ux-handoff/
 └── manager-roster-dia.html          ← roster de uma sessão: check-in, fila de espera, drop-in
 ```
 
-Todos os HTMLs referenciam `../plan/journey/shared/tokens.css` para os tokens visuais compartilhados.
+Todos os HTMLs referenciam `../journeys/shared/tokens.css` para os tokens visuais compartilhados.
 
 ---
 

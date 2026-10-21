@@ -17,7 +17,7 @@ ux-handoff/
 └── customer-04d-reagendada.html                  ← fluxo de escolha de horário de reposição
 ```
 
-Os HTMLs referenciam `../plan/journey/shared/tokens.css`.
+Os HTMLs referenciam `../journeys/shared/tokens.css`.
 
 ---
 

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Acesso à turma — Vitta Studio</title>
-  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
   <style>
     .mode { display:flex; gap:.5rem; margin:1rem 0 1.5rem; }
     .mode button { flex:1; padding:.625rem; background:white; border:1px solid var(--ba-secondary); border-radius:var(--ba-radius); font:inherit; cursor:pointer; }
@@ -104,7 +104,7 @@
         <div class="notice" style="background:#eff6ff;color:#1d4ed8;">Entre na sua conta para confirmar com seu contrato.</div>
         <div class="nav-buttons">
           <a class="btn-secondary" href="public-02b-class-agenda.html">Voltar</a>
-          <a class="btn-primary" href="../../../../plan/journey/shared/login.html">Entrar</a>
+          <a class="btn-primary" href="../../../../journeys/shared/login.html">Entrar</a>
         </div>
       </section>
 
@@ -271,7 +271,7 @@
       if (state === 'contract' || state === 'nocontract') {
         topbar.innerHTML = '<span style="font-size:.875rem;font-weight:600;color:var(--ba-text);">Fernanda Lima</span>';
       } else {
-        topbar.innerHTML = '<a href="../../../../plan/journey/shared/login.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;font-size:.875rem;">Entrar</a>';
+        topbar.innerHTML = '<a href="../../../../journeys/shared/login.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;font-size:.875rem;">Entrar</a>';
       }
       window.scrollTo({top:0, behavior:'smooth'});
     }

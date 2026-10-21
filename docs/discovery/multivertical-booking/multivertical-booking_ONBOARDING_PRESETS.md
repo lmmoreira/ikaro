@@ -1,6 +1,6 @@
 # Discovery: Onboarding Presets — Configuração Guiada por Vertical
 
-**Status:** Discovery — exploratório. Nenhum preset aqui está comprometido com milestone; nenhum `UC-XXX` é consumido por este documento.
+**Status:** Discovery — exploratório. Os presets aqui são insumo do milestone M24 (onboarding, `UC-075`), ainda não construído; nenhum `UC-XXX` é consumido por este documento.
 **Companion doc:** `multivertical-booking.md` — os modelos de agendamento que este documento mapeia para linguagem de negócio.
 **Escopo:** Este documento cobre exclusivamente a camada de apresentação do onboarding — o que o dono do negócio vê e responde, e como essas respostas se traduzem em configuração técnica sem que ele precise entender o modelo subjacente.
 

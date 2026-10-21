@@ -1,10 +1,10 @@
 # CUSTOMER — Minha Conta: Turmas section (discovery-stage)
 
-> **Provenance:** This section was originally added 2026-08-21 directly inside the real, shipped `plan/journey/customer/minha-conta.md` (M13-S27–S30), interleaved with real Bookings/Loyalty content. Pulled back out and reverted to pristine shipped state on 2026-08-22 as part of restructuring this discovery into `docs/discovery/multivertical-booking/` — see `multivertical-booking.md` §9's dated entry. This file preserves that content verbatim; nothing here is implemented or promoted.
+> **Provenance:** This section was originally added 2026-08-21 directly inside the real, shipped `plan/journey/customer/minha-conta.md` (M13-S27–S30), interleaved with real Bookings/Loyalty content. Pulled back out and reverted to pristine shipped state on 2026-08-22 as part of restructuring this discovery into `docs/discovery/multivertical-booking/` — see `multivertical-booking.md` §9's dated entry. This file preserves that content verbatim; nothing here is implemented or promoted. _(`plan/journey/` is now `journeys/`.)_
 
 **UCs covered:** CAND-25, CAND-27, CAND-28, CAND-38 (`../multivertical-booking_USECASES.md`)
 **Status:** Draft, discovery-complete prototype, no story/milestone yet (❓ GAP throughout).
-**Prototype screens:** `customer-minhasturmas-01-lista.html` through `customer-minhasturmas-04b-cancelar-erro.html` (this folder) — relocated from `plan/journey/customer/prototypes/minha-conta/06-minhas-turmas.html` etc. on 2026-08-22, renamed to the flat actor-prefixed convention.
+**Prototype screens:** `customer-minhasturmas-01-lista.html` through `customer-minhasturmas-04b-cancelar-erro.html` (this folder) — relocated from `plan/journey/customer/prototypes/minha-conta/06-minhas-turmas.html` etc. on 2026-08-22, renamed to the flat actor-prefixed convention. _(`plan/journey/` is now `journeys/`.)_
 
 ## Flow (Turmas nodes, extracted from the shared minha-conta.md diagram)
 
@@ -71,7 +71,7 @@ flowchart TD
 - [ ] **No story/milestone exists for any of these routes.** Needs `/discovery-to-milestone` before implementation.
 - [x] **Waitlist promotion:** explicit `PROMOTION_PENDING` offer with accept/decline/expiry — resolved, `multivertical-booking.md` promotion-finalization rules.
 - [x] **Skip-session minimum-notice window:** dedicated `classSkipWindowHours`, separate from `classCancellationWindowHours` — resolved 2026-08-21, `CAND-27` A3.
-- [ ] **Reposição (`CAND-38`) has a discovery-stage prototype screen** (`customer-04d-reagendada.html`, this same `prototype/` folder) — not built to `plan/journey/`'s implementation-grade bar. Needs its own prototype pass (linked from `customer-minhasturmas-03-pular-sessao.html`) once promoted.
+- [ ] **Reposição (`CAND-38`) has a discovery-stage prototype screen** (`customer-04d-reagendada.html`, this same `prototype/` folder) — not built to `journeys/`'s implementation-grade bar. Needs its own prototype pass (linked from `customer-minhasturmas-03-pular-sessao.html`) once promoted.
 - [x] **Promotion offer deadline:** returned by the backend as `offerExpiresAt`; the client does not derive the offer state from a local 24-hour calculation. A separate unread flag is deferred; the active offer remains visible until accepted, declined or expired.
 - [x] **The original `EnrollmentSession` interface is superseded** — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance` (`PRESENT|NO_SHOW`). "Pulou" is derived at display time (`status=CANCELLED AND seriesId≠null`), not a stored enum value. The implementation story must remove the obsolete interface rather than reconcile it.
 - [ ] **The original "Pular sessão — lógica" sketch ("Backend marca `session.status = SKIPPED`") predates and doesn't reflect either 2026-08-21 decision**: no mention of the `classSkipWindowHours` notice check (`CAND-27` A3), and no mention of the `CAND-38` reschedule alternative. Needs a rewrite once this journey is promoted, not just a schema update.

@@ -39,8 +39,8 @@ must not be presented as a parallel public route.
 | Customer goal | Canonical route | Notes |
 |---|---|---|
 | View bookings / account home | `customer-03-minha-conta-agendamentos.html` | Account-root shell: desktop tabs and mobile navigation |
-| Enroll in a new class (drop-in or série) | `customer-reservaraula-00-tipo-reserva.html` | Pulled back from `plan/journey/` 2026-08-22 — see `reservar-aula-journey.md` |
-| View/manage class enrollment | `customer-minhasturmas-01-lista.html` | Pulled back from `plan/journey/` 2026-08-22 — see `minha-conta-turmas-journey.md` |
+| Enroll in a new class (drop-in or série) | `customer-reservaraula-00-tipo-reserva.html` | Pulled back from `journeys/` 2026-08-22 — see `reservar-aula-journey.md` |
+| View/manage class enrollment | `customer-minhasturmas-01-lista.html` | Pulled back from `journeys/` 2026-08-22 — see `minha-conta-turmas-journey.md` |
 | Accept or decline waitlist offer | `customer-08-waitlist-offer.html` | Acceptance → `customer-08b-waitlist-confirmed.html`; never activates recurrence |
 | Create/manage availability alert | `public-12-availability-alert.html` | This is an authenticated customer detail despite its historic filename |
 | Manage recurring private or class reservation | `customer-04-*.html`, `customer-09-reserva-recorrente.html` | Detail shell, back navigation to account root |
@@ -85,7 +85,7 @@ scheduling discovery. A future interactive prototype must use a disabled label w
 
 ## Prototype handoff rule
 
-When promoting a discovery screen to `plan/journey/`, replace its sidebar/bottom-nav
+When promoting a discovery screen to `journeys/`, replace its sidebar/bottom-nav
 with only the routes applicable to its role from this map. Validate each link in the
 browser and document the real web route/BFF contract; a static file path here is visual
 navigation evidence, not an implementation URL contract.

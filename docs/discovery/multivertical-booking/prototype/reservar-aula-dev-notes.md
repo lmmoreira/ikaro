@@ -1,6 +1,6 @@
 # Dev Notes — Customer: Reservar Aula (Turmas)
 
-Protótipos: `plan/journey/customer/prototypes/reservar-aula/`
+Protótipos: `journeys/customer/prototypes/reservar-aula/`
 Status: **discovery completo — GAP, não implementado**
 
 > Complementa o fluxo existente de agendamento individual (`book-a-service/`).

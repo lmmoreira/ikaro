@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Discovery Prototype — Multi-Vertical Scheduling</title>
-  <link rel="stylesheet" href="../../../../plan/journey/shared/tokens.css">
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
   <style>
     body { padding: 2rem; max-width: 48rem; margin: 0 auto; }
     h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
@@ -33,12 +33,12 @@
   </p>
 
   <div class="note">
-    <strong>Illustrative only.</strong> This is <em>not</em> a <code>plan/journey/</code>
+    <strong>Illustrative only.</strong> This is <em>not</em> a <code>journeys/</code>
     prototype — no <code>/docs-audit</code>, no mandatory unhappy-path variants, no
     dev-notes handoff spec at that depth. One representative screen per concept, reusing
     the real <code>--ba-*</code> tokens and dashboard shell so it reads authentically, but
     built to validate the product direction. Newer screens below add the decision-complete
-    reservation lifecycle; promotion to a formal <code>plan/journey/</code> handoff still
+    reservation lifecycle; promotion to a formal <code>journeys/</code> handoff still
     requires its own audit and journey workflow.
   </div>
 
@@ -121,7 +121,7 @@
   <p style="font-size:0.875rem;">
     Book → opt in → activated → surfaces in Agendamentos → manage (before) → skip one
     occurrence (after) → cancel the series (final state). Reuses the real Minha Conta
-    shell from <code>plan/journey/customer/prototypes/minha-conta/</code>, not an invented one.
+    shell from <code>journeys/customer/prototypes/minha-conta/</code>, not an invented one.
   </p>
   <ul>
     <li><a href="customer-01-session-confirmed-optin.html">1. Reserva confirmada + opt-in</a> <span class="tag tag-actor">CAND-26</span></li>
@@ -226,7 +226,7 @@
     <li><a href="manager-11-edit-template.html">Editar padrão de turma</a> <span class="tag tag-actor">CAND-12</span></li>
     <li>
       <a href="customer-07-class-access.html">Meu acesso às aulas (superseded, kept for reference)</a>
-      <span class="tag tag-actor">Superseded 2026-08-21 by plan/journey/customer/prototypes/minha-conta/06-minhas-turmas.html and its detail/skip/cancel/waitlist screens — same scope, materially more complete (per-enrollment history, waitlist state, skip vs. cancel distinction)</span>
+      <span class="tag tag-actor">Superseded 2026-08-21 by journeys/customer/prototypes/minha-conta/06-minhas-turmas.html and its detail/skip/cancel/waitlist screens — same scope, materially more complete (per-enrollment history, waitlist state, skip vs. cancel distinction)</span>
     </li>
     <li>
       <a href="manager-09-matriculas.html">Matrículas — lista por turma</a>
@@ -263,7 +263,7 @@
   <p style="font-size:0.875rem;">
     Substitui o fluxo plano <code>manager-03</code>/<code>manager-06</code> acima por um cadastro
     em 3 passos, mais as telas de operação diária (agenda + roster). Rationale completo:
-    <a href="ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>.
+    <a href="../ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>.
   </p>
   <ul>
     <li>
@@ -297,8 +297,8 @@
   </ul>
 
   <div class="note" style="background:#dbeafe;color:#1e3a8a;margin-top:1rem;">
-    <strong>Pulled back from `plan/journey/` (2026-08-22).</strong> Two implementation-grade
-    flows briefly sat ahead-of-order in <code>plan/journey/customer/prototypes/</code> since
+    <strong>Pulled back from `journeys/` (2026-08-22).</strong> Two implementation-grade
+    flows briefly sat ahead-of-order in <code>journeys/customer/prototypes/</code> since
     2026-08-21. Restructuring this discovery into <code>docs/discovery/multivertical-booking/</code>
     pulled both back here for consistency — the four real, shipped files they had modified
     in place (<code>minha-conta/01-minha-conta.html</code>, <code>minha-conta/index.html</code>,
@@ -329,7 +329,7 @@
   <p style="font-size:0.875rem;">
     Journey doc: <a href="minha-conta-turmas-journey.md">minha-conta-turmas-journey.md</a> —
     routes, BFF calls, and open questions extracted verbatim from the real
-    <code>plan/journey/customer/minha-conta.md</code> before it was reverted to its pristine
+    <code>journeys/customer/minha-conta.md</code> before it was reverted to its pristine
     M13-S27–S30 shipped state.
   </p>
   <ul>
@@ -376,8 +376,8 @@
   <p style="font-size: 0.875rem;">
     Handoff notes: <a href="dev-notes.md">dev-notes.md</a>,
     <a href="ROUTE_MAP.md">ROUTE_MAP.md</a>,
-    <a href="ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>,
-    <a href="ux-handoff-notes/RECORRENCIA_HANDOFF.md">ux-handoff-notes/RECORRENCIA_HANDOFF.md</a>.
+    <a href="../ux-handoff-notes/README.md">ux-handoff-notes/README.md</a>,
+    <a href="../ux-handoff-notes/RECORRENCIA_HANDOFF.md">ux-handoff-notes/RECORRENCIA_HANDOFF.md</a>.
     Onboarding preset discovery: <a href="../multivertical-booking_ONBOARDING_PRESETS.md">multivertical-booking_ONBOARDING_PRESETS.md</a>.
   </p>
 </body>

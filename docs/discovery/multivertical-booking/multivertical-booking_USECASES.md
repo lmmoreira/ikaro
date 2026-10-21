@@ -1,6 +1,6 @@
 # Discovery: Multi-Vertical Scheduling — Candidate Use Cases
 
-**Status:** Discovery — candidate/speculative. Labeled `CAND-XX`, never `UC-XXX`, so this list can never collide with or be mistaken for the canonical index in `docs/04-USE_CASES.md`. Nothing here is committed to a milestone; promote individual candidates into `docs/04-USE_CASES.md` with real UC numbers only if/when a milestone is actually drafted for one of these verticals.
+**Status:** Discovery — candidate/speculative. Labeled `CAND-XX`, never `UC-XXX`, so this list can never collide with or be mistaken for the canonical index in `docs/USE_CASES.md`. The candidates relevant to Resources, booking policies, recurring reservations and classes were promoted into `docs/USE_CASES.md` by M21–M24; any remaining candidate is promoted with a real UC number only if/when a milestone is drafted for it.
 
 **Companion doc:** `multivertical-booking.md` — the domain model these use cases are derived from.
 **Companion doc:** `multivertical-booking_DATA_MODEL.md` — the physical schema these use cases' mechanisms (idempotency keys, atomic capacity checks, exclusion constraints) are grounded against.
@@ -8,7 +8,7 @@
 
 ## Format
 
-Same fields as `docs/04-USE_CASES.md`, applied at discovery-stage depth (main flow + the alt flows that matter, not exhaustive):
+Same fields as `docs/USE_CASES.md`, applied at discovery-stage depth (main flow + the alt flows that matter, not exhaustive):
 
 ```
 CAND-XX: [Name]
@@ -37,7 +37,7 @@ CAND-XX: [Name]
 
 ### **CAND-02: Manager Edits a Resource's Working Hours**
 
-> Clarified on review (2026-07-29), grounded against the real `plan/journey/staff/prototypes/horarios/00-schedule-next.html`: that screen is a booking/closure WEEK TIMELINE, not a weekly-pattern settings form — it has never shown per-weekday open/close editing. This CAND is about a *different*, simpler settings screen (same shape as wherever tenant `businessHours` gets edited today, in Configurações) — not the Horários screen. Don't conflate the two; CAND-04 below is the one that actually extends the real Horários screen.
+> Clarified on review (2026-07-29), grounded against the real `journeys/staff/prototypes/horarios/00-schedule-next.html`: that screen is a booking/closure WEEK TIMELINE, not a weekly-pattern settings form — it has never shown per-weekday open/close editing. This CAND is about a *different*, simpler settings screen (same shape as wherever tenant `businessHours` gets edited today, in Configurações) — not the Horários screen. Don't conflate the two; CAND-04 below is the one that actually extends the real Horários screen.
 
 - **Actor:** Staff (MANAGER)
 - **Preconditions:** Resource exists.
@@ -83,7 +83,7 @@ CAND-XX: [Name]
 
 ### **CAND-04: Manager Creates a Resource-Scoped Schedule Closure**
 
-> Grounded on review (2026-07-29) against the real `plan/journey/staff/prototypes/horarios/00-schedule-next.html` — a per-tenant week timeline of bookings, whose FAB "Bloquear período" is exactly where today's tenant-wide `ScheduleClosure` gets created. This candidate is that same screen, resourceId-scoped instead of tenant-wide. Resource working hours, openings, and closures remain manager-owned configuration; staff absence self-service is deliberately out of scope until it can be designed as a distinct request/approval workflow.
+> Grounded on review (2026-07-29) against the real `journeys/staff/prototypes/horarios/00-schedule-next.html` — a per-tenant week timeline of bookings, whose FAB "Bloquear período" is exactly where today's tenant-wide `ScheduleClosure` gets created. This candidate is that same screen, resourceId-scoped instead of tenant-wide. Resource working hours, openings, and closures remain manager-owned configuration; staff absence self-service is deliberately out of scope until it can be designed as a distinct request/approval workflow.
 
 - **Actor:** Staff (MANAGER)
 - **Preconditions:** Resource exists.
@@ -186,7 +186,7 @@ CAND-XX: [Name]
   4. System publishes a new `service_booking_intake_schema` version — `is_active = true` on the new row, `is_active = false` on the previous one. The previous version is never edited in place.
 - **Alternative Flows:**
   - **A1: Service already has bookings in flight against the current version** → Existing bookings keep their already-snapshotted `intake_schema_version`/`intake_answers`; only new bookings see the new version (`CAND-43` A1).
-  - **A2: Manager adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction. The legacy boolean (already live for car wash, `docs/13-DATABASE_SCHEMA.md:207`) stays the single source of truth for whether `bookings.pickup_address` must be populated; the intake schema is the presentation/collection layer on top of it, not a second, independent switch — see `multivertical-booking_DATA_MODEL.md` §6 item 36. **[Superseded by M22-S04, 2026-09-19 — the shipped intake-schema contract has only `FREE_TEXT`/`BOOLEAN` question types: `PICKUP_ADDRESS` and `NAMED_ATTENDEES` were removed as redundant with the Details-tab pickup-address toggle and the Participantes card's `requiresNamedAttendees`/`participantCountRequired`, and no question type sets `requires_pickup_address` any more. See `docs/02-DOMAIN_MODEL.md` (intake schema) and `docs/04-USE_CASES.md` UC-054.]**
+  - **A2: Manager adds a `PICKUP_ADDRESS`-typed question** → System also sets `services.requires_pickup_address = true` in the same transaction. The legacy boolean (already live for car wash, `docs/DATABASE_SCHEMA.md:207`) stays the single source of truth for whether `bookings.pickup_address` must be populated; the intake schema is the presentation/collection layer on top of it, not a second, independent switch — see `multivertical-booking_DATA_MODEL.md` §6 item 36. **[Superseded by M22-S04, 2026-09-19 — the shipped intake-schema contract has only `FREE_TEXT`/`BOOLEAN` question types: `PICKUP_ADDRESS` and `NAMED_ATTENDEES` were removed as redundant with the Details-tab pickup-address toggle and the Participantes card's `requiresNamedAttendees`/`participantCountRequired`, and no question type sets `requires_pickup_address` any more. See `docs/DOMAIN_MODEL.md` (intake schema) and `docs/USE_CASES.md` UC-054.]**
 - **Postconditions:** The service has exactly one active intake schema version; `CAND-43` renders it.
 - **Events Triggered:** None (config-only, same as `CAND-06`).
 
@@ -362,7 +362,7 @@ CAND-XX: [Name]
 - **Alternative Flows:**
   - **A1: Financial treatment** → No refund/credit workflow exists in this discovery: Ikaro does not process payments, and a closed-out session is not subsequently cancelled. Any manually reported charge is handled outside this discovery.
 - **Postconditions:** Session and its bookings cancelled; customers notified.
-- **Events Triggered:** `ClassSessionCancelled` (candidate event — not yet in `docs/03-DOMAIN_EVENTS.md`).
+- **Events Triggered:** `ClassSessionCancelled` (documented as *Planned* in `docs/DOMAIN_EVENTS.md`, M24).
 
 > See CAND-32 for cancelling a date range or an entire template forward, rather than one already-materialized session.
 
@@ -384,7 +384,7 @@ CAND-XX: [Name]
 - **Alternative Flows:**
   - **A1: Staff never closes out the session** → Session remains `AWAITING_ATTENDANCE` as a visible Turmas task; the system never guesses attendance.
 - **Postconditions:** Every parent reservation reaches `CLOSED`; attendee rows retain the individual outcome.
-- **Events Triggered:** `ClassSessionBookingCompleted` (candidate event, per booking — not yet in `docs/03-DOMAIN_EVENTS.md`).
+- **Events Triggered:** `ClassSessionBookingCompleted` (per booking; documented as *Planned* in `docs/DOMAIN_EVENTS.md`, M24).
 
 ---
 
@@ -570,7 +570,7 @@ CAND-XX: [Name]
   - **A3: Booking has `seriesId != null`** → System redirects to `CAND-27` (skip one occurrence) or `CAND-28` (cancel the whole enrollment) — this flow is for one-off bookings only.
   - **A4: Staff/manager cancels on the customer's behalf** (e.g. a phone request) → Same mechanism, no separate use case: `STAFF | MANAGER` can perform this from the session roster (`staff-02-session-roster.html`), bypassing the customer-facing copy but still subject to the same `classCancellationWindowHours` check — mirrors `UC-008`'s admin-initiated pattern for `Booking`.
 - **Postconditions:** Booking is `CANCELLED`; freed capacity offered to the waitlist if one exists.
-- **Events Triggered:** `ClassSessionBookingCancelled` (candidate event, not yet in `docs/03-DOMAIN_EVENTS.md`).
+- **Events Triggered:** `ClassSessionBookingCancelled` (documented as *Planned* in `docs/DOMAIN_EVENTS.md`, M24).
 
 ### **CAND-24: Authenticated Customer Joins a Waitlist When a Session Is Full**
 
@@ -843,7 +843,7 @@ CAND-XX: [Name]
 
 ### **CAND-39: Manager Views Enrollments for a Class Type**
 
-> Added 2026-08-21, closing a gap found after building the customer-side enrollment flow (`CAND-26`, `plan/journey/customer/prototypes/reservar-aula/`): nothing showed staff/manager who holds an ongoing enrollment across sessions — `staff-02-session-roster.html`/`CAND-13b` show one session at a time, never the standing relationship. See `manager-09-matriculas.html` (`prototype/`).
+> Added 2026-08-21, closing a gap found after building the customer-side enrollment flow (`CAND-26`, `journeys/customer/prototypes/reservar-aula/`): nothing showed staff/manager who holds an ongoing enrollment across sessions — `staff-02-session-roster.html`/`CAND-13b` show one session at a time, never the standing relationship. See `manager-09-matriculas.html` (`prototype/`).
 
 - **Actor:** Staff (STAFF or MANAGER)
 - **Preconditions:** Service has `bookingModel = SESSION`.
@@ -933,7 +933,7 @@ CAND-XX: [Name]
 
 - **Actor:** Authenticated customer, or Staff acting on their behalf.
 - **Preconditions:** Service enables recurrence; guest bookings are not eligible.
-> **Superseded 2026-09-29 (this UC's private-appointment recurrence only):** the schedule is fixed-term — a required end date capped at the service's maximum term (90 days by default), every occurrence checked at creation (working hours and closures, then occupancy) and created once, no rolling horizon, no Pause, `ENDED` when the term is over. Canonical text: `docs/04-USE_CASES.md` UC-070/071. The flow below is kept as the original *why*.
+> **Superseded 2026-09-29 (this UC's private-appointment recurrence only):** the schedule is fixed-term — a required end date capped at the service's maximum term (90 days by default), every occurrence checked at creation (working hours and closures, then occupancy) and created once, no rolling horizon, no Pause, `ENDED` when the term is over. Canonical text: `docs/USE_CASES.md` UC-070/071. The flow below is kept as the original *why*.
 
 - **Trigger:** Customer or staff confirms a supported weekly/private recurrence pattern.
 - **Main Flow:** System resource-conflict-checks the proposed schedule (A1 below) with `FIXED_ASSIGNMENT` when customer/staff selected a resource, or `RESOLVE_PER_OCCURRENCE` for an eligible automatic/fungible service. **Branches on the service's effective approval mode (updated 2026-08-28, `multivertical-booking_DATA_MODEL.md` §6 item 42 — see that item for why):**

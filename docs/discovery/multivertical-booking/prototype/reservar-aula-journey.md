@@ -3,7 +3,7 @@
 **Actor(s):** CUSTOMER
 **Goal:** Authenticated customer with an active class-access contract browses the class catalog and enrolls in a new class — a one-off drop-in session or a standing recurring series
 **UCs covered:** CAND-21, CAND-22, CAND-24, CAND-26 (`docs/discovery/multivertical-booking/multivertical-booking_USECASES.md`)
-**Status:** Draft — discovery-complete prototype (`plan/journey/customer/prototypes/reservar-aula/dev-notes.md`), no story/milestone yet. See the promotion-status note in `docs/discovery/multivertical-booking/multivertical-booking.md` and `plan/journey/README.md`.
+**Status:** Draft — discovery-complete prototype (`journeys/customer/prototypes/reservar-aula/dev-notes.md`), no story/milestone yet. See the promotion-status note in `docs/discovery/multivertical-booking/multivertical-booking.md` and `journeys/README.md`.
 
 > Complements `minha-conta.md`'s Turmas section, which covers managing an *existing* enrollment (skip a session, cancel, watch a waitlist). This journey is the "before" — creating a new one.
 
@@ -68,7 +68,7 @@ flowchart TD
 | `GET /v1/class-types/:classTypeId/recurring-slots` | Montagem da série | CUSTOMER |
 | `POST /v1/enrollments` | Confirmação (drop-in ou série) | CUSTOMER |
 
-Full request/response shapes: `plan/journey/customer/prototypes/reservar-aula/dev-notes.md`.
+Full request/response shapes: `journeys/customer/prototypes/reservar-aula/dev-notes.md`.
 
 ## Open questions / gaps
 
