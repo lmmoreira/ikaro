@@ -1001,7 +1001,7 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 7 — Collapse three verified cross-doc duplications; record the rest as deliberate restatements ⚪
+### Story 7 — Collapse three verified cross-doc duplications; record the rest as deliberate restatements ✅ Done
 
 **Agent:** devops
 **Complexity:** M
