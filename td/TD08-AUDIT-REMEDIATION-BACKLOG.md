@@ -5,6 +5,8 @@
 **Derived from:** `OPUS_AUDITORY.md` (full senior audit of Ikaro, 2026-06-21 — architecture, events, frontend, CI/CD, supply-chain, QA, operability)
 **Last updated:** 2026-08-19 — `/docs-audit` pass re-verified every open/partial item against current code; see per-item "Implemented notes"/status updates below for what changed since the 2026-06-21 audit snapshot.
 
+> **Note (2026-10-21):** this TD predates `docs/STORY_SCHEMA.md`, so its stories use `### AUD-NNN` headings with Risk / Effort / Phase / Depends-on fields and a status table instead of the schema's fields. It is kept as the backlog of items to pick up when needed; convert an item to the schema when it is scheduled. The audit it was derived from (`OPUS_AUDITORY.md`) was an old document and is no longer in the repository; the "Audit ref" fields below cite sections of that unavailable source and are kept as history.
+
 > **Purpose:** Turn every audit finding into a **discrete, self-contained story** you can implement one at a time, ordered by **risk/urgency first, effort second**.
 > **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. Always cross-reference the cited `OPUS_AUDITORY.md §x.y` for the long-form rationale.
 > **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 46 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.

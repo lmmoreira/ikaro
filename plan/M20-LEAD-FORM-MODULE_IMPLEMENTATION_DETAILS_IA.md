@@ -40,7 +40,7 @@
 | `TypeOrmLeadFormSubmissionRepository` (writes `lead_form_submissions` + `lead_form_submission_question_refs` + `lead_form_answers`, all one transaction; owns `applySearch()`/`applyFilters()`/`findDistinctQuestionLabels()`) | `.../typeorm-lead-form-submission.repository.ts` |
 | Entities | `lead-form-config.entity.ts`, `lead-form-submission.entity.ts`, `lead-form-answer.entity.ts` (all in `infrastructure/entities/`) |
 | Migrations (6, in order) | `1748400000014-CreateLeadFormSubmissions.ts`, `1748500000002-CreatePlatformLeadFormConfigs.ts`, `1748500000003-AddExpiresAtIndexToLeadFormSubmissions.ts`, `1748500000004-CreateLeadFormSubmissionQuestionRefs.ts`, `1748500000005-AddVersionToLeadFormConfigs.ts`, `1748500000006-CreateLeadFormAnswers.ts` — all in `apps/backend/src/contexts/platform/infrastructure/migrations/` |
-| `LeadFormSubmissionReceivedHandler` (S16 — subscribes `LeadFormSubmissionReceived`, calls `LogLeadFormSubmissionReceivedUseCase`) | `apps/backend/src/contexts/platform/infrastructure/events/lead-form-submission-received.handler.ts` |
+| `LeadFormSubmissionReceivedHandler` (S16 — subscribes `LeadFormSubmissionReceived`, calls `LogLeadFormSubmissionReceivedUseCase`) | `apps/backend/src/contexts/platform/infrastructure/events/lead-form-submission-received.handler.ts` *(historical: no longer in the codebase)* |
 
 ### BFF
 

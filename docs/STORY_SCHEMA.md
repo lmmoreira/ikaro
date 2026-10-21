@@ -24,7 +24,7 @@ This file is the fix: one schema, referenced everywhere. A new rule gets added o
 
 - `<ID>`: `M0X-SYY` (milestone story) or `TDNN` / `Story N` (TD — see `create-td.md` for heading-level conventions per file).
 - `[confidence marker]`: optional, TD-only convention (🔴 proven recurring failure / 🟡 documented-but-unenforced rule / ⚪ exploratory, non-blocking) — adopt only if the TD's own scope benefits from it, never mandatory.
-- `[status]`: `✅ Done`, or omitted while pending.
+- `[status]`: `✅ Done`, or omitted while pending. A story marked `❌ Cut` is never built and is exempt from the core fields below (`M17-S28`, `M17-S29`); keep its heading and the reason it was cut.
 
 ### Core fields (every story, no exceptions)
 

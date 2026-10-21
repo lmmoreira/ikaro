@@ -18,12 +18,12 @@
 | CreateServiceDto | `apps/backend/src/contexts/booking/application/dtos/create-service.dto.ts` |
 | UpdateServiceDto | `apps/backend/src/contexts/booking/application/dtos/update-service.dto.ts` |
 | CreateServiceUseCase | `apps/backend/src/contexts/booking/application/use-cases/create-service.use-case.ts` |
-| ListServicesUseCase | `apps/backend/src/contexts/booking/application/use-cases/list-services.use-case.ts` |
+| ListServicesUseCase | `apps/backend/src/contexts/booking/application/use-cases/list-services.use-case.ts` *(historical: no longer in the codebase)* |
 | UpdateServiceUseCase | `apps/backend/src/contexts/booking/application/use-cases/update-service.use-case.ts` |
 | DeactivateServiceUseCase | `apps/backend/src/contexts/booking/application/use-cases/deactivate-service.use-case.ts` |
 | ServiceController | `apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.ts` |
 | Booking error mapper | `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` |
-| StaffOrManagerRoleGuard | `apps/backend/src/contexts/booking/infrastructure/guards/staff-or-manager-role.guard.ts` |
+| StaffOrManagerRoleGuard | `apps/backend/src/shared/guards/staff-or-manager-role.guard.ts` (moved from `apps/backend/src/contexts/booking/infrastructure/guards/staff-or-manager-role.guard.ts`) |
 | ServiceEntity | `apps/backend/src/contexts/booking/infrastructure/entities/service.entity.ts` |
 | TypeOrmServiceRepository | `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts` |
 | Services migration | `apps/backend/src/contexts/booking/infrastructure/migrations/1748000000011-CreateBookingServices.ts` |
@@ -35,7 +35,7 @@
 | ServiceBuilder | `apps/backend/src/test/builders/booking/service.builder.ts` |
 | ServiceEntityBuilder | `apps/backend/src/test/builders/booking/service-entity.builder.ts` |
 | Booking builders barrel | `apps/backend/src/test/builders/booking/index.ts` |
-| TenantContextBuilder | `apps/backend/src/test/factories/tenant-context.factory.ts` |
+| TenantContextBuilder | `apps/backend/src/test/factories/tenant-context.factory.ts` *(historical: no longer in the codebase)* |
 | Backend HTTP examples | `apps/backend/http/booking/services.http` |
 | BFF HTTP examples | `apps/bff/http/services/services.http` |
 

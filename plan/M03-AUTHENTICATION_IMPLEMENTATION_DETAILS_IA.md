@@ -29,12 +29,12 @@
 | `GoogleAuthGuard` | `apps/bff/src/features/auth/guards/google-auth.guard.ts` | Overrides `getAuthenticateOptions()` — `type=staff` → `state='__staff__'`, `tenantSlug` → `state=<slug>` |
 | `JwtStrategy` | `apps/bff/src/features/auth/strategies/jwt.strategy.ts` | Reads Bearer header AND `access_token` cookie (inline regex — no cookie-parser) |
 | `JwtIssuerService` | `apps/bff/src/features/auth/jwt-issuer.service.ts` | `issueToken({ sub, tenantId, tenantSlug, role }): string`; `sub` = backend entity UUID always |
-| `SelectionTokenService` | `apps/bff/src/auth/selection-token.service.ts` | 5-min JWTs with `type:'selection'` — prevents misuse as access token |
+| `SelectionTokenService` | `apps/bff/src/auth/selection-token.service.ts` *(historical: no longer in the codebase)* | 5-min JWTs with `type:'selection'` — prevents misuse as access token |
 | `JWT_COOKIE_OPTIONS` | `apps/bff/src/features/auth/cookie-options.ts` | `httpOnly, secure, sameSite:'lax', maxAge:7d, path:'/'` — import from here, never `main.ts` |
-| `IssueTokenDto` | `apps/bff/src/auth/dtos/issue-token.dto.ts` | Zod schema for `POST /auth/token` body |
+| `IssueTokenDto` | `apps/bff/src/auth/dtos/issue-token.dto.ts` *(historical: no longer in the codebase)* | Zod schema for `POST /auth/token` body |
 | `SwitchTenantDto` | `apps/bff/src/features/auth/dtos/switch-tenant.dto.ts` | Zod schema for `POST /auth/switch-tenant` body |
 | `AuthController` | `apps/bff/src/features/auth/auth.controller.ts` | `GET /auth/google` · `GET /auth/google/callback` · `POST /auth/token` · `POST /auth/switch-tenant` |
-| `ZodValidationPipe` (BFF) | `apps/bff/src/shared/http/zod-validation.pipe.ts` | Separate copy from backend — BFF has no shared package dependency |
+| `ZodValidationPipe` (BFF) | `packages/nestjs-http/src/zod-validation.pipe.ts` (moved from `apps/bff/src/shared/http/zod-validation.pipe.ts`) | Originally: separate copy from backend — BFF has no shared package dependency. Now the shared `@ikaro/nestjs-http` package holds the `ZodValidationPipe` |
 | `JwtAuthGuard` | `apps/bff/src/shared/guards/jwt-auth.guard.ts` | Global; `@Public()` bypasses it |
 | `TenantGuard` | `apps/bff/src/shared/guards/tenant.guard.ts` | Compares `X-Tenant-Slug` header with JWT `tenantSlug` |
 | `RolesGuard` | `apps/bff/src/shared/guards/roles.guard.ts` | `@Roles('CUSTOMER')` / `@Roles('MANAGER')` decorators |
