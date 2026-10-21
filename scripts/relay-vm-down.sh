@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # scripts/relay-vm-down.sh
 # Flips create_relay_vm to false for the given env, opens a PR. Never runs
-# terraform destroy — merging the PR triggers the pipeline's apply-<env> job
-# instead (infra/terraform/README.md: manual terraform apply is forbidden).
+# terraform destroy. The tfvars file lives under infra/terraform/foundation/, which
+# infra-deploy.yml excludes, so merging the PR applies nothing: dispatch
+# foundation-deploy.yml with apply=true from main afterwards
+# (infra/terraform/README.md: manual terraform apply is forbidden).
 #
 # Usage: bash scripts/relay-vm-down.sh <staging|prod>
 # To start a new session: bash scripts/relay-vm-up.sh <staging|prod>
@@ -86,10 +88,10 @@ git add "$TFVARS"
 git commit -m "$(cat <<EOF
 chore(infra): flip create_relay_vm=false for ${ENV} (TD32)
 
-Tears down the on-demand IAP relay VM after a session — merging this PR
-triggers the pipeline's apply-${ENV} job to destroy it (real destroy, not
-a stop, so cost drops to zero). Run scripts/relay-vm-up.sh ${ENV} to open
-a new session later.
+Tears down the on-demand IAP relay VM after a session. The tfvars file is
+under foundation/, so merging applies nothing: dispatch foundation-deploy.yml
+with apply=true from main to destroy it (real destroy, not a stop, so cost
+drops to zero). Run scripts/relay-vm-up.sh ${ENV} to open a new session later.
 EOF
 )"
 
@@ -97,10 +99,12 @@ git push -u origin "$BRANCH" --force-with-lease
 
 gh pr create --repo "$REPO" \
   --title "chore(infra): flip create_relay_vm=false for ${ENV} (TD32)" \
-  --body "Tears down the on-demand IAP relay VM for ${ENV} (\`modules/relay-vm\`, TD32). Merging triggers the pipeline's \`apply-${ENV}\` job — this PR carries only the tfvars flip, never a local \`terraform destroy\`. Run \`scripts/relay-vm-up.sh ${ENV}\` to open a new session later." \
+  --body "Tears down the on-demand IAP relay VM for ${ENV} (\`modules/relay-vm\`, TD32). The tfvars file is under \`foundation/\`, which \`infra-deploy.yml\` excludes, so merging applies nothing: dispatch \`foundation-deploy.yml\` with \`apply=true\` from \`main\` afterwards (docs/RUNBOOKS.md § Provision a tenant). This PR carries only the tfvars flip, never a local \`terraform destroy\`. Run \`scripts/relay-vm-up.sh ${ENV}\` to open a new session later." \
   --head "$BRANCH" --base main
 
 echo
 echo "Next: wait for CI, then merge (gh pr merge --squash --delete-branch)."
-echo "The pipeline destroys the VM once merged — verify with:"
+echo "Merging applies nothing (foundation/** is excluded from infra-deploy.yml): dispatch"
+echo "foundation-deploy.yml with apply=true from main, approve the foundation environment,"
+echo "and the VM is destroyed once that apply finishes — verify with:"
 echo "  gcloud compute instances list --project=ikaro-${ENV}"
