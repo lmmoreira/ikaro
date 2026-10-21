@@ -223,7 +223,7 @@ A caller's `%` or `_` is a LIKE wildcard, not text, so an unescaped term lets `%
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 5 — Mark the identity-shaped Terraform inputs `sensitive = true` 🟡
+### Story 5 — Mark the identity-shaped Terraform inputs `sensitive = true` 🟡 ✅ Done
 
 **Agent:** devops
 **Complexity:** M
