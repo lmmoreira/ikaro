@@ -181,6 +181,25 @@ describe('TypeOrmTenantRepository', () => {
     });
   });
 
+  describe('findMany', () => {
+    it('escapes LIKE wildcards in the name filter', async () => {
+      const query = {
+        orderBy: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getMany: jest.fn().mockResolvedValue([]),
+      };
+      (mockRepo as unknown as { createQueryBuilder: jest.Mock }).createQueryBuilder = jest
+        .fn()
+        .mockReturnValue(query);
+
+      await repo.findMany({ name: '100%_brilho' });
+
+      expect(query.andWhere).toHaveBeenCalledWith('tenant.name ILIKE :name', {
+        name: '%100\\%\\_brilho%',
+      });
+    });
+  });
+
   describe('existsBySlug', () => {
     it('returns true when slug exists', async () => {
       mockRepo.existsBy.mockResolvedValue(true);

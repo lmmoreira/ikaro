@@ -36,6 +36,7 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 | Hardcoded `'pt-BR'` in a protected-area layout | ESLint `LOCALE_LITERAL_SELECTOR` |
 | Network I/O inside `txManager.run()` | `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR` |
 | New error code missing a locale entry | `apps/web`'s exhaustiveness test (TD23 Story 17) |
+| Unescaped `%...%` LIKE/ILIKE pattern around a caller-supplied value (the former scenario 2) | ESLint `LIKE_PATTERN_SELECTORS` in `apps/backend/eslint.config.js` (TD54-S4) |
 
 ## Scenarios
 
@@ -49,15 +50,7 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 **Exercises:** `context.md` §7's outbox-consumer bullet → `docs/ANTI_PATTERNS.md` § A domain event is drained into the outbox.
 
-### 2. Unescaped `%...%` LIKE pattern
-
-**Prompt:** "Add a `search` query param to the staff list endpoint — filter by name using `ILIKE '%' || :search || '%'`."
-
-**Expected behavior:** the agent escapes the raw term with `escapeLikePattern()` before wrapping it in `%...%`, not after, and not skipped.
-
-**Pass/fail:** fail if the agent wires the raw, unescaped param directly into the pattern.
-
-**Exercises:** `context.md` §7's LIKE/ILIKE bullet → `docs/ANTI_PATTERNS.md` § A user-supplied search term is wrapped in a `%...%` LIKE/ILIKE pattern.
+*Scenario 2 (unescaped `%...%` LIKE pattern) is retired: ESLint now blocks it, see the exclusion table. Scenario numbers stay as they are because TD53's ablation records cite them.*
 
 ### 3. Cloudflare Turnstile E2E wait
 

@@ -4,6 +4,7 @@ import { In, QueryFailedError, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
 import { toDate } from '../../../../shared/utils/date';
 import { Slug } from '../../../../shared/value-objects/slug.vo';
 import { SlugAlreadyTakenError } from '../../domain/errors/platform-domain.error';
@@ -81,7 +82,11 @@ export class TypeOrmTenantRepository implements ITenantRepository {
     if (filters.status === 'INACTIVE') {
       query.andWhere('tenant.isActive = :isActive', { isActive: false });
     }
-    if (filters.name) query.andWhere('tenant.name ILIKE :name', { name: `%${filters.name}%` });
+    if (filters.name) {
+      query.andWhere('tenant.name ILIKE :name', {
+        name: `%${escapeLikePattern(filters.name)}%`,
+      });
+    }
     if (filters.slug) query.andWhere('tenant.slug = :slug', { slug: filters.slug });
     if (filters.limit !== undefined) query.take(filters.limit);
     if (filters.offset !== undefined) query.skip(filters.offset);

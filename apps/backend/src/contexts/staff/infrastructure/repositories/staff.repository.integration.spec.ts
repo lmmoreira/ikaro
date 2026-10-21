@@ -159,6 +159,35 @@ describe('TypeOrmStaffRepository (integration)', () => {
     expect(page2.total).toBe(3);
   });
 
+  it('search treats a typed % as literal text, scoped to the tenant (TD54-S4)', async () => {
+    const tenantId = '00000000-0000-0000-0000-0000000054a1';
+    const otherTenantId = '00000000-0000-0000-0000-0000000054a2';
+
+    const literal = new StaffBuilder()
+      .withTenantId(tenantId)
+      .withEmail('literal-pct@lavacar.com.br')
+      .withName('50% Maria')
+      .build();
+    const plain = new StaffBuilder()
+      .withTenantId(tenantId)
+      .withEmail('plain-pct@lavacar.com.br')
+      .withName('Joao')
+      .build();
+    const otherTenantLiteral = new StaffBuilder()
+      .withTenantId(otherTenantId)
+      .withEmail('other-pct@lavacar.com.br')
+      .withName('50% Pedro')
+      .build();
+    await repo.save(literal);
+    await repo.save(plain);
+    await repo.save(otherTenantLiteral);
+
+    const result = await repo.findAllByTenant(tenantId, { search: '%', limit: 10, offset: 0 });
+
+    expect(result.items.map((s) => s.id)).toEqual([literal.id]);
+    expect(result.total).toBe(1);
+  });
+
   it('countActiveManagersByTenant counts only active managers for the tenant', async () => {
     const tenantId = '00000000-0000-0000-0000-000000000028';
 

@@ -229,6 +229,22 @@ describe('TypeOrmServiceRepository', () => {
     });
   });
 
+  it('findAllByTenant escapes LIKE wildcards in the search term', async () => {
+    const query = {
+      where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    ormRepo.createQueryBuilder.mockReturnValue(query as never);
+
+    await repo.findAllByTenant('tenant-1', { search: '50%_off' });
+
+    expect(query.andWhere).toHaveBeenCalledWith('service.name ILIKE :search', {
+      search: '%50\\%\\_off%',
+    });
+  });
+
   it('save maps domain to entity — price stored as fixed-point string', async () => {
     const service = Service.create({
       tenantId: 'tenant-1',
