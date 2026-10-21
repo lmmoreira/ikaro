@@ -166,6 +166,7 @@ function encodePathSegment(value: string): string {
 function encodeQueryValue(value: string): string {
   return encodeURIComponent(value).replace(
     /[!'()*]/g,
+    // eslint-disable-next-line no-restricted-syntax -- percent-encoding a URL character, not a LIKE pattern
     (character) => `%${character.codePointAt(0)?.toString(16).toUpperCase()}`,
   );
 }

@@ -279,6 +279,34 @@ const HTTP_EXCEPTION_IN_USE_CASE_SELECTOR = {
   message:
     'Use cases must not throw HttpException directly — it couples the application layer to HTTP. Throw a domain error; mapXxxError() converts it at the HTTP layer (docs/ANTI_PATTERNS.md).',
 };
+// TD54-S4: a caller's `%`/`_` is a LIKE wildcard, not text — a `%...%` pattern built around any
+// value other than a direct escapeLikePattern(...) call lets `%%%` match every row and defeats a
+// pg_trgm-backed search (docs/ANTI_PATTERNS.md, M20-S12 precedent). Only a direct call to the bare
+// identifier counts as escaped: a computed-literal member call (`h['escapeLikePattern'](x)`), any
+// other function (`foo(x)`) and a conditional/logical-nested call are all flagged, since none
+// can be proven to escape. Covers a template literal and `+` concatenation with `%` at either
+// edge. A pattern built in one place and consumed in another is invisible to a syntax rule
+// (residual, stated in docs/ANTI_PATTERNS.md).
+const LIKE_ESCAPE_CALL = "CallExpression[callee.name='escapeLikePattern']";
+const LIKE_PATTERN_MESSAGE =
+  'A `%` at the edge of a pattern around an unescaped value lets a caller-typed `%`/`_` act as a LIKE wildcard. Wrap each value in escapeLikePattern() (apps/backend/src/shared/utils/escape-like-pattern.ts) — TD54-S4; docs/ANTI_PATTERNS.md.';
+const LIKE_TEMPLATE_PATTERN_SELECTOR = {
+  selector: `TemplateLiteral:matches(:has(> TemplateElement:first-child[value.raw=/^%/]), :has(> TemplateElement[tail=true][value.raw=/%$/])):has(> *:not(TemplateElement):not(${LIKE_ESCAPE_CALL}))`,
+  message: LIKE_PATTERN_MESSAGE,
+};
+const LIKE_CONCAT_LEADING_SELECTOR = {
+  selector: `BinaryExpression[operator='+'][left.type='Literal'][left.value=/^%/]:not([right.type='Literal']):not([right.type='CallExpression'][right.callee.name='escapeLikePattern'])`,
+  message: LIKE_PATTERN_MESSAGE,
+};
+const LIKE_CONCAT_TRAILING_SELECTOR = {
+  selector: `BinaryExpression[operator='+'][right.type='Literal'][right.value=/%$/]:not([left.type='Literal']):not([left.type='CallExpression'][left.callee.name='escapeLikePattern']):not([left.type='BinaryExpression'][left.right.type='CallExpression'][left.right.callee.name='escapeLikePattern'])`,
+  message: LIKE_PATTERN_MESSAGE,
+};
+const LIKE_PATTERN_SELECTORS = [
+  LIKE_TEMPLATE_PATTERN_SELECTOR,
+  LIKE_CONCAT_LEADING_SELECTOR,
+  LIKE_CONCAT_TRAILING_SELECTOR,
+];
 // Imported (not redefined) from @ikaro/config/eslint-base.js so the uuid/email selectors have one
 // source of truth (CodeRabbit review, PR #375) — still repeated into this file's own tiers below,
 // because ESLint flat config replaces, not merges, a rule's options per matching file (see the
@@ -400,6 +428,7 @@ module.exports = [
         TYPEORM_NAMESPACE_SELECTOR,
         RUN_IN_TRANSACTION_SELECTOR,
         SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR,
+        ...LIKE_PATTERN_SELECTORS,
         ZOD_UUID_SELECTOR,
         ZOD_EMAIL_SELECTOR,
       ],
@@ -420,6 +449,7 @@ module.exports = [
         RUN_IN_TRANSACTION_SELECTOR,
         SUBSCRIBE_REGISTER_TRIGGER_LITERAL_SELECTOR,
         HTTP_EXCEPTION_IN_USE_CASE_SELECTOR,
+        ...LIKE_PATTERN_SELECTORS,
         ZOD_UUID_SELECTOR,
         ZOD_EMAIL_SELECTOR,
       ],

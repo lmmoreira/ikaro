@@ -85,6 +85,25 @@ describe('TypeOrmServiceRepository (integration)', () => {
     );
   });
 
+  it('search treats a typed _ as literal text, scoped to the tenant (TD54-S4)', async () => {
+    const tenantId = '00000000-0000-0000-0000-0000000054b1';
+    const otherTenantId = '00000000-0000-0000-0000-0000000054b2';
+
+    const literal = new ServiceBuilder().withTenantId(tenantId).withName('Vip_Premium').build();
+    const plain = new ServiceBuilder().withTenantId(tenantId).withName('Lavagem').build();
+    const otherTenantLiteral = new ServiceBuilder()
+      .withTenantId(otherTenantId)
+      .withName('Vip_Outro')
+      .build();
+    await repo.save(literal);
+    await repo.save(plain);
+    await repo.save(otherTenantLiteral);
+
+    const results = await repo.findAllByTenant(tenantId, { search: '_' });
+
+    expect(results.map((s) => s.id)).toEqual([literal.id]);
+  });
+
   it('findAllByTenant returns only services for the given tenant', async () => {
     const tenantA = '00000000-0000-0000-0000-000000000053';
     const tenantB = '00000000-0000-0000-0000-000000000054';
