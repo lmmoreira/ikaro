@@ -80,6 +80,22 @@ describe('Platform repositories (integration)', () => {
     expect(deactivated!.isActive).toBe(false);
   });
 
+  it('findMany name filter treats a typed % as literal text (TD54-S4)', async () => {
+    const literal = new TenantBuilder()
+      .withName('Lavacar 100% Brilho')
+      .withSlug('td54s4-pct-a')
+      .build();
+    const plain = new TenantBuilder().withName('Lavacar Comum').withSlug('td54s4-pct-b').build();
+    await typeOrmTenantRepo.save(literal);
+    await typeOrmTenantRepo.save(plain);
+
+    // ids pins the query to the two seeded rows so unrelated tenants in the shared test DB cannot
+    // affect the result: an unescaped `%` would return both, the escaped one only the literal.
+    const results = await typeOrmTenantRepo.findMany({ ids: [literal.id, plain.id], name: '%' });
+
+    expect(results.map((t) => t.id)).toEqual([literal.id]);
+  });
+
   it('findById returns cached tenant data without hitting the TypeORM repository again', async () => {
     const cachedTenant = new TenantBuilder().withSlug('cached-estrela').build();
     const findByIdSpy = jest.spyOn(typeOrmTenantRepo, 'findById');

@@ -4,6 +4,7 @@ import { QueryFailedError, Repository } from 'typeorm';
 import { drainDomainEvents } from '../../../../shared/infrastructure/outbox/drain-domain-events';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { IOutboxPublisher, OUTBOX_PUBLISHER } from '../../../../shared/ports/outbox-publisher.port';
+import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
 import { Email } from '../../../../shared/value-objects/email.vo';
 import {
   FindAllByTenantResult,
@@ -67,7 +68,7 @@ export class TypeOrmStaffRepository implements IStaffRepository {
     }
     if (filters.search) {
       query.andWhere('(staff.name ILIKE :search OR staff.email ILIKE :search)', {
-        search: `%${filters.search}%`,
+        search: `%${escapeLikePattern(filters.search)}%`,
       });
     }
 

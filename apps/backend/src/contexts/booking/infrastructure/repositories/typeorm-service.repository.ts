@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, Repository } from 'typeorm';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
+import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
 import {
   ITenantSettingsPort,
   TENANT_SETTINGS_PORT,
@@ -105,7 +106,9 @@ export class TypeOrmServiceRepository implements IServiceRepository {
       query.andWhere('service.isActive = :isActive', { isActive: false });
     }
     if (filters.search)
-      query.andWhere('service.name ILIKE :search', { search: `%${filters.search}%` });
+      query.andWhere('service.name ILIKE :search', {
+        search: `%${escapeLikePattern(filters.search)}%`,
+      });
 
     const entities = await query.getMany();
     return this.hydrateAll(entities, tenantId);

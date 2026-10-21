@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # scripts/relay-vm-up.sh
 # Flips create_relay_vm to true for the given env, opens a PR. Never runs
-# terraform apply — merging the PR triggers the pipeline's apply-<env> job
-# instead (infra/terraform/README.md: manual terraform apply is forbidden).
+# terraform apply. The tfvars file lives under infra/terraform/foundation/, which
+# infra-deploy.yml excludes, so merging the PR applies nothing: dispatch
+# foundation-deploy.yml with apply=true from main afterwards
+# (infra/terraform/README.md: manual terraform apply is forbidden).
 #
 # Usage: bash scripts/relay-vm-up.sh <staging|prod>
 # When the session is done: bash scripts/relay-vm-down.sh <staging|prod>
@@ -86,8 +88,9 @@ git add "$TFVARS"
 git commit -m "$(cat <<EOF
 chore(infra): flip create_relay_vm=true for ${ENV} (TD32)
 
-Opens the on-demand IAP relay VM for a session — merging this PR triggers
-the pipeline's apply-${ENV} job to create it. Run
+Opens the on-demand IAP relay VM for a session. The tfvars file is under
+foundation/, so merging applies nothing: dispatch foundation-deploy.yml with
+apply=true from main to create it. Run
 scripts/relay-vm-down.sh ${ENV} when the session is done.
 EOF
 )"
@@ -96,10 +99,12 @@ git push -u origin "$BRANCH" --force-with-lease
 
 gh pr create --repo "$REPO" \
   --title "chore(infra): flip create_relay_vm=true for ${ENV} (TD32)" \
-  --body "Opens the on-demand IAP relay VM for ${ENV} (\`modules/relay-vm\`, TD32). Merging triggers the pipeline's \`apply-${ENV}\` job — this PR carries only the tfvars flip, never a local \`terraform apply\`. Run \`scripts/relay-vm-down.sh ${ENV}\` when the session is done." \
+  --body "Opens the on-demand IAP relay VM for ${ENV} (\`modules/relay-vm\`, TD32). The tfvars file is under \`foundation/\`, which \`infra-deploy.yml\` excludes, so merging applies nothing: dispatch \`foundation-deploy.yml\` with \`apply=true\` from \`main\` afterwards (docs/RUNBOOKS.md § Provision a tenant). This PR carries only the tfvars flip, never a local \`terraform apply\`. Run \`scripts/relay-vm-down.sh ${ENV}\` when the session is done." \
   --head "$BRANCH" --base main
 
 echo
 echo "Next: wait for CI, then merge (gh pr merge --squash --delete-branch)."
-echo "The pipeline creates the VM once merged."
+echo "Merging applies nothing (foundation/** is excluded from infra-deploy.yml): dispatch"
+echo "foundation-deploy.yml with apply=true from main, approve the foundation environment,"
+echo "and the VM is created once that apply finishes."
 echo "When done with your session: bash scripts/relay-vm-down.sh ${ENV}"
