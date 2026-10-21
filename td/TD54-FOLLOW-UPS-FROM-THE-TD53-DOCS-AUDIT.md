@@ -160,7 +160,7 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 - [ ] `pnpm dep-cruise` exits 0 on `main` for every workspace, with no `warn` downgrade and no finding hidden.
 - [ ] The 4 new `permittedEdges` entries each name an exact source and a single exact target.
 - [ ] After PR2, "Architecture validation" and "Dependency graph validation" are required status checks on `main` (owner action in repository settings, recorded in the PR2 body).
-  - ⚠️ Both jobs are not yet required checks on main (owner action in repository settings, steps given at mark-done) — not a code gap, no TD opened, 2026-10-21
+  - ✅ Both jobs added as required checks on main by the owner, verified via the branch-protection API, 2026-10-21
 - [ ] Behaviour is unchanged: every touched context's existing unit and integration suites pass.
 
 **Acceptance criteria — technical:**
