@@ -951,7 +951,7 @@ Limits as before: n=2, no shell in the session, so each answer comes from the lo
   - **LIKE/ILIKE escaping (scenario 2):** 0 of 2 escaped the search term with the bullet present and 0 of 2 without it. This bullet is not CI-backed; the deterministic backstop is the TD54 follow-up above.
   - **Limits:** n=2 per cell, one model family, no shell in the session. The result says the CHECK bullet matters and the LIKE bullet currently does not steer; it does not rank the other bullets.
 
-### Story 6 — Drop the numeric prefix from every numbered doc ⚪
+### Story 6 — Drop the numeric prefix from every numbered doc ✅ Done
 
 **Agent:** devops
 **Complexity:** L
