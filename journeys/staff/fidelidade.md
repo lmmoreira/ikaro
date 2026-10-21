@@ -44,6 +44,20 @@ flowchart TD
 | Estado vazio — sem resultados | inline em `LoyaltySearchPage` | M13-S25 | ✅ Done |
 | Estado vazio — sem pontos | inline em `CustomerLoyaltyPage` | M13-S25 | ✅ Done |
 
+## Prototype
+
+Folder: `staff/prototypes/fidelidade/`
+
+| File | Screen | UC | Status |
+|---|---|---|---|
+| `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
+| `00-customer-search.html` | Buscar cliente | UC-016 | ✅ Criado |
+| `00b-loading.html` | Busca em andamento (skeleton) | UC-016 | ✅ Criado |
+| `00c-search-error.html` | Erro na busca | UC-016 | ✅ Criado |
+| `01-customer-loyalty.html` | Fidelidade do cliente: saldo, histórico e resgates | UC-016 | ✅ Criado |
+| `01b-no-entries.html` | Cliente sem pontos (abas com estado vazio próprio) | UC-016 | ✅ Criado |
+| `01c-no-results.html` | Busca sem resultados | UC-016 | ✅ Criado |
+
 ## Open questions / gaps
 
 - [ ] **Ponto de entrada alternativo:** staff pode chegar à tela de fidelidade do cliente a partir do detalhe do agendamento (UC-003 já mostra o saldo no detalhe) — deve haver um link "Ver histórico completo" no card de fidelidade do booking detail?
