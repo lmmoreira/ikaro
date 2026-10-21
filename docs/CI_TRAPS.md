@@ -35,7 +35,7 @@ These are flagged as bugs/code smells and cause the Quality Gate to fail.
 
 ---
 
-## Zod v4 format (block CI via ESLint/SonarCloud)
+## Zod v4 format (block CI via SonarCloud)
 
 | Wrong ❌ | Correct ✅ |
 |---------|-----------|
@@ -43,7 +43,7 @@ These are flagged as bugs/code smells and cause the Quality Gate to fail.
 | `z.string().email()` | `z.email()` |
 | `z.string().url()` | `z.url()` |
 
-The chained forms are deprecated in Zod v4. ESLint and SonarCloud both flag them.
+The chained forms are deprecated in Zod v4. SonarCloud (S1874) flags them; no ESLint rule covers it.
 
 ---
 
