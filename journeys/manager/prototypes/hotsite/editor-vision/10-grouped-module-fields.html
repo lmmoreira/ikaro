@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — Configurar módulo</title>
+  <link rel="stylesheet" href="../../../../shared/tokens.css"><link rel="stylesheet" href="vision.css">
+  <style>
+    .edit-preview { min-height:24rem; }
+    .edit-preview .site-frame { min-height:24rem; }
+    .grouped-form { margin-top:1rem; }
+    .field-control { margin-top:.75rem; }
+    .field-control label { display:block; margin-bottom:.375rem; color:#374151; font-size:.8125rem; font-weight:700; }
+    .field-control input,.field-control textarea,.field-control select { width:100%; border:1px solid #d1d5db; border-radius:.375rem; padding:.625rem .75rem; background:#fff; color:#111827; font:inherit; font-size:.875rem; }
+    .field-control textarea { resize:vertical; }
+    .field-help { margin:.35rem 0 0; color:#6b7280; font-size:.75rem; line-height:1.4; }
+    .choice-set { display:flex; flex-wrap:wrap; gap:.375rem; }
+    .choice-set button { border:1px solid #d1d5db; border-radius:999px; padding:.4rem .625rem; background:white; color:#374151; cursor:pointer; font-size:.75rem; }
+    .choice-set button.active { border-color:#2563eb; background:#eff6ff; color:#1d4ed8; }
+    .switch-control { display:flex; align-items:center; justify-content:space-between; gap:.75rem; padding:.625rem 0; border-bottom:1px solid #f1f5f9; font-size:.8125rem; }
+    .switch-control button { width:2.4rem; height:1.3rem; border:0; border-radius:999px; background:#cbd5e1; position:relative; cursor:pointer; }
+    .switch-control button:after { content:''; position:absolute; top:.15rem; left:.15rem; width:1rem; height:1rem; border-radius:50%; background:white; transition:transform .15s; }
+    .switch-control button.on { background:#2563eb; }.switch-control button.on:after { transform:translateX(1.1rem); }
+    .field-upload { border:1px dashed #cbd5e1; border-radius:.375rem; padding:1rem; color:#64748b; text-align:center; font-size:.8125rem; cursor:pointer; }
+    .field-upload input { display:none; }
+    .field-toolbar { display:flex; align-items:center; justify-content:space-between; gap:.5rem; }
+    .prototype-note { margin-top:.75rem; color:#64748b; font-size:.75rem; }
+  </style>
+</head>
+<body class="vision-dashboard-page" data-page-title="Configurar módulo" data-back-href="09-inline-realistic-editor.html" data-back-label="Editor visual">
+  <div id="proposal-content">
+    <div class="vision-page-header"><h2>Configurar módulo</h2><p>Aqui dá para ver como o usuário edita: os grupos contêm controles de verdade — campos de texto, opções, chaves e imagens. Alterações de texto atualizam a prévia.</p></div>
+    <div class="vision-detail-layout">
+      <section class="edit-preview">
+        <div class="vision-preview-toolbar"><span id="preview-caption">Prévia do módulo selecionado</span><span>Rascunho</span></div>
+        <div class="site-frame" id="module-preview"><section class="site-section site-hero"><p class="site-eyebrow" id="preview-eyebrow">ESTÉTICA AUTOMOTIVA PREMIUM</p><h1 id="preview-heading">Cuidado completo para o seu carro</h1><p id="preview-body">Resultados impecáveis com atenção aos detalhes.</p><button class="site-button" id="preview-button">Ver serviços</button></section></div>
+        <section class="vision-detail-entry"><div><h3>Estrutura da página</h3><p>Para voltar à lista e escolher outro módulo.</p></div><a class="vision-secondary" href="09-inline-realistic-editor.html">Voltar para organizar módulos</a></section>
+      </section>
+      <aside>
+        <section class="vision-action-pane vision-inline-actions"><p class="inspector-kicker">Hotsite</p><h2 class="inspector-title">Ações</h2><p class="inspector-copy">Os botões globais permanecem disponíveis durante a edição.</p><a class="vision-primary" href="#">Publicar</a><a class="vision-secondary" href="09-inline-realistic-editor.html">Voltar ao editor</a></section>
+        <section class="vision-config-block">
+          <label class="field-label" for="module-picker">Módulo aberto <span style="font-weight:400">(seletor para explorar o protótipo)</span></label>
+          <select class="field-input" id="module-picker"><option value="HERO">Apresentação inicial (Hero)</option><option value="SERVICE_LIST">Serviços</option><option value="GALLERY">Galeria</option><option value="TESTIMONIALS">Depoimentos</option><option value="BOOKING_CTA">Agendamento</option><option value="ABOUT">Sobre</option><option value="CONTACT">Contato</option><option value="FOOTER">Rodapé</option><option value="CHATBOT">Chatbot</option><option value="LEAD_FORM">Captura de leads</option></select>
+          <div id="groups" class="grouped-form"></div>
+        </section>
+      </aside>
+    </div>
+  </div>
+  <script src="ikaro-shell.js"></script>
+  <script>
+    const definitions={
+      HERO:{title:'Apresentação inicial',groups:[
+        ['Essencial',[['text','Título','Cuidado completo para o seu carro','heading'],['textarea','Subtítulo','Resultados impecáveis com atenção aos detalhes.','body'],['text','Texto de destaque','ESTÉTICA AUTOMOTIVA PREMIUM','eyebrow'],['text','Texto do botão','Ver serviços','button'],['select','Destino do botão',['Agendamento','Serviços','Galeria','Depoimentos','Sobre','Contato']]]],
+        ['Aparência e posição',[['choice','Layout',['Centralizado','Alinhado à esquerda']],['choice','Posição vertical do conteúdo',['Topo','Centro','Base']],['choice','Posição horizontal do conteúdo',['Esquerda','Centro','Direita']],['choice','Painel à direita',['Nenhum','Imagem','Cartão da marca']]]],
+        ['Imagem e ações adicionais',[['upload','Imagem de fundo'],['choice','Posição da imagem',['Esquerda','Centro','Direita']],['text','Texto do botão secundário',''],['select','Destino do botão secundário',['Nenhum','Agendamento','Serviços','Galeria','Depoimentos','Sobre','Contato']]]]
+      ]},
+      SERVICE_LIST:{title:'Serviços',groups:[['Essencial',[['text','Título da seção','Nossos serviços','heading'],['text','Texto de destaque','O QUE FAZEMOS','eyebrow'],['switch','Mostrar preços',true],['switch','Mostrar pontos de fidelidade',true]]],['Aparência',[['choice','Formato de exibição',['Grade','Lista']]]]]},
+      GALLERY:{title:'Galeria',groups:[['Essencial',[['text','Título da seção','Detalhes que fazem diferença','heading'],['text','Texto de destaque','RESULTADOS REAIS','eyebrow'],['number','Máximo de fotos visíveis','6'],['upload','Imagens da galeria']]],['Aparência',[['choice','Formato de exibição',['Grade','Mosaico','Destaque']],['choice','Posição da foto em destaque',['Esquerda','Direita']]]]]},
+      TESTIMONIALS:{title:'Depoimentos',groups:[['Essencial',[['text','Título da seção','O que nossos clientes dizem','heading'],['text','Texto de destaque','QUEM JÁ CONHECE','eyebrow'],['repeat','Depoimentos', [['Nome da pessoa','Maria Silva'],['Texto','Atendimento excelente, recomendo!'],['Nota',['1','2','3','4','5']],['Foto da pessoa','']]]]],['Aparência',[['choice','Formato de exibição',['Grade','Carrossel']]]]]},
+      BOOKING_CTA:{title:'Agendamento',groups:[['Essencial',[['text','Título','Agende seu horário','heading'],['textarea','Subtítulo','Reserve em poucos minutos e cuide do seu carro com a gente.','body'],['text','Texto de destaque',''],['text','Texto do botão','Agendar agora','button']]],['Aparência e posição',[['choice','Layout',['Centralizado','Alinhado à esquerda']],['choice','Posição vertical do conteúdo',['Topo','Centro','Base']],['choice','Posição horizontal do conteúdo',['Esquerda','Centro','Direita']],['choice','Fundo da seção',['Cor principal','Cor de fundo']],['choice','Painel à direita',['Nenhum','Cartão da marca']]]],['Imagem e calendário',[['upload','Imagem de fundo'],['choice','Posição da imagem',['Esquerda','Centro','Direita']],['choice','Seletor de data',['Carrossel de dias','Calendário']],['number','Dias no carrossel','14']]]]},
+      ABOUT:{title:'Sobre',groups:[['Essencial',[['text','Título','Cuidado em cada detalhe','heading'],['textarea','Texto','Uma equipe especializada para deixar seu carro impecável.','body'],['text','Texto de destaque','SOBRE A BELOAUTO','eyebrow']]],['Imagem e posição',[['upload','Imagem'],['choice','Posição da imagem',['Esquerda','Direita']]]]]},
+      CONTACT:{title:'Contato',groups:[['Essencial',[['text','Título da seção','Visite a BeloAuto','heading'],['text','Texto de destaque','FALE COM A GENTE','eyebrow'],['switch','Mostrar endereço',true],['switch','Mostrar telefone',true],['switch','Mostrar WhatsApp',true],['switch','Mostrar e-mail',true],['switch','Mostrar mapa',true]]],['Canais e aparência',[['switch','Mostrar Instagram',true],['switch','Mostrar Facebook',false],['choice','Formato de exibição',['Lista','Cartões com ícones']],['text','Texto do botão do WhatsApp','Falar pelo WhatsApp']]]]},
+      FOOTER:{title:'Rodapé',groups:[['Essencial',[['text','Frase curta','Estética automotiva','body'],['text','Aviso de direitos autorais','© 2026 BeloAuto','copyright'],['switch','Mostrar WhatsApp',true]]]]},
+      CHATBOT:{title:'Chatbot',groups:[['Essencial',[['text','Nome do assistente','Assistente BeloAuto'],['textarea','Mensagem de boas-vindas','Olá! Como posso ajudar?']]],['Aparência',[['choice','Formato',['Bolha flutuante','Dentro da página']],['choice','Cor de destaque',['Cor principal','Cor secundária']]]]]},
+      LEAD_FORM:{title:'Captura de leads',groups:[['Essencial',[['text','Título','Receba uma proposta','heading'],['textarea','Subtítulo','Conte o que seu carro precisa.','body'],['text','Texto de destaque',''],['text','Texto do botão','Quero saber mais','button']]],['Aparência',[['choice','Layout',['Centralizado','Alinhado à esquerda']],['choice','Fundo da seção',['Cor principal','Cor de fundo']],['upload','Imagem de fundo'],['choice','Posição da imagem',['Esquerda','Centro','Direita']]]],['Formulário',[['choice','Quem pode responder',['Visitante ou cliente','Somente cliente']],['repeat','Perguntas do formulário',[['Pergunta','Modelo do carro'],['Tipo de resposta',['Texto curto','Texto longo','Escolha única']],['Obrigatória',['Sim','Não']]]],['button','Adicionar pergunta']]]]},
+    };
+    function renderField(field){const [type,label,value,target]=field;const id='f-'+Math.random().toString(36).slice(2,9);if(type==='text'||type==='number')return `<div class="field-control"><label for="${id}">${label}</label><input id="${id}" type="${type}" value="${value??''}" ${target?`data-preview="${target}"`:''}></div>`;if(type==='textarea')return `<div class="field-control"><label for="${id}">${label}</label><textarea id="${id}" rows="3" ${target?`data-preview="${target}"`:''}>${value??''}</textarea></div>`;if(type==='select')return `<div class="field-control"><label for="${id}">${label}</label><select id="${id}">${value.map(x=>`<option>${x}</option>`).join('')}</select></div>`;if(type==='choice')return `<div class="field-control"><label>${label}</label><div class="choice-set">${value.map((x,i)=>`<button type="button" class="${i===0?'active':''}">${x}</button>`).join('')}</div></div>`;if(type==='switch')return `<div class="switch-control"><span>${label}</span><button type="button" class="${value?'on':''}" aria-label="${label}"></button></div>`;if(type==='upload')return `<div class="field-control"><label>${label}</label><label class="field-upload">Clique para enviar uma imagem<input type="file" accept="image/*"></label></div>`;if(type==='repeat')return `<div class="field-control"><div class="field-toolbar"><label>${label}</label><button class="vision-module-configure" type="button">+ Adicionar</button></div><div class="mini-item">${value.map(([name,v])=>name==='Foto da pessoa'?`<label class="field-upload">Enviar foto<input type="file" accept="image/*"></label>`:Array.isArray(v)?`<label class="field-label">${name}</label><div class="choice-set">${v.map((o,i)=>`<button type="button" class="${i===4?'active':''}">${o}</button>`).join('')}</div>`:`<label class="field-label">${name}</label>${name==='Texto'?`<textarea class="field-input" rows="3">${v}</textarea>`:`<input class="field-input" value="${v}">`}`).join('')}</div></div>`;if(type==='button')return `<button class="vision-secondary" type="button">${label}</button>`;return ''}
+    function render(){const key=document.getElementById('module-picker').value,item=definitions[key];document.getElementById('groups').innerHTML=item.groups.map(([name,fields],index)=>`<details class="vision-group" ${index===0?'open':''}><summary>${name}<span>${fields.length} itens</span></summary><div class="vision-group-content">${fields.map(renderField).join('')}</div></details>`).join('');document.getElementById('preview-caption').textContent='Prévia: '+item.title;document.getElementById('preview-heading').textContent=key==='HERO'?'Cuidado completo para o seu carro':key==='SERVICE_LIST'?'Nossos serviços':key==='GALLERY'?'Detalhes que fazem diferença':key==='TESTIMONIALS'?'O que nossos clientes dizem':key==='BOOKING_CTA'?'Agende seu horário':key==='ABOUT'?'Cuidado em cada detalhe':key==='CONTACT'?'Visite a BeloAuto':item.title;document.querySelectorAll('[data-preview]').forEach(el=>el.addEventListener('input',()=>{const target=el.dataset.preview;const preview=document.getElementById('preview-'+target);if(preview)preview.textContent=el.value||' '}));document.querySelectorAll('.choice-set').forEach(set=>set.querySelectorAll('button').forEach(button=>button.addEventListener('click',()=>{set.querySelectorAll('button').forEach(x=>x.classList.remove('active'));button.classList.add('active')})));document.querySelectorAll('.switch-control button').forEach(button=>button.addEventListener('click',()=>button.classList.toggle('on')));}
+    document.getElementById('module-picker').addEventListener('change',render);render();
+  </script>
+</body></html>

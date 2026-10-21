@@ -42,6 +42,9 @@
 
     .detail-layout { display: block; }
     .detail-aside  { display: none; }
+    .editor-visual-back { display:inline-flex; align-items:center; gap:.35rem; color:var(--ba-primary); font-size:.8125rem; font-weight:700; text-decoration:none; white-space:nowrap; }
+    .editor-visual-back:hover { text-decoration:underline; }
+    .editor-visual-back:focus-visible { outline:2px solid var(--ba-primary); outline-offset:3px; border-radius:var(--ba-radius); }
     @media (min-width: 1024px) {
       .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
       .detail-aside  { display: block; position: sticky; top: 1.5rem; }
@@ -62,7 +65,8 @@
 
   <div class="dashboard-topbar">
     <div class="topbar-brand"><div class="topbar-logo-mark">B</div><span class="topbar-tenant-name">BeloAuto Demo</span></div>
-    <h1 class="topbar-page-title">Hotsite</h1>
+    <a class="editor-visual-back" href="editor-vision/09-inline-realistic-editor.html">← Edição visual</a>
+    <h1 class="topbar-page-title">Hotsite — edição detalhada</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
       <span class="topbar-date">Hoje, 16 de junho de 2026</span>
