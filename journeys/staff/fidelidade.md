@@ -13,7 +13,7 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Start(["Sidebar → Fidelidade"]) --> SearchPage["/dashboard/loyalty<br/>Buscar cliente"]
-    SearchPage --> Input(("Digita nome ou e-mail"))
+    SearchPage --> Input(("Digita nome, e-mail ou telefone"))
     Input --> Results{"Resultado?"}
 
     Results -->|"Nenhum cliente"| NoResults["estado vazio<br/>Nenhum resultado"]

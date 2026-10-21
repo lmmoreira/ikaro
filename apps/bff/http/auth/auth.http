@@ -128,6 +128,11 @@ Authorization: Bearer paste-customer-jwt-here
 # records, then POSTs the chosen staffId; the BFF re-issues the session cookie for that tenant.
 # Both require a valid STAFF or MANAGER JWT (access_token cookie or Bearer header).
 # (The earlier selection-token flow — POST /v1/auth/staff-token and ?token= — was removed.)
+#
+# Cookie jar: a successful switch-staff-tenant sets the access_token cookie, and the BFF reads the
+# cookie before the Authorization header (jwt.strategy.ts). REST Client keeps that cookie, so clear
+# or disable its cookie jar before the "No JWT", customer-JWT and other-identity cases below, or
+# they run as the staff member the switch just logged in.
 # ─────────────────────────────────────────────────────────────────────────────
 
 ### List tenants where the authenticated staff member has an active record

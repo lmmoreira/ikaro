@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Configure tenant-wide operational settings — business hours, timezone, cancellation window, loyalty point expiry, booking buffer, business contact info, the chatbot's knowledge text, and the lead form's retention window — that govern booking, loyalty, chatbot, and lead-form behavior across the tenant
 **UCs covered:** UC-026, UC-042
-**Status:** Reviewed
+**Status:** ✅ Built — all pages ✅ Done (M13-S31; see "Pages referenced")
 
 ## Flow
 

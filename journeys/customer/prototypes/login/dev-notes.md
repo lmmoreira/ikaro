@@ -24,15 +24,15 @@
 - A server component; tenant name and logo come from `fetchManifest(slug)` (logo, or the name's initial on `--ba-primary`).
 - The Google Sign-In button is `buildGoogleOAuthUrl({ tenantSlug, returnTo })` → `GET /v1/auth/google?tenantSlug={slug}`; `?error=` shows the `signInError` alert.
 
-**Redirect after login:** the BFF runs `handleTenantLogin()` (`POST /internal/customers` → issue JWT → cookie) and redirects to the optional `returnTo` (validated BFF-side by `isValidReturnTo`), otherwise to `/{tenantSlug}`, the tenant hotsite in logged-in state. A customer whose phone is missing sees the completion prompt below (UC-021 A3).
+**Redirect after login:** the BFF runs `handleTenantLogin()` (`POST /internal/customers` → issue JWT → cookie) and redirects to the optional `returnTo` (validated BFF-side by `isValidReturnTo`), otherwise to `/{tenantSlug}`, the tenant hotsite in logged-in state. A customer whose phone or default address is missing sees the completion prompt below (UC-021 A3).
 
 ## Phone completion — UC-021 A3
 
-**When:** after the JWT is issued, if `Customer.phone == null`. The BFF does not redirect to a special page: the `[slug]` layout renders `InformationCompletionPrompt`.
+**When:** after the JWT is issued, if `Customer.phone == null` or `Customer.defaultAddress == null` (`InformationCompletionPrompt` shows when either is missing; a value already on file prefills its field). The BFF does not redirect to a special page: the `[slug]` layout renders `InformationCompletionPrompt`.
 
 **BFF call:**
 ```
-PATCH /v1/customers/me { phone: string }
+PATCH /v1/customers/me { phone: string, defaultAddress: Address }
 Headers: Authorization: Bearer <jwt>
 
 → 200: phone saved → dismiss prompt
@@ -64,9 +64,9 @@ GET /v1/auth/google?tenantSlug={slug}
   → Google OAuth
   → handleTenantLogin(): POST /internal/customers → issue JWT → redirect
 
-UC-021 A3 — phone missing:
-  GET /v1/customers/me → { phone: null } → InformationCompletionPrompt
-  PATCH /v1/customers/me { phone } → dismiss
+UC-021 A3 — phone or default address missing:
+  GET /v1/customers/me → { phone: null } or { defaultAddress: null } → InformationCompletionPrompt
+  PATCH /v1/customers/me { phone, defaultAddress } → dismiss
 
 UC-023 — switch tenant (multi-tenant customer):
   POST /v1/auth/switch-tenant { targetTenantId } → { tenantSlug, expiresIn } → redirect

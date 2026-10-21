@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER
 **Goal:** Customize the public hotsite's branding (colors, fonts, button style) and content modules (toggle/reorder/configure), set SEO overrides, and publish changes live
 **UCs covered:** UC-027
-**Status:** Reviewed
+**Status:** ✅ Built — all pages ✅ Done (M13-S35, S36, S37; see "Pages referenced")
 
 ## Flow
 
