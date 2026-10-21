@@ -17,7 +17,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 | Prototype file | Production route | Page component |
 |---|---|---|
 | `01-hotsite-editor.html` | `/dashboard/hotsite` (no `[slug]` segment) | `HotsiteEditor` (tabbed: Branding / Layout / SEO / Manifest) |
-| `01d-module-config-hero.html` | drill-down within editor (no separate route, modal/sheet likely) | `ModuleConfigPanel` (HERO variant) |
+| `01d-module-config-hero.html` | drill-down within editor (no separate route) | `HeroConfigPanel` |
 | `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (shipped `M19-S12`) |
 | `02-preview.html` | in-editor preview (no separate app route; see "preview semantics" below) | `HotsitePreview` |
 
@@ -41,7 +41,7 @@ All of the `tenants/hotsite` endpoints exist in `apps/bff/src/features/platform/
 
 ---
 
-## Branding field set (from `hotsite-config.aggregate.ts` — `HotsiteBranding`)
+## Branding field set (`HotsiteBrandingResponse`)
 
 ```typescript
 interface HotsiteBranding {
@@ -58,12 +58,15 @@ interface HotsiteBranding {
   shadowStyle: 'none' | 'subtle' | 'strong';
   buttonBackgroundColor?: string;  // optional hex — overrides primaryColor on buttons
   buttonTextColor?: string;        // optional hex
+  heroBgStyle?: 'primary' | 'background';
+  alternateSectionBg?: boolean;
+  dividerStyle?: 'none' | 'gradient' | 'solid';
+  brandName?: string;
+  brandTagline?: string;
 }
 ```
 
-`docs/04-USE_CASES.md` UC-027 Section A was updated (2026-06-16) to list these 13 fields. The prototype groups them into 4 sub-sections (Cores, Logo, Tipografia, Forma e estilo) to keep the form scannable.
-
-> ✅ **Resolved during M13-S35 discovery (2026-07-07):** `HotsiteBrandingResponse` (`packages/types/src/hotsite.ts`) actually carries 5 more fields the prototype never showed — `heroBgStyle`, `alternateSectionBg`, `dividerStyle`, `brandName`, `brandTagline` — confirmed live and consumed by the public hotsite renderer today (`apps/web/features/platform/hotsite/apply-branding.ts`, `page-model.ts`, the Hero/BookingCta brand-card). M13-S35 covers all 18 fields, extending the grouping to 5 sub-sections: the 4 above plus a new "Ritmo visual" section (`heroBgStyle`, `alternateSectionBg`, `dividerStyle`), with `brandName`/`brandTagline` folded into "Logo e identidade". See `plan/M13-DASHBOARD-FRONTEND.md` § M13-S35 for the full field table.
+The current editor exposes all 18 fields in five sections: Cores; Logo e identidade; Tipografia; Forma e estilo; Ritmo visual. `heroBgStyle` is `primary | background`, `alternateSectionBg` is a boolean switch, and `dividerStyle` is `none | gradient | solid`.
 
 ---
 
@@ -71,8 +74,9 @@ interface HotsiteBranding {
 
 `HERO | SERVICE_LIST | GALLERY | BOOKING_CTA | TESTIMONIALS | ABOUT | CONTACT | FOOTER | CHATBOT | LEAD_FORM` — 10 types (`FOOTER` added `M13-S36`, `CHATBOT` added 2026-08-08, `LEAD_FORM` added 2026-08-23, both via `/discovery-to-milestone`). Order in the JSONB array determines render order on the public hotsite. Each module has `enabled: boolean` plus its own config shape (see `HeroModuleData`, etc. in the aggregate file).
 
-**Per-module config — only HERO, CHATBOT, and LEAD_FORM are prototyped:**
-- HERO (`01d-module-config-hero.html`), representative example: title, subtitle, layout (centered/left), CTA target, optional background image. **Shipped** — `HeroConfigPanel.tsx` and the other 6 original panels (`SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, plus `FOOTER`) all built directly from the real types in `M13-S36`, without individual prototype screens (an explicit `M13-S36` decision).
+**Per-module config — all ten module types are clickable in the prototype:**
+- HERO (`01d-module-config-hero.html`) is the complete baseline for its shipped panel: title, subtitle, eyebrow, variant, X/Y content position, primary and secondary CTAs, lateral panel, optional background image, and its focal point.
+- `SERVICE_LIST`, `GALLERY`, `BOOKING_CTA`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, and `FOOTER` share `01f-module-config.html`. The selected `?module=` query string renders that module's baseline field set in the same dashboard/drill-down shell, keeping every Layout-row link clickable without duplicating the common shell.
 - CHATBOT (`01e-module-config-chatbot.html`), the 9th type, added 2026-08-08: `variant` (`'bubble' | 'inline'`), `accentColor` (`'primary' | 'secondary'`), `botName`, `welcomeMessage` — see `packages/types/src/hotsite.ts` `ChatbotModuleData` (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped `M19-S12`** — `ChatbotConfigPanel.tsx`. Two things this panel needs that no other module's panel does:
   1. A standing (non-dismissible) info note disclosing that availability depends on Ikaro-managed AI provider credits (`.availability-note` in the prototype screen).
   2. A conditional red banner when `GET /v1/tenants/chatbot/cap-status` returns `dailyCapReachedToday: true` (UC-027 A5) — the only module config screen that shows this.
@@ -88,7 +92,11 @@ interface HotsiteBranding {
 
 **Resolved: client-side live preview, confirmed shipped.** `HotsiteEditor` passes a `draft: HotsiteAdminContentResponse` prop directly into `apps/web/features/platform/components/hotsite/HotsitePreview.tsx`, which renders the module tree client-side from that prop — no extra BFF call, no preview-mode parameter/token. No BFF preview-mode parameter/token exists or is needed.
 
-`02-preview.html` mocks this visual outcome.
+`02-preview.html` reproduces the editor's preview frame plus its 22rem desktop publish card / mobile publish bar.
+
+## Manifesto (advanced editing)
+
+`ManifestTab.tsx` is the fourth editor tab. It accepts the JSON object `{ branding, layout, seo }`, validates its structure, known unique module types and each module's data shape before applying it to the draft. It is an advanced escape hatch; Branding, Layout and SEO remain the guided manager workflow. `01-hotsite-editor.html` includes this delivered state, while `hotsite-impl/manifesto-beloauto.json` is a realistic configuration fixture and `hotsite-impl/beloauto.html` its public-site output reference.
 
 ---
 
@@ -97,7 +105,7 @@ interface HotsiteBranding {
 | Scenario | UI response |
 |---|---|
 | Invalid color (not hex) — UC-027 A1 | Field: red border + "Cor inválida. Use o formato hexadecimal, ex: #2563eb." — `01b-color-error.html` |
-| Image upload fails — UC-027 A2 | Falls back to a URL text input — `01c-image-upload-fallback.html` |
+| Image upload fails — UC-027 A2 | Inline error; the upload target remains available for retry — `01c-image-upload-fallback.html` |
 
 ## Unpublish (new — not in original UC text)
 

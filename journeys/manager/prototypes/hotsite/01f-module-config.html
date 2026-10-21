@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurar módulo — Hotsite</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { margin: 0; color: var(--ba-text); background: #f8fafc; font-family: Inter, sans-serif; }
+    .back { color:var(--ba-text); text-decoration:none; font-weight:600; }
+    /* Same full-width content column as ModuleConfigShell: the desktop grid owns width,
+       not this inner wrapper. */
+    .module-config-body { padding: 1.5rem 1rem 7rem; }
+    /* The real panel begins directly with its fields. Its page title and back action
+       belong to the dashboard topbar, not to a second content heading. */
+    .card { margin-bottom:1.25rem; }
+    .detail-aside .card { background:#fff; border:1px solid #e5e7eb; border-radius:.5rem; padding:1rem; }
+    .field { margin-bottom:1.25rem; }
+    .field:last-child { margin-bottom:0; }
+    label { display:block; margin-bottom:.4rem; font-size:.875rem; font-weight:700; }
+    input, textarea, select { box-sizing:border-box; width:100%; border:1px solid #cbd5e1; border-radius:6px; padding:.7rem .75rem; font:inherit; background:#fff; }
+    textarea { min-height:6rem; resize:vertical; }
+    .hint { margin:.35rem 0 0; color:#64748b; font-size:.8rem; line-height:1.4; }
+    .choices { display:flex; flex-wrap:wrap; gap:.5rem; }
+    .choice { border:1px solid #cbd5e1; background:#fff; border-radius:999px; padding:.5rem .75rem; font:inherit; font-size:.85rem; }
+    .choice.selected { background:var(--ba-primary); border-color:var(--ba-primary); color:#fff; }
+    .switch { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.75rem 0; }
+    .switch button { width:2.6rem; height:1.45rem; border:0; border-radius:999px; background:#2563eb; color:white; }
+    .upload { border:1px dashed #94a3b8; border-radius:6px; padding:1.25rem; text-align:center; color:#64748b; }
+    .item { border:1px solid #e5e7eb; border-radius:.375rem; padding:1rem; margin-top:1rem; }
+    .actions { position:fixed; inset:auto 0 0; display:flex; justify-content:center; gap:.75rem; padding:1rem; background:#fff; border-top:1px solid #cbd5e1; }
+    .button { border:1px solid #cbd5e1; border-radius:6px; padding:.7rem 1rem; color:var(--ba-text); background:#fff; text-decoration:none; font-weight:700; }
+    .button.primary { background:var(--ba-primary); border-color:var(--ba-primary); color:#fff; }
+    .detail-aside { display:none; }
+    @media (min-width:1024px) {
+      .detail-layout { display:grid; grid-template-columns:minmax(0,1fr) 22rem; gap:1.5rem; align-items:start; }
+      .detail-aside { display:block; position:sticky; top:1.5rem; }
+      .actions { display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="dashboard-topbar">
+    <a class="back" href="01-hotsite-editor.html">← <span class="topbar-brand">Hotsite</span></a>
+    <h1 id="topbar-title" class="topbar-page-title">Configurar módulo</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:.75rem;"><a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a><span class="topbar-date">Hoje, 21 de outubro de 2026</span></div>
+  </div>
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header"><div class="sidebar-logo">B</div><div><p class="sidebar-tenant-name">BeloAuto Demo</p><p class="sidebar-tenant-slug">@beloauto</p></div></div>
+      <nav class="sidebar-nav" style="margin-top:.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item active" href="01-hotsite-editor.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer"><div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:.8125rem;">AP</div><div><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div></div>
+    </aside>
+    <main class="main-content">
+      <div class="module-config-body">
+        <div class="detail-layout">
+          <div id="fields"></div>
+          <aside class="detail-aside"><div class="card"><p class="hint" style="margin-top:0">Configurando este módulo</p><p class="hint">As alterações são aplicadas ao rascunho — ainda não são visíveis no hotsite público.</p><a class="button primary" style="display:block;text-align:center;margin-top:1rem" href="01-hotsite-editor.html">Aplicar</a><a class="button" style="display:block;text-align:center;margin-top:.625rem" href="02-preview.html">Preview</a><a class="button" style="display:block;text-align:center;margin-top:.625rem" href="01-hotsite-editor.html">Cancelar</a></div></aside>
+        </div>
+      </div>
+    </main>
+  </div>
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+    <button class="bottom-nav-item active" type="button" onclick="openSheet()">Mais</button>
+  </nav>
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet"><div class="bottom-sheet-handle"></div><p class="bottom-sheet-label">Somente Gerente</p><a class="bottom-sheet-item" href="../equipe/01-team-list.html">Equipe</a><a class="bottom-sheet-item" href="../configuracoes/01-settings-form.html">Configurações</a><a class="bottom-sheet-item active" href="01-hotsite-editor.html">Hotsite</a></div>
+  <div class="actions"><a class="button" href="01-hotsite-editor.html">Cancelar</a><a class="button" href="02-preview.html">Preview</a><a class="button primary" href="01-hotsite-editor.html">Aplicar</a></div>
+  <script>
+    const field = (label, control, hint = '') => `<div class="field"><label>${label}</label>${control}${hint ? `<p class="hint">${hint}</p>` : ''}</div>`;
+    const input = (label, placeholder = '') => field(label, `<input type="text" placeholder="${placeholder}">`);
+    const area = (label, placeholder = '') => field(label, `<textarea placeholder="${placeholder}"></textarea>`);
+    const choices = (label, values) => field(label, `<div class="choices">${values.map((value, index) => `<button class="choice${index === 0 ? ' selected' : ''}" type="button">${value}</button>`).join('')}</div>`);
+    const toggle = (label, hint = '') => `<div class="switch"><div><strong>${label}</strong>${hint ? `<p class="hint">${hint}</p>` : ''}</div><button type="button" aria-label="${label}">✓</button></div>`;
+    const upload = (label, hint) => field(label, `<div class="upload">Arraste uma imagem ou clique para enviar</div>`, hint);
+    const modules = {
+      SERVICE_LIST: {
+        title: 'Configurar: Lista de serviços',
+        fields: () => `<div class="card">${input('Título (opcional)', 'Nossos serviços')}${input('Texto de destaque (opcional)', 'O que oferecemos')}${toggle('Mostrar preços')}${toggle('Mostrar pontos de fidelidade')}${choices('Layout', ['Grade', 'Lista'])}</div>`
+      },
+      GALLERY: {
+        title: 'Configurar: Galeria',
+        fields: () => `<div class="card">${input('Título (opcional)', 'Nosso trabalho')}${input('Texto de destaque (opcional)', 'Antes e depois')}${choices('Layout', ['Grade', 'Mosaico', 'Destaque'])}<p class="hint">O layout Destaque exige pelo menos 5 imagens.</p>${field('Máximo de imagens visíveis', '<input type="number" min="1" value="6">')}</div><div class="card"><strong>Imagens</strong><p class="hint">Nenhuma imagem adicionada ainda.</p><div class="choices"><button class="button" type="button">Adicionar imagem</button><button class="button" type="button">Usar foto de um agendamento</button></div></div>`
+      },
+      BOOKING_CTA: {
+        title: 'Configurar: Chamada para agendamento',
+        fields: () => `<div class="card">${input('Título *', 'Pronto para agendar?')}${input('Subtítulo (opcional)', 'Reserve seu horário em poucos cliques')}${input('Texto de destaque (opcional)', 'Vagas limitadas')}${choices('Layout', ['Centralizado', 'Alinhado à esquerda'])}${choices('Posição vertical do conteúdo', ['Topo', 'Centro', 'Base'])}${choices('Posição horizontal do conteúdo', ['Esquerda', 'Centro', 'Direita'])}${input('Texto do botão *', 'Agendar agora')}${choices('Estilo de fundo', ['Cor primária', 'Cor de fundo'])}${choices('Painel lateral', ['Nenhum', 'Cartão da marca'])}${upload('Imagem de fundo (opcional)', 'Sem imagem → fundo sólido')}<div style="border-top:1px solid #e5e7eb;padding-top:1.25rem;margin-top:1.25rem"><strong>Calendário</strong>${choices('Seletor de data', ['Carrossel', 'Calendário'])}${field('Número de dias exibidos', '<input type="number" min="1" max="90" value="14">')}</div></div>`
+      },
+      TESTIMONIALS: {
+        title: 'Configurar: Depoimentos',
+        fields: () => `<div class="card">${input('Título (opcional)', 'O que dizem nossos clientes')}${input('Texto de destaque (opcional)', 'Depoimentos')}${choices('Layout', ['Grade', 'Carrossel'])}</div><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;gap:1rem"><strong>Depoimentos</strong><button class="button" type="button" onclick="addTestimonial(this)">Adicionar depoimento</button></div><p class="hint">Nenhum depoimento adicionado ainda.</p></div>`
+      },
+      ABOUT: {
+        title: 'Configurar: Sobre',
+        fields: () => `<div class="card">${input('Título *', 'Sobre nós')}${area('Texto *', 'Conte a história do seu negócio...')}<p class="hint" style="margin-top:-.875rem">Suporta markdown simples: **negrito**, listas e links.</p>${input('Texto de destaque (opcional)', 'Nossa história')}${choices('Posição da imagem', ['Esquerda', 'Direita'])}${upload('Imagem (opcional)', 'PNG ou JPG')}</div>`
+      },
+      CONTACT: {
+        title: 'Configurar: Contato',
+        fields: () => `<div class="card">${input('Título (opcional)', 'Fale conosco')}${input('Texto de destaque (opcional)', 'Contato')}${toggle('Mostrar endereço')}${toggle('Mostrar telefone')}${toggle('Mostrar WhatsApp')}${toggle('Mostrar e-mail')}${toggle('Mostrar mapa')}${toggle('Mostrar Instagram')}${toggle('Mostrar Facebook')}${choices('Estilo de exibição', ['Lista', 'Cartões com ícones'])}${input('Texto do botão do WhatsApp (opcional)', 'Fale conosco no WhatsApp')}</div>`
+      },
+      FOOTER: {
+        title: 'Configurar: Rodapé',
+        fields: () => `<div class="card">${input('Slogan (opcional)', 'Frase curta exibida no rodapé do site')}${input('Nota de direitos autorais (opcional)', 'Todos os direitos reservados')}${toggle('Mostrar botão do WhatsApp')}</div>`
+      }
+    };
+    const type = new URLSearchParams(location.search).get('module');
+    const config = modules[type] || modules.SERVICE_LIST;
+    document.getElementById('topbar-title').textContent = config.title;
+    document.getElementById('fields').innerHTML = config.fields();
+    function addTestimonial(button) {
+      const container = button.closest('.card');
+      const empty = container.querySelector('.hint');
+      if (empty) empty.remove();
+      const item = document.createElement('div');
+      item.className = 'item';
+      item.innerHTML = `${input('Nome do autor *', 'Maria Silva')}${area('Texto *', 'Atendimento excelente, recomendo muito!')}${choices('Avaliação (opcional)', ['Nenhuma', '1', '2', '3', '4', '5'])}${upload('Foto do autor (opcional)', 'PNG ou JPG')}<button class="button" type="button" onclick="this.closest(\'.item\').remove()">Remover depoimento</button>`;
+      container.append(item);
+    }
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+  </script>
+</body>
+</html>

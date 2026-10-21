@@ -12,7 +12,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["/dashboard/hotsite<br/>Hotsite Editor<br/>(Branding + Layout + SEO)"]
+    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["/dashboard/hotsite<br/>Hotsite Editor<br/>(Branding + Layout + SEO + Manifesto)"]
 
     Editor --> EditBranding(("Edita cor/fonte/botão"))
     Editor --> ToggleModule(("Liga/desliga módulo"))
@@ -29,7 +29,7 @@ flowchart TD
 
     EditBranding --> ImageUpload(("Upload de logo/imagem"))
     ImageUpload --> UploadOk{"Upload bem-sucedido?"}
-    UploadOk -- "não (A2)" --> UrlFallback["campo de URL<br/>como alternativa"]
+    UploadOk -- "não (A2)" --> UrlFallback["erro inline + nova tentativa<br/>no campo de upload"]
     UrlFallback --> Editor
     UploadOk -- "sim" --> Editor
 
@@ -77,12 +77,20 @@ Folder: `manager/prototypes/hotsite/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
-| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (10 module types) / SEO tabs (prototype shows 3 tabs; the shipped editor adds a 4th, Manifest) | UC-027 | ✅ Criado |
+| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (10 module types) / SEO / Manifesto | UC-027 | ✅ Criado |
 | `01b-color-error.html` | Invalid hex color error | UC-027 A1 | ✅ Criado |
-| `01c-image-upload-fallback.html` | Image upload failure → URL fallback | UC-027 A2 | ✅ Criado |
-| `01d-module-config-hero.html` | Per-module config drill-down (HERO, representative example) | — | ✅ Criado |
+| `01c-image-upload-fallback.html` | Image upload failure → inline error and retry | UC-027 A2 | ✅ Criado |
+| `01d-module-config-hero.html` | Per-module config drill-down (HERO, complete shipped field set) | — | ✅ Criado |
 | `01e-module-config-chatbot.html` | Per-module config drill-down (CHATBOT, 9º tipo — implementado `M19-S12`) | UC-027 Section B | ✅ Criado |
+| `01f-module-config.html` | Per-module config drill-down for the seven remaining module types | UC-027 Section B | ✅ Criado |
 | `02-preview.html` | Draft preview mock | — | ✅ Criado |
 | `03-publish-success.html` | Publish confirmation | UC-027 | ✅ Criado |
 | `03b-unpublish-success.html` | Unpublish confirmation (zona de risco) | UC-027 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff (preview semantics + per-module config flagged as open) | — | ✅ Criado |
+| `editor-vision/index.html` | Proposta de editor visual: prévia persistente, Branding com mapa de impacto e edição contextual de módulos | — | ❓ Proposta para validação |
+
+## Proposta futura — editor visual guiado
+
+O editor entregue continua sendo a referência de comportamento e de dados. A proposta em `manager/prototypes/hotsite/editor-vision/` não introduz módulos ou campos de manifesto: ela explora uma experiência em que o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e entende o efeito das propriedades globais de Branding.
+
+Antes de uma implementação, validar as tarefas da tela `editor-vision/04-task-validation.html` com pessoas sem conhecimento do schema. Modelos de hotsite ficam deliberadamente fora deste primeiro passo; eles só devem ser considerados depois que a edição do hotsite atual estiver compreensível.

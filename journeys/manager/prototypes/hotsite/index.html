@@ -25,14 +25,14 @@
 </head>
 <body>
   <h1>MANAGER — Hotsite</h1>
-  <p class="subtitle">UC-027 (branding, layout, SEO e publicação do hotsite) — ✅ Done, M13-S35/S36/S37 + M19-S12 (Chatbot)</p>
+  <p class="subtitle">Baseline fiel do editor entregue — UC-027 (branding, layout, SEO, manifesto e publicação)</p>
 
   <div class="section">
     <p class="section-title">Screens</p>
     <div class="screen-list">
       <a href="01-hotsite-editor.html" class="screen-link">
         <span class="screen-num">01</span>
-        Editor — Branding (5 seções/18 campos) / Layout (10 módulos) / SEO
+        Editor — Branding (5 seções/18 campos) / Layout (10 módulos) / SEO / Manifesto
         <span class="exists-tag">EXISTS</span>
       </a>
       <a href="01d-module-config-hero.html" class="screen-link">
@@ -43,6 +43,11 @@
       <a href="01e-module-config-chatbot.html" class="screen-link">
         <span class="screen-num">01e</span>
         Configurar módulo — Chatbot (9º tipo)
+        <span class="exists-tag">EXISTS</span>
+      </a>
+      <a href="01f-module-config.html?module=SERVICE_LIST" class="screen-link">
+        <span class="screen-num">01f</span>
+        Configurar módulos — Lista de serviços, Galeria, CTA, Depoimentos, Sobre, Contato e Rodapé
         <span class="exists-tag">EXISTS</span>
       </a>
       <a href="02-preview.html" class="screen-link">
@@ -73,8 +78,19 @@
       </a>
       <a href="01c-image-upload-fallback.html" class="screen-link">
         <span class="screen-num">01c</span>
-        Falha no upload — fallback para URL
+        Falha no upload — erro inline e nova tentativa
         <span class="uc-tag">UC-027 A2</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
+    <p class="section-title">Proposta — novo editor (não implementado)</p>
+    <div class="screen-list">
+      <a href="editor-vision/index.html" class="screen-link">
+        <span class="screen-num">UX</span>
+        Editor visual — prévia persistente, Branding explicável e edição direta de módulos
+        <span class="gap-tag">PROPOSTA</span>
       </a>
     </div>
   </div>
@@ -82,27 +98,46 @@
   <div class="section">
     <p class="section-title">Dry-run checklist</p>
     <ul class="checklist">
-      <li>3 abas no protótipo: Branding, Layout, SEO (o editor entregue adiciona a aba Manifest) — alternam sem recarregar a página</li>
+      <li>4 abas: Branding, Layout, SEO e Manifesto — alternam sem recarregar a página</li>
       <li>Branding mostra os 18 campos (cores, logo + nome/slogan da marca, tipografia, cantos, botão, espaçamento, sombra, ritmo visual) agrupados em 5 subseções</li>
       <li>Layout mostra os 10 módulos (incl. Rodapé, Chatbot e Lead Form) com drag handle, link "Configurar" e toggle on/off</li>
-      <li>"Configurar" no módulo Hero abre um drill-down com campos específicos</li>
+      <li>"Configurar" no módulo Hero abre o drill-down com todos os controles entregues: conteúdo, posicionamento, CTAs, painel lateral e imagem</li>
       <li>"Configurar" no módulo Chatbot mostra variant/accentColor/botName/welcomeMessage, a nota permanente sobre créditos de IA, e (quando aplicável) o banner de limite diário atingido</li>
       <li>SEO mostra título (60 caracteres), descrição (158 caracteres) e imagem OG, todos opcionais</li>
+      <li>Manifesto é a edição avançada do JSON de branding, layout e SEO; a edição guiada continua sendo feita nas outras abas</li>
       <li>Cor em formato inválido → erro inline, salvar bloqueado</li>
-      <li>Falha simulada de upload → campo de URL aparece como alternativa</li>
-      <li>"Preview" mostra o hotsite com um banner indicando alterações não publicadas</li>
+      <li>Falha simulada de upload → erro inline; o mesmo campo de upload permite nova tentativa</li>
+      <li>"Preview" mostra o rascunho dentro de um frame, com ação de publicação no painel lateral (ou na barra móvel)</li>
+      <li>"Visitar site" abre a versão pública atual em outra aba</li>
       <li>"Publicar alterações" → confirmação de sucesso</li>
       <li>"Despublicar hotsite" está na zona de risco, visualmente separado das ações normais</li>
     </ul>
   </div>
 
   <div class="section">
+    <p class="section-title">Referência de conteúdo e resultado público</p>
+    <div class="screen-list">
+      <a href="hotsite-impl/manifesto-beloauto.json" class="screen-link">
+        <span class="screen-num">JSON</span>
+        Manifesto BeloAuto — configuração realista de branding, módulos e SEO
+        <span class="exists-tag">REFERENCE</span>
+      </a>
+      <a href="hotsite-impl/beloauto.html" class="screen-link">
+        <span class="screen-num">SITE</span>
+        BeloAuto — resultado público gerado pela configuração de referência
+        <span class="exists-tag">REFERENCE</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="section">
     <p class="section-title">Open questions</p>
     <ul class="checklist">
-      <li>✅ Resolvido — per-module config: os 8 módulos originais têm seu próprio painel de configuração (`M13-S36`), incl. `FooterConfigPanel`. Só o Hero foi prototipado aqui como exemplo visual; os outros foram construídos direto dos tipos reais.</li>
+      <li>✅ Resolvido — todos os módulos têm painel de configuração. Hero e Chatbot têm telas próprias; os outros sete usam a mesma tela parametrizada pelo tipo, com os campos atuais de cada painel.</li>
       <li>✅ Resolvido — `CHATBOT` (9º módulo, adicionado 2026-08-08) tem `ChatbotConfigPanel.tsx` construído (`M19-S12`, 2026-08-18). Prototipado em `01e-module-config-chatbot.html`.</li>
       <li>✅ Resolvido — Preview: renderização client-side do rascunho. `HotsiteEditor` passa `draft` diretamente para `HotsitePreview.tsx`, que renderiza a árvore de módulos no cliente. Não existe nem é necessário parâmetro/token de preview na BFF — ver `dev-notes.md`.</li>
       <li>✅ Resolvido — Despublicar é uma ação de zona de risco dentro do próprio editor, como prototipado.</li>
+      <li>❓ Proposta para validação — novo shell “editar vendo”, preservando os módulos e manifesto atuais: ver <a href="editor-vision/index.html">editor-vision/</a>.</li>
     </ul>
   </div>
 </body>
