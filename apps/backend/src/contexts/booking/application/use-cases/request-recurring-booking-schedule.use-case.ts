@@ -6,16 +6,12 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
 import { RecurringBookingSchedule } from '../../domain/recurring-booking-schedule.aggregate';
-import { assertValidTerm, RecurrenceRule } from '../../domain/recurrence-rule.helpers';
+import { assertValidTerm } from '../../domain/recurrence-rule.helpers';
 import { Resource } from '../../domain/resource.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { BOOKING_CUSTOMER_PORT, IBookingCustomerPort } from '../ports/booking-customer.port';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
-import {
-  BOOKING_PLATFORM_PORT,
-  IBookingPlatformPort,
-  TenantBookingWindow,
-} from '../ports/booking-platform.port';
+import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { BOOKING_STAFF_PORT, IBookingStaffPort } from '../ports/booking-staff.port';
 import {
   IRecurringBookingScheduleRepository,
@@ -61,31 +57,9 @@ import {
   deriveAssignmentPolicy,
   effectiveRequirements,
   pickCustomerChoices,
-  RecurringResourceSelection,
 } from './recurring-service-requirement.helpers';
 import { resolveStartableOccurrences } from './recurring-booking-schedule-window.helpers';
-
-export interface RequestRecurringBookingScheduleUseCaseInput {
-  tenantId: string;
-  correlationId: string;
-  timezone: string;
-  serviceId: string;
-  recurrence: RecurrenceRule;
-  startsOn: string;
-  endsOn: string;
-  // One entry per CUSTOMER_CHOICE requirement of the service; the assignment policy is derived from
-  // the service, never taken from the caller (TD49 Story 0).
-  resourceSelections: RecurringResourceSelection[];
-  actorType: 'CUSTOMER' | 'STAFF';
-  actorId: string;
-  // Present only when a STAFF actor creates on the customer's behalf.
-  bodyCustomerId?: string;
-  // The tenant's booking window (`settings.booking`) — the ceiling the service's own override is
-  // clamped to when the first occurrence is checked (M23-S35).
-  tenantBookingWindow: TenantBookingWindow;
-  // The customer's previous schedule this request may renew (M23-S35). Never stored.
-  renewsScheduleId?: string;
-}
+import { RequestRecurringBookingScheduleUseCaseInput } from './request-recurring-booking-schedule.types';
 
 export interface RequestRecurringBookingScheduleUseCaseResult {
   id: string;

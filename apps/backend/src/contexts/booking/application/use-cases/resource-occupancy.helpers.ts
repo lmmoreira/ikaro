@@ -1,6 +1,7 @@
+import { BookingLineForResolution, ResourceSelectionInput } from './resource-occupancy.types';
+import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 import { BookingServiceNotInTenantError } from '../../domain/errors/booking-domain.error';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import { ResourceType } from '../../domain/resource.types';
 import { Service } from '../../domain/service.aggregate';
 import {
   IResourceOccupancyRepository,
@@ -18,32 +19,6 @@ import {
   ResolutionSnapshot,
   selectionKey,
 } from './resource-resolution-context.helpers';
-
-// isDegenerate carries isDegenerateService()'s verdict through to assignment time — see
-// resource-occupancy-assignment.helpers.ts's effectiveLockState() for why.
-export interface ResolvedLineCandidates {
-  candidates: ResourceOccupancyCandidate[];
-  isDegenerate: boolean;
-}
-
-export interface BookingLineForResolution {
-  lineId: string;
-  serviceId: string;
-  durationMinsAtBooking: number;
-}
-
-// One customer-chosen resource for one CUSTOMER_CHOICE requirement (M23-S01). legIndex is null
-// for a flat (non-legged) requirement, matching ResourceOccupancyCandidate's own shape.
-// resourceType disambiguates within a bundle (more than one requirement on the same line/leg).
-// AUTO_ANY/AUTO_FUNGIBLE_POOL/NONE requirements never consult these — a selection entry for one
-// of those is simply ignored, never an error, so approve-booking/reschedule-booking's "replay
-// every existing assignment regardless of its original selectionMode" re-resolution stays safe.
-export interface ResourceSelectionInput {
-  serviceId: string;
-  legIndex: number | null;
-  resourceType: ResourceType;
-  resourceId: string;
-}
 
 function buildSelectionsByKey(selections: ResourceSelectionInput[]): Map<string, string[]> {
   const map = new Map<string, string[]>();

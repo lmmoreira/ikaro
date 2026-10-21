@@ -1,9 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { BOOKING_REPOSITORY, IBookingRepository } from '../ports/booking-repository.port';
 import {
-  MatchAvailabilityAlertsUseCase,
-  MatchAvailabilityAlertsUseCaseResult,
-} from './match-availability-alerts.use-case';
+  AvailabilityAlertMatchingResult,
+  AvailabilityAlertMatchingService,
+} from '../services/availability-alert-matching.service';
 
 export interface MatchAvailabilityAlertsForBookingUseCaseInput {
   tenantId: string;
@@ -11,7 +11,7 @@ export interface MatchAvailabilityAlertsForBookingUseCaseInput {
   correlationId: string;
 }
 
-export type MatchAvailabilityAlertsForBookingUseCaseResult = MatchAvailabilityAlertsUseCaseResult;
+export type MatchAvailabilityAlertsForBookingUseCaseResult = AvailabilityAlertMatchingResult;
 
 // A rejected booking's event carries no time or service, so the rejection handler resolves them
 // from the booking itself (a rejected PENDING booking was holding the slot) and re-checks that
@@ -20,7 +20,7 @@ export type MatchAvailabilityAlertsForBookingUseCaseResult = MatchAvailabilityAl
 export class MatchAvailabilityAlertsForBookingUseCase {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
-    private readonly matchAlerts: MatchAvailabilityAlertsUseCase,
+    private readonly matchAlerts: AvailabilityAlertMatchingService,
   ) {}
 
   async execute(
@@ -30,7 +30,7 @@ export class MatchAvailabilityAlertsForBookingUseCase {
     const booking = await this.bookingRepo.findById(bookingId, tenantId);
     if (!booking) return { notified: 0 };
 
-    return this.matchAlerts.execute({
+    return this.matchAlerts.match({
       tenantId,
       correlationId,
       serviceIds: booking.lines.map((line) => line.serviceId),

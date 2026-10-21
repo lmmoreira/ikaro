@@ -47,7 +47,8 @@ import {
 import { reassignThroughWorklist } from './future-commitment-reassign.helpers';
 import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import { ReassignTarget } from './resource-reassignment.helpers';
-import { TerminalBookingDeps } from './booking-exception-closing.helpers';
+import { TerminalBookingDeps } from '../helpers/booking-exception-closing.helpers';
+import { FutureCommitmentExceptionResolutionOutcome } from './future-commitment-exception-resolution.types';
 import {
   cancelThroughWorklist,
   isRepeatedCancelOfCancelledBooking,
@@ -68,12 +69,6 @@ export interface ResolveFutureCommitmentExceptionsUseCaseInput {
   target?: ReassignTarget;
   // RESCHEDULE only — the request schema guarantees exactly one exceptionId alongside it.
   scheduledAt?: string;
-}
-
-export interface FutureCommitmentExceptionResolutionOutcome {
-  exceptionId: string;
-  outcome: 'RESOLVED' | 'STILL_OPEN';
-  errorCode?: string;
 }
 
 export interface ResolveFutureCommitmentExceptionsUseCaseResult {

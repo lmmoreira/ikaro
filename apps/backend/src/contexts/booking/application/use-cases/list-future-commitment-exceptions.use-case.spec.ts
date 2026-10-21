@@ -28,7 +28,11 @@ describe('ListFutureCommitmentExceptionsUseCase', () => {
   });
 
   async function raiseFor(resourceId: string): Promise<void> {
-    await world.raise.execute({ tenantId: TENANT_ID, resourceId, correlationId: 'corr-list-1' });
+    await world.raise.raiseForResource({
+      tenantId: TENANT_ID,
+      resourceId,
+      correlationId: 'corr-list-1',
+    });
   }
 
   it("carries each entry's booking summary and the affected resource name, earliest booking first", async () => {

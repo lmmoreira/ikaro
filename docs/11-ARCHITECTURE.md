@@ -123,8 +123,9 @@ src/contexts/booking/
 ├── application/           # Orchestration
 │   ├── use-cases/
 │   ├── ports/             # Interfaces (Repositories, Clients)
-│   ├── services/          # application-level services
-│   ├── jobs/               # cron job classes
+│   ├── services/          # application-level services (logic shared by use cases and jobs)
+│   ├── helpers/           # pure helpers/types used by BOTH use cases and jobs (only when shared)
+│   ├── jobs/               # cron job classes — batch orchestrators above use cases
 │   └── dtos/
 ├── infrastructure/        # External implementations — flat, no adapters/ wrapper
 │   ├── controllers/       # REST API

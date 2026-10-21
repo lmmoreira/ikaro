@@ -8,7 +8,7 @@ import { Service } from '../../domain/service.aggregate';
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { isInResourcePool } from './resource-pool.helpers';
-import { ResourceSelectionInput } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
 import { selectionKey } from './resource-resolution-context.helpers';
 
 // One requested service as the availability read engine sees it: the quoted duration (equal to

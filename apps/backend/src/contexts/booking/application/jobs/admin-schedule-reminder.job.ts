@@ -5,8 +5,8 @@ import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { AdminDailyScheduleReminder } from '../../domain/commands/admin-daily-schedule-reminder.command';
 import { BookingDayReminderJobBase } from './booking-day-reminder-job.base';
-import { REMINDER_WINDOW } from './tenant-local-window';
-import { WindowedTenant } from './windowed-tenant.job';
+import { REMINDER_WINDOW } from './tenant-local-window.helpers';
+import { WindowedTenant } from './windowed-tenant-job.base';
 
 @Injectable()
 export class AdminScheduleReminderJob extends BookingDayReminderJobBase {

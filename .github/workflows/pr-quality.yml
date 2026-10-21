@@ -40,7 +40,7 @@ jobs:
       - run: pnpm architecture-check
 
   dependency-cruise:
-    name: Dependency graph validation (report-only)
+    name: Dependency graph validation
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -59,8 +59,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm dep-cruise:test
 
-      - name: Run dependency graph scan (report-only)
-        continue-on-error: true
+      - name: Run dependency graph scan
         run: pnpm dep-cruise
 
   knip:

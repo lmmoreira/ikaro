@@ -17,7 +17,7 @@ import {
   BookingWindow,
   resolveEffectiveBookingWindow,
 } from './booking-window.helpers';
-import type { RequestRecurringBookingScheduleUseCaseInput } from './request-recurring-booking-schedule.use-case';
+import type { RequestRecurringBookingScheduleUseCaseInput } from './request-recurring-booking-schedule.types';
 
 // What a renewal is compared on: the request's own pattern and start (M23-S35).
 export interface ScheduleStartCandidate {

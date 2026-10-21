@@ -7,7 +7,7 @@ import {
   IResourceOccupancyRepository,
 } from '../ports/resource-occupancy-repository.port';
 import { IServiceRepository } from '../ports/service-repository.port';
-import { ResourceSelectionInput } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
 import { resolveEffectiveBookingWindow, TenantBookingWindow } from './booking-window.helpers';
 import { findRequirementForAssignment } from './future-commitment-alternatives.helpers';
 import { resolveEffectiveRescheduleWindowHours } from './reschedule-quote.helpers';

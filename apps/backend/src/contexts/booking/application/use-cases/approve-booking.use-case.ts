@@ -30,13 +30,13 @@ import { ApproveBookingDto } from '../dtos/approve-booking.dto';
 import {
   dismissStaleExceptionsAfterMove,
   occupiedResourceIds,
-} from './booking-exception-closing.helpers';
-import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
+} from '../helpers/booking-exception-closing.helpers';
+import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
   resolveBookingLinesResourceCandidates,
-  ResolvedLineCandidates,
 } from './resource-occupancy.helpers';
+import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 
 export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   bookingId: string;

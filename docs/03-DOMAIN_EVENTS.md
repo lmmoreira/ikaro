@@ -448,7 +448,7 @@ Every event — Booking, Loyalty, Notification, or any future event — is publi
 - **Consumers:** M23-S08 ships an audit-log consumer only. **No Notification consumer, by design** (M23-S23): one `Raised` per affected booking would send a manager one email per booking, so the manager alert hangs on `ResourceDeactivationImpactRaised` below.
 
 #### **ResourceDeactivationImpactRaised**
-- **Trigger:** the shared raise step (`RaiseFutureCommitmentExceptionsForResourceUseCase`, UC-047 and the UC-048 cascade) has raised its worklist entries and at least one booking is affected. Published once per deactivation, never when no booking is affected, through `OUTBOX_PUBLISHER` inside the deactivation transaction (a non-aggregate event).
+- **Trigger:** the shared raise step (`RaiseFutureCommitmentExceptionsForResourceService`, UC-047 and the UC-048 cascade) has raised its worklist entries and at least one booking is affected. Published once per deactivation, never when no booking is affected, through `OUTBOX_PUBLISHER` inside the deactivation transaction (a non-aggregate event).
 - **State change:** none beyond the entries `FutureCommitmentExceptionRaised` already records.
 - **Data:** `{ resourceId, resourceName, affectedCount }` — `affectedCount` is the number of live affected bookings (refreshed entries included).
 - **Consumers:** audit-log subscriber, and the Notification Context: one email to every manager, in the tenant's language, naming the resource and the number of bookings that need a decision, linking to the dashboard (`${FRONTEND_URL}/dashboard`).

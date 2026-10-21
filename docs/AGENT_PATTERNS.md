@@ -1043,3 +1043,33 @@ export class SendRecurringScheduleEndedNotificationUseCase extends BaseRecurring
 ```
 
 **Rules:** the `{ClassName}Input`/`{ClassName}Result` naming detector still applies to each subclass (declare `…UseCaseInput` as an interface and `…UseCaseResult` as a type alias of the base's result). A recipient the flow does not fit (the manager alert dispatches to many and reports `adminEmailSent`) stays a standalone use case. Specs construct the subclass with the same positional ports and use the real `JsonLocalizationAdapter`, so they assert the shipped copy.
+
+---
+
+## Application Layering Patterns
+
+### 23. Shared application logic — a service under thin use cases
+
+Two entry points (two use cases, or a use case and a job) need the same logic: it goes in `application/services/`, never in one use case that the other imports. Each entry point stays a thin use case over the service, which keeps its own `{ClassName}Input`/`{ClassName}Result` naming.
+
+```typescript
+// application/services/availability-query.service.ts — the logic; no *UseCase in the name
+@Injectable()
+export class AvailabilityQueryService {
+  async query(input: AvailabilityQueryInput): Promise<AvailabilityQueryResult> { /* ... */ }
+}
+
+// application/use-cases/get-availability.use-case.ts — the controller's entry point
+export type GetAvailabilityUseCaseInput = AvailabilityQueryInput;
+export type GetAvailabilityUseCaseResult = AvailabilityQueryResult;
+
+@Injectable()
+export class GetAvailabilityUseCase {
+  constructor(private readonly availabilityQuery: AvailabilityQueryService) {}
+  execute(input: GetAvailabilityUseCaseInput): Promise<GetAvailabilityUseCaseResult> {
+    return this.availabilityQuery.query(input);
+  }
+}
+```
+
+A second caller (`AvailabilityAlertMatchingService`) injects `AvailabilityQueryService` directly. A type or enum another file needs goes in a sibling `*.types.ts`. Helpers used by both jobs and use cases live in `application/helpers/`. Full placement rules: `docs/ENGINEERING_RULES_BACKEND.md` § Layering inside `application/`. CI: `pnpm dep-cruise` (blocking).

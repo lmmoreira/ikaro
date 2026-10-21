@@ -7,7 +7,7 @@ import { FutureCommitmentException } from '../../domain/future-commitment-except
 import { Service } from '../../domain/service.aggregate';
 import { IServiceRepository } from '../ports/service-repository.port';
 import { ITenantLockPort } from '../ports/tenant-lock.port';
-import { occupiedResourceIds } from './booking-exception-closing.helpers';
+import { occupiedResourceIds } from '../helpers/booking-exception-closing.helpers';
 import {
   rescheduleBookingInTransaction,
   RescheduleBookingInTransactionDeps,

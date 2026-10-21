@@ -12,6 +12,7 @@ import { RequestContextBuilder } from '../../../../test/factories/request-contex
 import { nextWeekday, pastDate } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceType } from '../../domain/resource.types';
+import { AvailabilityQueryService } from '../../application/services/availability-query.service';
 import { GetAvailabilityUseCase } from '../../application/use-cases/get-availability.use-case';
 import { ScheduleAvailabilityController } from './schedule-availability.controller';
 
@@ -35,13 +36,15 @@ describe('ScheduleAvailabilityController', () => {
     controller = new ScheduleAvailabilityController(
       new RequestContextBuilder().withTenantId(TENANT_ID).build(),
       new GetAvailabilityUseCase(
-        serviceRepo,
-        closureRepo,
-        new InMemoryScheduleOpeningRepository(),
-        resourceRepo,
-        new InMemoryBookingAvailabilityPort(),
-        new AvailabilityService(),
-        new BookingQuoteService(),
+        new AvailabilityQueryService(
+          serviceRepo,
+          closureRepo,
+          new InMemoryScheduleOpeningRepository(),
+          resourceRepo,
+          new InMemoryBookingAvailabilityPort(),
+          new AvailabilityService(),
+          new BookingQuoteService(),
+        ),
       ),
     );
   });

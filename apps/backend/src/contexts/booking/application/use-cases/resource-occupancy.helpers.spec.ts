@@ -16,8 +16,8 @@ import { ServiceLeg } from '../../domain/service-leg';
 import {
   mergeResourceSelections,
   resolveBookingLinesResourceCandidates,
-  ResourceSelectionInput,
 } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
 
 const TENANT_ID = '00000000-0000-7000-8000-000000000001';
 const OTHER_TENANT_ID = '00000000-0000-7000-8000-000000000099';

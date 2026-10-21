@@ -1,11 +1,11 @@
 import { z } from 'zod';
+import { resolveSettingsLocalization } from './settings-form-localization';
 import {
-  resolveSettingsLocalization,
   type NormalizedSettingsForm,
   type SettingsFormErrors,
   type SettingsFormTranslator,
   type SettingsFormValues,
-} from './settings-form';
+} from './settings-form-types';
 import {
   validateBusinessAddress,
   type AddressValidationResult,

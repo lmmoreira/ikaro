@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { Decimal } from 'decimal.js';
 import { z } from 'zod';
 import { fetchAndParseJson } from '../../../../shared/utils/fetch-and-parse-json';
+import { IOpenRouterCreditsPort } from '../../application/ports/openrouter-credits.port';
 
 const OPENROUTER_CREDITS_API_URL = 'https://openrouter.ai/api/v1/credits';
 const OPENROUTER_CREDITS_TIMEOUT_MS = 10000;
@@ -19,7 +20,7 @@ const openRouterCreditsResponseSchema = z.object({
 });
 
 @Injectable()
-export class OpenRouterCreditsClient {
+export class OpenRouterCreditsClient implements IOpenRouterCreditsPort {
   private readonly managementApiKey: string;
 
   constructor(config: ConfigService) {

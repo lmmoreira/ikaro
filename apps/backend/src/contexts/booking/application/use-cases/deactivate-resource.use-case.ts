@@ -5,7 +5,7 @@ import {
 } from '../../../../shared/ports/transaction-manager.port';
 import { ResourceNotFoundError } from '../../domain/errors/resource.error';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
-import { RaiseFutureCommitmentExceptionsForResourceUseCase } from './raise-future-commitment-exceptions-for-resource.use-case';
+import { RaiseFutureCommitmentExceptionsForResourceService } from '../services/raise-future-commitment-exceptions-for-resource.service';
 
 export interface DeactivateResourceUseCaseInput {
   id: string;
@@ -18,7 +18,7 @@ export class DeactivateResourceUseCase {
   constructor(
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
-    private readonly raiseExceptions: RaiseFutureCommitmentExceptionsForResourceUseCase,
+    private readonly raiseExceptions: RaiseFutureCommitmentExceptionsForResourceService,
   ) {}
 
   async execute(input: DeactivateResourceUseCaseInput): Promise<void> {
@@ -31,7 +31,7 @@ export class DeactivateResourceUseCase {
       await this.resourceRepo.save(resource);
       // UC-047/UC-073: every future booking on the resource becomes a worklist entry — same
       // transaction, so the deactivation and its impact record commit (or roll back) together.
-      await this.raiseExceptions.execute({
+      await this.raiseExceptions.raiseForResource({
         tenantId: input.tenantId,
         resourceId: input.id,
         correlationId: input.correlationId,

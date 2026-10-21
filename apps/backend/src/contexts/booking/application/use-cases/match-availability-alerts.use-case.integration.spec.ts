@@ -50,7 +50,8 @@ import { TypeOrmScheduleOpeningRepository } from '../../infrastructure/repositor
 import { TypeOrmServiceRepository } from '../../infrastructure/repositories/typeorm-service.repository';
 import { AvailabilityAlertSweepJob } from '../jobs/availability-alert-sweep.job';
 import { BookingQuoteService } from '../services/booking-quote.service';
-import { GetAvailabilityUseCase } from './get-availability.use-case';
+import { AvailabilityAlertMatchingService } from '../services/availability-alert-matching.service';
+import { AvailabilityQueryService } from '../services/availability-query.service';
 import { MatchAvailabilityAlertsForBookingUseCase } from './match-availability-alerts-for-booking.use-case';
 import { MatchAvailabilityAlertsUseCase } from './match-availability-alerts.use-case';
 
@@ -66,6 +67,7 @@ const at = (date: string, hhmm: string): Date => new Date(localDateTimeToUTCIso(
 // alerts are only ever matched by that tenant's events.
 describe('MatchAvailabilityAlerts (integration)', () => {
   let ds: DataSource;
+  let matchingService: AvailabilityAlertMatchingService;
   let useCase: MatchAvailabilityAlertsUseCase;
   let handler: BookingCancelledAvailabilityAlertHandler;
   let rejectedHandler: BookingRejectedAvailabilityAlertHandler;
@@ -114,7 +116,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       ds.getRepository(ServiceEntity),
       new InMemoryTenantSettingsPort(),
     );
-    const getAvailability = new GetAvailabilityUseCase(
+    const getAvailability = new AvailabilityQueryService(
       serviceRepo,
       new TypeOrmScheduleClosureRepository(ds.getRepository(ScheduleClosureEntity)),
       new TypeOrmScheduleOpeningRepository(ds.getRepository(ScheduleOpeningEntity)),
@@ -123,13 +125,14 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       new AvailabilityService(),
       new BookingQuoteService(),
     );
-    useCase = new MatchAvailabilityAlertsUseCase(
+    matchingService = new AvailabilityAlertMatchingService(
       alertRepo,
       platformPort,
       new TypeOrmTransactionManager(ds),
       serviceRepo,
       getAvailability,
     );
+    useCase = new MatchAvailabilityAlertsUseCase(matchingService);
     handler = new BookingCancelledAvailabilityAlertHandler(useCase, new InMemoryEventBus());
     bookingRepo = new TypeOrmBookingRepository(
       ds.getRepository(BookingEntity),
@@ -141,7 +144,7 @@ describe('MatchAvailabilityAlerts (integration)', () => {
       new TypeOrmBookingStatusTransitionRepository(ds.getRepository(BookingStatusTransitionEntity)),
     );
     rejectedHandler = new BookingRejectedAvailabilityAlertHandler(
-      new MatchAvailabilityAlertsForBookingUseCase(bookingRepo, useCase),
+      new MatchAvailabilityAlertsForBookingUseCase(bookingRepo, matchingService),
       new InMemoryEventBus(),
     );
     rescheduledHandler = new BookingRescheduledAvailabilityAlertHandler(

@@ -77,7 +77,11 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
     const resource = (await world.resourceRepo.findById(resourceId, TENANT_ID))!;
     resource.deactivate();
     await world.resourceRepo.save(resource);
-    await world.raise.execute({ tenantId: TENANT_ID, resourceId, correlationId: CORRELATION_ID });
+    await world.raise.raiseForResource({
+      tenantId: TENANT_ID,
+      resourceId,
+      correlationId: CORRELATION_ID,
+    });
     const entries = await world.exceptionRepo.findByTenant(TENANT_ID, { status: 'OPEN' });
     return entries.sort((a, b) => a.affectedId.localeCompare(b.affectedId)).map((e) => e.id);
   }

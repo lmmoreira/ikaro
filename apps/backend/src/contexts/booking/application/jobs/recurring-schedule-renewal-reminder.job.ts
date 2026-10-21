@@ -14,8 +14,8 @@ import {
   IRecurringBookingScheduleRepository,
   RECURRING_BOOKING_SCHEDULE_REPOSITORY,
 } from '../ports/recurring-booking-schedule-repository.port';
-import { REMINDER_WINDOW } from './tenant-local-window';
-import { WindowedTenant, WindowedTenantJob } from './windowed-tenant.job';
+import { REMINDER_WINDOW } from './tenant-local-window.helpers';
+import { WindowedTenant, WindowedTenantJob } from './windowed-tenant-job.base';
 
 // UC-070 (M23-S21): one renewal reminder per ending recurring schedule, in each tenant's own
 // 06:00–06:29 window (the same window BookingReminderJob uses). It matches the exact date

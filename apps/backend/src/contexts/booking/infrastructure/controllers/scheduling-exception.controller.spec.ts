@@ -66,7 +66,7 @@ describe('SchedulingExceptionController', () => {
     await world.addBooking({ service, resource: source });
     source.deactivate();
     await world.resourceRepo.save(source);
-    await world.raise.execute({
+    await world.raise.raiseForResource({
       tenantId: TENANT_ID,
       resourceId: source.id,
       correlationId: 'corr-ctrl-1',

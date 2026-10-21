@@ -36,8 +36,8 @@ import { RescheduleBookingAsCustomerDto } from '../dtos/reschedule-booking-as-cu
 import {
   dismissStaleExceptionsAfterMove,
   occupiedResourceIds,
-} from './booking-exception-closing.helpers';
-import { moveBookingLinesOccupancy } from './resource-occupancy-assignment.helpers';
+} from '../helpers/booking-exception-closing.helpers';
+import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
 import {
   QuoteRevisionResult,
   recordQuoteRevisionIfPriceChanged,

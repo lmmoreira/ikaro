@@ -16,17 +16,17 @@ import {
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
-import { computeBookingAlternatives } from './future-commitment-alternatives.helpers';
-import { raiseFutureCommitmentException } from './future-commitment-exception-raise.helpers';
+import { computeBookingAlternatives } from '../use-cases/future-commitment-alternatives.helpers';
+import { raiseFutureCommitmentException } from '../use-cases/future-commitment-exception-raise.helpers';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 
-export interface RaiseFutureCommitmentExceptionsForResourceUseCaseInput {
+export interface RaiseFutureCommitmentExceptionsForResourceInput {
   tenantId: string;
   resourceId: string;
   correlationId: string;
 }
 
-export interface RaiseFutureCommitmentExceptionsForResourceUseCaseResult {
+export interface RaiseFutureCommitmentExceptionsForResourceResult {
   raisedCount: number;
 }
 
@@ -46,7 +46,7 @@ const LIVE_BOOKING_STATUSES: ReadonlySet<BookingStatus> = new Set([
 // ResourceDeactivationImpactRaised for the whole deactivation, which is what alerts the managers
 // (the per-booking entries would send one email each, M23-S23).
 @Injectable()
-export class RaiseFutureCommitmentExceptionsForResourceUseCase {
+export class RaiseFutureCommitmentExceptionsForResourceService {
   constructor(
     @Inject(BOOKING_REPOSITORY) private readonly bookingRepo: IBookingRepository,
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
@@ -59,9 +59,9 @@ export class RaiseFutureCommitmentExceptionsForResourceUseCase {
     @Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher,
   ) {}
 
-  async execute(
-    input: RaiseFutureCommitmentExceptionsForResourceUseCaseInput,
-  ): Promise<RaiseFutureCommitmentExceptionsForResourceUseCaseResult> {
+  async raiseForResource(
+    input: RaiseFutureCommitmentExceptionsForResourceInput,
+  ): Promise<RaiseFutureCommitmentExceptionsForResourceResult> {
     const { tenantId, resourceId, correlationId } = input;
 
     // Narrows the window against a booking inserting occupancy on this resource concurrently (the

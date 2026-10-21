@@ -12,7 +12,7 @@ import { ResourceType } from '../../domain/resource.types';
 import { ServiceLeg } from '../../domain/service-leg';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { buildAvailabilityLines, toPlainAvailabilityLines } from './availability-lines.helpers';
-import { ResourceSelectionInput } from './resource-occupancy.helpers';
+import { ResourceSelectionInput } from './resource-occupancy.types';
 import { selectionKey } from './resource-resolution-context.helpers';
 
 const TENANT_A = '10000000-0000-4000-8000-0000000029d1';

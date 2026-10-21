@@ -22,7 +22,7 @@ import { RejectBookingDto } from '../dtos/reject-booking.dto';
 import {
   saveTerminalBookingsInTransaction,
   TerminalBookingDeps,
-} from './booking-exception-closing.helpers';
+} from '../helpers/booking-exception-closing.helpers';
 
 export type RejectBookingUseCaseInput = RejectBookingDto & {
   bookingId: string;

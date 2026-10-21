@@ -26,7 +26,7 @@ import {
   CreateLeadFormSubmissionUseCase,
   CreateLeadFormSubmissionUseCaseInput,
 } from './create-lead-form-submission.use-case';
-import { GetLeadFormPublicConfigUseCase } from './get-lead-form-public-config.use-case';
+import { LeadFormPublicConfigService } from '../services/lead-form-public-config.service';
 
 class FakeTurnstileVerifier implements ITurnstileVerifierPort {
   result = true;
@@ -89,7 +89,7 @@ describe('CreateLeadFormSubmissionUseCase', () => {
     settingsPort = new InMemoryTenantSettingsPort();
     txManager = new InMemoryTransactionManager();
     turnstile = new FakeTurnstileVerifier();
-    const getLeadFormPublicConfig = new GetLeadFormPublicConfigUseCase(
+    const getLeadFormPublicConfig = new LeadFormPublicConfigService(
       hotsiteConfigRepo,
       leadFormConfigRepo,
     );

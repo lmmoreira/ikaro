@@ -4,7 +4,7 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { mapSequentially } from '../../../../shared/utils/sequential';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { MatchAvailabilityAlertsUseCase } from '../use-cases/match-availability-alerts.use-case';
-import { ALERT_SWEEP_WINDOW, isInLocalWindow } from './tenant-local-window';
+import { ALERT_SWEEP_WINDOW, isInLocalWindow } from './tenant-local-window.helpers';
 
 // The local-morning window in which a tenant is swept — after BookingReminderJob's 06:00–06:29
 // window. The cron-reminders trigger fires every 30 minutes, so exactly one tick lands inside it:

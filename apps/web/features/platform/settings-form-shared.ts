@@ -1,5 +1,5 @@
 import type { UpdateTenantSettingsRequest } from '@ikaro/types';
-import { WEEK_DAYS, type WeekDay } from './settings-form';
+import { WEEK_DAYS, type WeekDay } from './settings-form-types';
 
 export function parseIntStrict(value: string): number {
   return /^\d+$/.test(value.trim()) ? Number(value.trim()) : Number.NaN;
