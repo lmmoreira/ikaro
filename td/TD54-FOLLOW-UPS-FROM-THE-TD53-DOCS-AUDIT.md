@@ -113,7 +113,7 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 **PR sequence:** 1 PR touching `.github/workflows/**`, `docs/` and a description-only edit under `infra/terraform/envs/prod/` (no `foundation/**`, no `apps/**`, so `infra-app-mix-ok` does not apply; the Terraform edit is what makes the credentialed plan jobs run on the PR).
 - PR1: the two workflow files, `variables.tf` and `docs/17`. **Ordered manual step, first:** the owner creates the three repo-level secrets before this PR is merged or its plan job is trusted; a missing secret resolves to an empty string and the plan jobs fail or silently change their input. **Ordered manual step, last:** after the live check passes, delete the three old Variables.
 
-### Story 3 — Make the dependency-graph scan a blocking gate, with a zero baseline 🟡
+### Story 3 — Make the dependency-graph scan a blocking gate, with a zero baseline 🟡 ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** L
@@ -160,6 +160,7 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 - [ ] `pnpm dep-cruise` exits 0 on `main` for every workspace, with no `warn` downgrade and no finding hidden.
 - [ ] The 4 new `permittedEdges` entries each name an exact source and a single exact target.
 - [ ] After PR2, "Architecture validation" and "Dependency graph validation" are required status checks on `main` (owner action in repository settings, recorded in the PR2 body).
+  - ⚠️ Both jobs are not yet required checks on main (owner action in repository settings, steps given at mark-done) — not a code gap, no TD opened, 2026-10-21
 - [ ] Behaviour is unchanged: every touched context's existing unit and integration suites pass.
 
 **Acceptance criteria — technical:**
