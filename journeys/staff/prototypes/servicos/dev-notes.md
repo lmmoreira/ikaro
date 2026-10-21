@@ -88,7 +88,7 @@ const filtered = services.filter(s => {
 
 ## Form validation (UC-012 + UC-013)
 
-Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `priceAmount` positive(), `durationMinutes` int positive(), `loyaltyPointsValue` int >= 0. The tighter bounds below are client-side only (`apps/web/features/booking/services/service-form.ts`: `name` required and at most 100 characters, `description` at most 500, `priceAmount` required and positive, `durationMinutes` required and a positive integer with no upper cap, `loyaltyPointsValue` a valid non-negative integer; `ServiceFormFields.tsx` also sets `maxLength` on name and description):
+Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `priceAmount` positive(), `durationMinutes` int positive(), `loyaltyPointsValue` int >= 0. The tighter bounds below are client-side only (`apps/web/features/booking/services/service-form.ts`: `name` required and at most 100 characters, `description` at most 500, `priceAmount` required and positive, `durationMinutes` required and a positive integer with no upper cap, `loyaltyPointsValue` digits only, and empty means 0; `ServiceFormFields.tsx` also sets `maxLength` on name and description):
 
 ```typescript
 // Zod v4 equivalent of the client-side rules in service-form.ts (illustrative; the real form uses hand-written checks, and field names map to the BFF's priceAmount/durationMinutes)
