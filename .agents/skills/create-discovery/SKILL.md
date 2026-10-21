@@ -41,7 +41,7 @@ A generic PM-interview question is worse than no question — every question in 
 4. Check `docs/discovery/` for an existing folder covering the same or clearly-overlapping ground — do not silently duplicate; if one exists, stop and ask the user how to proceed.
 5. Determine the discovery's slug (kebab-case, e.g. `lead-form-module`). Confirm `docs/discovery/<slug>/` doesn't already exist.
 
-Present a short grounding summary before asking anything — *"Today, hotsite modules work like X (see `docs/15-...` § Y); there's no lead-capture concept yet; the nearest precedent is the existing `CONTACT` module's config-panel pattern."* This is what makes Step 1's questions specific instead of generic.
+Present a short grounding summary before asking anything — *"Today, hotsite modules work like X (see `docs/<doc>.md` § Y); there's no lead-capture concept yet; the nearest precedent is the existing `CONTACT` module's config-panel pattern."* This is what makes Step 1's questions specific instead of generic.
 
 ### Mode B — restructure an existing, out-of-pattern discovery
 

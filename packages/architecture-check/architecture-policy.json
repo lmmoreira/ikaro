@@ -1077,7 +1077,15 @@
     "packages/validation/tsconfig.json"
   ],
   "docLinkIntegrity": {
-    "markdownSources": ["docs/", "plan/", "td/", "journeys/", ".claude/commands/", ".copilot/"],
+    "markdownSources": [
+      "docs/",
+      "plan/",
+      "td/",
+      "journeys/",
+      ".claude/commands/",
+      ".agents/skills/",
+      ".copilot/"
+    ],
     "codeSources": ["apps/", "packages/"],
     "excluded": ["docs/discovery/", "archive/"],
     "frozen": [

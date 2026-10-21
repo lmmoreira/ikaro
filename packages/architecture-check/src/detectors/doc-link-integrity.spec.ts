@@ -362,6 +362,22 @@ describe('checkDocLinkIntegrity', () => {
       ]);
     });
 
+    it('reports an abbreviated docs/NN- citation that spells no full name', () => {
+      const result = scan({ 'docs/OTHER.md': `see \`docs/${'15'}-...\` § Y` });
+
+      expect(result.findings).toEqual([
+        expect.objectContaining({
+          message: expect.stringContaining('docs/HOTSITE_DYNAMIC_ARCHITECTURE.md'),
+        }),
+      ]);
+    });
+
+    it('reports a bare filename citation exactly once, not once per matching rule', () => {
+      const result = scan({ 'docs/OTHER.md': `See ${oldName}.md.` });
+
+      expect(result.findings).toHaveLength(1);
+    });
+
     it('reports an old name in a .ts comment', () => {
       const result = scan({ 'apps/backend/src/a.ts': `// ${shortForm} § Schema\nexport {};` });
 

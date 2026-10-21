@@ -85,7 +85,7 @@ const RETIRED_FULL_NAME_REGEX = new RegExp(
   'g',
 );
 const RETIRED_SHORT_FORM_REGEX = new RegExp(
-  `(?<![A-Za-z0-9_./-])docs/(${RETIRED_NUMBERED_DOCS.map(([number]) => number).join('|')})(?![0-9A-Za-z_-]|\\.\\d)`,
+  `(?<![A-Za-z0-9_./-])docs/(${RETIRED_NUMBERED_DOCS.map(([number]) => number).join('|')})(?!-[A-Z]|[0-9A-Za-z_]|\\.\\d)`,
   'g',
 );
 
