@@ -63,7 +63,7 @@ There is no GCE observability VM, no `ikaro-images` registry, no supported `us-c
 
 ## Local infrastructure
 
-Use the root README and Docker Compose configuration for PostgreSQL and the Pub/Sub emulator. There is no supported local Prometheus/Grafana/Loki Compose stack. For focused local telemetry debugging, follow `docs/OBSERVABILITY_STRATEGY.md`.
+Use the root README and `docker/docker-compose.yml` (`pnpm infra:up` / `pnpm infra:down`) for the local dependencies: PostgreSQL, the Pub/Sub emulator, the GCS emulator (`gcs-emulator`) and MailHog (`mailhog`, the local email sink). There is no supported local Prometheus/Grafana/Loki Compose stack. For focused local telemetry debugging, follow `docs/OBSERVABILITY_STRATEGY.md`.
 
 Starting application servers or browser-based verification requires explicit user approval under `.copilot/context.md`.
 

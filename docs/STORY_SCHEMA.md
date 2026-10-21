@@ -8,7 +8,7 @@
 
 ## Why this file exists
 
-`/create-td` and `/discovery-to-milestone` both draft stories, in two different document types (`td/TDNN-*.md` vs `plan/M0X-*.md`), and independently used to define the same field set in prose. That produced real drift: the field name itself disagreed (`Agent:` in every real file vs. `Agent target:` in one skill's template), fields grew over time without being backfilled (`Files to create/modify` doesn't exist in early-milestone stories like M12), and pre-standardization TDs (TD37) have no structured fields at all — just prose and acceptance criteria. A new rule discovered mid-story (e.g. the `.http` file convention, or the PR-sequencing playbook) had to be manually copy-pasted into every place that drafts or consumes a story, with no guarantee it actually was.
+`/create-td` and `/discovery-to-milestone` both draft stories, in two different document types (`td/TDNN-*.md` vs `plan/M0X-*.md`), and independently used to define the same field set in prose. That produced real drift: the field name itself disagreed (`Agent:` in every real file vs. `Agent target:` in one skill's template), fields grew over time without being backfilled (`Files to create/modify` doesn't exist in early-milestone stories like M12), and pre-standardization TDs (e.g. TD08 and TD25 today) have no structured fields at all — just prose and acceptance criteria. A new rule discovered mid-story (e.g. the `.http` file convention, or the PR-sequencing playbook) had to be manually copy-pasted into every place that drafts or consumes a story, with no guarantee it actually was.
 
 This file is the fix: one schema, referenced everywhere. A new rule gets added once, here.
 
@@ -37,6 +37,7 @@ This file is the fix: one schema, referenced everywhere. A new rule gets added o
 ```
 
 - `Agent:` takes one value from the list, or a compound `a + b` (e.g. `backend-ts + bff-ts`, `devops + backend-ts`) when a story spans both; real files use the compound form widely.
+- Both `frontend-ts` and `web-ts` target the Next.js app (`apps/web`); in existing stories `frontend-ts` is by far the more common value.
 - Field name is **`Agent:`**, not `Agent target:` — matches every real file (`M20-S15`, `M12-S04`, `M17-S17`); the latter was a drafting-template-only variant, now retired.
 - `Pattern` is mandatory, not optional prose buried in the description. It's already required by `/story-discovery`'s Step 4q lock-in and `/create-td`'s own Step 6 self-dry-run — this just gives it a first-class line so it can't be silently skipped.
 
@@ -88,7 +89,7 @@ State every DEFERRABLE assumption the story's scope touches as an explicit crite
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] <named scenario/file>
-- Integration:                              <omit for web-ts stories — no .integration.spec.ts tier there>
+- Integration:                              <omit for frontend-ts / web-ts stories — no .integration.spec.ts tier there>
   - [ ] <named scenario/file>
 - Tenant isolation:                         <omit for pure infra / no-tenant-data stories>
   - [ ] <named cross-tenant scenario>

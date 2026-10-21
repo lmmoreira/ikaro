@@ -20,7 +20,10 @@ A single-page public form at `/[slug]/lead-form`, reached from the `LEAD_FORM` h
 | `apps/web/features/platform/components/public/LeadFormWidget.tsx` | ✅ Shipped M20-S09 | Client component — fetches the question catalog (`fetchLeadFormConfigClient`), owns the state machine below and the submit |
 | `apps/web/features/platform/components/public/LeadFormTerminalCard.tsx` | ✅ Shipped M20-S09 | Shared card for the terminal error states (submission error, rate-limited) |
 | `apps/web/shells/hotsite/components/LeadFormModule.tsx` | ✅ Shipped M20-S07 | Teaser section on the hotsite itself, mirroring `BookingCtaModule.tsx` |
-| `packages/types/src/hotsite.ts` | ✅ Shipped M20-S01/S07 | Defines `LEAD_FORM` and `LeadFormModuleData` |
+| `packages/types/src/enums.ts` | ✅ Shipped M20-S01/S07 | Defines the `LEAD_FORM` member of the hotsite module-type union |
+| `packages/types/src/hotsite.ts` | ✅ Shipped M20-S01/S07 | Defines `LeadFormModuleData` |
+| `apps/web/app/api/platform/lead-form/submissions/route.ts` | ✅ Shipped | Next Route Handler the client POSTs to (`submitLeadFormClient`, a deliberate raw `fetch` that carries the customer bearer token); forwards to the BFF submissions endpoint |
+| `apps/web/features/platform/components/public/LeadFormFields.tsx`, `LeadFormQuestionField.tsx`, `LeadFormPhoneField.tsx`, `LeadFormSkeleton.tsx`, `LeadFormSuccess.tsx`, `LeadFormLoginRequiredGate.tsx` | ✅ Shipped | Form fields, per-question field, phone field, loading skeleton, success card and the `CUSTOMER_ONLY` login gate used by `LeadFormWidget` |
 
 ---
 
@@ -49,7 +52,8 @@ GET /public/platform/lead-form/:slug
               questions: [{ id, label, type, required, options? }] }
   404 — tenant slug not found, or LEAD_FORM module isn't enabled
 
-POST /public/platform/lead-form/:slug/submissions
+POST /public/platform/lead-form/:slug/submissions   (the web client reaches this through the Next Route Handler
+  POST /api/platform/lead-form/submissions?slug=…, which forwards it)
   Header: X-Tenant-Slug: {slug}
   Body: { name, email, phone, answers: [{questionId, value}], turnstileToken }
   Response 200: { submissionId }
@@ -80,7 +84,7 @@ Full contract: `docs/API_CONTRACTS.md` § Lead Form Widget (Public).
 
 ## States
 
-`idle → loading (fetch questions) → filled → submitting → validation-error / captcha-error / rate-limited / submission-error / success`
+`idle → submitting → validation-error / captcha-error / rate-limited / submission-error / success` (the real `SubmitPhase` union in `LeadFormWidget.tsx`). The question-catalog fetch (prototype `01b-loading.html`) and the filled form are not `SubmitPhase` members — the loading skeleton shows while the config is unset (`undefined`/`null`), the form once it resolves.
 
 ## Mobile notes
 

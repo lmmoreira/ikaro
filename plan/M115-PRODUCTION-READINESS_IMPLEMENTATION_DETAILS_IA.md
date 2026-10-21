@@ -2,7 +2,7 @@
 
 > ⚠️ **Stale paths:** this doc predates TD-21's BFF domain-slice migration — any `apps/bff/src/<flat-name>/` path here is now `apps/bff/src/features/<domain>/`. See `docs/REPOSITORY_STRUCTURE.md` for the current layout.
 
-> Token-efficient reference for AI agents. No prose. Load when working on M116+ tasks that touch GCS upload, dev auth, internal API guard, or the contact* rename.
+> Token-efficient reference for AI agents. No prose. Load when working on tasks that touch GCS upload, dev auth, internal API guard, or the contact* rename.
 
 ---
 
@@ -17,9 +17,9 @@
 | S01 | In-memory stub | `src/test/infrastructure/in-memory-storage.service.ts` | Default override in both booking + notification integration app helpers |
 | S01 | Booking integration app | `src/test/utils/booking-integration-app.ts` | Default-overrides `STORAGE_SERVICE`; accepts `overrideProviders` |
 | S01 | Notification integration app | `src/test/utils/notification-integration-app.ts` | Also default-overrides `STORAGE_SERVICE` (BookingModule pulled via extraModules) |
-| S01 | Guest token utils | `src/contexts/bff/…/guest-token.util.ts` | Exports `tryDecodeRawJwt` + `verifyGuestToken`; `tryVerifyGuestToken` was removed |
-| S02 | Dev login controller | `apps/bff/src/auth/dev-login.controller.ts` | `POST /auth/dev-login`; `@Public()` |
-| S02 | Dev login HTTP file | `apps/bff/test/dev-auth.http` | Self-contained; captures `@managerToken`/`@customerToken` |
+| S01 | Guest token utils | `apps/bff/src/features/booking/guest-token.util.ts` | Exports `tryDecodeRawJwt` + `verifyGuestToken`; `tryVerifyGuestToken` was removed |
+| S02 | Dev login flow | `apps/bff/src/features/auth/auth-dev-login.flow.ts` (route declared in `auth.controller.ts`; originally a standalone `dev-login.controller.ts`) | `POST /auth/dev-login`; `@Public()` |
+| S02 | Dev login HTTP file | `apps/bff/http/auth/dev-login.http` | Self-contained; captures `@managerToken`/`@customerToken` |
 | S03 | Internal API guard | `src/shared/guards/internal-api.guard.ts` | SHA-256 + `timingSafeEqual`; registered via `APP_GUARD` in `AppModule` |
 | S03 | App module | `src/app.module.ts` | `{ provide: APP_GUARD, useClass: InternalApiGuard }` in `providers` |
 | S03 | BFF http service | `apps/bff/src/shared/http/backend-http.service.ts` | `X-Internal-Key` in private `headers()` + explicit in all `*ForPublic` methods |

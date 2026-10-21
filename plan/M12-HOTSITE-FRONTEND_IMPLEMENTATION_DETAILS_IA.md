@@ -40,7 +40,7 @@
 | `TypeormHotsiteConfigRepository` | `infrastructure/repositories/typeorm-hotsite-config.repository.ts` |
 | `TypeormTenantRepository` | `infrastructure/repositories/typeorm-tenant.repository.ts` |
 
-### BFF (`apps/bff/src/platform/`)
+### BFF (`apps/bff/src/features/platform/`; originally `apps/bff/src/platform/`)
 
 | Artifact | Path |
 |---|---|
@@ -243,7 +243,7 @@ export const viaCepAddressLookup: AddressLookup = { /* GET viacep.com.br, null o
 - **Global aliases** (`vitest.config.ts` → `resolve.alias`): `next/font/google` → `__mocks__/next-font-google.ts`, `next/image` → `__mocks__/next-image.ts` (module-eval side effects, can't `vi.mock()` per-file).
 - **`InMemoryAddressLookup`** (`lib/address/in-memory-address-lookup.ts`) — `Record<cep, AddressLookupResult | null>` test double, injected into `AddressFields`.
 - `BookingForm`/step components mock `fetch` via `vi.spyOn(globalThis, 'fetch')`.
-- Playwright E2E for the full booking happy-path is **deferred to M16-S06** — not part of M12.
+- Playwright E2E for the full booking happy-path is **deferred to the M17 E2E stories (originally M16-S06; M16 was folded into M17)** — not part of M12.
 
 ---
 

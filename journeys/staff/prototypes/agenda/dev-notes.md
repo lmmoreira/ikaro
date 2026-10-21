@@ -91,6 +91,8 @@ type ActionState =
 
 ### Transition rules — lifecycle (APPROVED) — UC-008, UC-009
 
+*Page-level screen states, not `actionState` members: `completed`, `rescheduled` and `reschedule-conflict` below belong to `MarkCompleteBookingPage` / `RescheduleBookingPage` (their own success and conflict views); only `idle → submitting → cancelled` run inside `BookingDetailPage`'s `actionState`.*
+
 | From | Event | To | UI change |
 |---|---|---|---|
 | `idle` | Click "Marcar concluído" | — | Navigates to the dedicated `/dashboard/bookings/[id]/complete` page (`MarkCompleteBookingPage`; too much content for a bottom sheet) |
@@ -102,6 +104,8 @@ type ActionState =
 | `AdminCancelBookingSheet` confirm | `PATCH /v1/bookings/:id/cancel` → 200 | `cancelled` | Red banner; no further actions (terminal) |
 
 ### Button visibility per `actionState` — lifecycle panel
+
+*(Columns `completed`, `rescheduled` and `reschedule-conflict` are the screens drawn in the prototypes, not `actionState` members — see the note above.)*
 
 | Button | `idle` | `submitting` | `completed` | `cancelled` | `rescheduled` | `reschedule-conflict` |
 |---|---|---|---|---|---|---|
@@ -172,6 +176,7 @@ Core fields:
 ```
 PATCH /v1/bookings/:id/approve
 Auth: Bearer JWT (the tenant comes from the JWT)
+Body (optional): { scheduledAt?: string /* ISO datetime — approve at an alternative slot */ }   // ApproveBookingBodySchema, defaults to {}
 
 → 200: { id, status: 'APPROVED', approvedAt }
 → 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }
@@ -181,7 +186,7 @@ Auth: Bearer JWT (the tenant comes from the JWT)
 ```
 PATCH /v1/bookings/:id/reject
 Auth: Bearer JWT (the tenant comes from the JWT)
-Body: { reason: string }   // max 200 chars
+Body: { reason: string }   // BFF: .trim().min(10) (RejectBookingBodySchema); the web sheet also caps at maxLength 200
 
 → 200: { id, status: 'REJECTED', rejectedAt }
 ```
@@ -190,7 +195,7 @@ Body: { reason: string }   // max 200 chars
 ```
 PATCH /v1/bookings/:id/request-info
 Auth: Bearer JWT (the tenant comes from the JWT)
-Body: { message: string }   // max 200 chars
+Body: { message: string }   // BFF: .trim().min(20) (RequestMoreInfoBodySchema); the web sheet also caps at maxLength 200
 
 → 200: { id, status: 'INFO_REQUESTED', infoRequestedAt }
 ```
@@ -223,7 +228,8 @@ Auth: Bearer JWT (the tenant comes from the JWT)
 Body: {
   lines: [{ lineId: string /* uuid */, actualPriceCharged: number }],  // required, >= 1 entry
   afterServicePhotoUrls?: string[],
-  adminNotes?: string
+  adminNotes?: string,                   // trim, 1–500 chars
+  discountByPoints?: { pointsUsed: number /* positive int */, amountDeducted: number /* positive */ }   // loyalty redemption at close-out
 }
 
 → 200: { id, status: 'COMPLETED', completedAt, totalActualPrice: number }

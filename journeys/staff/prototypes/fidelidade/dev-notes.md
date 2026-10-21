@@ -83,7 +83,7 @@ getCustomerLoyaltyEntries(customerId, { page, limit }): Promise<PaginatedLoyalty
 getCustomerLoyaltyRedemptions(customerId, { page, limit }): Promise<PaginatedLoyaltyRedemptionsResponse>
 // GET /v1/customers/:customerId/loyalty/redemptions?page=:page&limit=:limit
 ```
-`apps/web/features/customer/api`:
+`apps/web/features/customer/api.ts`:
 ```typescript
 searchCustomers(term?: string, limit?: number): Promise<CustomerSearchListResponse>
 // GET /v1/customers?search=:term&limit=:limit

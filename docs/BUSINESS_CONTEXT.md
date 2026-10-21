@@ -264,6 +264,14 @@ Small car wash businesses face challenges:
 - ✓ Loyalty expiration: points expire after configurable period (6 months, 1 year, etc.)
 - ✓ Foundation for future: promotions & rewards based on points milestones
 
+### **Shipped since the original MVP scope (pointers, not a feature spec)**
+The lists above describe the original MVP. These have since shipped; the canonical behaviour is in `docs/USE_CASES.md` (find the UC with `grep -n 'UC-0NN'`) and the milestone files indexed in `plan/README.md`:
+- Resource-based scheduling: resources, per-resource closures/openings, service resource requirements, booking policy and intake schema (M21–M23).
+- Recurring reservations, availability alerts, the future-commitment ("Reservas a resolver") worklist and no-show handling (M23, UC-070 to UC-074, UC-076, UC-077).
+- Staff-created bookings on a customer's behalf (UC-108).
+- Hotsite chatbot (M19, UC-033 to UC-036) and the hotsite lead form (M20, UC-037 to UC-043).
+- Class sessions, waitlists and class access are *planned*, not built (M24, UC-075 and UC-078 to UC-107).
+
 ---
 
 ## Out of Scope (MVP)
@@ -298,10 +306,10 @@ Small car wash businesses face challenges:
   - Strict use of standard PostgreSQL (no proprietary extensions).
   - Observability using open standards: **OpenTelemetry** exported to Google Cloud Trace, Logging and Managed Service for Prometheus.
   - Infrastructure as Code (Terraform) focused on portable resources.
-- **Stack:** NestJS backend, React frontend, BFF gateway.
+- **Stack:** NestJS backend and BFF gateway, Next.js 16 / React 19 frontend.
 - **Authentication:** Google OAuth 2.0 (standard implementation, not cloud-specific).
 - **Email:** Standard SMTP or API adapters with easy swapability — see `docs/TECH_STACK_DECISIONS.md` §9 for the current provider.
-- **Storage:** Standard S3-compatible or local-disk adapters.
+- **Storage:** behind the `IStorageService` port (`shared/ports/storage.service.port.ts`); production uses Google Cloud Storage (signed URLs), local development uses the GCS emulator from `docker/docker-compose.yml`.
 
 ---
 

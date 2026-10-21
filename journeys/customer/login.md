@@ -22,13 +22,13 @@ flowchart TD
     GoogleBtn --> Google["Google OAuth Consent"]
     Google --> Callback{"BFF /v1/auth/google/callback<br/>handleTenantLogin"}
 
-    Callback -->|"UC-021 main flow<br/>find-or-create customer in tenant"| PhoneCheck{"phone set?"}
+    Callback -->|"UC-021 main flow<br/>find-or-create customer in tenant"| PhoneCheck{"phone and address set?"}
     Callback -->|"Falha de auth"| AuthError["/auth/error<br/>?reason=..."]
     SelectTenantDescoped["❌ DESCOPED: /select-tenant<br/>(handleMultiTenantLogin unreachable —<br/>no slug-less entry point exists)"]
 
     PhoneCheck -->|"Sim"| CustomerArea["/{tenantSlug}<br/>Hotsite, logado (HotsiteAuthBar)"]
-    PhoneCheck -->|"Não — UC-021 A3"| PhoneCompletion["✅ prompt de telefone<br/>Completar perfil — não dispensável"]
-    PhoneCompletion --> PhoneSubmit(("PATCH /v1/customers/me<br/>{ phone } — E.164"))
+    PhoneCheck -->|"Não — UC-021 A3"| PhoneCompletion["✅ prompt de telefone e endereço<br/>(InformationCompletionPrompt) — não dispensável"]
+    PhoneCompletion --> PhoneSubmit(("PATCH /v1/customers/me<br/>{ phone (E.164), defaultAddress }"))
     PhoneSubmit --> CustomerArea
 
     CustomerArea -->|"UC-023: Trocar empresa (avatar dropdown)"| SwitchPage["✅ /switch-tenant"]
@@ -58,7 +58,7 @@ flowchart TD
 |---|---|
 | `GET /v1/auth/google?tenantSlug={slug}` | Customer clicks "Entrar" from hotsite |
 | `POST /internal/customers` | BFF callback (`handleTenantLogin`) — find or create customer for tenant |
-| `PATCH /v1/customers/me { phone }` | UC-021 A3 — phone collection (mandatory) |
+| `PATCH /v1/customers/me { phone, defaultAddress }` | UC-021 A3 — phone + default-address collection (`InformationCompletionPrompt` shows while either is missing; both fields are optional in the BFF schema, `customers.schemas.ts`) |
 | `GET /v1/customers/tenants` | UC-023 — list other tenants customer belongs to (includes the current tenant — the switch screen renders it as the non-clickable "Atual" card) |
 | `POST /v1/auth/switch-tenant { targetTenantId }` | UC-023 — switch active tenant |
 
@@ -84,6 +84,9 @@ Folder: `customer/prototypes/login/`
 | `01-select-tenant.html` | Selecionar estabelecimento (Caso B) | UC-021 Caso B | — | ❌ Descoped — not being built, see scope-change note above |
 | `02-phone-completion.html` | Completar perfil — solicita telefone | UC-021 A3 | M13-S14 | ✅ Criado — use this copy verbatim (see `M13-DASHBOARD-FRONTEND.md`'s `M13-S14`) |
 | `01b-error.html` | Auth error (no-tenant, email-mismatch, tenant-deactivated) | UC-021 A1 err | M13-S02/S42 | ✅ Criado — implemented |
+| `01b-loading.html` | Carregando estabelecimentos (skeleton) — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`; note the `01b` prefix is shared with the live `01b-error.html`) |
+| `01c-fetch-error.html` | Erro ao carregar estabelecimentos — part of the descoped Caso B picker | UC-021 Caso B | — | ❌ Descoped — not being built (tagged DESCOPED in `index.html`) |
+| `02b-validation-error.html` | Erro de validação no telefone | UC-021 A3 | M13-S14 | ✅ Criado — live, listed in `index.html` and `dev-notes.md` |
 | `dev-notes.md` | Implementation handoff | — | M13-S02/S42 | ✅ Criado (predates the scope change — its `/select-tenant`/generic-entry sections are superseded by this file) |
 
 The switch-tenant feature (UC-023) reuses `customer/prototypes/minha-conta/05-trocar-empresa.html`, not a file in this folder.

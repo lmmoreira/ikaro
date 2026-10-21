@@ -22,9 +22,9 @@ This document defines the technology stack for Ikaro, a multi-tenant SaaS platfo
 - ✅ Portable where it is cheap (containers, standard Postgres, OpenTelemetry); the committed target is GCP only
 
 **Key Metrics:**
-- MVP Infrastructure Cost: $50-100/month
+- MVP Infrastructure Cost: ~$43/month at launch scale (line-itemised in § COST SUMMARY below, which is the canonical figure)
 - Target Scaling: 1 → 1M users (same code)
-- Estimated Development Ready: 2-3 weeks
+- Status: Implemented (the stack below is what the repo runs; see the note under the title)
 - No Technical Debt: Built right from start
 
 ---
@@ -309,9 +309,9 @@ export class CompleteBookingController {
 
 ### Why NOT NestJS v12
 
-- v12 is pre-release (less production data)
+- v12 was pre-release at decision time, 2026-05 (less production data; re-check before relying on this — the repo is on NestJS v11)
 - Marginal performance gains not worth learning curve
-- v11 LTS stable through 2026
+- v11 LTS stable through 2026 (as of the 2026-05 decision)
 - Can upgrade post-MVP
 
 ### Cost Impact
@@ -1385,9 +1385,7 @@ This tech stack integrates with all architectural decisions:
 
 This tech stack decision is **not immutable**:
 
-- **Monthly review:** Evaluate cost vs. traffic, adjust tier if needed
-- **Quarterly review:** New version releases, security updates
-- **Annual review:** Major architectural changes if needed
+- **Review cadence (no review is currently scheduled — see the footer):** monthly for cost vs. traffic and tier, quarterly for new versions and security updates, annually for major architectural changes
 
 **Revision Process:**
 1. Document proposed change

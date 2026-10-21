@@ -21,7 +21,13 @@ journeys/
 ├── shared/                          ← assets shared across ALL actor prototypes
 │   ├── tokens.css                   ← single source of truth for --ba-* tokens
 │   ├── hotsite.html                 ← fake public hotsite (entry for both guest + customer)
-│   └── login.html                   ← Google OAuth login screen
+│   ├── hotsite-logged-in.html       ← fake public hotsite, authenticated state (customer flows)
+│   ├── login.html                   ← Google OAuth login screen (customer)
+│   ├── staff-login.html             ← Google OAuth login screen (staff/manager)
+│   ├── customer-dashboard.html      ← "Início" tab of /{slug}/my-account
+│   ├── dashboard-shell.html         ← staff/manager dashboard master template (copy-me, not a page)
+│   ├── reschedule-picker.css        ← date strip + slot grid + alerts as the real picker renders them
+│   └── entry.html                   ← prototype-only actor picker
 ├── guest/
 │   ├── use-cases.md                 ← UC inventory for this role
 │   ├── <journey-slug>.md            ← one file per journey
@@ -90,7 +96,7 @@ A "journey" = a cluster of related UCs the actor would naturally work through in
 **Actor(s):** STAFF | MANAGER | CUSTOMER | GUEST
 **Goal:** <one sentence>
 **UCs covered:** UC-XXX, UC-YYY
-**Status:** Draft | Reviewed | Mapped to stories
+**Status:** Draft | Reviewed | Mapped to stories   <!-- the Index table below also uses "Shipped (<story ids>)" for a journey whose screens are fully built in apps/web; "Reviewed" means the prototype was reviewed, and does not say whether it is built — check the journey's own mermaid (`gap` nodes) and dev-notes -->
 
 ## Flow
 

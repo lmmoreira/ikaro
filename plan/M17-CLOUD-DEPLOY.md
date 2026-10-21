@@ -181,7 +181,7 @@ Before any HCL is written, vendor HashiCorp's official agent skills into this re
 **Docs to load:** `docs/DOMAIN_EVENTS.md`, `docs/ENGINEERING_RULES_BACKEND.md` (event handler rules), `docs/CODE_STANDARDS.md`
 
 **Description:**
-`GcpPubSubEventBusAdapter` (`apps/backend/src/shared/infrastructure/gcp-pubsub-event-bus.adapter.ts`) consumes via streaming pull, which requires an always-on instance. Add a **push mode**: Pub/Sub POSTs each message to an HTTP endpoint on the backend; the adapter dispatches to the same registered handlers. Pull mode remains for local dev (emulator has full push support limitations; pull is simpler locally).
+`GcpPubSubEventBusAdapter` (`apps/backend/src/shared/infrastructure/event-bus/gcp-pubsub-event-bus.adapter.ts`) consumes via streaming pull, which requires an always-on instance. Add a **push mode**: Pub/Sub POSTs each message to an HTTP endpoint on the backend; the adapter dispatches to the same registered handlers. Pull mode remains for local dev (emulator has full push support limitations; pull is simpler locally).
 
 **What to implement:**
 1. **Mode switch:** env `PUBSUB_CONSUMER_MODE=pull|push` (default `pull`; validated in `env.validation.ts`). In `push` mode, `onApplicationBootstrap` does NOT open streaming-pull subscriptions; it only builds the handler registry keyed by subscription name.
@@ -754,9 +754,9 @@ cloud-sql-proxy --auto-iam-authn ikaro-staging:southamerica-east1:ikaro-db-stagi
 
 **Acceptance criteria:**
 - [ ] `docker push` from a WIF-authenticated GitHub Actions run succeeds (staging deployer)
-  - ⚠️ Not verified as of 2026-07-18 — requires the M17-S24 infra/app pipeline (WIF-authenticated CI), which doesn't exist yet; the module's IAM grant itself is confirmed via a live terraform plan against ikaro-prod.
+  - ⚠️ Not verified as of 2026-07-18 — required the M17-S24 infra/app pipeline (WIF-authenticated CI), which didn't exist yet at that date (S24 is now ✅ Done, so this verification has since become possible — left unticked until the evidence is recorded, e.g. by S27's staging validation); the module's IAM grant itself is confirmed via a live terraform plan against ikaro-prod.
 - [ ] Cloud Run in the **staging** project can pull from the prod-project registry (cross-project reader verified)
-  - ⚠️ Not verified as of 2026-07-18 — requires M17-S18 (Cloud Run services module, not yet built) to have a real staging Cloud Run service to test the pull against; the reader grant itself is plan-verified.
+  - ⚠️ Not verified as of 2026-07-18 — required M17-S18 (Cloud Run services module, not yet built at that date) to have a real staging Cloud Run service to test the pull against (S18 is now ✅ Done, so this verification has since become possible — left unticked until the evidence is recorded); the reader grant itself is plan-verified.
 - [ ] Cleanup policies visible in console; Checkov clean
   - ⚠️ Not verified as of 2026-07-18 — Checkov clean confirmed (module + repo-wide); console visibility awaits the first real apply, deferred to S24/S37 per M17 §0.
 
@@ -978,7 +978,7 @@ web-side gateway until it has edge path routing.
 - [ ] Direct-to-LB-IP access still works (locked down later by S36 — note the follow-up)
 - [ ] Cloudflare records proxied (orange cloud); SSL mode Full (strict) confirmed end-to-end
 
-**Dependencies:** M17-S18; applied to prod during S37
+**Dependencies:** M17-S18 (applied to prod later, by S37 — not a prerequisite)
 
 ---
 
@@ -1077,7 +1077,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 - [ ] `packages/infra-scripts/src/env-contract.ts` extended to also cover `apps/web`'s `PUBLIC_ENV_KEYS` (new array-literal extractor, `public-env-keys.ts`, mirroring `schema-keys.ts`'s AST approach) against `envs/staging/main.tf`'s `cloudrun_web` module — scoped to **staging only** for now (S26 widens to prod once it adds prod's runtime values there). The `Terraform env-var contract` CI job (added in S18, never previously required) is added to `required_status_checks` **only as a post-merge step** — merge this PR first, confirm the job reports a real clean run on `main` covering all three apps, *then* register it as required. Same ordering discipline as S24's `actionlint`/`zizmor`/`Infra PR Checks Passed` (never register a required check before its producing workflow has run clean on `main`, or every other open PR gets stuck on a check that's "expected, never reported").
 - [ ] **Deferred verification (TD29's own Tests section explicitly pushes this here, not into TD29's PR):** once this pipeline produces the first real staging deploy, confirm client-side BFF calls resolve to the correct origin in an actual browser against the real production build (not `next dev`) — this is the first point a genuine `next build`/`next start` artifact exists to test against. Exercised for real in S27's validation checklist and/or S28's Playwright suite (add a check there too — cross-referenced, not duplicated).
 
-**Dependencies:** M17-S15, S18, S20, S23; staging infra applied (S27 runs the first real pass)
+**Dependencies:** M17-S15, S18, S20, S23; staging infra applied (the first real pass is validated by S27 — not a prerequisite)
 
 ---
 
@@ -1113,7 +1113,7 @@ On every push to `main` touching `apps/**`, `packages/**`, or lockfile: build �
 - [ ] `image_sha` is optional on `deploy-production.yml` — a blank input resolves to whatever SHA staging is currently running (added during implementation, 2026-07-23, to remove the manual "go find the SHA" step; deliberately still `workflow_dispatch`-only, not auto-chained off every staging deploy the way `infra-deploy.yml` chains `apply-staging` into `apply-prod` — see the workflow's own header comment for why)
 - [ ] `rollback-production.yml` exists: per-service (or `all-three`) instant traffic-shift to the previous Cloud Run revision, gated by the same `production` environment, no migration involvement
 
-**Dependencies:** M17-S25; prod infra applied (S37)
+**Dependencies:** M17-S25 (prod infra is applied later, by S37 — not a prerequisite)
 
 **Note (story-discovery, 2026-07-23):** "prod infra applied (S37)" does not mean story S37 itself must be Done first — that would be circular, since S37's own step 5 runs this pipeline. It means full live verification of this story's ACs (digest comparison, runtime-env smoke, <15 min timing) needs prod's `cloudrun_web` service, Cloud SQL database, and `edge` module (ALB/Cloudflare) to exist — none of which are live yet (2026-07-23: only `network`/`registry`/`iam`/`secrets`/`storage`/`pubsub`/`scheduler`/`migrate_job`/`cloudrun_backend`/`cloudrun_bff` are live in prod, per S37's own incident note). This story authors and structurally validates the workflow now — same precedent as M17-S25, which shipped `deploy-staging.yml` ahead of staging's live DB with ACs partially verified. End-to-end proof is deferred to S37.
 
@@ -1162,7 +1162,7 @@ Turn staging from placeholder to a working environment. This is a runbook + chec
 
 **Acceptance criteria:** the checklist above, fully checked, committed to this story’s section (edit this file via doc-gate).
 
-**Dependencies:** Waves 2–3 complete (except S22/S26 which are prod-only); TD30 Story 1 (prod's registry/IAM/secrets containers applied — Step 3's first real deploy needs the shared Artifact Registry, D8, which otherwise only exists via S37's atomic apply — see plan/M17-CLOUD-DEPLOY.md)
+**Dependencies:** Waves 2–3 complete (except S22/S26 which are prod-only); TD30 Story 1 (prod's registry/IAM/secrets containers applied — Step 3's first real deploy needs the shared Artifact Registry, D8, which otherwise only exists via S37's atomic apply; shipped as commit `2ac54755da`, PR #188 — the TD30 file has since been removed)
 
 ---
 
@@ -1553,7 +1553,7 @@ TD38 Story A (staging) is merged and verified live: BFF's ingress locked to inte
 - [ ] A real request through `ikaro.online` shows the requester's actual IP in BFF's `client-ip-verify` log, not `ikaro-web`'s egress address
 - [ ] This story's production BFF-lockdown acceptance criteria are recorded as complete, with the current ingress/IAM choice documented in §2
 
-**Dependencies:** TD38 Story A (done, staging, PR #298); M17-S22 (edge module); must complete before M17-S37
+**Dependencies:** TD38 Story A (done, staging, PR #298; the TD38 file has since been closed out — see commit `e943bc7e2b`, which folded its Story C into M17-S28); M17-S22 (edge module); must complete before M17-S37
 
 ---
 
@@ -1678,7 +1678,7 @@ SSL + edge routing for customer domains. Cloudflare for SaaS on the `ikaro.onlin
 
 **Agent:** `devops` + `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `apps/web/lib/hotsite/revalidate.ts` (ISR contract), S09 token
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `apps/web/features/platform/hotsite/revalidate.ts` (ISR contract), S09 token
 
 **Description:**
 Today Cloudflare caches only static assets (default). Turn on HTML edge caching for hotsite pages — the CDN payoff — without serving stale content after an admin publishes:

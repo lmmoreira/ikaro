@@ -15,7 +15,7 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Dashboard(["customer-dashboard<br/>'Novo → Reservar aula'"]) --> AuthGuard{"Logado como CUSTOMER?"}
-    AuthGuard -- "não" --> Login["/{slug}/login?next=/{slug}/aulas"]
+    AuthGuard -- "não" --> Login["/{slug}/login?returnTo=/{slug}/aulas"]
     AuthGuard -- "sim" --> Catalog["❓ GAP: /{slug}/aulas<br/>Catálogo de aulas (01-lista-aulas)"]
 
     Catalog -->|"Clica numa aula"| TypeCheck{"allowsDropIn E allowsSeries?"}
@@ -50,7 +50,7 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/{slug}/login?next=/{slug}/aulas` | existing login page | M03 | ✅ Existente |
+| `/{slug}/login?returnTo=/{slug}/aulas` | existing login page (reads the optional `returnTo` param, added by M20-S09 — `app/[slug]/login/page.tsx`) | M03 | ✅ Existente |
 | `/{slug}/aulas` | `ClassCatalogPage` | — | ❓ GAP |
 | `/{slug}/aulas/[classTypeId]/reservar` | `ReservaTypePicker` | — | ❓ GAP |
 | `/{slug}/aulas/[classTypeId]/reservar/avulsa` | `DropInSessionPicker` | — | ❓ GAP |
@@ -99,4 +99,4 @@ Folder: `customer/prototypes/reservar-aula/` — relocated from `docs/discovery/
 | `05-success-ativo.html` | Sucesso — vaga garantida (CONFIRMED) | UC-086/087 | ❓ GAP |
 | `05b-success-waitlist.html` | Sucesso — na fila/oferta (`WAITLISTED`/`PROMOTION_PENDING`) | UC-090 | ❓ GAP |
 
-**Not yet built:** `index.html` and `dev-notes.md` navigation/handoff files — added as part of this promotion (see below), no discovery-stage equivalent existed.
+**Navigation/handoff files:** `index.html` and `dev-notes.md` now exist in `prototypes/reservar-aula/` — they were added as part of this promotion (see below); no discovery-stage equivalent existed. (The dev-notes file is still a Draft stub: no props, validation table or state machine yet.)

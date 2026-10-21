@@ -126,6 +126,8 @@ Notification Context subscribes:
 
 ## Context Descriptions
 
+> Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context`.
+
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 
 **Purpose:** The heart of Ikaro. Manages the complete booking lifecycle **for a specific tenant**.

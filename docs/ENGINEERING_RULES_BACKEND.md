@@ -4,6 +4,8 @@
 > Split from the former single `ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). BFF content is folded in here — too small (~30 lines) to justify its own file. Summary rules are in `CLAUDE.md §7`.
 > **Tags:** agent-process, backend, bff, database
 
+> Names used as cautionary examples below (`fetchWithRetry`, `GetServiceNamesUseCase`, `lockTenantSettings`, `TenantLockModule`, `XxxTriggerHandler`, and similar) are incident precedents — several no longer exist in `apps/` or `packages/` (checked 2026-10-21 by grep). The live names are the ones cited without "was added first"/"avoid" framing (e.g. `ITenantLockPort.lockTenantDay()`).
+
 ---
 
 ## Transactions

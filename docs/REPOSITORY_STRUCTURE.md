@@ -223,12 +223,21 @@ apps/web/
 apps/backend/src/test/
 ├── infrastructure/   # InMemory doubles: InMemoryEventBus, InMemoryTransactionManager,
 │                     # InMemoryXxxRepository, InMemoryXxxPort, InMemoryStorageService
-├── utils/            # createBookingIntegrationApp(), createNotificationIntegrationApp(),
-│                     # createLoyaltyIntegrationApp(), waitFor(), date-helpers.ts,
-│                     # address-helpers.ts
-├── builders/         # per-context builder classes (mandatory for entity/aggregate tests)
-├── factories/        # test data factories
+├── utils/            # create{Booking,Customer,Loyalty,Notification,Platform}IntegrationApp(),
+│                     # waitFor() (wait-for.ts), date-helpers.ts, address-helpers.ts,
+│                     # actor-headers.ts, fake-config.ts, test-config-module.ts,
+│                     # test-cache-module.ts, business-hours-fixtures.ts,
+│                     # seed-resource-occupancy.ts / occupancy-seed.ts, future-commitment-*
+│                     # fixtures, booking-lock-race-world.ts, chatbot-test-helpers.ts
+├── builders/         # per-context builder classes (mandatory for entity/aggregate tests):
+│                     # booking, customer, loyalty, notification, platform, staff, and
+│                     # shared/ (inbox-record and outbox-event entity builders)
+├── factories/        # real-outbox-publisher.factory.ts, request-context.factory.ts
 └── repositories/     # test-only repository helpers
 ```
+
+Also at the root of `apps/backend/src/test/`: `test-datasource.ts`, `integration-global-setup.ts` and `integration-global-teardown.ts`.
+
+`apps/bff/src/test/` holds the BFF equivalents: `backend-http.mock.ts`, `component-test.helpers.ts`, `execution-context.factory.ts` and `builders/` (`current-user-payload`, `hotsite-service`).
 
 `integration-global-setup.ts` — explicit import lists for all migrations and TypeORM entities. Every new migration + entity must be registered here in the same commit.

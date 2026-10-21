@@ -355,7 +355,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | apps/web test infrastructure | `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure |
 | Value objects / mappers | `docs/VALUE_OBJECTS_REFERENCE.md` + `docs/ENGINEERING_RULES_SHARED.md` (37 KB) |
 | CI / pipelines | `docs/CI_CD_PIPELINE.md` + `docs/GITHUB_WORKFLOWS_GUIDELINES.md` (19 KB) |
-| Deployment / infra | `docs/DEPLOYMENT_STRATEGY.md` + `docs/TECH_STACK_DECISIONS.md` (44 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
+| Deployment / infra | `docs/DEPLOYMENT_STRATEGY.md` + `docs/TECH_STACK_DECISIONS.md` (47 KB) — the decision's numbered section only: `grep -n '^## [0-9]' docs/TECH_STACK_DECISIONS.md` + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
 | Writing Terraform / infra code | vendored HashiCorp Terraform skills (`.claude/skills/`) + `plan/M17-CLOUD-DEPLOY.md` §0–§2 (299 KB doc: those sections only) + `infra/terraform/README.md` § Layout (60 KB; a new resource: § New-resource PR-sequencing playbook; IAM: § IAM binding review discipline) + `docs/ENGINEERING_RULES_INFRA.md` (29 KB) |
 | Foundation / IAM ownership | `infra/terraform/foundation/README.md` + `infra/terraform/README.md` § IAM binding review discipline, before editing Terraform or workflows |
 | Observability | `docs/OBSERVABILITY_STRATEGY.md` § Where a change belongs (then the section it names) + `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling |

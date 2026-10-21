@@ -20,7 +20,8 @@ The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` �
 | M2 | Row lock, `SELECT … FOR UPDATE` / TypeORM `pessimistic_write` | The row exists and is read then written | repository methods named `…ForUpdate`, `lockBookingModels`, `findOpenBySourceForUpdate`, `countActiveManagersByTenant` |
 | M3 | `FOR UPDATE SKIP LOCKED` plus a lease | Several workers draining one queue | `shared/infrastructure/outbox/typeorm-outbox.repository.ts` |
 | M4 | Database constraint as the authoritative backstop | Two rows must never collide | migrations (`EX_…` exclusion, `UQ_…` unique) |
-| M5 | Idempotency key | At-least-once delivery, the same work twice | inbox `ON CONFLICT (event_id, consumer_name) DO NOTHING`, outbox `UQ_shared_outbox_dedup_key` |
+| M5 | Idempotency key | At-least-once delivery, the same work twice | inbox `ON CONFLICT (event_id, consumer_name) DO NOTHING`, outbox `UQ_shared_outbox_dedup_key`, and the null-safe occupancy-assignment insert (`ON CONFLICT … DO NOTHING`, see the constraints table below) |
+| M6 | Optimistic concurrency (`version` column) | Two writers load the same aggregate and both save; no lock is held between read and write | `@VersionColumn` on `bookings`, `recurring_booking_schedules`, `availability_alerts`, `lead_form_configs` and `hotsite_configs` (the entity classes under `contexts/*/infrastructure/entities/`); the aggregate carries `version` and the repository's `save` UPDATE is version-checked |
 
 The M1 adapter (`Tenant lock requires an active transaction`) and the M2 `…ForUpdate` / `lockBookingModels` methods (an error naming the method) throw when no transaction is open, and all of them are released on commit or rollback. **Exception: `countActiveManagersByTenant` (R5) does not throw — outside a transaction it silently falls back to an unlocked `repo.count`.** Every transaction opened by `runInNewTransaction` sets a transaction-local `lock_timeout` of 2s (`DB_LOCK_TIMEOUT_MS`, `shared/infrastructure/run-in-new-transaction.ts`; M23-S49, §5 H5), so a wait for any M1 or M2 lock (and for an uncommitted conflicting row under M4) that lasts longer than 2s fails with `TransactionContentionError`, which the caller sees as a retryable 503 `AUTH_TRANSACTION_CONTENTION` with `Retry-After: 1`; a deadlock victim (`40P01`) gets the same error. The timeout bounds **each** wait, not the whole transaction. M3 (`SKIP LOCKED`) never waits.
 
@@ -128,7 +129,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - `shared.outbox` rows are claimed with `FOR UPDATE SKIP LOCKED` plus `lease_token` / `lease_expires_at`; a worker that dies releases the claim when the lease expires. Several relay instances can run side by side.
 - A second claim path exists: the inline per-id claim (`CLAIM_UNPUBLISHED_BY_ID_SQL` in the same repository) is a plain conditional `UPDATE` guarded only by `lease_expires_at IS NULL OR < now()`, with no `SKIP LOCKED`. Only the sweep uses `SKIP LOCKED`.
 
-### Constraints and idempotency (M4, M5)
+### Constraints and idempotency (M4, M5); optimistic concurrency (M6)
 
 | Name | Table | Backstop for |
 |---|---|---|
@@ -136,7 +137,14 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 | `EX_booking_bookings_approved_slot` | `booking.bookings` | Dropped by migration `1748500000014`; the name still appears in comments and error-mapping helpers, so check before trusting a reference |
 | `UQ_booking_fce_open_impact` | `booking.future_commitment_exceptions` | One open entry per `(tenant, source, affected)` |
 | `UQ_booking_resources_tenant_ref_id`, `UQ_booking_resources_tenant_location` | `booking.resources` | One Resource per staff member; one location per tenant |
-| `UQ_booking_schedule_openings_*` | `booking.schedule_openings` | One opening per tenant, date and resource scope |
+| `UQ_booking_resources_tenant_id`, `UQ_booking_resources_tenant_id_type` | `booking.resources` | The `(tenant_id, id)` and `(tenant_id, id, type)` targets that composite foreign keys point at (cross-tenant references blocked at DB level) |
+| `UQ_booking_schedule_openings_tenant_date_no_resource`, `UQ_booking_schedule_openings_tenant_resource_date` | `booking.schedule_openings` | One opening per tenant, date and resource scope: partial unique indexes on `(tenant_id, date) WHERE resource_id IS NULL` and `(tenant_id, resource_id, date) WHERE resource_id IS NOT NULL` (M21 replaced the earlier `UQ_booking_schedule_openings_tenant_date`) |
+| `UQ_booking_bkg_line_res_assign_null_safe` | `booking.booking_line_resource_assignments` | The conflict target of the null-safe occupancy-assignment insert: `(tenant_id, booking_line_id, resource_id, COALESCE(leg_index,-1), COALESCE(quantity_position,-1))`, so a retried insert (`ON CONFLICT … DO NOTHING` in `typeorm-resource-occupancy.write-queries.ts`) does not duplicate an assignment |
+| `UQ_service_booking_intake_schema_active`, `UQ_service_booking_intake_schema_version` | `booking.service_booking_intake_schema` | Partial unique index: at most one `is_active` schema per `(tenant_id, service_id)`; `_version` keeps one row per version number |
+| `UQ_booking_bkg_quote_revisions_booking_revision` | booking quote revisions | One revision number per booking |
+| `UQ_booking_availability_alert_attempts_window_channel` | availability alert attempts | One attempt per `(tenant_id, alert_id, matching_window, channel)` |
+| `UQ_notification_templates_global`, `UQ_notification_templates_tenant` | `notification.notification_templates` | Partial unique indexes: one global template (`tenant_id IS NULL`) per trigger event, channel and locale; `_tenant` allows one override per `(tenant_id, trigger_event, channel)` |
+| `UQ_platform_tenants_slug` | `platform.tenants` | Tenant slug is unique |
 | `UQ_booking_bookings_recurring_schedule_occurrence` | `booking.bookings` | One booking per schedule occurrence (the exceptions table and its constraint were dropped by M23-S24) |
 | `UQ_staff_tenant_google_oauth_id`, `UQ_staff_tenant_email`, `UQ_customer_customers_tenant_oauth` | `staff.staff`, `customer.customers` | Per-tenant identity (multi-tenancy invariants 5 and 6) |
 | `UQ_notification_logs_event_type_channel` (unique index; the earlier `UQ_notification_logs_event_channel` constraint was dropped by migration `1748200000010`), `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |

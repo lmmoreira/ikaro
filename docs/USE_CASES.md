@@ -2676,6 +2676,10 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-008 | Admin cancels / reschedules booking | Admin | APPROVED/PENDING/INFO_REQUESTED → CANCELLED (`BookingCancelled`) or scheduledAt updated (`BookingRescheduled`) |
 | UC-009 | Mark booking complete | Staff \| Manager | APPROVED → COMPLETED + photos + N LoyaltyEntry rows (one per line) |
 | UC-010 | Manage schedule closures and openings | STAFF \| MANAGER | ScheduleClosure or ScheduleOpening created/removed |
+| UC-010a | Create a schedule closure (full day or partial) | STAFF \| MANAGER | `ScheduleClosure` persisted (tenant-wide); no event |
+| UC-010b | Remove a schedule closure | STAFF \| MANAGER | `ScheduleClosure` deleted; no event |
+| UC-010c | Open a normally-closed day (schedule opening) | STAFF \| MANAGER | `ScheduleOpening` persisted; no event |
+| UC-010d | Remove a schedule opening | STAFF \| MANAGER | `ScheduleOpening` deleted; no event |
 | UC-011 | View calendar | Any | Read available slots filtered by basket's total duration |
 | UC-012 | Create service | STAFF \| MANAGER | Service created with points value |
 | UC-013 | Edit service | STAFF \| MANAGER | Service updated |

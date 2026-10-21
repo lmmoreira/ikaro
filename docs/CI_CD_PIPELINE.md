@@ -9,7 +9,7 @@ This document describes the workflow topology that exists in the repository. Wor
 
 Two workflows provide the main PR gates:
 
-- `.github/workflows/pr-quality.yml` ("PR — Quality Gates") — formatting, linting, architecture/policy checks, the `pubsub-catalog` and `env-contract` checks, the infra PR-shape guards (`no-infra-app-mix`, `no-foundation-plus-other-infra-mix`), and other static quality gates. See `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § 5.
+- `.github/workflows/pr-quality.yml` ("PR — Quality Gates") — formatting, linting, type-check, `architecture-check`, `dependency-cruise`, `knip`, `attw-check`, `actionlint`, `zizmor`, the `pubsub-catalog` and `env-contract` checks, the infra PR-shape guards (`no-infra-app-mix`, `no-foundation-plus-other-infra-mix`), and other static quality gates. See `docs/GITHUB_WORKFLOWS_GUIDELINES.md` § 5.
 - `.github/workflows/pr-tests.yml` ("PR — Quality And Security") — the applicable unit, component, integration, and E2E suites, plus SonarCloud, dependency review, Gitleaks, Trivy, Checkov, and the `all-checks-passed` aggregate.
 
 Additional path-scoped validation:

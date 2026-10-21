@@ -31,7 +31,8 @@ context each row's Action column records.
 | `apps/backend/src/contexts/platform/infrastructure/llm/anthropic-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/openai-llm.adapter.ts` | ✅ Done (M19-S03) | — |
 | `apps/backend/src/contexts/platform/infrastructure/llm/fake-llm.adapter.ts` | ✅ Done (M19-S11) | DI-registered fake/noop `ILlmProvider`, selectable via `CHATBOT_LLM_PROVIDER=fake`, registered in `LlmProviderRegistry`. Resolved at M19-S11 story-discovery: the AC requiring a real Playwright E2E flow (widget → BFF → backend → adapter) against a non-billed response has no existing infrastructure to satisfy it — the existing `FakeLlmProviderBuilder` is Jest-only, not DI-registered. Mirrors the `EMAIL_ADAPTER=mailhog` precedent (a real, free, safe local adapter, never the production default) — including an `APP_ENV`-gated guard added during PR #385 review rejecting `fake` outside `local`, mirroring `EMAIL_ADAPTER=mailhog`'s own guard exactly (`apps/backend/src/config/env.validation.ts`) |
-| Chatbot backend controller | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
+| `apps/web/shells/hotsite/components/linkify-chat-text.tsx` | ✅ Done | `linkifyChatText()` — turns URLs in assistant replies into links; used by `ChatbotPanel.tsx` when rendering each turn |
+| `apps/backend/src/contexts/platform/infrastructure/controllers/chatbot.controller.ts` (Chatbot backend controller) | ✅ Done (M19-S05) | Cap enforcement, persistence, calls `ILlmProvider.complete()` |
 | Migration for `platform.chatbot_sessions`/`platform.chatbot_messages`/`platform.chatbot_provider_balance` | ✅ Done (M19-S01) | See `docs/DATABASE_SCHEMA.md` |
 
 **Resolved at M19-S11 story-discovery (2026-08-17):** `sessionId` **and** the visible `messages` transcript
@@ -139,6 +140,8 @@ interrupted                                              // terminal for this se
                                                            // resume action, only the phone/
                                                            // WhatsApp fallback
 ```
+
+*Code mapping (`ChatbotWidget.tsx` `ConversationStatus` = `checking | unavailable | idle | sending | interrupted`):* the prototype's **not-available** is `unavailable` (plus the transient `checking` state while the pre-flight call is in flight — both render `null`); **active** is `idle` (waiting for input) plus `sending` (request in flight); **interrupted** is `interrupted`.
 
 - **not-available** (01c): pre-flight `GET /chatbot/status` returned `available: false`, or the
   module is `enabled: false` on the manifest (never even calls the status endpoint). Widget renders

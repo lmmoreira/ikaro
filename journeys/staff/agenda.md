@@ -16,7 +16,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard /{slug}/dashboard"]) --> Queue["/dashboard/bookings<br/>Booking Queue"]
+    Start(["Dashboard /dashboard"]) --> Queue["/dashboard/bookings<br/>Booking Queue"]
     Queue --> CardClick(("Click booking card"))
     CardClick --> Detail["/dashboard/bookings/[id]<br/>Booking Detail"]
 

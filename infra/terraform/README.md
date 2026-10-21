@@ -21,9 +21,13 @@ infra/terraform/
 │   └── relay-vm/          on-demand IAP relay VM, count-gated        (TD32; Foundation-owned, see below)
 ├── foundation/       # separately protected IAM/API control plane    (TD34)
 │   ├── modules/control-plane/       foundation identities, WIF, state IAM
+│   ├── modules/custom-roles/        custom IAM roles (e.g. planner read-only IAM-policy reader)
+│   ├── modules/project-services/    API enablement
 │   ├── modules/runtime-identities/  runtime SAs + least-privilege per-SA
 │   │                                 accessor bindings (originally M17-S17's
 │   │                                 modules/iam, moved here under TD34)
+│   ├── modules/static-resource-iam/ static resource-scoped IAM: public-assets bucket viewer, project members, Artifact Registry members, audit-log config (TD34)
+│   ├── modules/workload-iam/        workload IAM members: Cloud Run invokers, Pub/Sub topic/subscription members, service-account members
 │   └── envs/         # isolated roots: foundation/staging and /prod
 └── envs/             # root modules — one state per env, never shared
     ├── staging/      # backend prefix envs/staging → project ikaro-staging
@@ -34,7 +38,7 @@ infra/terraform/
 - Modules are generic and env-agnostic; envs compose them. Env-specific values enter only through each env's `terraform.tfvars`.
 - Each env is a separate root module with its own GCS state prefix. **No `terraform workspace` usage — ever.**
 - Shared variable contract on every module and env: `project_id`, `environment` (validated `staging|prod`), `region` (default `southamerica-east1`), `labels`.
-- Version constraints follow HashiCorp's module convention: **modules declare minimums only** (`>= 7.0` google, `>= 5.0` cloudflare in `modules/edge`, `required_version >= 1.15`); **the env roots own the real pins** (`~> 7.0`, `~> 1.15`) backed by their committed `.terraform.lock.hcl` files. Dependabot's `terraform` ecosystem watches both env roots and PRs pin updates (`.github/dependabot.yml`).
+- Version constraints follow HashiCorp's module convention: **modules declare minimums only** (`>= 7.0` google, `>= 5.0` cloudflare in `modules/edge`, `required_version >= 1.15`); **the env roots own the real pins** (`~> 8.0` google, `~> 5.0` cloudflare in `envs/prod`, `~> 1.15` Terraform) backed by their committed `.terraform.lock.hcl` files. Dependabot's `terraform` ecosystem watches both env roots and PRs pin updates (`.github/dependabot.yml`).
 - `foundation/` is the security control plane, not another normal environment root. It owns Terraform identities, WIF, state access, then all IAM/API resources as TD34 migrates them. Normal `envs/` roots must not regain IAM or service-account-policy ownership. See [`foundation/README.md`](foundation/README.md).
 
 ## Module dependency graph
@@ -54,7 +58,7 @@ Instantiation order for a fresh env follows the arrows left to right. `registry`
 
 **Not shown above — a separate, cross-root prerequisite, not a Terraform dependency edge:** `cloudrun-service` can only successfully *serve* once `foundation/modules/runtime-identities` has granted its service account access to every `secret_key_ref` it references. That grant lives in a different Terraform root/state (Foundation) and is never applied automatically by this env root's own apply — see `foundation/README.md` and the M19-S02 precedent in `.copilot/context.md`'s "Cross-layer deployment invariants" for what happens when a new secret's env-root wiring and its Foundation-side grant land out of order.
 
-**`modules/scheduler`'s 4 cron jobs are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
+**`modules/scheduler`'s cron jobs (8 today — see `locals.jobs` in `modules/scheduler/main.tf`; the count is not fixed) are real in both envs (M17-S21) — staging is not a dry run.** Once staging's Cloud Scheduler jobs are active, `ikaro-cron-reminders` genuinely emails whichever test users have bookings in staging's database, on the same `*/30 * * * *` cadence as prod. This is accepted, not a bug to fix — there is no lower-cost way to exercise the full Scheduler → Pub/Sub → push → trigger-handler path pre-production. Keep staging's booking data limited to real test accounts you're fine receiving reminder/expiry emails.
 
 ## New-resource PR-sequencing playbook (consult at story-discovery, before any code)
 
@@ -93,9 +97,9 @@ Terraform assumes these exist (recorded in the operator-local `docs/BOOTSTRAP_LO
 - State bucket **`gs://ikaro-tfstate`** (in `ikaro-prod`, `southamerica-east1`, versioned, uniform access, public access prevention). Env isolation is IAM-conditional on the object prefixes `envs/staging/*` / `envs/prod/*`.
 - CI service accounts (`ikaro-tf-deployer@`, `ikaro-app-deployer@`, `ikaro-tf-planner@` × both projects) with Workload Identity Federation — **no SA keys exist anywhere; org policy blocks creating them.**
 
-## Running locally (pre-pipeline only)
+## Running locally (historical — pre-pipeline bootstrap, and read-only debugging)
 
-Until M17-S24 ships the infra pipeline, plans/applies run from the developer machine:
+The infra pipeline (`.github/workflows/infra-deploy.yml`: `plan-staging`, `apply-staging`, `apply-prod`) is live, so applies no longer run from a developer machine. Before M17-S24 shipped it, plans/applies ran locally like this (kept for `init`/`validate`/`plan`-only debugging):
 
 ```bash
 gcloud auth application-default login   # ADC as admin@ikaro.online — once per machine
@@ -108,7 +112,7 @@ terraform plan                          # review before every apply
 terraform apply
 ```
 
-> ⚠️ **After M17-S24 goes live, ONLY the pipeline applies — never apply prod manually again.** Staging applies happen on merge to `main`; prod applies sit behind the `production-infrastructure` GitHub environment approval. A manual apply after that point bypasses review, drifts state mid-pipeline, and (for prod) sidesteps the WIF environment gate. If an emergency ever seems to require one, fix the pipeline instead — root cause, not workaround.
+> ⚠️ **M17-S24 is live: ONLY the pipeline applies — never apply prod manually again.** Staging applies happen on merge to `main`; prod applies sit behind the `production-infrastructure` GitHub environment approval. A manual apply after that point bypasses review, drifts state mid-pipeline, and (for prod) sidesteps the WIF environment gate. If an emergency ever seems to require one, fix the pipeline instead — root cause, not workaround.
 
 ## State layout
 

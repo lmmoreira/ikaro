@@ -2,13 +2,13 @@
 
 **Status:** Open — drain incrementally as tech debt (no big-bang; see §0 "How to use")
 **Scope:** whole repo — `apps/backend`, `apps/bff`, `apps/web`, `packages/*`, CI/CD, supply-chain, infra
-**Derived from:** `OPUS_AUDITORY.md` (full senior audit of Ikaro, 2026-06-21 — architecture, events, frontend, CI/CD, supply-chain, QA, operability)
-**Last updated:** 2026-08-19 — `/docs-audit` pass re-verified every open/partial item against current code; see per-item "Implemented notes"/status updates below for what changed since the 2026-06-21 audit snapshot.
+**Derived from:** `OPUS_AUDITORY.md` (**no longer in the repository** — see the 2026-10-21 note below; full senior audit of Ikaro, 2026-06-21 — architecture, events, frontend, CI/CD, supply-chain, QA, operability)
+**Last updated:** 2026-10-21 (header note and status corrections; item re-verification last done 2026-08-19) — `/docs-audit` pass re-verified every open/partial item against current code; see per-item "Implemented notes"/status updates below for what changed since the 2026-06-21 audit snapshot.
 
 > **Note (2026-10-21):** this TD predates `docs/STORY_SCHEMA.md`, so its stories use `### AUD-NNN` headings with Risk / Effort / Phase / Depends-on fields and a status table instead of the schema's fields. It is kept as the backlog of items to pick up when needed; convert an item to the schema when it is scheduled. The audit it was derived from (`OPUS_AUDITORY.md`) was an old document and is no longer in the repository; the "Audit ref" fields below cite sections of that unavailable source and are kept as history.
 
 > **Purpose:** Turn every audit finding into a **discrete, self-contained story** you can implement one at a time, ordered by **risk/urgency first, effort second**.
-> **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. Always cross-reference the cited `OPUS_AUDITORY.md §x.y` for the long-form rationale.
+> **Audience:** This document is written to be read by **AI coding agents**. Each story is self-contained — problem, evidence, why it's wrong, the fix, and acceptance criteria — so a future agent can plan and implement it without re-reading the whole audit. The `OPUS_AUDITORY.md §x.y` references in the "Audit ref" fields point at a source that has been removed from the repository, so they cannot be followed; each story's own Problem/Evidence text is the rationale to rely on.
 > **Note on scope vs. other TDs:** unlike TD01–TD07 (each a single focused debt), TD08 is an **umbrella backlog** of 46 stories spanning the whole audit. Treat each `AUD-NNN` story as an independently shippable unit; this file is the index and the context, not a single PR.
 
 ---
@@ -24,7 +24,7 @@
 
 - **Primary sort — Risk/Urgency:** 🔴 Critical (data loss / corruption / double-booking / security) > 🟠 High (reliability, security hardening, duplicate sends, supply-chain) > 🟡 Medium (perf, quality, test depth) > 🔵 Low (polish).
 - **Secondary sort — Effort & leverage:** quick wins (XS/S) that remove real risk are pulled up; a few high-leverage Large items (the outbox) lead despite size because everything else depends on them.
-- **Phase gate:** `Now` = pre-deploy, code-level, do soon. `Pre-deploy` = needed before first production deploy. `Infra/Deploy` = deferred to the GCP infrastructure phase (see `OPUS_AUDITORY.md §13` deferral banner).
+- **Phase gate:** `Now` = pre-deploy, code-level, do soon. `Pre-deploy` = needed before first production deploy. `Infra/Deploy` = deferred to the GCP infrastructure phase (deferral banner in `OPUS_AUDITORY.md §13` — source removed).
 
 ### Effort key
 `XS` ≤ half day · `S` ~1 day · `M` 2–4 days · `L` 1–2 weeks.
@@ -33,7 +33,7 @@
 
 ## 1. Master Priority Table
 
-| ID | Title | Risk | Effort | Phase | Depends on | Audit ref |
+| ID | Title | Risk | Effort | Phase | Depends on | Audit ref (source removed) |
 |---|---|---|---|---|---|---|
 | **AUD-001** | Transactional outbox for all domain events ✅ | 🔴 Critical | L | Now | — | §4.1, §12.2, §12.3 |
 | **AUD-002** | Fix booking slot-conflict race + prove optimistic lock ✅ | 🔴 Critical | M | Now | — | §4.2, §4.3 |
@@ -89,7 +89,7 @@
 **Wave 2 (quick-win hardening, parallelizable):** AUD-005, AUD-006, AUD-007, AUD-008, AUD-012, AUD-014 (all XS/S, independent).
 **Wave 3 (supply-chain + perf + cache):** AUD-009, AUD-010, AUD-011, AUD-013.
 **Wave 4 (quality & depth):** AUD-015 → AUD-029 as capacity allows.
-**Wave 5 (infra phase):** AUD-030 → AUD-042 when GCP infrastructure work begins; AUD-035 (LGPD) should be *designed* during Wave 1–2 even though implemented later.
+**Wave 5 (infra phase — GCP infrastructure now exists via M17; remaining items only, see each story's status):** AUD-030 → AUD-042; AUD-035 (LGPD) should be *designed* during Wave 1–2 even though implemented later.
 
 ---
 
@@ -464,13 +464,13 @@ Add an explicit guard that strips/rejects `__proto__`, `constructor`, and `proto
 
 ### AUD-019 — DLQ replay runbook + endpoint + depth alert
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Pre-deploy · **Audit ref:** §12.7
-**Status:** 🟡 Partially done — depth alerting shipped, replay path still missing
+**Status:** 🟡 Partially done — depth alerting and a manual replay runbook shipped; the guarded replay endpoint is still missing
 
 **Implemented notes (2026-08-19 re-verify):** `infra/terraform/modules/monitoring/main.tf` now defines `google_monitoring_alert_policy.dlq_undelivered`, live-verified in staging on 2026-08-09 (`docs/OBSERVABILITY_STRATEGY.md`). That alert's own description says the replay runbook "lands in `docs/RUNBOOKS.md` as an M17-S37 item, not yet written" — so depth observability is done, but the runbook + replay mechanism below are still open.
 
 **What's wrong:** `dead-letter.handler.ts` still only logs (explicit "does NOT throw — must ACK to prevent infinite DLQ redelivery" comment); dead-lettered events still have no path back into processing — recovery is still a manual DB/Pub/Sub exercise.
-**Fix:** A guarded admin/cron endpoint to re-drive DLQ messages (re-publish to the original topic) after a fix is deployed; a runbook (tracked as M17-S37); at least one test that drives an event to the DLQ and replays it.
-**Acceptance:** ☑ DLQ depth is observable (alert policy live). ☐ A DLQ'd event can be replayed through a guarded endpoint and is processed idempotently — still open.
+**Fix:** A guarded admin/cron endpoint to re-drive DLQ messages (re-publish to the original topic) after a fix is deployed; ~~a runbook~~ (done: manual procedure in `docs/RUNBOOKS.md` § A message landed in a dead-letter topic — inspect with the `-dlq-inspect` subscription, fix, re-publish with `gcloud pubsub topics publish`); at least one test that drives an event to the DLQ and replays it.
+**Acceptance:** ☑ DLQ depth is observable (alert policy live). ☑ A runbook exists for manual replay. ☐ A DLQ'd event can be replayed through a guarded endpoint and is processed idempotently — still open.
 
 ### AUD-020 — Slim the `Booking` aggregate (event-payload factories)
 **Risk:** 🟡 Medium · **Effort:** M · **Phase:** Now · **Audit ref:** §5.3
@@ -737,7 +737,7 @@ Verify by running the full `test:integration` suite in the worktree before openi
 **Pattern:** plain composition — no named pattern applies
 
 **Discovered:** 2026-09-16 — `Backend Integration Tests` failed twice in a row on PR #484's CI (unrelated diff) while passing 3/3 on a local run of the identical code.
-**Root cause:** traced live in `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`. Its `afterAll` only ever deleted `ServiceResourceRequirementEntity` rows for `TENANT_NO_LOCATION`/`TENANT_WITH_LOCATION` — never for `TENANT_CUSTOM_BUFFER` — so if that tenant's service ever ended up with a requirement row, the next delete (`ServiceEntity` for that tenant) hit `FK_service_resource_requirements_service` and threw, aborting `afterAll` **before** the remaining deletes (the `ResourceEntity`/`TenantEntity` rows) ever ran. Combined with CI's `TESTCONTAINERS_REUSE_ENABLE: 'true'` (`.github/workflows/pr-tests.yml:107`), which reuses the same Postgres container repo-wide across separate CI runs, that orphaned state survived into later runs — where `beforeAll` re-seeded fresh fixtures under the *same* fixed tenant UUIDs on top of it, letting the corruption compound (a first run's failure was the FK violation itself; a follow-up run then failed a content assertion because a fixed tenant ID's resource state was no longer what that run's `beforeAll` alone would produce). Local runs never showed it because a local run always gets a fresh Testcontainers instance (no reuse configured).
+**Root cause:** traced live in `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts` (file since removed). Its `afterAll` only ever deleted `ServiceResourceRequirementEntity` rows for `TENANT_NO_LOCATION`/`TENANT_WITH_LOCATION` — never for `TENANT_CUSTOM_BUFFER` — so if that tenant's service ever ended up with a requirement row, the next delete (`ServiceEntity` for that tenant) hit `FK_service_resource_requirements_service` and threw, aborting `afterAll` **before** the remaining deletes (the `ResourceEntity`/`TenantEntity` rows) ever ran. Combined with CI's `TESTCONTAINERS_REUSE_ENABLE: 'true'` (`.github/workflows/pr-tests.yml:107`), which reuses the same Postgres container repo-wide across separate CI runs, that orphaned state survived into later runs — where `beforeAll` re-seeded fresh fixtures under the *same* fixed tenant UUIDs on top of it, letting the corruption compound (a first run's failure was the FK violation itself; a follow-up run then failed a content assertion because a fixed tenant ID's resource state was no longer what that run's `beforeAll` alone would produce). Local runs never showed it because a local run always gets a fresh Testcontainers instance (no reuse configured).
 
 **What's wrong**
 The test's teardown list was asymmetric with its own setup (3 seeded tenants, only 2 covered by the requirement-cleanup step) and had no defensive cleanup *before* seeding either — so it could never recover once a single crash left it out of sync with a reused container.

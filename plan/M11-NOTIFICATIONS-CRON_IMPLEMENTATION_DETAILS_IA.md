@@ -20,7 +20,7 @@
 | `INotificationProcessedEventRepository` port | `contexts/notification/application/ports/processed-event-repository.port.ts` |
 | `EmailDeliveryChannelAdapter` | `contexts/notification/infrastructure/delivery/email-delivery-channel.adapter.ts` |
 | `MailhogEmailAdapter` | `contexts/notification/infrastructure/delivery/mailhog-email.adapter.ts` |
-| `SendGridEmailAdapter` | `contexts/notification/infrastructure/delivery/sendgrid-email.adapter.ts` |
+| `BrevoEmailAdapter` (originally planned as `SendGridEmailAdapter` — never implemented; Brevo SMTP is the production adapter) | `contexts/notification/infrastructure/delivery/brevo-email.adapter.ts` |
 | `NotificationDispatcherAdapter` | `contexts/notification/infrastructure/delivery/notification-dispatcher.adapter.ts` |
 | `DeadLetterHandler` | `contexts/notification/infrastructure/events/dead-letter.handler.ts` |
 | `TenantProvisionedNotificationHandler` | `contexts/notification/infrastructure/events/tenant-provisioned.handler.ts` |
@@ -56,7 +56,7 @@ NotificationDispatcherAdapter (INotificationDispatcher)
               │  From = EMAIL_FROM env (tenant name as display name, Reply-To = businessInfo.email) — per-tenant fromEmail removed in M18-S09
               └── IEmailSender  (pure transport — no rendering)
                     ├── MailhogEmailAdapter   (EMAIL_ADAPTER=mailhog — local dev default)
-                    └── SendGridEmailAdapter  (EMAIL_ADAPTER=sendgrid)
+                    └── BrevoEmailAdapter  (EMAIL_ADAPTER=brevo)
 ```
 
 `OutboundMessage` shape (post M11-S07 refactor):
@@ -114,9 +114,9 @@ NotificationDispatcherAdapter (INotificationDispatcher)
 
 | Var | Default | Notes |
 |---|---|---|
-| `EMAIL_ADAPTER` | `mailhog` | `sendgrid` in staging/prod |
+| `EMAIL_ADAPTER` | `mailhog` | `brevo` in staging/prod |
 | `EMAIL_FROM` | — | Platform sender address for all tenants (per-tenant override removed in M18-S09) |
-| `SENDGRID_API_KEY` | — | Required only when `EMAIL_ADAPTER=sendgrid`; never log |
+| `BREVO_SMTP_LOGIN` / `BREVO_SMTP_KEY` | — | Required only when `EMAIL_ADAPTER=brevo` (`BREVO_SMTP_HOST`/`PORT`/`SECURE` have defaults); never log the key. `EMAIL_FROM` is the sender address |
 | `PUBSUB_MAX_DELIVERY_ATTEMPTS` | `5` | Nack threshold before DLQ routing |
 | `PUBSUB_AUTO_CREATE` | `true` | Set `false` in staging/prod |
 
@@ -144,6 +144,6 @@ Assert on `dispatcher.dispatched[0].subject` + `.body` — never on `templateKey
 2. **`retry_count` on `notification_logs` is currently unused telemetry** — incremented at DB level and retained for future observability; do not treat it as a current behaviour dependency.
 3. **Template lookup is tenant-first then global-fallback** — if a tenant has zero templates for an event (e.g. after a new `NotificationTemplateKey` is added), `SeedDefaultTemplatesUseCase` must be re-run or a new migration must backfill.
 4. **`BaseBookingReminderNotificationUseCase` uses abstract property pattern** — `reminderTemplateKey` is an abstract property, not a constructor param. Subclasses declare `protected readonly reminderTemplateKey = NotificationTemplateKey.XYZ`.
-5. **`SENDGRID_API_KEY` conditional validation** — env.validation allows it to be absent when `EMAIL_ADAPTER=mailhog`; the factory in `NotificationModule` selects the adapter at runtime.
+5. **`BREVO_SMTP_LOGIN`/`BREVO_SMTP_KEY` conditional validation** — env.validation allows them to be absent when `EMAIL_ADAPTER=mailhog` and requires both when `EMAIL_ADAPTER=brevo`; the factory in `NotificationModule` selects the adapter at runtime.
 6. **All pt-BR strings live in migration seed data.** Do not add new hardcoded pt-BR strings to TypeScript source; follow `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys for new UI copy.
 7. **`PUBSUB_SUBSCRIPTION_SUFFIX` integration test pattern** — each test run uses a unique suffix; handlers re-register on `onModuleInit` with the suffixed name. Required to avoid stale messages from a previous test bleeding into the current one.

@@ -11,6 +11,8 @@ This document defines the domain model using Domain-Driven Design (DDD) principl
 
 A bounded context is an autonomous domain with clear boundaries and its own model. **Each context is scoped to a tenant** - no cross-tenant data mixing.
 
+> **There are six contexts, not five.** The list below covers Contexts 1–5; **Context 6: Platform** (Tenant, HotsiteConfig, Chatbot*, LeadForm*) is documented further down in this file (search `Context 6: Platform Context`), after the Context Map, because it was added later. Its aggregates, like the other five, are listed in `docs/BOUNDED_CONTEXTS.md` § 6. Platform Context.
+
 ### **Context 1: Booking Context**
 **Purpose:** Manage the booking lifecycle from request to completion, **per tenant**. A booking groups **one or more services** ("lines") that the customer wants performed in a single appointment.
 

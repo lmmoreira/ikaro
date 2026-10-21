@@ -72,7 +72,7 @@
 | Customer account | `BookingDetailPage`, `BookingDetailMain`, `CancelAction`, `CancelConfirmPage`, `CancelErrorPage`, `InfoSubmitForm`, `CustomerPhotoUpload` | `features/customer/components/my-account/` |
 | Customer account | `LoyaltyPage` | `features/customer/components/my-account/` |
 | Customer account | `api.ts` (client mutations), `api.server.ts` (SSR reads, `withAuthRedirect`/`CustomerFetchError`) | `features/customer/` |
-| Settings | `SettingsForm.tsx` (~1060 lines, 6 `SectionCard`s: Geral/Localização/Agendamento/Fidelidade/Horário/Contato — the Notificações section was removed in M18-S09) | `features/platform/components/settings/` |
+| Settings | `SettingsForm.tsx` (278 lines today — originally ~1060 lines with 6 `SectionCard`s: Geral/Localização/Agendamento/Fidelidade/Horário/Contato; the Notificações section was removed in M18-S09; since decomposed into `SettingsGeneralSection`, `SettingsLocalizationSection`, `SettingsBookingSection`, `SettingsLoyaltySection`, `SettingsHoursSection`, `SettingsContactSection`, `SettingsChatbotSection`, `SettingsLeadFormSection`, `SettingsFormFields`, `SettingsFormAdvancedFields` and `SettingsFormActions`) | `features/platform/components/settings/` |
 | Settings | `tenant-settings.ts` (`fetchTenantSettings` 300s-cached, `fetchTenantSettingsFresh` no-store, `updateTenantSettings`, `renameTenant`), `settings-form.ts` (`SettingsFormSchema`, `validateSettingsForm`) | `features/platform/` |
 | Team | `TeamListPage`, `MemberRow` (`ResendInviteAction`, `ActivateMemberAction`, `splitFullName`), `InviteForm`, `DeactivateConfirmPage`, `StaffDetailPage` | `features/staff/components/team/` |
 | Team | `api.ts` (`listStaff`, `inviteStaff`, `updateStaff`, `{de,}activateStaff`), `hooks/useStaff.ts` | `features/staff/` |

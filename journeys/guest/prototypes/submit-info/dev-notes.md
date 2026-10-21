@@ -11,6 +11,7 @@
 | `apps/web/app/bookings/[id]/submit-info/page.tsx` | ✅ Exists |
 | `apps/web/features/booking/components/public/SubmitInfoForm.tsx` | ✅ Exists |
 | `apps/web/features/booking/components/public/InvalidLinkView.tsx` | ✅ Exists |
+| `apps/web/features/booking/components/public/SubmitInfoSuccessView.tsx` | ✅ Exists — success card (screen 01f) rendered by `SubmitInfoForm` |
 | `send-booking-info-requested-notification.use-case.ts` (`buildRespondLink()`) | ✅ Updated — emits `/submit-info` (guests only; a customer is linked to `/{slug}/my-account/bookings/{id}`), not `/responder` |
 
 The backend rename described below already shipped in the same story as the frontend page.
@@ -77,7 +78,7 @@ PATCH /v1/bookings/:id/submit-info/guest?token=<JWT>
 
 **Error messages (pt-BR):**
 - Network/5xx: "Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente." See `01e-submit-error.html`.
-- Token expired (detected client-side after 401 from PATCH): same `error` state as above, but swap copy to "Seu link expirou enquanto você preenchia o formulário..." and replace the retry button with a link to the invalid-link state (retrying with an already-expired token would just 401 again) — redirect to `?error=expired` to show the 01b-equivalent messaging. No separate prototype screen was built for this; the variant is documented inline as a comment in `01e-submit-error.html` since it reuses the same layout as the network/5xx error, just with different copy and CTA target.
+- Token invalid/expired/mismatched at submit (code `GUEST_TOKEN_INVALID`, `GUEST_TOKEN_MISSING` or `GUEST_TOKEN_BOOKING_MISMATCH` — `EXPIRED_LINK_CODES` in `SubmitInfoForm.tsx`): the form enters `error` with `kind: 'expired'`; the message comes from `resolveErrorMessage(code)` (not a bespoke "Seu link expirou…" string) and the retry button is replaced by an `<a href="?">` CTA labelled `t('tokenExpiredCta')` ("Voltar", pt-BR `web.json`) — retrying with an already-invalid token would just fail again. There is no `?error=expired` redirect. No separate prototype screen was built for this variant; it is documented inline as a comment in `01e-submit-error.html`.
 
 ## Photo upload flow (✅ shipped, different design than originally proposed)
 
@@ -96,11 +97,11 @@ Shows: reason list + "Ir para o site" CTA + "Entrar / Criar conta" link.
 1. No `token` query param → invalid
 2. `verifyGuestToken()` returns null (bad signature/expired) → invalid
 3. `payload.bookingId !== params.id` → invalid (token reuse attempt)
-4. Optional: fetch booking status; if not `INFO_REQUESTED` → show "já respondido ou processado" variant
+4. Fetch the guest booking summary (always attempted, `fetchGuestBookingSummary()`); `GUEST_BOOKING_NOT_AWAITING_INFO` (booking no longer `INFO_REQUESTED`) → `InvalidLinkView reason="processed"` (i18n key `processedMessage`, "Este agendamento já foi processado."; no prototype screen draws it). Any other failure degrades to rendering the form without a summary card.
 
 ## Screen 01f — Sucesso
 
-**Rendered by:** `SubmitInfoForm` component after 200 OK replaces the form in-place.
+**Rendered by:** `SubmitInfoSuccessView`, which `SubmitInfoForm` swaps in for the form in-place after a 200 OK.
 
 Shows: green check icon + "Resposta enviada!" + booking summary card + "Ir para o site" + "Criar conta / Entrar" CTA.
 

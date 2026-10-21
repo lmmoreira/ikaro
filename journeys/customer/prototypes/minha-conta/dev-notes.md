@@ -11,7 +11,7 @@ Stories: `M13-S27` (list) · `M13-S28` (detail/cancel/info-submit) · `M13-S29` 
 
 | File | Next.js Route | Component |
 |---|---|---|
-| `01-minha-conta.html` | `/{slug}/my-account` | `BookingsList` (Agendamentos, `/{slug}/my-account/bookings`; the bare `/my-account` renders `HomeDashboard`) |
+| `01-minha-conta.html` | `/{slug}/my-account/bookings` (Agendamentos list → `BookingsList`; the bare `/{slug}/my-account` renders `HomeDashboard`, Início) | `BookingsList` |
 | `02-*.html` | `/{slug}/my-account/bookings/[id]` | `BookingDetailPage` |
 | `03-cancel-confirm.html` | `/{slug}/my-account/bookings/[id]/cancel` — a dedicated page, not a bottom sheet | `CancelConfirmPage` |
 | `03b-cancel-error.html` | `/{slug}/my-account/bookings/[id]/cancel/error` | — |
@@ -60,7 +60,7 @@ const canCancel =
       booking.cancellableUntil !== null &&
       new Date() < new Date(booking.cancellableUntil);
 ```
-When `canCancel === false`: hide button, show note "Prazo de cancelamento encerrado".
+When `canCancel === false`: hide button, show note "Prazo encerrado" (i18n key `windowClosed`, pt-BR `web.json`).
 
 ## Cancel flow (UC-007)
 
@@ -132,11 +132,12 @@ Reference shell: `journeys/shared/customer-dashboard.html`
 | File | Production target | Status |
 |---|---|---|
 | `00-hotsite-logged-in.html` | `shared/hotsite-logged-in.html` (entry point) | ✅ Done |
-| `01-minha-conta.html` | `/{slug}/my-account` | ✅ Done — M13-S27 |
+| `01-minha-conta.html` | `/{slug}/my-account/bookings` (the bare `/{slug}/my-account` is `HomeDashboard`) | ✅ Done — M13-S27 |
 | `01b-minha-conta-empty.html` | same route — empty state (UC-006 A1) | ✅ Done — M13-S27 |
 | `02-agendamento-detail.html` | `/{slug}/my-account/bookings/[id]` (APPROVED/PENDING) | ✅ Done — M13-S28 |
 | `02b-agendamento-info-requested.html` | same route — INFO_REQUESTED + response form | ✅ Done — M13-S28 |
 | `02c-agendamento-historico.html` | same route — COMPLETED (read-only) | ✅ Done — M13-S28 |
+| `02f-agendamento-nao-compareceu.html` | same route — NO_SHOW (read-only, no actions) | ✅ Done — M23-S09 (status display) |
 | `02g-agendamento-cancelado.html` | same route — CANCELLED (read-only; `?por=cliente\|estabelecimento`) | ✅ Done — M23-S47 |
 | `02h-agendamento-recusado.html` | same route — REJECTED (read-only) | ✅ Done — M23-S47 |
 | `02d-info-sent.html` | same route — inline state after successful submit-info | ✅ Done — M13-S28 |

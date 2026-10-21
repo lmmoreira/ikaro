@@ -50,8 +50,8 @@ pr-security.yml  (historical: its jobs now live in pr-tests.yml, except snyk-sca
 
 ### Builder stage
 ```dockerfile
-FROM node:20-alpine AS builder
-RUN corepack enable && corepack prepare pnpm@9 --activate
+FROM node:20-alpine AS builder   # illustrative — current base image is digest-pinned; see apps/backend/Dockerfile
+RUN corepack enable && corepack prepare pnpm@9 --activate   # illustrative — current pnpm version is pinned in root package.json `packageManager`
 COPY .npmrc pnpm-lock.yaml pnpm-workspace.yaml package.json ./
 COPY packages/config/package.json packages/config/
 COPY packages/types/package.json packages/types/
@@ -65,7 +65,7 @@ RUN pnpm --filter @ikaro/<app> deploy --prod /standalone  # ← see gotcha #2
 
 ### Runner stage
 ```dockerfile
-FROM node:20-alpine AS runner
+FROM node:20-alpine AS runner   # illustrative — see apps/backend/Dockerfile for the current digest-pinned base
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx  # ← gotcha #3
 COPY --from=builder /standalone .
 COPY --from=builder /app/apps/<app>/dist ./dist   # ← gotcha #4 (or .next for web)

@@ -90,6 +90,8 @@ The `countActiveManagersByTenant` call and `save()` are **inside the same `txMan
 
 ### Notification delivery — Strategy pattern
 
+*(Historical, M04-era snippet — `SmtpEmailAdapter` no longer exists. The current wiring is `EmailDeliveryChannelAdapter` over the `IEmailSender` port (`email-sender.port.ts`), selected in `notification.module.ts`; see the M11 IA doc.)*
+
 `IDeliveryChannel[]` is injected via the `DELIVERY_CHANNEL` token using a factory provider:
 ```typescript
 {
@@ -176,5 +178,5 @@ CREATE TABLE notification.notification_logs (
 |---|---|---|
 | `SMTP_HOST` | `localhost` | MailHog host |
 | `SMTP_PORT` | `1025` | MailHog SMTP port |
-| `SMTP_FROM` | `noreply@<ikaro-domain>` | Sender address |
+| `SMTP_FROM` | `noreply@<ikaro-domain>` | Sender address *(historical: replaced by `EMAIL_FROM`; `SMTP_HOST`/`SMTP_PORT` are now MailHog-only, local dev)* |
 | `FRONTEND_URL` | `http://localhost:3000` | Activation link base URL |

@@ -6,7 +6,7 @@
 
 ## Overview
 
-The guest booking flow is a 4-step React form orchestrated by `BookingForm`. All step components live under `apps/web/features/booking/components/public/`. No shadcn/ui is currently used in this path — components use Tailwind + `--ba-*` custom properties directly.
+The guest booking flow is a React form of 4 to 7 steps (computed by `resolveBookingSteps()` — 4 for the base path, more with the M23 intake/resource/leg/variable-duration steps; see "Step paths" below) orchestrated by `BookingForm`. All step components live under `apps/web/features/booking/components/public/`. No shadcn/ui is currently used in this path — components use Tailwind + `--ba-*` custom properties directly.
 
 **Also handles the authenticated-customer path** (see `customer/prototypes/book-a-service/`): `BookingForm` (state in `useBookingFormController`, submit in `useBookingSubmission`) calls `getHotsiteCustomerProfile(slug)`; if it resolves, it switches to `createAuthenticatedBooking()`, passes `hideContactFields={true}` to `PersonalInfoStep` and feeds the profile's `defaultAddress` into the form core as the pickup-address default. This isn't a separate flow/component — it's the same `BookingForm` reused for both actors.
 

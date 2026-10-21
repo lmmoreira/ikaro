@@ -12,7 +12,7 @@
 
 | Artifact | Location | Notes |
 |---|---|---|
-| pnpm monorepo | root `package.json`, `pnpm-workspace.yaml` | 5 workspaces: backend, bff, web, types, config |
+| pnpm monorepo | root `package.json`, `pnpm-workspace.yaml` | Workspaces = `apps/*` + `packages/*` per `pnpm-workspace.yaml` (3 apps, 10 packages today — no hard-coded count; see `docs/REPOSITORY_STRUCTURE.md`) |
 | Shared ESLint config | `packages/config/eslint-base.js` | ESLint **10** flat config format — NOT `.eslintrc` |
 | Shared TS base | `packages/config/tsconfig.base.json` | TypeScript **6** — `ignoreDeprecations: "6.0"` required for `baseUrl` |
 | Shared Prettier | `packages/config/prettier.config.js` | Extended in root `prettier.config.js` |
@@ -102,8 +102,8 @@ Each context has `domain/`, `application/`, `infrastructure/` directories. Cross
 apps/backend/
   jest.config.ts      ← two projects: unit (*.spec.ts) + integration (*.integration.spec.ts)
   tsconfig.json       ← includes spec files + "types": ["node","jest"] — used by VS Code + tsc --noEmit
-  tsconfig.build.json ← excludes spec files — for build-only tooling that must omit test code
-  tsconfig.test.json  ← extends tsconfig.json, kept for ts-jest backward compat
+  tsconfig.build.json ← (historical: no longer present) excluded spec files for build-only tooling
+  tsconfig.test.json  ← (historical: no longer present) extended tsconfig.json for ts-jest; jest.config.ts now points ts-jest at tsconfig.json
   src/test/
     integration-global-setup.ts    ← starts one PostgreSQL container, runs migrations, sets TEST_DATABASE_URL
     integration-global-teardown.ts ← stops the container
@@ -117,7 +117,7 @@ apps/backend/
 - `tsconfig.build.json` holds the old exclusions — only needed if something must compile without test code in the output (not our current case; we use SWC, not tsc, for building).
 - Both Jest projects have `testPathIgnorePatterns: ['/migrations/']` — migration files are never matched as tests even when passed explicitly by path.
 - `.vscode/settings.json` has `jestrunner.codeLensSelector: "**/*.{spec,test}.{js,jsx,ts,tsx}"` — VS Code code lens only appears on spec files, not on migration or entity files.
-- `ts-jest` configured with `tsconfig: '<rootDir>/../tsconfig.test.json'`
+- `ts-jest` was configured with `tsconfig: '<rootDir>/../tsconfig.test.json'` (historical — `jest.config.ts` now uses `<rootDir>/../tsconfig.json`)
 - `transformIgnorePatterns` not needed (uuid v9 is CJS-compatible)
 - Coverage: `jest --coverage` runs via `pnpm test:cov` (unit tests only — integration coverage NOT merged)
 - **CLAUDE.md §7** requires ≥80% coverage on changed code (differential, not global)
@@ -151,7 +151,7 @@ Each `it()` in an integration spec should tell a **meaningful sequence** of oper
 ## 6. Environment Variables
 
 ### What runs locally without real credentials
-All four infra services (Postgres, Pub/Sub emulator, GCS emulator, MailHog) run locally via Docker. No GCP account needed for M01–M14.
+All four infra services (Postgres, Pub/Sub emulator, GCS emulator, MailHog) run locally via Docker. No GCP account is needed for local development.
 
 ### .env file locations
 | File | Loaded by | When |
@@ -197,7 +197,7 @@ TypeOrmModule.forRootAsync({
 The Docker daemon's default bridge subnet pool can be exhausted on machines with many existing networks. The compose file uses an explicit subnet `192.168.240.0/24` to avoid this. If you see `all predefined address pools have been fully subnetted`, run `docker network prune -f` first.
 
 Compose file: `docker/docker-compose.yml`  
-Init SQL (creates 6 schemas): `docker/init-db.sql`
+Init script (creates the `ikaro`/`ikaro_migrator` roles and grants; the per-context schemas are created by the BootstrapSchemas/AddSharedSchema migrations): `docker/init-db.sh`
 
 ---
 
@@ -218,7 +218,7 @@ Fixed IDs are in the `IDS` constant at the top of the file. Use these when writi
 | `JwtAuthGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
 | `TenantGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
 | `RolesGuard` | `apps/bff/src/shared/guards/` | ✅ Implemented M03 |
-| Auth module | `apps/bff/src/auth/` | ✅ Implemented M03 |
+| Auth module | `apps/bff/src/features/auth/` (originally `apps/bff/src/auth/`) | ✅ Implemented M03 |
 | `GcpPubSubEventBusAdapter` | `apps/backend/src/shared/infrastructure/` | ✅ Implemented M04 (replaced NoopEventBusAdapter) |
 | `GET /health/ready` DB check | `apps/backend/src/health/` | ✅ Implemented (`pingCheck('database')` in `health.controller.ts`) |
 | Signed URL actual GCS | `apps/bff/src/features/booking/bookings-attachments.controller.ts` (`POST attachments/signed-url`; listed here at `apps/bff/src/uploads/uploads.controller.ts`, which no longer exists) | ✅ Implemented |

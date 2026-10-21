@@ -47,7 +47,7 @@ flowchart TD
 ## Open questions / gaps
 
 - No open gaps for the guest booking path — fully built as of M12-S07.
-- UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), but frontend page `/[slug]/bookings/:id/submit-info` does not exist. Tracked in `guest/use-cases.md`. Out of scope for this journey.
+- UC-005 (A2) — guest submits admin-requested info: backend complete (`PATCH /bookings/:id/submit-info/guest?token=`), the frontend page now exists at `apps/web/app/bookings/[id]/submit-info/page.tsx` (see `guest/submit-info.md`). Out of scope for this journey.
 - A guest cannot create a class-session waitlist entry (M24) or an availability alert. For appointments, the calendar step offers "Avise-me quando abrir" (M23-S31) when the basket holds exactly one alert-eligible service: the button links to the alert page of the booking flow (tenant branding), which — with no session — shows a login-required card; after login/account creation the guest lands on the same page, prefilled with the service, the single resource pick and the duration. An already-authenticated customer sees the form directly. See `customer/book-a-service.md` § Availability alert page.
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (✅ `M23-S11a` built · ✅ `M23-S11b` built)

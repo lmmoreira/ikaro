@@ -41,7 +41,7 @@ flowchart TD
 
     CancelPage -->|"Confirma"| CancelCall(("PATCH /v1/bookings/:id/cancel"))
     CancelCall -->|"200 → status CANCELLED"| MinhaConta
-    CancelCall -->|"422 fora da janela (APPROVED)"| CancelError["Erro inline:<br/>'Cancelamento fora do prazo'"]
+    CancelCall -->|"422 fora da janela (APPROVED)"| CancelError["Página de erro dedicada (.../cancel/error):<br/>'Cancelamento fora do prazo'"]
 
     class Hotsite,BookingConfirm,MinhaConta,Detail,CancelPage,LoyaltyFull,SwitchTenant,NewTenant existing
 ```
@@ -90,7 +90,7 @@ Cancel button visibility for **Próximos** (APPROVED): hidden with note when `sc
 ## Open questions / gaps
 
 - [ ] **"Total washes completed" + "Most recently completed service" (UC-006 step 6):** `GET /v1/loyalty/balance` returns only `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. Neither "total washes" nor "last service" is available from this endpoint. Options: (a) add fields to balance endpoint, (b) derive from `GET /v1/loyalty/entries` pagination `total` + first entry's `serviceName`, (c) drop from MVP minha-conta. Decide before `M13-S27` starts.
-- [ ] **`CustomerBookingListResponse` DTO missing from `packages/types/src/`:** only a backend-internal `BookingListItem` exists. Add to `packages/types/` in `M13-S27`.
+- [x] **`CustomerBookingListResponse` DTO missing from `packages/types/src/`:** — **Resolved.** It now exists at `packages/types/src/booking.dto.ts` (`CustomerBookingListResponse`).
 - [ ] **UC-005 A2 scope:** should the info submission form live in this journey's detail page or a separate journey? Recommendation: include it inline in `M13-S28` (detail page) since the customer reaches it from "My Bookings" — it's not a separate navigation destination.
 - [x] **Post-cancel destination:** after successful cancel from the detail page, navigate back to `/{slug}/my-account` list (recommended) or show inline CANCELLED state on the detail page and let the customer navigate back manually? — **Resolved.** Redirects to the my-account list, implemented in `M13-S28`.
 - [ ] **Empty state CTA (UC-006 A1):** when customer has no bookings, what does the CTA say? "Fazer um agendamento" → `/{slug}/booking`?

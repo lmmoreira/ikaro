@@ -15,7 +15,7 @@ We use a single long-lived branch: `main`. (The repo's default branch is `main`;
 
 ### **Feature Branches**
 - **Life Span:** Maximum 24-48 hours.
-- **Naming Convention:** `feat/M0X-SYY-<short-description>` or `fix/<short-description>` (see CLAUDE.md §1).
+- **Naming Convention:** `feat/M0X-SYY-<short-description>` or `fix/<short-description>` (see CLAUDE.md §1). The only other branches are the script-generated `chore/relay-vm-up-<env>` / `chore/relay-vm-down-<env>` from `scripts/relay-vm-up.sh` / `relay-vm-down.sh`, which open a PR toggling the relay VM without applying it.
 - **Scope:** One branch = One small, verifiable change (e.g., a single Use Case step).
 
 ### **Trunk-Based Development Rules**

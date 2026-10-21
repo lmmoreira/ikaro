@@ -777,7 +777,7 @@ Each component (except `page.tsx`) gets a `*.spec.tsx` (Vitest + RTL, `// @vites
 - [ ] `409` conflict on submit returns to Step 2 with error message
 - [ ] All labels, placeholders, error messages in pt-BR
 - [ ] Component tests (Vitest + RTL): `AvailabilityCarousel` (enabled/disabled days, selection), `SlotPicker` (slots render, empty state), `AddressFields` (CEP autofill via `InMemoryAddressLookup`, lookup failure), `PhotoUpload` (signed-URL flow mocked), `BookingForm` (step transitions, mocked API)
-- [ ] Playwright E2E for the full happy-path flow is deferred to M16-S06 (not part of this story)
+- [ ] Playwright E2E for the full happy-path flow is deferred to the M17 E2E stories (old M16-S06; M16 was folded into `plan/M17-CLOUD-DEPLOY.md`) (not part of this story)
 
 **Dependencies:** M12-S03, M07-S04, M06-S04
 

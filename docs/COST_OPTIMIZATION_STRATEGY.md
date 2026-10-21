@@ -31,7 +31,7 @@ For a small startup, being **finance conscious** means maximizing the value of e
 | **Database** | Managed Postgres (Small) | $15 - $30 | **Crucial:** Never self-host DB. Managed backups are worth the $15 premium. |
 | **Email** | Brevo | $0 (Free tier) | High deliverability for free (up to 3k-10k emails/mo). |
 | **Observability** | Google Cloud Trace, Logging and Monitoring, Managed Service for Prometheus | usage-based, ~$0 at MVP volume | No VM to run; no self-hosted Grafana or Prometheus exists (see `docs/OBSERVABILITY_STRATEGY.md`). |
-| **Total MVP Cost** | | **~$20 - $50** | A professional, scalable SaaS for the price of a dinner. |
+| **Total MVP Cost** | | **~$20 - $50** | A professional, scalable SaaS for the price of a dinner. Indicative lean-startup range; the canonical, line-itemised launch cost of the committed GCP stack is `docs/TECH_STACK_DECISIONS.md` § COST SUMMARY (~$43/month). |
 
 ---
 
@@ -66,9 +66,9 @@ While a $5 VPS can run Postgres, a **Cloud SQL** instance (starting at ~$15) pro
 
 1. **Seed (0-100 users):** Stay on free tiers and smallest managed instances (~$30/mo).
 2. **Growth (100-1000 users):** Scale compute horizontally. Upgrade DB instance size (~$100/mo).
-3. **Scale (1000+ users):** Consider reserved instances or self-hosting some observability tools to optimize high-volume costs.
+3. **Scale (1000+ users):** Consider committed-use (reserved) discounts to optimize high-volume costs. Observability is on managed GCP services; no self-hosted Grafana or Prometheus exists (see the Observability row above).
 
 ---
 
-**Status:** Phase 2 - Technical Architecture  
+**Status:** Strategy reference — the committed infrastructure (GCP, M17) is in `docs/TECH_STACK_DECISIONS.md` and `docs/DEPLOYMENT_STRATEGY.md`  
 **Validated:** Professional engineering standards at a startup-friendly price point.

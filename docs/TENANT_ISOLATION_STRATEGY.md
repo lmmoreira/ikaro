@@ -102,7 +102,7 @@ All events emitted by the system include the `tenant_id`.
 |--------|----------|-------|
 | **Tenancy** | Multi-tenant | Multi-tenant |
 | **Google ID** | Shared across records (not unique across tenants; each `(tenant_id, google_oauth_id)` pair is unique) | Shared across records, but `UNIQUE(tenant_id, google_oauth_id)` per tenant |
-| **Login Flow** | Direct entry into the tenant whose hotsite the login started from | Direct entry (1 active tenant) or selection screen (2+ active tenants) |
+| **Login Flow** | Direct entry into the tenant whose hotsite the login started from | Direct entry into the tenant whose hotsite the login started from (the tenant slug travels in the OAuth state); with active rows at 2+ tenants, `/select-staff-tenant` is a post-login switch, not a login step |
 | **Data Scope** | Own history per tenant | Full tenant dashboard, scoped to the selected tenant |
 | **Switching** | Allowed | Allowed |
 

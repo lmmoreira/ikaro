@@ -6,7 +6,7 @@
 > Eval spec for `.copilot/context.md` — not a reference doc. Each entry is a prompt to run in a
 > fresh session, a pass/fail criterion, and a citation. No rationale is restated here: the "why"
 > lives at the cited `docs/ANTI_PATTERNS.md`/`docs/CI_TRAPS.md` row, or the relevant
-> `docs/ENGINEERING_RULES_*.md` split file for the gate scenario. Restating it here would recreate the exact duplication TD41 (Story 0)
+> `docs/ENGINEERING_RULES_*.md` split file for the gate scenario. Restating it here would recreate the exact duplication TD41 (Story 0; the TD file has since been removed — see git history)
 > fixed for the `useExisting` triplication.
 >
 > **Evaluation:** run each prompt in a fresh session against `git show <base-sha>:.copilot/context.md`
@@ -21,6 +21,10 @@
 > reference table, not enforcement — no detector or CI check actually verifies it, so it gets a
 > real scenario below (CodeRabbit PR #492 round 1 finding: citing a documentation row as if it
 > were equivalent to the deterministic backstops above was a miscategorization).
+>
+> **Deliberate exception — Scenario 1:** `domain-event-audit-coverage` is CI-enforced, but it only checks that the event has an audit-log subscription. The scenario also evaluates what the detector cannot see — reaching for the context's existing `<Context>AuditLogHandler` instead of a new logger-only handler, and flagging the post-merge Foundation apply — so it stays a scenario.
+>
+> **Unlisted bullets:** `context.md` §7 "Critical code invariants" has more bullets than this file has scenarios. A bullet with neither a scenario here nor a row in the exclusion table has not been evaluated by these scenarios.
 
 ## How to edit `context.md`
 
@@ -35,8 +39,8 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 | `useExisting` when a class is also registered as its own provider | `di-alias` detector (`packages/architecture-check`) |
 | Hardcoded `'pt-BR'` in a protected-area layout | ESLint `LOCALE_LITERAL_SELECTOR` |
 | Network I/O inside `txManager.run()` | `transactional-io` detector + ESLint `TX_MANAGER_PUBLISH_SELECTOR`/`RUN_IN_TRANSACTION_SELECTOR` |
-| New error code missing a locale entry | `apps/web`'s exhaustiveness test (TD23 Story 17) |
-| Unescaped `%...%` LIKE/ILIKE pattern around a caller-supplied value (the former scenario 2) | ESLint `LIKE_PATTERN_SELECTORS` in `apps/backend/eslint.config.js` (TD54-S4) |
+| New error code missing a locale entry | `apps/web`'s exhaustiveness test (TD23 Story 17; TD file removed, see git history) |
+| Unescaped `%...%` LIKE/ILIKE pattern around a caller-supplied value (the former scenario 2) | ESLint `LIKE_PATTERN_SELECTORS` in `apps/backend/eslint.config.js` (TD54-S4; TD file removed, see git history) |
 
 ## Scenarios
 
@@ -50,7 +54,7 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 **Exercises:** `context.md` §7's outbox-consumer bullet → `docs/ANTI_PATTERNS.md` § A domain event is drained into the outbox.
 
-*Scenario 2 (unescaped `%...%` LIKE pattern) is retired: ESLint now blocks it, see the exclusion table. Scenario numbers stay as they are because TD53's ablation records cite them.*
+*Scenario 2 (unescaped `%...%` LIKE pattern) is retired: ESLint now blocks it, see the exclusion table. Scenario numbers stay as they are because TD53's ablation records cite them (TD53 has since been removed; see git history).*
 
 ### 3. Cloudflare Turnstile E2E wait
 
@@ -100,7 +104,7 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 **Pass/fail:** fail if the generated component renders its own calendar/time markup, or never opens `shared/components/ui/` before writing it.
 
-**Exercises:** `context.md` §7's "Before writing any UI control" bullet → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built from scratch" row).
+**Exercises:** `context.md` §7's "Before writing a UI control (calendar, picker, select, dialog, switch)" bullet (under "Web styling boundary") → `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built from scratch" row).
 
 ### 8. Gate scenario — story-discovery first
 
@@ -172,7 +176,7 @@ Run these in "tools mode": the agent may read files (including `.claude/commands
 
 **Expected behavior:** a live check before merge-ready: the module is referenced by a real `module` block, the IAM grants resolve, a real `terraform plan -refresh-only`.
 
-**Pass/fail:** fail if the agent treats green CI and clean bot reviews as sufficient. Measured cell: Codex, 6 samples (the 2-sample cell hid a 0/6 regression when the §7 bullet was removed; see the TD53 Story 5B Decision record).
+**Pass/fail:** fail if the agent treats green CI and clean bot reviews as sufficient. Measured cell: Codex, 6 samples (the 2-sample cell hid a 0/6 regression when the §7 bullet was removed; see the TD53 Story 5B Decision record — removed with TD53, see git history).
 
 **Exercises:** `context.md` §9's live-verification gate and §7's Cross-layer deployment invariants bullet → `/pr-land`.
 

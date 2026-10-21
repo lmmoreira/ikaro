@@ -172,9 +172,9 @@ If `expiredPoints > balance.currentPoints` (e.g. balance was reduced by redempti
 | `InMemoryLoyaltyRedemptionRepository` | `src/test/infrastructure/in-memory-loyalty-redemption.repository.ts` |
 | `InMemoryBalanceExpiryLogRepository` | `src/test/infrastructure/in-memory-balance-expiry-log.repository.ts` |
 | `InMemoryInboxRepository` (shared, replaces the deleted `InMemoryProcessedEventRepository` — TD24-S04) | `src/test/infrastructure/in-memory-inbox.repository.ts` |
-| `InMemoryLoyaltyTenantSettingsPort` | `src/test/infrastructure/in-memory-loyalty-tenant-settings.port.ts` |
-| `InMemoryServiceCatalogPort` | `src/test/infrastructure/in-memory-service-catalog.port.ts` |
+| `InMemoryLoyaltyTenantSettingsPort` | `src/test/infrastructure/in-memory-loyalty-tenant-settings.port.ts` *(historical: no longer in the codebase; current fakes are `in-memory-loyalty-{booking,customer,platform}.port.ts`)* |
+| `InMemoryServiceCatalogPort` | `src/test/infrastructure/in-memory-service-catalog.port.ts` *(historical: no longer in the codebase)* |
 | `InMemoryNotificationCustomerPort` | `src/test/infrastructure/in-memory-notification-customer.port.ts` |
-| `InMemoryNotificationServicePort` | `src/test/infrastructure/in-memory-notification-service.port.ts` |
+| `InMemoryNotificationServicePort` | `src/test/infrastructure/in-memory-notification-service.port.ts` *(historical: no longer in the codebase; current fakes are `in-memory-notification-{booking,customer,platform,staff}.port.ts`)* |
 | `createLoyaltyIntegrationApp()` | `src/test/utils/loyalty-integration-app.ts` |
 | Loyalty builders (aggregate + entity) | `src/test/builders/loyalty/index.ts` |

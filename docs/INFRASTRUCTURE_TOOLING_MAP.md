@@ -47,7 +47,7 @@ There is no maintained GCE observability VM, Grafana/Loki Compose stack, or `pnp
 
 ## Local development
 
-Docker Compose provides local dependencies such as PostgreSQL and the Pub/Sub emulator. Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/OBSERVABILITY_STRATEGY.md`.
+Docker Compose (`docker/docker-compose.yml`, started with `pnpm infra:up`) provides the local dependencies: PostgreSQL, the Pub/Sub emulator, the GCS emulator and MailHog. Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/OBSERVABILITY_STRATEGY.md`.
 
 ## Related documents
 

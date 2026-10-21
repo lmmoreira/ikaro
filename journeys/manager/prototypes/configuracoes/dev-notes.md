@@ -159,7 +159,7 @@ all 3 bounds are fully client-checkable — validated client-side the same way a
 | serviceBufferMinutes | 0–120 | "O valor máximo é 120 minutos." |
 | loyaltyExpiryDays | 1–3650 | "Informe um valor entre 1 e 3650 dias." |
 | timezone | valid IANA id | "Selecione um fuso horário válido." |
-| businessInfo.phone | 10–11 digits, optional | "Telefone inválido." |
+| businessInfo.phone | E.164 (`isValidPhoneNumber`, `packages/validation/src/tenant-settings.ts`) — the web form shows the tenant's country calling code (`phonePrefix`) so the submitted value is E.164; optional | `PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID` — "O telefone informado é inválido." (`packages/i18n/locales/pt-BR/errors.json`) |
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 
 Slug is never submitted — input stays `disabled`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.

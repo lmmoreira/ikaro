@@ -6,7 +6,7 @@ Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — t
 |---|---|---|---|
 | UC-021 | Customer Login | Entry point — login-time multi-tenant selection descoped, see `customer/login.md` | `customer/login.md` |
 | UC-023 | Customer Switches Tenant | Action within customer area post-login | `customer/login.md` |
-| UC-002 | Authenticated Customer Requests Booking | | `book-a-service.md` |
+| UC-002 | Authenticated Customer Requests Booking | | `customer/book-a-service.md` |
 | UC-005 (A2) | Customer submits requested info | Alt flow only — main flow (admin requests info) lives in `staff/use-cases.md`. Authenticated customer email links to `/{slug}/my-account/bookings/:id`, where the submission form is embedded in the booking detail page (built in `M13-S28`). Guest path documented in `guest/submit-info.md`. | `customer/minha-conta.md` |
 | UC-006 | Customer Views and Manages Bookings | A booking marked as a no-show (UC-074) appears in Histórico as read-only — prototype `02f` (added 2026-09-30). A cancelled or rejected booking also opens from Histórico: prototypes `02g` (cancelled) and `02h` (rejected), added 2026-10-16 (M23-S47) | `customer/minha-conta.md` |
 | UC-007 | Customer Cancels Booking | | `customer/minha-conta.md` |
@@ -18,7 +18,7 @@ Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — t
 | UC-089, UC-091, UC-094, UC-095, UC-102 | Manage an existing class enrollment (cancel, skip, waitlist offer, reposição) | Same promotion. Draft — not yet shipped; story `M24-S18` in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. | `customer/minha-conta.md` |
 | UC-019 | Customer Receives Booking Reminder (Day Before) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
 | UC-020 | Customer Receives Booking Reminder (Day Of) | ⚠️ Email-only, no dashboard page — likely N/A for journey mapping | _TBD_ |
-| UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Built (M20-S09). | `submit-lead-form.md` |
+| UC-040 | Logged-In Customer Submits the Lead Form | Same page/component as `guest/submit-lead-form.md`, prefilled from profile. Built (M20-S09). | `customer/submit-lead-form.md` |
 
 ## Entry point
 

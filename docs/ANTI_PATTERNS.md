@@ -5,6 +5,8 @@
 
 > Canonical list. Loaded automatically by `/pre-pr`. See `CLAUDE.md §8` for the 11 highest-severity/most-universal ones kept inline — narrower, single-incident precedents live here only.
 
+> **Names in `e.g.` examples are incident precedents, not a map of today's code.** Several no longer exist anywhere in `apps/` or `packages/` (checked 2026-10-21 by grep): `TenantQueryService`, `CustomerQueryService`, `LoyaltyQueryService`, `PlatformBookingAdapter`, `ICustomerLoyaltyPort`, `ITenantLocalizationPort`, `OutboxEventBus`, `GetManagerEmailsUseCase`, `hasRun`/`markRun`, `sending_queue` and `cron_run_log` (removed or never shipped — the rule each illustrates still holds). Don't grep for them expecting a live call site.
+
 | Pattern | Problem | Fix |
 |---|---|---|
 | `WHERE id = ?` without `tenant_id` | Cross-tenant data leak | Add `AND tenant_id = ?` |

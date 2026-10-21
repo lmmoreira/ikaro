@@ -59,7 +59,7 @@ for (const event of booking.clearDomainEvents()) {
 ```
 Events are flushed **after** `txManager.run()` returns — not inside the transaction. If publish fails, the booking is already committed. No outbox in MVP. `clearDomainEvents()` is on `AggregateRoot` (returns and drains the queue). Never call inside `txManager.run()`.
 
-### `ICustomerProfilePort` cross-context pattern
+### `ICustomerProfilePort` cross-context pattern *(historical, M07-era — these files no longer exist; the current port/adapter pair is `booking/application/ports/booking-customer.port.ts` and `booking/infrastructure/cross-context/booking-customer.adapter.ts`)*
 BookingContext must read Customer data for authenticated booking (UC-002) without importing CustomerRepository directly.
 - Port (interface): `booking/application/ports/customer-profile.port.ts` — `CUSTOMER_PROFILE_PORT` symbol
 - Adapter (infra): `booking/infrastructure/adapters/customer-profile.adapter.ts` — injects `CustomerQueryService` (not `CUSTOMER_REPOSITORY`)

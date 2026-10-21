@@ -46,7 +46,9 @@ The booking page hides closed slots, so the promise "the business is closed then
 - Changing recurring schedules (they already enforce this).
 - A manager override that books outside hours: not decided; see the first open question for Story 0.
 
-## Story 0 — Enforce hours, closures and openings when a one-off booking is created
+## Stories
+
+### Story 0 — Enforce hours, closures and openings when a one-off booking is created
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
@@ -108,7 +110,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 1 — Enforce the same rule when a booking is rescheduled or approved at a new time
+### Story 1 — Enforce the same rule when a booking is rescheduled or approved at a new time
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
@@ -156,7 +158,7 @@ Apply Story 0's check wherever a booking's start changes after creation: the cus
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-## Story 2 — The booking and reschedule screens route the new refusals to the date step
+### Story 2 — The booking and reschedule screens route the new refusals to the date step
 
 **Agent:** web-ts
 **Complexity:** S
