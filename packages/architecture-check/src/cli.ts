@@ -192,7 +192,7 @@ const results = [
   checkTestDataHarnessRegistrations(backend, testDataHarnessRegistrations),
   checkNoJestFnForRepositoryOrPortMocks(backend),
   checkOccupancyReleaseChokePoint(backend),
-  checkLockCatalogCoverage(backend, readFileSync(resolve(root, 'docs/28-LOCK_CATALOG.md'), 'utf8')),
+  checkLockCatalogCoverage(backend, readFileSync(resolve(root, 'docs/LOCK_CATALOG.md'), 'utf8')),
   checkDomainEventsHaveAuditLogSubscription(backend),
   checkAggregatePropsUseSharedValueObjects(
     backend,

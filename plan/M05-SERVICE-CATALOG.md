@@ -15,7 +15,7 @@
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § Service aggregate, `docs/04-USE_CASES.md` § UC-012, UC-013
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Service aggregate, `docs/USE_CASES.md` § UC-012, UC-013
 
 **Description:**  
 Implement the pure domain layer for the `Service` aggregate within the Booking bounded context. Services are the car-wash offerings that customers select when booking. Once a service is snapshotted into a `BookingLine`, changes to the service never retroactively affect past bookings.
@@ -50,7 +50,7 @@ Implement the pure domain layer for the `Service` aggregate within the Booking b
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § booking schema — services table
+**Docs to load:** `docs/DATABASE_SCHEMA.md` § booking schema — services table
 
 **Description:**  
 Create the TypeORM migration for the `booking.services` table. Note: `price` is stored as a numeric column (not JSONB) since Money is a value object with a single-currency system. The currency is always BRL and does not need to be stored per-row.
@@ -88,7 +88,7 @@ INDEX (tenant_id, is_active)    ← for fast "active services for tenant" querie
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers
+**Docs to load:** `docs/ARCHITECTURE.md` § hexagonal layers
 
 **Description:**  
 Implement the infrastructure adapter for the Service aggregate: TypeORM entity, repository implementation, and the NestJS module.
@@ -115,7 +115,7 @@ Implement the infrastructure adapter for the Service aggregate: TypeORM entity, 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-012, `docs/14-API_CONTRACTS.md` § services endpoints
+**Docs to load:** `docs/USE_CASES.md` § UC-012, `docs/API_CONTRACTS.md` § services endpoints
 
 **Description:**  
 Implement the use case and endpoint for creating a new service. Only MANAGER or STAFF roles can create services.
@@ -162,7 +162,7 @@ Implement the use case and endpoint for creating a new service. Only MANAGER or 
 
 **Agent:** `backend-ts` + `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-013, `docs/14-API_CONTRACTS.md` § services endpoints
+**Docs to load:** `docs/USE_CASES.md` § UC-013, `docs/API_CONTRACTS.md` § services endpoints
 
 **Description:**  
 Implement service editing and deactivation, plus the public-facing service list endpoint that guests and unauthenticated users can call to see available services for a tenant.

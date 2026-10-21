@@ -4,7 +4,7 @@ import { AggregateRoot } from '../../../shared/domain/aggregate-root';
 export interface ChatbotProviderBalanceProps {
   provider: string;
   // null until S08's first successful poll for this provider; always null for a provider with
-  // no prepaid-balance concept (Anthropic/OpenAI) — see docs/13-DATABASE_SCHEMA.md.
+  // no prepaid-balance concept (Anthropic/OpenAI) — see docs/DATABASE_SCHEMA.md.
   remainingUsd: Decimal | null;
   checkedAt: Date | null;
   // Written by SendChatMessageUseCase (S05/S06) on every real ILlmProvider.complete() outcome —
@@ -52,7 +52,7 @@ export class ChatbotProviderBalance extends AggregateRoot {
    * needed to clear it. Once the cooldown elapses, this returns true again — optimistically,
    * without proof — giving the next real visitor's attempt the chance to confirm recovery (a
    * fresh lastSuccessAt) or restart the wait (a fresh lastFailureAt). Full rationale:
-   * docs/13-DATABASE_SCHEMA.md's chatbot_provider_balance section.
+   * docs/DATABASE_SCHEMA.md's chatbot_provider_balance section.
    */
   isHealthy(cooldownMinutes: number, now: Date = new Date()): boolean {
     const failureIsMostRecent =

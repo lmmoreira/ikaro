@@ -13,9 +13,9 @@ function catalogNames(catalogText: string, name: string): boolean {
   return new RegExp(`(?<![A-Za-z0-9_])${name}(?![A-Za-z0-9_])`).test(catalogText);
 }
 
-// A new lock that is not in docs/28-LOCK_CATALOG.md has no place in the lock order, no business
+// A new lock that is not in docs/LOCK_CATALOG.md has no place in the lock order, no business
 // case and no test that proves it, so the next change can deadlock against it unseen. Every
-// locking method on a port must be named in the catalog (docs/28-LOCK_CATALOG.md § 7).
+// locking method on a port must be named in the catalog (docs/LOCK_CATALOG.md § 7).
 export function checkLockCatalogCoverage(project: Project, catalogText: string): ScanResult {
   const findings: Finding[] = [];
   let scannedTargets = 0;
@@ -33,7 +33,7 @@ export function checkLockCatalogCoverage(project: Project, catalogText: string):
           rule: RULE,
           file: path,
           line: sourceLine(sourceFile, method.getStart()),
-          message: `${declaration.getName()}.${name}() takes a lock but docs/28-LOCK_CATALOG.md never names it. Add its entry (§ 3), its place in the order (§ 2, § 4) and the test that proves it (§ 3.1).`,
+          message: `${declaration.getName()}.${name}() takes a lock but docs/LOCK_CATALOG.md never names it. Add its entry (§ 3), its place in the order (§ 2, § 4) and the test that proves it (§ 3.1).`,
         });
       }
     }

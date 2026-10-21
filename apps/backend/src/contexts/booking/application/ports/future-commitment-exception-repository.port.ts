@@ -45,7 +45,7 @@ export interface IFutureCommitmentExceptionRepository {
   // Every still-OPEN entry about these affected rows, locked (SELECT ... FOR UPDATE) in one
   // statement and ordered by id, so a cancel closing a booking's entries and a manager resolving
   // one of them cannot both see it OPEN (M23-S48). Takes the entry locks after the resource locks
-  // (docs/28-LOCK_CATALOG.md § 2). An empty id list returns an empty list without a query. Must be
+  // (docs/LOCK_CATALOG.md § 2). An empty id list returns an empty list without a query. Must be
   // called inside an active transaction.
   findOpenByAffectedForUpdate(
     tenantId: string,

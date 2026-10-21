@@ -11,7 +11,7 @@ interface SettingsChatbotSectionProps {
 }
 
 // knowledgeText is the only tenant-editable field in the chatbot settings category
-// (docs/21-TENANTS_SETTINGS_SCHEMA.md §7) — no client-side length cap by design, since the
+// (docs/TENANTS_SETTINGS_SCHEMA.md §7) — no client-side length cap by design, since the
 // resolved max is a per-tenant Ikaro-only override never exposed to this form. The server's
 // 400 PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG is the sole backstop (see SettingsForm's
 // submit handler, which maps that error's field back to knowledgeTextError).

@@ -1,6 +1,6 @@
 # Cost Optimization Strategy (Lean Startup) - Ikaro
 
-> **When to load:** weighing a tooling or infrastructure choice against cost: the lean-startup rules, estimated MVP costs, optimisation patterns and the scaling roadmap; the choices themselves are in `docs/22-TECH_STACK_DECISIONS.md`.
+> **When to load:** weighing a tooling or infrastructure choice against cost: the lean-startup rules, estimated MVP costs, optimisation patterns and the scaling roadmap; the choices themselves are in `docs/TECH_STACK_DECISIONS.md`.
 > **Tags:** product
 
 ## Overview
@@ -30,7 +30,7 @@ For a small startup, being **finance conscious** means maximizing the value of e
 | **Compute** | GCP Cloud Run | $0 - $10 | Scale-to-zero. Only pay when users are active. |
 | **Database** | Managed Postgres (Small) | $15 - $30 | **Crucial:** Never self-host DB. Managed backups are worth the $15 premium. |
 | **Email** | Brevo | $0 (Free tier) | High deliverability for free (up to 3k-10k emails/mo). |
-| **Observability** | Google Cloud Trace, Logging and Monitoring, Managed Service for Prometheus | usage-based, ~$0 at MVP volume | No VM to run; no self-hosted Grafana or Prometheus exists (see `docs/10-OBSERVABILITY_STRATEGY.md`). |
+| **Observability** | Google Cloud Trace, Logging and Monitoring, Managed Service for Prometheus | usage-based, ~$0 at MVP volume | No VM to run; no self-hosted Grafana or Prometheus exists (see `docs/OBSERVABILITY_STRATEGY.md`). |
 | **Total MVP Cost** | | **~$20 - $50** | A professional, scalable SaaS for the price of a dinner. |
 
 ---

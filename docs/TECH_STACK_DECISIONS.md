@@ -1,6 +1,6 @@
 # Tech Stack Architecture & Decisions - Ikaro
 
-> **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/12-DEPLOYMENT_STRATEGY.md` and `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`.
+> **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12  
 **Status:** Decision record. The stack below is implemented; the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
@@ -49,7 +49,7 @@ This document defines the technology stack for Ikaro, a multi-tenant SaaS platfo
 
 #### Multi-Tenant Query Patterns
 
-The booking aggregates (See `docs/02-DOMAIN_MODEL.md`) require efficient multi-tenant querying. TypeORM's QueryBuilder enables:
+The booking aggregates (See `docs/DOMAIN_MODEL.md`) require efficient multi-tenant querying. TypeORM's QueryBuilder enables:
 
 ```typescript
 // Tenant-scoped queries (critical for isolation)
@@ -69,7 +69,7 @@ This pattern scales linearly from 10K bookings (day 1) to 100M bookings (year 2)
 
 #### Composite FK Strategy
 
-Aligns perfectly with composite foreign key strategy defined in `docs/06-TENANT_ISOLATION_STRATEGY.md`:
+Aligns perfectly with composite foreign key strategy defined in `docs/TENANT_ISOLATION_STRATEGY.md`:
 
 ```typescript
 @Entity()
@@ -102,7 +102,7 @@ export class Booking {
 
 #### LoyaltyEntry Append-Only Pattern
 
-TypeORM supports the immutable append-only semantics needed for `LoyaltyEntry` (See `docs/02-DOMAIN_MODEL.md`):
+TypeORM supports the immutable append-only semantics needed for `LoyaltyEntry` (See `docs/DOMAIN_MODEL.md`):
 
 ```typescript
 @Entity()
@@ -153,9 +153,9 @@ export class LoyaltyEntry {
 - **Performance:** No cost penalty vs. other ORMs
 
 ### References
-- Domain Model: `docs/02-DOMAIN_MODEL.md`
-- Multi-Tenancy: `docs/06-TENANT_ISOLATION_STRATEGY.md`
-- Database Schema: `docs/13-DATABASE_SCHEMA.md`
+- Domain Model: `docs/DOMAIN_MODEL.md`
+- Multi-Tenancy: `docs/TENANT_ISOLATION_STRATEGY.md`
+- Database Schema: `docs/DATABASE_SCHEMA.md`
 
 ---
 
@@ -179,7 +179,7 @@ export class LoyaltyEntry {
 
 #### Bounded Contexts as NestJS Modules
 
-NestJS module structure directly maps to bounded contexts defined in `docs/05-BOUNDED_CONTEXTS.md`:
+NestJS module structure directly maps to bounded contexts defined in `docs/BOUNDED_CONTEXTS.md`:
 
 ```
 apps/backend/src/
@@ -217,7 +217,7 @@ apps/backend/src/
 
 #### Testing Integration
 
-Aligns with `docs/08-TESTING_STRATEGY.md` testing pyramid:
+Aligns with `docs/TESTING_STRATEGY.md` testing pyramid:
 
 ```typescript
 // Unit tests: Domain logic
@@ -259,7 +259,7 @@ describe('Booking Workflow (E2E)', () => {
 });
 ```
 
-Coverage target: 80% (per `docs/08-TESTING_STRATEGY.md`).
+Coverage target: 80% (per `docs/TESTING_STRATEGY.md`).
 
 #### Dependency Injection Pattern
 
@@ -320,10 +320,10 @@ export class CompleteBookingController {
 - **Performance:** Optimized for concurrent requests
 
 ### References
-- Bounded Contexts: `docs/05-BOUNDED_CONTEXTS.md`
-- Use Cases: `docs/04-USE_CASES.md`
-- Testing: `docs/08-TESTING_STRATEGY.md`
-- Architecture: `docs/11-ARCHITECTURE.md`
+- Bounded Contexts: `docs/BOUNDED_CONTEXTS.md`
+- Use Cases: `docs/USE_CASES.md`
+- Testing: `docs/TESTING_STRATEGY.md`
+- Architecture: `docs/ARCHITECTURE.md`
 
 ---
 
@@ -383,11 +383,11 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` - Client enforces tenant awareness.
+This aligns with `docs/TENANT_ISOLATION_STRATEGY.md` - Client enforces tenant awareness.
 
 #### BFF Integration Pattern
 
-The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts. The session JWT lives in an httpOnly cookie, never in client-readable code; server-side web code calls the BFF only through the transport helpers (`bffServerFetch` for authenticated calls, `bffPublicFetch` for public ones, `bffClient` in client components), documented in `docs/24-BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
+The frontend (`apps/web/`) calls the **separate NestJS BFF** (`apps/bff/`), not the backend directly. The BFF validates the JWT, injects `tenantId`, and aggregates data from backend contexts. The session JWT lives in an httpOnly cookie, never in client-readable code; server-side web code calls the BFF only through the transport helpers (`bffServerFetch` for authenticated calls, `bffPublicFetch` for public ones, `bffClient` in client components), documented in `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
 
 ```typescript
 // apps/web/features/booking/api/availability-alerts.server.ts — server-only fetcher
@@ -434,7 +434,7 @@ Ikaro's Next.js app requires **server-side rendering** — GCS static export is 
 
 ### Performance Targets
 
-Per `docs/10-OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
+Per `docs/OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 
 ```
 - Largest Contentful Paint (LCP): < 2.5s (automatic with next/image)
@@ -448,9 +448,9 @@ Per `docs/10-OBSERVABILITY_STRATEGY.md`, Next.js optimizations help:
 - **Performance:** Built-in optimization
 
 ### References
-- Multi-Tenancy: `docs/06-TENANT_ISOLATION_STRATEGY.md`
-- API Contracts: `docs/14-API_CONTRACTS.md`
-- Observability: `docs/10-OBSERVABILITY_STRATEGY.md`
+- Multi-Tenancy: `docs/TENANT_ISOLATION_STRATEGY.md`
+- API Contracts: `docs/API_CONTRACTS.md`
+- Observability: `docs/OBSERVABILITY_STRATEGY.md`
 
 ---
 
@@ -487,7 +487,7 @@ GCP Pub/Sub eliminates this operational burden.
 
 ### Event-Driven Architecture Integration
 
-Aligns perfectly with domain events defined in `docs/03-DOMAIN_EVENTS.md`:
+Aligns perfectly with domain events defined in `docs/DOMAIN_EVENTS.md`:
 
 ```typescript
 // Event publisher abstraction (cloud-agnostic interface)
@@ -540,7 +540,7 @@ This pattern scales from day 1 → year 2 unchanged.
 
 Subscriptions are per consumer, not per tenant: every domain event has one topic (`ikaro-{event}`) and one push subscription per consuming handler (`ikaro-{event}-{consumer}`, each with its own DLQ), all generated from `infra/terraform/pubsub-catalog.json` by `modules/pubsub`. Tenant isolation happens in the message, not in the subscription: every event envelope carries `tenantId`, and each consumer scopes its work to that tenant and deduplicates by `eventId`.
 
-Push delivery is at-least-once and may redeliver a message, so every consumer deduplicates by `eventId`. This aligns with `docs/06-TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/03-DOMAIN_EVENTS.md`.
+Push delivery is at-least-once and may redeliver a message, so every consumer deduplicates by `eventId`. This aligns with `docs/TENANT_ISOLATION_STRATEGY.md` isolation rules; the event envelope is in `docs/DOMAIN_EVENTS.md`.
 
 ### Cost Model
 
@@ -609,9 +609,9 @@ pubsub-emulator:
 - **No operational overhead:** Google manages everything
 
 ### References
-- Domain Events: `docs/03-DOMAIN_EVENTS.md`
-- Bounded Contexts: `docs/05-BOUNDED_CONTEXTS.md`
-- Multi-Tenancy: `docs/06-TENANT_ISOLATION_STRATEGY.md`
+- Domain Events: `docs/DOMAIN_EVENTS.md`
+- Bounded Contexts: `docs/BOUNDED_CONTEXTS.md`
+- Multi-Tenancy: `docs/TENANT_ISOLATION_STRATEGY.md`
 
 ---
 
@@ -725,7 +725,7 @@ Cloud Run provides:
 
 ### Observability
 
-Built-in to Cloud Logging (per `docs/10-OBSERVABILITY_STRATEGY.md`):
+Built-in to Cloud Logging (per `docs/OBSERVABILITY_STRATEGY.md`):
 
 ```
 gcloud logging read "resource.type=cloud_run_revision AND severity=ERROR"
@@ -752,9 +752,9 @@ backend:
 - **Operations:** Zero (fully managed)
 
 ### References
-- API Contracts: `docs/14-API_CONTRACTS.md`
-- Observability: `docs/10-OBSERVABILITY_STRATEGY.md`
-- Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
+- API Contracts: `docs/API_CONTRACTS.md`
+- Observability: `docs/OBSERVABILITY_STRATEGY.md`
+- Deployment: `docs/DEPLOYMENT_STRATEGY.md`
 
 ---
 
@@ -778,7 +778,7 @@ backend:
 
 ### Database Schema
 
-Fully specified in `docs/13-DATABASE_SCHEMA.md` with:
+Fully specified in `docs/DATABASE_SCHEMA.md` with:
 - ✅ All tables include `tenant_id` (multi-tenancy)
 - ✅ Composite FKs prevent cross-tenant access
 - ✅ Proper indexing with `tenant_id` prefix
@@ -842,7 +842,7 @@ export class BookingRepository extends Repository<Booking> {
 // INDEX: (tenant_id, status, created_at)
 ```
 
-Per `docs/06-TENANT_ISOLATION_STRATEGY.md`, this is the primary isolation mechanism.
+Per `docs/TENANT_ISOLATION_STRATEGY.md`, this is the primary isolation mechanism.
 
 ### PostgreSQL 17 Choice
 
@@ -903,9 +903,9 @@ resource "google_sql_database_instance" "ikaro" {
 - **Operations:** Zero (fully managed)
 
 ### References
-- Database Schema: `docs/13-DATABASE_SCHEMA.md`
-- Multi-Tenancy: `docs/06-TENANT_ISOLATION_STRATEGY.md`
-- Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
+- Database Schema: `docs/DATABASE_SCHEMA.md`
+- Multi-Tenancy: `docs/TENANT_ISOLATION_STRATEGY.md`
+- Deployment: `docs/DEPLOYMENT_STRATEGY.md`
 
 ---
 
@@ -1045,8 +1045,8 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 
 ### References
 - Secrets: `base_secret_ids` in `infra/terraform/modules/secrets/main.tf`
-- API Contracts: `docs/14-API_CONTRACTS.md`
-- Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
+- API Contracts: `docs/API_CONTRACTS.md`
+- Deployment: `docs/DEPLOYMENT_STRATEGY.md`
 
 ---
 
@@ -1067,7 +1067,7 @@ Month 15+:   Ready for AWS/Azure (same Vault everywhere)
 
 ### Repository Structure
 
-> Illustrative layout from the original plan. The real one is `infra/terraform/{foundation,envs/staging,envs/prod,modules}` (see `docs/23-INFRASTRUCTURE_SETUP.md`); bucket, topic and secret names in the snippets below are placeholders, the real ones come from the modules.
+> Illustrative layout from the original plan. The real one is `infra/terraform/{foundation,envs/staging,envs/prod,modules}` (see `docs/INFRASTRUCTURE_SETUP.md`); bucket, topic and secret names in the snippets below are placeholders, the real ones come from the modules.
 
 ```
 terraform/
@@ -1117,7 +1117,7 @@ resource "google_secret_manager_secret" "database_url" {
   # ... (real definition: infra/terraform/modules/secrets/)
 }
 
-# Authoritative Terraform: infra/terraform/ (layout in docs/23-INFRASTRUCTURE_SETUP.md)
+# Authoritative Terraform: infra/terraform/ (layout in docs/INFRASTRUCTURE_SETUP.md)
 ```
 
 ### Multi-Cloud Ready (historical illustration — not planned)
@@ -1209,9 +1209,9 @@ pnpm start
 - **Benefits:** Infrastructure consistency, easy migration
 
 ### References
-- Architecture: `docs/11-ARCHITECTURE.md`
-- Deployment: `docs/12-DEPLOYMENT_STRATEGY.md`
-- Infrastructure: `docs/19-INFRASTRUCTURE_TOOLING_MAP.md`
+- Architecture: `docs/ARCHITECTURE.md`
+- Deployment: `docs/DEPLOYMENT_STRATEGY.md`
+- Infrastructure: `docs/INFRASTRUCTURE_TOOLING_MAP.md`
 
 ---
 
@@ -1335,7 +1335,7 @@ Code Changes: Zero (swap implementations via DI)
 
 ### Multi-Tenancy Isolation
 
-Per `docs/06-TENANT_ISOLATION_STRATEGY.md`:
+Per `docs/TENANT_ISOLATION_STRATEGY.md`:
 
 - ✅ **Database level:** Composite FKs enforce tenant isolation
 - ✅ **API level:** JWT includes tenantId, validated on every request
@@ -1354,7 +1354,7 @@ No automatic rotation is configured: the database passwords (`db-password`, `db-
 
 ### Audit Logging
 
-Per `docs/10-OBSERVABILITY_STRATEGY.md`:
+Per `docs/OBSERVABILITY_STRATEGY.md`:
 
 ```
 gcloud logging read "resource.type=cloud_sql_database OR resource.type=cloud_run_revision"
@@ -1368,15 +1368,15 @@ This tech stack integrates with all architectural decisions:
 
 | Document | Integration |
 |----------|---|
-| `docs/02-DOMAIN_MODEL.md` | TypeORM entities map to aggregates |
-| `docs/03-DOMAIN_EVENTS.md` | Pub/Sub publishes events with exact envelope |
-| `docs/04-USE_CASES.md` | NestJS modules implement use cases |
-| `docs/05-BOUNDED_CONTEXTS.md` | NestJS modules map to contexts |
-| `docs/06-TENANT_ISOLATION_STRATEGY.md` | Composite FKs, multi-tenant queries |
-| `docs/08-TESTING_STRATEGY.md` | NestJS testing infrastructure |
-| `docs/11-ARCHITECTURE.md` | Hexagonal pattern with these technologies |
-| `docs/13-DATABASE_SCHEMA.md` | TypeORM entities + Cloud SQL |
-| `docs/14-API_CONTRACTS.md` | NestJS controllers + Next.js clients |
+| `docs/DOMAIN_MODEL.md` | TypeORM entities map to aggregates |
+| `docs/DOMAIN_EVENTS.md` | Pub/Sub publishes events with exact envelope |
+| `docs/USE_CASES.md` | NestJS modules implement use cases |
+| `docs/BOUNDED_CONTEXTS.md` | NestJS modules map to contexts |
+| `docs/TENANT_ISOLATION_STRATEGY.md` | Composite FKs, multi-tenant queries |
+| `docs/TESTING_STRATEGY.md` | NestJS testing infrastructure |
+| `docs/ARCHITECTURE.md` | Hexagonal pattern with these technologies |
+| `docs/DATABASE_SCHEMA.md` | TypeORM entities + Cloud SQL |
+| `docs/API_CONTRACTS.md` | NestJS controllers + Next.js clients |
 | `infra/terraform/modules/secrets/main.tf` (`base_secret_ids`) | Secrets in Secret Manager |
 
 ---

@@ -21,7 +21,7 @@ export function isUuid(value: string): boolean {
   return UUID.test(value);
 }
 
-// A legged service or a bundle (more than one resource requirement, docs/02 § Service) — its
+// A legged service or a bundle (more than one resource requirement, docs/DOMAIN_MODEL § Service) — its
 // resource picks cannot be represented by an alert's single preferred resource.
 export function isCompositeService(service: HotsiteServiceResponse): boolean {
   return (
@@ -32,7 +32,7 @@ export function isCompositeService(service: HotsiteServiceResponse): boolean {
 // An alert holds exactly one preferred resource, so only a flat service with exactly one pick
 // has one to carry. A legged service has one pick per leg and a bundle (more than one resource
 // requirement) one per requirement — both pass none, and the alert means "when the whole service
-// fits, with any resources" (docs/27 § Availability Alerts).
+// fits, with any resources" (docs/BUSINESS_LOGIC_REFERENCE § Availability Alerts).
 function singleResourcePick(
   service: HotsiteServiceResponse,
   resourceSelections: readonly ResourceSelectionItem[],

@@ -22,7 +22,7 @@ import {
 // don't need to change.
 
 // Required-field checks are deliberately NOT duplicated here (TD23-S13) — the backend's
-// Uploads always target tmp/ staging (see docs/14-API_CONTRACTS.md) — promotion to
+// Uploads always target tmp/ staging (see docs/API_CONTRACTS.md) — promotion to
 // tenants/<id>/bookings/<bookingId>/... happens server-side once the booking is saved.
 const TMP_PHOTO_PATH_REGEX = /^tmp\/[^/]+\/[^/]+\/.+$/;
 

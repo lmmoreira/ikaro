@@ -160,7 +160,7 @@
     also dropped from this page for the same reason — Massagem Relaxante is fixed APPOINTMENT,
     and that whole panel was illustrative-only scaffolding for a Cluster 4 (M24) concept.
 
-    BFF CALLS (per docs/14-API_CONTRACTS.md § Service Extensions — M22 Cluster 2):
+    BFF CALLS (per docs/API_CONTRACTS.md § Service Extensions — M22 Cluster 2):
       Detalhes             → PATCH /services/:id
       Recursos (flat)      → PATCH /services/:id/resource-requirements
       Recursos (legs)      → PUT   /services/:id/legs
@@ -173,8 +173,8 @@
     service's active intake schema or its version history — GET /services/:id doesn't include
     it, and IServiceIntakeSchemaRepository.findAllByServiceId() has zero controller callers.
     The "Formulário de reserva" tab below (and its version-history list) can't actually be
-    populated on page load until a read path is added — tracked in docs/02-DOMAIN_MODEL.md
-    § Aggregate: ServiceBookingIntakeSchema and docs/14-API_CONTRACTS.md.
+    populated on page load until a read path is added — tracked in docs/DOMAIN_MODEL.md
+    § Aggregate: ServiceBookingIntakeSchema and docs/API_CONTRACTS.md.
   -->
 
   <!-- Prototype banner -->

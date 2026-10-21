@@ -36,7 +36,7 @@ A generic PM-interview question is worse than no question — every question in 
 ### Mode A — fresh idea
 
 1. From the idea, judge which bounded context(s) it most likely touches (Booking/Customer/Staff/Loyalty/Notification/Platform, per CLAUDE.md §3) and whether it's a domain-slice feature, a hotsite module, a dashboard surface, or cross-cutting.
-2. Read (or spawn an Explore agent for — proportional to how unfamiliar the territory is) whichever of these actually apply: `docs/02-DOMAIN_MODEL.md`, `docs/05-BOUNDED_CONTEXTS.md`, `docs/04-USE_CASES.md` (nearest existing precedent flow), `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` (any hotsite-module idea — read its module-type/`MODULE_MAP` pattern before proposing a new one), `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` (any dashboard-surface idea), `docs/21-TENANTS_SETTINGS_SCHEMA.md` (any tenant-configurable idea).
+2. Read (or spawn an Explore agent for — proportional to how unfamiliar the territory is) whichever of these actually apply: `docs/DOMAIN_MODEL.md`, `docs/BOUNDED_CONTEXTS.md`, `docs/USE_CASES.md` (nearest existing precedent flow), `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (any hotsite-module idea — read its module-type/`MODULE_MAP` pattern before proposing a new one), `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (any dashboard-surface idea), `docs/TENANTS_SETTINGS_SCHEMA.md` (any tenant-configurable idea).
 3. **As the tech-lead lens, explicitly:** does the idea, as understood so far, plausibly duplicate an existing feature/module/pattern (name the specific one, don't just note "something similar exists"), or plausibly collide with a named row in `docs/ANTI_PATTERNS.md` / CLAUDE.md §8? This is a real finding to raise in Step 1, not a silent background check.
 4. Check `docs/discovery/` for an existing folder covering the same or clearly-overlapping ground — do not silently duplicate; if one exists, stop and ask the user how to proceed.
 5. Determine the discovery's slug (kebab-case, e.g. `lead-form-module`). Confirm `docs/discovery/<slug>/` doesn't already exist.
@@ -83,7 +83,7 @@ Please answer all at once; I'll wait for one reply before drafting anything.
 3. This is a public, unauthenticated write endpoint once live — same shape as guest booking (UC-001). Same rate-limit/spam posture, or does a manual-review queue make more sense here?
 
 **Architecture fit (a challenge, not just a question)**
-4. The `CONTACT` module already has a manager-facing config panel with a very similar shape (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT). Extending that module type instead of adding a new one would avoid a second, parallel config pattern for the manager to learn — is there a real reason this needs to be genuinely separate, or does it just feel that way because it wasn't scoped against the existing pattern yet?
+4. The `CONTACT` module already has a manager-facing config panel with a very similar shape (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT). Extending that module type instead of adding a new one would avoid a second, parallel config pattern for the manager to learn — is there a real reason this needs to be genuinely separate, or does it just feel that way because it wasn't scoped against the existing pattern yet?
 ```
 
 ### Mode B — gap & currency analysis
@@ -100,7 +100,7 @@ Do not re-interview from zero — that risks a fresh answer contradicting an alr
 
 **As a database expert**, not just a note-taker: from the settled framing (Mode A) or the existing content (Mode B), work — or re-derive and critique — the domain shape in event-storming order:
 
-1. **Events** (past tense — `LeadFormSubmitted`). Check each against `docs/03-DOMAIN_EVENTS.md`'s real envelope shape (`eventId`/`tenantId`/`occurredAt`/`correlationId`/`eventName`/`eventVersion`/`data`, per CLAUDE.md §4).
+1. **Events** (past tense — `LeadFormSubmitted`). Check each against `docs/DOMAIN_EVENTS.md`'s real envelope shape (`eventId`/`tenantId`/`occurredAt`/`correlationId`/`eventName`/`eventVersion`/`data`, per CLAUDE.md §4).
 2. **Commands** that trigger each event.
 3. **Aggregate(s) that own each command** — does this extend an *existing* aggregate (default) or genuinely need a new one (justify the actual boundary, don't default to "new" because it's simpler to reason about in isolation — same discipline `/discovery-to-milestone`'s 3b now requires)? For Mode B, actively stress-test the *existing* aggregate design: does any pair of use cases assume two separate aggregates must stay consistent within one transaction — a sign the boundary itself is wrong, not something to patch around later.
 4. **Cross-context policies/reactions** — does another bounded context need to react? Prefer a domain event over a direct port call, per CLAUDE.md §7's priority order.
@@ -114,7 +114,7 @@ Surface business-rule ambiguities as questions, in the same spirit as `/story-di
 
 **As a PM**, insist on completeness beyond the happy path: for every use case, does it name its empty/error/permission-denied/race-condition alternative flows, not just the main flow? A use case silent on "what if this fails" is incomplete, whether drafted fresh (Mode A) or inherited (Mode B — check the existing CAND entries for this specifically, since it's an easy gap to have missed even in an otherwise-mature discovery).
 
-Draft (Mode A) or validate/extend (Mode B) each candidate use case labeled `CAND-XX` (never `UC-XXX` — avoids collision with the canonical index), in `docs/04-USE_CASES.md`'s **exact** field format: Actor / Preconditions / Trigger / Main Flow / Alternative Flows / Postconditions / Events Triggered. `/discovery-to-milestone`'s own Step 2a explicitly says a discovery doc already in this shape is "closer to a format-conformance pass than a rewrite" — writing (or confirming) it this way is what makes that true later.
+Draft (Mode A) or validate/extend (Mode B) each candidate use case labeled `CAND-XX` (never `UC-XXX` — avoids collision with the canonical index), in `docs/USE_CASES.md`'s **exact** field format: Actor / Preconditions / Trigger / Main Flow / Alternative Flows / Postconditions / Events Triggered. `/discovery-to-milestone`'s own Step 2a explicitly says a discovery doc already in this shape is "closer to a format-conformance pass than a rewrite" — writing (or confirming) it this way is what makes that true later.
 
 ---
 

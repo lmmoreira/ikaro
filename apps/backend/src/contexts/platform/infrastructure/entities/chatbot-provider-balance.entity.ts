@@ -2,9 +2,9 @@ import { Column, Entity, PrimaryColumn } from 'typeorm';
 
 // No tenant_id column — deliberate exemption, not an oversight. This is platform-operator/vendor
 // balance data (Ikaro's own prepaid balance with an LLM provider), not tenant business data; see
-// docs/06-TENANT_ISOLATION_STRATEGY.md § Documented exemption: platform-operator data.
+// docs/TENANT_ISOLATION_STRATEGY.md § Documented exemption: platform-operator data.
 // remainingUsd/checkedAt (S08's balance poll) and lastSuccessAt/lastFailureAt (S05/S06's health
-// signal) are two independent write paths on the same row — see docs/13-DATABASE_SCHEMA.md's
+// signal) are two independent write paths on the same row — see docs/DATABASE_SCHEMA.md's
 // "Write discipline" note. Every column is nullable and independently settable so a partial
 // upsert (TypeOrmChatbotProviderBalanceRepository's saveBalance()/recordCallOutcome()) can touch
 // only the columns it owns, never clobbering the other writer's data.

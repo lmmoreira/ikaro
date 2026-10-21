@@ -97,7 +97,7 @@ Pass extra fields through the `LogContext` argument. They are spread first, so t
 | collector stderr text `Exporting failed. Dropping data.` | `collector_export_failure` metric and alert |
 | `severity = ERROR` on any Cloud Run revision | `error_count` metric and the ERROR-burst alert |
 
-**Lock contention.** `runInNewTransaction` writes a `warn` "Transaction aborted by lock contention" with a `sqlState` field (`55P03` lock wait over the 2 s timeout, `40P01` deadlock victim) whenever a transaction loses a lock fight (M23-S49). `tenantId` and `correlationId` are added when it happens inside an HTTP request and are absent in an event handler or job; the SQL text and lock key are never logged. The `error.code` span attribute `AUTH_TRANSACTION_CONTENTION` is set by the shared error filter. A rising count is the signal for a slow lock holder or a lock-order cycle (`docs/28-LOCK_CATALOG.md` § 6).
+**Lock contention.** `runInNewTransaction` writes a `warn` "Transaction aborted by lock contention" with a `sqlState` field (`55P03` lock wait over the 2 s timeout, `40P01` deadlock victim) whenever a transaction loses a lock fight (M23-S49). `tenantId` and `correlationId` are added when it happens inside an HTTP request and are absent in an event handler or job; the SQL text and lock key are never logged. The `error.code` span attribute `AUTH_TRANSACTION_CONTENTION` is set by the shared error filter. A rising count is the signal for a slow lock holder or a lock-order cycle (`docs/LOCK_CATALOG.md` § 6).
 
 **Never log** credentials, OAuth tokens, cookies, full authorization headers, Turnstile tokens, customer message content or other secrets. Redact query strings the same way span attributes are redacted (`otel-query-redaction.ts`).
 
@@ -179,6 +179,6 @@ To debug telemetry locally, run a collector with `infra/docker/otel-collector/co
 - Instrumentation invariants and incident lessons: `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling
 - Terraform monitoring resources and their tests: `infra/terraform/modules/monitoring/`
 - Alert verification procedure: `docs/RUNBOOKS.md` § Simulate an incident (verify alerts)
-- Deployment lifecycle: `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
+- Deployment lifecycle: `docs/RELEASE_LIFECYCLE_OPERATIONS.md`
 - Design decisions D9 and the vendor-lock-in guardrails: `plan/M17-CLOUD-DEPLOY.md`
 - Current workflows: `.github/workflows/`

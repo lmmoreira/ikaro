@@ -18,7 +18,7 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 
 const TYPE_ORDER: Record<ResourceType, number> = { LOCATION: 0, STAFF: 1, ROOM: 2, EQUIPMENT: 3 };
 
-// UC-044 lists LOCATION among the filterable types (docs/04-USE_CASES.md) — included here even
+// UC-044 lists LOCATION among the filterable types (docs/USE_CASES.md) — included here even
 // though a tenant only ever has exactly one, since it's still a valid, literal filter value the
 // backend contract accepts (GET /resources?type=LOCATION).
 const FILTERS: readonly { key: ResourceFilter; labelKey: string }[] = [
@@ -30,7 +30,7 @@ const FILTERS: readonly { key: ResourceFilter; labelKey: string }[] = [
 ];
 
 // UC-044's main flow requires the list to be filterable by both type and isActive
-// (docs/04-USE_CASES.md) — a second, independent filter row, same shape as the type tabs
+// (docs/USE_CASES.md) — a second, independent filter row, same shape as the type tabs
 // above. Mirrors TeamListPage's own active/inactive tab labels (tabActive/tabInactive).
 const STATUS_FILTERS: readonly { key: StatusFilter; labelKey: string }[] = [
   { key: 'all', labelKey: 'tabAll' },

@@ -1,6 +1,6 @@
 # Infrastructure and Tooling Map
 
-> **When to load:** finding which tool owns what (Cloud Run, CI, observability, local development) and where its authoritative configuration lives; provisioning steps are in `docs/23-INFRASTRUCTURE_SETUP.md`.
+> **When to load:** finding which tool owns what (Cloud Run, CI, observability, local development) and where its authoritative configuration lives; provisioning steps are in `docs/INFRASTRUCTURE_SETUP.md`.
 > **Tags:** infra
 
 This map identifies each maintained tool and its authority. Exact resource values belong in Terraform or workflow YAML, not in this overview.
@@ -10,7 +10,7 @@ This map identifies each maintained tool and its authority. Exact resource value
 | Tool | Purpose | Authority |
 |---|---|---|
 | Cloud Run | Web, BFF, backend, migration job; collector sidecars | `infra/terraform/modules/cloudrun-service/`, environment roots |
-| Cloud SQL PostgreSQL 17 | Shared database, physically separated by bounded-context schemas | `infra/terraform/modules/database/`, `docs/13-DATABASE_SCHEMA.md` |
+| Cloud SQL PostgreSQL 17 | Shared database, physically separated by bounded-context schemas | `infra/terraform/modules/database/`, `docs/DATABASE_SCHEMA.md` |
 | Cloud SQL Connector | Encrypted application-to-database connectivity | backend shared database adapter |
 | Pub/Sub | Domain-event and scheduled-trigger transport | Terraform Pub/Sub modules and event-bus adapter |
 | Cloud Scheduler | Publishes scheduled trigger messages | Terraform scheduler module |
@@ -47,12 +47,12 @@ There is no maintained GCE observability VM, Grafana/Loki Compose stack, or `pnp
 
 ## Local development
 
-Docker Compose provides local dependencies such as PostgreSQL and the Pub/Sub emulator. Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/10-OBSERVABILITY_STRATEGY.md`.
+Docker Compose provides local dependencies such as PostgreSQL and the Pub/Sub emulator. Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/OBSERVABILITY_STRATEGY.md`.
 
 ## Related documents
 
-- `docs/09-CI_CD_PIPELINE.md`
-- `docs/10-OBSERVABILITY_STRATEGY.md`
-- `docs/12-DEPLOYMENT_STRATEGY.md`
-- `docs/18-RELEASE_LIFECYCLE_OPERATIONS.md`
+- `docs/CI_CD_PIPELINE.md`
+- `docs/OBSERVABILITY_STRATEGY.md`
+- `docs/DEPLOYMENT_STRATEGY.md`
+- `docs/RELEASE_LIFECYCLE_OPERATIONS.md`
 - `infra/terraform/README.md`

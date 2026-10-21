@@ -9,7 +9,7 @@ interface RecurringBookingScheduleEndedData extends Record<string, unknown> {
   endedBy: 'CUSTOMER' | 'STAFF';
 }
 
-// docs/03-DOMAIN_EVENTS.md § RecurringBookingScheduleEnded (UC-070 A2) — Notification Context
+// docs/DOMAIN_EVENTS.md § RecurringBookingScheduleEnded (UC-070 A2) — Notification Context
 // customer email.
 export class RecurringBookingScheduleEnded extends DomainEvent<RecurringBookingScheduleEndedData> {
   readonly eventVersion = 1;

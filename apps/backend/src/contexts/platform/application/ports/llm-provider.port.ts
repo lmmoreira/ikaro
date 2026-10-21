@@ -36,7 +36,7 @@ export interface ChatCompletionRequest {
   userMessage: string;
   maxOutputTokens: number;
   // Tenant override (tenant.settings.chatbot?.llmModel ?? adapter's own default) — resolved by
-  // the caller the same way as llmProvider (docs/04-USE_CASES.md UC-033's identical
+  // the caller the same way as llmProvider (docs/USE_CASES.md UC-033's identical
   // "tenant.settings.chatbot?.X ?? DEFAULT_X" pattern for every one of the 10 chatbot settings).
   // Optional: an adapter falls back to its own default model when unset.
   model?: string;
@@ -51,7 +51,7 @@ export interface ChatCompletionResult {
   // (usage.cost — confirmed always present); Anthropic's and OpenAI's adapters compute it from
   // inputTokens/outputTokens against a local per-adapter pricing constant, since neither provider
   // returns cost in its response. Callers persist this directly rather than reconstructing cost
-  // from stored tokens later — see docs/04-USE_CASES.md UC-033
+  // from stored tokens later — see docs/USE_CASES.md UC-033
   costUsd: Decimal;
 }
 

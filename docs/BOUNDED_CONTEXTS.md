@@ -1,6 +1,6 @@
 # Bounded Contexts & Communication - Ikaro
 
-> **When to load:** deciding how one bounded context talks to another (events, BFF orchestration or a port), or checking context ownership, the isolation contract or an allowed cross-context edge; aggregate shapes are in `docs/02-DOMAIN_MODEL.md`, event payloads in `docs/03-DOMAIN_EVENTS.md`.
+> **When to load:** deciding how one bounded context talks to another (events, BFF orchestration or a port), or checking context ownership, the isolation contract or an allowed cross-context edge; aggregate shapes are in `docs/DOMAIN_MODEL.md`, event payloads in `docs/DOMAIN_EVENTS.md`.
 > **Tags:** backend, events
 
 This document describes how the independent bounded contexts in Ikaro interact and communicate, ensuring loose coupling and high cohesion, **while maintaining complete tenant isolation**.
@@ -120,7 +120,7 @@ Notification Context subscribes:
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/11-ARCHITECTURE.md` §Communication Patterns and `docs/03-DOMAIN_EVENTS.md`.
+**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/ARCHITECTURE.md` §Communication Patterns and `docs/DOMAIN_EVENTS.md`.
 
 ---
 
@@ -137,7 +137,7 @@ Notification Context subscribes:
 - `Service` — type of car wash offered (tenant-scoped). Edits to a service NEVER retroactively affect past bookings — the `BookingLine` snapshot is the source of truth for an existing booking.
 - `ScheduleClosure` — blocks the schedule for a full day or a partial time window (tenant-scoped); optionally scoped to one `Resource` (M21 Cluster 1).
 - `ScheduleOpening` — opens a normally-closed day (per `businessHours`) for a specific time window (tenant-scoped). Inverse of `ScheduleClosure`; optionally scoped to one `Resource` (M21 Cluster 1).
-- `Resource` — generic bookable unit (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`), tenant-scoped. **Added M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).** A `STAFF`-type resource wraps an existing `Staff` row by reference; every tenant gets exactly one active `LOCATION` resource by migration backfill. See `docs/02-DOMAIN_MODEL.md` § Booking Context.
+- `Resource` — generic bookable unit (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`), tenant-scoped. **Added M21 — Multi-Vertical Scheduling, Cluster 1 (Foundation).** A `STAFF`-type resource wraps an existing `Staff` row by reference; every tenant gets exactly one active `LOCATION` resource by migration backfill. See `docs/DOMAIN_MODEL.md` § Booking Context.
 - `ServiceBookingIntakeSchema` — versioned per-service intake-question schema (M22).
 - `RecurringBookingSchedule` — a fixed-term recurring private reservation (`PENDING_APPROVAL`/`ACTIVE`/`CANCELLED`/`ENDED`); its occurrences are ordinary bookings linked by `recurringScheduleId`. **M23 Cluster 3** (UC-070/071).
 - `AvailabilityAlert` — a customer's "tell me when this opens" request, with an append-only notification-attempt history. **M23 Cluster 3** (UC-072/076).
@@ -208,7 +208,7 @@ Notification Context subscribes:
 **Purpose:** Track points earned by customers for completed services, with per-tenant expiration, and allow admins to record point redemptions.
 
 **Owned Aggregates:**
-- `LoyaltyEntry` — one immutable row per booking line completion, **or, from M24 Cluster 4, per class-session-booking completion** (mutually exclusive source columns — `docs/13-DATABASE_SCHEMA.md`). Append-only. Never updated or deleted.
+- `LoyaltyEntry` — one immutable row per booking line completion, **or, from M24 Cluster 4, per class-session-booking completion** (mutually exclusive source columns — `docs/DATABASE_SCHEMA.md`). Append-only. Never updated or deleted.
 - `LoyaltyBalance` — running active point total per `(tenant_id, customer_id)`. O(1) reads. Updated atomically on earn, redeem, and expiry.
 - `LoyaltyRedemption` — append-only audit record of each admin-recorded redemption.
 
@@ -225,7 +225,7 @@ Notification Context subscribes:
 - `loyalty_redemptions` — INSERT-only
 - `balance_expiry_log` — PK(entry_id), no `tenant_id` column — idempotency for cron
 - Event consumer dedup lives in `shared.inbox` (TD24-S04) — not a per-context table
-- See `docs/13-DATABASE_SCHEMA.md` for full column definitions.
+- See `docs/DATABASE_SCHEMA.md` for full column definitions.
 
 **Published Events** (every event carries `tenantId`, `eventId`, `occurredAt`, `correlationId`):
 - `ServicePointsEarned` → consumed by Notification. **One event per booking** (`eventVersion` 2) — its `data.lines[]` carries one entry per `BookingLine`, so a 3-line booking produces 1 event with 3 lines.
@@ -293,7 +293,7 @@ TENANT B (completely separate):
 **Responsibilities:**
 - Listen to ALL domain events (from Booking, Loyalty, others)
 - Compose emails from templates
-- Send via the current email provider (`docs/22-TECH_STACK_DECISIONS.md` §9)
+- Send via the current email provider (`docs/TECH_STACK_DECISIONS.md` §9)
 - Retry failed emails
 - Log all notifications
 
@@ -428,7 +428,7 @@ Same Person, Multiple Tenants:
 
 ### **5. Staff Context (Supporting Domain, Tenant-Scoped)**
 
-**Purpose:** Store and manage staff information per tenant — same multi-tenant shape as Customer: one `Staff` row per `(tenant, person)` pair, not one global identity (`CLAUDE.md` §2 invariant 6, `docs/06-TENANT_ISOLATION_STRATEGY.md`).
+**Purpose:** Store and manage staff information per tenant — same multi-tenant shape as Customer: one `Staff` row per `(tenant, person)` pair, not one global identity (`CLAUDE.md` §2 invariant 6, `docs/TENANT_ISOLATION_STRATEGY.md`).
 
 **Owned Aggregates:**
 - `Staff` - Employee profile (one row per tenant a person is staff at — multi-tenant rows)
@@ -607,7 +607,7 @@ ALTER TABLE loyalty.loyalty_entries
 -- booking_id UUID NOT NULL  ← just a column, no FK
 ```
 
-**One exception:** the `platform`-schema tables `hotsite_configs`, `lead_form_configs`, `lead_form_submissions` and `chatbot_sessions` keep `tenant_id` with a FK to `platform.tenants` (their child tables `chatbot_messages`, `lead_form_answers` and `lead_form_submission_question_refs` are tenant-safe through a composite `(tenant_id, …)` FK to the parent instead). Tenant existence is a foundational platform invariant — not a context coupling. Tables in other contexts' schemas carry `tenant_id` as a plain indexed column with no FK (`docs/13-DATABASE_SCHEMA.md` Global Standards).
+**One exception:** the `platform`-schema tables `hotsite_configs`, `lead_form_configs`, `lead_form_submissions` and `chatbot_sessions` keep `tenant_id` with a FK to `platform.tenants` (their child tables `chatbot_messages`, `lead_form_answers` and `lead_form_submission_question_refs` are tenant-safe through a composite `(tenant_id, …)` FK to the parent instead). Tenant existence is a foundational platform invariant — not a context coupling. Tables in other contexts' schemas carry `tenant_id` as a plain indexed column with no FK (`docs/DATABASE_SCHEMA.md` Global Standards).
 
 ```sql
 -- ✅ tenant_id FK to platform.tenants exists only within the platform schema's own tables
@@ -780,7 +780,7 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data — informational only (UC-033/UC-034)
 - Let a MANAGER configure a lead-capture form (up to 20 custom questions) on the hotsite, and let guests/logged-in customers submit it, protected by Cloudflare Turnstile + per-IP/per-tenant rate limits (UC-037–UC-043)
 
-**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` + `lead_form_answers` + `lead_form_submission_question_refs` tables (see `docs/13-DATABASE_SCHEMA.md`)
+**Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` + `lead_form_answers` + `lead_form_submission_question_refs` tables (see `docs/DATABASE_SCHEMA.md`)
 
 **Published Events:**
 - `TenantProvisioned` → consumed by **Staff** (first MANAGER), **Booking** (the tenant's location resource) and **Notification** (default-template seed), plus the shared `audit-log` consumer
@@ -788,11 +788,11 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 > Staff invite/deactivate (UC-025/UC-028) and their `StaffInvited`/`StaffDeactivated` events are owned by the **Staff Context** (§5), not Platform — Platform only hosts the tenant/hotsite/chatbot/lead-form aggregates listed above.
 
-**Consumed Events:** none — Platform is the source for its own data (it only *publishes* `TenantProvisioned`). The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/04-USE_CASES.md` UC-033.
+**Consumed Events:** none — Platform is the source for its own data (it only *publishes* `TenantProvisioned`). The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/USE_CASES.md` UC-033.
 
 **Dependencies:**
 - **Output:** All other contexts read `tenant_id` and `tenants.settings` from here through their cross-context adapters, which call Platform's exported `GetTenantByIdUseCase` (e.g. `loyalty-platform.adapter.ts`) — never Platform's repository or tables directly
-- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/04-USE_CASES.md` UC-033–UC-036)
+- **External:** Google OAuth (to validate the invited email belongs to a Google account at login time); an LLM provider (OpenRouter primary, Anthropic and OpenAI as additional adapters — behind `ILlmProvider`, resolved per-tenant, `docs/USE_CASES.md` UC-033–UC-036)
 
 **Tenant Isolation:**
 - `Tenant` itself is NOT scoped by `tenant_id` (it IS the tenant).

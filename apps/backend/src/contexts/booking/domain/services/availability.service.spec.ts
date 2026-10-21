@@ -503,7 +503,7 @@ describe('AvailabilityService', () => {
     });
 
     // ── Tenant boundary as a hard outer limit (Codex PR #460 round-9 finding) ──────────────
-    // docs/02-DOMAIN_MODEL.md § Tenant boundary and resource schedule resolution: "a resource
+    // docs/DOMAIN_MODEL.md § Tenant boundary and resource schedule resolution: "a resource
     // opening never bypasses a tenant-wide closure or extends beyond a tenant opening/window."
 
     it('a resource-scoped opening does NOT bypass a tenant-wide full-day closure', () => {

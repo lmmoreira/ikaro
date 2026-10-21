@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Configure the Lead Form Module
 **UCs:** UC-037
 **Prototype:** `manager/prototypes/lead-form/`
-**Status:** ✅ Shipped M20-S08. Canonical behavior and rationale: `docs/04-USE_CASES.md` UC-037–UC-043, `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig`, and `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM.
+**Status:** ✅ Shipped M20-S08. Canonical behavior and rationale: `docs/USE_CASES.md` UC-037–UC-043, `docs/DOMAIN_MODEL.md` § `LeadFormConfig`, and `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM.
 
 ---
 
@@ -13,7 +13,7 @@
 
 A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10th module type — same treatment `CHATBOT` got as the 9th, `01e-module-config-chatbot.html`). Reached from `../hotsite/01-hotsite-editor.html`'s Layout tab. Question add/edit/remove/reorder is fully **inline** on this one page via expandable `<details>` cards — no separate screen per question, so a manager building up to 20 questions never leaves the page. Reordering reuses the existing `@dnd-kit` implementation used by the hotsite Layout tab and supports keyboard interaction.
 
-**"Aplicar" remains a temporary draft action:** it commits the panel's complete edit to the existing in-memory `HotsiteEditor` draft and makes no network request. When the manager clicks "Publicar", teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` go in a single consolidated `PATCH /v1/tenants/hotsite` request (folded into the existing hotsite-content endpoint at M20-S08 — `audienceMode`/`questions` are two optional extra fields on it, not a separate endpoint), saved in one backend transaction spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` (see `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). An earlier draft of this screen made two independent, unsynchronized calls — replaced because a partial failure could leave the manager's edit half-applied. The module's `enabled` toggle goes through this same `PATCH /v1/tenants/hotsite` endpoint too, but as a separate, pre-existing action on the Layout tab row itself (`../hotsite/01-hotsite-editor.html`) — not part of this panel's "Aplicar"/"Publicar" flow.
+**"Aplicar" remains a temporary draft action:** it commits the panel's complete edit to the existing in-memory `HotsiteEditor` draft and makes no network request. When the manager clicks "Publicar", teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` go in a single consolidated `PATCH /v1/tenants/hotsite` request (folded into the existing hotsite-content endpoint at M20-S08 — `audienceMode`/`questions` are two optional extra fields on it, not a separate endpoint), saved in one backend transaction spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` (see `docs/DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). An earlier draft of this screen made two independent, unsynchronized calls — replaced because a partial failure could leave the manager's edit half-applied. The module's `enabled` toggle goes through this same `PATCH /v1/tenants/hotsite` endpoint too, but as a separate, pre-existing action on the Layout tab row itself (`../hotsite/01-hotsite-editor.html`) — not part of this panel's "Aplicar"/"Publicar" flow.
 
 **New sidebar/bottom-nav item:** "Leads" — added to `MAIN_NAV_KEYS` (visible to STAFF and MANAGER alike, same tier as Agenda/Horários/Serviços/Fidelidade), not under "Somente Gerente" (viewing submissions doesn't require MANAGER; editing the module config still does, enforced by the BFF's `@Roles('MANAGER')` on `PATCH /v1/tenants/hotsite`, not by nav visibility). **Gated, not unconditional (added during the post-review redesign; shipped `M20-S10`):** the item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant — see `../leads/dev-notes.md` for the full mechanism (fetched via the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — there is no single shared `app/dashboard/layout.tsx` doing this; each top-level section owns its own `layout.tsx`).
 
@@ -61,7 +61,7 @@ GET  /v1/tenants/lead-form/status              STAFF|MANAGER — { enabled: bool
   gated "Leads" sidebar item (see ../leads/dev-notes.md), not called from this screen itself
 ```
 
-Full contract: `docs/14-API_CONTRACTS.md` § Lead Form Admin Config.
+Full contract: `docs/API_CONTRACTS.md` § Lead Form Admin Config.
 
 ## Validation (client-side)
 

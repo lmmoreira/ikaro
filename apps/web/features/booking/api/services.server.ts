@@ -42,7 +42,7 @@ export class ServiceEditViewFetchError extends FetchError {
   }
 }
 
-// One BFF call for the service + its intake schema (the BFF owns the fan-out, docs/24).
+// One BFF call for the service + its intake schema (the BFF owns the fan-out, docs/BFF_ARCHITECTURE).
 export async function fetchStaffServiceEditView(
   token: string,
   id: string,

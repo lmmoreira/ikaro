@@ -151,7 +151,7 @@ apps/web/
 │   ├── bookings/            # guest info-submission page (bookings/[id]/submit-info)
 │   ├── select-staff-tenant/
 │   ├── switch-tenant/
-│   ├── v1/[...path]/        # same-origin gateway to the BFF (see docs/24)
+│   ├── v1/[...path]/        # same-origin gateway to the BFF (see docs/BFF_ARCHITECTURE)
 │   └── api/
 ├── proxy.ts                 # route protection (Next.js 16 proxy, formerly middleware)
 ├── features/

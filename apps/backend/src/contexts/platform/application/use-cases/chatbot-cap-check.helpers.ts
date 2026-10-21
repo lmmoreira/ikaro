@@ -29,11 +29,11 @@ import { ChatTurn } from '../ports/llm-provider.port';
 import { SendChatMessageUseCaseInput } from './send-chat-message.types';
 import { ChatbotCapCheckDeps, ResolvedSession } from './chatbot-cap-check.types';
 
-// Cap layer 3's live-ness proxy window (docs/04-USE_CASES.md UC-033): a session counts
+// Cap layer 3's live-ness proxy window (docs/USE_CASES.md UC-033): a session counts
 // as concurrently active if it received a message in the last 2 minutes. Not tenant-configurable.
 const CONCURRENCY_WINDOW_MS = 2 * 60 * 1000;
 
-// Layer 5 — checked first, uniformly, before any DB read (docs/14-API_CONTRACTS.md UC-033 A3).
+// Layer 5 — checked first, uniformly, before any DB read (docs/API_CONTRACTS.md UC-033 A3).
 // The BFF DTO layer (S09) is the primary UX-facing check; this is the real backstop so this use
 // case is never reachable with an oversized message from any caller — a generous static Zod
 // ceiling at the backend DTO layer alone left the tenant's real, often-smaller resolved cap
@@ -162,7 +162,7 @@ async function checkNewSessionVolumeCaps(
 }
 
 // Platform-wide backstops (layers 9-10) — new-session creation only, per
-// docs/04-USE_CASES.md UC-033: "already-open conversations remain bounded by their
+// docs/USE_CASES.md UC-033: "already-open conversations remain bounded by their
 // own per-session caps regardless" (not the global breaker). Checking these on every message of
 // an already-open conversation contradicted this canonical text (PR #360 review — reverting the
 // M19-S05 story-discovery decision to check on every message).

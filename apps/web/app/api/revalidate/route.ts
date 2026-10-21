@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   // activate/deactivate (booking-platform.adapter.ts's revalidatePublicPages).
   // revalidatePath alone doesn't reliably clear these fetches' cached Data
   // Cache entries if the route is ever forced dynamic (see
-  // docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6), so revalidateTag is used for
+  // docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §6), so revalidateTag is used for
   // each tagged fetch too, which doesn't depend on the route's caching mode.
   //
   // Next 16 requires a second argument on revalidateTag. A named profile like

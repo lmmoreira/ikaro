@@ -278,7 +278,7 @@ export class Booking extends AggregateRoot {
 
   // M23-S05: created directly APPROVED (an entry state requestBooking() never produces) and raising
   // no BookingRequested/BookingApproved — those drive one customer email per booking, so a term of
-  // occurrences would otherwise send one pair per occurrence (docs/02-DOMAIN_MODEL.md § Booking).
+  // occurrences would otherwise send one pair per occurrence (docs/DOMAIN_MODEL.md § Booking).
   static materializeRecurringOccurrence(input: MaterializeRecurringOccurrenceInput): Booking {
     const { tenantId, lineInputs, pickupAddress, recurringScheduleId, approvedBy } = input;
     if (!lineInputs.length) throw new BookingLineRequiredError();

@@ -15,7 +15,7 @@
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/22-TECH_STACK_DECISIONS.md` § monorepo, `docs/11-ARCHITECTURE.md` § repository layout
+**Docs to load:** `docs/TECH_STACK_DECISIONS.md` § monorepo, `docs/ARCHITECTURE.md` § repository layout
 
 **Description:**  
 Create the root monorepo scaffold. This is the empty skeleton that every subsequent story will build upon. No application code exists yet — only the workspace wiring, shared config files, and `.gitignore`.
@@ -69,7 +69,7 @@ Populate `packages/config` with the shared ESLint, TypeScript base, and Prettier
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/11-ARCHITECTURE.md` § hexagonal layers, `docs/ENGINEERING_RULES_SHARED.md`
+**Docs to load:** `docs/ARCHITECTURE.md` § hexagonal layers, `docs/ENGINEERING_RULES_SHARED.md`
 
 **Description:**  
 Bootstrap the NestJS v11 backend application with the correct hexagonal folder structure, health check endpoints, and the IEventBus port wired to a no-op adapter for local development. No business logic yet — this is the structural scaffold all backend contexts will be built on top of.
@@ -112,7 +112,7 @@ apps/backend/src/
 
 **Agent:** `bff-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md` § base standards
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/API_CONTRACTS.md` § base standards
 
 **Description:**  
 Bootstrap the NestJS v11 BFF service. The BFF is the sole public entry point for the web layer — it handles OAuth, JWT validation, tenant enforcement, and proxies requests to the backend. At this stage it only needs the structural skeleton, rate-limiting module wired in, health endpoints, and the `CorrelationInterceptor` generating `X-Correlation-ID` on every request.
@@ -148,7 +148,7 @@ apps/bff/src/
 
 **Agent:** `frontend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`
 
 **Description:**  
 Bootstrap the Next.js 14 application with the App Router, Tailwind CSS, and shadcn/ui component library initialised. Establish the top-level folder structure for both the hotsite (`app/[slug]/`) and the dashboard (`app/dashboard/`) so future stories can place components in the right place without structural conflicts.
@@ -193,7 +193,7 @@ apps/web/
 
 **Agent:** `devops`  
 **Complexity:** M  
-**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § local development setup
+**Docs to load:** `docs/INFRASTRUCTURE_SETUP.md` § local development setup
 
 **Description:**  
 Create the `docker/docker-compose.yml` that launches every external dependency the application needs locally. This single command (`pnpm infra:up`) must replicate the production environment. Agents implementing backend features must be able to run against this stack with no cloud credentials.
@@ -226,7 +226,7 @@ Create the `docker/docker-compose.yml` that launches every external dependency t
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/13-DATABASE_SCHEMA.md` § migration ordering, `docs/09-CI_CD_PIPELINE.md` § Stage 4.5 migrations
+**Docs to load:** `docs/DATABASE_SCHEMA.md` § migration ordering, `docs/CI_CD_PIPELINE.md` § Stage 4.5 migrations
 
 **Description:**  
 Set up TypeORM DataSource configuration for each bounded context and the migration runner scripts. No migration files are created yet — this story establishes the tooling so that every subsequent backend story can generate and run migrations with a single command. TypeORM `synchronize` must be `false` — the app never auto-migrates.
@@ -256,7 +256,7 @@ Set up TypeORM DataSource configuration for each bounded context and the migrati
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/02-DOMAIN_MODEL.md` § value objects, `docs/ENGINEERING_RULES_SHARED.md` § Architecture
+**Docs to load:** `docs/DOMAIN_MODEL.md` § value objects, `docs/ENGINEERING_RULES_SHARED.md` § Architecture
 
 **Description:**  
 Implement the base domain classes that every bounded context's domain layer will extend or use. These live in `apps/backend/src/shared/` and are the only shared code importable across contexts. No framework dependencies — pure TypeScript.
@@ -286,7 +286,7 @@ Implement the base domain classes that every bounded context's domain layer will
 
 **Agent:** `backend-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/10-OBSERVABILITY_STRATEGY.md` § logging contract
+**Docs to load:** `docs/OBSERVABILITY_STRATEGY.md` § logging contract
 
 **Description:**  
 Implement the `AppLogger` service used by all backend and BFF code. It wraps NestJS's `LoggerService` and outputs structured JSON to stdout with the mandatory fields defined in the observability strategy. `console.log` is forbidden everywhere — ESLint rule must enforce this.
@@ -311,7 +311,7 @@ Implement the `AppLogger` service used by all backend and BFF code. It wraps Nes
 
 **Agent:** `devops`  
 **Complexity:** S  
-**Docs to load:** `docs/23-INFRASTRUCTURE_SETUP.md` § local development setup
+**Docs to load:** `docs/INFRASTRUCTURE_SETUP.md` § local development setup
 
 **Description:**  
 Wire up all root-level developer scripts so a new developer (or AI agent) can operate the entire project with a small set of well-known commands. Also create the `.env.local` loading convention so each app picks up its variables without manual copying.
@@ -350,7 +350,7 @@ Wire up all root-level developer scripts so a new developer (or AI agent) can op
 
 **Agent:** `fullstack-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/14-API_CONTRACTS.md` (full), `docs/02-DOMAIN_MODEL.md` § value objects
+**Docs to load:** `docs/API_CONTRACTS.md` (full), `docs/DOMAIN_MODEL.md` § value objects
 
 **Description:**  
 Populate `packages/types` with the canonical TypeScript DTO and response types shared between the BFF and the frontend. Without this, backend agents and frontend agents define their own types independently — they will drift and integration will break. Every BFF response type and every request body type lives here. Neither the backend nor the frontend owns these types; the `@ikaro/types` package does.
@@ -407,7 +407,7 @@ Request/Response DTOs (one file per domain area, named `*.dto.ts`):
 
 **Agent:** `backend-ts`  
 **Complexity:** M  
-**Docs to load:** `docs/04-USE_CASES.md` § UC-024, `docs/02-DOMAIN_MODEL.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-024, `docs/DOMAIN_MODEL.md`
 
 **Description:**  
 Create a `pnpm db:seed` script that populates the local database with two complete tenants and realistic test data. Without this, every agent working on a feature starts from an empty database and must manually create prerequisite data every time. This alone will save hours across the project.
@@ -452,7 +452,7 @@ Create a `pnpm db:seed` script that populates the local database with two comple
 
 **Agent:** `bff-ts`  
 **Complexity:** S  
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/14-API_CONTRACTS.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/API_CONTRACTS.md`
 
 **Description:**  
 Four small but critical configurations that must be established in M00 so every subsequent story can rely on them. Each is a deliberate decision documented below with the rationale.

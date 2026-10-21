@@ -66,7 +66,7 @@ function formatServices(services: HotsiteServiceResponse[]): string {
 // Guardrail instructions — own labeled section, deliberately not blended into business content.
 // Exact wording empirically validated: CHATBOT/eval/ (2026-08-07), 7/7 adversarial attempts held,
 // including a fake-authority attempt trying to get it to confirm a booking. HARDCODED ON PURPOSE
-// (docs/04-USE_CASES.md UC-033) — never sourced from tenants.settings.chatbot or any
+// (docs/USE_CASES.md UC-033) — never sourced from tenants.settings.chatbot or any
 // admin-editable field. Only `locale` varies per tenant; the rules themselves don't. Changing this
 // text requires re-running CHATBOT/eval/ before shipping, not a casual edit.
 export function buildAssistantRules(locale: string): string {

@@ -18,7 +18,7 @@ function boundedCacheTag(prefix: string, slug: string): string {
 // is used instead of relying solely on revalidatePath() because the hotsite
 // route isn't guaranteed to always be static — a Dynamic API (cookies()/
 // headers()) added anywhere in its render tree in the future would force it
-// dynamic again (see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6), at which
+// dynamic again (see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §6), at which
 // point revalidatePath() no longer reliably cascades into this fetch's Data
 // Cache entry. revalidateTag works the same either way.
 export function hotsiteManifestCacheTag(slug: string): string {

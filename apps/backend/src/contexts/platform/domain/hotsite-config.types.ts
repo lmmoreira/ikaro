@@ -129,7 +129,7 @@ export interface ContactModuleData {
 }
 
 // Mirrors packages/types/src/hotsite.ts's ChatbotModuleData — only fields rendered verbatim to
-// every visitor; knowledgeText and the volume/cost caps are deliberately excluded (docs/15
+// every visitor; knowledgeText and the volume/cost caps are deliberately excluded (docs/HOTSITE_DYNAMIC_ARCHITECTURE
 // § CHATBOT), never part of this aggregate's own layout data.
 export interface ChatbotModuleData {
   variant?: 'bubble' | 'inline';
@@ -140,7 +140,7 @@ export interface ChatbotModuleData {
 
 // Mirrors packages/types/src/hotsite.ts's LeadFormModuleData (S07) — teaser-only fields; the
 // question catalog and audienceMode deliberately never appear here, since they live behind
-// S01's own dedicated endpoints, not the cached manifest (docs/15 § LEAD_FORM).
+// S01's own dedicated endpoints, not the cached manifest (docs/HOTSITE_DYNAMIC_ARCHITECTURE § LEAD_FORM).
 export interface LeadFormModuleData {
   title: string;
   subtitle?: string;

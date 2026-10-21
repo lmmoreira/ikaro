@@ -338,7 +338,7 @@ describe('ApproveBookingUseCase', () => {
       expect(assignments[0].resourceId).toBe(ownResource.id);
     });
 
-    // docs/14-API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
+    // docs/API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
     // lines booking the SAME CUSTOMER_CHOICE service each hold a different customer-picked
     // resource. deriveResourceSelectionsFromAssignments() replays both existing assignments back
     // into resourceSelections for re-resolution; each line must keep its own original resource,

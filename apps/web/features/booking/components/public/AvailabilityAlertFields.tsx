@@ -104,7 +104,7 @@ interface WeekdayPickerProps {
 }
 
 // One pill per weekday, Monday first. The testid is static and the day rides in `data-day`
-// (docs/08-TESTING_STRATEGY.md § E2E Selector Strategy).
+// (docs/TESTING_STRATEGY.md § E2E Selector Strategy).
 export function WeekdayPicker({
   selected,
   disabled,

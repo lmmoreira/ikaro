@@ -4,7 +4,7 @@ import { ResourceResponse } from './resource.types';
 
 // Merges Staff + Resource reads server-side so apps/web never has to orchestrate two BFF calls
 // and merge them itself — the BFF owns multi-read composition, not the browser
-// (docs/24-BFF_ARCHITECTURE.md § Web-facing composite views).
+// (docs/BFF_ARCHITECTURE.md § Web-facing composite views).
 export function toResourceStaffOptionsResponse(
   staffItems: readonly StaffItem[],
   staffResources: readonly ResourceResponse[],

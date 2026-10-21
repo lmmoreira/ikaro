@@ -121,7 +121,7 @@ export async function unpublishHotsite(page: Page): Promise<UnpublishHotsiteResp
 }
 
 // Reads the PUBLIC manifest directly rather than navigating to the public hotsite page —
-// the public page is ISR-cached (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md), so asserting
+// the public page is ISR-cached (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md), so asserting
 // isPublished via a page navigation right after Publish/Unpublish would be racing the cache's
 // on-demand revalidation instead of testing the editor's actual behavior.
 export async function getPublicManifest(

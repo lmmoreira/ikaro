@@ -19,7 +19,7 @@ import {
 export * from './scheduling-exceptions.schemas';
 
 // A pass-through: the worklist item already carries the Booking-context summary the manager needs
-// (docs/14-API_CONTRACTS.md § Future Commitment Exceptions), and every rule — the best-effort
+// (docs/API_CONTRACTS.md § Future Commitment Exceptions), and every rule — the best-effort
 // bulk, the per-entry outcomes — is the backend's. Bulk-only: a single entry is a list of one.
 @Controller('scheduling-exceptions')
 @Roles('MANAGER')

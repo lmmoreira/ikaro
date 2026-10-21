@@ -1,6 +1,6 @@
 # STAFF — Use Case Inventory
 
-Source: `docs/04-USE_CASES.md`. Working checklist for journeys in this folder — shared by `STAFF` and `MANAGER` roles. UCs restricted to `MANAGER` only live in `manager/use-cases.md`.
+Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — shared by `STAFF` and `MANAGER` roles. UCs restricted to `MANAGER` only live in `manager/use-cases.md`.
 
 | UC | Title | Notes | Journey file |
 |---|---|---|---|

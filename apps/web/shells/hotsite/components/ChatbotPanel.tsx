@@ -17,7 +17,7 @@ interface FallbackCtaProps {
 }
 
 // Interrupted-state fallback contact — reuses the manifest's already-resolved business.phone /
-// business.socialLinks.whatsapp (docs/15 § CONTACT's resolution path), never a new field.
+// business.socialLinks.whatsapp (docs/HOTSITE_DYNAMIC_ARCHITECTURE § CONTACT's resolution path), never a new field.
 // WhatsApp preferred when both are set, matching ContactModule's own display precedent.
 function FallbackCta({ business }: FallbackCtaProps): React.JSX.Element | null {
   const t = useTranslations('hotsite');

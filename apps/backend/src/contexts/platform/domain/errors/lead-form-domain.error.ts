@@ -28,7 +28,7 @@ export class LeadFormQuestionOptionsInvalidError extends PlatformDomainError {
 /**
  * Two questions sharing the same `id` within one save — the frontend assigns each new question's
  * `id` client-side (no per-question backend round-trip while editing; the id itself has no
- * security/lookup significance, docs/13-DATABASE_SCHEMA.md's lead_form_answers.question_id is
+ * security/lookup significance, docs/DATABASE_SCHEMA.md's lead_form_answers.question_id is
  * "informational; matching is by question_label, not this"), so this is a defensive integrity
  * check against a frontend bug, not a security boundary.
  */
@@ -97,7 +97,7 @@ export class LeadFormDailyCapReachedError extends PlatformDomainError {
 /**
  * M20-S05 — the public GET/POST lead-form endpoints throw this when the `LEAD_FORM` module has
  * no `HotsiteConfig.layout[]` entry yet, or has one with `enabled: false`. Mapped to 404
- * (docs/14-API_CONTRACTS.md § Lead Form Widget). Deliberately takes no `tenantId` param — unlike
+ * (docs/API_CONTRACTS.md § Lead Form Widget). Deliberately takes no `tenantId` param — unlike
  * `TenantNotFoundError`/`HotsiteNotFoundError`, this error is reachable from a fully anonymous
  * public caller, and `mapPlatformError` forwards `err.message` to the response body verbatim, so
  * nothing internal-only belongs in it (PR #423 review, CodeRabbit: don't leak tenant UUIDs).

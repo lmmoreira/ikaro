@@ -51,7 +51,7 @@ export class ServiceEntity {
   bufferAfterMinutes!: number | null;
 
   // M22-S02 — booking-policy fields (UC-055), all null on a SESSION service. See
-  // docs/13-DATABASE_SCHEMA.md § booking.services — modified (M22 Cluster 2).
+  // docs/DATABASE_SCHEMA.md § booking.services — modified (M22 Cluster 2).
   @Column({ name: 'default_approval_mode', type: 'varchar', length: 20, nullable: true })
   defaultApprovalMode!: ServiceApprovalMode | null;
 

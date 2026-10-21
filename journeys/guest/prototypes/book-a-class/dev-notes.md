@@ -2,7 +2,7 @@
 
 ## Overview
 
-New guest-facing journey for M24 — Multi-Vertical Classes/Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/public-{02b,06,06b,06c,10,10b,16}*.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSessionBooking`.
+New guest-facing journey for M24 — Multi-Vertical Classes/Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/public-{02b,06,06b,06c,10,10b,16}*.html`. See `docs/DOMAIN_MODEL.md` § `ClassSessionBooking`.
 
 ## File map (❓ none exist yet)
 
@@ -13,7 +13,7 @@ New guest-facing journey for M24 — Multi-Vertical Classes/Sessions, Cluster 4.
 | `apps/web/features/booking/components/guest/ClassWaitlistStatus.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/guest/GuestClassEmailVerification.tsx` | ❓ Gap |
 
-## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md` § Classes & Sessions)
+## BFF calls (endpoints not yet implemented — contract per `docs/API_CONTRACTS.md` § Classes & Sessions)
 
 ```
 GET  /v1/class-sessions?serviceId=&from=

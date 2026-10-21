@@ -216,7 +216,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 
 ## M23 Cluster 3 extension (UC-061–068; backend/BFF shipped in M23-S01–S03 and M23-S29; frontend = M23-S11a ✅ built, M23-S11b ✅ built)
 
-> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are built too (✅). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/02-DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/13-DATABASE_SCHEMA.md`, `docs/14-API_CONTRACTS.md` § Booking Requests.
+> Everything above this line is shipped (`M12-S07`). Below: the screens tagged **M23-S11a** are built (✅); the screens tagged **M23-S11b** are built too (✅). Backend/BFF: `M23-S01`–`S03` (shipped) and `M23-S29` (public resource options, duration quote, requirement-aware availability, whitelisted public service shape). Frontend: **`M23-S11a`** (groups A, B, E — step engine, intake, service cards, resource picker, success box) and **`M23-S11b`** (groups C, D — bundle/journey and variable duration). See `docs/DOMAIN_MODEL.md` § `Service`/`Resource`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md` § Booking Requests.
 
 ### Design decisions (settled in the 2026-10-03 prototype review)
 
@@ -271,7 +271,7 @@ Every component for the guest path already exists (M12-S07), plus the 3 capabili
 | `apps/web/features/booking/components/public/VariableDurationStep.tsx` (`12`…`12d`) | ✅ Built (S11b) |
 | `apps/web/features/booking/model/basket-lines.ts` (the one row composition behind `03e`/`04g`/`10c`/`04h`/`04i`), `duration-options.ts`, `hooks/useServiceQuote.ts`, `components/public/BasketLines.tsx` | ✅ Built (S11b) |
 
-**BFF calls (new/extended — see `docs/14-API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
+**BFF calls (new/extended — see `docs/API_CONTRACTS.md` and `plan/M23-…md` § M23-S29):**
 ```
 GET  /public/services/:id/resource-options                  -- feeds ResourcePicker (CUSTOMER_CHOICE options, names only)  [M23-S29]
 GET  /public/services/:id/quote?durationMinutes=            -- "Total" on the variable-duration step               [M23-S29]

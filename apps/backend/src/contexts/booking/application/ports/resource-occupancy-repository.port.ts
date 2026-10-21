@@ -45,7 +45,7 @@ export interface BookingLineOccupancyAssignment {
 }
 
 // Internal, booking-context-local write-path port for the resource_occupancy/
-// booking_line_resource_assignments pair (docs/13-DATABASE_SCHEMA.md). Distinct from the public,
+// booking_line_resource_assignments pair (docs/DATABASE_SCHEMA.md). Distinct from the public,
 // cross-context IBookingAvailabilityPort (read-only, availability computation) — this port is
 // consumed by booking's own creation/approval/reschedule/reject/cancel use cases,
 // BookingSlotConflictService, and ResourceOccupancyRetentionPurgeJob (TD40 Story 2).
@@ -76,7 +76,7 @@ export interface IResourceOccupancyRepository {
   // each row's booking_line_resource_assignments row is upserted (reused when the same
   // (line, resource, leg, quantity) tuple already exists, e.g. a reschedule that re-resolves to
   // the same resource), never inserted a second time, since that table is the immutable
-  // business/audit record (docs/13-DATABASE_SCHEMA.md) and is never deleted by release() below.
+  // business/audit record (docs/DATABASE_SCHEMA.md) and is never deleted by release() below.
   // The GIST exclusion constraint is the authoritative backstop (docs/ENGINEERING_RULES_BACKEND.md §
   // Cross-row invariants) — a genuine race surfaces as a BookingSlotUnavailableError from this
   // call, not a silent double-booking.

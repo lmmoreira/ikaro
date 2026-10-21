@@ -45,7 +45,7 @@ flowchart TD
 | `POST /v1/class-sessions/:id/close` | Close-out with attendance (UC-101) | STAFF \| MANAGER |
 | `POST /v1/class-session-bookings/:id/payment` | Manual charge record at close-out (UC-107) | STAFF \| MANAGER |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Classes & Sessions.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Classes & Sessions.
 
 ## Prototype
 

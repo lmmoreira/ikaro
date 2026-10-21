@@ -91,7 +91,7 @@ Content-Type: application/json
 ###
 
 ### Lead form config — teaser + audienceMode + questions in one atomic request (M20-S08; moved
-### here from the removed PATCH /tenants/lead-form/config — see docs/02-DOMAIN_MODEL.md §
+### here from the removed PATCH /tenants/lead-form/config — see docs/DOMAIN_MODEL.md §
 ### LeadFormConfig "Cross-aggregate save")
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}

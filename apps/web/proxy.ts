@@ -7,7 +7,7 @@ import { SESSION_COOKIE_NAME } from '@/features/auth/session-cookie';
 // Shared manager-only route list for /dashboard — M13-S31/S32 own this single edit;
 // M13-S35 (hotsite editor) reuses it. STAFF hitting these is sent back to the dashboard home.
 // Resource Management is MANAGER-only, matching the backend/BFF's own restriction —
-// docs/14-API_CONTRACTS.md § Resource Management.
+// docs/API_CONTRACTS.md § Resource Management.
 const MANAGER_ONLY_ROUTES = [
   '/dashboard/settings',
   '/dashboard/team',
@@ -85,7 +85,7 @@ function originOf(rawUrl: string | undefined): string | null {
 // <script> tags into every server-rendered page (not just JsonLdScript.tsx on the hotsite),
 // and a nonce only matches on responses generated fresh per request. Most routes here aren't
 // guaranteed dynamic (no cookies()/headers() call in every dashboard/auth page tree), and the
-// hotsite home page is deliberately ISR/CDN-cached (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md) —
+// hotsite home page is deliberately ISR/CDN-cached (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md) —
 // so a nonce would either go stale against cached HTML or require auditing every route's
 // rendering mode. 'unsafe-inline' on script-src is a blanket, verified-working baseline instead.
 // The Maps embed URL (ContactModule.tsx) requests https://maps.google.com/maps?...&output=embed,

@@ -54,7 +54,7 @@ export interface ResolveBookingLinesResourceCandidatesParams {
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
-// ResourceOccupancyCandidate rows (docs/13-DATABASE_SCHEMA.md § booking_line_resource_assignments
+// ResourceOccupancyCandidate rows (docs/DATABASE_SCHEMA.md § booking_line_resource_assignments
 // / resource_occupancy), one per (line, leg?, requirement, quantity unit).
 //
 // selectionMode-aware since M23-S01 (UC-061/062/063) — the actual per-requirement algorithm lives
@@ -98,7 +98,7 @@ export async function resolveBookingLinesResourceCandidates(
 }
 
 // Only the lock step of the resolution above: every resource the lines can land on, in one call.
-// The worklist's reschedule runs it before it takes the entry row lock (docs/28-LOCK_CATALOG.md
+// The worklist's reschedule runs it before it takes the entry row lock (docs/LOCK_CATALOG.md
 // § 2); the resolution that follows asks for the same ids again, which a transaction already holds.
 export async function lockBookingLinesResourceCandidates(
   params: ResolveBookingLinesResourceCandidatesParams,

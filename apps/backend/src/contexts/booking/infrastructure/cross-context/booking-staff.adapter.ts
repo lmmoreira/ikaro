@@ -7,7 +7,7 @@ import {
   IBookingStaffPort,
 } from '../../application/ports/booking-staff.port';
 
-// "Schedulable" (docs/02-DOMAIN_MODEL.md § Resource: "same-tenant, existing, active, schedulable")
+// "Schedulable" (docs/DOMAIN_MODEL.md § Resource: "same-tenant, existing, active, schedulable")
 // is isActive only, per story discovery 2026-09-01 — no role restriction, either STAFF or
 // MANAGER can be wrapped as a Resource.
 @Injectable()

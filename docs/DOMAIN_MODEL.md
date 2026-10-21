@@ -1,6 +1,6 @@
 # Domain Model - Ikaro (DDD)
 
-> **When to load:** implementing or changing an aggregate, entity, value object or bounded-context boundary in the backend, or checking an aggregate's fields and invariants; event payloads are in `docs/03-DOMAIN_EVENTS.md`, tables and columns in `docs/13-DATABASE_SCHEMA.md`, flows in `docs/04-USE_CASES.md`.
+> **When to load:** implementing or changing an aggregate, entity, value object or bounded-context boundary in the backend, or checking an aggregate's fields and invariants; event payloads are in `docs/DOMAIN_EVENTS.md`, tables and columns in `docs/DATABASE_SCHEMA.md`, flows in `docs/USE_CASES.md`.
 > **Tags:** backend, database
 
 This document defines the domain model using Domain-Driven Design (DDD) principles: bounded contexts, aggregates, entities, value objects, and domain events.
@@ -418,7 +418,7 @@ ServiceIntakeQuestion {
 - Publishing sets `version = previousVersion + 1` (or `1` if none exists yet), `isActive = true` on the new row, `isActive = false` on the previous one — the previous version is never edited in place (UC-054).
 - A `Booking` freezes `intakeSchemaVersion`/`intakeAnswers` at submission time (immutable snapshot pair) — a later schema republish never retroactively changes an already-submitted booking's answers. A booking **staff create on a customer's behalf** (UC-108, M23-S39) may carry no snapshot at all (the intake is optional for staff), and when it has one the consent pair (`consentAcceptedAt`/`consentVersion`) is `null` unless staff ticked the consent.
 
-**Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, making one bounded `findLatestByServiceId()` read (active + the 5 most recent previous versions, `SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`) and partitioning by `isActive` — the schema is append-only, so an uncapped read would grow the edit-page payload with every publish; older versions stay stored but are not listed. See `docs/14-API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.
+**Read path (added M22-S04, 2026-09-18):** `IServiceIntakeSchemaRepository.findActiveByServiceId()`/`findAllByServiceId()` existed at the repository layer with no controller wiring until `/story-discovery M22-S04` folded a `GetServiceIntakeSchemaUseCase` + `GET /services/:id/intake-schema` (backend + BFF) into that story's scope, making one bounded `findLatestByServiceId()` read (active + the 5 most recent previous versions, `SERVICE_INTAKE_HISTORY_LIMIT` in `@ikaro/types`) and partitioning by `isActive` — the schema is append-only, so an uncapped read would grow the edit-page payload with every publish; older versions stay stored but are not listed. See `docs/API_CONTRACTS.md` § Service Extensions — M22 Cluster 2.
 
 ---
 
@@ -552,7 +552,7 @@ ScheduleOpening {
 - `endTime > startTime`
 - `startTime` and `endTime` are valid HH:MM strings
 - The day-of-week derived from `date` must be closed in the effective hours source (the resource's own `workingHours` when set, else the tenant's `businessHours`; cannot create an opening for an already-open day)
-- Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/13-DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
+- Only one `ScheduleOpening` per `(tenantId, date)` when `resourceId IS NULL`, and only one per `(tenantId, resourceId, date)` when `resourceId` is set — a tenant-wide opening and a resource-scoped opening for the same date do not collide with each other (M21 Cluster 1; see `docs/DATABASE_SCHEMA.md` for the two-partial-unique-index DB fix this required, since a plain `NULL`-inclusive unique index stops enforcing "one per date" once `resourceId` becomes nullable)
 - A resource opening can make that resource available on one of its normally-off dates, but never outside the tenant's own effective hours for that date
 
 **Factory:** `ScheduleOpening.open({ tenantId, date, startTime, endTime, createdBy, resourceId?, notes? })` — a single input object, not positional args (M21-S03, PR #460 round 1 — same SonarCloud S107 fix as `ScheduleClosure.close()` above).
@@ -638,17 +638,17 @@ interface ResourceOccupiedSlot {
 // exposes it as gap { source, minutes, serviceName }.
 ```
 
-`bookings`/`booking_lines` remain the source of truth for the booking itself (status, contact, price); `resource_occupancy` is a short-lived locking projection, safely garbage-collectable once its window elapses (see `docs/13-DATABASE_SCHEMA.md`).
+`bookings`/`booking_lines` remain the source of truth for the booking itself (status, contact, price); `resource_occupancy` is a short-lived locking projection, safely garbage-collectable once its window elapses (see `docs/DATABASE_SCHEMA.md`).
 
 **UC-058 (`System Computes Availability Scoped to a Resource or Bundle`) — algorithm:**
 1. For a bundle (`resourceRequirements.length > 1`), a slot is available only if **every** required resource is simultaneously free (intersection).
 2. For `AUTO_FUNGIBLE_POOL`, a slot is available if **any** pool member is free (union, not intersection).
 3. A `resourceId` not belonging to the querying tenant is excluded by the mandatory `tenantId` scoping — structural guard, not a runtime branch.
-4. **Extended in Cluster 3** (once `RecurringBookingSchedule` exists) and **Cluster 4** (once `ClassScheduleTemplate` exists): "free" also excludes any active recurring pattern that would produce an occurrence at the candidate time, evaluated directly against the pattern's own recurrence rule rather than waiting for a materialized row — see UC-058's own entry in `docs/04-USE_CASES.md` for the forward reference. Not reachable in Cluster 2 alone, since neither aggregate exists yet.
+4. **Extended in Cluster 3** (once `RecurringBookingSchedule` exists) and **Cluster 4** (once `ClassScheduleTemplate` exists): "free" also excludes any active recurring pattern that would produce an occurrence at the candidate time, evaluated directly against the pattern's own recurrence rule rather than waiting for a materialized row — see UC-058's own entry in `docs/USE_CASES.md` for the forward reference. Not reachable in Cluster 2 alone, since neither aggregate exists yet.
 
 **UC-059 (`System Applies Resource Turnover and Leg Transition Gaps`):** effective gap before the next booking on a resource, for a flat (non-legged) service: `max(service.bufferAfterMinutes, resource.turnoverMinutes)`, with its origin (M18-S10, `resolveGap` via `AvailabilityService.resolveFlatGap`): `SERVICE_BUFFER` when `buffer >= turnover` (a tie goes to the service) and `buffer > 0`, `RESOURCE_TURNOVER` when `turnover > buffer`, none when both are 0 — persisted on `resource_occupancy` at write time (create, reschedule, recurring materialization), never recomputed from current config. Only the last line of a booking carries the service buffer. A resource reassignment recomputes the gap from the target resource. For a legged service: each leg's resource turnover comes from that resource's own `turnoverMinutes`; `transitionGapAfterMinutes` is independent and additive to the appointment's total span.
 
-**UC-060 (`System Rejects Overlapping Bookings Across a Shared Resource`) — why `resource_occupancy` has to be one shared table, not one per family:** before M22-S03, `bookings` carried the only DB-level guarantee behind CLAUDE.md §2's "cross-row invariant → enforce at the DB layer" rule (`EX_booking_bookings_approved_slot`, `docs/13-DATABASE_SCHEMA.md`, retired by M22-S03). That worked because there was exactly one thing to protect: the whole tenant, one row per booking. Once a booking can lock a *bundle* of resources or a different resource per *leg*, there's no longer one row per booking to key an exclusion constraint on — the granularity has to move to one row per resource-assignment. Postgres exclusion constraints cannot span two tables, so if appointment resource-locks and (once Cluster 4 ships) class-session resource-locks lived in separate tables, cross-family exclusivity (the Camila-Duarte-as-both-hairdresser-and-Pilates-instructor scenario, §3 above) could never be DB-enforced no matter how well either table were built individually. `booking.resource_occupancy` (see `docs/13-DATABASE_SCHEMA.md`) is the fix: one shared GIST exclusion constraint, keyed on `(tenant_id, resource_id, [starts_at, ends_at))`, protects every family that ever writes into it. In Cluster 2, only the `BOOKING_LINE` source type is reachable (`CLASS_SESSION` activates once Cluster 4 ships `ClassSession`) — same-family exclusivity (two APPOINTMENT services sharing a resource) is fully provable now; the cross-family case (model #13, this discovery's central premise) isn't testable until Cluster 4 exists alongside Clusters 2–3.
+**UC-060 (`System Rejects Overlapping Bookings Across a Shared Resource`) — why `resource_occupancy` has to be one shared table, not one per family:** before M22-S03, `bookings` carried the only DB-level guarantee behind CLAUDE.md §2's "cross-row invariant → enforce at the DB layer" rule (`EX_booking_bookings_approved_slot`, `docs/DATABASE_SCHEMA.md`, retired by M22-S03). That worked because there was exactly one thing to protect: the whole tenant, one row per booking. Once a booking can lock a *bundle* of resources or a different resource per *leg*, there's no longer one row per booking to key an exclusion constraint on — the granularity has to move to one row per resource-assignment. Postgres exclusion constraints cannot span two tables, so if appointment resource-locks and (once Cluster 4 ships) class-session resource-locks lived in separate tables, cross-family exclusivity (the Camila-Duarte-as-both-hairdresser-and-Pilates-instructor scenario, §3 above) could never be DB-enforced no matter how well either table were built individually. `booking.resource_occupancy` (see `docs/DATABASE_SCHEMA.md`) is the fix: one shared GIST exclusion constraint, keyed on `(tenant_id, resource_id, [starts_at, ends_at))`, protects every family that ever writes into it. In Cluster 2, only the `BOOKING_LINE` source type is reachable (`CLASS_SESSION` activates once Cluster 4 ships `ClassSession`) — same-family exclusivity (two APPOINTMENT services sharing a resource) is fully provable now; the cross-family case (model #13, this discovery's central premise) isn't testable until Cluster 4 exists alongside Clusters 2–3.
 
 ---
 
@@ -679,7 +679,7 @@ RecurringBookingSchedule {
   cancellationReason:       'CUSTOMER_CANCELLED' | 'STAFF_CANCELLED' | 'APPROVAL_REJECTED' | 'APPROVAL_EXPIRED' | null
   createdByStaffId:         StaffId | null           -- set when staff creates it on the customer's behalf
   resourceAssignments:      RecurringBookingScheduleResourceAssignment[]   -- the child collection: one entry per CUSTOMER_CHOICE requirement of the service (keyed by resource type), empty when none; automatic requirements are resolved per occurrence and stored nowhere
-  version:                  int                      -- optimistic-concurrency counter (docs/13-DATABASE_SCHEMA.md)
+  version:                  int                      -- optimistic-concurrency counter (docs/DATABASE_SCHEMA.md)
   createdAt / updatedAt:    DateTime
 }
 ```
@@ -689,11 +689,11 @@ RecurringBookingSchedule {
 - Branches on the service's effective approval mode at creation (UC-070): `AUTO_CONFIRM` → created `ACTIVE` directly, every occurrence of the term materialized in the same transaction. `MANUAL_APPROVAL` → created `PENDING_APPROVAL` with a snapshotted `approvalHoldExpiresAt`; **no occurrences materialize until staff resolves it** (UC-071) — this closes a create-then-cancel loophole that would otherwise let a customer bypass a `MANUAL_APPROVAL` service's review gate by requesting a recurring schedule instead of a one-off booking. **A STAFF actor is the exception (M23-S19):** a schedule a staff member creates for a `MANUAL_APPROVAL` service is created `ACTIVE` at once with `approvedByStaffId` = that staff member and `approvedAt` set, no hold, and every occurrence materialized in the same transaction — the staff member is the approver, as in UC-108's one-off booking; it raises `RecurringBookingScheduleCreated`, never `…ApprovalRequested`.
 - Once `ACTIVE`, every occurrence it materializes auto-confirms as `APPROVED` regardless of the service's `defaultApprovalMode` — the standing schedule itself was already vetted once, at the point it became `ACTIVE`; re-running a hold-and-review cycle on every generated occurrence would contradict the entire point of a standing commitment. A genuinely one-off booking of the same service is unaffected — `defaultApprovalMode` still governs it normally.
 - At most `MAX_ACTIVE_SCHEDULES_PER_RESOURCE = 50` active `FIXED_ASSIGNMENT` schedules per resource (each resource picked for a `CUSTOMER_CHOICE` requirement counts); at most `MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE = 50` active `RESOLVE_PER_OCCURRENCE` schedules per service — app-enforced, generous conservative placeholders, revisable after load testing.
-- An occurrence that cannot be honored at creation — an existing booking or hold (`OCCUPIED`), a closure or normally-closed day (`CLOSED`), or a time outside the business's or resource's working hours (`OUTSIDE_HOURS`) — blocks the whole request, and the refusal lists every affected occurrence with its reason; no partial schedule ever exists (evaluated via the same advisory-lock protocol `docs/13-DATABASE_SCHEMA.md`'s `resource_occupancy` section describes for not-yet-materialized patterns). Every request locks the service first (`lockService()`), then resolves the resources that decide each requirement (the pick for a `CUSTOMER_CHOICE` one, every eligible resource for an automatic one) and locks all of them in one `lockResources()` call, in canonical order — only then is the cap read, so the lock also covers the cap check above atomically in the same critical section.
-- Eligible only for an `APPOINTMENT` service with no `legs` and `requiresPickupAddress = false` (a request carries no pickup address to snapshot onto the occurrences), whose every requirement (none, one, or several — a bundle) has `requiredQuantity = 1` and can be resolved per occurrence: `CUSTOMER_CHOICE`, `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, or `NONE` on the unrestricted `LOCATION` only (`docs/27-BUSINESS_LOGIC_REFERENCE.md` service-shape table). A service with no requirement, or the stored unrestricted `{ LOCATION, NONE }` row, is the default "degenerate" shape, held against the tenant's single location. A requirement of quantity above 1, `legs`, or `NONE` on anything but the unrestricted location is refused (`assertServiceEligible()`, UC-070 A7). The check is repeated at approval against the service as it is then (UC-071). The check is in the use case's helpers, not the aggregate. Legged recurrence stays out of scope.
+- An occurrence that cannot be honored at creation — an existing booking or hold (`OCCUPIED`), a closure or normally-closed day (`CLOSED`), or a time outside the business's or resource's working hours (`OUTSIDE_HOURS`) — blocks the whole request, and the refusal lists every affected occurrence with its reason; no partial schedule ever exists (evaluated via the same advisory-lock protocol `docs/DATABASE_SCHEMA.md`'s `resource_occupancy` section describes for not-yet-materialized patterns). Every request locks the service first (`lockService()`), then resolves the resources that decide each requirement (the pick for a `CUSTOMER_CHOICE` one, every eligible resource for an automatic one) and locks all of them in one `lockResources()` call, in canonical order — only then is the cap read, so the lock also covers the cap check above atomically in the same critical section.
+- Eligible only for an `APPOINTMENT` service with no `legs` and `requiresPickupAddress = false` (a request carries no pickup address to snapshot onto the occurrences), whose every requirement (none, one, or several — a bundle) has `requiredQuantity = 1` and can be resolved per occurrence: `CUSTOMER_CHOICE`, `AUTO_ANY` or `AUTO_FUNGIBLE_POOL`, or `NONE` on the unrestricted `LOCATION` only (`docs/BUSINESS_LOGIC_REFERENCE.md` service-shape table). A service with no requirement, or the stored unrestricted `{ LOCATION, NONE }` row, is the default "degenerate" shape, held against the tenant's single location. A requirement of quantity above 1, `legs`, or `NONE` on anything but the unrestricted location is refused (`assertServiceEligible()`, UC-070 A7). The check is repeated at approval against the service as it is then (UC-071). The check is in the use case's helpers, not the aggregate. Legged recurrence stays out of scope.
 - `endsOn` is required, must not be before `startsOn` (an equal date is allowed), and must not be later than `startsOn` + the service's maximum term (a reversed range is `RecurringBookingScheduleInvalidDateRangeError`, `422`; a date beyond the term is `RecurringBookingScheduleTermExceededError`, `422`, `BOOKING_RECURRING_SCHEDULE_TERM_EXCEEDED`; a missing `endsOn` is rejected as a `400` by the request schema). Once `endsOn` has passed (on the tenant-local calendar date), a scheduled job (M23-S05) moves an `ACTIVE` schedule to `ENDED`, so the caps and the list filter keep using `status = 'ACTIVE'` and an expired schedule never counts against them. The natural end raises no domain event — there is no consumer for one.
-- Where a schedule starts is checked once (M23-S35): the first occurrence of a new schedule must lie inside the booking window (customer actors; staff are exempt from the window, never from the past rule), a term with no occurrence is refused (`RecurringBookingScheduleNoOccurrencesError`, `422`, `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES`), a renewal (same customer, service, weekdays, start time and duration, starting no later than the day after the previous `endsOn`) skips the window, and occurrences already started are never materialized (dropped for a renewal and at approval; `BookingScheduledInPastError` when none remain). The aggregate stores no link to the schedule it renews. Full rule: `docs/27-BUSINESS_LOGIC_REFERENCE.md`.
-- A customer is reminded once, `settings.booking.recurringRenewalReminderDays` days before an `ACTIVE` schedule's `endsOn` (M23-S21; `0` = off): a cron-published Command, not an event, so the aggregate changes nothing and stores no "reminded" flag. The rule uses the tenant's setting and local date, which the aggregate does not hold, so it lives in the application layer. Full rule: `docs/27-BUSINESS_LOGIC_REFERENCE.md` § Renewal window and reminder.
+- Where a schedule starts is checked once (M23-S35): the first occurrence of a new schedule must lie inside the booking window (customer actors; staff are exempt from the window, never from the past rule), a term with no occurrence is refused (`RecurringBookingScheduleNoOccurrencesError`, `422`, `BOOKING_RECURRING_SCHEDULE_NO_OCCURRENCES`), a renewal (same customer, service, weekdays, start time and duration, starting no later than the day after the previous `endsOn`) skips the window, and occurrences already started are never materialized (dropped for a renewal and at approval; `BookingScheduledInPastError` when none remain). The aggregate stores no link to the schedule it renews. Full rule: `docs/BUSINESS_LOGIC_REFERENCE.md`.
+- A customer is reminded once, `settings.booking.recurringRenewalReminderDays` days before an `ACTIVE` schedule's `endsOn` (M23-S21; `0` = off): a cron-published Command, not an event, so the aggregate changes nothing and stores no "reminded" flag. The rule uses the tenant's setting and local date, which the aggregate does not hold, so it lives in the application layer. Full rule: `docs/BUSINESS_LOGIC_REFERENCE.md` § Renewal window and reminder.
 - The maximum term is `Service.bookingPolicy.recurringHorizonDays` (null inherits a 90-day platform default). The creation-time checks and the materialization enumerate the term with one window-enumeration function, so nothing checked at creation can diverge from what is materialized. An occurrence that stops passing between the check and a later materialization (approval) refuses the whole approval with the same `409` conflicts list (UC-071 A3) — nothing is created and the schedule stays `PENDING_APPROVAL`, because a UC-073 worklist entry can only point at an existing booking.
 - Generated bookings link back via a nullable `recurringScheduleId` on `Booking`, with a unique `(tenantId, recurringScheduleId, scheduledAt)` generation key (there is no `occurrence_start` column on `bookings`) — same idempotency shape `ClassSessionBooking.seriesId` uses for the session family (Cluster 4).
 
@@ -712,7 +712,7 @@ RecurringBookingSchedule {
 
 **Entities within:**
 - `AvailabilityAlert` (root)
-- `AvailabilityAlertNotificationAttempt` (child — notification history, deduplicated per matching window; carries the outcome, `attemptCount` and a redacted `lastError` — columns in `docs/13-DATABASE_SCHEMA.md`)
+- `AvailabilityAlertNotificationAttempt` (child — notification history, deduplicated per matching window; carries the outcome, `attemptCount` and a redacted `lastError` — columns in `docs/DATABASE_SCHEMA.md`)
 
 **Properties:**
 ```
@@ -795,7 +795,7 @@ FutureCommitmentException {
 
 ---
 
-> ⚠️ **Planned, not built:** the six M24 Cluster 4 aggregates below (`ClassScheduleTemplate`, `ClassSession`, `ClassSessionBooking`, `RecurringEnrollment`, `ClassAccessContract`, `ClassScheduleTemplateException`) have no aggregate class in `apps/backend/src` yet; they are the target design for the M24 plan (`plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`). `docs/03-DOMAIN_EVENTS.md`, `docs/13-DATABASE_SCHEMA.md` and `docs/21-TENANTS_SETTINGS_SCHEMA.md` carry the same marker.
+> ⚠️ **Planned, not built:** the six M24 Cluster 4 aggregates below (`ClassScheduleTemplate`, `ClassSession`, `ClassSessionBooking`, `RecurringEnrollment`, `ClassAccessContract`, `ClassScheduleTemplateException`) have no aggregate class in `apps/backend/src` yet; they are the target design for the M24 plan (`plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`). `docs/DOMAIN_EVENTS.md`, `docs/DATABASE_SCHEMA.md` and `docs/TENANTS_SETTINGS_SCHEMA.md` carry the same marker.
 
 #### **Aggregate: ClassScheduleTemplate** (Root Entity)
 
@@ -824,7 +824,7 @@ ClassScheduleTemplate {
 - A template's occurrence duration is uniform across every day in its own `recurrence` — it always comes from the one `Service.durationMinutes` value, never a per-weekday length. A business whose open hours vary by weekday (e.g. shorter Saturday) and wants each occurrence to span the full day must create one template per distinct-hours weekday group (same "two independent instances, never a fungible pool" pattern already used for two parallel same-time classes) — there is no dynamic "span to that day's closing time" duration mode (see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` Non-Goals).
 - `capacity` cannot exceed the lowest `maxCapacity` ceiling among the template's `ROOM`/capacity-bearing `EQUIPMENT` resources (UC-079 A3).
 - At most `MAX_ACTIVE_TEMPLATES_PER_RESOURCE = 50` active templates reference any one resource (UC-079 A4).
-- A chosen resource must not already be committed to an overlapping template, an `APPROVED` appointment `Booking`, or an active `RecurringBookingSchedule` matching the new recurrence — evaluated via the same advisory-lock/recurrence-rule-direct-evaluation protocol as `RecurringBookingSchedule` (`docs/13-DATABASE_SCHEMA.md`).
+- A chosen resource must not already be committed to an overlapping template, an `APPROVED` appointment `Booking`, or an active `RecurringBookingSchedule` matching the new recurrence — evaluated via the same advisory-lock/recurrence-rule-direct-evaluation protocol as `RecurringBookingSchedule` (`docs/DATABASE_SCHEMA.md`).
 - Editing a template only affects future, not-yet-generated sessions — already-materialized `ClassSession` rows are untouched (snapshotted at generation time). Deactivating stops future generation only.
 - A new default `capacity` below any of the template's own already-materialized, not-yet-started sessions' `reservedCount` is blocked (UC-080 A2) — resolve those sessions individually first (UC-083).
 - **Two independent instances, never a fungible pool (model #6):** a studio running the same class twice in parallel (e.g. two Pilates rooms at the same hour) is two separate `ClassScheduleTemplate` rows, each with its own capacity/roster — never one template pointing at a `ROOM` pool, which would wrongly merge two independently-running classes into one.
@@ -1030,7 +1030,7 @@ ClassScheduleTemplateException {
 - `+ cancelledAt`, `cancelledBy`, `cancellationReason`, `rejectedAt`, `rejectedBy`, `rejectionReason` — the aggregate is authoritative for who ended a booking and why, for every booking (the audit table has no backfill).
 - `+` terminal status `NO_SHOW` added to the state machine: `APPROVED → COMPLETED | CANCELLED | NO_SHOW` (UC-074). A manager may correct a mistaken no-show with an append-only audit transition; loyalty is awarded only if the corrected resulting state is `COMPLETED`. **This changes CLAUDE.md §5's booking state machine — see that file's own update alongside this promotion.**
 - Every status change of an existing booking (M23-S26) records a pending transition — `from`, `to`, a `BookingActor` (`STAFF | MANAGER | CUSTOMER | GUEST | SYSTEM` plus id), reason where one exists, `correlationId` — beside its domain events; `TypeOrmBookingRepository.save()` persists them into `booking.booking_status_transitions` in the same transaction as the booking. Creation, including a recurring occurrence materialized directly as `APPROVED`, records none. A booking's status changes only through the aggregate's private `transitionTo`, which records the transition and assigns the status in one step, and every status-changing method takes the acting `BookingActor` to pass to it. A `Booking` read never loads the history.
-- Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/13-DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
+- Reschedule (UC-069) now supports bundles/legs atomically, recalculates the quote, and records an append-only `BookingQuoteRevision` (new child-adjacent table, `docs/DATABASE_SCHEMA.md`) linking to the prior arrangement — extends the existing `BookingRescheduled` event's scope rather than introducing a new one.
 
 ---
 
@@ -1243,7 +1243,7 @@ Staff {
 Constraint: UNIQUE(tenantId, googleOAuthId) — partial index, WHERE google_oauth_id IS NOT NULL
   (composite with tenantId, changed from a global constraint in M13-S13)
   This means: the same Google account CAN be staff at multiple tenants
-  (same multi-tenant model as Customer — see docs/06-TENANT_ISOLATION_STRATEGY.md)
+  (same multi-tenant model as Customer — see docs/TENANT_ISOLATION_STRATEGY.md)
 
 > Per CLAUDE.md §2 invariant #6: "Staff can be multi-tenant — UNIQUE(tenant_id, google_oauth_id),
 > same shape as customers." A staff row is always provisioned isActive=true at invite time;
@@ -1258,7 +1258,7 @@ Domain events represent significant business occurrences that other contexts may
 
 ### **Booking Context Events**
 
-Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogHandler` per context, M23-S36) — omitted from the Consumers column for brevity. Payloads and the authoritative consumer list per event: `docs/03-DOMAIN_EVENTS.md` and `infra/terraform/pubsub-catalog.json`.
+Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogHandler` per context, M23-S36) — omitted from the Consumers column for brevity. Payloads and the authoritative consumer list per event: `docs/DOMAIN_EVENTS.md` and `infra/terraform/pubsub-catalog.json`.
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
@@ -1278,14 +1278,14 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 | `AvailabilityAlertMatched` | A date becomes selectable for an alert (UC-072 step 3) | Notification Context (customer email) |
 | `FutureCommitmentExceptionRaised` / `…Resolved` / `…Dismissed` | Future-commitment worklist (UC-073, UC-077) | `audit-log` only, by design; the manager alert and the customer message hang on `ResourceDeactivationImpactRaised` and `BookingResourceReassigned` (M23-S23) |
 
-> Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) and `TenantProvisioned` (published by Platform Context) to create the tenant's location resource — see `docs/05-BOUNDED_CONTEXTS.md`.
+> Booking Context also **consumes** `StaffDeactivated` (published by Staff Context) to cascade-deactivate a `STAFF`-type `Resource` (UC-048) and `TenantProvisioned` (published by Platform Context) to create the tenant's location resource — see `docs/BOUNDED_CONTEXTS.md`.
 
 ### **Loyalty Context Events**
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
 | `ServicePointsEarned` | `BookingCompleted` consumed → one `LoyaltyEntry` inserted per `BookingLine`, **one event per booking** (`eventVersion = 2`, lists every line) | Notification Context |
-| `PointsExpiringSoon` *(a Command published through the outbox, not a `DomainEvent`)* | Weekly cron (Mondays 06:00 UTC) finds entries whose `expires_at` falls within the next `loyalty.expiryWarningDays` (default 7, see `docs/21`) — forward-looking warning | Notification Context |
+| `PointsExpiringSoon` *(a Command published through the outbox, not a `DomainEvent`)* | Weekly cron (Mondays 06:00 UTC) finds entries whose `expires_at` falls within the next `loyalty.expiryWarningDays` (default 7, see `docs/TENANTS_SETTINGS_SCHEMA`) — forward-looking warning | Notification Context |
 
 ### **Staff Context Events**
 
@@ -1304,7 +1304,7 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 
 ### **Notification Context Events**
 
-None. `EmailSent` / `EmailFailed` were never implemented as domain events — delivery outcomes are recorded in `NotificationLog` (see `docs/03-DOMAIN_EVENTS.md`).
+None. `EmailSent` / `EmailFailed` were never implemented as domain events — delivery outcomes are recorded in `NotificationLog` (see `docs/DOMAIN_EVENTS.md`).
 
 ---
 
@@ -1341,7 +1341,7 @@ Address {
 ### **Money**
 Lives in `src/shared/value-objects/money.ts`.
 - Amount (Decimal — never float)
-- Currency (any ISO-4217 3-letter code, upper-cased; `'BRL'` is the default — localization is no longer Brazil-only, see `docs/21-TENANTS_SETTINGS_SCHEMA.md`)
+- Currency (any ISO-4217 3-letter code, upper-cased; `'BRL'` is the default — localization is no longer Brazil-only, see `docs/TENANTS_SETTINGS_SCHEMA.md`)
 - Display format: locale-driven (e.g. `R$ 1.234,56` for BRL in pt-BR)
 - Supports operations: add, subtract, multiply
 - Immutable
@@ -1410,7 +1410,7 @@ When a `LoyaltyEntry`'s `expiresAt` passes:
                               StaffInvited, StaffDeactivated
                               (published by Staff Context)
 
-> The diagram above is a partial overview (it omits events such as the resource/alert/recurrence events and the Platform context's); `docs/03-DOMAIN_EVENTS.md` has the full event list.
+> The diagram above is a partial overview (it omits events such as the resource/alert/recurrence events and the Platform context's); `docs/DOMAIN_EVENTS.md` has the full event list.
 
 Booking → Loyalty: BookingCompleted only (inserts LoyaltyEntry per line)
 Booking → Notification: all lifecycle events → emails
@@ -1428,7 +1428,7 @@ Staff  → Notification: StaffInvited → invitation email
 - Create and configure tenants (name, slug, initial settings)
 - Allow tenant admins to edit their operational settings (cancellation window, loyalty rules, business hours, timezone)
 - Allow tenant admins to manage and publish their public hotsite (branding, layout, content)
-- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/04-USE_CASES.md` UC-033–UC-036)
+- Answer public hotsite visitors' FAQ-style questions via an LLM-backed chatbot widget, scoped to the tenant's own business data (UC-033/UC-034) — informational only, no booking/customer/staff record access (`docs/USE_CASES.md` UC-033–UC-036)
 
 **Key Aggregates:**
 - `Tenant` (root) — the car wash company record; owns the `settings` JSONB blob
@@ -1455,7 +1455,7 @@ Tenant {
   tenantId:   TenantId
   name:       String           -- display name (e.g. "AutoWash Pro")
   slug:       String           -- URL-safe identifier (e.g. "autowash-pro"), globally unique
-  settings:   TenantSettings   -- JSONB — see docs/21-TENANTS_SETTINGS_SCHEMA.md for full schema
+  settings:   TenantSettings   -- JSONB — see docs/TENANTS_SETTINGS_SCHEMA.md for full schema
   isActive:   Boolean
   createdAt:  DateTime
   updatedAt:  DateTime
@@ -1497,7 +1497,7 @@ HotsiteConfig {
 ---
 
 #### **Aggregate: ChatbotSession** (Root Entity)
-Tracks one chat widget conversation for cap enforcement (`docs/04-USE_CASES.md` UC-033) and as the anchor `ChatbotMessage` rows reference for history reassembly. Not a rich DDD aggregate with cross-field invariants — same thin treatment as `NotificationLog`: a plain persistence record with a plain repository, no business rules beyond its own field transitions.
+Tracks one chat widget conversation for cap enforcement (`docs/USE_CASES.md` UC-033) and as the anchor `ChatbotMessage` rows reference for history reassembly. Not a rich DDD aggregate with cross-field invariants — same thin treatment as `NotificationLog`: a plain persistence record with a plain repository, no business rules beyond its own field transitions.
 
 **Properties:**
 ```
@@ -1522,7 +1522,7 @@ ChatbotSession {
 ---
 
 #### **Aggregate: ChatbotMessage** (Root Entity)
-One turn (visitor question or bot answer) within a `ChatbotSession`. Stores the real conversation text on both sides — not just metadata — since the LLM is stateless between calls (the BFF must resend prior turns as history) and since this is the source of the per-message token/cost audit trail (`docs/04-USE_CASES.md` UC-033). Same thin "plain record" treatment as `ChatbotSession`/`NotificationLog`.
+One turn (visitor question or bot answer) within a `ChatbotSession`. Stores the real conversation text on both sides — not just metadata — since the LLM is stateless between calls (the BFF must resend prior turns as history) and since this is the source of the per-message token/cost audit trail (`docs/USE_CASES.md` UC-033). Same thin "plain record" treatment as `ChatbotSession`/`NotificationLog`.
 
 **Properties:**
 ```
@@ -1567,14 +1567,14 @@ ChatbotProviderBalance {
 
 **Methods:**
 - `static upsert(provider, remainingUsd)` — S08's balance write.
-- `isHealthy(cooldownMinutes, now)` — the UC-034 condition (c) availability check below (reads `lastSuccessAt`/`lastFailureAt`; the health timestamps are written by a repository method, not the aggregate) — both writers persist via a **partial-column upsert only** (`docs/13-DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
+- `isHealthy(cooldownMinutes, now)` — the UC-034 condition (c) availability check below (reads `lastSuccessAt`/`lastFailureAt`; the health timestamps are written by a repository method, not the aggregate) — both writers persist via a **partial-column upsert only** (`docs/DATABASE_SCHEMA.md`'s "Write discipline" note), never a full-row replace, so the two independent writers can never clobber each other's columns.
 
 **Availability rule (UC-034 condition c):** the provider is unhealthy only if `lastFailureAt` is more recent than `lastSuccessAt` **and** within `CHATBOT_PROVIDER_HEALTH_COOLDOWN_MINUTES` (default `5`) of now — a half-open/circuit-breaker cooldown, not a permanent trip, so a single transient failure can't leave the widget dark forever (`available: false` means the widget never renders at all, so without a cooldown no visitor could ever produce the success that would clear it).
 
 ---
 
 #### **Aggregate: LeadFormConfig** (Root Entity)
-One per tenant — owns the question catalog and audience gating for the `LEAD_FORM` hotsite module (`docs/04-USE_CASES.md` UC-037, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). This canonical model section records the promoted design rationale.
+One per tenant — owns the question catalog and audience gating for the `LEAD_FORM` hotsite module (`docs/USE_CASES.md` UC-037, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). This canonical model section records the promoted design rationale.
 
 **Properties:**
 ```
@@ -1603,12 +1603,12 @@ LeadFormQuestion {
 - `updateQuestions(questions)` → validates the whole array (≤20 entries, each non-empty label, choice-type questions have 2-10 options) and replaces it atomically. Publishes no event (config change, matches how other module config edits behave).
 - `updateAudienceMode(mode)` → replaces `audienceMode`.
 
-**Cross-aggregate save, one transaction (UC-037, `docs/14-API_CONTRACTS.md` § Lead Form Admin Config):** the manager's config drill-down screen edits both this aggregate (`audienceMode`/`questions`) and `HotsiteConfig`'s own `layout[]` entry for this module (teaser fields — title/subtitle/ctaLabel/etc., the same shape every other module's teaser data uses) as one user-facing save action. `UpdateHotsiteContentUseCase` writes both aggregates inside a single `txManager.run()` block when `audienceMode`/`questions` are present in the request (folded in at M20-S08 — previously a separate, near-duplicate `UpdateLeadFormModuleUseCase` behind its own endpoint, which this replaced) — a deliberate exception to "one aggregate per transaction," justified because both aggregates live in the same bounded context (Platform) and one real user action requires them to save atomically; this is not a precedent for casually spanning transactions across contexts. The module's `enabled` flag is not part of this cross-aggregate concern — it's just `layout[].enabled`, the same field every other module's `enabled` toggle already goes through on this same use case.
+**Cross-aggregate save, one transaction (UC-037, `docs/API_CONTRACTS.md` § Lead Form Admin Config):** the manager's config drill-down screen edits both this aggregate (`audienceMode`/`questions`) and `HotsiteConfig`'s own `layout[]` entry for this module (teaser fields — title/subtitle/ctaLabel/etc., the same shape every other module's teaser data uses) as one user-facing save action. `UpdateHotsiteContentUseCase` writes both aggregates inside a single `txManager.run()` block when `audienceMode`/`questions` are present in the request (folded in at M20-S08 — previously a separate, near-duplicate `UpdateLeadFormModuleUseCase` behind its own endpoint, which this replaced) — a deliberate exception to "one aggregate per transaction," justified because both aggregates live in the same bounded context (Platform) and one real user action requires them to save atomically; this is not a precedent for casually spanning transactions across contexts. The module's `enabled` flag is not part of this cross-aggregate concern — it's just `layout[].enabled`, the same field every other module's `enabled` toggle already goes through on this same use case.
 
 ---
 
 #### **Aggregate: LeadFormSubmission** (Root Entity)
-One per visitor submission (`docs/04-USE_CASES.md` UC-039/UC-040). Independent aggregate from `LeadFormConfig` — deliberately never transactionally consistent with it (DB-expert-reviewed boundary, see below).
+One per visitor submission (`docs/USE_CASES.md` UC-039/UC-040). Independent aggregate from `LeadFormConfig` — deliberately never transactionally consistent with it (DB-expert-reviewed boundary, see below).
 
 **Properties:**
 ```
@@ -1616,7 +1616,7 @@ LeadFormSubmission {
   id:           UUID v7           -- bare `id`, matching every other aggregate root's own convention
                                    -- (Booking, ChatbotSession, ChatbotMessage, NotificationLog, ...).
                                    -- `submissionId` is used only as the event-payload/API-response
-                                   -- DTO field name (docs/03-DOMAIN_EVENTS.md, docs/14-API_CONTRACTS.md),
+                                   -- DTO field name (docs/DOMAIN_EVENTS.md, docs/API_CONTRACTS.md),
                                    -- mapped from this field, not a second internal property.
   tenantId:     TenantId
   customerId:   UUID | null   -- UUID-only cross-context reference to Customer, no FK (per docs/ANTI_PATTERNS.md's
@@ -1639,9 +1639,9 @@ LeadFormAnswer {
 }
 ```
 
-**Aggregate-boundary note (DB-expert pass, deliberate — not an oversight):** `LeadFormSubmission.answers` snapshots the full `{questionId, questionLabel, questionType, answerValue}` at submission time, not just `{questionId, value}` — the exact same reasoning `BookingLine.priceAtBooking`/`serviceNameAtBooking` already exists for above. Without the snapshot, a manager editing a question's label or deleting it later would silently corrupt how old submissions render. Same reasoning applies to `expiresAt`: computed **once, at insert time**, from whatever `retentionMonths` the tenant had *then* — never recomputed live — matching `docs/21-TENANTS_SETTINGS_SCHEMA.md`'s own "settings changes apply to future only" rule.
+**Aggregate-boundary note (DB-expert pass, deliberate — not an oversight):** `LeadFormSubmission.answers` snapshots the full `{questionId, questionLabel, questionType, answerValue}` at submission time, not just `{questionId, value}` — the exact same reasoning `BookingLine.priceAtBooking`/`serviceNameAtBooking` already exists for above. Without the snapshot, a manager editing a question's label or deleting it later would silently corrupt how old submissions render. Same reasoning applies to `expiresAt`: computed **once, at insert time**, from whatever `retentionMonths` the tenant had *then* — never recomputed live — matching `docs/TENANTS_SETTINGS_SCHEMA.md`'s own "settings changes apply to future only" rule.
 
-**Search index is a repository-level concern, not an aggregate property (added post-promotion, UC-041 search, M20-S12/S13):** `TypeOrmLeadFormSubmissionRepository.save()` derives one `platform.lead_form_answers` row per question from `answers[]` (flattening a `MULTIPLE_CHOICE`'s array into one row per selected option) and writes both tables in the same transaction. `lead_form_answers` is **not** a second aggregate — it has no independent lifecycle, no identity meaningful outside its parent submission, and no domain behavior; it exists purely so UC-041 can filter by a specific question's answer (and AND several such filters together), which the JSONB snapshot alone can't do without ambiguity. See `docs/13-DATABASE_SCHEMA.md` § `platform.lead_form_answers` for the full shape and why a flattened single-text-column search (the originally-drafted design) was replaced with this instead.
+**Search index is a repository-level concern, not an aggregate property (added post-promotion, UC-041 search, M20-S12/S13):** `TypeOrmLeadFormSubmissionRepository.save()` derives one `platform.lead_form_answers` row per question from `answers[]` (flattening a `MULTIPLE_CHOICE`'s array into one row per selected option) and writes both tables in the same transaction. `lead_form_answers` is **not** a second aggregate — it has no independent lifecycle, no identity meaningful outside its parent submission, and no domain behavior; it exists purely so UC-041 can filter by a specific question's answer (and AND several such filters together), which the JSONB snapshot alone can't do without ambiguity. See `docs/DATABASE_SCHEMA.md` § `platform.lead_form_answers` for the full shape and why a flattened single-text-column search (the originally-drafted design) was replaced with this instead.
 
 **Key methods:**
 - `static create(props)` → validates required fields via `Email`/`PhoneNumber` VOs, snapshots `answers`, computes `expiresAt` from the tenant's current `retentionMonths`. Publishes `LeadFormSubmissionReceived`.

@@ -3,7 +3,7 @@ import { normalizeText } from '../../../shared/utils/text-normalization';
 import { BookingAttendeeNameRequiredError } from './errors/booking-domain.error';
 
 // UC-068 — an optional named attendee on a booking, populated only when the effective intake
-// schema's requiresNamedAttendees is true (docs/13-DATABASE_SCHEMA.md § booking_attendees).
+// schema's requiresNamedAttendees is true (docs/DATABASE_SCHEMA.md § booking_attendees).
 // customerId always starts null at booking-request time: linking an attendee to an existing
 // Customer record isn't part of this story's scope (no AC covers it) — a guardian booking for a
 // minor is the booker, not a family-account hierarchy (UC-068 A2).

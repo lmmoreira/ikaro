@@ -6,7 +6,7 @@ import {
   RecurringBookingScheduleStatus,
 } from '../../domain/recurring-booking-schedule.aggregate';
 
-// docs/13-DATABASE_SCHEMA.md § booking.recurring_booking_schedules (M23 Cluster 3).
+// docs/DATABASE_SCHEMA.md § booking.recurring_booking_schedules (M23 Cluster 3).
 @Entity('recurring_booking_schedules', { schema: 'booking' })
 @Index(['tenantId'])
 @Index(['tenantId', 'customerId', 'status'])

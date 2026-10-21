@@ -82,7 +82,7 @@ const settings = TenantSettings.reconstitute(rawJsonFromDb);
 **Why two factory methods?** Validating on every DB read would be wasteful and fragile — if a validation rule changes, old data that was valid when saved would fail to load. The `reconstitute()` method trusts the DB. Only `create()`, which handles user input, validates.
 
 **Where the validation rules live:**  
-The validation rules in `TenantSettings.validate()` are derived from `docs/21-TENANTS_SETTINGS_SCHEMA.md`. That document is the canonical source. The code implements those rules — it doesn't invent its own.
+The validation rules in `TenantSettings.validate()` are derived from `docs/TENANTS_SETTINGS_SCHEMA.md`. That document is the canonical source. The code implements those rules — it doesn't invent its own.
 
 ---
 

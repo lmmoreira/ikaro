@@ -2,7 +2,7 @@
 
 ## Overview
 
-New MANAGER-only wizard for M24 — Multi-Vertical Scheduling (`M24-S21` backend + BFF, `M24-S05` SESSION presets, `M24-S22` wizard frontend; moved from M23). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/02-DOMAIN_MODEL.md` for the underlying domain model this wizard configures.
+New MANAGER-only wizard for M24 — Multi-Vertical Scheduling (`M24-S21` backend + BFF, `M24-S05` SESSION presets, `M24-S22` wizard frontend; moved from M23). Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/manager-14-onboarding-preset.html` / `manager-14b-onboarding-preset-erro.html`. See `docs/discovery/multivertical-booking/multivertical-booking_ONBOARDING_PRESETS.md` for the full 7-preset taxonomy and `docs/DOMAIN_MODEL.md` for the underlying domain model this wizard configures.
 
 ## File map (❓ none exist yet)
 
@@ -14,7 +14,7 @@ Moved to the end of M24 on 2026-10-10 (previously M23-S10/S15): backend + BFF = 
 | `apps/web/features/booking/components/dashboard/onboarding/*` | ❓ Gap (M24-S22) |
 | `apps/backend/http/booking/onboarding.http` | ❓ Gap (M24-S21) |
 
-## BFF call (endpoint not yet implemented — contract per `docs/14-API_CONTRACTS.md`)
+## BFF call (endpoint not yet implemented — contract per `docs/API_CONTRACTS.md`)
 
 ```
 POST /v1/onboarding/bootstrap

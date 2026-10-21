@@ -440,7 +440,7 @@ describe('ScheduleOpeningController (integration)', () => {
     });
   });
 
-  // docs/28-LOCK_CATALOG.md R3. The request is checked against a cached copy of the hours first
+  // docs/LOCK_CATALOG.md R3. The request is checked against a cached copy of the hours first
   // and then again under a row lock on the tenant, so a settings change committed in between is
   // seen. The change is held uncommitted: the opening must wait for it and then be refused. Without
   // the row lock it reads the old hours and the opening is created at once. The tenant is this

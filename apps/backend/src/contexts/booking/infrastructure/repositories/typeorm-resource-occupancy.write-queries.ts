@@ -31,7 +31,7 @@ function occupancyKey(
 }
 
 // booking_line_resource_assignments is the immutable business/audit record
-// (docs/13-DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
+// (docs/DATABASE_SCHEMA.md) — release() never deletes it, so re-resolving the same
 // (line, resource, leg, quantity) tuple on a reschedule/re-approval must reuse the existing row
 // instead of violating its null-safe unique index. True ON CONFLICT DO NOTHING can't RETURNING
 // the pre-existing row, so the insert attempt is unioned with a fallback lookup — batched across

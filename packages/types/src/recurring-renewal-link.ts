@@ -1,5 +1,5 @@
 // The link the recurring-schedule renewal email opens: the customer's "new recurring reservation"
-// page pre-filled from the schedule being renewed (docs/27 § Renewal window and reminder). The
+// page pre-filled from the schedule being renewed (docs/BUSINESS_LOGIC_REFERENCE § Renewal window and reminder). The
 // backend builds it and the web page parses it, so the path and the parameter name live here once.
 
 interface QueryReader {

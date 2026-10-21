@@ -226,7 +226,7 @@ jobs:
       # precondition, transitively block prod promotion too — including
       # during an incident where the fix being shipped has nothing to do
       # with the CVE. Unfixed-CVE visibility stays the weekly SARIF
-      # report's job (docs/17-GITHUB_WORKFLOWS_GUIDELINES.md § Trivy), not
+      # report's job (docs/GITHUB_WORKFLOWS_GUIDELINES.md § Trivy), not
       # a deploy gate's.
       - name: Trivy scan — ${{ matrix.service }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

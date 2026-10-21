@@ -21,7 +21,7 @@ export * from './recurring-booking-schedules.schemas';
 
 // Thin proxy — every actor-scoping decision (customer sees own vs. staff/manager sees all,
 // staff-on-behalf customerId) is made backend-side (RecurringBookingScheduleController), matching
-// docs/24-BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split for this endpoint.
+// docs/BFF_ARCHITECTURE.md's "BFF orchestrates, backend decides" split for this endpoint.
 @Controller('recurring-booking-schedules')
 @Roles('CUSTOMER', 'MANAGER', 'STAFF')
 export class RecurringBookingSchedulesController {

@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M23 Cluster 3 (UC-069) — docs/13-DATABASE_SCHEMA.md § booking.booking_quote_revisions. Wholly
+// M23 Cluster 3 (UC-069) — docs/DATABASE_SCHEMA.md § booking.booking_quote_revisions. Wholly
 // new, additive table — no existing table modified, no backfill needed. class_session_booking_id
 // stays unreachable (no FK target table exists) until M24 creates class_session_bookings.
 export class CreateBookingQuoteRevisions1748500000016 implements MigrationInterface {

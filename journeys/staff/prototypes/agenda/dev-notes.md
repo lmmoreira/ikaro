@@ -211,7 +211,7 @@ Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }
 → 200: { id, status: 'APPROVED', scheduledAt }
 → 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }   // same shape as approve's 409
 ```
-Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/04-USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
+Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
 
 ### Mark complete (UC-009, ✅ shipped)
 ```
@@ -415,7 +415,7 @@ export interface CompleteBookingResponse {
 
 ## M23 Cluster 3 extension (UC-071 approval ✅ shipped by M23-S13; UC-074 no-show ✅ shipped by M23-S27; UC-070 staff variant ✅ shipped by M23-S19)
 
-> Everything above this line is shipped, as are the UC-071 approval screens below (M23-S13) and the UC-074 section (M23-S27). The staff creation of a recurring schedule (M23-S19) shipped too. See `docs/02-DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/14-API_CONTRACTS.md` § Recurring Private Reservation Schedules.
+> Everything above this line is shipped, as are the UC-071 approval screens below (M23-S13) and the UC-074 section (M23-S27). The staff creation of a recurring schedule (M23-S19) shipped too. See `docs/DOMAIN_MODEL.md` § `RecurringBookingSchedule`, `docs/API_CONTRACTS.md` § Recurring Private Reservation Schedules.
 
 **Prototype screens (revised 2026-10-08):**
 - `00-agenda.html` (built in M23-S13; the former `00c` was folded in) — the recurrence-request card in "Precisa de ação" and the floating **"Filtrar agenda"** balloon. Card: teal `Recorrência` badge, teal left border, pattern as title, "Decidir até HH:mm", one **"Ver pedido"** button (no quick approve — one decision creates the whole term). Balloon: checkboxes grouped *Precisa de ação* (Agendamentos, Recorrências) and *Confirmados* (Hoje, Próximos dias); default all on; "Padrão" resets; a count badge on the trigger shows how many are hidden; empty state "Limpar filtro". The header count is computed from what is visible.

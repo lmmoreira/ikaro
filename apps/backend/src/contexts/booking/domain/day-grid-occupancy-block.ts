@@ -3,7 +3,7 @@ import { ResourceGapSource } from './resource-gap-source';
 // Result shape for IBookingAvailabilityPort.findDayGridOccupancy() (UC-057, M22-S05). Distinct
 // from ResourceOccupiedSlot: this carries `kind`/`refId` so the manager can drill into the
 // underlying booking/session, and deliberately includes REQUESTED-state rows (excluded from
-// findOccupancyByTenantAndResource) — see docs/13-DATABASE_SCHEMA.md's resource_occupancy
+// findOccupancyByTenantAndResource) — see docs/DATABASE_SCHEMA.md's resource_occupancy
 // EXCLUDE constraint note.
 export interface DayGridOccupancyBlock {
   resourceId: string;

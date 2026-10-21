@@ -11,7 +11,7 @@ export type LeadFormQuestionType = 'TEXT' | 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE';
 
 // Full snapshot at submission time — questionLabel/questionType are never looked up live against
 // LeadFormConfig's own question catalog, so a manager editing or removing a question later can
-// never corrupt how an already-stored submission renders (docs/02-DOMAIN_MODEL.md § LeadFormSubmission,
+// never corrupt how an already-stored submission renders (docs/DOMAIN_MODEL.md § LeadFormSubmission,
 // same reasoning BookingLine.priceAtBooking/serviceNameAtBooking already exists for).
 export interface LeadFormAnswer {
   questionId: string;
@@ -41,7 +41,7 @@ export interface CreateLeadFormSubmissionParams {
   phone: string;
   answers: LeadFormAnswer[];
   ipAddress: string;
-  /** The tenant's *current* retentionMonths (docs/21-TENANTS_SETTINGS_SCHEMA.md §8), resolved by
+  /** The tenant's *current* retentionMonths (docs/TENANTS_SETTINGS_SCHEMA.md §8), resolved by
    * the caller. Read once, here, to compute expiresAt — never recomputed later even if the
    * tenant's setting later changes ("settings changes apply to future only"). */
   retentionMonths: number;
@@ -58,7 +58,7 @@ export class LeadFormSubmission extends AggregateRoot {
     // object/array references, so a caller mutating an answer's `answerValue` (a string OR a
     // string[] for MULTIPLE_CHOICE) after create()/reconstitute() would otherwise corrupt the
     // aggregate's own "full snapshot" invariant (PR #417 review finding, M20-S02;
-    // docs/02-DOMAIN_MODEL.md § LeadFormSubmission). Covers both create() and reconstitute()
+    // docs/DOMAIN_MODEL.md § LeadFormSubmission). Covers both create() and reconstitute()
     // uniformly since both funnel through this constructor. Same pattern TenantSettings'
     // businessHours getter already uses (structuredClone) for a nested mutable prop.
     this.props = { ...props, answers: structuredClone(props.answers) };

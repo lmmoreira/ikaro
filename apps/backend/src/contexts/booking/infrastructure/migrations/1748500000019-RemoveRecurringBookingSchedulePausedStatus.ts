@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M23-S20 — Pause is retired (docs/04-USE_CASES.md UC-070 A2): a fixed-term schedule
+// M23-S20 — Pause is retired (docs/USE_CASES.md UC-070 A2): a fixed-term schedule
 // materializes every occurrence up front, so a one-way, resume-less PAUSED status did nothing.
 // Backfill first: a row still PAUSED becomes a customer-cancelled schedule, so the constraint
 // below never meets a value it no longer knows. No such row exists in any environment (confirmed

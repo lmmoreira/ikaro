@@ -752,7 +752,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
       expect(result.get('line-1')!.candidates[0].resourceId).toBe(chosen.id);
     });
 
-    // docs/14-API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
+    // docs/API_CONTRACTS.md: "duplicates are allowed (two Basic Wash lines = two cars)" — two
     // lines booking the SAME service share one selectionKey(), so each line must consume its own
     // batch of that key's submitted selections in order, never the same (first) batch every line.
     it('disambiguates two duplicate-service lines by resourceSelections submission order', async () => {

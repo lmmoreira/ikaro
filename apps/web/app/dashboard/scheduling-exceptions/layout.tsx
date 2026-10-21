@@ -7,7 +7,7 @@ interface SchedulingExceptionsLayoutProps {
   readonly children: React.ReactNode;
 }
 
-// Shell-wrapped like every dashboard section (docs/16): the list and the reschedule drill-down
+// Shell-wrapped like every dashboard section (docs/DASHBOARD_FRONTEND_ARCHITECTURE): the list and the reschedule drill-down
 // both render inside it. MANAGER-only is enforced by proxy.ts (MANAGER_ONLY_ROUTES).
 export default async function SchedulingExceptionsLayout({
   children,

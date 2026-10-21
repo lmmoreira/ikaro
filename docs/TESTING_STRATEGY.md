@@ -5,7 +5,7 @@
 
 ## Philosophy
 
-Tests in Ikaro are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/04-USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.
+Tests in Ikaro are **executable specifications**. Each test proves that a specific piece of behaviour from `docs/USE_CASES.md` works — not just that code runs. An AI agent implementing any UC must write tests first (TDD) and must be able to run them locally before pushing.
 
 **Three non-negotiable rules:**
 1. Every UC must have a unit test, an integration test, and a tenant-isolation test.
@@ -391,7 +391,7 @@ describe('LoyaltyEventConsumer — idempotency', () => {
 
 ## Concurrency Tests (lock order and races)
 
-In-memory doubles never block, so a unit test cannot show that a lock waits, in what order locks are taken, or that a race ends consistently. Those properties are tested against Postgres, in `*.integration.spec.ts`, and `docs/28-LOCK_CATALOG.md` § 3.1 (names the test that proves each lock).
+In-memory doubles never block, so a unit test cannot show that a lock waits, in what order locks are taken, or that a race ends consistently. Those properties are tested against Postgres, in `*.integration.spec.ts`, and `docs/LOCK_CATALOG.md` § 3.1 (names the test that proves each lock).
 
 | Kind | What it does | What it proves |
 |---|---|---|
@@ -405,7 +405,7 @@ Files: `booking-lock-order.integration.spec.ts` (resource-lock paths, the servic
 
 ## Layer 4 — Contract Tests (Spectral)
 
-> ⚠️ **Not implemented:** there is no `docs/api/openapi.yaml`, no `.spectral.yml` and no Spectral step in any workflow. API contracts live in `docs/14-API_CONTRACTS.md` and the shared Zod/DTO schemas (`@ikaro/validation`, `@ikaro/types`). The rest of this layer describes the original design intent.
+> ⚠️ **Not implemented:** there is no `docs/api/openapi.yaml`, no `.spectral.yml` and no Spectral step in any workflow. API contracts live in `docs/API_CONTRACTS.md` and the shared Zod/DTO schemas (`@ikaro/validation`, `@ikaro/types`). The rest of this layer describes the original design intent.
 
 **Scope:** The OpenAPI spec at `docs/api/openapi.yaml` is validated against Spectral rules in CI.
 
@@ -650,7 +650,7 @@ it('should not expose TENANT_A data to TENANT_B', async () => {
 
 ## Architecture Isolation Test
 
-The Context Isolation Contract (Rule 1 in `docs/05-BOUNDED_CONTEXTS.md`) is expressed as a policy, not as a hand-written list of ESLint zones:
+The Context Isolation Contract (Rule 1 in `docs/BOUNDED_CONTEXTS.md`) is expressed as a policy, not as a hand-written list of ESLint zones:
 
 - **The policy:** `contextDependencyMatrix` in `packages/architecture-check/architecture-policy.json` — `default: "deny"` plus a `permittedEdges` list. Each permitted edge names the exact source file (a cross-context adapter), the target context and the exact target paths it may import, with a rationale and an owner. There is no wildcard entry.
 - **The checker:** `scripts/dependency-cruiser.config.cjs` turns that policy into dependency-cruiser rules (denied by default; a permitted source may import only its exact target paths). `pnpm dep-cruise` runs it over the codebase.
@@ -1019,7 +1019,7 @@ Nest instantiates every provider in the module graph when the application bootst
 
 ### Dual-token override: `EVENT_BUS` + `OUTBOX_PUBLISHER` (TD24-S02)
 
-Since every event-emitting aggregate's repository (7 today — see `docs/03-DOMAIN_EVENTS.md` § Event Publishing & Consumption, the Transactional outbox bullet) drains domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
+Since every event-emitting aggregate's repository (7 today — see `docs/DOMAIN_EVENTS.md` § Event Publishing & Consumption, the Transactional outbox bullet) drains domain events through `OUTBOX_PUBLISHER` (not `EVENT_BUS`) inside `save()`, every integration app helper that imports `OutboxModule` (all 5 do, since `OutboxModule` is `@Global()` but must still be imported once into the test's module graph to be reachable) must override **both** tokens with the **same** bus instance:
 
 ```ts
 const routingBus = new RoutingInMemoryEventBus();

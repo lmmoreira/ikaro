@@ -24,7 +24,7 @@ export interface ActiveTimelineHours {
 }
 
 // The tenant-wide opening (resourceId null) — a resource-scoped opening for a date always
-// requires one to already exist for that same date first (docs/02-DOMAIN_MODEL.md's Three-Layer
+// requires one to already exist for that same date first (docs/DOMAIN_MODEL.md's Three-Layer
 // Schedule Resolution: "the day is normally closed for the tenant and no tenant-wide opening
 // exists yet for that date" is a creation-time error), so this is the reliable pick when one
 // exists.

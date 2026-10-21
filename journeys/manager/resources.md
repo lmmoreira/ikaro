@@ -2,10 +2,10 @@
 
 **Actor(s):** MANAGER  
 **Goal:** Create, view, edit, deactivate, and reactivate the tenant's bookable `Resource` rows (`LOCATION`/`STAFF`/`ROOM`/`EQUIPMENT`) — the foundation the rest of M21's multi-vertical scheduling model builds on  
-**UCs covered:** UC-044, UC-045, UC-046, UC-047, UC-048, UC-049 (`docs/04-USE_CASES.md`)  
+**UCs covered:** UC-044, UC-045, UC-046, UC-047, UC-048, UC-049 (`docs/USE_CASES.md`)  
 **Status:** ✅ Shipped — backend + BFF in M21-S01 (`GET/POST/PATCH/DELETE /v1/resources`, `POST /v1/resources/:id/reactivate`, all live), `GET /v1/resources/:id` added in M21-S04. Frontend pages below shipped in M21-S04.
 
-> Promoted from `docs/discovery/multivertical-booking/multivertical-booking.md` via `/discovery-to-milestone`. See `docs/02-DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) for the full domain model and `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` §2 for the worked-example rationale this journey doesn't repeat.
+> Promoted from `docs/discovery/multivertical-booking/multivertical-booking.md` via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § Booking Context (`Resource` aggregate) for the full domain model and `docs/discovery/multivertical-booking/multivertical-booking_DATA_MODEL.md` §2 for the worked-example rationale this journey doesn't repeat.
 
 ## Flow
 
@@ -59,7 +59,7 @@ Reactivation (UC-049) is a one-click row action directly on `ResourceListPage` (
 | `DELETE /v1/resources/:id` | Desativar (UC-047) | MANAGER |
 | `POST /v1/resources/:id/reactivate` | Reativar (UC-049) | MANAGER |
 
-Full request/response shapes: `docs/14-API_CONTRACTS.md` § Resource Management.
+Full request/response shapes: `docs/API_CONTRACTS.md` § Resource Management.
 
 ## Prototype
 

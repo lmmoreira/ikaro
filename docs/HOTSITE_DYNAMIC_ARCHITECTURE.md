@@ -1,6 +1,6 @@
 # Hotsite Dynamic Architecture - Ikaro
 
-> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/14-API_CONTRACTS.md`.
+> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/API_CONTRACTS.md`.
 > **Tags:** web, bff, prototypes
 
 ## Overview
@@ -287,7 +287,7 @@ interface GalleryModuleData {
 **Image hosting & URL resolution (M12-S10 — read this before M12-S02's original framing):**
 Hotsite images are **public marketing assets** — unlike booking photos, there is no privacy reason to gate them. They live in a separate **public** GCS bucket with fixed, permanently-cacheable addresses (`IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, no regeneration). This is what makes the manifest's `Cache-Control: public, max-age=300` + Next.js ISR + future CDN (§10) actually safe to rely on: nothing inside the cached payload can expire mid-cache-window. `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve every stored `filePath` (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `*Url` fields, `GalleryImage.url`) to this public address before returning — one resolution path, used identically by the public manifest and the admin endpoint, regardless of `GalleryImage.source`.
 
-Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/14-API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
+Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
 
 **Image sources (both available in the dashboard editor):**
 - **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
@@ -366,7 +366,7 @@ interface ContactModuleData {
 
 Social links (whatsapp, instagram, facebook) are **not stored in `ContactModuleData`**. They come from `tenants.settings.businessInfo.socialLinks`, resolved into `manifest.business.socialLinks` by `GetHotsiteManifestUseCase`. The admin edits them once on the tenant settings page — `ContactModule` renders them based on `business.socialLinks`.
 
-`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show. The actual **values** (address, phone, email, social links) live in `tenants.settings.businessInfo` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
+`ContactModuleData` (manifest `layout[].data`) only carries **display preferences** — which sections to show. The actual **values** (address, phone, email, social links) live in `tenants.settings.businessInfo` (`docs/TENANTS_SETTINGS_SCHEMA.md` §6) — the admin edits them once on the tenant settings page (UC-026), not per-module.
 
 `GetHotsiteManifestUseCase` resolves `tenants.settings.businessInfo` into a top-level `business` field on the manifest (camelCased, sibling of `tenant`/`branding`/`layout`):
 
@@ -436,16 +436,16 @@ interface ChatbotModuleData {
 ```
 
 Same split as `ContactModuleData`, made explicit: `ChatbotModuleData` only carries fields **rendered verbatim to every visitor** — `botName`/`welcomeMessage` are shown exactly as typed, same category as `HeroModuleData.title`. Everything cost/security-sensitive is deliberately excluded from this module data and fetched separately:
-- `tenants.settings.chatbot.knowledgeText` (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7) — edited on the tenant settings page (UC-026), not the module editor, same reason `ContactModuleData` excludes `businessInfo`
-- The 8 volume/cost caps + `llmProvider`/`llmModel` — not editable anywhere in the admin UI for MVP; fixed platform defaults, optional Ikaro-only per-tenant override (`docs/21-TENANTS_SETTINGS_SCHEMA.md` §7)
+- `tenants.settings.chatbot.knowledgeText` (`docs/TENANTS_SETTINGS_SCHEMA.md` §7) — edited on the tenant settings page (UC-026), not the module editor, same reason `ContactModuleData` excludes `businessInfo`
+- The 8 volume/cost caps + `llmProvider`/`llmModel` — not editable anywhere in the admin UI for MVP; fixed platform defaults, optional Ikaro-only per-tenant override (`docs/TENANTS_SETTINGS_SCHEMA.md` §7)
 
 **Why this split matters more here than for `CONTACT`:** the manifest is public and cached for 5 minutes (`Cache-Control: public, max-age=300`, § 2 above). Shipping `maxConversationsPerDay` or the raw `knowledgeText` into that payload would mean any visitor could read a tenant's cost-control settings and internal FAQ notes directly from the JSON response, whether or not the widget UI shows them.
 
-**Availability is not derived from the manifest at all.** Unlike every other module, whether the `CHATBOT` widget actually renders depends on live, uncached state (per-tenant caps, LLM provider health, platform-wide spend/balance breakers) that can change from one request to the next — the `enabled: false` flag only covers the "admin turned this module off" case. The widget makes its own always-fresh pre-flight call on mount (`GET /public/platform/chatbot/status`, UC-034) before rendering anything; see `docs/14-API_CONTRACTS.md` § Chatbot Widget for the full contract and `docs/04-USE_CASES.md` UC-033/UC-034 for the three widget states (not available / active / interrupted).
+**Availability is not derived from the manifest at all.** Unlike every other module, whether the `CHATBOT` widget actually renders depends on live, uncached state (per-tenant caps, LLM provider health, platform-wide spend/balance breakers) that can change from one request to the next — the `enabled: false` flag only covers the "admin turned this module off" case. The widget makes its own always-fresh pre-flight call on mount (`GET /public/platform/chatbot/status`, UC-034) before rendering anything; see `docs/API_CONTRACTS.md` § Chatbot Widget for the full contract and `docs/USE_CASES.md` UC-033/UC-034 for the three widget states (not available / active / interrupted).
 
-**Module-config screen carries a standing disclosure, not shown for any other module type:** since availability depends on a platform-wide LLM provider account being funded and healthy — not just this tenant's own settings — the `CHATBOT` module's own config screen (`/dashboard/hotsite`, per-module drill-down) shows a permanent info note that a temporary provider/credit shortfall can disable the widget automatically, no tenant action needed. It also shows a red banner (not a permanent note — conditional) when this tenant's own daily conversation cap was already reached today (`docs/04-USE_CASES.md` UC-027 A5, `docs/14-API_CONTRACTS.md` § Chatbot Cap Status).
+**Module-config screen carries a standing disclosure, not shown for any other module type:** since availability depends on a platform-wide LLM provider account being funded and healthy — not just this tenant's own settings — the `CHATBOT` module's own config screen (`/dashboard/hotsite`, per-module drill-down) shows a permanent info note that a temporary provider/credit shortfall can disable the widget automatically, no tenant action needed. It also shows a red banner (not a permanent note — conditional) when this tenant's own daily conversation cap was already reached today (`docs/USE_CASES.md` UC-027 A5, `docs/API_CONTRACTS.md` § Chatbot Cap Status).
 
-The canonical behavior and abuse-prevention rules are split by concern: `docs/04-USE_CASES.md` UC-033–UC-036, `docs/14-API_CONTRACTS.md` § Chatbot Widget, and `docs/21-TENANTS_SETTINGS_SCHEMA.md` § Chatbot.
+The canonical behavior and abuse-prevention rules are split by concern: `docs/USE_CASES.md` UC-033–UC-036, `docs/API_CONTRACTS.md` § Chatbot Widget, and `docs/TENANTS_SETTINGS_SCHEMA.md` § Chatbot.
 
 ### LEAD_FORM
 
@@ -462,13 +462,13 @@ interface LeadFormModuleData {
 }
 ```
 
-**Why the module data stays this small:** the manifest is public and cached 5 minutes (`Cache-Control: public, max-age=300`, §2 above). Embedding up to 20 questions (each with up to 10 options) would bloat every cached manifest fetch for the vast majority of visitors who never open the form — the same reasoning `SERVICE_LIST` already applies (display preferences only in the manifest; `services` fetched live via `fetchServices()`). The full question catalog is fetched only when a visitor actually reaches `/[slug]/lead-form` (`GET /public/platform/lead-form/:slug`, `docs/14-API_CONTRACTS.md` § Lead Form Widget).
+**Why the module data stays this small:** the manifest is public and cached 5 minutes (`Cache-Control: public, max-age=300`, §2 above). Embedding up to 20 questions (each with up to 10 options) would bloat every cached manifest fetch for the vast majority of visitors who never open the form — the same reasoning `SERVICE_LIST` already applies (display preferences only in the manifest; `services` fetched live via `fetchServices()`). The full question catalog is fetched only when a visitor actually reaches `/[slug]/lead-form` (`GET /public/platform/lead-form/:slug`, `docs/API_CONTRACTS.md` § Lead Form Widget).
 
 **Placement:** `LEAD_FORM` is a normal entry in the `layout` array, reordered by the admin like every other module — not a special-cased widget.
 
 **Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
 
-Canonical rationale, domain model, and behavior: `docs/02-DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/04-USE_CASES.md` UC-037–UC-043, and `docs/14-API_CONTRACTS.md` § Lead Form.
+Canonical rationale, domain model, and behavior: `docs/DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/USE_CASES.md` UC-037–UC-043, and `docs/API_CONTRACTS.md` § Lead Form.
 
 ---
 
@@ -484,7 +484,7 @@ https://<ikaro-domain>/autowash-pro/booking  → app/[slug]/booking/page.tsx
 https://<ikaro-domain>/autowash-pro/booking/availability-alert → app/[slug]/booking/availability-alert/page.tsx (M23-S31)
 https://<ikaro-domain>/autowash-pro/lead-form → app/[slug]/lead-form/page.tsx
 https://<ikaro-domain>/autowash-pro/login    → app/[slug]/login/page.tsx
-https://<ikaro-domain>/autowash-pro/my-account/* → app/[slug]/my-account/ (customer shell — docs/16)
+https://<ikaro-domain>/autowash-pro/my-account/* → app/[slug]/my-account/ (customer shell — docs/DASHBOARD_FRONTEND_ARCHITECTURE)
 https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
 ```
 
@@ -571,10 +571,10 @@ export default async function HotsitePage({
 The booking page is a hotsite page (it uses `--ba-*` branding and `BrandHeader`), but its flow is driven by a **step engine**, not a fixed form. `BookingForm` (and `BookingFormWithDeepLink`, which reads the availability-alert email's query string client-side while the server page keeps ignoring `searchParams`) composes the steps in `features/booking/components/public/`; the pure step logic lives in `features/booking/model/booking-steps.ts`.
 
 - **Step list is computed from the chosen services.** `DEFAULT_BOOKING_STEPS` is `services → availability → personal → confirmation`. The engine inserts, per the basket: a `duration` step (`VariableDurationStep`) for a `CUSTOMER_SELECTED` duration policy, one `picker:<serviceId>:<legIndex>` step per `CUSTOMER_CHOICE` resource requirement or leg (`ResourcePickerStep` / `ResourcePicker`; `LegItineraryStep` for a multi-leg journey), and an `intake` step (`IntakeAnswersStep`, `IntakeAttendeesList`) when a service has an active intake schema.
-- **Data comes from the public read APIs** (BFF `GET /v1/public/services`, `/public/services/:id/resource-options`, `/quote` and `/intake-schema`, plus the requirement-aware `GET /v1/schedule/availability` — `docs/14-API_CONTRACTS.md`), fetched by the booking page and its step components; the submit payload is built by `model/booking-payload.ts` and posted to `POST /v1/bookings` (guest) or `/v1/bookings/authenticated`.
+- **Data comes from the public read APIs** (BFF `GET /v1/public/services`, `/public/services/:id/resource-options`, `/quote` and `/intake-schema`, plus the requirement-aware `GET /v1/schedule/availability` — `docs/API_CONTRACTS.md`), fetched by the booking page and its step components; the submit payload is built by `model/booking-payload.ts` and posted to `POST /v1/bookings` (guest) or `/v1/bookings/authenticated`.
 - **Outcome:** `BookingSubmittedDetails` is the success box (booking details, who/what/when).
 - **Availability alert ("Avise-me quando abrir"):** a button on the calendar step links to `/[slug]/booking/availability-alert`, a page of the booking flow (`AvailabilityAlertPage`, `AvailabilityAlertShell`, `NewAvailabilityAlertForm`). With no session it shows `AvailabilityAlertLoginGate`; the alert email's deep link (M23-S44) returns the customer to the booking page with the window pre-selected.
-- **Branding boundary:** these components render under the hotsite tree and may read `--ba-*`; the staff reschedule/no-show and the customer `my-account` screens that reuse some of the same pickers must stay on the fixed SaaS palette (`docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §2).
+- **Branding boundary:** these components render under the hotsite tree and may read `--ba-*`; the staff reschedule/no-show and the customer `my-account` screens that reuse some of the same pickers must stay on the fixed SaaS palette (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §2).
 
 ### Unpublished state (M12-S08)
 
@@ -645,7 +645,7 @@ The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits 
 
 > **Correction (M23-S44, 2026-10-10):** the ISR rationale in the next two paragraphs predates the root layout's `force-dynamic` (see the bold note at the start of this section). Every route already renders per request, so reading `cookies()`/`headers()` in the `[slug]` tree would no longer change the HTML's rendering mode, and no ISR cache of the HTML exists to lose. The pattern stays the compliant one — `HotsiteAuthBar` resolves its auth state after hydration — but the cost the paragraphs describe is not currently paid by anyone; what stays cached is the manifest and services data.
 
-**Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
+**Session-aware widgets must not break this cache (M13-S42).** Any UI that needs to know whether the current visitor is logged in (e.g. `HotsiteAuthBar`) must be a `'use client'` component that fetches its own auth state *after* hydration — via a same-origin proxy route, see `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §4 — and must **never** call `cookies()` from `next/headers` anywhere in the `[slug]` page/layout server-render tree. Calling `cookies()` there forces Next.js to treat the whole route as dynamic per-request, silently disabling the ISR cache above for every visitor, not just logged-in ones.
 
 **`headers()` is the same trap as `cookies()`.** Both are Next.js "Dynamic APIs" — calling either one anywhere in the `[slug]` page/layout server-render tree forces the whole route dynamic, silently disabling ISR (and any future CDN cache) the same way. This surfaced concretely in AUD-007 (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`): a per-request CSP nonce for the JSON-LD script (`shells/hotsite/components/JsonLdScript.tsx`) would require reading the nonce via `headers()` in `app/[slug]/page.tsx` — which would have quietly killed this page's ISR cache. The nonce was dropped in favor of a scoped `script-src 'unsafe-inline'` CSP exception instead; see that story for the full rationale. Treat any future need to read `headers()` (or `cookies()`) in this route tree as a caching regression to solve around, not a one-line addition.
 
@@ -748,7 +748,7 @@ The manifest pattern is designed to grow without rework:
 | Drag-and-drop reorder | Admin UI change only — the ordered `layout` array already supports it |
 | Custom domain per tenant | Cloud Run domain mapping + middleware Host header lookup — no code change |
 | New business vertical | New module types + default layout presets per `businessType` — post-MVP |
-| CDN / edge caching | Manifest endpoint already sets `Cache-Control: public, max-age=300`, and (since M12-S10) every image URL embedded in it is a permanent public-bucket address rather than an expiring signed URL — a CDN/edge layer (Cloud CDN, per `docs/22-TECH_STACK_DECISIONS.md`'s scaling plan) can front both the manifest and the public image bucket without changing the contract — post-MVP infra concern as hotsite traffic grows |
+| CDN / edge caching | Manifest endpoint already sets `Cache-Control: public, max-age=300`, and (since M12-S10) every image URL embedded in it is a permanent public-bucket address rather than an expiring signed URL — a CDN/edge layer (Cloud CDN, per `docs/TECH_STACK_DECISIONS.md`'s scaling plan) can front both the manifest and the public image bucket without changing the contract — post-MVP infra concern as hotsite traffic grows |
 
 ---
 
@@ -780,7 +780,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 ### Published hotsites listing endpoint
 
-`GET /v1/public/platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/14-API_CONTRACTS.md` § Published Hotsites Listing.
+`GET /v1/public/platform/published-hotsites` (BFF, `@Public()`, `PlatformPublicController`) → `{ items: Array<{ slug: string; updatedAt: string }> }`. Backed by `GET /internal/tenants/published-hotsites` (Platform context backend), returning one entry per tenant where `tenants.is_active = true AND hotsite_configs.is_published = true`, `updatedAt` = `hotsite_configs.updated_at` (ISO-8601 UTC). Full contract: `docs/API_CONTRACTS.md` § Published Hotsites Listing.
 
 ---
 

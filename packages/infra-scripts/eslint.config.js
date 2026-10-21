@@ -4,7 +4,7 @@ const jestPlugin = require('eslint-plugin-jest');
 // TD37-S15: this package's first ESLint config — previously unscanned by `pnpm lint` (no
 // "lint" script existed). Inherits the same shared base every app already uses; the only new
 // rule is the skip/only ban, scoped to spec files (docs/ANTI_PATTERNS.md,
-// docs/08-TESTING_STRATEGY.md).
+// docs/TESTING_STRATEGY.md).
 module.exports = [
   ...baseConfig,
   // infra-scripts is a standalone CLI tool with no NestJS/AppLogger — console.log/error is its

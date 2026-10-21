@@ -31,7 +31,7 @@
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-011
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-011
 **UC reference:** UC-011 (Guest Views Real-Time Calendar Availability)
 
 ### Background
@@ -196,7 +196,7 @@ None outstanding — `BookingCtaConfigPanel`, `AvailabilityCarousel`, and `tenan
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 **UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
 
 ### Background
@@ -268,7 +268,7 @@ Reuses `dashboard.hotsitePage.layout.configShell.applyLabel` ("Aplicar"/"Apply")
 
 ### Part 6 — Docs
 
-`docs/04-USE_CASES.md` UC-027: add "Section D: Manifesto (raw JSON edit)" to the Main Flow (mirrors how "Section C: SEO (M12-S09)" was appended when SEO shipped) + a new alt flow "A3: Malformed/invalid JSON in Manifesto tab → inline error, Aplicar blocked, draft unchanged."
+`docs/USE_CASES.md` UC-027: add "Section D: Manifesto (raw JSON edit)" to the Main Flow (mirrors how "Section C: SEO (M12-S09)" was appended when SEO shipped) + a new alt flow "A3: Malformed/invalid JSON in Manifesto tab → inline error, Aplicar blocked, draft unchanged."
 
 ### Acceptance Criteria
 
@@ -317,7 +317,7 @@ None — `PATCH /tenants/hotsite` already accepts partial `branding`/`layout`/`s
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
-**Docs to load:** `docs/24-BFF_ARCHITECTURE.md`, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027, `docs/VALUE_OBJECTS_REFERENCE.md`
+**Docs to load:** `docs/BFF_ARCHITECTURE.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027, `docs/VALUE_OBJECTS_REFERENCE.md`
 **Prototype reference:** `journeys/shared/hotsite.html` (topbar + footer logo placement, validated 2026-07-29) — read this file before writing `HotsiteAuthBar`/`Footer` changes; it is the UX spec for size/placement, not just an illustration.
 
 ### Background
@@ -449,7 +449,7 @@ Cross-tool review surfaced several findings; verified each against the actual di
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 
 ### Background
 
@@ -496,7 +496,7 @@ Resolved values: mobile aspect ratio `21:9` (≈2.33:1) on both variants, `sm:` 
 - New i18n key for this specific error message, in both locale files.
 
 **Part 4 — Docs refresh:**
-- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4's `HeroModuleData` TypeScript snippet (~line 202) is already stale versus the real type — missing `eyebrow`, `secondaryCtaLabel`, `secondaryCtaTarget`, `rightPanel`, and `backgroundImageUrl`'s nullability; `ctaTarget` only lists 2 of its 6 values. Pre-existing drift, not caused by this story, but resolved at `/story-discovery` to refresh the whole snippet in the same commit rather than adding `backgroundImagePosition` on top of an already-wrong example.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4's `HeroModuleData` TypeScript snippet (~line 202) is already stale versus the real type — missing `eyebrow`, `secondaryCtaLabel`, `secondaryCtaTarget`, `rightPanel`, and `backgroundImageUrl`'s nullability; `ctaTarget` only lists 2 of its 6 values. Pre-existing drift, not caused by this story, but resolved at `/story-discovery` to refresh the whole snippet in the same commit rather than adding `backgroundImagePosition` on top of an already-wrong example.
 
 ### Acceptance Criteria
 
@@ -507,7 +507,7 @@ Resolved values: mobile aspect ratio `21:9` (≈2.33:1) on both variants, `sm:` 
 - [ ] `SingleImageUploadField` rejects a `'hero'` upload whose post-compression stored height is below 450px, via the new `lowResolutionErrorLabel` prop — not the generic upload-error fallback
 - [ ] The 1604×494 reference image (or an equivalent ≈3.25:1 source) uploads successfully as a `'hero'` background (verifies the 450px threshold doesn't over-reject)
 - [ ] New locale keys (focal-point label/options, low-resolution error message) exist in both `pt-BR` and `en` in the same commit
-- [ ] `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` snippet matches the real type exactly (all fields, full `ctaTarget` enum, correct nullability, new `backgroundImagePosition` field)
+- [ ] `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` snippet matches the real type exactly (all fields, full `ctaTarget` enum, correct nullability, new `backgroundImagePosition` field)
 - [ ] Coverage ≥80% on changed code; `tsc --noEmit`, lint, full test suite green
 
 ### Testing
@@ -532,7 +532,7 @@ Resolved values: mobile aspect ratio `21:9` (≈2.33:1) on both variants, `sm:` 
 5. **Accepted limitation:** the reference image has important content at both horizontal extremes (text left, logo right) — a single focal-point value can't preserve both on a `21:9` mobile crop. `'center'` avoids fully losing either side. This is an accepted trade-off of the chosen single-image approach (Option 2 in Background), not something this story fixes — a tenant needing both sides fully visible on mobile would need art direction (Option 1), deliberately out of scope.
 6. **Low-resolution error mechanism:** new `lowResolutionErrorLabel` prop on `SingleImageUploadField`, matching the existing per-purpose label-prop pattern — not a typed error class.
 7. **No `journeys/` prototype required:** the measured reference image substituted for one — same reasoning precedent as M18-S02/M18-S03 for a scoped visual change, extended here to cover the "no prototype for a public-facing change" risk since a real image was reviewed and its exact numbers drove the resolved values above.
-8. **`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` doc drift:** refreshed in this story's own Part 4, rather than left as a separately-tracked gap.
+8. **`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` doc drift:** refreshed in this story's own Part 4, rather than left as a separately-tracked gap.
 
 ### Resolved during PR review (Codex + CodeRabbit, PR #294, 2026-07-30)
 
@@ -570,7 +570,7 @@ None — extends existing components (`HeroModule`, `HeroConfigPanel`, `SingleIm
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 
 ### Background
 
@@ -618,7 +618,7 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 - New keys under `dashboard.hotsitePage.layout.panels.hero` **and** `dashboard.hotsitePage.layout.panels.bookingCta`, in both `packages/i18n/locales/pt-BR/*.json` and `.../en/*.json` — per panel: `contentPositionXLabel`/`Left`/`Center`/`Right` and `contentPositionYLabel`/`Top`/`Center`/`Bottom` (8 new keys × 2 panels = 16 total), following the exact naming convention already confirmed live in the locale files (`<field>Label` / `<field><OptionValue>`, e.g. `backgroundImagePositionLabel`/`backgroundImagePositionLeft`).
 
 **Part 7 — Docs refresh:**
-- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4: both the `HeroModuleData` snippet (confirmed zero drift as of this story's start — safe base) and the `BookingCtaModuleData` snippet gain `contentPositionX`/`contentPositionY`.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4: both the `HeroModuleData` snippet (confirmed zero drift as of this story's start — safe base) and the `BookingCtaModuleData` snippet gain `contentPositionX`/`contentPositionY`.
 
 **Part 8 — Fix: left/right anchoring must respect the site's usual content width, not the raw viewport edge (found during manual review after the initial push):**
 - The first implementation of Part 3/4 positioned `contentPositionX` directly against the `<section>`'s own edge (only inset by its `px-6` padding) — on a wide viewport, `'left'`/`'right'` pushed the text block almost flush against the true browser edge, unlike every other hotsite section (`ServiceListModule`, `AboutModule`, `ContactModule`), which all constrain their content to a `mx-auto max-w-7xl` container with `padding: var(--ba-section-py) 1.5rem` on the section itself.
@@ -633,7 +633,7 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 - `BookingCtaConfigPanel.tsx`: new focal-point `PillSelect` (shown only when `backgroundImageUrl` is set), identical pattern to `HeroConfigPanel.tsx`'s existing one; its `SingleImageUploadField` call also gains `lowResolutionErrorLabel` (was missing entirely before this story — the low-resolution rejection existed in the shared `compressImage()`/`SingleImageUploadField` machinery, but this call site had never wired a purpose-specific message for it).
 - `SingleImageUploadField.tsx`'s `MINIMUM_STORED_HEIGHT` map gains a `'booking-cta': 450` entry (identical threshold to `'hero'` — same 21:9 mobile crop target, same derivation).
 - New i18n keys (`backgroundImagePositionLabel`/`Left`/`Center`/`Right`, `backgroundImageLowResolutionError`) under `dashboard.hotsitePage.layout.panels.bookingCta`, both locales.
-- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `BookingCtaModuleData` snippet gains `backgroundImagePosition` (this snippet also had pre-existing drift from a prior story, refreshed in full as part of this same story rather than compounding it — see the Description's opening background note).
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `BookingCtaModuleData` snippet gains `backgroundImagePosition` (this snippet also had pre-existing drift from a prior story, refreshed in full as part of this same story rather than compounding it — see the Description's opening background note).
 
 ### Acceptance Criteria
 
@@ -644,7 +644,7 @@ Both CTA buttons on `HeroModuleData` (`ctaLabel`/`ctaTarget` and the optional `s
 - [ ] `HeroModuleData`'s two CTA buttons move together with the heading/subtitle — no independent per-button positioning
 - [ ] `HeroConfigPanel.tsx` and `BookingCtaConfigPanel.tsx` both expose the `contentPositionY` PillSelect unconditionally and the `contentPositionX` PillSelect only when `variant === 'centered'`
 - [ ] New locale keys (16 total, 8 per panel) exist in both `pt-BR` and `en` in the same commit
-- [ ] `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` and `BookingCtaModuleData` snippets both include the two new fields, with no other drift from the real types
+- [ ] `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`'s `HeroModuleData` and `BookingCtaModuleData` snippets both include the two new fields, with no other drift from the real types
 - [ ] `contentPositionX: 'left'`/`'right'` anchors content within the same `max-w-7xl` content container every other hotsite section uses — not flush against the raw viewport edge — on both modules
 - [ ] `BookingCtaModuleData.backgroundImagePosition` exists in backend aggregate, `@ikaro/types`, and web zod schema; absent/undefined behaves identically to today (no visual change for existing tenants)
 - [ ] `BookingCtaModule.tsx` uses the same `vw`-relative sizing as `HeroModule.tsx` at every breakpoint — no `vh` unit remains in either variant's height mechanism
@@ -690,7 +690,7 @@ Cross-tool review surfaced 2 critical + 1 minor finding; verified each against t
 ### Resolved during PR review (CodeRabbit, PR #295, 2026-07-31)
 
 1. **Trivial, fixed: the centered-variant section/stage/wrapper class composition was duplicated between `HeroModule.tsx` and `BookingCtaModule.tsx`, built independently from the same `contentJustifyClass`/`contentItemsClass`/`contentTextAlignClass` primitives.** Extracted into a new `buildContentStageClasses()` helper in `module-styles.ts`, parameterized by each module's own section base classes and wrapper max-width; both modules now call it instead of assembling the same three class strings inline. (Utility class order within a single `className` doesn't affect Tailwind's output, so standardizing `itemsClass`'s position — always appended last — is cosmetic, not a behavior change; confirmed by the full test suite passing unchanged.)
-2. **Major, confirmed valid: `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`'s own newly-added content-width rule (Part 8 above) said section padding stays on the outer `<section>` with a padding-free `max-w-7xl mx-auto` stage — but the pre-existing `left-aligned` branches of both modules had it the other way around** (`px-6 py-16` on the inner `max-w-7xl` div, no padding on the section at all), predating this story. Rather than write an exception into the doc, fixed the code to match the stated convention — `px-6 py-16` moved to the outer section in both modules' `left-aligned` branches, the inner `max-w-7xl mx-auto` div is now padding-free. Verified behavior-preserving (the rendered content width/centering is identical either way, since the `max-w-7xl` div was already the effective content boundary) — confirmed by the full test suite passing unchanged.
+2. **Major, confirmed valid: `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`'s own newly-added content-width rule (Part 8 above) said section padding stays on the outer `<section>` with a padding-free `max-w-7xl mx-auto` stage — but the pre-existing `left-aligned` branches of both modules had it the other way around** (`px-6 py-16` on the inner `max-w-7xl` div, no padding on the section at all), predating this story. Rather than write an exception into the doc, fixed the code to match the stated convention — `px-6 py-16` moved to the outer section in both modules' `left-aligned` branches, the inner `max-w-7xl mx-auto` div is now padding-free. Verified behavior-preserving (the rendered content width/centering is identical either way, since the `max-w-7xl` div was already the effective content boundary) — confirmed by the full test suite passing unchanged.
 
 ### Dependencies
 
@@ -702,7 +702,7 @@ None — extends existing components (`HeroModule`, `HeroConfigPanel`, `BookingC
 
 **Agent:** `fullstack-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 **UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
 
 ### Background
@@ -721,7 +721,7 @@ Confirmed by direct read: the reason "Mosaico" renders identically to "Grade" to
 - `apps/web/features/platform/hotsite/module-schemas.ts`: add `width: z.number().optional()` and `height: z.number().optional()` to `GalleryImageSchema` (line 52-58).
 - **No migration** — `hotsite_config.layout` is a `jsonb` column (confirmed in the entity); every gallery already stored simply has no `width`/`height` key, which is a legitimate, permanent state this story must render correctly, not a transitional one.
 - **No `@ikaro/validation` change** — `HotsiteModuleSchema` (`packages/validation/src/hotsite.ts`) *is* applied to gallery modules, by both the BFF's and backend's save-path Zod pipes (`UpdateHotsiteContentSchema` reuses it directly), but its `data` field is `z.record(z.string(), z.unknown())` — deliberately opaque, same as every other module's `data`. `width`/`height` pass through both validation layers untouched with no schema change needed.
-- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: add `width?`/`height?` to the documented `GalleryImage` snippet (lines 241-247), matching M18-S03/S05's precedent of refreshing this doc whenever a module's data shape changes.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: add `width?`/`height?` to the documented `GalleryImage` snippet (lines 241-247), matching M18-S03/S05's precedent of refreshing this doc whenever a module's data shape changes.
 
 **Part 2 — Capture dimensions on fresh upload:**
 - `apps/web/shared/utils/compress-image.ts`: new sibling export `compressImageWithDimensions(file: File): Promise<{ file: File; width?: number; height?: number }>` — `width`/`height` are optional, not guaranteed: an unsupported source type/API or a decode failure still falls back to the original `File` with no dimensions, the same fail-open shape `compressImage` itself already has. `compressImage` itself is unchanged in its public signature — it's shared by callers (branding logo, SEO share image, hero background) that only want a `File` back. Internally, both share one `createImageBitmap` decode via a `compressDecodedBitmap` helper (reconciled 2026-08-07 after cross-tool review found the original version decoding the same file twice, once per function — see Part 5's own follow-up note below for the parallel `break-inside-avoid` reconciliation).
@@ -791,7 +791,7 @@ Confirmed by direct read: the reason "Mosaico" renders identically to "Grade" to
 
 1. **No hand-rolled packing algorithm.** `GalleryModule.tsx` already applies CSS `columns-3` in masonry mode; CSS multi-column layout natively packs variable-height children. The only defect is `GalleryItem.tsx:25`'s unconditional `aspect-[4/3]` clamp — fixing this is removing a clamp, not building a layout engine.
 2. **Automatic sizing (photo's own aspect ratio), not a manual size picker.** Considered a bento-style explicit size-per-image control (small/large, or spanning tiles); rejected for this product — Ikaro's hotsite editor targets small-business owners (car wash, gym, salon) without a strong intuition for "pick a size class," and a manual picker would need a different CSS technique entirely (`grid-auto-flow: dense` with explicit spans, since `columns` can't span tiles).
-3. **No backfill for pre-existing galleries.** They keep the fixed-box fallback in masonry mode (`aspect-square` as of Part 6, originally `aspect-[4/3]`), permanently, until re-uploaded/re-picked. Treated as a legitimate default, not a shortcut — matches this codebase's "unset renders identically to today" precedent (`docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`).
+3. **No backfill for pre-existing galleries.** They keep the fixed-box fallback in masonry mode (`aspect-square` as of Part 6, originally `aspect-[4/3]`), permanently, until re-uploaded/re-picked. Treated as a legitimate default, not a shortcut — matches this codebase's "unset renders identically to today" precedent (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`).
 4. **Reordering is a real, separate gap**, explicitly not folded into this story.
 
 ### Resolved after initial implementation (2026-08-07)
@@ -815,7 +815,7 @@ None — extends existing components (`GalleryItem`, `GalleryModule`, `GalleryIm
 
 **Agent:** `fullstack-ts`
 **Complexity:** L
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 **UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
 **Reference:** two external HTML mockups supplied directly by the user — `go-cowork-site.html` and `cf-cross-site.html` (not under `journeys/`; read directly, not copied from memory) — both a `#galeria` section captioned "Conheça o espaço."/"Conheça o box.". Both are static desktop-only wireframes: `.photo` is a placeholder `<div>` with caption text, not a real `<img>`; **zero `@media` queries in either file** — no mobile behavior to copy, it has to be designed for this story.
 
@@ -839,7 +839,7 @@ Exactly 5 photos in both files. The first one spans both rows (`go-cowork` also 
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`: mirror both on its own independent `GalleryModuleData`/`GalleryImage`-adjacent interface — same pattern as every prior field in this milestone; no new aggregate validation (`layout`/`featuredPosition` join `contentPositionX`-style fields that stay unvalidated by `HotsiteConfig.validateLayout()`, since there's no cross-field business rule here, just a rendering choice).
 - `apps/web/features/platform/hotsite/module-schemas.ts`: `layout: z.enum(['grid', 'masonry', 'featured'])`, `featuredPosition: z.enum(['left', 'right']).optional()`.
 - **No migration, no `@ikaro/validation` change** — same reasoning as M18-S06 Part 1: `jsonb` column, `HotsiteModuleSchema.data` stays a deliberately opaque `z.record()` at both the BFF's and backend's save-path Zod pipes.
-- `docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: update the `GalleryModuleData` snippet's `layout` union and add `featuredPosition`.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4 GALLERY: update the `GalleryModuleData` snippet's `layout` union and add `featuredPosition`.
 
 **Part 2 — Which photo is "featured" is array order, not a new field (confirmed with user):**
 - `images[0]` is always the large photo. No per-image "is featured" flag. If a tenant wants a different photo featured, they remove and re-add it in the order they want — accepted as good enough; `GalleryImageManager`'s lack of drag-to-reorder (flagged as a separate gap in M18-S06) is **not** a blocker for this story, but reordering would directly benefit this layout more than Grade/Mosaico ever needed it to, since order now has real visual meaning beyond "which shows first."
@@ -931,7 +931,7 @@ M18-S06 — code confirmed present in this branch (not yet `✅ Done`-marked; bo
 
 **Agent:** `frontend-ts`
 **Complexity:** M
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/04-USE_CASES.md` § UC-027
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/USE_CASES.md` § UC-027
 **UC reference:** UC-027 (Tenant Admin Manages Hotsite Content & Branding)
 
 This story bundles three small, independently-scoped usability improvements to `HotsiteEditor.tsx`, all raised in the same conversation: (1) a "Preview" button inside the per-module config screen (Parts 1–6), (2) a confirm-before-discard prompt when leaving that same screen with unsaved edits (Part 7), and (3) a "visit live site" link on the main tabs screen's action bar (Part 8, unrelated to module-config).
@@ -1197,7 +1197,7 @@ None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `dra
 ### Resolved during `/story-discovery M18-S08` (2026-08-07)
 
 1. **No `journeys/` prototype required.** All three parts of this story are small, self-contained additions to an already-shipped, already-validated screen (`HotsiteEditor.tsx`, M13-S37) — not a new UX surface needing validation from scratch. Same precedent as M18-S01/S02/S06/S07 in this same milestone.
-2. **`docs/04-USE_CASES.md` UC-027 updated in the same pass** (not deferred to this story's own implementation) — step 4 of the Main Flow now describes both the module-config Preview entry point and the "Visitar site" link; a new Alternative Flow A4 describes the discard-confirm prompt. Confirmed by direct read of UC-027 that neither the pre-existing module-config screen nor this story's additions were previously documented there.
+2. **`docs/USE_CASES.md` UC-027 updated in the same pass** (not deferred to this story's own implementation) — step 4 of the Main Flow now describes both the module-config Preview entry point and the "Visitar site" link; a new Alternative Flow A4 describes the discard-confirm prompt. Confirmed by direct read of UC-027 that neither the pre-existing module-config screen nor this story's additions were previously documented there.
 3. **`@radix-ui/react-alert-dialog` must be added to `dependencies`, not `devDependencies`** — confirmed against `docs/ANTI_PATTERNS.md`'s documented failure mode (a production-only import misclassified as dev-only passes CI, since tests see the full graph regardless, and only breaks at `pnpm deploy --prod`). Called out explicitly in Part 7 above so it isn't missed during implementation.
 
 ---
@@ -1206,7 +1206,7 @@ None outstanding for Parts 1–6 — `ModuleConfigShell`, `HotsitePreview`, `dra
 
 **Agent:** `backend-ts` (plus `web-ts` for the settings form and shared-package edits)
 **Complexity:** M
-**Docs to load:** `docs/21-TENANTS_SETTINGS_SCHEMA.md` § 4, `docs/04-USE_CASES.md` § UC-026, `docs/02-DOMAIN_MODEL.md` (tenant settings), `docs/13-DATABASE_SCHEMA.md` (tenants.settings), `docs/ENGINEERING_RULES_SHARED.md` § Value objects, `docs/CODE_STANDARDS.md`
+**Docs to load:** `docs/TENANTS_SETTINGS_SCHEMA.md` § 4, `docs/USE_CASES.md` § UC-026, `docs/DOMAIN_MODEL.md` (tenant settings), `docs/DATABASE_SCHEMA.md` (tenants.settings), `docs/ENGINEERING_RULES_SHARED.md` § Value objects, `docs/CODE_STANDARDS.md`
 **Dependencies:** none
 **Pattern:** plain composition — no named pattern applies
 
@@ -1227,7 +1227,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 5. The `architecture-policy.json` `requiredVo` entry for `notification.fromEmail` is removed along with the field.
 6. Out of scope: per-tenant authenticated sending domains (a possible future story), and any Reply-To override separate from `businessInfo.email`.
 
-**Discovery resolutions (2026-10-02):** `businessInfo.email` IS public (hotsite manifest `business.email`, chatbot system prompt), so Reply-To exposes it to email recipients by design and nothing is auto-copied. The Notificações UI is `SettingsNotificationSection.tsx` (+ spec), wired in `SettingsForm.tsx`. Table is `platform.tenants` (`settings JSONB`). `docs/21` §4 stays as a "removed" tombstone (no renumbering, so `§5`–`§8` citations stay valid).
+**Discovery resolutions (2026-10-02):** `businessInfo.email` IS public (hotsite manifest `business.email`, chatbot system prompt), so Reply-To exposes it to email recipients by design and nothing is auto-copied. The Notificações UI is `SettingsNotificationSection.tsx` (+ spec), wired in `SettingsForm.tsx`. Table is `platform.tenants` (`settings JSONB`). `docs/TENANTS_SETTINGS_SCHEMA` §4 stays as a "removed" tombstone (no renumbering, so `§5`–`§8` citations stay valid).
 
 **Backend use case steps:** none (no new use case). Behavior change in `EmailDeliveryChannelAdapter.send()`: (1) load `tenantInfo`; (2) `from = EMAIL_FROM`, `fromName = tenantInfo.name` (omitted when tenantInfo is null); (3) `replyTo = tenantInfo.replyToEmail ?? undefined`; (4) call `emailSender.send(...)`.
 **Backend HTTP surface:** reuses `PATCH/GET /v1/tenant/settings` with the `notification` key removed from the contract. No new endpoint.
@@ -1252,7 +1252,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 - `apps/bff/src/features/platform/tenant-settings.controller.spec.ts`, `apps/bff/http/platform/tenant-settings.http`
 - `apps/web/features/platform/settings-form.ts`, `settings-form-validation.ts`, `settings-form.spec.ts`, `api/tenant-settings.spec.ts`, `components/settings/SettingsForm.tsx` + `SettingsForm.spec.tsx`, `components/settings/SettingsNotificationSection.tsx` + `.spec.tsx` (delete), `apps/web/e2e/helpers/platform/settings-api.ts` (drops `notification` passthrough), `packages/i18n/locales/{pt-BR,en}/{web,errors}.json`
 - Additional `fromEmail` fixture specs beyond the ~12 above: `seed-default-templates.use-case.spec.ts`, `staff-invited.handler.spec.ts`, `send-staff-invitation.use-case.spec.ts`, `send-admin-daily-schedule-reminder-notification.use-case.spec.ts` (find all with `grep -rl fromEmail`)
-- Docs/prototypes already synced during discovery (2026-10-02): `docs/21-TENANTS_SETTINGS_SCHEMA.md` (§4 tombstone, examples), `docs/04-USE_CASES.md` UC-026 note, `journeys/manager/prototypes/configuracoes/**` (Notificações card removed from 01/01b/01c/01d, counts 7→6 in `index.html`/`01e`/`dev-notes.md`), `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` (EMAIL_FROM lines). `docs/02`/`docs/13` do not mention the block. Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
+- Docs/prototypes already synced during discovery (2026-10-02): `docs/TENANTS_SETTINGS_SCHEMA.md` (§4 tombstone, examples), `docs/USE_CASES.md` UC-026 note, `journeys/manager/prototypes/configuracoes/**` (Notificações card removed from 01/01b/01c/01d, counts 7→6 in `index.html`/`01e`/`dev-notes.md`), `plan/M11-NOTIFICATIONS-CRON_IMPLEMENTATION_DETAILS_IA.md` (EMAIL_FROM lines). `docs/DOMAIN_MODEL`/`docs/DATABASE_SCHEMA` do not mention the block. Historical milestone files (`plan/M13-*`, `plan/M11-*`) are NOT edited.
 
 **Acceptance criteria — product:**
 - [ ] Every outbound email is sent From the platform `EMAIL_FROM` address with the tenant's name as display name, regardless of any legacy stored value.
@@ -1283,7 +1283,7 @@ Decisions already made (Option A, user-chosen 2026-10-02; do not re-open at disc
 
 **Agent:** `backend-ts` (plus `bff-ts` for the response type pass-through and `web-ts` for the columns board)
 **Complexity:** L
-**Docs to load:** `docs/04-USE_CASES.md` § UC-057 and UC-059, `docs/02-DOMAIN_MODEL.md` (`resource_occupancy`, effective gap rule), `docs/13-DATABASE_SCHEMA.md` § `booking.resource_occupancy`, `docs/14-API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`, `docs/DEFINITION_OF_DONE.md` § Migration history, `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/CODE_STANDARDS.md`, `docs/08-TESTING_STRATEGY.md`, `journeys/staff/horarios.md` (UC-057, TD43, TD44 sections), `journeys/staff/prototypes/horarios/dev-notes.md`
+**Docs to load:** `docs/USE_CASES.md` § UC-057 and UC-059, `docs/DOMAIN_MODEL.md` (`resource_occupancy`, effective gap rule), `docs/DATABASE_SCHEMA.md` § `booking.resource_occupancy`, `docs/API_CONTRACTS.md` § `GET /schedule/day-grid`, `docs/ENGINEERING_RULES_BACKEND.md` § Migration backfills, `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`, `docs/DEFINITION_OF_DONE.md` § Migration history, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/CODE_STANDARDS.md`, `docs/TESTING_STRATEGY.md`, `journeys/staff/horarios.md` (UC-057, TD43, TD44 sections), `journeys/staff/prototypes/horarios/dev-notes.md`
 **Dependencies:** none (builds on shipped M22-S03 `resource_occupancy`, M22-S05 day-grid, M22-S06 columns board, TD43, TD44)
 **Pattern:** plain composition — no named pattern applies (one domain rule resolves `{minutes, source}` once, in `AvailabilityService`, and every consumer reads that result; a new `buffer` timeline-event kind on the web)
 
@@ -1359,7 +1359,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 - `apps/web/features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` (+ `.spec.tsx`), `TimelineBlockShell.tsx`, `ScheduleResourceColumnsBoard.tsx` (+ `.spec.tsx`)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json`
 - `apps/web/e2e/schedule-resource-columns.spec.ts` (+ helpers under `apps/web/e2e/helpers/` if a seed helper is needed)
-- Docs (doc gate applies, each needs its own yes at implementation time): `docs/13-DATABASE_SCHEMA.md` (two new `resource_occupancy` columns + constraint), `docs/14-API_CONTRACTS.md` (`gap` on the day-grid block), `docs/02-DOMAIN_MODEL.md` / `docs/04-USE_CASES.md` (UC-059 gap source, UC-057 note)
+- Docs (doc gate applies, each needs its own yes at implementation time): `docs/DATABASE_SCHEMA.md` (two new `resource_occupancy` columns + constraint), `docs/API_CONTRACTS.md` (`gap` on the day-grid block), `docs/DOMAIN_MODEL.md` / `docs/USE_CASES.md` (UC-059 gap source, UC-057 note)
 - Journey/prototype (already drafted 2026-10-03): `journeys/staff/horarios.md`, `journeys/staff/use-cases.md`, `journeys/staff/prototypes/horarios/{09-colunas-buffer.html, 09b-so-walace.html, index.html, dev-notes.md}`
 
 **Acceptance criteria — product:**
@@ -1395,7 +1395,7 @@ Make the Day-view resource columns board show, in every checked resource's colum
 
 **Agent:** web-ts
 **Complexity:** S
-**Docs to load:** `docs/16-DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `journeys/staff/agenda.md`, `journeys/staff/horarios.md`
+**Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/CODE_STANDARDS.md`, `journeys/staff/agenda.md`, `journeys/staff/horarios.md`
 **Dependencies:** none
 **Pattern:** plain composition — a pure date-range formatter consumed by the shared `WeekNav`
 

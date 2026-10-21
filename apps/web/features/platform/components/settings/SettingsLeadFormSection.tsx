@@ -14,7 +14,7 @@ interface SettingsLeadFormSectionProps {
   ) => void;
 }
 
-// All three fields are genuinely per-tenant abuse-protection knobs (docs/21-TENANTS_SETTINGS_SCHEMA.md
+// All three fields are genuinely per-tenant abuse-protection knobs (docs/TENANTS_SETTINGS_SCHEMA.md
 // §8) — unlike Chatbot's caps, there's no shared platform-cost reason to keep them Ikaro-only, so
 // every field here is tenant-editable with a full client-checkable bound (see
 // settings-form-validation.ts's SettingsFormSchema), same as the booking section's numeric fields.

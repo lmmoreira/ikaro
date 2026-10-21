@@ -32,7 +32,7 @@ export interface AvailabilityInput {
   opening: ScheduleOpening | null;
   // The resource-scoped opening for `date`, if any. Optional/undefined = none (tenant-wide call).
   resourceOpening?: ScheduleOpening | null;
-  // Occupancy for the ONE resource this call is scoped to (docs/13-DATABASE_SCHEMA.md §
+  // Occupancy for the ONE resource this call is scoped to (docs/DATABASE_SCHEMA.md §
   // booking.resource_occupancy) — a flat degenerate service calls this once for the tenant's
   // LOCATION resource; the resource-scoped path uses isWindowFree() instead (see that method).
   existingOccupancy: ResourceOccupiedSlot[];
@@ -159,7 +159,7 @@ export class AvailabilityService {
 
   // Resource-aware precedence. The tenant window is a hard outer boundary, resolved first,
   // exactly as this method behaved pre-M21 — a resource opening can never bypass a tenant-wide
-  // closure or extend beyond the tenant's own window (docs/02-DOMAIN_MODEL.md § Tenant boundary
+  // closure or extend beyond the tenant's own window (docs/DOMAIN_MODEL.md § Tenant boundary
   // and resource schedule resolution). `resource` undefined/null reduces to exactly the
   // pre-M21 single-scope computation (`resolveScopeWindow` applied once, tenant-wide) — both
   // existing tenant-wide "opening wins over closure" tests are unchanged by this refactor.
@@ -183,7 +183,7 @@ export class AvailabilityService {
     if (!resource) return tenantWindow;
 
     // A resource with its own workingHours gates against its own schedule, never the tenant's
-    // (Resource's own documented inheritance rule, docs/02-DOMAIN_MODEL.md § Resource) — mirrors
+    // (Resource's own documented inheritance rule, docs/DOMAIN_MODEL.md § Resource) — mirrors
     // OpenScheduleUseCase's identical effectiveDayHours computation. An inheriting resource's
     // baseline is the tenant's own already-resolved window, so a tenant-wide opening on an
     // otherwise-closed day is inherited automatically — no separate `?? tenantOpening` fallback

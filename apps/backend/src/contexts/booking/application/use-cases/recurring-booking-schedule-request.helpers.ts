@@ -29,7 +29,7 @@ import {
 import { planBundleOccurrences } from './recurring-occurrence-resource-plan.helpers';
 
 // Platform default hold when Service.bookingPolicy.manualHoldMinutes is null — matches
-// booking-request.helpers.ts's own DEFAULT_MANUAL_HOLD_MINUTES (docs/02-DOMAIN_MODEL.md); kept as
+// booking-request.helpers.ts's own DEFAULT_MANUAL_HOLD_MINUTES (docs/DOMAIN_MODEL.md); kept as
 // a small local constant rather than importing that file's private value, since the two hold
 // concepts (a one-off booking's hold vs a recurring schedule's approval hold) are independent
 // business rules that happen to share MVP's default.

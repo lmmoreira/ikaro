@@ -25,7 +25,7 @@ export interface GetChatbotCapStatusUseCaseResult {
  * counting mechanism. Deliberately narrow: only the daily-cap condition is reported here;
  * concurrency cap, global spend breaker, and provider balance floor stay covered by the
  * visitor-facing "not available" widget state (UC-034) only, since they aren't specific to — or
- * actionable by — one tenant (docs/14-API_CONTRACTS.md § Chatbot Cap Status).
+ * actionable by — one tenant (docs/API_CONTRACTS.md § Chatbot Cap Status).
  */
 @Injectable()
 export class GetChatbotCapStatusUseCase {

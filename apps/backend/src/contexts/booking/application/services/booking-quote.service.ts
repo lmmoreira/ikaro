@@ -24,7 +24,7 @@ export class BookingQuoteService {
 
   // No fallback to Service.durationMinutes when durationMinutes is omitted — locked at M23-S02
   // story-discovery, since that field isn't authoritative once durationPolicy=CUSTOMER_SELECTED
-  // (docs/02-DOMAIN_MODEL.md).
+  // (docs/DOMAIN_MODEL.md).
   private validateDuration(service: Service, requestedDurationMinutes: number | undefined): number {
     const { durationMinMinutes, durationMaxMinutes, durationIncrementMinutes } =
       service.bookingPolicy;
@@ -47,8 +47,8 @@ export class BookingQuoteService {
   }
 
   // Per-increment billing, rounded up to the nearest whole pricing increment (pricingIncrementMinutes
-  // is deliberately independent of durationIncrementMinutes — docs/02-DOMAIN_MODEL.md), then
-  // floored at minimumChargeAmount when set (docs/02-DOMAIN_MODEL.md: "optional floor applied
+  // is deliberately independent of durationIncrementMinutes — docs/DOMAIN_MODEL.md), then
+  // floored at minimumChargeAmount when set (docs/DOMAIN_MODEL.md: "optional floor applied
   // after the per-increment calculation").
   private computePrice(service: Service, durationMinutes: number): Money {
     const { pricingPolicy, pricingIncrementMinutes, pricePerIncrementAmount, minimumChargeAmount } =

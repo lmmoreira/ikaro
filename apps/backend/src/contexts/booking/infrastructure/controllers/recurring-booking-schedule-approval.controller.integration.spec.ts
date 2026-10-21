@@ -188,7 +188,7 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
   const scheduleRow = (scheduleId: string) =>
     ds.getRepository(RecurringBookingScheduleEntity).findOneByOrFail({ id: scheduleId, tenantId });
 
-  // docs/28-LOCK_CATALOG.md A4 and A3. A request and an approval each take the service key and the
+  // docs/LOCK_CATALOG.md A4 and A3. A request and an approval each take the service key and the
   // lock on every resource they consider. The existing race tests above pass without the service
   // key (the resource lock serializes those scenarios on its own), so these hold one lock at a
   // time and prove the use case waits for it.
@@ -271,7 +271,7 @@ describe('Recurring schedule approval, materialization and expiry (integration)'
     });
   });
 
-  // docs/28-LOCK_CATALOG.md H1. A one-off booking and a recurring request used to take the service
+  // docs/LOCK_CATALOG.md H1. A one-off booking and a recurring request used to take the service
   // row and the room lock in opposite orders, so two of them on the same service and room could
   // deadlock. Both now take the service row first. They ask for different times, so both succeed.
   it('a one-off booking and a recurring request on the same service and room never deadlock (H1)', async () => {

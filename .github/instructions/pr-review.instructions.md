@@ -180,7 +180,7 @@ Do **not** review, flag, or comment on any file matching these patterns — they
 ### 8. BFF & API Design
 
 - BFF calling a backend context it does not own — BFF should orchestrate, not couple contexts internally
-- API response shape inconsistent with established contract in `docs/14-API_CONTRACTS.md` (missing fields, wrong types)
+- API response shape inconsistent with established contract in `docs/API_CONTRACTS.md` (missing fields, wrong types)
 - Breaking changes to existing API contracts without versioning — check if existing callers are updated
 - Missing pagination on list endpoints — every collection endpoint must support `page` + `limit` or cursor
 - Missing `Content-Type` validation on endpoints that accept a body

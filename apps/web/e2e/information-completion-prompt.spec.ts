@@ -3,7 +3,7 @@ import { loginAsCustomer, uniqueTestEmail } from './helpers/auth';
 import { fillValidAddress } from './helpers/customer';
 
 // HotsiteAuthBar resolves auth state client-side, after hydration, via /api/session (not
-// synchronously in server-rendered HTML — see docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md §6). The
+// synchronously in server-rendered HTML — see docs/HOTSITE_DYNAMIC_ARCHITECTURE.md §6). The
 // default 5s Playwright timeout can be too tight for that extra network round trip under CI load.
 const AUTH_RESOLVE_TIMEOUT = 15_000;
 

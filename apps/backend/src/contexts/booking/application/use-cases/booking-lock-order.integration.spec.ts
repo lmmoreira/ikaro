@@ -44,7 +44,7 @@ import { ResolveFutureCommitmentExceptionsUseCase } from './resolve-future-commi
 const STAFF_ID = '20000000-0000-4000-8000-0000000000d1';
 const TIMEZONE = 'America/Sao_Paulo';
 
-// docs/28-LOCK_CATALOG.md § 2 and docs/08-TESTING_STRATEGY.md § Concurrency tests. Two kinds of
+// docs/LOCK_CATALOG.md § 2 and docs/TESTING_STRATEGY.md § Concurrency tests. Two kinds of
 // test, both with a tenant of their own per scenario:
 //  - lock contract (deterministic): hold the resource lock of a booking's resource, start the
 //    operation, and prove it waits for that lock without already owning the booking's worklist

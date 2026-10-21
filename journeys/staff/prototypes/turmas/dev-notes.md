@@ -2,7 +2,7 @@
 
 ## Overview
 
-New STAFF|MANAGER-shared journey for M24 — Multi-Vertical Classes & Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/{staff-04-turmas-proximas,manager-roster-dia,staff-02b-fechar-turma,staff-03,staff-03b,staff-06,staff-06b}.html`. See `docs/02-DOMAIN_MODEL.md` § `ClassSession`/`ClassSessionBooking`.
+New STAFF|MANAGER-shared journey for M24 — Multi-Vertical Classes & Sessions, Cluster 4. Nothing here is built yet; relocated from `docs/discovery/multivertical-booking/prototype/{staff-04-turmas-proximas,manager-roster-dia,staff-02b-fechar-turma,staff-03,staff-03b,staff-06,staff-06b}.html`. See `docs/DOMAIN_MODEL.md` § `ClassSession`/`ClassSessionBooking`.
 
 ## File map (❓ none exist yet)
 
@@ -14,7 +14,7 @@ New STAFF|MANAGER-shared journey for M24 — Multi-Vertical Classes & Sessions, 
 | `apps/web/features/booking/components/dashboard/turmas/SessionCapacityOverrideForm.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/dashboard/turmas/GuestReservationApproval.tsx` | ❓ Gap |
 
-## BFF calls (endpoints not yet implemented — contract per `docs/14-API_CONTRACTS.md` § Classes & Sessions)
+## BFF calls (endpoints not yet implemented — contract per `docs/API_CONTRACTS.md` § Classes & Sessions)
 
 ```
 GET   /v1/class-sessions?scope=mine|all&from=&to=

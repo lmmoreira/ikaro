@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-// M23 Cluster 3 (UC-074) — docs/13-DATABASE_SCHEMA.md § booking.booking_status_transitions.
+// M23 Cluster 3 (UC-074) — docs/DATABASE_SCHEMA.md § booking.booking_status_transitions.
 // Wholly new, additive table — no existing table modified (bookings.status has no CHECK, so
 // NO_SHOW needs no constraint change) and no backfill: no booking was ever a no-show.
 export class CreateBookingStatusTransitions1748500000023 implements MigrationInterface {

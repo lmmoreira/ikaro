@@ -39,7 +39,7 @@ import { UpdateResourceUseCase } from './update-resource.use-case';
 
 const MANAGER_ID = '20000000-0000-4000-8000-0000000000e1';
 
-// The locks that predate M23-S48 (docs/28-LOCK_CATALOG.md § 3.1): the staff wrapper, the tenant
+// The locks that predate M23-S48 (docs/LOCK_CATALOG.md § 3.1): the staff wrapper, the tenant
 // day and the resource lock taken by a deactivation. Same lock-contract pattern
 // as booking-lock-order.integration.spec.ts, one tenant world per scenario: hold the lock, start
 // the use case, prove it waits, release, check the result. Two of them also check the OUTCOME the
@@ -328,7 +328,7 @@ describe('booking context locks (integration)', () => {
   });
 
   describe('outcome: what the tenant-day lock protects', () => {
-    // A closure overlap has no database constraint (docs/13-DATABASE_SCHEMA.md § schedule_closures),
+    // A closure overlap has no database constraint (docs/DATABASE_SCHEMA.md § schedule_closures),
     // so the lock is the only thing that stops two overlapping closures from both passing the check.
     it('two overlapping closures of the same day: exactly one is created', async () => {
       for (let round = 0; round < 3; round++) {

@@ -2,7 +2,7 @@ import type { HotsiteChatbotMessageResponse, HotsiteChatbotStatusResponse } from
 import { bffClient } from '@/shared/lib/api/bff-client';
 
 // Client-only — ChatbotWidget.tsx's mount-time pre-flight check and message send, both live,
-// guest-facing calls that can never be server-rendered/cached (docs/15-HOTSITE_DYNAMIC_ARCHITECTURE.md
+// guest-facing calls that can never be server-rendered/cached (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md
 // § CHATBOT). Same pattern as fetchServicesClient() (../api/services.ts): bffClient's /v1 baseURL
 // is proxied by the existing generic same-origin gateway (apps/web/app/v1/[...path]/route.ts)
 // straight through to the BFF, whose setGlobalPrefix('v1') makes /public/platform/chatbot/* live

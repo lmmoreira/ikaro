@@ -2,11 +2,11 @@ import { WeekDayName } from '../../../shared/utils/calendar-date';
 import { TimeOfDay } from '../../../shared/value-objects/time-of-day.vo';
 import { Timezone } from '../../../shared/value-objects/timezone.vo';
 
-// docs/02-DOMAIN_MODEL.md § AvailabilityAlert — an expiring, non-reserving intent.
+// docs/DOMAIN_MODEL.md § AvailabilityAlert — an expiring, non-reserving intent.
 export type AvailabilityAlertCriteriaType = 'ONE_TIME_RANGE' | 'WEEKLY_PREFERENCE';
 export type AvailabilityAlertStatus = 'ACTIVE' | 'NOTIFIED' | 'CANCELLED' | 'EXPIRED';
 
-// docs/13-DATABASE_SCHEMA.md § availability_alert_notification_attempts. EMAIL is the only channel
+// docs/DATABASE_SCHEMA.md § availability_alert_notification_attempts. EMAIL is the only channel
 // M23-S07 writes (the CHECK also allows IN_APP). PENDING means "a match was found and handed off to
 // the Notification context, nothing tried yet"; the Notification context then records SENT, or
 // FAILED when the last try failed (M23-S38 — a later successful redelivery turns FAILED into SENT).
