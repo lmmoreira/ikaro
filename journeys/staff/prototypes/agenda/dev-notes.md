@@ -483,7 +483,7 @@ Added 2026-09-29 as a deliberately small first pass in the same staff dashboard 
 | File | Screen | Route |
 |---|---|---|
 | `09-escolher-cliente.html` | Step 1 — pick the customer (the shared chooser, `?tipo=recorrencia`; shipped by M23-S40) | `/dashboard/bookings/new?tipo=recorrencia` |
-| `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer; variants in the hash (see the header comment of the file) | `/dashboard/bookings/recurring/new?customerId=` (proposed — two segments after `/dashboard/bookings/`) |
+| `09b-nova-recorrencia-padrao.html` | Step 2 — the pattern, for the chosen customer; variants in the hash (see the header comment of the file) | `/dashboard/bookings/recurring/new?customerId=` (shipped, M23-S19; `apps/web/app/dashboard/bookings/recurring/new/page.tsx`) |
 | `09c-nova-recorrencia-resultado.html` | Outcomes of an accepted pattern (one panel each; `?forma=` switches the recap between the service shapes) | same route, result states |
 
 **Customer picker:** there is none of this story's own. `CustomerChooserStep` (S40) already searches (`GET /customers`, name / e-mail / phone, 5-character minimum once a term is typed, alphabetical first page — see "Chooser details" above) and already disables the guest option for `kind="recorrencia"`; the registered customer travels as `?customerId=`. S19 only makes `NewBookingChooserPage` read `?tipo=` (it hard-codes `agendamento` today) and send a recurrence to the pattern route. A guest can never have a recurrence.
