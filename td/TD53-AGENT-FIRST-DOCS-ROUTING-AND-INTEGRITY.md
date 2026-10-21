@@ -1047,7 +1047,7 @@ Already checked and **not** duplicates (do not touch): the Turnstile test siteke
 - [ ] `/docs-audit changed` over the story's range reports zero dead pointers
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 8 — Plan and TD structure: schema conformance, stale IA paths, M18 close-out ⚪
+### Story 8 — Plan and TD structure: schema conformance, stale IA paths, M18 close-out ✅ Done
 
 **Agent:** devops
 **Complexity:** L
