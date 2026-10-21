@@ -177,7 +177,7 @@ A secret or sensitive value is never a Variable (rule stated in `docs/17-GITHUB_
 **Live-verification check:** after the flag is removed, open a throwaway draft PR with one deliberate cross-context import (for example `booking` importing a `loyalty` domain file) and one use case → use case import, and confirm the scan job turns red; close the PR without merging. Pass = the job fails on the deliberate violations and passes on `main`. Opening the PR needs the owner's yes at that point. A failed or un-runnable check is a stuck condition.
 **PR sequence:** 2 PRs, neither mixes `infra/terraform/**` with `apps/**`, so `infra-app-mix-ok` does not apply. PR1: clear the baseline (policy, config and rule changes, renames and moves, extractions, port, cycle fixes, the 4 entries, and the `docs/05`, `docs/11` and `ENGINEERING_RULES_BACKEND.md` conventions); no workflow change, so `pnpm dep-cruise` exits 0 but is still non-blocking. PR2: remove `continue-on-error`, rename the job, update `docs/08` and `docs/17`, run the live check. A gate flipped before the baseline is clean would block every PR, so PR2 merges only after PR1.
 
-### Story 4 — Make unescaped `%…%` LIKE/ILIKE patterns fail lint, and fix the three that exist 🔴
+### Story 4 — Make unescaped `%…%` LIKE/ILIKE patterns fail lint, and fix the three that exist 🔴 ✅ Done
 
 **Agent:** backend-ts
 **Complexity:** M
