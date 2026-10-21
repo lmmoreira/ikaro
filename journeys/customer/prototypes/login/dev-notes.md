@@ -41,7 +41,7 @@ Headers: Authorization: Bearer <jwt>
 
 **Validation (client-side):** strip non-digits, must be 10 or 11 digits.
 
-**Prototype:** `02-phone-completion.html` shows this as a standalone screen for review clarity; production is the inline prompt, not a page navigation. Validation-error state (422 / client-side reject): `02b-validation-error.html`.
+**Prototype:** `02-phone-completion.html` shows this as a standalone screen for review clarity; production is the inline prompt, not a page navigation. Validation-error state (client-side reject): `02b-validation-error.html`.
 
 ## UC-023 — Customer switches tenant
 
