@@ -1,0 +1,153 @@
+{
+  "branding": {
+    "logoUrl": "https://storage.googleapis.com/ikaro-public-staging/tenants/019fa8c2-541d-72fe-af5c-c5dcb5ee9be0/hotsite/branding/019fb067-3f0a-7c63-ae12-98f3780f0fea/beloauto.webp",
+    "spacing": "comfortable",
+    "brandName": "BELOAUTO",
+    "textColor": "#FFFFFF",
+    "buttonStyle": "filled",
+    "heroBgStyle": "background",
+    "shadowStyle": "subtle",
+    "borderRadius": "rounded",
+    "brandTagline": "Estética Automotiva",
+    "dividerStyle": "gradient",
+    "primaryColor": "#F5A800",
+    "bodyFontFamily": "Montserrat",
+    "secondaryColor": "#1A1A1A",
+    "backgroundColor": "#0A0A0A",
+    "buttonTextColor": "#0A0A0A",
+    "headingFontFamily": "Montserrat",
+    "alternateSectionBg": true,
+    "buttonBackgroundColor": "#F5A800"
+  },
+  "layout": [
+    {
+      "data": {
+        "title": "Cuidado completo para o seu carro",
+        "eyebrow": "Estética automotiva premium · SJC-SP",
+        "variant": "left-aligned",
+        "ctaLabel": "Ver serviços",
+        "subtitle": "Resultados impecáveis com atenção aos detalhes",
+        "ctaTarget": "service-list",
+        "rightPanel": "brand-card",
+        "secondaryCtaLabel": "Agendar agora",
+        "secondaryCtaTarget": "booking-form"
+      },
+      "type": "HERO",
+      "enabled": true
+    },
+    {
+      "data": {
+        "title": "Nossos Serviços",
+        "layout": "grid",
+        "eyebrow": "O que fazemos",
+        "showPoints": true,
+        "showPrices": true
+      },
+      "type": "SERVICE_LIST",
+      "enabled": true
+    },
+    {
+      "data": {
+        "title": "Agende seu horário",
+        "bgStyle": "background",
+        "eyebrow": "Reserve agora",
+        "variant": "left-aligned",
+        "ctaLabel": "Agendar agora",
+        "subtitle": "Reserve em poucos minutos e cuide do seu carro com a gente",
+        "rightPanel": "brand-card",
+        "datePickerType": "carousel"
+      },
+      "type": "BOOKING_CTA",
+      "enabled": true
+    },
+    {
+      "data": {
+        "title": "Nosso Trabalho",
+        "images": [],
+        "layout": "grid",
+        "eyebrow": "Resultados reais",
+        "maxVisible": 3
+      },
+      "type": "GALLERY",
+      "enabled": false
+    },
+    {
+      "data": {
+        "items": [
+          {
+            "text": "Atendimento excelente, recomendo!",
+            "rating": 5,
+            "authorName": "Maria Silva"
+          },
+          {
+            "text": "Carro ficou impecável, voltarei sempre.",
+            "rating": 4,
+            "authorName": "João Pereira"
+          },
+          {
+            "text": "Rápido e com ótimo preço.",
+            "rating": 5,
+            "authorName": "Ana Costa"
+          }
+        ],
+        "title": "O que nossos clientes dizem",
+        "layout": "carousel",
+        "eyebrow": "Quem já conhece"
+      },
+      "type": "TESTIMONIALS",
+      "enabled": true
+    },
+    {
+      "data": {
+        "body": "Somos uma estética automotiva **premium** com mais de 10 anos de experiência cuidando do seu carro com carinho e atenção aos detalhes.\n\n- Produtos de alta qualidade\n- Profissional especializado\n- Agendamento rápido",
+        "title": "Sobre nós",
+        "imageUrl": null,
+        "imagePosition": "right"
+      },
+      "type": "ABOUT",
+      "enabled": true
+    },
+    {
+      "data": {
+        "title": "Fale conosco",
+        "eyebrow": "Vem nos visitar",
+        "showMap": true,
+        "showEmail": true,
+        "showPhone": true,
+        "showAddress": true,
+        "displayStyle": "icon-cards",
+        "showWhatsapp": true,
+        "whatsappCtaLabel": "Chamar no WhatsApp"
+      },
+      "type": "CONTACT",
+      "enabled": true
+    },
+    {
+      "data": {
+        "tagline": "Estética Automotiva Premium · São José dos Campos, SP, Brasil",
+        "showWhatsapp": true,
+        "copyrightNote": "Todos os direitos reservados."
+      },
+      "type": "FOOTER",
+      "enabled": true
+    },
+    {
+      "type": "CHATBOT",
+      "enabled": false,
+      "data": {}
+    },
+    {
+      "type": "LEAD_FORM",
+      "enabled": false,
+      "data": {
+        "title": "",
+        "ctaLabel": ""
+      }
+    }
+  ],
+  "seo": {
+    "title": "Belo Auto Estética Premium",
+    "description": "Belo Auto Estética",
+    "ogImageUrl": "https://storage.googleapis.com/ikaro-public-staging/tenants/019fa8c2-541d-72fe-af5c-c5dcb5ee9be0/hotsite/seo-og-image/019fb067-7d6c-77ca-9809-add66a36d12c/beloauto.webp"
+  }
+}
