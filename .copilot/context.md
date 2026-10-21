@@ -319,7 +319,7 @@ Always delete the local branch with `-D` (not `-d` — squash merges aren't reco
 `/mark-done M0X-SYY` (or `TDNN-SYY` for a TD story) after the merge — the last-mile check, not just bookkeeping: it re-verifies AC evidence and that every Critical/Important finding on the merged PR was resolved, opens a bug-fix TD via `/create-td` for any real gap, then updates the plan file and commits to main. **If a worktree was used, `/mark-done` cleans it up immediately — no need to ask** (remove it, `-D` the local branch, prune the remote-tracking ref, verify with `git worktree list`).
 
 ### Step 12 — Milestone complete?
-If all stories are `✅ Done`: `/mark-done`'s milestone block creates `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md`, adds the IA file to §10, and runs the stale-documentation sweep.
+If all stories are `✅ Done`: `/mark-done`'s milestone block creates `plan/MXX-<NAME>_IMPLEMENTATION_DETAILS_IA.md` + `_DEVELOPER.md` (no §10 row), and runs the stale-documentation sweep.
 
 ### Parallel batch execution (optional)
 
@@ -361,7 +361,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 | Observability | `docs/OBSERVABILITY_STRATEGY.md` § Where a change belongs (then the section it names) + `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling |
 | Production incident, rollback or release path | `docs/RUNBOOKS.md` (17 KB) — the procedure's own section only (Rollback, Staging, Pub/Sub and scheduled jobs) + `docs/RELEASE_LIFECYCLE_OPERATIONS.md` (7 KB) |
 | Reading, adding or validating a `tenants.settings` key | `docs/TENANTS_SETTINGS_SCHEMA.md` § Settings by Category (the key's own entry; 37 KB) |
-| Implementing a milestone story | Load `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` for that milestone (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`). Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
+| Implementing a milestone story | If the story extends a done milestone's code, load its `plan/<M0X>-<NAME>_IMPLEMENTATION_DETAILS_IA.md` (`ls plan/*_IMPLEMENTATION_DETAILS_IA.md`); else skip. Special case: `plan/M115-PRODUCTION-READINESS_IMPLEMENTATION_DETAILS_IA.md` |
 | Multivertical scheduling: `Resource` aggregate (M21); `Service.resourceRequirements`/`legs`/`bookingModel`/booking-policy/intake-schema, `resource_occupancy` exclusivity engine, day grid (M22); recurring reservations, availability alerts, future-commitment worklist, no-show, booking window, full booking detail (M23) | `plan/M21-MULTIVERTICAL-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` · `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` · `plan/M23-MULTIVERTICAL-APPOINTMENT-BOOKING_IMPLEMENTATION_DETAILS_IA.md` |
 | New journey or prototype | `journeys/README.md` |
 | Starting a new discovery from an idea | `/create-discovery` |
