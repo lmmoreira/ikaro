@@ -114,4 +114,4 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 
 ## Unpublish (new — not in original UC text)
 
-`POST /tenants/hotsite/unpublish` exists in the backend/BFF but UC-027's text never describes a take-down flow. The prototype places it in a "Zona de risco" panel inside the editor (`01-hotsite-editor.html`, bottom of page) as a secondary, visually de-emphasized action. Confirm placement before implementing — could equally live in `manager/configuracoes.md` instead.
+`POST /tenants/hotsite/unpublish` exists in the backend/BFF but UC-027's text never describes a take-down flow. The prototype places it in a "Zona de risco" panel inside the editor (`01-hotsite-editor.html`, bottom of page) as a secondary, visually de-emphasized action. Shipped (the "Despublicar hotsite" action; `hotsite-admin.controller.ts`).

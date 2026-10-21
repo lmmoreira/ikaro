@@ -96,7 +96,7 @@ Folder: `staff/prototypes/horarios/`
 | `04-opening-form.html` | Abrir dia especial | UC-010c | ✅ Criado |
 | `05-opening-created.html` | Abertura criada | UC-010c | ✅ Criado |
 | `06-remove-opening.html` | Abertura removida | UC-010d | ✅ Criado |
-| `07-horarios-recurso.html` | Horários filtrados por recurso (MANAGER) | M21-S05 | ✅ Criado |
+| `07-horarios-recurso.html` | Horários filtrados por recurso (MANAGER) | M21-S05 | ✅ Criado (illustrative, from discovery — not a validated prototype; see the M21 section) |
 | `08-visao-geral-manager.html` | Visão geral do MANAGER: colunas limitadas por recurso | UC-057 | ✅ Criado (M22-S06) |
 | `09-colunas-buffer.html` / `09b-so-walace.html` | Tempo mantido após cada agendamento (buffer) | M18-S10 | ✅ Criado |
 | `10-filtros-flutuantes.html` | Filtros de status e recurso como dock | M23-S50 | ✅ Criado |

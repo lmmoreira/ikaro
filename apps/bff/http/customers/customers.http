@@ -42,7 +42,7 @@ Content-Type: application/json
 
 ###
 
-### HAPPY PATH — search by name fragment (min 5 chars)
+### HAPPY PATH — search by name fragment (the API accepts any non-blank term)
 GET {{bffUrl}}/v1/customers?search=joaos&limit=20
 Authorization: Bearer {{staffToken}}
 
@@ -60,8 +60,8 @@ Authorization: Bearer {{staffToken}}
 
 ###
 
-### ERROR — search too short (< 5 chars) → 400
-GET {{bffUrl}}/v1/customers?search=jo
+### ERROR — blank search term (trims to empty) → 400
+GET {{bffUrl}}/v1/customers?search=%20
 Authorization: Bearer {{staffToken}}
 
 ###

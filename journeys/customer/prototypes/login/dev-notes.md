@@ -36,7 +36,7 @@ PATCH /v1/customers/me { phone: string, defaultAddress: Address }
 Headers: Authorization: Bearer <jwt>
 
 → 200: phone saved → dismiss prompt
-→ 422: phone must be E.164 (BFF `isValidPhoneNumber`, code `PhoneErrorCode.FORMAT_INVALID`; `customers.schemas.ts`) → "Digite um número de telefone válido (10 ou 11 dígitos)." (the shipped UI copy)
+→ 400: phone must be E.164 (BFF `isValidPhoneNumber`, code `PhoneErrorCode.FORMAT_INVALID`; `customers.schemas.ts`) → "Digite um número de telefone válido (10 ou 11 dígitos)." (the shipped UI copy)
 ```
 
 **Validation (client-side):** strip non-digits, must be 10 or 11 digits.

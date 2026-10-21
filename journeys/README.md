@@ -720,7 +720,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
 | CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`) |
-| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Reviewed |
+| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04) |
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Built (M13-S31) |
