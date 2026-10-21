@@ -341,7 +341,7 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 | `apps/web/features/booking/components/account/TurmaDetailPage.tsx` | ❓ Gap |
 | `apps/web/features/booking/components/account/WaitlistOfferDecision.tsx` | ❓ Gap |
 
-**BFF calls:** see the Cluster 4 section of `../../minha-conta.md` above.
+**BFF calls:** see the "M24 — Multi-Vertical Scheduling, Cluster 4 extension" section of `journeys/customer/minha-conta.md` (a different file from this one).
 
 **Important — read model reconciliation (carried forward from the discovery's own note, still unresolved):** the original prototype's `EnrollmentSession` interface is superseded — canonically, a recurring occurrence is its own `ClassSessionBooking` row (`seriesId` set, own `status`), and attendance lives on `ClassSessionAttendee.attendance`. "Pulou" is derived at display time (`status=CANCELLED AND seriesId!=null`), never a stored enum value. The implementing story must remove any obsolete interface rather than reconcile it.
 

@@ -82,22 +82,22 @@ None of these are new routes — each is the same component in a different state
 **BFF call 1 — carousel month view:**
 ```
 GET /schedule/availability/summary
-  ?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid,uuid
+  ?from=YYYY-MM-DD&to=YYYY-MM-DD&serviceIds=uuid,uuid[&resourceSelections=…][&durationMinutes=N]
   Header: X-Tenant-Slug: {slug}
 
-Response: AvailabilitySummaryResponse
-  { dates: { date: string; available: boolean }[] }
+Response: AvailabilitySummaryResponse  (packages/types/src/schedule.dto.ts)
+  DaySummary[]   // a bare array: { date: string; available: boolean; slotCount: number }[]
 ```
 Fetcher: `apps/web/features/platform/hotsite/api/schedule.ts`
 
 **BFF call 2 — slot picker (triggered when day is clicked):**
 ```
 GET /schedule/availability
-  ?date=YYYY-MM-DD&serviceIds=uuid,uuid
+  ?date=YYYY-MM-DD&serviceIds=uuid,uuid[&resourceSelections=…][&durationMinutes=N]
   Header: X-Tenant-Slug: {slug}
 
 Response: AvailabilityResponse
-  { slots: { startsAt: string; endsAt: string }[] }
+  { date: string; slots: { startsAt: string; endsAt: string }[]; available: boolean }
 ```
 
 **State (in `BookingForm`):**
@@ -317,7 +317,7 @@ The button is a link to the alert page of the booking flow, `/{slug}/booking/ava
 
 | Aspect | Rule |
 |---|---|
-| Component | `AvailabilityAlertEntry` (expected, `apps/web/features/booking/components/public/`; final path at implementation) — rendered once by the calendar step, so the guest and customer flows cannot drift |
+| Component | `AvailabilityAlertEntry` (`apps/web/features/booking/components/public/AvailabilityAlertEntry.tsx`) — rendered once by the calendar step, so the guest and customer flows cannot drift |
 | Props | `href` only (`string \| null`, null = render nothing). The href comes from the pure helper `buildAvailabilityAlertLink({ slug, services, resourceSelections, durationMinutes })`, which returns null unless the basket is exactly one eligible service |
 | Copy | Button label only: "Avise-me quando abrir" — identical in `02` and `02d`, never reworded per state, and **no explanatory sentence** next to it (the alert page explains what an alert is). i18n key in both locales, same change |
 | Styling | The button is bespoke hotsite-tree styling: `--ba-*` tokens and the booking flow's own button look (same shape and size as "Voltar" and "Próximo"), like its neighbours in the nav row. The page it links to is also a hotsite-tree page of the booking flow, whose date/hour/duration controls are the shared shadcn primitives (`customer/prototypes/book-a-service/dev-notes.md`); only "Meus avisos" is an account-shell page |

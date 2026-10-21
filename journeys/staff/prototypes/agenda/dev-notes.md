@@ -58,10 +58,11 @@ type ActionState =
   | 'info-requested'    // UC-005 success — blue banner, Approve+Reject still visible
   | 'slot-conflict'     // UC-003 → 409 — SlotConflictAlert shown, retry available
   | 'cancelled'         // UC-008 success — red banner, no action buttons (terminal)
-  | 'completed'         // UC-009 success — green banner, no action buttons (terminal)
-  | 'rescheduled'       // UC-008 A1 success — green banner, status stays APPROVED, action buttons return
-  | 'reschedule-conflict' // UC-008 A1 → 409 — RescheduleConflictAlert shown, retry available
+  | BookingNoShowActionState // UC-074 (M23-S27): 'no-show' | 'no-show-terminal' | 'no-show-not-ended'
+                             //   | 'no-show-error' | 'corrected' | 'correct-error' | 'correct-forbidden'
 ```
+
+(`BookingDetailActionState` in `BookingDetailMainBanner.tsx`; the no-show members are `BookingNoShowActionState` in `BookingNoShowBanner.tsx`.) There is **no** `completed`, `rescheduled` or `reschedule-conflict` member: "Marcar concluído" and "Reagendar" leave this page for `MarkCompleteBookingPage` and `RescheduleBookingPage`, which render their own `MarkCompleteSuccessView` / `RescheduleSuccessView` and, on a 409, their own `SlotConflictAlert` (the `conflictStartsAt` / `slotSuggestions` state in `RescheduleBookingPage`). The tables below keep those names as the *screen* states they draw.
 
 `BookingDetailPage` derives its **initial** action set from `booking.status`: `PENDING | INFO_REQUESTED` renders `BookingActionPanel` (Aprovar/Rejeitar/Pedir info); `APPROVED` renders the lifecycle actions (Marcar concluído/Reagendar/Cancelar), composed across `BookingDetailMain`/`BookingOutcomeActionRail` (there is no `BookingLifecyclePanel` component). Both panels write into the same `actionState` machine.
 
@@ -427,7 +428,7 @@ export interface CompleteBookingResponse {
 
 ### Staff creates a booking on a customer's behalf — `09`, `10`, `10b` (UC-108, M23-S39 backend/BFF + M23-S40 frontend)
 
-| File | Screen | Route (proposed) |
+| File | Screen | Route |
 |---|---|---|
 | `09-escolher-cliente.html` | Who is it for: *Cliente cadastrado* (search) or *Novo contato* (guest) — shared with the recurrence flow | `/dashboard/bookings/new?tipo=…` |
 | `10-novo-agendamento.html` | The booking steps in the dashboard skin; summary + actions in the right pane | `/dashboard/bookings/new/booking` |
@@ -447,7 +448,7 @@ export interface CompleteBookingResponse {
 
 **Error → screen map (`POST /recurring-booking-schedules/:id/approve|reject`):** `409 BOOKING_RECURRING_SCHEDULE_CONFLICT` (approve) → `#conflito`, with the same `conflicts[{ occurrenceStart, reason }]` list creation returns; `409 BOOKING_RECURRING_SCHEDULE_NOT_PENDING_APPROVAL` → `#expirada`; `422 BOOKING_CUSTOMER_PHONE_NOT_SET` (approve) → `#telefone`; network/5xx → `#falha`.
 
-**File map (❓ none exist yet):**
+**File map (all ✅ shipped):**
 
 | File | Status |
 |---|---|

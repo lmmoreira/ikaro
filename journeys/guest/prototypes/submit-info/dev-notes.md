@@ -36,9 +36,8 @@ const brandingSlug = payload?.tenantSlug ?? (token ? decodeUnverifiedTenantSlug(
 **BFF call to pre-fill booking summary:**
 ```
 GET /v1/bookings/:id/guest?token=<JWT>
-  (specified in M13-S39 — optional; M13-S40 can ship without it)
+  (shipped in M13-S39 — `bookings-guest.controller.ts`; fetched by `fetchGuestBookingSummary()` in `features/booking/api/public.server.ts`)
 ```
-*Fallback if `M13-S39` hasn't shipped:* render the form without booking summary (just "Booking ID: …"). The submission itself still works.
 
 **Form component props:**
 ```ts
