@@ -29,6 +29,7 @@ variable "environment" {
 variable "iam_admin_user" {
   description = "Google account email granted IAP tunnel access and OS Login on the relay instance specifically (not project-wide) — lets this identity SSH in to set up the SSH port-forward / run ad-hoc commands. The relay VM's own service account (not this identity) does the actual Cloud SQL / Cloud Run / Secret Manager work (TD32 redesign, 2026-07-24) — see google_service_account.relay's comment for why."
   type        = string
+  sensitive   = true
 }
 
 variable "labels" {

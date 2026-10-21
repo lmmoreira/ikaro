@@ -58,6 +58,7 @@ variable "environment" {
 variable "iam_admin_user" {
   description = "Google account email for passwordless Cloud SQL IAM access — value never committed: gitignored local.auto.tfvars locally, TF_VAR_iam_admin_user in the pipeline (S24)"
   type        = string
+  sensitive   = true
   default     = ""
 }
 
@@ -70,6 +71,7 @@ variable "labels" {
 variable "notification_email" {
   description = "Email address for Cloud Monitoring alert notifications (M17-S35), passed through to module.monitoring. Value never committed — gitignored local.auto.tfvars locally, the NOTIFICATION_EMAIL repository secret in the pipeline (S24, same treatment as iam_admin_user)."
   type        = string
+  sensitive   = true
   default     = ""
 }
 

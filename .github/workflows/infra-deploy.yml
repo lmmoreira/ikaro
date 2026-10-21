@@ -279,6 +279,14 @@ jobs:
             echo "PLAN_SUMMARY_EOF"
           } >> "$GITHUB_OUTPUT"
 
+          # Resources whose provider-computed `id` embeds an identity input
+          # (see "Write plan to job summary" below). Add the address suffix of
+          # any new resource that takes iam_admin_user, notification_email or
+          # cloudflare_account_id in a way that reaches its id.
+          identity_id_resources='["google_sql_user.iam_admin"]'
+          identity_id_changes=$(jq --argjson ids "$identity_id_resources" '[(.resource_changes[]? | select(.change.actions != ["no-op"])), (.resource_drift[]?)] | map(select(.address as $a | any($ids[]; . as $i | $a | endswith($i)))) | length' plan.json)
+          echo "identity_id_changes=$identity_id_changes" >> "$GITHUB_OUTPUT"
+
       # Separate step with if: always(), not the tail of the plan step above
       # — GitHub Actions bash steps run with `-e` by default, so if the jq
       # extraction had failed partway, a same-step `rm -f` at the very end
@@ -299,21 +307,53 @@ jobs:
       # (pr-comment job) does get a sanitized address+action summary via
       # steps.plan.outputs.summary above — resource addresses only, never
       # attribute values (review finding, 2026-07-21).
+      # `sensitive = true` on iam_admin_user / notification_email /
+      # cloudflare_account_id makes Terraform print `(sensitive value)` for
+      # every attribute derived from them, but it cannot mask a
+      # provider-computed `id` that embeds the value (google_sql_user's id is
+      # `<email>//<instance>`, and it prints on any in-place update, replace
+      # or destroy; GitHub's Secret masking shows it as `***` in the log
+      # only). The plan step counts changes to the resources listed in its
+      # `identity_id_resources`; when the count is non-zero this step
+      # publishes the sanitized addresses and actions only. The check is keyed
+      # on the resource, never on a secret's value, so it also covers a
+      # rotation or removal (the previous value is what the id carries). It
+      # withholds, it never rewrites the plan, and it does not fail the job (a
+      # failing guard would block every rotation of one of these Secrets on
+      # the required check). TD54-S5.
       - name: Write plan to job summary
         if: always()
+        env:
+          IDENTITY_ID_CHANGES: ${{ steps.plan.outputs.identity_id_changes }}
+          PLAN_SUMMARY: ${{ steps.plan.outputs.summary }}
         run: |
-          {
-            echo "## Terraform Plan — staging"
-            echo '```'
-            cat infra/terraform/envs/staging/plan-output.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          plan_file=infra/terraform/envs/staging/plan-output.txt
+          echo "## Terraform Plan — staging" >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f "$plan_file" ]; then
+            echo "Plan output was not generated; see the terraform plan step log." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Plan output not found; see the terraform plan step log."
+          elif [ "${IDENTITY_ID_CHANGES:-0}" != "0" ]; then
+            {
+              echo "Full plan withheld: it changes a resource whose provider-computed id embeds an identity value that Terraform cannot mask. Resource addresses and actions only:"
+              echo '```'
+              echo "$PLAN_SUMMARY"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Plan detail withheld from the job summary: it changes a resource whose id embeds an identity value that sensitive = true cannot mask. Review the plan locally."
+          else
+            {
+              echo '```'
+              cat "$plan_file"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Deliberately no "Upload plan artifact" step here — apply-staging
       # replans and applies fresh instead of reusing a saved plan, same as
-      # apply-prod, even though none of staging's current variables are
-      # `sensitive`. Kept symmetric with prod on purpose: if staging ever
-      # gains its own sensitive variable later, the safe pattern is already
+      # apply-prod, even though staging's `sensitive` variables
+      # (iam_admin_user, notification_email) are identity values, not
+      # credentials. Kept symmetric with prod on purpose: if staging ever
+      # gains a genuine credential later, the safe pattern is already
       # in place instead of depending on someone remembering to reconsider
       # this decision at that point — the exact trap that caused the
       # original finding (M17-S24 review, 2026-07-21).
@@ -359,8 +399,9 @@ jobs:
           TF_VAR_iam_admin_user: ${{ secrets.IAM_ADMIN_USER }}
           TF_VAR_brevo_smtp_login: ${{ secrets.BREVO_SMTP_LOGIN }}
           TF_VAR_notification_email: ${{ secrets.NOTIFICATION_EMAIL }}
-          # Not a secret (Cloudflare account ID) — same TF_VAR_* injection pattern as
-          # iam_admin_user/notification_email above, by the user's preference.
+          # Cloudflare account ID: an identifier, not a bearer credential, but a
+          # Secret and `sensitive` all the same — same TF_VAR_* injection
+          # pattern as iam_admin_user/notification_email above.
           TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           # Genuine credential (Cloudflare API token) — Terraform's own
           # `sensitive = true` on this variable redacts it from *rendered*
@@ -401,6 +442,14 @@ jobs:
             echo "PLAN_SUMMARY_EOF"
           } >> "$GITHUB_OUTPUT"
 
+          # Resources whose provider-computed `id` embeds an identity input
+          # (see "Write plan to job summary" below). Add the address suffix of
+          # any new resource that takes iam_admin_user, notification_email or
+          # cloudflare_account_id in a way that reaches its id.
+          identity_id_resources='["google_sql_user.iam_admin"]'
+          identity_id_changes=$(jq --argjson ids "$identity_id_resources" '[(.resource_changes[]? | select(.change.actions != ["no-op"])), (.resource_drift[]?)] | map(select(.address as $a | any($ids[]; . as $i | $a | endswith($i)))) | length' plan.json)
+          echo "identity_id_changes=$identity_id_changes" >> "$GITHUB_OUTPUT"
+
       # Separate step with if: always(), same reasoning as plan-staging's
       # "Delete plan files" step — guarantees cleanup even if the jq
       # extraction above failed partway (bash steps run with -e by default).
@@ -409,15 +458,46 @@ jobs:
         working-directory: infra/terraform/envs/prod
         run: rm -f tfplan plan.json
 
+      # `sensitive = true` on iam_admin_user / notification_email /
+      # cloudflare_account_id makes Terraform print `(sensitive value)` for
+      # every attribute derived from them, but it cannot mask a
+      # provider-computed `id` that embeds the value (google_sql_user's id is
+      # `<email>//<instance>`, and it prints on any in-place update, replace
+      # or destroy; GitHub's Secret masking shows it as `***` in the log
+      # only). The plan step counts changes to the resources listed in its
+      # `identity_id_resources`; when the count is non-zero this step
+      # publishes the sanitized addresses and actions only. The check is keyed
+      # on the resource, never on a secret's value, so it also covers a
+      # rotation or removal (the previous value is what the id carries). It
+      # withholds, it never rewrites the plan, and it does not fail the job (a
+      # failing guard would block every rotation of one of these Secrets on
+      # the required check). TD54-S5.
       - name: Write plan to job summary
         if: always()
+        env:
+          IDENTITY_ID_CHANGES: ${{ steps.plan.outputs.identity_id_changes }}
+          PLAN_SUMMARY: ${{ steps.plan.outputs.summary }}
         run: |
-          {
-            echo "## Terraform Plan — prod"
-            echo '```'
-            cat infra/terraform/envs/prod/plan-output.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          plan_file=infra/terraform/envs/prod/plan-output.txt
+          echo "## Terraform Plan — prod" >> "$GITHUB_STEP_SUMMARY"
+          if [ ! -f "$plan_file" ]; then
+            echo "Plan output was not generated; see the terraform plan step log." >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Plan output not found; see the terraform plan step log."
+          elif [ "${IDENTITY_ID_CHANGES:-0}" != "0" ]; then
+            {
+              echo "Full plan withheld: it changes a resource whose provider-computed id embeds an identity value that Terraform cannot mask. Resource addresses and actions only:"
+              echo '```'
+              echo "$PLAN_SUMMARY"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Plan detail withheld from the job summary: it changes a resource whose id embeds an identity value that sensitive = true cannot mask. Review the plan locally."
+          else
+            {
+              echo '```'
+              cat "$plan_file"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       # Deliberately no "Upload plan artifact" step here (same as
       # plan-staging): this plan's TF_VAR_cloudflare_api_token is a genuine
@@ -653,7 +733,8 @@ jobs:
     # plan artifact — plan-staging/plan-prod deliberately never upload
     # their plans (see plan-prod's own comment: kept symmetric with staging
     # even though only prod's TF_VAR_cloudflare_api_token is currently a
-    # genuine credential, since saved plan files store every variable's
+    # genuine credential (staging's `sensitive` inputs are identity values),
+    # since saved plan files store every variable's
     # real value in cleartext regardless of `sensitive`, and this way a
     # future sensitive variable added to either env is already safe by
     # default). The reviewer's review material is still plan-prod's job
