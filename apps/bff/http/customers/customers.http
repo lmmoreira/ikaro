@@ -71,6 +71,40 @@ GET {{bffUrl}}/v1/customers?limit=20
 Authorization: Bearer {{customerToken}}
 
 # ─────────────────────────────────────────────────────────────────────────────
+# GET /v1/customers/:customerId — staff/manager views one customer's profile
+# Returns CustomerProfileResponse: { customerId, email, name, phone, defaultAddress }
+# ─────────────────────────────────────────────────────────────────────────────
+
+###
+
+### HAPPY PATH — staff views a customer profile
+GET {{bffUrl}}/v1/customers/{{customerId}}
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — customerId not a UUID → 400
+GET {{bffUrl}}/v1/customers/not-a-uuid
+Authorization: Bearer {{staffToken}}
+
+###
+
+### ERROR — no JWT → 401
+GET {{bffUrl}}/v1/customers/{{customerId}}
+
+###
+
+### ERROR — customer JWT (wrong role) → 403
+GET {{bffUrl}}/v1/customers/{{customerId}}
+Authorization: Bearer {{customerToken}}
+
+###
+
+### ERROR — unknown customer id → 404
+GET {{bffUrl}}/v1/customers/00000000-0000-4000-8000-000000009999
+Authorization: Bearer {{staffToken}}
+
+# ─────────────────────────────────────────────────────────────────────────────
 # GET /v1/customers/me — view own profile
 # ─────────────────────────────────────────────────────────────────────────────
 
