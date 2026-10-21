@@ -149,6 +149,22 @@ By group in pass 3: schema and data docs 15, standards docs 22, infrastructure d
 
 **Deviation from the story text:** the story names a literal `/docs-audit changed` re-run and exact before/after counts per category. The passes above use the same read-only agent fan-out as `/docs-audit` but with a "report only what survives" brief; pass-1 counts are approximate and the pass-1 category split was not tracked.
 
+**Closing audit (Story 6, 2026-10-21): one run, after the rename.** Ten read-only agents covered `docs/` (schema and data, architecture and contracts, standards, process and infrastructure), the use cases against the code (two agents), the four actor journeys (three agents) and the plan and TD files. Counts are taken from the agents' reports. Every fix was re-read against the cited file and line by the main agent before it was written; a finding that did not hold was dropped.
+
+| Group | Reported | Fixed in the PR | Deferred (story) | Left as is |
+|---|---|---|---|---|
+| Schema and data docs | 4 | 4 | 0 | 0 |
+| Architecture and contract docs | 6 | 5 | 0 | 1 (a historical "Replaces" note) |
+| Standards docs | 10, plus 7 duplications | 8 | 7 duplications (Story 7) | 2 |
+| Process and infrastructure docs | 7 | 1 | 0 | 6 (soft tensions or lists the docs call non-exhaustive) |
+| Use cases against the code | 17 | 5 | 2 (Story 9) | 10 (route and title omissions; two reports did not hold) |
+| Manager journeys | 9 | 3 | 6 (Story 9) | 0 |
+| Guest and customer journeys | 12 | 2 | 10 (Story 9) | 0 |
+| Staff journeys | 12 | 4 | 8 (Story 9) | 0 |
+| Plan and TD files | 14, plus 9 IA-file clusters | BFF path layout across the IA files, `ManagerRoleGuard` path | structure, M18 close-out, remaining IA paths (Story 8) | 0 |
+
+Also found and recorded, not changed: four backend routes absent from `docs/API_CONTRACTS.md`'s backend-only table (`POST /pubsub/push`, the backend health routes, the backend halves of the public chatbot and lead-form routes), and MVP cost stated as $50-100, $43 and $50 in different places in `docs/TECH_STACK_DECISIONS.md`. Stories 7, 8 and 9 below carry the deferred items. This closes the documentation baseline; the audit is not repeated unless a later change gives a specific reason.
+
 
 #### Story 3C — load measurement and decisions (2026-10-19)
 
@@ -984,6 +1000,146 @@ Rewrite every citation with a script kept in the scratchpad, not committed. Thre
 - [ ] **Closing audit (if this is the last story that runs):** one full `/docs-audit` of `docs/`, `plan/`, `td/` and the journeys folder runs after the rename, every finding that holds up on re-read is fixed in the PR, and the per-category counts are recorded beside Story 3A's table (see "Closing audit" under Stories). It is run once and is not repeated.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+### Story 7 — Collapse five cross-doc duplications to one canonical home each ⚪
+
+**Agent:** devops
+**Complexity:** M
+**Docs to load:** `.copilot/context.md` §7 (the canonical-home rule at "How to edit this file"); `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` § How to edit `context.md`; `docs/STORY_SCHEMA.md`; the two or three docs of each pair named below, read whole at the cited headings
+**Dependencies:** Story 6 (it renames every doc these pairs cite, and edits the same lines; this story runs after Story 6 merges so no pointer is written twice)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (standards/structure agent; the pairs below were reported with both locations but the no-loss proof was not made, so the owner deferred the collapse to this story).
+
+**Description:**
+`/docs-audit` Step 3g found rules explained in full, independently, in more than one place. Collapsing a duplicate is only allowed with a no-loss proof (the audit's guiding principle: context is never sacrificed for size): the canonical copy is Read and confirmed to hold the full information, any detail only the other copy has is merged into the canonical one first, and the pointer's target heading exists. The canonical-home rule in `.copilot/context.md` §7 decides where each rule lives: `ANTI_PATTERNS.md` for "what not to do and why", `ENGINEERING_RULES_*.md` and `CODE_STANDARDS.md` for "how to do it correctly", `CI_TRAPS.md` for CI and deploy gotchas. The proposed homes below are starting points; `/story-discovery` confirms each after reading both copies.
+
+1. **Domain error base class** (the `Object.setPrototypeOf(this, new.target.prototype)` snippet) is shown in full in `docs/CODE_STANDARDS.md` § Domain error contract (mandatory) and `docs/AGENT_PATTERNS.md` § 2. Domain Error Class. `CODE_STANDARDS.md` itself says skeletons live in `AGENT_PATTERNS.md`. Proposed home: the rule in `CODE_STANDARDS.md`, the skeleton in `AGENT_PATTERNS.md`, a pointer in the other direction.
+2. **Repository port signatures** (`findById`, `findAllByTenant`, `save`) are listed in both `docs/CODE_STANDARDS.md` § Repository signatures (mandatory) and `docs/AGENT_PATTERNS.md` § 1. Repository Port, and had already drifted: Story 6's audit fix made the `AGENT_PATTERNS.md` skeleton match the real port (`findAllByTenant(tenantId, filters?)`, `apps/backend/src/contexts/booking/application/ports/booking-repository.port.ts`). Proposed home: `CODE_STANDARDS.md` for the signatures, `AGENT_PATTERNS.md` keeps one skeleton that points to it.
+3. **Zod v4 `z.uuid()` / `z.email()` instead of the chained forms** is explained in `docs/CODE_STANDARDS.md` § Zod v4 validators, `docs/CI_TRAPS.md` § Zod v4 format (which adds `z.url()`, plus a checklist item) and a row of `docs/ANTI_PATTERNS.md`. Proposed home: `CODE_STANDARDS.md`; `CI_TRAPS.md` keeps the CI symptom and a pointer; the `ANTI_PATTERNS.md` row becomes trigger plus pointer.
+4. **Integration test DB isolation** is stated in full in `docs/ENGINEERING_RULES_TESTING.md` (§ Integration test DB isolation) and, more fully, in `docs/TESTING_STRATEGY.md` (§ Integration test DB isolation), with no pointer between them. Proposed home: `TESTING_STRATEGY.md` (the fuller copy); the other becomes a pointer after any extra detail is merged.
+5. **`.skip()` / `.only()` enforced by the jest/vitest `no-disabled-tests` and `no-focused-tests` rules** is enumerated in a row of `docs/ANTI_PATTERNS.md`, in `docs/TESTING_STRATEGY.md` § Philosophy (item 3) and again in § Forbidden Patterns of the same doc. Proposed home: `TESTING_STRATEGY.md` § Forbidden Patterns; the other two become pointers.
+6. **Borderline, decide in discovery (keep unless a real divergence shows):** the builder type list (`XxxEntityBuilder`, `XxxBuilder`, event and command builders, `RequestContextBuilder`) re-enumerated in `docs/ENGINEERING_RULES_TESTING.md` § Builder pattern and in `docs/TESTING_STRATEGY.md` (two sections); and the `PhoneNumber` strict E.164 explanation in `docs/VALUE_OBJECTS_REFERENCE.md` and `docs/CODE_STANDARDS.md` § PhoneNumber HTTP format. A deliberate per-audience restatement is not a finding.
+
+Already checked and **not** duplicates (do not touch): the Turnstile test sitekey stub, LIKE escaping stub, the `useExisting` explanation (full text only in `TESTING_STRATEGY.md`), and the VO Option A summary in `ENGINEERING_RULES_SHARED.md`.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `docs/CODE_STANDARDS.md`, `docs/AGENT_PATTERNS.md`, `docs/CI_TRAPS.md`, `docs/ANTI_PATTERNS.md`, `docs/ENGINEERING_RULES_TESTING.md`, `docs/TESTING_STRATEGY.md` (modify — canonical copies receive any merged detail, the others become `→ doc § heading` pointers)
+- `docs/VALUE_OBJECTS_REFERENCE.md` (modify — only if the `PhoneNumber` pair is collapsed)
+- `packages/architecture-check/agent-context-policy.json` (modify only if a `requiredAnchors` entry names a heading that moves; check first)
+
+**Acceptance criteria — product:**
+- [ ] Each of items 1 to 5 has exactly one full explanation; every other location is a trigger plus a `→ doc § heading` pointer whose target heading exists.
+- [ ] For each collapsed pair the PR records the no-loss proof (canonical copy Read, extra detail merged first, target heading present). Any pair where the proof cannot be made stays as is and is listed in the PR with the reason.
+- [ ] Items in 6 are each either collapsed with the same proof or recorded as a deliberate per-audience restatement.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` passes (`doc-link-integrity` proves every new pointer and heading; `agent-context-file` and `doc-orientation` unchanged)
+- [ ] `/docs-audit changed` over the story's range reports zero dead pointers
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 8 — Plan and TD structure: schema conformance, stale IA paths, M18 close-out ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `docs/STORY_SCHEMA.md`; `.claude/commands/mark-done.md` (milestone-complete block); `.claude/commands/run-batch.md` (what it reads from a story); `.copilot/context.md` §9 Step 12 and §10; `plan/README.md`
+**Dependencies:** Story 6 (same files, renamed citations)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (plans and TD files agent). Every item was re-read against the file before filing; items that need an owner decision say so.
+
+**Description:**
+Bring the planning documents into the canonical story shape where a tool reads them, and correct stale references in the completed-milestone records.
+
+1. **`plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`:** M24-S05 depends on M24-S21, defined later in the file. The line itself calls it "a forward reference by number only" (S21 is built in an earlier wave), so the dependency is correct but a reader meets S05 first. Decide in discovery: reorder the stories, or keep and state the build order in the milestone's wave table. M24-S01, S02, S03 and S21 cite whole milestones (M21, M22) in `Dependencies:`; replace with the exact story IDs.
+2. **`plan/M17-CLOUD-DEPLOY.md`:** almost every story (S01 to S56 except the cut S28 and S29) has no `**Pattern:**` line and no `**Files to create/modify:**` line. Both are core schema fields, and `/run-batch`'s overlap check reads the files field, so the pending stories (S36 to S42, S44, S46, S49 to S51, S53) cannot be safety-checked. Backfill those pending stories; done stories are exempt (their record is the merged PR). Fix the non-schema `Agent:` lines of M17-S54 and S55 (free-text suffixes, a `/` alternative instead of `a + b`) and the `Dependencies:` of M17-S37 ("all of Waves 2 to 5" is not a story ID list). State in `docs/STORY_SCHEMA.md` whether a story marked "❌ Cut" is exempt from the core fields.
+3. **`plan/M18-BOOKING-IMPROVEMENTS.md`:** S01 to S10 use `## M18-Sxx` headers (only S11 uses `###`); S01 to S08 lack `Dependencies`, `Pattern`, `Files to create/modify` and the product/technical AC split. All eleven stories are `✅ Done`, yet there is no `plan/M18-BOOKING-IMPROVEMENTS_IMPLEMENTATION_DETAILS_IA.md` <!-- doc-link:example --> and `plan/README.md` lists M18 as a normal milestone. Decide with the owner whether the milestone is complete (then run `/mark-done`'s milestone-complete block: IA and DEVELOPER files, the §10 row, the stale-documentation sweep) or intentionally open. Fix the headers to `###`; do not backfill fields on stories that are already merged.
+4. **`td/TD08-AUDIT-REMEDIATION-BACKLOG.md`:** stories are `### AUD-NNN`, status lives in a master table and a `**Status:**` line rather than the header, and the fields are Risk, Effort, Phase and Depends on rather than the schema. It predates the schema. Decide: add a one-line "predates STORY_SCHEMA" note at the top and leave it, or convert the open stories (AUD-009 to AUD-042) when they are scheduled. It cites `OPUS_AUDITORY.md` at the repo root, which does not exist (nor under `archive/`); record the audit as unavailable instead of leaving a dead source reference.
+5. **Stale paths in completed-milestone IA files** (the BFF path layout was fixed in Story 6; these remain): `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md` (uploads controller listed as "Pending M09", health check "Pending M07", both since shipped elsewhere); `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md` (cites a workflow `pr-security.yml` that does not exist); `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md` (`selection-token.service.ts`, `issue-token.dto.ts`, `zod-validation.pipe.ts` under the old BFF layout, removed or moved); `plan/M04`, `M05`, `M07`, `M10` (notification, customer-profile and loyalty port and adapter files that were renamed or moved, for example `notification-log.entity.ts` to `notification-log.aggregate.ts`), `plan/M20` (`lead-form-submission-received.handler.ts`) and `plan/M22` (`resource-requirement-quantity.ts`) IA files. For each, either point to the file's current location or mark the line as historical ("removed in <story>").
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`, `plan/M17-CLOUD-DEPLOY.md`, `plan/M18-BOOKING-IMPROVEMENTS.md`, `td/TD08-AUDIT-REMEDIATION-BACKLOG.md` (modify)
+- `plan/M18-BOOKING-IMPROVEMENTS_IMPLEMENTATION_DETAILS_IA.md` <!-- doc-link:example --> and its `_DEVELOPER.md` twin (create via `/mark-done`, only if the owner confirms M18 is complete)
+- `plan/M00-MONOREPO-FOUNDATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M01-CI-QUALITY-GATES_IMPLEMENTATION_DETAILS_IA.md`, `plan/M03-AUTHENTICATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M04-STAFF-MANAGEMENT_IMPLEMENTATION_DETAILS_IA.md`, `plan/M05-SERVICE-CATALOG_IMPLEMENTATION_DETAILS_IA.md`, `plan/M07-BOOKING-CREATION_IMPLEMENTATION_DETAILS_IA.md`, `plan/M10-COMPLETION-LOYALTY_IMPLEMENTATION_DETAILS_IA.md`, `plan/M20-LEAD-FORM-MODULE_IMPLEMENTATION_DETAILS_IA.md`, `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md` (modify)
+- `docs/STORY_SCHEMA.md` (modify — cut stories and the TD-heading note)
+- `.copilot/context.md` (modify — §10 row for the M18 IA file, only if created)
+
+**Acceptance criteria — product:**
+- [ ] No pending story in M17 and M24 lacks `Pattern` or `Files to create/modify`, and every `Dependencies:` line names story IDs (or "none").
+- [ ] M18's headers use the same level as its sibling milestones, and its completion state is recorded: either the IA and DEVELOPER files exist and are indexed, or the plan says why the milestone is open.
+- [ ] TD08 states that it predates the schema and no longer cites a file that does not exist.
+- [ ] Every path cited in the nine IA files resolves, or the line says it is historical.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `pnpm architecture-check` passes (`doc-link-integrity` proves every cited path; `agent-context-file` if `context.md` changes)
+- [ ] A scripted check lists every story header in `plan/M17-*`, `M18-*` and `M24-*` and shows each of the core schema fields present for the pending ones (output attached to the PR)
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
+
+### Story 9 — Journeys: stale dev-notes, template gaps, prototype and `.http` follow-ups ⚪
+
+**Agent:** devops
+**Complexity:** L
+**Docs to load:** `journeys/README.md` (template at "dev-notes.md" and Parts 3 and 4); `.copilot/context.md` §15 (the hard stop: `/docs-audit` baseline first, journey `.md` before prototype files); `docs/CODE_STANDARDS.md` (`.http` convention)
+**Dependencies:** Story 6 (renamed doc citations in the same files)
+**Pattern:** plain composition — no named pattern applies
+
+**Discovered:** 2026-10-21, closing `/docs-audit` of Story 6 (four journey agents). Story 6 already fixed the clear-cut dev-notes text (manager settings and lead-form, guest and customer book-a-service error handling, agenda auth headers and `MarkComplete`, fidelidade headers, horarios navigation notes). What remains needs a rewrite that was not verified line by line, an owner decision, or a prototype redraw.
+
+**Description:**
+Each item below was reported by an audit agent against code with a file:line; re-read the cited code before editing (`/story-discovery` does this).
+
+1. **Stale dev-notes to rewrite (code wins, shipped journeys):**
+   - `journeys/guest/prototypes/book-a-service/dev-notes.md`: Step 2 response shapes (the summary is a bare `DaySummary[]` with `slotCount`, the availability response is `{date, slots, available}`, both accept `resourceSelections` and `durationMinutes`, `packages/types/src/schedule.dto.ts`); the availability-alert entry row still says the component path is "expected" though `AvailabilityAlertEntry.tsx` exists.
+   - `journeys/customer/prototypes/login/dev-notes.md`: the "Open questions (resolve before M124-S02)" block is moot, the label is "Trocar empresa" not "Trocar estabelecimento", the BFF response is `{tenantSlug, expiresIn}`, and the superseded `/select-tenant` and `POST /v1/auth/token` history should be collapsed.
+   - `journeys/customer/minha-conta.md` BFF table: the loyalty balance row says "Minha-conta page load — points card"; the call is made only by the Início and Fidelidade pages. `journeys/customer/prototypes/minha-conta/dev-notes.md` has a "see the Cluster 4 section of ../../minha-conta.md above" cross-reference that points at a different file.
+   - `journeys/guest/prototypes/submit-info/dev-notes.md`: the `GET /v1/bookings/:id/guest` "optional / fallback if M13-S39 hasn't shipped" text; the endpoint shipped.
+   - `journeys/guest/prototypes/lead-form/dev-notes.md` and the customer twin: the file map omits `LeadFormWidget` and `LeadFormTerminalCard`, calls `page.tsx` a component that fetches the catalog (the widget does), and the `NEXT_PUBLIC_TURNSTILE_SITE_KEY` limitation is already resolved (`apps/web/shared/lib/runtime-env/public-env.ts`).
+   - `journeys/staff/prototypes/agenda/dev-notes.md`: the `actionState` type (no `completed`, `rescheduled` or `reschedule-conflict`; the no-show states are missing) and the staff-booking file map headings ("none exist yet", "Route (proposed)") although those files shipped in M23-S39 and S40; the `fidelidade.md` "Busca por telefone" open question is answered by the phone search in `GET /customers`.
+   - `journeys/manager/prototypes/hotsite/dev-notes.md` and `journeys/manager/hotsite.md`: `ModuleConfigPanel` is not a component; the per-type panels (for example `HeroConfigPanel`) and `ModuleConfigShell` are.
+   - `journeys/manager/prototypes/onboarding/dev-notes.md` and `journeys/manager/prototypes/turmas/dev-notes.md`: a changelog line ("No index.html existed … added as part of this promotion") sits in the Known limitations list.
+2. **Template gaps:** the `journeys/README.md` template asks for Overview, File map, per-screen sections and Known limitations. Older shipped dev-notes lack some: the manager `configuracoes`, `equipe`, `hotsite` (no File map or screens), `lead-form` and `leads` (no screen or state sections), `resources` (no File map); customer `book-a-service`, `ask-chatbot` and `login` (no Known limitations); customer `minha-conta` and staff `agenda` and `servicos` (no Overview). Decide with the owner: backfill, or relax the template for journeys shipped before it existed and say so in `journeys/README.md`.
+3. **Index and prototype tables:** `journeys/README.md` rows 723 to 730 still say "Reviewed" for shipped manager journeys (lead-form-submissions says "Done" in its own file); `journeys/staff/horarios.md` and `journeys/staff/fidelidade.md` have no Prototype table (the prototype screens are cited nowhere); `journeys/staff/servicos.md` mermaid Start node shows `/{slug}/dashboard` though the route has no slug.
+4. **Orphan folder:** `journeys/manager/prototypes/hotsite/hotsite-impl/` holds `beloauto.html` and `manifesto-beloauto.json`, cited by no index, dev-notes or journey. Owner decision: document it as a reference artifact in the hotsite dev-notes, or remove it.
+5. **Agenda prototype redraw (an `.html` change, so the `.copilot/context.md` §15 workflow applies):** `journeys/staff/prototypes/agenda/00-agenda.html` draws the "+ Novo" menu with one item ("Agendamento"); the shipped `NewMenu.tsx` has two (`agendamento`, `recorrencia`). The mermaid in `agenda.md` already says "Recorrência"; the HTML comment ("ONE item today"), `agenda.md` ("Agendamento only") and `dev-notes.md` ("planned: not drawn until S19 ships") must change with the redraw.
+6. **Navigation target decision:** `journeys/staff/prototypes/horarios/07-horarios-recurso.html` (sidebar and bottom-nav) links "Horários" to `08-visao-geral-manager.html`, while every other staff page links `horarios/00-schedule.html`. Decide whether `08` is the canonical manager entry (`journeys/README.md` Part 4: nav items link the canonical entry file) and either keep or repoint.
+7. **`.http` coverage (request files, so real payload and auth knowledge is needed):** `apps/bff/http/auth/auth.http` has a `POST /v1/auth/staff-token` block (and a `GET /v1/auth/staff-tenants?token=` block) for a flow that no longer exists — no `staff-token` route exists in `apps/` or `packages/`; `POST /v1/auth/switch-staff-tenant` (`apps/bff/src/features/auth/auth.controller.ts`) has no block. Also lacking blocks: `GET /v1/customers/:customerId` and `GET /v1/customers/:customerId/loyalty`. Remove or rewrite the stale blocks and add the missing ones.
+
+**New migration / i18n keys / env vars / feature flags:** none
+
+**Files to create/modify:**
+- The dev-notes and journey `.md` files named in items 1 to 3 and 6 (modify)
+- `journeys/README.md` (modify — index status labels; template note if relaxed)
+- `journeys/staff/prototypes/agenda/00-agenda.html` (modify — item 5, §15 workflow)
+- `journeys/manager/prototypes/hotsite/hotsite-impl/` (remove or document — item 4, owner decision)
+- `apps/bff/http/auth/auth.http`, `apps/bff/http/customers/customers.http`, `apps/bff/http/loyalty/loyalty.http` (modify — item 7)
+
+**Acceptance criteria — product:**
+- [ ] Every dev-notes statement listed in item 1 matches the code it cites (file:line re-read in the PR).
+- [ ] Items 2, 4 and 6 each carry a recorded owner decision in the PR.
+- [ ] `journeys/README.md` index status labels match each journey file's own status.
+- [ ] `00-agenda.html`, `agenda.md` and the agenda `dev-notes.md` all describe the two-item "+ Novo" menu.
+- [ ] `auth.http` has no block for a route that does not exist, and has a block for `switch-staff-tenant`.
+
+**Acceptance criteria — technical:**
+- Unit: none — documentation and request-file change
+- Integration: none
+- Tenant isolation: none — no tenant data
+- E2E: none
+- [ ] `/docs-audit` baseline reported clean before the `.html` change (§15 hard stop), and re-run over `journeys/staff` and `journeys/manager` afterwards with zero journey-vs-code drift for the touched files
+- [ ] `pnpm architecture-check` passes
+- [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
 ## Follow-ups (not scheduled)
 
