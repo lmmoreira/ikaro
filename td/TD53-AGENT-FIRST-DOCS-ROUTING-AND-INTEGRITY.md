@@ -1092,7 +1092,7 @@ Bring the planning documents into the canonical story shape where a tool reads t
 - [ ] `/docs-audit changed` over the story's range reports zero dead pointers, and its result is recorded in the PR body
 - [ ] Coverage ≥80% on changed code (not applicable — no code changed)
 
-### Story 9 — Journeys: stale dev-notes, template gaps, prototype and `.http` follow-ups ⚪
+### Story 9 — Journeys: stale dev-notes, template gaps, prototype and `.http` follow-ups ✅ Done
 
 **Agent:** devops
 **Complexity:** L
