@@ -11,7 +11,7 @@ variable "create_relay_vm" {
 }
 
 variable "iam_admin_user" {
-  description = "Optional Google account email retaining the legacy backend Cloud Run invoker grant. Supplied as TF_VAR_iam_admin_user from the protected GitHub Environment; never committed."
+  description = "Optional Google account email retaining the legacy backend Cloud Run invoker grant. Supplied as TF_VAR_iam_admin_user from the IAM_ADMIN_USER repository Secret (a repository-level Secret, not an Environment one); never committed."
   type        = string
   default     = ""
 }
