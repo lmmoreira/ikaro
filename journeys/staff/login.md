@@ -67,7 +67,7 @@ Folder: `staff/prototypes/login/`
 |---|---|---|---|---|
 | `index.html` | Navigation hub | — | — | ✅ Criado |
 | `00-staff-login.html` | Login page (redirect → shared/staff-login.html) | UC-022, UC-025 | M124-S01 | ✅ Criado |
-| `01-first-login.html` | Invite not accepted — "use the invite email link" | UC-022 Caso B | M124-S01 | ✅ Criado |
+| `01-first-login.html` | Invite not accepted — "use the invite email link" | UC-022 Caso B | M124-S01 | ⛔ Superseded — prototype kept as a record; `/auth/first-login` is not built by design (see the Pages table above) |
 | `01b-error.html` | Auth error — reason=not-a-staff-member | UC-022 Caso C | M124-S01 | ✅ Criado |
 | `00b-no-tenant-slug.html` | Login page, no `?tenantSlug` — message only, no Google button | — | M124-S01 | ✅ Criado |
 | `01c-error-email-mismatch.html` | Auth error — reason=email-mismatch | UC-025 A1 | M124-S01 | ✅ Criado |

@@ -88,15 +88,15 @@ const filtered = services.filter(s => {
 
 ## Form validation (UC-012 + UC-013)
 
-Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `priceAmount` positive(), `durationMinutes` int positive(), `loyaltyPointsValue` int >= 0. The tighter bounds below are client-side only (web form: `ServiceFormFields.tsx` caps name at 100 and description at 500 via `maxLength`):
+Two layers. The BFF (`services.schemas.ts`) enforces only: `name` min(1), `priceAmount` positive(), `durationMinutes` int positive(), `loyaltyPointsValue` int >= 0. The tighter bounds below are client-side only (`apps/web/features/booking/services/service-form.ts`: `name` required and at most 100 characters, `description` at most 500, `priceAmount` required and positive, `durationMinutes` required and a positive integer with no upper cap, `loyaltyPointsValue` a valid non-negative integer; `ServiceFormFields.tsx` also sets `maxLength` on name and description):
 
 ```typescript
-// Zod v4 schema — client-side form (illustrative; field names map to the BFF's priceAmount/durationMinutes)
+// Zod v4 equivalent of the client-side rules in service-form.ts (illustrative; the real form uses hand-written checks, and field names map to the BFF's priceAmount/durationMinutes)
 const ServiceFormSchema = z.object({
-  name:                  z.string().min(2).max(100),
+  name:                  z.string().min(1).max(100),
   description:           z.string().max(500).optional(),
   priceAmount:           z.number().positive(),
-  durationMinutes:       z.number().int().min(1).max(480),
+  durationMinutes:       z.number().int().positive(),
   loyaltyPointsValue:    z.number().int().min(0).optional().default(0),
   requiresPickupAddress: z.boolean().optional().default(false),
   isActive:              z.boolean().optional().default(true), // create form only

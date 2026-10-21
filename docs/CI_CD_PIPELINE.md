@@ -34,7 +34,7 @@ The exact job list can evolve; do not duplicate it in milestone plans. Read the 
 5. deploy the application services;
 6. run smoke/health verification.
 
-Migration failure blocks deployment. Applications never run schema synchronization at startup.
+Migration failure blocks deployment. Applications never run schema synchronization at startup. A `check-current` job gates the migrate-and-deploy job on this run's commit still being the tip of `main`, so a slower older run cannot overwrite a newer deploy.
 
 ## Production promotion and rollback
 

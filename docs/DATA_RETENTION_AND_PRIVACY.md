@@ -50,7 +50,7 @@ The multi-vertical scheduling work added tables that hold personal data. This ta
 | `bookings.created_by_staff_id` / guest contact fields on staff-created bookings (UC-108) | The staff member who created a booking for a guest, plus the guest's name, phone and email | Follows the booking row — no rule |
 | `shared.outbox` / `shared.inbox` | Event envelopes (may carry contact details, e.g. `BookingNoShow`) | Swept after `OUTBOX_RETENTION_DAYS` / `INBOX_RETENTION_DAYS` (default 14) |
 
-Chatbot, lead-form and loyalty retention are enforced by their own jobs (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`, the loyalty expiry cron) and are described with those features; they are not repeated here.
+Chatbot, lead-form and loyalty retention are enforced by their own jobs (`ChatbotRetentionPurgeJob`, `LeadFormRetentionPurgeJob`, the loyalty expiry cron) and are described with those features; they are not repeated here. The lead-form retention window is the per-tenant setting `leadForm.retentionMonths` (default 6, bounds 1–24 — see `docs/TENANTS_SETTINGS_SCHEMA.md`).
 
 ---
 
