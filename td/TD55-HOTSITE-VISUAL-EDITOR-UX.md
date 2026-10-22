@@ -398,7 +398,7 @@ The prototype `journeys/shared/hotsite.html` still says the staff link is "PROTO
 **New migration / i18n keys / env vars / feature flags:** none — reuses `auth.staffArea` and `auth.signIn`, which exist in both locales.
 
 **Files to create/modify:**
-- `apps/web/shells/hotsite/components/HotsiteAuthBarSignedOut.tsx` and `.spec.tsx` (new — presentational signed-out bar)
+- `apps/web/shells/hotsite/components/HotsiteAuthBarSignedOut.tsx` and `.spec.tsx` (new — presentational signed-out bar; also owns and exports `BrandMark`, moved from `HotsiteAuthBar.tsx` because the loading skeleton still uses it)
 - `apps/web/shells/hotsite/components/HotsiteAuthBar.tsx` and `.spec.tsx` (modify — render the extracted component when signed out; spec stays green)
 - `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` and `.spec.tsx` (modify — inert bar as first child)
 - `apps/web/e2e/hotsite-editor.spec.ts` (modify)
@@ -422,13 +422,20 @@ The prototype `journeys/shared/hotsite.html` still says the staff link is "PROTO
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
+**Decisions locked in discovery (2026-10-22):**
+- Keep the unsaved-`brandName` fallback (matches the Footer); no new field on the manifest hook.
+- The bar's text follows the dashboard locale; no tenant-locale plumbing in the canvas.
+- `BrandMark` moves into `HotsiteAuthBarSignedOut.tsx` and is exported for `HotsiteAuthBar`'s skeleton.
+- The extracted component keeps the `hotsite-auth-bar`, `hotsite-staff-link` and `hotsite-login-link` test ids; no existing e2e queries both pages at once.
+- One more named unit test: on the public page the bar wrapper is not `inert` (the public bar stays interactive).
+
 ## Open decisions for discovery (resolve once, in the story's `/story-discovery`)
 
 - **Story 1:** resolved in discovery (helper filename, test ids, no split — see Story 1's *Decisions locked in discovery*); still to do during implementation: re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
 - **Story 2:** resolved in discovery (no grouping, 26rem `xl` inspector, Publish disabled while dirty, no `ModuleConfigShell` change — see Story 2's *Decisions locked in discovery*).
 - **Story 3:** resolved in discovery (canonical URL from `getPublicEnv('NEXT_PUBLIC_SITE_URL')` + slug, neutral no-image placeholder, manifest-sourced defaults in the tenant's language, dirty guard for the new contexts — see Story 3's *Decisions locked in discovery*).
 - **Story 4:** resolved in discovery (clean-buffer re-sync, a11y scope, responsive and journey E2E shape, docs as shipped-behavior sync — see Story 4's *Decisions locked in discovery*).
-- **Story 5:** open for its `/story-discovery`: whether to keep the unsaved-`brandName` fallback limit (matches the Footer) or expose the raw tenant name from the manifest hook (recommended: keep).
+- **Story 5:** resolved in discovery (keep the unsaved-`brandName` fallback, dashboard locale, `BrandMark` moves with the signed-out component — see Story 5's *Decisions locked in discovery*).
 
 ## Test strategy (checked against the existing specs, 2026-10-21)
 
