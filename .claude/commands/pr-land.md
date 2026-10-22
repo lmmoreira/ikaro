@@ -25,8 +25,9 @@ If this session is running inside a worktree (via `EnterWorktree`), what actuall
 
 For the Claude runtime, Call 1 — dispatch, its own tool call, nothing else in it:
 ```bash
-nohup codex exec -C <main-repo-absolute-path> "<prompt>" </dev/null >/tmp/<log-name>.log 2>&1 &
+nohup codex exec -C <main-repo-absolute-path> "<prompt>" </dev/null >/tmp/pr-<N>-codex-review-r<K>.log 2>&1 &
 ```
+Name the log per round (`r<K>` is the round number) so the cleanup glob in Step 1 matches it. End every Codex dispatch prompt with: *"Create any review worktree only under `.claude/worktrees/review-pr-<N>`, keep scratch files in one `mktemp -d` directory, and remove both before you exit, including when the review fails or you stop early."*
 Compute `<main-repo-absolute-path>` yourself (strip `/.claude/worktrees/<name>` off the current cwd) and inline it as a literal string — no `$(pwd)` or other substitution in this call.
 
 For the Claude runtime, Call 2 — verify, its own separate tool call (no `sleep`/`if` combined with it):
@@ -79,6 +80,8 @@ bash scripts/pr-round-status.sh <N> --wait-codex --since "$since"
 
 This is a plain script-file invocation, not raw compound bash — it runs directly even inside a worktree, no subagent delegation needed (unlike the `codex exec` dispatch itself — see the gotcha above). Do not proceed to Step 2 until it exits. Never end a turn to wait for it, and keep the main session free while it runs: start the script in the background, then spawn a fresh background agent (a plain `general-purpose` agent with a self-contained prompt, not a `fork`: a fork carries the whole session, about 250k tokens for a task that needs none of it) whose only job is to wait on the script's exact PID (the lowest one `pgrep -af '^bash scripts/pr-round-status.sh <N>'` prints: its subshells share the command line; `while kill -0 <pid>; do sleep 10; done`, re-run if the call times out; `/implement-story` Step 4), read the real state (`gh pr checks`, the SonarCloud line, new comments and reviews) and report one pooled summary without committing, pushing or replying. The prompt names the PR, the PID, the output file to read and the `--since` timestamp, and says to report only (no commit, push, edit or PR reply). The agent's completion notice is the wake-up, so the main session can answer the user in the meantime and never blocks on a long foreground wait. Triage (Step 3) and the one commit (Step 4) stay in the main session. **The agent's report is a snapshot, not a verdict**: it can arrive while a check is still pending or contradict what you did meanwhile (PR #643: one reported a ghost check "resolved on its own" after it had been re-run), so re-read `gh pr checks` and `mergeStateStatus` yourself before acting on it. A turn that ends with nothing running to wake it stalls the loop until the user prods it. **If the script finds one or two checks instead of dozens, read `mergeStateStatus` first:** `DIRTY`/`CONFLICTING` means the PR conflicts with `main` and GitHub is running no CI. `git fetch origin && git merge origin/main` (never rebase; `git fetch --unshallow origin` first if it says "unrelated histories"), resolve, push, and start the round again.
 
+
+**Clean up the round's leftovers once the script returns, and before re-dispatching a Codex run that died.** The dispatch logs are ours, and a Codex run that dies or is killed cannot clean up after itself. `/tmp` is a size-limited tmpfs here, and two round-1 Codex runs of one PR died unpacking the repo into a full one. From the main checkout run `rm -rf /tmp/pr-<N>-codex-review*.log /tmp/pr-review-<N>* /tmp/pr<N>-*`, then `git worktree prune`, and `git worktree remove --force` any worktree under `/tmp` or `.claude/worktrees/review-pr-<N>` that the review left registered (`git worktree list` shows them). Skip it while `pgrep -af "codex exec.*PR #<N>"` still shows a live run.
 ---
 
 ## Step 2 — Pool every finding from this round

@@ -264,7 +264,7 @@ This is a one-time trigger for round 1 only — `/pr-land` never re-posts it on 
 
 For the Claude runtime, Call 1 — dispatch (its own tool call, nothing else in it):
 ```bash
-nohup codex exec -C <main-repo-absolute-path> "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro." </dev/null >/tmp/pr-<N>-codex-review.log 2>&1 &
+nohup codex exec -C <main-repo-absolute-path> "Run the pr-review skill (.agents/skills/pr-review/SKILL.md) against GitHub PR #<N> on lmmoreira/ikaro. Create any review worktree only under .claude/worktrees/review-pr-<N>, keep scratch files in one mktemp -d directory, and remove both before you exit, including when the review fails or you stop early." </dev/null >/tmp/pr-<N>-codex-review-r1.log 2>&1 &
 ```
 Compute `<main-repo-absolute-path>` yourself from the current worktree's cwd (strip the `/.claude/worktrees/<name>` suffix) and substitute it as a literal string — don't use `$(pwd)` or any other substitution inside this call.
 
@@ -272,7 +272,7 @@ For the Claude runtime, Call 2 — verify, as its own separate tool call (no `sl
 ```bash
 pgrep -af "codex exec.*PR #<N>"
 ```
-A matching process line confirms it started; no match means it exited immediately — inspect `/tmp/pr-<N>-codex-review.log` in a third call.
+A matching process line confirms it started; no match means it exited immediately — inspect `/tmp/pr-<N>-codex-review-r1.log` in a third call.
 
 Pass `$since` to `/pr-land` along with the PR number when handing off (Step 5c) — it's round 1's waiting timestamp for `scripts/pr-round-status.sh`.
 
