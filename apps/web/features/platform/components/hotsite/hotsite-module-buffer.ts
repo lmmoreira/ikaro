@@ -81,7 +81,11 @@ export function isModuleBufferDirty(
 ): boolean {
   const layoutData = draft.layout.find((module) => module.type === buffer.type)?.data ?? {};
   const isLeadForm = buffer.type === 'LEAD_FORM';
-  const committed = isLeadForm
+  // A LEAD_FORM buffer that has no LeadFormConfig portion yet is one whose panel is still loading
+  // it, so nothing in it can be an edit: it is compared against the layout data alone, never
+  // against a baseline that has just arrived ahead of the panel's own sync.
+  const hasLeadFormPortion = isLeadForm && extractLeadFormConfig(buffer.localData) !== null;
+  const committed = hasLeadFormPortion
     ? mergeLeadFormBaseline(layoutData, leadFormConfigBaseline)
     : layoutData;
   // localData's own LeadFormConfig portion is re-derived through the same extract/strip helpers

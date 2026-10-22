@@ -254,6 +254,18 @@ describe('hotsite module buffer helpers', () => {
       ).toBe(false);
     });
 
+    it('is clean for a LEAD_FORM buffer whose LeadFormConfig portion has not loaded yet, even when the baseline has', () => {
+      expect(
+        isModuleBufferDirty({ type: 'LEAD_FORM', localData: { title: 'Olá' } }, draft, baseline),
+      ).toBe(false);
+    });
+
+    it('is still dirty for a LEAD_FORM buffer without the portion when its teaser was edited', () => {
+      expect(
+        isModuleBufferDirty({ type: 'LEAD_FORM', localData: { title: 'Outro' } }, draft, baseline),
+      ).toBe(true);
+    });
+
     it('is dirty when a LEAD_FORM buffer changes the audience mode', () => {
       expect(
         isModuleBufferDirty(

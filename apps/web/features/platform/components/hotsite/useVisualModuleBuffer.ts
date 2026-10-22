@@ -51,27 +51,24 @@ export interface VisualModuleBuffer {
 }
 
 interface DiscardGuard {
-  readonly leave: (next: () => void) => void;
+  readonly park: (next: () => void) => void;
   readonly discardConfirmOpen: boolean;
   readonly confirmDiscard: () => void;
   readonly keepEditing: () => void;
 }
 
-// Runs `next` at once while there is nothing to lose; otherwise parks it behind the
-// Apply-or-discard confirmation and runs it only once the manager confirms the discard.
-function useDiscardGuard(isDirty: boolean): DiscardGuard {
+// Parks a navigation behind the Apply-or-discard confirmation; it runs only once the manager
+// confirms the discard, and is dropped if they keep editing.
+function useDiscardGuard(): DiscardGuard {
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
-  const leave = (next: () => void): void => {
-    if (isDirty) setPendingLeave(() => next);
-    else next();
-  };
+  const park = (next: () => void): void => setPendingLeave(() => next);
   const confirmDiscard = (): void => {
     const next = pendingLeave;
     setPendingLeave(null);
     next?.();
   };
   return {
-    leave,
+    park,
     discardConfirmOpen: pendingLeave !== null,
     confirmDiscard,
     keepEditing: () => setPendingLeave(null),
@@ -124,13 +121,15 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
       ? { type: visualContext.type, localData: visualContext.localData }
       : null;
   const isDirty = buffer ? isModuleBufferDirty(buffer, draft, leadFormConfigBaseline) : false;
-  const guard = useDiscardGuard(isDirty);
+  const guard = useDiscardGuard();
   const backToVisual = useBackToVisual(buffer, draft, leadFormConfigBaseline, navigation);
 
-  const requestStructure = (): void => guard.leave(() => navigation.showGlobalContext('structure'));
+  // Runs `next` at once while there is nothing to lose, otherwise behind the confirmation.
+  const leave = (next: () => void): void => (isDirty ? guard.park(next) : next());
+  const requestStructure = (): void => leave(() => navigation.showGlobalContext('structure'));
   const requestSelectModule = (type: HotsiteModuleType): void => {
     if (buffer?.type === type) return;
-    guard.leave(() =>
+    leave(() =>
       navigation.selectModule(type, buildModuleBuffer(draft, type, leadFormConfigBaseline)),
     );
   };
@@ -141,7 +140,7 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     isDirty,
     requestSelectModule,
     requestStructure,
-    requestEditInDetail: () => guard.leave(navigation.enterDetailed),
+    requestEditInDetail: () => leave(navigation.enterDetailed),
     backToVisual,
     apply,
     discardConfirmOpen: guard.discardConfirmOpen,
