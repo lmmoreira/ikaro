@@ -87,9 +87,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // zero real edits (found live, 2026-08-26).
   const leadFormConfigBaseline =
     leadFormConfigDraft ??
-    (leadFormConfig.data
-      ? extractLeadFormConfig(leadFormConfig.data as unknown as Record<string, unknown>)
-      : null);
+    (leadFormConfig.data ? extractLeadFormConfig(leadFormConfig.data) : null);
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;

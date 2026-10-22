@@ -53,7 +53,12 @@ export function isModuleDataDirty(
 ): boolean {
   return JSON.stringify(committed) !== JSON.stringify(local);
 }
-export function extractLeadFormConfig(data: Record<string, unknown>): LeadFormConfigDraft | null {
+// Takes the two LeadFormConfig fields structurally (not Record<string, unknown>) so both the panel's
+// local buffer and the GET /lead-form/config response can be passed without a cast.
+export function extractLeadFormConfig(data: {
+  readonly audienceMode?: unknown;
+  readonly questions?: unknown;
+}): LeadFormConfigDraft | null {
   if (
     !['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY'].includes(data.audienceMode as string) ||
     !Array.isArray(data.questions)
