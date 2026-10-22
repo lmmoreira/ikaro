@@ -315,16 +315,28 @@ Publish, View published site and the banner slot already work from Story 1 (incl
 
 Make keyboard and screen-reader behavior first-class: global actions, preview selection, inspector return, Apply/Cancel, detailed-entry/back and publish controls must be reachable and announce meaningful context changes. Validate desktop, tablet and mobile layouts; a sticky inspector must never make controls inaccessible.
 
+**Decisions locked in discovery:**
+- **Already shipped, only regression-tested here:** Edit in detail, Back to visual editing (topbar), the shared-draft/context round trip, the Apply-or-discard guard on Edit in detail, Publish disabled while the buffer is dirty, the mode-aware publish callback, Unpublish and Manifesto detailed-only. S04 adds no new behavior for these.
+- **Clean-buffer re-sync:** after a successful save, `HotsiteEditor`'s publish path reloads an open clean module buffer from the new draft (`buildModuleBuffer`, as `useBackToVisual` already does). Reason: the save promotes a `tmp/` image to its final path, so a stale buffer would read as dirty (blocking Publish) and a later Apply would write the dead `tmp/` path back. Publish is only enabled with a clean buffer, so nothing unsaved is lost. If `HotsiteEditor.tsx` (293 lines) trips a size/complexity limit, extract it into `useVisualModuleBuffer`.
+- **Accessibility scope:** `visual-preview-status` becomes a polite live region (`role="status"`); focus moves to the inspector heading when a module opens from the preview or the list; Back to structure returns focus to the Configure button / selected section; nothing is focused on initial load. Success banner (`<output>`) and error banner (`role="alert"`) are already live regions.
+- **Responsive E2E:** one mobile (~390px) and one tablet (~820px) test: commands reachable, inspector after the preview, the fixed bottom bar never covers the last preview section.
+- **E2E shape:** one full manager journey test (visual branding edit → module Apply → Sharing edit → detailed editor/Manifesto → return with draft retained → Publish → reload → public site) plus one keyboard test (preview section, Edit in detail, Back, Publish). The dirty-decision, Cancel/Discard and Manifesto-in-JSON scenarios already have E2E from S02/S03/M18-S02 and are referenced, not duplicated.
+- **Dead code:** delete the unused `ModuleConfigPreviewView` export (`hotsite-editor-views.tsx`) and any spec case for it.
+- **Docs (shipped-behavior sync, not a journey restructure — no `/docs-audit` baseline, normal doc gate):** rewrite `journeys/manager/hotsite.md`'s "Proposta futura" section and flip the `01-hotsite-editor.html` / `editor-vision/index.html` rows from "❓ Proposta"; replace the stale `editor-vision/dev-notes.md` (it lists `01-editor-visual.html`–`04-task-validation.html`, which no longer match the prototype files) with the shipped behavior; drop "Proposta"/redesign wording in `prototypes/hotsite/dev-notes.md`; update UC-027 (visual editor main flow, detailed editor secondary); grep `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `journeys/`, `.claude/` for stale tabbed-editor-as-default references (stale-reference sweep).
+- **Correction to the original text:** Back to visual editing lives in the dashboard topbar, not in `HotsiteEditorMainView`, so its keyboard proof is E2E plus `useHotsiteEditorTopbarOverride.spec.tsx`; `HotsiteEditorMainView.tsx/.spec` and `ManifestTab.tsx/.spec` need no change.
+
 **Prototype references:** `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (Edit in detail command and publish actions; the prototype's link to another page is an in-app mode switch in production); `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` (Back to visual editing top-bar entry)
 **New migration / i18n keys / env vars / feature flags:** add localized detailed-editor/back, publish status and accessible live-region labels to both `web.json` locales as needed; no migration, environment variable or feature flag.
 
 **Files to create/modify:**
-- `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` (modify — retain one session state across visual/detailed views and publish from that state)
-- `apps/web/features/platform/components/hotsite/HotsiteEditor.spec.tsx` (modify)
-- `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.tsx` (modify — provide the detailed-editor top-bar return path)
-- `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.spec.tsx` (modify)
-- `apps/web/features/platform/components/hotsite/hotsite-editor-views.tsx` and `.spec.tsx` (modify only to delete the unused `ModuleConfigPreviewView` export, if not already done)
-- `journeys/manager/hotsite.md`, `journeys/manager/prototypes/hotsite/dev-notes.md`, `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md` (modify — replace "Proposta futura" with the shipped behavior; doc gate applies)
+- `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` (modify — re-sync an open clean buffer after a successful save; the one-session state itself already shipped)
+- `apps/web/features/platform/components/hotsite/HotsiteEditor.spec.tsx` (modify — post-publish re-sync, focus behavior)
+- `apps/web/features/platform/components/hotsite/useVisualModuleBuffer.ts` and `.spec.ts` (modify only if the re-sync is extracted there)
+- `apps/web/features/platform/components/hotsite/VisualHotsiteEditorView.tsx`, `VisualModuleInspector.tsx` and their specs (modify — live region on the preview status, focus management)
+- `apps/web/e2e/helpers/hotsite/` (modify only if the journey needs a shared helper)
+- `apps/web/features/platform/components/hotsite/hotsite-editor-views.tsx` and `.spec.tsx` (modify — delete the unused `ModuleConfigPreviewView` export)
+- `journeys/manager/hotsite.md`, `journeys/manager/prototypes/hotsite/dev-notes.md`, `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md` (modify — replace "Proposta futura" with the shipped behavior; flip the "❓ Proposta" index rows; doc gate applies)
+- `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` (modify only if the stale-reference sweep finds the tabbed editor described as the default)
 - `docs/USE_CASES.md` § UC-027 (modify — describe the visual editor as the default flow and the detailed editor as secondary; doc gate applies)
 - `apps/web/features/platform/hotsite/useHotsiteEditorTopbarOverride.ts` (modify — use the dashboard topbar's existing override pattern for Back to visual editing)
 - `apps/web/features/platform/hotsite/useHotsiteEditorTopbarOverride.spec.tsx` (modify)
@@ -349,12 +361,15 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 **Acceptance criteria — technical:** *(Integration: none — web-only story, no integration tier; Tenant isolation: none — no new data access; unit/e2e/axe rules and the existing specs this story touches: see *Test strategy*)*
 - Unit:
   - [ ] `HotsiteEditor.spec.tsx` proves visual → detailed → visual preserves shared draft and selected context, while a dirty local module buffer requires the Apply-or-discard decision and a full reload restores only the saved server draft; Publish is disabled with a dirty buffer; the legacy drill-down from the detailed Layout tab still works.
-  - [ ] `HotsiteEditorMainView.spec.tsx` proves Manifesto remains detailed-only and Back to visual editing is keyboard-accessible.
-  - [ ] `useHotsiteEditorTopbarOverride.spec.tsx` proves the dashboard topbar callback returns to visual editing with the correct label and clears when the editor context changes.
-  - [ ] `hotsite-editor-publish.spec.ts` proves publish receives only committed shared-draft data, retains existing save-then-publish/error behavior, and a clean open buffer is re-synced after the post-save `setDraft`.
+  - [ ] `useHotsiteEditorTopbarOverride.spec.tsx` stays green (already proves the Back label/handler and clear-on-context-change); `HotsiteEditorMainView.spec.tsx` and `ManifestTab.spec.tsx` are unchanged (Manifesto detailed-only is already covered).
+  - [ ] `hotsite-editor-publish.spec.ts` proves `onSettled` runs on both success and error, publish receives only committed shared-draft data, and `onLeadFormPublished` runs only on success.
+  - [ ] Negative guarantee, named test (`HotsiteEditor.spec.tsx`): after a successful publish, an open clean buffer holding a `tmp/` image is reloaded with the promoted path, is not dirty, and a later Apply never writes the `tmp/` path back.
+  - [ ] `visual-preview-status` is `role="status"`; opening a module from the list or the preview moves focus to the inspector heading; Back to structure restores focus; nothing is focused on load (`VisualHotsiteEditorView.spec.tsx`, `VisualModuleInspector.spec.tsx`). Axe re-run on both.
+  - [ ] `ModuleConfigPreviewView` and its spec cases are gone.
 - E2E:
   - [ ] `apps/web/e2e/hotsite-editor.spec.ts` covers the full manager journey: visual branding edit, module Apply, Sharing edit, dirty-module Apply/discard decision, detailed-editor/Manifesto entry, return with draft retained, publish, reload persistence and published-site visibility.
   - [ ] The same E2E file covers keyboard activation for a preview section, Edit in detail, Back to visual editing and Publish.
+  - [ ] Mobile (~390px) and tablet (~820px) tests: commands reachable, inspector follows the preview, the bottom bar never covers the last preview section; every mutation restored in `afterEach`.
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
@@ -363,7 +378,7 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 - **Story 1:** resolved in discovery (helper filename, test ids, no split — see Story 1's *Decisions locked in discovery*); still to do during implementation: re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
 - **Story 2:** resolved in discovery (no grouping, 26rem `xl` inspector, Publish disabled while dirty, no `ModuleConfigShell` change — see Story 2's *Decisions locked in discovery*).
 - **Story 3:** resolved in discovery (canonical URL from `getPublicEnv('NEXT_PUBLIC_SITE_URL')` + slug, neutral no-image placeholder, manifest-sourced defaults in the tenant's language, dirty guard for the new contexts — see Story 3's *Decisions locked in discovery*).
-- **Story 4:** none beyond hardening; escalate if the Apply-or-discard flow from Edit in detail proves inconsistent with `DiscardChangesDialog`.
+- **Story 4:** resolved in discovery (clean-buffer re-sync, a11y scope, responsive and journey E2E shape, docs as shipped-behavior sync — see Story 4's *Decisions locked in discovery*).
 
 ## Test strategy (checked against the existing specs, 2026-10-21)
 
