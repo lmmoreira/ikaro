@@ -53,7 +53,7 @@ The stories are deliberately sequential at the UI state boundary. Stories 2 and 
 
 There is no production deployment, so no feature flag or hidden route is needed. Every story merges to `main` with green CI, and the visual editor becomes the default in **Story 1**. Until Stories 2–3 land, the not-yet-wired contexts (Branding and style, Organize modules, Sharing) are present but inert/disabled, and the real fields are reachable through **Edit in detail** (the retained tabbed editor), which ships in Story 1 together with its Back to visual editing entry.
 
-E2E and unit tests: Story 1 changes the entry point, so every existing test in `hotsite-editor.spec.ts` (≈40, all start from `hotsite-tab` / `hotsite-preview-desktop`) and in `HotsiteEditor.spec.tsx` (e.g. "loads with 4 tabs, Branding active by default") would break. Story 1 therefore adds one shared e2e helper (under `apps/web/e2e/helpers/hotsite/`) that opens the detailed editor after load, and updates each legacy test's entry to use it, assertions unchanged, plus the unit-spec equivalents. Those tests stay as the regression suite for the retained detailed editor (tabs, Preview, module-config drill-down, Manifesto), so they are re-pointed once and not rewritten. Stories 2–3 add new tests for the visual paths they build; Story 4 adds the round-trip and publish journey. Each story must leave the whole suite green.
+E2E and unit tests: Story 1 changes the entry point, so every existing test in `hotsite-editor.spec.ts` (33 tests, all start from `hotsite-tab` / `hotsite-preview-desktop`) and in `HotsiteEditor.spec.tsx` (e.g. "loads with 4 tabs, Branding active by default") would break. Story 1 therefore adds one shared e2e helper (under `apps/web/e2e/helpers/hotsite/`) that opens the detailed editor after load, and updates each legacy test's entry to use it, assertions unchanged, plus the unit-spec equivalents. Those tests stay as the regression suite for the retained detailed editor (tabs, Preview, module-config drill-down, Manifesto), so they are re-pointed once and not rewritten. Stories 2–3 add new tests for the visual paths they build; Story 4 adds the round-trip and publish journey. Each story must leave the whole suite green.
 
 ### Editor state model (locked contract for all stories)
 
@@ -75,7 +75,7 @@ The preview canvas renders the real public module components. Each module is wra
 ### Story 1 — Make the persistent visual-editor frame the default
 
 **Agent:** frontend-ts
-**Complexity:** L (if discovery finds the canvas extraction too large, split it out as its own story)
+**Complexity:** L (discovery decided: one story, one PR — the canvas extraction and test re-pointing are mostly mechanical moves the frame cannot land without)
 **Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 1. Role-Based Rendering and § 3. Shared Component Library — shadcn/ui; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives — never hand-roll a control that already exists; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 1. The Hotsite Manifest Pattern and § 2. Branding & Design Token System
 **Dependencies:** none
 **Pattern:** reducer-owned editor state with plain composition — `HotsiteEditor` remains the sole owner of the loaded config and shared draft; visual subviews receive state and explicit callbacks rather than creating competing drafts. The mode/visualContext/buffer state and its transitions live in an extracted `useHotsiteEditorSession` hook (or reducer module) next to `HotsiteEditor.tsx`, so that file (274 lines today) doesn't absorb the growth and trip SonarCloud complexity limits.
@@ -94,6 +94,13 @@ On desktop, the contextual editor panel is a sticky, independently scrollable ri
 The preview reuses the real public hotsite modules, so selection uses the locked *Editor-only interaction boundary* above; the selection wrapper lives in `renderHotsitePreviewModule.tsx` (or its caller), never in the public module components.
 
 The old main tabbed composition is retained as the detailed view, not deleted. Its Preview and module-config drill-down views stay untouched apart from rendering through the shared canvas.
+
+**Decisions locked in discovery:**
+- **Initial inspector state:** nothing is selected on load, so the inspector shows a neutral empty state — "Select a section of the preview to see its details" (pt-BR "Selecione uma seção da prévia para ver os detalhes"). Selecting a section replaces it with the module-name placeholder and the Edit in detail action.
+- **Labels** follow the prototype, as new keys under `dashboard.hotsitePage.visual.*` in both locales: Branding and style / "Branding e estilo", Organize modules / "Organizar módulos", Sharing / "Compartilhamento", Edit in detail / "Editar em detalhes", Publish / "Publicar", View published site / "Ver site publicado". The three disabled commands carry the hint "Coming soon — use Edit in detail" / "Disponível em breve — use Editar em detalhes". The existing `publish`, `viewLiveSite`, `tabs.*` and `previewView.*` keys stay for the detailed view and the legacy Preview.
+- **E2E helper:** `apps/web/e2e/helpers/hotsite/hotsite-editor-navigation.ts` exporting `openDetailedEditor(page)`, added to the `index.ts` barrel. The unit equivalent is a `renderDetailedEditor()` helper in `HotsiteEditor.spec.tsx`.
+- **Test ids** (stable, no templates): `visual-editor`, `visual-command` (with `data-command`), `visual-banner-slot`, `visual-preview`, `visual-inspector`, `preview-section-select` (with `data-module-type`), `visual-publish-mobile`, `visual-view-live-mobile`.
+- **Module organization is not in this story:** the Organize modules command stays disabled until Story 2 builds the structure list; Branding and style and Sharing stay disabled until Story 3.
 
 **Prototype references:** `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (compact global actions, persistent preview and desktop inspector); `journeys/manager/prototypes/hotsite/editor-vision/vision.css` (responsive placement only — production must use repository primitives/styles); `journeys/manager/prototypes/hotsite/01-hotsite-editor.html` (Edit in detail / Back to visual editing entry only)
 **New migration / i18n keys / env vars / feature flags:** add localized visual-editor command, context, preview-status and accessibility-label keys to `packages/i18n/locales/pt-BR/web.json` and `packages/i18n/locales/en/web.json`; no migration, environment variable or feature flag.
@@ -131,7 +138,7 @@ The old main tabbed composition is retained as the detailed view, not deleted. I
 - [ ] Selecting an enabled preview section establishes an editing context and visibly identifies that section without changing the public hotsite output.
 - [ ] Selecting a preview module never follows its visitor CTA, submits a form, starts booking or opens Chatbot.
 - [ ] Publish from the visual editor saves the complete draft, publishes, shows the success/error banner and keeps the manager in the visual editor; View published site opens the live site in a new tab; Unpublish is only in the detailed editor.
-- [ ] Until Story 2, selecting a section shows a placeholder inspector (module name plus an Edit in detail action).
+- [ ] Until Story 2, selecting a section shows a placeholder inspector (module name plus an Edit in detail action); with nothing selected the inspector shows the neutral empty state.
 - [ ] On narrow screens the bottom action bar never covers the last preview section or inspector controls.
 
 **Acceptance criteria — technical:** *(Integration: none — web-only story, no integration tier; Tenant isolation: none — no new data access; unit/e2e/axe rules and the existing specs this story touches: see *Test strategy*)*
@@ -316,7 +323,7 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 
 ## Open decisions for discovery (resolve once, in the story's `/story-discovery`)
 
-- **Story 1:** exact e2e entry-helper filename (against sibling helpers in `apps/web/e2e/helpers/hotsite/`); names of the new `data-testid`s (stable ids plus `data-module-type`, no templates); whether the canvas extraction should split into its own story; re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
+- **Story 1:** resolved in discovery (helper filename, test ids, no split — see Story 1's *Decisions locked in discovery*); still to do during implementation: re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
 - **Story 2:** which fields go in which group, panel by panel (defaults: groups expanded); inspector width for the Lead Form question builder, Gallery and Testimonials (widen vs. single-column); whether any change to `ModuleConfigShell` is unavoidable.
 - **Story 3:** the client-safe source of the canonical URL (tenant slug plus public site origin); Open Graph "no image" presentation in the cards.
 - **Story 4:** none beyond hardening; escalate if the Apply-or-discard flow from Edit in detail proves inconsistent with `DiscardChangesDialog`.
@@ -337,13 +344,13 @@ All stories are `apps/web` only. Rules come from `docs/TESTING_STRATEGY.md` § L
 
 ### Existing tests the plan affects (counts measured)
 
-- `HotsiteEditor.spec.tsx` (33 tests, 29 call `renderEditor()` and assume the tabbed default): Story 1 adds a `renderDetailedEditor()` helper (render, then click Edit in detail) and the existing tests use it unchanged; new tests cover the visual default. The suite mocks `tenant-settings`, `tenant-provider`, `fetchManifestClient`, `fetchServicesClient` and spies `globalThis.fetch`; the visual default now mounts the canvas, so re-check the three `expect(fetchSpy).not.toHaveBeenCalled()` assertions and any manifest/services mock call counts.
+- `HotsiteEditor.spec.tsx` (33 tests, 26 call `renderEditor()` and assume the tabbed default): Story 1 adds a `renderDetailedEditor()` helper (render, then click Edit in detail) and the existing tests use it unchanged; new tests cover the visual default. The suite mocks `tenant-settings`, `tenant-provider`, `fetchManifestClient`, `fetchServicesClient` and spies `globalThis.fetch`; the visual default now mounts the canvas, so re-check the three `expect(fetchSpy).not.toHaveBeenCalled()` assertions and any manifest/services mock call counts.
 - `HotsitePreview.spec.tsx` (12 tests): ten test canvas behavior (loading, error, draft hero, tmp/ signed-URL resolution ×4, services fetch ×2, containing block) and **move** to `HotsitePreviewCanvas.spec.tsx`; the wrapper spec keeps the two publish tests ("calls onPublish", "disables while isPublishing").
 - `useHotsiteEditorTopbarOverride.spec.tsx` (9 tests): the hook gains a detailed-mode input; keep the existing priority/stability/cleanup tests and add precedence for the new mode and its clear-on-context-change.
 - Module panel specs (~110 tests across the ten panels; they locate fields with `getByLabelText`, `getByDisplayValue` and `data-testid`): Story 2's grouping must keep every label, `data-testid` and DOM presence. Groups render **expanded by default** (a collapsed group would hide inputs and break these queries), or the spec change is explicit and reviewed.
 - `ModuleConfigShell.spec.tsx` (8 tests): the detailed drill-down is unchanged, so build the inspector's chrome as a separate component (`VisualModuleInspector`) reusing `DiscardChangesDialog`; touch `ModuleConfigShell` only if shared content must be extracted, and keep its spec green.
 - `LayoutTab.spec.tsx` (7), `hotsite-editor-views.spec.tsx` (10), `hotsite-editor-publish.spec.ts` (2), `HotsiteEditorMainView.spec.tsx` (3), `BrandingTab`/`SeoTab` specs: extended, not rewritten.
-- `hotsite-editor.spec.ts` (≈40 tests, 28 `page.goto('/dashboard/hotsite')`, 9 `hotsite-preview-*` references): Story 1 adds one helper (new file under `apps/web/e2e/helpers/hotsite/`, exported from its `index.ts` barrel, split by concern rather than growing `hotsite-api.ts`) that opens the detailed editor, and each legacy test enters through it. The `hotsite-preview-*` ids stay valid because the detailed Preview is kept.
+- `hotsite-editor.spec.ts` (33 tests, 28 `page.goto('/dashboard/hotsite')`, 9 `hotsite-preview-*` references): Story 1 adds one helper (new file under `apps/web/e2e/helpers/hotsite/`, exported from its `index.ts` barrel, split by concern rather than growing `hotsite-api.ts`) that opens the detailed editor, and each legacy test enters through it. The `hotsite-preview-*` ids stay valid because the detailed Preview is kept.
 - `locale-family-key-parity.spec.ts` enforces that `pt-BR` and `en` `web.json` have the same keys, so every new key goes into both in the same change.
 
 ### Rules every new test must follow
