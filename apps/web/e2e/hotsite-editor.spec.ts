@@ -1522,8 +1522,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.locator(visualCommand('publish')).click();
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
     const saved = await getHotsiteConfig(page);
-    expect(saved.branding.primaryColor).toBe('#123456');
-    expect(saved.branding.backgroundColor).toBe('#0a0a0a');
+    // The backend stores hex colours uppercased.
+    expect(saved.branding.primaryColor.toLowerCase()).toBe('#123456');
+    expect(saved.branding.backgroundColor.toLowerCase()).toBe('#0a0a0a');
   });
 
   test('Sharing: the title and description update the Google and WhatsApp simulations while typing, the URL carries the tenant slug, and publishing saves them (TD55-S03)', async ({

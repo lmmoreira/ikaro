@@ -30,6 +30,16 @@ function Copy({ value, loadError }: CopyProps): React.JSX.Element {
   );
 }
 
+// The origin comes from a runtime env string nothing validates, so a malformed one must not take
+// the whole Sharing context down: the card just shows the text as it is.
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
 // A simulation of how the hotsite may look in a Google result and as a WhatsApp link card. It is
 // derived from the draft's SEO fields as the manager types and never writes anything back. Neither
 // card promises what Google, WhatsApp or any other channel will really render.
@@ -38,13 +48,16 @@ export function HotsiteSharingPreview({
   tenantSlug,
 }: HotsiteSharingPreviewProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.visual.sharing');
-  const { defaults, loadError } = useSharingDefaults(tenantSlug);
+  // The manifest is only needed for the fallback copy: with both fields set there is nothing to
+  // fall back to, so switching back to Sharing then costs no request.
+  const needsDefaults = seo.title === null || seo.description === null;
+  const { defaults, loadError } = useSharingDefaults(tenantSlug, needsDefaults);
   const tmpSignedUrls = useTmpSignedUrlMap([seo.ogImageUrl]);
   const imageUrl = resolveDraftImageUrl(seo.ogImageUrl, hotsiteImageBaseUrl(), tmpSignedUrls);
   const title = seo.title ?? defaults?.title ?? null;
   const description = seo.description ?? defaults?.description ?? null;
   const url = buildPublicHotsiteUrl(tenantSlug);
-  const host = new URL(url).host;
+  const host = hostOf(url);
 
   return (
     <section aria-labelledby="hotsite-sharing-heading" data-testid="visual-sharing-preview">
@@ -61,17 +74,32 @@ export function HotsiteSharingPreview({
             <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
               {t('googleLabel')}
             </h3>
-            <div data-testid="visual-sharing-google">
-              <p className="truncate text-xs text-gray-600">{url}</p>
-              <p
-                data-testid="visual-sharing-google-title"
-                className="text-lg leading-snug text-blue-700"
-              >
-                <Copy value={title} loadError={loadError} />
-              </p>
-              <p data-testid="visual-sharing-google-description" className="text-sm text-gray-600">
-                <Copy value={description} loadError={loadError} />
-              </p>
+            <div data-testid="visual-sharing-google" className="flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs text-gray-600">{url}</p>
+                <p
+                  data-testid="visual-sharing-google-title"
+                  className="text-lg leading-snug text-blue-700"
+                >
+                  <Copy value={title} loadError={loadError} />
+                </p>
+                <p
+                  data-testid="visual-sharing-google-description"
+                  className="text-sm text-gray-600"
+                >
+                  <Copy value={description} loadError={loadError} />
+                </p>
+              </div>
+              {imageUrl && (
+                // A result's optional thumbnail; with no sharing image set the result has none.
+                /* eslint-disable-next-line @next/next/no-img-element -- may be a signed storage URL */
+                <img
+                  src={imageUrl}
+                  alt={t('imageAlt')}
+                  data-testid="visual-sharing-google-image"
+                  className="h-16 w-24 shrink-0 rounded-md object-cover"
+                />
+              )}
             </div>
           </CardContent>
         </Card>

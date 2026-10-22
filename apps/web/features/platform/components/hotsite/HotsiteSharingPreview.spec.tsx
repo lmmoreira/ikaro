@@ -193,6 +193,7 @@ describe('HotsiteSharingPreview', () => {
       'Sem imagem de compartilhamento',
     );
     expect(screen.queryByTestId('visual-sharing-image')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('visual-sharing-google-image')).not.toBeInTheDocument();
   });
 
   it.each([
@@ -205,12 +206,34 @@ describe('HotsiteSharingPreview', () => {
   ])('renders the sharing image from %s', (_label, ogImageUrl, expectedSrc) => {
     renderPreview(seo({ title: 'T', description: 'D', ogImageUrl }));
 
-    expect(screen.getByTestId('visual-sharing-image')).toHaveAttribute('src', expectedSrc);
-    expect(screen.getByTestId('visual-sharing-image')).toHaveAttribute(
-      'alt',
-      'Imagem de compartilhamento',
-    );
+    for (const testId of ['visual-sharing-image', 'visual-sharing-google-image']) {
+      expect(screen.getByTestId(testId)).toHaveAttribute('src', expectedSrc);
+      expect(screen.getByTestId(testId)).toHaveAttribute('alt', 'Imagem de compartilhamento');
+    }
     expect(screen.queryByTestId('visual-sharing-no-image')).not.toBeInTheDocument();
+  });
+
+  it('does not take the Sharing context down when the site origin is malformed', () => {
+    stubPublicEnv({ NEXT_PUBLIC_SITE_URL: 'not a url' });
+
+    renderPreview(seo({ title: 'T', description: 'D' }));
+
+    expect(screen.getByTestId('visual-sharing-google')).toHaveTextContent('not a url/tenant-a');
+    expect(screen.getByTestId('visual-sharing-whatsapp')).toHaveTextContent('not a url/tenant-a');
+  });
+
+  it('asks for the manifest only while a fallback is needed', async () => {
+    const { rerender } = renderPreview(seo({ title: 'T', description: 'D' }));
+    expect(mockFetchManifest).not.toHaveBeenCalled();
+
+    rerender(
+      <HotsiteSharingPreview seo={seo({ title: 'T', description: null })} tenantSlug="tenant-a" />,
+    );
+
+    await waitFor(() => expect(mockFetchManifest).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByTestId('visual-sharing-google-description')).toHaveTextContent('Lavacar'),
+    );
   });
 
   it('resolves a just-uploaded tmp/ image through a signed read URL', async () => {

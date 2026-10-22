@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   HotsiteAdminContentResponse,
   HotsiteBusinessInfoResponse,
@@ -65,7 +65,13 @@ export function useTmpSignedUrls(
   layout: HotsiteAdminContentResponse['layout'],
   seo: HotsiteAdminContentResponse['seo'],
 ): ReadonlyMap<string, string> {
-  return useTmpSignedUrlMap(collectHotsiteImagePaths(branding, layout, seo));
+  // Collecting walks the whole layout, so it reruns only when the draft slices it reads change,
+  // not on every render of the preview.
+  const paths = useMemo(
+    () => collectHotsiteImagePaths(branding, layout, seo),
+    [branding, layout, seo],
+  );
+  return useTmpSignedUrlMap(paths);
 }
 
 // The same resolution for an arbitrary set of image paths (the sharing simulation only has the
@@ -115,7 +121,10 @@ export function useTmpSignedUrlMap(paths: readonly string[]): ReadonlyMap<string
 // What the sharing simulation needs to reproduce the public <head>'s fallback title/description:
 // the tenant's name, address and language are not part of the editable draft, so they come from
 // the public manifest, fetched once when the Sharing context opens.
-export function useSharingDefaults(tenantSlug: string): {
+export function useSharingDefaults(
+  tenantSlug: string,
+  enabled: boolean,
+): {
   defaults: SeoDefaults | null;
   loadError: boolean;
 } {
@@ -123,6 +132,7 @@ export function useSharingDefaults(tenantSlug: string): {
   const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return;
     let cancelled = false;
 
     async function load(): Promise<void> {
@@ -143,7 +153,7 @@ export function useSharingDefaults(tenantSlug: string): {
     return () => {
       cancelled = true;
     };
-  }, [tenantSlug]);
+  }, [tenantSlug, enabled]);
 
   return { defaults, loadError };
 }
