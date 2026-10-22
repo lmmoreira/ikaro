@@ -17,6 +17,38 @@ const hotsiteTemplates = [
   { id: 'studio', name: 'Studio criativo', category: 'Fotografia e criação', description: 'Tipografia forte e imagem protagonista para serviços autorais.', colors: ['#171321', '#302747', '#c5ff4a'], image: '../hotsite-impl/assets/lume-studio-hero.png', visible: ['HERO', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'LEAD_FORM', 'ABOUT', 'CONTACT', 'FOOTER', 'CHATBOT'], copy: { brand: 'LUME STUDIO', menu: 'Portfólio · Serviços · Processo · Contato', eyebrow: 'FOTOGRAFIA E DIREÇÃO CRIATIVA', hero: 'Imagens que deixam uma marca', subtitle: 'Fotografia, direção e conteúdo para negócios que querem ser lembrados.', cta: 'Ver portfólio', services: 'Projetos que fazemos', serviceEyebrow: 'DO CONCEITO À ENTREGA', cards: [['Ensaio de marca', 'Sob consulta'], ['Campanha completa', 'Projeto autoral'], ['Conteúdo mensal', 'Planos flexíveis']], booking: 'Vamos criar juntos?', bookingCopy: 'Conte um pouco do seu projeto e encontre o melhor caminho.', about: 'Uma ideia bem enquadrada', aboutCopy: 'Estratégia, direção e execução em um mesmo estúdio.', contact: 'Vamos conversar sobre seu projeto', contactCopy: 'Centro · WhatsApp · Instagram', footer: 'LUME STUDIO · Fotografia e direção criativa' } },
 ];
 
+// Keep the template picker aligned with the richer, image-led compositions in hotsite-impl.
+// These overrides are explicit here so the prototype demonstrates the current engine's real
+// module combinations instead of presenting every template through the same preview recipe.
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'beloauto'), {
+  description: 'Full bleed escuro, galeria featured, superfícies alternadas e CTA cinematográfico.',
+  visible: ['HERO', 'SERVICE_LIST', 'GALLERY', 'ABOUT', 'TESTIMONIALS', 'BOOKING_CTA', 'CONTACT', 'FOOTER'],
+});
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'barbearia'), {
+  description: 'Editorial escuro, serviços em lista, fotos do espaço e agendamento imersivo.',
+  visible: ['HERO', 'SERVICE_LIST', 'ABOUT', 'GALLERY', 'TESTIMONIALS', 'BOOKING_CTA', 'CONTACT', 'FOOTER'],
+});
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'pet'), {
+  description: 'Hero fotográfico, cards lúdicos, galeria featured e histórias de clientes.',
+  image: '../hotsite-impl/assets/mimo-pet-hero-v2.png',
+  visible: ['HERO', 'SERVICE_LIST', 'ABOUT', 'GALLERY', 'TESTIMONIALS', 'BOOKING_CTA', 'CONTACT', 'FOOTER'],
+});
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'wellness'), {
+  description: 'Hero sem foto, ritmo contemplativo, galeria natural e CTA imersivo.',
+  image: '../hotsite-impl/assets/origem-booking.png',
+  visible: ['HERO', 'ABOUT', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'BOOKING_CTA', 'CONTACT', 'FOOTER'],
+});
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'clinic'), {
+  description: 'Hero humano, informação estruturada, espaço em destaque e chatbot.',
+  image: '../hotsite-impl/assets/clinica-lume-hero-v2.png',
+  heroImage: true,
+  visible: ['HERO', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'ABOUT', 'BOOKING_CTA', 'CONTACT', 'FOOTER', 'CHATBOT'],
+});
+Object.assign(hotsiteTemplates.find(({ id }) => id === 'studio'), {
+  description: 'Portfólio assimétrico, contraste gráfico, lead form e chatbot inline.',
+  image: '../hotsite-impl/assets/lume-studio-gallery-1.png',
+});
+
 liveBranding = function applyBrandingPreview() {
   const read = (label) => {
     const fieldLabel = [...document.querySelectorAll('#module-fields .field-label')].find((node) => node.textContent.trim() === label);

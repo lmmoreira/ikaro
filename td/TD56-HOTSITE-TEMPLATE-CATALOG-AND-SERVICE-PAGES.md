@@ -21,15 +21,19 @@ The current public service list can show a short service description, price, dur
 
 Build a versioned, platform-owned catalogue of six curated templates. A template is a controlled manifesto preset plus source assets and metadata, not a tenant-owned hotsite and not a second rendering system. Selecting it changes the existing manager draft and its persistent preview. The existing Publish action remains the only action that makes it public.
 
-Templates must create visibly different sites through reusable presentation capabilities, rather than one-off HTML structures. Extend the current manifest through closed, validated properties:
+Templates must create visibly different sites through reusable presentation capabilities, rather than one-off HTML structures. Each module type remains a singleton in `layout`; this TD does not add repeatable modules. Extend the current manifest through closed, validated properties:
 
 - global `navigation`, outside ordered `layout` because it is page chrome, singleton, and not independently draggable;
-- semantic module `surface` choices with contrast-safe branding tokens;
-- controlled presentation variants for Hero, Service List, Gallery, Testimonials, and Booking CTA;
-- one reusable `PROCESS_STEPS` module; and
+- semantic section presentation (`surface`, content width, minimum height, padding, optional background image and overlay), with contrast-safe branding tokens;
+- controlled, module-specific layout variants for Hero, Service List, Gallery, Testimonials, About, Booking CTA, and Lead Form;
+- one singleton `CONTENT_BLOCK` module with a closed variant union for trust grids, image statements, immersive statements, process steps, collages, and technical callouts; and
 - a top-level `serviceDetailPage` presentation configuration for the public service subpage.
 
 Production sections remain viewport-wide. Their background, colour and divider belong to the full-width section; only the inner content receives a maximum width. This matches the current BeloAuto renderer. The former centered 1240px prototype showcase canvas has been removed from `template-compositions.css` for the same reason.
+
+The manifest keeps module business data separate from optional `presentation` data. Presentation is a closed object: `surface` (`background | secondary | primary | custom`), `customColor` (required only for `custom`, strict `#RRGGBB`), `contentWidth` (`narrow | standard | wide | full`), `minHeight` (`auto | sm | md | lg | viewport`), `padding` (`none | compact | comfortable | spacious`), and optional `background` (`imageUrl`, focal `position`, and `overlay`). Overlay is a closed union: `none`, `solid` (`color`, `opacity`), or `linear-gradient` (`direction`, `fromColor`, `fromOpacity`, `toColor`, `toOpacity`). Directions are a fixed enum, colors are strict hex, opacity is 0–1, and irrelevant fields are rejected. Background image placement preserves existing focal-point behavior. New hotsite sections use a shared full-width section shell; module-specific variants arrange content inside it. Omitted presentation fields resolve to the current renderer defaults.
+
+`CONTENT_BLOCK` remains one module entry and one selected variant at a time. Its closed variants are `trust-grid`, `image-statement`, `immersive-statement`, `process-steps`, `collage-callout`, and `technical-callout`. Each variant has a separately validated data shape with bounded item counts, text lengths, image references and optional same-page CTA target. Rich text is sanitized Markdown with a documented size bound; it is never arbitrary HTML. The module does not introduce repeatable modules or arbitrary CSS.
 
 A service owns its own marketable content. Add a `publicProfile` JSONB payload for rich copy and media, plus a normal indexed `public_slug` column with `UNIQUE (tenant_id, public_slug)`. The JSONB is appropriate for a profile always read and written as one object; the slug requires a real column for a tenant-scoped uniqueness constraint. HotsiteConfig owns only the presentation and routing choices for those details.
 
@@ -60,14 +64,14 @@ The catalogue is versioned source code/configuration maintained by Ikaro. A mana
 
 | Template | Composition | Engine capabilities demonstrated |
 |---|---|---|
-| BeloAuto | Professional, service catalogue and gallery-led | Current grid/service/gallery baseline, trusted conversion path |
-| Casa47 | Dark split hero, price-menu services, editorial quote, atelier story | Split-media Hero, price-menu Service List, editorial Testimonials, About, compact booking CTA |
-| Mimo Pet | Playful mosaic, rounded cards, visual discovery | Mosaic Hero/Gallery, feature-card Service List |
-| Origem | Quiet editorial hierarchy and numbered rituals | Editorial Hero, numbered Service List, editorial testimonial |
-| Clínica Lume | Care pathway, specialties, trust and contact | Navigation, specialty navigator, testimonials, contact surfaces |
-| Lume Studio | Immersive portfolio and project enquiry | Immersive Hero, portfolio Gallery, PROCESS_STEPS, Lead Form |
+| BeloAuto | Full-bleed automotive campaign; hero first, then trust strip, service cards, gallery and booking CTA | Image Hero with focal point and gradient overlay; trust-grid CONTENT_BLOCK; grid Service List; featured Gallery; wide Booking CTA |
+| Casa47 | Dark luxury editorial; asymmetric split hero, numbered price menu, quote, then atelier story | Left-aligned split Hero; numbered Service List; editorial-quote Testimonials; image-statement CONTENT_BLOCK; compact booking CTA |
+| Mimo Pet | Playful scrapbook; staggered mosaic, color bands, discovery gallery, services later | Image-free playful Hero; collage-callout CONTENT_BLOCK; masonry Gallery; feature-card Service List; testimonial carousel |
+| Origem | Quiet wellness journal; typography-led opening, ritual menu and long-form editorial rhythm | No-image editorial Hero; numbered Service List; immersive-statement CONTENT_BLOCK; editorial quote; image-led About |
+| Clínica Lume | Structured care pathway; calm split opening, specialty navigation, proof and contact | Split Hero; trust-grid CONTENT_BLOCK; list Service List; testimonial grid; contact icon cards; no booking form on landing |
+| Lume Studio | Art-directed portfolio; immersive image opening, project sequence, asymmetric work gallery and enquiry | Immersive Hero; process-steps CONTENT_BLOCK; portfolio Gallery; split About; immersive Lead Form |
 
-The prototype HTML files remain visual references. Their bespoke markup is not production code; each difference must map to a validated reusable engine capability listed in this TD. Casa47 navigation is the reference anchor mapping: **O ritual** → TESTIMONIALS, **Serviços** → SERVICE_LIST, **A casa** → ABOUT, **Contato** → CONTACT. The labels are tenant/editorial copy; the targets are only enabled same-page modules.
+The prototype HTML files remain visual references. Their bespoke markup is not production code; each difference must map to a validated reusable engine capability listed in this TD. Each template must differ in module order, enabled module set, at least one strong module variant, and at least one section presentation choice; palette and imagery alone do not qualify as distinct. Casa47 navigation is the reference anchor mapping: **O ritual** → TESTIMONIALS, **Serviços** → SERVICE_LIST, **A casa** → ABOUT, **Contato** → CONTACT. The labels are tenant/editorial copy; the targets are only enabled same-page modules.
 
 ### Service detail contract
 
@@ -99,9 +103,9 @@ All media uses existing public tenant storage rules. The short `description` rem
 
 **Description:**
 
-Extend the shared validation/types, Platform HotsiteConfig aggregate, backend/BFF contracts, manager manifest schema, preview model, and renderer configuration so the hotsite can describe the reusable capabilities in *Chosen approach*. Add `navigation`, `serviceDetailPage`, module `surface`, the closed variant enums, and the singleton `PROCESS_STEPS` module. Defaults must preserve current public output for every existing stored manifest. Unknown variants, invalid anchor targets, duplicate singleton entries, arbitrary font names, and malformed navigation must fail at the request boundary.
+Extend the shared validation/types, Platform HotsiteConfig aggregate, backend/BFF contracts, manager manifest schema, preview model, and renderer configuration so the hotsite can describe the reusable capabilities in *Chosen approach*. Add `navigation`, `serviceDetailPage`, optional module `presentation`, the closed module variant enums, and singleton `CONTENT_BLOCK`. Add `presentation` to the shared module response envelope and preserve it through domain mapping, BFF mapping, storage round-trips, preview normalization, image path promotion/resolution, and public response serialization. Defaults must preserve current public output for every existing stored manifest. Unknown variants, invalid anchor targets, duplicate singleton entries, arbitrary font names, malformed navigation, invalid presentation combinations and malformed nested image/overlay fields must fail at the backend request boundary before persistence; client-only validation is insufficient.
 
-Navigation targets are a closed union of enabled section anchors only; links cannot be arbitrary URLs or separate routes in this first version. Booking remains available through each module’s dedicated CTA, never through global navigation. New fonts are added only through the controlled font registry. `surface` needs a semantic contrast derivation in `applyBranding()`; it must not reuse Hero-only foreground tokens for every coloured section.
+Navigation targets are a closed union of enabled section anchors only; links cannot be arbitrary URLs or separate routes in this first version. Booking remains available through each module’s dedicated CTA, never through global navigation. New fonts are added only through the controlled font registry. `surface` and image-overlay combinations need deterministic text/card/button contrast treatment in `applyBranding()`; they must not reuse Hero-only foreground tokens for every coloured section. The overlay is rendered as a separate layer so it does not change image focal point or intercept links. Define and test supported contrast behavior for text over images and reject combinations that cannot meet the documented readability threshold; keep button colors on existing tenant branding tokens unless a validated accessible variant is selected.
 
 Every public hotsite module section must paint its own full-width `backgroundColor` and place bounded content within it. The preview canvas and public route must share this shell behaviour. Existing defaults must remain byte-for-byte equivalent in semantic appearance.
 
@@ -112,7 +116,7 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 
 **Files to create/modify:**
 
-- `packages/types/src/hotsite.ts` (modify — shared manifest contract)
+- `packages/types/src/hotsite.ts` (modify — shared manifest and module-response presentation contract)
 - `packages/validation/src/hotsite.ts` (modify — closed request schemas; confirm exact export path in discovery)
 - `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` (modify)
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts` (modify)
@@ -123,7 +127,7 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 - `apps/bff/src/features/platform/hotsite-admin.schemas.ts` (modify)
 - `apps/bff/src/features/platform/hotsite-admin.controller.spec.ts` (modify)
 - `apps/web/features/platform/hotsite/manifest-schema.ts` (modify)
-- `apps/web/features/platform/hotsite/module-schemas.ts` (modify)
+- `apps/web/features/platform/hotsite/module-schemas.ts` (modify — closed CONTENT_BLOCK variants and nested presentation validation)
 - `apps/web/features/platform/hotsite/default-layout.ts` (modify — backward-compatible defaults)
 - `apps/web/features/platform/hotsite/font-config.ts` (modify)
 - `apps/web/features/platform/hotsite/apply-branding.ts` (modify)
@@ -131,7 +135,7 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 - `apps/web/features/platform/components/hotsite/ManifestTab.tsx` (modify)
 - `apps/web/features/platform/components/hotsite/ManifestTab.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/` (modify existing module shells as the full-width section shell is extracted)
-- `apps/web/app/[slug]/page.tsx` (modify — navigation and PROCESS_STEPS render-plan branch)
+- `apps/web/app/[slug]/page.tsx` (modify — navigation and CONTENT_BLOCK render-plan branch)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
 - `packages/i18n/locales/en/web.json` (modify)
 - `apps/backend/http/platform/hotsite.http` (modify — confirm exact existing request-file path)
@@ -147,9 +151,9 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 **Acceptance criteria — technical:**
 
 - Unit:
-  - [ ] Shared schemas accept each supported variant and enabled-section anchor, and reject unknown/disabled navigation targets, duplicate singleton, and invalid surface cases.
-  - [ ] Branding token tests prove readable derived tokens for each semantic surface and preserve current defaults.
-  - [ ] Render-plan tests prove navigation and PROCESS_STEPS are exhaustive without changing existing module ordering.
+  - [ ] Shared and backend request schemas accept each supported variant and enabled-section anchor, and reject unknown/disabled navigation targets, duplicate singleton types, invalid customColor combinations, malformed overlay unions, out-of-bound CONTENT_BLOCK content, and invalid surface cases.
+  - [ ] Branding and overlay tests prove readable text/card/button treatment for supported surfaces and overlays, preserve current defaults, and retain image focal-point behavior.
+  - [ ] Render-plan tests prove navigation and CONTENT_BLOCK are exhaustive without changing existing module ordering; presentation round-trips through backend, BFF and public response.
 - Integration:
   - [ ] Platform hotsite update endpoint persists and round-trips the new contract.
 - Tenant isolation:
@@ -169,9 +173,9 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 
 **Description:**
 
-Implement the public and editor-preview renderers for the approved variants. Do not add template-name conditionals to public components. A Hero, Service List, Gallery, Testimonial, Booking CTA, Navigation, and Process Steps renderer receives only its validated module data and branding tokens.
+Implement the public and editor-preview renderers for the approved variants. Do not add template-name conditionals to public components. A shared section shell consumes validated module presentation and applies full-width surface/background, overlay, min-height and spacing while each module renderer controls its internal composition. Add a `ContentBlockModule` renderer for the six CONTENT_BLOCK variants. Strong variants are: Hero (`centered`, `left-aligned`, `immersive`); Service List (`grid`, `list`, `numbered`, `feature-cards`); Gallery (`grid`, `masonry`, `featured`, `portfolio`); Testimonials (`grid`, `carousel`, `editorial-quote`); About (`split`, `editorial`); Booking CTA and Lead Form (`centered`, `left-aligned`, `immersive`). These are closed enums backed by explicit layouts, not cosmetic labels. Discovery verifies existing contracts and resolves naming conflicts before implementation.
 
-Map the six example manifests to these renderers and refine their fixtures until each has a distinct hierarchy and visual rhythm. Preserve live service data in every Service List; template content provides structure and labels, never fictional services. Booking CTAs describe the service-first journey and link to the real booking route. Testimonials used as template content must be visibly marked as sample/demonstrative in manager previews and cannot be silently presented as real tenant testimonials after applying a template; the catalogue must either omit them from a tenant result or require manager confirmation/editing before publication.
+Map the six example manifests to these renderers and refine their fixtures until each has a distinct hierarchy and visual rhythm, module order, enabled set, section treatment and strong variant. Every module type is singleton; variety comes from composition, not repeated instances. Preserve live service data in every Service List; template content provides structure and labels, never fictional services. Booking CTAs describe the service-first journey and link to the real booking route. Testimonials used as template content must be visibly marked as sample/demonstrative in manager previews and cannot be silently presented as real tenant testimonials after applying a template; the catalogue must either omit them from a tenant result or require manager confirmation/editing before publication.
 
 **Backend HTTP surface:** none — consumes Story 1 contract.
 **BFF endpoint spec:** none — consumes current public manifest/services reads.
@@ -186,8 +190,8 @@ Map the six example manifests to these renderers and refine their fixtures until
 - `apps/web/shells/hotsite/components/TestimonialsModule.tsx` and `TestimonialsModule.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/BookingCtaModule.tsx` and `BookingCtaModule.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/HotsiteNavigation.tsx` and `HotsiteNavigation.spec.tsx` (new)
-- `apps/web/shells/hotsite/components/ProcessStepsModule.tsx` and `ProcessStepsModule.spec.tsx` (new)
-- `apps/web/shells/hotsite/components/hotsite-section-shell.tsx` and its spec (new, if shared shell extraction is warranted)
+- `apps/web/shells/hotsite/components/ContentBlockModule.tsx` and `ContentBlockModule.spec.tsx` (new — all six closed variants)
+- `apps/web/shells/hotsite/components/HotsiteSectionShell.tsx` and its spec (new — required shared full-width presentation/overlay behavior)
 - `apps/web/features/platform/components/hotsite/renderHotsitePreviewModule.tsx` and its spec (modify)
 - `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` and its spec (modify)
 - `apps/web/features/platform/components/hotsite/modules/` (modify/add variant controls and specs)
@@ -210,7 +214,9 @@ Map the six example manifests to these renderers and refine their fixtures until
   - [ ] Each supported variant has a direct module-render test and an unsupported variant has no fallback branch.
   - [ ] `renderHotsitePreviewModule` uses the same variant component contract as the public route.
   - [ ] Full-width shell test proves surface fills the root while the inner content uses the shared max-width boundary.
-  - [ ] PROCESS_STEPS validates its items and renders an accessible ordered process.
+  - [ ] Each CONTENT_BLOCK variant validates its own bounded data shape and renders semantic, accessible markup; `process-steps` is an ordered list.
+  - [ ] Every supported variant has a visibly different layout; section presentation controls width, height, padding, surface and overlay without hiding content or breaking keyboard/focus behavior.
+  - [ ] Fixture review proves each composition differs by module order, enabled set, one strong variant and one section presentation choice, not just palette/images.
 - E2E:
   - [ ] Public hotsite fixtures cover all six compositions, one desktop and one narrow viewport assertion each, including service-first CTA destinations.
 - [ ] Coverage ≥80% on changed code.
@@ -298,7 +304,7 @@ Add `SERVICE_LIST.itemAction` (`details | booking | none`) and a manager-facing 
 
 **Description:**
 
-Create six platform-owned template definitions with a stable ID, version, manager-facing metadata, thumbnail, supported use cases, source manifest, and source assets. Source manifests must pass the same shared validation as a tenant manifest. Catalogue images are not emitted into tenant manifests directly: applying a template copies them through an explicit storage port to the tenant’s public hotsite namespace, validates resulting paths, then materializes the target manifest.
+Create six platform-owned template definitions with a stable ID, version, manager-facing metadata, thumbnail, supported use cases, source manifest, and source assets. Source manifests must pass the same shared validation as a tenant manifest. Catalogue images are not emitted into tenant manifests directly: applying a template copies them through an explicit storage port to the tenant’s public hotsite namespace, validates resulting paths, then materializes the target manifest. Asset traversal is schema-aware and includes existing module image fields, `presentation.background.imageUrl`, and every CONTENT_BLOCK image slot; it must not rely on a shallow list of top-level fields. The source manifests and images in `journeys/manager/prototypes/hotsite/hotsite-impl/` are fixture/reference inputs, including `manifesto-v2-layout-proposal.json`; catalogue definitions must be normalized to the final shared schema and all referenced source files must exist.
 
 Expose a manager-only catalogue list and a preview/apply operation. The apply operation receives the tenant’s current manifest and identity/business data, resolves the preservation rules in *Template application contract*, returns an ordinary draft-shaped manifest, and does not set `isPublished`. It does not create or modify Services. A temporary preview uses the returned manifest through TD55’s client-side preview mechanism. If asset copying fails, no manifest update is persisted and temporary copied objects are cleaned up best-effort.
 
@@ -333,7 +339,7 @@ The template catalogue must never embed a template business’s literal name, ad
 - [ ] A manager can see six named, visually distinct template choices with meaningful descriptions of their composition.
 - [ ] Applying a template updates only the manager draft/preview and does not publish.
 - [ ] Applying a template preserves tenant identity, operational business data, services, and booking configuration.
-- [ ] Every applied image is a valid tenant-owned public hotsite asset path.
+- [ ] Every applied image, including nested presentation and CONTENT_BLOCK images, is a valid tenant-owned public hotsite asset path; no source filesystem or catalogue path remains.
 - [ ] A failed asset copy leaves the published site and saved draft unchanged.
 
 **Acceptance criteria — technical:**
@@ -364,7 +370,7 @@ The template catalogue must never embed a template business’s literal name, ad
 
 Add **Templates** to TD55’s visual command row. It opens the existing right-side inspector in a template-gallery context, not a modal. The gallery shows six thumbnail cards, selected state, template name, concise composition description, and the capabilities it enables. Selecting a card obtains the materialized draft through Story 4, then updates the in-memory draft and preview. It uses TD55’s dirty-module protection: a dirty module buffer must be applied or discarded before the context changes, and selection failures keep the existing draft intact.
 
-The detailed editor receives the same gallery and a path to all new navigation, presentation, process-step, and service-detail controls. It does not duplicate template application state or create a second draft. Managers can still edit every field after choosing a template. Publish uses the normal TD55 single draft flow.
+The detailed editor receives the same gallery and a path to all new navigation, section presentation, overlay, CONTENT_BLOCK, and service-detail controls. Presentation controls expose only the closed enums and validated values: surface/custom color, width, minimum height, padding, background image/focal point, and overlay type/color/direction/opacity. CONTENT_BLOCK editing switches among its six variants and shows only fields for the selected variant. It does not duplicate template application state or create a second draft. Managers can still edit every field after choosing a template. Publish uses the normal TD55 single draft flow.
 
 The inline prototype becomes authoritative for visual hierarchy only: `09-inline-realistic-editor.html`, `09-inline-interactions.js`, and `vision.css` must be updated to show all six real options and the full-width preview behaviour. The prototype must route its buttons/anchors to meaningful local states; it must not show fake availability slots.
 
@@ -383,7 +389,7 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
 - `apps/web/features/platform/components/hotsite/HotsiteTemplateGallery.tsx` and `.spec.tsx` (new)
 - `apps/web/features/platform/components/hotsite/hotsite-template-application.ts` and `.spec.ts` (new, reducer/helper boundary)
 - `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.tsx` and `.spec.tsx` (modify — detailed-editor entry)
-- `apps/web/features/platform/components/hotsite/modules/` (modify/add controls for navigation, surfaces, variants, process steps, service-detail page)
+- `apps/web/features/platform/components/hotsite/modules/` (modify/add controls for navigation, section presentation, overlays, variants, CONTENT_BLOCK, service-detail page)
 - `apps/web/e2e/hotsite-editor.spec.ts` (modify)
 - `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (modify)
 - `journeys/manager/prototypes/hotsite/editor-vision/09-inline-interactions.js` (modify)
@@ -405,7 +411,8 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
   - [ ] Gallery renders catalogue loading, success, error, selected, and retry states accessibly.
   - [ ] Editor session tests prove template selection replaces only the materialized draft after dirty-buffer resolution and preserves the one shared draft across visual/detailed round trips.
   - [ ] A failed apply result leaves the current draft reference/content unchanged.
-  - [ ] New module panels exhaustively cover each Story 1 presentation field.
+  - [ ] New module panels cover every Story 1 presentation and overlay field, and CONTENT_BLOCK exposes only the selected variant's validated fields.
+  - [ ] Overlay controls expose accessible color/direction/opacity inputs, show the resulting preview immediately, and remain keyboard operable.
   - [ ] Axe check covers command row, gallery cards, keyboard selection, and inspector focus movement.
 - E2E:
   - [ ] Manager opens Templates, previews Mimo Pet, applies Origem, edits a service-list action, enters detailed editing and returns with the same draft, then publishes.
@@ -417,7 +424,7 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
 
 The stories above must promote the finalized decisions into the canonical documents, without duplicating rules across them:
 
-- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`: manifest fields, renderer variants, asset handling, and detail-page SEO.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`: manifest/module response fields, CONTENT_BLOCK variant matrix, section presentation/overlay behavior, renderer variants, nested asset handling, and detail-page SEO.
 - `docs/DOMAIN_MODEL.md`: Service public profile and HotsiteConfig additions.
 - `docs/DATABASE_SCHEMA.md`: Service profile fields and unique partial index.
 - `docs/API_CONTRACTS.md`: template catalogue/application and public service-detail endpoints.

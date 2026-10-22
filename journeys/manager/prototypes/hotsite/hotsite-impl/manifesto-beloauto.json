@@ -24,13 +24,17 @@
       "data": {
         "title": "Cuidado completo para o seu carro",
         "eyebrow": "Estética automotiva premium · SJC-SP",
-        "variant": "left-aligned",
+        "variant": "centered",
         "ctaLabel": "Ver serviços",
         "subtitle": "Resultados impecáveis com atenção aos detalhes",
         "ctaTarget": "service-list",
-        "rightPanel": "brand-card",
+        "rightPanel": "none",
         "secondaryCtaLabel": "Agendar agora",
-        "secondaryCtaTarget": "booking-form"
+        "secondaryCtaTarget": "booking-form",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/hero.png",
+        "backgroundImagePosition": "center",
+        "contentPositionX": "left",
+        "contentPositionY": "bottom"
       },
       "type": "HERO",
       "enabled": true
@@ -51,11 +55,15 @@
         "title": "Agende seu horário",
         "bgStyle": "background",
         "eyebrow": "Reserve agora",
-        "variant": "left-aligned",
+        "variant": "centered",
         "ctaLabel": "Agendar agora",
         "subtitle": "Reserve em poucos minutos e cuide do seu carro com a gente",
-        "rightPanel": "brand-card",
-        "datePickerType": "carousel"
+        "rightPanel": "none",
+        "datePickerType": "carousel",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png",
+        "backgroundImagePosition": "center",
+        "contentPositionX": "right",
+        "contentPositionY": "center"
       },
       "type": "BOOKING_CTA",
       "enabled": true
@@ -63,13 +71,20 @@
     {
       "data": {
         "title": "Nosso Trabalho",
-        "images": [],
-        "layout": "grid",
+        "images": [
+          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-1.png", "caption": "Resultado final", "source": "upload" },
+          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png", "caption": "Proteção da pintura", "source": "upload" },
+          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-3.png", "caption": "Interior detalhado", "source": "upload" },
+          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png", "caption": "Técnica", "source": "upload" },
+          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png", "caption": "Pronto para a rua", "source": "upload" }
+        ],
+        "layout": "featured",
+        "featuredPosition": "left",
         "eyebrow": "Resultados reais",
-        "maxVisible": 3
+        "maxVisible": 5
       },
       "type": "GALLERY",
-      "enabled": false
+      "enabled": true
     },
     {
       "data": {
@@ -101,7 +116,7 @@
       "data": {
         "body": "Somos uma estética automotiva **premium** com mais de 10 anos de experiência cuidando do seu carro com carinho e atenção aos detalhes.\n\n- Produtos de alta qualidade\n- Profissional especializado\n- Agendamento rápido",
         "title": "Sobre nós",
-        "imageUrl": null,
+        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
         "imagePosition": "right"
       },
       "type": "ABOUT",

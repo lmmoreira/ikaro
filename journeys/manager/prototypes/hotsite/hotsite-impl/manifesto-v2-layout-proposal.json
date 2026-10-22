@@ -1,0 +1,94 @@
+{
+  "$comment": "Proposta de extensão do manifesto. Não é aplicável pelo engine atual até CONTENT_BLOCK e presentation serem implementados.",
+  "schemaAdditions": {
+    "moduleType": "CONTENT_BLOCK",
+    "modulePresentation": {
+      "surface": "background | secondary | primary | custom",
+      "contentWidth": "narrow | standard | wide | full",
+      "minHeight": "auto | sm | md | lg | viewport",
+      "padding": "compact | comfortable | spacious | none",
+      "background": {
+        "imageUrl": "string | null",
+        "position": "left | center | right",
+        "overlay": {
+          "type": "none | solid | linear-gradient",
+          "direction": "to-right | to-left | to-bottom | to-top",
+          "fromColor": "#RRGGBB",
+          "fromOpacity": 0,
+          "toColor": "#RRGGBB",
+          "toOpacity": 0
+        }
+      }
+    },
+    "contentBlockData": {
+      "variant": "trust-grid | image-statement | immersive-statement | process-steps | collage-callout | technical-callout",
+      "eyebrow": "string | optional",
+      "title": "string",
+      "body": "markdown | optional",
+      "items": "variant-specific structured content",
+      "cta": { "label": "string", "target": "booking-form | service-list | gallery | testimonials | about | contact | lead-form" }
+    }
+  },
+  "templatePatches": {
+    "mimo-pet": {
+      "insertAfter": "SERVICE_LIST",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "secondary", "contentWidth": "wide", "minHeight": "md", "padding": "none", "background": { "imageUrl": null, "position": "center", "overlay": { "type": "none", "direction": "to-right", "fromColor": "#000000", "fromOpacity": 0, "toColor": "#000000", "toOpacity": 0 } } },
+        "data": { "variant": "trust-grid", "eyebrow": "O JEITO MIMO", "title": "Cada pet tem seu tempo.", "body": "Um bloco de confiança que cria ritmo sem repetir o About.", "items": [{ "number": "01", "label": "Check-in com contexto" }, { "number": "02", "label": "Produtos gentis" }, { "number": "03", "label": "Equipe presente" }, { "number": "04", "label": "Retorno feliz" }] }
+      },
+      "presentationOverrides": { "BOOKING_CTA": { "minHeight": "lg", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/booking.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-right", "fromColor": "#2E241F", "fromOpacity": 0.9, "toColor": "#2E241F", "toOpacity": 0.18 } } } }
+    },
+    "casa47": {
+      "insertAfter": "ABOUT",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "custom", "contentWidth": "wide", "minHeight": "lg", "padding": "spacious", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/gallery-2.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-right", "fromColor": "#0B0908", "fromOpacity": 0.94, "toColor": "#0B0908", "toOpacity": 0.08 } } },
+        "data": { "variant": "image-statement", "eyebrow": "O RITUAL DA CASA", "title": "Tempo reservado também é cuidado.", "body": "Uma pausa editorial entre atmosfera e serviço, com uma fotografia que não precisa competir com o texto." }
+      },
+      "presentationOverrides": { "HERO": { "contentWidth": "wide", "minHeight": "lg" }, "BOOKING_CTA": { "minHeight": "lg", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/booking.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-left", "fromColor": "#0C0A08", "fromOpacity": 0.9, "toColor": "#0C0A08", "toOpacity": 0 } } } }
+    },
+    "origem": {
+      "insertAfter": "ABOUT",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "custom", "contentWidth": "narrow", "minHeight": "lg", "padding": "spacious", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-1.png", "position": "center", "overlay": { "type": "solid", "direction": "to-bottom", "fromColor": "#18352E", "fromOpacity": 0.84, "toColor": "#18352E", "toOpacity": 0.84 } } },
+        "data": { "variant": "immersive-statement", "eyebrow": "UMA PAUSA NÃO PRECISA SER PEQUENA", "title": "O corpo entende quando há espaço.", "body": "Um bloco sensorial, sem cards ou bordas, para interromper o ritmo de uma página de serviço." }
+      },
+      "presentationOverrides": { "HERO": { "contentWidth": "narrow", "minHeight": "viewport", "padding": "spacious" }, "BOOKING_CTA": { "minHeight": "lg", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png", "position": "center", "overlay": { "type": "solid", "direction": "to-bottom", "fromColor": "#16231D", "fromOpacity": 0.7, "toColor": "#16231D", "toOpacity": 0.7 } } } }
+    },
+    "clinica-lume": {
+      "insertAfter": "SERVICE_LIST",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "background", "contentWidth": "wide", "minHeight": "md", "padding": "comfortable", "background": { "imageUrl": null, "position": "center", "overlay": { "type": "none", "direction": "to-right", "fromColor": "#000000", "fromOpacity": 0, "toColor": "#000000", "toOpacity": 0 } } },
+        "data": { "variant": "process-steps", "eyebrow": "PRIMEIRA CONSULTA", "title": "Clareza em cada etapa.", "items": [{ "number": "01", "title": "Escuta", "body": "Você conta o que precisa." }, { "number": "02", "title": "Orientação", "body": "A equipe explica os caminhos." }, { "number": "03", "title": "Continuidade", "body": "Você sai sabendo o próximo passo." }] }
+      },
+      "presentationOverrides": { "HERO": { "contentWidth": "wide", "minHeight": "lg" }, "BOOKING_CTA": { "minHeight": "lg", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/booking.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-right", "fromColor": "#0C3D4A", "fromOpacity": 0.9, "toColor": "#0C3D4A", "toOpacity": 0.2 } } } }
+    },
+    "lume-studio": {
+      "insertAfter": "SERVICE_LIST",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "primary", "contentWidth": "full", "minHeight": "lg", "padding": "none", "background": { "imageUrl": null, "position": "center", "overlay": { "type": "none", "direction": "to-right", "fromColor": "#000000", "fromOpacity": 0, "toColor": "#000000", "toOpacity": 0 } } },
+        "data": { "variant": "collage-callout", "eyebrow": "NÃO É SÓ FOTOGRAFAR", "title": "Uma direção para cada imagem.", "body": "Texto de campanha ao lado de uma colagem que usa imagens já carregadas pelo tenant.", "images": ["https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-2.png", "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-3.png", "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png"] }
+      },
+      "presentationOverrides": { "HERO": { "contentWidth": "wide", "minHeight": "viewport", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/hero.png", "position": "right", "overlay": { "type": "linear-gradient", "direction": "to-top", "fromColor": "#171321", "fromOpacity": 0.92, "toColor": "#171321", "toOpacity": 0 } } }, "LEAD_FORM": { "minHeight": "lg" } }
+    },
+    "beloauto": {
+      "insertAfter": "GALLERY",
+      "module": {
+        "type": "CONTENT_BLOCK",
+        "enabled": true,
+        "presentation": { "surface": "custom", "contentWidth": "wide", "minHeight": "lg", "padding": "spacious", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-right", "fromColor": "#090909", "fromOpacity": 0.95, "toColor": "#090909", "toOpacity": 0.2 } } },
+        "data": { "variant": "technical-callout", "eyebrow": "01 · PROTEÇÃO DE VERDADE", "title": "O brilho é só a primeira camada.", "body": "Uma chamada técnica com textura, número e altura de seção própria; não é outro bloco de serviços." }
+      },
+      "presentationOverrides": { "HERO": { "contentWidth": "wide", "minHeight": "viewport", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/hero.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-top", "fromColor": "#090909", "fromOpacity": 0.88, "toColor": "#090909", "toOpacity": 0 } } }, "BOOKING_CTA": { "minHeight": "lg", "background": { "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png", "position": "center", "overlay": { "type": "linear-gradient", "direction": "to-left", "fromColor": "#090909", "fromOpacity": 0.88, "toColor": "#090909", "toOpacity": 0.08 } } } }
+    }
+  }
+}
