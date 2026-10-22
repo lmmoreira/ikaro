@@ -1194,7 +1194,10 @@
         "selectedBadge": "Selecionado",
         "inspectorLabel": "Detalhes da seção",
         "emptyHint": "Selecione uma seção da prévia para ver os detalhes.",
-        "moduleHint": "Os campos deste módulo chegam em breve. Use Editar em detalhes para configurá-lo agora.",
+        "structureTitle": "Estrutura da página",
+        "backToStructure": "Voltar para organizar módulos",
+        "moduleDisabledNote": "Este módulo está desativado e por isso não aparece na prévia.",
+        "publishBlockedHint": "Aplique ou cancele primeiro",
         "backToVisual": "Voltar à edição visual",
         "detailedTitle": "Edição detalhada"
       },

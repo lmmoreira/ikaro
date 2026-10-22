@@ -25,16 +25,14 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useHotsiteEditorTopbarOverride } from '@/features/platform/hotsite/useHotsiteEditorTopbarOverride';
 import { HotsitePreview } from './hotsite-editor-lazy-panels';
+import { ModuleConfigPreviewScreen } from './ModuleConfigPreviewScreen';
 import { VisualHotsiteEditorView } from './VisualHotsiteEditorView';
 import { useHotsiteEditorSession } from './useHotsiteEditorSession';
+import { useVisualModuleBuffer } from './useVisualModuleBuffer';
 import {
-  buildModuleBuffer,
   extractLeadFormConfig,
-  applyModuleConfig,
-  cancelModuleConfig,
   configureModule,
   executeUnpublish,
-  hasInvalidLeadFormQuestion,
   mergeLocalDataIntoLayout,
   ModuleConfigView,
   updateEditorDraft,
@@ -42,6 +40,7 @@ import {
   type LeadFormConfigDraft,
 } from './hotsite-editor-views';
 import { executeHotsitePublish } from './hotsite-editor-publish';
+import { applyModuleConfig, cancelModuleConfig } from './hotsite-module-buffer';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
@@ -88,6 +87,24 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const leadFormConfigBaseline =
     leadFormConfigDraft ??
     (leadFormConfig.data ? extractLeadFormConfig(leadFormConfig.data) : null);
+  const clearBanner = (): void => setActionBanner(null);
+  const setLayout = (layout: HotsiteAdminContentResponse['layout']): void =>
+    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, layout }));
+  const commitModuleData = (type: HotsiteModuleType, data: Record<string, unknown>): void =>
+    setDraft((current) => ({
+      ...current,
+      layout: mergeLocalDataIntoLayout(current.layout, type, data),
+    }));
+  const visualBuffer = useVisualModuleBuffer({
+    visualContext,
+    draft,
+    leadFormConfigBaseline,
+    navigation,
+    onLayoutChange: setLayout,
+    onLeadFormConfig: setLeadFormConfigDraft,
+    onCommit: commitModuleData,
+    onClearBanner: clearBanner,
+  });
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -115,7 +132,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     configuringType,
     isPreview,
     isDetailedTabs,
-    onBackToVisual: navigation.backToVisual,
+    onBackToVisual: visualBuffer.backToVisual,
     moduleConfigPreview,
     onBackToModuleConfigPreview,
     onBackToTabs,
@@ -127,11 +144,8 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     setPageTitleOverride,
   });
 
-  const clearBanner = (): void => setActionBanner(null);
   const setBranding = (branding: HotsiteBrandingResponse): void =>
     updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, branding }));
-  const setLayout = (layout: HotsiteAdminContentResponse['layout']): void =>
-    updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, layout }));
   const setSeo = (seo: HotsiteSeoResponse): void =>
     updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, seo }));
   const handleManifestApply = (next: ManifestDraft): void =>
@@ -165,23 +179,12 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const handleConfigure = (type: HotsiteModuleType): void =>
     configureModule(draft, type, leadFormConfigDraft, setView);
 
-  const handleSelectModule = (type: HotsiteModuleType): void =>
-    navigation.selectModule(type, buildModuleBuffer(draft, type, leadFormConfigDraft));
-
   const handleLocalDataChange = (localData: Record<string, unknown>): void =>
     updateModuleLocalData(setView, localData);
 
   const handleApply = (): void =>
-    applyModuleConfig(
-      view,
-      setLeadFormConfigDraft,
-      (type, data) =>
-        setDraft((current) => ({
-          ...current,
-          layout: mergeLocalDataIntoLayout(current.layout, type, data),
-        })),
-      () => setActionBanner(null),
-      () => setView({ view: 'tabs' }),
+    applyModuleConfig(view, setLeadFormConfigDraft, commitModuleData, clearBanner, () =>
+      setView({ view: 'tabs' }),
     );
 
   // Only discards immediately when there's nothing to lose. Otherwise opens the discard-confirm
@@ -223,33 +226,21 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   }
 
   if (view.view === 'module-config-preview') {
-    const previewDraft: HotsiteAdminContentResponse = {
-      ...draft,
-      layout: mergeLocalDataIntoLayout(draft.layout, view.type, view.localData),
-    };
-    const leadFormConfig =
-      view.type === 'LEAD_FORM' ? extractLeadFormConfig(view.localData) : undefined;
-    // Publishing straight from this preview skips applyModuleConfig's own gate (the "Aplicar"
-    // path), so an invalid lead-form config must be re-checked here — otherwise this is the one
-    // path that can send it to the backend unvalidated (CodeRabbit finding, PR #429).
-    const leadFormInvalid =
-      view.type === 'LEAD_FORM' && (!leadFormConfig || hasInvalidLeadFormQuestion(leadFormConfig));
     return (
-      <HotsitePreview
-        draft={previewDraft}
-        onPublish={() => {
-          if (leadFormInvalid) {
-            setActionBanner({
-              kind: 'publish',
-              status: 'error',
-              message: t('layout.panels.leadForm.validation.publishBlocked'),
-            });
-            setView({ view: 'tabs' });
-            return;
-          }
-          void handlePublish(previewDraft, leadFormConfig ?? undefined);
-        }}
+      <ModuleConfigPreviewScreen
+        draft={draft}
+        type={view.type}
+        localData={view.localData}
         isPublishing={isPublishing}
+        onPublish={(content, leadFormConfig) => void handlePublish(content, leadFormConfig)}
+        onPublishBlocked={() => {
+          setActionBanner({
+            kind: 'publish',
+            status: 'error',
+            message: t('layout.panels.leadForm.validation.publishBlocked'),
+          });
+          setView({ view: 'tabs' });
+        }}
       />
     );
   }
@@ -268,8 +259,11 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         actionBanner={actionBanner}
         tenantSlug={tenantSlug}
         isPublishing={isPublishing}
-        onSelectModule={handleSelectModule}
-        onEditInDetail={navigation.enterDetailed}
+        publishBlocked={visualBuffer.isDirty}
+        inspector={visualBuffer.inspector}
+        onSelectModule={visualBuffer.requestSelectModule}
+        onShowStructure={visualBuffer.requestStructure}
+        onEditInDetail={visualBuffer.requestEditInDetail}
         onPublish={() => handlePublish()}
       />
     );

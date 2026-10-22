@@ -9,25 +9,58 @@ import { VisualHotsiteEditorView } from './VisualHotsiteEditorView';
 import type { VisualContext } from './hotsite-editor-views';
 
 // The real canvas is covered by HotsitePreviewCanvas.spec.tsx; here it only needs to prove the
-// view hands it the draft and a selection that reports back.
+// view hands it the draft (with the open buffer merged in) and a selection that reports back. The
+// real panels are covered by their own specs; one stand-in proves the inspector hosts a panel.
 vi.mock('./hotsite-editor-lazy-panels', () => ({
   HotsitePreviewCanvas: ({
+    draft,
     selection,
   }: {
+    draft: { layout: { type: string; data: Record<string, unknown> }[] };
     selection?: {
       selectedType: string | null;
       onSelect: (type: 'CONTACT') => void;
     };
-  }) => (
-    <div data-testid="mock-canvas" data-selected={selection?.selectedType ?? ''}>
-      <button
-        type="button"
-        data-testid="mock-select-contact"
-        onClick={() => selection?.onSelect('CONTACT')}
+  }) => {
+    const contact = draft.layout.find((module) => module.type === 'CONTACT');
+    const leadForm = draft.layout.find((module) => module.type === 'LEAD_FORM');
+    return (
+      <div
+        data-testid="mock-canvas"
+        data-selected={selection?.selectedType ?? ''}
+        data-contact-title={String(contact?.data.title ?? '')}
+        data-lead-form-keys={Object.keys(leadForm?.data ?? {}).join(',')}
       >
-        select contact
-      </button>
-    </div>
+        <button
+          type="button"
+          data-testid="mock-select-contact"
+          onClick={() => selection?.onSelect('CONTACT')}
+        >
+          select contact
+        </button>
+      </div>
+    );
+  },
+  MODULE_CONFIG_PANELS: new Proxy(
+    {},
+    {
+      get:
+        () =>
+        ({
+          data,
+          onChange,
+        }: {
+          data: Record<string, unknown>;
+          onChange: (next: Record<string, unknown>) => void;
+        }) => (
+          <input
+            aria-label="Título"
+            data-testid="mock-panel-title"
+            value={String(data.title ?? '')}
+            onChange={(event) => onChange({ ...data, title: event.target.value })}
+          />
+        ),
+    },
   ),
 }));
 
@@ -63,7 +96,18 @@ function renderView(overrides: Partial<React.ComponentProps<typeof VisualHotsite
     actionBanner: null,
     tenantSlug: 'tenant-a',
     isPublishing: false,
+    publishBlocked: false,
+    inspector: {
+      discardConfirmOpen: false,
+      onLayoutChange: vi.fn(),
+      onBufferChange: vi.fn(),
+      onApply: vi.fn(),
+      onLeaveModule: vi.fn(),
+      onConfirmDiscard: vi.fn(),
+      onKeepEditing: vi.fn(),
+    },
     onSelectModule: vi.fn(),
+    onShowStructure: vi.fn(),
     onEditInDetail: vi.fn(),
     onPublish: vi.fn(),
     ...overrides,
@@ -98,7 +142,7 @@ describe('VisualHotsiteEditorView', () => {
     expect(command('publish')).toHaveTextContent('Publicar');
   });
 
-  it.each(['branding', 'structure', 'sharing'])(
+  it.each(['branding', 'sharing'])(
     'disables the %s command until its story lands, with a coming-soon hint',
     (name) => {
       renderView();
@@ -113,6 +157,16 @@ describe('VisualHotsiteEditorView', () => {
       );
     },
   );
+
+  it('enables Organize modules and returns to the structure list from it', async () => {
+    const user = userEvent.setup();
+    const { props } = renderView();
+
+    expect(command('structure')).toBeEnabled();
+    await user.click(command('structure'));
+
+    expect(props.onShowStructure).toHaveBeenCalledTimes(1);
+  });
 
   it('calls onEditInDetail from the Edit in detail command', async () => {
     const user = userEvent.setup();
@@ -138,6 +192,26 @@ describe('VisualHotsiteEditorView', () => {
 
     expect(command('publish')).toBeDisabled();
     expect(screen.getByTestId('visual-publish-mobile')).toBeDisabled();
+  });
+
+  it('keeps Publish enabled and shows no hint while the module buffer is clean', () => {
+    renderView();
+
+    expect(command('publish')).toBeEnabled();
+    expect(screen.getByTestId('visual-publish-mobile')).toBeEnabled();
+    expect(screen.queryByTestId('visual-publish-hint')).not.toBeInTheDocument();
+  });
+
+  it('disables both publish controls with an "Apply or cancel first" hint while the buffer is dirty', () => {
+    renderView({ publishBlocked: true });
+
+    for (const publish of [command('publish'), screen.getByTestId('visual-publish-mobile')]) {
+      expect(publish).toBeDisabled();
+      expect(publish).toHaveAccessibleDescription('Aplique ou cancele primeiro');
+    }
+    expect(screen.getByTestId('visual-publish-hint')).toHaveTextContent(
+      'Aplique ou cancele primeiro',
+    );
   });
 
   it('opens the published site in a new tab from the command row and the mobile bar', () => {
@@ -177,6 +251,45 @@ describe('VisualHotsiteEditorView', () => {
     expect(inspector).toHaveClass('lg:sticky', 'lg:overflow-y-auto');
   });
 
+  it('widens the inspector column from the xl breakpoint', () => {
+    renderView();
+
+    const grid = screen.getByTestId('visual-preview').parentElement;
+    expect(grid).toHaveClass(
+      'lg:grid-cols-[minmax(0,1fr)_22rem]',
+      'xl:grid-cols-[minmax(0,1fr)_26rem]',
+    );
+  });
+
+  it('lists the page structure in the inspector when nothing is selected', () => {
+    renderView({
+      draft: {
+        ...DRAFT,
+        layout: [
+          { type: 'HERO', enabled: true, data: {} },
+          { type: 'CONTACT', enabled: false, data: {} },
+        ],
+      },
+    });
+
+    const structure = screen.getByTestId('visual-structure');
+    expect(within(structure).getByRole('heading', { name: 'Estrutura da página' })).toBeVisible();
+    expect(
+      within(structure)
+        .getAllByTestId('layout-row')
+        .map((row) => row.dataset.moduleType),
+    ).toEqual(['HERO', 'CONTACT']);
+  });
+
+  it('opens a module from the structure list through onSelectModule', async () => {
+    const user = userEvent.setup();
+    const { props } = renderView({ draft: DRAFT_WITH_CONTACT });
+
+    await user.click(screen.getByTestId('layout-row-configure'));
+
+    expect(props.onSelectModule).toHaveBeenCalledWith('CONTACT');
+  });
+
   it('shows the neutral empty state when nothing is selected', () => {
     renderView();
 
@@ -198,11 +311,10 @@ describe('VisualHotsiteEditorView', () => {
     expect(props.onSelectModule).toHaveBeenCalledWith('CONTACT');
   });
 
-  it('names the selected module in the preview status and the inspector, with an Edit in detail action', async () => {
-    const user = userEvent.setup();
-    const { props } = renderView({
+  it('names the selected module in the preview status and hosts its panel in the inspector', () => {
+    renderView({
       draft: DRAFT_WITH_CONTACT,
-      visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+      visualContext: { kind: 'module', type: 'CONTACT', localData: { title: 'Fale conosco' } },
     });
 
     expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', 'CONTACT');
@@ -211,32 +323,86 @@ describe('VisualHotsiteEditorView', () => {
     );
     const inspector = screen.getByTestId('visual-inspector');
     expect(within(inspector).getByRole('heading', { name: 'Contato' })).toBeInTheDocument();
-    expect(inspector).toHaveTextContent('Os campos deste módulo chegam em breve');
-
-    await user.click(within(inspector).getByTestId('visual-inspector-edit-in-detail'));
-    expect(props.onEditInDetail).toHaveBeenCalledTimes(1);
+    expect(within(inspector).getByTestId('mock-panel-title')).toHaveValue('Fale conosco');
+    expect(within(inspector).queryByTestId('visual-structure')).not.toBeInTheDocument();
   });
 
-  it.each([
-    ['disabled', [{ type: 'CONTACT' as const, enabled: false, data: {} }]],
-    ['absent', []],
-  ])(
-    'treats a selected module that is %s in the draft as unselected, so nothing stale is named',
-    (_label, layout) => {
-      renderView({
-        draft: { ...DRAFT, layout },
-        visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
-      });
+  it("shows the open module's unapplied edits in the preview while the shared draft is unchanged", () => {
+    renderView({
+      draft: { ...DRAFT, layout: [{ type: 'CONTACT', enabled: true, data: { title: 'Antes' } }] },
+      visualContext: { kind: 'module', type: 'CONTACT', localData: { title: 'Depois' } },
+    });
 
-      expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', '');
-      expect(screen.getByTestId('visual-preview-status')).toHaveTextContent(
-        'Rascunho — selecione uma seção da prévia',
-      );
-      expect(screen.getByTestId('visual-inspector')).toHaveTextContent(
-        'Selecione uma seção da prévia para ver os detalhes.',
-      );
-    },
-  );
+    expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-contact-title', 'Depois');
+  });
+
+  it('never hands the LeadFormConfig portion of a LEAD_FORM buffer to the preview module', () => {
+    renderView({
+      draft: { ...DRAFT, layout: [{ type: 'LEAD_FORM', enabled: true, data: { title: 'Olá' } }] },
+      visualContext: {
+        kind: 'module',
+        type: 'LEAD_FORM',
+        localData: {
+          title: 'Olá',
+          audienceMode: 'CUSTOMER_ONLY',
+          questions: [{ id: 'q1', hasSubmissions: true }],
+        },
+      },
+    });
+
+    expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-lead-form-keys', 'title');
+  });
+
+  it('forwards panel edits, Apply, Cancel and the back control to the inspector actions', async () => {
+    const user = userEvent.setup();
+    const { props } = renderView({
+      draft: DRAFT_WITH_CONTACT,
+      visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+    });
+
+    await user.type(screen.getByTestId('mock-panel-title'), 'a');
+    await user.click(screen.getByTestId('visual-inspector-apply'));
+    await user.click(screen.getByTestId('visual-inspector-cancel'));
+    await user.click(screen.getByTestId('visual-inspector-back'));
+
+    expect(props.inspector.onBufferChange).toHaveBeenCalledWith({ title: 'a' });
+    expect(props.inspector.onApply).toHaveBeenCalledTimes(1);
+    expect(props.inspector.onLeaveModule).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a disabled module selected and says it is not shown in the preview', () => {
+    renderView({
+      draft: { ...DRAFT, layout: [{ type: 'CONTACT', enabled: false, data: {} }] },
+      visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+    });
+
+    expect(screen.getByTestId('visual-inspector-disabled-note')).toHaveTextContent(
+      'Este módulo está desativado e por isso não aparece na prévia.',
+    );
+    expect(screen.getByTestId('mock-panel-title')).toBeInTheDocument();
+  });
+
+  it('does not show the disabled note for an enabled module', () => {
+    renderView({
+      draft: DRAFT_WITH_CONTACT,
+      visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+    });
+
+    expect(screen.queryByTestId('visual-inspector-disabled-note')).not.toBeInTheDocument();
+  });
+
+  it('treats a selected module that is absent from the draft as unselected, so nothing stale is named', () => {
+    renderView({
+      draft: { ...DRAFT, layout: [] },
+      visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+    });
+
+    expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', '');
+    expect(screen.getByTestId('visual-preview-status')).toHaveTextContent(
+      'Rascunho — selecione uma seção da prévia',
+    );
+    expect(screen.getByTestId('visual-structure')).toBeInTheDocument();
+  });
 
   it('resets only the inspector scroll to the top when the context changes, never the window', () => {
     const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => {});

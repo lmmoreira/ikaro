@@ -98,26 +98,6 @@ export async function executeUnpublish(
   globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
-export function applyModuleConfig(
-  view: EditorView,
-  onLeadFormConfig: (config: LeadFormConfigDraft) => void,
-  onCommit: (type: HotsiteModuleType, data: Record<string, unknown>) => void,
-  onClearBanner: () => void,
-  onClose: () => void,
-): void {
-  if (view.view !== 'module-config') return;
-  let localData = view.localData;
-  if (view.type === 'LEAD_FORM') {
-    const config = extractLeadFormConfig(localData);
-    if (!config || hasInvalidLeadFormQuestion(config)) return;
-    onLeadFormConfig(config);
-    localData = stripLeadFormConfig(localData);
-  }
-  onCommit(view.type, localData);
-  onClearBanner();
-  onClose();
-}
-
 export function updateEditorDraft(
   setDraft: (
     updater: (current: HotsiteAdminContentResponse) => HotsiteAdminContentResponse,
@@ -127,45 +107,6 @@ export function updateEditorDraft(
 ): void {
   setDraft(updater);
   clearBanner();
-}
-
-// Folds a LEAD_FORM module's teaser data (layout[].data — never carries audienceMode/questions,
-// see docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate save") and its separate
-// LeadFormConfig portion (audienceMode/questions) into the one merged shape the panel's own
-// `data` prop actually is — the same merge configureModule already does for the initial
-// `localData`, reused here so the dirty-check's two sides are built the identical way.
-function mergeLeadFormBaseline(
-  layoutData: Record<string, unknown>,
-  leadFormPortion: LeadFormConfigDraft | null,
-): Record<string, unknown> {
-  return leadFormPortion ? { ...layoutData, ...leadFormPortion } : layoutData;
-}
-
-export function cancelModuleConfig(
-  view: EditorView,
-  draft: HotsiteAdminContentResponse,
-  leadFormConfigBaseline: LeadFormConfigDraft | null,
-  onConfirmRequired: () => void,
-  onCancel: () => void,
-): void {
-  if (view.view !== 'module-config') return;
-  const layoutData = draft.layout.find((module) => module.type === view.type)?.data ?? {};
-  const isLeadForm = view.type === 'LEAD_FORM';
-  const committed = isLeadForm
-    ? mergeLeadFormBaseline(layoutData, leadFormConfigBaseline)
-    : layoutData;
-  // localData's own LeadFormConfig portion is re-derived through the same extract/strip helpers
-  // "Aplicar" uses, discarding hasSubmissions (a read-only annotation, present on localData but
-  // never on the baseline above) so it can never itself cause a false "dirty" — not comparing raw
-  // localData directly.
-  const current = isLeadForm
-    ? mergeLeadFormBaseline(
-        stripLeadFormConfig(view.localData),
-        extractLeadFormConfig(view.localData),
-      )
-    : view.localData;
-  if (isModuleDataDirty(committed, current)) onConfirmRequired();
-  else onCancel();
 }
 
 export function updateModuleLocalData(

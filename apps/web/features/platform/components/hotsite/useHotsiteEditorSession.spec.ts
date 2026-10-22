@@ -81,4 +81,29 @@ describe('useHotsiteEditorSession', () => {
       localData: { title: 'b' },
     });
   });
+
+  it('replaces the open module buffer as the manager edits, keeping the module', () => {
+    const { result } = renderHook(() => useHotsiteEditorSession());
+    act(() => result.current.selectModule('CONTACT', { title: 'a' }));
+
+    act(() => result.current.updateModuleBuffer({ title: 'ab' }));
+
+    expect(result.current.visualContext).toEqual({
+      kind: 'module',
+      type: 'CONTACT',
+      localData: { title: 'ab' },
+    });
+  });
+
+  it.each(['structure', 'branding', 'sharing'] as const)(
+    'ignores a buffer update in the %s context, so no module context appears without a module',
+    (kind) => {
+      const { result } = renderHook(() => useHotsiteEditorSession());
+      act(() => result.current.showGlobalContext(kind));
+
+      act(() => result.current.updateModuleBuffer({ title: 'x' }));
+
+      expect(result.current.visualContext).toEqual({ kind });
+    },
+  );
 });

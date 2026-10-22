@@ -1339,6 +1339,166 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByRole('tablist')).toBeVisible();
     await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
   });
+
+  // TD55-S02 — the visual editor's Organize modules list and module inspector. The legacy tests
+  // above keep covering the same panels through the detailed editor.
+  const visualCommand = (command: string) =>
+    `[data-testid="visual-command"][data-command="${command}"]`;
+  const previewSelect = (type: string) =>
+    `[data-testid="preview-section-select"][data-module-type="${type}"]`;
+
+  test('Organize modules: enables and configures About and Testimonials in the inspector, shows edits live, applies, publishes and keeps them after a reload (TD55-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    const preview = page.getByTestId('hotsite-preview-content');
+
+    await page.locator(layoutToggle('ABOUT')).click();
+    await page.locator(configureButton('ABOUT')).click();
+    await page.locator('#about-title').fill('Sobre a AutoSpa Premium');
+    await page.locator('#about-body').fill('Cuidamos do seu carro com produtos premium.');
+    // The edit is in the preview before Apply — it only lives in the module's local buffer.
+    await expect(preview.locator('#about')).toContainText('Sobre a AutoSpa Premium');
+    await page.getByTestId('visual-inspector-apply').click();
+    await expect(page.getByTestId('visual-structure')).toBeVisible();
+
+    await page.locator(layoutToggle('TESTIMONIALS')).click();
+    await page.locator(configureButton('TESTIMONIALS')).click();
+    await page.getByTestId('testimonials-add').click();
+    await page.locator('#testimonial-author-0').fill('Maria Silva');
+    await page.locator('#testimonial-text-0').fill('Atendimento excelente, recomendo muito!');
+    await expect(preview.locator('#testimonials')).toContainText('Maria Silva');
+    await page.getByTestId('visual-inspector-apply').click();
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+
+    await page.reload();
+    const saved = await getHotsiteConfig(page);
+    const about = saved.layout.find((module) => module.type === 'ABOUT');
+    const testimonials = saved.layout.find((module) => module.type === 'TESTIMONIALS');
+    expect(about?.enabled).toBe(true);
+    expect((about?.data as { title?: string }).title).toBe('Sobre a AutoSpa Premium');
+    expect(testimonials?.enabled).toBe(true);
+    await expect(page.getByTestId('hotsite-preview-content').locator('#about')).toContainText(
+      'Sobre a AutoSpa Premium',
+    );
+  });
+
+  test('Organize modules: dragging a module above another changes the list and the published order (TD55-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    const rows = page.getByTestId('layout-row');
+    const order = async () => rows.evaluateAll((els) => els.map((el) => el.dataset.moduleType));
+    const before = (await order()) as string[];
+
+    // dnd-kit's pointer sensor: press on the second row's handle, drag it above the first row, drop.
+    const handle = page.locator(`[data-testid="layout-row-drag"][data-module-type="${before[1]}"]`);
+    const target = page.locator(`[data-testid="layout-row"][data-module-type="${before[0]}"]`);
+    const handleBox = (await handle.boundingBox())!;
+    const targetBox = (await target.boundingBox())!;
+    await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(handleBox.x + handleBox.width / 2, targetBox.y + 2, { steps: 12 });
+    await page.mouse.up();
+
+    await expect.poll(order).toEqual([before[1], before[0], ...before.slice(2)]);
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    const saved = await getHotsiteConfig(page);
+    expect(saved.layout.map((module) => module.type)).toEqual([
+      before[1],
+      before[0],
+      ...before.slice(2),
+    ]);
+  });
+
+  test('a module far down the preview opens in the inspector, edits live, and Cancel / Discard leaves the draft untouched (TD55-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(layoutToggle('CONTACT')).click();
+    const preview = page.getByTestId('hotsite-preview-content');
+    const select = page.locator(previewSelect('CONTACT'));
+    await select.scrollIntoViewIfNeeded();
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+
+    await select.click();
+
+    await expect(page.locator('#contact-title')).toBeVisible();
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+    await page.locator('#contact-title').fill('Visite a AutoSpa');
+    await expect(preview.locator('#contact')).toContainText('Visite a AutoSpa');
+
+    await page.getByTestId('visual-inspector-cancel').click();
+    await page.getByRole('button', { name: 'Continuar editando' }).click();
+    await expect(page.locator('#contact-title')).toHaveValue('Visite a AutoSpa');
+
+    await page.getByTestId('visual-inspector-cancel').click();
+    await page.getByTestId('visual-module-discard-confirm').click();
+
+    await expect(page.getByTestId('visual-structure')).toBeVisible();
+    await expect(preview.locator('#contact')).not.toContainText('Visite a AutoSpa');
+  });
+
+  test('Publish is blocked while a module has unapplied edits and works again after Apply (TD55-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(layoutToggle('CONTACT')).click();
+    await page.locator(configureButton('CONTACT')).click();
+
+    await page.locator('#contact-title').fill('Título ainda não aplicado');
+
+    await expect(page.locator(visualCommand('publish'))).toBeDisabled();
+    await expect(page.getByTestId('visual-publish-hint')).toBeVisible();
+
+    await page.getByTestId('visual-inspector-apply').click();
+
+    await expect(page.locator(visualCommand('publish'))).toBeEnabled();
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    const saved = await getHotsiteConfig(page);
+    const contact = saved.layout.find((module) => module.type === 'CONTACT');
+    expect((contact?.data as { title?: string }).title).toBe('Título ainda não aplicado');
+  });
+
+  test('LEAD_FORM in the inspector: teaser, audience and a question are applied and published, and layout[].data never carries the aggregate-only fields (TD55-S02)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(layoutToggle('LEAD_FORM')).click();
+    await page.locator(configureButton('LEAD_FORM')).click();
+    await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
+
+    await page.locator('#lead-form-teaser-title').fill('Fale com a nossa equipe');
+    await page.locator('#lead-form-teaser-cta').fill('Quero conversar');
+    await page.getByRole('radio', { name: 'Somente clientes logados' }).click();
+    await page.getByRole('button', { name: '+ Adicionar pergunta' }).click();
+    await page.getByTestId('lead-form-question-label').fill('Qual serviço você procura?');
+    await page.getByTestId('visual-inspector-apply').click();
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+
+    const saved = await getHotsiteConfig(page);
+    const leadForm = saved.layout.find((module) => module.type === 'LEAD_FORM');
+    expect((leadForm?.data as { title?: string }).title).toBe('Fale com a nossa equipe');
+    expect(leadForm?.data).not.toHaveProperty('audienceMode');
+    expect(leadForm?.data).not.toHaveProperty('questions');
+    const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
+    const publicLeadForm = manifest.layout.find((module) => module.type === 'LEAD_FORM');
+    expect(publicLeadForm?.data).not.toHaveProperty('audienceMode');
+    expect(publicLeadForm?.data).not.toHaveProperty('questions');
+    const config = await getLeadFormConfig(page);
+    expect(config.audienceMode).toBe('CUSTOMER_ONLY');
+    expect(config.questions.map((question) => question.label)).toContain(
+      'Qual serviço você procura?',
+    );
+  });
 });
 
 test.describe('hotsite editor (STAFF)', () => {

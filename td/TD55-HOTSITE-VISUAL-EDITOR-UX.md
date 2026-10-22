@@ -182,6 +182,7 @@ LEAD_FORM is the one intentional exception to an ordinary layout-only module. It
 - **State plumbing:** `applyModuleConfig` / `cancelModuleConfig` are generalised from `EditorView` to a `{ type, localData }` buffer, with the detailed drill-down and its specs unchanged and green; `useHotsiteEditorSession` gains an update-buffer action.
 - **Test ids:** `visual-module-inspector`, `visual-inspector-apply`, `visual-inspector-cancel`, `visual-inspector-back`, `visual-inspector-disabled-note`, `visual-module-discard-confirm`.
 - **LEAD_FORM preview:** the buffer carries `audienceMode`/`questions`/`hasSubmissions`; a unit test pins that none of them reaches the rendered module props (`LeadFormModuleDataSchema` strips them).
+- **LEAD_FORM dirty baseline (found in the story's local E2E):** a LEAD_FORM buffer opens already carrying the loaded LeadFormConfig (the session draft, else the server's), so an untouched buffer is clean; otherwise it read as dirty until the lazy panel synced, blocking Publish and prompting on every section switch.
 - **UI reuse:** `SwitchField` (via `LayoutTab`), `DiscardChangesDialog`, `ui/button`, `ui/card`; the panels keep their own `ConfigTextField`/`SingleImageUploadField`/`pill-select` controls. No new primitive.
 
 **Prototype references:** `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` and `journeys/manager/prototypes/hotsite/editor-vision/09-inline-interactions.js` (module selection, structure list and return to structure only; the prototype has no Apply/Cancel or conditional fields to copy, and its module forms are flat, with no grouping (the earlier `groupedModuleForm()` override was removed in Story 2's discovery) — the real panels and the *Editor state model* are authoritative)
@@ -189,8 +190,10 @@ LEAD_FORM is the one intentional exception to an ordinary layout-only module. It
 
 **Files to create/modify:**
 - `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` (modify — route module selection and committed draft changes through the visual editor)
-- `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` (modify — dispatch module selection, including CHATBOT)
-- `apps/web/features/platform/components/hotsite/renderHotsitePreviewModule.tsx` (modify — selected-section highlight)
+- `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` and `renderHotsitePreviewModule.tsx` (**not modified** — Story 1's `PreviewSelectionWrapper` already dispatches selection, including CHATBOT, and highlights the selected section)
+- `apps/web/features/platform/components/hotsite/useVisualModuleBuffer.ts` and its spec (new, added at implementation — the Apply-or-discard guard, buffer commit and back-to-visual resync; keeps `HotsiteEditor.tsx` within the lint size limits)
+- `apps/web/features/platform/components/hotsite/hotsite-module-buffer.ts` and its spec (new — `commitModuleBuffer`, `isModuleBufferDirty`, `buildPreviewDraft`, `applyModuleConfig`, `cancelModuleConfig` moved out of `hotsite-editor-views.tsx`, which hit its file-size limit)
+- `apps/web/features/platform/components/hotsite/ModuleConfigPreviewScreen.tsx` and its spec (new — the detailed editor's module-config Preview branch, extracted from `HotsiteEditor.tsx` unchanged for the same reason)
 - `apps/web/features/platform/components/hotsite/VisualHotsiteEditorView.tsx` (modify — enable Organize modules, host `VisualModuleInspector`, `xl` inspector width, disable Publish while the buffer is dirty, keep a disabled module's context) and its spec
 - `apps/web/features/platform/components/hotsite/useHotsiteEditorSession.ts` (modify — update-buffer action) and its spec
 - `apps/web/features/platform/components/hotsite/hotsite-editor-publish.ts` / `HotsiteEditor.tsx` (modify only if the dirty-Publish guard needs it)
