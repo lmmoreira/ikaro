@@ -13,7 +13,6 @@ import { useTenant } from '@/providers/tenant-provider';
 import {
   HotsiteEditorMainView,
   type ActionBanner,
-  type EditorTab,
 } from '@/features/platform/components/hotsite/HotsiteEditorMainView';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
@@ -26,7 +25,10 @@ import {
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useHotsiteEditorTopbarOverride } from '@/features/platform/hotsite/useHotsiteEditorTopbarOverride';
 import { HotsitePreview } from './hotsite-editor-lazy-panels';
+import { VisualHotsiteEditorView } from './VisualHotsiteEditorView';
+import { useHotsiteEditorSession } from './useHotsiteEditorSession';
 import {
+  buildModuleBuffer,
   extractLeadFormConfig,
   applyModuleConfig,
   cancelModuleConfig,
@@ -37,7 +39,6 @@ import {
   ModuleConfigView,
   updateEditorDraft,
   updateModuleLocalData,
-  type EditorView,
   type LeadFormConfigDraft,
 } from './hotsite-editor-views';
 import { executeHotsitePublish } from './hotsite-editor-publish';
@@ -49,7 +50,17 @@ interface HotsiteEditorProps {
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
   const locale = useResolvedLocale();
-  const [activeTab, setActiveTab] = useState<EditorTab>('branding');
+  // `mode` is the presentation: the visual editor (default) or the retained tabbed editor behind
+  // "Editar em detalhes". Switching never touches `draft`, so edits survive the round trip. `view`
+  // only matters in detailed mode — "Configurar" and "Preview" are client-side view swaps, not
+  // real Next.js routes: the drill-down panel fills the screen the same way a route would (via
+  // ModuleConfigShell), but `draft` never leaves this component's state, so there's no risk of
+  // losing other tabs' unsaved edits and no need to lift state into a layout.tsx/Context.
+  // Editing a panel's fields updates only `view.localData` (a local copy); "Aplicar" commits it
+  // into `draft.layout` by type, "Cancelar" discards it — draft.layout is only ever touched by
+  // handleApply below.
+  const { mode, view, activeTab, visualContext, setView, setActiveTab, ...navigation } =
+    useHotsiteEditorSession();
   // useState(initial) only applies on mount — page.tsx renders this once per full page load, so
   // `initial` itself never changes under an already-mounted editor. A save (handlePublish) DOES
   // need to refresh this state afterward, but via an explicit setDraft() call using the mutation's
@@ -58,13 +69,6 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     ...initial,
     layout: materializeLayout(initial.layout),
   }));
-  // "Configurar" is a client-side view swap, not a real Next.js route — the drill-down panel
-  // fills the screen the same way a route would (via ModuleConfigShell), but `draft` never
-  // leaves this component's state, so there's no risk of losing other tabs' unsaved edits and no
-  // need to lift state into a layout.tsx/Context. Editing a panel's fields updates only
-  // `view.localData` (a local copy); "Aplicar" commits it into `draft.layout` by type, "Cancelar"
-  // discards it — draft.layout is only ever touched by handleApply below.
-  const [view, setView] = useState<EditorView>({ view: 'tabs' });
   const [actionBanner, setActionBanner] = useState<ActionBanner | null>(null);
   const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const { tenantId, tenantSlug } = useTenant();
@@ -83,9 +87,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // zero real edits (found live, 2026-08-26).
   const leadFormConfigBaseline =
     leadFormConfigDraft ??
-    (leadFormConfig.data
-      ? extractLeadFormConfig(leadFormConfig.data as unknown as Record<string, unknown>)
-      : null);
+    (leadFormConfig.data ? extractLeadFormConfig(leadFormConfig.data) : null);
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -97,6 +99,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   // not the whole `view` object, so this doesn't re-run on every keystroke while editing a panel.
   const configuringType = view.view === 'module-config' ? view.type : null;
   const isPreview = view.view === 'preview';
+  const isDetailedTabs = mode === 'detailed' && view.view === 'tabs';
   const moduleConfigPreview = view.view === 'module-config-preview' ? view : null;
   // Stable identities across renders — these are effect dependencies inside
   // useHotsiteEditorTopbarOverride, so a fresh inline function here would re-run that effect
@@ -104,13 +107,15 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const onBackToModuleConfigPreview = useCallback(
     (state: { readonly type: HotsiteModuleType; readonly localData: Record<string, unknown> }) =>
       setView({ view: 'module-config', type: state.type, localData: state.localData }),
-    [],
+    [setView],
   );
-  const onBackToTabs = useCallback(() => setView({ view: 'tabs' }), []);
+  const onBackToTabs = useCallback(() => setView({ view: 'tabs' }), [setView]);
 
   useHotsiteEditorTopbarOverride({
     configuringType,
     isPreview,
+    isDetailedTabs,
+    onBackToVisual: navigation.backToVisual,
     moduleConfigPreview,
     onBackToModuleConfigPreview,
     onBackToTabs,
@@ -144,7 +149,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       updateConfig,
       publishHotsite,
       setDraft,
-      onTabs: () => setView({ view: 'tabs' }),
+      onSettled: () => setView({ view: 'tabs' }),
       onBanner: setActionBanner,
       onLeadFormPublished: () => setLeadFormConfigDraft(null),
     });
@@ -159,6 +164,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
 
   const handleConfigure = (type: HotsiteModuleType): void =>
     configureModule(draft, type, leadFormConfigDraft, setView);
+
+  const handleSelectModule = (type: HotsiteModuleType): void =>
+    navigation.selectModule(type, buildModuleBuffer(draft, type, leadFormConfigDraft));
 
   const handleLocalDataChange = (localData: Record<string, unknown>): void =>
     updateModuleLocalData(setView, localData);
@@ -249,6 +257,21 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   if (view.view === 'preview') {
     return (
       <HotsitePreview draft={draft} onPublish={() => handlePublish()} isPublishing={isPublishing} />
+    );
+  }
+
+  if (mode === 'visual') {
+    return (
+      <VisualHotsiteEditorView
+        draft={draft}
+        visualContext={visualContext}
+        actionBanner={actionBanner}
+        tenantSlug={tenantSlug}
+        isPublishing={isPublishing}
+        onSelectModule={handleSelectModule}
+        onEditInDetail={navigation.enterDetailed}
+        onPublish={() => handlePublish()}
+      />
     );
   }
 

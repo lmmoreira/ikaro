@@ -12,7 +12,7 @@ flowchart TD
     classDef existing fill:#e6ffe6,stroke:#3a3
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
-    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["/dashboard/hotsite<br/>Hotsite Editor<br/>(Branding + Layout + SEO + Manifesto)"]
+    Start(["Dashboard sidebar/bottom-sheet<br/>'Somente Gerente' → Hotsite"]) --> Editor["/dashboard/hotsite<br/>Hotsite Editor — abre no editor visual (TD55-S01);<br/>'Editar em detalhes' abre as abas<br/>(Branding + Layout + SEO + Manifesto)"]
 
     Editor --> EditBranding(("Edita cor/fonte/botão"))
     Editor --> ToggleModule(("Liga/desliga módulo"))
@@ -59,8 +59,8 @@ flowchart TD
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/hotsite` | `HotsitePage` | M13-S35/S36/S37 | ✅ Done |
-| Preview pane | `HotsitePreview` (draft-state render) | M13-S37 | ✅ Done |
+| `/dashboard/hotsite` | `HotsitePage` → `HotsiteEditor` (abre em `VisualHotsiteEditorView`; as abas ficam em `HotsiteEditorMainView`, atrás de "Editar em detalhes") | M13-S35/S36/S37, TD55-S01 | ✅ Done |
+| Preview pane | `HotsitePreview` (draft-state render; a prévia persistente do editor visual usa o mesmo `HotsitePreviewCanvas`) | M13-S37, TD55-S01 | ✅ Done |
 
 ## Open questions / gaps
 
@@ -90,6 +90,8 @@ Folder: `manager/prototypes/hotsite/`
 | `editor-vision/index.html` | Proposta de editor visual: prévia persistente, Branding com mapa de impacto e edição contextual de módulos | — | ❓ Proposta para validação |
 
 ## Proposta futura — editor visual guiado
+
+**Em andamento (TD55, `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`):** a Story 1 entregou o quadro do editor visual como tela padrão de `/dashboard/hotsite` — barra de comandos, prévia persistente do rascunho com seções selecionáveis e inspetor lateral fixo; o editor em abas continua disponível em "Editar em detalhes", com "Voltar à edição visual" na barra superior. Branding e estilo, Organizar módulos e Compartilhamento aparecem desabilitados até as Stories 2 e 3; a reescrita completa desta jornada é da Story 4.
 
 O editor entregue continua sendo a referência de comportamento e de dados. A proposta em `manager/prototypes/hotsite/editor-vision/` não introduz módulos ou campos de manifesto: ela explora uma experiência em que o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e entende o efeito das propriedades globais de Branding.
 

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { renderWithIntl } from '@/test-utils';
 import type {
   AboutModuleData,
   BookingCtaModuleData,
@@ -23,8 +24,12 @@ import { renderHotsitePreviewModule } from './renderHotsitePreviewModule';
 // contract (business info, services, gallery items, etc.) — this file's own concern is purely
 // which one gets picked for a given module type, so each is mocked to a recognizable marker
 // rather than satisfied with realistic data.
+const heroProps = vi.hoisted(() => [] as unknown[]);
 vi.mock('@/shells/hotsite/components/HeroModule', () => ({
-  HeroModule: () => <div data-testid="hero-module" />,
+  HeroModule: (props: unknown) => {
+    heroProps.push(props);
+    return <div data-testid="hero-module" />;
+  },
 }));
 vi.mock('@/shells/hotsite/components/ServiceListModule', () => ({
   ServiceListModule: () => <div data-testid="service-list-module" />,
@@ -105,5 +110,103 @@ describe('renderHotsitePreviewModule', () => {
     );
 
     expect(result).toBeNull();
+  });
+
+  describe('with an editor selection', () => {
+    const selection = { selectedType: null, onSelect: vi.fn() };
+    const ALL_TYPES = [
+      ['HERO', 'hero-module'],
+      ['SERVICE_LIST', 'service-list-module'],
+      ['CONTACT', 'contact-module'],
+      ['BOOKING_CTA', 'booking-cta-module'],
+      ['GALLERY', 'gallery-module'],
+      ['TESTIMONIALS', 'testimonials-module'],
+      ['ABOUT', 'about-module'],
+      ['FOOTER', 'footer-module'],
+      ['CHATBOT', 'chatbot-module'],
+      ['LEAD_FORM', 'lead-form-module'],
+    ] as const;
+
+    it.each(ALL_TYPES)(
+      'wraps the %s module in a selectable section whose content is inert',
+      async (type, testId) => {
+        const result = renderHotsitePreviewModule(
+          planItem({ type, data: {} } as HotsiteModuleParsed),
+          0,
+          { ...baseCtx, selection },
+        );
+
+        renderWithIntl(<>{result}</>);
+
+        const section = screen.getByTestId('preview-section');
+        expect(section).toHaveAttribute('data-module-type', type);
+        expect(screen.getByTestId(testId).closest('[inert]')).not.toBeNull();
+        expect(await screen.findByTestId('preview-section-select')).toHaveAttribute(
+          'data-module-type',
+          type,
+        );
+      },
+    );
+
+    it('renders no wrapper when there is no selection', () => {
+      const result = renderHotsitePreviewModule(
+        planItem({ type: 'HERO', data: {} } as HotsiteModuleParsed),
+        0,
+        baseCtx,
+      );
+
+      render(<>{result}</>);
+
+      expect(screen.queryByTestId('preview-section')).not.toBeInTheDocument();
+    });
+
+    it('passes the module exactly the props it gets without a selection', () => {
+      const item = planItem({ type: 'HERO', data: {} } as HotsiteModuleParsed);
+      heroProps.length = 0;
+
+      render(<>{renderHotsitePreviewModule(item, 0, baseCtx)}</>);
+      renderWithIntl(<>{renderHotsitePreviewModule(item, 0, { ...baseCtx, selection })}</>);
+
+      expect(heroProps).toHaveLength(2);
+      expect(heroProps[1]).toEqual(heroProps[0]);
+    });
+
+    it('marks only the module matching the selected type', () => {
+      const result = renderHotsitePreviewModule(
+        planItem({ type: 'HERO', data: {} } as HotsiteModuleParsed),
+        0,
+        { ...baseCtx, selection: { selectedType: 'CONTACT', onSelect: vi.fn() } },
+      );
+
+      renderWithIntl(<>{result}</>);
+
+      expect(screen.queryByTestId('preview-section-badge')).not.toBeInTheDocument();
+    });
+
+    it.each([
+      ['an unset variant', {}, 'fixed'],
+      ['the bubble variant', { variant: 'bubble' }, 'fixed'],
+      ['the inline variant', { variant: 'inline' }, 'absolute'],
+    ] as const)('pins the chatbot overlay for %s with the %s class', async (_label, data, cls) => {
+      const result = renderHotsitePreviewModule(
+        planItem({ type: 'CHATBOT', data } as HotsiteModuleParsed),
+        0,
+        { ...baseCtx, selection },
+      );
+
+      renderWithIntl(<>{result}</>);
+
+      expect(await screen.findByTestId('preview-section-select')).toHaveClass(cls);
+    });
+
+    it('returns null for an unknown module type even with a selection', () => {
+      const result = renderHotsitePreviewModule(
+        planItem({ type: 'NOT_A_REAL_TYPE', data: {} } as unknown as HotsiteModuleParsed),
+        0,
+        { ...baseCtx, selection },
+      );
+
+      expect(result).toBeNull();
+    });
   });
 });

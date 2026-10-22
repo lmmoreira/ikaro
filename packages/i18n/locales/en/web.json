@@ -1176,6 +1176,28 @@
         "loading": "Loading preview...",
         "loadError": "Could not load the preview. Please try again."
       },
+      "visual": {
+        "commandsLabel": "Editor actions",
+        "commands": {
+          "branding": "Branding and style",
+          "structure": "Organize modules",
+          "sharing": "Sharing",
+          "detail": "Edit in detail",
+          "publish": "Publish",
+          "viewLive": "View published site"
+        },
+        "comingSoon": "Coming soon — use Edit in detail",
+        "previewLabel": "Draft preview",
+        "previewStatusIdle": "Draft — select a section of the preview",
+        "previewStatusSelected": "Draft — selected: {module}",
+        "selectSection": "Select section: {module}",
+        "selectedBadge": "Selected",
+        "inspectorLabel": "Section details",
+        "emptyHint": "Select a section of the preview to see its details.",
+        "moduleHint": "This module's fields are coming soon. Use Edit in detail to configure it now.",
+        "backToVisual": "Back to visual editing",
+        "detailedTitle": "Detailed editing"
+      },
       "branding": {
         "sections": {
           "colors": "Colors",

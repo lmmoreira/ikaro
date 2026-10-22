@@ -3,7 +3,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import {
   applyModuleConfig,
+  buildModuleBuffer,
   cancelModuleConfig,
+  configureModule,
   extractLeadFormConfig,
   hasInvalidLeadFormQuestion,
   stripLeadFormConfig,
@@ -187,6 +189,47 @@ describe('hotsite editor lead-form view helpers', () => {
 
       expect(onConfirmRequired).not.toHaveBeenCalled();
       expect(onCancel).toHaveBeenCalledOnce();
+    });
+  });
+});
+
+describe('module buffer helpers', () => {
+  const LEAD_FORM_CONFIG = {
+    audienceMode: 'CUSTOMER_ONLY' as const,
+    questions: [],
+  };
+
+  it("builds a module's buffer from its layout data", () => {
+    const draft = {
+      layout: [{ type: 'ABOUT', enabled: true, data: { title: 'Sobre nós' } }],
+    } as unknown as HotsiteAdminContentResponse;
+
+    expect(buildModuleBuffer(draft, 'ABOUT', null)).toEqual({ title: 'Sobre nós' });
+  });
+
+  it('builds an empty buffer for a module the draft does not carry', () => {
+    expect(buildModuleBuffer(makeDraft({}), 'ABOUT', null)).toEqual({});
+  });
+
+  it('folds the held LeadFormConfig portion into a LEAD_FORM buffer only', () => {
+    const draft = makeDraft({ title: 'Receba uma proposta' });
+
+    expect(buildModuleBuffer(draft, 'LEAD_FORM', LEAD_FORM_CONFIG)).toEqual({
+      title: 'Receba uma proposta',
+      ...LEAD_FORM_CONFIG,
+    });
+    expect(buildModuleBuffer(draft, 'LEAD_FORM', null)).toEqual({ title: 'Receba uma proposta' });
+  });
+
+  it('opens the module-config view on the same buffer', () => {
+    const onConfigure = vi.fn();
+
+    configureModule(makeDraft({ title: 'x' }), 'LEAD_FORM', LEAD_FORM_CONFIG, onConfigure);
+
+    expect(onConfigure).toHaveBeenCalledWith({
+      view: 'module-config',
+      type: 'LEAD_FORM',
+      localData: { title: 'x', ...LEAD_FORM_CONFIG },
     });
   });
 });

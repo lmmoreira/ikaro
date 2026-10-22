@@ -4,8 +4,10 @@ import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { loginAsStaff } from './helpers/auth';
 import { openFirstDayWithSlots } from './helpers/booking-form';
 import {
+  enterDetailedEditor,
   getHotsiteConfig,
   getPublicManifest,
+  openDetailedEditor,
   publishHotsite,
   toUpdateRequest,
   unpublishHotsite,
@@ -140,10 +142,10 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await updateLeadFormConfig(page, toLeadFormUpdateRequest(originalLeadForm));
   });
 
-  test('loads with the Branding tab active by default, pre-filled with the tenant current values', async ({
+  test('the detailed editor opens with the Branding tab active, pre-filled with the tenant current values', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
 
     await expect(page.getByRole('tab', { name: 'Branding' })).toHaveAttribute(
       'aria-selected',
@@ -154,10 +156,107 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     );
   });
 
-  test('configures branding, enables and configures About + Testimonials, sets SEO, previews the draft, publishes, and the changes survive a reload', async ({
+  test('opens in the visual editor with the persistent draft preview and the editor commands (TD55-S01)', async ({
     page,
   }) => {
     await page.goto('/dashboard/hotsite');
+
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+    await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    await expect(page.getByTestId('visual-command')).toHaveCount(6);
+  });
+
+  // Hero is enabled in the seed; CONTACT, BOOKING_CTA and LEAD_FORM are enabled through the
+  // detailed editor first, then the manager returns to the visual editor via the topbar.
+  test('selecting a section in the persistent preview opens the inspector without navigating, following a CTA, starting a booking or moving the page (TD55-S01)', async ({
+    page,
+  }) => {
+    await openDetailedEditor(page);
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    for (const type of ['BOOKING_CTA', 'CONTACT', 'LEAD_FORM']) {
+      const toggle = page.locator(layoutToggle(type));
+      if ((await toggle.getAttribute('aria-checked')) !== 'true') await toggle.click();
+    }
+    await page.getByTestId('topbar-back-button').click();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+    const editorUrl = page.url();
+    const select = (type: string) =>
+      page.locator(`[data-testid="preview-section-select"][data-module-type="${type}"]`);
+    const status = page.getByTestId('visual-preview-status');
+
+    await select('HERO').click();
+    await expect(status).toContainText('Hero');
+
+    // Hero's own CTA is inert in the editor: forcing a click on it lands on the selection overlay
+    // above it, so it selects the section and goes nowhere.
+    await page
+      .locator('[data-testid="preview-section"][data-module-type="HERO"] a')
+      .first()
+      .click({ force: true });
+    await expect(status).toContainText('Hero');
+
+    for (const type of ['BOOKING_CTA', 'LEAD_FORM']) {
+      await page
+        .locator(`[data-testid="preview-section"][data-module-type="${type}"] a`)
+        .first()
+        .click({ force: true });
+      await expect(select(type)).toHaveAttribute('aria-pressed', 'true');
+    }
+
+    await select('CONTACT').scrollIntoViewIfNeeded();
+    const scrollBefore = await page.evaluate(() => window.scrollY);
+    await select('CONTACT').click();
+    await expect(status).toContainText('Contato');
+    await expect(page.getByTestId('visual-inspector')).toContainText('Contato');
+    expect(await page.evaluate(() => window.scrollY)).toBe(scrollBefore);
+
+    expect(page.url()).toBe(editorUrl);
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+  });
+
+  test('a preview section is selectable from the keyboard (TD55-S01)', async ({ page }) => {
+    await page.goto('/dashboard/hotsite');
+    const hero = page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]');
+
+    await hero.focus();
+    await page.keyboard.press('Enter');
+
+    await expect(page.getByTestId('visual-preview-status')).toContainText('Hero');
+    await expect(hero).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  test('Edit in detail and Back to visual editing keep the unsaved draft and the selected section (TD55-S01)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]').click();
+
+    await enterDetailedEditor(page);
+    await page.getByTestId('hotsite-primary-color').fill('#123456');
+    await page.getByTestId('topbar-back-button').click();
+
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+    await expect(page.getByTestId('visual-preview-status')).toContainText('Hero');
+    await enterDetailedEditor(page);
+    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
+  });
+
+  test('publishes from the visual editor and stays in it (TD55-S01)', async ({ page }) => {
+    await page.goto('/dashboard/hotsite');
+
+    await page.locator('[data-testid="visual-command"][data-command="publish"]').click();
+
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+    const manifest = await getPublicManifest(page, MANAGER_TENANT_SLUG);
+    expect(manifest.isPublished).toBe(true);
+  });
+
+  test('configures branding, enables and configures About + Testimonials, sets SEO, previews the draft, publishes, and the changes survive a reload', async ({
+    page,
+  }) => {
+    await openDetailedEditor(page);
 
     // Branding
     const primaryColor = page.getByTestId('hotsite-primary-color');
@@ -205,6 +304,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByRole('tablist')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
 
     await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
     await page.getByRole('tab', { name: 'Layout' }).click();
@@ -222,7 +322,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('enabling then disabling a module again removes it from Preview and the published state', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     const contactToggle = page.locator(layoutToggle('CONTACT'));
@@ -258,7 +358,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Module config Preview: shows the in-progress edit without Aplicar, and Back returns to the same panel with the edit intact (M18-S08)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
@@ -279,6 +379,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
     await expect(page.locator('#hero-title')).toHaveValue('Título em progresso');
@@ -290,7 +391,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Module config Preview: Publish directly from that preview (skipping Aplicar) persists the edit after reload (M18-S08)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
@@ -302,6 +403,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByRole('tablist')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
     await expect(page.locator('#hero-title')).toHaveValue('Publicado direto do preview');
@@ -311,7 +413,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Module config discard-confirm: Cancelar after an edit prompts before discarding; "Continuar editando" keeps it, "Descartar alterações" discards it (M18-S08)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
@@ -341,7 +443,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     page,
     context,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
 
     const [newPage] = await Promise.all([
       context.waitForEvent('page'),
@@ -355,7 +457,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Despublicar hotsite takes the public manifest offline without discarding the draft', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
 
     await page.getByTestId('hotsite-unpublish-button').click();
 
@@ -367,7 +469,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('an invalid branding color round-trips through the real backend validation and shows the error banner', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
 
     await page.getByTestId('hotsite-primary-color').fill('not-a-color');
     await page.getByTestId('hotsite-publish-desktop').click();
@@ -376,7 +478,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   });
 
   test('SEO title enforces the 60-character limit', async ({ page }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'SEO' }).click();
 
     await page.getByTestId('hotsite-seo-title').fill('a'.repeat(65));
@@ -388,7 +490,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('SEO tab: uploading a share image, publishing, and reloading persists it, and the public hotsite resolves it as og:image (M18-S03)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'SEO' }).click();
 
     await page.getByTestId('single-image-upload-input').setInputFiles({
@@ -402,6 +504,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'SEO' }).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
 
@@ -417,7 +520,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Branding tab: uploading a logo, publishing, and reloading renders it in the public hotsite topbar, footer, and favicon (M18-S03)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
 
     await page.getByTestId('single-image-upload-input').setInputFiles({
       name: 'logo.png',
@@ -447,7 +550,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Hero panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S04)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
@@ -467,6 +570,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
@@ -497,7 +601,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Hero panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
 
@@ -512,6 +616,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('HERO')).click();
     await expect(
@@ -534,7 +639,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Booking CTA panel: setting contentPositionX/contentPositionY on the centered variant persists after Publish and reload, and the live page applies the expected alignment (M18-S05)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     // BOOKING_CTA is absent from the autospa-premium seed layout — materializeLayout() gives it
@@ -554,6 +659,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(
@@ -576,7 +682,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Booking CTA panel: uploading a background image and setting the focal point persist after Publish and reload, and the live page applies the object-position (M18-S05)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     await page.locator(layoutToggle('BOOKING_CTA')).click();
@@ -600,6 +706,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
     await expect(page.getByTestId('single-image-upload-preview')).toBeVisible();
@@ -631,7 +738,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Gallery panel: two photos of different aspect ratios render at different heights under Mosaico, after Publish and reload (M18-S06)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     // GALLERY is absent from the autospa-premium seed layout — materializeLayout() gives it a
@@ -677,7 +784,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Gallery panel: "Destaque" with 5 photos renders 1 large + 4 small tiles, position and breakpoint both correct, after Publish and reload (M18-S07)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     await page.locator(layoutToggle('GALLERY')).click();
@@ -759,7 +866,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Manifesto tab: editing branding + a module toggle directly in JSON persists after Aplicar, Publish, and reload (M18-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Manifesto' }).click();
 
     const textarea = page.getByTestId('hotsite-manifest-textarea');
@@ -778,6 +885,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
     await page.getByRole('tab', { name: 'Layout' }).click();
     await expect(page.locator(layoutToggle('CONTACT'))).toHaveAttribute(
@@ -789,7 +897,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Manifesto tab: malformed JSON shows an inline error and leaves the draft unchanged (M18-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Manifesto' }).click();
 
     await page.getByTestId('hotsite-manifest-textarea').fill('{ not valid json');
@@ -805,7 +913,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Manifesto tab: a structurally valid but business-rule-invalid value round-trips through the real backend rejection (M18-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Manifesto' }).click();
 
     const textarea = page.getByTestId('hotsite-manifest-textarea');
@@ -828,7 +936,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Booking CTA Calendar section: toggling datePickerType and editing carouselDays persist after reload (M18-S01)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     // BOOKING_CTA is absent from the autospa-premium seed layout — materializeLayout() gives it
@@ -855,6 +963,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('BOOKING_CTA')).click();
 
@@ -1066,7 +1175,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('enables and configures Chatbot (variant, accent color, name, welcome message), and the changes survive a reload', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     await page.locator(layoutToggle('CHATBOT')).click();
@@ -1086,6 +1195,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await expect(page.locator(layoutToggle('CHATBOT'))).toHaveAttribute('aria-checked', 'true');
     await page.locator(configureButton('CHATBOT')).click();
@@ -1118,7 +1228,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       }),
     );
 
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('CHATBOT')).click();
 
@@ -1136,7 +1246,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       }),
     );
 
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await page.locator(configureButton('CHATBOT')).click();
 
@@ -1152,7 +1262,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('configures LEAD_FORM (teaser, audience mode, a question), publishes, and the changes survive a reload', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     await page.locator(layoutToggle('LEAD_FORM')).click();
@@ -1175,6 +1285,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
 
     await page.reload();
+    await enterDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
     await expect(page.locator(layoutToggle('LEAD_FORM'))).toHaveAttribute('aria-checked', 'true');
     await page.locator(configureButton('LEAD_FORM')).click();
@@ -1199,7 +1310,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('an invalid lead-form question blocks Publish from the module-config preview and shows the error banner', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openDetailedEditor(page);
     await page.getByRole('tab', { name: 'Layout' }).click();
 
     await page.locator(layoutToggle('LEAD_FORM')).click();

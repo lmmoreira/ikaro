@@ -14,15 +14,15 @@ import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab'
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
 import { SeoTab } from '@/features/platform/components/hotsite/SeoTab';
 import { ManifestTab } from '@/features/platform/components/hotsite/ManifestTab';
+import {
+  HotsiteActionBanner,
+  type ActionBanner,
+} from '@/features/platform/components/hotsite/HotsiteActionBanner';
 import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema';
 
-export type EditorTab = 'branding' | 'layout' | 'seo' | 'manifest';
+export type { ActionBanner };
 
-export type ActionBanner = {
-  readonly kind: 'publish' | 'unpublish';
-  readonly status: 'success' | 'error';
-  readonly message?: string;
-};
+export type EditorTab = 'branding' | 'layout' | 'seo' | 'manifest';
 
 // 'manifest' stays last — it's the raw-JSON escape hatch for the other 3 tabs combined, not a
 // peer content section.
@@ -69,38 +69,7 @@ export function HotsiteEditorMainView({
 
   return (
     <div className="space-y-4 pb-28 lg:space-y-6 lg:pb-0">
-      {actionBanner?.status === 'success' && (
-        <output
-          data-testid="hotsite-action-success-banner"
-          className="flex items-start gap-3.5 rounded-xl border border-green-300 bg-green-50 p-4"
-        >
-          <span
-            aria-hidden="true"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-green-600 text-white"
-          >
-            ✓
-          </span>
-          <span>
-            <span className="block text-sm font-bold text-green-800">
-              {t(actionBanner.kind === 'publish' ? 'publishSuccessTitle' : 'unpublishSuccessTitle')}
-            </span>
-            <span className="mt-0.5 block text-sm text-green-700">
-              {t(actionBanner.kind === 'publish' ? 'publishSuccessBody' : 'unpublishSuccessBody', {
-                slug: tenantSlug,
-              })}
-            </span>
-          </span>
-        </output>
-      )}
-      {actionBanner?.status === 'error' && (
-        <div
-          role="alert"
-          data-testid="hotsite-action-error-banner"
-          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm font-semibold text-red-700"
-        >
-          {actionBanner.message}
-        </div>
-      )}
+      <HotsiteActionBanner banner={actionBanner} tenantSlug={tenantSlug} />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div className="space-y-4 lg:space-y-6">

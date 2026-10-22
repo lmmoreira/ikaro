@@ -58,3 +58,11 @@ export const HotsitePreview = dynamic(
   () => import('./HotsitePreview').then((m) => m.HotsitePreview),
   { ssr: false },
 );
+
+// The branded draft frame (no publish chrome) the visual editor embeds. Lazy for the same reason
+// as HotsitePreview above: the public module render components become client JS once imported
+// here, so only a manager who opens the editor pays for them.
+export const HotsitePreviewCanvas = dynamic(
+  () => import('./HotsitePreviewCanvas').then((m) => m.HotsitePreviewCanvas),
+  { ssr: false },
+);

@@ -23,6 +23,18 @@ export type EditorView =
       readonly type: HotsiteModuleType;
       readonly localData: Record<string, unknown>;
     };
+
+export type EditorMode = 'visual' | 'detailed';
+// What the visual editor's inspector is showing. A module context carries its own local buffer
+// (the same `localData` semantics as the detailed editor's module-config view), so a module
+// context can never exist without one.
+export type VisualContext =
+  | { readonly kind: 'structure' | 'branding' | 'sharing' }
+  | {
+      readonly kind: 'module';
+      readonly type: HotsiteModuleType;
+      readonly localData: Record<string, unknown>;
+    };
 export type LeadFormConfigDraft = {
   audienceMode: 'GUEST_AND_CUSTOMER' | 'CUSTOMER_ONLY';
   questions: LeadFormQuestion[];
@@ -41,7 +53,12 @@ export function isModuleDataDirty(
 ): boolean {
   return JSON.stringify(committed) !== JSON.stringify(local);
 }
-export function extractLeadFormConfig(data: Record<string, unknown>): LeadFormConfigDraft | null {
+// Takes the two LeadFormConfig fields structurally (not Record<string, unknown>) so both the panel's
+// local buffer and the GET /lead-form/config response can be passed without a cast.
+export function extractLeadFormConfig(data: {
+  readonly audienceMode?: unknown;
+  readonly questions?: unknown;
+}): LeadFormConfigDraft | null {
   if (
     !['GUEST_AND_CUSTOMER', 'CUSTOMER_ONLY'].includes(data.audienceMode as string) ||
     !Array.isArray(data.questions)
@@ -158,18 +175,30 @@ export function updateModuleLocalData(
   setView((current) => (current.view === 'module-config' ? { ...current, localData } : current));
 }
 
+// The local edit buffer a module's panel starts from: its layout[].data, with a LEAD_FORM's
+// separately held LeadFormConfig portion folded in (it never lives in layout[].data).
+export function buildModuleBuffer(
+  draft: HotsiteAdminContentResponse,
+  type: HotsiteModuleType,
+  leadFormConfigDraft: LeadFormConfigDraft | null,
+): Record<string, unknown> {
+  const selected = draft.layout.find((module) => module.type === type);
+  return type === 'LEAD_FORM' && leadFormConfigDraft
+    ? { ...selected?.data, ...leadFormConfigDraft }
+    : (selected?.data ?? {});
+}
+
 export function configureModule(
   draft: HotsiteAdminContentResponse,
   type: HotsiteModuleType,
   leadFormConfigDraft: LeadFormConfigDraft | null,
   onConfigure: (view: EditorView) => void,
 ): void {
-  const selected = draft.layout.find((module) => module.type === type);
-  const localData =
-    type === 'LEAD_FORM' && leadFormConfigDraft
-      ? { ...selected?.data, ...leadFormConfigDraft }
-      : (selected?.data ?? {});
-  onConfigure({ view: 'module-config', type, localData });
+  onConfigure({
+    view: 'module-config',
+    type,
+    localData: buildModuleBuffer(draft, type, leadFormConfigDraft),
+  });
 }
 export function ModuleConfigView({
   type,

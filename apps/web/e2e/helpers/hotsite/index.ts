@@ -1,3 +1,4 @@
+export { enterDetailedEditor, openDetailedEditor } from './hotsite-editor-navigation';
 export {
   getHotsiteConfig,
   updateHotsiteConfig,

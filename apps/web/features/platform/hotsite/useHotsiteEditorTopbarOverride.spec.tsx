@@ -9,6 +9,8 @@ function baseParams(overrides: Partial<Params> = {}): Params {
   return {
     configuringType: null,
     isPreview: false,
+    isDetailedTabs: false,
+    onBackToVisual: vi.fn(),
     moduleConfigPreview: null,
     onBackToModuleConfigPreview: vi.fn(),
     onBackToTabs: vi.fn(),
@@ -90,6 +92,46 @@ describe('useHotsiteEditorTopbarOverride', () => {
 
     lastOnBackOverride(params)();
     expect(onBackToModuleConfigPreview).toHaveBeenCalledWith(moduleConfigPreview);
+  });
+
+  it('applies the detailed-tabs override with onBackToVisual as the back handler', () => {
+    const onBackToVisual = vi.fn();
+    const params = baseParams({ isDetailedTabs: true, onBackToVisual });
+    renderHook(() => useHotsiteEditorTopbarOverride(params));
+
+    expect(params.setBackLabelOverride).toHaveBeenCalledWith('visual.backToVisual');
+    expect(params.setPageTitleOverride).toHaveBeenCalledWith('visual.detailedTitle');
+    lastOnBackOverride(params)();
+    expect(onBackToVisual).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ['configuringType', { configuringType: 'HERO' as const }, 'layout.configShell.backLabel'],
+    ['isPreview', { isPreview: true }, 'previewView.backLabel'],
+    [
+      'moduleConfigPreview',
+      { moduleConfigPreview: { type: 'HERO' as const, localData: {} } },
+      'previewView.backLabel',
+    ],
+  ])('%s takes priority over the detailed-tabs override', (_name, active, expectedLabel) => {
+    const params = baseParams({ isDetailedTabs: true, ...active });
+    renderHook(() => useHotsiteEditorTopbarOverride(params));
+
+    expect(params.setBackLabelOverride).toHaveBeenCalledWith(expectedLabel);
+    expect(params.setBackLabelOverride).not.toHaveBeenCalledWith('visual.backToVisual');
+  });
+
+  it('clears the detailed-tabs override when the editor leaves it (back to the visual editor)', () => {
+    const params = baseParams({ isDetailedTabs: true });
+    const { rerender } = renderHook((p: Params) => useHotsiteEditorTopbarOverride(p), {
+      initialProps: params,
+    });
+
+    rerender({ ...params, isDetailedTabs: false });
+
+    expect(params.setOnBackOverride).toHaveBeenLastCalledWith(null);
+    expect(params.setBackLabelOverride).toHaveBeenLastCalledWith(null);
+    expect(params.setPageTitleOverride).toHaveBeenLastCalledWith(null);
   });
 
   it('configuringType takes priority over isPreview and moduleConfigPreview when multiple are set', () => {

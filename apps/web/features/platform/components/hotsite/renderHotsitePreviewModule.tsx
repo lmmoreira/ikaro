@@ -1,3 +1,4 @@
+import type { HotsiteModuleType } from '@ikaro/types';
 import type { HotsiteModuleRenderPlanItem } from '@/features/platform/hotsite/page-model';
 import { HeroModule } from '@/shells/hotsite/components/HeroModule';
 import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
@@ -9,17 +10,49 @@ import { ContactModule } from '@/shells/hotsite/components/ContactModule';
 import { Footer } from '@/shells/hotsite/components/Footer';
 import { ChatbotWidget } from '@/shells/hotsite/components/ChatbotWidget';
 import { LeadFormModule } from '@/shells/hotsite/components/LeadFormModule';
+import { PreviewSelectionWrapper } from './PreviewSelectionWrapper';
 import type { PreviewSupplementaryData } from './useHotsitePreviewData';
 
+export interface PreviewSelection {
+  readonly selectedType: HotsiteModuleType | null;
+  readonly onSelect: (type: HotsiteModuleType) => void;
+}
+
+interface RenderContext {
+  readonly tenantSlug: string;
+  readonly tenantBrand: { name: string; tagline?: string } | undefined;
+  readonly logoUrl: string;
+  readonly data: PreviewSupplementaryData;
+}
+
+// With `selection`, each module is wrapped in the editor-only selection boundary; without it the
+// output is exactly the public module tree (the detailed editor's Preview).
 export function renderHotsitePreviewModule(
+  item: HotsiteModuleRenderPlanItem,
+  index: number,
+  ctx: RenderContext & { readonly selection?: PreviewSelection },
+): React.JSX.Element | null {
+  const { selection, ...renderCtx } = ctx;
+  const content = renderModuleContent(item, index, renderCtx);
+  if (!selection || !content) return content;
+  const { parsed } = item;
+  return (
+    <PreviewSelectionWrapper
+      key={`${parsed.type}-${index}`}
+      type={parsed.type}
+      selected={selection.selectedType === parsed.type}
+      fixedOverlay={parsed.type === 'CHATBOT' && (parsed.data.variant ?? 'bubble') === 'bubble'}
+      onSelect={selection.onSelect}
+    >
+      {content}
+    </PreviewSelectionWrapper>
+  );
+}
+
+function renderModuleContent(
   { parsed, bgVariant }: HotsiteModuleRenderPlanItem,
   index: number,
-  ctx: {
-    readonly tenantSlug: string;
-    readonly tenantBrand: { name: string; tagline?: string } | undefined;
-    readonly logoUrl: string;
-    readonly data: PreviewSupplementaryData;
-  },
+  ctx: RenderContext,
 ): React.JSX.Element | null {
   const key = `${parsed.type}-${index}`;
   const { tenantSlug, tenantBrand, logoUrl, data } = ctx;
