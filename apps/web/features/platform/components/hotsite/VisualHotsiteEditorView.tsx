@@ -175,7 +175,11 @@ export function VisualHotsiteEditorView({
             <HotsiteSharingPreview seo={draft.seo} tenantSlug={tenantSlug} />
           ) : (
             <>
-              <p data-testid="visual-preview-status" className="text-sm text-gray-500">
+              <p
+                role="status"
+                data-testid="visual-preview-status"
+                className="text-sm text-gray-500"
+              >
                 {selectedType
                   ? t('visual.previewStatusSelected', {
                       module: t(`layout.modules.${selectedType}`),

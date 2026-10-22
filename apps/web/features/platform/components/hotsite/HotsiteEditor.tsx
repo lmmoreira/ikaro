@@ -166,6 +166,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       onSettled: () => setView({ view: 'tabs' }),
       onBanner: setActionBanner,
       onLeadFormPublished: () => setLeadFormConfigDraft(null),
+      onSaved: mode === 'visual' ? visualBuffer.resyncAfterSave : undefined,
     });
 
   const handleUnpublish = (): Promise<void> =>

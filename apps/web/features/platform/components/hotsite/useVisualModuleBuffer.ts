@@ -46,6 +46,8 @@ export interface VisualModuleBuffer {
   readonly requestStructure: () => void;
   readonly requestEditInDetail: () => void;
   readonly backToVisual: () => void;
+  // Reloads an open, clean buffer from the draft a save just produced.
+  readonly resyncAfterSave: (saved: HotsiteAdminContentResponse) => void;
   readonly apply: () => void;
   readonly discardConfirmOpen: boolean;
   readonly confirmDiscard: () => void;
@@ -114,6 +116,22 @@ function applyBuffer(buffer: ModuleBuffer | null, args: UseVisualModuleBufferArg
   args.navigation.showGlobalContext('structure');
 }
 
+// Reloads an open buffer from the draft a save just produced. A dirty buffer is never touched:
+// Publish is disabled while one is open, so this only ever refreshes a buffer holding no edits.
+function resyncCleanBuffer(
+  buffer: ModuleBuffer | null,
+  isDirty: boolean,
+  saved: HotsiteAdminContentResponse,
+  leadFormConfigBaseline: LeadFormConfigDraft | null,
+  navigation: Navigation,
+): void {
+  if (!buffer || isDirty) return;
+  navigation.selectModule(
+    buffer.type,
+    buildModuleBuffer(saved, buffer.type, leadFormConfigBaseline),
+  );
+}
+
 // Guards the visual editor's module buffer. Every way out of a dirty buffer — another section,
 // the structure list, Edit in detail — is routed through one Apply-or-discard decision, so a
 // previewed-but-unapplied edit is never silently lost. HotsiteEditor still owns the shared draft;
@@ -140,6 +158,8 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     );
   };
   const apply = (): void => applyBuffer(buffer, args);
+  const resyncAfterSave = (saved: HotsiteAdminContentResponse): void =>
+    resyncCleanBuffer(buffer, isDirty, saved, leadFormConfigBaseline, navigation);
 
   return {
     buffer,
@@ -149,6 +169,7 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     requestStructure,
     requestEditInDetail: () => leave(navigation.enterDetailed),
     backToVisual,
+    resyncAfterSave,
     apply,
     discardConfirmOpen: guard.discardConfirmOpen,
     confirmDiscard: guard.confirmDiscard,

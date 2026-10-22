@@ -427,6 +427,12 @@ describe('VisualHotsiteEditorView', () => {
     expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', '');
   });
 
+  it('announces the selected section through a polite status region', () => {
+    renderView();
+
+    expect(screen.getByTestId('visual-preview-status')).toHaveAttribute('role', 'status');
+  });
+
   it('reports a section picked in the preview', async () => {
     const user = userEvent.setup();
     const { props } = renderView();

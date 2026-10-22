@@ -53,7 +53,10 @@ export function VisualModuleInspector({
   const t = useTranslations('dashboard.hotsitePage');
   const tShell = useTranslations('dashboard.hotsitePage.layout.configShell');
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const structureRef = useRef<HTMLDivElement>(null);
   const openType = buffer?.type ?? null;
+  // The module that was open on the previous render, so closing it can hand focus back to its row.
+  const lastOpenType = useRef<HotsiteModuleType | null>(null);
 
   // Opening a module moves focus to its heading, so a keyboard or screen-reader user lands on the
   // new context instead of on the (now removed) Configure button. The page itself never scrolls.
@@ -61,9 +64,22 @@ export function VisualModuleInspector({
     if (openType) headingRef.current?.focus({ preventScroll: true });
   }, [openType]);
 
+  // Returning to the structure list restores focus to the Configure button of the module just
+  // left, so the keyboard user is not dropped at the top of the page. Nothing is focused on load.
+  useEffect(() => {
+    const left = lastOpenType.current;
+    lastOpenType.current = openType;
+    if (openType || !left) return;
+    structureRef.current
+      ?.querySelector<HTMLElement>(
+        `[data-testid="layout-row-configure"][data-module-type="${left}"]`,
+      )
+      ?.focus({ preventScroll: true });
+  }, [openType]);
+
   if (!buffer) {
     return (
-      <div className="space-y-3" data-testid="visual-structure">
+      <div ref={structureRef} className="space-y-3" data-testid="visual-structure">
         <h2 className="text-base font-semibold text-gray-900">{t('visual.structureTitle')}</h2>
         <p className="text-sm leading-6 text-gray-500">{t('visual.emptyHint')}</p>
         <LayoutTab layout={layout} onChange={onLayoutChange} onConfigure={onConfigure} />

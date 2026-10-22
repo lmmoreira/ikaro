@@ -6,7 +6,7 @@ import type {
   LeadFormQuestion,
 } from '@ikaro/types';
 import { ModuleConfigShell } from '@/features/platform/components/hotsite/modules/ModuleConfigShell';
-import { MODULE_CONFIG_PANELS, HotsitePreview } from './hotsite-editor-lazy-panels';
+import { MODULE_CONFIG_PANELS } from './hotsite-editor-lazy-panels';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { hasQuestionValidationError } from './modules/LeadFormSortableQuestion';
 
@@ -178,26 +178,5 @@ export function ModuleConfigView({
     >
       <Panel data={localData} onChange={onChange} />
     </ModuleConfigShell>
-  );
-}
-export function ModuleConfigPreviewView({
-  draft,
-  type,
-  localData,
-  onPublish,
-  isPublishing,
-}: {
-  readonly draft: HotsiteAdminContentResponse;
-  readonly type: HotsiteModuleType;
-  readonly localData: Record<string, unknown>;
-  readonly onPublish: () => void;
-  readonly isPublishing: boolean;
-}): React.JSX.Element {
-  return (
-    <HotsitePreview
-      draft={{ ...draft, layout: mergeLocalDataIntoLayout(draft.layout, type, localData) }}
-      onPublish={onPublish}
-      isPublishing={isPublishing}
-    />
   );
 }

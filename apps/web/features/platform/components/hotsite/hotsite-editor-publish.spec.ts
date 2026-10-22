@@ -91,4 +91,71 @@ describe('executeHotsitePublish', () => {
     // HotsiteEditor side since leadFormConfigDraft is already null in that case.
     expect(onLeadFormPublished).toHaveBeenCalledOnce();
   });
+
+  function buildArgs(overrides: Partial<Parameters<typeof executeHotsitePublish>[0]> = {}) {
+    return {
+      content,
+      leadFormConfig: null,
+      tenantId: 'tenant-1',
+      locale: 'pt-BR' as const,
+      updateConfig: { mutateAsync: vi.fn().mockResolvedValue({ ...content }) },
+      publishHotsite: { mutateAsync: vi.fn().mockResolvedValue({}) },
+      setDraft: vi.fn(),
+      onSettled: vi.fn(),
+      onBanner: vi.fn(),
+      onLeadFormPublished: vi.fn(),
+      onSaved: vi.fn(),
+      ...overrides,
+    };
+  }
+
+  it('reports the saved draft once the save succeeds, before publishing', async () => {
+    const args = buildArgs();
+
+    await executeHotsitePublish(args);
+
+    expect(args.onSaved).toHaveBeenCalledOnce();
+    expect(args.onSaved).toHaveBeenCalledWith(expect.objectContaining({ seo: content.seo }));
+  });
+
+  it.each([
+    [
+      'the save fails',
+      { updateConfig: { mutateAsync: vi.fn().mockRejectedValue(new Error('x')) } },
+    ],
+    [
+      'the publish fails',
+      { publishHotsite: { mutateAsync: vi.fn().mockRejectedValue(new Error('x')) } },
+    ],
+  ])(
+    'settles with an error banner and keeps the lead-form draft when %s',
+    async (_name, override) => {
+      const args = buildArgs(override);
+
+      await executeHotsitePublish(args);
+
+      expect(args.onSettled).toHaveBeenCalledOnce();
+      expect(args.onBanner).toHaveBeenCalledWith(expect.objectContaining({ status: 'error' }));
+      expect(args.onLeadFormPublished).not.toHaveBeenCalled();
+    },
+  );
+
+  it('does not report a saved draft when the save fails', async () => {
+    const args = buildArgs({
+      updateConfig: { mutateAsync: vi.fn().mockRejectedValue(new Error('x')) },
+    });
+
+    await executeHotsitePublish(args);
+
+    expect(args.onSaved).not.toHaveBeenCalled();
+  });
+
+  it('settles on success and clears the lead-form draft', async () => {
+    const args = buildArgs();
+
+    await executeHotsitePublish(args);
+
+    expect(args.onSettled).toHaveBeenCalledOnce();
+    expect(args.onLeadFormPublished).toHaveBeenCalledOnce();
+  });
 });
