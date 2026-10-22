@@ -336,6 +336,292 @@ describe('HotsiteEditor', () => {
     });
   });
 
+  describe('Visual editor — Organize modules and the module inspector', () => {
+    type User = ReturnType<typeof userEvent.setup>;
+
+    async function openModule(user: User, type: string): Promise<void> {
+      const configure = screen
+        .getAllByTestId('layout-row-configure')
+        .find((el) => el.dataset.moduleType === type);
+      await user.click(configure!);
+    }
+
+    async function openContactAndEdit(user: User): Promise<void> {
+      await openModule(user, 'CONTACT');
+      await user.click(await screen.findByTestId('contact-show-address'));
+    }
+
+    it('lists every module in the draft order in the inspector, with no module open', () => {
+      renderVisualEditor();
+
+      const structure = screen.getByTestId('visual-structure');
+      expect(structure).toBeInTheDocument();
+      expect(screen.getAllByTestId('layout-row').map((row) => row.dataset.moduleType)).toEqual(
+        expect.arrayContaining(['HERO', 'CONTACT', 'FOOTER']),
+      );
+      expect(visualCommand('structure')).toBeEnabled();
+    });
+
+    it('opens the real panel of a module from its Configure button, without a request or a screen change', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await openModule(user, 'CONTACT');
+
+      expect(await screen.findByTestId('contact-show-address')).toBeInTheDocument();
+      expect(screen.getByTestId('visual-preview')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('disables Publish with the hint while a module has unapplied edits, and re-enables it after Apply', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      expect(visualCommand('publish')).toBeEnabled();
+
+      await openContactAndEdit(user);
+
+      expect(visualCommand('publish')).toBeDisabled();
+      expect(screen.getByTestId('visual-publish-mobile')).toBeDisabled();
+      expect(screen.getByTestId('visual-publish-hint')).toHaveTextContent(
+        'Aplique ou cancele primeiro',
+      );
+
+      await user.click(screen.getByTestId('visual-inspector-apply'));
+
+      expect(visualCommand('publish')).toBeEnabled();
+      expect(screen.queryByTestId('visual-publish-hint')).not.toBeInTheDocument();
+    });
+
+    it('Apply commits the edit into the shared draft and returns to the structure list', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'CONTACT');
+      const showAddress = await screen.findByTestId('contact-show-address');
+      const before = showAddress.getAttribute('aria-checked');
+
+      await user.click(showAddress);
+      await user.click(screen.getByTestId('visual-inspector-apply'));
+
+      expect(screen.getByTestId('visual-structure')).toBeInTheDocument();
+      await openModule(user, 'CONTACT');
+      expect(
+        (await screen.findByTestId('contact-show-address')).getAttribute('aria-checked'),
+      ).not.toBe(before);
+    });
+
+    it('publishes the applied edit, never the unapplied buffer', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'CONTACT');
+      const showAddress = await screen.findByTestId('contact-show-address');
+      const initial = showAddress.getAttribute('aria-checked') === 'true';
+      await user.click(showAddress);
+      await user.click(screen.getByTestId('visual-inspector-apply'));
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1));
+      const contact = mockUpdateHotsiteConfig.mock.calls[0]![0].layout?.find(
+        (module) => module.type === 'CONTACT',
+      );
+      expect((contact?.data as { showAddress?: boolean }).showAddress).toBe(!initial);
+    });
+
+    it('Cancel on a clean buffer returns to the structure list without asking', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'CONTACT');
+      await screen.findByTestId('contact-show-address');
+
+      await user.click(screen.getByTestId('visual-inspector-cancel'));
+
+      expect(screen.getByTestId('visual-structure')).toBeInTheDocument();
+      expect(screen.queryByTestId('visual-module-discard-confirm')).not.toBeInTheDocument();
+    });
+
+    it('Cancel on a dirty buffer asks first, and Keep editing leaves the buffer and Publish blocked', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openContactAndEdit(user);
+
+      await user.click(screen.getByTestId('visual-inspector-cancel'));
+      expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
+
+      expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+      expect(visualCommand('publish')).toBeDisabled();
+    });
+
+    it('Cancel then Discard drops the edits and leaves the shared draft as it was', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'CONTACT');
+      const showAddress = await screen.findByTestId('contact-show-address');
+      const before = showAddress.getAttribute('aria-checked');
+      await user.click(showAddress);
+
+      await user.click(screen.getByTestId('visual-inspector-cancel'));
+      await user.click(screen.getByTestId('visual-module-discard-confirm'));
+
+      expect(screen.getByTestId('visual-structure')).toBeInTheDocument();
+      await openModule(user, 'CONTACT');
+      expect((await screen.findByTestId('contact-show-address')).getAttribute('aria-checked')).toBe(
+        before,
+      );
+      expect(visualCommand('publish')).toBeEnabled();
+    });
+
+    it('never switches to another preview section from a dirty buffer without the decision', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor({
+        ...INITIAL,
+        layout: [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Seu carro',
+              ctaLabel: 'Agendar',
+              ctaTarget: 'booking-form',
+            },
+          },
+        ],
+      });
+      await openContactAndEdit(user);
+
+      const heroSelect = (await screen.findAllByTestId('preview-section-select')).find(
+        (el) => el.dataset.moduleType === 'HERO',
+      );
+      await user.click(heroSelect!);
+
+      expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
+      expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+
+      await user.click(screen.getByTestId('visual-module-discard-confirm'));
+      expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
+      expect(screen.queryByTestId('contact-show-address')).not.toBeInTheDocument();
+    });
+
+    it('never enters the detailed editor from a dirty buffer without the decision', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openContactAndEdit(user);
+
+      await user.click(visualCommand('detail'));
+
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
+
+      await user.click(screen.getByTestId('visual-module-discard-confirm'));
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+    });
+
+    it('leaves a clean module open through the detailed round trip and reloads it from the draft', async () => {
+      const user = userEvent.setup();
+      renderEditorWithTopbarProbe();
+      await openModule(user, 'CONTACT');
+      await screen.findByTestId('contact-show-address');
+
+      await user.click(visualCommand('detail'));
+      await user.click(screen.getByTestId('probe-trigger-back'));
+
+      expect(await screen.findByTestId('contact-show-address')).toBeInTheDocument();
+      expect(visualCommand('publish')).toBeEnabled();
+    });
+
+    it('configures a disabled module, noting it is not in the preview', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await openModule(user, 'CONTACT');
+
+      expect(await screen.findByTestId('contact-show-address')).toBeInTheDocument();
+      expect(screen.getByTestId('visual-inspector-disabled-note')).toBeInTheDocument();
+    });
+
+    it('shows no disabled note once the module is switched on from the list', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await user.click(screen.getByTestId('layout-row-toggle-CONTACT'));
+
+      await openModule(user, 'CONTACT');
+
+      expect(await screen.findByTestId('contact-show-address')).toBeInTheDocument();
+      expect(screen.queryByTestId('visual-inspector-disabled-note')).not.toBeInTheDocument();
+    });
+
+    it('LEAD_FORM Apply keeps audienceMode/questions out of layout[].data in the published payload', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'LEAD_FORM');
+      await screen.findByTestId('lead-form-config-panel');
+      await user.click(
+        screen
+          .getAllByTestId('lead-form-audience-mode')
+          .find((option) => option.dataset.value === 'CUSTOMER_ONLY')!,
+      );
+      await user.click(screen.getByTestId('visual-inspector-apply'));
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1));
+      const leadForm = mockUpdateHotsiteConfig.mock.calls[0]![0].layout?.find(
+        (module) => module.type === 'LEAD_FORM',
+      );
+      expect(leadForm?.data).not.toHaveProperty('audienceMode');
+      expect(leadForm?.data).not.toHaveProperty('questions');
+    });
+
+    it('an untouched LEAD_FORM is not dirty: Publish stays enabled and another section opens without a prompt', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor({
+        ...INITIAL,
+        layout: [
+          {
+            type: 'HERO',
+            enabled: true,
+            data: {
+              variant: 'centered',
+              title: 'Seu carro',
+              ctaLabel: 'Agendar',
+              ctaTarget: 'booking-form',
+            },
+          },
+        ],
+      });
+      await openModule(user, 'LEAD_FORM');
+      await screen.findByTestId('lead-form-config-panel');
+
+      expect(visualCommand('publish')).toBeEnabled();
+      const heroSelect = (await screen.findAllByTestId('preview-section-select')).find(
+        (el) => el.dataset.moduleType === 'HERO',
+      );
+      await user.click(heroSelect!);
+
+      expect(screen.queryByTestId('visual-module-discard-confirm')).not.toBeInTheDocument();
+      expect(await screen.findByLabelText('Título *')).toBeInTheDocument();
+    });
+
+    it('an invalid LEAD_FORM question blocks Apply and keeps the module open', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'LEAD_FORM');
+      await screen.findByTestId('lead-form-config-panel');
+      await user.click(screen.getByRole('button', { name: '+ Adicionar pergunta' }));
+
+      await user.click(screen.getByTestId('visual-inspector-apply'));
+
+      expect(screen.getByTestId('lead-form-config-panel')).toBeInTheDocument();
+      expect(screen.queryByTestId('visual-structure')).not.toBeInTheDocument();
+    });
+  });
+
   describe('Preview view swap', () => {
     it('opens the preview view without changing the URL, and pushes a topbar back override', async () => {
       const user = userEvent.setup();

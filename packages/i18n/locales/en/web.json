@@ -1194,7 +1194,10 @@
         "selectedBadge": "Selected",
         "inspectorLabel": "Section details",
         "emptyHint": "Select a section of the preview to see its details.",
-        "moduleHint": "This module's fields are coming soon. Use Edit in detail to configure it now.",
+        "structureTitle": "Page structure",
+        "backToStructure": "Back to organize modules",
+        "moduleDisabledNote": "This module is disabled, so it does not appear in the preview.",
+        "publishBlockedHint": "Apply or cancel first",
         "backToVisual": "Back to visual editing",
         "detailedTitle": "Detailed editing"
       },

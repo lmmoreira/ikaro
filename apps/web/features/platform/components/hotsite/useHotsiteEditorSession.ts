@@ -21,24 +21,19 @@ export interface HotsiteEditorSession {
   readonly backToVisual: () => void;
   readonly showGlobalContext: (kind: GlobalVisualContext) => void;
   readonly selectModule: (type: HotsiteModuleType, localData: Record<string, unknown>) => void;
+  // Replaces the open module buffer as the manager edits; a no-op outside a module context.
+  readonly updateModuleBuffer: (localData: Record<string, unknown>) => void;
 }
 
-// The editor's navigation state — which presentation (visual / detailed) is showing and where the
-// manager is inside it. HotsiteEditor still owns the shared draft; this hook never touches it.
-export function useHotsiteEditorSession(): HotsiteEditorSession {
-  const [mode, setMode] = useState<EditorMode>('visual');
-  const [view, setView] = useState<EditorView>({ view: 'tabs' });
-  const [activeTab, setActiveTab] = useState<EditorTab>('branding');
-  const [visualContext, setVisualContext] = useState<VisualContext>({ kind: 'structure' });
+type VisualContextState = Pick<
+  HotsiteEditorSession,
+  'visualContext' | 'showGlobalContext' | 'selectModule' | 'updateModuleBuffer'
+>;
 
-  const enterDetailed = useCallback(() => {
-    setView({ view: 'tabs' });
-    setMode('detailed');
-  }, []);
-  const backToVisual = useCallback(() => {
-    setView({ view: 'tabs' });
-    setMode('visual');
-  }, []);
+// What the visual editor's inspector is showing. A module context always carries its buffer, so
+// there is no state in which a module is open without one.
+function useVisualContextState(): VisualContextState {
+  const [visualContext, setVisualContext] = useState<VisualContext>({ kind: 'structure' });
   const showGlobalContext = useCallback(
     (kind: GlobalVisualContext) => setVisualContext({ kind }),
     [],
@@ -48,17 +43,32 @@ export function useHotsiteEditorSession(): HotsiteEditorSession {
       setVisualContext({ kind: 'module', type, localData }),
     [],
   );
+  const updateModuleBuffer = useCallback(
+    (localData: Record<string, unknown>) =>
+      setVisualContext((current) =>
+        current.kind === 'module' ? { ...current, localData } : current,
+      ),
+    [],
+  );
+  return { visualContext, showGlobalContext, selectModule, updateModuleBuffer };
+}
 
-  return {
-    mode,
-    view,
-    activeTab,
-    visualContext,
-    setView,
-    setActiveTab,
-    enterDetailed,
-    backToVisual,
-    showGlobalContext,
-    selectModule,
-  };
+// The editor's navigation state — which presentation (visual / detailed) is showing and where the
+// manager is inside it. HotsiteEditor still owns the shared draft; this hook never touches it.
+export function useHotsiteEditorSession(): HotsiteEditorSession {
+  const [mode, setMode] = useState<EditorMode>('visual');
+  const [view, setView] = useState<EditorView>({ view: 'tabs' });
+  const [activeTab, setActiveTab] = useState<EditorTab>('branding');
+  const visual = useVisualContextState();
+
+  const enterDetailed = useCallback(() => {
+    setView({ view: 'tabs' });
+    setMode('detailed');
+  }, []);
+  const backToVisual = useCallback(() => {
+    setView({ view: 'tabs' });
+    setMode('visual');
+  }, []);
+
+  return { mode, view, activeTab, setView, setActiveTab, enterDetailed, backToVisual, ...visual };
 }
