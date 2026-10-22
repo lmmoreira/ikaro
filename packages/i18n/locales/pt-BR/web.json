@@ -1186,7 +1186,6 @@
           "publish": "Publicar",
           "viewLive": "Ver site publicado"
         },
-        "comingSoon": "Disponível em breve — use Editar em detalhes",
         "previewLabel": "Prévia do rascunho",
         "previewStatusIdle": "Rascunho — selecione uma seção da prévia",
         "previewStatusSelected": "Rascunho — selecionado: {module}",
@@ -1199,7 +1198,17 @@
         "moduleDisabledNote": "Este módulo está desativado e por isso não aparece na prévia.",
         "publishBlockedHint": "Aplique ou cancele primeiro",
         "backToVisual": "Voltar à edição visual",
-        "detailedTitle": "Edição detalhada"
+        "detailedTitle": "Edição detalhada",
+        "sharing": {
+          "heading": "Prévia de busca e compartilhamento",
+          "disclaimer": "Simulação aproximada. Google, WhatsApp e outros canais podem exibir o resultado de forma diferente.",
+          "googleLabel": "Resultado no Google",
+          "whatsappLabel": "Cartão no WhatsApp",
+          "noImage": "Sem imagem de compartilhamento",
+          "imageAlt": "Imagem de compartilhamento",
+          "loading": "Carregando o texto automático…",
+          "defaultsUnavailable": "Não foi possível carregar o texto automático."
+        }
       },
       "branding": {
         "sections": {

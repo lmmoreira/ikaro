@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   HotsiteAdminContentResponse,
   HotsiteBusinessInfoResponse,
@@ -9,6 +9,7 @@ import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
 import { collectHotsiteImagePaths } from '@/features/platform/hotsite/map-hotsite-image-fields';
 import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { resolveSeoDefaults, type SeoDefaults } from '@/features/platform/hotsite/seo-defaults';
 import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
 
 export interface PreviewSupplementaryData {
@@ -64,15 +65,27 @@ export function useTmpSignedUrls(
   layout: HotsiteAdminContentResponse['layout'],
   seo: HotsiteAdminContentResponse['seo'],
 ): ReadonlyMap<string, string> {
+  // Collecting walks the whole layout, so it reruns only when the draft slices it reads change,
+  // not on every render of the preview.
+  const paths = useMemo(
+    () => collectHotsiteImagePaths(branding, layout, seo),
+    [branding, layout, seo],
+  );
+  return useTmpSignedUrlMap(paths);
+}
+
+// The same resolution for an arbitrary set of image paths (the sharing simulation only has the
+// one Open Graph image). Only tmp/ paths are fetched and appear in the map.
+export function useTmpSignedUrlMap(paths: readonly string[]): ReadonlyMap<string, string> {
   const [signedUrls, setSignedUrls] = useState<ReadonlyMap<string, string>>(new Map());
+  // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
+  // fetching a signed URL for it once is enough. A string key, so the effect re-runs when the
+  // set of tmp/ paths changes, not on every render's fresh array.
+  const tmpKey = [...new Set(paths.filter(isTmpImagePath))].join('\n');
 
   useEffect(() => {
-    // Deduped — the same tmp/ path can appear in more than one field (e.g. a reused image), and
-    // fetching a signed URL for it once is enough.
-    const tmpPaths = [
-      ...new Set(collectHotsiteImagePaths(branding, layout, seo).filter(isTmpImagePath)),
-    ];
-    if (tmpPaths.length === 0) return;
+    if (tmpKey === '') return;
+    const tmpPaths = tmpKey.split('\n');
 
     let cancelled = false;
     // Each path's signed-URL request is isolated (catch -> null) so one failing path doesn't
@@ -100,7 +113,47 @@ export function useTmpSignedUrls(
     return () => {
       cancelled = true;
     };
-  }, [branding, layout, seo]);
+  }, [tmpKey]);
 
   return signedUrls;
+}
+
+// What the sharing simulation needs to reproduce the public <head>'s fallback title/description:
+// the tenant's name, address and language are not part of the editable draft, so they come from
+// the public manifest, fetched once when the Sharing context opens.
+export function useSharingDefaults(
+  tenantSlug: string,
+  enabled: boolean,
+): {
+  defaults: SeoDefaults | null;
+  loadError: boolean;
+} {
+  const [defaults, setDefaults] = useState<SeoDefaults | null>(null);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    async function load(): Promise<void> {
+      try {
+        const manifest = await fetchManifestClient(tenantSlug);
+        const resolved = await resolveSeoDefaults({
+          tenantName: manifest.tenant.name,
+          address: manifest.business.address,
+          language: manifest.localization.language,
+        });
+        if (!cancelled) setDefaults(resolved);
+      } catch {
+        if (!cancelled) setLoadError(true);
+      }
+    }
+
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [tenantSlug, enabled]);
+
+  return { defaults, loadError };
 }

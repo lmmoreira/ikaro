@@ -4,7 +4,7 @@ import type {
   HotsiteModuleResponse,
   HotsiteSeoResponse,
 } from '@ikaro/types';
-import { resolveDraftImageUrls } from './resolve-draft-image-urls';
+import { resolveDraftImageUrl, resolveDraftImageUrls } from './resolve-draft-image-urls';
 
 const BASE_URL = 'http://localhost:4443/ikaro-local-public';
 const TENANT_ID = '01234567-0000-7000-8000-000000000001';
@@ -155,5 +155,27 @@ describe('resolveDraftImageUrls', () => {
     const result = resolveDraftImageUrls(makeBranding(), modules, makeSeo(), BASE_URL);
 
     expect(result.layout[0].data).toEqual(modules[0].data);
+  });
+});
+
+describe('resolveDraftImageUrl', () => {
+  const TMP_PATH = 'tmp/tenant-1/seo-og-image/u1/og-image.png';
+
+  it.each([
+    ['an empty value', '', ''],
+    ['an absolute URL', 'https://cdn.example.com/a.png', 'https://cdn.example.com/a.png'],
+    ['a raw storage path', RAW_LOGO_PATH, `${BASE_URL}/${RAW_LOGO_PATH}`],
+  ])('resolves %s against the public base', (_label, value, expected) => {
+    expect(resolveDraftImageUrl(value, BASE_URL)).toBe(expected);
+  });
+
+  it('resolves a tmp/ path through the signed-URL map, and to empty while it is still loading', () => {
+    const signed = new Map([[TMP_PATH, 'https://storage.example.com/signed?sig=og']]);
+
+    expect(resolveDraftImageUrl(TMP_PATH, BASE_URL, signed)).toBe(
+      'https://storage.example.com/signed?sig=og',
+    );
+    expect(resolveDraftImageUrl(TMP_PATH, BASE_URL, new Map())).toBe('');
+    expect(resolveDraftImageUrl(TMP_PATH, BASE_URL)).toBe('');
   });
 });

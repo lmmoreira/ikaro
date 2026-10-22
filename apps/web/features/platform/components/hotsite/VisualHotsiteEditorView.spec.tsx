@@ -64,6 +64,52 @@ vi.mock('./hotsite-editor-lazy-panels', () => ({
   ),
 }));
 
+// The real tabs and the sharing simulation have their own specs (they fetch and upload); here they
+// only need to prove the view hosts them with the draft slice they edit and reports their changes.
+vi.mock('./BrandingTab', () => ({
+  BrandingTab: ({
+    value,
+    onChange,
+  }: {
+    value: { primaryColor: string };
+    onChange: (next: { primaryColor: string }) => void;
+  }) => (
+    <input
+      aria-label="Cor primária"
+      data-testid="mock-branding-tab"
+      value={value.primaryColor}
+      onChange={(event) => onChange({ ...value, primaryColor: event.target.value })}
+    />
+  ),
+}));
+vi.mock('./SeoTab', () => ({
+  SeoTab: ({
+    value,
+    onChange,
+  }: {
+    value: { title: string | null };
+    onChange: (next: { title: string | null }) => void;
+  }) => (
+    <input
+      aria-label="Título"
+      data-testid="mock-seo-tab"
+      value={value.title ?? ''}
+      onChange={(event) => onChange({ ...value, title: event.target.value })}
+    />
+  ),
+}));
+vi.mock('./HotsiteSharingPreview', () => ({
+  HotsiteSharingPreview: ({
+    seo,
+    tenantSlug,
+  }: {
+    seo: { title: string | null };
+    tenantSlug: string;
+  }) => (
+    <div data-testid="mock-sharing-preview" data-title={seo.title ?? ''} data-slug={tenantSlug} />
+  ),
+}));
+
 const DRAFT: HotsiteAdminContentResponse = {
   branding: {
     primaryColor: '#2563eb',
@@ -107,7 +153,9 @@ function renderView(overrides: Partial<React.ComponentProps<typeof VisualHotsite
       onKeepEditing: vi.fn(),
     },
     onSelectModule: vi.fn(),
-    onShowStructure: vi.fn(),
+    onShowContext: vi.fn(),
+    onBrandingChange: vi.fn(),
+    onSeoChange: vi.fn(),
     onEditInDetail: vi.fn(),
     onPublish: vi.fn(),
     ...overrides,
@@ -142,30 +190,107 @@ describe('VisualHotsiteEditorView', () => {
     expect(command('publish')).toHaveTextContent('Publicar');
   });
 
-  it.each(['branding', 'sharing'])(
-    'disables the %s command until its story lands, with a coming-soon hint',
-    (name) => {
-      renderView();
+  it.each(['branding', 'structure', 'sharing'] as const)(
+    'enables the %s command and requests that context',
+    async (name) => {
+      const user = userEvent.setup();
+      const { props } = renderView();
 
-      expect(command(name)).toBeDisabled();
-      expect(command(name)).toHaveAttribute(
-        'title',
-        'Disponível em breve — use Editar em detalhes',
-      );
-      expect(command(name)).toHaveAccessibleDescription(
-        'Disponível em breve — use Editar em detalhes',
-      );
+      expect(command(name)).toBeEnabled();
+      await user.click(command(name));
+
+      expect(props.onShowContext).toHaveBeenCalledWith(name);
     },
   );
 
-  it('enables Organize modules and returns to the structure list from it', async () => {
+  it.each([
+    [{ kind: 'structure' }, 'structure'],
+    [{ kind: 'branding' }, 'branding'],
+    [{ kind: 'sharing' }, 'sharing'],
+    [{ kind: 'module', type: 'CONTACT', localData: {} }, null],
+  ] as const)('marks only the current global context as pressed (%o)', (visualContext, pressed) => {
+    renderView({
+      draft: DRAFT_WITH_CONTACT,
+      visualContext: visualContext as VisualContext,
+    });
+
+    for (const name of ['branding', 'structure', 'sharing']) {
+      expect(command(name)).toHaveAttribute('aria-pressed', String(name === pressed));
+    }
+  });
+
+  it('hosts the real Branding fields in the inspector and keeps the page preview', async () => {
     const user = userEvent.setup();
-    const { props } = renderView();
+    const { props } = renderView({ visualContext: { kind: 'branding' } });
 
-    expect(command('structure')).toBeEnabled();
-    await user.click(command('structure'));
+    const inspector = screen.getByTestId('visual-inspector');
+    expect(within(inspector).getByTestId('mock-branding-tab')).toHaveValue('#2563eb');
+    expect(screen.getByTestId('mock-canvas')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-sharing-preview')).not.toBeInTheDocument();
 
-    expect(props.onShowStructure).toHaveBeenCalledTimes(1);
+    await user.type(within(inspector).getByTestId('mock-branding-tab'), '0');
+
+    expect(props.onBrandingChange).toHaveBeenCalledWith(
+      expect.objectContaining({ primaryColor: '#2563eb0' }),
+    );
+  });
+
+  // The Branding fields (colour grid, font picker, logo upload) are the widest content the
+  // inspector hosts, so it must keep its 22rem (lg) / 26rem (xl) column and scroll on its own.
+  it.each(['structure', 'branding', 'sharing'] as const)(
+    'keeps the inspector column at 22rem from lg and 26rem from xl in the %s context',
+    (kind) => {
+      renderView({ visualContext: { kind } });
+
+      expect(screen.getByTestId('visual-preview').parentElement).toHaveClass(
+        'lg:grid-cols-[minmax(0,1fr)_22rem]',
+        'xl:grid-cols-[minmax(0,1fr)_26rem]',
+      );
+      expect(screen.getByTestId('visual-inspector')).toHaveClass('lg:overflow-y-auto');
+    },
+  );
+
+  it('replaces the page preview with the sharing simulation and hosts the SEO fields', async () => {
+    const user = userEvent.setup();
+    const { props } = renderView({
+      draft: { ...DRAFT, seo: { title: 'Meu site', description: null, ogImageUrl: '' } },
+      visualContext: { kind: 'sharing' },
+    });
+
+    expect(screen.getByTestId('mock-sharing-preview')).toHaveAttribute('data-title', 'Meu site');
+    expect(screen.getByTestId('mock-sharing-preview')).toHaveAttribute('data-slug', 'tenant-a');
+    expect(screen.queryByTestId('mock-canvas')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('visual-preview-status')).not.toBeInTheDocument();
+
+    await user.type(
+      within(screen.getByTestId('visual-inspector')).getByTestId('mock-seo-tab'),
+      '!',
+    );
+
+    expect(props.onSeoChange).toHaveBeenCalledWith(expect.objectContaining({ title: 'Meu site!' }));
+  });
+
+  it('brings the page preview back when leaving Sharing', () => {
+    const { rerender, props } = renderView({ visualContext: { kind: 'sharing' } });
+
+    rerender(<VisualHotsiteEditorView {...props} visualContext={{ kind: 'structure' }} />);
+
+    expect(screen.getByTestId('mock-canvas')).toBeInTheDocument();
+    expect(screen.queryByTestId('mock-sharing-preview')).not.toBeInTheDocument();
+  });
+
+  it('never changes the draft it was given while the context changes (it owns no draft state)', () => {
+    const draft = DRAFT_WITH_CONTACT;
+    const snapshot = JSON.stringify(draft);
+    const { rerender, props } = renderView({ draft, visualContext: { kind: 'branding' } });
+
+    for (const kind of ['sharing', 'structure'] as const) {
+      rerender(<VisualHotsiteEditorView {...props} draft={draft} visualContext={{ kind }} />);
+    }
+
+    expect(JSON.stringify(draft)).toBe(snapshot);
+    expect(props.onBrandingChange).not.toHaveBeenCalled();
+    expect(props.onSeoChange).not.toHaveBeenCalled();
   });
 
   it('calls onEditInDetail from the Edit in detail command', async () => {

@@ -15,6 +15,8 @@ import {
   type ModuleBuffer,
 } from './hotsite-module-buffer';
 
+type GlobalVisualContext = Exclude<VisualContext, { kind: 'module' }>['kind'];
+
 type Navigation = Pick<
   HotsiteEditorSession,
   'selectModule' | 'showGlobalContext' | 'enterDetailed' | 'backToVisual' | 'updateModuleBuffer'
@@ -39,6 +41,8 @@ export interface VisualModuleBuffer {
   readonly buffer: ModuleBuffer | null;
   readonly isDirty: boolean;
   readonly requestSelectModule: (type: HotsiteModuleType) => void;
+  // Structure, Branding and Sharing: the contexts that carry no module buffer.
+  readonly requestGlobalContext: (kind: GlobalVisualContext) => void;
   readonly requestStructure: () => void;
   readonly requestEditInDetail: () => void;
   readonly backToVisual: () => void;
@@ -126,7 +130,9 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
 
   // Runs `next` at once while there is nothing to lose, otherwise behind the confirmation.
   const leave = (next: () => void): void => (isDirty ? guard.park(next) : next());
-  const requestStructure = (): void => leave(() => navigation.showGlobalContext('structure'));
+  const requestGlobalContext = (kind: GlobalVisualContext): void =>
+    leave(() => navigation.showGlobalContext(kind));
+  const requestStructure = (): void => requestGlobalContext('structure');
   const requestSelectModule = (type: HotsiteModuleType): void => {
     if (buffer?.type === type) return;
     leave(() =>
@@ -139,6 +145,7 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     buffer,
     isDirty,
     requestSelectModule,
+    requestGlobalContext,
     requestStructure,
     requestEditInDetail: () => leave(navigation.enterDetailed),
     backToVisual,
@@ -146,14 +153,23 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     discardConfirmOpen: guard.discardConfirmOpen,
     confirmDiscard: guard.confirmDiscard,
     keepEditing: guard.keepEditing,
-    inspector: {
-      discardConfirmOpen: guard.discardConfirmOpen,
-      onLayoutChange: args.onLayoutChange,
-      onBufferChange: navigation.updateModuleBuffer,
-      onApply: apply,
-      onLeaveModule: requestStructure,
-      onConfirmDiscard: guard.confirmDiscard,
-      onKeepEditing: guard.keepEditing,
-    },
+    inspector: buildInspectorActions(args, guard, apply, requestStructure),
+  };
+}
+
+function buildInspectorActions(
+  args: UseVisualModuleBufferArgs,
+  guard: DiscardGuard,
+  apply: () => void,
+  requestStructure: () => void,
+): ModuleInspectorActions {
+  return {
+    discardConfirmOpen: guard.discardConfirmOpen,
+    onLayoutChange: args.onLayoutChange,
+    onBufferChange: args.navigation.updateModuleBuffer,
+    onApply: apply,
+    onLeaveModule: requestStructure,
+    onConfirmDiscard: guard.confirmDiscard,
+    onKeepEditing: guard.keepEditing,
   };
 }

@@ -16,6 +16,16 @@ import { isTmpImagePath, resolveHotsiteImageUrl } from './resolve-hotsite-image-
 // signed read URL, fetched by the caller beforehand (see docs/API_CONTRACTS.md §
 // tmp/ image preview) — a tmp/ path can't resolve via `baseUrl` (the public bucket base) since
 // it only exists in the private bucket. A tmp/ path with no entry yet resolves to '' (loading).
+// One image field's resolution, shared with the sharing simulation (a single `seo.ogImageUrl`).
+export function resolveDraftImageUrl(
+  value: string,
+  baseUrl: string,
+  tmpSignedUrls?: ReadonlyMap<string, string>,
+): string {
+  if (isTmpImagePath(value)) return tmpSignedUrls?.get(value) ?? '';
+  return resolveHotsiteImageUrl(value, baseUrl);
+}
+
 export function resolveDraftImageUrls(
   branding: HotsiteBrandingResponse,
   layout: readonly HotsiteModuleResponse[],
@@ -23,8 +33,7 @@ export function resolveDraftImageUrls(
   baseUrl: string,
   tmpSignedUrls?: ReadonlyMap<string, string>,
 ): { branding: HotsiteBrandingResponse; layout: HotsiteModuleResponse[]; seo: HotsiteSeoResponse } {
-  return mapHotsiteImageFields(branding, layout, seo, (value) => {
-    if (isTmpImagePath(value)) return tmpSignedUrls?.get(value) ?? '';
-    return resolveHotsiteImageUrl(value, baseUrl);
-  });
+  return mapHotsiteImageFields(branding, layout, seo, (value) =>
+    resolveDraftImageUrl(value, baseUrl, tmpSignedUrls),
+  );
 }

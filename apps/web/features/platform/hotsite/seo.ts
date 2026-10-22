@@ -1,23 +1,12 @@
 import type { Metadata } from 'next';
-import { createTranslator } from 'next-intl';
 import type { HotsiteManifestResponse } from '@ikaro/types';
-import { getMessages, resolveSupportedLocale } from '@/shared/lib/i18n/get-messages';
-import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
-
-function stripTrailingSlashes(value: string): string {
-  let result = value;
-  while (result.endsWith('/')) {
-    result = result.slice(0, -1);
-  }
-  return result;
-}
+import { resolveSeoDefaults } from './seo-defaults';
+import { resolveSiteOrigin } from './site-origin';
 
 // This module is server-only (only imported by not-found.tsx/sitemap.ts/robots.ts), so a
 // module-level constant computed at import time is safe here — unlike client-bundled code,
 // this always runs in the real container process, never frozen at `next build` time.
-export const SITE_URL = stripTrailingSlashes(
-  getPublicEnv('NEXT_PUBLIC_SITE_URL') || 'http://localhost:3000',
-);
+export const SITE_URL = resolveSiteOrigin();
 
 export interface BuildHotsiteMetadataParams {
   readonly manifest: HotsiteManifestResponse;
@@ -31,19 +20,11 @@ export async function buildHotsiteMetadata({
   path = '',
 }: BuildHotsiteMetadataParams): Promise<Metadata> {
   const url = `${SITE_URL}/${slug}${path}`;
-  const location = manifest.business.address
-    ? `${manifest.business.address.city}, ${manifest.business.address.state}`
-    : null;
-  const locale = resolveSupportedLocale(manifest.localization.language);
-  const messages = (await getMessages(locale)) as IntlMessages;
-  const t = createTranslator<IntlMessages, 'seo'>({ locale, messages, namespace: 'seo' });
-  const name = manifest.tenant.name;
-  const defaultTitle = location
-    ? t('defaultTitleWithLocation', { name, location })
-    : t('defaultTitle', { name });
-  const defaultDescription = location
-    ? t('defaultDescriptionWithLocation', { name, location })
-    : t('defaultDescription', { name });
+  const { title: defaultTitle, description: defaultDescription } = await resolveSeoDefaults({
+    tenantName: manifest.tenant.name,
+    address: manifest.business.address,
+    language: manifest.localization.language,
+  });
   const title = manifest.seo.title ?? defaultTitle;
   const description = manifest.seo.description ?? defaultDescription;
   const openGraphLocale = manifest.localization.language.replaceAll('-', '_');
