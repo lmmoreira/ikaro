@@ -374,7 +374,7 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 5 — Show the public top bar (logo, Área da Equipe, Entrar) in the editor preview
+### Story 5 — Show the public top bar (logo, Área da Equipe, Entrar) in the editor preview ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
