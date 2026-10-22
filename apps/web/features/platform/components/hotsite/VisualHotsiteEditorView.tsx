@@ -175,13 +175,13 @@ export function VisualHotsiteEditorView({
             <HotsiteSharingPreview seo={draft.seo} tenantSlug={tenantSlug} />
           ) : (
             <>
-              <p data-testid="visual-preview-status" className="text-sm text-gray-500">
+              <output data-testid="visual-preview-status" className="block text-sm text-gray-500">
                 {selectedType
                   ? t('visual.previewStatusSelected', {
                       module: t(`layout.modules.${selectedType}`),
                     })
                   : t('visual.previewStatusIdle')}
-              </p>
+              </output>
               <HotsitePreviewCanvas
                 draft={previewDraft}
                 selection={{ selectedType, onSelect: onSelectModule }}

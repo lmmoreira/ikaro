@@ -2503,6 +2503,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** Staff member with `MANAGER` role.
 - **Preconditions:** Admin is authenticated. `hotsite_configs` row exists for this tenant (created on tenant onboarding or first access).
 - **Trigger:** Admin clicks "Branding" or "Hotsite" in the dashboard
+- **Editor presentation (TD55):** `/dashboard/hotsite` opens in the **visual editor** — a persistent preview of the draft, a command row (Branding and style, Organize modules, Sharing, Edit in detail, Publish, View published site) and a contextual inspector. Sections A–C below are edited there in place (Branding and style, Organize modules with each module's panel, Sharing with the Google/WhatsApp simulation); an unapplied module edit must be applied or discarded before leaving it, and Publish is disabled until then. The tabbed editor (Branding / Layout / SEO / Manifesto, with its Preview and per-module "Configurar" screen) is the secondary path, reached through **Edit in detail** and left through **Back to visual editing** with the unsaved draft preserved. Section D (Manifesto) and Unpublish exist only in that secondary path. The flow and fields below are the same in both presentations.
 - **Main Flow:**
    1. System loads current `hotsite_configs` for this tenant
    2. System displays two sections:
@@ -2552,7 +2553,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
       - SEO title/description overrides
       - Or edits the equivalent raw JSON directly in the Manifesto tab (Section D)
    
-   4. Admin clicks "Preview" to see hotsite live (optional) — reachable from the main tabs view, and (M18-S08) from within a module's own config screen (`Configurar`) via a **Preview** button alongside Aplicar/Cancelar. In the latter case, clicking Back returns to that same module's config screen with the in-progress edit intact, not discarded. Separately, Admin can click "Visitar site" (M18-S08, main tabs view only) at any time to open the real, currently-published public hotsite in a new browser tab — unlike Preview, this always reflects the last-published version, never the draft
+   4. Admin sees the draft live in the visual editor's persistent preview; in the tabbed editor the separate "Preview" is optional — reachable from the main tabs view, and (M18-S08) from within a module's own config screen (`Configurar`) via a **Preview** button alongside Aplicar/Cancelar. In the latter case, clicking Back returns to that same module's config screen with the in-progress edit intact, not discarded. Separately, Admin can click "Visitar site" (M18-S08, main tabs view only) at any time to open the real, currently-published public hotsite in a new browser tab — unlike Preview, this always reflects the last-published version, never the draft
    5. Admin clicks "Publish Changes"
    6. System updates `hotsite_configs.branding` and `hotsite_configs.layout`
    7. System sets `is_published = true`

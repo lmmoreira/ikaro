@@ -103,7 +103,7 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 ## Reference artifacts in this folder
 
 - `hotsite-impl/` holds examples of live manifestos for the **current** hotsite: `beloauto.html` and `manifesto-beloauto.json` (a real tenant's branding, layout and SEO as the editor stores them). They are reference material for how a complete manifest looks, not a spec and not a screen of this prototype.
-- `editor-vision/` is the **redesign** proposal (TD55, `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html`. The screens above are the shipped editor; do not mix the two.
+- `editor-vision/` holds the prototypes of the visual editor shipped by TD55 (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html` and `dev-notes.md` (which files are authoritative for what). The screens above are the detailed (tabbed) editor, reached through "Editar em detalhes".
 
 ## Error handling
 

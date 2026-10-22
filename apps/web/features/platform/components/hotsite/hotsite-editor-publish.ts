@@ -44,6 +44,10 @@ type PublishArgs = {
   // review finding, M20-S08 PR #429, 2026-08-26). Invoked unconditionally — a no-op when no
   // lead-form edit was ever applied this session, since the draft is already null.
   readonly onLeadFormPublished: () => void;
+  // Called with the draft as the save left it (server-normalised: a promoted `tmp/` image carries
+  // its final path). The visual editor uses it to reload an open, clean module buffer, which would
+  // otherwise keep the pre-save data and read as dirty against the refreshed draft.
+  readonly onSaved?: (saved: HotsiteAdminContentResponse) => void;
 };
 
 export async function executeHotsitePublish(args: PublishArgs): Promise<void> {
@@ -78,6 +82,7 @@ async function persistDraft({
   tenantId,
   updateConfig,
   setDraft,
+  onSaved,
 }: PublishArgs): Promise<void> {
   const stripped = stripResolvedImageUrls(content.branding, content.layout, content.seo, tenantId);
   const layout = leadFormConfig
@@ -96,4 +101,5 @@ async function persistDraft({
   });
 
   setDraft((current) => ({ ...current, ...updated, layout: materializeLayout(updated.layout) }));
+  onSaved?.({ ...content, ...updated, layout: materializeLayout(updated.layout) });
 }

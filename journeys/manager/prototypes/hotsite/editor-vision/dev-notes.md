@@ -1,26 +1,21 @@
-# Dev Notes — Proposta: editor visual do hotsite
+# Dev Notes — Editor visual do hotsite (entregue, TD55)
 
 ## Objetivo
 
-Transformar a experiência atual, orientada por formulários e Preview separado, em uma edição guiada por prévia. Esta proposta preserva o manifesto, os módulos e as regras atuais; ela altera a apresentação e a descoberta das configurações.
+A edição do hotsite é guiada pela prévia: o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e vê o efeito de Branding e Compartilhamento no lugar. Manifesto, módulos e regras não mudaram; mudaram a apresentação e a navegação. Entregue pelas Stories 1–4 de `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`; o comportamento está descrito em `journeys/manager/hotsite.md` § Editor visual.
 
-## Telas
+## Quais arquivos valem
 
-| Arquivo | Propósito |
+| Arquivo | Vale para |
 |---|---|
-| `01-editor-visual.html` | Prévia persistente e seleção direta de seções. |
-| `02-branding-impact.html` | Mapa visual de impacto das propriedades globais de Branding. |
-| `03-module-context.html` | Opções de módulo organizadas em Conteúdo, Aparência e Avançado. |
-| `04-task-validation.html` | Roteiro de validação com tarefas reais de gerente. |
+| `09-inline-realistic-editor.html` (+ `09-inline-interactions.js`, `vision.css`) | Layout geral, prévia persistente, barra de comandos, inspetor e seleção de seções. Não modela Aplicar/Cancelar, descarte, campos condicionais, o seletor de fotos da Galeria nem o construtor de perguntas do Lead Form; os campos reais vêm de `modules/*ConfigPanel.tsx`. |
+| `11-sharing-preview.html` | Só a simulação do Google e do cartão do WhatsApp e a atualização ao digitar. |
+| `../01-hotsite-editor.html` | Só o editor em abas ("Editar em detalhes") e o "Voltar à edição visual" na barra superior. |
+| `01`–`08`, `10-grouped-module-fields.html` | Explorações anteriores ou superadas; não usar como referência (`10` contradiz a decisão final: sem Aplicar/Cancelar, com agrupamento por regex e prévia só do Hero). |
 
-## Premissas de implementação
+## Premissas de implementação (como foi entregue)
 
-- O rascunho continua sendo `HotsiteAdminContentResponse`; nenhuma propriedade de manifesto é adicionada.
-- `HotsitePreview` passa de destino separado a painel persistente do editor.
-- Cada módulo renderizado na prévia precisa expor uma seleção de edição que identifica seu `HotsiteModuleType`.
-- Campos globais de Branding devem declarar os elementos/variáveis que afetam para a prévia destacá-los temporariamente.
-- O Manifesto continua disponível como modo avançado, fora do caminho principal.
-
-## Critério de validação
-
-Antes de transformar esta proposta em stories, testar as cinco tarefas de `04-task-validation.html` com gerentes ou pessoas sem contexto do schema. O sinal principal é concluir cada tarefa sem pedir explicação sobre o nome técnico de um campo.
+- O rascunho continua sendo `HotsiteAdminContentResponse`; nenhuma propriedade de manifesto foi adicionada.
+- A prévia é o `HotsitePreviewCanvas`, o mesmo usado pelo Preview do editor em abas; cada módulo é envolvido por um seletor só do editor, sem alterar o plano de renderização público.
+- O Manifesto fica só em "Editar em detalhes".
+- Modelos de hotsite continuam fora do escopo.

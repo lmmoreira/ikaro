@@ -1582,6 +1582,111 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.getByTestId('visual-module-discard-confirm').click();
     await expect(page.getByTestId('visual-sharing-preview')).toBeVisible();
   });
+
+  test('full manager journey: branding, module Apply, Sharing, a dirty module sent to the detailed editor, Manifesto, back with the draft kept, Publish, reload and the public site (TD55-S04)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+
+    await page.locator(visualCommand('branding')).click();
+    await page.getByTestId('hotsite-primary-color').fill('#123456');
+
+    await page.locator(visualCommand('structure')).click();
+    await page.locator(layoutToggle('ABOUT')).click();
+    await page.locator(configureButton('ABOUT')).click();
+    await page.locator('#about-title').fill('Sobre a jornada completa');
+    await page.getByTestId('visual-inspector-apply').click();
+
+    await page.locator(visualCommand('sharing')).click();
+    await page.getByTestId('hotsite-seo-title').fill('Título da jornada completa');
+
+    // An unapplied module edit cannot cross into the detailed editor silently (S02/S03 cover the
+    // dialog variants; here it is the step of the journey): discard it and the shared draft stays.
+    await page.locator(visualCommand('structure')).click();
+    await page.locator(configureButton('CONTACT')).click();
+    await page.locator('#contact-title').fill('Edição não aplicada');
+    await page.locator(visualCommand('detail')).click();
+    await expect(page.getByTestId('visual-module-discard-confirm')).toBeVisible();
+    await page.getByTestId('visual-module-discard-confirm').click();
+    await expect(page.getByRole('tablist')).toBeVisible();
+
+    await page.getByRole('tab', { name: 'Manifesto' }).click();
+    const manifest = await page.getByTestId('hotsite-manifest-textarea').inputValue();
+    expect(manifest).toContain('#123456');
+    expect(manifest).toContain('Sobre a jornada completa');
+    expect(manifest).toContain('Título da jornada completa');
+    expect(manifest).not.toContain('Edição não aplicada');
+
+    await page.getByTestId('topbar-back-button').click();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+    await expect(page.getByTestId('hotsite-preview-content')).toHaveCSS('--ba-primary', '#123456');
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+
+    await page.reload();
+    const saved = await getHotsiteConfig(page);
+    expect(saved.branding.primaryColor.toLowerCase()).toBe('#123456');
+    expect(saved.seo.title).toBe('Título da jornada completa');
+    const about = saved.layout.find((module) => module.type === 'ABOUT');
+    expect((about?.data as { title?: string }).title).toBe('Sobre a jornada completa');
+    const contact = saved.layout.find((module) => module.type === 'CONTACT');
+    expect((contact?.data as { title?: string }).title).not.toBe('Edição não aplicada');
+
+    const published = await getPublicManifest(page, MANAGER_TENANT_SLUG);
+    expect(published.isPublished).toBe(true);
+    expect(published.branding.primaryColor.toLowerCase()).toBe('#123456');
+    expect(published.seo.title).toBe('Título da jornada completa');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('#about')).toContainText('Sobre a jornada completa');
+  });
+
+  test('Edit in detail, Back to visual editing and Publish are all operable from the keyboard (TD55-S04)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+
+    await page.locator(visualCommand('detail')).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByRole('tablist')).toBeVisible();
+
+    await page.getByTestId('topbar-back-button').focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+
+    await page.locator(visualCommand('publish')).focus();
+    await page.keyboard.press('Enter');
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    await expect(page.getByTestId('visual-editor')).toBeVisible();
+  });
+
+  for (const viewport of [
+    { name: 'mobile', width: 390, height: 844 },
+    { name: 'tablet', width: 820, height: 1180 },
+  ]) {
+    test(`on ${viewport.name} the commands stay reachable, the inspector follows the preview and the bottom bar never covers the last control (TD55-S04)`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/dashboard/hotsite');
+
+      await expect(page.locator(visualCommand('detail'))).toBeVisible();
+      const preview = await page.getByTestId('visual-preview').boundingBox();
+      const inspector = await page.getByTestId('visual-inspector').boundingBox();
+      expect(preview).not.toBeNull();
+      expect(inspector).not.toBeNull();
+      expect(inspector!.y).toBeGreaterThanOrEqual(preview!.y + preview!.height - 1);
+
+      await expect(page.getByTestId('visual-publish-mobile')).toBeVisible();
+      await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+      const bar = await page.getByTestId('visual-publish-mobile').boundingBox();
+      const last = await page.getByTestId('visual-inspector').boundingBox();
+      expect(bar).not.toBeNull();
+      expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y + 1);
+    });
+  }
 });
 
 test.describe('hotsite editor (STAFF)', () => {

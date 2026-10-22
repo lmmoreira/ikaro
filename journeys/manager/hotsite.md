@@ -45,12 +45,14 @@ flowchart TD
     PublishBtn --> PublishSuccess["confirmação<br/>'Hotsite atualizado e no ar'"]
     PublishSuccess --> Editor
 
-    Editor --> UnpublishBtn(("Click 'Despublicar hotsite'<br/>(zona de risco)"))
+    Editor --> DetailedEditor["'Editar em detalhes'<br/>editor em abas"]
+    DetailedEditor -- "'Voltar à edição visual'" --> Editor
+    DetailedEditor --> UnpublishBtn(("Click 'Despublicar hotsite'<br/>(zona de risco)"))
     UnpublishBtn --> UnpublishSuccess["confirmação<br/>'Hotsite offline'"]
     UnpublishSuccess --> PublishBtn
-    UnpublishSuccess --> Editor
+    UnpublishSuccess --> DetailedEditor
 
-    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfig existing
+    class Editor,DetailedEditor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfig existing
 ```
 
 **Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. **Resolved** — `01-hotsite-editor.html` was already updated the same day (2026-07-31) to add all of this (see its inline "adicionado 2026-07-31" comments). **Module count updated again 2026-08-08:** now 9 (`CHATBOT` added — promoted from `docs/USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`, UC-027 Section B, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped 2026-08-18 (`M19-S12`):** `ChatbotConfigPanel.tsx` completes the 9th module type's config panel — see "Open questions / gaps" below. **Module count updated again 2026-08-23:** now 10 (`LEAD_FORM` added — promoted from `docs/USE_CASES.md` UC-037–UC-043 via `/discovery-to-milestone`, UC-037, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Shipped (`M20-S07` teaser module, `M20-S08` config panel). Its own config panel and prototype screens are documented in a separate journey file, not this one: `manager/lead-form-config.md` / `manager/prototypes/lead-form/` — cross-referenced here rather than duplicated, since UC-037 is a standalone use case, unlike CHATBOT's UC-027 Section B.
@@ -87,12 +89,17 @@ Folder: `manager/prototypes/hotsite/`
 | `03-publish-success.html` | Publish confirmation | UC-027 | ✅ Criado |
 | `03b-unpublish-success.html` | Unpublish confirmation (zona de risco) | UC-027 | ✅ Criado |
 | `dev-notes.md` | Implementation handoff (preview semantics + per-module config flagged as open) | — | ✅ Criado |
-| `editor-vision/index.html` | Proposta de editor visual: prévia persistente, Branding com mapa de impacto e edição contextual de módulos | — | ❓ Proposta para validação |
+| `editor-vision/index.html` | Editor visual (entregue, TD55): prévia persistente, comandos globais e inspetor contextual; `09` e `11` são as referências de layout e de Compartilhamento | UC-027 | ✅ Entregue |
 
-## Proposta futura — editor visual guiado
+## Editor visual (entregue — TD55)
 
-**Em andamento (TD55, `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`):** a Story 1 entregou o quadro do editor visual como tela padrão de `/dashboard/hotsite` — barra de comandos, prévia persistente do rascunho com seções selecionáveis e inspetor lateral fixo; o editor em abas continua disponível em "Editar em detalhes", com "Voltar à edição visual" na barra superior. A Story 2 entregou "Organizar módulos" no inspetor: a lista dos módulos com ordenação, ativar/desativar e "Configurar" (também para módulos desativados), e os campos reais de cada módulo (os mesmos painéis do editor em abas, na mesma ordem) com "Aplicar" / "Cancelar" e a prévia atualizando enquanto o gerente edita; sair de uma edição não aplicada pede confirmação e "Publicar" fica desabilitado até aplicar ou cancelar. A Story 3 entregou "Branding e estilo" (os mesmos campos da aba Branding, com a prévia da página mudando enquanto o gerente edita) e "Compartilhamento" (os campos de SEO mais uma simulação aproximada do resultado no Google e do cartão no WhatsApp, que usa o texto automático do site quando título ou descrição estão vazios); trocar de uma seção com edição não aplicada para qualquer um deles pede a mesma confirmação. A reescrita completa desta jornada é da Story 4.
+`/dashboard/hotsite` abre no editor visual (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`, Stories 1–4). Nenhum módulo ou campo de manifesto foi acrescentado: é uma mudança de apresentação e de navegação sobre o mesmo rascunho.
 
-O editor entregue continua sendo a referência de comportamento e de dados. A proposta em `manager/prototypes/hotsite/editor-vision/` não introduz módulos ou campos de manifesto: ela explora uma experiência em que o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e entende o efeito das propriedades globais de Branding.
+- **Quadro:** barra de comandos (Branding e estilo, Organizar módulos, Compartilhamento, Editar em detalhes, Publicar, Ver site publicado), prévia persistente do rascunho com seções selecionáveis (a seleção nunca segue um CTA, envia um formulário nem abre o Chatbot) e inspetor lateral fixo — abaixo da prévia em telas estreitas, com a barra de ações fixa no rodapé.
+- **Organizar módulos:** lista dos dez módulos com ordenação, ativar/desativar e "Configurar" (também para módulos desativados). Os campos são os dos mesmos painéis do editor em abas, na mesma ordem, com "Aplicar" / "Cancelar"; a prévia muda enquanto o gerente edita. Sair de uma edição não aplicada (outra seção, voltar à lista, Editar em detalhes) pede a confirmação de descarte, e "Publicar" fica desabilitado até aplicar ou cancelar.
+- **Branding e estilo / Compartilhamento:** os mesmos campos das abas Branding e SEO; a prévia da página muda ao editar, e Compartilhamento mostra uma simulação aproximada do resultado no Google e do cartão no WhatsApp (texto automático do site quando título ou descrição estão vazios).
+- **Editar em detalhes:** abre o editor em abas (Branding, Layout, SEO, Manifesto), com Preview, a tela "Configurar" e "Despublicar hotsite" como antes. "Voltar à edição visual" na barra superior volta sem recarregar, com o rascunho e a seção selecionada preservados. O Manifesto continua só nesse caminho.
+- **Publicar:** salva o rascunho completo e publica, sem sair do editor visual; um módulo aberto sem edições é recarregado a partir do rascunho salvo.
+- **Acessibilidade:** a seção selecionada é anunciada (região `status`); abrir um módulo move o foco para o título do inspetor e voltar à lista devolve o foco ao botão "Configurar" do módulo.
 
-Antes de uma implementação, validar as tarefas da tela `editor-vision/04-task-validation.html` com pessoas sem conhecimento do schema. Modelos de hotsite ficam deliberadamente fora deste primeiro passo; eles só devem ser considerados depois que a edição do hotsite atual estiver compreensível.
+Modelos de hotsite continuam fora do escopo; só devem ser considerados depois que a edição do hotsite atual estiver consolidada.

@@ -19,6 +19,7 @@ import {
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { ApiError } from '@/shared/lib/api/errors';
+import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import { HotsiteEditor } from './HotsiteEditor';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
@@ -429,6 +430,38 @@ describe('HotsiteEditor', () => {
         (module) => module.type === 'CONTACT',
       );
       expect((contact?.data as { showAddress?: boolean }).showAddress).toBe(!initial);
+    });
+
+    it('reloads an open clean module from the saved draft after Publish, so it is not dirty against the server-normalised data and Cancel needs no confirmation', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openModule(user, 'CONTACT');
+      const showAddress = await screen.findByTestId('contact-show-address');
+      const before = showAddress.getAttribute('aria-checked') === 'true';
+      // The server answers with data that differs from what the buffer holds (as when it promotes
+      // a tmp/ image to its final path).
+      mockUpdateHotsiteConfig.mockResolvedValue({
+        ...INITIAL,
+        layout: materializeLayout([]).map((module) =>
+          module.type === 'CONTACT'
+            ? { ...module, data: { ...module.data, showAddress: !before } }
+            : module,
+        ),
+      });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('contact-show-address')).toHaveAttribute(
+          'aria-checked',
+          String(!before),
+        ),
+      );
+      expect(visualCommand('publish')).toBeEnabled();
+      await user.click(screen.getByTestId('visual-inspector-cancel'));
+      expect(screen.queryByTestId('visual-module-discard-confirm')).not.toBeInTheDocument();
+      expect(screen.getByTestId('visual-structure')).toBeInTheDocument();
     });
 
     it('Cancel on a clean buffer returns to the structure list without asking', async () => {

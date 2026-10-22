@@ -136,6 +136,22 @@ describe('VisualModuleInspector — module panel', () => {
     scrollTo.mockRestore();
   });
 
+  it('focuses nothing on first render of the structure list', () => {
+    renderInspector();
+
+    expect(document.body).toHaveFocus();
+  });
+
+  it('returns focus to the Configure button of the module just left when it closes', () => {
+    const { rerender, props } = renderInspector({ buffer });
+    rerender(<VisualModuleInspector {...props} buffer={null} />);
+
+    const configure = screen
+      .getAllByTestId('layout-row-configure')
+      .find((el) => el.dataset.moduleType === 'CONTACT');
+    expect(configure).toHaveFocus();
+  });
+
   it('applies from Apply and leaves from both the back control and Cancel', async () => {
     const user = userEvent.setup();
     const { props } = renderInspector({ buffer });
