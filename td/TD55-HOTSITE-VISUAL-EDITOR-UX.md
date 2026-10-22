@@ -45,6 +45,7 @@ graph TD
   S1["Story 1: Visual-editor frame as default"] --> S2["Story 2: Structure and inline module editing"]
   S2 --> S3["Story 3: Branding and sharing contexts"]
   S3 --> S4["Story 4: Detailed round trip, publish, hardening, cleanup"]
+  S4 --> S5["Story 5: Public top bar in the preview"]
 ```
 
 The stories are deliberately sequential at the UI state boundary. Stories 2 and 3 both change the visual preview and inspector host, so Story 3 follows Story 2 rather than overlapping it. No backend, BFF or database work is expected.
@@ -373,12 +374,61 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
+### Story 5 — Show the public top bar (logo, Área da Equipe, Entrar) in the editor preview
+
+**Agent:** frontend-ts
+**Complexity:** S
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 2. Branding & Design Token System; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components must explicitly paint `--ba-background` and § Reuse the repo's UI primitives — never hand-roll a control that already exists; `docs/CODE_STANDARDS.md` § Next.js (`apps/web`): localization-driven fields (address, phone, currency, dates)
+**Dependencies:** Stories 1 and 4 (done)
+**Pattern:** plain composition — extract the signed-out markup of `HotsiteAuthBar` into a presentational component that the public bar and the preview canvas both render, so the two cannot drift. No named pattern applies.
+
+**Discovered:** 2026-10-22, manager reviewing the merged TD55 build in the browser: the preview shows no top bar, so the uploaded logo is never seen where visitors see it.
+**Root cause:** `HotsitePreviewCanvas.tsx` renders only the module render plan; the bar is rendered by `app/[slug]/page.tsx:77` outside that plan, and `HotsiteAuthBar.tsx` reads the session itself (`fetchSession`, `/api/session`), so it cannot be reused in the editor as-is.
+
+**Description:**
+While designing the hotsite the manager must see the bar exactly as a logged-out visitor does: the 28px round logo (initial-letter badge when none is uploaded), "Área da Equipe" and "Entrar", on `--ba-secondary` with "Entrar" in `--ba-primary`, so Branding colours and the logo are visible where they actually show. The bar is preview-only chrome: inert, not selectable, never tied to the signed-in manager, and it makes no session request.
+
+`HotsiteAuthBar` keeps its behaviour for staff, customers and the loading skeleton. Its signed-out branch (the staff link on the left, "Entrar" on the right, inside the `<header>`) moves into a presentational `HotsiteAuthBarSignedOut` (`shells/hotsite/components/`), which `HotsiteAuthBar` renders when the session has neither staff nor customer. `HotsitePreviewCanvas` renders the same component as the first child of `hotsite-preview-content` (so the `--ba-*` variables and the `--ba-background` paint apply), inside a wrapper that is `inert` with `pointer-events-none`, outside the selection wrapper and outside the module render plan. Both the visual editor and the detailed editor's Preview get it, because they share the canvas.
+
+Name and logo come from what the canvas already holds: `branding.logoUrl` (already resolved) and `branding.brandName ?? data.tenantName`, mirroring the public page's `brandName ?? tenant.name`. The Footer already uses `data.tenantName` the same way. Known limit: clearing `brandName` in the draft falls back to the saved manifest's resolved name until it is saved; this only affects the initial-letter badge and the logo alt text.
+
+The prototype `journeys/shared/hotsite.html` still says the staff link is "PROTOTYPE ONLY — not in production" and that the bar "renders no brand mark today"; both are false, so the comments are synced (a factual sync of an existing file, no restructuring).
+
+**Prototype references:** `journeys/shared/hotsite.html` (auth bar, unauthenticated state — layout and logo placement only).
+**New migration / i18n keys / env vars / feature flags:** none — reuses `auth.staffArea` and `auth.signIn`, which exist in both locales.
+
+**Files to create/modify:**
+- `apps/web/shells/hotsite/components/HotsiteAuthBarSignedOut.tsx` and `.spec.tsx` (new — presentational signed-out bar)
+- `apps/web/shells/hotsite/components/HotsiteAuthBar.tsx` and `.spec.tsx` (modify — render the extracted component when signed out; spec stays green)
+- `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` and `.spec.tsx` (modify — inert bar as first child)
+- `apps/web/e2e/hotsite-editor.spec.ts` (modify)
+- `journeys/shared/hotsite.html` (modify — sync the two stale comments; doc gate applies)
+
+**Acceptance criteria — product:**
+- [ ] In the visual editor, the preview starts with the signed-out public bar: round logo (or initial badge), "Área da Equipe", "Entrar", in the tenant's branding colours; the same bar shows in the detailed editor's Preview.
+- [ ] Uploading or changing the logo, or the secondary/primary colour, shows in that bar in the draft preview.
+- [ ] The bar never shows the signed-in manager (no name, no "Sair") and its links go nowhere from the editor.
+- [ ] The bar is not a selectable section and does not change the inspector.
+- [ ] The public hotsite's bar is unchanged for visitors, staff and customers.
+
+**Acceptance criteria — technical:** *(Integration: none — web-only story, no integration tier; Tenant isolation: none — no new data access)*
+- Unit:
+  - [ ] `HotsiteAuthBarSignedOut.spec.tsx`: logo vs initial badge, both links and their hrefs on the public page, branding variables, axe with the full ruleset.
+  - [ ] `HotsiteAuthBar.spec.tsx` stays green unchanged (staff, customer, skeleton and signed-out cases).
+  - [ ] `HotsitePreviewCanvas.spec.tsx`: the bar is the first child of `hotsite-preview-content`; its wrapper is `inert`.
+  - [ ] Negative guarantees, each a named test: the canvas never requests `/api/session`; clicking either link does not navigate; the bar renders no `preview-section-select`; the module render plan is identical with and without the bar.
+- E2E:
+  - [ ] `apps/web/e2e/hotsite-editor.spec.ts`: as the signed-in manager, the visual editor's preview shows "Área da Equipe" and "Entrar" and no `hotsite-staff-authenticated-link`; a forced click on "Entrar" leaves the URL unchanged; no `/api/session` request is made while the editor is open.
+- [ ] Coverage ≥80% on changed code.
+- [ ] `tsc --noEmit` clean, lint clean.
+
 ## Open decisions for discovery (resolve once, in the story's `/story-discovery`)
 
 - **Story 1:** resolved in discovery (helper filename, test ids, no split — see Story 1's *Decisions locked in discovery*); still to do during implementation: re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
 - **Story 2:** resolved in discovery (no grouping, 26rem `xl` inspector, Publish disabled while dirty, no `ModuleConfigShell` change — see Story 2's *Decisions locked in discovery*).
 - **Story 3:** resolved in discovery (canonical URL from `getPublicEnv('NEXT_PUBLIC_SITE_URL')` + slug, neutral no-image placeholder, manifest-sourced defaults in the tenant's language, dirty guard for the new contexts — see Story 3's *Decisions locked in discovery*).
 - **Story 4:** resolved in discovery (clean-buffer re-sync, a11y scope, responsive and journey E2E shape, docs as shipped-behavior sync — see Story 4's *Decisions locked in discovery*).
+- **Story 5:** open for its `/story-discovery`: whether to keep the unsaved-`brandName` fallback limit (matches the Footer) or expose the raw tenant name from the manifest hook (recommended: keep).
 
 ## Test strategy (checked against the existing specs, 2026-10-21)
 
@@ -436,6 +486,7 @@ Extend the existing serial `apps/web/e2e/hotsite-editor.spec.ts` suite; do not c
 - [ ] **Branding and sharing (Story 3):** primary/background color changes appear on the branded preview canvas; title/description/Open Graph image update both sharing cards; their URL matches the current tenant slug.
 - [ ] **Detailed round trip (Story 4):** visual shared draft survives visual → detailed → visual; a dirty module buffer cannot cross that boundary silently; Manifest remains detailed-only and the dashboard top-bar return is keyboard-operable.
 - [ ] **Publish boundary and regression (Story 4):** publish only committed shared data, reload preserves it, the published hotsite exposes it, unpublish/view-live behavior remains available, and all test mutations are restored in `afterEach`.
+- [ ] **Public top bar in the preview (Story 5):** the signed-in manager still sees the signed-out bar ("Área da Equipe", "Entrar"), inert, with no session request.
 
 ## Deferred deliberately
 
