@@ -300,7 +300,7 @@ The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-backgro
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 4 — Harden the detailed round trip, publish and accessibility
+### Story 4 — Harden the detailed round trip, publish and accessibility ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
