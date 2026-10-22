@@ -1499,6 +1499,88 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       'Qual serviço você procura?',
     );
   });
+
+  // TD55-S03 — Branding and style and Sharing in the visual editor's inspector.
+  test('Branding and style: a colour edit shows on the draft preview at once and survives Sharing and Organize modules, then publishes (TD55-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(visualCommand('branding')).click();
+
+    await page.getByTestId('hotsite-primary-color').fill('#123456');
+    await page.getByTestId('hotsite-background-color').fill('#0a0a0a');
+
+    const preview = page.getByTestId('hotsite-preview-content');
+    await expect(preview).toHaveCSS('--ba-primary', '#123456');
+    await expect(preview).toHaveCSS('background-color', 'rgb(10, 10, 10)');
+
+    await page.locator(visualCommand('sharing')).click();
+    await page.locator(visualCommand('structure')).click();
+    await page.locator(visualCommand('branding')).click();
+    await expect(page.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    const saved = await getHotsiteConfig(page);
+    expect(saved.branding.primaryColor).toBe('#123456');
+    expect(saved.branding.backgroundColor).toBe('#0a0a0a');
+  });
+
+  test('Sharing: the title and description update the Google and WhatsApp simulations while typing, the URL carries the tenant slug, and publishing saves them (TD55-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(visualCommand('sharing')).click();
+
+    await expect(page.getByTestId('visual-sharing-disclaimer')).toBeVisible();
+    await expect(page.getByTestId('visual-sharing-google')).toContainText(
+      `/${MANAGER_TENANT_SLUG}`,
+    );
+
+    await page.getByTestId('hotsite-seo-title').fill('AutoSpa Premium — Estética Automotiva');
+    await page.getByTestId('hotsite-seo-description').fill('Agende sua lavagem em segundos.');
+
+    await expect(page.getByTestId('visual-sharing-google-title')).toHaveText(
+      'AutoSpa Premium — Estética Automotiva',
+    );
+    await expect(page.getByTestId('visual-sharing-whatsapp-title')).toHaveText(
+      'AutoSpa Premium — Estética Automotiva',
+    );
+    await expect(page.getByTestId('visual-sharing-google-description')).toHaveText(
+      'Agende sua lavagem em segundos.',
+    );
+    await expect(page.getByTestId('visual-sharing-whatsapp-description')).toHaveText(
+      'Agende sua lavagem em segundos.',
+    );
+
+    // The page preview comes back when another context is chosen.
+    await page.locator(visualCommand('structure')).click();
+    await expect(page.getByTestId('visual-sharing-preview')).toHaveCount(0);
+    await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
+
+    await page.locator(visualCommand('publish')).click();
+    await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
+    const saved = await getHotsiteConfig(page);
+    expect(saved.seo.title).toBe('AutoSpa Premium — Estética Automotiva');
+    expect(saved.seo.description).toBe('Agende sua lavagem em segundos.');
+  });
+
+  test('a dirty module cannot be left for Branding and style or Sharing without Apply or discard (TD55-S03)', async ({
+    page,
+  }) => {
+    await page.goto('/dashboard/hotsite');
+    await page.locator(layoutToggle('CONTACT')).click();
+    await page.locator(configureButton('CONTACT')).click();
+    await page.locator('#contact-title').fill('Título ainda não aplicado');
+
+    await page.locator(visualCommand('sharing')).click();
+
+    await expect(page.getByTestId('visual-module-discard-confirm')).toBeVisible();
+    await expect(page.getByTestId('visual-sharing-preview')).toHaveCount(0);
+
+    await page.getByTestId('visual-module-discard-confirm').click();
+    await expect(page.getByTestId('visual-sharing-preview')).toBeVisible();
+  });
 });
 
 test.describe('hotsite editor (STAFF)', () => {

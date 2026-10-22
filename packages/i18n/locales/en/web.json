@@ -1186,7 +1186,6 @@
           "publish": "Publish",
           "viewLive": "View published site"
         },
-        "comingSoon": "Coming soon — use Edit in detail",
         "previewLabel": "Draft preview",
         "previewStatusIdle": "Draft — select a section of the preview",
         "previewStatusSelected": "Draft — selected: {module}",
@@ -1199,7 +1198,17 @@
         "moduleDisabledNote": "This module is disabled, so it does not appear in the preview.",
         "publishBlockedHint": "Apply or cancel first",
         "backToVisual": "Back to visual editing",
-        "detailedTitle": "Detailed editing"
+        "detailedTitle": "Detailed editing",
+        "sharing": {
+          "heading": "Search and sharing preview",
+          "disclaimer": "Approximate simulation. Google, WhatsApp and other channels may display the result differently.",
+          "googleLabel": "Google result",
+          "whatsappLabel": "WhatsApp card",
+          "noImage": "No sharing image",
+          "imageAlt": "Sharing image",
+          "loading": "Loading the automatic text…",
+          "defaultsUnavailable": "Could not load the automatic text."
+        }
       },
       "branding": {
         "sections": {

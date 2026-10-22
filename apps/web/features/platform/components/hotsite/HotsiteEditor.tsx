@@ -262,7 +262,9 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         publishBlocked={visualBuffer.isDirty}
         inspector={visualBuffer.inspector}
         onSelectModule={visualBuffer.requestSelectModule}
-        onShowStructure={visualBuffer.requestStructure}
+        onShowContext={visualBuffer.requestGlobalContext}
+        onBrandingChange={setBranding}
+        onSeoChange={setSeo}
         onEditInDetail={visualBuffer.requestEditInDetail}
         onPublish={() => handlePublish()}
       />

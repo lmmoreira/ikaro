@@ -154,6 +154,56 @@ describe('useVisualModuleBuffer', () => {
     expect(result.current.guard.discardConfirmOpen).toBe(false);
   });
 
+  it.each(['branding', 'sharing'] as const)(
+    'never switches to %s from a dirty buffer without the Apply-or-discard decision',
+    (kind) => {
+      const { result } = setup();
+      openDirtyContact(result);
+
+      act(() => result.current.guard.requestGlobalContext(kind));
+
+      expect(result.current.guard.discardConfirmOpen).toBe(true);
+      expect(result.current.session.visualContext.kind).toBe('module');
+      expect(result.current.guard.buffer).toEqual({
+        type: 'CONTACT',
+        localData: { title: 'Editado' },
+      });
+
+      act(() => result.current.guard.confirmDiscard());
+
+      expect(result.current.session.visualContext).toEqual({ kind });
+      expect(result.current.guard.buffer).toBeNull();
+    },
+  );
+
+  it.each(['branding', 'sharing'] as const)(
+    'keeps the dirty buffer and the current context when editing continues instead of leaving for %s',
+    (kind) => {
+      const { result } = setup();
+      openDirtyContact(result);
+      act(() => result.current.guard.requestGlobalContext(kind));
+
+      act(() => result.current.guard.keepEditing());
+
+      expect(result.current.guard.discardConfirmOpen).toBe(false);
+      expect(result.current.session.visualContext.kind).toBe('module');
+      expect(result.current.guard.isDirty).toBe(true);
+    },
+  );
+
+  it.each(['branding', 'sharing', 'structure'] as const)(
+    'switches to %s straight away while the buffer is clean, with no confirmation',
+    (kind) => {
+      const { result } = setup();
+      act(() => result.current.guard.requestSelectModule('CONTACT'));
+
+      act(() => result.current.guard.requestGlobalContext(kind));
+
+      expect(result.current.session.visualContext).toEqual({ kind });
+      expect(result.current.guard.discardConfirmOpen).toBe(false);
+    },
+  );
+
   it('never enters the detailed editor from a dirty buffer without the decision', () => {
     const { result } = setup();
     openDirtyContact(result);

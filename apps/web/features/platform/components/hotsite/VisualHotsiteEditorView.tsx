@@ -2,21 +2,28 @@
 
 import { useEffect, useRef } from 'react';
 import { useTranslations } from 'next-intl';
-import type { HotsiteAdminContentResponse, HotsiteModuleType } from '@ikaro/types';
+import type {
+  HotsiteAdminContentResponse,
+  HotsiteBrandingResponse,
+  HotsiteModuleType,
+  HotsiteSeoResponse,
+} from '@ikaro/types';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
+import { BrandingTab } from './BrandingTab';
 import { HotsiteActionBanner, type ActionBanner } from './HotsiteActionBanner';
+import { HotsiteSharingPreview } from './HotsiteSharingPreview';
 import { HotsitePreviewCanvas } from './hotsite-editor-lazy-panels';
 import type { VisualContext } from './hotsite-editor-views';
 import { buildPreviewDraft } from './hotsite-module-buffer';
+import { SeoTab } from './SeoTab';
+import {
+  PUBLISH_BLOCKED_HINT_ID,
+  VisualCommandRow,
+  type GlobalContextKind,
+} from './VisualCommandRow';
 import { VisualModuleInspector, type ModuleInspectorActions } from './VisualModuleInspector';
-
-// Branding and style and Sharing arrive with Story 3; until then their real fields are reachable
-// through "Edit in detail".
-const CONTEXT_COMMANDS = ['branding', 'structure', 'sharing'] as const;
-const COMING_SOON_HINT_ID = 'hotsite-visual-coming-soon';
-const PUBLISH_BLOCKED_HINT_ID = 'hotsite-visual-publish-blocked';
 
 interface VisualHotsiteEditorViewProps {
   readonly draft: HotsiteAdminContentResponse;
@@ -29,7 +36,9 @@ interface VisualHotsiteEditorViewProps {
   readonly publishBlocked: boolean;
   readonly inspector: ModuleInspectorActions;
   readonly onSelectModule: (type: HotsiteModuleType) => void;
-  readonly onShowStructure: () => void;
+  readonly onShowContext: (kind: GlobalContextKind) => void;
+  readonly onBrandingChange: (branding: HotsiteBrandingResponse) => void;
+  readonly onSeoChange: (seo: HotsiteSeoResponse) => void;
   readonly onEditInDetail: () => void;
   readonly onPublish: () => void;
 }
@@ -52,14 +61,38 @@ interface InspectorProps {
   readonly visualContext: VisualContext;
   readonly actions: ModuleInspectorActions;
   readonly onConfigure: (type: HotsiteModuleType) => void;
+  readonly onBrandingChange: (branding: HotsiteBrandingResponse) => void;
+  readonly onSeoChange: (seo: HotsiteSeoResponse) => void;
 }
 
-function VisualInspector({
+// What the inspector hosts for the current context: the real Branding or SEO fields (the same
+// controls the detailed editor's tabs use), or the structure list / the open module's panel.
+function InspectorContent({
   draft,
   visualContext,
   actions,
   onConfigure,
+  onBrandingChange,
+  onSeoChange,
 }: InspectorProps): React.JSX.Element {
+  if (visualContext.kind === 'branding') {
+    return <BrandingTab value={draft.branding} onChange={onBrandingChange} />;
+  }
+  if (visualContext.kind === 'sharing') {
+    return <SeoTab value={draft.seo} onChange={onSeoChange} />;
+  }
+  return (
+    <VisualModuleInspector
+      layout={draft.layout}
+      buffer={visualContext.kind === 'module' ? visualContext : null}
+      onConfigure={onConfigure}
+      {...actions}
+    />
+  );
+}
+
+function VisualInspector(props: InspectorProps): React.JSX.Element {
+  const { visualContext } = props;
   const t = useTranslations('dashboard.hotsitePage');
   const inspectorRef = useRef<HTMLElement>(null);
   const contextKey = visualContext.kind === 'module' ? visualContext.type : visualContext.kind;
@@ -79,12 +112,7 @@ function VisualInspector({
     >
       <Card>
         <CardContent className="p-4">
-          <VisualModuleInspector
-            layout={draft.layout}
-            buffer={visualContext.kind === 'module' ? visualContext : null}
-            onConfigure={onConfigure}
-            {...actions}
-          />
+          <InspectorContent {...props} />
         </CardContent>
       </Card>
     </aside>
@@ -103,7 +131,9 @@ export function VisualHotsiteEditorView({
   publishBlocked,
   inspector,
   onSelectModule,
-  onShowStructure,
+  onShowContext,
+  onBrandingChange,
+  onSeoChange,
   onEditInDetail,
   onPublish,
 }: VisualHotsiteEditorViewProps): React.JSX.Element {
@@ -125,74 +155,15 @@ export function VisualHotsiteEditorView({
         <HotsiteActionBanner banner={actionBanner} tenantSlug={tenantSlug} />
       </div>
 
-      <fieldset className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white p-3">
-        <legend className="sr-only">{t('visual.commandsLabel')}</legend>
-        {CONTEXT_COMMANDS.map((command) =>
-          command === 'structure' ? (
-            <Button
-              key={command}
-              type="button"
-              variant="outline"
-              onClick={onShowStructure}
-              data-testid="visual-command"
-              data-command={command}
-            >
-              {t(`visual.commands.${command}`)}
-            </Button>
-          ) : (
-            <Button
-              key={command}
-              type="button"
-              variant="outline"
-              disabled
-              title={t('visual.comingSoon')}
-              aria-describedby={COMING_SOON_HINT_ID}
-              data-testid="visual-command"
-              data-command={command}
-            >
-              {t(`visual.commands.${command}`)}
-            </Button>
-          ),
-        )}
-        <p id={COMING_SOON_HINT_ID} className="sr-only">
-          {t('visual.comingSoon')}
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onEditInDetail}
-          data-testid="visual-command"
-          data-command="detail"
-        >
-          {t('visual.commands.detail')}
-        </Button>
-        <div className="hidden items-center gap-2 lg:ml-auto lg:flex">
-          <Button asChild variant="outline" data-testid="visual-command" data-command="view-live">
-            <a href={liveSiteHref} target="_blank" rel="noopener noreferrer">
-              {t('visual.commands.viewLive')}
-            </a>
-          </Button>
-          <Button
-            type="button"
-            disabled={publishDisabled}
-            aria-describedby={publishDescribedBy}
-            onClick={onPublish}
-            data-testid="visual-command"
-            data-command="publish"
-          >
-            {t('visual.commands.publish')}
-          </Button>
-        </div>
-        {publishBlocked && (
-          <p
-            id={PUBLISH_BLOCKED_HINT_ID}
-            data-testid="visual-publish-hint"
-            className="w-full text-sm text-amber-800"
-          >
-            {t('visual.publishBlockedHint')}
-          </p>
-        )}
-      </fieldset>
+      <VisualCommandRow
+        activeContext={visualContext.kind === 'module' ? null : visualContext.kind}
+        liveSiteHref={liveSiteHref}
+        publishDisabled={publishDisabled}
+        publishBlocked={publishBlocked}
+        onShowContext={onShowContext}
+        onEditInDetail={onEditInDetail}
+        onPublish={onPublish}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem] lg:items-start">
         <section
@@ -200,15 +171,23 @@ export function VisualHotsiteEditorView({
           data-testid="visual-preview"
           className="space-y-2"
         >
-          <p data-testid="visual-preview-status" className="text-sm text-gray-500">
-            {selectedType
-              ? t('visual.previewStatusSelected', { module: t(`layout.modules.${selectedType}`) })
-              : t('visual.previewStatusIdle')}
-          </p>
-          <HotsitePreviewCanvas
-            draft={previewDraft}
-            selection={{ selectedType, onSelect: onSelectModule }}
-          />
+          {visualContext.kind === 'sharing' ? (
+            <HotsiteSharingPreview seo={draft.seo} tenantSlug={tenantSlug} />
+          ) : (
+            <>
+              <p data-testid="visual-preview-status" className="text-sm text-gray-500">
+                {selectedType
+                  ? t('visual.previewStatusSelected', {
+                      module: t(`layout.modules.${selectedType}`),
+                    })
+                  : t('visual.previewStatusIdle')}
+              </p>
+              <HotsitePreviewCanvas
+                draft={previewDraft}
+                selection={{ selectedType, onSelect: onSelectModule }}
+              />
+            </>
+          )}
         </section>
 
         <VisualInspector
@@ -216,6 +195,8 @@ export function VisualHotsiteEditorView({
           visualContext={visualContext}
           actions={inspector}
           onConfigure={onSelectModule}
+          onBrandingChange={onBrandingChange}
+          onSeoChange={onSeoChange}
         />
       </div>
 

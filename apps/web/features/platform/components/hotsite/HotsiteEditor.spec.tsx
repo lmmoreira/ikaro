@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { axe } from 'jest-axe';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -620,6 +621,163 @@ describe('HotsiteEditor', () => {
       expect(screen.getByTestId('lead-form-config-panel')).toBeInTheDocument();
       expect(screen.queryByTestId('visual-structure')).not.toBeInTheDocument();
     });
+  });
+
+  describe('Visual editor — Branding and style and Sharing contexts', () => {
+    type User = ReturnType<typeof userEvent.setup>;
+
+    const HERO_ONLY: HotsiteAdminContentResponse = {
+      ...INITIAL,
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro impecável',
+            ctaLabel: 'Agendar agora',
+            ctaTarget: 'booking-form',
+          },
+        },
+      ],
+    };
+
+    async function setPrimaryColor(user: User, value: string): Promise<void> {
+      const input = screen.getByTestId('hotsite-primary-color');
+      await user.clear(input);
+      await user.type(input, value);
+    }
+
+    it('opens the real Branding fields in the inspector, with the page preview still showing', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await user.click(visualCommand('branding'));
+
+      expect(
+        within(screen.getByTestId('visual-inspector')).getByTestId('hotsite-primary-color'),
+      ).toHaveValue('#2563eb');
+      expect(visualCommand('branding')).toHaveAttribute('aria-pressed', 'true');
+      expect(screen.getByTestId('visual-preview-status')).toBeInTheDocument();
+    });
+
+    it('applies a branding edit to the draft preview immediately', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor(HERO_ONLY);
+      await user.click(visualCommand('branding'));
+
+      await setPrimaryColor(user, '#ff0000');
+
+      const content = await screen.findByTestId('hotsite-preview-content');
+      expect(content.style.getPropertyValue('--ba-primary')).toBe('#ff0000');
+    });
+
+    it('opens the real SEO fields and the sharing simulation, replacing the page preview', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await user.click(visualCommand('sharing'));
+
+      expect(
+        within(screen.getByTestId('visual-inspector')).getByTestId('hotsite-seo-title'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('visual-sharing-preview')).toBeInTheDocument();
+      expect(screen.queryByTestId('visual-preview-status')).not.toBeInTheDocument();
+    });
+
+    it('updates both sharing cards as the title is typed, and shows the tenant-language defaults while unset', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await user.click(visualCommand('sharing'));
+
+      expect(await screen.findByTestId('visual-sharing-google-title')).toHaveTextContent(
+        'Tenant A — Agendamento Online',
+      );
+
+      await user.type(screen.getByTestId('hotsite-seo-title'), 'Meu título');
+
+      expect(screen.getByTestId('visual-sharing-google-title')).toHaveTextContent('Meu título');
+      expect(screen.getByTestId('visual-sharing-whatsapp-title')).toHaveTextContent('Meu título');
+    });
+
+    it('keeps the unsaved draft across Branding, Sharing, Organize modules and back', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await user.click(visualCommand('branding'));
+      await setPrimaryColor(user, '#ff0000');
+      await user.click(visualCommand('sharing'));
+      await user.type(screen.getByTestId('hotsite-seo-title'), 'Meu título');
+
+      await user.click(visualCommand('structure'));
+      await user.click(visualCommand('branding'));
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#ff0000');
+
+      await user.click(visualCommand('sharing'));
+      expect(screen.getByTestId('hotsite-seo-title')).toHaveValue('Meu título');
+    });
+
+    it('saves the branding and SEO edits when publishing from the visual editor', async () => {
+      const user = userEvent.setup();
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL, isPublished: false });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      renderVisualEditor();
+      await user.click(visualCommand('branding'));
+      await setPrimaryColor(user, '#ff0000');
+      await user.click(visualCommand('sharing'));
+      await user.type(screen.getByTestId('hotsite-seo-title'), 'Meu título');
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1));
+      const saved = mockUpdateHotsiteConfig.mock.calls[0][0];
+      expect(saved.branding?.primaryColor).toBe('#ff0000');
+      expect(saved.seo?.title).toBe('Meu título');
+    });
+
+    // Full default ruleset, including colour contrast: these are dashboard components, not the
+    // hotsite canvas.
+    it.each(['branding', 'sharing'] as const)(
+      'has no axe violations in the %s context',
+      async (command) => {
+        const user = userEvent.setup();
+        const { container } = renderVisualEditor();
+        await user.click(visualCommand(command));
+        if (command === 'sharing') {
+          await waitFor(() =>
+            expect(screen.getByTestId('visual-sharing-google-title')).toHaveTextContent('Tenant A'),
+          );
+        } else {
+          await screen.findByTestId('hotsite-primary-color');
+        }
+
+        expect(await axe(container)).toHaveNoViolations();
+      },
+    );
+
+    it.each(['branding', 'sharing'] as const)(
+      'never switches to %s from a dirty module buffer without the Apply-or-discard decision',
+      async (command) => {
+        const user = userEvent.setup();
+        renderVisualEditor();
+        const configure = screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'CONTACT');
+        await user.click(configure!);
+        await user.click(await screen.findByTestId('contact-show-address'));
+
+        await user.click(visualCommand(command));
+
+        expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
+        expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+        expect(screen.queryByTestId('visual-sharing-preview')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('hotsite-primary-color')).not.toBeInTheDocument();
+
+        await user.click(screen.getByTestId('visual-module-discard-confirm'));
+
+        expect(visualCommand(command)).toHaveAttribute('aria-pressed', 'true');
+        expect(screen.queryByTestId('contact-show-address')).not.toBeInTheDocument();
+      },
+    );
   });
 
   describe('Preview view swap', () => {
