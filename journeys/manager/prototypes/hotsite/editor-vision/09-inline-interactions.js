@@ -3,7 +3,6 @@
 const moduleOrder = Object.keys(modules);
 const enabledModules = Object.fromEntries(moduleOrder.map((type) => [type, !['CHATBOT', 'LEAD_FORM'].includes(type)]));
 const panelDrafts = new Map();
-const originalModuleForm = moduleForm;
 let shareImageName = '';
 let hasUnpublishedChanges = false;
 let interactionsInitialized = false;
@@ -63,62 +62,6 @@ function restorePanel() {
   const saved = panelDrafts.get(activePanelKey());
   if (saved) document.getElementById('module-fields').innerHTML = saved;
 }
-
-function fieldGroup(label) {
-  const text = label.toLowerCase();
-  if (/imagem|foto|destino|secund.rio|calend.rio|dias no|pontos de fidelidade|pergunta|quem pode|m.ximo/.test(text)) return 'advanced';
-  if (/layout|posi..o|painel|formato|fundo da|cor de destaque|cor secund.ria|estilo|sombra|espa.amento|divisor|fonte|cantos/.test(text)) return 'appearance';
-  return 'essential';
-}
-
-function groupedModuleForm(type) {
-  const host = document.createElement('div');
-  host.innerHTML = originalModuleForm(type);
-  const stack = host.querySelector('.form-stack');
-  if (!stack) return host.innerHTML;
-  const nodes = [...stack.children];
-  const buckets = { essential: [], appearance: [], advanced: [] };
-  for (let index = 0; index < nodes.length; index += 1) {
-    const node = nodes[index];
-    if (node.classList.contains('config-subsection')) {
-      const group = /data|calend.rio/i.test(node.textContent) ? 'advanced' : 'essential';
-      buckets[group].push(node);
-      continue;
-    }
-    if (node.classList.contains('vision-module-row')) {
-      buckets[fieldGroup(node.textContent)].push(node);
-      continue;
-    }
-    const label = node.matches('label') ? node.textContent : '';
-    const group = fieldGroup(label);
-    buckets[group].push(node);
-    const next = nodes[index + 1];
-    if (next && !next.matches('label') && !next.classList.contains('vision-module-row') && !next.classList.contains('config-subsection')) {
-      buckets[group].push(next);
-      index += 1;
-    }
-  }
-  stack.replaceChildren();
-  const titles = { essential: 'Essencial', appearance: 'Aparência e posição', advanced: 'Imagem e opções avançadas' };
-  Object.entries(buckets).forEach(([key, content]) => {
-    if (!content.length) return;
-    const details = document.createElement('details');
-    details.className = 'vision-group';
-    details.open = key === 'essential';
-    const summary = document.createElement('summary');
-    summary.textContent = titles[key];
-    const body = document.createElement('div');
-    body.className = 'vision-group-content';
-    content.forEach((node) => body.append(node));
-    details.append(summary, body);
-    stack.append(details);
-  });
-  return host.innerHTML;
-}
-
-moduleForm = function renderGroupedModuleForm(type) {
-  return groupedModuleForm(type);
-};
 
 structure = function renderDraggableStructure() {
   return `<h3>Estrutura da página</h3><p>Arraste os módulos para ordenar. Use o controle para mostrar ou ocultar; “Configurar” abre os campos deste módulo.</p><div class="vision-module-list" id="sortable-modules">${moduleOrder.map((key) => `<div class="vision-module-row" data-module-row="${key}" draggable="true"><span class="vision-drag" aria-label="Arrastar para ordenar">⠿</span><span class="vision-module-name">${modules[key][0]}</span><button class="vision-toggle ${enabledModules[key] ? 'on' : ''}" type="button" data-structure-toggle="${key}" aria-label="Mostrar ou ocultar ${modules[key][0]}"></button><button class="vision-module-configure" type="button" data-configure="${key}">Configurar</button></div>`).join('')}</div>`;
