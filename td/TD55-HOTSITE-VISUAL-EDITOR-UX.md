@@ -155,7 +155,7 @@ The old main tabbed composition is retained as the detailed view, not deleted. I
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 2 — Bring module structure and real fields into the contextual inspector
+### Story 2 — Bring module structure and real fields into the contextual inspector ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
