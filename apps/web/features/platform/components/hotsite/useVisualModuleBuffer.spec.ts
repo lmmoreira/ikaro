@@ -390,4 +390,39 @@ describe('useVisualModuleBuffer', () => {
       expect(result.current.guard.isDirty).toBe(true);
     });
   });
+
+  describe('resyncAfterSave', () => {
+    it('reloads a clean open buffer from the saved draft', () => {
+      const { result } = setup();
+      act(() => result.current.guard.requestSelectModule('CONTACT'));
+
+      act(() => result.current.guard.resyncAfterSave(makeDraft('Salvo no servidor')));
+
+      expect(result.current.guard.buffer?.localData).toEqual({ title: 'Salvo no servidor' });
+    });
+
+    it('never replaces an edit made while the save was in flight', () => {
+      const { result } = setup();
+      act(() => result.current.guard.requestSelectModule('CONTACT'));
+      // The callback Publish captured while the buffer was still clean.
+      const resyncCapturedAtClick = result.current.guard.resyncAfterSave;
+      act(() =>
+        result.current.session.updateModuleBuffer({ title: 'Editado durante o salvamento' }),
+      );
+
+      act(() => resyncCapturedAtClick(makeDraft('Salvo no servidor')));
+
+      expect(result.current.guard.buffer?.localData).toEqual({
+        title: 'Editado durante o salvamento',
+      });
+    });
+
+    it('does nothing outside a module context', () => {
+      const { result } = setup();
+
+      act(() => result.current.guard.resyncAfterSave(makeDraft('Salvo no servidor')));
+
+      expect(result.current.guard.buffer).toBeNull();
+    });
+  });
 });

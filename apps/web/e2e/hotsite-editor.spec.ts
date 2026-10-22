@@ -1638,6 +1638,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     expect(published.isPublished).toBe(true);
     expect(published.branding.primaryColor.toLowerCase()).toBe('#123456');
     expect(published.seo.title).toBe('Título da jornada completa');
+
+    await page.goto(`/${MANAGER_TENANT_SLUG}`);
+    await expect(page.locator('#about')).toContainText('Sobre a jornada completa');
   });
 
   test('Edit in detail, Back to visual editing and Publish are all operable from the keyboard (TD55-S04)', async ({

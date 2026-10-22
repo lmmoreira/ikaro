@@ -45,12 +45,14 @@ flowchart TD
     PublishBtn --> PublishSuccess["confirmação<br/>'Hotsite atualizado e no ar'"]
     PublishSuccess --> Editor
 
-    Editor --> UnpublishBtn(("Click 'Despublicar hotsite'<br/>(zona de risco)"))
+    Editor --> DetailedEditor["'Editar em detalhes'<br/>editor em abas"]
+    DetailedEditor -- "'Voltar à edição visual'" --> Editor
+    DetailedEditor --> UnpublishBtn(("Click 'Despublicar hotsite'<br/>(zona de risco)"))
     UnpublishBtn --> UnpublishSuccess["confirmação<br/>'Hotsite offline'"]
     UnpublishSuccess --> PublishBtn
-    UnpublishSuccess --> Editor
+    UnpublishSuccess --> DetailedEditor
 
-    class Editor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfig existing
+    class Editor,DetailedEditor,ColorError,UrlFallback,PreviewPane,PublishSuccess,UnpublishSuccess,ModuleConfig existing
 ```
 
 **Also drifted from the prototype's documented shape (2026-07-31 docs audit):** the real branding editor has 5 sections/18 fields (adds `heroBgStyle`/`alternateSectionBg`/`dividerStyle`/`brandName`/`brandTagline` — already correctly described in `manager/prototypes/hotsite/dev-notes.md`, just not in the HTML screen itself) vs. the 13-field/4-section prototype; module count is 8 (`FOOTER` added during `M13-S36`) vs. the documented 7; SEO limits are 60/158 chars (real-world Google truncation points) vs. the documented 70/160, and there's an OG-image field the prototype doesn't show. **Resolved** — `01-hotsite-editor.html` was already updated the same day (2026-07-31) to add all of this (see its inline "adicionado 2026-07-31" comments). **Module count updated again 2026-08-08:** now 9 (`CHATBOT` added — promoted from `docs/USE_CASES.md` UC-033–UC-036 via `/discovery-to-milestone`, UC-027 Section B, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CHATBOT). **Shipped 2026-08-18 (`M19-S12`):** `ChatbotConfigPanel.tsx` completes the 9th module type's config panel — see "Open questions / gaps" below. **Module count updated again 2026-08-23:** now 10 (`LEAD_FORM` added — promoted from `docs/USE_CASES.md` UC-037–UC-043 via `/discovery-to-milestone`, UC-037, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § LEAD_FORM). Shipped (`M20-S07` teaser module, `M20-S08` config panel). Its own config panel and prototype screens are documented in a separate journey file, not this one: `manager/lead-form-config.md` / `manager/prototypes/lead-form/` — cross-referenced here rather than duplicated, since UC-037 is a standalone use case, unlike CHATBOT's UC-027 Section B.

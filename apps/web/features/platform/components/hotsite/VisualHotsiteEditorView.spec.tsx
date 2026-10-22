@@ -427,10 +427,10 @@ describe('VisualHotsiteEditorView', () => {
     expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', '');
   });
 
-  it('announces the selected section through a polite status region', () => {
+  it('announces the selected section through an <output> live region', () => {
     renderView();
 
-    expect(screen.getByTestId('visual-preview-status')).toHaveAttribute('role', 'status');
+    expect(screen.getByTestId('visual-preview-status').tagName).toBe('OUTPUT');
   });
 
   it('reports a section picked in the preview', async () => {

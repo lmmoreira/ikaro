@@ -132,6 +132,32 @@ function resyncCleanBuffer(
   );
 }
 
+// Resolves once the save returns, which can be after the manager kept editing the open module. It
+// therefore reads the buffer, its dirtiness and the baseline from the latest render, not from the
+// render in which Publish was clicked, so an edit made while the save was in flight is never
+// replaced by the saved data.
+function useResyncAfterSave(
+  buffer: ModuleBuffer | null,
+  isDirty: boolean,
+  leadFormConfigBaseline: LeadFormConfigDraft | null,
+  navigation: Navigation,
+): (saved: HotsiteAdminContentResponse) => void {
+  const latest = useRef({ buffer, isDirty, leadFormConfigBaseline, navigation });
+  useLayoutEffect(() => {
+    latest.current = { buffer, isDirty, leadFormConfigBaseline, navigation };
+  });
+  return useCallback((saved: HotsiteAdminContentResponse): void => {
+    const current = latest.current;
+    resyncCleanBuffer(
+      current.buffer,
+      current.isDirty,
+      saved,
+      current.leadFormConfigBaseline,
+      current.navigation,
+    );
+  }, []);
+}
+
 // Guards the visual editor's module buffer. Every way out of a dirty buffer — another section,
 // the structure list, Edit in detail — is routed through one Apply-or-discard decision, so a
 // previewed-but-unapplied edit is never silently lost. HotsiteEditor still owns the shared draft;
@@ -158,8 +184,7 @@ export function useVisualModuleBuffer(args: UseVisualModuleBufferArgs): VisualMo
     );
   };
   const apply = (): void => applyBuffer(buffer, args);
-  const resyncAfterSave = (saved: HotsiteAdminContentResponse): void =>
-    resyncCleanBuffer(buffer, isDirty, saved, leadFormConfigBaseline, navigation);
+  const resyncAfterSave = useResyncAfterSave(buffer, isDirty, leadFormConfigBaseline, navigation);
 
   return {
     buffer,
