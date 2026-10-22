@@ -32,6 +32,7 @@ export default defineConfig({
         'app/**',
         'providers/**',
         'features/**',
+        'shells/**',
         // test-utils.tsx and __mocks__/** are real, normally-`import`ed modules (renderWithIntl,
         // getPillOption, the next/image|next/link|next/font/google|client-only|server-only
         // replacements below) — every spec that imports them already exercises real coverage for
