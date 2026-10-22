@@ -1,0 +1,35 @@
+{
+  "branding": {
+    "brandName": "CLÍNICA LUME",
+    "brandTagline": "Saúde com atenção individual",
+    "logoUrl": "",
+    "primaryColor": "#147D95",
+    "secondaryColor": "#EAF6F9",
+    "backgroundColor": "#F7FCFE",
+    "textColor": "#16303B",
+    "headingFontFamily": "Inter",
+    "bodyFontFamily": "Inter",
+    "borderRadius": "rounded",
+    "buttonStyle": "outline",
+    "buttonBackgroundColor": "#147D95",
+    "buttonTextColor": "#147D95",
+    "spacing": "comfortable",
+    "shadowStyle": "subtle",
+    "heroBgStyle": "background",
+    "alternateSectionBg": true,
+    "dividerStyle": "solid"
+  },
+  "layout": [
+    { "type": "HERO", "enabled": true, "data": { "variant": "left-aligned", "title": "Cuidado que começa pela escuta.", "subtitle": "Atendimento próximo, informação clara e uma jornada tranquila para você.", "eyebrow": "SAÚDE COM ATENÇÃO INDIVIDUAL", "backgroundImageUrl": null, "contentPositionY": "center", "ctaLabel": "Agendar consulta", "ctaTarget": "booking-form", "secondaryCtaLabel": "Conhecer especialidades", "secondaryCtaTarget": "service-list", "rightPanel": "brand-card" } },
+    { "type": "SERVICE_LIST", "enabled": true, "data": { "title": "Como podemos ajudar", "eyebrow": "ESPECIALIDADES", "showPrices": false, "showPoints": false, "layout": "grid" } },
+    { "type": "TESTIMONIALS", "enabled": true, "data": { "title": "Histórias de cuidado", "eyebrow": "EXPERIÊNCIAS REAIS", "layout": "carousel", "items": [{ "authorName": "Marina A.", "text": "Fui ouvida desde o primeiro momento. Atendimento muito cuidadoso.", "rating": 5 }, { "authorName": "Joana P.", "text": "Equipe pontual, clara e acolhedora.", "rating": 5 }] } },
+    { "type": "BOOKING_CTA", "enabled": true, "data": { "variant": "left-aligned", "title": "Seu próximo cuidado começa aqui.", "subtitle": "Escolha a especialidade e veja os horários disponíveis.", "eyebrow": "AGENDE COM TRANQUILIDADE", "ctaLabel": "Ver horários", "datePickerType": "calendar", "bgStyle": "background", "rightPanel": "brand-card", "contentPositionY": "center" } },
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Ciência e acolhimento.", "eyebrow": "A CLÍNICA", "body": "Uma equipe preparada para cuidar de cada etapa, com orientação clara e acompanhamento próximo.", "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/about.png", "imagePosition": "right" } },
+    { "type": "CONTACT", "enabled": true, "data": { "title": "Fale com a Clínica Lume", "eyebrow": "ESTAMOS AQUI", "showAddress": true, "showPhone": true, "showWhatsapp": true, "showEmail": true, "showMap": true, "showInstagram": false, "showFacebook": false, "displayStyle": "icon-cards", "whatsappCtaLabel": "Falar com a equipe" } },
+    { "type": "FOOTER", "enabled": true, "data": { "tagline": "Clínica Lume · Saúde com atenção individual", "copyrightNote": "Todos os direitos reservados.", "showWhatsapp": true } },
+    { "type": "GALLERY", "enabled": true, "data": { "title": "Um ambiente para chegar com calma", "eyebrow": "CONHEÇA O ESPAÇO", "images": [{ "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-1.png", "caption": "Recepção", "source": "upload", "width": 1600, "height": 1000 }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-2.png", "caption": "Consultório", "source": "upload", "width": 1000, "height": 1400 }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-3.png", "caption": "Detalhes de cuidado", "source": "upload", "width": 1000, "height": 1000 }], "layout": "grid", "maxVisible": 3 } },
+    { "type": "CHATBOT", "enabled": true, "data": { "variant": "bubble", "accentColor": "primary", "botName": "Assistente Lume", "welcomeMessage": "Olá! Posso ajudar você a entender os serviços da Clínica Lume?" } },
+    { "type": "LEAD_FORM", "enabled": false, "data": { "title": "Fale com a clínica", "ctaLabel": "Enviar mensagem" } }
+  ],
+  "seo": { "title": "Clínica Lume — Saúde com atenção individual", "description": "Atendimento próximo, informação clara e uma jornada tranquila para você.", "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/og.png" }
+}

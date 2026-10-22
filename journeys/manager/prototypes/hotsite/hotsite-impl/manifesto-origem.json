@@ -1,0 +1,35 @@
+{
+  "branding": {
+    "brandName": "ORIGEM",
+    "brandTagline": "Studio de bem-estar",
+    "logoUrl": "",
+    "primaryColor": "#D9B98D",
+    "secondaryColor": "#23483D",
+    "backgroundColor": "#18352E",
+    "textColor": "#F8F3EA",
+    "headingFontFamily": "Playfair Display",
+    "bodyFontFamily": "Lato",
+    "borderRadius": "rounded",
+    "buttonStyle": "filled",
+    "buttonBackgroundColor": "#D9B98D",
+    "buttonTextColor": "#18352E",
+    "spacing": "spacious",
+    "shadowStyle": "none",
+    "heroBgStyle": "background",
+    "alternateSectionBg": false,
+    "dividerStyle": "gradient"
+  },
+  "layout": [
+    { "type": "HERO", "enabled": true, "data": { "variant": "centered", "title": "Um tempo inteiro para você.", "subtitle": "Rituais de bem-estar que respeitam seu corpo, seu ritmo e sua rotina.", "eyebrow": "PAUSE · RESPIRE · RECOMECE", "backgroundImageUrl": null, "contentPositionX": "center", "contentPositionY": "center", "ctaLabel": "Conhecer rituais", "ctaTarget": "service-list", "secondaryCtaLabel": "Sobre o espaço", "secondaryCtaTarget": "about", "rightPanel": "none" } },
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Bem-estar é presença.", "eyebrow": "O ESPAÇO ORIGEM", "body": "Um espaço calmo, técnica cuidadosa e escuta de verdade.\n\n- Atendimento individual\n- Produtos naturais\n- Tempo reservado para você", "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png", "imagePosition": "left" } },
+    { "type": "SERVICE_LIST", "enabled": true, "data": { "title": "Rituais para o seu momento", "eyebrow": "BEM-ESTAR COM INTENÇÃO", "showPrices": false, "showPoints": false, "layout": "list" } },
+    { "type": "BOOKING_CTA", "enabled": true, "data": { "variant": "centered", "title": "Reserve seu momento.", "subtitle": "Escolha seu ritual e encontre uma pausa na sua semana.", "eyebrow": "A SUA PAUSA COMEÇA AQUI", "ctaLabel": "Ver agenda", "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png", "backgroundImagePosition": "center", "datePickerType": "calendar", "bgStyle": "background", "rightPanel": "none", "contentPositionX": "center", "contentPositionY": "center" } },
+    { "type": "CONTACT", "enabled": true, "data": { "title": "Conheça o nosso espaço", "eyebrow": "VEM RESPIRAR COM A GENTE", "showAddress": true, "showPhone": false, "showWhatsapp": true, "showEmail": true, "showMap": true, "showInstagram": true, "showFacebook": false, "displayStyle": "list", "whatsappCtaLabel": "Falar com a Origem" } },
+    { "type": "FOOTER", "enabled": true, "data": { "tagline": "Origem · Studio de bem-estar", "copyrightNote": "Todos os direitos reservados.", "showWhatsapp": true } },
+    { "type": "GALLERY", "enabled": false, "data": { "images": [], "layout": "featured", "maxVisible": 3, "featuredPosition": "right" } },
+    { "type": "TESTIMONIALS", "enabled": false, "data": { "items": [], "layout": "carousel" } },
+    { "type": "CHATBOT", "enabled": false, "data": {} },
+    { "type": "LEAD_FORM", "enabled": false, "data": { "title": "Fale com a Origem", "ctaLabel": "Enviar" } }
+  ],
+  "seo": { "title": "Origem — Studio de bem-estar", "description": "Rituais de bem-estar para respeitar seu ritmo e sua rotina.", "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/og.png" }
+}

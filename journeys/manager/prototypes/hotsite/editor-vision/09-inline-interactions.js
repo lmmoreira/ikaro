@@ -6,6 +6,16 @@ const panelDrafts = new Map();
 let shareImageName = '';
 let hasUnpublishedChanges = false;
 let interactionsInitialized = false;
+let selectedTemplate = 'beloauto';
+
+const hotsiteTemplates = [
+  { id: 'beloauto', name: 'BeloAuto Premium', category: 'Estética automotiva', description: 'O manifesto BeloAuto como ponto de partida: escuro, preciso e premium.', colors: ['#0a0a0a', '#1a1a1a', '#f5a800'], image: '../hotsite-impl/assets/beloauto-hero.png', heroImage: false, visible: ['HERO', 'SERVICE_LIST', 'BOOKING_CTA', 'TESTIMONIALS', 'ABOUT', 'CONTACT', 'FOOTER'], copy: { brand: 'BELOAUTO', menu: 'Serviços · Resultados · Sobre · Contato', eyebrow: 'ESTÉTICA AUTOMOTIVA PREMIUM · SJC-SP', hero: 'Cuidado completo para o seu carro', subtitle: 'Resultados impecáveis com atenção aos detalhes. Escolha um serviço e agende seu horário.', cta: 'Ver serviços', services: 'Nossos serviços', serviceEyebrow: 'O QUE FAZEMOS', cards: [['Lavagem completa', 'R$ 100'], ['Higienização', 'R$ 180'], ['Polimento técnico', 'R$ 320']], booking: 'Agende seu horário', bookingCopy: 'Reserve em poucos minutos e cuide do seu carro com a gente.', about: 'Cuidado em cada detalhe', aboutCopy: 'Uma equipe especializada para deixar seu carro impecável.', contact: 'Visite a BeloAuto', contactCopy: 'São José dos Campos · WhatsApp · Instagram', footer: 'BELOAUTO · Estética automotiva premium' } },
+  { id: 'barbearia', name: 'Barbearia de bairro', category: 'Barbearia', description: 'Contraste clássico e uma chamada rápida para reservar seu horário.', colors: ['#16120f', '#2b211b', '#d9a441'], image: '../hotsite-impl/assets/casa47-hero.png', visible: ['HERO', 'SERVICE_LIST', 'TESTIMONIALS', 'BOOKING_CTA', 'ABOUT', 'CONTACT', 'FOOTER'], copy: { brand: 'CASA 47', menu: 'Cortes · Barba · A casa · Contato', eyebrow: 'BARBEARIA · DESDE 2014', hero: 'Seu estilo, no seu ritmo', subtitle: 'Corte, barba e cuidado de verdade em uma cadeira que já conhece você.', cta: 'Reservar horário', services: 'Serviços da casa', serviceEyebrow: 'ESCOLHA SEU MOMENTO', cards: [['Corte clássico', 'R$ 65'], ['Barba completa', 'R$ 55'], ['Corte + barba', 'R$ 105']], booking: 'Sua cadeira está aqui', bookingCopy: 'Escolha o profissional e o melhor horário para você.', about: 'Uma boa conversa começa no espelho', aboutCopy: 'Técnica, tempo e atenção em cada atendimento.', contact: 'Venha tomar um café', contactCopy: 'Vila Madalena · WhatsApp · Instagram', footer: 'CASA 47 · Barbearia de bairro' } },
+  { id: 'pet', name: 'Pet care acolhedor', category: 'Pet shop', description: 'Uma identidade leve que valoriza carinho, recorrência e confiança.', colors: ['#fff8f0', '#fcebd8', '#e97c58'], image: '../hotsite-impl/assets/mimo-pet-hero.png', light: true, visible: ['HERO', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'BOOKING_CTA', 'CONTACT', 'FOOTER'], copy: { brand: 'MIMO PET', menu: 'Banho e tosa · Galeria · Dúvidas · Contato', eyebrow: 'CUIDADO QUE ABANA O RABO', hero: 'Todo carinho que seu pet merece', subtitle: 'Banho, tosa e bem-estar com uma equipe que chama cada cliente pelo nome.', cta: 'Agendar banho', services: 'Cuidado para todas as patinhas', serviceEyebrow: 'NOSSOS SERVIÇOS', cards: [['Banho e hidratação', 'A partir de R$ 55'], ['Tosa higiênica', 'A partir de R$ 45'], ['Dia de spa', 'A partir de R$ 120']], booking: 'Vamos cuidar do seu melhor amigo?', bookingCopy: 'Escolha o serviço e encontre um horário confortável para vocês.', about: 'Carinho que se vê', aboutCopy: 'Rotina segura, produtos gentis e muita atenção aos detalhes.', contact: 'Fale com a Mimo', contactCopy: 'Jardins · WhatsApp · Instagram', footer: 'MIMO PET · Cuidado, confiança e carinho' } },
+  { id: 'wellness', name: 'Wellness sereno', category: 'Studio de bem-estar', description: 'Muito espaço, tons naturais e uma apresentação mais contemplativa.', colors: ['#18352e', '#295345', '#d9b98d'], image: '../hotsite-impl/assets/origem-hero.png', heroImage: false, visible: ['HERO', 'SERVICE_LIST', 'BOOKING_CTA', 'ABOUT', 'CONTACT', 'FOOTER'], copy: { brand: 'ORIGEM', menu: 'Rituais · Espaço · Sobre · Contato', eyebrow: 'PAUSE. RESPIRE. RECOMECE.', hero: 'Um tempo inteiro para você', subtitle: 'Rituais de bem-estar que respeitam seu corpo, seu ritmo e sua rotina.', cta: 'Conhecer rituais', services: 'Rituais para o seu momento', serviceEyebrow: 'BEM-ESTAR COM INTENÇÃO', cards: [['Massagem relaxante', '90 min'], ['Drenagem manual', '60 min'], ['Ritual Origem', '120 min']], booking: 'Reserve seu momento', bookingCopy: 'Escolha seu ritual e encontre uma pausa na sua semana.', about: 'Bem-estar é presença', aboutCopy: 'Um espaço calmo, técnica cuidadosa e escuta de verdade.', contact: 'Conheça o nosso espaço', contactCopy: 'Pinheiros · WhatsApp · Instagram', footer: 'ORIGEM · Studio de bem-estar' } },
+  { id: 'clinic', name: 'Clínica de confiança', category: 'Saúde e estética', description: 'Uma apresentação clara que passa organização e segurança.', colors: ['#eff8ff', '#dceff7', '#147d95'], image: '../hotsite-impl/assets/clinica-lume-hero.png', heroImage: false, light: true, visible: ['HERO', 'SERVICE_LIST', 'TESTIMONIALS', 'BOOKING_CTA', 'ABOUT', 'CONTACT', 'FOOTER'], copy: { brand: 'CLÍNICA LUME', menu: 'Especialidades · Equipe · Convênios · Contato', eyebrow: 'SAÚDE COM ATENÇÃO INDIVIDUAL', hero: 'Cuidado que começa pela escuta', subtitle: 'Atendimento próximo, informação clara e uma jornada tranquila para você.', cta: 'Agendar consulta', services: 'Como podemos ajudar', serviceEyebrow: 'ESPECIALIDADES', cards: [['Consulta inicial', 'Agende online'], ['Acompanhamento', 'Plano personalizado'], ['Avaliação completa', 'Por horário']], booking: 'Seu próximo cuidado começa aqui', bookingCopy: 'Escolha a especialidade e veja os horários disponíveis.', about: 'Ciência e acolhimento', aboutCopy: 'Uma equipe preparada para cuidar de cada etapa.', contact: 'Fale com a Clínica Lume', contactCopy: 'Moema · WhatsApp · Telefone', footer: 'CLÍNICA LUME · Saúde com atenção individual' } },
+  { id: 'studio', name: 'Studio criativo', category: 'Fotografia e criação', description: 'Tipografia forte e imagem protagonista para serviços autorais.', colors: ['#171321', '#302747', '#c5ff4a'], image: '../hotsite-impl/assets/lume-studio-hero.png', visible: ['HERO', 'SERVICE_LIST', 'GALLERY', 'TESTIMONIALS', 'LEAD_FORM', 'ABOUT', 'CONTACT', 'FOOTER', 'CHATBOT'], copy: { brand: 'LUME STUDIO', menu: 'Portfólio · Serviços · Processo · Contato', eyebrow: 'FOTOGRAFIA E DIREÇÃO CRIATIVA', hero: 'Imagens que deixam uma marca', subtitle: 'Fotografia, direção e conteúdo para negócios que querem ser lembrados.', cta: 'Ver portfólio', services: 'Projetos que fazemos', serviceEyebrow: 'DO CONCEITO À ENTREGA', cards: [['Ensaio de marca', 'Sob consulta'], ['Campanha completa', 'Projeto autoral'], ['Conteúdo mensal', 'Planos flexíveis']], booking: 'Vamos criar juntos?', bookingCopy: 'Conte um pouco do seu projeto e encontre o melhor caminho.', about: 'Uma ideia bem enquadrada', aboutCopy: 'Estratégia, direção e execução em um mesmo estúdio.', contact: 'Vamos conversar sobre seu projeto', contactCopy: 'Centro · WhatsApp · Instagram', footer: 'LUME STUDIO · Fotografia e direção criativa' } },
+];
 
 liveBranding = function applyBrandingPreview() {
   const read = (label) => {
@@ -216,6 +226,8 @@ function bindPrototypeControls() {
       }
       const configure = event.target.closest('[data-configure]');
       if (configure) selectModule(configure.dataset.configure);
+      const template = event.target.closest('[data-template]');
+      if (template) applyTemplate(template.dataset.template);
       if (event.target.closest('#back-to-module-list')) showStructure();
       if (event.target.closest('#add-testimonial')) {
         const list = root.querySelector('[data-testimonial-list]');
@@ -315,6 +327,113 @@ function showStructure() {
   rememberPanel(); panelMode = 'structure'; setGlobalActive('structure'); setPreviewMode('site');
   document.getElementById('preview-label').textContent = 'Rascunho — organize e configure os módulos';
   document.getElementById('module-fields').innerHTML = structure(); document.getElementById('module-fields').scrollTop = 0; bindPrototypeControls();
+}
+
+function templateGallery() {
+  return `<h3>Comece com um template</h3><p>Escolha uma base que combine com o seu negócio. Você pode personalizar cores, textos, fotos e módulos depois.</p><div class="template-grid">${hotsiteTemplates.map((template) => `<button class="template-card ${selectedTemplate === template.id ? 'active' : ''}" type="button" data-template="${template.id}" aria-pressed="${selectedTemplate === template.id}"><span class="template-thumbnail" style="--template-bg:${template.colors[0]};--template-surface:${template.colors[1]};--template-accent:${template.colors[2]};--template-image:url('${template.image}')"><span class="template-thumbnail-brand">${template.copy.brand}</span><span class="template-thumbnail-copy"></span><span class="template-thumbnail-action"></span></span><span class="template-card-copy"><strong>${template.name}</strong><span>${template.category}</span><small>${template.description}</small></span>${selectedTemplate === template.id ? '<span class="template-selected">Selecionado</span>' : ''}</button>`).join('')}</div><p class="template-note">O template preenche uma base de conteúdo demonstrativa. Revise os textos, imagens, serviços e dados de contato antes de publicar.</p>`;
+}
+
+function setText(selector, value) {
+  const element = document.querySelector(selector);
+  if (element) element.textContent = value;
+}
+
+function setCards(moduleType, cards) {
+  const target = document.querySelector(`[data-module="${moduleType}"] .site-cards`);
+  if (!target) return;
+  target.replaceChildren(...cards.map(([title, detail]) => {
+    const card = document.createElement('div');
+    card.className = 'site-card';
+    const heading = document.createElement('strong'); heading.textContent = title;
+    const caption = document.createElement('span'); caption.textContent = detail;
+    card.append(heading, caption);
+    return card;
+  }));
+}
+
+function applyTemplate(templateId) {
+  const template = hotsiteTemplates.find((entry) => entry.id === templateId);
+  if (!template) return;
+  selectedTemplate = templateId;
+  panelDrafts.clear();
+  const { colors, copy, image, visible, light } = template;
+  const [background, surface, accent] = colors;
+  const text = light ? '#172033' : '#ffffff';
+  const muted = light ? '#42526a' : 'rgba(255,255,255,.76)';
+  const site = document.getElementById('public-site');
+  site.dataset.template = templateId;
+  site.style.backgroundColor = background;
+  site.style.color = text;
+  document.querySelectorAll('.site-section, .site-bar, .site-card, .site-button, .site-frame h1, .site-frame h2, .site-frame p, .site-frame span, .site-testimonial').forEach((node) => node.removeAttribute('style'));
+  document.querySelector('.site-bar').style.backgroundColor = background;
+  document.querySelector('.site-bar').style.color = text;
+  const hero = document.querySelector('[data-module="HERO"]');
+  hero.style.backgroundColor = background;
+  hero.style.color = text;
+  hero.style.backgroundImage = template.heroImage === false ? 'none' : `linear-gradient(90deg,${background}f2 0%,${background}d9 47%,${background}4d 100%),url("${image}")`;
+  hero.style.backgroundSize = 'cover';
+  hero.style.backgroundPosition = 'center';
+  hero.querySelector('p:not(.site-eyebrow)').style.color = muted;
+  document.querySelectorAll('.site-content:not(.alt)').forEach((section) => { section.style.backgroundColor = background; section.style.color = text; });
+  document.querySelectorAll('.site-content.alt').forEach((section) => { section.style.backgroundColor = surface; section.style.color = text; });
+  document.querySelectorAll('.site-content > p').forEach((paragraph) => { paragraph.style.color = muted; });
+  document.querySelectorAll('.site-eyebrow, .site-card span, .site-testimonial cite').forEach((node) => { node.style.color = accent; });
+  document.querySelectorAll('.site-card').forEach((card) => { card.style.backgroundColor = surface; card.style.color = text; card.style.border = `1px solid ${accent}33`; });
+  document.querySelectorAll('.site-testimonial').forEach((card) => { card.style.borderLeftColor = accent; card.style.color = text; });
+  const booking = document.querySelector('[data-module="BOOKING_CTA"]');
+  booking.style.backgroundColor = accent;
+  booking.style.color = light ? '#172033' : background;
+  document.querySelectorAll('.site-button').forEach((button) => { button.style.backgroundColor = accent; button.style.color = light ? '#172033' : background; });
+  booking.querySelector('.site-button').style.backgroundColor = background;
+  booking.querySelector('.site-button').style.color = text;
+  setText('.site-brand', copy.brand);
+  setText('.site-menu', copy.menu);
+  setText('[data-module="HERO"] .site-eyebrow', copy.eyebrow);
+  setText('[data-module="HERO"] h1', copy.hero);
+  setText('[data-module="HERO"] p:not(.site-eyebrow)', copy.subtitle);
+  setText('[data-module="HERO"] .site-button', copy.cta);
+  setText('[data-module="SERVICE_LIST"] .site-eyebrow', copy.serviceEyebrow);
+  setText('[data-module="SERVICE_LIST"] h2', copy.services);
+  setCards('SERVICE_LIST', copy.cards);
+  setText('[data-module="GALLERY"] .site-eyebrow', 'POR TRÁS DE CADA DETALHE');
+  setText('[data-module="GALLERY"] h2', template.id === 'studio' ? 'Trabalhos recentes' : 'Momentos que a gente cuida');
+  setCards('GALLERY', [['Ambiente', 'Conheça o espaço'], ['Detalhes', 'Feito com cuidado'], ['Resultados', 'Clientes felizes']]);
+  setText('[data-module="TESTIMONIALS"] h2', 'Histórias de quem escolheu a gente');
+  setText('[data-module="TESTIMONIALS"] .site-testimonial', '“Atendimento atencioso, resultado impecável e uma experiência que dá vontade de repetir.”');
+  const testimonial = document.querySelector('[data-module="TESTIMONIALS"] .site-testimonial');
+  const cite = document.createElement('cite'); cite.textContent = 'Cliente Ikaro · ★★★★★'; testimonial.append(cite);
+  setText('[data-module="BOOKING_CTA"] h2', copy.booking);
+  setText('[data-module="BOOKING_CTA"] p', copy.bookingCopy);
+  setText('[data-module="ABOUT"] h2', copy.about);
+  setText('[data-module="ABOUT"] p:not(.site-eyebrow)', copy.aboutCopy);
+  setText('[data-module="CONTACT"] h2', copy.contact);
+  setText('[data-module="CONTACT"] p:not(.site-eyebrow)', copy.contactCopy);
+  setText('[data-module="LEAD_FORM"] h2', 'Vamos tirar sua ideia do papel');
+  setText('[data-module="LEAD_FORM"] p:not(.site-eyebrow)', 'Conte um pouco do que você precisa. A gente responde em breve.');
+  setText('[data-module="LEAD_FORM"] .site-button', 'Quero conversar');
+  setText('[data-module="FOOTER"] span:nth-of-type(2)', copy.footer);
+  setText('[data-module="FOOTER"] span:nth-of-type(3)', '© 2026. Todos os direitos reservados.');
+  moduleOrder.forEach((type) => {
+    enabledModules[type] = visible.includes(type);
+    const section = document.querySelector(`[data-module="${type}"]`);
+    if (section) section.style.display = enabledModules[type] ? '' : 'none';
+  });
+  document.querySelectorAll('[data-module]').forEach((node) => node.classList.remove('is-selected'));
+  hasUnpublishedChanges = true;
+  document.getElementById('preview-label').textContent = `Rascunho com alterações — template ${template.name}`;
+  document.getElementById('module-fields').innerHTML = templateGallery();
+  document.getElementById('module-fields').scrollTop = 0;
+  bindPrototypeControls();
+  showFeedback(`Template “${template.name}” aplicado à prévia.`);
+}
+
+function showTemplates() {
+  rememberPanel(); panelMode = 'templates'; setGlobalActive('templates'); setPreviewMode('site');
+  document.querySelectorAll('[data-module]').forEach((node) => node.classList.remove('is-selected'));
+  document.getElementById('preview-label').textContent = 'Rascunho — escolha uma base para o seu hotsite';
+  document.getElementById('module-fields').innerHTML = templateGallery();
+  document.getElementById('module-fields').scrollTop = 0;
+  bindPrototypeControls();
 }
 
 function showFeedback(message) {
