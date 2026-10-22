@@ -247,7 +247,20 @@ Source of truth for what the cards show: mirror `buildHotsiteMetadata` (`apps/we
 
 The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-background)'` pairing introduced in Story 1; this story only adds the branding-driven assertions for it.
 
-**Prototype references:** `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (Branding and style / Sharing context placement in the inspector); `journeys/manager/prototypes/hotsite/editor-vision/11-sharing-preview.html` (authoritative for the Google-result and WhatsApp-card rendering and live title/description update)
+**Decisions locked in discovery:**
+- **Defaults data source:** the editable draft carries no tenant name, address or language, so the Sharing context reads them from the manifest (`tenant.name`, `business.address` city/state, `localization.language`) via a small hook next to `usePreviewSupplementaryData` in `useHotsitePreviewData.ts`, fetched only while Sharing is open. Raw `tenant.name`, as `seo.ts` does — not the `brandName`-resolved display name.
+- **Default-copy locale:** defaults are built with `createTranslator` in the tenant's `localization.language`, exactly like `buildHotsiteMetadata`, not the manager's UI locale, so the simulation shows what the public site will really emit.
+- **Canonical URL:** `getPublicEnv('NEXT_PUBLIC_SITE_URL')` (client-safe through `window.__PUBLIC_ENV__`), same `http://localhost:3000` fallback and trailing-slash strip as `seo.ts`, plus `/${tenantSlug}`. `seo.ts` itself is not imported into client code.
+- **No image:** the cards show a neutral placeholder ("Sem imagem de compartilhamento"); never a logo fallback.
+- **Image resolution:** the cards resolve `seo.ogImageUrl` through `useTmpSignedUrls` + `resolveDraftImageUrls`, so a just-uploaded `tmp/` path renders.
+- **Canvas remount:** Sharing replaces the preview column, so the canvas unmounts and its manifest/services fetch re-runs on return to a site context (accepted; no hidden second tree).
+- **Dirty guard:** `requestStructure` generalises to `requestGlobalContext(kind)` in `useVisualModuleBuffer.ts`, reusing the `DiscardChangesDialog` Apply-or-discard flow for Branding and Sharing as for structure; this is the handling Story 2 deferred to this story.
+- **Branding scope:** the real `BrandingTab` is hosted unchanged in the inspector; immediate preview effect only, no impact-highlight overlay (prototype `02` is out of scope).
+- **Width:** a spec pins that the Branding host fits at the 22rem (`lg`) and 26rem (`xl`) inspector widths.
+- **Copy (pt-BR):** heading "Prévia de busca e compartilhamento"; disclaimer "Simulação aproximada. Google, WhatsApp e outros canais podem exibir o resultado de forma diferente."; image alt "Imagem de compartilhamento"; English equivalents in `en`.
+- **UI reuse:** `SectionCard`, `Button`, `Card`, `FontPicker`, `PillSelect`, `SwitchField` via the existing tabs; the simulation cards are display-only markup, no new primitive.
+
+**Prototype references:** `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (Branding and style / Sharing context placement in the inspector); `journeys/manager/prototypes/hotsite/editor-vision/11-sharing-preview.html` (authoritative for the Google-result and WhatsApp-card rendering and live title/description update; its hardcoded empty-field text is replaced by the localized defaults above)
 **New migration / i18n keys / env vars / feature flags:** add localized context names, simulation labels/disclaimers and image alternative text to both `web.json` locales; no migration, environment variable or feature flag.
 
 **Files to create/modify:**
@@ -257,7 +270,12 @@ The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-backgro
 - `apps/web/features/platform/components/hotsite/SeoTab.spec.tsx` (modify)
 - `apps/web/features/platform/components/hotsite/OgImageUpload.spec.tsx` (modify if UI labels or accessibility contract changes)
 - `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` (modify only if needed — the sharing/site switch is host-level in `VisualHotsiteEditorView`; the canvas never mutates the draft)
-- `apps/web/features/platform/components/hotsite/VisualHotsiteEditorView.tsx` (modify — host Branding and Sharing contexts)
+- `apps/web/features/platform/components/hotsite/VisualHotsiteEditorView.tsx` and `.spec.tsx` (modify — enable and host Branding and Sharing contexts, drop the coming-soon hint)
+- `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` and `.spec.tsx` (modify — pass `onBrandingChange`/`onSeoChange` and the global-context handlers)
+- `apps/web/features/platform/components/hotsite/useVisualModuleBuffer.ts` and `.spec.ts` (modify — `requestGlobalContext(kind)` with the Apply-or-discard guard)
+- `apps/web/features/platform/components/hotsite/useHotsiteEditorSession.spec.ts` (modify only if the session API changes)
+- `apps/web/features/platform/components/hotsite/useHotsitePreviewData.ts` (modify — manifest hook for tenant name, address and language)
+- `journeys/manager/hotsite.md` (line 94) and `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md` (modify — one-sentence sync: Branding and Sharing are live; doc gate applies)
 - `apps/web/features/platform/components/hotsite/HotsiteSharingPreview.tsx` (new — derived Google and WhatsApp simulations)
 - `apps/web/features/platform/components/hotsite/HotsiteSharingPreview.spec.tsx` (new)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
@@ -268,13 +286,17 @@ The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-backgro
 - [ ] Sharing retains the current SEO fields, title/description limits and Open Graph image upload, and shows Google-result and WhatsApp-share simulations that update from the draft.
 - [ ] The simulations are clearly identified as previews and never claim that an external channel will render an identical card.
 - [ ] Switching between Branding and style, Sharing, Organize modules and a module context retains the unsaved shared draft.
+- [ ] Switching to Branding and style or Sharing from a dirty module buffer requires Apply or the existing discard confirmation; a clean buffer never prompts.
 
 **Acceptance criteria — technical:** *(Integration: none — web-only story, no integration tier; Tenant isolation: none — no new data access; unit/e2e/axe rules and the existing specs this story touches: see *Test strategy*)*
 - Unit:
   - [ ] `HotsiteSharingPreview.spec.tsx` covers title and description (set and unset → localized defaults), uploaded image vs. no-image state, canonical URL from the tenant slug and client-safe site origin, and the simulation disclaimer.
   - [ ] `BrandingTab.spec.tsx` and `SeoTab.spec.tsx` retain validation and draft-update coverage through their extracted visual contexts.
   - [ ] `VisualHotsiteEditorView.spec.tsx` proves context switching (branding ⇄ sharing ⇄ structure ⇄ module) does not mutate the draft, and `HotsitePreviewCanvas.spec.tsx` keeps asserting the `--ba-background` paint under a changed background color.
-  - [ ] Axe check on the Sharing context.
+  - [ ] Axe check on the Sharing context and on the Branding host (full default ruleset).
+  - [ ] Negative guarantee, named test: switching to Branding or Sharing from a dirty module buffer never discards it silently (`useVisualModuleBuffer.spec.ts` and `HotsiteEditor.spec.tsx`).
+  - [ ] A just-uploaded `tmp/` OG image resolves in both cards; the unset-title/description defaults follow the tenant's `localization.language`, not the UI locale (`it.each` over both locales).
+  - [ ] A spec pins that the Branding host renders inside the 22rem and 26rem inspector widths.
 - E2E:
   - [ ] `apps/web/e2e/hotsite-editor.spec.ts` (new visual-path tests; the legacy detailed-editor tests stay) changes the primary color and SEO title/description, observes the visual and sharing-preview updates, and confirms the saved/published hotsite semantics remain unchanged.
 - [ ] Coverage ≥80% on changed code.
@@ -342,7 +364,7 @@ Make keyboard and screen-reader behavior first-class: global actions, preview se
 
 - **Story 1:** resolved in discovery (helper filename, test ids, no split — see Story 1's *Decisions locked in discovery*); still to do during implementation: re-check the three `fetchSpy` "no network" assertions and manifest/services mock call counts in `HotsiteEditor.spec.tsx` after the visual default mounts the canvas.
 - **Story 2:** resolved in discovery (no grouping, 26rem `xl` inspector, Publish disabled while dirty, no `ModuleConfigShell` change — see Story 2's *Decisions locked in discovery*).
-- **Story 3:** the client-safe source of the canonical URL (tenant slug plus public site origin); Open Graph "no image" presentation in the cards.
+- **Story 3:** resolved in discovery (canonical URL from `getPublicEnv('NEXT_PUBLIC_SITE_URL')` + slug, neutral no-image placeholder, manifest-sourced defaults in the tenant's language, dirty guard for the new contexts — see Story 3's *Decisions locked in discovery*).
 - **Story 4:** none beyond hardening; escalate if the Apply-or-discard flow from Edit in detail proves inconsistent with `DiscardChangesDialog`.
 
 ## Test strategy (checked against the existing specs, 2026-10-21)
