@@ -636,7 +636,7 @@ export const fetchManifest = cache(async (slug: string): Promise<HotsiteManifest
 });
 ```
 
-`apps/web/features/platform/api.ts` (no `server-only`/`client-only` suffix distinction in the filename, but client-only in practice — imports `bffClient`, which asserts `'client-only'`) exports a separate `fetchManifestClient()` for the one caller that needs the manifest from the browser: `HotsitePreview.tsx`, the dashboard's live-preview-while-editing component. It carries no `next.revalidate`/`next.tags` — Next's Data Cache doesn't exist in the browser, so those options would be silently ignored there anyway; the preview is deliberately always-fresh, not cached. `features/platform/hotsite/api/services.ts`/`services.server.ts` follow the identical split for the services list.
+`apps/web/features/platform/api.ts` (no `server-only`/`client-only` suffix distinction in the filename, but client-only in practice — imports `bffClient`, which asserts `'client-only'`) exports a separate `fetchManifestClient()` for the one caller that needs the manifest from the browser: `HotsitePreviewCanvas.tsx` (through `usePreviewSupplementaryData`), the dashboard's live-preview-while-editing canvas, embedded by both the visual editor and the detailed editor's `HotsitePreview` page. It carries no `next.revalidate`/`next.tags` — Next's Data Cache doesn't exist in the browser, so those options would be silently ignored there anyway; the preview is deliberately always-fresh, not cached. `features/platform/hotsite/api/services.ts`/`services.server.ts` follow the identical split for the services list.
 
 The `isDev ? 0` guard disables caching in `NODE_ENV=development` so local edits are reflected immediately without cache busting.
 
