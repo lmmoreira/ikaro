@@ -230,7 +230,7 @@ LEAD_FORM is the one intentional exception to an ordinary layout-only module. It
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 3 — Make branding and sharing consequences visible in place
+### Story 3 — Make branding and sharing consequences visible in place ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
