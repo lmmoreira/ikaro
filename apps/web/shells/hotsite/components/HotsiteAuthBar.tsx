@@ -6,7 +6,12 @@ import Link from 'next/link';
 import type { SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
-import { BrandMark, HotsiteAuthBarSignedOut } from './HotsiteAuthBarSignedOut';
+import {
+  BrandMark,
+  BriefcaseIcon,
+  HotsiteAuthBarSignedOut,
+  StaffAreaLink,
+} from './HotsiteAuthBarSignedOut';
 
 interface HotsiteAuthBarProps {
   readonly slug: string;
@@ -53,23 +58,6 @@ export function HotsiteAuthBar({
     };
   }, [slug]);
 
-  const BriefcaseIcon = (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-    </svg>
-  );
-
   if (session === null) {
     return (
       <header
@@ -108,7 +96,7 @@ export function HotsiteAuthBar({
     >
       <div className="flex items-center gap-3">
         <BrandMark logoUrl={logoUrl} tenantName={tenantName} />
-        {isStaff && (
+        {isStaff ? (
           <div
             className="flex items-center gap-3 border-l pl-3"
             style={{ borderColor: 'rgba(17,24,39,0.12)' }}
@@ -119,7 +107,7 @@ export function HotsiteAuthBar({
               className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline"
               style={{ color: 'var(--ba-text)' }}
             >
-              {BriefcaseIcon}
+              <BriefcaseIcon />
               {displayName || t('staffArea')}
             </Link>
             <a
@@ -131,6 +119,8 @@ export function HotsiteAuthBar({
               {t('signOut')}
             </a>
           </div>
+        ) : (
+          <StaffAreaLink slug={slug} />
         )}
       </div>
       {isCustomer ? (

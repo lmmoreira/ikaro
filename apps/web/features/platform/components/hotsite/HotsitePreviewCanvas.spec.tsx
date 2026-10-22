@@ -12,6 +12,7 @@ import {
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { generateHotsiteImageReadSignedUrl } from '@/features/platform/api/tenant-settings';
+import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
 import { HotsitePreviewCanvas } from './HotsitePreviewCanvas';
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -464,9 +465,10 @@ describe('HotsitePreviewCanvas', () => {
 
     it('renders no selectable section for the bar and leaves the module render plan untouched', async () => {
       mockFetchManifest.mockResolvedValue(makeManifest());
+      const draft = makeDraft();
       renderWithIntl(
         <HotsitePreviewCanvas
-          draft={makeDraft()}
+          draft={draft}
           selection={{ selectedType: null, onSelect: vi.fn() }}
         />,
       );
@@ -475,7 +477,12 @@ describe('HotsitePreviewCanvas', () => {
 
       expect(bar.querySelector('[data-testid="preview-section-select"]')).toBeNull();
       expect(bar.closest('[data-testid="preview-section"]')).toBeNull();
-      expect(screen.getAllByTestId('preview-section')).toHaveLength(1);
+      const plan = buildHotsiteModuleRenderPlan(draft.layout, false);
+      const sections = screen.getAllByTestId('preview-section');
+      expect(sections).toHaveLength(plan.length);
+      expect(sections.map((section) => section.getAttribute('data-module-type'))).toEqual(
+        plan.map(({ parsed }) => parsed.type),
+      );
     });
   });
 });

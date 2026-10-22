@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { axe } from '@/axe-helper';
+import { axe } from 'jest-axe';
 import { renderWithIntl } from '@/test-utils';
 import { HotsiteAuthBarSignedOut } from './HotsiteAuthBarSignedOut';
 
@@ -57,8 +57,6 @@ describe('HotsiteAuthBarSignedOut', () => {
     expect(screen.getByTestId('hotsite-auth-bar').closest('[inert]')).toBeNull();
   });
 
-  // The shared hotsite axe helper, not the full ruleset: colour-contrast cannot resolve the
-  // --ba-* variables in jsdom (same reason HotsiteAuthBar.spec uses it).
   it('has no axe violations', async () => {
     const { container } = renderWithIntl(
       <HotsiteAuthBarSignedOut slug={SLUG} logoUrl={LOGO_URL} tenantName={TENANT_NAME} />,

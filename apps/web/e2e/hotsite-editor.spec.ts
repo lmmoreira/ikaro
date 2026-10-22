@@ -179,13 +179,15 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
 
     const bar = page.getByTestId('hotsite-preview-auth-bar');
     await expect(bar).toBeVisible();
-    await expect(bar.getByTestId('hotsite-staff-link')).toBeVisible();
-    await expect(bar.getByTestId('hotsite-login-link')).toBeVisible();
+    await expect(bar.getByTestId('hotsite-staff-link')).toHaveText('Área da Equipe');
+    await expect(bar.getByTestId('hotsite-login-link')).toHaveText('Entrar');
     await expect(page.getByTestId('hotsite-staff-authenticated-link')).toHaveCount(0);
     await expect(bar.getByTestId('preview-section-select')).toHaveCount(0);
 
     const urlBefore = page.url();
     await bar.getByTestId('hotsite-login-link').click({ force: true });
+    expect(page.url()).toBe(urlBefore);
+    await bar.getByTestId('hotsite-staff-link').click({ force: true });
     expect(page.url()).toBe(urlBefore);
     expect(sessionRequests).toEqual([]);
   });

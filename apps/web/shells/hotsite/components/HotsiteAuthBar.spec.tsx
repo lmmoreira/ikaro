@@ -143,6 +143,13 @@ describe('HotsiteAuthBar', () => {
       expect(dropdown).toHaveAttribute('data-slug', SLUG);
     });
 
+    it('keeps the staff-area link pointing to dashboard login', async () => {
+      render(<HotsiteAuthBar slug={SLUG} logoUrl={LOGO_URL} tenantName={TENANT_NAME} />);
+
+      const link = await screen.findByTestId('hotsite-staff-link');
+      expect(link).toHaveAttribute('href', `/dashboard/login?tenantSlug=${SLUG}`);
+    });
+
     it('does not render the "Entrar" sign-in link', async () => {
       render(<HotsiteAuthBar slug={SLUG} logoUrl={LOGO_URL} tenantName={TENANT_NAME} />);
 
