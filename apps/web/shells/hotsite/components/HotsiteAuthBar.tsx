@@ -2,44 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import Image from 'next/image';
 import Link from 'next/link';
 import type { SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
+import { BrandMark, HotsiteAuthBarSignedOut } from './HotsiteAuthBarSignedOut';
 
 interface HotsiteAuthBarProps {
   readonly slug: string;
   readonly logoUrl: string;
   readonly tenantName: string;
-}
-
-// Brand mark, left-most element — see journeys/shared/hotsite.html's topbar section for the
-// validated size/placement (28px circle, ahead of the staff-area link). Falls back to an
-// initial-letter badge when no logo is uploaded yet, same pattern as app/[slug]/login/page.tsx.
-function BrandMark({
-  logoUrl,
-  tenantName,
-}: {
-  readonly logoUrl: string;
-  readonly tenantName: string;
-}): React.JSX.Element {
-  return logoUrl ? (
-    <Image
-      src={logoUrl}
-      alt={tenantName}
-      width={28}
-      height={28}
-      className="h-7 w-7 flex-shrink-0 rounded-full object-cover"
-    />
-  ) : (
-    <div
-      className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-bold"
-      style={{ backgroundColor: 'var(--ba-primary)', color: 'var(--ba-btn-text)' }}
-    >
-      {tenantName.charAt(0).toUpperCase()}
-    </div>
-  );
 }
 
 // Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
@@ -123,6 +95,9 @@ export function HotsiteAuthBar({
 
   const isStaff = session.staff !== null;
   const isCustomer = !isStaff && session.customer !== null;
+  if (!isStaff && !isCustomer) {
+    return <HotsiteAuthBarSignedOut slug={slug} logoUrl={logoUrl} tenantName={tenantName} />;
+  }
   const displayName = session.staff?.name || session.customer?.name || '';
 
   return (
@@ -133,7 +108,7 @@ export function HotsiteAuthBar({
     >
       <div className="flex items-center gap-3">
         <BrandMark logoUrl={logoUrl} tenantName={tenantName} />
-        {isStaff ? (
+        {isStaff && (
           <div
             className="flex items-center gap-3 border-l pl-3"
             style={{ borderColor: 'rgba(17,24,39,0.12)' }}
@@ -156,16 +131,6 @@ export function HotsiteAuthBar({
               {t('signOut')}
             </a>
           </div>
-        ) : (
-          <a
-            href={`/dashboard/login?tenantSlug=${encodeURIComponent(slug)}`}
-            data-testid="hotsite-staff-link"
-            className="flex items-center gap-1.5 border-l pl-3 text-[0.8125rem] font-medium no-underline opacity-40"
-            style={{ color: 'var(--ba-text)', borderColor: 'rgba(17,24,39,0.12)' }}
-          >
-            {BriefcaseIcon}
-            {t('staffArea')}
-          </a>
         )}
       </div>
       {isCustomer ? (

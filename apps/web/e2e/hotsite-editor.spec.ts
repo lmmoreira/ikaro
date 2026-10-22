@@ -167,6 +167,29 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await expect(page.getByTestId('visual-command')).toHaveCount(6);
   });
 
+  test('the preview starts with the signed-out public top bar, inert, with no session request, even for the signed-in manager (TD55-S05)', async ({
+    page,
+  }) => {
+    const sessionRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.url().includes('/api/session')) sessionRequests.push(request.url());
+    });
+
+    await page.goto('/dashboard/hotsite');
+
+    const bar = page.getByTestId('hotsite-preview-auth-bar');
+    await expect(bar).toBeVisible();
+    await expect(bar.getByTestId('hotsite-staff-link')).toBeVisible();
+    await expect(bar.getByTestId('hotsite-login-link')).toBeVisible();
+    await expect(page.getByTestId('hotsite-staff-authenticated-link')).toHaveCount(0);
+    await expect(bar.getByTestId('preview-section-select')).toHaveCount(0);
+
+    const urlBefore = page.url();
+    await bar.getByTestId('hotsite-login-link').click({ force: true });
+    expect(page.url()).toBe(urlBefore);
+    expect(sessionRequests).toEqual([]);
+  });
+
   // Hero is enabled in the seed; CONTACT, BOOKING_CTA and LEAD_FORM are enabled through the
   // detailed editor first, then the manager returns to the visual editor via the topbar.
   test('selecting a section in the persistent preview opens the inspector without navigating, following a CTA, starting a booking or moving the page (TD55-S01)', async ({

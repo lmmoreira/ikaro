@@ -5,6 +5,7 @@ import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+import { HotsiteAuthBarSignedOut } from '@/shells/hotsite/components/HotsiteAuthBarSignedOut';
 import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
 import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
@@ -90,6 +91,17 @@ export function HotsitePreviewCanvas({
             branding.bodyFontFamily,
           ).join(' ')}
         >
+          {/* The public bar as a logged-out visitor sees it, so the logo and Branding colours show
+              where they actually appear. Preview-only chrome: inert (no link is followable or
+              focusable), outside the selection wrapper and the module render plan, and
+              session-free — it never reflects the signed-in manager. */}
+          <div inert className="pointer-events-none" data-testid="hotsite-preview-auth-bar">
+            <HotsiteAuthBarSignedOut
+              slug={tenantSlug}
+              logoUrl={branding.logoUrl}
+              tenantName={branding.brandName || data.tenantName}
+            />
+          </div>
           {modulesWithVariant.map((moduleWithVariant, index) =>
             renderHotsitePreviewModule(moduleWithVariant, index, {
               tenantSlug,

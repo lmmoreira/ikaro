@@ -405,4 +405,77 @@ describe('HotsitePreviewCanvas', () => {
     expect(select).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByTestId('preview-section-badge')).toHaveTextContent('Selecionado · Hero');
   });
+
+  describe('public top bar', () => {
+    it('renders the signed-out bar as the first child of the content root, inside an inert wrapper', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      renderWithIntl(<HotsitePreviewCanvas draft={makeDraft()} />);
+
+      const content = await screen.findByTestId('hotsite-preview-content');
+      const wrapper = content.firstElementChild;
+
+      expect(wrapper).toBe(screen.getByTestId('hotsite-preview-auth-bar'));
+      expect(wrapper).toHaveAttribute('inert');
+      expect(wrapper).toHaveClass('pointer-events-none');
+      expect(wrapper).toContainElement(screen.getByTestId('hotsite-auth-bar'));
+      expect(screen.getByTestId('hotsite-staff-link')).toHaveTextContent('Área da Equipe');
+      expect(screen.getByTestId('hotsite-login-link')).toHaveTextContent('Entrar');
+    });
+
+    it('shows the draft logo in the bar, and the initial badge when there is none', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      const withLogo = makeDraft({
+        branding: { ...makeManifest().branding, logoUrl: `${IMAGE_BASE_URL}/logo.png` },
+      });
+      const { unmount } = renderWithIntl(<HotsitePreviewCanvas draft={withLogo} />);
+
+      await screen.findByTestId('hotsite-preview-content');
+      expect(screen.getByTestId('hotsite-auth-bar').querySelector('img')).not.toBeNull();
+      unmount();
+
+      renderWithIntl(<HotsitePreviewCanvas draft={makeDraft()} />);
+      await screen.findByTestId('hotsite-preview-content');
+      expect(screen.getByTestId('hotsite-auth-bar').querySelector('img')).toBeNull();
+      expect(screen.getByTestId('hotsite-auth-bar')).toHaveTextContent('T');
+    });
+
+    it('prefers the draft brand name over the saved tenant name for the mark', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      const draft = makeDraft({
+        branding: { ...makeManifest().branding, brandName: 'Zeta Wash' },
+      });
+      renderWithIntl(<HotsitePreviewCanvas draft={draft} />);
+
+      await screen.findByTestId('hotsite-preview-content');
+
+      expect(screen.getByTestId('hotsite-auth-bar')).toHaveTextContent('Z');
+    });
+
+    it('never requests the session', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      renderWithIntl(<HotsitePreviewCanvas draft={makeDraft()} />);
+
+      await screen.findByTestId('hotsite-auth-bar');
+
+      expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/api/session'));
+      fetchSpy.mockRestore();
+    });
+
+    it('renders no selectable section for the bar and leaves the module render plan untouched', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      renderWithIntl(
+        <HotsitePreviewCanvas
+          draft={makeDraft()}
+          selection={{ selectedType: null, onSelect: vi.fn() }}
+        />,
+      );
+
+      const bar = await screen.findByTestId('hotsite-preview-auth-bar');
+
+      expect(bar.querySelector('[data-testid="preview-section-select"]')).toBeNull();
+      expect(bar.closest('[data-testid="preview-section"]')).toBeNull();
+      expect(screen.getAllByTestId('preview-section')).toHaveLength(1);
+    });
+  });
 });
