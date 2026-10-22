@@ -264,18 +264,16 @@ The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-backgro
 **New migration / i18n keys / env vars / feature flags:** add localized context names, simulation labels/disclaimers and image alternative text to both `web.json` locales; no migration, environment variable or feature flag.
 
 **Files to create/modify:**
-- `apps/web/features/platform/components/hotsite/BrandingTab.tsx` (modify — extract/reuse current controls for visual Branding and style context)
-- `apps/web/features/platform/components/hotsite/BrandingTab.spec.tsx` (modify)
-- `apps/web/features/platform/components/hotsite/SeoTab.tsx` (modify — extract/reuse current fields for Sharing context)
-- `apps/web/features/platform/components/hotsite/SeoTab.spec.tsx` (modify)
-- `apps/web/features/platform/components/hotsite/OgImageUpload.spec.tsx` (modify if UI labels or accessibility contract changes)
-- `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` (modify only if needed — the sharing/site switch is host-level in `VisualHotsiteEditorView`; the canvas never mutates the draft)
+- `apps/web/features/platform/components/hotsite/BrandingTab.tsx`, `SeoTab.tsx`, `OgImageUpload.tsx` and their specs (**not modified, as shipped** — the inspector hosts the real tabs unchanged, so their specs stay as the validation and draft-update coverage)
+- `apps/web/features/platform/components/hotsite/HotsitePreviewCanvas.tsx` (**not modified** — the sharing/site switch is host-level in `VisualHotsiteEditorView`; the canvas never mutates the draft)
+- `apps/web/features/platform/components/hotsite/VisualCommandRow.tsx` and `.spec.tsx` (new, added at implementation — the command row extracted from `VisualHotsiteEditorView`, which hit its function-size limit once the three contexts were wired)
+- `apps/web/features/platform/hotsite/seo-defaults.ts`, `site-origin.ts` and their specs, plus `resolveDraftImageUrl` in `resolve-draft-image-urls.ts`, and `seo.ts` refactored to use them (new, added at implementation — the public `<head>` and the sharing simulation share one source for the fallback copy, the site origin and the image resolution, so they cannot drift)
 - `apps/web/features/platform/components/hotsite/VisualHotsiteEditorView.tsx` and `.spec.tsx` (modify — enable and host Branding and Sharing contexts, drop the coming-soon hint)
 - `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx` and `.spec.tsx` (modify — pass `onBrandingChange`/`onSeoChange` and the global-context handlers)
 - `apps/web/features/platform/components/hotsite/useVisualModuleBuffer.ts` and `.spec.ts` (modify — `requestGlobalContext(kind)` with the Apply-or-discard guard)
-- `apps/web/features/platform/components/hotsite/useHotsiteEditorSession.spec.ts` (modify only if the session API changes)
+- `apps/web/features/platform/components/hotsite/useHotsiteEditorSession.spec.ts` (**not modified** — the session API did not change)
 - `apps/web/features/platform/components/hotsite/useHotsitePreviewData.ts` (modify — manifest hook for tenant name, address and language)
-- `journeys/manager/hotsite.md` (line 94) and `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md` (modify — one-sentence sync: Branding and Sharing are live; doc gate applies)
+- `journeys/manager/hotsite.md` (line 94 — one-sentence sync: Branding and Sharing are live; doc gate applies). `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md` has no stale statement about them, so it is **not modified**.
 - `apps/web/features/platform/components/hotsite/HotsiteSharingPreview.tsx` (new — derived Google and WhatsApp simulations)
 - `apps/web/features/platform/components/hotsite/HotsiteSharingPreview.spec.tsx` (new)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
@@ -291,7 +289,7 @@ The canvas must keep the `applyBranding()` + `backgroundColor: 'var(--ba-backgro
 **Acceptance criteria — technical:** *(Integration: none — web-only story, no integration tier; Tenant isolation: none — no new data access; unit/e2e/axe rules and the existing specs this story touches: see *Test strategy*)*
 - Unit:
   - [ ] `HotsiteSharingPreview.spec.tsx` covers title and description (set and unset → localized defaults), uploaded image vs. no-image state, canonical URL from the tenant slug and client-safe site origin, and the simulation disclaimer.
-  - [ ] `BrandingTab.spec.tsx` and `SeoTab.spec.tsx` retain validation and draft-update coverage through their extracted visual contexts.
+  - [ ] `BrandingTab.spec.tsx` and `SeoTab.spec.tsx` stay green and unchanged (the tabs are hosted as they are), and `HotsiteEditor.spec.tsx` proves the same edits through the visual inspector.
   - [ ] `VisualHotsiteEditorView.spec.tsx` proves context switching (branding ⇄ sharing ⇄ structure ⇄ module) does not mutate the draft, and `HotsitePreviewCanvas.spec.tsx` keeps asserting the `--ba-background` paint under a changed background color.
   - [ ] Axe check on the Sharing context and on the Branding host (full default ruleset).
   - [ ] Negative guarantee, named test: switching to Branding or Sharing from a dirty module buffer never discards it silently (`useVisualModuleBuffer.spec.ts` and `HotsiteEditor.spec.tsx`).
