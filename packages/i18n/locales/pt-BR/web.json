@@ -1176,6 +1176,28 @@
         "loading": "Carregando preview...",
         "loadError": "Não foi possível carregar o preview. Tente novamente."
       },
+      "visual": {
+        "commandsLabel": "Ações do editor",
+        "commands": {
+          "branding": "Branding e estilo",
+          "structure": "Organizar módulos",
+          "sharing": "Compartilhamento",
+          "detail": "Editar em detalhes",
+          "publish": "Publicar",
+          "viewLive": "Ver site publicado"
+        },
+        "comingSoon": "Disponível em breve — use Editar em detalhes",
+        "previewLabel": "Prévia do rascunho",
+        "previewStatusIdle": "Rascunho — selecione uma seção da prévia",
+        "previewStatusSelected": "Rascunho — selecionado: {module}",
+        "selectSection": "Selecionar seção: {module}",
+        "selectedBadge": "Selecionado",
+        "inspectorLabel": "Detalhes da seção",
+        "emptyHint": "Selecione uma seção da prévia para ver os detalhes.",
+        "moduleHint": "Os campos deste módulo chegam em breve. Use Editar em detalhes para configurá-lo agora.",
+        "backToVisual": "Voltar à edição visual",
+        "detailedTitle": "Edição detalhada"
+      },
       "branding": {
         "sections": {
           "colors": "Cores",

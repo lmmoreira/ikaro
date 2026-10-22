@@ -26,7 +26,7 @@ describe('executeHotsitePublish', () => {
     const updateConfig = { mutateAsync: vi.fn().mockResolvedValue({ ...content }) };
     const publishHotsite = { mutateAsync: vi.fn().mockResolvedValue({}) };
     const setDraft = vi.fn();
-    const onTabs = vi.fn();
+    const onSettled = vi.fn();
     const onBanner = vi.fn();
     const onLeadFormPublished = vi.fn();
 
@@ -38,7 +38,7 @@ describe('executeHotsitePublish', () => {
       updateConfig,
       publishHotsite,
       setDraft,
-      onTabs,
+      onSettled,
       onBanner,
       onLeadFormPublished,
     });
@@ -64,7 +64,7 @@ describe('executeHotsitePublish', () => {
     const updateConfig = { mutateAsync: vi.fn().mockResolvedValue({ ...content }) };
     const publishHotsite = { mutateAsync: vi.fn().mockResolvedValue({}) };
     const setDraft = vi.fn();
-    const onTabs = vi.fn();
+    const onSettled = vi.fn();
     const onBanner = vi.fn();
     const onLeadFormPublished = vi.fn();
 
@@ -76,7 +76,7 @@ describe('executeHotsitePublish', () => {
       updateConfig,
       publishHotsite,
       setDraft,
-      onTabs,
+      onSettled,
       onBanner,
       onLeadFormPublished,
     });

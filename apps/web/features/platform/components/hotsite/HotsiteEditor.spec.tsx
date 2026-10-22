@@ -128,8 +128,41 @@ function withQueryClient(children: React.ReactNode): React.ReactElement {
   return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }
 
-function renderEditor(initial: HotsiteAdminContentResponse = INITIAL) {
+function renderVisualEditor(initial: HotsiteAdminContentResponse = INITIAL) {
   return renderWithIntl(withQueryClient(<HotsiteEditor initial={initial} />));
+}
+
+function renderEditorWithTopbarProbe(initial: HotsiteAdminContentResponse = INITIAL) {
+  return renderWithIntl(
+    withQueryClient(
+      <DashboardTopbarStatusProvider>
+        <TopbarOverrideProbe />
+        <HotsiteEditor initial={initial} />
+      </DashboardTopbarStatusProvider>,
+    ),
+  );
+}
+
+function visualCommand(command: string): HTMLElement {
+  const match = screen
+    .getAllByTestId('visual-command')
+    .find((element) => element.dataset.command === command);
+  if (!match) throw new Error(`No visual command "${command}"`);
+  return match;
+}
+
+// The editor now opens in the visual editor; every case below that exercises the retained tabbed
+// editor (tabs, Preview, module-config drill-down, Manifesto) enters it through "Editar em detalhes".
+function renderDetailedEditor(initial: HotsiteAdminContentResponse = INITIAL) {
+  const rendered = renderVisualEditor(initial);
+  fireEvent.click(visualCommand('detail'));
+  return rendered;
+}
+
+function renderDetailedEditorWithTopbarProbe() {
+  const rendered = renderEditorWithTopbarProbe();
+  fireEvent.click(visualCommand('detail'));
+  return rendered;
 }
 
 describe('HotsiteEditor', () => {
@@ -155,7 +188,7 @@ describe('HotsiteEditor', () => {
   });
 
   it('loads with 4 tabs, Branding active by default and Manifesto last', () => {
-    renderEditor();
+    renderDetailedEditor();
 
     const tabs = screen.getAllByRole('tab');
     expect(tabs.map((tab) => tab.textContent)).toEqual(['Branding', 'Layout', 'SEO', 'Manifesto']);
@@ -171,7 +204,7 @@ describe('HotsiteEditor', () => {
 
   it('switches to Layout without triggering a network request, showing all 8 auto-materialized modules', async () => {
     const user = userEvent.setup();
-    renderEditor();
+    renderDetailedEditor();
 
     await user.click(screen.getByRole('tab', { name: 'Layout' }));
 
@@ -185,7 +218,7 @@ describe('HotsiteEditor', () => {
 
   it('switches to SEO showing the SeoTab fields bound to the draft', async () => {
     const user = userEvent.setup();
-    renderEditor();
+    renderDetailedEditor();
 
     await user.click(screen.getByRole('tab', { name: 'SEO' }));
 
@@ -194,7 +227,7 @@ describe('HotsiteEditor', () => {
   });
 
   it('renders Publicar alterações, Preview, and the unpublish action enabled by default', () => {
-    renderEditor();
+    renderDetailedEditor();
 
     expect(screen.getByTestId('hotsite-publish-desktop')).toBeEnabled();
     expect(screen.getByTestId('hotsite-publish-mobile')).toBeEnabled();
@@ -203,17 +236,110 @@ describe('HotsiteEditor', () => {
     expect(screen.getByTestId('hotsite-unpublish-button')).toBeEnabled();
   });
 
+  describe('Visual editor (default view)', () => {
+    const HERO_ENABLED: HotsiteAdminContentResponse = {
+      ...INITIAL,
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro impecável',
+            ctaLabel: 'Agendar agora',
+            ctaTarget: 'booking-form',
+          },
+        },
+      ],
+    };
+
+    it('opens in the visual editor, not the tabbed editor', () => {
+      renderVisualEditor();
+
+      expect(screen.getByTestId('visual-editor')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('goes to the tabbed editor via Editar em detalhes and back via the topbar without a reload', async () => {
+      const user = userEvent.setup();
+      renderEditorWithTopbarProbe();
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+
+      await user.click(visualCommand('detail'));
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      expect(screen.getByTestId('probe-back-label')).toHaveTextContent('Voltar à edição visual');
+
+      await user.click(screen.getByTestId('probe-trigger-back'));
+      expect(screen.getByTestId('visual-editor')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+    });
+
+    it('keeps one shared draft across the visual -> detailed -> visual -> detailed round trip', async () => {
+      const user = userEvent.setup();
+      renderEditorWithTopbarProbe();
+      await user.click(visualCommand('detail'));
+      fireEvent.change(screen.getByTestId('hotsite-primary-color'), {
+        target: { value: '#123456' },
+      });
+
+      await user.click(screen.getByTestId('probe-trigger-back'));
+      await user.click(visualCommand('detail'));
+
+      expect(screen.getByTestId('hotsite-primary-color')).toHaveValue('#123456');
+    });
+
+    it('keeps the selected section across the round trip through the detailed editor', async () => {
+      const user = userEvent.setup();
+      renderEditorWithTopbarProbe(HERO_ENABLED);
+
+      await user.click(await screen.findByTestId('preview-section-select'));
+      expect(screen.getByTestId('visual-preview-status')).toHaveTextContent('selecionado: Hero');
+
+      await user.click(visualCommand('detail'));
+      await user.click(screen.getByTestId('probe-trigger-back'));
+
+      expect(screen.getByTestId('visual-preview-status')).toHaveTextContent('selecionado: Hero');
+    });
+
+    it('publishes from the visual editor, staying in it and showing the success banner', async () => {
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
+      });
+      expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1);
+      expect(mockPublishHotsite).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('visual-editor')).toBeInTheDocument();
+      expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    });
+
+    it('stays in the visual editor and shows the error banner when publishing fails', async () => {
+      mockUpdateHotsiteConfig.mockRejectedValue(
+        new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_NO_ENABLED_MODULES' }),
+      );
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hotsite-action-error-banner')).toBeInTheDocument();
+      });
+      expect(mockPublishHotsite).not.toHaveBeenCalled();
+      expect(screen.getByTestId('visual-editor')).toBeInTheDocument();
+    });
+  });
+
   describe('Preview view swap', () => {
     it('opens the preview view without changing the URL, and pushes a topbar back override', async () => {
       const user = userEvent.setup();
-      renderWithIntl(
-        withQueryClient(
-          <DashboardTopbarStatusProvider>
-            <TopbarOverrideProbe />
-            <HotsiteEditor initial={INITIAL} />
-          </DashboardTopbarStatusProvider>,
-        ),
-      );
+      renderDetailedEditorWithTopbarProbe();
 
       await user.click(screen.getByTestId('hotsite-preview-desktop'));
 
@@ -224,14 +350,7 @@ describe('HotsiteEditor', () => {
 
     it('returns to the tabs view via the topbar back override, clearing it', async () => {
       const user = userEvent.setup();
-      renderWithIntl(
-        withQueryClient(
-          <DashboardTopbarStatusProvider>
-            <TopbarOverrideProbe />
-            <HotsiteEditor initial={INITIAL} />
-          </DashboardTopbarStatusProvider>,
-        ),
-      );
+      renderDetailedEditorWithTopbarProbe();
 
       await user.click(screen.getByTestId('hotsite-preview-desktop'));
       await waitFor(() => expect(screen.getByTestId('probe-onback')).toHaveTextContent('set'));
@@ -239,7 +358,8 @@ describe('HotsiteEditor', () => {
       await user.click(screen.getByTestId('probe-trigger-back'));
 
       expect(screen.getByRole('tablist')).toBeInTheDocument();
-      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+      // Back on the detailed tabs the topbar offers the way back to the visual editor instead.
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Edição detalhada');
     });
   });
 
@@ -248,7 +368,7 @@ describe('HotsiteEditor', () => {
       mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
       mockPublishHotsite.mockResolvedValue({ isPublished: true });
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
 
@@ -265,7 +385,7 @@ describe('HotsiteEditor', () => {
         new ApiError(422, 'Invalid', { code: 'PLATFORM_HOTSITE_NO_ENABLED_MODULES' }),
       );
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
 
@@ -306,7 +426,7 @@ describe('HotsiteEditor', () => {
       });
       mockPublishHotsite.mockResolvedValue({ isPublished: true });
       const user = userEvent.setup();
-      renderEditor(draftWithTmpHero);
+      renderDetailedEditor(draftWithTmpHero);
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
       await waitFor(() => {
@@ -336,7 +456,7 @@ describe('HotsiteEditor', () => {
       mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
       mockPublishHotsite.mockResolvedValue({ isPublished: true });
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
       await waitFor(() => {
@@ -363,7 +483,7 @@ describe('HotsiteEditor', () => {
     it('switches back to the tabs view to show the error banner when publish fails from Preview', async () => {
       mockUpdateHotsiteConfig.mockRejectedValue(new Error('network error'));
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-preview-desktop'));
       // Preview is lazy-loaded via next/dynamic — give the chunk import more room than the
@@ -385,7 +505,7 @@ describe('HotsiteEditor', () => {
     it('unpublishes and shows the success banner without saving the draft first', async () => {
       mockUnpublishHotsite.mockResolvedValue({ isPublished: false });
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-unpublish-button'));
 
@@ -401,7 +521,7 @@ describe('HotsiteEditor', () => {
         new ApiError(404, 'Not found', { code: 'PLATFORM_TENANT_NOT_FOUND' }),
       );
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-unpublish-button'));
 
@@ -416,7 +536,7 @@ describe('HotsiteEditor', () => {
   describe('Manifesto tab', () => {
     it('switches to Manifesto without a network request, seeded with the current draft as JSON', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
 
@@ -433,7 +553,7 @@ describe('HotsiteEditor', () => {
       mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
       mockPublishHotsite.mockResolvedValue({ isPublished: true });
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByTestId('hotsite-publish-desktop'));
       await waitFor(() => {
@@ -454,7 +574,7 @@ describe('HotsiteEditor', () => {
 
     it('shows an inline error and leaves the draft unchanged when the JSON is invalid', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
       const textarea = screen.getByTestId('hotsite-manifest-textarea');
@@ -468,7 +588,7 @@ describe('HotsiteEditor', () => {
 
     it('leaving the tab without Aplicar discards the pending edit; re-entering reseeds from the draft', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Manifesto' }));
       const textarea = screen.getByTestId('hotsite-manifest-textarea');
@@ -486,7 +606,7 @@ describe('HotsiteEditor', () => {
   describe('"Configurar" view swap', () => {
     it('opens the module config shell for the clicked module, without changing the URL or making a network request', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(
@@ -502,7 +622,7 @@ describe('HotsiteEditor', () => {
 
     it('"Aplicar" commits the edited field into the Layout tab\'s draft and returns to the tabs view', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(
@@ -526,7 +646,7 @@ describe('HotsiteEditor', () => {
 
     it('"Cancelar" discards local edits and returns to the tabs view without mutating the draft', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(
@@ -550,16 +670,9 @@ describe('HotsiteEditor', () => {
 
     it('pushes an onBackOverride + page title into the shared dashboard Topbar context while configuring, and clears them on cancel', async () => {
       const user = userEvent.setup();
-      renderWithIntl(
-        withQueryClient(
-          <DashboardTopbarStatusProvider>
-            <TopbarOverrideProbe />
-            <HotsiteEditor initial={INITIAL} />
-          </DashboardTopbarStatusProvider>,
-        ),
-      );
+      renderDetailedEditorWithTopbarProbe();
 
-      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Edição detalhada');
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(
@@ -573,13 +686,12 @@ describe('HotsiteEditor', () => {
 
       await user.click(screen.getByTestId('module-config-cancel-desktop'));
 
-      expect(screen.getByTestId('probe-onback')).toHaveTextContent('none');
-      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('none');
+      expect(screen.getByTestId('probe-page-title')).toHaveTextContent('Edição detalhada');
     });
 
     it('opens every one of the other 7 module panels (each lazy-loaded via next/dynamic)', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
 
@@ -612,7 +724,7 @@ describe('HotsiteEditor', () => {
 
     it('editing a Branding field through HotsiteEditor updates the draft (setBranding)', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       const primaryColorInput = screen.getByTestId('hotsite-primary-color');
       await user.clear(primaryColorInput);
@@ -623,7 +735,7 @@ describe('HotsiteEditor', () => {
 
     it("toggling a module through HotsiteEditor's Layout tab updates the draft (setLayout)", async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       const heroToggle = screen.getByTestId('layout-row-toggle-HERO');
@@ -665,7 +777,7 @@ describe('HotsiteEditor', () => {
         ],
       };
       const user = userEvent.setup();
-      renderEditor(draftWithHeroEnabled);
+      renderDetailedEditor(draftWithHeroEnabled);
 
       await openHeroConfig(user);
       const titleInput = screen.getByLabelText('Título *');
@@ -679,14 +791,7 @@ describe('HotsiteEditor', () => {
 
     it('Back from that preview returns to the same module-config view with the edit intact', async () => {
       const user = userEvent.setup();
-      renderWithIntl(
-        withQueryClient(
-          <DashboardTopbarStatusProvider>
-            <TopbarOverrideProbe />
-            <HotsiteEditor initial={INITIAL} />
-          </DashboardTopbarStatusProvider>,
-        ),
-      );
+      renderDetailedEditorWithTopbarProbe();
 
       await openHeroConfig(user);
       const titleInput = screen.getByLabelText('Título *');
@@ -704,7 +809,7 @@ describe('HotsiteEditor', () => {
       mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
       mockPublishHotsite.mockResolvedValue({ isPublished: true });
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await openHeroConfig(user);
       const titleInput = screen.getByLabelText('Título *');
@@ -728,7 +833,7 @@ describe('HotsiteEditor', () => {
 
     it('blocks Publish from that preview when a lead-form question is invalid, and submits nothing', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await user.click(screen.getByRole('tab', { name: 'Layout' }));
       await user.click(
@@ -760,7 +865,7 @@ describe('HotsiteEditor', () => {
   describe('Discard-confirm on Cancelar / topbar back', () => {
     it('Cancelar with no edit navigates straight to tabs, no dialog', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await openHeroConfig(user);
       await user.click(screen.getByTestId('module-config-cancel-desktop'));
@@ -771,7 +876,7 @@ describe('HotsiteEditor', () => {
 
     it('Cancelar after an edit opens the dialog; confirming discards and returns to tabs', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await openHeroConfig(user);
       await user.type(screen.getByLabelText('Título *'), 'Editado');
@@ -787,7 +892,7 @@ describe('HotsiteEditor', () => {
 
     it('"Continuar editando" closes the dialog and keeps the edit intact on the same module-config view', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       await openHeroConfig(user);
       await user.type(screen.getByLabelText('Título *'), 'Editado');
@@ -805,14 +910,7 @@ describe('HotsiteEditor', () => {
     // opened, missing an edit made afterward.
     it('the topbar back arrow, invoked after an edit made post-open, still detects the edit as dirty', async () => {
       const user = userEvent.setup();
-      renderWithIntl(
-        withQueryClient(
-          <DashboardTopbarStatusProvider>
-            <TopbarOverrideProbe />
-            <HotsiteEditor initial={INITIAL} />
-          </DashboardTopbarStatusProvider>,
-        ),
-      );
+      renderDetailedEditorWithTopbarProbe();
 
       await openHeroConfig(user);
       await user.type(screen.getByLabelText('Título *'), 'Editado via topbar');
@@ -826,7 +924,7 @@ describe('HotsiteEditor', () => {
   describe('"Visitar site" link', () => {
     it('renders on the tabs view only, linking to the public hotsite in a new tab', async () => {
       const user = userEvent.setup();
-      renderEditor();
+      renderDetailedEditor();
 
       const desktopLink = screen.getByTestId('hotsite-view-live-site-desktop');
       expect(desktopLink.tagName).toBe('A');

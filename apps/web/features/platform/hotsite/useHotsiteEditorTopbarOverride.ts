@@ -60,9 +60,24 @@ function applyModuleConfigPreviewOverride(
   return () => clearOverrides(setters);
 }
 
+function applyDetailedTabsOverride(
+  onBackToVisual: () => void,
+  t: TranslateFn,
+  setters: OverrideSetters,
+): () => void {
+  setters.setOnBackOverride?.(() => onBackToVisual);
+  setters.setBackLabelOverride?.(t('visual.backToVisual'));
+  setters.setPageTitleOverride?.(t('visual.detailedTitle'));
+  return () => clearOverrides(setters);
+}
+
 interface UseHotsiteEditorTopbarOverrideParams {
   readonly configuringType: HotsiteModuleType | null;
   readonly isPreview: boolean;
+  // The detailed editor's tabbed view (not its Preview or module-config drill-down, which have
+  // their own back targets above).
+  readonly isDetailedTabs: boolean;
+  readonly onBackToVisual: () => void;
   readonly moduleConfigPreview: ModuleConfigPreviewState | null;
   readonly onBackToModuleConfigPreview: (state: ModuleConfigPreviewState) => void;
   readonly onBackToTabs: () => void;
@@ -76,6 +91,8 @@ interface UseHotsiteEditorTopbarOverrideParams {
 interface TopbarOverrideEffectState {
   readonly configuringType: HotsiteModuleType | null;
   readonly isPreview: boolean;
+  readonly isDetailedTabs: boolean;
+  readonly onBackToVisual: () => void;
   readonly moduleConfigPreview: ModuleConfigPreviewState | null;
   readonly onBackToModuleConfigPreview: (state: ModuleConfigPreviewState) => void;
   readonly onBackToTabs: () => void;
@@ -90,6 +107,8 @@ function runTopbarOverrideEffect(
   const {
     configuringType,
     isPreview,
+    isDetailedTabs,
+    onBackToVisual,
     moduleConfigPreview,
     onBackToModuleConfigPreview,
     onBackToTabs,
@@ -109,6 +128,9 @@ function runTopbarOverrideEffect(
       t,
       setters,
     );
+  }
+  if (isDetailedTabs) {
+    return applyDetailedTabsOverride(onBackToVisual, t, setters);
   }
   return undefined;
 }
@@ -135,6 +157,8 @@ export function useHotsiteEditorTopbarOverride(params: UseHotsiteEditorTopbarOve
         {
           configuringType: params.configuringType,
           isPreview: params.isPreview,
+          isDetailedTabs: params.isDetailedTabs,
+          onBackToVisual: params.onBackToVisual,
           moduleConfigPreview: params.moduleConfigPreview,
           onBackToModuleConfigPreview: params.onBackToModuleConfigPreview,
           onBackToTabs: params.onBackToTabs,
@@ -150,6 +174,8 @@ export function useHotsiteEditorTopbarOverride(params: UseHotsiteEditorTopbarOve
     [
       params.configuringType,
       params.isPreview,
+      params.isDetailedTabs,
+      params.onBackToVisual,
       params.moduleConfigPreview,
       params.onBackToModuleConfigPreview,
       params.onBackToTabs,

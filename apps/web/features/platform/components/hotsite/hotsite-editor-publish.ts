@@ -31,7 +31,10 @@ type PublishArgs = {
   readonly updateConfig: HotsiteMutation;
   readonly publishHotsite: PublishMutation;
   readonly setDraft: SetDraft;
-  readonly onTabs: () => void;
+  // Runs once a publish attempt settles, success or failure. The detailed editor uses it to leave
+  // its Preview / module-config drill-down for the tabs; the visual editor has nowhere to go, so
+  // it stays where it is.
+  readonly onSettled: () => void;
   readonly onBanner: (banner: ActionBanner) => void;
   // Called once a publish actually commits — clears the editor's own leadFormConfigDraft state
   // (HotsiteEditor.tsx). Without this, that draft is write-once-but-never-cleared: a later,
@@ -44,15 +47,15 @@ type PublishArgs = {
 };
 
 export async function executeHotsitePublish(args: PublishArgs): Promise<void> {
-  const { locale, publishHotsite, onTabs, onBanner, onLeadFormPublished } = args;
+  const { locale, publishHotsite, onSettled, onBanner, onLeadFormPublished } = args;
   try {
     await persistDraft(args);
     await publishHotsite.mutateAsync();
     onLeadFormPublished();
-    onTabs();
+    onSettled();
     onBanner({ kind: 'publish', status: 'success' });
   } catch (error) {
-    onTabs();
+    onSettled();
     onBanner({
       kind: 'publish',
       status: 'error',
