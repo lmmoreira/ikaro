@@ -51,6 +51,11 @@ const DRAFT: HotsiteAdminContentResponse = {
   updatedAt: '2026-07-01T00:00:00.000Z',
 };
 
+const DRAFT_WITH_CONTACT: HotsiteAdminContentResponse = {
+  ...DRAFT,
+  layout: [{ type: 'CONTACT', enabled: true, data: {} }],
+};
+
 function renderView(overrides: Partial<React.ComponentProps<typeof VisualHotsiteEditorView>> = {}) {
   const props = {
     draft: DRAFT,
@@ -196,6 +201,7 @@ describe('VisualHotsiteEditorView', () => {
   it('names the selected module in the preview status and the inspector, with an Edit in detail action', async () => {
     const user = userEvent.setup();
     const { props } = renderView({
+      draft: DRAFT_WITH_CONTACT,
       visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
     });
 
@@ -211,6 +217,27 @@ describe('VisualHotsiteEditorView', () => {
     expect(props.onEditInDetail).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['disabled', [{ type: 'CONTACT' as const, enabled: false, data: {} }]],
+    ['absent', []],
+  ])(
+    'treats a selected module that is %s in the draft as unselected, so nothing stale is named',
+    (_label, layout) => {
+      renderView({
+        draft: { ...DRAFT, layout },
+        visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
+      });
+
+      expect(screen.getByTestId('mock-canvas')).toHaveAttribute('data-selected', '');
+      expect(screen.getByTestId('visual-preview-status')).toHaveTextContent(
+        'Rascunho — selecione uma seção da prévia',
+      );
+      expect(screen.getByTestId('visual-inspector')).toHaveTextContent(
+        'Selecione uma seção da prévia para ver os detalhes.',
+      );
+    },
+  );
+
   it('resets only the inspector scroll to the top when the context changes, never the window', () => {
     const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => {});
     const { rerender, props } = renderView();
@@ -220,6 +247,7 @@ describe('VisualHotsiteEditorView', () => {
     rerender(
       <VisualHotsiteEditorView
         {...props}
+        draft={DRAFT_WITH_CONTACT}
         visualContext={{ kind: 'module', type: 'CONTACT', localData: {} }}
       />,
     );
@@ -231,6 +259,7 @@ describe('VisualHotsiteEditorView', () => {
 
   it('has no accessibility violations', async () => {
     const { container } = renderView({
+      draft: DRAFT_WITH_CONTACT,
       visualContext: { kind: 'module', type: 'CONTACT', localData: {} },
     });
 

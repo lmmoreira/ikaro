@@ -26,6 +26,20 @@ interface VisualHotsiteEditorViewProps {
   readonly onPublish: () => void;
 }
 
+// The visual context survives a visual -> detailed -> visual round trip, and the manager can
+// disable the selected module in between. A module the preview no longer renders cannot stay
+// selected, or the status line and inspector would name a section that is not on the page.
+function effectiveContext(
+  visualContext: VisualContext,
+  layout: HotsiteAdminContentResponse['layout'],
+): VisualContext {
+  if (visualContext.kind !== 'module') return visualContext;
+  const stillRendered = layout.some(
+    (module) => module.type === visualContext.type && module.enabled,
+  );
+  return stillRendered ? visualContext : { kind: 'structure' };
+}
+
 interface InspectorProps {
   readonly visualContext: VisualContext;
   readonly onEditInDetail: () => void;
@@ -80,7 +94,7 @@ function VisualInspector({ visualContext, onEditInDetail }: InspectorProps): Rea
 // draft or navigation state — HotsiteEditor passes both in.
 export function VisualHotsiteEditorView({
   draft,
-  visualContext,
+  visualContext: requestedContext,
   actionBanner,
   tenantSlug,
   isPublishing,
@@ -89,6 +103,7 @@ export function VisualHotsiteEditorView({
   onPublish,
 }: VisualHotsiteEditorViewProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage');
+  const visualContext = effectiveContext(requestedContext, draft.layout);
   const selectedType = visualContext.kind === 'module' ? visualContext.type : null;
   const liveSiteHref = `/${tenantSlug}`;
 
@@ -98,11 +113,8 @@ export function VisualHotsiteEditorView({
         <HotsiteActionBanner banner={actionBanner} tenantSlug={tenantSlug} />
       </div>
 
-      <div
-        role="group"
-        aria-label={t('visual.commandsLabel')}
-        className="flex flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white p-3"
-      >
+      <fieldset className="flex min-w-0 flex-wrap items-center gap-2 rounded-md border border-gray-200 bg-white p-3">
+        <legend className="sr-only">{t('visual.commandsLabel')}</legend>
         {PENDING_CONTEXT_COMMANDS.map((command) => (
           <Button
             key={command}
@@ -145,7 +157,7 @@ export function VisualHotsiteEditorView({
             {t('visual.commands.publish')}
           </Button>
         </div>
-      </div>
+      </fieldset>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <section

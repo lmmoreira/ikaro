@@ -16,7 +16,7 @@ Backend and BFF are both fully implemented and `MANAGER`-guarded (confirmed via 
 
 | Prototype file | Production route | Page component |
 |---|---|---|
-| `01-hotsite-editor.html` | `/dashboard/hotsite` (no `[slug]` segment) | `HotsiteEditor` (tabbed: Branding / Layout / SEO / Manifest) |
+| `01-hotsite-editor.html` | `/dashboard/hotsite` (no `[slug]` segment) | `HotsiteEditor` — opens in `VisualHotsiteEditorView` (TD55-S01); the tabbed Branding / Layout / SEO / Manifest editor (`HotsiteEditorMainView`) is behind "Editar em detalhes", with "Voltar à edição visual" in the dashboard topbar |
 | `01d-module-config-hero.html` | drill-down within editor (no separate route) | `HeroConfigPanel`, inside `ModuleConfigShell` (there is no `ModuleConfigPanel` component: the shell is `ModuleConfigShell.tsx` and each module type has its own `<Type>ConfigPanel.tsx`, all in `apps/web/features/platform/components/hotsite/modules/`) |
 | `01e-module-config-chatbot.html` | drill-down within editor (no separate route) | `ChatbotConfigPanel` (shipped `M19-S12`) |
 | `02-preview.html` | in-editor preview (no separate app route; see "preview semantics" below) | `HotsitePreview` |
