@@ -72,7 +72,7 @@ The preview canvas renders the real public module components. Each module is wra
 
 ## Stories
 
-### Story 1 — Make the persistent visual-editor frame the default
+### Story 1 — Make the persistent visual-editor frame the default ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L (discovery decided: one story, one PR — the canvas extraction and test re-pointing are mostly mechanical moves the frame cannot land without)
