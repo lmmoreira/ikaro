@@ -784,7 +784,11 @@ Reconciling the six template manifests with their prototype HTML (done template 
 | G13 | Origem: a section with only a quote and no heading | an absent title shows a default heading | **Add**: an explicit empty `title` hides the heading |
 | G14 | Header and footer colours (Origem's header was invisible; dark footers in three prototypes) | bar, navigation and footer use `--ba-secondary` / `--ba-text` directly | **Add** contrast-safe tokens (fix); optional footer surface |
 | G15 | Origem: a hero title with a line break | plain string titles | **Accept** |
-| G16+ | *appended from the Clínica Lume and Lume Studio reconciliations* | | |
+| G16 | Clínica Lume: specialty cards as transparent columns with a 1 px vertical rule, a "01" marker and a "COMEÇAR →" link | `grid` cards are filled, with radius and shadow and a button-style action | **Add** a `ruled` value to G1's `cardTone` |
+| G17 | Clínica Lume: process steps with column dividers and a teal "01 · ESCUTA" label | big faint number, no dividers, no label | **Add** `appearance: 'ruled'` and an optional per-step `label` |
+| G18 | Clínica Lume: hero media filling half the section edge to edge | photo panel inside the content width | **Accept** |
+| G19 | Mimo Pet: pill buttons with 24-28 px card and image corners | one `--ba-radius` for everything; `pill` makes cards capsules | **Add** an optional `buttonRadius` and a `soft` surface radius |
+| G20+ | *appended if further gaps are found after the visual review of all six* | | |
 
 **Gap details (read before implementing; one subsection per register row).** Each row states the prototype evidence, today's engine behaviour (file:line, verified 2026-10-23), the target, the exact contract change, the renderer change, the fixtures to update and the tests. Rows marked **Accept** have no engine work; they are recorded so nobody re-opens them. `/story-discovery` confirms the *Decision* of every row with the product owner before any code is written; the *Proposed decision* is the default. Common rules for every **Add**: the new field is optional, additive and closed (enum/bounded); an omitted field renders **identically to today** (pin it with a markup-equality test); all copies of the contract change together (see *Closed-enum copies*); the guided control is added by Story 5 (or by this story if it merges after Story 5); and the field is documented in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 4. Module Data Contracts (TypeScript).
 
@@ -827,7 +831,7 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - *Fixtures:* the six manifests use the number of images their prototype shows (Casa 47, BeloAuto, Mimo Pet, Origem, Clínica Lume: 4; Lume Studio: 3) and Lume Studio switches from `portfolio` to `featured`.
 - *Tests:* renderer test per image count (areas assigned, no empty cell, `grid` fallback below three); the gallery config panel gate; **negative guarantee** — a five-image `featured` gallery renders exactly as today.
 
-**G6 — Hero copy on the left over a full-bleed photo — Accept.** `left-aligned` (`HeroModule.tsx`, lines ~188-243) draws its photo only as the right-hand panel. The supported combination is `variant: 'centered'` + `contentPositionX: 'left'` (+ `contentPositionY`) + `backgroundImageUrl` + `presentation.overlay` (`HeroCentered`, lines ~107-160, paints `backgroundImageUrl` full-bleed). Used by the Mimo Pet and BeloAuto manifests. Document it in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`.
+**G6 — Hero copy on the left over a full-bleed photo — Accept.** `left-aligned` (`HeroModule.tsx`, lines ~188-243) draws its photo only as the right-hand panel. The supported combination is `variant: 'centered'` + `contentPositionX: 'left'` (+ `contentPositionY`) + `backgroundImageUrl` + `presentation.overlay` (`HeroCentered`, lines ~107-160, paints `backgroundImageUrl` full-bleed). Used by the Mimo Pet and BeloAuto heroes. **The same rule holds for `BOOKING_CTA`** (`BookingCtaModule.tsx` lines ~100-150: `left-aligned` draws the photo as a rounded right-hand panel; `centered` + `contentPositionX` paints it full-bleed behind the copy), used by the Casa 47, BeloAuto, Mimo Pet, Origem and Clínica Lume booking sections (found live on Clínica Lume, 2026-10-23). Document both in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`.
 
 **G7 — Heading case and weight (BeloAuto identity).**
 - *Prototype:* `.auto h1,.auto h2{font-family:Montserrat;font-weight:900;text-transform:uppercase}`; Casa/Origem use Playfair 500, Mimo Manrope 800.
@@ -870,6 +874,32 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - *Tests:* header, navigation and footer text contrast over all six template palettes and over a `textColor == secondaryColor` palette; **negative guarantee** — existing palettes that already contrast render unchanged. *Decision:* **Add (a)**; (b) per product owner.
 
 **G15 — Hero title line break — Accept.** The prototype breaks "Um tempo inteiro / para você." over two lines; titles are plain strings.
+
+**G16 — Specialty cards with vertical rules and number markers (extends G1).**
+- *Prototype:* `clinica-lume.html` `.clinic-specialties` (3 columns) with `.specialty{padding:28px;border-left:1px solid #9bc8d2}` — transparent cards separated by a 1 px vertical rule, a teal "01/02/03" marker, the title, one line of copy and a teal "COMEÇAR →" link.
+- *Engine today:* `ServiceListCards.tsx` — `ServiceCard` (line 52) is a filled card with radius and shadow; no rules, no marker; the action link renders as a bordered button (`data-testid="service-action"`).
+- *Target:* a third value for G1's `cardTone`: `'ruled'` (`'plain' | 'tinted' | 'ruled'`, default `plain`). `ruled` = transparent background, no radius or shadow, a 1 px left rule in the section divider colour on every card but the first, a small primary-colour index marker ("01") above the title, and the action rendered as a text link in the primary colour.
+- *Contract:* the same `SERVICE_LIST.data.cardTone` field as G1 (one field, three values); copies as in G1.
+- *Fixtures:* `manifesto-clinica-lume.json` SERVICE_LIST `cardTone: 'ruled'`, `cardColumns` is not needed (`grid` is already three columns).
+- *Tests:* as G1, plus the rule/marker/link rendering; **negative guarantee** — `plain` unchanged.
+
+**G17 — Process steps with column dividers and a step label.**
+- *Prototype:* `clinica-lume.html` `.clinic-process-grid` — three columns with `border-top`/`border-bottom` on the grid and `border-left:1px solid #9bc8d2` between the columns; each step has a teal kicker "01 · ESCUTA", a bold line and a short paragraph.
+- *Engine today:* `ContentBlockModule.tsx` lines 131-150 — `process-steps` renders a large faint "01" (`text-4xl font-light opacity-50`), the title and the body, in plain columns without dividers; a step has only `title` and `body`.
+- *Target:* optional `appearance` (`'plain' | 'ruled'`, default `'plain'` = today) on the `process-steps` variant (`ruled` = the top/bottom rules and column dividers), and an optional `label` per step (≤ 30 characters) that, when present, renders as "01 · LABEL" in the primary colour in place of the large number.
+- *Contract:* the strict `CONTENT_BLOCK` `process-steps` shape in `packages/types/src/hotsite-schemas.ts` (`appearance`, and `label` on the item).
+- *Fixtures:* `manifesto-clinica-lume.json` CONTENT_BLOCK `appearance: 'ruled'` and labels "Escuta", "Orientação", "Continuidade"; `manifesto-lume-studio.json` is unaffected (it uses `collage-callout`).
+- *Tests:* strict-shape accept/reject (label length, enum); renderer for `ruled`, with and without labels; **negative guarantee** — a `process-steps` block without the new fields is unchanged.
+
+**G18 — Hero media filling half the section edge to edge — Accept.** `clinica-lume.html` `.clinic-hero` is a `.split` whose media fills half the section; the engine's `left-aligned` hero places the photo as a rounded panel inside the content width (same family as G3, for the hero). The look is close enough; revisit only if G3's `bleed` pattern is extended to the hero.
+
+**G19 — One corner-radius token for buttons and surfaces.**
+- *Prototype:* Mimo Pet has pill buttons (`.pet .cta{border-radius:999px}`) but 24-28 px corners on cards, gallery images, testimonials and contact cards (`.pet-card{border-radius:28px}`, `.pet-gallery img,.pet .testimonial,.pet .contact-card{border-radius:24px}`); Clínica Lume has 8 px buttons and 12 px surfaces; Casa 47, BeloAuto, Origem and Lume Studio are square.
+- *Engine today:* `branding.borderRadius` is `sharp | rounded | pill` mapped to `0px | 8px | 9999px` in one CSS variable, `--ba-radius` (`apps/web/features/platform/hotsite/apply-branding.ts:6,176`), and every card, image tile and button reads that same variable. `pill` therefore turns every card and image into a capsule (found live on Mimo Pet, 2026-10-23), so the Mimo Pet manifest uses `rounded` as an interim.
+- *Target:* split the two roles. Add an optional `buttonRadius` (`'sharp' | 'rounded' | 'pill'`, default = follows `borderRadius`, i.e. today's behaviour) and extend `borderRadius` with `'soft'` (24 px) for surfaces. Exposed as `--ba-btn-radius` alongside `--ba-radius`; the button styles in the hotsite modules (`border-radius: var(--ba-radius)` on every CTA) switch to `--ba-btn-radius`.
+- *Contract:* branding is a closed object — `packages/types/src/hotsite.ts`, `packages/validation/src/hotsite.ts` (`HotsiteBrandingSchema`), the backend aggregate and mapper, the BFF response; the branding tab control is Story 5's.
+- *Fixtures:* Mimo Pet `borderRadius: 'soft'`, `buttonRadius: 'pill'`; Clínica Lume `borderRadius: 'rounded'` with 8 px buttons is already close.
+- *Tests:* schema accept/reject in every copy; `apply-branding` emits both variables; **negative guarantee** — a branding without `buttonRadius` renders buttons with the same radius as surfaces, as today.
 
 **Order of work inside this story** (once the decisions are confirmed): (1) the shared `sectionTints` helper and the G14 contrast fix (they affect rendering for everything else); (2) contract changes, one gap at a time, in every copy with the parity spec; (3) renderers with their tests, each including the negative-guarantee test; (4) update the six `manifesto-*.json` fixtures to use the new fields and extend `apps/web/e2e/hotsite-templates.spec.ts` to assert them; (5) document the new fields and the G6 combination in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`. Keep one commit per gap.
 

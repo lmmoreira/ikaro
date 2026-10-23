@@ -9,7 +9,7 @@
     "textColor": "#3C2A24",
     "headingFontFamily": "Poppins",
     "bodyFontFamily": "Lato",
-    "borderRadius": "pill",
+    "borderRadius": "rounded",
     "buttonStyle": "filled",
     "buttonBackgroundColor": "#E87959",
     "buttonTextColor": "#FFFFFF",
@@ -215,7 +215,7 @@
       "type": "BOOKING_CTA",
       "enabled": true,
       "data": {
-        "variant": "left-aligned",
+        "variant": "centered",
         "title": "Vamos cuidar do seu melhor amigo?",
         "subtitle": "O agendamento começa pelo serviço e segue com as etapas adequadas para o seu pet.",
         "eyebrow": "É SÓ ESCOLHER",
@@ -224,7 +224,6 @@
         "backgroundImagePosition": "center",
         "datePickerType": "calendar",
         "bgStyle": "primary",
-        "rightPanel": "none",
         "contentPositionX": "left",
         "contentPositionY": "center"
       },
