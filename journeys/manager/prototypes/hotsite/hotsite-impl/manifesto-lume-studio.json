@@ -3,16 +3,16 @@
     "brandName": "LUME STUDIO",
     "brandTagline": "Fotografia e direção criativa",
     "logoUrl": "",
-    "primaryColor": "#C8FF4A",
-    "secondaryColor": "#302747",
-    "backgroundColor": "#16131F",
-    "textColor": "#FCF9FF",
-    "headingFontFamily": "Oswald",
+    "primaryColor": "#C5FF4A",
+    "secondaryColor": "#211A31",
+    "backgroundColor": "#171321",
+    "textColor": "#F5F1FF",
+    "headingFontFamily": "Montserrat",
     "bodyFontFamily": "Raleway",
     "borderRadius": "sharp",
     "buttonStyle": "filled",
-    "buttonBackgroundColor": "#C8FF4A",
-    "buttonTextColor": "#16131F",
+    "buttonBackgroundColor": "#C5FF4A",
+    "buttonTextColor": "#171321",
     "spacing": "comfortable",
     "shadowStyle": "strong",
     "heroBgStyle": "background",
@@ -22,9 +22,26 @@
   "layout": [
     {
       "type": "NAVIGATION",
-      "enabled": false,
+      "enabled": true,
       "data": {
-        "items": []
+        "items": [
+          {
+            "label": "Portfólio",
+            "target": "gallery"
+          },
+          {
+            "label": "Serviços",
+            "target": "service-list"
+          },
+          {
+            "label": "Estúdio",
+            "target": "about"
+          },
+          {
+            "label": "Contato",
+            "target": "contact"
+          }
+        ]
       }
     },
     {
@@ -33,59 +50,31 @@
       "data": {
         "variant": "immersive",
         "title": "Imagens que deixam uma marca.",
-        "subtitle": "Fotografia, direção e conteúdo para negócios que querem ser lembrados.",
-        "eyebrow": "FOTOGRAFIA E DIREÇÃO CRIATIVA",
+        "eyebrow": "FOTOGRAFIA & DIREÇÃO CRIATIVA",
         "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/hero.png",
-        "backgroundImagePosition": "right",
+        "backgroundImagePosition": "center",
         "contentPositionX": "left",
         "contentPositionY": "bottom",
         "ctaLabel": "Ver portfólio",
-        "ctaTarget": "gallery",
-        "rightPanel": "none"
+        "ctaTarget": "gallery"
       },
       "presentation": {
+        "minHeight": "lg",
         "overlay": {
           "type": "linear-gradient",
           "direction": "to-top",
-          "fromColor": "#16131F",
-          "fromOpacity": 0.8,
-          "toColor": "#16131F",
-          "toOpacity": 0.2
+          "fromColor": "#171321",
+          "fromOpacity": 0.91,
+          "toColor": "#171321",
+          "toOpacity": 0
         }
-      }
-    },
-    {
-      "type": "CONTENT_BLOCK",
-      "enabled": true,
-      "data": {
-        "variant": "process-steps",
-        "eyebrow": "COMO TRABALHAMOS",
-        "title": "Da ideia ao quadro final.",
-        "items": [
-          {
-            "title": "Conversa",
-            "body": "Entendemos a ideia e o objetivo do projeto."
-          },
-          {
-            "title": "Direção",
-            "body": "Definimos referências, luz e enquadramento."
-          },
-          {
-            "title": "Entrega",
-            "body": "Tratamos e entregamos o material final."
-          }
-        ]
-      },
-      "presentation": {
-        "surface": "secondary",
-        "padding": "spacious"
       }
     },
     {
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Trabalhos em foco",
+        "title": "Trabalhos em foco.",
         "eyebrow": "PORTFÓLIO",
         "images": [
           {
@@ -114,23 +103,57 @@
             "source": "upload"
           }
         ],
-        "layout": "portfolio",
+        "layout": "featured",
         "featuredPosition": "left",
         "maxVisible": 5
       },
       "presentation": {
-        "contentWidth": "full"
+        "surface": "custom",
+        "customColor": "#C5FF4A"
       }
     },
     {
       "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "Projetos que fazemos",
+        "title": "Projetos que fazemos.",
         "eyebrow": "DO CONCEITO À ENTREGA",
         "showPrices": false,
         "showPoints": false,
         "layout": "grid"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#211A31"
+      }
+    },
+    {
+      "type": "CONTENT_BLOCK",
+      "enabled": true,
+      "data": {
+        "variant": "collage-callout",
+        "eyebrow": "NÃO É SÓ FOTOGRAFAR",
+        "title": "Uma direção para cada imagem.",
+        "body": "Cada projeto começa por uma ideia e termina em uma imagem que fica.",
+        "align": "left",
+        "images": [
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-2.png",
+            "alt": "Objeto editorial"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-3.png",
+            "alt": "Estudo de movimento"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
+            "alt": "Bastidores do estúdio"
+          }
+        ]
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#C5FF4A"
       }
     },
     {
@@ -138,10 +161,44 @@
       "enabled": true,
       "data": {
         "title": "Uma ideia bem enquadrada.",
-        "eyebrow": "SOBRE O LUME",
-        "body": "Estratégia, direção e execução em um mesmo estúdio. A gente transforma ideias em imagens que geram presença.",
+        "eyebrow": "SOBRE O ESTÚDIO",
+        "body": "Estratégia, direção e execução em um mesmo estúdio.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
-        "imagePosition": "left"
+        "imagePosition": "left",
+        "variant": "split"
+      },
+      "presentation": {
+        "surface": "background"
+      }
+    },
+    {
+      "type": "TESTIMONIALS",
+      "enabled": true,
+      "data": {
+        "title": "Quem já criou com a gente.",
+        "eyebrow": "PARCERIAS QUE FICAM",
+        "layout": "grid",
+        "items": [
+          {
+            "authorName": "Ana, marca Aurora",
+            "text": "Traduziram exatamente a energia da marca.",
+            "rating": 5
+          },
+          {
+            "authorName": "Caio, Estúdio Norte",
+            "text": "Processo claro e resultado autoral.",
+            "rating": 5
+          },
+          {
+            "authorName": "Laís, marca Noma",
+            "text": "As imagens mudaram nossa presença.",
+            "rating": 5
+          }
+        ]
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#F5F1FF"
       }
     },
     {
@@ -156,6 +213,17 @@
         "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/lead.png",
         "backgroundImagePosition": "right",
         "bgStyle": "background"
+      },
+      "presentation": {
+        "minHeight": "md",
+        "overlay": {
+          "type": "linear-gradient",
+          "direction": "to-right",
+          "fromColor": "#171321",
+          "fromOpacity": 1,
+          "toColor": "#171321",
+          "toOpacity": 0.33
+        }
       }
     },
     {
@@ -164,22 +232,26 @@
       "data": {
         "title": "Vamos conversar sobre seu projeto.",
         "eyebrow": "CAFÉ, IDEIAS E PRÓXIMOS PASSOS",
-        "showAddress": false,
+        "showAddress": true,
         "showPhone": false,
-        "showWhatsapp": true,
+        "showWhatsapp": false,
         "showEmail": true,
         "showMap": false,
         "showInstagram": true,
         "showFacebook": false,
         "displayStyle": "icon-cards",
         "whatsappCtaLabel": "Chamar no WhatsApp"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#C5FF4A"
       }
     },
     {
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Lume Studio · Fotografia e direção criativa",
+        "tagline": "Fotografia e direção criativa",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
       }
@@ -195,27 +267,6 @@
       }
     },
     {
-      "type": "TESTIMONIALS",
-      "enabled": false,
-      "data": {
-        "title": "Parcerias que ficam",
-        "eyebrow": "QUEM JÁ CRIOU COM A GENTE",
-        "layout": "grid",
-        "items": [
-          {
-            "authorName": "Ana, marca Aurora",
-            "text": "O Lume traduziu exatamente a energia que a nossa marca precisava.",
-            "rating": 5
-          },
-          {
-            "authorName": "Caio, Estúdio Norte",
-            "text": "Processo claro e resultado muito acima do esperado.",
-            "rating": 5
-          }
-        ]
-      }
-    },
-    {
       "type": "BOOKING_CTA",
       "enabled": false,
       "data": {
@@ -227,6 +278,6 @@
   "seo": {
     "title": "Lume Studio — Fotografia e direção criativa",
     "description": "Fotografia, direção e conteúdo para negócios que querem ser lembrados.",
-    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/og.png"
+    "ogImageUrl": ""
   }
 }

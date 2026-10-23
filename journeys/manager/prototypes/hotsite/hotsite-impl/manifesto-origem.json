@@ -3,16 +3,16 @@
     "brandName": "ORIGEM",
     "brandTagline": "Studio de bem-estar",
     "logoUrl": "",
-    "primaryColor": "#D9B98D",
-    "secondaryColor": "#23483D",
-    "backgroundColor": "#18352E",
-    "textColor": "#F8F3EA",
+    "primaryColor": "#7A684D",
+    "secondaryColor": "#E9E3D6",
+    "backgroundColor": "#E9E3D6",
+    "textColor": "#26372F",
     "headingFontFamily": "Playfair Display",
     "bodyFontFamily": "Lato",
-    "borderRadius": "rounded",
-    "buttonStyle": "filled",
-    "buttonBackgroundColor": "#D9B98D",
-    "buttonTextColor": "#18352E",
+    "borderRadius": "sharp",
+    "buttonStyle": "outline",
+    "buttonBackgroundColor": "#26372F",
+    "buttonTextColor": "#26372F",
     "spacing": "spacious",
     "shadowStyle": "none",
     "heroBgStyle": "background",
@@ -22,9 +22,22 @@
   "layout": [
     {
       "type": "NAVIGATION",
-      "enabled": false,
+      "enabled": true,
       "data": {
-        "items": []
+        "items": [
+          {
+            "label": "O espaço",
+            "target": "about"
+          },
+          {
+            "label": "Rituais",
+            "target": "service-list"
+          },
+          {
+            "label": "Contato",
+            "target": "contact"
+          }
+        ]
       }
     },
     {
@@ -35,18 +48,14 @@
         "title": "Um tempo inteiro para você.",
         "subtitle": "Rituais de bem-estar que respeitam seu corpo, seu ritmo e sua rotina.",
         "eyebrow": "PAUSE · RESPIRE · RECOMECE",
-        "backgroundImageUrl": null,
         "contentPositionX": "center",
         "contentPositionY": "center",
         "ctaLabel": "Conhecer rituais",
-        "ctaTarget": "service-list",
-        "secondaryCtaLabel": "Sobre o espaço",
-        "secondaryCtaTarget": "about",
-        "rightPanel": "none"
+        "ctaTarget": "service-list"
       },
       "presentation": {
-        "minHeight": "viewport",
-        "padding": "spacious"
+        "surface": "background",
+        "minHeight": "lg"
       }
     },
     {
@@ -54,22 +63,15 @@
       "enabled": true,
       "data": {
         "title": "Bem-estar é presença.",
-        "eyebrow": "O ESPAÇO ORIGEM",
-        "body": "Um espaço calmo, técnica cuidadosa e escuta de verdade.\n\n- Atendimento individual\n- Produtos naturais\n- Tempo reservado para você",
+        "eyebrow": "O ESPAÇO",
+        "body": "Um espaço calmo, técnica cuidadosa, produtos naturais e escuta de verdade.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png",
         "imagePosition": "left",
-        "variant": "editorial"
-      }
-    },
-    {
-      "type": "SERVICE_LIST",
-      "enabled": true,
-      "data": {
-        "title": "Rituais para o seu momento",
-        "eyebrow": "BEM-ESTAR COM INTENÇÃO",
-        "showPrices": false,
-        "showPoints": false,
-        "layout": "numbered"
+        "variant": "split"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#26372F"
       }
     },
     {
@@ -77,95 +79,50 @@
       "enabled": true,
       "data": {
         "variant": "immersive-statement",
-        "eyebrow": "RESPIRE",
-        "title": "Desacelerar também é cuidado.",
-        "body": "Um intervalo inteiro para você, sem pressa."
+        "eyebrow": "UMA PAUSA NÃO PRECISA SER PEQUENA",
+        "title": "O corpo entende quando há espaço.",
+        "body": "Um intervalo inteiro, sem pressa, para respirar fundo e recomeçar.",
+        "align": "center"
       },
       "presentation": {
         "background": {
-          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png"
+          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-1.png"
         },
         "overlay": {
           "type": "linear-gradient",
-          "direction": "to-top",
+          "direction": "to-bottom",
           "fromColor": "#18352E",
-          "fromOpacity": 0.8,
+          "fromOpacity": 0.86,
           "toColor": "#18352E",
-          "toOpacity": 0.35
+          "toOpacity": 0.74
         },
-        "minHeight": "viewport"
+        "minHeight": "md",
+        "surface": "custom",
+        "customColor": "#18352E"
       }
     },
     {
-      "type": "TESTIMONIALS",
+      "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "Presença que permanece",
-        "eyebrow": "DEPOIMENTOS",
-        "items": [
-          {
-            "authorName": "Marina A.",
-            "text": "Cuidar de si também é criar espaço para o que importa.",
-            "rating": 5
-          },
-          {
-            "authorName": "Renata P.",
-            "text": "Saí leve, respeitada e com vontade de voltar.",
-            "rating": 5
-          }
-        ],
-        "layout": "editorial-quote"
-      }
-    },
-    {
-      "type": "BOOKING_CTA",
-      "enabled": true,
-      "data": {
-        "variant": "centered",
-        "title": "Reserve seu momento.",
-        "subtitle": "Escolha seu ritual e encontre uma pausa na sua semana.",
-        "eyebrow": "A SUA PAUSA COMEÇA AQUI",
-        "ctaLabel": "Ver agenda",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png",
-        "backgroundImagePosition": "center",
-        "datePickerType": "calendar",
-        "bgStyle": "background",
-        "rightPanel": "none",
-        "contentPositionX": "center",
-        "contentPositionY": "center"
-      }
-    },
-    {
-      "type": "CONTACT",
-      "enabled": true,
-      "data": {
-        "title": "Conheça o nosso espaço",
-        "eyebrow": "VEM RESPIRAR COM A GENTE",
-        "showAddress": true,
-        "showPhone": false,
-        "showWhatsapp": true,
-        "showEmail": true,
-        "showMap": true,
-        "showInstagram": true,
-        "showFacebook": false,
-        "displayStyle": "list",
-        "whatsappCtaLabel": "Falar com a Origem"
-      }
-    },
-    {
-      "type": "FOOTER",
-      "enabled": true,
-      "data": {
-        "tagline": "Origem · Studio de bem-estar",
-        "copyrightNote": "Todos os direitos reservados.",
-        "showWhatsapp": true
+        "title": "Rituais para voltar ao eixo.",
+        "eyebrow": "BEM-ESTAR COM INTENÇÃO",
+        "showPrices": false,
+        "showPoints": false,
+        "layout": "numbered",
+        "itemAction": "booking",
+        "itemCtaLabel": "Agendar"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#EEE9DF"
       }
     },
     {
       "type": "GALLERY",
-      "enabled": false,
+      "enabled": true,
       "data": {
-        "title": "Um espaço que desacelera",
+        "title": "Um espaço que desacelera.",
         "eyebrow": "TEXTURAS DA PAUSA",
         "images": [
           {
@@ -196,7 +153,88 @@
         ],
         "layout": "featured",
         "maxVisible": 5,
-        "featuredPosition": "right"
+        "featuredPosition": "left"
+      },
+      "presentation": {
+        "surface": "background"
+      }
+    },
+    {
+      "type": "TESTIMONIALS",
+      "enabled": true,
+      "data": {
+        "title": "Presença que permanece",
+        "eyebrow": "DEPOIMENTO",
+        "items": [
+          {
+            "authorName": "Marina A.",
+            "text": "Cuidar de si também é criar espaço para o que importa.",
+            "rating": 5
+          }
+        ],
+        "layout": "editorial-quote"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#B7AA8E"
+      }
+    },
+    {
+      "type": "BOOKING_CTA",
+      "enabled": true,
+      "data": {
+        "variant": "centered",
+        "title": "Reserve seu momento.",
+        "subtitle": "Escolha o ritual e siga para o agendamento completo.",
+        "eyebrow": "A SUA PAUSA COMEÇA AQUI",
+        "ctaLabel": "Ver agenda",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png",
+        "backgroundImagePosition": "center",
+        "datePickerType": "calendar",
+        "bgStyle": "background",
+        "rightPanel": "none",
+        "contentPositionX": "center",
+        "contentPositionY": "center"
+      },
+      "presentation": {
+        "minHeight": "md",
+        "overlay": {
+          "type": "solid",
+          "color": "#16231D",
+          "opacity": 0.71
+        },
+        "surface": "custom",
+        "customColor": "#16231D"
+      }
+    },
+    {
+      "type": "CONTACT",
+      "enabled": true,
+      "data": {
+        "title": "Venha nos visitar.",
+        "eyebrow": "ESTAMOS POR PERTO",
+        "showAddress": true,
+        "showPhone": false,
+        "showWhatsapp": true,
+        "showEmail": false,
+        "showMap": false,
+        "showInstagram": false,
+        "showFacebook": false,
+        "displayStyle": "icon-cards",
+        "whatsappCtaLabel": "Falar com a gente"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#26372F"
+      }
+    },
+    {
+      "type": "FOOTER",
+      "enabled": true,
+      "data": {
+        "tagline": "Studio de bem-estar",
+        "copyrightNote": "Todos os direitos reservados.",
+        "showWhatsapp": true
       }
     },
     {
@@ -216,6 +254,6 @@
   "seo": {
     "title": "Origem — Studio de bem-estar",
     "description": "Rituais de bem-estar para respeitar seu ritmo e sua rotina.",
-    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/og.png"
+    "ogImageUrl": ""
   }
 }
