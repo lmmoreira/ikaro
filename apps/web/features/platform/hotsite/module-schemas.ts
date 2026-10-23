@@ -1,36 +1,33 @@
 import { z } from 'zod';
+import {
+  ContentBlockModuleDataSchema,
+  HotsiteCtaTargetSchema,
+  NavigationModuleDataSchema,
+  ServiceDetailPageSettingsSchema,
+} from '@ikaro/types';
 import type {
   AboutModuleData,
   BookingCtaModuleData,
   ChatbotModuleData,
   ContactModuleData,
-  ContentBlockModuleData,
   FooterModuleData,
   GalleryImage,
   GalleryModuleData,
   HeroModuleData,
   HotsiteModuleType,
   LeadFormModuleData,
-  NavigationModuleData,
   ServiceListModuleData,
   Testimonial,
   TestimonialsModuleData,
 } from '@ikaro/types';
 
-const CTA_TARGET = z.enum([
-  'booking-form',
-  'service-list',
-  'gallery',
-  'testimonials',
-  'about',
-  'contact',
-]);
+const CTA_TARGET = HotsiteCtaTargetSchema;
 
 const SECTION_VARIANT = z.enum(['centered', 'left-aligned', 'immersive']);
 
-// Independent mirror of @ikaro/validation's hotsite-modules.ts (apps/web must never import that
-// package). Every case in @ikaro/types/testing/hotsite-module-contract is run against both sets in
-// their specs, so a rule changed in one and not the other fails a test.
+// Independent mirror of the older modules in @ikaro/validation's hotsite-modules.ts (apps/web must
+// never import that package). Every case in @ikaro/types/testing/hotsite-module-contract is run
+// against both sets in their specs, so a rule changed in one and not the other fails a test.
 
 // Mirrors HeroModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
 export const HeroModuleDataSchema = z.object({
@@ -59,16 +56,7 @@ export const ServiceListModuleDataSchema = z.object({
   itemAction: z.enum(['details', 'booking', 'none']).optional(),
   itemCtaLabel: z.string().max(40).optional(),
   // A closed set (adding a field later is a new story), so unknown keys are rejected.
-  detailPage: z
-    .strictObject({
-      heroStyle: z.enum(['cover', 'compact']),
-      galleryLayout: z.enum(['grid', 'featured']),
-      showPrice: z.boolean(),
-      showDuration: z.boolean(),
-      showLoyaltyPoints: z.boolean(),
-      bookingCtaLabel: z.string().max(40).optional(),
-    })
-    .optional(),
+  detailPage: ServiceDetailPageSettingsSchema.optional(),
 }) satisfies z.ZodType<ServiceListModuleData>;
 
 // Mirrors GalleryImage (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -179,68 +167,9 @@ export const LeadFormModuleDataSchema = z.object({
   bgStyle: z.enum(['primary', 'background']).optional(),
 }) satisfies z.ZodType<LeadFormModuleData>;
 
-// Mirrors NavigationModuleData (packages/types/src/hotsite.ts). Strict: no stored manifest can hold
-// an unknown key yet. That every target is an ENABLED module is a whole-layout rule the backend
-// owns (HotsiteConfig), not something this per-module schema can know.
-export const NavigationModuleDataSchema = z.strictObject({
-  items: z
-    .array(
-      z.strictObject({
-        label: z.string().min(1).max(30),
-        target: z.enum(['service-list', 'gallery', 'testimonials', 'about', 'contact']),
-      }),
-    )
-    .max(6),
-}) satisfies z.ZodType<NavigationModuleData>;
-
-const contentBlockCommon = {
-  align: z.enum(['left', 'center', 'right']).optional(),
-  eyebrow: z.string().max(60).optional(),
-  title: z.string().max(120),
-  body: z.string().max(1000).optional(),
-  cta: z.strictObject({ label: z.string().max(40), target: CTA_TARGET }).optional(),
-};
-
-// Mirrors ContentBlockModuleData (packages/types/src/hotsite.ts): a closed union on `variant`,
-// every variant a strict object.
-export const ContentBlockModuleDataSchema = z.discriminatedUnion('variant', [
-  z.strictObject({
-    variant: z.literal('trust-grid'),
-    ...contentBlockCommon,
-    items: z
-      .array(
-        z.strictObject({ label: z.string().max(60), description: z.string().max(140).optional() }),
-      )
-      .min(2)
-      .max(6),
-  }),
-  z.strictObject({
-    variant: z.literal('process-steps'),
-    ...contentBlockCommon,
-    items: z
-      .array(z.strictObject({ title: z.string().max(60), body: z.string().max(240) }))
-      .min(2)
-      .max(6),
-  }),
-  z.strictObject({
-    variant: z.literal('collage-callout'),
-    ...contentBlockCommon,
-    images: z
-      .array(z.strictObject({ url: z.string().min(1), alt: z.string().max(120).optional() }))
-      .min(2)
-      .max(4),
-  }),
-  z.strictObject({
-    variant: z.literal('technical-callout'),
-    ...contentBlockCommon,
-    facts: z
-      .array(z.strictObject({ value: z.string().max(20), label: z.string().max(40) }))
-      .max(4)
-      .optional(),
-  }),
-  z.strictObject({ variant: z.literal('image-statement'), ...contentBlockCommon }),
-  z.strictObject({ variant: z.literal('immersive-statement'), ...contentBlockCommon }),
-]) satisfies z.ZodType<ContentBlockModuleData>;
+// NAVIGATION and CONTENT_BLOCK are strict shapes defined once in @ikaro/types (hotsite-schemas.ts),
+// shared with @ikaro/validation; they are re-exported here for the page model.
+export { ContentBlockModuleDataSchema, NavigationModuleDataSchema };
 
 const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
   NAVIGATION: NavigationModuleDataSchema,

@@ -1,13 +1,21 @@
 import { z } from 'zod';
-import { GenericErrorCode } from '@ikaro/types';
-import { HEX_COLOR_PATTERN } from './hotsite';
+import {
+  ContentBlockModuleDataSchema,
+  GenericErrorCode,
+  HotsiteCtaTargetSchema,
+  HotsiteHorizontalPositionSchema,
+  HotsiteModulePresentationSchema,
+  NavigationModuleDataSchema,
+  ServiceDetailPageSettingsSchema,
+} from '@ikaro/types';
 
 // The canonical, request-boundary schema for every hotsite layout module. It replaces
 // the former `data: z.record(z.string(), z.unknown())`, so a malformed module is rejected with a
 // field-level violation (`layout.0.data.itemAction`) before it ever reaches the aggregate.
 //
 // Two shapes of "closed", deliberately:
-//   - the two newer types (NAVIGATION, CONTENT_BLOCK) use strict objects: an unknown key
+//   - the two newer types (NAVIGATION, CONTENT_BLOCK) use strict objects, defined once in
+//     @ikaro/types and shared with apps/web (hotsite-schemas.ts): an unknown key
 //     is rejected, because no stored manifest can hold one yet;
 //   - the ten older types use loose objects whose declared keys are fully validated (required
 //     fields, enums, bounds) while unknown keys are tolerated — exactly what apps/web's
@@ -20,19 +28,8 @@ import { HEX_COLOR_PATTERN } from './hotsite';
 // with a typed domain error (docs/ENGINEERING_RULES_SHARED.md § Single source of truth for a
 // validation rule's code).
 
-const hexColor = (): z.ZodString =>
-  z.string().regex(HEX_COLOR_PATTERN, { error: 'must be a #RRGGBB hex color' });
-
-const CTA_TARGET = z.enum([
-  'booking-form',
-  'service-list',
-  'gallery',
-  'testimonials',
-  'about',
-  'contact',
-]);
-
-const HORIZONTAL_POSITION = z.enum(['left', 'center', 'right']);
+const CTA_TARGET = HotsiteCtaTargetSchema;
+const HORIZONTAL_POSITION = HotsiteHorizontalPositionSchema;
 const VERTICAL_POSITION = z.enum(['top', 'center', 'bottom']);
 const IMMERSIVE_VARIANT = z.enum(['centered', 'left-aligned', 'immersive']);
 
@@ -54,17 +51,6 @@ const HeroDataSchema = z.looseObject({
   rightPanel: z.enum(['none', 'image', 'brand-card']).optional(),
 });
 
-// Closed set: adding a field to the detail page is a new story, so unknown keys are rejected here
-// even though the surrounding SERVICE_LIST data is loose.
-const ServiceDetailPageSchema = z.strictObject({
-  heroStyle: z.enum(['cover', 'compact']),
-  galleryLayout: z.enum(['grid', 'featured']),
-  showPrice: z.boolean(),
-  showDuration: z.boolean(),
-  showLoyaltyPoints: z.boolean(),
-  bookingCtaLabel: z.string().max(40).optional(),
-});
-
 const ServiceListDataSchema = z.looseObject({
   title: z.string().optional(),
   eyebrow: z.string().optional(),
@@ -73,7 +59,7 @@ const ServiceListDataSchema = z.looseObject({
   layout: z.enum(['grid', 'list', 'numbered', 'feature-cards']),
   itemAction: z.enum(['details', 'booking', 'none']).optional(),
   itemCtaLabel: z.string().max(40).optional(),
-  detailPage: ServiceDetailPageSchema.optional(),
+  detailPage: ServiceDetailPageSettingsSchema.optional(),
 });
 
 const GalleryImageSchema = z.looseObject({
@@ -186,113 +172,6 @@ const LeadFormDataSchema = z
     params: { code: GenericErrorCode.VALUE_INVALID },
   });
 
-// ─── Newer modules (strict) ───────────────────────────────────────────────────
-
-const NavigationDataSchema = z.strictObject({
-  items: z
-    .array(
-      z.strictObject({
-        label: z.string().min(1).max(30),
-        target: z.enum(['service-list', 'gallery', 'testimonials', 'about', 'contact']),
-      }),
-    )
-    .max(6),
-});
-
-const contentBlockCommon = {
-  align: z.enum(['left', 'center', 'right']).optional(),
-  eyebrow: z.string().max(60).optional(),
-  title: z.string().max(120),
-  body: z.string().max(1000).optional(),
-  cta: z.strictObject({ label: z.string().max(40), target: CTA_TARGET }).optional(),
-};
-
-const ContentBlockDataSchema = z.discriminatedUnion('variant', [
-  z.strictObject({
-    variant: z.literal('trust-grid'),
-    ...contentBlockCommon,
-    items: z
-      .array(
-        z.strictObject({ label: z.string().max(60), description: z.string().max(140).optional() }),
-      )
-      .min(2)
-      .max(6),
-  }),
-  z.strictObject({
-    variant: z.literal('process-steps'),
-    ...contentBlockCommon,
-    items: z
-      .array(z.strictObject({ title: z.string().max(60), body: z.string().max(240) }))
-      .min(2)
-      .max(6),
-  }),
-  z.strictObject({
-    variant: z.literal('collage-callout'),
-    ...contentBlockCommon,
-    // The only image slot inside CONTENT_BLOCK.data. An empty `alt` marks the image decorative.
-    images: z
-      .array(z.strictObject({ url: z.string().min(1), alt: z.string().max(120).optional() }))
-      .min(2)
-      .max(4),
-  }),
-  z.strictObject({
-    variant: z.literal('technical-callout'),
-    ...contentBlockCommon,
-    facts: z
-      .array(z.strictObject({ value: z.string().max(20), label: z.string().max(40) }))
-      .max(4)
-      .optional(),
-  }),
-  z.strictObject({ variant: z.literal('image-statement'), ...contentBlockCommon }),
-  z.strictObject({ variant: z.literal('immersive-statement'), ...contentBlockCommon }),
-]);
-
-// ─── Section presentation ────────────────────────────────────────────────────
-
-const opacity = (): z.ZodNumber => z.number().min(0).max(1);
-
-const OverlaySchema = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('none') }),
-  z.strictObject({ type: z.literal('solid'), color: hexColor(), opacity: opacity() }),
-  z.strictObject({
-    type: z.literal('linear-gradient'),
-    direction: z.enum(['to-right', 'to-left', 'to-bottom', 'to-top']),
-    fromColor: hexColor(),
-    fromOpacity: opacity(),
-    toColor: hexColor(),
-    toOpacity: opacity(),
-  }),
-]);
-
-export const HotsiteModulePresentationSchema = z
-  .strictObject({
-    surface: z.enum(['background', 'secondary', 'primary', 'custom']).optional(),
-    customColor: hexColor().optional(),
-    contentWidth: z.enum(['narrow', 'standard', 'wide', 'full']).optional(),
-    minHeight: z.enum(['auto', 'sm', 'md', 'lg', 'viewport']).optional(),
-    padding: z.enum(['none', 'compact', 'comfortable', 'spacious']).optional(),
-    background: z
-      .strictObject({
-        imageUrl: z.string().nullable(),
-        position: HORIZONTAL_POSITION.optional(),
-      })
-      .optional(),
-    overlay: OverlaySchema.optional(),
-  })
-  .superRefine((presentation, ctx) => {
-    const isCustom = presentation.surface === 'custom';
-    const hasCustomColor = presentation.customColor !== undefined;
-    if (isCustom === hasCustomColor) return;
-    ctx.addIssue({
-      code: 'custom',
-      message: isCustom
-        ? "surface 'custom' requires customColor"
-        : "customColor is only allowed with surface 'custom'",
-      path: ['customColor'],
-      params: { code: GenericErrorCode.VALUE_INVALID },
-    });
-  });
-
 // ─── The module entry ────────────────────────────────────────────────────────
 
 const entry = <T extends string, D extends z.ZodType>(type: T, data: D) =>
@@ -307,14 +186,14 @@ const entry = <T extends string, D extends z.ZodType>(type: T, data: D) =>
 // check against HOTSITE_MODULE_TYPES lives in hotsite-modules.spec.ts, so a type added to the
 // canonical tuple without a schema here fails a test.
 export const HotsiteModuleSchema = z.discriminatedUnion('type', [
-  entry('NAVIGATION', NavigationDataSchema),
+  entry('NAVIGATION', NavigationModuleDataSchema),
   entry('HERO', HeroDataSchema),
   entry('SERVICE_LIST', ServiceListDataSchema),
   entry('GALLERY', GalleryDataSchema),
   entry('TESTIMONIALS', TestimonialsDataSchema),
   entry('BOOKING_CTA', BookingCtaDataSchema),
   entry('ABOUT', AboutDataSchema),
-  entry('CONTENT_BLOCK', ContentBlockDataSchema),
+  entry('CONTENT_BLOCK', ContentBlockModuleDataSchema),
   entry('CONTACT', ContactDataSchema),
   entry('FOOTER', FooterDataSchema),
   entry('CHATBOT', ChatbotDataSchema),
@@ -322,3 +201,5 @@ export const HotsiteModuleSchema = z.discriminatedUnion('type', [
 ]);
 
 export type HotsiteModuleInput = z.infer<typeof HotsiteModuleSchema>;
+
+export { HotsiteModulePresentationSchema };
