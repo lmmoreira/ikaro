@@ -13,8 +13,8 @@ flowchart TD
     classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
 
     Home(["Hotsite /{slug}"]) --> ServiceList["✅ ServiceListModule<br/>cards"]
-    ServiceList -- "itemAction = details<br/>+ service has public slug" --> Detail["/{slug}/servicos/{serviceSlug}<br/>ServiceDetailPage (01, 01b, 01c)"]
-    ServiceList -- "itemAction = details<br/>+ no public slug" --> BookingFallback["Card action falls back to booking (02)"]
+    ServiceList -- "itemAction = details<br/>+ service page published" --> Detail["/{slug}/servicos/{serviceSlug}<br/>ServiceDetailPage (01, 01b, 01c)"]
+    ServiceList -- "itemAction = details<br/>+ service page NOT published" --> BookingFallback["Card action falls back to booking (02)"]
     ServiceList -- "itemAction = booking" --> Booking
     Detail --> Back(("Voltar aos serviços")) --> ServiceList
     Detail --> Nav(("Menu de navegação")) --> Home
@@ -22,7 +22,7 @@ flowchart TD
     Cta --> Booking["✅ /{slug}/booking?serviceId=…<br/>service preselected, no date"]
     BookingFallback --> Booking
     Direct(["URL direta / sitemap / busca"]) --> Detail
-    Detail -. "hotsite não publicado, serviço inativo,<br/>sem slug/perfil, slug mudou" .-> NotFound["Página indisponível (01d)"]
+    Detail -. "hotsite não publicado, serviço inativo,<br/>página do serviço despublicada" .-> NotFound["Página indisponível (01d)"]
 
     class Home,ServiceList,Booking existing
     class Detail,BookingFallback,NotFound gap
@@ -39,8 +39,8 @@ flowchart TD
 ## Open questions / gaps
 
 - [x] **Where does the page get its look?** — Resolved (TD56 decisions): `SERVICE_LIST.data.detailPage` (hero style, gallery layout, price/duration/points visibility, CTA label); content comes from the service's own public profile.
-- [x] **Dead links** — Resolved: a card set to `details` whose service has no public slug renders its booking action instead.
-- [x] **Unavailable URL** — Resolved: same not-found treatment as other missing public pages, `noindex`; changing or clearing a slug gives no redirect in this version.
+- [x] **Dead links** — Resolved: a card set to `details` whose service's page is not published renders its booking action instead.
+- [x] **Unavailable URL** — Resolved: same not-found treatment as other missing public pages, `noindex`; unpublishing makes the URL unavailable at once and republishing restores the same URL, so no redirect in this version.
 - [ ] **Reachability until TD56-S05:** the "Ver detalhes" action needs the Story 5 editor control (or manifest JSON); until then the page is reachable by URL and sitemap.
 
 ## Prototype

@@ -784,7 +784,7 @@ Returns:
   - **A2: Price change** → Past bookings unaffected (snapshots are immutable); future bookings use new price
   - **A3: Toggle `requiresPickupAddress`** → Only affects future bookings. Existing `booking_lines` retain their snapshotted `requiresPickupAddressAtBooking` value.
   - **A4: Reactivate service** (`M13-S24`) → Admin calls `PATCH /v1/services/:id/activate` → sets `isActive = true`. Only the Detalhes tab locks into a "Reativar" view while a service is inactive — the M22 Cluster 2 tabs (Recursos, Políticas de reserva, Formulário de reserva; UC-050–055) stay editable regardless of `isActive`, since deactivating a service clears none of that configuration.
-  - **A5: Publish the service's public page** (`TD56-S03`) → Admin fills the "Página pública do serviço" card on the Detalhes tab: a public slug (`[a-z0-9-]`, 3–60, unique within the tenant) and a profile — cover image, up to 8 gallery images, a long description (restricted Markdown, ≤ 4000 chars), up to 12 inclusions (≤ 120 chars each) and preparation notes (≤ 1000 chars). Saved with the same `PATCH /v1/services/:id`: an omitted field is unchanged, `null` clears it. A slug already used by another service of the tenant → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` (the same slug in another tenant is fine). Clearing the slug unpublishes the page without deleting the stored profile. Image upload is `MANAGER`-only (the signed-upload endpoint); STAFF can edit the slug and the text fields. The page itself is UC-109.
+  - **A5: Publish the service's public page** (`TD56-S03`) → On the service's own **Página pública** tab, Admin turns on "Publicar página do serviço" and fills the profile — cover image, up to 8 gallery images, a long description (restricted Markdown, ≤ 4000 chars), up to 12 inclusions (≤ 120 chars each) and preparation notes (≤ 1000 chars). Saved with the same `PATCH /v1/services/:id` (`publicPagePublished`, `publicProfile`): an omitted field is unchanged, a `null` profile clears it. There is no address field: on the first publish the system generates the page's URL slug from the service name (a suffix from the service id on a clash within the tenant) and never changes it, so unpublishing and republishing restore the same URL. Turning the switch off unpublishes the page at once without deleting the stored profile, and the hotsite service cards show only "Agendar". "Ver página pública" opens the page in a new browser tab. Image upload is `MANAGER`-only (the signed-upload endpoint); STAFF can use the switch and edit the text fields. The page itself is UC-109.
 
 - **Postconditions:** Service updated. New bookings reflect all changes including `requiresPickupAddress`.
 - **Events Triggered:** None
@@ -1923,15 +1923,15 @@ Returns:
 
 - **Actor:** GUEST | CUSTOMER
 - **Endpoint:** `GET /public/services/by-slug/:publicSlug` (BFF, tenant from `x-tenant-slug`) → backend `GET /v1/services/by-slug/:publicSlug`
-- **Preconditions:** The tenant's hotsite is published; the service is active and has a public slug and profile.
+- **Preconditions:** The tenant's hotsite is published; the service is active and its public page is published (UC-013 A5).
 - **Trigger:** The visitor taps a service card whose Service List `itemAction` is `details`, follows a search/sitemap link, or opens `/{slug}/servicos/{serviceSlug}` directly.
 - **Main Flow:**
   1. System loads the hotsite manifest and the service by slug within the resolved tenant.
   2. System renders the branded page: cover, name, short description, price/duration/loyalty-points chips as `SERVICE_LIST.data.detailPage` allows, long description (restricted Markdown), inclusions, preparation notes and gallery — only the blocks the profile has.
   3. Visitor taps "Agendar este serviço" → `/{slug}/booking?serviceId=<id>` (no date). The booking flow decides every following step from the live service model (UC-001 / UC-002).
 - **Alternative Flows:**
-  - **A1: Hotsite unpublished, service inactive or missing, slug cleared or changed, or service without a public profile** → the same unavailable page as other missing public pages (`noindex`); no redirect from an old slug.
-  - **A2: A Service List card set to `details` whose service has no public slug** → the card shows its booking action instead of a dead link.
+  - **A1: Hotsite unpublished, service inactive or missing, or the service's page unpublished** → the same unavailable page as other missing public pages (`noindex`). Republishing restores the same URL, so no redirect is needed.
+  - **A2: A Service List card set to `details` whose service's page is not published** → the card shows its booking action instead of a dead link.
   - **A3: `SERVICE_LIST` disabled or absent** → the page still resolves by URL with the default `detailPage` look; it is just not linked from the home page.
 - **Postconditions:** None (read-only). The response never includes manager booking configuration.
 - **Events Triggered:** None

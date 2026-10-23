@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar serviço — Endereço já em uso</title>
+  <title>Editar serviço — Página pública (não publicada)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .form-group { margin-bottom: 1.25rem; }
@@ -151,6 +151,10 @@
     .pp-slug-row.err .pp-slug-prefix { border-color:#ef4444; }
     .form-input.error { border-color:#ef4444; background:#fef2f2; }
     .form-error { font-size:0.8125rem; color:#dc2626; margin-top:0.375rem; display:flex; align-items:center; gap:0.25rem; }
+
+    .pp-switch-card { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; border:1.5px solid rgba(17,24,39,0.12); border-radius:var(--ba-radius); background:#fff; margin-bottom:1.25rem; }
+    .pp-link { font-size:0.875rem; font-weight:600; color:var(--ba-primary); text-decoration:none; }
+    .pp-link.disabled { color:rgba(17,24,39,0.35); pointer-events:none; }
   </style>
 </head>
 <body>
@@ -206,7 +210,7 @@
     § Aggregate: ServiceBookingIntakeSchema and docs/API_CONTRACTS.md.
   -->
 
-  <!-- 03h — TD56-S03: same screen after Save returned 409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN. The WHOLE form stays visible; only the slug field is flagged (README Part 4: error variants show the complete form). -->
+  <!-- 03h — TD56-S03: same tab with the publish switch OFF: chip "Não publicada", "Ver página pública" disabled, content still editable so it can be prepared before publishing; the site card shows only "Agendar". -->
   <!-- Prototype banner -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
     Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
@@ -284,14 +288,15 @@
         <div class="detail-layout"><div>
 
         <div class="editor-tabs" role="tablist">
-          <button class="editor-tab active" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="true" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="false" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-recursos" data-tab="recursos" role="tab" aria-selected="false" aria-controls="panel-recursos" onclick="showTab('recursos', this)"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-politicas" data-tab="politicas" role="tab" aria-selected="false" aria-controls="panel-politicas" onclick="showTab('politicas', this)"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-intake" data-tab="intake" role="tab" aria-selected="false" aria-controls="panel-intake" onclick="showTab('intake', this)"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab active" id="tab-publica" data-tab="publica" role="tab" aria-selected="true" aria-controls="panel-publica" onclick="showTab('publica', this)"><span class="tab-label-full">Página pública</span><span class="tab-label-short">Página</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
         </div>
 
         <!-- ═══════════════════════════ TAB 1 — DETALHES (UC-013, existing) ═══════════════════════════ -->
-        <div class="editor-panel active" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
+        <div class="editor-panel" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
 
           <div class="form-group">
             <label class="form-label" for="name">Nome do serviço *</label>
@@ -336,79 +341,6 @@
           <div class="toggle-row">
             <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
             <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
-          </div>
-
-
-          <p class="section-divider">Página pública do serviço</p>
-          <!--
-            COMPONENT: ServicePublicProfileCard  (NEW — TD56-S03)
-            FILE:      apps/web/features/booking/components/dashboard/services/ServicePublicProfileCard.tsx
-            MOUNTED IN: ServiceCreatePage, ServiceEditDetailsTab (via ServiceFormFields) — saved by the Detalhes tab's own
-                        "Salvar alterações" (PATCH /v1/services/:id with publicSlug + publicProfile), no separate endpoint.
-            UC: UC-013 A5. Image fields are MANAGER-only (the signed-upload endpoint is MANAGER-only); STAFF see them
-                disabled with the note below. Full state/validation table: dev-notes.md § TD56-S03.
-          -->
-          <div class="card" style="padding:1.25rem;" id="public-profile-card" data-variant="conflict">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem;">
-              <p style="font-weight:700;font-size:1rem;">Página pública do serviço</p>
-              <span class="pp-chip off">Não publicada — endereço já em uso</span>
-            </div>
-            <p class="form-hint" style="margin-bottom:1rem;">Quando publicada, o serviço ganha uma página própria no seu site, com fotos e uma descrição completa. O botão “Agendar” leva direto ao agendamento deste serviço.</p>
-            
-            <div class="form-group">
-              <label class="form-label" for="pp-slug">Endereço da página</label>
-              <div class="pp-slug-row err">
-                <span class="pp-slug-prefix">vittastudio.ikaro.app/servicos/</span>
-                <input id="pp-slug" type="text" class="form-input error" value="massagem-relaxante" maxlength="60" autocomplete="off" aria-describedby="pp-slug-hint" aria-invalid="true">
-              </div>
-              <p class="form-error" id="pp-slug-error" role="alert"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>Este endereço já está em uso por outro serviço. Escolha outro.</p>
-              <p class="form-hint" id="pp-slug-hint">Sugerido a partir do nome. Use letras minúsculas, números e hífens (3 a 60 caracteres). Apague o endereço para despublicar a página — o conteúdo abaixo continua salvo.</p>
-              <p style="margin-top:0.375rem;font-size:0.8125rem;"><a href="../../../guest/prototypes/service-detail/01-service-detail.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;">Ver página pública ↗</a></p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Imagem de capa</label>
-              <div class="pp-tile pp-cover pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div>
-              <p class="form-hint">Aparece no topo da página e nas redes sociais. Proporção 16:9 funciona melhor.</p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Galeria <span style="font-weight:400;color:rgba(17,24,39,0.5);">(3 de 8)</span></label>
-              <div class="pp-grid"><div class="pp-tile pp-img-b"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-c"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><label class="pp-tile add"><input type="file" accept="image/*" hidden><span style="font-size:1.25rem;line-height:1;">＋</span>Adicionar</label></div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="pp-long">Descrição completa</label>
-              <div class="pp-md-tabs" role="tablist">
-                <button type="button" class="pp-md-tab active" role="tab" aria-selected="true" onclick="ppMd('write',this)">Escrever</button>
-                <button type="button" class="pp-md-tab" role="tab" aria-selected="false" onclick="ppMd('preview',this)">Pré-visualizar</button>
-              </div>
-              <textarea id="pp-long" class="form-textarea" rows="6" maxlength="4000">Uma pausa para o corpo e para a mente.
-
-**O que acontece na sessão**
-
-- Acolhimento e conversa rápida sobre o que você precisa
-- Massagem com óleos essenciais e pedras quentes
-- Alongamento final guiado</textarea>
-              <div class="pp-preview" id="pp-preview"><p><strong>O que acontece na sessão</strong></p><ul><li>Acolhimento e conversa rápida sobre o que você precisa</li><li>Massagem com óleos essenciais e pedras quentes</li><li>Alongamento final guiado</li></ul></div>
-              <p class="form-hint">Markdown simples: **negrito**, _itálico_, listas e links. HTML e imagens não são permitidos.</p>
-              <p class="pp-count">162 / 4000</p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">O que está incluído <span style="font-weight:400;color:rgba(17,24,39,0.5);">(4 de 12)</span></label>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Óleos essenciais" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Pedras quentes" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Chá de boas-vindas" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Toalhas e vestiário" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <button type="button" class="btn-secondary" style="padding:0.5rem 1rem;font-size:0.875rem;">＋ Adicionar item</button>
-            </div>
-
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="pp-prep">Como se preparar</label>
-              <textarea id="pp-prep" class="form-textarea" rows="3" maxlength="1000">Chegue com 10 minutos de antecedência. Evite refeições pesadas na hora anterior.</textarea>
-              <p class="pp-count">79 / 1000</p>
-            </div>
           </div>
 
           <div class="form-actions save-row">
@@ -1084,6 +1016,67 @@
           </div>
         </div><!-- /panel-intake -->
 
+        <!-- ═══════════════════════ TAB 5 — PÁGINA PÚBLICA (UC-013 A5, TD56-S03) ═══════════════════════
+          COMPONENT: ServicePublicPageTab  (NEW — apps/web/features/booking/components/dashboard/services/ServicePublicPageTab.tsx)
+          Own tab, own save (PATCH /v1/services/:id with isPublicPagePublished + publicProfile) — same per-tab-save pattern as the other tabs.
+          No address field: the slug is generated by the system on first publish and never shown (dev-notes.md § TD56-S03).
+          Image fields are MANAGER-only (the signed-upload endpoint is MANAGER-only); STAFF see them disabled with the note.
+        -->
+        <div class="editor-panel" id="panel-publica" role="tabpanel" aria-labelledby="tab-publica">
+          <div class="pp-switch-card">
+            <div>
+              <div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">
+                <span class="toggle-label" style="font-weight:700;">Publicar página do serviço</span><span class="pp-chip off" id="pp-chip">Não publicada</span>
+              </div>
+              <p class="form-hint" id="pp-switch-sub" style="margin:0;">Desativada: o serviço não tem página pública e o cartão no site mostra só “Agendar”. Você pode preparar o conteúdo abaixo antes de publicar.</p>
+              <p style="margin:0.5rem 0 0;"><a id="pp-view-link" class="pp-link disabled" href="../../../guest/prototypes/service-detail/01-service-detail.html" target="_blank" rel="noopener noreferrer">Ver página pública ↗</a></p>
+            </div>
+            <button type="button" class="toggle-switch" id="pp-toggle" role="switch" aria-checked="false" aria-label="Publicar página do serviço" onclick="ppToggle(this)"><span class="toggle-knob"></span></button>
+          </div>
+          
+          <div class="form-group">
+            <label class="form-label">Imagem de capa</label>
+            <div class="pp-tile pp-cover pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div>
+            <p class="form-hint">Aparece no topo da página e nas redes sociais. Proporção 16:9 funciona melhor.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Galeria <span style="font-weight:400;color:rgba(17,24,39,0.5);">(3 de 8)</span></label>
+            <div class="pp-grid"><div class="pp-tile pp-img-b"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-c"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><label class="pp-tile add"><input type="file" accept="image/*" hidden><span style="font-size:1.25rem;line-height:1;">＋</span>Adicionar</label></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="pp-long">Descrição completa</label>
+            <div class="pp-md-tabs" role="tablist">
+              <button type="button" class="pp-md-tab active" role="tab" aria-selected="true" onclick="ppMd('write',this)">Escrever</button>
+              <button type="button" class="pp-md-tab" role="tab" aria-selected="false" onclick="ppMd('preview',this)">Pré-visualizar</button>
+            </div>
+            <textarea id="pp-long" class="form-textarea" rows="6" maxlength="4000" oninput="markDirty('publica')">Uma pausa para o corpo e para a mente.
+
+**O que acontece na sessão**
+
+- Acolhimento e conversa rápida sobre o que você precisa
+- Massagem com óleos essenciais e pedras quentes
+- Alongamento final guiado</textarea>
+            <div class="pp-preview" id="pp-preview"><p><strong>O que acontece na sessão</strong></p><ul><li>Acolhimento e conversa rápida sobre o que você precisa</li><li>Massagem com óleos essenciais e pedras quentes</li><li>Alongamento final guiado</li></ul></div>
+            <p class="form-hint">Markdown simples: **negrito**, _itálico_, listas e links. HTML e imagens não são permitidos.</p>
+            <p class="pp-count">162 / 4000</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">O que está incluído <span style="font-weight:400;color:rgba(17,24,39,0.5);">(4 de 12)</span></label>
+            <div class="pp-incl-row"><input type="text" class="form-input" value="Óleos essenciais" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Pedras quentes" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Chá de boas-vindas" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Toalhas e vestiário" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
+            <button type="button" class="btn-secondary" style="padding:0.5rem 1rem;font-size:0.875rem;">＋ Adicionar item</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="pp-prep">Como se preparar</label>
+            <textarea id="pp-prep" class="form-textarea" rows="3" maxlength="1000" oninput="markDirty('publica')">Chegue com 10 minutos de antecedência. Evite refeições pesadas na hora anterior.</textarea>
+            <p class="pp-count">79 / 1000</p>
+          </div>
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('publica')">Salvar página pública</button>
+            <span class="save-confirm" id="saved-msg-publica">✓ Página pública salva</span>
+          </div>
+        </div><!-- /panel-publica -->
+
         </div><!-- /form col -->
         <div class="detail-aside">
           <div class="card" style="padding:1.25rem;">
@@ -1184,9 +1177,9 @@
     // place (dirty dot clears, inline confirmation shows) and only "Voltar à lista"/sidebar/
     // topbar navigation actually leaves the page — guarded by the beforeunload handler below
     // if any tab still has unsaved changes. ═══
-    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva' };
-    var currentTab = 'detalhes';
-    var dirtyTabs = { detalhes: false, recursos: false, politicas: false, intake: false };
+    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva', publica: 'Página pública' };
+    var currentTab = 'publica';
+    var dirtyTabs = { detalhes: false, recursos: false, politicas: false, intake: false, publica: false };
 
     function showTab(name, btn) {
       document.querySelectorAll('.editor-panel').forEach(el => el.classList.remove('active'));
@@ -1509,6 +1502,19 @@
       btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
       document.getElementById('pp-long').style.display = mode === 'write' ? '' : 'none';
       document.getElementById('pp-preview').style.display = mode === 'preview' ? 'block' : 'none';
+    }
+    // Publish switch: flips the chip, the helper text and the "Ver página pública" link; the change is saved with "Salvar página pública".
+    function ppToggle(btn) {
+      var on = btn.classList.toggle('on');
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      var chip = document.getElementById('pp-chip');
+      chip.className = 'pp-chip ' + (on ? 'on' : 'off');
+      chip.textContent = on ? 'Publicada' : 'Não publicada';
+      document.getElementById('pp-view-link').classList.toggle('disabled', !on);
+      document.getElementById('pp-switch-sub').textContent = on
+        ? 'Quando ativada, o serviço ganha uma página própria no seu site e o cartão do serviço passa a mostrar “Ver detalhes”.'
+        : 'Desativada: o serviço não tem página pública e o cartão no site mostra só “Agendar”. Você pode preparar o conteúdo abaixo antes de publicar.';
+      markDirty('publica');
     }
   </script>
 

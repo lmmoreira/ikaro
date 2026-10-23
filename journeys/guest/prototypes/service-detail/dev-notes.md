@@ -22,7 +22,7 @@ The page inherits branding, locale and formatting from `app/[slug]/layout.tsx`. 
 | hotsite manifest, published flag, `SERVICE_LIST.data.detailPage` | existing manifest fetch (tag `hotsiteManifestCacheTag`) |
 | the service | `GET /public/services/by-slug/:publicSlug` (BFF, tenant from `x-tenant-slug`) — name, short description, price, duration, loyalty points, `publicProfile` only; never booking configuration |
 | `generateMetadata` | shares the page's fetch through React `cache()`; `buildHotsiteMetadata` gains an optional `title`/`description`/`ogImageUrl` override, `path: '/servicos/<slug>'` |
-| sitemap | `sitemap.ts` lists one URL per service with a slug, via the cached `fetchServices(slug)` per published tenant |
+| sitemap | `sitemap.ts` lists one URL per service whose page is published, via the cached `fetchServices(slug)` per published tenant |
 
 Cache: the by-slug fetch uses `hotsiteServicesCacheTag(slug)`, so the existing service create/update revalidation clears it; no `revalidate` route change is expected (every `apps/web` route renders per request) and a unit test pins the tag.
 
@@ -41,7 +41,7 @@ Cache: the by-slug fetch uses `hotsiteServicesCacheTag(slug)`, so the existing s
 |---|---|---|
 | full profile | `01` | every optional block rendered |
 | partial profile | `01c` | only existing blocks render — never an empty heading or placeholder box |
-| unavailable | `01d` | hotsite unpublished, service inactive/missing, no slug/profile, slug changed or cleared (no redirects) |
+| unavailable | `01d` | hotsite unpublished, service inactive/missing, service page unpublished (republishing restores the same URL — no redirects needed) |
 | hotsite `SERVICE_LIST` disabled | — | detail pages still resolve by URL with default `detailPage` settings; they are just not linked |
 
 No loading state is drawn: the page is server-rendered per request, like the other hotsite pages.

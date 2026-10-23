@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Editar serviço — Página pública (gerente)</title>
+  <title>Editar serviço — Página pública (equipe)</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <style>
     .form-group { margin-bottom: 1.25rem; }
@@ -151,6 +151,10 @@
     .pp-slug-row.err .pp-slug-prefix { border-color:#ef4444; }
     .form-input.error { border-color:#ef4444; background:#fef2f2; }
     .form-error { font-size:0.8125rem; color:#dc2626; margin-top:0.375rem; display:flex; align-items:center; gap:0.25rem; }
+
+    .pp-switch-card { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:1rem 1.25rem; border:1.5px solid rgba(17,24,39,0.12); border-radius:var(--ba-radius); background:#fff; margin-bottom:1.25rem; }
+    .pp-link { font-size:0.875rem; font-weight:600; color:var(--ba-primary); text-decoration:none; }
+    .pp-link.disabled { color:rgba(17,24,39,0.35); pointer-events:none; }
   </style>
 </head>
 <body>
@@ -206,7 +210,7 @@
     § Aggregate: ServiceBookingIntakeSchema and docs/API_CONTRACTS.md.
   -->
 
-  <!-- 03g — TD56-S03: Detalhes tab with the "Página pública do serviço" card, MANAGER view, page published (slug set, cover + 3 gallery images, Markdown description, 4 inclusions). -->
+  <!-- 03i — TD56-S03: STAFF view of the tab. Publish switch and text fields editable; image fields disabled with a note (the signed-upload endpoint is MANAGER-only). Manager-only sidebar block hidden. -->
   <!-- Prototype banner -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
     Protótipo — redimensione para ver mobile (&lt;1024px) e desktop (≥1024px)
@@ -221,7 +225,7 @@
     <h1 class="topbar-page-title">Editar serviço — Massagem Relaxante</h1>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
       <span class="status-badge" style="background:#dcfce7;color:#166534;font-size:0.75rem;">Ativo</span>
-      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">RL</a>
       <span class="topbar-date">Hoje, 17 de setembro de 2026</span>
     </div>
   </div>
@@ -255,24 +259,9 @@
           Fidelidade
         </a>
       </nav>
-      <p class="sidebar-section-label">Somente Gerente</p>
-      <nav class="sidebar-nav">
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/resources/01-resources-list.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-          Recursos
-        </a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/configuracoes/01-settings-form.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-          Configurações
-        </a>
-        <a class="sidebar-nav-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-          <svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-          Hotsite
-        </a>
-      </nav>
       <div class="sidebar-footer">
-        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
-        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">RL</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Rafael Lima</p><span class="role-badge role-badge-staff">Equipe</span></div>
         <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">
           <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </a>
@@ -284,14 +273,15 @@
         <div class="detail-layout"><div>
 
         <div class="editor-tabs" role="tablist">
-          <button class="editor-tab active" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="true" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab" id="tab-detalhes" data-tab="detalhes" role="tab" aria-selected="false" aria-controls="panel-detalhes" onclick="showTab('detalhes', this)"><span class="tab-label-full">Detalhes</span><span class="tab-label-short">Detalhes</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-recursos" data-tab="recursos" role="tab" aria-selected="false" aria-controls="panel-recursos" onclick="showTab('recursos', this)"><span class="tab-label-full">Recursos</span><span class="tab-label-short">Recursos</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-politicas" data-tab="politicas" role="tab" aria-selected="false" aria-controls="panel-politicas" onclick="showTab('politicas', this)"><span class="tab-label-full">Políticas de reserva</span><span class="tab-label-short">Políticas</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
           <button class="editor-tab" id="tab-intake" data-tab="intake" role="tab" aria-selected="false" aria-controls="panel-intake" onclick="showTab('intake', this)"><span class="tab-label-full">Formulário de reserva</span><span class="tab-label-short">Formulário</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
+          <button class="editor-tab active" id="tab-publica" data-tab="publica" role="tab" aria-selected="true" aria-controls="panel-publica" onclick="showTab('publica', this)"><span class="tab-label-full">Página pública</span><span class="tab-label-short">Página</span><span class="tab-dirty-dot" aria-hidden="true"></span></button>
         </div>
 
         <!-- ═══════════════════════════ TAB 1 — DETALHES (UC-013, existing) ═══════════════════════════ -->
-        <div class="editor-panel active" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
+        <div class="editor-panel" id="panel-detalhes" role="tabpanel" aria-labelledby="tab-detalhes">
 
           <div class="form-group">
             <label class="form-label" for="name">Nome do serviço *</label>
@@ -336,79 +326,6 @@
           <div class="toggle-row">
             <div><div class="toggle-label">Coleta e entrega</div><div class="toggle-sub">Exige endereço de coleta no agendamento</div></div>
             <button class="toggle-switch" onclick="this.classList.toggle('on')"><span class="toggle-knob"></span></button>
-          </div>
-
-
-          <p class="section-divider">Página pública do serviço</p>
-          <!--
-            COMPONENT: ServicePublicProfileCard  (NEW — TD56-S03)
-            FILE:      apps/web/features/booking/components/dashboard/services/ServicePublicProfileCard.tsx
-            MOUNTED IN: ServiceCreatePage, ServiceEditDetailsTab (via ServiceFormFields) — saved by the Detalhes tab's own
-                        "Salvar alterações" (PATCH /v1/services/:id with publicSlug + publicProfile), no separate endpoint.
-            UC: UC-013 A5. Image fields are MANAGER-only (the signed-upload endpoint is MANAGER-only); STAFF see them
-                disabled with the note below. Full state/validation table: dev-notes.md § TD56-S03.
-          -->
-          <div class="card" style="padding:1.25rem;" id="public-profile-card" data-variant="manager">
-            <div style="display:flex;align-items:center;justify-content:space-between;gap:0.75rem;flex-wrap:wrap;margin-bottom:0.25rem;">
-              <p style="font-weight:700;font-size:1rem;">Página pública do serviço</p>
-              <span class="pp-chip on">Publicada</span>
-            </div>
-            <p class="form-hint" style="margin-bottom:1rem;">Quando publicada, o serviço ganha uma página própria no seu site, com fotos e uma descrição completa. O botão “Agendar” leva direto ao agendamento deste serviço.</p>
-            
-            <div class="form-group">
-              <label class="form-label" for="pp-slug">Endereço da página</label>
-              <div class="pp-slug-row">
-                <span class="pp-slug-prefix">vittastudio.ikaro.app/servicos/</span>
-                <input id="pp-slug" type="text" class="form-input" value="massagem-relaxante" maxlength="60" autocomplete="off" aria-describedby="pp-slug-hint">
-              </div>
-              
-              <p class="form-hint" id="pp-slug-hint">Sugerido a partir do nome. Use letras minúsculas, números e hífens (3 a 60 caracteres). Apague o endereço para despublicar a página — o conteúdo abaixo continua salvo.</p>
-              <p style="margin-top:0.375rem;font-size:0.8125rem;"><a href="../../../guest/prototypes/service-detail/01-service-detail.html" style="color:var(--ba-primary);font-weight:600;text-decoration:none;">Ver página pública ↗</a></p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Imagem de capa</label>
-              <div class="pp-tile pp-cover pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div>
-              <p class="form-hint">Aparece no topo da página e nas redes sociais. Proporção 16:9 funciona melhor.</p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">Galeria <span style="font-weight:400;color:rgba(17,24,39,0.5);">(3 de 8)</span></label>
-              <div class="pp-grid"><div class="pp-tile pp-img-b"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-c"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><div class="pp-tile pp-img-a"><button type="button" class="pp-x" aria-label="Remover imagem">×</button></div><label class="pp-tile add"><input type="file" accept="image/*" hidden><span style="font-size:1.25rem;line-height:1;">＋</span>Adicionar</label></div>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label" for="pp-long">Descrição completa</label>
-              <div class="pp-md-tabs" role="tablist">
-                <button type="button" class="pp-md-tab active" role="tab" aria-selected="true" onclick="ppMd('write',this)">Escrever</button>
-                <button type="button" class="pp-md-tab" role="tab" aria-selected="false" onclick="ppMd('preview',this)">Pré-visualizar</button>
-              </div>
-              <textarea id="pp-long" class="form-textarea" rows="6" maxlength="4000">Uma pausa para o corpo e para a mente.
-
-**O que acontece na sessão**
-
-- Acolhimento e conversa rápida sobre o que você precisa
-- Massagem com óleos essenciais e pedras quentes
-- Alongamento final guiado</textarea>
-              <div class="pp-preview" id="pp-preview"><p><strong>O que acontece na sessão</strong></p><ul><li>Acolhimento e conversa rápida sobre o que você precisa</li><li>Massagem com óleos essenciais e pedras quentes</li><li>Alongamento final guiado</li></ul></div>
-              <p class="form-hint">Markdown simples: **negrito**, _itálico_, listas e links. HTML e imagens não são permitidos.</p>
-              <p class="pp-count">162 / 4000</p>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">O que está incluído <span style="font-weight:400;color:rgba(17,24,39,0.5);">(4 de 12)</span></label>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Óleos essenciais" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Pedras quentes" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Chá de boas-vindas" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <div class="pp-incl-row"><input type="text" class="form-input" value="Toalhas e vestiário" maxlength="120"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
-              <button type="button" class="btn-secondary" style="padding:0.5rem 1rem;font-size:0.875rem;">＋ Adicionar item</button>
-            </div>
-
-            <div class="form-group" style="margin-bottom:0;">
-              <label class="form-label" for="pp-prep">Como se preparar</label>
-              <textarea id="pp-prep" class="form-textarea" rows="3" maxlength="1000">Chegue com 10 minutos de antecedência. Evite refeições pesadas na hora anterior.</textarea>
-              <p class="pp-count">79 / 1000</p>
-            </div>
           </div>
 
           <div class="form-actions save-row">
@@ -1084,6 +1001,67 @@
           </div>
         </div><!-- /panel-intake -->
 
+        <!-- ═══════════════════════ TAB 5 — PÁGINA PÚBLICA (UC-013 A5, TD56-S03) ═══════════════════════
+          COMPONENT: ServicePublicPageTab  (NEW — apps/web/features/booking/components/dashboard/services/ServicePublicPageTab.tsx)
+          Own tab, own save (PATCH /v1/services/:id with isPublicPagePublished + publicProfile) — same per-tab-save pattern as the other tabs.
+          No address field: the slug is generated by the system on first publish and never shown (dev-notes.md § TD56-S03).
+          Image fields are MANAGER-only (the signed-upload endpoint is MANAGER-only); STAFF see them disabled with the note.
+        -->
+        <div class="editor-panel" id="panel-publica" role="tabpanel" aria-labelledby="tab-publica">
+          <div class="pp-switch-card">
+            <div>
+              <div style="display:flex;align-items:center;gap:0.625rem;flex-wrap:wrap;margin-bottom:0.25rem;">
+                <span class="toggle-label" style="font-weight:700;">Publicar página do serviço</span><span class="pp-chip on" id="pp-chip">Publicada</span>
+              </div>
+              <p class="form-hint" id="pp-switch-sub" style="margin:0;">Quando ativada, o serviço ganha uma página própria no seu site e o cartão do serviço passa a mostrar “Ver detalhes”.</p>
+              <p style="margin:0.5rem 0 0;"><a id="pp-view-link" class="pp-link" href="../../../guest/prototypes/service-detail/01-service-detail.html" target="_blank" rel="noopener noreferrer">Ver página pública ↗</a></p>
+            </div>
+            <button type="button" class="toggle-switch on" id="pp-toggle" role="switch" aria-checked="true" aria-label="Publicar página do serviço" onclick="ppToggle(this)"><span class="toggle-knob"></span></button>
+          </div>
+          <div class="pp-lock-note" role="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:1px;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg><span>Somente gerentes podem enviar ou trocar as imagens da página pública. Você pode publicar e editar os textos normalmente.</span></div>
+          <div class="form-group">
+            <label class="form-label">Imagem de capa</label>
+            <div class="pp-tile pp-cover pp-img-a locked"></div>
+            <p class="form-hint">Aparece no topo da página e nas redes sociais. Proporção 16:9 funciona melhor.</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Galeria <span style="font-weight:400;color:rgba(17,24,39,0.5);">(3 de 8)</span></label>
+            <div class="pp-grid"><div class="pp-tile pp-img-b locked"></div><div class="pp-tile pp-img-c locked"></div><div class="pp-tile pp-img-a locked"></div></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="pp-long">Descrição completa</label>
+            <div class="pp-md-tabs" role="tablist">
+              <button type="button" class="pp-md-tab active" role="tab" aria-selected="true" onclick="ppMd('write',this)">Escrever</button>
+              <button type="button" class="pp-md-tab" role="tab" aria-selected="false" onclick="ppMd('preview',this)">Pré-visualizar</button>
+            </div>
+            <textarea id="pp-long" class="form-textarea" rows="6" maxlength="4000" oninput="markDirty('publica')">Uma pausa para o corpo e para a mente.
+
+**O que acontece na sessão**
+
+- Acolhimento e conversa rápida sobre o que você precisa
+- Massagem com óleos essenciais e pedras quentes
+- Alongamento final guiado</textarea>
+            <div class="pp-preview" id="pp-preview"><p><strong>O que acontece na sessão</strong></p><ul><li>Acolhimento e conversa rápida sobre o que você precisa</li><li>Massagem com óleos essenciais e pedras quentes</li><li>Alongamento final guiado</li></ul></div>
+            <p class="form-hint">Markdown simples: **negrito**, _itálico_, listas e links. HTML e imagens não são permitidos.</p>
+            <p class="pp-count">162 / 4000</p>
+          </div>
+          <div class="form-group">
+            <label class="form-label">O que está incluído <span style="font-weight:400;color:rgba(17,24,39,0.5);">(4 de 12)</span></label>
+            <div class="pp-incl-row"><input type="text" class="form-input" value="Óleos essenciais" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Pedras quentes" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Chá de boas-vindas" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div><div class="pp-incl-row"><input type="text" class="form-input" value="Toalhas e vestiário" maxlength="120" oninput="markDirty('publica')"><button type="button" class="pp-rm" aria-label="Remover item">×</button></div>
+            <button type="button" class="btn-secondary" style="padding:0.5rem 1rem;font-size:0.875rem;">＋ Adicionar item</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="pp-prep">Como se preparar</label>
+            <textarea id="pp-prep" class="form-textarea" rows="3" maxlength="1000" oninput="markDirty('publica')">Chegue com 10 minutos de antecedência. Evite refeições pesadas na hora anterior.</textarea>
+            <p class="pp-count">79 / 1000</p>
+          </div>
+          <div class="form-actions save-row">
+            <a href="01-servicos-list.html" class="btn-secondary">Voltar à lista</a>
+            <button type="button" class="btn-primary" onclick="saveTab('publica')">Salvar página pública</button>
+            <span class="save-confirm" id="saved-msg-publica">✓ Página pública salva</span>
+          </div>
+        </div><!-- /panel-publica -->
+
         </div><!-- /form col -->
         <div class="detail-aside">
           <div class="card" style="padding:1.25rem;">
@@ -1140,23 +1118,10 @@
     </button>
   </nav>
 
-  <!-- Manager bottom sheet -->
+  <!-- Bottom sheet — STAFF: only "Sair" (manager-only items hidden) -->
   <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
   <div class="bottom-sheet" id="manager-sheet">
     <div class="bottom-sheet-handle"></div>
-    <p class="bottom-sheet-label">Somente Gerente</p>
-    <a class="bottom-sheet-item" href="../../../manager/prototypes/resources/01-resources-list.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-      Recursos
-    </a>
-    <a class="bottom-sheet-item" href="../../../manager/prototypes/equipe/01-team-list.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      Equipe
-    </a>
-    <a class="bottom-sheet-item" href="../../../manager/prototypes/hotsite/01-hotsite-editor.html">
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-      Hotsite
-    </a>
     <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
       <a href="../../../shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;">
         <svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -1184,9 +1149,9 @@
     // place (dirty dot clears, inline confirmation shows) and only "Voltar à lista"/sidebar/
     // topbar navigation actually leaves the page — guarded by the beforeunload handler below
     // if any tab still has unsaved changes. ═══
-    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva' };
-    var currentTab = 'detalhes';
-    var dirtyTabs = { detalhes: false, recursos: false, politicas: false, intake: false };
+    var TAB_LABELS = { detalhes: 'Detalhes', recursos: 'Recursos', politicas: 'Políticas de reserva', intake: 'Formulário de reserva', publica: 'Página pública' };
+    var currentTab = 'publica';
+    var dirtyTabs = { detalhes: false, recursos: false, politicas: false, intake: false, publica: false };
 
     function showTab(name, btn) {
       document.querySelectorAll('.editor-panel').forEach(el => el.classList.remove('active'));
@@ -1509,6 +1474,19 @@
       btn.classList.add('active'); btn.setAttribute('aria-selected', 'true');
       document.getElementById('pp-long').style.display = mode === 'write' ? '' : 'none';
       document.getElementById('pp-preview').style.display = mode === 'preview' ? 'block' : 'none';
+    }
+    // Publish switch: flips the chip, the helper text and the "Ver página pública" link; the change is saved with "Salvar página pública".
+    function ppToggle(btn) {
+      var on = btn.classList.toggle('on');
+      btn.setAttribute('aria-checked', on ? 'true' : 'false');
+      var chip = document.getElementById('pp-chip');
+      chip.className = 'pp-chip ' + (on ? 'on' : 'off');
+      chip.textContent = on ? 'Publicada' : 'Não publicada';
+      document.getElementById('pp-view-link').classList.toggle('disabled', !on);
+      document.getElementById('pp-switch-sub').textContent = on
+        ? 'Quando ativada, o serviço ganha uma página própria no seu site e o cartão do serviço passa a mostrar “Ver detalhes”.'
+        : 'Desativada: o serviço não tem página pública e o cartão no site mostra só “Agendar”. Você pode preparar o conteúdo abaixo antes de publicar.';
+      markDirty('publica');
     }
   </script>
 

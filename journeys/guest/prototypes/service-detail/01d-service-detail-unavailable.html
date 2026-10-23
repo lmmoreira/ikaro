@@ -9,7 +9,7 @@
 </head>
 <body>
   <!--
-    01d — unavailable state: hotsite unpublished, service inactive/missing, slug cleared or changed (old URL, no redirects), or service without a public profile. Same not-found treatment as other missing public pages; also noindex.
+    01d — unavailable state: hotsite unpublished, service inactive/missing, or the service's page unpublished (republishing restores the same URL). Same not-found treatment as other missing public pages; also noindex.
     ROUTE: /{slug}/servicos/{serviceSlug}   (app/[slug]/servicos/[serviceSlug]/page.tsx — NEW, TD56-S03)
     COMPONENT: ServiceDetailPage (apps/web/shells/hotsite/components/ServiceDetailPage.tsx — NEW)
     DATA: manifest (published only) + GET /public/services/by-slug/:publicSlug — profile-facing fields only, never booking configuration.

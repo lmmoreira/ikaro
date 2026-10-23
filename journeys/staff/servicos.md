@@ -3,7 +3,7 @@
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Create, edit, and deactivate services offered by the tenant  
 **UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`; A5 public page — 📝 prototyped, `TD56-S03`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (✅ shipped — M22-S04, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
-**Status:** Base CRUD and M22 Cluster 2 extension both shipped (M22-S04) — see `dev-notes.md` for implementation detail. The "Página pública do serviço" card (UC-013 A5) is prototyped (`03g`–`03i`) and awaiting implementation in `TD56-S03`.
+**Status:** Base CRUD and M22 Cluster 2 extension both shipped (M22-S04) — see `dev-notes.md` for implementation detail. The "Página pública" tab (UC-013 A5) is prototyped (`03g`–`03i`) and awaiting implementation in `TD56-S03`.
 
 ## Flow
 
@@ -29,7 +29,7 @@ flowchart TD
     PriceCheck -- "sim → 201" --> CreateSuccess["✅ Redirect direto para a edição<br/>Banner inline na aba Detalhes"]
 
     %% UC-013 — Edit
-    EditClick --> EditForm["/dashboard/services/[id]/edit<br/>Edit Service Form — 4 abas: Detalhes/Recursos/Políticas de reserva/Formulário de reserva (also exposes Ativar/Desativar)"]
+    EditClick --> EditForm["/dashboard/services/[id]/edit<br/>Edit Service Form — 5 abas: Detalhes/Recursos/Políticas de reserva/Formulário de reserva/Página pública (TD56-S03, prototype only; also exposes Ativar/Desativar)"]
     EditForm --> EditSubmit(("Click 'Salvar alterações'"))
     EditSubmit --> EditCheck{"Válido?"}
     EditCheck -- "não" --> EditForm
@@ -48,13 +48,12 @@ flowchart TD
     ActivateBtn --> ActivateSuccess["✅ Permanece na edição<br/>Badge Ativo, PATCH /v1/services/:id/activate"]
 
     %% UC-013 A5 — Public service page (TD56-S03)
-    EditForm --> PublicCard["Detalhes tab: card 'Página pública do serviço' (03g)<br/>slug · capa · galeria · descrição Markdown · incluídos · preparo"]
-    PublicCard --> SlugCheck{"Endereço livre no tenant?"}
-    SlugCheck -- "não → 409" --> SlugError["Erro inline no endereço (03h)<br/>formulário completo preservado"]
-    SlugError --> PublicCard
-    SlugCheck -- "sim → 200" --> PublicLive["Página publicada em /{slug}/servicos/{endereço}<br/>(visitante: guest/service-detail)"]
-    PublicCard -- "STAFF" --> StaffLocked["Imagens bloqueadas, textos editáveis (03i)"]
-    PublicCard -- "endereço apagado" --> Unpublished["Página despublicada — conteúdo salvo é mantido"]
+    EditForm --> PublicTab["Aba 'Página pública' (03g)<br/>chave Publicar · capa · galeria · descrição Markdown · incluídos · preparo"]
+    PublicTab --> PublishToggle{"Chave 'Publicar página do serviço'"}
+    PublishToggle -- "ligada + salvar" --> PublicLive["Página publicada em /{slug}/servicos/…<br/>(endereço gerado pelo sistema; visitante: guest/service-detail)<br/>cartão do site mostra 'Ver detalhes'"]
+    PublishToggle -- "desligada + salvar (03h)" --> Unpublished["Página despublicada — conteúdo salvo é mantido<br/>cartão do site volta a mostrar só 'Agendar'"]
+    PublicLive --> ViewLink(("Ver página pública ↗<br/>abre em nova aba do navegador"))
+    PublicTab -- "STAFF" --> StaffLocked["Imagens bloqueadas, chave e textos editáveis (03i)"]
 
     CreateSuccess --> EditForm
     EditSuccess --> EditForm
@@ -62,7 +61,7 @@ flowchart TD
     ActivateSuccess --> EditForm
 
     class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess,InactiveEdit,ActivateSuccess existing
-    class PublicCard,SlugError,PublicLive,StaffLocked,Unpublished gap
+    class PublicTab,PublicLive,Unpublished,StaffLocked gap
 ```
 
 ## Pages referenced
@@ -80,7 +79,7 @@ flowchart TD
 - [x] **Create as inactive** — UC-012 field list includes `isActive` (default: true). The create form now exposes the toggle and defaults it to ON.
 - [x] **Deactivate UX** — **Resolved/shipped:** a dedicated confirmation page (`/dashboard/services/[id]/deactivate`, `ServiceDeactivatePage.tsx`), as in the prototype.
 - [x] **Reactivate** — **Resolved/shipped.** `ServiceEditPage` includes a `ServiceEditStatusSection` with an "Ativar serviço" action (via a `useActivateService` hook) wired to the same `PATCH` endpoint.
-- [x] **Public service page — TD56-S03 (2026-10-23, decided at story-discovery):** the card lives inside the Detalhes tab and saves with that tab's own "Salvar alterações" (no separate endpoint). Image upload is MANAGER-only (STAFF see the image fields disabled, `03i`). Clearing the slug unpublishes the page but keeps the saved profile. The visitor side is the new journey `guest/service-detail.md`.
+- [x] **Public service page — TD56-S03 (2026-10-23, decided at story-discovery and revised after prototype review):** it is its own fifth tab, "Página pública", with its own save (same per-tab pattern as the others). A "Publicar página do serviço" switch publishes/unpublishes it (like the hotsite); there is **no address field** — the system generates the URL on first publish and never changes it. "Ver página pública ↗" opens a new browser tab so the manager stays in the editor. Unpublished services show only "Agendar" on the site cards (never a dead "Ver detalhes"). Image upload is MANAGER-only (STAFF see image fields disabled, `03i`). The visitor side is the new journey `guest/service-detail.md`.
 - [ ] **Public page reachability until TD56-S05:** the "Ver detalhes" link on the hotsite service cards needs `SERVICE_LIST.data.itemAction = 'details'`, which only the Story 5 editor controls expose; until then the page is reachable by URL and sitemap only.
 - [ ] **Service ordering** — does the service list have a drag-to-reorder or fixed sort (e.g. alphabetical, creation date)? Affects the list page design.
 - [ ] **`requiresPickupAddress` label** — "Coleta e Entrega" toggle in the form — should the label be the feature name ("Requer endereço de coleta") or a free-text helper?
@@ -103,9 +102,9 @@ Folder: `staff/prototypes/servicos/`
 | `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |
 | `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ✅ Criado — shipped (M22-S04) |
 | `03f-service-edit-recurrence-hint.html` | Políticas de reserva tab — advisory hint under "Permitir recorrência" when the saved service cannot recur (never blocks saving) | UC-055 step 3 | ✅ Criado (TD49-S03) |
-| `03g-service-edit-public-profile.html` | Detalhes tab with the "Página pública do serviço" card — MANAGER view, page published | UC-013 A5 | 📝 Prototype — TD56-S03 |
-| `03h-service-edit-slug-conflict.html` | Same screen after `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` — whole form kept, slug field flagged | UC-013 A5 | 📝 Prototype — TD56-S03 |
-| `03i-service-edit-public-profile-staff.html` | STAFF view — image fields disabled with a note (upload endpoint is MANAGER-only), text and slug editable | UC-013 A5 | 📝 Prototype — TD56-S03 |
+| `03g-service-edit-public-page.html` | New 5th tab "Página pública" — MANAGER view, page published (switch on) | UC-013 A5 | 📝 Prototype — TD56-S03 |
+| `03h-service-edit-public-page-unpublished.html` | Same tab with the switch off — chip "Não publicada", link disabled, content still editable | UC-013 A5 | 📝 Prototype — TD56-S03 |
+| `03i-service-edit-public-page-staff.html` | STAFF view — image fields disabled (upload endpoint is MANAGER-only); switch and text fields editable | UC-013 A5 | 📝 Prototype — TD56-S03 |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
 
 Note: the booking-model picker for UC-056 (Agendamento/Turma, at creation time) lives on `02-service-create.html`, not a separate file — see that file's own header comment.

@@ -347,36 +347,39 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 
 ---
 
-## TD56-S03 — "Página pública do serviço" card (`03g`, `03h`, `03i`) — prototype, not yet built
+## TD56-S03 — "Página pública" tab (`03g`, `03h`, `03i`) — prototype, not yet built
 
-**What it is:** one card at the bottom of the Detalhes tab (above the form actions) where a manager or staff member gives a service its own public page: an address (slug), cover image, gallery, long Markdown description, inclusions and preparation notes. It saves with the tab's existing "Salvar alterações" — the same `PATCH /v1/services/:id`, with two new optional fields. The visitor side is `guest/prototypes/service-detail/`.
+**What it is:** a fifth tab on the service edit page where a manager or staff member publishes the service's own public page and writes its content: cover image, gallery, long Markdown description, inclusions and preparation notes. It has its own "Salvar página pública" button (same per-tab-save pattern as the other tabs) and sends `PATCH /v1/services/:id` with `publicPagePublished` and `publicProfile`. The visitor side is `guest/prototypes/service-detail/`. The other editor screens (`03`, `03c`–`03f`, `02c`) carry the extra tab as a link to `03g`.
+
+**Decisions from prototype review (2026-10-23):** the page is a tab of its own, not a card inside Detalhes; there is **no address field** — the system generates the slug on first publish (from the service name; an id-prefix suffix on a clash) and never changes it; a **publish switch** replaces "clear the slug to unpublish"; "Ver página pública ↗" opens a **new browser tab** (`target="_blank" rel="noopener noreferrer"`) so the manager stays in the editor, and is disabled while unpublished. The hotsite service cards show "Ver detalhes" only for services whose page is published.
 
 **File map**
 
 | Prototype | Production |
 |---|---|
-| `03g` card | `features/booking/components/dashboard/services/ServicePublicProfileCard.tsx` (new), mounted by `ServiceFormFields` → `ServiceCreatePage` + `ServiceEditDetailsTab` |
-| `03h` slug conflict | same card, `error` state fed by the 409 mapped through the shared error-translation helper |
-| `03i` STAFF view | same card, `canUploadImages = role === 'MANAGER'`; image tiles and "Adicionar" disabled, note shown |
+| `03g` tab (published) | `features/booking/components/dashboard/services/ServicePublicPageTab.tsx` (new), added to `ServiceEditPage`'s tab bar and panels |
+| `03h` (switch off) | same tab, `published = false` state |
+| `03i` STAFF | same tab, `canUploadImages = role === 'MANAGER'`; image tiles and "Adicionar" disabled, note shown |
 
-**Props (proposed):** `value: { publicSlug: string | null; publicProfile: ServicePublicProfileInput | null }`, `onChange`, `serviceName` (slug suggestion), `slugError?: string`, `canUploadImages: boolean`, `publicPageUrlBase: string` (tenant host + `/servicos/`), `serviceId?` (absent on create).
+The create page (`ServiceCreatePage`) gets no tab: the service must exist first, as for the other config tabs. After creation the manager lands on the edit page, where the tab is available.
 
-**BFF calls:** `PATCH /v1/services/:id` and `POST /v1/services` (STAFF | MANAGER) carry `publicSlug?: string | null` and `publicProfile?: {…} | null` — omitted = unchanged, `null` = clear. Images use the existing MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`; the saved paths are `tenants/<tenantId>/hotsite/service-profile/…`. `GET /v1/services/:id` (`StaffServiceResponse`) returns both fields back.
+**Props (proposed):** `service` (`StaffServiceResponse` incl. `publicPagePublished`, `publicSlug` read-only, `publicProfile`), `canUploadImages: boolean`, `publicPageUrl: string | null` (built from the saved slug; null until the first publish), `onSave`.
+
+**BFF calls:** `PATCH /v1/services/:id` (STAFF | MANAGER) carries `publicPagePublished?: boolean` and `publicProfile?: {…} | null` — omitted = unchanged, `null` clears the profile. `publicSlug` is never sent. Images use the existing MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`; saved paths are `tenants/<tenantId>/hotsite/service-profile/…`. `GET /v1/services/:id` returns `publicPagePublished`, `publicSlug` and `publicProfile`.
 
 **Validation table**
 
 | Field | Rule | Error copy (pt-BR) |
 |---|---|---|
-| `publicSlug` | `[a-z0-9-]`, 3–60, no leading/trailing hyphen; lowercased and trimmed on input; empty = not published | "Use de 3 a 60 letras minúsculas, números e hífens." |
-| `publicSlug` (server) | unique per tenant → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` | "Este endereço já está em uso por outro serviço. Escolha outro." |
 | cover | one image | — |
 | gallery | ≤ 8 images | "A galeria aceita até 8 imagens." |
 | `longDescription` | ≤ 4000 chars, restricted Markdown (no HTML, no images) | counter `n / 4000` |
 | `inclusions` | ≤ 12 items × 120 chars; blank rows dropped on save | counter `n de 12` |
 | `preparationNotes` | ≤ 1000 chars | counter `n / 1000` |
+| publish (server) | simultaneous first publish of two same-named services can hit the unique index → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` | "Não foi possível publicar agora. Tente novamente." |
 
-**States:** (1) no slug — chip "Não publicada", link "Ver página pública" hidden; (2) slug set — chip "Publicada", link shown; (3) slug conflict (`03h`) — the **whole form stays visible**, only the slug field is flagged and the card scrolls into view; (4) STAFF (`03i`) — images disabled with the note "Somente gerentes podem enviar ou trocar as imagens da página pública."; (5) slug cleared — saves `publicSlug: null`; the profile content is kept and reappears if a slug is set again. The slug auto-suggests from the name in the browser only while the field is untouched and empty; a suggestion is never saved unless the manager keeps it. On create (`ServiceCreatePage`) the card renders with an empty state and the same fields.
+**States:** (1) published — chip "Publicada", link enabled; (2) not published (`03h`) — chip "Não publicada", link disabled, helper text explains that the site card shows only "Agendar"; content stays editable so it can be prepared first; (3) STAFF (`03i`) — images disabled with the note "Somente gerentes podem enviar ou trocar as imagens da página pública.", switch and texts editable; (4) inactive service — the public page is unavailable whatever the switch says; the tab shows the switch state but the helper adds that the service must be active (production copy to be settled in implementation); (5) unsaved changes show the tab's amber dirty dot like the other tabs.
 
-**Reuse inventory (`shared/components/ui/`):** `section-card` for the card shell, `textarea` for the Markdown and notes fields, `button` for add/remove. Image tiles reuse the hotsite editor's `SingleImageUploadField` upload mechanics. The Markdown preview uses the shared `RestrictedMarkdown` renderer, so the manager sees what the visitor will see. No existing primitive for a tab strip inside a card — the Escrever/Pré-visualizar toggle is two buttons with `aria-selected`.
+**Reuse inventory (`shared/components/ui/`):** `section-card` for tab groups, `textarea` for the Markdown and notes fields, `switch-field` for the publish switch (the prototype draws the shared `toggle-switch` shape), `button` for add/remove. Image tiles reuse the hotsite editor's `SingleImageUploadField` upload mechanics. The Markdown preview uses the shared `RestrictedMarkdown` renderer, so the manager sees what the visitor will see. No existing primitive for the Escrever/Pré-visualizar toggle — two buttons with `aria-selected`.
 
-**i18n:** keys under `dashboard.servicesPage.publicProfile*` in both locales, plus the `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` entry in `errors.json`.
+**i18n:** keys under `dashboard.servicesPage.publicPage*` in both locales, plus the `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` entry in `errors.json`.
