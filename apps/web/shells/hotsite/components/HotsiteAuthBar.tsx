@@ -3,9 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import type { SessionResponse } from '@ikaro/types';
+import type { HotsiteNavigationItem, SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
+import { HotsiteNavigation } from './HotsiteNavigation';
 import {
   BrandMark,
   BriefcaseIcon,
@@ -17,6 +18,8 @@ interface HotsiteAuthBarProps {
   readonly slug: string;
   readonly logoUrl: string;
   readonly tenantName: string;
+  // The NAVIGATION module's resolved links (resolveHotsiteNavigation); none renders nothing.
+  readonly navigation?: readonly HotsiteNavigationItem[];
 }
 
 // Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
@@ -35,6 +38,7 @@ export function HotsiteAuthBar({
   slug,
   logoUrl,
   tenantName,
+  navigation = [],
 }: HotsiteAuthBarProps): React.JSX.Element {
   const t = useTranslations('auth');
   // null (distinct from { staff: null, customer: null }) means "the fetch hasn't resolved yet" —
@@ -73,6 +77,7 @@ export function HotsiteAuthBar({
             style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
           />
         </div>
+        <HotsiteNavigation items={navigation} slug={slug} />
         <div
           className="h-3.5 w-16 animate-pulse rounded"
           style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
@@ -84,7 +89,14 @@ export function HotsiteAuthBar({
   const isStaff = session.staff !== null;
   const isCustomer = !isStaff && session.customer !== null;
   if (!isStaff && !isCustomer) {
-    return <HotsiteAuthBarSignedOut slug={slug} logoUrl={logoUrl} tenantName={tenantName} />;
+    return (
+      <HotsiteAuthBarSignedOut
+        slug={slug}
+        logoUrl={logoUrl}
+        tenantName={tenantName}
+        navigation={navigation}
+      />
+    );
   }
   const displayName = session.staff?.name || session.customer?.name || '';
 
@@ -123,6 +135,7 @@ export function HotsiteAuthBar({
           <StaffAreaLink slug={slug} />
         )}
       </div>
+      <HotsiteNavigation items={navigation} slug={slug} />
       {isCustomer ? (
         <HotsiteAuthBarDropdown name={displayName} slug={slug} />
       ) : (

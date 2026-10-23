@@ -2,6 +2,8 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { HotsiteBrandingSchema, HotsiteModuleSchema } from '@ikaro/validation';
 import { HotsiteConfigBuilder } from '../../../test/builders/platform';
+import type { HotsiteModule } from './hotsite-config.types';
+import { assertValidLayoutStructure } from './hotsite-layout.rules';
 import { HotsiteConfigEntityBuilder } from '../../../test/builders/platform/hotsite-config-entity.builder';
 import {
   SEED_HOTSITE_BASE_BRANDING,
@@ -60,8 +62,9 @@ describe('legacy layout audit', () => {
     expectEveryModuleToPass(new HotsiteConfigEntityBuilder().build().layout);
   });
 
-  // The six prototype manifests are today's schema (no presentation, NAVIGATION or CONTENT_BLOCK);
-  // They are due to be rewritten. Their layouts are what a manager could paste into the Manifesto tab.
+  // The six template manifests are what a manager could paste into the Manifesto tab and what the
+  // catalogue will apply. They use the final schema (NAVIGATION, CONTENT_BLOCK, presentation), so
+  // each must pass the request schema, the aggregate's cross-field rules and the branding schema.
   describe('prototype manifests (journeys/manager/prototypes/hotsite/hotsite-impl)', () => {
     const manifests = readdirSync(PROTOTYPE_DIR).filter((file) =>
       /^manifesto-(?!v2-layout-proposal).+\.json$/.test(file),
@@ -71,11 +74,28 @@ describe('legacy layout audit', () => {
       expect(manifests).toHaveLength(6);
     });
 
-    it.each(manifests)('%s layout passes the module schema', (file) => {
-      const manifest = JSON.parse(readFileSync(join(PROTOTYPE_DIR, file), 'utf8')) as {
+    function readManifest(file: string): { layout: unknown[]; branding: unknown } {
+      return JSON.parse(readFileSync(join(PROTOTYPE_DIR, file), 'utf8')) as {
         layout: unknown[];
+        branding: unknown;
       };
-      expectEveryModuleToPass(manifest.layout);
+    }
+
+    it.each(manifests)('%s layout passes the module schema', (file) => {
+      expectEveryModuleToPass(readManifest(file).layout);
+    });
+
+    it.each(manifests)(
+      '%s layout passes the aggregate cross-field rules (NAVIGATION first, enabled targets, presentation placement)',
+      (file) => {
+        expect(() =>
+          assertValidLayoutStructure(readManifest(file).layout as HotsiteModule[]),
+        ).not.toThrow();
+      },
+    );
+
+    it.each(manifests)('%s branding passes the branding schema', (file) => {
+      expect(HotsiteBrandingSchema.safeParse(readManifest(file).branding).success).toBe(true);
     });
   });
 });

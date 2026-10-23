@@ -1,21 +1,24 @@
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { GalleryModuleData } from '@ikaro/types';
-import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
+import {
+  LEGACY_SECTION_PADDING,
+  legacySectionBackground,
+  sectionHeadingStyle,
+  sectionTextColor,
+} from '@/features/platform/hotsite/module-styles';
 import { GalleryGrid } from './GalleryGrid';
 import { GalleryItem } from './GalleryItem';
+import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { SectionEyebrow } from './SectionEyebrow';
 
-interface GalleryModuleProps {
+interface GalleryModuleProps extends SectionPresentationProps {
   readonly data: GalleryModuleData;
   readonly slug: string;
   readonly bgVariant?: 'default' | 'alt';
 }
 
-const headingStyle: React.CSSProperties = {
-  ...sectionHeadingFont,
-  color: 'var(--ba-text)',
-};
+const headingStyle = sectionHeadingStyle;
 
 // Masonry (M18-S06/S07 follow-up): flex-wrap rows, not CSS columns. columns-N is column-major —
 // it has no concept of a "row" at all, so an uneven count (e.g. 3 images in 2 columns) always
@@ -40,10 +43,22 @@ const MASONRY_TILE_BASIS_CLASS = 'basis-[calc(50%-0.5rem)] sm:basis-[calc(33.333
 // matches .gallery-featured-grid's grid-template-areas in globals.css (M18-S07).
 const FEATURED_GRID_AREAS = ['big', 's1', 's2', 's3', 's4'] as const;
 
+// Portfolio: an asymmetric 12-column rhythm that repeats every four tiles (wide, narrow, narrow,
+// wide) with a different aspect ratio per slot, so the sequence reads as curated work rather than
+// a uniform grid. On mobile the wide tiles take the full row and the narrow ones pair up.
+const PORTFOLIO_SLOTS = [
+  { className: 'col-span-2 md:col-span-7', aspectRatio: '4 / 3' },
+  { className: 'col-span-1 md:col-span-5', aspectRatio: '1 / 1' },
+  { className: 'col-span-1 md:col-span-5', aspectRatio: '1 / 1' },
+  { className: 'col-span-2 md:col-span-7', aspectRatio: '4 / 3' },
+] as const;
+
 export function GalleryModule({
   data,
   slug: _,
   bgVariant,
+  presentation,
+  sectionTokens,
 }: GalleryModuleProps): React.JSX.Element | null {
   const t = useTranslations('hotsite');
 
@@ -52,19 +67,41 @@ export function GalleryModule({
   }
 
   const title = data.title ?? t('gallery.defaultTitle');
-  const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
 
   // 'featured' needs at least 5 images to fill its fixed template — fewer than that renders as
   // 'grid' instead. More than 5 is fine: only the first 5 (images.slice(0, 5) below) are used,
   // matching the config panel's own gate. Display-time only: the stored layout value is
   // untouched, so restoring a 5th image brings the featured view back with no re-selection
   // needed (M18-S07).
-  // 'portfolio' is in the layout enum (schema only) but has no renderer yet; it falls through to the plain grid branch below.
   const effectiveLayout: GalleryModuleData['layout'] =
     data.layout === 'featured' && data.images.length < 5 ? 'grid' : data.layout;
 
   const gridContent =
-    effectiveLayout === 'featured' ? (
+    effectiveLayout === 'portfolio' ? (
+      <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
+        <div className="grid grid-cols-2 items-start gap-4 md:grid-cols-12">
+          {data.images.map((image, i) => {
+            const slot = PORTFOLIO_SLOTS[i % PORTFOLIO_SLOTS.length];
+            return (
+              <a
+                key={image.url}
+                href={image.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-gallery-url={image.url}
+                data-gallery-caption={image.caption ?? ''}
+                data-gallery-extra={i >= data.maxVisible ? '' : undefined}
+                data-testid="portfolio-tile"
+                className={`block cursor-zoom-in overflow-hidden ${slot.className}`}
+                style={{ aspectRatio: slot.aspectRatio, borderRadius: 'var(--ba-radius)' }}
+              >
+                <GalleryItem image={image} layout="portfolio" priority={i === 0} />
+              </a>
+            );
+          })}
+        </div>
+      </GalleryGrid>
+    ) : effectiveLayout === 'featured' ? (
       <GalleryGrid maxVisible={5} totalImages={5}>
         <div
           className="gallery-featured-grid gap-3"
@@ -127,25 +164,24 @@ export function GalleryModule({
     );
 
   return (
-    <section
+    <HotsiteSectionShell
       id="gallery"
-      style={{
-        backgroundColor: bg,
-        color: 'var(--ba-text)',
-        padding: 'var(--ba-section-py) 1.5rem',
-      }}
+      flow
+      legacyBackground={legacySectionBackground(bgVariant)}
+      legacyColor={sectionTextColor}
+      legacyPadding={LEGACY_SECTION_PADDING}
+      presentation={presentation}
+      sectionTokens={sectionTokens}
     >
-      <div className="mx-auto max-w-7xl">
-        {data.eyebrow && (
-          <div className="text-center">
-            <SectionEyebrow text={data.eyebrow} />
-          </div>
-        )}
-        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-          {title}
-        </h2>
-        {gridContent}
-      </div>
-    </section>
+      {data.eyebrow && (
+        <div className="text-center">
+          <SectionEyebrow text={data.eyebrow} />
+        </div>
+      )}
+      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+        {title}
+      </h2>
+      {gridContent}
+    </HotsiteSectionShell>
   );
 }

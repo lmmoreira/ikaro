@@ -7,6 +7,7 @@ import type {
   BookingCtaModuleData,
   ChatbotModuleData,
   ContactModuleData,
+  ContentBlockModuleData,
   FooterModuleData,
   GalleryModuleData,
   HeroModuleData,
@@ -58,6 +59,9 @@ vi.mock('@/shells/hotsite/components/ChatbotWidget', () => ({
 vi.mock('@/shells/hotsite/components/LeadFormModule', () => ({
   LeadFormModule: () => <div data-testid="lead-form-module" />,
 }));
+vi.mock('@/shells/hotsite/components/ContentBlockModule', () => ({
+  ContentBlockModule: () => <div data-testid="content-block-module" />,
+}));
 
 const baseCtx = {
   tenantSlug: 'lavacar-bh',
@@ -80,19 +84,17 @@ function planItem(parsed: HotsiteModuleParsed): HotsiteModuleRenderPlanItem {
 }
 
 describe('renderHotsitePreviewModule', () => {
-  // Negative guarantee: NAVIGATION and CONTENT_BLOCK are parsed and carried, but have no preview
-  // renderer yet — an enabled one in the preview must stay invisible.
-  it.each([
-    ['NAVIGATION', { items: [] }],
-    ['CONTENT_BLOCK', { variant: 'image-statement', title: 'T' }],
-  ] as const)('renders nothing for an enabled %s plan item', (type, data) => {
+  // Negative guarantee: NAVIGATION is page chrome rendered by the top bar, never a section — an
+  // enabled one reaching the preview renderer must stay invisible.
+  it('renders nothing for an enabled NAVIGATION plan item', () => {
     const result = renderHotsitePreviewModule(
-      planItem({ type, data } as HotsiteModuleParsed),
+      planItem({ type: 'NAVIGATION', data: { items: [] } }),
       0,
       baseCtx,
     );
 
-    expect(result).toBeNull();
+    const { container } = render(<>{result}</>);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it.each([
@@ -106,6 +108,7 @@ describe('renderHotsitePreviewModule', () => {
     ['FOOTER', 'footer-module', {} as FooterModuleData],
     ['CHATBOT', 'chatbot-module', {} as ChatbotModuleData],
     ['LEAD_FORM', 'lead-form-module', {} as LeadFormModuleData],
+    ['CONTENT_BLOCK', 'content-block-module', {} as ContentBlockModuleData],
   ] as const)('renders the %s module for a %s plan item', (type, testId, data) => {
     const result = renderHotsitePreviewModule(
       planItem({ type, data } as HotsiteModuleParsed),
@@ -117,14 +120,15 @@ describe('renderHotsitePreviewModule', () => {
     expect(screen.getByTestId(testId)).toBeInTheDocument();
   });
 
-  it('returns null for an unknown module type', () => {
+  it('renders nothing for an unknown module type', () => {
     const result = renderHotsitePreviewModule(
       planItem({ type: 'NOT_A_REAL_TYPE', data: {} } as unknown as HotsiteModuleParsed),
       0,
       baseCtx,
     );
 
-    expect(result).toBeNull();
+    const { container } = render(<>{result}</>);
+    expect(container).toBeEmptyDOMElement();
   });
 
   describe('with an editor selection', () => {
@@ -140,6 +144,7 @@ describe('renderHotsitePreviewModule', () => {
       ['FOOTER', 'footer-module'],
       ['CHATBOT', 'chatbot-module'],
       ['LEAD_FORM', 'lead-form-module'],
+      ['CONTENT_BLOCK', 'content-block-module'],
     ] as const;
 
     it.each(ALL_TYPES)(
@@ -212,16 +217,6 @@ describe('renderHotsitePreviewModule', () => {
       renderWithIntl(<>{result}</>);
 
       expect(await screen.findByTestId('preview-section-select')).toHaveClass(cls);
-    });
-
-    it('returns null for an unknown module type even with a selection', () => {
-      const result = renderHotsitePreviewModule(
-        planItem({ type: 'NOT_A_REAL_TYPE', data: {} } as unknown as HotsiteModuleParsed),
-        0,
-        { ...baseCtx, selection },
-      );
-
-      expect(result).toBeNull();
     });
   });
 });

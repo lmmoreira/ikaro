@@ -391,3 +391,49 @@ describe('GalleryModule', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('GalleryModule portfolio layout', () => {
+  it('renders every image in an asymmetric 12-column rhythm that repeats every four tiles', () => {
+    const { container } = renderWithIntl(
+      <GalleryModule
+        data={makeData({ layout: 'portfolio', images: makeImages(5), maxVisible: 8 })}
+        slug="tenant"
+      />,
+    );
+
+    const tiles = screen.getAllByTestId('portfolio-tile');
+    expect(tiles).toHaveLength(5);
+    expect(galleryGridContainer(container)).toHaveClass('md:grid-cols-12');
+    expect(tiles[0]).toHaveClass('md:col-span-7');
+    expect(tiles[1]).toHaveClass('md:col-span-5');
+    expect(tiles[2]).toHaveClass('md:col-span-5');
+    expect(tiles[3]).toHaveClass('md:col-span-7');
+    expect(tiles[4]).toHaveClass('md:col-span-7');
+    expect(tiles[0].style.aspectRatio).toBe('4 / 3');
+    expect(tiles[1].style.aspectRatio).toBe('1 / 1');
+  });
+
+  it('hides tiles past maxVisible behind the show-more toggle', () => {
+    renderWithIntl(
+      <GalleryModule
+        data={makeData({ layout: 'portfolio', images: makeImages(5), maxVisible: 3 })}
+        slug="tenant"
+      />,
+    );
+
+    const tiles = screen.getAllByTestId('portfolio-tile');
+    expect(tiles[2]).not.toHaveAttribute('data-gallery-extra');
+    expect(tiles[3]).toHaveAttribute('data-gallery-extra');
+  });
+
+  it('has no accessibility violations', async () => {
+    const { container } = renderWithIntl(
+      <GalleryModule
+        data={makeData({ layout: 'portfolio', images: makeImages(4) })}
+        slug="tenant"
+      />,
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

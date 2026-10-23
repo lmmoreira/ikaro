@@ -4,7 +4,7 @@ import type { GalleryImage } from '@ikaro/types';
 
 interface GalleryItemProps {
   readonly image: GalleryImage;
-  readonly layout: 'grid' | 'masonry' | 'featured';
+  readonly layout: 'grid' | 'masonry' | 'featured' | 'portfolio';
   readonly priority?: boolean;
   /** Only meaningful when layout === 'featured' — this is the images[0] "big" tile, not one of
    * the 4 small ones. Drives `sizes` only; GalleryModule's CSS grid handles the actual box shape. */
@@ -24,7 +24,9 @@ function galleryItemWrapperClassName(
   useNaturalAspectRatio: boolean,
 ): string {
   if (useNaturalAspectRatio) return 'relative w-full overflow-hidden';
-  if (layout === 'featured') return 'relative h-full w-full overflow-hidden';
+  if (layout === 'featured' || layout === 'portfolio') {
+    return 'relative h-full w-full overflow-hidden';
+  }
   return 'relative aspect-square w-full overflow-hidden';
 }
 
@@ -34,6 +36,8 @@ function galleryItemWrapperClassName(
 // rather than sharing one generic guess (Codex review, PR #329: the previous single value
 // under-fetched the big tile and over-fetched the small ones).
 function galleryItemSizes(layout: GalleryItemProps['layout'], isFeaturedPrimary: boolean): string {
+  // Portfolio tiles span 7 or 5 of 12 columns on desktop and the full row (or half) on mobile.
+  if (layout === 'portfolio') return '(min-width: 768px) 60vw, 100vw';
   if (layout !== 'featured') {
     return '(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw';
   }

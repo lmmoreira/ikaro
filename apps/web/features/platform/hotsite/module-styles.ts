@@ -5,6 +5,32 @@ export const sectionHeadingFont: React.CSSProperties = {
   fontFamily: 'var(--ba-heading-font)',
 };
 
+// Text colour of a flow section. A section whose `presentation.surface` is set carries the scoped
+// `--ba-section-*` tokens (HotsiteSectionShell), so its text follows the derived, contrast-safe
+// colour; every other section falls back to the tenant's `--ba-text`, exactly as before.
+export const sectionTextColor = 'var(--ba-section-text, var(--ba-text))';
+
+export const sectionHeadingStyle: React.CSSProperties = {
+  ...sectionHeadingFont,
+  color: sectionTextColor,
+};
+
+// The section's own background while `presentation.surface` is unset: the default tenant
+// background, or the secondary one on an alternate section.
+export function legacySectionBackground(bgVariant: 'default' | 'alt' | undefined): string {
+  return bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
+}
+
+// Card surface that contrasts with the section: the derived card token when a surface is set,
+// otherwise the opposite tenant surface.
+export function sectionCardBackground(bgVariant: 'default' | 'alt' | undefined): string {
+  const legacy = bgVariant === 'alt' ? 'var(--ba-background)' : 'var(--ba-secondary)';
+  return `var(--ba-section-card-bg, ${legacy})`;
+}
+
+// Padding every flow section had before it rendered through HotsiteSectionShell.
+export const LEGACY_SECTION_PADDING = 'var(--ba-section-py) 1.5rem';
+
 // Content-block anchor helpers, shared by HeroModule and BookingCtaModule (M18-S05) — both
 // modules have the same `centered`/`left-aligned` shape and the same anchor semantics: X only
 // has a rendering effect on the `centered` variant (the `left-aligned` variant's text column

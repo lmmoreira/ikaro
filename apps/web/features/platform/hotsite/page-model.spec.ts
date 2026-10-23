@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteManifestResponse,
+  HotsiteModuleResponse,
+} from '@ikaro/types';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
   resolveHotsiteNavigation,
+  resolveManifestNavigation,
   shouldSkipDivider,
 } from './page-model';
 
@@ -435,5 +440,113 @@ describe('NAVIGATION and CONTENT_BLOCK in the render plan', () => {
         [],
       );
     });
+  });
+});
+
+describe('section tokens in the render plan', () => {
+  const branding: HotsiteBrandingResponse = {
+    primaryColor: '#1F3A5F',
+    secondaryColor: '#F1EDE4',
+    backgroundColor: '#FFFFFF',
+    textColor: '#111111',
+    headingFontFamily: 'Inter',
+    bodyFontFamily: 'Inter',
+    logoUrl: '',
+    borderRadius: 'rounded',
+    buttonStyle: 'filled',
+    spacing: 'comfortable',
+    shadowStyle: 'subtle',
+  };
+  const aboutData = { title: 'Sobre', body: 'Texto', imagePosition: 'left' as const };
+  const galleryData = { images: [], layout: 'grid' as const, maxVisible: 6 };
+  const about = (presentation?: HotsiteModuleResponse['presentation']): HotsiteModuleResponse =>
+    makeLayoutItem({ type: 'ABOUT', data: aboutData, ...(presentation ? { presentation } : {}) });
+
+  it('derives the scoped tokens only for a module that sets a surface', () => {
+    const plan = buildHotsiteModuleRenderPlan(
+      [
+        about({ surface: 'primary' }),
+        makeLayoutItem({ type: 'GALLERY', data: galleryData }),
+        makeLayoutItem({
+          type: 'GALLERY',
+          data: galleryData,
+          presentation: { contentWidth: 'narrow' },
+        }),
+      ],
+      false,
+      branding,
+    );
+
+    expect(plan[0].sectionTokens?.['--ba-section-bg']).toBe('#1F3A5F');
+    expect(plan[0].sectionTokens?.['--ba-section-text']).toBeDefined();
+    expect(plan[1].sectionTokens).toBeUndefined();
+    expect(plan[2].sectionTokens).toBeUndefined();
+  });
+
+  it('uses the module own customColor for the custom surface', () => {
+    const [item] = buildHotsiteModuleRenderPlan(
+      [about({ surface: 'custom', customColor: '#112233' })],
+      false,
+      branding,
+    );
+
+    expect(item.sectionTokens?.['--ba-section-bg']).toBe('#112233');
+  });
+
+  // Negative guarantee: a manifest without `presentation.surface` yields exactly the plan items it
+  // always did, whether or not branding is passed.
+  it('adds no sectionTokens key without a surface, with or without branding', () => {
+    const layout = [
+      about(),
+      makeLayoutItem({
+        type: 'GALLERY',
+        data: galleryData,
+        presentation: { contentWidth: 'wide' },
+      }),
+    ];
+
+    for (const item of buildHotsiteModuleRenderPlan(layout, false, branding)) {
+      expect('sectionTokens' in item).toBe(false);
+    }
+    expect(buildHotsiteModuleRenderPlan(layout, false)).toEqual(
+      buildHotsiteModuleRenderPlan(layout, false, branding),
+    );
+  });
+
+  it('adds no tokens when the presentation is invalid (it is ignored)', () => {
+    const [item] = buildHotsiteModuleRenderPlan([about({ surface: 'custom' })], false, branding);
+
+    expect(item.presentation).toBeUndefined();
+    expect(item.sectionTokens).toBeUndefined();
+  });
+});
+
+describe('resolveManifestNavigation', () => {
+  const branding = { alternateSectionBg: false } as HotsiteBrandingResponse;
+
+  it('returns the navigation links whose target section is rendered', () => {
+    const layout: HotsiteModuleResponse[] = [
+      makeLayoutItem({
+        type: 'NAVIGATION',
+        data: {
+          items: [
+            { label: 'Sobre', target: 'about' },
+            { label: 'Galeria', target: 'gallery' },
+          ],
+        },
+      }),
+      makeLayoutItem({
+        type: 'ABOUT',
+        data: { title: 'Sobre', body: 'Texto', imagePosition: 'left' },
+      }),
+    ];
+
+    expect(resolveManifestNavigation({ layout, branding })).toEqual([
+      { label: 'Sobre', target: 'about' },
+    ]);
+  });
+
+  it('returns nothing for a manifest without a NAVIGATION module (booking pages)', () => {
+    expect(resolveManifestNavigation({ layout: [], branding })).toEqual([]);
   });
 });

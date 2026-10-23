@@ -497,6 +497,11 @@
     }
   },
   "hotsite": {
+    "navigation": {
+      "ariaLabel": "Seções da página",
+      "openMenu": "Abrir menu",
+      "closeMenu": "Fechar menu"
+    },
     "services": {
       "defaultTitle": "Nossos Serviços",
       "pointsSuffix": "+{count} pontos",

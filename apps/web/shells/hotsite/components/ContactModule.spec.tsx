@@ -283,3 +283,53 @@ describe('ContactModule', () => {
     expect(await axe(container, { iframes: false })).toHaveNoViolations();
   });
 });
+
+describe('ContactModule section shell', () => {
+  const business = makeBusiness();
+
+  it('keeps the tenant surface without presentation and adopts the section tokens with a surface', () => {
+    const { container, rerender } = renderWithIntl(
+      <ContactModule data={makeData()} business={business} slug="tenant" />,
+    );
+    expect((container.querySelector('section') as HTMLElement).style.backgroundColor).toBe(
+      'var(--ba-background)',
+    );
+
+    rerender(
+      <ContactModule
+        data={makeData()}
+        business={business}
+        slug="tenant"
+        presentation={{ surface: 'secondary' }}
+        sectionTokens={{
+          '--ba-section-bg': '#111111',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#222222',
+          '--ba-section-divider': '#333333',
+        }}
+      />,
+    );
+    expect((container.querySelector('section') as HTMLElement).style.backgroundColor).toBe(
+      'var(--ba-section-bg)',
+    );
+  });
+
+  it('icon-cards use the section card token when a surface is set', () => {
+    const { container } = renderWithIntl(
+      <ContactModule
+        data={makeData({ displayStyle: 'icon-cards' })}
+        business={business}
+        slug="tenant"
+        presentation={{ surface: 'primary' }}
+        sectionTokens={{
+          '--ba-section-bg': '#111111',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#222222',
+          '--ba-section-divider': '#333333',
+        }}
+      />,
+    );
+
+    expect(container.innerHTML).toContain('var(--ba-section-card-bg, var(--ba-secondary))');
+  });
+});

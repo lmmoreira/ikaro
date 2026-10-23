@@ -112,3 +112,55 @@ describe('AboutModule', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('AboutModule editorial variant', () => {
+  it('renders a single long-form column with the image first and a larger title', () => {
+    const { container } = render(
+      <AboutModule
+        data={makeData({ variant: 'editorial', imageUrl: 'https://storage.example.com/about.jpg' })}
+        slug="tenant"
+      />,
+    );
+
+    const column = container.querySelector('[data-variant="editorial"]') as HTMLElement;
+    expect(column.firstElementChild?.querySelector('img')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Sobre nós' })).toHaveClass('text-4xl');
+    expect(screen.getByText('familiar').tagName).toBe('STRONG');
+  });
+
+  it('renders without an image', () => {
+    const { container } = render(
+      <AboutModule data={makeData({ variant: 'editorial' })} slug="tenant" />,
+    );
+
+    expect(container.querySelector('img')).toBeNull();
+  });
+
+  it('has no accessibility violations', async () => {
+    const { container } = render(
+      <AboutModule
+        data={makeData({ variant: 'editorial', imageUrl: 'https://storage.example.com/about.jpg' })}
+        slug="tenant"
+      />,
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  // Negative guarantee: an omitted variant is today's split layout, with imagePosition still working.
+  it('an omitted variant keeps the split two-column layout', () => {
+    const { container } = render(<AboutModule data={makeData()} slug="tenant" />);
+
+    expect(container.querySelector('[data-variant="editorial"]')).toBeNull();
+    expect(container.querySelector('section > div')).toHaveClass('md:grid-cols-2');
+  });
+
+  it('renders Markdown links with the shared restricted rel', () => {
+    render(<AboutModule data={makeData({ body: '[x](https://example.com)' })} slug="tenant" />);
+
+    expect(screen.getByRole('link', { name: 'x' })).toHaveAttribute(
+      'rel',
+      'noopener noreferrer nofollow',
+    );
+  });
+});

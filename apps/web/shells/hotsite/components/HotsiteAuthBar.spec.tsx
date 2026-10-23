@@ -202,3 +202,89 @@ describe('HotsiteAuthBar', () => {
     });
   });
 });
+
+describe('HotsiteAuthBar navigation', () => {
+  const navigation = [
+    { label: 'Serviços', target: 'service-list' as const },
+    { label: 'Contato', target: 'contact' as const },
+  ];
+
+  it('shows the navigation links in the skeleton, signed-out and signed-in states, never a second header', async () => {
+    let resolveFetch: (value: Response) => void = () => {};
+    vi.spyOn(globalThis, 'fetch').mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        }),
+    );
+
+    render(
+      <HotsiteAuthBar
+        slug={SLUG}
+        logoUrl={LOGO_URL}
+        tenantName={TENANT_NAME}
+        navigation={navigation}
+      />,
+    );
+
+    // skeleton: links are static, so they never flash in after the session resolves
+    expect(screen.getByTestId('hotsite-auth-bar-skeleton')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'Serviços', hidden: true })[0]).toHaveAttribute(
+      'href',
+      `/${SLUG}#service-list`,
+    );
+
+    resolveFetch(new Response(JSON.stringify({ staff: null, customer: null }), { status: 200 }));
+    await waitFor(() => expect(screen.getByTestId('hotsite-login-link')).toBeInTheDocument());
+    expect(screen.getAllByRole('link', { name: 'Contato', hidden: true })[0]).toHaveAttribute(
+      'href',
+      `/${SLUG}#contact`,
+    );
+    expect(document.querySelectorAll('header')).toHaveLength(1);
+  });
+
+  it('shows the links for a signed-in staff member too', async () => {
+    mockSession({ staff: { name: 'Maria' } });
+
+    render(
+      <HotsiteAuthBar
+        slug={SLUG}
+        logoUrl={LOGO_URL}
+        tenantName={TENANT_NAME}
+        navigation={navigation}
+      />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('hotsite-staff-authenticated-link')).toBeInTheDocument(),
+    );
+    expect(screen.getAllByRole('link', { name: 'Serviços', hidden: true })[0]).toBeInTheDocument();
+    expect(document.querySelectorAll('header')).toHaveLength(1);
+  });
+
+  it('adds nothing when there is no navigation', async () => {
+    mockSession({});
+
+    render(<HotsiteAuthBar slug={SLUG} logoUrl={LOGO_URL} tenantName={TENANT_NAME} />);
+
+    await waitFor(() => expect(screen.getByTestId('hotsite-login-link')).toBeInTheDocument());
+    expect(screen.queryByTestId('hotsite-navigation')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hotsite-navigation-menu')).not.toBeInTheDocument();
+  });
+
+  it('has no accessibility violations with navigation', async () => {
+    mockSession({});
+
+    const { container } = render(
+      <HotsiteAuthBar
+        slug={SLUG}
+        logoUrl={LOGO_URL}
+        tenantName={TENANT_NAME}
+        navigation={navigation}
+      />,
+    );
+    await waitFor(() => expect(screen.getByTestId('hotsite-login-link')).toBeInTheDocument());
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+});

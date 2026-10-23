@@ -6,7 +6,10 @@ import { useTenant } from '@/providers/tenant-provider';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
 import { HotsiteAuthBarSignedOut } from '@/shells/hotsite/components/HotsiteAuthBarSignedOut';
-import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
+import {
+  buildHotsiteModuleRenderPlan,
+  resolveHotsiteNavigation,
+} from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
 import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { usePreviewSupplementaryData, useTmpSignedUrls } from './useHotsitePreviewData';
@@ -40,7 +43,8 @@ export function HotsitePreviewCanvas({
     tmpSignedUrls,
   );
   const alternateSectionBg = branding.alternateSectionBg ?? false;
-  const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg);
+  const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg, branding);
+  const navigation = resolveHotsiteNavigation(layout, modulesWithVariant);
   const hasServiceList = modulesWithVariant.some(({ parsed }) => parsed.type === 'SERVICE_LIST');
   const { data, loadError } = usePreviewSupplementaryData(tenantSlug, hasServiceList);
   const tenantBrand = branding.brandName
@@ -100,6 +104,7 @@ export function HotsitePreviewCanvas({
               slug={tenantSlug}
               logoUrl={branding.logoUrl}
               tenantName={branding.brandName || data.tenantName}
+              navigation={navigation}
             />
           </div>
           {modulesWithVariant.map((moduleWithVariant, index) =>

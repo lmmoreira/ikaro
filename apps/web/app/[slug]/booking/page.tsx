@@ -9,7 +9,10 @@ import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import { BookingCtaModuleDataSchema } from '@/features/platform/hotsite/module-schemas';
-import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
+import {
+  resolveHotsiteDisplayName,
+  resolveManifestNavigation,
+} from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
 
@@ -62,7 +65,12 @@ export default async function BookingPage({ params }: BookingPageProps) {
 
   return (
     <>
-      <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
+      <HotsiteAuthBar
+        slug={slug}
+        logoUrl={manifest.branding.logoUrl}
+        tenantName={displayName}
+        navigation={resolveManifestNavigation(manifest)}
+      />
       {/* Reading the link's query string opts this subtree into client rendering, so the page's
           static HTML carries the plain form as the Suspense fallback and stays cached. */}
       <Suspense fallback={<BookingForm {...formProps} />}>

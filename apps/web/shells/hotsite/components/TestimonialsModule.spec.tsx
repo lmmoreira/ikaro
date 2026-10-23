@@ -120,3 +120,52 @@ describe('TestimonialsModule', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('TestimonialsModule editorial-quote layout and presentation', () => {
+  const items = [
+    makeTestimonial({ authorName: 'Ana', text: 'Cuidado impecável.' }),
+    makeTestimonial({ authorName: 'Bruno', text: 'Voltarei sempre.' }),
+  ];
+
+  it('renders each testimonial as a pull-quote with its author as attribution', () => {
+    renderWithIntl(
+      <TestimonialsModule data={makeData({ layout: 'editorial-quote', items })} slug="tenant" />,
+    );
+
+    const quotes = screen.getByTestId('editorial-quotes');
+    expect(quotes.querySelectorAll('blockquote')).toHaveLength(2);
+    expect(quotes.querySelectorAll('figcaption')[0]).toHaveTextContent('Ana');
+    expect(screen.getByText(/Cuidado impecável/)).toBeInTheDocument();
+  });
+
+  it('has no accessibility violations', async () => {
+    const { container } = renderWithIntl(
+      <TestimonialsModule data={makeData({ layout: 'editorial-quote', items })} slug="tenant" />,
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('uses the section tokens for its cards when a surface is set', () => {
+    const { container } = renderWithIntl(
+      <TestimonialsModule
+        data={makeData()}
+        slug="tenant"
+        presentation={{ surface: 'secondary' }}
+        sectionTokens={{
+          '--ba-section-bg': '#111111',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#222222',
+          '--ba-section-divider': '#333333',
+        }}
+      />,
+    );
+
+    expect((container.querySelector('section') as HTMLElement).style.backgroundColor).toBe(
+      'var(--ba-section-bg)',
+    );
+    expect(container.querySelector('li > div')).toHaveStyle({
+      backgroundColor: 'var(--ba-section-card-bg, var(--ba-secondary))',
+    });
+  });
+});

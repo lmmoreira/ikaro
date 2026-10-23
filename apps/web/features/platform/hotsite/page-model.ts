@@ -1,5 +1,6 @@
 import type {
   AboutModuleData,
+  HotsiteBrandingResponse,
   BookingCtaModuleData,
   ChatbotModuleData,
   ContactModuleData,
@@ -31,6 +32,7 @@ import {
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
 } from './module-schemas';
+import { deriveSectionTokens, type SectionTokens } from './apply-branding';
 import { isValidPresentation } from './presentation-schema';
 
 export type HotsiteSectionBgVariant = 'default' | 'alt';
@@ -56,6 +58,10 @@ export interface HotsiteModuleRenderPlanItem {
   // section renders with its defaults — and never removes the module the way malformed `data` does
   // (a stored manifest can predate a tightened rule; a cosmetic field must not blank a section).
   readonly presentation?: HotsiteModulePresentation;
+  // The scoped contrast tokens for `presentation.surface`, present only when the module sets one
+  // and the plan was built with the tenant's branding. HotsiteSectionShell puts them on the
+  // section element; nothing else reads them.
+  readonly sectionTokens?: SectionTokens;
 }
 
 // CHATBOT included: the bubble variant is a fixed-position floating element with its own
@@ -155,6 +161,7 @@ export function resolveHotsiteNavigation(
 export function buildHotsiteModuleRenderPlan(
   layout: ReadonlyArray<HotsiteModuleResponse>,
   alternateSectionBg: boolean,
+  branding?: HotsiteBrandingResponse,
 ): HotsiteModuleRenderPlanItem[] {
   const items: HotsiteModuleRenderPlanItem[] = [];
   let altIndex = 0;
@@ -169,14 +176,37 @@ export function buildHotsiteModuleRenderPlan(
     const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
+    const presentation = isValidPresentation(layoutModule.presentation)
+      ? layoutModule.presentation
+      : undefined;
     items.push({
       parsed,
       bgVariant: participates && isAlt ? 'alt' : 'default',
-      ...(isValidPresentation(layoutModule.presentation)
-        ? { presentation: layoutModule.presentation }
+      ...(presentation ? { presentation } : {}),
+      ...(branding && presentation?.surface
+        ? {
+            sectionTokens: deriveSectionTokens(
+              branding,
+              presentation.surface,
+              presentation.customColor,
+            ),
+          }
         : {}),
     });
   }
 
   return items;
+}
+
+// The top-bar links for a hotsite route that does not render the module sections itself (booking,
+// availability alert): the same plan the home page builds, reduced to the NAVIGATION links.
+export function resolveManifestNavigation(
+  manifest: Pick<HotsiteManifestResponse, 'layout' | 'branding'>,
+): HotsiteNavigationItem[] {
+  const plan = buildHotsiteModuleRenderPlan(
+    manifest.layout,
+    manifest.branding.alternateSectionBg ?? false,
+    manifest.branding,
+  );
+  return resolveHotsiteNavigation(manifest.layout, plan);
 }
