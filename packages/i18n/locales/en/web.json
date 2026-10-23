@@ -505,6 +505,7 @@
     "services": {
       "defaultTitle": "Our Services",
       "pointsSuffix": "+{count} points",
+      "bookCta": "Book",
       "empty": "No services available at the moment"
     },
     "gallery": {

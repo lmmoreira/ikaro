@@ -15,7 +15,9 @@ const LINK_CLASS = 'text-[0.8125rem] font-medium no-underline hover:opacity-70';
 // preview's signed-out bar) — never as a second header. Hrefs are absolute to the home page
 // (`/{slug}#service-list`), so they also work from /booking and the other hotsite routes.
 // Desktop shows the links inline; on a narrow screen they collapse into a <details> menu that
-// closes on Escape, on an outside click and when a link is tapped.
+// closes on Escape, on an outside click and when a link is tapped. The menu panel spans the bar
+// (the <header> is its positioning context), so it fits any phone width whatever the logo and
+// staff-area link push the trigger to.
 export function HotsiteNavigation({
   items,
   slug,
@@ -24,10 +26,13 @@ export function HotsiteNavigation({
   const menuRef = useRef<HTMLDetailsElement>(null);
   const [open, setOpen] = useState(false);
 
+  // The listeners are always attached and read the live `open` state of the element, never React's
+  // copy of it: a visitor can open the menu (a native <details>) before this component has
+  // hydrated, and a listener that only exists while React believes the menu is open would miss
+  // exactly that case.
   useEffect(() => {
-    if (!open) return;
     const close = (): void => {
-      if (menuRef.current) menuRef.current.open = false;
+      if (menuRef.current?.open) menuRef.current.open = false;
     };
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') close();
@@ -41,7 +46,7 @@ export function HotsiteNavigation({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [open]);
+  }, []);
 
   if (items.length === 0) return null;
 
@@ -70,7 +75,7 @@ export function HotsiteNavigation({
       <details
         ref={menuRef}
         data-testid="hotsite-navigation-menu"
-        className="relative md:hidden"
+        className="md:hidden"
         onToggle={(event) => setOpen(event.currentTarget.open)}
       >
         <summary
@@ -95,11 +100,10 @@ export function HotsiteNavigation({
         </summary>
         <nav
           aria-label={t('ariaLabel')}
-          className="absolute left-0 top-full z-50 mt-2 flex min-w-44 flex-col overflow-hidden border shadow-lg"
+          className="absolute inset-x-0 top-full z-50 flex flex-col overflow-hidden border-t shadow-lg"
           style={{
             backgroundColor: 'var(--ba-secondary)',
             borderColor: 'var(--ba-background)',
-            borderRadius: 'var(--ba-radius)',
           }}
         >
           {items.map((item) => (

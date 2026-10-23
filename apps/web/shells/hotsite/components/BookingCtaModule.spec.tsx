@@ -425,3 +425,19 @@ describe('BookingCtaModule immersive variant and presentation', () => {
     expect(container.querySelector('.max-w-4xl')).toBeInTheDocument();
   });
 });
+
+describe('BookingCtaModule left-aligned image panel', () => {
+  it('keeps the branded border radius on the image', () => {
+    const { container } = render(
+      <BookingCtaModule
+        data={makeData({
+          variant: 'left-aligned',
+          backgroundImageUrl: 'https://cdn.example.com/b.png',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    expect(container.querySelector('img')).toHaveStyle({ borderRadius: 'var(--ba-radius)' });
+  });
+});

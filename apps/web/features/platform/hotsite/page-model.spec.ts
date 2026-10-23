@@ -267,7 +267,12 @@ describe('NAVIGATION and CONTENT_BLOCK in the render plan', () => {
     ctaTarget: 'booking-form' as const,
   };
   const aboutData = { title: 'Sobre', body: 'Texto', imagePosition: 'left' as const };
-  const galleryData = { images: [], layout: 'grid' as const, maxVisible: 6 };
+  // One image: a Gallery with none renders nothing, so it is not a navigable section.
+  const galleryData = {
+    images: [{ url: 'https://cdn.example.com/a.png', source: 'upload' as const }],
+    layout: 'grid' as const,
+    maxVisible: 6,
+  };
   const contentBlockData = { variant: 'image-statement' as const, title: 'Nossa história' };
   const navigation = (
     targets: ('service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
@@ -548,5 +553,73 @@ describe('resolveManifestNavigation', () => {
 
   it('returns nothing for a manifest without a NAVIGATION module (booking pages)', () => {
     expect(resolveManifestNavigation({ layout: [], branding })).toEqual([]);
+  });
+});
+
+describe('resolveHotsiteNavigation with empty sections', () => {
+  const navigationTo = (
+    ...targets: ('gallery' | 'testimonials' | 'about')[]
+  ): HotsiteModuleResponse =>
+    makeLayoutItem({
+      type: 'NAVIGATION',
+      data: { items: targets.map((target) => ({ label: target, target })) },
+    });
+  const about = makeLayoutItem({
+    type: 'ABOUT',
+    data: { title: 'Sobre', body: 'Texto', imagePosition: 'left' },
+  });
+
+  // GalleryModule and TestimonialsModule render nothing for valid but empty data, so a link to
+  // them would point at an anchor that is not on the page.
+  it('drops a link to an enabled Gallery that has no images', () => {
+    const layout = [
+      navigationTo('gallery', 'about'),
+      makeLayoutItem({ type: 'GALLERY', data: { images: [], layout: 'grid', maxVisible: 6 } }),
+      about,
+    ];
+
+    expect(
+      resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false)).map(
+        (item) => item.target,
+      ),
+    ).toEqual(['about']);
+  });
+
+  it('drops a link to an enabled Testimonials module that has no items', () => {
+    const layout = [
+      navigationTo('testimonials', 'about'),
+      makeLayoutItem({ type: 'TESTIMONIALS', data: { items: [], layout: 'grid' } }),
+      about,
+    ];
+
+    expect(
+      resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false)).map(
+        (item) => item.target,
+      ),
+    ).toEqual(['about']);
+  });
+
+  it('keeps the links once those sections have content', () => {
+    const layout = [
+      navigationTo('gallery', 'testimonials'),
+      makeLayoutItem({
+        type: 'GALLERY',
+        data: {
+          images: [{ url: 'https://cdn.example.com/a.png', source: 'upload' }],
+          layout: 'grid',
+          maxVisible: 6,
+        },
+      }),
+      makeLayoutItem({
+        type: 'TESTIMONIALS',
+        data: { items: [{ authorName: 'Ana', text: 'Ótimo' }], layout: 'grid' },
+      }),
+    ];
+
+    expect(
+      resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false)).map(
+        (item) => item.target,
+      ),
+    ).toEqual(['gallery', 'testimonials']);
   });
 });

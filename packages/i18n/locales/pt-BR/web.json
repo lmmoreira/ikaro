@@ -505,6 +505,7 @@
     "services": {
       "defaultTitle": "Nossos Serviços",
       "pointsSuffix": "+{count} pontos",
+      "bookCta": "Agendar",
       "empty": "Nenhum serviço disponível no momento"
     },
     "gallery": {

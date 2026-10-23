@@ -167,7 +167,7 @@ export function BookingCtaModule({
                   fill
                   sizes="(min-width: 640px) 50vw, 100vw"
                   className="object-cover"
-                  style={{ objectPosition }}
+                  style={{ borderRadius: 'var(--ba-radius)', objectPosition }}
                 />
               </div>
             )}

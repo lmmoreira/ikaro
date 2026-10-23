@@ -29,7 +29,7 @@ function buildComponents(density: MarkdownDensity): Components {
       <a
         href={href}
         className="underline"
-        style={{ color: 'var(--ba-primary)' }}
+        style={{ color: 'var(--ba-section-text, var(--ba-primary))' }}
         target="_blank"
         rel="noopener noreferrer nofollow"
       >

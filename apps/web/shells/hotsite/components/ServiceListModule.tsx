@@ -24,7 +24,7 @@ const headingStyle = sectionHeadingStyle;
 export function ServiceListModule({
   data,
   services,
-  slug: _,
+  slug,
   bgVariant,
   presentation,
   sectionTokens,
@@ -35,6 +35,13 @@ export function ServiceListModule({
   const cardBg = sectionCardBackground(bgVariant);
   const showPrices = data.showPrices;
   const showPoints = data.showPoints;
+  // Only 'booking' is a card action here. 'details' links to a service page that does not exist
+  // yet (a service has no public slug until the service-profile story), and an omitted value is
+  // 'none', today's behaviour.
+  const action =
+    data.itemAction === 'booking'
+      ? { slug, label: data.itemCtaLabel || t('services.bookCta') }
+      : undefined;
 
   return (
     <HotsiteSectionShell
@@ -63,6 +70,7 @@ export function ServiceListModule({
           showPrices={showPrices}
           showPoints={showPoints}
           cardBg={cardBg}
+          action={action}
         />
       )}
     </HotsiteSectionShell>

@@ -23,6 +23,14 @@ describe('RestrictedMarkdown', () => {
     expect(link).toHaveAttribute('rel', 'noopener noreferrer nofollow');
   });
 
+  it('colours links from the section text token, so they stay readable on a primary surface', () => {
+    render(<RestrictedMarkdown>{'[site](https://example.com)'}</RestrictedMarkdown>);
+
+    expect(screen.getByRole('link', { name: 'site' })).toHaveStyle({
+      color: 'var(--ba-section-text, var(--ba-primary))',
+    });
+  });
+
   // Negative guarantees: an image only ever comes from a validated image slot, and raw HTML is
   // never parsed into the page.
   it('renders no image', () => {

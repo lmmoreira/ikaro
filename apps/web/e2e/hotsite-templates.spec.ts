@@ -91,12 +91,18 @@ async function openPublicHotsite(page: Page, viewport: { width: number; height: 
   await page.setViewportSize(viewport);
   await page.goto(`/${SLUG}`);
   await expect(page.locator('main')).toBeVisible();
+  // The top bar resolves its session after hydration: once the sign-in link shows, the page is
+  // interactive, so keyboard and click handlers (the mobile menu) are attached.
+  await expect(page.getByTestId('hotsite-login-link')).toBeVisible();
 }
 
 test.describe.serial('hotsite template compositions (MANAGER)', () => {
-  let original: HotsiteAdminContentResponse;
+  // Cleared before every test and set only once this test has captured the tenant's hotsite, so a
+  // failed login or read can never write a previous test's snapshot back over the shared tenant.
+  let original: HotsiteAdminContentResponse | undefined;
 
   test.beforeEach(async ({ page }) => {
+    original = undefined;
     await loginAsStaff(page, MANAGER_EMAIL, SLUG);
     original = await getHotsiteConfig(page);
   });
@@ -104,6 +110,7 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
   test.afterEach(async ({ page }) => {
     // One shared hotsite row per tenant: put it back exactly as found, publish state included,
     // even when a test timed out (afterEach always runs; an in-body finally may not).
+    if (!original) return;
     await updateHotsiteConfig(page, toUpdateRequest(original));
     if (original.isPublished) {
       await publishHotsite(page);

@@ -98,6 +98,20 @@ describe('HotsiteNavigation', () => {
       expect(menu().open).toBe(false);
     });
 
+    // A visitor can open the native <details> before the component has hydrated, so React never saw
+    // a toggle event; Escape and an outside click must still close it.
+    it('closes on Escape and on an outside click even when no toggle event reached React', () => {
+      renderWithIntl(<HotsiteNavigation items={ITEMS} slug="casa47" />);
+
+      menu().open = true;
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(menu().open).toBe(false);
+
+      menu().open = true;
+      fireEvent.pointerDown(document.body);
+      expect(menu().open).toBe(false);
+    });
+
     it('ignores Escape while closed', () => {
       renderWithIntl(<HotsiteNavigation items={ITEMS} slug="casa47" />);
 

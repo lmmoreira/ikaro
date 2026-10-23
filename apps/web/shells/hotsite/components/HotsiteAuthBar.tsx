@@ -65,7 +65,7 @@ export function HotsiteAuthBar({
   if (session === null) {
     return (
       <header
-        className="flex h-12 items-center justify-between px-6"
+        className="relative flex h-12 items-center justify-between px-6"
         style={{ backgroundColor: 'var(--ba-secondary)' }}
         data-testid="hotsite-auth-bar"
       >
@@ -102,7 +102,7 @@ export function HotsiteAuthBar({
 
   return (
     <header
-      className="flex h-12 items-center justify-between px-6"
+      className="relative flex h-12 items-center justify-between px-6"
       style={{ backgroundColor: 'var(--ba-secondary)' }}
       data-testid="hotsite-auth-bar"
     >

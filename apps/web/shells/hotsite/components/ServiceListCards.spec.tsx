@@ -101,6 +101,29 @@ describe('ServiceItems', () => {
   });
 
   it.each(['grid', 'list', 'numbered', 'feature-cards'] as const)(
+    '%s renders one booking action per service when an action is given',
+    (layout) => {
+      renderWithIntl(
+        <ServiceItems
+          layout={layout}
+          services={SERVICES}
+          showPrices
+          showPoints
+          cardBg="var(--ba-secondary)"
+          action={{ slug: 'tenant', label: 'Agendar' }}
+        />,
+      );
+
+      const links = screen.getAllByTestId('service-action');
+      expect(links).toHaveLength(2);
+      expect(links[1]).toHaveAttribute(
+        'href',
+        '/tenant/booking?serviceId=00000000-0000-0000-0000-000000000002',
+      );
+    },
+  );
+
+  it.each(['grid', 'list', 'numbered', 'feature-cards'] as const)(
     '%s has no accessibility violations',
     async (layout) => {
       const { container } = renderItems(layout);

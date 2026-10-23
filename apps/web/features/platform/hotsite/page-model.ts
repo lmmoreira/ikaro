@@ -141,10 +141,20 @@ const NAVIGATION_TARGET_TYPE: Readonly<Record<HotsiteNavigationItem['target'], H
     contact: 'CONTACT',
   };
 
-// The links the top bar renders: only items whose target section actually made it into the render
-// plan. A target that is disabled, absent, or whose module data failed to parse is dropped here, so
-// a visitor never gets a link to a section that is not on the page. Nothing when NAVIGATION is
-// absent, disabled, or has malformed data.
+// A plan item whose component actually draws a section. Gallery and Testimonials render nothing for
+// valid but empty data (no images, no items), so a link to them would point at an anchor that does
+// not exist.
+function rendersSection(item: HotsiteModuleRenderPlanItem): boolean {
+  const { parsed } = item;
+  if (parsed.type === 'GALLERY') return parsed.data.images.length > 0;
+  if (parsed.type === 'TESTIMONIALS') return parsed.data.items.length > 0;
+  return true;
+}
+
+// The links the top bar renders: only items whose target section actually appears on the page. A
+// target that is disabled, absent, whose module data failed to parse, or that renders nothing
+// because it is empty is dropped here, so a visitor never gets a link to a section that is not on
+// the page. Nothing when NAVIGATION is absent, disabled, or has malformed data.
 export function resolveHotsiteNavigation(
   layout: ReadonlyArray<HotsiteModuleResponse>,
   plan: ReadonlyArray<HotsiteModuleRenderPlanItem>,
@@ -154,7 +164,9 @@ export function resolveHotsiteNavigation(
   const parsed = NavigationModuleDataSchema.safeParse(navigation.data);
   if (!parsed.success) return [];
 
-  const renderedTypes = new Set<HotsiteModuleType>(plan.map((item) => item.parsed.type));
+  const renderedTypes = new Set<HotsiteModuleType>(
+    plan.filter(rendersSection).map((item) => item.parsed.type),
+  );
   return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
 }
 

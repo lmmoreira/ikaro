@@ -1,43 +1,52 @@
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
-import { formatDuration } from '@/shared/lib/formatting/format-duration';
-import { formatMoney } from '@/shared/lib/formatting/format-money';
-import { isPerTimeService } from '@/features/booking/model/selection-totals';
 import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
+import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
 
 const headingStyle = sectionHeadingStyle;
+
+// What a service card does when `itemAction` is 'booking': a link into the service-first booking
+// flow with that service preselected (no date), labelled `label`. Absent means the card has no
+// action, which is today's behaviour.
+export interface ServiceCardAction {
+  readonly slug: string;
+  readonly label: string;
+}
 
 interface ServiceCardProps {
   readonly service: HotsiteServiceResponse;
   readonly showPrices: boolean;
   readonly showPoints: boolean;
   readonly cardBg: string;
+  readonly action?: ServiceCardAction;
 }
 
-// A per-time service has no fixed price or duration: show its rate and duration range instead.
-function useDurationAndPrice(service: HotsiteServiceResponse): { duration: string; price: string } {
-  const t = useTranslations('booking');
-  const locale = useLocale();
-  const { bookingPolicy: policy } = service;
-  if (!isPerTimeService(service) || policy.pricePerIncrementAmount === null) {
-    return { duration: formatDuration(service.durationMinutes), price: service.price.formatted };
-  }
-  const rate = formatMoney(policy.pricePerIncrementAmount, locale, service.price.currency);
-  const minutes = policy.pricingIncrementMinutes ?? 60;
-  const hasRange = policy.durationMinMinutes !== null && policy.durationMaxMinutes !== null;
-  return {
-    duration: hasRange
-      ? t('serviceSelection.durationRange', {
-          min: formatDuration(policy.durationMinMinutes ?? 0),
-          max: formatDuration(policy.durationMaxMinutes ?? 0),
-        })
-      : '',
-    price:
-      minutes === 60
-        ? t('serviceSelection.ratePerHour', { rate })
-        : t('serviceSelection.ratePerIncrement', { rate, minutes }),
-  };
+const actionStyle: React.CSSProperties = {
+  backgroundColor: 'var(--ba-btn-bg)',
+  color: 'var(--ba-btn-text)',
+  borderColor: 'var(--ba-btn-border)',
+  borderRadius: 'var(--ba-radius)',
+};
+
+function ServiceActionLink({
+  service,
+  action,
+}: {
+  readonly service: HotsiteServiceResponse;
+  readonly action: ServiceCardAction;
+}): React.JSX.Element {
+  return (
+    <Link
+      href={`/${action.slug}/booking?serviceId=${service.id}`}
+      data-testid="service-action"
+      style={actionStyle}
+      className="mt-3 inline-block self-start border-2 px-5 py-2 text-sm font-semibold transition-all hover:bg-[var(--ba-btn-hover-bg)] hover:opacity-90"
+    >
+      {action.label}
+    </Link>
+  );
 }
 
 function ServiceCard({
@@ -45,6 +54,7 @@ function ServiceCard({
   showPrices,
   showPoints,
   cardBg,
+  action,
 }: ServiceCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const { duration, price } = useDurationAndPrice(service);
@@ -76,6 +86,7 @@ function ServiceCard({
           {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
         </span>
       )}
+      {action && <ServiceActionLink service={service} action={action} />}
     </li>
   );
 }
@@ -85,6 +96,7 @@ function NumberedServiceRow({
   index,
   showPrices,
   showPoints,
+  action,
 }: Omit<ServiceCardProps, 'cardBg'> & { readonly index: number }): React.JSX.Element {
   const t = useTranslations('hotsite');
   const { duration, price } = useDurationAndPrice(service);
@@ -115,6 +127,7 @@ function NumberedServiceRow({
             </span>
           )}
         </p>
+        {action && <ServiceActionLink service={service} action={action} />}
       </div>
       {showPrices && (
         <span
@@ -134,6 +147,7 @@ function FeatureServiceCard({
   showPrices,
   showPoints,
   cardBg,
+  action,
 }: ServiceCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const { duration, price } = useDurationAndPrice(service);
@@ -174,6 +188,7 @@ function FeatureServiceCard({
           )}
         </span>
       </div>
+      {action && <ServiceActionLink service={service} action={action} />}
     </li>
   );
 }
@@ -186,14 +201,16 @@ export function ServiceItems({
   showPrices,
   showPoints,
   cardBg,
+  action,
 }: {
   readonly layout: ServiceListModuleData['layout'];
   readonly services: readonly HotsiteServiceResponse[];
   readonly showPrices: boolean;
   readonly showPoints: boolean;
   readonly cardBg: string;
+  readonly action?: ServiceCardAction;
 }): React.JSX.Element {
-  const shared = { showPrices, showPoints };
+  const shared = { showPrices, showPoints, action };
   if (layout === 'numbered') {
     return (
       <ol

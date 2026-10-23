@@ -340,3 +340,63 @@ describe('ServiceListModule layouts and presentation', () => {
     expect(surfaced.style.backgroundColor).toBe('var(--ba-section-bg)');
   });
 });
+
+describe('ServiceListModule item action', () => {
+  const services = [makeService({ id: '00000000-0000-0000-0000-0000000000aa' })];
+
+  it('has no action when itemAction is omitted or none (today’s behaviour)', () => {
+    renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={services} />);
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'none' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+  });
+
+  it('booking links each card to the service-first booking flow with that service preselected', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'booking' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    const link = screen.getByTestId('service-action');
+    expect(link).toHaveAttribute(
+      'href',
+      '/tenant/booking?serviceId=00000000-0000-0000-0000-0000000000aa',
+    );
+    expect(link).toHaveTextContent('Agendar');
+  });
+
+  it('booking uses the configured CTA label', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'booking', itemCtaLabel: 'Reservar este serviço' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    expect(screen.getByTestId('service-action')).toHaveTextContent('Reservar este serviço');
+  });
+
+  // 'details' links to a service page that does not exist until a service has a public slug.
+  it('details renders no action until service detail pages exist', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'details' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+  });
+});
