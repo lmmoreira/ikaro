@@ -170,6 +170,21 @@ export function resolveHotsiteNavigation(
   return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
 }
 
+// The module's own `presentation` (an invalid one is ignored) and, for a section that sets a
+// surface, the scoped contrast tokens derived from it with the tenant's branding.
+function resolveItemPresentation(
+  layoutModule: HotsiteModuleResponse,
+  branding: HotsiteBrandingResponse | undefined,
+): Pick<HotsiteModuleRenderPlanItem, 'presentation' | 'sectionTokens'> {
+  if (!isValidPresentation(layoutModule.presentation)) return {};
+  const { presentation } = layoutModule;
+  if (!branding || !presentation.surface) return { presentation };
+  return {
+    presentation,
+    sectionTokens: deriveSectionTokens(branding, presentation.surface, presentation.customColor),
+  };
+}
+
 export function buildHotsiteModuleRenderPlan(
   layout: ReadonlyArray<HotsiteModuleResponse>,
   alternateSectionBg: boolean,
@@ -188,22 +203,10 @@ export function buildHotsiteModuleRenderPlan(
     const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
-    const presentation = isValidPresentation(layoutModule.presentation)
-      ? layoutModule.presentation
-      : undefined;
     items.push({
       parsed,
       bgVariant: participates && isAlt ? 'alt' : 'default',
-      ...(presentation ? { presentation } : {}),
-      ...(branding && presentation?.surface
-        ? {
-            sectionTokens: deriveSectionTokens(
-              branding,
-              presentation.surface,
-              presentation.customColor,
-            ),
-          }
-        : {}),
+      ...resolveItemPresentation(layoutModule, branding),
     });
   }
 

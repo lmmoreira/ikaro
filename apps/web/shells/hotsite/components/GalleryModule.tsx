@@ -53,6 +53,114 @@ const PORTFOLIO_SLOTS = [
   { className: 'col-span-2 md:col-span-7', aspectRatio: '4 / 3' },
 ] as const;
 
+interface GalleryLayoutProps {
+  readonly data: GalleryModuleData;
+  readonly layout: GalleryModuleData['layout'];
+}
+
+function PortfolioGallery({ data }: GalleryLayoutProps): React.JSX.Element {
+  return (
+    <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
+      <div className="grid grid-cols-2 items-start gap-4 md:grid-cols-12">
+        {data.images.map((image, i) => {
+          const slot = PORTFOLIO_SLOTS[i % PORTFOLIO_SLOTS.length];
+          return (
+            <a
+              key={image.url}
+              href={image.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              data-gallery-url={image.url}
+              data-gallery-caption={image.caption ?? ''}
+              data-gallery-extra={i >= data.maxVisible ? '' : undefined}
+              data-testid="portfolio-tile"
+              className={`block cursor-zoom-in overflow-hidden ${slot.className}`}
+              style={{ aspectRatio: slot.aspectRatio, borderRadius: 'var(--ba-radius)' }}
+            >
+              <GalleryItem image={image} layout="portfolio" priority={i === 0} />
+            </a>
+          );
+        })}
+      </div>
+    </GalleryGrid>
+  );
+}
+
+function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
+  return (
+    <GalleryGrid maxVisible={5} totalImages={5}>
+      <div
+        className="gallery-featured-grid gap-3"
+        data-featured-position={data.featuredPosition ?? 'left'}
+      >
+        {data.images.slice(0, 5).map((image, i) => (
+          <a
+            key={image.url}
+            href={image.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-gallery-url={image.url}
+            data-gallery-caption={image.caption ?? ''}
+            className="block cursor-zoom-in overflow-hidden"
+            style={{ gridArea: FEATURED_GRID_AREAS[i], borderRadius: 'var(--ba-radius)' }}
+          >
+            <GalleryItem
+              image={image}
+              layout="featured"
+              priority={i === 0}
+              isFeaturedPrimary={i === 0}
+            />
+          </a>
+        ))}
+      </div>
+    </GalleryGrid>
+  );
+}
+
+// Grid, and masonry (a flex-wrap row of natural-aspect tiles).
+function StandardGallery({ data, layout }: GalleryLayoutProps): React.JSX.Element {
+  return (
+    <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
+      <div
+        className={
+          layout === 'masonry'
+            ? 'flex flex-wrap justify-center items-start gap-4'
+            : 'grid grid-cols-2 sm:grid-cols-3 gap-4'
+        }
+      >
+        {data.images.map((image, i) => (
+          <a
+            key={image.url}
+            href={image.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-gallery-url={image.url}
+            data-gallery-caption={image.caption ?? ''}
+            data-gallery-extra={i >= data.maxVisible ? '' : undefined}
+            className={
+              layout === 'masonry'
+                ? `block cursor-zoom-in ${MASONRY_TILE_BASIS_CLASS}`
+                : 'block cursor-zoom-in'
+            }
+          >
+            <GalleryItem
+              image={image}
+              layout={layout === 'masonry' ? 'masonry' : 'grid'}
+              priority={i === 0}
+            />
+          </a>
+        ))}
+      </div>
+    </GalleryGrid>
+  );
+}
+
+function GalleryLayout({ data, layout }: GalleryLayoutProps): React.JSX.Element {
+  if (layout === 'portfolio') return <PortfolioGallery data={data} layout={layout} />;
+  if (layout === 'featured') return <FeaturedGallery data={data} layout={layout} />;
+  return <StandardGallery data={data} layout={layout} />;
+}
+
 export function GalleryModule({
   data,
   slug: _,
@@ -76,93 +184,6 @@ export function GalleryModule({
   const effectiveLayout: GalleryModuleData['layout'] =
     data.layout === 'featured' && data.images.length < 5 ? 'grid' : data.layout;
 
-  const gridContent =
-    effectiveLayout === 'portfolio' ? (
-      <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
-        <div className="grid grid-cols-2 items-start gap-4 md:grid-cols-12">
-          {data.images.map((image, i) => {
-            const slot = PORTFOLIO_SLOTS[i % PORTFOLIO_SLOTS.length];
-            return (
-              <a
-                key={image.url}
-                href={image.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                data-gallery-url={image.url}
-                data-gallery-caption={image.caption ?? ''}
-                data-gallery-extra={i >= data.maxVisible ? '' : undefined}
-                data-testid="portfolio-tile"
-                className={`block cursor-zoom-in overflow-hidden ${slot.className}`}
-                style={{ aspectRatio: slot.aspectRatio, borderRadius: 'var(--ba-radius)' }}
-              >
-                <GalleryItem image={image} layout="portfolio" priority={i === 0} />
-              </a>
-            );
-          })}
-        </div>
-      </GalleryGrid>
-    ) : effectiveLayout === 'featured' ? (
-      <GalleryGrid maxVisible={5} totalImages={5}>
-        <div
-          className="gallery-featured-grid gap-3"
-          data-featured-position={data.featuredPosition ?? 'left'}
-        >
-          {data.images.slice(0, 5).map((image, i) => (
-            <a
-              key={image.url}
-              href={image.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-gallery-url={image.url}
-              data-gallery-caption={image.caption ?? ''}
-              className="block cursor-zoom-in overflow-hidden"
-              style={{ gridArea: FEATURED_GRID_AREAS[i], borderRadius: 'var(--ba-radius)' }}
-            >
-              <GalleryItem
-                image={image}
-                layout="featured"
-                priority={i === 0}
-                isFeaturedPrimary={i === 0}
-              />
-            </a>
-          ))}
-        </div>
-      </GalleryGrid>
-    ) : (
-      <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
-        <div
-          className={
-            effectiveLayout === 'masonry'
-              ? 'flex flex-wrap justify-center items-start gap-4'
-              : 'grid grid-cols-2 sm:grid-cols-3 gap-4'
-          }
-        >
-          {data.images.map((image, i) => (
-            <a
-              key={image.url}
-              href={image.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              data-gallery-url={image.url}
-              data-gallery-caption={image.caption ?? ''}
-              data-gallery-extra={i >= data.maxVisible ? '' : undefined}
-              className={
-                effectiveLayout === 'masonry'
-                  ? `block cursor-zoom-in ${MASONRY_TILE_BASIS_CLASS}`
-                  : 'block cursor-zoom-in'
-              }
-            >
-              <GalleryItem
-                image={image}
-                layout={effectiveLayout === 'masonry' ? 'masonry' : 'grid'}
-                priority={i === 0}
-              />
-            </a>
-          ))}
-        </div>
-      </GalleryGrid>
-    );
-
   return (
     <HotsiteSectionShell
       id="gallery"
@@ -181,7 +202,7 @@ export function GalleryModule({
       <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
         {title}
       </h2>
-      {gridContent}
+      <GalleryLayout data={data} layout={effectiveLayout} />
     </HotsiteSectionShell>
   );
 }

@@ -133,94 +133,101 @@ function HeroTextContent({
   );
 }
 
-export function HeroModule({
+interface HeroVariantProps extends SectionPresentationProps {
+  readonly data: HeroModuleData;
+  readonly tenantBrand?: { name: string; tagline?: string };
+}
+
+// The centered composition, and `immersive`: the same composition pinned bottom-left over a
+// full-bleed photo, taller and with a larger title (an explicit contentPositionX/Y still wins).
+function HeroCentered({ data, presentation, sectionTokens }: HeroVariantProps): React.JSX.Element {
+  const ctaHref = `#${data.ctaTarget}`;
+  const bgUrl = data.backgroundImageUrl;
+  const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
+  const isImmersive = data.variant === 'immersive';
+
+  // contentPositionX only applies to this variant — the left-aligned variant's text column
+  // position is structural (grid order), not free-floating (M18-S05). The stage constrains
+  // left/right anchoring to the same max-w-7xl content container every other hotsite section
+  // uses (ServiceListModule/AboutModule/ContactModule) — without it, a 'left'/'right'
+  // contentPositionX would push the block flush against the raw viewport edge rather than
+  // respecting the site's usual content width and edge breathing room (M18-S05 follow-up fix).
+  const { sectionClassName, stageClassName, wrapperClassName, justifyClass } =
+    buildContentStageClasses(
+      data.contentPositionX ?? (isImmersive ? 'left' : undefined),
+      data.contentPositionY ?? (isImmersive ? 'bottom' : undefined),
+      isImmersive
+        ? 'relative flex min-h-[70vw] px-6 sm:min-h-[48vw]'
+        : 'relative flex min-h-[42.86vw] px-6 sm:min-h-[31.25vw]',
+      `${textColumnWidthClass(presentation?.contentWidth, isImmersive ? 'max-w-4xl' : 'max-w-3xl')} py-16`,
+    );
+  // The CTA row had no justify-content class at all before this field existed (flex defaults
+  // to flex-start) — unlike the section/stage above, which already hardcoded items-center/
+  // justify-center explicitly. To keep "unset renders identically to today" literally true for
+  // the row too, only apply a justify class here when contentPositionX is explicitly set —
+  // never as a silent default.
+  const ctaJustifyClass = data.contentPositionX || isImmersive ? justifyClass : '';
+
+  return (
+    // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
+    // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
+    // window is narrowed (without the screen itself changing height), a vh-based floor stays
+    // fixed while the container's width shrinks, making the box progressively more portrait
+    // and cropping progressively worse at every width in between, not just at the mobile
+    // breakpoint. Both values approximate a landscape ratio close to a typical wide banner
+    // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
+    // already had via the old 60vh at a typical monitor's proportions) — but because they're
+    // width-relative, the ratio stays roughly constant at every window width, not just one.
+    <HotsiteSectionShell
+      dataVariant={data.variant}
+      className={sectionClassName}
+      legacyBackground={bgUrl ? undefined : 'var(--ba-hero-bg)'}
+      selfLayout
+      presentation={presentation}
+      sectionTokens={sectionTokens}
+      ownBackground={
+        bgUrl ? (
+          <Image
+            src={bgUrl}
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition }}
+          />
+        ) : undefined
+      }
+    >
+      <div className={stageClassName}>
+        <div className={wrapperClassName}>
+          <HeroTextContent
+            data={data}
+            ctaHref={ctaHref}
+            ctaJustifyClass={ctaJustifyClass}
+            large={isImmersive}
+          />
+        </div>
+      </div>
+    </HotsiteSectionShell>
+  );
+}
+
+// Text on the left, an optional right panel (the photo or the brand card).
+function HeroLeftAligned({
   data,
-  slug: _,
   tenantBrand,
   presentation,
   sectionTokens,
-}: HeroModuleProps): React.JSX.Element {
+}: HeroVariantProps): React.JSX.Element {
   const ctaHref = `#${data.ctaTarget}`;
   const bgUrl = data.backgroundImageUrl;
   const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
 
-  // Determine what to render in the right column (left-aligned variant only).
+  // Determine what to render in the right column.
   // If rightPanel is not set, fall back based on whether an image URL is present.
   const rightPanel = data.rightPanel ?? (bgUrl ? 'image' : 'none');
 
-  // `immersive` is the centered composition pinned bottom-left over a full-bleed photo, taller and
-  // with a larger title; an explicit contentPositionX/Y still wins.
-  const isImmersive = data.variant === 'immersive';
-
-  if (data.variant === 'centered' || isImmersive) {
-    // contentPositionX only applies to this variant — the left-aligned variant's text column
-    // position is structural (grid order), not free-floating (M18-S05). The stage constrains
-    // left/right anchoring to the same max-w-7xl content container every other hotsite section
-    // uses (ServiceListModule/AboutModule/ContactModule) — without it, a 'left'/'right'
-    // contentPositionX would push the block flush against the raw viewport edge rather than
-    // respecting the site's usual content width and edge breathing room (M18-S05 follow-up fix).
-    const { sectionClassName, stageClassName, wrapperClassName, justifyClass } =
-      buildContentStageClasses(
-        data.contentPositionX ?? (isImmersive ? 'left' : undefined),
-        data.contentPositionY ?? (isImmersive ? 'bottom' : undefined),
-        isImmersive
-          ? 'relative flex min-h-[70vw] px-6 sm:min-h-[48vw]'
-          : 'relative flex min-h-[42.86vw] px-6 sm:min-h-[31.25vw]',
-        `${textColumnWidthClass(presentation?.contentWidth, isImmersive ? 'max-w-4xl' : 'max-w-3xl')} py-16`,
-      );
-    // The CTA row had no justify-content class at all before this field existed (flex defaults
-    // to flex-start) — unlike the section/stage above, which already hardcoded items-center/
-    // justify-center explicitly. To keep "unset renders identically to today" literally true for
-    // the row too, only apply a justify class here when contentPositionX is explicitly set —
-    // never as a silent default.
-    const ctaJustifyClass = data.contentPositionX || isImmersive ? justifyClass : '';
-
-    return (
-      // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
-      // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
-      // window is narrowed (without the screen itself changing height), a vh-based floor stays
-      // fixed while the container's width shrinks, making the box progressively more portrait
-      // and cropping progressively worse at every width in between, not just at the mobile
-      // breakpoint. Both values approximate a landscape ratio close to a typical wide banner
-      // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
-      // already had via the old 60vh at a typical monitor's proportions) — but because they're
-      // width-relative, the ratio stays roughly constant at every window width, not just one.
-      <HotsiteSectionShell
-        dataVariant={data.variant}
-        className={sectionClassName}
-        legacyBackground={bgUrl ? undefined : 'var(--ba-hero-bg)'}
-        selfLayout
-        presentation={presentation}
-        sectionTokens={sectionTokens}
-        ownBackground={
-          bgUrl ? (
-            <Image
-              src={bgUrl}
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-              style={{ objectPosition }}
-            />
-          ) : undefined
-        }
-      >
-        <div className={stageClassName}>
-          <div className={wrapperClassName}>
-            <HeroTextContent
-              data={data}
-              ctaHref={ctaHref}
-              ctaJustifyClass={ctaJustifyClass}
-              large={isImmersive}
-            />
-          </div>
-        </div>
-      </HotsiteSectionShell>
-    );
-  }
-
-  // left-aligned: text on the left, optional right panel
   const hasRightPanel =
     rightPanel !== 'none' &&
     (rightPanel !== 'image' || !!bgUrl) &&
@@ -279,5 +286,24 @@ export function HeroModule({
         </div>
       </div>
     </HotsiteSectionShell>
+  );
+}
+
+export function HeroModule({
+  data,
+  slug: _,
+  tenantBrand,
+  presentation,
+  sectionTokens,
+}: HeroModuleProps): React.JSX.Element {
+  return data.variant === 'left-aligned' ? (
+    <HeroLeftAligned
+      data={data}
+      tenantBrand={tenantBrand}
+      presentation={presentation}
+      sectionTokens={sectionTokens}
+    />
+  ) : (
+    <HeroCentered data={data} presentation={presentation} sectionTokens={sectionTokens} />
   );
 }
