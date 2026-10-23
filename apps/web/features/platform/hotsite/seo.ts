@@ -8,16 +8,26 @@ import { resolveSiteOrigin } from './site-origin';
 // this always runs in the real container process, never frozen at `next build` time.
 export const SITE_URL = resolveSiteOrigin();
 
+// A page that is about one thing (a service) names it instead of the tenant's SEO identity.
+export interface HotsiteMetadataOverride {
+  readonly title?: string;
+  readonly description?: string;
+  /** A full URL, used as the Open Graph image in place of the tenant's `seo.ogImageUrl`. */
+  readonly ogImageUrl?: string;
+}
+
 export interface BuildHotsiteMetadataParams {
   readonly manifest: HotsiteManifestResponse;
   readonly slug: string;
   readonly path?: string;
+  readonly override?: HotsiteMetadataOverride;
 }
 
 export async function buildHotsiteMetadata({
   manifest,
   slug,
   path = '',
+  override,
 }: BuildHotsiteMetadataParams): Promise<Metadata> {
   const url = `${SITE_URL}/${slug}${path}`;
   const { title: defaultTitle, description: defaultDescription } = await resolveSeoDefaults({
@@ -25,8 +35,9 @@ export async function buildHotsiteMetadata({
     address: manifest.business.address,
     language: manifest.localization.language,
   });
-  const title = manifest.seo.title ?? defaultTitle;
-  const description = manifest.seo.description ?? defaultDescription;
+  const title = override?.title ?? manifest.seo.title ?? defaultTitle;
+  const description = override?.description ?? manifest.seo.description ?? defaultDescription;
+  const ogImageUrl = override?.ogImageUrl ?? manifest.seo.ogImageUrl;
   const openGraphLocale = manifest.localization.language.replaceAll('-', '_');
 
   return {
@@ -49,9 +60,7 @@ export async function buildHotsiteMetadata({
       //
       // `images` is omitted entirely (not an empty array) when unset — conditionally spread so
       // the key itself is absent from the object, not just empty.
-      ...(manifest.seo.ogImageUrl
-        ? { images: [{ url: manifest.seo.ogImageUrl, width: 1200, height: 630 }] }
-        : {}),
+      ...(ogImageUrl ? { images: [{ url: ogImageUrl, width: 1200, height: 630 }] } : {}),
     },
     robots: manifest.isPublished ? { index: true, follow: true } : { index: false, follow: false },
   };

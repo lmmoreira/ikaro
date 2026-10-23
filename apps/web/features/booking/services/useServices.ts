@@ -4,6 +4,7 @@ import type {
   PublishServiceIntakeSchemaRequest,
   UpdateServiceBookingPolicyRequest,
   UpdateServiceLegsRequest,
+  UpdateServicePublicPageRequest,
   UpdateServiceRequest,
   UpdateServiceResourceRequirementsRequest,
 } from '@ikaro/types';
@@ -16,6 +17,7 @@ import {
   updateService,
   updateServiceBookingPolicy,
   updateServiceLegs,
+  updateServicePublicPage,
   updateServiceResourceRequirements,
 } from '@/features/booking/api/services';
 import { useTenant } from '@/providers/tenant-provider';
@@ -91,6 +93,16 @@ export function useUpdateServiceBookingPolicy() {
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: UpdateServiceBookingPolicyRequest }) =>
       updateServiceBookingPolicy(id, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services', tenantId] }),
+  });
+}
+
+export function useUpdateServicePublicPage() {
+  const queryClient = useQueryClient();
+  const { tenantId } = useTenant();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: UpdateServicePublicPageRequest }) =>
+      updateServicePublicPage(id, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['services', tenantId] }),
   });
 }

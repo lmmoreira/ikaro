@@ -99,6 +99,32 @@ export interface ServiceBookingPolicyItem {
   minimumChargeAmount: number | null;
 }
 
+// TD56-S03 — a service's own public page (UC-013 A5 / UC-109). One closed set of bounds, shared by
+// the backend value object, the request schema (@ikaro/validation) and the dashboard tab.
+export const SERVICE_PUBLIC_PROFILE_LIMITS = {
+  galleryImages: 8,
+  longDescription: 4000,
+  inclusions: 12,
+  inclusionLength: 120,
+  preparationNotes: 1000,
+  imagePath: 512,
+} as const;
+
+export interface ServicePublicProfileItem {
+  coverImageUrl: string | null;
+  galleryImageUrls: string[];
+  longDescription: string | null;
+  inclusions: string[];
+  preparationNotes: string | null;
+}
+
+// PATCH /services/:id/public-page — every field optional: an omitted one is unchanged, a null
+// profile clears the stored content. The slug is never sent: the system generates it on first publish.
+export interface UpdateServicePublicPageRequest {
+  published?: boolean;
+  profile?: Partial<ServicePublicProfileItem> | null;
+}
+
 export interface CreateServiceRequest {
   name: string;
   description?: string;
@@ -155,6 +181,10 @@ export interface StaffServiceResponse {
   legs: ServiceLegItem[] | null;
   classResourceSlots: ClassResourceSlotItem[] | null;
   bookingPolicy: ServiceBookingPolicyItem;
+  publicPagePublished: boolean;
+  // Read-only: null until the first publish, then fixed.
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileItem | null;
 }
 
 export interface StaffServiceListResponse {

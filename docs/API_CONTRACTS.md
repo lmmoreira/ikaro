@@ -469,9 +469,11 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
       "durationPolicy": "FIXED", "durationMinMinutes": null, "durationMaxMinutes": null, "durationIncrementMinutes": null,
       "pricingPolicy": "FIXED", "pricingIncrementMinutes": null, "pricePerIncrementAmount": null, "minimumChargeAmount": null,
       "recurrenceEligible": false, "recurringHorizonDays": null, "availabilityAlertEligible": false
-    }
+    },
+    "publicSlug": null
   }
   ```
+  `publicSlug` (TD56-S03) is the address segment of the service's own page — **non-null only while that page is published**; it is how a Service List card set to `itemAction: "details"` knows whether it may link to `/{slug}/servicos/{publicSlug}` or must keep its booking action. The profile content and the publish flag are never part of this list.
   Response shape: `{ "items": [ { ...above... }, ... ] }`. The frontend uses `requiresPickupAddress` to show/hide the address field as services are added to the basket. **Whitelisted (M23-S29):** the BFF maps the backend result through `toPublicServiceResponse` (`services.mapper.ts`) naming every field explicitly — never an object spread. `resourceRequirements`/`legs[].resourceRequirements` carry `type`, `selectionMode`, `requiredQuantity` only (no `resourcePoolIds` — which resources a requirement is restricted to is not public; see `resource-options` below); `legs[]` carry `legIndex`, `name`, `durationMinutes`, `transitionGapAfterMinutes`; `bookingPolicy` carries only the duration/pricing fields plus `recurrenceEligible`/`recurringHorizonDays` (read by the recurring-booking client-side service filter), `availabilityAlertEligible` (read by the calendar step to decide whether to offer "Avise-me quando abrir", M23-S31) and the service's **effective booking window** — `effectiveMinBookingAdvanceHours` / `effectiveMaxBookingAdvanceDays` (M23-S33: its own override clamped to the tenant window, resolved by the backend on every read; the booking page takes the smallest maximum and largest minimum across the basket). Never sent publicly: every raw `*Override`, `defaultApprovalMode`, `manualHoldMinutes`, `classResourceSlots`, `bufferAfterMinutes`.
 - `GET /services` -> List **all** services for the tenant, including `isActive: false` (STAFF|MANAGER). Returns `{ items: [...], total: number }` (`StaffServiceListResponse`) — each item uses `serviceId` (not `id`) and `price: { amount, currency }` (no `formatted`); see `StaffServiceResponse` in `service.dto.ts`. Lives on the bare `/services` path — see `docs/BFF_ARCHITECTURE.md` for why the public list moved to `/public/services` (`M13-S05`).
 - `GET /services/:id` -> Single service by id, active or inactive (STAFF|MANAGER). `StaffServiceResponse`. `404` if not found or wrong tenant.
@@ -550,6 +552,37 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
 - `GET /services/:id/quote?durationMinutes=` -> What booking creation would persist for the chosen duration (UC-067; M23-S29). **BFF route: `GET /public/services/:id/quote`** (`@Public`, `X-Tenant-Slug`; the query is validated by `QuoteQuerySchema`). Wraps `BookingQuoteService.quote()` unchanged. Response: `{ "durationMinutes": 90, "price": { "amount": 100, "currency": "BRL" } }`.
   - A `FIXED`-duration service ignores `durationMinutes` and returns its own price/duration. A `CUSTOMER_SELECTED` service validates min/max/increment and prices per increment with the minimum-charge floor.
   - `404 BOOKING_SERVICE_NOT_FOUND` (unknown, other tenant or inactive); `422 BOOKING_DURATION_OUT_OF_RANGE` (missing or out-of-range duration for a `CUSTOMER_SELECTED` service); `400` for a non-numeric / non-positive `durationMinutes`.
+
+- `PATCH /services/:id/public-page` -> Publish or unpublish a service's own public page and set its content (UC-013 A5; TD56-S03). **BFF route (what the web calls): `PATCH /v1/services/:id/public-page`** (`@Roles('MANAGER','STAFF')`, `services.controller.ts`); backend `service-public-page.controller.ts` (`StaffOrManagerRoleGuard`). Every field optional; an omitted one is unchanged. **There is no slug field** — the system generates it on the first publish (`ServicePublicSlug.fromName`, with the last 6 characters of the service id appended when another service of the tenant already holds the plain slug) and never changes it. Body:
+  ```json
+  {
+    "published": true,
+    "profile": {
+      "coverImageUrl": "tmp/<tenantId>/service-profile/<uuid>/cover.webp",
+      "galleryImageUrls": ["tenants/<tenantId>/hotsite/service-profile/<uuid>/g1.webp"],
+      "longDescription": "Uma pausa para o corpo e para a mente.\n\n- Acolhimento",
+      "inclusions": ["Óleos essenciais", "Chá de boas-vindas"],
+      "preparationNotes": "Chegue com 10 minutos de antecedência."
+    }
+  }
+  ```
+  Bounds (`SERVICE_PUBLIC_PROFILE_LIMITS` in `@ikaro/types`, enforced by `UpdateServicePublicPageSchema` and again by the `ServicePublicProfile` value object): gallery ≤ 8 images; `longDescription` ≤ 4000 characters of restricted Markdown (never HTML); `inclusions` ≤ 12 items × 120 characters (blank rows dropped); `preparationNotes` ≤ 1000. `profile: null` clears the stored content; omitting it leaves it. Unpublishing keeps the slug and the profile, so republishing restores the same URL.
+  - Images: a `tmp/<tenantId>/service-profile/<uuid>/<file>` path (uploaded through the MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`) is validated and checked outside the transaction, moved to `tenants/<tenantId>/hotsite/service-profile/…` in the public bucket **after the save commits**, and a superseded permanent image of this prefix is deleted then; anything else (another tenant's tmp path, a booking-shaped tmp path, a hotsite image, a path that was never uploaded) is `400 BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`. A hotsite save never deletes a service image and the reverse.
+  - Response `200`: `{ "id": "uuid", "publicPagePublished": true, "publicSlug": "massagem-relaxante", "publicProfile": { ... } }` — the stored paths (a tmp upload comes back permanent). `StaffServiceResponse` (`GET /services/:id`, the list and the edit view) also carries `publicPagePublished`, `publicSlug` (read-only) and `publicProfile`.
+  - Works on an inactive service (the page can be prepared while the service is off); the page simply is not visible until it is active.
+  - `404 BOOKING_SERVICE_NOT_FOUND` (unknown or another tenant); `400 BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`; `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` (retryable — two same-named services were first published at the same instant); `403` for a `CUSTOMER`.
+
+- `GET /services/by-slug/:publicSlug` -> The profile-facing content of one **published, active** service (UC-109; TD56-S03). **BFF route (what the web calls): `GET /v1/public/services/by-slug/:publicSlug`** (`services.public.controller.ts`, `@Public`, `X-Tenant-Slug`; the slug param is refused with `400` unless it matches `[a-z0-9-]{3,60}`). Backend: public, no role guard, tenant from `X-Tenant-ID` (`service-public.controller.ts`, declared before every `:id/...` route so `by-slug` can never be read as an id). Response `200`:
+  ```json
+  {
+    "id": "uuid", "name": "Massagem Relaxante", "description": "...",
+    "price": { "amount": 120.00, "currency": "BRL", "formatted": "R$ 120,00" },
+    "durationMinutes": 60, "loyaltyPointsValue": 8, "durationPolicy": "FIXED",
+    "publicSlug": "massagem-relaxante",
+    "profile": { "coverImageUrl": "...", "galleryImageUrls": [], "longDescription": "...", "inclusions": [], "preparationNotes": null }
+  }
+  ```
+  `durationPolicy: "CUSTOMER_SELECTED"` tells the page to show neither price nor duration (the booking flow quotes them). **Whitelisted:** the BFF names every field (`toPublicServiceDetailResponse`) — never the booking policy, resource requirements, legs, intake schema or buffers. `404 BOOKING_SERVICE_NOT_FOUND` for an unknown slug, another tenant's slug, an **unpublished** page or an **inactive** service — one answer for all of them. It does not know whether the hotsite is published; the web page checks that.
 
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:
   ```json

@@ -46,6 +46,9 @@ function makeService(overrides?: Partial<StaffServiceResponse>): StaffServiceRes
     bufferAfterMinutes: null,
     legs: null,
     classResourceSlots: null,
+    publicPagePublished: false,
+    publicSlug: null,
+    publicProfile: null,
     bookingPolicy: {
       defaultApprovalMode: null,
       manualHoldMinutes: null,

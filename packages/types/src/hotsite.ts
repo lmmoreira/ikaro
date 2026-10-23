@@ -5,6 +5,7 @@ import type {
   ServiceBookingModel,
   ServiceDurationPolicy,
   ServicePricingPolicy,
+  ServicePublicProfileItem,
 } from './service.dto';
 import type { LeadFormAudienceMode, LeadFormQuestion, TenantInfoResponse } from './tenant.dto';
 
@@ -540,6 +541,24 @@ export interface HotsiteServiceResponse {
   resourceRequirements: HotsiteServiceResourceRequirement[];
   legs: HotsiteServiceLeg[] | null;
   bookingPolicy: HotsiteServiceBookingPolicy;
+  // TD56-S03 — the address segment of the service's public page, non-null only while the page is
+  // published (an unpublished service exposes nothing, so a "Ver detalhes" card can never dead-end).
+  publicSlug: string | null;
+}
+
+// GET /public/services/by-slug/:publicSlug (UC-109) — profile-facing fields only, never the booking
+// configuration. A page that is unpublished, or whose service is inactive, answers 404.
+export interface HotsiteServiceDetailResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  price: Money;
+  durationMinutes: number;
+  loyaltyPointsValue: number;
+  // CUSTOMER_SELECTED: the length and price are chosen while booking, so the page shows neither.
+  durationPolicy: ServiceDurationPolicy;
+  publicSlug: string;
+  profile: ServicePublicProfileItem;
 }
 
 export interface HotsiteServiceListResponse {

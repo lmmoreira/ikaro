@@ -11,6 +11,7 @@ import type { ServiceTabAction } from './service-tab-action';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
 import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';
+import { ServicePublicPageTab } from './ServicePublicPageTab';
 
 interface ServiceEditConfigTabPanelsProps {
   readonly activeTab: ServiceEditTabKey;
@@ -28,10 +29,12 @@ interface ServiceEditConfigTabPanelsProps {
   readonly resourceRequirements?: ResourceRequirementItem[];
   readonly requiresPickupAddress?: boolean;
   readonly onRequirementsSaved?: (requirements: ResourceRequirementItem[]) => void;
+  // Live flag for the Página pública tab's note (a deactivated service shows no page on the site).
+  readonly isActive?: boolean;
 }
 
 // Split out of ServiceEditPage to stay under docs/CODE_STANDARDS.md's function-length limit —
-// the Recursos/Políticas de reserva/Formulário de reserva tabpanels, which (unlike Detalhes)
+// the Recursos/Políticas de reserva/Formulário de reserva/Página pública tabpanels, which (unlike Detalhes)
 // need no page-level state threaded through per-field handlers, just their own initial* props
 // and a dirty-change callback. Stays mounted-but-hidden like Detalhes, for the same reason: a
 // tab switch must never discard a panel's own local, unsaved draft state.
@@ -46,6 +49,7 @@ export function ServiceEditConfigTabPanels({
   resourceRequirements = service.resourceRequirements,
   requiresPickupAddress = service.requiresPickupAddress,
   onRequirementsSaved,
+  isActive = service.isActive,
 }: ServiceEditConfigTabPanelsProps): React.JSX.Element {
   // One stable callback per tab — a panel's registration effect depends on its identity.
   const onRecursosAction = useCallback(
@@ -58,6 +62,10 @@ export function ServiceEditConfigTabPanels({
   );
   const onFormularioAction = useCallback(
     (action: ServiceTabAction | null) => onTabActionChange('formulario', action),
+    [onTabActionChange],
+  );
+  const onPaginaAction = useCallback(
+    (action: ServiceTabAction | null) => onTabActionChange('pagina', action),
     [onTabActionChange],
   );
 
@@ -110,6 +118,20 @@ export function ServiceEditConfigTabPanels({
           initialHistory={intakeSchema.history}
           onDirtyChange={(value) => onTabDirtyChange('formulario', value)}
           onActionChange={onFormularioAction}
+        />
+      </div>
+
+      <div
+        role="tabpanel"
+        id="service-edit-tabpanel-pagina"
+        aria-labelledby="service-edit-tab-pagina"
+        hidden={activeTab !== 'pagina'}
+      >
+        <ServicePublicPageTab
+          service={service}
+          isActive={isActive}
+          onDirtyChange={(value) => onTabDirtyChange('pagina', value)}
+          onActionChange={onPaginaAction}
         />
       </div>
     </>

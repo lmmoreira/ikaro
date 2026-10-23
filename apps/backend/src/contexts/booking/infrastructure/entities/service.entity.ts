@@ -5,6 +5,7 @@ import {
   ServiceDurationPolicy,
   ServicePricingPolicy,
 } from '../../domain/service.aggregate';
+import { ServicePublicProfileProps } from '../../domain/service-public-profile.vo';
 
 @Entity('services', { schema: 'booking' })
 @Index(['tenantId'])
@@ -114,4 +115,16 @@ export class ServiceEntity {
     nullable: true,
   })
   minimumChargeAmount!: string | null;
+
+  // TD56-S03 — the service's own public page. The partial unique index
+  // UQ_booking_services_tenant_public_slug (tenant_id, public_slug WHERE public_slug IS NOT NULL)
+  // is created by the migration; TypeORM's @Index cannot express the partial predicate here.
+  @Column({ name: 'public_profile', type: 'jsonb', nullable: true })
+  publicProfile!: ServicePublicProfileProps | null;
+
+  @Column({ name: 'public_slug', type: 'varchar', length: 60, nullable: true })
+  publicSlug!: string | null;
+
+  @Column({ name: 'public_page_published', type: 'boolean', default: false })
+  publicPagePublished!: boolean;
 }

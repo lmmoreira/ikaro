@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import {
   MAX_RECURRING_HORIZON_DAYS,
+  SERVICE_PUBLIC_PROFILE_LIMITS,
   MIN_RECURRING_HORIZON_DAYS,
   PhoneErrorCode,
   TimeOfDayErrorCode,
@@ -482,3 +483,41 @@ export const CreateBookingByStaffSchema = z.union([
 ]);
 
 export type CreateBookingByStaffBody = z.infer<typeof CreateBookingByStaffSchema>;
+
+// TD56-S03 — PATCH /services/:id/public-page. Backend DTO and BFF schema both build on these. Bounds
+// come from @ikaro/types so the value object, this schema and the dashboard share one set; the
+// aggregate re-checks them (these only reject a malformed request early).
+const servicePublicImagePath = z
+  .string()
+  .trim()
+  .min(1)
+  .max(SERVICE_PUBLIC_PROFILE_LIMITS.imagePath);
+
+export const ServicePublicProfileSchema = z.object({
+  coverImageUrl: servicePublicImagePath.nullable().optional(),
+  galleryImageUrls: z
+    .array(servicePublicImagePath)
+    .max(SERVICE_PUBLIC_PROFILE_LIMITS.galleryImages)
+    .optional(),
+  longDescription: z
+    .string()
+    .max(SERVICE_PUBLIC_PROFILE_LIMITS.longDescription)
+    .nullable()
+    .optional(),
+  inclusions: z
+    .array(z.string().max(SERVICE_PUBLIC_PROFILE_LIMITS.inclusionLength))
+    .max(SERVICE_PUBLIC_PROFILE_LIMITS.inclusions)
+    .optional(),
+  preparationNotes: z
+    .string()
+    .max(SERVICE_PUBLIC_PROFILE_LIMITS.preparationNotes)
+    .nullable()
+    .optional(),
+});
+
+export const UpdateServicePublicPageSchema = z
+  .object({
+    published: z.boolean().optional(),
+    profile: ServicePublicProfileSchema.nullable().optional(),
+  })
+  .default({});

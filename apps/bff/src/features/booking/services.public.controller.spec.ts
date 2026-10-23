@@ -3,6 +3,7 @@ import { HotsiteServiceListResponse } from '@ikaro/types';
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { GetPublicServiceIntakeSchemaResult } from './services.types';
 import { ServicesPublicController } from './services.public.controller';
+import { PublicServiceSlugParamSchema } from './services.schemas';
 import { HotsiteServiceBuilder } from '../../test/builders/hotsite-service.builder';
 
 const mockServiceResponse = new HotsiteServiceBuilder().build();
@@ -34,6 +35,52 @@ describe('ServicesPublicController', () => {
       expect(backendHttp.get).toHaveBeenCalledWith('/internal/tenants/by-slug/lavacar-bh');
       expect(backendHttp.getForPublic).toHaveBeenCalledWith('/services', 'tenant-uuid');
       expect(result).toEqual(mockList);
+    });
+  });
+
+  describe('getBySlug() (TD56-S03, UC-109)', () => {
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const controller = new ServicesPublicController(makeBackendHttp());
+
+      const err = await controller.getBySlug(undefined, 'massagem').catch((e: unknown) => e);
+
+      expect((err as HttpException).getStatus()).toBe(400);
+    });
+
+    it('resolves the tenant, reads the backend by-slug path and maps profile-facing fields only', async () => {
+      const tenantInfo = { id: 'tenant-uuid', slug: 'vitta', name: 'Vitta' };
+      const backendHttp = makeBackendHttp({
+        get: jest.fn().mockResolvedValue(tenantInfo),
+        getForPublic: jest.fn().mockResolvedValue({
+          id: 'svc-1',
+          name: 'Massagem',
+          description: null,
+          price: { amount: 120, currency: 'BRL', formatted: 'R$ 120,00' },
+          durationMinutes: 60,
+          loyaltyPointsValue: 8,
+          durationPolicy: 'FIXED',
+          publicSlug: 'massagem',
+          profile: {
+            coverImageUrl: null,
+            galleryImageUrls: [],
+            longDescription: 'Texto',
+            inclusions: [],
+            preparationNotes: null,
+          },
+          bookingPolicy: { secret: true },
+        }),
+      });
+      const controller = new ServicesPublicController(backendHttp);
+
+      const result = await controller.getBySlug('vitta', 'massagem');
+
+      expect(backendHttp.getForPublic).toHaveBeenCalledWith(
+        '/services/by-slug/massagem',
+        'tenant-uuid',
+      );
+      expect(result.publicSlug).toBe('massagem');
+      expect(result.profile.longDescription).toBe('Texto');
+      expect(Object.keys(result)).not.toContain('bookingPolicy');
     });
   });
 
@@ -153,4 +200,17 @@ describe('ServicesPublicController', () => {
       expect(result).toEqual({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
     });
   });
+});
+
+describe('PublicServiceSlugParamSchema (TD56-S03)', () => {
+  it.each(['massagem', 'massagem-relaxante-3f9a1c', 'abc', 'a1-b2'])('accepts "%s"', (slug) => {
+    expect(PublicServiceSlugParamSchema.safeParse(slug).success).toBe(true);
+  });
+
+  it.each(['ab', 'Massagem', 'a b c', 'a_b_c', '../etc', 'a'.repeat(61), 'açaí'])(
+    'rejects "%s"',
+    (slug) => {
+      expect(PublicServiceSlugParamSchema.safeParse(slug).success).toBe(false);
+    },
+  );
 });

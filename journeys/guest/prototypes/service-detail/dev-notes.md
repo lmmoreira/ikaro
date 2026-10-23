@@ -2,7 +2,7 @@
 
 **Journey:** GUEST — Service Detail Page (`guest/service-detail.md`)
 **UCs:** UC-109 (visitor), UC-013 A5 (manager side, `staff/prototypes/servicos/03g`–`03i`)
-**Prototype:** `guest/prototypes/service-detail/` · **Story:** `TD56-S03` (🚧 not yet built)
+**Prototype:** `guest/prototypes/service-detail/` · **Story:** `TD56-S03` (✅ built)
 
 ## Routes and files
 

@@ -7,9 +7,11 @@ import type {
   ServiceIntakeSchemaVersion,
   ServiceLegItem,
   StaffServiceListResponse,
+  ServicePublicProfileItem,
   StaffServiceResponse,
   UpdateServiceBookingPolicyRequest,
   UpdateServiceLegsRequest,
+  UpdateServicePublicPageRequest,
   UpdateServiceRequest,
   UpdateServiceResourceRequirementsRequest,
 } from '@ikaro/types';
@@ -29,6 +31,13 @@ export interface UpdateServiceLegsResponse {
 export interface UpdateServiceBookingPolicyResponse {
   id: string;
   bookingPolicy: ServiceBookingPolicyItem;
+}
+
+export interface UpdateServicePublicPageResponse {
+  id: string;
+  publicPagePublished: boolean;
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileItem | null;
 }
 
 export type PublishServiceIntakeSchemaResponse = ServiceIntakeSchemaVersion;
@@ -89,6 +98,17 @@ export async function updateServiceBookingPolicy(
 ): Promise<UpdateServiceBookingPolicyResponse> {
   const res = await bffClient.patch<UpdateServiceBookingPolicyResponse>(
     `/services/${id}/booking-policy`,
+    body,
+  );
+  return res.data;
+}
+
+export async function updateServicePublicPage(
+  id: string,
+  body: UpdateServicePublicPageRequest,
+): Promise<UpdateServicePublicPageResponse> {
+  const res = await bffClient.patch<UpdateServicePublicPageResponse>(
+    `/services/${id}/public-page`,
     body,
   );
   return res.data;

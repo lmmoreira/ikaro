@@ -22,6 +22,13 @@
 | SEO page title | `SeoTitle` | `seo-title.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 | SEO meta description | `SeoDescription` | `seo-description.vo.ts` | length-bounded per SEO best practice; getter: `.value` |
 
+**Booking-only value objects (`src/contexts/booking/domain/`, TD56-S03):**
+
+| Field | VO Class | File | Rule |
+|---|---|---|---|
+| Service public-page address | `ServicePublicSlug` | `service-public-slug.vo.ts` | `/^[a-z0-9]+(-[a-z0-9]+)*$/`, 3–60 chars, never typed by a user: `fromName(name, uniqueSuffix?)` derives it (accents stripped; a name with no usable text becomes `servico`; the suffix is appended and the base shortened so it always fits 60) on the first publish; `create()` validates and lowercases/trims, `reconstitute()` skips validation; typed error `ServicePublicSlugInvalidError`; getter: `.value` |
+| Service public-page content | `ServicePublicProfile` | `service-public-profile.vo.ts` | cover + gallery (≤ 8) image paths (never a URL or traversal), `longDescription` ≤ 4000 (restricted Markdown), `inclusions` ≤ 12 × 120 (blank rows dropped), `preparationNotes` ≤ 1000; limits from `SERVICE_PUBLIC_PROFILE_LIMITS` (`@ikaro/types`); typed error `ServicePublicProfileInvalidError`; persisted as one JSONB column via `toJSON()`/`reconstitute()` |
+
 The folder also holds two plain type files that are not validated VOs and have no `create()`: `business-hours.vo.ts` (the `BusinessHours`/`DayHours` shapes and `DAYS_OF_WEEK`) and `tenant-settings-data.ts` (the typed `tenants.settings` sections). Do not copy them as a VO template.
 
 ---

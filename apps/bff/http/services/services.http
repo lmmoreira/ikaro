@@ -363,3 +363,51 @@ X-Tenant-Slug: {{tenantSlug}}
 ### 404 — quote for an unknown, inactive or cross-tenant service
 GET {{bffUrl}}/v1/public/services/00000000-0000-4000-8000-000000009999/quote?durationMinutes=60
 X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### Publish the service's public page and set its profile (UC-013 A5, TD56-S03) — STAFF or MANAGER; the slug is generated
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/public-page
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "published": true,
+  "profile": {
+    "longDescription": "Uma pausa para o corpo e para a mente.",
+    "inclusions": ["Óleos essenciais", "Chá de boas-vindas"],
+    "preparationNotes": "Chegue com 10 minutos de antecedência."
+  }
+}
+
+###
+
+### 400 — a profile over the limits (13 inclusions)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/public-page
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{ "profile": { "inclusions": ["1","2","3","4","5","6","7","8","9","10","11","12","13"] } }
+
+###
+
+### Public read of a published service page (UC-109) — no JWT
+GET {{bffUrl}}/v1/public/services/by-slug/massagem-relaxante
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 400 — Missing X-Tenant-Slug on the public by-slug read
+GET {{bffUrl}}/v1/public/services/by-slug/massagem-relaxante
+
+###
+
+### 400 — a slug that cannot exist
+GET {{bffUrl}}/v1/public/services/by-slug/NOT_A_SLUG
+X-Tenant-Slug: {{tenantSlug}}
+
+###
+
+### 404 — an unpublished page, an inactive service or an unknown slug
+GET {{bffUrl}}/v1/public/services/by-slug/nao-existe
+X-Tenant-Slug: {{tenantSlug}}

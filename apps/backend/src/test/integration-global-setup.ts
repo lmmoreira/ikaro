@@ -68,6 +68,7 @@ import { AddRecurringScheduleRenewalDueTemplate1748500000034 } from '../contexts
 import { AddFutureCommitmentWorklistTemplates1748500000035 } from '../contexts/notification/infrastructure/migrations/1748500000035-AddFutureCommitmentWorklistTemplates';
 import { AddBookingApprovalExpiredCustomerTemplate1748500000036 } from '../contexts/notification/infrastructure/migrations/1748500000036-AddBookingApprovalExpiredCustomerTemplate';
 import { AddResourceOccupancyHoldExpiryIndex1748500000037 } from '../contexts/booking/infrastructure/migrations/1748500000037-AddResourceOccupancyHoldExpiryIndex';
+import { AddServicePublicPage1748500000038 } from '../contexts/booking/infrastructure/migrations/1748500000038-AddServicePublicPage';
 import { CustomerEntity } from '../contexts/customer/infrastructure/entities/customer.entity';
 import { CreateCustomerCustomers1716600000001 } from '../contexts/customer/infrastructure/migrations/1716600000001-CreateCustomerCustomers';
 import { AddCustomerTenantOAuthUniqueConstraint1748000000002 } from '../contexts/customer/infrastructure/migrations/1748000000002-AddCustomerTenantOAuthUniqueConstraint';
@@ -255,6 +256,7 @@ export default async function globalSetup(): Promise<void> {
       AddFutureCommitmentWorklistTemplates1748500000035,
       AddBookingApprovalExpiredCustomerTemplate1748500000036,
       AddResourceOccupancyHoldExpiryIndex1748500000037,
+      AddServicePublicPage1748500000038,
     ],
     synchronize: false,
     migrationsRun: false,

@@ -1,6 +1,7 @@
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type React from 'react';
+import { buildBookingDeepLinkUrl } from '@ikaro/types';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
 import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
@@ -8,12 +9,17 @@ import { FeatureServiceCard } from './FeatureServiceCard';
 
 const headingStyle = sectionHeadingStyle;
 
-// What a service card does when `itemAction` is 'booking': a link into the service-first booking
-// flow with that service preselected (no date), labelled `label`. Absent means the card has no
+// What a service card does. 'booking' (the default): a link into the service-first booking flow with
+// that service preselected (no date), labelled `label`. 'details': a link to the service's own page,
+// labelled `label` — but only for a service whose page is published (the public list gives it a
+// `publicSlug` then, and null otherwise); any other service falls back to the booking link under
+// `fallbackLabel`, so a card never links to a page that does not exist. Absent means the card has no
 // action, which is today's behaviour.
 export interface ServiceCardAction {
   readonly slug: string;
   readonly label: string;
+  readonly kind?: 'booking' | 'details';
+  readonly fallbackLabel?: string;
 }
 
 interface ServiceCardProps {
@@ -38,14 +44,21 @@ function ServiceActionLink({
   readonly service: HotsiteServiceResponse;
   readonly action: ServiceCardAction;
 }): React.JSX.Element {
+  const detailsHref =
+    action.kind === 'details' && service.publicSlug
+      ? `/${action.slug}/servicos/${service.publicSlug}`
+      : null;
   return (
     <Link
-      href={`/${action.slug}/booking?serviceId=${service.id}`}
+      href={detailsHref ?? buildBookingDeepLinkUrl(`/${action.slug}`, { serviceId: service.id })}
       data-testid="service-action"
+      data-action={detailsHref ? 'details' : 'booking'}
       style={actionStyle}
       className="mt-3 inline-block self-start border-2 px-5 py-2 text-sm font-semibold transition-all hover:bg-[var(--ba-btn-hover-bg)] hover:opacity-90"
     >
-      {action.label}
+      {detailsHref || action.kind !== 'details'
+        ? action.label
+        : (action.fallbackLabel ?? action.label)}
     </Link>
   );
 }

@@ -147,6 +147,72 @@ describe('buildHotsiteMetadata', () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
+  describe('override (a page about one thing, e.g. a service)', () => {
+    it('replaces the title, description and Open Graph image, keeping the canonical on the given path', async () => {
+      const manifest = makeManifest({
+        seo: {
+          title: 'Lavacar',
+          description: 'Tenant description',
+          ogImageUrl: 'https://cdn.example.com/tenant.png',
+        },
+      });
+
+      const metadata = await buildHotsiteMetadata({
+        manifest,
+        slug: 'lavacar-bh',
+        path: '/servicos/massagem',
+        override: {
+          title: 'Massagem — Lavacar',
+          description: 'Uma pausa.',
+          ogImageUrl: 'https://cdn.example.com/massagem.webp',
+        },
+      });
+
+      expect(metadata.title).toBe('Massagem — Lavacar');
+      expect(metadata.description).toBe('Uma pausa.');
+      expect(metadata.alternates).toEqual({
+        canonical: `${SITE_URL}/lavacar-bh/servicos/massagem`,
+      });
+      expect(metadata.openGraph).toMatchObject({
+        title: 'Massagem — Lavacar',
+        url: `${SITE_URL}/lavacar-bh/servicos/massagem`,
+        images: [{ url: 'https://cdn.example.com/massagem.webp', width: 1200, height: 630 }],
+      });
+    });
+
+    it('falls back to the tenant SEO for any field the override leaves out', async () => {
+      const manifest = makeManifest({
+        seo: {
+          title: 'Lavacar',
+          description: 'Tenant description',
+          ogImageUrl: 'https://cdn.example.com/tenant.png',
+        },
+      });
+
+      const metadata = await buildHotsiteMetadata({
+        manifest,
+        slug: 'lavacar-bh',
+        override: { title: 'Massagem — Lavacar' },
+      });
+
+      expect(metadata.title).toBe('Massagem — Lavacar');
+      expect(metadata.description).toBe('Tenant description');
+      expect(metadata.openGraph).toMatchObject({
+        images: [{ url: 'https://cdn.example.com/tenant.png', width: 1200, height: 630 }],
+      });
+    });
+
+    it('stays noindex when the hotsite is not published, whatever the override says', async () => {
+      const metadata = await buildHotsiteMetadata({
+        manifest: makeManifest({ isPublished: false }),
+        slug: 'lavacar-bh',
+        override: { title: 'Massagem' },
+      });
+
+      expect(metadata.robots).toEqual({ index: false, follow: false });
+    });
+  });
+
   it('includes seo.ogImageUrl as a sized Open Graph image when present', async () => {
     const manifest = makeManifest({
       seo: { ...makeManifest().seo, ogImageUrl: 'https://cdn.example.com/og-image.png' },

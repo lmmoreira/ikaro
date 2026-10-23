@@ -42,24 +42,20 @@ const SECTION_SELECTOR: Partial<Record<HotsiteModuleType, string>> = {
 };
 
 // What makes each composition recognisably itself: an engine capability only its template uses.
+// Kept in step with the reconciled fixtures (journeys/manager/prototypes/hotsite/hotsite-impl/
+// manifesto-*.json), which are the source of truth for each composition.
 const SIGNATURE: Readonly<Record<TemplateName, readonly string[]>> = {
-  beloauto: ['[data-testid="trust-grid-items"]', '[data-testid="section-overlay"]'],
-  casa47: [
-    '[data-testid="numbered-service"]',
-    '[data-testid="editorial-quotes"]',
-    '[data-variant="image-statement"]',
-  ],
-  'mimo-pet': ['[data-testid="collage-images"]', '[data-testid="feature-service-card"]'],
+  beloauto: ['[data-variant="technical-callout"]', '[data-testid="section-overlay"]'],
+  casa47: ['[data-variant="image-statement"]', 'section[data-variant="left-aligned"]'],
+  'mimo-pet': ['[data-testid="feature-service-card"]', '[data-testid="trust-grid-items"]'],
   origem: [
     '[data-testid="numbered-service"]',
     '[data-testid="editorial-quotes"]',
     '[data-variant="immersive-statement"]',
-    '[data-variant="editorial"]',
   ],
-  'clinica-lume': ['[data-testid="trust-grid-items"]', 'section[data-variant="left-aligned"]'],
+  'clinica-lume': ['[data-testid="steps"]', 'section[data-variant="left-aligned"]'],
   'lume-studio': [
-    '[data-testid="portfolio-tile"]',
-    '[data-testid="steps"]',
+    '[data-testid="collage-images"]',
     'section[data-variant="immersive"]',
     'section#lead-form',
   ],
