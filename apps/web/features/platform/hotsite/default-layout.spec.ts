@@ -95,14 +95,14 @@ describe('materializeLayout', () => {
   });
 });
 
-describe('MODULE_ORDER / MATERIALIZED_MODULE_ORDER (TD56)', () => {
+describe('MODULE_ORDER / MATERIALIZED_MODULE_ORDER', () => {
   it('lists all twelve module types with NAVIGATION first', () => {
     expect(MODULE_ORDER).toHaveLength(12);
     expect(MODULE_ORDER[0]).toBe('NAVIGATION');
     expect(MODULE_ORDER).toContain('CONTENT_BLOCK');
   });
 
-  it('materializes everything except NAVIGATION and CONTENT_BLOCK, until Story 5 exposes them', () => {
+  it('materializes everything except NAVIGATION and CONTENT_BLOCK, until the editor can configure them', () => {
     expect(MATERIALIZED_MODULE_ORDER).toEqual(
       MODULE_ORDER.filter((type) => type !== 'NAVIGATION' && type !== 'CONTENT_BLOCK'),
     );

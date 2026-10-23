@@ -154,7 +154,7 @@ describe('HotsiteModuleSchema', () => {
     });
 
     it('accepts a non-LEAD_FORM module whose data happens to include a key named audienceMode', () => {
-      // The restriction is scoped to type === 'LEAD_FORM'; a loose pre-TD56 module tolerates it.
+      // The restriction is scoped to type === 'LEAD_FORM'; a loose older module tolerates it.
       expect(
         HotsiteModuleSchema.safeParse({
           type: 'FOOTER',

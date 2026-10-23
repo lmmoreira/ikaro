@@ -47,7 +47,7 @@ export interface HeroModuleData {
   rightPanel?: 'none' | 'image' | 'brand-card';
 }
 
-// What a service card does when clicked (TD56). Omitted ⇒ 'none', today's behaviour.
+// What a service card does when clicked. Omitted ⇒ 'none', today's behaviour.
 export type ServiceListItemAction = 'details' | 'booking' | 'none';
 
 // Look of every public service detail page (/{slug}/servicos/{serviceSlug}). Omitted ⇒
@@ -185,7 +185,7 @@ export interface LeadFormModuleData {
   bgStyle?: 'primary' | 'background';
 }
 
-// ─── TD56 modules: NAVIGATION and CONTENT_BLOCK ─────────────────────────────
+// ─── NAVIGATION and CONTENT_BLOCK modules ─────────────────────────────
 
 // Same-page section anchors only (#service-list, #gallery, …). Booking is never a navigation item
 // and the separate /lead-form route is not an anchor.
@@ -283,7 +283,7 @@ export interface HotsiteSectionBackground {
 
 /**
  * Optional semantic presentation of a module's full-width section. Omitted fields resolve to the
- * current renderer defaults, so a module without it renders exactly as before TD56.
+ * current renderer defaults, so a module without it renders exactly as it did before it existed.
  */
 export interface HotsiteModulePresentation {
   surface?: HotsiteSectionSurface;
@@ -441,8 +441,7 @@ export interface UnpublishHotsiteResponse {
 // promotion can rebuild the permanent path without a second lookup. The one closed list: the
 // backend DTO and the BFF schema build their Zod enum from this tuple (like
 // ALLOWED_IMAGE_CONTENT_TYPES), and apps/web (SingleImageUploadField.tsx, tenant-settings.ts) types
-// against the derived union — adding a purpose here reaches all four consumers at once. Before
-// TD56 each kept its own hand-copied list.
+// against the derived union — adding a purpose here reaches all four consumers at once.
 export const HOTSITE_IMAGE_PURPOSES = [
   'branding',
   'hero',

@@ -62,7 +62,7 @@ describe('HotsiteContentReader', () => {
     );
   });
 
-  it('keeps a module presentation and resolves its section background image (TD56)', async () => {
+  it('keeps a module presentation and resolves its section background image', async () => {
     const backgroundPath = 'tenants/tenant-a/hotsite/section-background/u1/bg.jpg';
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(undefined, [
       {

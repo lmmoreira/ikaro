@@ -225,7 +225,7 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
   }
   ```
 
-- **Module types:** `HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTACT | FOOTER | CHATBOT | LEAD_FORM` (`HotsiteModuleType`, `packages/types/src/enums.ts`)
+- **Module types:** `NAVIGATION | HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTENT_BLOCK | CONTACT | FOOTER | CHATBOT | LEAD_FORM` (`HotsiteModuleType`, `packages/types/src/enums.ts`); each layout entry may also carry an optional `presentation` (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4)
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address`/`socialLinks` (`{ whatsapp, instagram, facebook }`, each `string | null`) may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT.
 - **`localization`** (M12-S09) — `HotsiteLocalizationResponse`: `language`, `currency`, `timezone`, `phonePrefix`, `dateFormat`, `timeFormat`, `numberFormat`, `firstDayOfWeek` and an `address` spec, all resolved from `tenants.settings.localization`. `language` is resolved from `tenants.settings.localization.language` (`docs/TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).

@@ -24,7 +24,7 @@ import { SeoDescription } from '../../../shared/value-objects/seo-description.vo
 // './hotsite-config.aggregate'` call site keeps resolving unchanged.
 export type { HotsiteModuleType };
 
-// The two TD56 module types and the section-presentation envelope have exactly one definition, in
+// The two newer module types and the section-presentation envelope have exactly one definition, in
 // @ikaro/types (type-only, erased at compile time — the domain layer gains no runtime dependency).
 export type {
   ContentBlockModuleData,
@@ -39,9 +39,11 @@ export type {
 // fields; these two aliases are the single source of truth for that shape (M18-S05).
 export type HorizontalPosition = 'left' | 'center' | 'right';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
+// Hero, Booking CTA and Lead Form share the same section layout variants.
+export type SectionVariant = 'centered' | 'left-aligned' | 'immersive';
 
 export interface HeroModuleData {
-  variant: 'centered' | 'left-aligned' | 'immersive';
+  variant: SectionVariant;
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -105,7 +107,7 @@ export interface TestimonialsModuleData {
 }
 
 export interface BookingCtaModuleData {
-  variant?: 'centered' | 'left-aligned' | 'immersive';
+  variant?: SectionVariant;
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -167,7 +169,7 @@ export interface LeadFormModuleData {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  variant?: 'centered' | 'left-aligned' | 'immersive';
+  variant?: SectionVariant;
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: HorizontalPosition;
   bgStyle?: 'primary' | 'background';

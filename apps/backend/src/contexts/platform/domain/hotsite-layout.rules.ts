@@ -7,7 +7,7 @@ import {
 } from './errors/platform-domain.error';
 import { HotsiteModule, HotsiteModuleType, NavigationModuleData } from './hotsite-config.types';
 
-// Cross-field layout rules (TD56-S01), kept out of hotsite-config.aggregate.ts to hold it under the
+// Cross-field layout rules, kept out of hotsite-config.aggregate.ts to hold it under the
 // file-length cap (same extraction as hotsite-config.mapper.ts). Each rule needs the whole layout,
 // so it cannot live in the per-module request schema in @ikaro/validation; the schema owns the
 // closed *shape* of each module, this file owns the rules between modules and between a module and
@@ -68,7 +68,7 @@ function assertModulePresentation(module: HotsiteModule): void {
 // checked until it is enabled — otherwise a stale, hidden navigation could block unrelated saves.
 function assertNavigationTargetsEnabled(layout: readonly HotsiteModule[]): void {
   const navigation = layout.find((module) => module.type === 'NAVIGATION');
-  if (navigation === undefined || !navigation.enabled) return;
+  if (!navigation?.enabled) return;
 
   const enabledTypes = new Set(layout.filter((m) => m.enabled).map((m) => m.type));
   for (const item of (navigation.data as NavigationModuleData).items) {

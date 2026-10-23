@@ -397,8 +397,14 @@ describe('deriveSectionTokens', () => {
   it('is scoped: applyBranding() output carries no section token and is otherwise unchanged', () => {
     const keys = Object.keys(applyBranding(makeBranding()));
 
-    expect(keys.some((key) => key.startsWith('--ba-section-b'))).toBe(false);
-    expect(keys.some((key) => key.startsWith('--ba-section-t'))).toBe(false);
+    for (const token of [
+      '--ba-section-bg',
+      '--ba-section-text',
+      '--ba-section-card-bg',
+      '--ba-section-divider',
+    ]) {
+      expect(keys).not.toContain(token);
+    }
     expect(keys).toEqual(
       expect.arrayContaining(['--ba-primary', '--ba-hero-bg', '--ba-hero-text', '--ba-divider']),
     );

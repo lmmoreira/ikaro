@@ -8,7 +8,7 @@ describe('GenerateHotsiteImageSignedUrlSchema', () => {
     expect(GenerateHotsiteImageSignedUrlSchema.safeParse({ ...base, purpose }).success).toBe(true);
   });
 
-  it('accepts exactly the purposes in the shared tuple, including the TD56 ones', () => {
+  it('accepts exactly the purposes in the shared tuple, including content-block, section-background and service-profile', () => {
     expect(HOTSITE_IMAGE_PURPOSES).toEqual(
       expect.arrayContaining(['content-block', 'section-background', 'service-profile']),
     );

@@ -60,7 +60,7 @@ describe('executeHotsitePublish', () => {
     expect(onLeadFormPublished).toHaveBeenCalledOnce();
   });
 
-  // TD56-S01 — the PATCH body is rebuilt from the draft layout; a module's presentation (a sibling
+  // The PATCH body is rebuilt from the draft layout; a module's presentation (a sibling
   // of data) must ride along, or every save through the editor would silently erase it.
   it('sends a module presentation unchanged on the consolidated mutation', async () => {
     const presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };

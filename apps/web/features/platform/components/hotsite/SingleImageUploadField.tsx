@@ -37,7 +37,7 @@ const MINIMUM_STORED_HEIGHT: Partial<Record<HotsiteImagePurpose, number>> = {
   hero: 450,
   'booking-cta': 450,
   'lead-form': 450,
-  // A full-width section backdrop (TD56) — same wide-banner mobile-crop treatment as the CTA banners.
+  // A full-width section backdrop — same wide-banner mobile-crop treatment as the CTA banners.
   'section-background': 450,
 };
 

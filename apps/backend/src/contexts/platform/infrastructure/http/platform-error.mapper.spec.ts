@@ -57,7 +57,7 @@ function call(err: unknown): HttpException {
 }
 
 describe('mapPlatformError', () => {
-  // TD56-S01 — the layout cross-field rules fall through the generic PlatformDomainError branch (no
+  // The layout cross-field rules fall through the generic PlatformDomainError branch (no
   // dedicated mapper entry); this pins that status and each code so a future mapper change can't
   // silently turn one into a 500.
   it.each([

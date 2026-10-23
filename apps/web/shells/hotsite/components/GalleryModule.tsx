@@ -59,8 +59,7 @@ export function GalleryModule({
   // matching the config panel's own gate. Display-time only: the stored layout value is
   // untouched, so restoring a 5th image brings the featured view back with no re-selection
   // needed (M18-S07).
-  // 'portfolio' joined the layout enum in TD56 Story 1 (schema only); until Story 2 adds its
-  // renderer it falls through to the plain grid branch below.
+  // 'portfolio' is in the layout enum (schema only) but has no renderer yet; it falls through to the plain grid branch below.
   const effectiveLayout: GalleryModuleData['layout'] =
     data.layout === 'featured' && data.images.length < 5 ? 'grid' : data.layout;
 

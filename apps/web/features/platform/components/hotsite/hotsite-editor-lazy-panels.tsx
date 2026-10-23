@@ -12,7 +12,7 @@ export const MODULE_CONFIG_PANELS: Record<
   HotsiteModuleType,
   React.ComponentType<ModuleConfigPanelProps>
 > = {
-  // NAVIGATION and CONTENT_BLOCK get their real panels in TD56 Story 5; until then they share a
+  // NAVIGATION and CONTENT_BLOCK get their real panels later; until then they share a
   // labelled placeholder so the non-partial Record compiles (see PlaceholderConfigPanel).
   NAVIGATION: dynamic(
     () => import('./modules/PlaceholderConfigPanel').then((m) => m.PlaceholderConfigPanel),

@@ -3,7 +3,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"]
+      "@/*": ["./*"],
+      "@ikaro/types/testing/*": ["../../packages/types/dist/testing/*"]
     },
     "ignoreDeprecations": "6.0"
   },

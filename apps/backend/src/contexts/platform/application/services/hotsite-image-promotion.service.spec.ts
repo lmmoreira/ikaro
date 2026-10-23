@@ -64,7 +64,7 @@ describe('HotsiteImagePromotionService', () => {
       ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
-    describe('nested image slots (TD56)', () => {
+    describe('nested image slots', () => {
       const aboutWith = (presentation: object): HotsiteModule[] => [
         {
           type: 'ABOUT',
@@ -137,7 +137,7 @@ describe('HotsiteImagePromotionService', () => {
         ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
       });
 
-      it('rejects a shared templates/ path until the catalogue exists (Story 4 owns that)', async () => {
+      it('rejects a shared templates/ path until the template catalogue exists', async () => {
         await expect(
           service.prepareImagePromotion(
             DEFAULT_HOTSITE_BRANDING,

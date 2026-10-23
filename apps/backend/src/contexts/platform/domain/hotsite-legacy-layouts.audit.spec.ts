@@ -11,7 +11,7 @@ import {
   SEED_HOTSITE_LAYOUT_IKARO,
 } from '../../../shared/database/seed-hotsite-fixtures';
 
-// TD56-S01 replaced the unconstrained `data: z.record()` of the layout request schema with a full
+// The layout request schema replaced the unconstrained `data: z.record()` of the layout request schema with a full
 // per-module schema. Nothing is seeded in production, but "no production deployment" is audited
 // rather than assumed: every layout this repository can put in front of that schema must still be
 // accepted. A stored layout that does not pass is rejected on its next save, so a fixture failing
@@ -61,7 +61,7 @@ describe('legacy layout audit', () => {
   });
 
   // The six prototype manifests are today's schema (no presentation, NAVIGATION or CONTENT_BLOCK);
-  // Story 2 rewrites them. Their layouts are what a manager could paste into the Manifesto tab.
+  // They are due to be rewritten. Their layouts are what a manager could paste into the Manifesto tab.
   describe('prototype manifests (journeys/manager/prototypes/hotsite/hotsite-impl)', () => {
     const manifests = readdirSync(PROTOTYPE_DIR).filter((file) =>
       /^manifesto-(?!v2-layout-proposal).+\.json$/.test(file),

@@ -90,7 +90,7 @@ Content-Type: application/json
 
 ###
 
-### Layout update — NAVIGATION first, an immersive hero with an overlay, a numbered service list and a custom-surface About (TD56)
+### Layout update — NAVIGATION first, an immersive hero with an overlay, a numbered service list and a custom-surface About
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -245,7 +245,7 @@ Content-Type: application/json
 
 ###
 
-### 400 GENERIC_VALUE_INVALID on layout.0.data.layout — a known module with a value outside its enum (TD56: every module's data is validated)
+### 400 GENERIC_VALUE_INVALID on layout.0.data.layout — a known module with a value outside its enum (every module's data is validated)
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}

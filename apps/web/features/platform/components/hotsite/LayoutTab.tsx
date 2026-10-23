@@ -83,7 +83,7 @@ function LayoutRow({
     >
       {isPinned ? (
         // Keeps the toggle aligned with the draggable rows; the real "pinned" affordance is
-        // designed in TD56 Story 5, when this row first becomes visible to a manager.
+        // designed when this row first becomes visible to a manager.
         <span aria-hidden="true" data-testid="layout-row-pinned" className="inline-block w-5" />
       ) : (
         <button

@@ -1,7 +1,7 @@
 // The hotsite rows `seed.ts` writes for the three seeded tenants. Held here as plain data (not
 // inline JSON strings inside the seed script) so a spec can run them through the same request
 // schemas the API enforces — the legacy-layout audit in hotsite-legacy-layouts.audit.spec.ts
-// (TD56-S01): a stored layout that violates the schema is rejected on its next save.
+// a stored layout that violates the schema is rejected on its next save.
 export const SEED_HOTSITE_BASE_BRANDING = {
   secondaryColor: '#eff6ff',
   backgroundColor: '#ffffff',

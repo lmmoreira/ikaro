@@ -1713,9 +1713,9 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     });
   }
 
-  // TD56-S01 — the Manifesto tab validates a module's new `presentation` before Aplicar merges it
+  // The Manifesto tab validates a module's new `presentation` before Aplicar merges it
   // into the draft. Nothing is published, so afterEach has nothing to undo beyond its usual restore.
-  test('Manifesto tab accepts a valid section presentation and rejects an invalid one without touching the draft (TD56-S01)', async ({
+  test('Manifesto tab accepts a valid section presentation and rejects an invalid one without touching the draft', async ({
     page,
   }) => {
     await openDetailedEditor(page);

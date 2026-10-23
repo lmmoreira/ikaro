@@ -56,13 +56,13 @@ const hexColorField = (): z.ZodString =>
 
 // A closed font registry (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Font Allow-List): an arbitrary
 // family name would reach a CSS `font-family` value on the public page.
-const ALLOWED_FONT_FAMILIES: readonly string[] = [
+const ALLOWED_FONT_FAMILIES: ReadonlySet<string> = new Set([
   ...HOTSITE_FONT_FAMILIES,
   HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
-];
+]);
 
 const fontFamilyField = (): z.ZodString =>
-  z.string().refine((v) => ALLOWED_FONT_FAMILIES.includes(v), {
+  z.string().refine((v) => ALLOWED_FONT_FAMILIES.has(v), {
     error: `must be one of: ${HOTSITE_FONT_FAMILIES.join(', ')}`,
     params: { code: GenericErrorCode.VALUE_INVALID },
   });

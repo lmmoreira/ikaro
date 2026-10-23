@@ -170,7 +170,7 @@ describe('HotsiteAdminController (component)', () => {
       expect(res.status).toBe(409);
     });
 
-    // TD56-S01 — the layout schema is now a per-module discriminated union; `presentation` is a
+    // The layout schema is now a per-module discriminated union; `presentation` is a
     // sibling of `data`, and a Zod object strips unknown keys, so this proves it survives the BFF.
     it('PATCH /v1/tenants/hotsite → 200, forwards a NAVIGATION entry and a module presentation unchanged', async () => {
       setupActiveGuardMock(httpService);

@@ -25,7 +25,7 @@ describe('reorderLayout', () => {
     expect(result.map((m) => m.type)).toEqual(['HERO', 'SERVICE_LIST', 'GALLERY']);
   });
 
-  describe('NAVIGATION is pinned first (TD56)', () => {
+  describe('NAVIGATION is pinned first', () => {
     const WITH_NAVIGATION: HotsiteModuleResponse[] = [
       { type: 'NAVIGATION', enabled: true, data: { items: [] } },
       ...LAYOUT,
@@ -114,7 +114,7 @@ describe('LayoutTab', () => {
   });
 });
 
-describe('LayoutTab — pinned NAVIGATION row (TD56)', () => {
+describe('LayoutTab — pinned NAVIGATION row', () => {
   it('renders no drag handle for NAVIGATION while every other row keeps one', () => {
     const layout: HotsiteModuleResponse[] = [
       { type: 'NAVIGATION', enabled: true, data: { items: [] } },

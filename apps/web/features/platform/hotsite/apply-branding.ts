@@ -123,7 +123,7 @@ export type SectionTokens = Record<
   string
 >;
 
-// Scoped tokens for one section whose `presentation.surface` is set (TD56). The caller puts them on
+// Scoped tokens for one section whose `presentation.surface` is set. The caller puts them on
 // the section element itself — never on the page root — so they cannot leak into a sibling section
 // and the global --ba-* tokens applyBranding() emits stay exactly as they were. A surface colour is
 // always known (a branding colour, or the module's own `customColor`), so text, card and divider

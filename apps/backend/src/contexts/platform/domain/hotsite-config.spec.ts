@@ -169,7 +169,7 @@ describe('HotsiteConfig', () => {
       ).toThrow(PlatformDomainError);
     });
 
-    describe('TD56 layout rules (full matrix in hotsite-layout.rules.spec.ts)', () => {
+    describe('layout rules (full matrix in hotsite-layout.rules.spec.ts)', () => {
       const navigation = (target: 'about' | 'service-list'): HotsiteModule => ({
         type: 'NAVIGATION',
         enabled: true,

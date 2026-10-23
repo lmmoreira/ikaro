@@ -20,9 +20,9 @@ export const MODULE_ORDER: readonly HotsiteModuleType[] = [
 ];
 
 // The types materializeLayout() adds to a layout that lacks them. NAVIGATION and CONTENT_BLOCK are
-// excluded until the editor can actually configure them (TD56 Story 5): appending them now would
+// excluded until the editor can actually configure them: appending them now would
 // show a Layout row whose "Configure" opens a placeholder. They exist only when a manifest already
-// carries them (the Manifesto tab, or an applied template). Story 5 deletes this exclusion.
+// carries them (the Manifesto tab, or an applied template). Delete this exclusion once it can.
 const NOT_YET_MATERIALIZED: ReadonlySet<HotsiteModuleType> = new Set([
   'NAVIGATION',
   'CONTENT_BLOCK',

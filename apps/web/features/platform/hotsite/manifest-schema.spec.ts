@@ -226,7 +226,7 @@ describe('parseManifestJson', () => {
   });
 });
 
-describe('parseManifestJson — TD56 modules and presentation', () => {
+describe('parseManifestJson — NAVIGATION, CONTENT_BLOCK and presentation', () => {
   const NAVIGATION = {
     type: 'NAVIGATION',
     enabled: true,

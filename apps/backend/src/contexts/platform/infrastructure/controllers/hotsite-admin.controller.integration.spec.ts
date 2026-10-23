@@ -192,9 +192,9 @@ describe('HotsiteAdminController (integration)', () => {
       ]);
     });
 
-    // TD56-S01 — the section-presentation contract, on a tenant of its own so the layout it stores
+    // The section-presentation contract, on a tenant of its own so the layout it stores
     // does not leak into the assertions of the tests above and below.
-    describe('TD56 layout contract (NAVIGATION, CONTENT_BLOCK, presentation)', () => {
+    describe('layout contract (NAVIGATION, CONTENT_BLOCK, presentation)', () => {
       const hero = {
         type: 'HERO',
         enabled: true,
@@ -315,12 +315,19 @@ describe('HotsiteAdminController (integration)', () => {
       });
 
       it('rejects a font outside the registry', async () => {
-        await request(app.getHttpServer())
+        const { body } = await request(app.getHttpServer())
           .patch('/tenants/hotsite')
           .set('X-Tenant-ID', TENANT_LAYOUT)
           .set('X-Actor-Role', 'MANAGER')
           .send({ branding: { headingFontFamily: 'Comic Sans; color: red' } })
           .expect(400);
+
+        expect(body.violations).toEqual([
+          expect.objectContaining({
+            field: 'branding.headingFontFamily',
+            code: 'GENERIC_VALUE_INVALID',
+          }),
+        ]);
       });
 
       // Tenant isolation: another tenant's staging upload must never be promoted into this

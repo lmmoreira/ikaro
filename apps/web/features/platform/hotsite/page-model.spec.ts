@@ -254,7 +254,7 @@ describe('shouldSkipDivider', () => {
   });
 });
 
-describe('TD56 modules in the render plan', () => {
+describe('NAVIGATION and CONTENT_BLOCK in the render plan', () => {
   const heroData = {
     variant: 'centered' as const,
     title: 'Hero',

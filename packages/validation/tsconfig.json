@@ -7,6 +7,9 @@
     "rootDir": "src",
     "declaration": true,
     "ignoreDeprecations": "6.0",
+    "paths": {
+      "@ikaro/types/testing/*": ["../types/dist/testing/*"]
+    },
     "types": ["node", "jest"]
   },
   "include": ["src/**/*"],

@@ -15,7 +15,7 @@ describe('GenerateHotsiteImageSignedUrlBodySchema', () => {
 describe('UpdateHotsiteContentBodySchema layout', () => {
   const parse = (layout: unknown) => UpdateHotsiteContentBodySchema.safeParse({ layout });
 
-  it('accepts the TD56 contract: a NAVIGATION module and a module presentation', () => {
+  it('accepts a NAVIGATION module and a module presentation', () => {
     expect(
       parse([
         { type: 'NAVIGATION', enabled: true, data: { items: [{ label: 'A', target: 'about' }] } },

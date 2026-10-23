@@ -66,7 +66,6 @@ function stripModuleImageUrls(module: HotsiteModuleResponse): HotsiteModuleRespo
     );
   }
 
-  // TD56: a collage-callout's images[].url and presentation.background.imageUrl are image slots too.
   if (
     module.type === 'CONTENT_BLOCK' &&
     data.variant === 'collage-callout' &&

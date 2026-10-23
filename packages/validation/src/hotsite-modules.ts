@@ -2,14 +2,14 @@ import { z } from 'zod';
 import { GenericErrorCode } from '@ikaro/types';
 import { HEX_COLOR_PATTERN } from './hotsite';
 
-// The canonical, request-boundary schema for every hotsite layout module (TD56-S01). It replaces
+// The canonical, request-boundary schema for every hotsite layout module. It replaces
 // the former `data: z.record(z.string(), z.unknown())`, so a malformed module is rejected with a
 // field-level violation (`layout.0.data.itemAction`) before it ever reaches the aggregate.
 //
 // Two shapes of "closed", deliberately:
-//   - the two types added by TD56 (NAVIGATION, CONTENT_BLOCK) use strict objects: an unknown key
+//   - the two newer types (NAVIGATION, CONTENT_BLOCK) use strict objects: an unknown key
 //     is rejected, because no stored manifest can hold one yet;
-//   - the ten pre-TD56 types use loose objects whose declared keys are fully validated (required
+//   - the ten older types use loose objects whose declared keys are fully validated (required
 //     fields, enums, bounds) while unknown keys are tolerated — exactly what apps/web's
 //     module-schemas.ts does today, so every manifest the current editors can produce still saves.
 // apps/web must never import this package, so its schemas stay an independent mirror; the shared
@@ -36,7 +36,7 @@ const HORIZONTAL_POSITION = z.enum(['left', 'center', 'right']);
 const VERTICAL_POSITION = z.enum(['top', 'center', 'bottom']);
 const IMMERSIVE_VARIANT = z.enum(['centered', 'left-aligned', 'immersive']);
 
-// ─── Pre-TD56 modules (loose) ────────────────────────────────────────────────
+// ─── Older modules (loose) ────────────────────────────────────────────────
 
 const HeroDataSchema = z.looseObject({
   variant: IMMERSIVE_VARIANT,
@@ -179,14 +179,14 @@ const LeadFormDataSchema = z
     // feeds the public-cached manifest (docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
     // save"). Without this check, the loose `data` would let a caller smuggle both fields into
     // the cached layout entry directly, bypassing LeadFormConfig's own validation (the 20-question
-    // cap included) entirely (M20-S08 PR #429 Codex review finding, 2026-08-26 — the frontend's
+    // cap included) entirely (the frontend's
     // stripLeadFormConfig() is a UI courtesy, not an API boundary).
     error:
       "a LEAD_FORM module's own data must not include audienceMode or questions — send them as top-level fields on PATCH /v1/tenants/hotsite instead",
     params: { code: GenericErrorCode.VALUE_INVALID },
   });
 
-// ─── TD56 modules (strict) ───────────────────────────────────────────────────
+// ─── Newer modules (strict) ───────────────────────────────────────────────────
 
 const NavigationDataSchema = z.strictObject({
   items: z
