@@ -66,7 +66,7 @@ import { OpenScheduleUseCase } from './application/use-cases/open-schedule.use-c
 import { RemoveClosureUseCase } from './application/use-cases/remove-closure.use-case';
 import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-schedule-opening.use-case';
 import { UpdateServiceUseCase } from './application/use-cases/update-service.use-case';
-import { serviceConfigProviders } from './booking.module-service-config-providers';
+import { serviceConfigProviders } from './service-config.module-providers';
 import { ListServiceResourceOptionsUseCase } from './application/use-cases/list-service-resource-options.use-case';
 import { QuoteServiceDurationUseCase } from './application/use-cases/quote-service-duration.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';

@@ -93,7 +93,7 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 ### Row locks (M2)
 
 #### R1 — Service row, `serviceRepo.findByIdForUpdate`
-- **Taken by:** `ActivateService`, `DeactivateService`, `UpdateService`, `UpdateServiceLegs`, `UpdateServiceResourceRequirements`, `UpdateServiceBookingPolicy`, `PublishServiceIntakeSchema`, `CreateAvailabilityAlert`, `RequestRecurringBookingSchedule` (inside `prepareRequest`).
+- **Taken by:** `ActivateService`, `DeactivateService`, `UpdateService`, `UpdateServiceLegs`, `UpdateServiceResourceRequirements`, `UpdateServiceBookingPolicy`, `UpdateServicePublicPage` (TD56-S03; it also reads other services' slugs while holding the row, but two first publishes of different services hold different rows, so cross-service slug uniqueness rests on the partial unique index `UQ_booking_services_tenant_public_slug`, not on this lock), `PublishServiceIntakeSchema`, `CreateAvailabilityAlert`, `RequestRecurringBookingSchedule` (inside `prepareRequest`).
 - **Protects:** lost updates, because `save()` wholesale-replaces the service's child tables; and a stale eligibility or policy read in a request that depends on it.
 - **Level:** L2.
 
