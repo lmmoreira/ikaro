@@ -1,6 +1,8 @@
 import { HotsiteConfigBuilder } from '../../../test/builders/platform';
 import {
   HotsiteCarouselDaysExceedsMaxAdvanceError,
+  HotsiteNavigationNotFirstError,
+  HotsiteNavigationTargetNotEnabledError,
   PlatformDomainError,
 } from './errors/platform-domain.error';
 import {
@@ -165,6 +167,60 @@ describe('HotsiteConfig', () => {
       expect(() =>
         config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, CTX),
       ).toThrow(PlatformDomainError);
+    });
+
+    describe('layout rules (full matrix in hotsite-layout.rules.spec.ts)', () => {
+      const navigation = (target: 'about' | 'service-list'): HotsiteModule => ({
+        type: 'NAVIGATION',
+        enabled: true,
+        data: { items: [{ label: 'Link', target }] },
+      });
+      const about: HotsiteModule = {
+        type: 'ABOUT',
+        enabled: true,
+        data: { title: 'T', body: 'B', imagePosition: 'left' },
+      };
+
+      it('persists a NAVIGATION first and a module presentation', () => {
+        const config = new HotsiteConfigBuilder().build();
+        const layout: HotsiteModule[] = [
+          navigation('about'),
+          { ...about, presentation: { surface: 'primary', padding: 'spacious' } },
+        ];
+
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, layout, DEFAULT_HOTSITE_SEO, CTX);
+
+        expect(config.layout[0].type).toBe('NAVIGATION');
+        expect(config.layout[1].presentation).toEqual({ surface: 'primary', padding: 'spacious' });
+      });
+
+      it('rejects a NAVIGATION that is not first, and does not change the stored layout', () => {
+        const config = new HotsiteConfigBuilder().build();
+        config.updateContent(DEFAULT_HOTSITE_BRANDING, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);
+
+        expect(() =>
+          config.updateContent(
+            DEFAULT_HOTSITE_BRANDING,
+            [about, navigation('about')],
+            DEFAULT_HOTSITE_SEO,
+            CTX,
+          ),
+        ).toThrow(HotsiteNavigationNotFirstError);
+        expect(config.layout).toEqual(VALID_LAYOUT);
+      });
+
+      it('rejects a navigation target that is not an enabled module', () => {
+        const config = new HotsiteConfigBuilder().build();
+
+        expect(() =>
+          config.updateContent(
+            DEFAULT_HOTSITE_BRANDING,
+            [navigation('service-list'), about],
+            DEFAULT_HOTSITE_SEO,
+            CTX,
+          ),
+        ).toThrow(HotsiteNavigationTargetNotEnabledError);
+      });
     });
 
     it('accepts a CHATBOT module (M19-S11)', () => {

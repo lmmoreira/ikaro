@@ -127,21 +127,21 @@ describe('parseManifestJson', () => {
     });
   });
 
-  it('rejects a layout with more than 10 modules', () => {
-    const elevenModules = Array.from({ length: 11 }, (_, i) => ({
+  it('rejects a layout with more than 12 modules', () => {
+    const thirteenModules = Array.from({ length: 13 }, (_, i) => ({
       type: 'HERO',
       enabled: true,
       data: {},
       _dedupe: i,
     }));
     const result = parseManifestJson(
-      JSON.stringify({ branding: VALID_BRANDING, layout: elevenModules, seo: VALID_SEO }),
+      JSON.stringify({ branding: VALID_BRANDING, layout: thirteenModules, seo: VALID_SEO }),
     );
 
     expect(result).toEqual({
       success: false,
-      error: 'layout must have at most 10 modules',
-      reason: { code: 'tooManyModules', max: 10 },
+      error: 'layout must have at most 12 modules',
+      reason: { code: 'tooManyModules', max: 12 },
     });
   });
 
@@ -218,6 +218,104 @@ describe('parseManifestJson', () => {
               items: [{ authorName: 'Maria', text: 'Ótimo', avatarUrl: null }],
             },
           },
+        ],
+      }),
+    );
+
+    expect(result.success).toBe(true);
+  });
+});
+
+describe('parseManifestJson — NAVIGATION, CONTENT_BLOCK and presentation', () => {
+  const NAVIGATION = {
+    type: 'NAVIGATION',
+    enabled: true,
+    data: { items: [{ label: 'Serviços', target: 'service-list' }] },
+  };
+  const CONTENT_BLOCK = {
+    type: 'CONTENT_BLOCK',
+    enabled: true,
+    data: { variant: 'image-statement', title: 'Nossa história' },
+  };
+
+  it('accepts NAVIGATION first and CONTENT_BLOCK, keeping presentation on the module', () => {
+    const presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
+    const result = parseManifestJson(
+      manifestJson({
+        layout: [NAVIGATION, VALID_HERO_MODULE, { ...CONTENT_BLOCK, presentation }],
+      }),
+    );
+
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.layout.map((m) => m.type).slice(0, 3)).toEqual([
+      'NAVIGATION',
+      'HERO',
+      'CONTENT_BLOCK',
+    ]);
+    expect(result.value.layout.find((m) => m.type === 'CONTENT_BLOCK')?.presentation).toEqual(
+      presentation,
+    );
+  });
+
+  it('does not append NAVIGATION or CONTENT_BLOCK to a manifest that lacks them', () => {
+    const result = parseManifestJson(manifestJson());
+
+    expect(result.success && result.value.layout).toHaveLength(10);
+  });
+
+  it('rejects a NAVIGATION that is not the first module with navigationNotFirst', () => {
+    const result = parseManifestJson(manifestJson({ layout: [VALID_HERO_MODULE, NAVIGATION] }));
+
+    expect(result).toEqual({
+      success: false,
+      error: 'the NAVIGATION module must be the first module',
+      reason: { code: 'navigationNotFirst' },
+    });
+  });
+
+  it('rejects an invalid presentation with invalidPresentation naming the module', () => {
+    const result = parseManifestJson(
+      manifestJson({
+        layout: [{ ...VALID_HERO_MODULE, presentation: { surface: 'custom' } }],
+      }),
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: 'invalid presentation for module "HERO"',
+      reason: { code: 'invalidPresentation', moduleType: 'HERO' },
+    });
+  });
+
+  it('rejects CONTENT_BLOCK data outside its closed variant union', () => {
+    const result = parseManifestJson(
+      manifestJson({
+        layout: [{ ...CONTENT_BLOCK, data: { variant: 'banner', title: 'T' } }],
+      }),
+    );
+
+    expect(result.success).toBe(false);
+    expect(!result.success && result.reason).toEqual({
+      code: 'invalidModuleData',
+      moduleType: 'CONTENT_BLOCK',
+    });
+  });
+
+  // The backend owns this rule (it needs the whole layout); the Manifesto tab only rejects what
+  // would break the client at once, and the violation shows on Publish.
+  it('accepts a navigation target that is not an enabled module (the backend owns that rule)', () => {
+    const result = parseManifestJson(manifestJson({ layout: [NAVIGATION, VALID_HERO_MODULE] }));
+
+    expect(result.success).toBe(true);
+  });
+
+  it('accepts a module with a presentation that only the backend can judge (FOOTER)', () => {
+    const result = parseManifestJson(
+      manifestJson({
+        layout: [
+          VALID_HERO_MODULE,
+          { type: 'FOOTER', enabled: true, data: {}, presentation: { surface: 'primary' } },
         ],
       }),
     );

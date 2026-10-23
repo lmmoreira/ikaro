@@ -1269,12 +1269,14 @@
         "configureLabel": "Configure",
         "dragLabel": "Drag to reorder: {module}",
         "modules": {
+          "NAVIGATION": "Navigation",
           "HERO": "Hero",
           "SERVICE_LIST": "Service list",
           "GALLERY": "Gallery",
           "TESTIMONIALS": "Testimonials",
           "BOOKING_CTA": "Booking call-to-action",
           "ABOUT": "About",
+          "CONTENT_BLOCK": "Content block",
           "CONTACT": "Contact",
           "FOOTER": "Footer",
           "CHATBOT": "Chatbot",
@@ -1311,6 +1313,9 @@
           }
         },
         "panels": {
+          "placeholder": {
+            "description": "The settings for this module are coming soon. Until then it can only be edited in the Manifest tab."
+          },
           "hero": {
             "titleLabel": "Title *",
             "titlePlaceholder": "Main headline shown at the top of your site",
@@ -1609,7 +1614,9 @@
           "tooManyModules": "Invalid JSON: the layout has more than {max} modules.",
           "unknownModuleType": "Invalid JSON: unknown module type \"{moduleType}\".",
           "duplicateModuleType": "Invalid JSON: duplicate module type \"{moduleType}\".",
-          "invalidModuleData": "Invalid JSON: invalid data for module \"{moduleType}\"."
+          "invalidModuleData": "Invalid JSON: invalid data for module \"{moduleType}\".",
+          "invalidPresentation": "Invalid JSON: invalid section presentation for module \"{moduleType}\".",
+          "navigationNotFirst": "Invalid JSON: the navigation module must be the first module of the layout."
         }
       }
     },

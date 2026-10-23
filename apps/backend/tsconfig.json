@@ -8,7 +8,8 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@ikaro/types/protocol/*": ["../../packages/types/dist/protocol/*"]
+      "@ikaro/types/protocol/*": ["../../packages/types/dist/protocol/*"],
+      "@ikaro/types/testing/*": ["../../packages/types/dist/testing/*"]
     },
     "incremental": true,
     "tsBuildInfoFile": ".tsbuildinfo",

@@ -18,7 +18,12 @@ import { HexColorValidationError } from '../../../../shared/value-objects/hex-co
 import {
   HotsiteBrandingColorInvalidError,
   HotsiteConfigConcurrentModificationError,
+  HotsiteModuleDuplicateError,
+  HotsiteNavigationNotFirstError,
+  HotsiteNavigationTargetNotEnabledError,
   HotsiteNotFoundError,
+  HotsitePresentationBackgroundNotAllowedError,
+  HotsitePresentationNotAllowedError,
   SlugAlreadyTakenError,
   TenantInactiveError,
   TenantNotFoundError,
@@ -52,6 +57,30 @@ function call(err: unknown): HttpException {
 }
 
 describe('mapPlatformError', () => {
+  // The layout cross-field rules fall through the generic PlatformDomainError branch (no
+  // dedicated mapper entry); this pins that status and each code so a future mapper change can't
+  // silently turn one into a 500.
+  it.each([
+    [new HotsiteNavigationNotFirstError(), PlatformErrorCode.HOTSITE_NAVIGATION_NOT_FIRST],
+    [
+      new HotsiteNavigationTargetNotEnabledError('gallery'),
+      PlatformErrorCode.HOTSITE_NAVIGATION_TARGET_NOT_ENABLED,
+    ],
+    [new HotsiteModuleDuplicateError('HERO'), PlatformErrorCode.HOTSITE_MODULE_DUPLICATE],
+    [
+      new HotsitePresentationNotAllowedError('FOOTER'),
+      PlatformErrorCode.HOTSITE_PRESENTATION_NOT_ALLOWED,
+    ],
+    [
+      new HotsitePresentationBackgroundNotAllowedError('HERO'),
+      PlatformErrorCode.HOTSITE_PRESENTATION_BACKGROUND_NOT_ALLOWED,
+    ],
+  ])('maps %s to 400 with its own code', (error, code) => {
+    const mapped = call(error);
+    expect(mapped.getStatus()).toBe(HttpStatus.BAD_REQUEST);
+    expect(mapped.getResponse()).toMatchObject({ code });
+  });
+
   it('maps AddressValidationError to 400 with code', () => {
     const err = call(
       new AddressValidationError('Invalid CEP: 123', AddressErrorCode.POSTAL_CODE_INVALID),

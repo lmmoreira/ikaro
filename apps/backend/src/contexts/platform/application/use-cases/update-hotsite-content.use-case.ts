@@ -167,9 +167,12 @@ export class UpdateHotsiteContentUseCase {
     return (layout ?? []).map((module) => ({
       type: module.type,
       enabled: module.enabled,
-      // Zod validates `data` generically as a record — per-module-type shape
-      // (HeroModuleData, GalleryModuleData, ...) is not statically derivable from it.
+      // The request schema is a discriminated union per module type, but the domain keeps one
+      // HotsiteModule shape — the per-type narrowing is not carried across that boundary.
       data: module.data as HotsiteModuleData,
+      // Rebuilt field by field, so `presentation` must be carried explicitly: omitting it here
+      // would silently drop it on every save even with every schema updated.
+      ...(module.presentation === undefined ? {} : { presentation: module.presentation }),
     }));
   }
 }

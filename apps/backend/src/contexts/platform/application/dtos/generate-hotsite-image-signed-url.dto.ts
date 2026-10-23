@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GenericErrorCode } from '@ikaro/types/protocol/errors';
+import { HOTSITE_IMAGE_PURPOSES } from '@ikaro/types';
 import { ALLOWED_IMAGE_CONTENT_TYPES } from '@ikaro/types/protocol/media';
 
 export const GenerateHotsiteImageSignedUrlSchema = z.object({
@@ -12,16 +13,7 @@ export const GenerateHotsiteImageSignedUrlSchema = z.object({
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
   contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
-  purpose: z.enum([
-    'branding',
-    'hero',
-    'gallery',
-    'about',
-    'booking-cta',
-    'testimonials',
-    'seo-og-image',
-    'lead-form',
-  ]),
+  purpose: z.enum(HOTSITE_IMAGE_PURPOSES),
 });
 
 export type GenerateHotsiteImageSignedUrlDto = z.infer<typeof GenerateHotsiteImageSignedUrlSchema>;

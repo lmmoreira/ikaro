@@ -1,6 +1,13 @@
 import 'reflect-metadata';
 import { config } from 'dotenv';
 import { DataSource } from 'typeorm';
+import {
+  SEED_HOTSITE_BASE_BRANDING,
+  SEED_HOTSITE_BRANDING_OVERRIDES,
+  SEED_HOTSITE_LAYOUT_A,
+  SEED_HOTSITE_LAYOUT_B,
+  SEED_HOTSITE_LAYOUT_IKARO,
+} from './seed-hotsite-fixtures';
 
 config({ quiet: true });
 
@@ -182,82 +189,21 @@ async function seedTenants(q: ReturnType<DataSource['createQueryRunner']>): Prom
 }
 
 async function seedHotsites(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
-  const baseBranding = {
-    secondaryColor: '#eff6ff',
-    backgroundColor: '#ffffff',
-    textColor: '#111827',
-    headingFontFamily: 'Inter, sans-serif',
-    bodyFontFamily: 'Inter, sans-serif',
-    logoUrl: '',
-    borderRadius: 'rounded',
-    buttonStyle: 'filled',
-    spacing: 'comfortable',
-    shadowStyle: 'subtle',
-  };
-  const brandingIkaro = JSON.stringify({ ...baseBranding, primaryColor: '#6366F1' });
-  const brandingA = JSON.stringify({ ...baseBranding, primaryColor: '#0055A4' });
-  const brandingB = JSON.stringify({ ...baseBranding, primaryColor: '#C8102E' });
-  const layoutIkaro = JSON.stringify([
-    {
-      type: 'HERO',
-      enabled: true,
-      data: {
-        variant: 'centered',
-        title: 'Book your service in a few clicks',
-        ctaLabel: 'Book now',
-        ctaTarget: 'booking-form',
-      },
-    },
-    {
-      type: 'SERVICE_LIST',
-      enabled: true,
-      data: { showPrices: true, showPoints: true, layout: 'grid' },
-    },
-    {
-      type: 'BOOKING_CTA',
-      enabled: true,
-      data: { title: 'Book your appointment', ctaLabel: 'Book now' },
-    },
-  ]);
-  const layoutA = JSON.stringify([
-    {
-      type: 'HERO',
-      enabled: true,
-      data: {
-        variant: 'centered',
-        title: 'Cuidado completo para o seu carro',
-        ctaLabel: 'Agendar agora',
-        ctaTarget: 'booking-form',
-      },
-    },
-    {
-      type: 'SERVICE_LIST',
-      enabled: true,
-      data: { showPrices: true, showPoints: true, layout: 'grid' },
-    },
-    {
-      type: 'BOOKING_CTA',
-      enabled: true,
-      data: { title: 'Agende seu horário', ctaLabel: 'Agendar agora' },
-    },
-  ]);
-  const layoutB = JSON.stringify([
-    {
-      type: 'HERO',
-      enabled: true,
-      data: {
-        variant: 'centered',
-        title: 'Seu carro impecável',
-        ctaLabel: 'Agendar agora',
-        ctaTarget: 'booking-form',
-      },
-    },
-    {
-      type: 'SERVICE_LIST',
-      enabled: true,
-      data: { showPrices: true, showPoints: true, layout: 'grid' },
-    },
-  ]);
+  const brandingIkaro = JSON.stringify({
+    ...SEED_HOTSITE_BASE_BRANDING,
+    ...SEED_HOTSITE_BRANDING_OVERRIDES.ikaro,
+  });
+  const brandingA = JSON.stringify({
+    ...SEED_HOTSITE_BASE_BRANDING,
+    ...SEED_HOTSITE_BRANDING_OVERRIDES.tenantA,
+  });
+  const brandingB = JSON.stringify({
+    ...SEED_HOTSITE_BASE_BRANDING,
+    ...SEED_HOTSITE_BRANDING_OVERRIDES.tenantB,
+  });
+  const layoutIkaro = JSON.stringify(SEED_HOTSITE_LAYOUT_IKARO);
+  const layoutA = JSON.stringify(SEED_HOTSITE_LAYOUT_A);
+  const layoutB = JSON.stringify(SEED_HOTSITE_LAYOUT_B);
   await q.query(
     `INSERT INTO platform.hotsite_configs (id, tenant_id, branding, layout, is_published) VALUES
       ($1, $4, $7, $10, true),

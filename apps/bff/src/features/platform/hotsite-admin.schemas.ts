@@ -7,7 +7,12 @@ import {
   LeadFormAudienceModeSchema,
   LeadFormQuestionSchema,
 } from '@ikaro/validation';
-import { ALLOWED_IMAGE_CONTENT_TYPES, GenericErrorCode, PlatformErrorCode } from '@ikaro/types';
+import {
+  ALLOWED_IMAGE_CONTENT_TYPES,
+  GenericErrorCode,
+  HOTSITE_IMAGE_PURPOSES,
+  PlatformErrorCode,
+} from '@ikaro/types';
 
 // Request Zod schemas and their inferred body types — split out of
 // hotsite-admin.controller.ts so request-side shapes never live inline in the controller
@@ -42,16 +47,7 @@ export const GenerateHotsiteImageSignedUrlBodySchema = z.object({
       params: { code: GenericErrorCode.FORMAT_INVALID },
     }),
   contentType: z.enum(ALLOWED_IMAGE_CONTENT_TYPES),
-  purpose: z.enum([
-    'branding',
-    'hero',
-    'gallery',
-    'about',
-    'booking-cta',
-    'testimonials',
-    'seo-og-image',
-    'lead-form',
-  ]),
+  purpose: z.enum(HOTSITE_IMAGE_PURPOSES),
 });
 
 export type GenerateHotsiteImageSignedUrlBody = z.infer<

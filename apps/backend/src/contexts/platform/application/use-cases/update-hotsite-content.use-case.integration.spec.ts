@@ -112,7 +112,13 @@ describe('UpdateHotsiteContentUseCase (integration — real Postgres cross-aggre
     await expect(
       failingUseCase.execute({
         tenantId: tenant.id,
-        layout: [{ type: 'LEAD_FORM', enabled: false, data: { title: 'Should not persist' } }],
+        layout: [
+          {
+            type: 'LEAD_FORM',
+            enabled: false,
+            data: { title: 'Should not persist', ctaLabel: 'Enviar' },
+          },
+        ],
         audienceMode: 'CUSTOMER_ONLY',
       }),
     ).rejects.toThrow('forced failure on the second write');

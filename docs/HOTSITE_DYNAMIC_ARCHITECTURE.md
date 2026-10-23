@@ -35,6 +35,8 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 }
 ```
 
+Each `layout` entry is `{ type, enabled, data, presentation? }` (TD56). `data` is the module's business content; `presentation` is an optional, closed **section presentation** — a *sibling* of `data`, never a key inside it — described under *Section presentation* in §4. An entry without it renders exactly as it did before TD56. Everything TD56 added fits inside the existing `layout` JSONB: no new top-level manifest key and no migration.
+
 The `layout` array is **ordered and fully controlled by the admin**. The admin can add, remove, and reorder modules freely from the dashboard. The page renders exactly in that order, full-width, top to bottom.
 
 ---
@@ -182,17 +184,21 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 
 | Module type | Purpose | Content source |
 |---|---|---|
+| `NAVIGATION` | Same-page section links in the top bar (TD56) — page chrome, always the first `layout` entry, not a section | Manifest |
 | `HERO` | First impression + primary CTA | Manifest |
 | `SERVICE_LIST` | Showcase services with prices | Booking context (live) |
 | `GALLERY` | Before/after results | Admin-curated (booking photos + custom uploads) |
 | `TESTIMONIALS` | Social proof | Manifest |
 | `BOOKING_CTA` | Secondary call-to-action section | Manifest |
 | `ABOUT` | Business / team story | Manifest |
+| `CONTENT_BLOCK` | One editorial block with a closed set of six variants — trust grid, process steps, collage, technical callout, image and immersive statements (TD56) | Manifest |
 | `CONTACT` | Address, phone, social, map | Tenant settings |
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
-The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
+The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MATERIALIZED_MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
+
+**Twelve types, each a singleton.** A layout holds at most one entry per type, so at most 12. `NAVIGATION` and `CONTENT_BLOCK` are in `MODULE_ORDER` (which validates a pasted layout's `type` values and its length) but not in `MATERIALIZED_MODULE_ORDER`, so `materializeLayout` does not append them as disabled rows until the editor can configure them (TD56 Story 5); until then they exist only in a manifest that already carries them.
 
 ### Module Type Union
 
@@ -200,12 +206,14 @@ The `FOOTER` is a layout module like the others: its data is `FooterModuleData` 
 // packages/types/src/enums.ts — re-exported (not redeclared) from packages/types/src/hotsite.ts
 
 type HotsiteModuleType =
+  | 'NAVIGATION'      // always first; page chrome, not a section
   | 'HERO'
   | 'SERVICE_LIST'
   | 'GALLERY'
   | 'TESTIMONIALS'
   | 'BOOKING_CTA'
   | 'ABOUT'
+  | 'CONTENT_BLOCK'
   | 'CONTACT'
   | 'FOOTER'
   | 'CHATBOT'
@@ -216,10 +224,11 @@ interface HotsiteModuleResponse {
   type: HotsiteModuleType;
   enabled: boolean;   // false = skip rendering without removing from layout
   data: Record<string, unknown>;   // parsed per-type on the web side
+  presentation?: HotsiteModulePresentation;   // optional section presentation, see §4
 }
 ```
 
-The typed `HotsiteModule { type; enabled; data: HotsiteModuleData }` and the `HotsiteModuleData` union exist only in the backend domain (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`); they are not part of the shared `@ikaro/types` contract.
+The typed `HotsiteModule { type; enabled; data: HotsiteModuleData; presentation? }` and the `HotsiteModuleData` union exist only in the backend domain (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`); they are not part of the shared `@ikaro/types` contract.
 
 ---
 
@@ -231,7 +240,7 @@ All interfaces live in `packages/types/src/hotsite.ts` and are shared between th
 
 ```typescript
 interface HeroModuleData {
-  variant: 'centered' | 'left-aligned';  // default: 'centered'
+  variant: 'centered' | 'left-aligned' | 'immersive';  // default: 'centered'; 'immersive' added by TD56 (a "split" opening is 'left-aligned' + rightPanel 'image', not a variant)
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -255,7 +264,19 @@ interface ServiceListModuleData {
   eyebrow?: string;      // short label above the heading
   showPrices: boolean;
   showPoints: boolean;   // show loyalty points per service
-  layout: 'grid' | 'list';  // default: 'grid'
+  layout: 'grid' | 'list' | 'numbered' | 'feature-cards';  // default: 'grid'; the last two added by TD56
+  itemAction?: 'details' | 'booking' | 'none';   // what a card does on click; omitted => 'none' (today's behaviour)
+  itemCtaLabel?: string;                          // <= 40 chars
+  detailPage?: ServiceDetailPageSettings;         // look of every public service detail page, closed set
+}
+
+interface ServiceDetailPageSettings {
+  heroStyle: 'cover' | 'compact';
+  galleryLayout: 'grid' | 'featured';
+  showPrice: boolean;
+  showDuration: boolean;
+  showLoyaltyPoints: boolean;
+  bookingCtaLabel?: string;                       // <= 40 chars
 }
 ```
 
@@ -278,7 +299,7 @@ interface GalleryModuleData {
   title?: string;            // default "Nossos Resultados"
   eyebrow?: string;          // short label above the heading
   images: GalleryImage[];    // admin-curated ordered list
-  layout: 'grid' | 'masonry' | 'featured';   // default: 'grid'
+  layout: 'grid' | 'masonry' | 'featured' | 'portfolio';   // default: 'grid'; 'portfolio' added by TD56
   maxVisible: number;        // default 6 — "ver mais" shown if images.length > maxVisible
   featuredPosition?: 'left' | 'right';   // only meaningful when layout === 'featured' — which side images[0] (the large tile) renders on; default 'left' (M18-S07)
 }
@@ -290,7 +311,7 @@ Hotsite images are **public marketing assets** — unlike booking photos, there 
 Booking photos remain on the **private** bucket with the original "fresh read-signed URL generated at display time, never stored, 15-minute expiry" pattern (`docs/API_CONTRACTS.md`) — that pattern is correct *there* because those images genuinely must stay private. Hotsite images simply don't follow it.
 
 **Image sources (both available in the dashboard editor):**
-- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form` (M18-S03, extended M20-S08)). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
+- **Custom upload:** Admin uploads their own images (e.g. Canva-edited before/after, logo, hero/CTA backgrounds, about photos) via `POST /v1/tenants/hotsite/images/signed-url` (M12-S02, retargeted to the public bucket by M12-S10). Same upload mechanics as M115-S01 — 15-minute *upload*-URL expiry, content-type lock, 10 MB cap — behind a hotsite-specific endpoint and path convention: `tenants/<tenantId>/hotsite/<purpose>/<uuid>/<fileName>`, where `purpose` groups assets by what they're for (`branding | hero | gallery | about | booking-cta | testimonials | seo-og-image | lead-form | content-block | section-background | service-profile` (M18-S03, extended M20-S08 and TD56); the one closed list is `HOTSITE_IMAGE_PURPOSES` in `packages/types/src/hotsite.ts`, which the backend DTO and the BFF schema build their Zod enum from). The upload-URL expiry is irrelevant once the file lands — the resulting object gets a permanent public address, not another expiring URL.
 - **From bookings (`source: 'booking'`):** Admin browses a completed booking's photos — **before** (`beforeServicePhotoUrls`, from UC-001/UC-002) *and* after (`afterServicePhotoUrls`, from UC-009) are both selectable, since a compelling "before/after" showcase needs both — and features one via `POST /v1/tenants/hotsite/gallery/feature-booking-photo { bookingId, photoUrl }` (M12-S10). The backend derives `photoType` itself by checking which list the photo came from (never trusts a client-supplied label — also doubles as an integrity check: a `photoUrl` absent from both lists is rejected), then **copies** the object from the private booking-photos path into the public bucket. It's a copy, not a live reference: the featured image becomes an independent, permanent editorial choice, decoupled from whatever later happens to the source booking (archival, customer-initiated erasure under LGPD, disputes, etc.) — and avoiding a live reference is also what keeps it consistent with the "no expiring URLs in a cached manifest" rule above. This works identically for guest-originated bookings (`customerId: null`) and authenticated-customer bookings; `tenantId` is the only access boundary that matters.
 - **Existence check before persisting:** Pre-signed URLs let the browser upload straight to GCS, bypassing the backend — so nothing guarantees the `filePath` the admin later submits in `PATCH /v1/tenants/hotsite` actually exists (closed tab, failed `PUT`, hand-crafted request). `UpdateHotsiteContentUseCase` calls `IStorageService.exists()` on every non-empty image path (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `backgroundImageUrl`/`imageUrl`/`avatarUrl`, and **all** `GALLERY` images regardless of `source` — both `upload` and the copies produced by `feature-booking-photo` resolve to public-bucket paths) before persisting, rejecting unresolvable paths with `400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED`. The same gap exists — and is fixed the same way — for booking photo paths (M12-S02 also retrofits `IStorageService.exists()` into the four booking use cases that accept `photoUrls`/`*ServicePhotoUrls`).
 
@@ -308,7 +329,7 @@ interface TestimonialsModuleData {
   title?: string;        // default "O que nossos clientes dizem"
   eyebrow?: string;      // short label above the heading
   items: Testimonial[];
-  layout: 'grid' | 'carousel';  // default: 'grid'
+  layout: 'grid' | 'carousel' | 'editorial-quote';  // default: 'grid'; 'editorial-quote' added by TD56
 }
 ```
 
@@ -316,7 +337,7 @@ interface TestimonialsModuleData {
 
 ```typescript
 interface BookingCtaModuleData {
-  variant?: 'centered' | 'left-aligned';  // default: 'centered'
+  variant?: 'centered' | 'left-aligned' | 'immersive';  // default: 'centered'; 'immersive' added by TD56
   title: string;                  // e.g. "Pronto para brilhar?"
   subtitle?: string;
   eyebrow?: string;
@@ -341,6 +362,7 @@ interface AboutModuleData {
   eyebrow?: string;                       // short label above the heading
   imageUrl?: string | null;               // GCS URL — team/owner photo (null clears it)
   imagePosition: 'left' | 'right';       // default: 'right'
+  variant?: 'split' | 'editorial';       // TD56; omitted => 'split' (today's behaviour); imagePosition applies inside 'split'
 }
 ```
 
@@ -455,7 +477,7 @@ interface LeadFormModuleData {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;                       // e.g. "Preencher formulário"
-  variant?: 'centered' | 'left-aligned';  // default 'centered' — mirrors BookingCtaModuleData
+  variant?: 'centered' | 'left-aligned' | 'immersive';  // default 'centered' — mirrors BookingCtaModuleData
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: 'left' | 'center' | 'right';
   bgStyle?: 'primary' | 'background';     // default 'primary'
@@ -469,6 +491,90 @@ interface LeadFormModuleData {
 **Disabled-module handling at the dedicated page:** unlike `CHATBOT` (whose availability is always live/uncached), `/[slug]/lead-form` checks the manifest's `layout` array directly for a `LEAD_FORM` module with `enabled: true` and renders the existing `<Unavailable/>` component when absent/disabled. This is genuinely new logic added by this module — no prior hotsite module had a dedicated page that checked its own `enabled` flag this way (`/[slug]/booking` only checks `manifest.isPublished`, never `BOOKING_CTA.enabled`).
 
 Canonical rationale, domain model, and behavior: `docs/DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/USE_CASES.md` UC-037–UC-043, and `docs/API_CONTRACTS.md` § Lead Form.
+
+### NAVIGATION (TD56)
+
+```typescript
+interface NavigationModuleData {
+  items: { label: string; target: 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' }[];
+}
+```
+
+Page chrome, **not a section**: it is always the first `layout` entry, it never takes part in section alternation or dividers, and the public page and the editor preview hand its links to the top bar (`HotsiteAuthBar`) instead of rendering it in the section flow — one header only. `label` is 1–30 characters, at most 6 items. Targets are the existing same-page anchors (`#service-list`, `#gallery`, …); booking is never a navigation item and the separate `/lead-form` route is not an anchor. The module has its own `enabled` toggle and is pinned first (the layout editor offers no drag handle for it).
+
+Rules, each owned by exactly one layer:
+
+| Rule | Owner |
+|---|---|
+| closed shape: item count, label length, target set, no unknown keys | `@ikaro/validation` `HotsiteModuleSchema` (web mirror in `module-schemas.ts`) |
+| `NAVIGATION` is the first entry | `HotsiteConfig` → `HotsiteNavigationNotFirstError` (`PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST`); the Manifesto tab also rejects it (`navigationNotFirst`) because it would break the layout editor at once |
+| every item's target is an **enabled** module of the same layout (checked only while `NAVIGATION` itself is enabled — a disabled navigation renders nothing) | `HotsiteConfig` → `HotsiteNavigationTargetNotEnabledError` (`PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`); the web shows it on Publish |
+| at render, only items whose target section made it into the render plan become links | `resolveHotsiteNavigation(layout, plan)` in `page-model.ts` |
+
+### CONTENT_BLOCK (TD56)
+
+One singleton module whose `data` is a discriminated union on `variant`; every variant is a strict object (unknown keys rejected).
+
+```typescript
+// common to all six
+interface ContentBlockCommon {
+  align?: 'left' | 'center' | 'right';
+  eyebrow?: string;                // <= 60
+  title: string;                   // <= 120
+  body?: string;                   // <= 1000, restricted Markdown — never HTML
+  cta?: { label: string /* <= 40 */; target: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' };
+}
+// trust-grid          items 2-6 x { label <= 60; description? <= 140 }
+// process-steps       items 2-6 x { title <= 60; body <= 240 }   (the renderer numbers the steps)
+// collage-callout     images 2-4 x { url; alt? <= 120 }          (empty alt = decorative)
+// technical-callout   facts? 0-4 x { value <= 20; label <= 40 }
+// image-statement     (no extra fields; imagery comes from presentation.background)
+// immersive-statement (no extra fields)
+```
+
+`collage-callout.images[].url` is the only image slot inside `CONTENT_BLOCK.data`; it is walked by the same image-path code as every other slot (below).
+
+### Section presentation (TD56)
+
+An optional object next to `data` that controls a module's full-width section. Every field is optional and omitted fields resolve to the renderer's current defaults, so a module without it renders exactly as before.
+
+```typescript
+interface HotsiteModulePresentation {
+  surface?: 'background' | 'secondary' | 'primary' | 'custom';
+  customColor?: string;            // strict #RRGGBB; required when surface is 'custom', rejected otherwise
+  contentWidth?: 'narrow' | 'standard' | 'wide' | 'full';
+  minHeight?: 'auto' | 'sm' | 'md' | 'lg' | 'viewport';
+  padding?: 'none' | 'compact' | 'comfortable' | 'spacious';
+  background?: { imageUrl: string | null; position?: 'left' | 'center' | 'right' };
+  overlay?:                        // a separate layer, a sibling of background
+    | { type: 'none' }
+    | { type: 'solid'; color: string; opacity: number }                       // opacity 0..1
+    | { type: 'linear-gradient'; direction: 'to-right' | 'to-left' | 'to-bottom' | 'to-top';
+        fromColor: string; fromOpacity: number; toColor: string; toOpacity: number };
+}
+```
+
+Which modules accept it:
+
+| | `presentation` | `presentation.background` |
+|---|---|---|
+| `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, `CONTENT_BLOCK` | yes | yes |
+| `HERO`, `BOOKING_CTA`, `LEAD_FORM` | yes | **no** — they keep `data.backgroundImageUrl`, so one section never has two competing background images |
+| `NAVIGATION`, `FOOTER`, `CHATBOT` | **no** | no |
+
+`overlay` is accepted wherever `presentation` is, and is drawn over whichever background image the section has (its own, or `presentation.background`); with no image it tints the section surface. Violations are `HotsitePresentationNotAllowedError` / `HotsitePresentationBackgroundNotAllowedError` from `HotsiteConfig` (`hotsite-layout.rules.ts`); the closed shape is the schema's.
+
+**Precedence with today's switches:** an explicit `presentation.surface` always wins; when absent, `branding.alternateSectionBg` (`bgVariant`), `branding.heroBgStyle` and each module's own `bgStyle` behave exactly as before. `CONTENT_BLOCK` alternates like `ABOUT`/`TESTIMONIALS` unless it sets a surface. An **invalid** `presentation` at render time is ignored (the module renders with defaults); it never removes the module the way malformed `data` does.
+
+**Contrast.** `deriveSectionTokens()` (`apply-branding.ts`) derives a section's text, card and divider colours from its surface — the better-contrasting of the branding background/text colours, falling back to black or white — so text and card text always meet 4.5:1 and nothing is rejected. They are scoped custom properties (`--ba-section-*`) set on the section element, never an override of the global `--ba-*` tokens. Text over a *photo* cannot be measured: the renderer applies a built-in minimum scrim when a section has an image and `overlay` is `none`, and accepts an explicit overlay as written.
+
+### Validation: where each layer stops (TD56)
+
+`HotsiteModuleSchema` (`packages/validation/src/hotsite-modules.ts`) is one `z.discriminatedUnion('type')` over all twelve types and replaces the former unconstrained `data: z.record()`. The two TD56 types (`NAVIGATION`, `CONTENT_BLOCK`), the section `presentation` and the service detail-page settings are strict objects defined **once**, in `packages/types/src/hotsite-schemas.ts`, and imported by both `@ikaro/validation` and `apps/web` (which never imports `@ikaro/validation`). The ten older modules use loose objects whose declared keys are fully validated (required fields, enums, bounds) while unknown keys are tolerated — as the web schemas always did — and stay an independent mirror in `module-schemas.ts`; the fixtures in `@ikaro/types/testing/hotsite-module-contract` are run by both specs, so a case accepted by one set and rejected by the other fails a test. A stored layout that violated the old web schemas is rejected on its next save.
+
+**Image slots.** Every place a module can hold an image path — `data.backgroundImageUrl`, `data.imageUrl`, testimonial `avatarUrl`, gallery `images[].url`, `collage-callout` `images[].url`, `presentation.background.imageUrl` — is walked by `HotsiteImagePathsService.collect`/`mapPaths`, `HotsiteImageUrlResolver` and the web mirrors (`mapHotsiteImageFields` and its callers). The table in the contract fixtures is run through all of them.
+
+**Fonts.** `branding.headingFontFamily` / `bodyFontFamily` must be one of the registry keys in `HOTSITE_FONT_FAMILIES` (`packages/types/src/hotsite.ts`, the §2 allow-list) or the default every new tenant is created with (`HOTSITE_LEGACY_DEFAULT_FONT_FAMILY`, `'Inter, sans-serif'`, which the renderer resolves to Inter). A new font is added to that tuple and to `font-config.ts`, whose spec pins the two lists together.
 
 ---
 
@@ -669,7 +775,7 @@ Follow these steps in order. Every step is mandatory.
 
 **1. Define the data contract**
 
-Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed.
+Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` and a strict schema for it in `packages/types/src/hotsite-schemas.ts` and its entry in `HotsiteModuleSchema` (`packages/validation/src/hotsite-modules.ts`) — the spec there fails if a canonical type has no schema. The web registers the same schema (step 3), and the shared fixtures in `packages/types/src/testing/hotsite-module-contract.ts` get the matching cases. Also decide whether it accepts `presentation` and `presentation.background` (`hotsite-layout.rules.ts`), and add an entry to every exhaustive `Record<HotsiteModuleType, …>` (`MODULE_SCHEMAS` in `page-model.ts`, `MODULE_CONFIG_PANELS`, the `hotsite.layout.modules.*` labels) — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed.
 
 In the **same commit**, also add the new member to `HotsiteModuleType` in `packages/types/src/enums.ts` — this is a deliberately independent, web-facing copy (never derived from `@ikaro/validation`, which `apps/web` must not depend on), but `packages/architecture-check`'s `closedEnumRegistry` detector requires it to always match the canonical source exactly, in both directions. Unlike `LEAD_FORM`'s original rollout (M20-S01 → M20-S07, staged across multiple PRs), a staged rollout for this enum is no longer supported — a member missing from either side fails `pnpm architecture-check`. Add the TypeScript data-shape interface itself to `packages/types/src/hotsite.ts` (alongside the other `XxxModuleData` interfaces, which `HotsiteModuleType` is only re-exported from — not declared in). Keep the `data` shape flat — avoid deep nesting.
 

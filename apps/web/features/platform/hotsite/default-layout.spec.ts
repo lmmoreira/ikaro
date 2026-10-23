@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { HotsiteModuleResponse } from '@ikaro/types';
-import { materializeLayout } from './default-layout';
+import {
+  DEFAULT_MODULE_DATA,
+  MATERIALIZED_MODULE_ORDER,
+  MODULE_ORDER,
+  materializeLayout,
+} from './default-layout';
+import { isValidModuleData } from './module-schemas';
 
 describe('materializeLayout', () => {
   it('appends all 10 module types with sensible defaults for a brand-new tenant (layout: [])', () => {
@@ -86,5 +92,49 @@ describe('materializeLayout', () => {
     expect(byType.FOOTER).toEqual({});
     expect(byType.CHATBOT).toEqual({});
     expect(byType.LEAD_FORM).toMatchObject({ title: '', ctaLabel: '' });
+  });
+});
+
+describe('MODULE_ORDER / MATERIALIZED_MODULE_ORDER', () => {
+  it('lists all twelve module types with NAVIGATION first', () => {
+    expect(MODULE_ORDER).toHaveLength(12);
+    expect(MODULE_ORDER[0]).toBe('NAVIGATION');
+    expect(MODULE_ORDER).toContain('CONTENT_BLOCK');
+  });
+
+  it('materializes everything except NAVIGATION and CONTENT_BLOCK, until the editor can configure them', () => {
+    expect(MATERIALIZED_MODULE_ORDER).toEqual(
+      MODULE_ORDER.filter((type) => type !== 'NAVIGATION' && type !== 'CONTENT_BLOCK'),
+    );
+  });
+
+  // Negative guarantee: appending them now would show a Layout row whose Configure opens a placeholder.
+  it('never appends NAVIGATION or CONTENT_BLOCK to a layout that lacks them', () => {
+    const types = materializeLayout([]).map((module) => module.type);
+
+    expect(types).not.toContain('NAVIGATION');
+    expect(types).not.toContain('CONTENT_BLOCK');
+    expect(types).toHaveLength(10);
+  });
+
+  it('keeps NAVIGATION and CONTENT_BLOCK exactly where they are when the manifest already has them', () => {
+    const existing: HotsiteModuleResponse[] = [
+      { type: 'NAVIGATION', enabled: true, data: { items: [] } },
+      { type: 'CONTENT_BLOCK', enabled: false, data: { variant: 'image-statement', title: 'T' } },
+    ];
+
+    const result = materializeLayout(existing);
+
+    expect(result.slice(0, 2)).toEqual(existing);
+    expect(result.map((m) => m.type).filter((t) => t === 'NAVIGATION')).toHaveLength(1);
+  });
+});
+
+// Part of the legacy audit: a default a manager's draft is seeded with must itself pass the schema
+// the Manifesto tab and the backend enforce, or the very first save of a fresh layout would fail.
+describe('DEFAULT_MODULE_DATA', () => {
+  it.each(MODULE_ORDER)('the %s default passes its module schema', (type) => {
+    expect(DEFAULT_MODULE_DATA[type], `${type} has no default`).toBeDefined();
+    expect(isValidModuleData(type, DEFAULT_MODULE_DATA[type])).toBe(true);
   });
 });

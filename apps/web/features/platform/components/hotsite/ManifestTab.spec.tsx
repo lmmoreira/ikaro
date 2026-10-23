@@ -89,6 +89,45 @@ describe('ManifestTab', () => {
     expect(onApply).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [
+      'a NAVIGATION that is not first',
+      [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: { variant: 'centered', title: 'T', ctaLabel: 'Go', ctaTarget: 'booking-form' },
+        },
+        { type: 'NAVIGATION', enabled: true, data: { items: [] } },
+      ],
+      'o módulo de navegação deve ser o primeiro',
+    ],
+    [
+      'an invalid presentation',
+      [
+        {
+          type: 'FOOTER',
+          enabled: true,
+          data: {},
+          presentation: { surface: 'custom' },
+        },
+      ],
+      'apresentação de seção inválida para o módulo "FOOTER"',
+    ],
+  ])('shows a localized message for %s', async (_label, layout, message) => {
+    const onApply = vi.fn();
+    const user = userEvent.setup();
+    renderWithIntl(<ManifestTab value={VALID_MANIFEST} onApply={onApply} />);
+
+    fireEvent.change(screen.getByTestId('hotsite-manifest-textarea'), {
+      target: { value: JSON.stringify({ ...VALID_MANIFEST, layout }) },
+    });
+    await user.click(screen.getByTestId('hotsite-manifest-apply'));
+
+    expect(screen.getByTestId('hotsite-manifest-error')).toHaveTextContent(message);
+    expect(onApply).not.toHaveBeenCalled();
+  });
+
   it('never calls onApply just from editing the textarea, without clicking Aplicar', async () => {
     const onApply = vi.fn();
     const user = userEvent.setup();

@@ -3,6 +3,7 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteModulePresentation,
   HotsiteSeo,
   Testimonial,
 } from '../hotsite-config.aggregate';
@@ -37,6 +38,21 @@ export class HotsiteImageUrlResolver {
 
   private resolveModule(module: HotsiteModule, resolveUrl: ResolveImageUrl): HotsiteModule {
     const data = module.data as Record<string, unknown>;
+    const presentation = this.resolvePresentation(module.presentation, resolveUrl);
+    return {
+      ...module,
+      data: this.resolveModuleData(module.type, data, resolveUrl) as HotsiteModuleData,
+      ...(presentation === undefined ? {} : { presentation }),
+    };
+  }
+
+  // The module's own image slots: the three generic fields every module may carry, plus the
+  // type-specific collections (testimonial avatars, gallery images, collage-callout images).
+  private resolveModuleData(
+    type: HotsiteModule['type'],
+    data: Record<string, unknown>,
+    resolveUrl: ResolveImageUrl,
+  ): Record<string, unknown> {
     const resolved: Record<string, unknown> = {
       ...data,
       backgroundImageUrl: this.resolveIfPath(
@@ -47,14 +63,34 @@ export class HotsiteImageUrlResolver {
       avatarUrl: this.resolveIfPath(data.avatarUrl as string | undefined, resolveUrl),
     };
 
-    if (module.type === 'TESTIMONIALS') {
-      resolved.items = this.resolveTestimonialAvatars(data, resolveUrl);
+    if (type === 'TESTIMONIALS') resolved.items = this.resolveTestimonialAvatars(data, resolveUrl);
+    if (type === 'GALLERY') resolved.images = this.resolveGalleryImageUrls(data, resolveUrl);
+    if (type === 'CONTENT_BLOCK' && data.variant === 'collage-callout') {
+      resolved.images = this.resolveContentBlockImageUrls(data, resolveUrl);
     }
-    if (module.type === 'GALLERY') {
-      resolved.images = this.resolveGalleryImageUrls(data, resolveUrl);
-    }
+    return resolved;
+  }
 
-    return { ...module, data: resolved as HotsiteModuleData };
+  private resolvePresentation(
+    presentation: HotsiteModulePresentation | undefined,
+    resolveUrl: ResolveImageUrl,
+  ): HotsiteModulePresentation | undefined {
+    if (presentation?.background === undefined) return presentation;
+    return {
+      ...presentation,
+      background: {
+        ...presentation.background,
+        imageUrl: this.resolveIfPath(presentation.background.imageUrl, resolveUrl),
+      },
+    };
+  }
+
+  private resolveContentBlockImageUrls(
+    data: Record<string, unknown>,
+    resolveUrl: ResolveImageUrl,
+  ): { url: string; alt?: string }[] {
+    const images = (data.images as { url: string; alt?: string }[] | undefined) ?? [];
+    return images.map((image) => ({ ...image, url: this.resolveIfPath(image.url, resolveUrl) }));
   }
 
   private resolveTestimonialAvatars(
@@ -76,7 +112,10 @@ export class HotsiteImageUrlResolver {
     return images.map((image) => ({ ...image, url: resolveUrl(image.url) }));
   }
 
-  private resolveIfPath<T extends string | undefined>(value: T, resolveUrl: ResolveImageUrl): T {
+  private resolveIfPath<T extends string | null | undefined>(
+    value: T,
+    resolveUrl: ResolveImageUrl,
+  ): T {
     if (typeof value === 'string' && value.length > 0) {
       return resolveUrl(value) as T;
     }

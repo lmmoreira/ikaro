@@ -5,6 +5,7 @@ export * from './country-code';
 export * from './date';
 export * from './email';
 export * from './hotsite';
+export * from './hotsite-modules';
 export * from './lead-form-submission';
 export * from './phone';
 export * from './required-with-code';

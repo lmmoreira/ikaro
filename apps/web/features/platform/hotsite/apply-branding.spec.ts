@@ -2,7 +2,7 @@ import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { describe, expect, it } from 'vitest';
 
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts
-import { applyBranding, contrastRatio } from './apply-branding';
+import { applyBranding, contrastRatio, deriveSectionTokens } from './apply-branding';
 
 type CSSTokens = Record<string, string>;
 
@@ -329,6 +329,84 @@ describe('deriveHeroTextColor — chosen colour always wins on contrast', () => 
     // #111111 has higher contrast against #F5F5F5 than #FFFFFF does
     expect(contrastRatio(heroBg, heroText)).toBeGreaterThanOrEqual(
       contrastRatio(heroBg, heroText === '#111111' ? '#FFFFFF' : '#111111'),
+    );
+  });
+});
+
+describe('deriveSectionTokens', () => {
+  const BRANDINGS: readonly [string, Partial<HotsiteBrandingResponse>][] = [
+    ['light site', {}],
+    [
+      'dark site',
+      {
+        primaryColor: '#C5FF4A',
+        secondaryColor: '#1F1A2B',
+        backgroundColor: '#171321',
+        textColor: '#F3EFE6',
+      },
+    ],
+    [
+      'mid-tone palette where neither brand colour reads on the primary surface',
+      {
+        primaryColor: '#808080',
+        secondaryColor: '#8A8A8A',
+        backgroundColor: '#8F8F8F',
+        textColor: '#999999',
+      },
+    ],
+  ];
+  const SURFACES = ['background', 'secondary', 'primary', 'custom'] as const;
+
+  describe.each(BRANDINGS)('%s', (_name, overrides) => {
+    const branding = makeBranding(overrides);
+
+    it.each(SURFACES)('%s surface: text and card text meet AA (4.5:1)', (surface) => {
+      const tokens = deriveSectionTokens(branding, surface, '#7A3E9D');
+
+      expect(
+        contrastRatio(tokens['--ba-section-text'], tokens['--ba-section-bg']),
+      ).toBeGreaterThanOrEqual(4.5);
+      expect(
+        contrastRatio(tokens['--ba-section-text'], tokens['--ba-section-card-bg']),
+      ).toBeGreaterThanOrEqual(4.5);
+    });
+  });
+
+  it('uses the matching branding colour as the surface, and customColor for custom', () => {
+    const branding = makeBranding();
+
+    expect(deriveSectionTokens(branding, 'background')['--ba-section-bg']).toBe('#F5F5F5');
+    expect(deriveSectionTokens(branding, 'secondary')['--ba-section-bg']).toBe('#FFFFFF');
+    expect(deriveSectionTokens(branding, 'primary')['--ba-section-bg']).toBe('#0055A4');
+    expect(deriveSectionTokens(branding, 'custom', '#0B0908')['--ba-section-bg']).toBe('#0B0908');
+  });
+
+  it('picks light text on a dark custom surface and dark text on a light one', () => {
+    const branding = makeBranding();
+
+    expect(deriveSectionTokens(branding, 'custom', '#0B0908')['--ba-section-text']).toBe('#F5F5F5');
+    expect(deriveSectionTokens(branding, 'custom', '#FFF4E0')['--ba-section-text']).toBe('#111111');
+  });
+
+  it('emits a divider that differs from the surface (visible, not necessarily AA)', () => {
+    const tokens = deriveSectionTokens(makeBranding(), 'primary');
+
+    expect(tokens['--ba-section-divider']).not.toBe(tokens['--ba-section-bg']);
+  });
+
+  it('is scoped: applyBranding() output carries no section token and is otherwise unchanged', () => {
+    const keys = Object.keys(applyBranding(makeBranding()));
+
+    for (const token of [
+      '--ba-section-bg',
+      '--ba-section-text',
+      '--ba-section-card-bg',
+      '--ba-section-divider',
+    ]) {
+      expect(keys).not.toContain(token);
+    }
+    expect(keys).toEqual(
+      expect.arrayContaining(['--ba-primary', '--ba-hero-bg', '--ba-hero-text', '--ba-divider']),
     );
   });
 });

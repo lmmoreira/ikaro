@@ -26,12 +26,14 @@ export type ClosureReason = 'STAFF_DAY_OFF' | 'MAINTENANCE' | 'HOLIDAY';
 export type ResourceType = 'LOCATION' | 'STAFF' | 'ROOM' | 'EQUIPMENT';
 
 export type HotsiteModuleType =
+  | 'NAVIGATION'
   | 'HERO'
   | 'SERVICE_LIST'
   | 'GALLERY'
   | 'TESTIMONIALS'
   | 'BOOKING_CTA'
   | 'ABOUT'
+  | 'CONTENT_BLOCK'
   | 'CONTACT'
   | 'FOOTER'
   | 'CHATBOT'

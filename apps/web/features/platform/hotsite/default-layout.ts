@@ -1,25 +1,40 @@
 import type { HotsiteModuleResponse, HotsiteModuleType } from '@ikaro/types';
 
-// Canonical order for module types absent from a tenant's saved layout (packages/types/src/enums.ts).
-// Exported so manifest-schema.ts can validate a pasted layout's `type` values against this same
-// list, rather than re-declaring the 10 literals a second time.
+// Canonical order of every module type (packages/types/src/enums.ts), NAVIGATION first — the page
+// chrome the layout editor pins above every section. Exported so manifest-schema.ts can validate a
+// pasted layout's `type` values and its length against this same list, rather than re-declaring
+// the 12 literals a second time.
 export const MODULE_ORDER: readonly HotsiteModuleType[] = [
+  'NAVIGATION',
   'HERO',
   'SERVICE_LIST',
   'GALLERY',
   'TESTIMONIALS',
   'BOOKING_CTA',
   'ABOUT',
+  'CONTENT_BLOCK',
   'CONTACT',
   'FOOTER',
   'CHATBOT',
   'LEAD_FORM',
 ];
 
+// The types materializeLayout() adds to a layout that lacks them. NAVIGATION and CONTENT_BLOCK are
+// excluded until the editor can actually configure them: appending them now would
+// show a Layout row whose "Configure" opens a placeholder. They exist only when a manifest already
+// carries them (the Manifesto tab, or an applied template). Delete this exclusion once it can.
+const NOT_YET_MATERIALIZED: ReadonlySet<HotsiteModuleType> = new Set([
+  'NAVIGATION',
+  'CONTENT_BLOCK',
+]);
+export const MATERIALIZED_MODULE_ORDER: readonly HotsiteModuleType[] = MODULE_ORDER.filter(
+  (type) => !NOT_YET_MATERIALIZED.has(type),
+);
+
 // Minimal data satisfying each module data type's required fields (module-schemas.ts) — used
 // only to materialize a type not yet present in a tenant's saved layout (new tenants start with
 // layout: [] — HotsiteConfig.create() on the backend). Kept in sync with module-schemas.ts.
-const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unknown>>> = {
+export const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unknown>>> = {
   HERO: { variant: 'centered', title: '', ctaLabel: '', ctaTarget: 'booking-form' },
   SERVICE_LIST: { showPrices: true, showPoints: true, layout: 'grid' },
   GALLERY: { images: [], layout: 'grid', maxVisible: 6 },
@@ -33,6 +48,8 @@ const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unkn
     showEmail: true,
     showMap: true,
   },
+  NAVIGATION: { items: [] },
+  CONTENT_BLOCK: { variant: 'image-statement', title: '' },
   FOOTER: {},
   // Every ChatbotModuleData field is optional (packages/types/src/hotsite.ts) — {} is already a
   // minimal valid value, unlike every other type above.
@@ -44,12 +61,12 @@ const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<string, unkn
 
 // Appends any module type missing from `existing` (disabled, with minimal default data) — never
 // reorders what's already there, so a tenant's saved custom order is preserved. Ensures
-// LayoutTab always has a row for all 10 module types regardless of what was actually saved.
+// LayoutTab always has a row for every materialized module type regardless of what was saved.
 export function materializeLayout(
   existing: readonly HotsiteModuleResponse[],
 ): HotsiteModuleResponse[] {
   const existingTypes = new Set(existing.map((module) => module.type));
-  const missing = MODULE_ORDER.filter((type) => !existingTypes.has(type)).map(
+  const missing = MATERIALIZED_MODULE_ORDER.filter((type) => !existingTypes.has(type)).map(
     (type): HotsiteModuleResponse => ({
       type,
       enabled: false,

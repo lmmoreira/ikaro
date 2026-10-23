@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import {
+  ContentBlockModuleDataSchema,
+  HotsiteCtaTargetSchema,
+  NavigationModuleDataSchema,
+  ServiceDetailPageSettingsSchema,
+} from '@ikaro/types';
 import type {
   AboutModuleData,
   BookingCtaModuleData,
@@ -15,18 +21,17 @@ import type {
   TestimonialsModuleData,
 } from '@ikaro/types';
 
-const CTA_TARGET = z.enum([
-  'booking-form',
-  'service-list',
-  'gallery',
-  'testimonials',
-  'about',
-  'contact',
-]);
+const CTA_TARGET = HotsiteCtaTargetSchema;
+
+const SECTION_VARIANT = z.enum(['centered', 'left-aligned', 'immersive']);
+
+// Independent mirror of the older modules in @ikaro/validation's hotsite-modules.ts (apps/web must
+// never import that package). Every case in @ikaro/types/testing/hotsite-module-contract is run
+// against both sets in their specs, so a rule changed in one and not the other fails a test.
 
 // Mirrors HeroModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
 export const HeroModuleDataSchema = z.object({
-  variant: z.enum(['centered', 'left-aligned']),
+  variant: SECTION_VARIANT,
   title: z.string(),
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
@@ -47,7 +52,11 @@ export const ServiceListModuleDataSchema = z.object({
   eyebrow: z.string().optional(),
   showPrices: z.boolean(),
   showPoints: z.boolean(),
-  layout: z.enum(['grid', 'list']),
+  layout: z.enum(['grid', 'list', 'numbered', 'feature-cards']),
+  itemAction: z.enum(['details', 'booking', 'none']).optional(),
+  itemCtaLabel: z.string().max(40).optional(),
+  // A closed set (adding a field later is a new story), so unknown keys are rejected.
+  detailPage: ServiceDetailPageSettingsSchema.optional(),
 }) satisfies z.ZodType<ServiceListModuleData>;
 
 // Mirrors GalleryImage (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -66,7 +75,7 @@ export const GalleryModuleDataSchema = z.object({
   title: z.string().optional(),
   eyebrow: z.string().optional(),
   images: z.array(GalleryImageSchema),
-  layout: z.enum(['grid', 'masonry', 'featured']),
+  layout: z.enum(['grid', 'masonry', 'featured', 'portfolio']),
   maxVisible: z.number().int().min(1),
   featuredPosition: z.enum(['left', 'right']).optional(),
 }) satisfies z.ZodType<GalleryModuleData>;
@@ -86,12 +95,12 @@ export const TestimonialsModuleDataSchema = z.object({
   title: z.string().optional(),
   eyebrow: z.string().optional(),
   items: z.array(TestimonialSchema),
-  layout: z.enum(['grid', 'carousel']),
+  layout: z.enum(['grid', 'carousel', 'editorial-quote']),
 }) satisfies z.ZodType<TestimonialsModuleData>;
 
 // Mirrors BookingCtaModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
 export const BookingCtaModuleDataSchema = z.object({
-  variant: z.enum(['centered', 'left-aligned']).optional(),
+  variant: SECTION_VARIANT.optional(),
   title: z.string(),
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
@@ -113,6 +122,7 @@ export const AboutModuleDataSchema = z.object({
   eyebrow: z.string().optional(),
   imageUrl: z.string().nullable().optional(),
   imagePosition: z.enum(['left', 'right']),
+  variant: z.enum(['split', 'editorial']).optional(),
 }) satisfies z.ZodType<AboutModuleData>;
 
 // Mirrors ContactModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -151,13 +161,19 @@ export const LeadFormModuleDataSchema = z.object({
   subtitle: z.string().optional(),
   eyebrow: z.string().optional(),
   ctaLabel: z.string(),
-  variant: z.enum(['centered', 'left-aligned']).optional(),
+  variant: SECTION_VARIANT.optional(),
   backgroundImageUrl: z.string().nullable().optional(),
   backgroundImagePosition: z.enum(['left', 'center', 'right']).optional(),
   bgStyle: z.enum(['primary', 'background']).optional(),
 }) satisfies z.ZodType<LeadFormModuleData>;
 
+// NAVIGATION and CONTENT_BLOCK are strict shapes defined once in @ikaro/types (hotsite-schemas.ts),
+// shared with @ikaro/validation; they are re-exported here for the page model.
+export { ContentBlockModuleDataSchema, NavigationModuleDataSchema };
+
 const MODULE_DATA_SCHEMAS: Partial<Record<HotsiteModuleType, z.ZodType>> = {
+  NAVIGATION: NavigationModuleDataSchema,
+  CONTENT_BLOCK: ContentBlockModuleDataSchema,
   HERO: HeroModuleDataSchema,
   SERVICE_LIST: ServiceListModuleDataSchema,
   GALLERY: GalleryModuleDataSchema,

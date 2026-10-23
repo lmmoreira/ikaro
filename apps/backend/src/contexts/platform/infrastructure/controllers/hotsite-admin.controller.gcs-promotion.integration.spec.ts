@@ -49,15 +49,20 @@ describe('HotsiteAdminController (integration — real GCS promotion)', () => {
       'image/png',
       'public',
     );
-    await fetch(oldLogoUploadUrl, {
+    const seeded = await fetch(oldLogoUploadUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'image/png' },
       body: 'old-logo-bytes',
     });
+    // An unchecked seed would let the final "superseded logo is gone" assertion pass vacuously.
+    expect(seeded.status).toBe(200);
+    await expect(storageService.exists(oldPermanentLogoPath, 'public')).resolves.toBe(true);
   });
 
   afterAll(async () => {
-    await app.close();
+    // beforeAll can fail before the app exists; closing an undefined app would replace the real
+    // failure with a TypeError.
+    await app?.close();
   });
 
   it('promotes a tmp/-uploaded logo to its permanent public path and deletes the superseded logo — for real', async () => {

@@ -27,6 +27,10 @@ interface LayoutTabProps {
   readonly onConfigure: (type: HotsiteModuleType) => void;
 }
 
+// NAVIGATION is page chrome rendered above the first section (HotsiteAuthBar), so it is always the
+// first entry of the layout and never moves; the backend rejects a layout where it is not first.
+const PINNED_FIRST_TYPE: HotsiteModuleType = 'NAVIGATION';
+
 // Extracted as a standalone pure function so the reorder logic is directly unit-testable without
 // simulating dnd-kit's pointer-based drag gestures in jsdom (fragile and not what this function
 // is responsible for verifying — dnd-kit's own test suite covers the gesture mechanics).
@@ -36,6 +40,9 @@ export function reorderLayout(
   overType: HotsiteModuleType,
 ): HotsiteModuleResponse[] {
   if (activeType === overType) return [...layout];
+  // A move involving the pinned module is refused outright — dragging it, or dropping anything on
+  // its slot (which would place that module above it).
+  if (activeType === PINNED_FIRST_TYPE || overType === PINNED_FIRST_TYPE) return [...layout];
   const oldIndex = layout.findIndex((module) => module.type === activeType);
   const newIndex = layout.findIndex((module) => module.type === overType);
   if (oldIndex === -1 || newIndex === -1) return [...layout];
@@ -59,8 +66,10 @@ function LayoutRow({
   onToggle,
   onConfigure,
 }: LayoutRowProps): React.JSX.Element {
+  const isPinned = module.type === PINNED_FIRST_TYPE;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: module.type,
+    disabled: isPinned,
   });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -72,24 +81,30 @@ function LayoutRow({
       data-module-type={module.type}
       className={`flex items-center gap-3 rounded-md border border-gray-200 bg-white p-3 ${isDragging ? 'opacity-50' : ''}`}
     >
-      <button
-        type="button"
-        data-testid="layout-row-drag"
-        data-module-type={module.type}
-        aria-label={dragLabel}
-        className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
-        {...attributes}
-        {...listeners}
-      >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <circle cx="9" cy="6" r="1.5" />
-          <circle cx="15" cy="6" r="1.5" />
-          <circle cx="9" cy="12" r="1.5" />
-          <circle cx="15" cy="12" r="1.5" />
-          <circle cx="9" cy="18" r="1.5" />
-          <circle cx="15" cy="18" r="1.5" />
-        </svg>
-      </button>
+      {isPinned ? (
+        // Keeps the toggle aligned with the draggable rows; the real "pinned" affordance is
+        // designed when this row first becomes visible to a manager.
+        <span aria-hidden="true" data-testid="layout-row-pinned" className="inline-block w-5" />
+      ) : (
+        <button
+          type="button"
+          data-testid="layout-row-drag"
+          data-module-type={module.type}
+          aria-label={dragLabel}
+          className="cursor-grab touch-none text-gray-400 hover:text-gray-600"
+          {...attributes}
+          {...listeners}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <circle cx="9" cy="6" r="1.5" />
+            <circle cx="15" cy="6" r="1.5" />
+            <circle cx="9" cy="12" r="1.5" />
+            <circle cx="15" cy="12" r="1.5" />
+            <circle cx="9" cy="18" r="1.5" />
+            <circle cx="15" cy="18" r="1.5" />
+          </svg>
+        </button>
+      )}
 
       <div className="flex-1">
         <SwitchField

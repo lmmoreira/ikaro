@@ -1269,12 +1269,14 @@
         "configureLabel": "Configurar",
         "dragLabel": "Arrastar para reordenar: {module}",
         "modules": {
+          "NAVIGATION": "Navegação",
           "HERO": "Hero",
           "SERVICE_LIST": "Lista de serviços",
           "GALLERY": "Galeria",
           "TESTIMONIALS": "Depoimentos",
           "BOOKING_CTA": "Chamada para agendamento",
           "ABOUT": "Sobre",
+          "CONTENT_BLOCK": "Bloco de conteúdo",
           "CONTACT": "Contato",
           "FOOTER": "Rodapé",
           "CHATBOT": "Chatbot",
@@ -1311,6 +1313,9 @@
           }
         },
         "panels": {
+          "placeholder": {
+            "description": "As configurações deste módulo estarão disponíveis em breve. Até lá, ele só pode ser editado na aba Manifesto."
+          },
           "hero": {
             "titleLabel": "Título *",
             "titlePlaceholder": "Título principal exibido no topo do seu site",
@@ -1609,7 +1614,9 @@
           "tooManyModules": "JSON inválido: o layout tem mais de {max} módulos.",
           "unknownModuleType": "JSON inválido: tipo de módulo desconhecido \"{moduleType}\".",
           "duplicateModuleType": "JSON inválido: tipo de módulo duplicado \"{moduleType}\".",
-          "invalidModuleData": "JSON inválido: dados inválidos para o módulo \"{moduleType}\"."
+          "invalidModuleData": "JSON inválido: dados inválidos para o módulo \"{moduleType}\".",
+          "invalidPresentation": "JSON inválido: apresentação de seção inválida para o módulo \"{moduleType}\".",
+          "navigationNotFirst": "JSON inválido: o módulo de navegação deve ser o primeiro módulo do layout."
         }
       }
     },

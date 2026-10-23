@@ -1,5 +1,11 @@
 import { z } from 'zod';
-import { GenericErrorCode, HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
+import {
+  GenericErrorCode,
+  HOTSITE_FONT_FAMILIES,
+  HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
+  HexColorErrorCode,
+  SeoErrorCode,
+} from '@ikaro/types';
 
 export const HEX_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
 
@@ -48,14 +54,27 @@ const hexColorField = (): z.ZodString =>
     params: { code: HexColorErrorCode.FORMAT_INVALID },
   });
 
+// A closed font registry (docs/HOTSITE_DYNAMIC_ARCHITECTURE.md § Font Allow-List): an arbitrary
+// family name would reach a CSS `font-family` value on the public page.
+const ALLOWED_FONT_FAMILIES: ReadonlySet<string> = new Set([
+  ...HOTSITE_FONT_FAMILIES,
+  HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
+]);
+
+const fontFamilyField = (): z.ZodString =>
+  z.string().refine((v) => ALLOWED_FONT_FAMILIES.has(v), {
+    error: `must be one of: ${HOTSITE_FONT_FAMILIES.join(', ')}`,
+    params: { code: GenericErrorCode.VALUE_INVALID },
+  });
+
 export const HotsiteBrandingSchema = z
   .object({
     primaryColor: hexColorField(),
     secondaryColor: hexColorField(),
     backgroundColor: hexColorField(),
     textColor: hexColorField(),
-    headingFontFamily: z.string().min(1),
-    bodyFontFamily: z.string().min(1),
+    headingFontFamily: fontFamilyField(),
+    bodyFontFamily: fontFamilyField(),
     logoUrl: z.string().regex(HOTSITE_LOGO_URL_REGEX, HOTSITE_LOGO_URL_MESSAGE),
     borderRadius: z.enum(['sharp', 'rounded', 'pill']),
     buttonStyle: z.enum(['filled', 'outline', 'ghost']),
@@ -80,12 +99,14 @@ export const HotsiteBrandingSchema = z
 // commit; a staged rollout across multiple PRs (as LEAD_FORM originally used, M20-S01 → M20-S07)
 // now fails the architecture gate.
 export const HOTSITE_MODULE_TYPES = [
+  'NAVIGATION',
   'HERO',
   'SERVICE_LIST',
   'GALLERY',
   'TESTIMONIALS',
   'BOOKING_CTA',
   'ABOUT',
+  'CONTENT_BLOCK',
   'CONTACT',
   'FOOTER',
   'CHATBOT',
@@ -94,29 +115,9 @@ export const HOTSITE_MODULE_TYPES = [
 
 export type HotsiteModuleType = (typeof HOTSITE_MODULE_TYPES)[number];
 
-export const HotsiteModuleSchema = z
-  .object({
-    type: z.enum(HOTSITE_MODULE_TYPES),
-    enabled: z.boolean(),
-    data: z.record(z.string(), z.unknown()),
-  })
-  .refine(
-    (module) =>
-      module.type !== 'LEAD_FORM' ||
-      (!('audienceMode' in module.data) && !('questions' in module.data)),
-    {
-      // audienceMode/questions live in LeadFormConfig, never in HotsiteConfig.layout[] — that blob
-      // feeds the public-cached manifest (docs/DOMAIN_MODEL.md § LeadFormConfig "Cross-aggregate
-      // save"). Without this check, `data`'s otherwise-unconstrained z.record() would let a caller
-      // smuggle both fields into the cached layout entry directly, bypassing LeadFormConfig's own
-      // validation (the 20-question cap included) entirely (M20-S08 PR #429 Codex review finding,
-      // 2026-08-26 — the frontend's stripLeadFormConfig() is a UI courtesy, not an API boundary).
-      error:
-        "a LEAD_FORM module's own data must not include audienceMode or questions — send them as top-level fields on PATCH /v1/tenants/hotsite instead",
-      params: { code: GenericErrorCode.VALUE_INVALID },
-      path: ['data'],
-    },
-  );
+// The per-module `data`/`presentation` request schema (HotsiteModuleSchema) lives in
+// ./hotsite-modules — split out to keep this file under the file-length cap. It is re-exported
+// from the package index, so `import { HotsiteModuleSchema } from '@ikaro/validation'` is unchanged.
 
 // M20-S01 — shared by the backend (update-hotsite-content.dto.ts) and BFF
 // (hotsite-admin.schemas.ts) as part of the consolidated hotsite-content update schema; both need

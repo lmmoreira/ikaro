@@ -80,6 +80,21 @@ function planItem(parsed: HotsiteModuleParsed): HotsiteModuleRenderPlanItem {
 }
 
 describe('renderHotsitePreviewModule', () => {
+  // Negative guarantee: NAVIGATION and CONTENT_BLOCK are parsed and carried, but have no preview
+  // renderer yet — an enabled one in the preview must stay invisible.
+  it.each([
+    ['NAVIGATION', { items: [] }],
+    ['CONTENT_BLOCK', { variant: 'image-statement', title: 'T' }],
+  ] as const)('renders nothing for an enabled %s plan item', (type, data) => {
+    const result = renderHotsitePreviewModule(
+      planItem({ type, data } as HotsiteModuleParsed),
+      0,
+      baseCtx,
+    );
+
+    expect(result).toBeNull();
+  });
+
   it.each([
     ['HERO', 'hero-module', {} as HeroModuleData],
     ['SERVICE_LIST', 'service-list-module', {} as ServiceListModuleData],
