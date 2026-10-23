@@ -506,7 +506,7 @@ Rules, each owned by exactly one layer:
 
 | Rule | Owner |
 |---|---|
-| closed shape: item count, label length, target set, no unknown keys | `@ikaro/validation` `HotsiteModuleSchema` (web mirror in `module-schemas.ts`) |
+| closed shape: item count, label length, target set, no unknown keys | `NavigationModuleDataSchema` in `packages/types/src/hotsite-schemas.ts`, imported by both `@ikaro/validation` (`HotsiteModuleSchema`) and `apps/web` |
 | `NAVIGATION` is the first entry | `HotsiteConfig` → `HotsiteNavigationNotFirstError` (`PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST`); the Manifesto tab also rejects it (`navigationNotFirst`) because it would break the layout editor at once |
 | every item's target is an **enabled** module of the same layout (checked only while `NAVIGATION` itself is enabled — a disabled navigation renders nothing) | `HotsiteConfig` → `HotsiteNavigationTargetNotEnabledError` (`PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`); the web shows it on Publish |
 | at render, only items whose target section made it into the render plan become links | `resolveHotsiteNavigation(layout, plan)` in `page-model.ts` |

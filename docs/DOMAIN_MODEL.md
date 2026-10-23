@@ -1497,7 +1497,7 @@ HotsiteConfig {
 - at most one entry per module type (`PLATFORM_HOTSITE_MODULE_DUPLICATE`);
 - `NAVIGATION`, when present, is the first entry (`PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST`), and while it is enabled every item's target is an enabled module of the same layout (`PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`);
 - `presentation` is only accepted on `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `LEAD_FORM` and `CONTENT_BLOCK` (`PLATFORM_HOTSITE_PRESENTATION_NOT_ALLOWED`), and `presentation.background` only on those with no background image of their own — not `HERO`, `BOOKING_CTA`, `LEAD_FORM` (`PLATFORM_HOTSITE_PRESENTATION_BACKGROUND_NOT_ALLOWED`);
-- the closed *shape* of each module's `data` and of `presentation` is the request schema's (`@ikaro/validation`), not the aggregate's.
+- the closed *shape* of each module's `data` and of `presentation` is the request schema's (`@ikaro/validation`; the strict `NAVIGATION`, `CONTENT_BLOCK`, `presentation` and detail-page shapes are defined once in `@ikaro/types` `hotsite-schemas.ts`), not the aggregate's.
 
 **Key methods:**
 - `updateContent(branding, layout, seo)` → replaces branding, layout, and seo; stays in draft until published.

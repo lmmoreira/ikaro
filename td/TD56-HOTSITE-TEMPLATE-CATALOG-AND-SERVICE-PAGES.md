@@ -15,7 +15,7 @@
 2. **Template images are shared, not copied.** Catalogue assets are platform-owned, public, versioned and immutable; every tenant manifest may reference the same path. There is no per-tenant asset copy, rollback or orphan cleanup.
 3. **Templates keep their sample testimonials.** They are ordinary `TESTIMONIALS` data the manager sees and edits; the editor labels them as sample content (see *Template application contract*).
 4. **Module registry grows by two types** — `NAVIGATION` and `CONTENT_BLOCK` — so a layout holds at most 12 modules (today 10).
-5. **The backend validates every module's `data` in full (Story 1 discovery, 2026-10-23).** One canonical `discriminatedUnion('type')` in `@ikaro/validation` covers all twelve module types: new types use strict objects, the ten existing types use loose objects whose declared keys are fully validated (required fields, enums, bounds) and whose unknown keys are tolerated, as the web schemas tolerate them today. The web schemas stay an independent mirror, kept consistent by shared contract fixtures.
+5. **The backend validates every module's `data` in full (Story 1, shipped 2026-10-23, PR #659).** One canonical `discriminatedUnion('type')` in `@ikaro/validation` covers all twelve module types. The strict shapes (`NAVIGATION`, `CONTENT_BLOCK`, `presentation`, `SERVICE_LIST.data.detailPage`) are defined **once** in `@ikaro/types` (`packages/types/src/hotsite-schemas.ts`) and imported by both `@ikaro/validation` and `apps/web` — a duplicate in each app failed SonarCloud's duplication gate. The ten existing types use loose objects (declared keys fully validated, unknown keys tolerated) and stay an independent web mirror, held together by the shared contract fixtures (`@ikaro/types/testing/hotsite-module-contract`). Also shipped: the branding font allow-list (`HOTSITE_FONT_FAMILIES` plus the legacy `'Inter, sans-serif'` default) and one `HOTSITE_IMAGE_PURPOSES` tuple.
 6. **The Manifesto tab stays consistent with today's split:** it rejects on the web what would break the client at once (shape, unique types, data and `presentation` validity, NAVIGATION first) and leaves business rules that need the whole layout (a navigation target must be an enabled module) to the backend, shown on Publish through the existing banner.
 7. **An invalid `presentation` at render time is ignored** (the module renders with defaults); it never removes the module the way malformed `data` does.
 8. **`NAVIGATION` is an ordinary module** (own `data`, own `enabled` toggle) with one exception: it is pinned first and cannot be dragged. Story 1 enforces that behaviour; the visible affordance is designed in Story 5, when the row first appears for a manager.
@@ -129,7 +129,7 @@ All media uses existing public tenant storage rules. The short `description` rem
 
 ## Stories
 
-### Story 1 — Define the template-ready manifest, module registry and presentation contract
+### Story 1 — Define the template-ready manifest, module registry and presentation contract ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** L
@@ -180,7 +180,8 @@ Rendering (the shared section shell, full-width surfaces, the NAVIGATION/CONTENT
 - `apps/backend/src/contexts/platform/application/dtos/update-hotsite-content.dto.ts` (no code change expected — it composes the shared schema; confirm and keep its spec green)
 - `apps/backend/src/contexts/platform/infrastructure/controllers/hotsite-admin.controller.integration.spec.ts` and `hotsite-admin.controller.gcs-promotion.integration.spec.ts` (modify — new-contract round trip, cross-field error codes, cross-tenant nested-image rejection)
 - `packages/types/src/testing/hotsite-module-contract.ts` (new — shared valid/invalid fixtures per module type) and `packages/types/package.json` (modify — `exports` and `typesVersions` entries for `./testing/hotsite-module-contract`)
-- `packages/validation/src/hotsite-modules.ts` and spec (new — the canonical per-module `data` schemas, composed into `HotsiteModuleSchema`; split out so `hotsite.ts` stays within the file-length cap)
+- `packages/validation/src/hotsite-modules.ts` and spec (new — `HotsiteModuleSchema` composed from the older loose schemas plus the shared strict ones; split out so `hotsite.ts` stays within the file-length cap)
+- `packages/types/src/hotsite-schemas.ts` (new — the strict NAVIGATION, CONTENT_BLOCK, presentation and detail-page schemas shared by `@ikaro/validation` and `apps/web`); `apps/web/features/platform/hotsite/presentation-schema.ts` (new — re-exports it with `isValidPresentation`)
 - `apps/bff/src/features/platform/hotsite-admin.controller.ts` (modify)
 - `apps/bff/src/features/platform/hotsite-admin.schemas.ts` (modify)
 - `apps/bff/src/features/platform/hotsite-admin.controller.spec.ts` (modify)
