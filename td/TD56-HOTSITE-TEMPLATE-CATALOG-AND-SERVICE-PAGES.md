@@ -7,7 +7,14 @@
 - **Created:** 2026-10-22
 - **Decision status:** Ready for `/story-discovery`, in the sequence below. This TD follows TD55; it does not reopen TD55's visual-editor foundation.
 - **Use cases:** extends UC-027 (manager manages hotsite) and adds the service-publication and visitor-detail flows described here before they are promoted into `docs/USE_CASES.md`.
-- **Related:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; `journeys/manager/hotsite.md`; `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html`; `journeys/manager/prototypes/hotsite/hotsite-impl/`.
+- **Related:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md` (all five stories done); `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; `journeys/manager/hotsite.md`; `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html`; `journeys/manager/prototypes/hotsite/hotsite-impl/`.
+
+## Decisions locked (2026-10-22 review — do not reopen in discovery)
+
+1. **No new top-level manifest keys, no migration for the hotsite.** `hotsite_configs` stores `branding`, `layout` and `seo` as JSONB; everything new fits inside `layout`. Navigation is a **module** (`NAVIGATION`); the service-detail-page settings are a nested object inside `SERVICE_LIST.data`.
+2. **Template images are shared, not copied.** Catalogue assets are platform-owned, public, versioned and immutable; every tenant manifest may reference the same path. There is no per-tenant asset copy, rollback or orphan cleanup.
+3. **Templates keep their sample testimonials.** They are ordinary `TESTIMONIALS` data the manager sees and edits; the editor labels them as sample content (see *Template application contract*).
+4. **Module registry grows by two types** — `NAVIGATION` and `CONTENT_BLOCK` — so a layout holds at most 12 modules (today 10).
 
 ## Problem
 
@@ -19,31 +26,37 @@ The current public service list can show a short service description, price, dur
 
 ## Chosen approach
 
-Build a versioned, platform-owned catalogue of six curated templates. A template is a controlled manifesto preset plus source assets and metadata, not a tenant-owned hotsite and not a second rendering system. Selecting it changes the existing manager draft and its persistent preview. The existing Publish action remains the only action that makes it public.
+Build a versioned, platform-owned catalogue of six curated templates. A template is a controlled manifesto preset plus shared source assets and metadata, not a tenant-owned hotsite and not a second rendering system. Selecting it changes the existing manager draft and its persistent preview. The existing Publish action remains the only action that makes it public.
 
-Templates must create visibly different sites through reusable presentation capabilities, rather than one-off HTML structures. Each module type remains a singleton in `layout`; this TD does not add repeatable modules. Extend the current manifest through closed, validated properties:
+Templates must create visibly different sites through reusable presentation capabilities, rather than one-off HTML structures. Each module type remains a singleton in `layout`; this TD does not add repeatable modules. Extend the current manifest through closed, validated properties, all inside `layout[]` entries (`{ type, enabled, data, presentation? }`):
 
-- global `navigation`, outside ordered `layout` because it is page chrome, singleton, and not independently draggable;
-- semantic section presentation (`surface`, content width, minimum height, padding, optional background image and overlay), with contrast-safe branding tokens;
-- controlled, module-specific layout variants for Hero, Service List, Gallery, Testimonials, About, Booking CTA, and Lead Form;
+- a singleton `NAVIGATION` module — page chrome rendered **first, above Hero**; the manager can enable/disable and edit it but cannot drag it (the backend and the layout editor both enforce "NAVIGATION is always first");
+- an optional `presentation` object, a **sibling of `data`** in the module entry (never a key inside `data`): semantic section presentation (`surface`, content width, minimum height, padding, optional background image and overlay), with contrast-safe branding tokens;
+- controlled, module-specific layout variants for Hero, Service List, Gallery, Testimonials, About, Booking CTA, and Lead Form (extending the existing `variant`/`layout` fields — see Story 2);
 - one singleton `CONTENT_BLOCK` module with a closed variant union for trust grids, image statements, immersive statements, process steps, collages, and technical callouts; and
-- a top-level `serviceDetailPage` presentation configuration for the public service subpage.
+- on `SERVICE_LIST.data`: `itemAction`, `itemCtaLabel` and a nested `detailPage` object that configures how every public service detail page looks.
 
 Production sections remain viewport-wide. Their background, colour and divider belong to the full-width section; only the inner content receives a maximum width. This matches the current BeloAuto renderer. The former centered 1240px prototype showcase canvas has been removed from `template-compositions.css` for the same reason.
 
 The manifest keeps module business data separate from optional `presentation` data. Presentation is a closed object: `surface` (`background | secondary | primary | custom`), `customColor` (required only for `custom`, strict `#RRGGBB`), `contentWidth` (`narrow | standard | wide | full`), `minHeight` (`auto | sm | md | lg | viewport`), `padding` (`none | compact | comfortable | spacious`), and optional `background` (`imageUrl`, focal `position`, and `overlay`). Overlay is a closed union: `none`, `solid` (`color`, `opacity`), or `linear-gradient` (`direction`, `fromColor`, `fromOpacity`, `toColor`, `toOpacity`). Directions are a fixed enum, colors are strict hex, opacity is 0–1, and irrelevant fields are rejected. Background image placement preserves existing focal-point behavior. New hotsite sections use a shared full-width section shell; module-specific variants arrange content inside it. Omitted presentation fields resolve to the current renderer defaults.
 
+Which modules accept `presentation`: `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTACT`, `LEAD_FORM`, `CONTENT_BLOCK`; it is rejected on `NAVIGATION`, `FOOTER` and `CHATBOT`. `presentation.background` is accepted only on modules that have no background image of their own (`SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, `CONTENT_BLOCK`); `HERO`, `BOOKING_CTA` and `LEAD_FORM` keep their existing `data.backgroundImageUrl`/`backgroundImagePosition` and reject `presentation.background`, so one section never has two competing background images.
+
+`NAVIGATION` data is `{ items: { label: string (1–30 chars); target: 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' }[] }`, at most 6 items. Targets are the existing same-page section anchors (`#service-list`, `#gallery`, `#testimonials`, `#about`, `#contact`); booking is never a navigation item (each module's own CTA reaches it) and the separate `/lead-form` route is not an anchor. Every item's target must be an **enabled** module in the same layout. The backend rejects a save that violates this, and the editor surfaces the same rule before saving (disabling a module referenced by the navigation explains why and offers to remove the item) — a disabled section never leaves a dead link. On the public page the navigation lives in the existing top bar region (`HotsiteAuthBar`: logo, Área da Equipe, Entrar) on desktop and collapses into a menu on mobile; there is never a second competing header. Confirm the exact bar integration in discovery against TD55 Story 5, but the one-header rule is fixed.
+
+`SERVICE_LIST.data` gains: `itemAction?: 'details' | 'booking' | 'none'` (omitted ⇒ `none`, which is today's behaviour — service cards have no action), `itemCtaLabel?: string` (≤ 40 chars), and `detailPage?: { heroStyle: 'cover' | 'compact'; galleryLayout: 'grid' | 'featured'; showPrice: boolean; showDuration: boolean; showLoyaltyPoints: boolean; bookingCtaLabel?: string (≤ 40) }`. Omitted `detailPage` resolves to `{ heroStyle: 'cover', galleryLayout: 'grid', showPrice: true, showDuration: true, showLoyaltyPoints: true }`. The set is closed; adding a field later is a new story. If `SERVICE_LIST` is disabled or absent, detail pages remain reachable by direct URL using these defaults — they are simply not linked from the home page.
+
 `CONTENT_BLOCK` remains one module entry and one selected variant at a time. Its closed variants are `trust-grid`, `image-statement`, `immersive-statement`, `process-steps`, `collage-callout`, and `technical-callout`. Each variant has a separately validated data shape with bounded item counts, text lengths, image references and optional same-page CTA target. Rich text is sanitized Markdown with a documented size bound; it is never arbitrary HTML. The module does not introduce repeatable modules or arbitrary CSS.
 
-A service owns its own marketable content. Add a `publicProfile` JSONB payload for rich copy and media, plus a normal indexed `public_slug` column with `UNIQUE (tenant_id, public_slug)`. The JSONB is appropriate for a profile always read and written as one object; the slug requires a real column for a tenant-scoped uniqueness constraint. HotsiteConfig owns only the presentation and routing choices for those details.
+A service owns its own marketable content. Add a `publicProfile` JSONB payload for rich copy and media, plus a normal `public_slug` column with a tenant-scoped partial unique index (`UNIQUE (tenant_id, public_slug) WHERE public_slug IS NOT NULL`). The JSONB is appropriate for a profile always read and written as one object; the slug requires a real column for a tenant-scoped uniqueness constraint. HotsiteConfig owns only the presentation and routing choices for those details (`SERVICE_LIST.data.itemAction`/`detailPage`).
 
 ```mermaid
 graph TD
-  S1["Story 1: Manifest presentation contract"] --> S2["Story 2: Renderer variants and six compositions"]
+  S1["Story 1: Manifest, module registry and presentation contract"] --> S2["Story 2: Renderer variants and six compositions"]
   S1 --> S3["Story 3: Service public profiles and detail page"]
   S2 --> S4["Story 4: Catalogue and tenant-safe application"]
   S3 --> S4
-  S4 --> S5["Story 5: Template picker in both editors"]
+  S4 --> S5["Story 5: Template picker and new controls in both editors"]
 ```
 
 ### Template application contract
@@ -51,12 +64,16 @@ graph TD
 Template selection is an intentional presentation replacement. It must:
 
 1. update only the in-memory hotsite draft until the manager publishes;
-2. copy each selected catalogue asset into `tenants/<tenantId>/hotsite/...` before its tenant manifest references it;
+2. reference each catalogue image by its shared, immutable catalogue path `templates/<templateId>/v<version>/<file>` — no per-tenant copy is made, and a tenant that later replaces a template image with its own upload never touches the shared object;
 3. preserve live services and their IDs, booking model/policy/intake/resource configuration, tenant business information, address, contact channels, manager-configured lead-form questions, and chatbot operational availability;
 4. preserve tenant identity (`brandName`, `tagline`, `logoUrl`, tenant name and SEO identity) while applying the template's palette, typography, module sequence, generic editorial copy, surfaces, and variants;
 5. materialize any generic template copy using tenant identity at application time, leaving no runtime interpolation language in the published manifest;
-6. never seed fictional services, staff, booking slots, reviews presented as real, or contact details; and
+6. never seed fictional services, staff, booking slots, or contact details, and never name a real person or business in sample copy; and
 7. never publish automatically.
+
+**Sample testimonials are allowed.** A template may ship generic `TESTIMONIALS` items (generic author labels, no real people or businesses). They are ordinary manifest data the manager can edit or delete. Because they are not real tenant reviews, the editor must make that visible: manager previews label them as sample content, and applying a template that contains them shows a notice in the inspector ("this template includes sample testimonials — edit or remove them before publishing"). Publishing is not blocked.
+
+**Catalogue assets** are platform-owned, public, immutable and versioned: a changed image ships as a new `v<version>` path, never an in-place overwrite. They are deployed and optimised separately from the checked-in prototype PNGs (`hotsite-impl/assets` is ~78 MB and is a design reference, not a deployable asset). Path rules: the manifest image-path validation accepts `tenants/<tenantId>/hotsite/...`, a promotable `tmp/` upload, **or** an exact path registered in the catalogue index (never a `templates/` wildcard); the image URL resolver resolves catalogue paths to their public URL; the superseded-image deletion logic only ever deletes `tenants/<tenantId>/...` paths, so a shared object can never be deleted through a tenant save.
 
 The catalogue is versioned source code/configuration maintained by Ikaro. A manager's applied result becomes an ordinary editable tenant manifest, so later catalogue changes never mutate a tenant site without an explicit new application.
 
@@ -64,18 +81,24 @@ The catalogue is versioned source code/configuration maintained by Ikaro. A mana
 
 | Template | Composition | Engine capabilities demonstrated |
 |---|---|---|
-| BeloAuto | Full-bleed automotive campaign; hero first, then trust strip, service cards, gallery and booking CTA | Image Hero with focal point and gradient overlay; trust-grid CONTENT_BLOCK; grid Service List; featured Gallery; wide Booking CTA |
-| Casa47 | Dark luxury editorial; asymmetric split hero, numbered price menu, quote, then atelier story | Left-aligned split Hero; numbered Service List; editorial-quote Testimonials; image-statement CONTENT_BLOCK; compact booking CTA |
+| BeloAuto | Full-bleed automotive campaign; hero first, then trust strip, service cards, gallery and booking CTA | Image Hero with focal point and gradient overlay (`presentation.background` is not used on Hero — its own `backgroundImageUrl` is); trust-grid CONTENT_BLOCK; grid Service List; featured Gallery; Booking CTA with `contentWidth: wide` |
+| Casa47 | Dark luxury editorial; asymmetric split hero, numbered price menu, quote, then atelier story | NAVIGATION; left-aligned Hero with `rightPanel: image` (the "split"); numbered Service List; editorial-quote Testimonials; image-statement CONTENT_BLOCK; Booking CTA with `contentWidth: narrow` (the "compact") |
 | Mimo Pet | Playful scrapbook; staggered mosaic, color bands, discovery gallery, services later | Image-free playful Hero; collage-callout CONTENT_BLOCK; masonry Gallery; feature-card Service List; testimonial carousel |
 | Origem | Quiet wellness journal; typography-led opening, ritual menu and long-form editorial rhythm | No-image editorial Hero; numbered Service List; immersive-statement CONTENT_BLOCK; editorial quote; image-led About |
-| Clínica Lume | Structured care pathway; calm split opening, specialty navigation, proof and contact | Split Hero; trust-grid CONTENT_BLOCK; list Service List; testimonial grid; contact icon cards; no booking form on landing |
+| Clínica Lume | Structured care pathway; calm split opening, specialty navigation, proof and contact | NAVIGATION; left-aligned Hero with `rightPanel: image`; trust-grid CONTENT_BLOCK; list Service List; testimonial grid; Contact with the existing `displayStyle: icon-cards`; no booking form on landing |
 | Lume Studio | Art-directed portfolio; immersive image opening, project sequence, asymmetric work gallery and enquiry | Immersive Hero; process-steps CONTENT_BLOCK; portfolio Gallery; split About; immersive Lead Form |
 
-The prototype HTML files remain visual references. Their bespoke markup is not production code; each difference must map to a validated reusable engine capability listed in this TD. Each template must differ in module order, enabled module set, at least one strong module variant, and at least one section presentation choice; palette and imagery alone do not qualify as distinct. Casa47 navigation is the reference anchor mapping: **O ritual** → TESTIMONIALS, **Serviços** → SERVICE_LIST, **A casa** → ABOUT, **Contato** → CONTACT. The labels are tenant/editorial copy; the targets are only enabled same-page modules.
+The prototype HTML files remain visual references. Their bespoke markup is not production code; each difference must map to a validated reusable engine capability listed in this TD. Each template must differ in module order, enabled module set, at least one strong module variant, and at least one section presentation choice; palette and imagery alone do not qualify as distinct. Casa47's `NAVIGATION` module is the reference anchor mapping: **O ritual** → `testimonials`, **Serviços** → `service-list`, **A casa** → `about`, **Contato** → `contact`. The labels are tenant/editorial copy; the targets are only enabled same-page modules.
+
+The six `manifesto-*.json` files in `hotsite-impl/` still use today's schema (no `presentation`, `NAVIGATION` or `CONTENT_BLOCK`), and `manifesto-v2-layout-proposal.json` is a superseded sketch whose shapes differ from this TD (for example it nests `cta` inside CONTENT_BLOCK and lists a `lead-form` target; this TD's contract wins). Story 2 owns rewriting the six fixtures to the final schema, and those fixtures — not the prose table above — are the source of truth for each template's exact module order, enabled set and variants.
 
 ### Service detail contract
 
-A visitor reaches `/{tenantSlug}/servicos/{serviceSlug}` from a Service List whose `itemAction` is `details`. The page is branded with the same hotsite design tokens, publishes canonical metadata, provides a small “Voltar aos serviços” link, and shows only the configured content available for that service. Its primary CTA uses the existing booking route with the service preselected. The booking flow itself still determines every subsequent step from the live service model.
+A visitor reaches `/{tenantSlug}/servicos/{serviceSlug}` from a Service List whose `itemAction` is `details`. The page is branded with the same hotsite design tokens, publishes canonical metadata, provides a small “Voltar aos serviços” link, and shows only the configured content available for that service. Its look is controlled by `SERVICE_LIST.data.detailPage`. Its primary CTA uses the existing booking route with the service preselected (`/{tenantSlug}/booking?serviceId=<id>`, no date). The booking flow itself still determines every subsequent step from the live service model.
+
+A Service List card whose action is `details` but whose service has no public slug/profile renders its booking action instead — never a dead link. For that, the public service list response exposes `publicSlug: string | null` per service (nothing else from the profile).
+
+Visibility: the detail route is available only for a published hotsite and an active service that has a public slug and profile; otherwise it renders the same unavailable state as other missing public pages. It is added to `sitemap.xml`, shares the existing `hotsiteServicesCacheTag(slug)` Next cache tag (so the existing service create/update revalidation already invalidates it), and emits canonical URL and indexable robots metadata through the existing hotsite metadata helpers.
 
 `publicProfile` is proposed as:
 
@@ -89,21 +112,33 @@ A visitor reaches `/{tenantSlug}/servicos/{serviceSlug}` from a Service List who
 }
 ```
 
+Proposed bounds (confirm in Story 3 discovery, but they must exist and be enforced by the aggregate): `galleryImageUrls` ≤ 8; `longDescription` ≤ 4000 chars; `inclusions` ≤ 12 items × 120 chars; `preparationNotes` ≤ 1000 chars. `public_slug` is lowercase `[a-z0-9-]`, 3–60 chars, no leading/trailing hyphen, normalized by the aggregate. Markdown is sanitized **at render time in apps/web** with the already-installed `react-markdown` + `rehype-sanitize`; the backend enforces only length bounds and never stores HTML.
+
 All media uses existing public tenant storage rules. The short `description` remains the concise catalogue/card summary. A service with no public profile remains bookable and listable; it simply cannot expose a detail route until it has a public slug/profile.
 
 ## Stories
 
-### Story 1 — Define the template-ready manifest and presentation contract
+### Story 1 — Define the template-ready manifest, module registry and presentation contract
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** L
 **Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 1. The Hotsite Manifest Pattern, § 2. Branding & Design Token System, § 4. Module Data Contracts; `docs/DOMAIN_MODEL.md` § HotsiteConfig; `docs/API_CONTRACTS.md` hotsite endpoints; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement.
-**Dependencies:** TD55 Stories 1–4
+**Dependencies:** TD55 (all stories done)
 **Pattern:** versioned JSONB aggregate configuration with closed-schema discriminated unions; semantic design tokens derived once at the branding boundary.
 
 **Description:**
 
-Extend the shared validation/types, Platform HotsiteConfig aggregate, backend/BFF contracts, manager manifest schema, preview model, and renderer configuration so the hotsite can describe the reusable capabilities in *Chosen approach*. Add `navigation`, `serviceDetailPage`, optional module `presentation`, the closed module variant enums, and singleton `CONTENT_BLOCK`. Add `presentation` to the shared module response envelope and preserve it through domain mapping, BFF mapping, storage round-trips, preview normalization, image path promotion/resolution, and public response serialization. Defaults must preserve current public output for every existing stored manifest. Unknown variants, invalid anchor targets, duplicate singleton entries, arbitrary font names, malformed navigation, invalid presentation combinations and malformed nested image/overlay fields must fail at the backend request boundary before persistence; client-only validation is insufficient.
+Extend the shared validation/types, Platform HotsiteConfig aggregate, backend/BFF contracts, manager manifest schema, preview model, and renderer configuration so the hotsite can describe the reusable capabilities in *Chosen approach*. This story owns the **whole schema contract**; Stories 2, 3 and 5 only render or edit it.
+
+1. **Module registry.** Add `NAVIGATION` and `CONTENT_BLOCK` to `HOTSITE_MODULE_TYPES` (`packages/validation/src/hotsite.ts`) **and** to `HotsiteModuleType` in `packages/types/src/enums.ts` in the same commit — the `closed-enum-registry` detector fails otherwise. Update web `MODULE_ORDER` (NAVIGATION first), `DEFAULT_MODULE_DATA`, the `materializeLayout` defaults (both new types materialize **disabled**, so existing sites are unchanged), and `manifest-schema.ts`'s "at most N modules" check (10 → 12). The layout editor (`LayoutTab`) pins NAVIGATION first and does not make it draggable; the backend rejects a layout where it is not first.
+2. **Envelope.** Add optional `presentation` to the module entry (`HotsiteModuleSchema`, `HotsiteModuleResponse`, domain `HotsiteModule`), preserved through domain mapping, BFF mapping, storage round-trips, preview normalization, image path promotion/resolution, and public response serialization.
+3. **New data fields**, all optional and legacy-safe: `NAVIGATION.data`, `CONTENT_BLOCK.data` (closed variant union), the extended `variant`/`layout` enums owned by Story 2, `SERVICE_LIST.data.itemAction`/`itemCtaLabel`/`detailPage`, and `ABOUT.data.variant`.
+4. **Backend validation scope.** Today `HotsiteModuleSchema.data` is an unconstrained `z.record()` (only `LEAD_FORM` has a refine) and `apps/web` must never import `@ikaro/validation`, so every shape is mirrored in two schema sets. This story adds backend per-module validation **for the new fields and the new module types only** (a shared closed schema in `@ikaro/validation`, mirrored in `apps/web/.../module-schemas.ts`). Existing stored data and existing fields are never newly rejected: a manifest that saves today must still save. Add a regression test with a stored legacy manifest for every pre-existing module type.
+5. **Cross-field rules enforced by the aggregate:** NAVIGATION first; every NAVIGATION target is an enabled module; at most one entry per module type; `presentation` only on the module types listed in *Chosen approach*; `presentation.background` only where the module has no own background field.
+
+Defaults must preserve current public output for every existing stored manifest. Unknown variants, invalid anchor targets, duplicate singleton entries, arbitrary font names, malformed navigation, invalid presentation combinations and malformed nested image/overlay fields must fail at the backend request boundary before persistence; client-only validation is insufficient. No hotsite migration is needed: everything lives inside the existing `layout` JSONB.
+
+Image handling: the backend field walkers (`HotsiteImagePathsService.collect`/`mapPaths`) and their web mirrors (`mapHotsiteImageFields` and friends) currently know only `backgroundImageUrl`, `imageUrl`, `avatarUrl`, gallery `images[].url` and testimonial items, and `collect` must stay field-for-field in sync with `mapPaths` and the frontend mirror. Extend all of them for `presentation.background.imageUrl` and every `CONTENT_BLOCK` image slot, accept registered catalogue paths (`templates/<id>/v<n>/...`, see *Template application contract*), and resolve them in the URL resolver.
 
 Navigation targets are a closed union of enabled section anchors only; links cannot be arbitrary URLs or separate routes in this first version. Booking remains available through each module’s dedicated CTA, never through global navigation. New fonts are added only through the controlled font registry. `surface` and image-overlay combinations need deterministic text/card/button contrast treatment in `applyBranding()`; they must not reuse Hero-only foreground tokens for every coloured section. The overlay is rendered as a separate layer so it does not change image focal point or intercept links. Define and test supported contrast behavior for text over images and reject combinations that cannot meet the documented readability threshold; keep button colors on existing tenant branding tokens unless a validated accessible variant is selected.
 
@@ -112,12 +147,20 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 **Backend HTTP surface:** extends existing `PATCH /v1/tenants/hotsite` and the existing public manifest response; no new endpoint.
 **BFF endpoint spec:** extends manager `PATCH /v1/tenants/hotsite`, MANAGER-only, and its corresponding public hotsite manifest mapping with the validated optional properties.
 **Prototype references:** `journeys/manager/prototypes/hotsite/hotsite-impl/beloauto.html`; `casa47.html`; `mimo-pet.html`; `origem.html`; `clinica-lume.html`; `lume-studio.html`; their `manifesto-*.json` fixtures.
-**New migration / i18n keys / env vars / feature flags:** migration none — HotsiteConfig already stores manifest fields in JSONB; i18n keys for new guided controls in both web locales; no environment variable or feature flag.
+**New migration / i18n keys / env vars / feature flags:** migration none — everything lives inside the existing `layout` JSONB; i18n keys in both web locales for the new manifest-parse error reasons shown by the detailed Manifesto tab (guided-control labels belong to Story 5); no environment variable or feature flag.
 
 **Files to create/modify:**
 
 - `packages/types/src/hotsite.ts` (modify — shared manifest and module-response presentation contract)
-- `packages/validation/src/hotsite.ts` (modify — closed request schemas; confirm exact export path in discovery)
+- `packages/types/src/enums.ts` (modify — `HotsiteModuleType` gains `NAVIGATION`, `CONTENT_BLOCK`)
+- `packages/validation/src/hotsite.ts` and `hotsite.spec.ts` (modify — `HOTSITE_MODULE_TYPES`, closed schemas for the new fields)
+- `apps/backend/src/contexts/platform/domain/services/hotsite-image-paths.service.ts` and spec (modify — nested image slots)
+- `apps/backend/src/contexts/platform/domain/services/hotsite-image-url-resolver.service.ts` and spec (modify — resolve catalogue paths and nested slots)
+- `apps/backend/src/contexts/platform/application/services/hotsite-image-promotion.service.ts` and spec (modify — accept registered catalogue paths, nested slots)
+- `apps/backend/src/contexts/platform/application/services/hotsite-content-reader.service.ts` and spec (modify)
+- `apps/web/features/platform/hotsite/map-hotsite-image-fields.ts`, `strip-resolved-image-urls.ts`, `resolve-draft-image-urls.ts` and specs (modify — mirror the backend walk)
+- `apps/web/features/platform/components/hotsite/hotsite-editor-publish.ts` and spec (modify)
+- `apps/web/features/platform/components/hotsite/LayoutTab.tsx` and spec (modify — NAVIGATION pinned first, not draggable)
 - `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` (modify)
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts` (modify)
 - `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.spec.ts` (modify)
@@ -135,23 +178,26 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 - `apps/web/features/platform/components/hotsite/ManifestTab.tsx` (modify)
 - `apps/web/features/platform/components/hotsite/ManifestTab.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/` (modify existing module shells as the full-width section shell is extracted)
-- `apps/web/app/[slug]/page.tsx` (modify — navigation and CONTENT_BLOCK render-plan branch)
+- `apps/web/app/[slug]/page.tsx` (modify — NAVIGATION and CONTENT_BLOCK render-plan branches)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
 - `packages/i18n/locales/en/web.json` (modify)
-- `apps/backend/http/platform/hotsite.http` (modify — confirm exact existing request-file path)
-- `apps/bff/http/platform/hotsite.http` (modify — confirm exact existing request-file path)
+- `apps/backend/http/platform/hotsite-admin.http` (modify)
+- `apps/bff/http/platform/hotsite-admin.http` (modify)
 
 **Acceptance criteria — product:**
 
 - [ ] Existing published manifests render as they did before this story.
 - [ ] A manager can configure only enabled same-page section anchors, surface, and presentation choices through the manifesto/detailed contract; disabled sections never leave a dead navigation item.
+- [ ] A manifest saved before this story (every pre-existing module type, no new fields) still saves and renders unchanged.
 - [ ] Every public section paints its surface across the viewport while content remains readable and bounded.
 - [ ] Unsupported values are rejected before persistence with RFC 9457 validation details.
 
 **Acceptance criteria — technical:**
 
 - Unit:
-  - [ ] Shared and backend request schemas accept each supported variant and enabled-section anchor, and reject unknown/disabled navigation targets, duplicate singleton types, invalid customColor combinations, malformed overlay unions, out-of-bound CONTENT_BLOCK content, and invalid surface cases.
+  - [ ] Shared and backend request schemas accept each supported variant and enabled-section anchor, and reject unknown/disabled navigation targets, a NAVIGATION module that is not first, duplicate singleton types, invalid customColor combinations, malformed overlay unions, `presentation` on NAVIGATION/FOOTER/CHATBOT, `presentation.background` on HERO/BOOKING_CTA/LEAD_FORM, out-of-bound CONTENT_BLOCK content, and invalid surface cases.
+  - [ ] Image walkers: `collect`, `mapPaths`, the URL resolver and the web mirrors cover `presentation.background.imageUrl` and every CONTENT_BLOCK image slot and stay field-for-field in sync; a registered catalogue path is accepted and an unregistered `templates/` path is rejected.
+  - [ ] Legacy regression: a stored manifest for each pre-existing module type still passes validation unchanged.
   - [ ] Branding and overlay tests prove readable text/card/button treatment for supported surfaces and overlays, preserve current defaults, and retain image focal-point behavior.
   - [ ] Render-plan tests prove navigation and CONTENT_BLOCK are exhaustive without changing existing module ordering; presentation round-trips through backend, BFF and public response.
 - Integration:
@@ -173,14 +219,25 @@ Every public hotsite module section must paint its own full-width `backgroundCol
 
 **Description:**
 
-Implement the public and editor-preview renderers for the approved variants. Do not add template-name conditionals to public components. A shared section shell consumes validated module presentation and applies full-width surface/background, overlay, min-height and spacing while each module renderer controls its internal composition. Add a `ContentBlockModule` renderer for the six CONTENT_BLOCK variants. Strong variants are: Hero (`centered`, `left-aligned`, `immersive`); Service List (`grid`, `list`, `numbered`, `feature-cards`); Gallery (`grid`, `masonry`, `featured`, `portfolio`); Testimonials (`grid`, `carousel`, `editorial-quote`); About (`split`, `editorial`); Booking CTA and Lead Form (`centered`, `left-aligned`, `immersive`). These are closed enums backed by explicit layouts, not cosmetic labels. Discovery verifies existing contracts and resolves naming conflicts before implementation.
+Implement the public and editor-preview renderers for the approved variants. Do not add template-name conditionals to public components. A shared section shell consumes validated module presentation and applies full-width surface/background, overlay, min-height and spacing while each module renderer controls its internal composition. Add a `ContentBlockModule` renderer for the six CONTENT_BLOCK variants. Strong variants extend the **existing** fields — no renames, and today's values keep today's rendering:
 
-Map the six example manifests to these renderers and refine their fixtures until each has a distinct hierarchy and visual rhythm, module order, enabled set, section treatment and strong variant. Every module type is singleton; variety comes from composition, not repeated instances. Preserve live service data in every Service List; template content provides structure and labels, never fictional services. Booking CTAs describe the service-first journey and link to the real booking route. Testimonials used as template content must be visibly marked as sample/demonstrative in manager previews and cannot be silently presented as real tenant testimonials after applying a template; the catalogue must either omit them from a tenant result or require manager confirmation/editing before publication.
+| Module | Field (existing unless noted) | Values (new in bold) |
+|---|---|---|
+| Hero | `variant` | `centered`, `left-aligned`, **`immersive`** — a "split" opening is `left-aligned` + the existing `rightPanel: image`, not a new variant |
+| Service List | `layout` | `grid`, `list`, **`numbered`**, **`feature-cards`** |
+| Gallery | `layout` | `grid`, `masonry`, `featured`, **`portfolio`** |
+| Testimonials | `layout` | `grid`, `carousel`, **`editorial-quote`** |
+| About | **`variant` (new field, optional, omitted ⇒ `split`, today's behaviour)** | `split`, **`editorial`**; `imagePosition` keeps working inside `split` |
+| Booking CTA, Lead Form | `variant` | `centered`, `left-aligned`, **`immersive`** |
+
+These are closed enums backed by explicit layouts, not cosmetic labels. Story 1 owns their schema; this story owns the renderers. `Contact.displayStyle` (`list`/`icon-cards`) already exists and is reused as is.
+
+Map the six example manifests to these renderers and rewrite their fixtures to the final schema until each has a distinct hierarchy and visual rhythm, module order, enabled set, section treatment and strong variant (these fixtures are the source of truth, see *Six template directions*). Every module type is singleton; variety comes from composition, not repeated instances. Preserve live service data in every Service List; template content provides structure and labels, never fictional services. Booking CTAs describe the service-first journey and link to the real booking route. Template testimonials are kept as ordinary sample `TESTIMONIALS` data (generic labels, no real people); the manager preview labels them as sample content per *Template application contract*. A template's Service List uses `itemAction: 'booking'` or `'none'`, never `'details'` (a new tenant's services have no public slug yet).
 
 **Backend HTTP surface:** none — consumes Story 1 contract.
 **BFF endpoint spec:** none — consumes current public manifest/services reads.
 **Prototype references:** all six HTML/manifest pairs in `journeys/manager/prototypes/hotsite/hotsite-impl/`.
-**New migration / i18n keys / env vars / feature flags:** i18n labels/descriptions for variants in both locales; no migration, environment variable, or feature flag.
+**New migration / i18n keys / env vars / feature flags:** i18n labels/descriptions for variants and the sample-testimonial preview label in both locales; no migration, environment variable, or feature flag.
 
 **Files to create/modify:**
 
@@ -189,7 +246,10 @@ Map the six example manifests to these renderers and refine their fixtures until
 - `apps/web/shells/hotsite/components/GalleryModule.tsx` and `GalleryModule.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/TestimonialsModule.tsx` and `TestimonialsModule.spec.tsx` (modify)
 - `apps/web/shells/hotsite/components/BookingCtaModule.tsx` and `BookingCtaModule.spec.tsx` (modify)
-- `apps/web/shells/hotsite/components/HotsiteNavigation.tsx` and `HotsiteNavigation.spec.tsx` (new)
+- `apps/web/shells/hotsite/components/AboutModule.tsx` and `AboutModule.spec.tsx` (modify — `split`/`editorial`)
+- `apps/web/shells/hotsite/components/LeadFormModule.tsx` and `LeadFormModule.spec.tsx` (modify — `immersive`)
+- `apps/web/shells/hotsite/components/HotsiteAuthBar.tsx` and spec (modify — hosts the NAVIGATION links and mobile menu, one header only)
+- `apps/web/shells/hotsite/components/HotsiteNavigation.tsx` and `HotsiteNavigation.spec.tsx` (new — NAVIGATION module renderer)
 - `apps/web/shells/hotsite/components/ContentBlockModule.tsx` and `ContentBlockModule.spec.tsx` (new — all six closed variants)
 - `apps/web/shells/hotsite/components/HotsiteSectionShell.tsx` and its spec (new — required shared full-width presentation/overlay behavior)
 - `apps/web/features/platform/components/hotsite/renderHotsitePreviewModule.tsx` and its spec (modify)
@@ -218,7 +278,8 @@ Map the six example manifests to these renderers and refine their fixtures until
   - [ ] Every supported variant has a visibly different layout; section presentation controls width, height, padding, surface and overlay without hiding content or breaking keyboard/focus behavior.
   - [ ] Fixture review proves each composition differs by module order, enabled set, one strong variant and one section presentation choice, not just palette/images.
 - E2E:
-  - [ ] Public hotsite fixtures cover all six compositions, one desktop and one narrow viewport assertion each, including service-first CTA destinations.
+  - [ ] Public hotsite fixtures cover all six compositions, one desktop and one narrow viewport assertion each, including service-first CTA destinations and the NAVIGATION anchors/mobile menu where a template enables it. Keep this in one spec file with fixture-served manifests so it stays cheap in CI.
+  - [ ] Existing pre-TD56 variants (`centered`/`left-aligned`, `grid`/`list`, etc.) render exactly as before (regression assertions per module).
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
@@ -226,48 +287,69 @@ Map the six example manifests to these renderers and refine their fixtures until
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** L
-**Docs to load:** `docs/DOMAIN_MODEL.md` § Aggregate: Service; `docs/DATABASE_SCHEMA.md` booking service table/index conventions; `docs/API_CONTRACTS.md` Booking service endpoints; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 11. SEO & Discoverability; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components.
+**Docs to load:** `docs/DOMAIN_MODEL.md` § Aggregate: Service; `docs/DATABASE_SCHEMA.md` booking service table/index conventions; `docs/API_CONTRACTS.md` Booking service endpoints; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 11. SEO & Discoverability; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, § Migration backfills; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ERROR_CATALOG.md` § Code Origins; `docs/BOUNDED_CONTEXTS.md` § Rule 2 — Communication via Events or BFF Only; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/ANTI_PATTERNS.md` § A plain `ALTER TABLE`.
 **Dependencies:** Story 1
 **Pattern:** Service aggregate owns its public profile; hotsite consumes it through existing cross-context HTTP/BFF composition, never a cross-context SQL join.
 
 **Description:**
 
-Add `public_profile JSONB` and `public_slug` to the Service aggregate/entity. The profile includes cover image, gallery images, long sanitized Markdown description, inclusions, and preparation notes. `public_slug` is nullable until a manager chooses to publish the service profile; it is unique within the tenant when present. Existing short description remains the Service List summary.
+**Domain and persistence.** Add `public_profile JSONB` and `public_slug` to the Service aggregate/entity. The profile includes cover image, gallery images, long Markdown description, inclusions, and preparation notes (bounds in *Service detail contract*). `public_slug` is nullable until a manager chooses to publish the service profile; it is unique within the tenant when present. Existing short description remains the Service List summary. The repository port gains `findByPublicSlug(tenantId, slug)` (tenant-scoped, active services only for the public read), the TypeORM repository and `CachingServiceRepository` implement it with the same invalidation as other service writes, and a unique-violation on the partial index maps to a new typed domain error and error code (`BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`, 409) added to `packages/types/src/error-codes.ts` with an entry in **both** `packages/i18n/locales/{pt-BR,en}/errors.json` and `docs/ERROR_CATALOG.md` (CI's exhaustiveness test fails otherwise).
 
-Extend manager service create/edit UI with a clear “Página pública do serviço” area, using tenant-scoped hotsite media storage. Extend the public service read surface with one safe lookup by tenant+slug. Build `/[slug]/servicos/[serviceSlug]`: it loads the hotsite manifest, live service profile, business information, and renders the configured branded detail page. It uses the exact hotsite metadata helpers and has its own `generateMetadata`, canonical URL, and indexability policy. The public route returns unavailable for unpublished hotsites, inactive/missing services, or services without a public profile.
+**Service images.** Cover and gallery images are tenant-scoped public media. Service create/update must validate and promote them exactly like hotsite images do: accept an already-permanent `tenants/<tenantId>/...` path or a same-tenant `tmp/` staging upload, check existence, move tmp → permanent only after the save commits (`scheduleAfterCommit`, never inside `txManager.run()`), and delete superseded objects. That logic lives today in the **Platform** context (`HotsiteImagePromotionService`), and Booking must not import it (cross-context rule). Discovery decides between extracting the generic tmp-promotion step into `src/shared/` behind the existing `IStorageService` port or giving Booking its own small service on that same port — never a cross-context import — and which signed-upload `purpose` a service image uses (the hotsite upload endpoint's purpose enum is Platform-owned). Record the chosen option and, if one is needed, the `architecture-policy.json` entry.
 
-Add `SERVICE_LIST.itemAction` (`details | booking | none`) and a manager-facing CTA label. `details` uses the live service slug; booking receives the service ID only. Make the shared booking deep-link URL builder accept a service-only seed instead of forcing every caller to invent a date query parameter.
+**Manager UI.** Extend the service create and edit screens (`ServiceCreatePage`, `ServiceEditDetailsTab`, `ServiceFormFields`) with a clear “Página pública do serviço” card — slug (auto-suggested from the name, editable, live uniqueness error from the 409), cover image, gallery images, long description (Markdown with preview), inclusions list, preparation notes — using the same image-upload components the hotsite editor uses. Clearing the slug unpublishes the detail page without deleting the profile.
 
-**Backend HTTP surface:** extend authenticated service create/update and public services with profile fields; add `GET /v1/public/services/:publicSlug` scoped by the tenant resolved from the public request.
-**BFF endpoint spec:** extend manager `POST/PATCH /services`; add public `GET /public/services/:publicSlug`, tenant resolved exclusively from the hotsite slug/server context, response excludes manager-only booking configuration.
+**Public read.** Extend the public service list response with `publicSlug` (null when none) and add one safe lookup by tenant+slug that returns only profile-facing fields (name, short description, price, duration, loyalty points, profile) — never manager booking configuration. The new route is registered before the `:id/...` routes so `by-slug/...` can never be shadowed or confused with an id.
+
+**Public page.** Build `/[slug]/servicos/[serviceSlug]`: it loads the hotsite manifest, live service profile, business information, and renders the configured branded detail page (look from `SERVICE_LIST.data.detailPage`). It uses the exact hotsite metadata helpers and has its own `generateMetadata` (sharing the fetch via React `cache()` with the page body), canonical URL, and indexability policy. The route returns unavailable for unpublished hotsites, inactive/missing services, or services without a public profile. Add the detail URLs to `sitemap.ts`.
+
+**List action.** `SERVICE_LIST.itemAction`/`itemCtaLabel` are defined by Story 1; this story renders `details` (link to the detail page using `publicSlug`, falling back to booking when the service has none) while Story 2 renders `booking`/`none`. Booking receives the service ID only. `buildBookingDeepLinkUrl` (`packages/types/src/booking-deep-link.ts`) still requires a `date` in `BookingDeepLinkInput`, while the parser (`parseBookingDeepLink`) and the web seed resolver already treat `date` as nullable; make `date` optional in the builder (and allow a relative hotsite path, since the hotsite builds `/{slug}/booking?...` links) so a service-only link carries no fake date.
+
+**Backend HTTP surface:** extend authenticated service create/update (`ServiceController`, DTOs `create-service.dto.ts`/`update-service.dto.ts`) and the service read results with the profile fields; add `GET /v1/services/by-slug/:publicSlug` to `ServicePublicController` (tenant from the `X-Tenant-ID` set by the BFF, like its existing routes).
+**BFF endpoint spec:** extend manager `POST/PATCH /services`; add public `GET /public/services/by-slug/:publicSlug` in `ServicesPublicController`, tenant resolved exclusively from the `x-tenant-slug` header via `withPublicTenant`, response excludes manager-only booking configuration; extend `GET /public/services` items with `publicSlug`.
 **Prototype references:** `journeys/manager/prototypes/hotsite/hotsite-impl/origem.html` (ritual detail intent and service-first CTA); `casa47.html`; `clinica-lume.html`.
-**New migration / i18n keys / env vars / feature flags:** migration adds `public_profile JSONB NULL`, `public_slug VARCHAR NULL`, and tenant-first unique partial index; i18n keys for service profile and public detail page in both locales; no environment variable or feature flag.
+**New migration / i18n keys / env vars / feature flags:** migration (booking context) adds `public_profile JSONB NULL`, `public_slug VARCHAR NULL`, and the tenant-first unique partial index (`UNIQUE (tenant_id, public_slug) WHERE public_slug IS NOT NULL`, created with the repo's standard lock-safe pattern); i18n keys for the service-profile form, validation messages, the public detail page, and the new error code in both locales; no environment variable or feature flag.
 
 **Files to create/modify:**
 
 - `apps/backend/src/contexts/booking/domain/service.aggregate.ts` and `service.spec.ts` (modify)
 - `apps/backend/src/contexts/booking/domain/service.types.ts` (modify)
+- `apps/backend/src/contexts/booking/domain/errors/` (new typed `ServicePublicSlugTakenError` — confirm the existing errors file in discovery)
+- `apps/backend/src/contexts/booking/application/dtos/create-service.dto.ts` and `update-service.dto.ts` (modify — profile and slug fields, bounds)
+- `apps/backend/src/contexts/booking/application/ports/service-repository.port.ts` (modify — `findByPublicSlug`)
 - `apps/backend/src/contexts/booking/application/use-cases/create-service.use-case.ts` and spec (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/update-service.use-case.ts` and spec (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/get-public-service-by-slug.use-case.ts` and spec (new — returns profile-facing fields only)
 - `apps/backend/src/contexts/booking/application/use-cases/service-result.mapper.ts` and spec (modify)
+- the service-image tmp-promotion step per *Service images* (new or extracted, with specs; location decided in discovery)
 - `apps/backend/src/contexts/booking/infrastructure/entities/service.entity.ts` (modify)
-- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.mapper.ts` (modify)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.mapper.ts` (modify — lossless JSONB mapping)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts` and spec, `caching-service.repository.ts` and spec, `service.repository.integration.spec.ts` (modify — `findByPublicSlug`, unique-violation mapping, cache invalidation)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/` (new migration)
+- `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (modify — map the new error to 409; confirm path)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.ts` and specs (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/service-public.controller.ts` and specs (modify)
-- `apps/backend/http/booking/services.http` (modify — confirm existing path in discovery)
-- `apps/bff/src/features/booking/services.controller.ts`, `.schemas.ts`, `.types.ts`, `.mapper.ts`, and specs (modify)
-- `apps/bff/src/features/booking/services.public.controller.ts` and specs (modify)
-- `apps/bff/http/booking/services.http` (modify — confirm existing path in discovery)
-- `apps/web/features/booking/components/dashboard/` service form component and spec (modify exact current sibling after discovery)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/service-public.controller.ts` and specs (modify — `by-slug/:publicSlug`)
+- `apps/backend/src/test/builders/booking/` service builder (modify — `withPublicSlug()`/`withPublicProfile()`, `Date.now()`-relative defaults only)
+- `apps/backend/http/booking/services.http` (modify)
+- `packages/types/src/service.dto.ts` (modify — profile/slug on the service DTOs)
+- `packages/types/src/hotsite.ts` (modify — `HotsiteServiceResponse.publicSlug`, public service detail response)
+- `packages/types/src/error-codes.ts` (modify — `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`)
+- `packages/types/src/booking-deep-link.ts` and `booking-deep-link.spec.ts` (modify — `date` optional in the builder)
+- `packages/i18n/locales/pt-BR/errors.json` and `packages/i18n/locales/en/errors.json` (modify — new error code)
+- `apps/bff/src/features/booking/services.controller.ts`, `services.schemas.ts`, `services.types.ts`, `services.mapper.ts`, and specs (modify)
+- `apps/bff/src/features/booking/services.public.controller.ts` and specs (modify — `by-slug`, `publicSlug` on the list)
+- `apps/bff/http/services/services.http` (modify)
+- `apps/web/features/booking/components/dashboard/services/ServiceCreatePage.tsx`, `ServiceEditDetailsTab.tsx`, `ServiceFormFields.tsx` and specs (modify — mount the public-profile card)
+- `apps/web/features/booking/components/dashboard/services/ServicePublicProfileCard.tsx` and `.spec.tsx` (new — slug, images, Markdown, inclusions, notes)
 - `apps/web/features/booking/api/services.ts` and spec (modify)
-- `apps/web/features/platform/hotsite/api/services.server.ts` and spec (modify)
+- `apps/web/features/platform/hotsite/api/services.server.ts` and spec (modify — by-slug fetch, same cache tag)
 - `apps/web/features/platform/hotsite/seo.ts` and spec (modify)
-- `apps/web/features/platform/hotsite/booking-deep-link.ts` or the existing shared deep-link module and spec (modify exact owner after discovery)
+- `apps/web/app/sitemap.ts` and `sitemap.spec.ts` (modify — detail URLs)
+- `docs/ERROR_CATALOG.md` (modify — new code)
 - `apps/web/app/[slug]/servicos/[serviceSlug]/page.tsx` (new)
 - `apps/web/app/[slug]/servicos/[serviceSlug]/page.spec.tsx` only if page-level unit coverage is practical; otherwise extract and test presentation under `apps/web/shells/hotsite/components/`
 - `apps/web/shells/hotsite/components/ServiceDetailPage.tsx` and `.spec.tsx` (new)
-- `apps/web/shells/hotsite/components/ServiceListModule.tsx` and spec (modify)
+- `apps/web/shells/hotsite/components/ServiceListModule.tsx` and spec (modify — `details` rendering and fallback)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
 - `packages/i18n/locales/en/web.json` (modify)
 
@@ -277,16 +359,22 @@ Add `SERVICE_LIST.itemAction` (`details | booking | none`) and a manager-facing 
 - [ ] A visitor can open a branded service page, return to the service list, and begin booking with that exact service preselected.
 - [ ] The service detail never exposes unpublished/tenant-external service data or manager booking configuration.
 - [ ] A service without a public profile remains available in existing booking/service-list flows.
+- [ ] A Service List card set to `details` for a service without a public slug falls back to its booking action — never a dead link.
+- [ ] Choosing a slug already used by another service of the same tenant shows a localized conflict error; the same slug in another tenant is accepted.
+- [ ] Clearing a service's slug removes its detail page (and sitemap entry) without deleting the saved profile.
 
 **Acceptance criteria — technical:**
 
 - Unit:
   - [ ] Service aggregate validates profile bounds, normalized slug, and profile/media shape.
-  - [ ] Booking deep-link builder has a named service-only seed test and does not add a fake date.
-  - [ ] Service detail presentation handles every optional profile field and branded surface safely.
+  - [ ] Booking deep-link builder has a named service-only test (`date` omitted) and does not add a fake date; the existing availability-alert link output is unchanged.
+  - [ ] Service detail presentation handles every optional profile field, every `detailPage` option and branded surface safely; Markdown is rendered through `rehype-sanitize` (a `<script>`/`javascript:` payload renders inert).
+  - [ ] `ServicePublicProfileCard` covers slug auto-suggest, conflict error display, image add/remove, inclusions add/remove, and Markdown preview.
+  - [ ] Service create/update use cases promote tmp images after commit (not inside the transaction), reject a foreign-tenant or booking-shaped tmp path, and delete superseded objects.
 - Integration:
-  - [ ] Service persistence enforces tenant-scoped unique public slug and maps profile JSONB losslessly.
-  - [ ] Public service endpoint returns only one service for the resolved tenant and rejects inactive/missing/profileless cases.
+  - [ ] Service persistence enforces tenant-scoped unique public slug (two NULL slugs coexist), maps profile JSONB losslessly, and the 409 error code reaches the HTTP response.
+  - [ ] Public service endpoint returns only one service for the resolved tenant and rejects inactive/missing/profileless cases, and never includes manager booking configuration.
+  - [ ] `CachingServiceRepository` returns the new slug/profile after an update (invalidation test).
 - Tenant isolation:
   - [ ] The same public slug may exist in two tenants, while a request resolved for tenant A can never read tenant B’s profile.
 - E2E:
@@ -296,32 +384,34 @@ Add `SERVICE_LIST.itemAction` (`details | booking | none`) and a manager-facing 
 
 ### Story 4 — Build the versioned template catalogue and tenant-safe application service
 
-**Agent:** backend-ts + bff-ts + frontend-ts
+**Agent:** backend-ts + bff-ts + frontend-ts + devops
 **Complexity:** L
-**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 1. The Hotsite Manifest Pattern and image-storage rules; `docs/DOMAIN_MODEL.md` § HotsiteConfig and Service; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement; `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer.
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 1. The Hotsite Manifest Pattern and image-storage rules; `docs/DOMAIN_MODEL.md` § HotsiteConfig and Service; `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement; `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer; `infra/terraform/README.md` § Layout and § New-resource PR-sequencing playbook (only if catalogue assets are delivered through Terraform/CI — see below).
 **Dependencies:** Stories 2 and 3
-**Pattern:** immutable versioned preset catalogue plus application service that materializes a tenant-owned manifest and copies assets before atomic configuration save.
+**Pattern:** immutable versioned preset catalogue plus a pure application service that materializes a tenant-owned draft manifest; catalogue images are shared, public and referenced by path.
 
 **Description:**
 
-Create six platform-owned template definitions with a stable ID, version, manager-facing metadata, thumbnail, supported use cases, source manifest, and source assets. Source manifests must pass the same shared validation as a tenant manifest. Catalogue images are not emitted into tenant manifests directly: applying a template copies them through an explicit storage port to the tenant’s public hotsite namespace, validates resulting paths, then materializes the target manifest. Asset traversal is schema-aware and includes existing module image fields, `presentation.background.imageUrl`, and every CONTENT_BLOCK image slot; it must not rely on a shallow list of top-level fields. The source manifests and images in `journeys/manager/prototypes/hotsite/hotsite-impl/` are fixture/reference inputs, including `manifesto-v2-layout-proposal.json`; catalogue definitions must be normalized to the final shared schema and all referenced source files must exist.
+Create six platform-owned template definitions with a stable ID, version, manager-facing metadata, thumbnail, supported use cases, source manifest, and shared source assets. The definitions live in the backend (a platform-context catalogue adapter behind a catalogue port) so they are validated by the same `@ikaro/validation` schema as a tenant manifest — a unit test loads every definition and runs it through that schema. The source manifests in `journeys/manager/prototypes/hotsite/hotsite-impl/` are fixture/reference inputs (Story 2 rewrites them to the final schema); catalogue definitions are normalized from them and every referenced image must exist in the catalogue asset registry.
 
-Expose a manager-only catalogue list and a preview/apply operation. The apply operation receives the tenant’s current manifest and identity/business data, resolves the preservation rules in *Template application contract*, returns an ordinary draft-shaped manifest, and does not set `isPublished`. It does not create or modify Services. A temporary preview uses the returned manifest through TD55’s client-side preview mechanism. If asset copying fails, no manifest update is persisted and temporary copied objects are cleaned up best-effort.
+**Catalogue assets (shared, no copy).** Images are not copied per tenant: the materialized manifest references the shared path `templates/<templateId>/v<version>/<file>` (rules in *Template application contract*), so applying a template performs no storage write and needs no rollback or orphan cleanup. The catalogue index (the set of valid shared paths) is derived from the definitions and used by path validation. Image traversal for the index and materialization is schema-aware and reuses Story 1's walkers (`presentation.background.imageUrl`, every CONTENT_BLOCK image slot, existing module fields) — never a shallow field list. **Delivery of the files** is part of this story: the optimised assets (WebP/AVIF, each well under ~300 KB, long-lived immutable cache headers) must exist in the public bucket before a template can be applied. Discovery picks the mechanism (a CI step that syncs a checked-in asset directory, or a one-off seeded bucket prefix) and records it; if it touches Terraform, IAM or CI/CD, the story is infra-touching and the live-verification gate in `CLAUDE.md` §9 applies — run a real check (e.g. fetch each registered path through the public URL) before presenting the PR as merge-ready, and add the **PR sequence / Live-verification check** fields from `docs/STORY_SCHEMA.md` at that point.
 
-The template catalogue must never embed a template business’s literal name, address, booking availability, staff, fake customer testimonials, or cross-tenant asset path in a tenant result. Catalogue testimonial examples are excluded on application unless the manager explicitly converts them into clearly labelled placeholder copy before publish; the safest initial catalogue outcome is to disable Testimonials where no tenant-provided data exists.
+**Apply operation.** Expose a manager-only catalogue list and an apply operation. Apply is a **pure function of its input**: the request body carries the manager's *current draft* (it may be unsaved), the server resolves the preservation rules in *Template application contract* (identity and operational module data are taken from that draft; the template supplies palette, typography, module order/variants/presentation and generic copy), validates the result against the shared schema, and returns an ordinary draft-shaped manifest. It never persists, never sets `isPublished`, and does not create or modify Services. The client previews the returned manifest through TD55's client-side preview mechanism; "preview" and "apply" are the same operation — the manager sees the result as the live draft. The editor today has no per-change undo (only the whole-draft discard-on-leave confirmation), so Story 5 adds a one-step **Undo template** that restores the draft held just before the apply. Selecting a template while the draft is unsaved replaces the draft's presentation only (the preservation rules decide what stays).
 
-**Backend HTTP surface:** add manager-only `GET /v1/tenants/hotsite/templates` and `POST /v1/tenants/hotsite/templates/:templateId/apply`; the latter returns materialized draft content and does not persist/publish it.
-**BFF endpoint spec:** `GET /hotsite/templates`, MANAGER JWT, response `{ id, version, name, description, thumbnailUrl, capabilities }[]`; `POST /hotsite/templates/:id/apply`, MANAGER JWT, response `{ content: HotsiteAdminContentResponse, appliedTemplate: { id, version } }`; tenant derived from JWT only.
+The template catalogue must never embed a template business’s literal name, address, booking availability, staff, real customer names, or another tenant's asset path in a tenant result. Template testimonials are generic sample items (see *Template application contract*) and are kept.
+
+**Backend HTTP surface:** add manager-only `GET /v1/tenants/hotsite/templates` and `POST /v1/tenants/hotsite/templates/:templateId/apply` (body: the current draft content); the latter returns materialized draft content and does not persist/publish it.
+**BFF endpoint spec:** `GET /hotsite/templates`, MANAGER JWT, response `{ id, version, name, description, thumbnailUrl, capabilities }[]`; `POST /hotsite/templates/:id/apply`, MANAGER JWT, request `{ content: HotsiteAdminContentResponse }` (the current draft), response `{ content: HotsiteAdminContentResponse, appliedTemplate: { id, version } }`; tenant derived from JWT only.
 **Prototype references:** six `manifesto-*.json` files and six HTML files in `journeys/manager/prototypes/hotsite/hotsite-impl/`.
-**New migration / i18n keys / env vars / feature flags:** migration none unless discovery proves durable per-application audit metadata is a product requirement; i18n names/descriptions/errors in both locales; no feature flag. Template source assets are checked-in/deployed catalogue assets, never generated per request.
+**New migration / i18n keys / env vars / feature flags:** migration none; i18n names/descriptions/errors in both locales; no feature flag. Template source assets are checked-in, optimised, deployed catalogue assets, never generated per request.
 
 **Files to create/modify:**
 
 - `apps/backend/src/contexts/platform/application/services/` (new template-catalogue resolver and manifest materializer with specs)
-- `apps/backend/src/contexts/platform/application/ports/` (new catalogue and asset-copy ports if no suitable existing storage port exists)
-- `apps/backend/src/contexts/platform/infrastructure/` (new catalogue adapter and storage-copy adapter with specs)
+- `apps/backend/src/contexts/platform/application/ports/` (new catalogue port; no asset-copy port is needed)
+- `apps/backend/src/contexts/platform/infrastructure/` (new catalogue adapter holding the six definitions, with specs)
 - `apps/backend/src/contexts/platform/infrastructure/controllers/` (new/modified hotsite template controller and specs)
-- `apps/backend/src/contexts/platform/platform.module-providers.ts` (modify — wire ports; confirm actual provider file)
+- `apps/backend/src/contexts/platform/platform.module.ts` (modify — wire the catalogue port and use cases)
 - `apps/backend/http/platform/hotsite-templates.http` (new)
 - `apps/bff/src/features/platform/hotsite-templates.controller.ts` and component/unit specs (new)
 - `apps/bff/src/features/platform/hotsite-templates.schemas.ts` and `.types.ts` (new)
@@ -329,8 +419,8 @@ The template catalogue must never embed a template business’s literal name, ad
 - `apps/bff/http/platform/hotsite-templates.http` (new)
 - `apps/web/features/platform/hotsite/api/templates.ts` and spec (new)
 - `apps/web/features/platform/hotsite/template-catalogue.ts` and spec (new client mapping only; source definitions stay server-side)
-- `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-*.json` (modify/finalize as catalogue fixtures)
-- `journeys/manager/prototypes/hotsite/hotsite-impl/assets/` (modify/finalize source visual assets)
+- `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-*.json` (modify/finalize as catalogue fixtures — owned by Story 2, consumed here)
+- the optimised catalogue asset directory and its delivery mechanism (new — location and mechanism decided in discovery; `hotsite-impl/assets/` PNGs stay design references)
 - `packages/i18n/locales/pt-BR/web.json` (modify)
 - `packages/i18n/locales/en/web.json` (modify)
 
@@ -339,20 +429,23 @@ The template catalogue must never embed a template business’s literal name, ad
 - [ ] A manager can see six named, visually distinct template choices with meaningful descriptions of their composition.
 - [ ] Applying a template updates only the manager draft/preview and does not publish.
 - [ ] Applying a template preserves tenant identity, operational business data, services, and booking configuration.
-- [ ] Every applied image, including nested presentation and CONTENT_BLOCK images, is a valid tenant-owned public hotsite asset path; no source filesystem or catalogue path remains.
-- [ ] A failed asset copy leaves the published site and saved draft unchanged.
+- [ ] Every image in an applied manifest — including nested presentation and CONTENT_BLOCK images — is a registered shared catalogue path or a tenant-owned path; no source filesystem path remains and every registered path actually resolves over its public URL.
+- [ ] Refreshing the editor before saving discards an applied template and leaves the saved config and the public site unchanged.
+- [ ] Applying a template that contains sample testimonials keeps them and shows the sample-content notice.
 
 **Acceptance criteria — technical:**
 
 - Unit:
   - [ ] Every catalogue definition validates against the shared manifest schema.
-  - [ ] Materialization tests pin the preservation matrix for identity, services, contact, booking, lead form, chatbot, and SEO identity.
-  - [ ] A template cannot materialize a foreign-tenant asset path, literal example business identity, or fictional service ID.
+  - [ ] Every image path in every catalogue definition is in the catalogue index, and each index entry corresponds to a deployed asset (a check against the asset directory/manifest).
+  - [ ] Materialization tests pin the preservation matrix for identity, services, contact, booking, lead form, chatbot, and SEO identity — applying template B over template A keeps the same tenant data.
+  - [ ] A template cannot materialize a foreign-tenant asset path, literal example business identity, `itemAction: 'details'`, or fictional service ID.
+  - [ ] The apply function is pure: same input draft ⇒ same output, no storage calls (the storage port is not injected).
 - Integration:
-  - [ ] Apply endpoint copies assets, returns a tenant-scoped draft, and does not alter `isPublished` or persist a HotsiteConfig mutation.
-  - [ ] Asset-copy failure rolls back the logical operation and performs best-effort cleanup.
+  - [ ] Apply endpoint returns a draft with registered catalogue paths, does not alter `isPublished`, and persists no HotsiteConfig mutation (row `version` unchanged).
+  - [ ] Saving the applied draft through `PATCH /v1/tenants/hotsite` accepts the catalogue paths and the superseded-image deletion never deletes a `templates/` object.
 - Tenant isolation:
-  - [ ] A manager from tenant A cannot list/apply through tenant B context or obtain B’s copied asset path.
+  - [ ] A manager from tenant A cannot list/apply through tenant B context; the apply result is derived only from the body draft and the JWT tenant, never from another tenant's saved config.
 - E2E:
   - [ ] A manager applies Casa47 and then Lume Studio, sees each draft in preview, refreshes before publish, and confirms the public site remains unchanged.
 - [ ] Coverage ≥80% on changed code.
@@ -363,14 +456,21 @@ The template catalogue must never embed a template business’s literal name, ad
 **Agent:** frontend-ts
 **Complexity:** L
 **Docs to load:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md` § Editor state model and Story 2; `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § Shared Component Library; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` relevant manager manifest controls.
-**Dependencies:** Story 4
+**Dependencies:** Story 4 (and, through it, Stories 1–3; this story edits the Story 1 schema and the Story 3 `detailPage`/`itemAction` fields)
 **Pattern:** shared editor-draft reducer with a catalogue selection context and explicit local-to-draft apply transition.
 
 **Description:**
 
 Add **Templates** to TD55’s visual command row. It opens the existing right-side inspector in a template-gallery context, not a modal. The gallery shows six thumbnail cards, selected state, template name, concise composition description, and the capabilities it enables. Selecting a card obtains the materialized draft through Story 4, then updates the in-memory draft and preview. It uses TD55’s dirty-module protection: a dirty module buffer must be applied or discarded before the context changes, and selection failures keep the existing draft intact.
 
-The detailed editor receives the same gallery and a path to all new navigation, section presentation, overlay, CONTENT_BLOCK, and service-detail controls. Presentation controls expose only the closed enums and validated values: surface/custom color, width, minimum height, padding, background image/focal point, and overlay type/color/direction/opacity. CONTENT_BLOCK editing switches among its six variants and shows only fields for the selected variant. It does not duplicate template application state or create a second draft. Managers can still edit every field after choosing a template. Publish uses the normal TD55 single draft flow.
+The detailed editor receives the same gallery. **Every new manifest field gets a guided control in both the inline inspector and the detailed editor** — both render the same `modules/*ConfigPanel.tsx` panels (registered in `hotsite-editor-lazy-panels.tsx`), so one panel change serves both modes. Concretely:
+
+- **New panels:** `NavigationConfigPanel` (add/remove/reorder items — label + target chosen from the *enabled* modules only, max 6, with the inline "this section is disabled" explanation) and `ContentBlockConfigPanel` (variant switcher showing only the selected variant's fields, bounded item counts, image slots via the existing single-image upload field, Markdown body with the same preview as the service form). Both are registered in the panel map, in `HotsiteEditorMainView`, and in the visual structure list / inspector; the layout list shows NAVIGATION pinned first without a drag handle.
+- **Existing panels extended:** Hero, Service List, Gallery, Testimonials, About, Booking CTA and Lead Form panels gain their new variant/layout choices (Hero `immersive`, About `variant`, etc.); `ServiceListConfigPanel` gains `itemAction`, `itemCtaLabel` and the `detailPage` fields (hero style, gallery layout, show price/duration/points, booking CTA label), and explains that `details` falls back to booking for services without a public slug.
+- **Shared section-presentation control** (one reusable component mounted by every module panel that accepts `presentation`): surface/custom color, width, minimum height, padding, and — only on modules that allow it — background image/focal point and overlay type/color/direction/opacity. It exposes only the closed enums and validated values and is not shown for NAVIGATION, FOOTER or CHATBOT.
+- Because the detailed **Manifesto JSON tab** also edits the same contract, Story 1's validation covers it; this story does not add a second path.
+
+None of this duplicates template application state or creates a second draft. Managers can still edit every field after choosing a template. **Undo template:** the session keeps the draft held just before the last apply; the gallery shows an Undo action (one step, cleared when another template is applied, when the manager publishes, or when they leave the editor). A template that contains sample testimonials shows the sample-content notice in the inspector after apply. Publish uses the normal TD55 single draft flow.
 
 The inline prototype becomes authoritative for visual hierarchy only: `09-inline-realistic-editor.html`, `09-inline-interactions.js`, and `vision.css` must be updated to show all six real options and the full-width preview behaviour. The prototype must route its buttons/anchors to meaningful local states; it must not show fake availability slots.
 
@@ -389,7 +489,11 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
 - `apps/web/features/platform/components/hotsite/HotsiteTemplateGallery.tsx` and `.spec.tsx` (new)
 - `apps/web/features/platform/components/hotsite/hotsite-template-application.ts` and `.spec.ts` (new, reducer/helper boundary)
 - `apps/web/features/platform/components/hotsite/HotsiteEditorMainView.tsx` and `.spec.tsx` (modify — detailed-editor entry)
-- `apps/web/features/platform/components/hotsite/modules/` (modify/add controls for navigation, section presentation, overlays, variants, CONTENT_BLOCK, service-detail page)
+- `apps/web/features/platform/components/hotsite/hotsite-editor-lazy-panels.tsx` and spec (modify — register the two new panels)
+- `apps/web/features/platform/components/hotsite/modules/NavigationConfigPanel.tsx` and `.spec.tsx` (new)
+- `apps/web/features/platform/components/hotsite/modules/ContentBlockConfigPanel.tsx` and `.spec.tsx` (new)
+- `apps/web/features/platform/components/hotsite/modules/SectionPresentationFields.tsx` and `.spec.tsx` (new — shared surface/width/height/padding/background/overlay control)
+- `apps/web/features/platform/components/hotsite/modules/{Hero,ServiceList,Gallery,Testimonials,About,BookingCta,LeadForm}ConfigPanel.tsx` and specs (modify — new variants; ServiceList also `itemAction`/`itemCtaLabel`/`detailPage`; each mounts `SectionPresentationFields` where allowed)
 - `apps/web/e2e/hotsite-editor.spec.ts` (modify)
 - `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html` (modify)
 - `journeys/manager/prototypes/hotsite/editor-vision/09-inline-interactions.js` (modify)
@@ -411,7 +515,10 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
   - [ ] Gallery renders catalogue loading, success, error, selected, and retry states accessibly.
   - [ ] Editor session tests prove template selection replaces only the materialized draft after dirty-buffer resolution and preserves the one shared draft across visual/detailed round trips.
   - [ ] A failed apply result leaves the current draft reference/content unchanged.
-  - [ ] New module panels cover every Story 1 presentation and overlay field, and CONTENT_BLOCK exposes only the selected variant's validated fields.
+  - [ ] New module panels cover every Story 1 presentation and overlay field, NAVIGATION lists only enabled targets, ServiceList covers `itemAction`/`itemCtaLabel`/every `detailPage` field, and CONTENT_BLOCK exposes only the selected variant's validated fields.
+  - [ ] Field-coverage guard: a test enumerates the Story 1 schema keys per module and fails if a key has no control in its panel (so a future field cannot ship editable only through the JSON tab).
+  - [ ] Undo template restores the exact pre-apply draft, is cleared by a second apply and by publish, and a failed apply never creates an undo entry.
+  - [ ] Applying a template with sample testimonials shows the sample-content notice; one without them does not.
   - [ ] Overlay controls expose accessible color/direction/opacity inputs, show the resulting preview immediately, and remain keyboard operable.
   - [ ] Axe check covers command row, gallery cards, keyboard selection, and inspector focus movement.
 - E2E:
@@ -424,11 +531,12 @@ The inline prototype becomes authoritative for visual hierarchy only: `09-inline
 
 The stories above must promote the finalized decisions into the canonical documents, without duplicating rules across them:
 
-- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`: manifest/module response fields, CONTENT_BLOCK variant matrix, section presentation/overlay behavior, renderer variants, nested asset handling, and detail-page SEO.
-- `docs/DOMAIN_MODEL.md`: Service public profile and HotsiteConfig additions.
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`: the two new module types (12-module limit, NAVIGATION pinned first), manifest/module response fields, CONTENT_BLOCK variant matrix, section presentation/overlay behavior, `SERVICE_LIST` `itemAction`/`detailPage`, renderer variants, nested asset handling, shared catalogue asset paths, and detail-page SEO/sitemap.
+- `docs/DOMAIN_MODEL.md`: Service public profile and slug, HotsiteConfig module additions.
 - `docs/DATABASE_SCHEMA.md`: Service profile fields and unique partial index.
-- `docs/API_CONTRACTS.md`: template catalogue/application and public service-detail endpoints.
-- `docs/USE_CASES.md`: extend UC-027 and add service-publication/visitor-detail use cases.
+- `docs/API_CONTRACTS.md`: template catalogue/application, `by-slug` public service endpoint, `publicSlug` on the public list, and the new 409 error.
+- `docs/ERROR_CATALOG.md`: `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`.
+- `docs/USE_CASES.md`: extend UC-027 (“Tenant Admin Manages Hotsite Content & Branding”) and add service-publication / visitor-detail use cases; assign the new UC numbers from the table's next free IDs when promoting.
 - `journeys/manager/hotsite.md` and prototype dev notes: Templates flow and service-profile editing journey.
 
 ## Out of scope
