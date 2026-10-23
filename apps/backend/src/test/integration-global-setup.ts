@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import 'reflect-metadata';
 import { DataSource } from 'typeorm';
+import { assertIntegrationRunEnvironment } from './integration-run-guard';
 import { BookingLineEntity } from '../contexts/booking/infrastructure/entities/booking-line.entity';
 import { BookingEntity } from '../contexts/booking/infrastructure/entities/booking.entity';
 import { ResourceEntity } from '../contexts/booking/infrastructure/entities/resource.entity';
@@ -120,6 +121,7 @@ import { GrantRelayReadAccess1748400000008 } from '../shared/infrastructure/migr
 import { AddOutboxLease1748500000001 } from '../shared/infrastructure/migrations/1748500000001-AddOutboxLease';
 
 export default async function globalSetup(): Promise<void> {
+  assertIntegrationRunEnvironment(process.env['NODE_OPTIONS']);
   const pgContainer = await new PostgreSqlContainer('postgres:17-alpine').start();
 
   process.env['TEST_DATABASE_URL'] = pgContainer.getConnectionUri();
