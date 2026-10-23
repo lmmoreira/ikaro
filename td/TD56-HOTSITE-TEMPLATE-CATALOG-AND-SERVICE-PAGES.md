@@ -788,7 +788,8 @@ Reconciling the six template manifests with their prototype HTML (done template 
 | G17 | Clínica Lume: process steps with column dividers and a teal "01 · ESCUTA" label | big faint number, no dividers, no label | **Add** `appearance: 'ruled'` and an optional per-step `label` |
 | G18 | Clínica Lume: hero media filling half the section edge to edge | photo panel inside the content width | **Accept** |
 | G19 | Mimo Pet: pill buttons with 24-28 px card and image corners | one `--ba-radius` for everything; `pill` makes cards capsules | **Add** an optional `buttonRadius` and a `soft` surface radius |
-| G20+ | *appended if further gaps are found after the visual review of all six* | | |
+| G20 | Booking blocks and statements with a dark overlay on a light palette | the overlay never changes the text colour, so dark text sits on a dark photo | **Add** overlay-aware text tokens (fixtures use a dark `surface` meanwhile) |
+| G21+ | *appended if further gaps are found after the visual review of all six* | | |
 
 **Gap details (read before implementing; one subsection per register row).** Each row states the prototype evidence, today's engine behaviour (file:line, verified 2026-10-23), the target, the exact contract change, the renderer change, the fixtures to update and the tests. Rows marked **Accept** have no engine work; they are recorded so nobody re-opens them. `/story-discovery` confirms the *Decision* of every row with the product owner before any code is written; the *Proposed decision* is the default. Common rules for every **Add**: the new field is optional, additive and closed (enum/bounded); an omitted field renders **identically to today** (pin it with a markup-equality test); all copies of the contract change together (see *Closed-enum copies*); the guided control is added by Story 5 (or by this story if it merges after Story 5); and the field is documented in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 4. Module Data Contracts (TypeScript).
 
@@ -901,6 +902,12 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - *Fixtures:* Mimo Pet `borderRadius: 'soft'`, `buttonRadius: 'pill'`; Clínica Lume `borderRadius: 'rounded'` with 8 px buttons is already close.
 - *Tests:* schema accept/reject in every copy; `apply-branding` emits both variables; **negative guarantee** — a branding without `buttonRadius` renders buttons with the same radius as surfaces, as today.
 
+**G20 — Text colour over an overlay is not derived from the overlay.**
+- *Evidence:* `apps/web/features/platform/hotsite/section-presentation.ts` (`resolveOverlayBackground`, `resolveSectionScrim`) only builds the overlay's background layer; the section text keeps `var(--ba-section-text, var(--ba-text))`, so on a light palette (dark `textColor`) a dark overlay or scrim leaves dark text on a dark photo (found live on Clínica Lume's booking section, 2026-10-23; the same applies to the Mimo Pet and Origem booking sections and Origem's immersive statement).
+- *Manifest workaround used today (legitimate, not a hack):* the section also carries `presentation.surface: 'custom'` with the overlay's own dark colour, which makes the scoped section tokens (`--ba-section-text`, card and divider colours) light; the surface paints behind the photo. The fixtures do this.
+- *Target:* when a section has a background photo with an explicit overlay, derive the section tokens from the overlay's colour (the mean of `fromColor`/`toColor` weighted by opacity, composited over the section surface) with the same contrast helper as `deriveSectionTokens` (`apply-branding.ts:129-141`), so no surface is needed and the text is always readable. No new field.
+- *Tests:* a dark overlay on a light palette yields light text tokens; a light overlay on a dark palette yields dark tokens; a section without an overlay is unchanged (**negative guarantee**); contrast over all six template palettes.
+
 **Order of work inside this story** (once the decisions are confirmed): (1) the shared `sectionTints` helper and the G14 contrast fix (they affect rendering for everything else); (2) contract changes, one gap at a time, in every copy with the parity spec; (3) renderers with their tests, each including the negative-guarantee test; (4) update the six `manifesto-*.json` fixtures to use the new fields and extend `apps/web/e2e/hotsite-templates.spec.ts` to assert them; (5) document the new fields and the G6 combination in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`. Keep one commit per gap.
 
 **Closed-enum copies (CLAUDE.md §3 shared closed-enum rule).** The `ABOUT.data.variant` values, the `trust-grid` fields, the `SERVICE_LIST` fields and the font list each have independent copies: `packages/types/src/hotsite.ts` + `hotsite-schemas.ts`, `packages/validation/src/hotsite.ts`, `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`, and the web mirror `apps/web/features/platform/hotsite/module-schemas.ts`. They change together, held by the shared contract fixtures (`@ikaro/types/testing/hotsite-module-contract`) and `module-contract.parity.spec.ts`.
@@ -922,12 +929,14 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-*.json` (modify — use the new fields)
 - `apps/web/e2e/hotsite-templates.spec.ts` (modify — assert the reconciled compositions)
 - `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (modify — new fields, the G6 combination)
+- `scripts/apply-hotsite-template.py` (new — the local simulation tool described in *After the story is done*, promoted from the throwaway script)
 
 **Acceptance criteria — product:**
 
 - [ ] Each template the register marks "add" renders the feature its prototype shows (tinted three-column cards, numbered tiles, edge-to-edge About photo, Manrope headings) when its manifest uses the new field.
 - [ ] A manifest that does not use any new field renders exactly as before.
 - [ ] Every register row has a recorded decision (add / adjust / accept) before implementation starts.
+- [ ] The reconciliation is re-run after the engine changes (*After the story is done*): every interim workaround is removed, the fixtures use the new fields, and the product owner signs off each of the six templates against its prototype.
 
 **Acceptance criteria — technical:**
 
@@ -943,6 +952,60 @@ Reconciling the six template manifests with their prototype HTML (done template 
   - [ ] The existing `hotsite-templates.spec.ts` renders each reconciled composition and asserts the new feature for the templates that use it.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
+
+**After the story is done — re-running the reconciliation (read this when Story 6 has merged).**
+
+The six `manifesto-*.json` fixtures were reconciled with their prototype HTML on 2026-10-23 *before* the engine gaps above existed, so they carry **interim workarounds**. When the engine capabilities land, the reconciliation is run again to (1) remove every workaround, (2) switch the fixtures to the new fields, and (3) re-verify each template visually. It is a deliverable of this story, not an optional follow-up: Story 4 turns these fixtures into the catalogue definitions, so they must be right first.
+
+*Tool.* `scripts/apply-hotsite-template.py` (added by this story; promoted from the throwaway script used during the reconciliation). It PATCHes one fixture into a **local** tenant through the local backend, and uploads the prototype images to the **local** GCS emulator. If the file is missing, recreate it from this description: take the template name; read `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-<name>.json`; drop its `seo` block; `GET /tenants/hotsite` and save the response to `/tmp/hotsite-backup.json`; for every `https://storage.googleapis.com/ikaro-template-assets/<template>/<file>.png` in the manifest, find `hotsite-impl/assets/<template>-<file>.png` (falling back to `-hero`, `-hero-v2`, `-gallery-1`), `POST /tenants/hotsite/images/signed-url` (`fileName`, `contentType: image/png`, a `purpose` from `HOTSITE_IMAGE_PURPOSES`), **abort unless the signed URL host is `localhost`/`127.0.0.1`**, `PUT` the file to it, and substitute the returned `tmp/…` path; with `KEEP_BRAND=1` (default) keep the tenant's `brandName`, `brandTagline` and `logoUrl` (turn the resolved logo URL back into its `tenants/…` path); `PATCH /tenants/hotsite` with `{ branding, layout }`; `POST /tenants/hotsite/publish` unless `PUBLISH=0`. Local headers: `X-Tenant-ID`, `X-Actor-ID`, `X-Actor-Type: STAFF`, `X-Actor-Role: MANAGER`, `X-Internal-Key` (the local dev values from `apps/backend/.env.example`).
+
+*Preconditions.* Story 6 merged; the local stack running (`pnpm infra:up`, backend on 3001, BFF, web on 3000), the GCS emulator up (`GCS_EMULATOR_HOST` set — its data is lost on every emulator restart, so re-run after a restart), a seeded tenant with a few real services (the seed tenant `lavacar-beloauto` works) and a manager login. Starting the stack or a browser needs the product owner's yes (CLAUDE.md §0). The product owner saves each rendered page (`Save page as` HTML) for the comparison.
+
+*Step 1 — remove the interim workarounds* (each one is in the fixtures today because of a register row):
+
+| Workaround today | Register row | After the engine change |
+|---|---|---|
+| `GALLERY` padded to five images and `layout: featured` | G5 | use the prototype's image count: Casa 47, BeloAuto, Mimo Pet, Origem, Clínica Lume = 4; Lume Studio = 3 |
+| `presentation.surface: custom` in the same colour as a dark overlay (BOOKING_CTA in Clínica Lume, Mimo Pet, Origem; CONTENT_BLOCK in Origem) | G20 | remove the surface; confirm the text is still light over the photo |
+| Origem `secondaryColor: #E9E3D6` (light, so the header text is visible) with About and Contact on a custom dark green | G14 | restore the prototype's dark green `secondaryColor`; confirm header, navigation and footer are readable; give the footer the dark colours the prototypes show (via the footer surface if G14(b) is added) |
+| Mimo Pet `borderRadius: rounded` | G19 | `borderRadius: soft`, `buttonRadius: pill` |
+| Mimo Pet, BeloAuto `cardTone`/`cardColumns` absent | G1 | Mimo Pet `cardColumns: 3`, `cardTone: tinted`; Clínica Lume `cardTone: ruled` (G16) |
+| Mimo Pet `trust-grid` without tiles | G2 | `appearance: tiles` |
+| `ABOUT` as `split` everywhere | G3 | `variant: bleed` for the six templates whose prototype shows an edge-to-edge photo |
+| Clínica Lume `process-steps` without labels | G17 | `appearance: ruled` and labels Escuta / Orientação / Continuidade |
+| BeloAuto callout facts in the side column | G9 | `factsPlacement: kicker` |
+| Origem testimonial section with a default heading | G13 | an empty `title` (and no eyebrow) |
+| `NAVIGATION` without the header button | G11 | the `cta` object with the prototype's label ("AGENDAR", "RESERVAR", "AGENDAR BANHO", "AGENDAR CONSULTA", "COMEÇAR PROJETO") |
+| Heading font Montserrat/Poppins/Inter instead of the prototype's Manrope / DM Sans | G4 | the new fonts where the register says add |
+| Headings in normal case on BeloAuto and Lume Studio | G7 | `headingWeight: 900`, `headingTransform: uppercase` |
+
+Rows the register records as **Accept** (G6, G8, G12, G15, G18) need no change; reviewers must not reopen them.
+
+*Step 2 — verify each template, one at a time.* For `casa47`, `beloauto`, `mimo-pet`, `origem`, `clinica-lume`, `lume-studio`: run `REPO=<repo path> python3 scripts/apply-hotsite-template.py <name>`; **reload** `/dashboard/hotsite` (every run deletes the previous run's uploaded images, so an open editor tab shows "image not found" until it is reloaded); open the public page; compare it section by section with `hotsite-impl/<name>.html` and with the saved page. The expected enabled order is:
+
+| Template | Expected section order (matches the prototype) | Content block |
+|---|---|---|
+| casa47 | navigation, hero, services, about, statement, gallery, testimonials, booking, contact, footer | `image-statement` |
+| beloauto | navigation, hero, services, gallery, callout, about, testimonials, booking, contact, footer | `technical-callout` |
+| mimo-pet | navigation, hero, services, trust, about, gallery, testimonials, booking, contact, footer | `trust-grid` |
+| origem | navigation, hero, about, statement, services, gallery, quote, booking, contact, footer | `immersive-statement` |
+| clinica-lume | navigation, hero, services, process, gallery, testimonials, about, booking, contact, footer (+ chatbot) | `process-steps` |
+| lume-studio | navigation, hero, gallery, services, collage, about, testimonials, lead form, contact, footer (+ chatbot) | `collage-callout` |
+
+A quick automated check of the saved page: list its `<section>` ids and `data-variant` values in order and compare with the table; check that every section's inline `--ba-section-bg` is the surface the fixture sets; check that the booking, lead-form and statement sections have a full-bleed `<img>` with `data-testid="section-overlay"` and light `--ba-section-text`; check `iframes` is 0 where the fixture turns the map off.
+
+*Step 3 — record the sign-off.* The product owner confirms each template ("looks right" or a short list of remaining differences). A remaining difference is either a manifest edit (do it now) or a new register row (decide add / adjust / accept before closing the story). Then run `template-fixtures.spec.ts` (web) and `hotsite-legacy-layouts.audit.spec.ts` (backend), commit the six fixtures with the register updated, and hand over to Story 4.
+
+*Lessons learned in the first pass (so they are not rediscovered):*
+- The `left-aligned` variant of `HERO` and `BOOKING_CTA` draws the photo as a rounded side panel; for copy over a full-bleed photo use `centered` with `contentPositionX` (G6).
+- `NAVIGATION` renders nothing when `items` is empty, and every item must target an enabled module; the booking button is not part of it until G11.
+- `featured` falls back to `grid` below five images until G5; `portfolio` is a different, zig-zag composition (Lume Studio's prototype is a mosaic, not a zig-zag).
+- The header, navigation and footer use `--ba-secondary` / `--ba-text` directly (G14): never set both to similar colours.
+- A dark overlay does not change the text colour (G20): use a dark surface until the fix.
+- Each prototype HTML declares its intended Content Block variant (`data-proposed-module="CONTENT_BLOCK" data-variant="…"`); that, not the TD's prose table, is the source of truth.
+- The prototype `*.html` files use sample data (three curated services, a fictional address); the engine shows the tenant's real services and contacts. That difference is by design.
+- The GCS emulator keeps data in memory; after a restart, re-run the script.
+- The fixture spec requires distinct ordered module sequences and distinct strong variants and presentation choices; it no longer requires distinct enabled sets (decided 2026-10-23).
 
 ## Documentation and journey updates after implementation
 

@@ -236,7 +236,9 @@
           "fromOpacity": 0.92,
           "toColor": "#2E241F",
           "toOpacity": 0.25
-        }
+        },
+        "surface": "custom",
+        "customColor": "#2E241F"
       }
     },
     {

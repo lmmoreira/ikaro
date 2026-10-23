@@ -96,7 +96,9 @@
           "toColor": "#18352E",
           "toOpacity": 0.74
         },
-        "minHeight": "md"
+        "minHeight": "md",
+        "surface": "custom",
+        "customColor": "#18352E"
       }
     },
     {
@@ -200,7 +202,9 @@
           "type": "solid",
           "color": "#16231D",
           "opacity": 0.71
-        }
+        },
+        "surface": "custom",
+        "customColor": "#16231D"
       }
     },
     {
