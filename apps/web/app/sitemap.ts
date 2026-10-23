@@ -38,9 +38,15 @@ async function serviceEntries(slug: string, lastModified: string): Promise<Sitem
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { items } = await fetchPublishedHotsiteSlugs();
 
-  const entries: SitemapEntry[] = [];
+  const batches: (typeof items)[] = [];
   for (let start = 0; start < items.length; start += SERVICE_FETCH_CONCURRENCY) {
-    const batch = items.slice(start, start + SERVICE_FETCH_CONCURRENCY);
+    batches.push(items.slice(start, start + SERVICE_FETCH_CONCURRENCY));
+  }
+
+  // One batch after another (each batch reads its tenants in parallel), chained rather than
+  // awaited in a loop.
+  return batches.reduce<Promise<SitemapEntry[]>>(async (previous, batch) => {
+    const entries = await previous;
     const serviceEntryLists = await Promise.all(
       batch.map(({ slug, updatedAt }) => serviceEntries(slug, updatedAt)),
     );
@@ -50,6 +56,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         ...serviceEntryLists[index],
       );
     });
-  }
-  return entries;
+    return entries;
+  }, Promise.resolve([]));
 }

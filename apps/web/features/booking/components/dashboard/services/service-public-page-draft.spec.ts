@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EMPTY_PUBLIC_PAGE_DRAFT,
+  newInclusionDraft,
   toPublicPageDraft,
   toPublicPageProfileRequest,
 } from './service-public-page-draft';
@@ -23,9 +24,30 @@ describe('toPublicPageDraft()', () => {
       coverImageUrl: '',
       galleryImageUrls: ['g.webp'],
       longDescription: '',
-      inclusions: ['Chá'],
+      inclusions: [{ id: expect.any(String), text: 'Chá' }],
       preparationNotes: '',
     });
+  });
+
+  it('gives every inclusion row its own id, even for identical texts', () => {
+    const draft = toPublicPageDraft({
+      coverImageUrl: null,
+      galleryImageUrls: [],
+      longDescription: null,
+      inclusions: ['Chá', 'Chá', 'Toalhas'],
+      preparationNotes: null,
+    });
+
+    expect(new Set(draft.inclusions.map((item) => item.id)).size).toBe(3);
+  });
+
+  it('newInclusionDraft() makes a blank row with a fresh id each time', () => {
+    const first = newInclusionDraft();
+    const second = newInclusionDraft('Chá');
+
+    expect(first.text).toBe('');
+    expect(second.text).toBe('Chá');
+    expect(first.id).not.toBe(second.id);
   });
 });
 
@@ -53,7 +75,7 @@ describe('toPublicPageProfileRequest()', () => {
       coverImageUrl: 'cover.webp',
       galleryImageUrls: ['g1.webp', '', 'g2.webp'],
       longDescription: '',
-      inclusions: ['  Chá ', '', '   ', 'Toalhas'],
+      inclusions: ['  Chá ', '', '   ', 'Toalhas'].map((text) => newInclusionDraft(text)),
       preparationNotes: 'Chegue cedo.',
     });
 

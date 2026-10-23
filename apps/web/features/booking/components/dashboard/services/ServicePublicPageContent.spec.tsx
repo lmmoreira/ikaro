@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { axe } from '@/axe-helper';
 import { renderWithIntl } from '@/test-utils';
+import { newInclusionDraft, type InclusionDraft } from './service-public-page-draft';
 import { ServicePublicPageContent } from './ServicePublicPageContent';
 
 // Controlled harness: the component is fully controlled by the tab, so a spec needs a state owner.
@@ -20,7 +21,9 @@ function Harness({
   }>;
 }) {
   const [description, setDescription] = useState(initial.description ?? '');
-  const [inclusions, setInclusions] = useState<string[]>(initial.inclusions ?? []);
+  const [inclusions, setInclusions] = useState<InclusionDraft[]>(() =>
+    (initial.inclusions ?? []).map((text) => newInclusionDraft(text)),
+  );
   const [preparation, setPreparation] = useState(initial.preparation ?? '');
   return (
     <ServicePublicPageContent
@@ -33,7 +36,7 @@ function Harness({
       }}
       onInclusionsChange={(items) => {
         setInclusions(items);
-        spies.onInclusions?.(items);
+        spies.onInclusions?.(items.map((item) => item.text));
       }}
       onPreparationNotesChange={(value) => {
         setPreparation(value);

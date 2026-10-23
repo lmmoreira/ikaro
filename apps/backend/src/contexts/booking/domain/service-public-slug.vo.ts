@@ -6,6 +6,16 @@ const MAX_LENGTH = 60;
 // A name with no usable letters or digits (an emoji, a symbol) still needs a valid address.
 const FALLBACK_BASE = 'servico';
 
+// Hyphens trimmed from both ends by index, not by a backtracking `^-+|-+$` pattern (which is
+// super-linear on a long run of hyphens).
+function trimHyphens(value: string): string {
+  let start = 0;
+  let end = value.length;
+  while (start < end && value[start] === '-') start += 1;
+  while (end > start && value[end - 1] === '-') end -= 1;
+  return value.slice(start, end);
+}
+
 // The address segment of a service's public page: /{tenantSlug}/servicos/{slug}. A manager never
 // types it — it is derived from the service name on the first publish and never changes after
 // (service.aggregate.ts keeps it across renames and unpublishing, so a published URL stays stable).
@@ -38,14 +48,12 @@ export class ServicePublicSlug {
   }
 
   private static slugify(name: string, maxLength: number): string {
-    return name
+    const collapsed = name
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '')
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, maxLength)
-      .replace(/-+$/g, '');
+      .replace(/[^a-z0-9]+/g, '-');
+    return trimHyphens(trimHyphens(collapsed).slice(0, maxLength));
   }
 
   get value(): string {

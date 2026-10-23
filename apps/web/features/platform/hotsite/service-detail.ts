@@ -47,7 +47,8 @@ export function resolveServiceMetaDescription(
 ): string | undefined {
   if (service.description) return service.description;
   const plain = (service.profile.longDescription ?? '')
-    .replaceAll(/\[([^\]]*)\]\([^)]*\)/g, '$1')
+    .replaceAll(/\]\([^)]*\)/g, '')
+    .replaceAll('[', '')
     .replaceAll(/[*_#>`~-]+/g, ' ')
     .replaceAll(/\s+/g, ' ')
     .trim();
