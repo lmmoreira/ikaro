@@ -192,9 +192,12 @@ test.describe('service public page — manager publishes, visitor reads', () => 
       try {
         await guest.goto(`/${TENANT_SLUG}/servicos/${published.publicSlug}`);
         await expect(guest.getByRole('heading', { level: 1, name: service.name })).toBeVisible();
-        // The page itself (main): the shared top bar is rendered by every hotsite route and is
-        // not this page's content, same scoping as the booking specs.
-        const results = await new AxeBuilder({ page: guest }).include('main').analyze();
+        // The page itself: main, plus the footer when the hotsite has one. The shared top bar is
+        // rendered by every hotsite route and is not this page's content, same scoping as the
+        // booking specs.
+        const axe = new AxeBuilder({ page: guest }).include('main');
+        if ((await guest.locator('footer').count()) > 0) axe.include('footer');
+        const results = await axe.analyze();
         expect(results.violations).toEqual([]);
       } finally {
         await visitor.close();
