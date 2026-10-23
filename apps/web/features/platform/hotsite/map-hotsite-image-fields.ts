@@ -34,11 +34,37 @@ function transformModule(
     );
   }
 
-  return { ...module, data: mapped };
+  // collage-callout's images[].url is the only image slot inside CONTENT_BLOCK.data.
+  if (
+    module.type === 'CONTENT_BLOCK' &&
+    data.variant === 'collage-callout' &&
+    Array.isArray(data.images)
+  ) {
+    mapped.images = (data.images as ReadonlyArray<Record<string, unknown>>).map((image) =>
+      typeof image.url === 'string' ? { ...image, url: transform(image.url) } : image,
+    );
+  }
+
+  // presentation.background.imageUrl — the section backdrop of a module with no image of its own.
+  const presentation = transformPresentation(module.presentation, transform);
+  return { ...module, data: mapped, ...(presentation ? { presentation } : {}) };
+}
+
+function transformPresentation(
+  presentation: HotsiteModuleResponse['presentation'],
+  transform: ImageUrlTransform,
+): HotsiteModuleResponse['presentation'] {
+  const imageUrl = presentation?.background?.imageUrl;
+  if (!presentation?.background || typeof imageUrl !== 'string') return presentation;
+  return {
+    ...presentation,
+    background: { ...presentation.background, imageUrl: transform(imageUrl) },
+  };
 }
 
 // Walks every image field this codebase resolves/collects for a hotsite config — mirrors
-// HotsiteImagePathsService.collect() (backend) field-for-field. Shared by
+// HotsiteImagePathsService.collect() (backend) field-for-field (the shared table in
+// @ikaro/types/testing/hotsite-module-contract is run through both). Shared by
 // strip-resolved-image-urls.ts (URL -> raw path, for PATCH) and resolve-draft-image-urls.ts
 // (raw path -> URL, for rendering an unsaved draft), so a new image field only needs adding here
 // once, not once per direction.

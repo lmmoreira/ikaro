@@ -1712,6 +1712,46 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       expect(last!.y + last!.height).toBeLessThanOrEqual(bar!.y + 1);
     });
   }
+
+  // TD56-S01 — the Manifesto tab validates a module's new `presentation` before Aplicar merges it
+  // into the draft. Nothing is published, so afterEach has nothing to undo beyond its usual restore.
+  test('Manifesto tab accepts a valid section presentation and rejects an invalid one without touching the draft (TD56-S01)', async ({
+    page,
+  }) => {
+    await openDetailedEditor(page);
+    const manifestTab = page.getByRole('tab', { name: 'Manifesto' });
+    const textarea = page.getByTestId('hotsite-manifest-textarea');
+    await manifestTab.click();
+
+    const manifest = JSON.parse(await textarea.inputValue()) as {
+      layout: { type: string; presentation?: unknown }[];
+    };
+    const about = manifest.layout.find((module) => module.type === 'ABOUT')!;
+
+    // A valid presentation on ABOUT is applied.
+    about.presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
+    await textarea.fill(JSON.stringify(manifest));
+    await page.getByTestId('hotsite-manifest-apply').click();
+    await expect(page.getByTestId('hotsite-manifest-error')).toHaveCount(0);
+
+    // The tab re-seeds from the draft when reopened, so this reads back what Aplicar merged.
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await manifestTab.click();
+    await expect(textarea).toHaveValue(/"customColor": "#0B0908"/);
+
+    // An invalid one (a custom surface with no customColor) is rejected with a localized message.
+    about.presentation = { surface: 'custom' };
+    await textarea.fill(JSON.stringify(manifest));
+    await page.getByTestId('hotsite-manifest-apply').click();
+    await expect(page.getByTestId('hotsite-manifest-error')).toContainText(
+      'apresentação de seção inválida para o módulo "ABOUT"',
+    );
+
+    // ...and the draft still holds the last valid presentation.
+    await page.getByRole('tab', { name: 'Layout' }).click();
+    await manifestTab.click();
+    await expect(textarea).toHaveValue(/"customColor": "#0B0908"/);
+  });
 });
 
 test.describe('hotsite editor (STAFF)', () => {

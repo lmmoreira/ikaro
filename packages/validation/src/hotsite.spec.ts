@@ -1,7 +1,13 @@
-import { GenericErrorCode, HexColorErrorCode, SeoErrorCode } from '@ikaro/types';
+import {
+  GenericErrorCode,
+  HOTSITE_FONT_FAMILIES,
+  HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
+  HexColorErrorCode,
+  SeoErrorCode,
+} from '@ikaro/types';
 import {
   HotsiteBrandingSchema,
-  HotsiteModuleSchema,
+  HOTSITE_MODULE_TYPES,
   HotsiteSeoSchema,
   isValidHexColor,
   isValidSeoDescription,
@@ -54,6 +60,39 @@ describe('HotsiteBrandingSchema', () => {
     }
   });
 
+  describe('font registry', () => {
+    it.each(HOTSITE_FONT_FAMILIES)('accepts the registry font %s for both families', (font) => {
+      expect(
+        HotsiteBrandingSchema.safeParse({ headingFontFamily: font, bodyFontFamily: font }).success,
+      ).toBe(true);
+    });
+
+    it('still accepts the default every new tenant is created with', () => {
+      expect(
+        HotsiteBrandingSchema.safeParse({
+          headingFontFamily: HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
+          bodyFontFamily: HOTSITE_LEGACY_DEFAULT_FONT_FAMILY,
+        }).success,
+      ).toBe(true);
+    });
+
+    it.each(['headingFontFamily', 'bodyFontFamily'])(
+      'rejects an arbitrary %s with GENERIC_VALUE_INVALID',
+      (field) => {
+        const result = HotsiteBrandingSchema.safeParse({ [field]: 'Comic Sans; color: red' });
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          const issue = result.error.issues[0] as unknown as { params?: { code?: string } };
+          expect(issue.params?.code).toBe(GenericErrorCode.VALUE_INVALID);
+        }
+      },
+    );
+
+    it('rejects an empty font family', () => {
+      expect(HotsiteBrandingSchema.safeParse({ bodyFontFamily: '' }).success).toBe(false);
+    });
+  });
+
   it('accepts an empty logoUrl (clears the logo)', () => {
     expect(HotsiteBrandingSchema.safeParse({ logoUrl: '' }).success).toBe(true);
   });
@@ -73,73 +112,6 @@ describe('HotsiteBrandingSchema', () => {
   it("rejects a booking-shaped tmp/ path (missing the hotsite 'purpose' segment)", () => {
     const result = HotsiteBrandingSchema.safeParse({ logoUrl: 'tmp/t1/uuid/file.png' });
     expect(result.success).toBe(false);
-  });
-});
-
-describe('HotsiteModuleSchema', () => {
-  it('accepts a valid module', () => {
-    expect(HotsiteModuleSchema.safeParse({ type: 'HERO', enabled: true, data: {} }).success).toBe(
-      true,
-    );
-  });
-
-  it('rejects an unknown module type', () => {
-    expect(
-      HotsiteModuleSchema.safeParse({ type: 'UNKNOWN', enabled: true, data: {} }).success,
-    ).toBe(false);
-  });
-
-  it('accepts a CHATBOT module (M19-S11)', () => {
-    expect(
-      HotsiteModuleSchema.safeParse({ type: 'CHATBOT', enabled: true, data: {} }).success,
-    ).toBe(true);
-  });
-
-  // M20-S08 — audienceMode/questions must never reach layout[].data; that blob feeds the
-  // public-cached manifest, while these two fields belong to LeadFormConfig (a separate table).
-  it('accepts a LEAD_FORM module with only teaser fields', () => {
-    expect(
-      HotsiteModuleSchema.safeParse({
-        type: 'LEAD_FORM',
-        enabled: true,
-        data: { title: 'Fale com a gente', ctaLabel: 'Enviar' },
-      }).success,
-    ).toBe(true);
-  });
-
-  it('rejects a LEAD_FORM module whose data includes audienceMode', () => {
-    const result = HotsiteModuleSchema.safeParse({
-      type: 'LEAD_FORM',
-      enabled: true,
-      data: { title: 'Fale com a gente', audienceMode: 'CUSTOMER_ONLY' },
-    });
-    expect(result.success).toBe(false);
-    if (!result.success) {
-      const issue = result.error.issues[0] as unknown as { params?: { code?: string } };
-      expect(issue.params?.code).toBe(GenericErrorCode.VALUE_INVALID);
-    }
-  });
-
-  it('rejects a LEAD_FORM module whose data includes questions', () => {
-    expect(
-      HotsiteModuleSchema.safeParse({
-        type: 'LEAD_FORM',
-        enabled: true,
-        data: { title: 'Fale com a gente', questions: [] },
-      }).success,
-    ).toBe(false);
-  });
-
-  it('accepts a non-LEAD_FORM module whose data happens to include a key named audienceMode', () => {
-    // The restriction is scoped to type === 'LEAD_FORM' — other module types keep their own
-    // fully-generic data record untouched by this check.
-    expect(
-      HotsiteModuleSchema.safeParse({
-        type: 'HERO',
-        enabled: true,
-        data: { audienceMode: 'whatever' },
-      }).success,
-    ).toBe(true);
   });
 });
 
@@ -190,5 +162,15 @@ describe('HotsiteSeoSchema', () => {
   it("rejects a booking-shaped tmp/ path (missing the hotsite 'purpose' segment) for ogImageUrl", () => {
     const result = HotsiteSeoSchema.safeParse({ ogImageUrl: 'tmp/t1/uuid/file.png' });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('HOTSITE_MODULE_TYPES', () => {
+  it('lists NAVIGATION first, as the layout editor and the aggregate both pin it', () => {
+    expect(HOTSITE_MODULE_TYPES[0]).toBe('NAVIGATION');
+  });
+
+  it('has no duplicates', () => {
+    expect(new Set(HOTSITE_MODULE_TYPES).size).toBe(HOTSITE_MODULE_TYPES.length);
   });
 });

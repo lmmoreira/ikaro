@@ -19,7 +19,7 @@ export type HorizontalPosition = 'left' | 'center' | 'right';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
 
 export interface HeroModuleData {
-  variant: 'centered' | 'left-aligned';
+  variant: 'centered' | 'left-aligned' | 'immersive';
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -47,12 +47,29 @@ export interface HeroModuleData {
   rightPanel?: 'none' | 'image' | 'brand-card';
 }
 
+// What a service card does when clicked (TD56). Omitted ⇒ 'none', today's behaviour.
+export type ServiceListItemAction = 'details' | 'booking' | 'none';
+
+// Look of every public service detail page (/{slug}/servicos/{serviceSlug}). Omitted ⇒
+// SERVICE_DETAIL_PAGE_DEFAULTS in the renderer, so a legacy manifest is unchanged.
+export interface ServiceDetailPageSettings {
+  heroStyle: 'cover' | 'compact';
+  galleryLayout: 'grid' | 'featured';
+  showPrice: boolean;
+  showDuration: boolean;
+  showLoyaltyPoints: boolean;
+  bookingCtaLabel?: string;
+}
+
 export interface ServiceListModuleData {
   title?: string;
   eyebrow?: string;
   showPrices: boolean;
   showPoints: boolean;
-  layout: 'grid' | 'list';
+  layout: 'grid' | 'list' | 'numbered' | 'feature-cards';
+  itemAction?: ServiceListItemAction;
+  itemCtaLabel?: string;
+  detailPage?: ServiceDetailPageSettings;
 }
 
 export interface GalleryImage {
@@ -69,7 +86,7 @@ export interface GalleryModuleData {
   title?: string;
   eyebrow?: string;
   images: GalleryImage[];
-  layout: 'grid' | 'masonry' | 'featured';
+  layout: 'grid' | 'masonry' | 'featured' | 'portfolio';
   maxVisible: number;
   /** Only meaningful when layout === 'featured' — which side the large tile (images[0]) renders on. Default 'left'. */
   featuredPosition?: 'left' | 'right';
@@ -87,11 +104,11 @@ export interface TestimonialsModuleData {
   title?: string;
   eyebrow?: string;
   items: Testimonial[];
-  layout: 'grid' | 'carousel';
+  layout: 'grid' | 'carousel' | 'editorial-quote';
 }
 
 export interface BookingCtaModuleData {
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -118,6 +135,8 @@ export interface AboutModuleData {
   // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
   imageUrl?: string | null;
   imagePosition: 'left' | 'right';
+  // Omitted ⇒ 'split', today's behaviour (image beside the copy; imagePosition applies inside it).
+  variant?: 'split' | 'editorial';
 }
 
 export interface FooterModuleData {
@@ -159,12 +178,145 @@ export interface LeadFormModuleData {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   // Nullable — see HeroModuleData.backgroundImageUrl's comment above for why.
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: HorizontalPosition;
   bgStyle?: 'primary' | 'background';
 }
+
+// ─── TD56 modules: NAVIGATION and CONTENT_BLOCK ─────────────────────────────
+
+// Same-page section anchors only (#service-list, #gallery, …). Booking is never a navigation item
+// and the separate /lead-form route is not an anchor.
+export type HotsiteNavigationTarget =
+  'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
+
+export interface HotsiteNavigationItem {
+  label: string;
+  target: HotsiteNavigationTarget;
+}
+
+export interface NavigationModuleData {
+  items: HotsiteNavigationItem[];
+}
+
+// Same target set as HeroModuleData.ctaTarget — not cross-checked against enabled modules.
+export type ContentBlockCtaTarget =
+  'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact';
+
+export interface ContentBlockCta {
+  label: string;
+  target: ContentBlockCtaTarget;
+}
+
+export interface ContentBlockCommon {
+  align?: 'left' | 'center' | 'right';
+  eyebrow?: string;
+  title: string;
+  /** Restricted Markdown (paragraphs, emphasis, lists, links) — never HTML. */
+  body?: string;
+  cta?: ContentBlockCta;
+}
+
+export interface ContentBlockTrustGridData extends ContentBlockCommon {
+  variant: 'trust-grid';
+  items: { label: string; description?: string }[];
+}
+
+export interface ContentBlockProcessStepsData extends ContentBlockCommon {
+  variant: 'process-steps';
+  items: { title: string; body: string }[];
+}
+
+export interface ContentBlockCollageCalloutData extends ContentBlockCommon {
+  variant: 'collage-callout';
+  /** An empty `alt` means the image is decorative. */
+  images: { url: string; alt?: string }[];
+}
+
+export interface ContentBlockTechnicalCalloutData extends ContentBlockCommon {
+  variant: 'technical-callout';
+  facts?: { value: string; label: string }[];
+}
+
+export interface ContentBlockImageStatementData extends ContentBlockCommon {
+  variant: 'image-statement';
+}
+
+export interface ContentBlockImmersiveStatementData extends ContentBlockCommon {
+  variant: 'immersive-statement';
+}
+
+export type ContentBlockModuleData =
+  | ContentBlockTrustGridData
+  | ContentBlockProcessStepsData
+  | ContentBlockCollageCalloutData
+  | ContentBlockTechnicalCalloutData
+  | ContentBlockImageStatementData
+  | ContentBlockImmersiveStatementData;
+
+// ─── Section presentation (sibling of `data` on a module entry) ──────────────
+
+export type HotsiteSectionSurface = 'background' | 'secondary' | 'primary' | 'custom';
+export type HotsiteSectionContentWidth = 'narrow' | 'standard' | 'wide' | 'full';
+export type HotsiteSectionMinHeight = 'auto' | 'sm' | 'md' | 'lg' | 'viewport';
+export type HotsiteSectionPadding = 'none' | 'compact' | 'comfortable' | 'spacious';
+export type HotsiteOverlayDirection = 'to-right' | 'to-left' | 'to-bottom' | 'to-top';
+
+export type HotsiteSectionOverlay =
+  | { type: 'none' }
+  | { type: 'solid'; color: string; opacity: number }
+  | {
+      type: 'linear-gradient';
+      direction: HotsiteOverlayDirection;
+      fromColor: string;
+      fromOpacity: number;
+      toColor: string;
+      toOpacity: number;
+    };
+
+export interface HotsiteSectionBackground {
+  imageUrl: string | null;
+  position?: HorizontalPosition;
+}
+
+/**
+ * Optional semantic presentation of a module's full-width section. Omitted fields resolve to the
+ * current renderer defaults, so a module without it renders exactly as before TD56.
+ */
+export interface HotsiteModulePresentation {
+  surface?: HotsiteSectionSurface;
+  /** Required when `surface` is 'custom', rejected otherwise. Strict #RRGGBB. */
+  customColor?: string;
+  contentWidth?: HotsiteSectionContentWidth;
+  minHeight?: HotsiteSectionMinHeight;
+  padding?: HotsiteSectionPadding;
+  background?: HotsiteSectionBackground;
+  overlay?: HotsiteSectionOverlay;
+}
+
+// The controlled font registry: the keys a manifest may store in branding.headingFontFamily /
+// bodyFontFamily. apps/web preloads exactly these through next/font (font-config.ts, whose spec
+// pins the two lists together) and @ikaro/validation rejects anything else at the request boundary.
+// A new font is added here AND in font-config.ts — never as a free-form string in a manifest.
+export const HOTSITE_FONT_FAMILIES = [
+  'Inter',
+  'Poppins',
+  'Playfair Display',
+  'Montserrat',
+  'Raleway',
+  'Oswald',
+  'Lato',
+  'Roboto',
+] as const;
+
+export type HotsiteFontFamily = (typeof HOTSITE_FONT_FAMILIES)[number];
+
+// What HotsiteConfig.create() stores for a brand-new tenant. It is not a registry key — the
+// renderer falls back to Inter for it — but it is already persisted for every tenant that has not
+// picked a font, and the editor sends the whole branding back on save, so it must stay accepted.
+export const HOTSITE_LEGACY_DEFAULT_FONT_FAMILY = 'Inter, sans-serif';
 
 // ─── BFF response types ───────────────────────────────────────────────────────
 
@@ -172,6 +324,7 @@ export interface HotsiteModuleResponse {
   type: HotsiteModuleType;
   enabled: boolean;
   data: Record<string, unknown>;
+  presentation?: HotsiteModulePresentation;
 }
 
 export interface HotsiteBrandingResponse {
@@ -285,19 +438,26 @@ export interface UnpublishHotsiteResponse {
 }
 
 // Groups an uploaded hotsite asset by what it's for; also encoded into the staging path so
-// promotion can rebuild the permanent path without a second lookup. Single source of truth for
-// apps/web (SingleImageUploadField.tsx, tenant-settings.ts) — the backend and BFF each keep their
-// own Zod enum in sync separately (packages/validation doesn't re-export this, since those are
-// runtime validators, not just a type).
-export type HotsiteImagePurpose =
-  | 'branding'
-  | 'hero'
-  | 'gallery'
-  | 'about'
-  | 'booking-cta'
-  | 'testimonials'
-  | 'seo-og-image'
-  | 'lead-form';
+// promotion can rebuild the permanent path without a second lookup. The one closed list: the
+// backend DTO and the BFF schema build their Zod enum from this tuple (like
+// ALLOWED_IMAGE_CONTENT_TYPES), and apps/web (SingleImageUploadField.tsx, tenant-settings.ts) types
+// against the derived union — adding a purpose here reaches all four consumers at once. Before
+// TD56 each kept its own hand-copied list.
+export const HOTSITE_IMAGE_PURPOSES = [
+  'branding',
+  'hero',
+  'gallery',
+  'about',
+  'booking-cta',
+  'testimonials',
+  'seo-og-image',
+  'lead-form',
+  'content-block',
+  'section-background',
+  'service-profile',
+] as const;
+
+export type HotsiteImagePurpose = (typeof HOTSITE_IMAGE_PURPOSES)[number];
 
 export interface GenerateHotsiteImageSignedUrlResponse {
   signedUrl: string;

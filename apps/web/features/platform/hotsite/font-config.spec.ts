@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { HOTSITE_FONT_FAMILIES } from '@ikaro/types';
+
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts
 import { FONT_CLASS_MAP, FONT_MAP, FONT_VARIABLES, getActiveFontVariables } from './font-config';
 
@@ -73,5 +75,12 @@ describe('getActiveFontVariables', () => {
   it('falls back to Inter when both fonts are unknown, deduplicating to one entry', () => {
     const result = getActiveFontVariables('Unknown', 'AlsoUnknown');
     expect(result).toEqual(['--font-inter']);
+  });
+});
+
+describe('font registry parity with @ikaro/types (the backend allow-list)', () => {
+  it('preloads exactly the fonts the backend accepts, no more and no fewer', () => {
+    expect(Object.keys(FONT_MAP).sort()).toEqual([...HOTSITE_FONT_FAMILIES].sort());
+    expect(Object.keys(FONT_CLASS_MAP).sort()).toEqual([...HOTSITE_FONT_FAMILIES].sort());
   });
 });

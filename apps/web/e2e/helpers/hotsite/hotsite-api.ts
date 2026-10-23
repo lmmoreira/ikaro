@@ -29,7 +29,7 @@ export async function getHotsiteConfig(page: Page): Promise<HotsiteAdminContentR
 // verifyImagesExist rejects it with 400. This mirrors the app's own
 // stripResolvedImageUrls/mapHotsiteImageFields field list (same fix, same field set: branding
 // logoUrl, module backgroundImageUrl/imageUrl/avatarUrl, testimonial avatarUrl, gallery image
-// url) rather than importing it — e2e helpers deliberately don't import app feature/shared
+// url, collage-callout image url, presentation.background.imageUrl) rather than importing it — e2e helpers deliberately don't import app feature/shared
 // source, only other e2e helpers, so this is a self-contained copy scoped to this file. No
 // tenantId parameter needed here (unlike the app's version): every value this suite ever reads
 // back belongs to the one authenticated tenant for that test, so a generic
@@ -64,6 +64,28 @@ function stripModuleImageUrls(module: HotsiteModuleResponse): HotsiteModuleRespo
     mapped.images = (data.images as ReadonlyArray<Record<string, unknown>>).map((image) =>
       typeof image.url === 'string' ? { ...image, url: toRawPath(image.url) } : image,
     );
+  }
+
+  // TD56: a collage-callout's images[].url and presentation.background.imageUrl are image slots too.
+  if (
+    module.type === 'CONTENT_BLOCK' &&
+    data.variant === 'collage-callout' &&
+    Array.isArray(data.images)
+  ) {
+    mapped.images = (data.images as ReadonlyArray<Record<string, unknown>>).map((image) =>
+      typeof image.url === 'string' ? { ...image, url: toRawPath(image.url) } : image,
+    );
+  }
+  const backgroundUrl = module.presentation?.background?.imageUrl;
+  if (module.presentation?.background && typeof backgroundUrl === 'string') {
+    return {
+      ...module,
+      data: mapped,
+      presentation: {
+        ...module.presentation,
+        background: { ...module.presentation.background, imageUrl: toRawPath(backgroundUrl) },
+      },
+    };
   }
 
   return { ...module, data: mapped };

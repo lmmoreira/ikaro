@@ -18,6 +18,9 @@
       ],
       "protocol/media": [
         "dist/protocol/media.d.ts"
+      ],
+      "testing/hotsite-module-contract": [
+        "dist/testing/hotsite-module-contract.d.ts"
       ]
     }
   },
@@ -41,6 +44,11 @@
       "import": "./dist/protocol/media.js",
       "require": "./dist/protocol/media.js",
       "types": "./dist/protocol/media.d.ts"
+    },
+    "./testing/hotsite-module-contract": {
+      "import": "./dist/testing/hotsite-module-contract.js",
+      "require": "./dist/testing/hotsite-module-contract.js",
+      "types": "./dist/testing/hotsite-module-contract.d.ts"
     },
     "./package.json": "./package.json"
   },

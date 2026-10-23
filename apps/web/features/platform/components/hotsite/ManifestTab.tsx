@@ -35,6 +35,10 @@ function manifestErrorMessage(
       return t('manifest.errors.duplicateModuleType', { moduleType: reason.moduleType });
     case 'invalidModuleData':
       return t('manifest.errors.invalidModuleData', { moduleType: reason.moduleType });
+    case 'invalidPresentation':
+      return t('manifest.errors.invalidPresentation', { moduleType: reason.moduleType });
+    case 'navigationNotFirst':
+      return t('manifest.errors.navigationNotFirst');
   }
 }
 

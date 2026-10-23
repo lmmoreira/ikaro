@@ -3,6 +3,7 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteModulePresentation,
   HotsiteSeo,
 } from '../hotsite-config.aggregate';
 
@@ -47,8 +48,42 @@ export class HotsiteImagePathsService {
 
     if (module.type === 'TESTIMONIALS') mapped = this.mapTestimonialsItems(mapped, data, transform);
     if (module.type === 'GALLERY') mapped = this.mapGalleryImages(mapped, data, transform);
+    if (module.type === 'CONTENT_BLOCK')
+      mapped = this.mapContentBlockImages(mapped, data, transform);
 
-    return { ...module, data: mapped as HotsiteModuleData };
+    const presentation = this.mapPresentation(module.presentation, transform);
+    return {
+      ...module,
+      data: mapped as HotsiteModuleData,
+      ...(presentation === undefined ? {} : { presentation }),
+    };
+  }
+
+  // presentation.background.imageUrl — the section background of a module with no image of its own.
+  private mapPresentation(
+    presentation: HotsiteModulePresentation | undefined,
+    transform: ImagePathTransform,
+  ): HotsiteModulePresentation | undefined {
+    const imageUrl = presentation?.background?.imageUrl;
+    if (presentation?.background === undefined || !imageUrl) return presentation;
+    return {
+      ...presentation,
+      background: { ...presentation.background, imageUrl: transform(imageUrl) },
+    };
+  }
+
+  // collage-callout's images[].url is the only image slot inside CONTENT_BLOCK.data.
+  private mapContentBlockImages(
+    mapped: Record<string, unknown>,
+    data: Record<string, unknown>,
+    transform: ImagePathTransform,
+  ): Record<string, unknown> {
+    if (data.variant !== 'collage-callout') return mapped;
+    const images = (data.images as { url?: string }[] | undefined) ?? [];
+    return {
+      ...mapped,
+      images: images.map((image) => (image.url ? { ...image, url: transform(image.url) } : image)),
+    };
   }
 
   private mapBaseFields(
@@ -109,6 +144,13 @@ export class HotsiteImagePathsService {
       const images = (data.images as GalleryImage[] | undefined) ?? [];
       for (const image of images) this.pushIfPath(paths, image.url);
     }
+
+    if (module.type === 'CONTENT_BLOCK' && data.variant === 'collage-callout') {
+      const images = (data.images as { url?: string }[] | undefined) ?? [];
+      for (const image of images) this.pushIfPath(paths, image.url);
+    }
+
+    this.pushIfPath(paths, module.presentation?.background?.imageUrl);
   }
 
   private pushIfPath(paths: string[], value: unknown): void {

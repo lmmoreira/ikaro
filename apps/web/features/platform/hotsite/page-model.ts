@@ -3,13 +3,17 @@ import type {
   BookingCtaModuleData,
   ChatbotModuleData,
   ContactModuleData,
+  ContentBlockModuleData,
   FooterModuleData,
   GalleryModuleData,
   HeroModuleData,
   HotsiteManifestResponse,
+  HotsiteModulePresentation,
   HotsiteModuleResponse,
   HotsiteModuleType,
+  HotsiteNavigationItem,
   LeadFormModuleData,
+  NavigationModuleData,
   ServiceListModuleData,
   TestimonialsModuleData,
 } from '@ikaro/types';
@@ -18,17 +22,22 @@ import {
   BookingCtaModuleDataSchema,
   ChatbotModuleDataSchema,
   ContactModuleDataSchema,
+  ContentBlockModuleDataSchema,
   FooterModuleDataSchema,
   GalleryModuleDataSchema,
   HeroModuleDataSchema,
   LeadFormModuleDataSchema,
+  NavigationModuleDataSchema,
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
 } from './module-schemas';
+import { isValidPresentation } from './presentation-schema';
 
 export type HotsiteSectionBgVariant = 'default' | 'alt';
 
 export type HotsiteModuleParsed =
+  | { readonly type: 'NAVIGATION'; readonly data: NavigationModuleData }
+  | { readonly type: 'CONTENT_BLOCK'; readonly data: ContentBlockModuleData }
   | { readonly type: 'HERO'; readonly data: HeroModuleData }
   | { readonly type: 'SERVICE_LIST'; readonly data: ServiceListModuleData }
   | { readonly type: 'GALLERY'; readonly data: GalleryModuleData }
@@ -43,6 +52,10 @@ export type HotsiteModuleParsed =
 export interface HotsiteModuleRenderPlanItem {
   readonly parsed: HotsiteModuleParsed;
   readonly bgVariant: HotsiteSectionBgVariant;
+  // The module's own section presentation, only when it parses. An invalid one is ignored — the
+  // section renders with its defaults — and never removes the module the way malformed `data` does
+  // (a stored manifest can predate a tightened rule; a cosmetic field must not blank a section).
+  readonly presentation?: HotsiteModulePresentation;
 }
 
 // CHATBOT included: the bubble variant is a fixed-position floating element with its own
@@ -59,6 +72,8 @@ const NON_ALTERNATING_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
 ]);
 
 const MODULE_SCHEMAS = {
+  NAVIGATION: NavigationModuleDataSchema,
+  CONTENT_BLOCK: ContentBlockModuleDataSchema,
   HERO: HeroModuleDataSchema,
   SERVICE_LIST: ServiceListModuleDataSchema,
   GALLERY: GalleryModuleDataSchema,
@@ -105,6 +120,38 @@ export function shouldSkipDivider(
   );
 }
 
+// NAVIGATION is page chrome, consumed by the top bar through resolveHotsiteNavigation(); it is not
+// a section, so it never becomes a plan item, never takes part in alternation, and never shifts
+// the "first section has no divider" rule.
+const NON_SECTION_TYPES: ReadonlySet<HotsiteModuleType> = new Set(['NAVIGATION']);
+
+// The module type a navigation item's `target` anchor points at (the section's own DOM id).
+const NAVIGATION_TARGET_TYPE: Readonly<Record<HotsiteNavigationItem['target'], HotsiteModuleType>> =
+  {
+    'service-list': 'SERVICE_LIST',
+    gallery: 'GALLERY',
+    testimonials: 'TESTIMONIALS',
+    about: 'ABOUT',
+    contact: 'CONTACT',
+  };
+
+// The links the top bar renders: only items whose target section actually made it into the render
+// plan. A target that is disabled, absent, or whose module data failed to parse is dropped here, so
+// a visitor never gets a link to a section that is not on the page. Nothing when NAVIGATION is
+// absent, disabled, or has malformed data.
+export function resolveHotsiteNavigation(
+  layout: ReadonlyArray<HotsiteModuleResponse>,
+  plan: ReadonlyArray<HotsiteModuleRenderPlanItem>,
+): HotsiteNavigationItem[] {
+  const navigation = layout.find((layoutModule) => layoutModule.type === 'NAVIGATION');
+  if (!navigation?.enabled) return [];
+  const parsed = NavigationModuleDataSchema.safeParse(navigation.data);
+  if (!parsed.success) return [];
+
+  const renderedTypes = new Set<HotsiteModuleType>(plan.map((item) => item.parsed.type));
+  return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
+}
+
 export function buildHotsiteModuleRenderPlan(
   layout: ReadonlyArray<HotsiteModuleResponse>,
   alternateSectionBg: boolean,
@@ -113,7 +160,7 @@ export function buildHotsiteModuleRenderPlan(
   let altIndex = 0;
 
   for (const layoutModule of layout) {
-    if (!layoutModule.enabled) continue;
+    if (!layoutModule.enabled || NON_SECTION_TYPES.has(layoutModule.type)) continue;
 
     const parsed = tryParseModule(layoutModule);
     if (parsed === null) continue;
@@ -122,7 +169,13 @@ export function buildHotsiteModuleRenderPlan(
     const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
-    items.push({ parsed, bgVariant: participates && isAlt ? 'alt' : 'default' });
+    items.push({
+      parsed,
+      bgVariant: participates && isAlt ? 'alt' : 'default',
+      ...(isValidPresentation(layoutModule.presentation)
+        ? { presentation: layoutModule.presentation }
+        : {}),
+    });
   }
 
   return items;

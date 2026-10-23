@@ -138,6 +138,61 @@ export class HotsiteModuleTypeInvalidError extends PlatformDomainError {
   }
 }
 
+export class HotsiteNavigationNotFirstError extends PlatformDomainError {
+  constructor() {
+    super(
+      'The NAVIGATION module must be the first module of the layout',
+      PlatformErrorCode.HOTSITE_NAVIGATION_NOT_FIRST,
+      'layout',
+    );
+    this.name = 'HotsiteNavigationNotFirstError';
+  }
+}
+
+export class HotsiteNavigationTargetNotEnabledError extends PlatformDomainError {
+  constructor(target: string) {
+    super(
+      `Navigation target '${target}' must be an enabled module of the same layout`,
+      PlatformErrorCode.HOTSITE_NAVIGATION_TARGET_NOT_ENABLED,
+      'layout',
+    );
+    this.name = 'HotsiteNavigationTargetNotEnabledError';
+  }
+}
+
+export class HotsiteModuleDuplicateError extends PlatformDomainError {
+  constructor(moduleType: string) {
+    super(
+      `Hotsite module type '${moduleType}' appears more than once in the layout`,
+      PlatformErrorCode.HOTSITE_MODULE_DUPLICATE,
+      'layout',
+    );
+    this.name = 'HotsiteModuleDuplicateError';
+  }
+}
+
+export class HotsitePresentationNotAllowedError extends PlatformDomainError {
+  constructor(moduleType: string) {
+    super(
+      `Hotsite module type '${moduleType}' does not accept a presentation`,
+      PlatformErrorCode.HOTSITE_PRESENTATION_NOT_ALLOWED,
+      'layout',
+    );
+    this.name = 'HotsitePresentationNotAllowedError';
+  }
+}
+
+export class HotsitePresentationBackgroundNotAllowedError extends PlatformDomainError {
+  constructor(moduleType: string) {
+    super(
+      `Hotsite module type '${moduleType}' has its own background image; presentation.background is not allowed`,
+      PlatformErrorCode.HOTSITE_PRESENTATION_BACKGROUND_NOT_ALLOWED,
+      'layout',
+    );
+    this.name = 'HotsitePresentationBackgroundNotAllowedError';
+  }
+}
+
 export class HotsiteCarouselDaysExceedsMaxAdvanceError extends PlatformDomainError {
   constructor(carouselDays: number, maxBookingAdvanceDays: number) {
     super(

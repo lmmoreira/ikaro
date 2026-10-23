@@ -7,6 +7,7 @@ import type {
 } from '@ikaro/types';
 import { MODULE_ORDER, materializeLayout } from './default-layout';
 import { isValidModuleData } from './module-schemas';
+import { isValidPresentation } from './presentation-schema';
 
 export interface ManifestDraft {
   readonly branding: HotsiteBrandingResponse;
@@ -23,7 +24,9 @@ export type ManifestParseErrorReason =
   | { readonly code: 'tooManyModules'; readonly max: number }
   | { readonly code: 'unknownModuleType'; readonly moduleType: string }
   | { readonly code: 'duplicateModuleType'; readonly moduleType: string }
-  | { readonly code: 'invalidModuleData'; readonly moduleType: string };
+  | { readonly code: 'invalidModuleData'; readonly moduleType: string }
+  | { readonly code: 'invalidPresentation'; readonly moduleType: string }
+  | { readonly code: 'navigationNotFirst' };
 
 export type ManifestParseResult =
   | { readonly success: true; readonly value: ManifestDraft }
@@ -62,10 +65,14 @@ const SeoStructuralSchema = z.object({
   ogImageUrl: z.string(),
 }) satisfies z.ZodType<HotsiteSeoResponse>;
 
+// `presentation` is a sibling of `data` and must be listed here: a Zod object strips unknown keys,
+// so leaving it out would silently drop it from every pasted manifest. Its own shape is checked
+// in validateLayoutModules (isValidPresentation), not here.
 const LayoutModuleEnvelopeSchema = z.object({
   type: z.string(),
   enabled: z.boolean(),
   data: z.record(z.string(), z.unknown()),
+  presentation: z.unknown().optional(),
 });
 
 const ManifestShapeSchema = z.object({
@@ -78,10 +85,13 @@ const MODULE_TYPE_SET: ReadonlySet<string> = new Set(MODULE_ORDER);
 
 type LayoutModuleEnvelope = z.infer<typeof LayoutModuleEnvelopeSchema>;
 
-// `type` membership and uniqueness are checked here (not left to the backend) because an unknown
-// or duplicate type breaks the *client* immediately once Aplicar merges it into `draft` —
-// LayoutTab/ModuleConfigShell key their rows and dnd-kit ids by `type`, and
-// HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined for anything outside the known 10.
+// What breaks the *client* the moment Aplicar merges the manifest into `draft` is checked here,
+// not left to the backend: an unknown or duplicate `type` (LayoutTab/ModuleConfigShell key their
+// rows and dnd-kit ids by `type`, and HotsiteEditor.MODULE_CONFIG_PANELS[type] would be undefined
+// for anything outside the known 12), a NAVIGATION that is not first (the layout editor pins it
+// there), and a `data` or `presentation` that does not parse. A rule that needs the whole layout —
+// a navigation target being an enabled module — is the backend's (HotsiteConfig) and surfaces on
+// Publish through the existing banner.
 function validateLayoutModules(
   layout: readonly LayoutModuleEnvelope[],
 ): ManifestParseErrorReason | null {
@@ -89,7 +99,7 @@ function validateLayoutModules(
     return { code: 'tooManyModules', max: MODULE_ORDER.length };
   }
   const seenTypes = new Set<string>();
-  for (const layoutModule of layout) {
+  for (const [index, layoutModule] of layout.entries()) {
     if (!MODULE_TYPE_SET.has(layoutModule.type)) {
       return { code: 'unknownModuleType', moduleType: layoutModule.type };
     }
@@ -97,8 +107,17 @@ function validateLayoutModules(
       return { code: 'duplicateModuleType', moduleType: layoutModule.type };
     }
     seenTypes.add(layoutModule.type);
+    if (layoutModule.type === 'NAVIGATION' && index !== 0) {
+      return { code: 'navigationNotFirst' };
+    }
     if (!isValidModuleData(layoutModule.type as HotsiteModuleType, layoutModule.data)) {
       return { code: 'invalidModuleData', moduleType: layoutModule.type };
+    }
+    if (
+      layoutModule.presentation !== undefined &&
+      !isValidPresentation(layoutModule.presentation)
+    ) {
+      return { code: 'invalidPresentation', moduleType: layoutModule.type };
     }
   }
   return null;
@@ -120,6 +139,10 @@ function describeReason(reason: ManifestParseErrorReason): string {
       return `duplicate module type "${reason.moduleType}"`;
     case 'invalidModuleData':
       return `invalid data for module "${reason.moduleType}"`;
+    case 'invalidPresentation':
+      return `invalid presentation for module "${reason.moduleType}"`;
+    case 'navigationNotFirst':
+      return 'the NAVIGATION module must be the first module';
   }
 }
 

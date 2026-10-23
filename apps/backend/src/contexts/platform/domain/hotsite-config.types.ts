@@ -1,3 +1,10 @@
+import type {
+  ContentBlockModuleData,
+  HotsiteModulePresentation,
+  NavigationModuleData,
+  ServiceDetailPageSettings,
+  ServiceListItemAction,
+} from '@ikaro/types';
 import type { HotsiteModuleType } from '@ikaro/validation';
 import { HexColor } from '../../../shared/value-objects/hex-color.vo';
 import { SeoTitle } from '../../../shared/value-objects/seo-title.vo';
@@ -17,6 +24,16 @@ import { SeoDescription } from '../../../shared/value-objects/seo-description.vo
 // './hotsite-config.aggregate'` call site keeps resolving unchanged.
 export type { HotsiteModuleType };
 
+// The two TD56 module types and the section-presentation envelope have exactly one definition, in
+// @ikaro/types (type-only, erased at compile time — the domain layer gains no runtime dependency).
+export type {
+  ContentBlockModuleData,
+  HotsiteModulePresentation,
+  NavigationModuleData,
+  ServiceDetailPageSettings,
+  ServiceListItemAction,
+};
+
 // Shared by HeroModuleData/BookingCtaModuleData's backgroundImagePosition, contentPositionX, and
 // contentPositionY fields — SonarCloud (S4323) flags a union type repeated verbatim across
 // fields; these two aliases are the single source of truth for that shape (M18-S05).
@@ -24,7 +41,7 @@ export type HorizontalPosition = 'left' | 'center' | 'right';
 export type VerticalPosition = 'top' | 'center' | 'bottom';
 
 export interface HeroModuleData {
-  variant: 'centered' | 'left-aligned';
+  variant: 'centered' | 'left-aligned' | 'immersive';
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -45,7 +62,10 @@ export interface ServiceListModuleData {
   eyebrow?: string;
   showPrices: boolean;
   showPoints: boolean;
-  layout: 'grid' | 'list';
+  layout: 'grid' | 'list' | 'numbered' | 'feature-cards';
+  itemAction?: ServiceListItemAction;
+  itemCtaLabel?: string;
+  detailPage?: ServiceDetailPageSettings;
 }
 
 export interface GalleryImage {
@@ -64,7 +84,7 @@ export interface GalleryModuleData {
   title?: string;
   eyebrow?: string;
   images: GalleryImage[];
-  layout: 'grid' | 'masonry' | 'featured';
+  layout: 'grid' | 'masonry' | 'featured' | 'portfolio';
   maxVisible: number;
   /** Only meaningful when layout === 'featured' — which side the large tile (images[0]) renders on. Default 'left'. */
   featuredPosition?: 'left' | 'right';
@@ -81,11 +101,11 @@ export interface TestimonialsModuleData {
   title?: string;
   eyebrow?: string;
   items: Testimonial[];
-  layout: 'grid' | 'carousel';
+  layout: 'grid' | 'carousel' | 'editorial-quote';
 }
 
 export interface BookingCtaModuleData {
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   title: string;
   subtitle?: string;
   eyebrow?: string;
@@ -106,6 +126,7 @@ export interface AboutModuleData {
   eyebrow?: string;
   imageUrl?: string;
   imagePosition: 'left' | 'right';
+  variant?: 'split' | 'editorial';
 }
 
 export interface FooterModuleData {
@@ -146,7 +167,7 @@ export interface LeadFormModuleData {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: HorizontalPosition;
   bgStyle?: 'primary' | 'background';
@@ -163,6 +184,8 @@ export interface LeadFormModuleData {
 export const DEFAULT_LEAD_FORM_MODULE_DATA: LeadFormModuleData = { title: '', ctaLabel: '' };
 
 export type HotsiteModuleData =
+  | NavigationModuleData
+  | ContentBlockModuleData
   | HeroModuleData
   | ServiceListModuleData
   | GalleryModuleData
@@ -178,6 +201,8 @@ export interface HotsiteModule {
   type: HotsiteModuleType;
   enabled: boolean;
   data: HotsiteModuleData;
+  /** Optional section presentation, a sibling of `data` (never a key inside it). */
+  presentation?: HotsiteModulePresentation;
 }
 
 export interface HotsiteBranding {

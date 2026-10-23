@@ -59,7 +59,9 @@ export function GalleryModule({
   // matching the config panel's own gate. Display-time only: the stored layout value is
   // untouched, so restoring a 5th image brings the featured view back with no re-selection
   // needed (M18-S07).
-  const effectiveLayout: 'grid' | 'masonry' | 'featured' =
+  // 'portfolio' joined the layout enum in TD56 Story 1 (schema only); until Story 2 adds its
+  // renderer it falls through to the plain grid branch below.
+  const effectiveLayout: GalleryModuleData['layout'] =
     data.layout === 'featured' && data.images.length < 5 ? 'grid' : data.layout;
 
   const gridContent =
@@ -114,7 +116,11 @@ export function GalleryModule({
                   : 'block cursor-zoom-in'
               }
             >
-              <GalleryItem image={image} layout={effectiveLayout} priority={i === 0} />
+              <GalleryItem
+                image={image}
+                layout={effectiveLayout === 'masonry' ? 'masonry' : 'grid'}
+                priority={i === 0}
+              />
             </a>
           ))}
         </div>

@@ -13,6 +13,7 @@ import {
   HotsiteSeoDescriptionTooLongError,
   HotsiteSeoTitleTooLongError,
 } from './errors/platform-domain.error';
+import { assertValidLayoutStructure } from './hotsite-layout.rules';
 import {
   brandingFromDomain,
   brandingReconstitute,
@@ -235,6 +236,9 @@ export class HotsiteConfig extends AggregateRoot {
       if (!MODULE_TYPES.has(module.type)) {
         throw new HotsiteModuleTypeInvalidError(module.type);
       }
+    }
+    assertValidLayoutStructure(layout);
+    for (const module of layout) {
       MODULE_DATA_VALIDATORS[module.type]?.(module.data, ctx);
     }
   }

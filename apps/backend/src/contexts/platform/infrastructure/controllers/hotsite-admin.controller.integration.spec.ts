@@ -18,6 +18,7 @@ import { createPlatformIntegrationApp } from '../../../../test/utils/platform-in
 const TENANT_A = 'c2d3e4f5-0000-0000-0000-000000000001';
 const TENANT_B = 'c2d3e4f5-0000-0000-0000-000000000002';
 const TENANT_NO_HOTSITE = 'c2d3e4f5-0000-0000-0000-000000000003';
+const TENANT_LAYOUT = 'c2d3e4f5-0000-0000-0000-000000000004';
 const BOOKING_ID = 'c2d3e4f5-0000-4000-8000-000000000001';
 const AFTER_PHOTO = `tenants/${TENANT_A}/bookings/${BOOKING_ID}/after-1.jpg`;
 const OTHER_TENANT_PHOTO = `tenants/${TENANT_B}/bookings/${BOOKING_ID}/after-1.jpg`;
@@ -62,8 +63,18 @@ describe('HotsiteAdminController (integration)', () => {
           .build(),
       );
 
+    await ds
+      .getRepository(TenantEntity)
+      .save(
+        new TenantEntityBuilder()
+          .withId(TENANT_LAYOUT)
+          .withSlug('hotsite-admin-tenant-layout')
+          .build(),
+      );
+
     await saveHotsiteConfig(ds, TENANT_A, false);
     await saveHotsiteConfig(ds, TENANT_B, false);
+    await saveHotsiteConfig(ds, TENANT_LAYOUT, false);
   });
 
   afterAll(async () => {
@@ -119,6 +130,45 @@ describe('HotsiteAdminController (integration)', () => {
     });
 
     it('returns 400 when a BOOKING_CTA module carouselDays exceeds tenant.settings.booking.maxBookingAdvanceDays', async () => {
+      // carouselDays is capped at 90 by the module schema itself, so the tenant rule is reachable
+      // only for a tenant whose own limit is lower than that.
+      const tenants = ds.getRepository(TenantEntity);
+      const tenant = await tenants.findOneByOrFail({ id: TENANT_A });
+      const defaultSettings = tenant.settings;
+      await tenants.update(
+        { id: TENANT_A },
+        {
+          settings: {
+            ...defaultSettings,
+            booking: { ...defaultSettings.booking, maxBookingAdvanceDays: 30 },
+          },
+        },
+      );
+
+      try {
+        const { body } = await request(app.getHttpServer())
+          .patch('/tenants/hotsite')
+          .set('X-Tenant-ID', TENANT_A)
+          .set('X-Actor-Role', 'MANAGER')
+          .send({
+            layout: [
+              {
+                type: 'BOOKING_CTA',
+                enabled: true,
+                data: { title: 'Agende já', ctaLabel: 'Agendar', carouselDays: 31 },
+              },
+            ],
+          })
+          .expect(400);
+
+        expect(body.status).toBe(400);
+        expect(body.code).toBe('PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE');
+      } finally {
+        await tenants.update({ id: TENANT_A }, { settings: defaultSettings });
+      }
+    });
+
+    it('returns 400 with a field-level violation when carouselDays is beyond the module schema cap of 90', async () => {
       const { body } = await request(app.getHttpServer())
         .patch('/tenants/hotsite')
         .set('X-Tenant-ID', TENANT_A)
@@ -134,8 +184,210 @@ describe('HotsiteAdminController (integration)', () => {
         })
         .expect(400);
 
-      expect(body.status).toBe(400);
-      expect(body.code).toBe('PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE');
+      expect(body.violations).toEqual([
+        expect.objectContaining({
+          field: 'layout.0.data.carouselDays',
+          code: 'GENERIC_VALUE_OUT_OF_RANGE',
+        }),
+      ]);
+    });
+
+    // TD56-S01 — the section-presentation contract, on a tenant of its own so the layout it stores
+    // does not leak into the assertions of the tests above and below.
+    describe('TD56 layout contract (NAVIGATION, CONTENT_BLOCK, presentation)', () => {
+      const hero = {
+        type: 'HERO',
+        enabled: true,
+        data: { variant: 'immersive', title: 'T', ctaLabel: 'Go', ctaTarget: 'booking-form' },
+        presentation: {
+          minHeight: 'viewport',
+          overlay: {
+            type: 'linear-gradient',
+            direction: 'to-top',
+            fromColor: '#090909',
+            fromOpacity: 0.88,
+            toColor: '#090909',
+            toOpacity: 0,
+          },
+        },
+      };
+      const about = {
+        type: 'ABOUT',
+        enabled: true,
+        data: { title: 'Sobre', body: 'Texto', imagePosition: 'left', variant: 'editorial' },
+        presentation: { surface: 'custom', customColor: '#0B0908', contentWidth: 'narrow' },
+      };
+      const navigation = {
+        type: 'NAVIGATION',
+        enabled: true,
+        data: { items: [{ label: 'Sobre', target: 'about' }] },
+      };
+      const contentBlock = {
+        type: 'CONTENT_BLOCK',
+        enabled: true,
+        data: {
+          variant: 'trust-grid',
+          title: 'Por que nós',
+          items: [{ label: 'Rápido' }, { label: 'Seguro', description: 'Sem filas' }],
+        },
+        presentation: { padding: 'spacious' },
+      };
+
+      const patchLayout = (layout: unknown[], tenantId = TENANT_LAYOUT) =>
+        request(app.getHttpServer())
+          .patch('/tenants/hotsite')
+          .set('X-Tenant-ID', tenantId)
+          .set('X-Actor-Role', 'MANAGER')
+          .send({ layout });
+
+      it('persists and returns NAVIGATION, CONTENT_BLOCK and every presentation through a real row', async () => {
+        const layout = [navigation, hero, about, contentBlock];
+
+        const { body } = await patchLayout(layout).expect(200);
+        expect(body.layout).toEqual(layout);
+
+        const row = await ds
+          .getRepository(HotsiteConfigEntity)
+          .findOneByOrFail({ tenantId: TENANT_LAYOUT });
+        expect(row.layout).toEqual(layout);
+
+        const read = await request(app.getHttpServer())
+          .get('/tenants/hotsite')
+          .set('X-Tenant-ID', TENANT_LAYOUT)
+          .set('X-Actor-Role', 'MANAGER')
+          .expect(200);
+        expect(read.body.layout).toEqual(layout);
+      });
+
+      it.each([
+        ['NAVIGATION not first', [about, navigation], 'PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST'],
+        [
+          'a navigation target that is not an enabled module',
+          [navigation, hero],
+          'PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED',
+        ],
+        [
+          'a module type twice',
+          [about, { ...about, enabled: false }],
+          'PLATFORM_HOTSITE_MODULE_DUPLICATE',
+        ],
+        [
+          'presentation on FOOTER',
+          [{ type: 'FOOTER', enabled: true, data: {}, presentation: { surface: 'primary' } }],
+          'PLATFORM_HOTSITE_PRESENTATION_NOT_ALLOWED',
+        ],
+        [
+          'presentation.background on HERO',
+          [{ ...hero, presentation: { background: { imageUrl: null } } }],
+          'PLATFORM_HOTSITE_PRESENTATION_BACKGROUND_NOT_ALLOWED',
+        ],
+      ])('rejects %s with its own code and persists nothing', async (_label, layout, code) => {
+        const before = await ds
+          .getRepository(HotsiteConfigEntity)
+          .findOneByOrFail({ tenantId: TENANT_LAYOUT });
+
+        const { body } = await patchLayout(layout).expect(400);
+
+        expect(body.code).toBe(code);
+        const after = await ds
+          .getRepository(HotsiteConfigEntity)
+          .findOneByOrFail({ tenantId: TENANT_LAYOUT });
+        expect(after.layout).toEqual(before.layout);
+      });
+
+      it('rejects malformed module data with a field-level violation', async () => {
+        const { body } = await patchLayout([
+          { type: 'GALLERY', enabled: true, data: { images: [], layout: 'zzz', maxVisible: 6 } },
+        ]).expect(400);
+
+        expect(body.violations).toEqual([
+          expect.objectContaining({ field: 'layout.0.data.layout', code: 'GENERIC_VALUE_INVALID' }),
+        ]);
+      });
+
+      it('rejects a NAVIGATION whose data carries an unknown key', async () => {
+        const { body } = await patchLayout([
+          { type: 'NAVIGATION', enabled: true, data: { items: [], extra: true } },
+        ]).expect(400);
+
+        expect(body.violations).toHaveLength(1);
+        expect(body.violations[0].code).toBe('GENERIC_VALUE_INVALID');
+      });
+
+      it('rejects a font outside the registry', async () => {
+        await request(app.getHttpServer())
+          .patch('/tenants/hotsite')
+          .set('X-Tenant-ID', TENANT_LAYOUT)
+          .set('X-Actor-Role', 'MANAGER')
+          .send({ branding: { headingFontFamily: 'Comic Sans; color: red' } })
+          .expect(400);
+      });
+
+      // Tenant isolation: another tenant's staging upload must never be promoted into this
+      // tenant's section, whichever nested slot it is smuggled into.
+      it.each([
+        [
+          'presentation.background.imageUrl',
+          (path: string) => [
+            {
+              type: 'ABOUT',
+              enabled: true,
+              data: { title: 'T', body: 'B', imagePosition: 'left' },
+              presentation: { background: { imageUrl: path } },
+            },
+          ],
+        ],
+        [
+          'a collage-callout image',
+          (path: string) => [
+            {
+              type: 'CONTENT_BLOCK',
+              enabled: true,
+              data: {
+                variant: 'collage-callout',
+                title: 'T',
+                images: [{ url: path }, { url: path }],
+              },
+            },
+          ],
+        ],
+      ])(
+        "returns 400 PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED for another tenant's tmp/ path in %s",
+        async (_label, buildLayout) => {
+          const foreignPath = `tmp/${TENANT_A}/section-background/019f420c-0000-7000-8000-000000000001/bg.jpg`;
+          storageService.markAsUploaded(foreignPath);
+          const before = await ds
+            .getRepository(HotsiteConfigEntity)
+            .findOneByOrFail({ tenantId: TENANT_LAYOUT });
+
+          const { body } = await patchLayout(buildLayout(foreignPath)).expect(400);
+
+          expect(body.code).toBe('PLATFORM_HOTSITE_IMAGE_NOT_UPLOADED');
+          const after = await ds
+            .getRepository(HotsiteConfigEntity)
+            .findOneByOrFail({ tenantId: TENANT_LAYOUT });
+          expect(after.layout).toEqual(before.layout);
+          expect(await storageService.exists(foreignPath, 'private')).toBe(true);
+        },
+      );
+
+      it("promotes the tenant's own nested tmp/ upload to a permanent path", async () => {
+        const tmpPath = `tmp/${TENANT_LAYOUT}/section-background/019f420c-0000-7000-8000-000000000002/bg.jpg`;
+        storageService.markAsUploaded(tmpPath);
+
+        const { body } = await patchLayout([
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: { title: 'T', body: 'B', imagePosition: 'left' },
+            presentation: { background: { imageUrl: tmpPath } },
+          },
+        ]).expect(200);
+
+        expect(body.layout[0].presentation.background.imageUrl).toContain(
+          `tenants/${TENANT_LAYOUT}/hotsite/section-background/019f420c-0000-7000-8000-000000000002/bg.jpg`,
+        );
+      });
     });
 
     it('returns 400 when the branding logoUrl has not been uploaded, then 200 after upload', async () => {

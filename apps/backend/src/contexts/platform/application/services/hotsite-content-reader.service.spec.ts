@@ -62,6 +62,29 @@ describe('HotsiteContentReader', () => {
     );
   });
 
+  it('keeps a module presentation and resolves its section background image (TD56)', async () => {
+    const backgroundPath = 'tenants/tenant-a/hotsite/section-background/u1/bg.jpg';
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent(undefined, [
+      {
+        type: 'ABOUT',
+        enabled: true,
+        data: { title: 'Sobre', body: 'Texto', imagePosition: 'left' },
+        presentation: {
+          surface: 'primary',
+          background: { imageUrl: backgroundPath, position: 'left' },
+        },
+      },
+    ]);
+    await repo.save(config);
+
+    const result = await reader.readResolved(TENANT_A);
+
+    expect(result.layout[0].presentation).toEqual({
+      surface: 'primary',
+      background: { imageUrl: storageService.getPublicUrl(backgroundPath), position: 'left' },
+    });
+  });
+
   it('tenant isolation: does not return another tenant hotsite config', async () => {
     const configB = new HotsiteConfigBuilder().withTenantId(TENANT_B).buildPublished();
     await repo.save(configB);

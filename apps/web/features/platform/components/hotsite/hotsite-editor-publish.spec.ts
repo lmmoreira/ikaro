@@ -60,6 +60,41 @@ describe('executeHotsitePublish', () => {
     expect(onLeadFormPublished).toHaveBeenCalledOnce();
   });
 
+  // TD56-S01 — the PATCH body is rebuilt from the draft layout; a module's presentation (a sibling
+  // of data) must ride along, or every save through the editor would silently erase it.
+  it('sends a module presentation unchanged on the consolidated mutation', async () => {
+    const presentation = { surface: 'custom', customColor: '#0B0908', minHeight: 'lg' };
+    const withPresentation = {
+      ...content,
+      layout: [
+        {
+          type: 'ABOUT',
+          enabled: true,
+          data: { title: 'T', body: 'B', imagePosition: 'left' },
+          presentation,
+        },
+      ],
+    } as unknown as HotsiteAdminContentResponse;
+    const updateConfig = { mutateAsync: vi.fn().mockResolvedValue({ ...withPresentation }) };
+
+    await executeHotsitePublish({
+      content: withPresentation,
+      leadFormConfig: null,
+      tenantId: 'tenant-1',
+      locale: 'pt-BR',
+      updateConfig,
+      publishHotsite: { mutateAsync: vi.fn().mockResolvedValue({}) },
+      setDraft: vi.fn(),
+      onSettled: vi.fn(),
+      onBanner: vi.fn(),
+      onLeadFormPublished: vi.fn(),
+    });
+
+    expect(updateConfig.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: [expect.objectContaining({ presentation })] }),
+    );
+  });
+
   it('omits audienceMode/questions entirely when publishing a non-LEAD_FORM edit', async () => {
     const updateConfig = { mutateAsync: vi.fn().mockResolvedValue({ ...content }) };
     const publishHotsite = { mutateAsync: vi.fn().mockResolvedValue({}) };

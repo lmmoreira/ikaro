@@ -1,4 +1,4 @@
-import type { HotsiteBrandingResponse } from '@ikaro/types';
+import type { HotsiteBrandingResponse, HotsiteSectionSurface } from '@ikaro/types';
 import type React from 'react';
 
 import { FONT_MAP } from './font-config';
@@ -88,6 +88,67 @@ function deriveHeroTextColor(branding: HotsiteBrandingResponse): string {
   return contrastRatio(heroBg, backgroundColor) >= contrastRatio(heroBg, textColor)
     ? backgroundColor
     : textColor;
+}
+
+// WCAG AA for normal-size text.
+const MIN_TEXT_CONTRAST = 4.5;
+
+function channelToHex(channel: number): string {
+  return Math.round(channel).toString(16).padStart(2, '0');
+}
+
+// Linear blend in sRGB: `amount` of `towards` over `base` — deterministic hex, no color-mix().
+function mixHex(base: string, towards: string, amount: number): string {
+  const [br, bg, bb] = hexToRgb(base);
+  const [tr, tg, tb] = hexToRgb(towards);
+  const mix = (from: number, to: number): string => channelToHex(from + (to - from) * amount);
+  return `#${mix(br, tr)}${mix(bg, tg)}${mix(bb, tb)}`.toUpperCase();
+}
+
+// The better-contrasting of the candidates against `surfaceColor`; if none reaches AA, plain black
+// or white, whichever is better — max(contrast vs black, contrast vs white) is always >= 4.58, so
+// the result always meets AA.
+function pickReadableColor(surfaceColor: string, candidates: readonly string[]): string {
+  const best = [...candidates].sort(
+    (a, b) => contrastRatio(surfaceColor, b) - contrastRatio(surfaceColor, a),
+  )[0];
+  if (contrastRatio(surfaceColor, best) >= MIN_TEXT_CONTRAST) return best;
+  return contrastRatio(surfaceColor, '#000000') >= contrastRatio(surfaceColor, '#FFFFFF')
+    ? '#000000'
+    : '#FFFFFF';
+}
+
+export type SectionTokens = Record<
+  '--ba-section-bg' | '--ba-section-text' | '--ba-section-card-bg' | '--ba-section-divider',
+  string
+>;
+
+// Scoped tokens for one section whose `presentation.surface` is set (TD56). The caller puts them on
+// the section element itself — never on the page root — so they cannot leak into a sibling section
+// and the global --ba-* tokens applyBranding() emits stay exactly as they were. A surface colour is
+// always known (a branding colour, or the module's own `customColor`), so text, card and divider
+// are derived from it and always meet AA (text >= 4.5:1 on the surface, and on the card);
+// nothing is rejected. Text over a photo cannot be measured and is handled by the renderer's scrim.
+export function deriveSectionTokens(
+  branding: HotsiteBrandingResponse,
+  surface: HotsiteSectionSurface,
+  customColor?: string,
+): SectionTokens {
+  const bg = {
+    background: branding.backgroundColor,
+    secondary: branding.secondaryColor,
+    primary: branding.primaryColor,
+    custom: customColor ?? branding.backgroundColor,
+  }[surface];
+  const text = pickReadableColor(bg, [branding.backgroundColor, branding.textColor]);
+  const tintedCard = mixHex(bg, text, 0.08);
+  return {
+    '--ba-section-bg': bg,
+    '--ba-section-text': text,
+    // The tint is only used while text still reads on it; otherwise the card keeps the surface.
+    '--ba-section-card-bg': contrastRatio(tintedCard, text) >= MIN_TEXT_CONTRAST ? tintedCard : bg,
+    '--ba-section-divider': mixHex(bg, text, 0.25),
+  };
 }
 
 // CSS value for the divider rendered between sections.

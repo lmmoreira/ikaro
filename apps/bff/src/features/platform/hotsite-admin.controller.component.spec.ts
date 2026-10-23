@@ -170,6 +170,62 @@ describe('HotsiteAdminController (component)', () => {
       expect(res.status).toBe(409);
     });
 
+    // TD56-S01 — the layout schema is now a per-module discriminated union; `presentation` is a
+    // sibling of `data`, and a Zod object strips unknown keys, so this proves it survives the BFF.
+    it('PATCH /v1/tenants/hotsite → 200, forwards a NAVIGATION entry and a module presentation unchanged', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce(contentResponse);
+      const body = {
+        layout: [
+          {
+            type: 'NAVIGATION',
+            enabled: true,
+            data: { items: [{ label: 'Sobre', target: 'about' }] },
+          },
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: { title: 'T', body: 'B', imagePosition: 'left' },
+            presentation: {
+              surface: 'custom',
+              customColor: '#0B0908',
+              overlay: { type: 'solid', color: '#000000', opacity: 0.5 },
+            },
+          },
+        ],
+      };
+
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/hotsite')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send(body);
+
+      expect(res.status).toBe(200);
+      expect(backendHttpService.patch).toHaveBeenCalledWith('/tenants/hotsite', body);
+    });
+
+    it('PATCH /v1/tenants/hotsite → 400 with a field-level violation for a malformed module', async () => {
+      setupActiveGuardMock(httpService);
+      const res = await request(app.getHttpServer())
+        .patch('/v1/tenants/hotsite')
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({
+          layout: [
+            {
+              type: 'GALLERY',
+              enabled: true,
+              data: { images: [], layout: 'zzz', maxVisible: 6 },
+            },
+          ],
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.violations).toEqual([
+        expect.objectContaining({ field: 'layout.0.data.layout', code: 'GENERIC_VALUE_INVALID' }),
+      ]);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
     // M20-S08 — audienceMode/questions write LeadFormConfig via this same consolidated endpoint
     // (previously a separate PATCH /v1/tenants/lead-form/config; see
     // lead-form.controller.component.spec.ts's own note on why that coverage moved here).
@@ -177,7 +233,13 @@ describe('HotsiteAdminController (component)', () => {
       setupActiveGuardMock(httpService);
       backendHttpService.patch.mockResolvedValueOnce(contentResponse);
       const body = {
-        layout: [{ type: 'LEAD_FORM', enabled: true, data: { title: 'Fale com a gente' } }],
+        layout: [
+          {
+            type: 'LEAD_FORM',
+            enabled: true,
+            data: { title: 'Fale com a gente', ctaLabel: 'Enviar' },
+          },
+        ],
         audienceMode: 'CUSTOMER_ONLY',
         questions: [
           {

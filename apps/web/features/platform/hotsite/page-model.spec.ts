@@ -3,6 +3,7 @@ import type { HotsiteManifestResponse, HotsiteModuleResponse } from '@ikaro/type
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
+  resolveHotsiteNavigation,
   shouldSkipDivider,
 } from './page-model';
 
@@ -250,5 +251,189 @@ describe('shouldSkipDivider', () => {
   it('renders the divider around a LEAD_FORM module like any ordinary module', () => {
     expect(shouldSkipDivider(2, 'LEAD_FORM', 'ABOUT')).toBe(false);
     expect(shouldSkipDivider(3, 'CONTACT', 'LEAD_FORM')).toBe(false);
+  });
+});
+
+describe('TD56 modules in the render plan', () => {
+  const heroData = {
+    variant: 'centered' as const,
+    title: 'Hero',
+    ctaLabel: 'Agendar',
+    ctaTarget: 'booking-form' as const,
+  };
+  const aboutData = { title: 'Sobre', body: 'Texto', imagePosition: 'left' as const };
+  const galleryData = { images: [], layout: 'grid' as const, maxVisible: 6 };
+  const contentBlockData = { variant: 'image-statement' as const, title: 'Nossa história' };
+  const navigation = (
+    targets: ('service-list' | 'gallery' | 'testimonials' | 'about' | 'contact')[],
+    enabled = true,
+  ): HotsiteModuleResponse =>
+    makeLayoutItem({
+      type: 'NAVIGATION',
+      enabled,
+      data: { items: targets.map((target) => ({ label: target, target })) },
+    });
+
+  describe('buildHotsiteModuleRenderPlan', () => {
+    it('never turns NAVIGATION into a section plan item', () => {
+      const plan = buildHotsiteModuleRenderPlan(
+        [navigation(['about']), makeLayoutItem({ type: 'HERO', data: heroData })],
+        false,
+      );
+
+      expect(plan.map((item) => item.parsed.type)).toEqual(['HERO']);
+    });
+
+    it('leaves alternation and the first-section divider rule untouched by a NAVIGATION above it', () => {
+      const withNav = buildHotsiteModuleRenderPlan(
+        [
+          navigation([]),
+          makeLayoutItem({ type: 'HERO', data: heroData }),
+          makeLayoutItem({ type: 'ABOUT', data: aboutData }),
+          makeLayoutItem({ type: 'GALLERY', data: galleryData }),
+        ],
+        true,
+      );
+      const withoutNav = buildHotsiteModuleRenderPlan(
+        [
+          makeLayoutItem({ type: 'HERO', data: heroData }),
+          makeLayoutItem({ type: 'ABOUT', data: aboutData }),
+          makeLayoutItem({ type: 'GALLERY', data: galleryData }),
+        ],
+        true,
+      );
+
+      expect(withNav).toEqual(withoutNav);
+    });
+
+    it('alternates a CONTENT_BLOCK like ABOUT/TESTIMONIALS', () => {
+      const plan = buildHotsiteModuleRenderPlan(
+        [
+          makeLayoutItem({ type: 'HERO', data: heroData }),
+          makeLayoutItem({ type: 'CONTENT_BLOCK', data: contentBlockData }),
+          makeLayoutItem({ type: 'ABOUT', data: aboutData }),
+        ],
+        true,
+      );
+
+      expect(plan.map((item) => item.bgVariant)).toEqual(['default', 'alt', 'default']);
+    });
+
+    it('drops a CONTENT_BLOCK whose data does not parse', () => {
+      const plan = buildHotsiteModuleRenderPlan(
+        [makeLayoutItem({ type: 'CONTENT_BLOCK', data: { variant: 'banner', title: 'T' } })],
+        false,
+      );
+
+      expect(plan).toEqual([]);
+    });
+
+    it('carries a valid presentation to the plan item', () => {
+      const presentation = { surface: 'primary' as const, contentWidth: 'wide' as const };
+
+      const [item] = buildHotsiteModuleRenderPlan(
+        [makeLayoutItem({ type: 'ABOUT', data: aboutData, presentation })],
+        false,
+      );
+
+      expect(item.presentation).toEqual(presentation);
+    });
+
+    it('gives no presentation key to a module that has none', () => {
+      const [item] = buildHotsiteModuleRenderPlan(
+        [makeLayoutItem({ type: 'ABOUT', data: aboutData })],
+        false,
+      );
+
+      expect('presentation' in item).toBe(false);
+    });
+
+    // Negative guarantee: a cosmetic field must never blank a section the way malformed data does.
+    it('ignores an invalid presentation but still renders the module', () => {
+      const plan = buildHotsiteModuleRenderPlan(
+        [
+          makeLayoutItem({
+            type: 'ABOUT',
+            data: aboutData,
+            presentation: { surface: 'custom' },
+          }),
+        ],
+        false,
+      );
+
+      expect(plan).toHaveLength(1);
+      expect(plan[0].parsed.type).toBe('ABOUT');
+      expect(plan[0].presentation).toBeUndefined();
+    });
+  });
+
+  describe('resolveHotsiteNavigation', () => {
+    const sections = [
+      makeLayoutItem({ type: 'HERO', data: heroData }),
+      makeLayoutItem({ type: 'ABOUT', data: aboutData }),
+      makeLayoutItem({ type: 'GALLERY', data: galleryData }),
+    ];
+
+    it('returns the items whose target section is in the render plan, in order', () => {
+      const layout = [navigation(['gallery', 'about']), ...sections];
+
+      expect(resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false))).toEqual(
+        [
+          { label: 'gallery', target: 'gallery' },
+          { label: 'about', target: 'about' },
+        ],
+      );
+    });
+
+    it('drops an item whose target module is disabled or absent', () => {
+      const layout = [
+        navigation(['about', 'contact', 'testimonials']),
+        makeLayoutItem({ type: 'ABOUT', data: aboutData, enabled: false }),
+        makeLayoutItem({ type: 'HERO', data: heroData }),
+      ];
+
+      expect(resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false))).toEqual(
+        [],
+      );
+    });
+
+    it('drops an item whose target module data is malformed (it never made the plan)', () => {
+      const layout = [
+        navigation(['about', 'gallery']),
+        makeLayoutItem({ type: 'ABOUT', data: { title: 'only a title' } }),
+        makeLayoutItem({ type: 'GALLERY', data: galleryData }),
+      ];
+
+      expect(
+        resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false)).map(
+          (item) => item.target,
+        ),
+      ).toEqual(['gallery']);
+    });
+
+    it('returns nothing when NAVIGATION is absent', () => {
+      expect(
+        resolveHotsiteNavigation(sections, buildHotsiteModuleRenderPlan(sections, false)),
+      ).toEqual([]);
+    });
+
+    it('returns nothing when NAVIGATION is disabled', () => {
+      const layout = [navigation(['about'], false), ...sections];
+
+      expect(resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false))).toEqual(
+        [],
+      );
+    });
+
+    it('returns nothing when NAVIGATION data is malformed', () => {
+      const layout = [
+        makeLayoutItem({ type: 'NAVIGATION', data: { items: [{ label: '', target: 'about' }] } }),
+        ...sections,
+      ];
+
+      expect(resolveHotsiteNavigation(layout, buildHotsiteModuleRenderPlan(layout, false))).toEqual(
+        [],
+      );
+    });
   });
 });

@@ -3,6 +3,7 @@ import {
   HotsiteBranding,
   HotsiteModule,
   HotsiteModuleData,
+  HotsiteModulePresentation,
   HotsiteSeo,
   Testimonial,
 } from '../hotsite-config.aggregate';
@@ -53,8 +54,38 @@ export class HotsiteImageUrlResolver {
     if (module.type === 'GALLERY') {
       resolved.images = this.resolveGalleryImageUrls(data, resolveUrl);
     }
+    if (module.type === 'CONTENT_BLOCK' && data.variant === 'collage-callout') {
+      resolved.images = this.resolveContentBlockImageUrls(data, resolveUrl);
+    }
 
-    return { ...module, data: resolved as HotsiteModuleData };
+    const presentation = this.resolvePresentation(module.presentation, resolveUrl);
+    return {
+      ...module,
+      data: resolved as HotsiteModuleData,
+      ...(presentation === undefined ? {} : { presentation }),
+    };
+  }
+
+  private resolvePresentation(
+    presentation: HotsiteModulePresentation | undefined,
+    resolveUrl: ResolveImageUrl,
+  ): HotsiteModulePresentation | undefined {
+    if (presentation?.background === undefined) return presentation;
+    return {
+      ...presentation,
+      background: {
+        ...presentation.background,
+        imageUrl: this.resolveIfPath(presentation.background.imageUrl, resolveUrl),
+      },
+    };
+  }
+
+  private resolveContentBlockImageUrls(
+    data: Record<string, unknown>,
+    resolveUrl: ResolveImageUrl,
+  ): { url: string; alt?: string }[] {
+    const images = (data.images as { url: string; alt?: string }[] | undefined) ?? [];
+    return images.map((image) => ({ ...image, url: this.resolveIfPath(image.url, resolveUrl) }));
   }
 
   private resolveTestimonialAvatars(
@@ -76,7 +107,10 @@ export class HotsiteImageUrlResolver {
     return images.map((image) => ({ ...image, url: resolveUrl(image.url) }));
   }
 
-  private resolveIfPath<T extends string | undefined>(value: T, resolveUrl: ResolveImageUrl): T {
+  private resolveIfPath<T extends string | null | undefined>(
+    value: T,
+    resolveUrl: ResolveImageUrl,
+  ): T {
     if (typeof value === 'string' && value.length > 0) {
       return resolveUrl(value) as T;
     }

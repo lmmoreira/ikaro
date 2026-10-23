@@ -82,9 +82,33 @@ Content-Type: application/json
 
 {
   "layout": [
-    { "type": "HERO", "enabled": true, "data": { "variant": "centered", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking" } },
+    { "type": "HERO", "enabled": true, "data": { "variant": "centered", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking-form" } },
     { "type": "SERVICE_LIST", "enabled": true, "data": { "showPrices": true, "showPoints": true, "layout": "grid" } },
     { "type": "GALLERY", "enabled": false, "data": { "images": [], "layout": "grid", "maxVisible": 6 } }
+  ]
+}
+
+###
+
+### Layout update — NAVIGATION first, an immersive hero with an overlay, a numbered service list and a custom-surface About (TD56)
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "NAVIGATION", "enabled": true, "data": { "items": [
+      { "label": "Serviços", "target": "service-list" },
+      { "label": "Sobre", "target": "about" }
+    ] } },
+    { "type": "HERO", "enabled": true, "data": { "variant": "immersive", "title": "Bem-vindo", "ctaLabel": "Agendar agora", "ctaTarget": "booking-form" },
+      "presentation": { "minHeight": "viewport", "overlay": { "type": "linear-gradient", "direction": "to-top", "fromColor": "#090909", "fromOpacity": 0.88, "toColor": "#090909", "toOpacity": 0 } } },
+    { "type": "SERVICE_LIST", "enabled": true, "data": { "showPrices": true, "showPoints": true, "layout": "numbered", "itemAction": "booking" } },
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Sobre nós", "body": "Texto", "imagePosition": "left", "variant": "editorial" },
+      "presentation": { "surface": "custom", "customColor": "#0B0908", "contentWidth": "narrow", "padding": "spacious" } }
   ]
 }
 
@@ -205,7 +229,7 @@ Content-Type: application/json
 
 ###
 
-### 400 — Unknown layout module type
+### 400 — Unknown layout module type (GENERIC_VALUE_INVALID on `type`)
 PATCH {{baseUrl}}/tenants/hotsite
 X-Tenant-ID: {{tenantId}}
 X-Actor-ID: {{managerId}}
@@ -217,6 +241,136 @@ Content-Type: application/json
   "layout": [
     { "type": "UNKNOWN_MODULE", "enabled": true, "data": {} }
   ]
+}
+
+###
+
+### 400 GENERIC_VALUE_INVALID on layout.0.data.layout — a known module with a value outside its enum (TD56: every module's data is validated)
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "GALLERY", "enabled": true, "data": { "images": [], "layout": "zzz", "maxVisible": 6 } }
+  ]
+}
+
+###
+
+### 400 PLATFORM_HOTSITE_NAVIGATION_NOT_FIRST — NAVIGATION must be the first layout entry
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Sobre", "body": "Texto", "imagePosition": "left" } },
+    { "type": "NAVIGATION", "enabled": true, "data": { "items": [] } }
+  ]
+}
+
+###
+
+### 400 PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED — a navigation item points at a disabled/absent module
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "NAVIGATION", "enabled": true, "data": { "items": [ { "label": "Galeria", "target": "gallery" } ] } },
+    { "type": "GALLERY", "enabled": false, "data": { "images": [], "layout": "grid", "maxVisible": 6 } }
+  ]
+}
+
+###
+
+### 400 PLATFORM_HOTSITE_MODULE_DUPLICATE — the same module type twice
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Sobre", "body": "Texto", "imagePosition": "left" } },
+    { "type": "ABOUT", "enabled": false, "data": { "title": "Sobre 2", "body": "Texto", "imagePosition": "right" } }
+  ]
+}
+
+###
+
+### 400 PLATFORM_HOTSITE_PRESENTATION_NOT_ALLOWED — presentation on FOOTER (also NAVIGATION, CHATBOT)
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "FOOTER", "enabled": true, "data": {}, "presentation": { "surface": "primary" } }
+  ]
+}
+
+###
+
+### 400 PLATFORM_HOTSITE_PRESENTATION_BACKGROUND_NOT_ALLOWED — presentation.background on HERO (also BOOKING_CTA, LEAD_FORM; they keep data.backgroundImageUrl)
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "HERO", "enabled": true, "data": { "variant": "centered", "title": "T", "ctaLabel": "Go", "ctaTarget": "booking-form" },
+      "presentation": { "background": { "imageUrl": "tenants/{{tenantId}}/hotsite/section-background/019f420c-0000-0000-0000-000000000000/bg.jpg" } } }
+  ]
+}
+
+###
+
+### 400 GENERIC_VALUE_INVALID — custom surface without customColor
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "layout": [
+    { "type": "ABOUT", "enabled": true, "data": { "title": "Sobre", "body": "Texto", "imagePosition": "left" }, "presentation": { "surface": "custom" } }
+  ]
+}
+
+###
+
+### 400 GENERIC_VALUE_INVALID — a font outside the registry
+PATCH {{baseUrl}}/tenants/hotsite
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "branding": { "headingFontFamily": "Comic Sans" }
 }
 
 ###

@@ -64,6 +64,106 @@ describe('HotsiteImagePromotionService', () => {
       ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
     });
 
+    describe('nested image slots (TD56)', () => {
+      const aboutWith = (presentation: object): HotsiteModule[] => [
+        {
+          type: 'ABOUT',
+          enabled: true,
+          data: { title: 'T', body: 'B', imagePosition: 'left' },
+          presentation,
+        } as HotsiteModule,
+      ];
+      const collage = (urls: string[]): HotsiteModule[] => [
+        {
+          type: 'CONTENT_BLOCK',
+          enabled: true,
+          data: {
+            variant: 'collage-callout',
+            title: 'T',
+            images: urls.map((url) => ({ url })),
+          },
+        },
+      ];
+
+      it('promotes presentation.background.imageUrl and collage-callout images from tmp/', async () => {
+        const background = `tmp/${TENANT_A}/section-background/u1/bg.jpg`;
+        const collageImage = `tmp/${TENANT_A}/content-block/u2/a.jpg`;
+        storageService.markAsUploaded(background);
+        storageService.markAsUploaded(collageImage);
+        const existing = `tenants/${TENANT_A}/hotsite/content-block/u3/b.jpg`;
+        storageService.markAsUploaded(existing);
+
+        const result = await service.prepareImagePromotion(
+          DEFAULT_HOTSITE_BRANDING,
+          [
+            ...aboutWith({ background: { imageUrl: background } }),
+            ...collage([collageImage, existing]),
+          ],
+          DEFAULT_HOTSITE_SEO,
+          TENANT_A,
+        );
+
+        expect(result.promotions).toEqual([
+          { from: background, to: `tenants/${TENANT_A}/hotsite/section-background/u1/bg.jpg` },
+          { from: collageImage, to: `tenants/${TENANT_A}/hotsite/content-block/u2/a.jpg` },
+        ]);
+      });
+
+      it("rejects another tenant's tmp/ path in presentation.background.imageUrl", async () => {
+        const foreign = `tmp/${TENANT_B}/section-background/u1/bg.jpg`;
+        storageService.markAsUploaded(foreign);
+
+        await expect(
+          service.prepareImagePromotion(
+            DEFAULT_HOTSITE_BRANDING,
+            aboutWith({ background: { imageUrl: foreign } }),
+            DEFAULT_HOTSITE_SEO,
+            TENANT_A,
+          ),
+        ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+      });
+
+      it("rejects another tenant's tmp/ path in a collage-callout image", async () => {
+        const foreign = `tmp/${TENANT_B}/content-block/u1/a.jpg`;
+        storageService.markAsUploaded(foreign);
+
+        await expect(
+          service.prepareImagePromotion(
+            DEFAULT_HOTSITE_BRANDING,
+            collage([foreign, `tenants/${TENANT_A}/hotsite/content-block/u2/b.jpg`]),
+            DEFAULT_HOTSITE_SEO,
+            TENANT_A,
+          ),
+        ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+      });
+
+      it('rejects a shared templates/ path until the catalogue exists (Story 4 owns that)', async () => {
+        await expect(
+          service.prepareImagePromotion(
+            DEFAULT_HOTSITE_BRANDING,
+            aboutWith({ background: { imageUrl: 'templates/casa47/v1/hero.jpg' } }),
+            DEFAULT_HOTSITE_SEO,
+            TENANT_A,
+          ),
+        ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+      });
+
+      it('deletes a superseded permanent presentation background but never a path outside the tenant', () => {
+        const mine = `tenants/${TENANT_A}/hotsite/section-background/u1/old.jpg`;
+        const shared = 'templates/casa47/v1/hero.jpg';
+
+        const deletions = service.computeDeletions(
+          [mine, shared],
+          DEFAULT_HOTSITE_BRANDING,
+          aboutWith({ background: { imageUrl: null } }),
+          DEFAULT_HOTSITE_SEO,
+          TENANT_A,
+        );
+
+        expect(deletions).toEqual([mine]);
+      });
+    });
+
     it('rejects a tmp/ path for an object that was never actually uploaded', async () => {
       const branding = {
         ...DEFAULT_HOTSITE_BRANDING,

@@ -129,7 +129,7 @@ describe('UpdateHotsiteContentUseCase', () => {
       {
         type: 'SERVICE_LIST' as const,
         enabled: true,
-        data: { showPrices: true, showPoints: true, layout: 'grid' },
+        data: { showPrices: true, showPoints: true, layout: 'grid' as const },
       },
     ];
 
@@ -158,11 +158,104 @@ describe('UpdateHotsiteContentUseCase', () => {
     ).rejects.toBeInstanceOf(PlatformDomainError);
   });
 
+  // toDomainLayout() rebuilds every module field by field; omitting presentation there would drop it
+  // silently on every save even with every schema updated.
+  it('carries a module presentation and a NAVIGATION entry through to the stored and returned layout', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+    const newLayout = [
+      {
+        type: 'NAVIGATION' as const,
+        enabled: true,
+        data: { items: [{ label: 'Sobre', target: 'about' as const }] },
+      },
+      {
+        type: 'ABOUT' as const,
+        enabled: true,
+        data: { title: 'T', body: 'B', imagePosition: 'left' as const },
+        presentation: {
+          surface: 'custom' as const,
+          customColor: '#0B0908',
+          overlay: { type: 'solid' as const, color: '#000000', opacity: 0.5 },
+        },
+      },
+    ];
+
+    const result = await useCase.execute({ tenantId: TENANT_A, layout: newLayout });
+
+    expect(result.layout).toEqual(newLayout);
+    const stored = await repo.findByTenantId(TENANT_A);
+    expect(stored!.layout[1].presentation).toEqual(newLayout[1].presentation);
+  });
+
+  it('leaves a module saved without presentation without a presentation key', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+
+    await useCase.execute({
+      tenantId: TENANT_A,
+      layout: [
+        { type: 'ABOUT', enabled: true, data: { title: 'T', body: 'B', imagePosition: 'left' } },
+      ],
+    });
+
+    const stored = await repo.findByTenantId(TENANT_A);
+    expect('presentation' in stored!.layout[0]).toBe(false);
+  });
+
+  it('rejects a layout that violates a cross-field rule and persists nothing', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+    const before = (await repo.findByTenantId(TENANT_A))!.layout;
+
+    await expect(
+      useCase.execute({
+        tenantId: TENANT_A,
+        layout: [
+          {
+            type: 'FOOTER',
+            enabled: true,
+            data: {},
+            presentation: { surface: 'primary' },
+          },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(PlatformDomainError);
+    expect((await repo.findByTenantId(TENANT_A))!.layout).toEqual(before);
+  });
+
+  it('promotes a nested presentation.background tmp/ upload to its permanent path', async () => {
+    const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+    await repo.save(config);
+    const tmpPath = `tmp/${TENANT_A}/section-background/u1/bg.jpg`;
+    storageService.markAsUploaded(tmpPath);
+
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      layout: [
+        {
+          type: 'ABOUT',
+          enabled: true,
+          data: { title: 'T', body: 'B', imagePosition: 'left' },
+          presentation: { background: { imageUrl: tmpPath } },
+        },
+      ],
+    });
+
+    const stored = await repo.findByTenantId(TENANT_A);
+    expect(stored!.layout[0].presentation?.background?.imageUrl).toBe(
+      `tenants/${TENANT_A}/hotsite/section-background/u1/bg.jpg`,
+    );
+    expect(result.layout[0].presentation?.background?.imageUrl).toContain(
+      `tenants/${TENANT_A}/hotsite/section-background/u1/bg.jpg`,
+    );
+  });
+
   it('throws PlatformDomainError when the layout has an unknown module type', async () => {
     const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
     await repo.save(config);
 
-    const layout = [{ type: 'UNKNOWN' as unknown as 'HERO', enabled: true, data: {} }];
+    const layout = [{ type: 'UNKNOWN', enabled: true, data: {} }] as never;
 
     await expect(useCase.execute({ tenantId: TENANT_A, layout })).rejects.toBeInstanceOf(
       PlatformDomainError,
@@ -271,13 +364,19 @@ describe('UpdateHotsiteContentUseCase', () => {
 
       const result = await useCase.execute({
         tenantId: TENANT_A,
-        layout: [{ type: 'LEAD_FORM', enabled: true, data: { title: 'Fale com a gente' } }],
+        layout: [
+          {
+            type: 'LEAD_FORM',
+            enabled: true,
+            data: { title: 'Fale com a gente', ctaLabel: 'Enviar' },
+          },
+        ],
         audienceMode: 'CUSTOMER_ONLY',
         questions: makeLeadFormQuestions(1),
       });
 
       const leadFormModule = result.layout.find((m) => m.type === 'LEAD_FORM');
-      expect(leadFormModule!.data).toEqual({ title: 'Fale com a gente' });
+      expect(leadFormModule!.data).toEqual({ title: 'Fale com a gente', ctaLabel: 'Enviar' });
     });
   });
 

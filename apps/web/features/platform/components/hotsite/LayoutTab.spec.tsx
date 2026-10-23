@@ -25,6 +25,35 @@ describe('reorderLayout', () => {
     expect(result.map((m) => m.type)).toEqual(['HERO', 'SERVICE_LIST', 'GALLERY']);
   });
 
+  describe('NAVIGATION is pinned first (TD56)', () => {
+    const WITH_NAVIGATION: HotsiteModuleResponse[] = [
+      { type: 'NAVIGATION', enabled: true, data: { items: [] } },
+      ...LAYOUT,
+    ];
+    const order = (layout: HotsiteModuleResponse[]): string[] => layout.map((m) => m.type);
+
+    it('refuses to drag NAVIGATION anywhere', () => {
+      expect(order(reorderLayout(WITH_NAVIGATION, 'NAVIGATION', 'GALLERY'))).toEqual(
+        order(WITH_NAVIGATION),
+      );
+    });
+
+    it('refuses to drop another module on NAVIGATION, which would place it above', () => {
+      expect(order(reorderLayout(WITH_NAVIGATION, 'GALLERY', 'NAVIGATION'))).toEqual(
+        order(WITH_NAVIGATION),
+      );
+    });
+
+    it('still reorders the other modules below it', () => {
+      expect(order(reorderLayout(WITH_NAVIGATION, 'GALLERY', 'HERO'))).toEqual([
+        'NAVIGATION',
+        'GALLERY',
+        'HERO',
+        'SERVICE_LIST',
+      ]);
+    });
+  });
+
   it('is a no-op if either type is not found', () => {
     const result = reorderLayout(LAYOUT, 'HERO', 'FOOTER');
 
@@ -82,5 +111,33 @@ describe('LayoutTab', () => {
     await user.click(configureButton);
 
     expect(onConfigure).toHaveBeenCalledWith('GALLERY');
+  });
+});
+
+describe('LayoutTab — pinned NAVIGATION row (TD56)', () => {
+  it('renders no drag handle for NAVIGATION while every other row keeps one', () => {
+    const layout: HotsiteModuleResponse[] = [
+      { type: 'NAVIGATION', enabled: true, data: { items: [] } },
+      { type: 'HERO', enabled: true, data: {} },
+    ];
+
+    renderWithIntl(<LayoutTab layout={layout} onChange={vi.fn()} onConfigure={vi.fn()} />);
+
+    const handles = screen.getAllByTestId('layout-row-drag');
+    expect(handles).toHaveLength(1);
+    expect(handles[0]).toHaveAttribute('data-module-type', 'HERO');
+    expect(screen.getByTestId('layout-row-pinned')).toBeInTheDocument();
+  });
+
+  it('labels the NAVIGATION and CONTENT_BLOCK rows in the active locale', () => {
+    const layout: HotsiteModuleResponse[] = [
+      { type: 'NAVIGATION', enabled: true, data: { items: [] } },
+      { type: 'CONTENT_BLOCK', enabled: false, data: { variant: 'image-statement', title: 'T' } },
+    ];
+
+    renderWithIntl(<LayoutTab layout={layout} onChange={vi.fn()} onConfigure={vi.fn()} />);
+
+    expect(screen.getByText('Navegação')).toBeInTheDocument();
+    expect(screen.getByText('Bloco de conteúdo')).toBeInTheDocument();
   });
 });
