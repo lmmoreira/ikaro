@@ -346,7 +346,7 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 3 — Add rich service profiles and branded public service-detail pages
+### Story 3 — Add rich service profiles and branded public service-detail pages ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** L
