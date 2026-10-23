@@ -20,16 +20,227 @@
     "dividerStyle": "solid"
   },
   "layout": [
-    { "type": "HERO", "enabled": true, "data": { "variant": "left-aligned", "title": "Cuidado que começa pela escuta.", "subtitle": "Atendimento próximo, informação clara e uma jornada tranquila para você.", "eyebrow": "SAÚDE COM ATENÇÃO INDIVIDUAL", "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/hero.png", "backgroundImagePosition": "center", "contentPositionY": "center", "ctaLabel": "Conhecer especialidades", "ctaTarget": "service-list", "secondaryCtaLabel": "Agendar consulta", "secondaryCtaTarget": "booking-form", "rightPanel": "none" } },
-    { "type": "SERVICE_LIST", "enabled": true, "data": { "title": "Como podemos ajudar", "eyebrow": "ESPECIALIDADES", "showPrices": false, "showPoints": false, "layout": "grid" } },
-    { "type": "TESTIMONIALS", "enabled": true, "data": { "title": "Histórias de cuidado", "eyebrow": "EXPERIÊNCIAS REAIS", "layout": "carousel", "items": [{ "authorName": "Marina A.", "text": "Fui ouvida desde o primeiro momento. Atendimento muito cuidadoso.", "rating": 5 }, { "authorName": "Joana P.", "text": "Equipe pontual, clara e acolhedora.", "rating": 5 }] } },
-    { "type": "BOOKING_CTA", "enabled": true, "data": { "variant": "centered", "title": "Seu próximo cuidado começa aqui.", "subtitle": "O fluxo começa pela especialidade e apresenta as demais escolhas quando forem necessárias.", "eyebrow": "AGENDE COM TRANQUILIDADE", "ctaLabel": "Escolher serviço", "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/booking.png", "backgroundImagePosition": "center", "datePickerType": "calendar", "bgStyle": "background", "rightPanel": "none", "contentPositionX": "left", "contentPositionY": "center" } },
-    { "type": "ABOUT", "enabled": true, "data": { "title": "Ciência e acolhimento.", "eyebrow": "A CLÍNICA", "body": "Uma equipe preparada para cuidar de cada etapa, com orientação clara e acompanhamento próximo.", "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/about.png", "imagePosition": "right" } },
-    { "type": "CONTACT", "enabled": true, "data": { "title": "Fale com a Clínica Lume", "eyebrow": "ESTAMOS AQUI", "showAddress": true, "showPhone": true, "showWhatsapp": true, "showEmail": true, "showMap": true, "showInstagram": false, "showFacebook": false, "displayStyle": "icon-cards", "whatsappCtaLabel": "Falar com a equipe" } },
-    { "type": "FOOTER", "enabled": true, "data": { "tagline": "Clínica Lume · Saúde com atenção individual", "copyrightNote": "Todos os direitos reservados.", "showWhatsapp": true } },
-    { "type": "GALLERY", "enabled": true, "data": { "title": "Um ambiente para chegar com calma", "eyebrow": "CONHEÇA O ESPAÇO", "images": [{ "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-1.png", "caption": "Recepção", "source": "upload" }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-2.png", "caption": "Consultório", "source": "upload" }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/about.png", "caption": "Equipe", "source": "upload" }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/hero.png", "caption": "Escuta", "source": "upload" }, { "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/booking.png", "caption": "Cuidado", "source": "upload" }], "layout": "featured", "featuredPosition": "left", "maxVisible": 5 } },
-    { "type": "CHATBOT", "enabled": true, "data": { "variant": "bubble", "accentColor": "primary", "botName": "Assistente Lume", "welcomeMessage": "Olá! Posso ajudar você a entender os serviços da Clínica Lume?" } },
-    { "type": "LEAD_FORM", "enabled": false, "data": { "title": "Fale com a clínica", "ctaLabel": "Enviar mensagem" } }
+    {
+      "type": "NAVIGATION",
+      "enabled": true,
+      "data": {
+        "items": [
+          {
+            "label": "Especialidades",
+            "target": "service-list"
+          },
+          {
+            "label": "Histórias",
+            "target": "testimonials"
+          },
+          {
+            "label": "Sobre",
+            "target": "about"
+          },
+          {
+            "label": "Contato",
+            "target": "contact"
+          }
+        ]
+      }
+    },
+    {
+      "type": "HERO",
+      "enabled": true,
+      "data": {
+        "variant": "left-aligned",
+        "title": "Cuidado que começa pela escuta.",
+        "subtitle": "Atendimento próximo, informação clara e uma jornada tranquila para você.",
+        "eyebrow": "SAÚDE COM ATENÇÃO INDIVIDUAL",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/hero.png",
+        "backgroundImagePosition": "center",
+        "contentPositionY": "center",
+        "ctaLabel": "Conhecer especialidades",
+        "ctaTarget": "service-list",
+        "rightPanel": "image"
+      }
+    },
+    {
+      "type": "CONTENT_BLOCK",
+      "enabled": true,
+      "data": {
+        "variant": "trust-grid",
+        "eyebrow": "COMO CUIDAMOS",
+        "title": "Um caminho claro, do primeiro contato ao acompanhamento.",
+        "items": [
+          {
+            "label": "Escuta atenta",
+            "description": "Entendemos sua necessidade antes de tudo."
+          },
+          {
+            "label": "Equipe multidisciplinar",
+            "description": "Profissionais que trabalham juntos."
+          },
+          {
+            "label": "Acompanhamento próximo",
+            "description": "Retornos combinados com você."
+          },
+          {
+            "label": "Ambiente acolhedor",
+            "description": "Espaço pensado para chegar com calma."
+          }
+        ]
+      },
+      "presentation": {
+        "surface": "secondary",
+        "contentWidth": "wide"
+      }
+    },
+    {
+      "type": "SERVICE_LIST",
+      "enabled": true,
+      "data": {
+        "title": "Como podemos ajudar",
+        "eyebrow": "ESPECIALIDADES",
+        "showPrices": false,
+        "showPoints": false,
+        "layout": "list"
+      }
+    },
+    {
+      "type": "TESTIMONIALS",
+      "enabled": true,
+      "data": {
+        "title": "Histórias de cuidado",
+        "eyebrow": "EXPERIÊNCIAS REAIS",
+        "layout": "grid",
+        "items": [
+          {
+            "authorName": "Marina A.",
+            "text": "Fui ouvida desde o primeiro momento. Atendimento muito cuidadoso.",
+            "rating": 5
+          },
+          {
+            "authorName": "Joana P.",
+            "text": "Equipe pontual, clara e acolhedora.",
+            "rating": 5
+          }
+        ]
+      }
+    },
+    {
+      "type": "ABOUT",
+      "enabled": true,
+      "data": {
+        "title": "Ciência e acolhimento.",
+        "eyebrow": "A CLÍNICA",
+        "body": "Uma equipe preparada para cuidar de cada etapa, com orientação clara e acompanhamento próximo.",
+        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/about.png",
+        "imagePosition": "right"
+      }
+    },
+    {
+      "type": "CONTACT",
+      "enabled": true,
+      "data": {
+        "title": "Fale com a Clínica Lume",
+        "eyebrow": "ESTAMOS AQUI",
+        "showAddress": true,
+        "showPhone": true,
+        "showWhatsapp": true,
+        "showEmail": true,
+        "showMap": true,
+        "showInstagram": false,
+        "showFacebook": false,
+        "displayStyle": "icon-cards",
+        "whatsappCtaLabel": "Falar com a equipe"
+      },
+      "presentation": {
+        "surface": "secondary"
+      }
+    },
+    {
+      "type": "FOOTER",
+      "enabled": true,
+      "data": {
+        "tagline": "Clínica Lume · Saúde com atenção individual",
+        "copyrightNote": "Todos os direitos reservados.",
+        "showWhatsapp": true
+      }
+    },
+    {
+      "type": "CHATBOT",
+      "enabled": true,
+      "data": {
+        "variant": "bubble",
+        "accentColor": "primary",
+        "botName": "Assistente Lume",
+        "welcomeMessage": "Olá! Posso ajudar você a entender os serviços da Clínica Lume?"
+      }
+    },
+    {
+      "type": "GALLERY",
+      "enabled": false,
+      "data": {
+        "title": "Um ambiente para chegar com calma",
+        "eyebrow": "CONHEÇA O ESPAÇO",
+        "images": [
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-1.png",
+            "caption": "Recepção",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/gallery-2.png",
+            "caption": "Consultório",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/about.png",
+            "caption": "Equipe",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/hero.png",
+            "caption": "Escuta",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/booking.png",
+            "caption": "Cuidado",
+            "source": "upload"
+          }
+        ],
+        "layout": "featured",
+        "featuredPosition": "left",
+        "maxVisible": 5
+      }
+    },
+    {
+      "type": "BOOKING_CTA",
+      "enabled": false,
+      "data": {
+        "variant": "centered",
+        "title": "Seu próximo cuidado começa aqui.",
+        "subtitle": "O fluxo começa pela especialidade e apresenta as demais escolhas quando forem necessárias.",
+        "eyebrow": "AGENDE COM TRANQUILIDADE",
+        "ctaLabel": "Escolher serviço",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/booking.png",
+        "backgroundImagePosition": "center",
+        "datePickerType": "calendar",
+        "bgStyle": "background",
+        "rightPanel": "none",
+        "contentPositionX": "left",
+        "contentPositionY": "center"
+      }
+    },
+    {
+      "type": "LEAD_FORM",
+      "enabled": false,
+      "data": {
+        "title": "Fale com a clínica",
+        "ctaLabel": "Enviar mensagem"
+      }
+    }
   ],
-  "seo": { "title": "Clínica Lume — Saúde com atenção individual", "description": "Atendimento próximo, informação clara e uma jornada tranquila para você.", "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/og.png" }
+  "seo": {
+    "title": "Clínica Lume — Saúde com atenção individual",
+    "description": "Atendimento próximo, informação clara e uma jornada tranquila para você.",
+    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/clinica-lume/og.png"
+  }
 }

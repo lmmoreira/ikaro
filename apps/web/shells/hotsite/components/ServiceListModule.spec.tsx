@@ -249,3 +249,154 @@ describe('ServiceListModule', () => {
     });
   });
 });
+
+const SECTION_TOKENS = {
+  '--ba-section-bg': '#111111',
+  '--ba-section-text': '#FFFFFF',
+  '--ba-section-card-bg': '#222222',
+  '--ba-section-divider': '#333333',
+} as const;
+
+describe('ServiceListModule layouts and presentation', () => {
+  const services = [
+    makeService({ id: '00000000-0000-0000-0000-000000000001', name: 'Lavagem Completa' }),
+    makeService({ id: '00000000-0000-0000-0000-000000000002', name: 'Polimento' }),
+  ];
+
+  it('numbered renders an ordered, zero-padded price menu with each price', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'numbered' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    const rows = screen.getAllByTestId('numbered-service');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].parentElement?.tagName).toBe('OL');
+    expect(screen.getByText('01')).toBeInTheDocument();
+    expect(screen.getByText('02')).toBeInTheDocument();
+    expect(screen.getAllByTestId('price-badge')).toHaveLength(2);
+  });
+
+  it('feature-cards renders one prominent card per service', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    expect(screen.getAllByTestId('feature-service-card')).toHaveLength(2);
+    expect(screen.getByRole('heading', { name: 'Polimento' })).toBeInTheDocument();
+  });
+
+  it.each(['numbered', 'feature-cards'] as const)(
+    '%s honours showPrices and showPoints',
+    (layout) => {
+      renderWithIntl(
+        <ServiceListModule
+          data={makeData({ layout, showPrices: false, showPoints: false })}
+          slug="tenant"
+          services={services}
+        />,
+      );
+
+      expect(screen.queryByTestId('price-badge')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('loyalty-points-badge')).not.toBeInTheDocument();
+    },
+  );
+
+  it.each(['numbered', 'feature-cards'] as const)(
+    '%s has no accessibility violations',
+    async (layout) => {
+      const { container } = renderWithIntl(
+        <ServiceListModule data={makeData({ layout })} slug="tenant" services={services} />,
+      );
+
+      expect(await axe(container)).toHaveNoViolations();
+    },
+  );
+
+  it('without presentation keeps the tenant surface; with a surface it uses the section tokens', () => {
+    const { container, rerender } = renderWithIntl(
+      <ServiceListModule data={makeData()} slug="tenant" services={services} />,
+    );
+    const plain = container.querySelector('section') as HTMLElement;
+    expect(plain.style.backgroundColor).toBe('var(--ba-background)');
+
+    rerender(
+      <ServiceListModule
+        data={makeData()}
+        slug="tenant"
+        services={services}
+        presentation={{ surface: 'primary' }}
+        sectionTokens={SECTION_TOKENS}
+      />,
+    );
+    const surfaced = container.querySelector('section') as HTMLElement;
+    expect(surfaced.style.backgroundColor).toBe('var(--ba-section-bg)');
+  });
+});
+
+describe('ServiceListModule item action', () => {
+  const services = [makeService({ id: '00000000-0000-0000-0000-0000000000aa' })];
+
+  it('has no action when itemAction is omitted or none (today’s behaviour)', () => {
+    renderWithIntl(<ServiceListModule data={makeData()} slug="tenant" services={services} />);
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'none' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+  });
+
+  it('booking links each card to the service-first booking flow with that service preselected', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'booking' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    const link = screen.getByTestId('service-action');
+    expect(link).toHaveAttribute(
+      'href',
+      '/tenant/booking?serviceId=00000000-0000-0000-0000-0000000000aa',
+    );
+    expect(link).toHaveTextContent('Agendar');
+  });
+
+  it('booking uses the configured CTA label', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'booking', itemCtaLabel: 'Reservar este serviço' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    expect(screen.getByTestId('service-action')).toHaveTextContent('Reservar este serviço');
+  });
+
+  // 'details' links to a service page that does not exist until a service has a public slug.
+  it('details renders no action until service detail pages exist', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ itemAction: 'details' })}
+        slug="tenant"
+        services={services}
+      />,
+    );
+
+    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+  });
+});

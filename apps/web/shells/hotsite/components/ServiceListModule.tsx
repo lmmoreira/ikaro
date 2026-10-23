@@ -1,146 +1,78 @@
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
-import { formatDuration } from '@/shared/lib/formatting/format-duration';
-import { formatMoney } from '@/shared/lib/formatting/format-money';
-import { isPerTimeService } from '@/features/booking/model/selection-totals';
-import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
+import {
+  LEGACY_SECTION_PADDING,
+  legacySectionBackground,
+  sectionCardBackground,
+  sectionHeadingStyle,
+  sectionTextColor,
+} from '@/features/platform/hotsite/module-styles';
+import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { SectionEyebrow } from './SectionEyebrow';
+import { ServiceItems } from './ServiceListCards';
 
-interface ServiceListModuleProps {
+interface ServiceListModuleProps extends SectionPresentationProps {
   readonly data: ServiceListModuleData;
   readonly slug: string;
   readonly services: readonly HotsiteServiceResponse[];
   readonly bgVariant?: 'default' | 'alt';
 }
 
-const headingStyle: React.CSSProperties = {
-  ...sectionHeadingFont,
-  color: 'var(--ba-text)',
-};
-
-interface ServiceCardProps {
-  readonly service: HotsiteServiceResponse;
-  readonly showPrices: boolean;
-  readonly showPoints: boolean;
-  readonly cardBg: string;
-}
-
-// A per-time service has no fixed price or duration: show its rate and duration range instead.
-function useDurationAndPrice(service: HotsiteServiceResponse): { duration: string; price: string } {
-  const t = useTranslations('booking');
-  const locale = useLocale();
-  const { bookingPolicy: policy } = service;
-  if (!isPerTimeService(service) || policy.pricePerIncrementAmount === null) {
-    return { duration: formatDuration(service.durationMinutes), price: service.price.formatted };
-  }
-  const rate = formatMoney(policy.pricePerIncrementAmount, locale, service.price.currency);
-  const minutes = policy.pricingIncrementMinutes ?? 60;
-  const hasRange = policy.durationMinMinutes !== null && policy.durationMaxMinutes !== null;
-  return {
-    duration: hasRange
-      ? t('serviceSelection.durationRange', {
-          min: formatDuration(policy.durationMinMinutes ?? 0),
-          max: formatDuration(policy.durationMaxMinutes ?? 0),
-        })
-      : '',
-    price:
-      minutes === 60
-        ? t('serviceSelection.ratePerHour', { rate })
-        : t('serviceSelection.ratePerIncrement', { rate, minutes }),
-  };
-}
-
-function ServiceCard({
-  service,
-  showPrices,
-  showPoints,
-  cardBg,
-}: ServiceCardProps): React.JSX.Element {
-  const t = useTranslations('hotsite');
-  const { duration, price } = useDurationAndPrice(service);
-  const cardStyle: React.CSSProperties = {
-    backgroundColor: cardBg,
-    borderRadius: 'var(--ba-radius)',
-    boxShadow: 'var(--ba-shadow)',
-  };
-  return (
-    <li className="flex flex-col gap-2 p-6" style={cardStyle}>
-      <h3 className="text-xl font-semibold" style={headingStyle}>
-        {service.name}
-      </h3>
-      {service.description && <p className="text-sm opacity-80">{service.description}</p>}
-      <div className="mt-2 flex items-center justify-between text-sm">
-        <span className="opacity-75">{duration}</span>
-        {showPrices && (
-          <span
-            className="font-bold"
-            style={{ color: 'var(--ba-primary)' }}
-            data-testid="price-badge"
-          >
-            {price}
-          </span>
-        )}
-      </div>
-      {showPoints && (
-        <span className="text-xs opacity-75" data-testid="loyalty-points-badge">
-          {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
-        </span>
-      )}
-    </li>
-  );
-}
+const headingStyle = sectionHeadingStyle;
 
 export function ServiceListModule({
   data,
   services,
-  slug: _,
+  slug,
   bgVariant,
+  presentation,
+  sectionTokens,
 }: ServiceListModuleProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const title = data.title ?? t('services.defaultTitle');
-  const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
   // Cards must contrast with the section bg — use the opposite surface color.
-  const cardBg = bgVariant === 'alt' ? 'var(--ba-background)' : 'var(--ba-secondary)';
-  const listClassName =
-    data.layout === 'list'
-      ? 'list-none flex flex-col gap-4 max-w-2xl mx-auto'
-      : 'list-none grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  const cardBg = sectionCardBackground(bgVariant);
+  const showPrices = data.showPrices;
+  const showPoints = data.showPoints;
+  // Only 'booking' is a card action here. 'details' links to a service page that does not exist
+  // yet (a service has no public slug until the service-profile story), and an omitted value is
+  // 'none', today's behaviour.
+  const action =
+    data.itemAction === 'booking'
+      ? { slug, label: data.itemCtaLabel || t('services.bookCta') }
+      : undefined;
 
   return (
-    <section
+    <HotsiteSectionShell
       id="service-list"
-      style={{
-        backgroundColor: bg,
-        color: 'var(--ba-text)',
-        padding: 'var(--ba-section-py) 1.5rem',
-      }}
+      flow
+      legacyBackground={legacySectionBackground(bgVariant)}
+      legacyColor={sectionTextColor}
+      legacyPadding={LEGACY_SECTION_PADDING}
+      presentation={presentation}
+      sectionTokens={sectionTokens}
     >
-      <div className="mx-auto max-w-7xl">
-        {data.eyebrow && (
-          <div className="text-center">
-            <SectionEyebrow text={data.eyebrow} />
-          </div>
-        )}
-        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-          {title}
-        </h2>
-        {services.length === 0 ? (
-          <p className="text-center opacity-75">{t('services.empty')}</p>
-        ) : (
-          <ul className={listClassName}>
-            {services.map((service) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                showPrices={data.showPrices}
-                showPoints={data.showPoints}
-                cardBg={cardBg}
-              />
-            ))}
-          </ul>
-        )}
-      </div>
-    </section>
+      {data.eyebrow && (
+        <div className="text-center">
+          <SectionEyebrow text={data.eyebrow} />
+        </div>
+      )}
+      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+        {title}
+      </h2>
+      {services.length === 0 ? (
+        <p className="text-center opacity-75">{t('services.empty')}</p>
+      ) : (
+        <ServiceItems
+          layout={data.layout}
+          services={services}
+          showPrices={showPrices}
+          showPoints={showPoints}
+          cardBg={cardBg}
+          action={action}
+        />
+      )}
+    </HotsiteSectionShell>
   );
 }

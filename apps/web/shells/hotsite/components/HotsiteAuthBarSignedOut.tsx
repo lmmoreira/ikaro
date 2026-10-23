@@ -1,10 +1,13 @@
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
+import type { HotsiteNavigationItem } from '@ikaro/types';
+import { HotsiteNavigation } from './HotsiteNavigation';
 
 interface HotsiteAuthBarSignedOutProps {
   readonly slug: string;
   readonly logoUrl: string;
   readonly tenantName: string;
+  readonly navigation?: readonly HotsiteNavigationItem[];
 }
 
 // Brand mark, left-most element — see journeys/shared/hotsite.html's topbar section for the
@@ -78,12 +81,13 @@ export function HotsiteAuthBarSignedOut({
   slug,
   logoUrl,
   tenantName,
+  navigation = [],
 }: HotsiteAuthBarSignedOutProps): React.JSX.Element {
   const t = useTranslations('auth');
 
   return (
     <header
-      className="flex h-12 items-center justify-between px-6"
+      className="relative flex h-12 items-center justify-between px-6"
       style={{ backgroundColor: 'var(--ba-secondary)' }}
       data-testid="hotsite-auth-bar"
     >
@@ -91,6 +95,7 @@ export function HotsiteAuthBarSignedOut({
         <BrandMark logoUrl={logoUrl} tenantName={tenantName} />
         <StaffAreaLink slug={slug} />
       </div>
+      <HotsiteNavigation items={navigation} slug={slug} />
       <a
         href={`/${slug}/login`}
         data-testid="hotsite-login-link"

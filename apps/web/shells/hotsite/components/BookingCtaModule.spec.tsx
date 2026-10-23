@@ -344,3 +344,100 @@ describe('BookingCtaModule', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('BookingCtaModule immersive variant and presentation', () => {
+  it('immersive pins the copy bottom-left over the photo with a large title', () => {
+    const { container } = render(
+      <BookingCtaModule
+        data={makeData({
+          variant: 'immersive',
+          backgroundImageUrl: 'https://cdn.example.com/b.png',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    const section = container.querySelector('section#booking-form') as HTMLElement;
+    expect(section).toHaveClass('items-end');
+    expect(section.querySelector('img')).toBeInTheDocument();
+    expect(section.querySelector('.justify-start')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2 })).toHaveClass('sm:text-6xl');
+  });
+
+  it('immersive has no accessibility violations', async () => {
+    const { container } = render(
+      <BookingCtaModule data={makeData({ variant: 'immersive' })} slug="tenant" />,
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('an explicit surface wins over bgStyle: bg and text come from the section tokens', () => {
+    const { container } = render(
+      <BookingCtaModule
+        data={makeData({ bgStyle: 'background' })}
+        slug="tenant"
+        presentation={{ surface: 'primary' }}
+        sectionTokens={{
+          '--ba-section-bg': '#111111',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#222222',
+          '--ba-section-divider': '#333333',
+        }}
+      />,
+    );
+
+    const section = container.querySelector('section#booking-form') as HTMLElement;
+    expect(section.style.backgroundColor).toBe('var(--ba-section-bg)');
+    expect(screen.getByRole('heading', { level: 2 })).toHaveStyle({
+      color: 'var(--ba-section-text, var(--ba-text))',
+    });
+  });
+
+  // Negative guarantee: without presentation the module's own bgStyle choice is unchanged.
+  it('without presentation the bgStyle background is unchanged', () => {
+    const { container } = render(
+      <BookingCtaModule data={makeData({ bgStyle: 'background' })} slug="tenant" />,
+    );
+
+    expect(
+      (container.querySelector('section#booking-form') as HTMLElement).style.backgroundColor,
+    ).toBe('var(--ba-background)');
+  });
+
+  it('contentWidth changes the text column', () => {
+    const { container } = render(
+      <BookingCtaModule data={makeData()} slug="tenant" presentation={{ contentWidth: 'wide' }} />,
+    );
+
+    expect(container.querySelector('.max-w-5xl')).toBeInTheDocument();
+  });
+
+  it('left-aligned honours contentWidth on its grid container', () => {
+    const { container } = render(
+      <BookingCtaModule
+        data={makeData({ variant: 'left-aligned' })}
+        slug="tenant"
+        presentation={{ contentWidth: 'narrow' }}
+      />,
+    );
+
+    expect(container.querySelector('.max-w-4xl')).toBeInTheDocument();
+  });
+});
+
+describe('BookingCtaModule left-aligned image panel', () => {
+  it('keeps the branded border radius on the image', () => {
+    const { container } = render(
+      <BookingCtaModule
+        data={makeData({
+          variant: 'left-aligned',
+          backgroundImageUrl: 'https://cdn.example.com/b.png',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    expect(container.querySelector('img')).toHaveStyle({ borderRadius: 'var(--ba-radius)' });
+  });
+});

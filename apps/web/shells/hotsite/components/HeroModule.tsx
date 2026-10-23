@@ -6,17 +6,27 @@ import {
   contentItemsClass,
   sectionHeadingFont,
 } from '@/features/platform/hotsite/module-styles';
+import {
+  gridWidthClass,
+  textColumnWidthClass,
+} from '@/features/platform/hotsite/section-presentation';
+import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
+import { BrandCard } from './BrandCard';
 import { SectionEyebrow } from './SectionEyebrow';
 
-interface HeroModuleProps {
+interface HeroModuleProps extends SectionPresentationProps {
   readonly data: HeroModuleData;
   readonly slug: string;
   readonly tenantBrand?: { name: string; tagline?: string };
 }
 
+// An explicit `presentation.surface` swaps the hero tokens for the section's derived, contrast-safe
+// ones (the shell sets `--ba-section-*` on the section only); without it nothing changes.
+const HERO_TEXT = 'var(--ba-section-text, var(--ba-hero-text))';
+
 const headingStyle: React.CSSProperties = {
   ...sectionHeadingFont,
-  color: 'var(--ba-hero-text)',
+  color: HERO_TEXT,
 };
 
 const primaryBtnStyle: React.CSSProperties = {
@@ -28,69 +38,38 @@ const primaryBtnStyle: React.CSSProperties = {
 
 const secondaryBtnStyle: React.CSSProperties = {
   backgroundColor: 'transparent',
-  color: 'var(--ba-hero-text)',
-  borderColor: 'var(--ba-hero-text)',
+  color: HERO_TEXT,
+  borderColor: HERO_TEXT,
   borderRadius: 'var(--ba-radius)',
   opacity: 0.85,
 };
-
-function BrandCard({
-  name,
-  tagline,
-}: {
-  readonly name: string;
-  readonly tagline?: string;
-}): React.JSX.Element {
-  return (
-    <div
-      className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
-      style={{
-        backgroundColor: 'var(--ba-secondary)',
-        border: '2px solid var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-      }}
-      data-testid="brand-card"
-    >
-      <div
-        className="text-2xl font-black uppercase tracking-widest sm:text-3xl"
-        style={{ color: 'var(--ba-primary)' }}
-      >
-        {name}
-      </div>
-      {tagline && (
-        <div
-          className="mt-2 text-xs uppercase tracking-widest"
-          style={{ color: 'var(--ba-text)', opacity: 0.6 }}
-          data-testid="brand-card-tagline"
-        >
-          {tagline}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function HeroTextContent({
   data,
   ctaHref,
   ctaJustifyClass,
+  large = false,
 }: {
   readonly data: HeroModuleData;
   readonly ctaHref: string;
   readonly ctaJustifyClass: string;
+  readonly large?: boolean;
 }): React.JSX.Element {
   const secondaryHref = data.secondaryCtaTarget ? `#${data.secondaryCtaTarget}` : undefined;
 
   return (
     <>
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
-      <h1 className="mb-4 text-4xl font-bold sm:text-5xl" style={headingStyle}>
+      <h1
+        className={`mb-4 font-bold ${large ? 'text-5xl sm:text-7xl' : 'text-4xl sm:text-5xl'}`}
+        style={headingStyle}
+      >
         {data.title}
       </h1>
       {data.subtitle && (
         <p
           className="mb-8 text-lg opacity-90 sm:text-xl"
-          style={{ color: 'var(--ba-hero-text)' }}
+          style={{ color: HERO_TEXT }}
           data-testid="hero-subtitle"
         >
           {data.subtitle}
@@ -119,52 +98,59 @@ function HeroTextContent({
   );
 }
 
-export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): React.JSX.Element {
+interface HeroVariantProps extends SectionPresentationProps {
+  readonly data: HeroModuleData;
+  readonly tenantBrand?: { name: string; tagline?: string };
+}
+
+// The centered composition, and `immersive`: the same composition pinned bottom-left over a
+// full-bleed photo, taller and with a larger title (an explicit contentPositionX/Y still wins).
+function HeroCentered({
+  data,
+  presentation,
+  sectionTokens,
+}: Omit<HeroVariantProps, 'tenantBrand'>): React.JSX.Element {
   const ctaHref = `#${data.ctaTarget}`;
   const bgUrl = data.backgroundImageUrl;
   const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
+  const isImmersive = data.variant === 'immersive';
 
-  // Determine what to render in the right column (left-aligned variant only).
-  // If rightPanel is not set, fall back based on whether an image URL is present.
-  const rightPanel = data.rightPanel ?? (bgUrl ? 'image' : 'none');
+  // contentPositionX only applies to this variant — the left-aligned variant's text column
+  // position is structural (grid order), not free-floating (M18-S05). The stage constrains
+  // left/right anchoring to the same max-w-7xl content container every other hotsite section
+  // uses (ServiceListModule/AboutModule/ContactModule) — without it, a 'left'/'right'
+  // contentPositionX would push the block flush against the raw viewport edge rather than
+  // respecting the site's usual content width and edge breathing room (M18-S05 follow-up fix).
+  const { sectionClassName, stageClassName, wrapperClassName, justifyClass } =
+    buildContentStageClasses(
+      data.contentPositionX ?? (isImmersive ? 'left' : undefined),
+      data.contentPositionY ?? (isImmersive ? 'bottom' : undefined),
+      isImmersive
+        ? 'relative flex min-h-[70vw] px-6 sm:min-h-[48vw]'
+        : 'relative flex min-h-[42.86vw] px-6 sm:min-h-[31.25vw]',
+      `${textColumnWidthClass(presentation?.contentWidth, isImmersive ? 'max-w-4xl' : 'max-w-3xl')} py-16`,
+    );
+  // The CTA row had no justify-content class at all before this field existed (flex defaults
+  // to flex-start) — unlike the section/stage above, which already hardcoded items-center/
+  // justify-center explicitly. To keep "unset renders identically to today" literally true for
+  // the row too, only apply a justify class here when contentPositionX is explicitly set —
+  // never as a silent default.
+  const ctaJustifyClass = data.contentPositionX || isImmersive ? justifyClass : '';
 
-  const sectionStyle: React.CSSProperties = {
-    backgroundColor: bgUrl && data.variant === 'centered' ? undefined : 'var(--ba-hero-bg)',
-  };
-
-  if (data.variant === 'centered') {
-    // contentPositionX only applies to this variant — the left-aligned variant's text column
-    // position is structural (grid order), not free-floating (M18-S05). The stage constrains
-    // left/right anchoring to the same max-w-7xl content container every other hotsite section
-    // uses (ServiceListModule/AboutModule/ContactModule) — without it, a 'left'/'right'
-    // contentPositionX would push the block flush against the raw viewport edge rather than
-    // respecting the site's usual content width and edge breathing room (M18-S05 follow-up fix).
-    const { sectionClassName, stageClassName, wrapperClassName, justifyClass } =
-      buildContentStageClasses(
-        data.contentPositionX,
-        data.contentPositionY,
-        'relative flex min-h-[42.86vw] px-6 sm:min-h-[31.25vw]',
-        'max-w-3xl py-16',
-      );
-    // The CTA row had no justify-content class at all before this field existed (flex defaults
-    // to flex-start) — unlike the section/stage above, which already hardcoded items-center/
-    // justify-center explicitly. To keep "unset renders identically to today" literally true for
-    // the row too, only apply a justify class here when contentPositionX is explicitly set —
-    // never as a silent default.
-    const ctaJustifyClass = data.contentPositionX ? justifyClass : '';
-
-    return (
-      // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
-      // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
-      // window is narrowed (without the screen itself changing height), a vh-based floor stays
-      // fixed while the container's width shrinks, making the box progressively more portrait
-      // and cropping progressively worse at every width in between, not just at the mobile
-      // breakpoint. Both values approximate a landscape ratio close to a typical wide banner
-      // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
-      // already had via the old 60vh at a typical monitor's proportions) — but because they're
-      // width-relative, the ratio stays roughly constant at every window width, not just one.
-      <section data-variant="centered" className={sectionClassName} style={sectionStyle}>
-        {bgUrl && (
+  return (
+    // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a vh
+    // one: vh stays pinned to the viewport height while the container narrows, so the box gets
+    // progressively more portrait and the crop worse at every width in between. 42.86vw (21:9) and
+    // 31.25vw (~16:5) keep a landscape ratio at every window width.
+    <HotsiteSectionShell
+      dataVariant={data.variant}
+      className={sectionClassName}
+      legacyBackground={bgUrl ? undefined : 'var(--ba-hero-bg)'}
+      selfLayout
+      presentation={presentation}
+      sectionTokens={sectionTokens}
+      ownBackground={
+        bgUrl ? (
           <Image
             src={bgUrl}
             alt=""
@@ -174,17 +160,38 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             className="object-cover"
             style={{ objectPosition }}
           />
-        )}
-        <div className={stageClassName}>
-          <div className={wrapperClassName}>
-            <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass={ctaJustifyClass} />
-          </div>
+        ) : undefined
+      }
+    >
+      <div className={stageClassName}>
+        <div className={wrapperClassName}>
+          <HeroTextContent
+            data={data}
+            ctaHref={ctaHref}
+            ctaJustifyClass={ctaJustifyClass}
+            large={isImmersive}
+          />
         </div>
-      </section>
-    );
-  }
+      </div>
+    </HotsiteSectionShell>
+  );
+}
 
-  // left-aligned: text on the left, optional right panel
+// Text on the left, an optional right panel (the photo or the brand card).
+function HeroLeftAligned({
+  data,
+  tenantBrand,
+  presentation,
+  sectionTokens,
+}: HeroVariantProps): React.JSX.Element {
+  const ctaHref = `#${data.ctaTarget}`;
+  const bgUrl = data.backgroundImageUrl;
+  const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
+
+  // Determine what to render in the right column.
+  // If rightPanel is not set, fall back based on whether an image URL is present.
+  const rightPanel = data.rightPanel ?? (bgUrl ? 'image' : 'none');
+
   const hasRightPanel =
     rightPanel !== 'none' &&
     (rightPanel !== 'image' || !!bgUrl) &&
@@ -205,12 +212,15 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
     // narrowed, rather than scaling with its own width). This wrapper only contains normal-flow
     // content (the text column + image panel grid), not a cropped image directly, so a single
     // modest floor is enough — real content still determines the actual height above it.
-    <section
-      data-variant="left-aligned"
+    <HotsiteSectionShell
+      dataVariant="left-aligned"
       className="relative flex min-h-[31.25vw] items-center px-6 py-16"
-      style={{ backgroundColor: 'var(--ba-hero-bg)' }}
+      legacyBackground="var(--ba-hero-bg)"
+      selfLayout
+      presentation={presentation}
+      sectionTokens={sectionTokens}
     >
-      <div className="w-full max-w-7xl mx-auto">
+      <div className={`relative z-10 mx-auto w-full ${gridWidthClass(presentation?.contentWidth)}`}>
         <div
           className={`grid grid-cols-1 gap-12 ${itemsClass} ${hasRightPanel ? 'sm:grid-cols-2' : ''}`}
         >
@@ -218,7 +228,12 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
             <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass="" />
           </div>
           {rightPanel === 'brand-card' && tenantBrand && (
-            <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
+            <BrandCard
+              name={tenantBrand.name}
+              tagline={tenantBrand.tagline}
+              testId="brand-card"
+              taglineTestId="brand-card-tagline"
+            />
           )}
           {rightPanel === 'image' && bgUrl && (
             // sm:min-h-[15.6vw], not vh — same reasoning as the centered variant above. This
@@ -239,6 +254,25 @@ export function HeroModule({ data, slug: _, tenantBrand }: HeroModuleProps): Rea
           )}
         </div>
       </div>
-    </section>
+    </HotsiteSectionShell>
+  );
+}
+
+export function HeroModule({
+  data,
+  slug: _,
+  tenantBrand,
+  presentation,
+  sectionTokens,
+}: HeroModuleProps): React.JSX.Element {
+  return data.variant === 'left-aligned' ? (
+    <HeroLeftAligned
+      data={data}
+      tenantBrand={tenantBrand}
+      presentation={presentation}
+      sectionTokens={sectionTokens}
+    />
+  ) : (
+    <HeroCentered data={data} presentation={presentation} sectionTokens={sectionTokens} />
   );
 }

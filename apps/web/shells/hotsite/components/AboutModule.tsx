@@ -1,49 +1,71 @@
 import type React from 'react';
 import Image from 'next/image';
-import Markdown, { type Components } from 'react-markdown';
-import rehypeSanitize from 'rehype-sanitize';
 import type { AboutModuleData } from '@ikaro/types';
-import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
+import {
+  LEGACY_SECTION_PADDING,
+  legacySectionBackground,
+  sectionHeadingStyle,
+  sectionTextColor,
+} from '@/features/platform/hotsite/module-styles';
+import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
+import { RestrictedMarkdown } from './RestrictedMarkdown';
 import { SectionEyebrow } from './SectionEyebrow';
 
-interface AboutModuleProps {
+interface AboutModuleProps extends SectionPresentationProps {
   readonly data: AboutModuleData;
   readonly slug: string;
   readonly bgVariant?: 'default' | 'alt';
 }
 
-const headingStyle: React.CSSProperties = {
-  ...sectionHeadingFont,
-  color: 'var(--ba-text)',
-};
+const headingStyle = sectionHeadingStyle;
 
-const linkStyle: React.CSSProperties = {
-  color: 'var(--ba-primary)',
-};
-
-const markdownComponents: Components = {
-  p: ({ children }) => <p className="mb-4 text-sm leading-relaxed">{children}</p>,
-  h1: ({ children }) => <h3 className="mb-2 text-xl font-bold">{children}</h3>,
-  h2: ({ children }) => <h3 className="mb-2 text-lg font-bold">{children}</h3>,
-  h3: ({ children }) => <h3 className="mb-2 text-base font-bold">{children}</h3>,
-  ul: ({ children }) => <ul className="mb-4 list-disc space-y-1 pl-5 text-sm">{children}</ul>,
-  ol: ({ children }) => <ol className="mb-4 list-decimal space-y-1 pl-5 text-sm">{children}</ol>,
-  a: ({ children, href }) => (
-    <a
-      href={href}
-      className="underline"
-      style={linkStyle}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      {children}
-    </a>
-  ),
-};
-
-export function AboutModule({ data, slug: _, bgVariant }: AboutModuleProps): React.JSX.Element {
+export function AboutModule({
+  data,
+  slug: _,
+  bgVariant,
+  presentation,
+  sectionTokens,
+}: AboutModuleProps): React.JSX.Element {
   const imagePosition = data.imagePosition ?? 'right';
-  const bg = bgVariant === 'alt' ? 'var(--ba-secondary)' : 'var(--ba-background)';
+  const shellProps = {
+    id: 'about',
+    flow: true,
+    legacyBackground: legacySectionBackground(bgVariant),
+    legacyColor: sectionTextColor,
+    legacyPadding: LEGACY_SECTION_PADDING,
+    presentation,
+    sectionTokens,
+  } as const;
+
+  if (data.variant === 'editorial') {
+    // Editorial: a single long-form column — wide image first, then a generous title and body.
+    return (
+      <HotsiteSectionShell {...shellProps}>
+        <div className="mx-auto max-w-3xl" data-variant="editorial">
+          {data.imageUrl && (
+            <div
+              className="relative mb-12 aspect-[21/9] w-full overflow-hidden"
+              style={{ borderRadius: 'var(--ba-radius)' }}
+            >
+              <Image
+                src={data.imageUrl}
+                alt={data.title}
+                fill
+                loading="lazy"
+                sizes="(min-width: 768px) 768px, 100vw"
+                className="object-cover"
+              />
+            </div>
+          )}
+          {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
+          <h2 className="mb-8 text-4xl font-bold leading-tight sm:text-5xl" style={headingStyle}>
+            {data.title}
+          </h2>
+          <RestrictedMarkdown density="comfortable">{data.body}</RestrictedMarkdown>
+        </div>
+      </HotsiteSectionShell>
+    );
+  }
 
   const textBlock = (
     <div>
@@ -51,9 +73,7 @@ export function AboutModule({ data, slug: _, bgVariant }: AboutModuleProps): Rea
       <h2 className="mb-6 text-3xl font-bold" style={headingStyle}>
         {data.title}
       </h2>
-      <Markdown rehypePlugins={[rehypeSanitize]} components={markdownComponents}>
-        {data.body}
-      </Markdown>
+      <RestrictedMarkdown>{data.body}</RestrictedMarkdown>
     </div>
   );
 
@@ -74,27 +94,21 @@ export function AboutModule({ data, slug: _, bgVariant }: AboutModuleProps): Rea
   );
 
   return (
-    <section
-      id="about"
-      style={{
-        backgroundColor: bg,
-        color: 'var(--ba-text)',
-        padding: 'var(--ba-section-py) 1.5rem',
-      }}
+    <HotsiteSectionShell
+      {...shellProps}
+      contentClassName="grid gap-10 md:grid-cols-2 md:items-center"
     >
-      <div className="mx-auto grid max-w-7xl gap-10 md:grid-cols-2 md:items-center">
-        {imagePosition === 'left' ? (
-          <>
-            {imageBlock}
-            {textBlock}
-          </>
-        ) : (
-          <>
-            {textBlock}
-            {imageBlock}
-          </>
-        )}
-      </div>
-    </section>
+      {imagePosition === 'left' ? (
+        <>
+          {imageBlock}
+          {textBlock}
+        </>
+      ) : (
+        <>
+          {textBlock}
+          {imageBlock}
+        </>
+      )}
+    </HotsiteSectionShell>
   );
 }

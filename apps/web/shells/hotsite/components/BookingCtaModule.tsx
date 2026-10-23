@@ -7,9 +7,15 @@ import {
   contentItemsClass,
   sectionHeadingFont,
 } from '@/features/platform/hotsite/module-styles';
+import {
+  gridWidthClass,
+  textColumnWidthClass,
+} from '@/features/platform/hotsite/section-presentation';
+import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
+import { BrandCard } from './BrandCard';
 import { SectionEyebrow } from './SectionEyebrow';
 
-interface BookingCtaModuleProps {
+interface BookingCtaModuleProps extends SectionPresentationProps {
   readonly data: BookingCtaModuleData;
   readonly slug: string;
   readonly tenantBrand?: { name: string; tagline?: string };
@@ -29,50 +35,20 @@ function resolveSectionBg(bgStyle: BookingCtaModuleData['bgStyle']): string {
 // When section bg is primary, text must contrast against it (use --ba-hero-text).
 // When section bg is background, text can use --ba-text normally.
 function resolveTextColor(bgStyle: BookingCtaModuleData['bgStyle']): string {
-  return bgStyle === 'background' ? 'var(--ba-text)' : 'var(--ba-hero-text)';
-}
-
-function BrandCard({
-  name,
-  tagline,
-}: {
-  readonly name: string;
-  readonly tagline?: string;
-}): React.JSX.Element {
-  return (
-    <div
-      className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
-      style={{
-        backgroundColor: 'var(--ba-secondary)',
-        border: '2px solid var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-      }}
-      data-testid="booking-cta-brand-card"
-    >
-      <div
-        className="text-2xl font-black uppercase tracking-widest sm:text-3xl"
-        style={{ color: 'var(--ba-primary)' }}
-      >
-        {name}
-      </div>
-      {tagline && (
-        <div
-          className="mt-2 text-xs uppercase tracking-widest"
-          style={{ color: 'var(--ba-text)', opacity: 0.6 }}
-        >
-          {tagline}
-        </div>
-      )}
-    </div>
-  );
+  const fallback = bgStyle === 'background' ? 'var(--ba-text)' : 'var(--ba-hero-text)';
+  // An explicit presentation.surface carries derived, contrast-safe section tokens; without it
+  // this is the module's own bgStyle choice, unchanged.
+  return `var(--ba-section-text, ${fallback})`;
 }
 
 function BookingCtaContent({
   data,
   slug,
+  large = false,
 }: {
   readonly data: BookingCtaModuleData;
   readonly slug: string;
+  readonly large?: boolean;
 }): React.JSX.Element {
   const textColor = resolveTextColor(data.bgStyle);
 
@@ -80,7 +56,7 @@ function BookingCtaContent({
     <>
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
       <h2
-        className="mb-4 text-3xl font-bold sm:text-4xl"
+        className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
         style={{ ...sectionHeadingFont, color: textColor }}
       >
         {data.title}
@@ -109,6 +85,8 @@ export function BookingCtaModule({
   data,
   slug,
   tenantBrand,
+  presentation,
+  sectionTokens,
 }: BookingCtaModuleProps): React.JSX.Element {
   const bgUrl = data.backgroundImageUrl;
   const variant = data.variant ?? 'centered';
@@ -127,12 +105,17 @@ export function BookingCtaModule({
     // HeroModule.tsx's identical comment (cross-tool review finding, PR #295).
     const itemsClass = contentItemsClass(data.contentPositionY);
     return (
-      <section
+      <HotsiteSectionShell
         id="booking-form"
         className="relative flex min-h-[31.25vw] items-center px-6 py-16"
-        style={{ backgroundColor: sectionBg }}
+        legacyBackground={sectionBg}
+        selfLayout
+        presentation={presentation}
+        sectionTokens={sectionTokens}
       >
-        <div className="w-full max-w-7xl mx-auto">
+        <div
+          className={`relative z-10 mx-auto w-full ${gridWidthClass(presentation?.contentWidth)}`}
+        >
           <div
             className={`grid grid-cols-1 gap-12 ${itemsClass} ${hasRightPanel ? 'sm:grid-cols-2' : ''}`}
           >
@@ -140,7 +123,11 @@ export function BookingCtaModule({
               <BookingCtaContent data={data} slug={slug} />
             </div>
             {showBrandCard && tenantBrand && (
-              <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
+              <BrandCard
+                name={tenantBrand.name}
+                tagline={tenantBrand.tagline}
+                testId="booking-cta-brand-card"
+              />
             )}
             {!showBrandCard && bgUrl && (
               <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[15.6vw]">
@@ -156,41 +143,51 @@ export function BookingCtaModule({
             )}
           </div>
         </div>
-      </section>
+      </HotsiteSectionShell>
     );
   }
 
+  // `immersive` is the centered composition pinned bottom-left over a full-bleed photo, taller and
+  // with a larger title; an explicit contentPositionX/Y still wins.
+  const isImmersive = variant === 'immersive';
   // contentPositionX only applies to the centered variant — same rule as HeroModule. The stage
   // constrains left/right anchoring to the same max-w-7xl content container every other hotsite
   // section uses — see HeroModule's identical comment (M18-S05 follow-up fix).
   const { sectionClassName, stageClassName, wrapperClassName } = buildContentStageClasses(
-    data.contentPositionX,
-    data.contentPositionY,
-    'relative flex min-h-[42.86vw] px-6 py-20 sm:min-h-[31.25vw] sm:py-28',
-    'max-w-2xl',
+    data.contentPositionX ?? (isImmersive ? 'left' : undefined),
+    data.contentPositionY ?? (isImmersive ? 'bottom' : undefined),
+    isImmersive
+      ? 'relative flex min-h-[70vw] px-6 py-20 sm:min-h-[48vw] sm:py-28'
+      : 'relative flex min-h-[42.86vw] px-6 py-20 sm:min-h-[31.25vw] sm:py-28',
+    textColumnWidthClass(presentation?.contentWidth, isImmersive ? 'max-w-3xl' : 'max-w-2xl'),
   );
 
   return (
-    <section
+    <HotsiteSectionShell
       id="booking-form"
       className={sectionClassName}
-      style={{ backgroundColor: bgUrl ? undefined : sectionBg }}
+      legacyBackground={bgUrl ? undefined : sectionBg}
+      selfLayout
+      presentation={presentation}
+      sectionTokens={sectionTokens}
+      ownBackground={
+        bgUrl ? (
+          <Image
+            src={bgUrl}
+            alt=""
+            fill
+            sizes="100vw"
+            className="object-cover"
+            style={{ objectPosition }}
+          />
+        ) : undefined
+      }
     >
-      {bgUrl && (
-        <Image
-          src={bgUrl}
-          alt=""
-          fill
-          sizes="100vw"
-          className="object-cover"
-          style={{ objectPosition }}
-        />
-      )}
       <div className={stageClassName}>
         <div className={wrapperClassName}>
-          <BookingCtaContent data={data} slug={slug} />
+          <BookingCtaContent data={data} slug={slug} large={isImmersive} />
         </div>
       </div>
-    </section>
+    </HotsiteSectionShell>
   );
 }

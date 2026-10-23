@@ -470,3 +470,133 @@ describe('HeroModule', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('HeroModule immersive variant and presentation', () => {
+  it('immersive anchors the copy bottom-left over the photo with a large title', () => {
+    const { container } = render(
+      <HeroModule
+        data={makeData({
+          variant: 'immersive',
+          backgroundImageUrl: 'https://cdn.example.com/h.png',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    const section = container.querySelector('[data-variant="immersive"]') as HTMLElement;
+    expect(section).toHaveClass('items-end');
+    expect(section.querySelector('img')).toBeInTheDocument();
+    expect(section.querySelector('.justify-start')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('sm:text-7xl');
+  });
+
+  it('immersive lets an explicit contentPositionX/Y win', () => {
+    const { container } = render(
+      <HeroModule
+        data={makeData({
+          variant: 'immersive',
+          contentPositionX: 'right',
+          contentPositionY: 'top',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    const section = container.querySelector('[data-variant="immersive"]') as HTMLElement;
+    expect(section).toHaveClass('items-start');
+    expect(section.querySelector('.justify-end')).toBeInTheDocument();
+  });
+
+  it('immersive has no accessibility violations', async () => {
+    const { container } = render(
+      <HeroModule data={makeData({ variant: 'immersive' })} slug="tenant" />,
+    );
+
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('splits left-aligned with an image panel when rightPanel is image', () => {
+    const { container } = render(
+      <HeroModule
+        data={makeData({
+          variant: 'left-aligned',
+          rightPanel: 'image',
+          backgroundImageUrl: 'https://cdn.example.com/h.png',
+        })}
+        slug="tenant"
+      />,
+    );
+
+    expect(container.querySelector('.sm\\:grid-cols-2')).toBeInTheDocument();
+  });
+
+  // Negative guarantee: no presentation means today's tokens, not the section's.
+  it('without presentation the section keeps the hero background token', () => {
+    const { container } = render(<HeroModule data={makeData()} slug="tenant" />);
+
+    expect((container.querySelector('section') as HTMLElement).style.backgroundColor).toBe(
+      'var(--ba-hero-bg)',
+    );
+  });
+
+  it('an explicit surface wins over the hero tokens: bg and text come from the section tokens', () => {
+    const { container } = render(
+      <HeroModule
+        data={makeData()}
+        slug="tenant"
+        presentation={{ surface: 'primary' }}
+        sectionTokens={{
+          '--ba-section-bg': '#111111',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#222222',
+          '--ba-section-divider': '#333333',
+        }}
+      />,
+    );
+
+    const section = container.querySelector('section') as HTMLElement;
+    expect(section.style.backgroundColor).toBe('var(--ba-section-bg)');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveStyle({
+      color: 'var(--ba-section-text, var(--ba-hero-text))',
+    });
+  });
+
+  it('contentWidth narrows or widens the centered text column', () => {
+    const { container, rerender } = render(
+      <HeroModule data={makeData()} slug="tenant" presentation={{ contentWidth: 'narrow' }} />,
+    );
+    expect(container.querySelector('.max-w-xl')).toBeInTheDocument();
+
+    rerender(
+      <HeroModule data={makeData()} slug="tenant" presentation={{ contentWidth: 'wide' }} />,
+    );
+    expect(container.querySelector('.max-w-5xl')).toBeInTheDocument();
+  });
+
+  it('draws the overlay above the photo and below the text', () => {
+    const { container } = render(
+      <HeroModule
+        data={makeData({ backgroundImageUrl: 'https://cdn.example.com/h.png' })}
+        slug="tenant"
+        presentation={{
+          overlay: {
+            type: 'linear-gradient',
+            direction: 'to-right',
+            fromColor: '#000000',
+            fromOpacity: 0.7,
+            toColor: '#000000',
+            toOpacity: 0,
+          },
+        }}
+      />,
+    );
+
+    const section = container.querySelector('section') as HTMLElement;
+    const overlay = screen.getByTestId('section-overlay');
+    const children = Array.from(section.children);
+    expect(children[0].tagName).toBe('IMG');
+    expect(children.indexOf(overlay)).toBe(1);
+    expect(children[2]).toHaveClass('z-10');
+    expect(overlay.style.background).toContain('linear-gradient(to right');
+  });
+});

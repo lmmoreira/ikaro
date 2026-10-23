@@ -65,3 +65,35 @@ describe('HotsiteAuthBarSignedOut', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 });
+
+describe('HotsiteAuthBarSignedOut navigation', () => {
+  const navigation = [
+    { label: 'Serviços', target: 'service-list' as const },
+    { label: 'Contato', target: 'contact' as const },
+  ];
+
+  it('renders the navigation links inside the single bar', () => {
+    const { container } = renderWithIntl(
+      <HotsiteAuthBarSignedOut
+        slug={SLUG}
+        logoUrl={LOGO_URL}
+        tenantName={TENANT_NAME}
+        navigation={navigation}
+      />,
+    );
+
+    expect(container.querySelectorAll('header')).toHaveLength(1);
+    expect(screen.getAllByRole('link', { name: 'Serviços', hidden: true })[0]).toHaveAttribute(
+      'href',
+      `/${SLUG}#service-list`,
+    );
+  });
+
+  it('renders no navigation without items', () => {
+    renderWithIntl(
+      <HotsiteAuthBarSignedOut slug={SLUG} logoUrl={LOGO_URL} tenantName={TENANT_NAME} />,
+    );
+
+    expect(screen.queryByTestId('hotsite-navigation')).not.toBeInTheDocument();
+  });
+});

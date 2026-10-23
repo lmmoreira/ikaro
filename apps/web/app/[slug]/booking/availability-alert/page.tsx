@@ -12,7 +12,10 @@ import {
 import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
-import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
+import {
+  resolveHotsiteDisplayName,
+  resolveManifestNavigation,
+} from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
 
@@ -82,6 +85,7 @@ export default async function AvailabilityAlertRoute({
         slug={slug}
         logoUrl={manifest.branding.logoUrl}
         tenantName={resolveHotsiteDisplayName(manifest)}
+        navigation={resolveManifestNavigation(manifest)}
       />
       <AvailabilityAlertPage
         slug={slug}

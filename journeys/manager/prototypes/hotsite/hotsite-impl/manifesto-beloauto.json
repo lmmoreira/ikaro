@@ -1,6 +1,6 @@
 {
   "branding": {
-    "logoUrl": "https://storage.googleapis.com/ikaro-public-staging/tenants/019fa8c2-541d-72fe-af5c-c5dcb5ee9be0/hotsite/branding/019fb067-3f0a-7c63-ae12-98f3780f0fea/beloauto.webp",
+    "logoUrl": "",
     "spacing": "comfortable",
     "brandName": "BELOAUTO",
     "textColor": "#FFFFFF",
@@ -21,6 +21,13 @@
   },
   "layout": [
     {
+      "type": "NAVIGATION",
+      "enabled": false,
+      "data": {
+        "items": []
+      }
+    },
+    {
       "data": {
         "title": "Cuidado completo para o seu carro",
         "eyebrow": "Estética automotiva premium · SJC-SP",
@@ -37,7 +44,45 @@
         "contentPositionY": "bottom"
       },
       "type": "HERO",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "overlay": {
+          "type": "linear-gradient",
+          "direction": "to-top",
+          "fromColor": "#0A0A0A",
+          "fromOpacity": 0.85,
+          "toColor": "#0A0A0A",
+          "toOpacity": 0.15
+        },
+        "minHeight": "lg"
+      }
+    },
+    {
+      "type": "CONTENT_BLOCK",
+      "enabled": true,
+      "data": {
+        "variant": "trust-grid",
+        "eyebrow": "Por que escolher",
+        "title": "Cuidado que você percebe",
+        "items": [
+          {
+            "label": "Produtos profissionais",
+            "description": "Linha selecionada para cada superfície."
+          },
+          {
+            "label": "Equipe treinada",
+            "description": "Atenção aos detalhes em cada etapa."
+          },
+          {
+            "label": "Agendamento simples",
+            "description": "Escolha o serviço e reserve em minutos."
+          }
+        ]
+      },
+      "presentation": {
+        "surface": "secondary",
+        "padding": "compact"
+      }
     },
     {
       "data": {
@@ -48,6 +93,44 @@
         "showPrices": true
       },
       "type": "SERVICE_LIST",
+      "enabled": true
+    },
+    {
+      "data": {
+        "title": "Nosso Trabalho",
+        "images": [
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-1.png",
+            "caption": "Resultado final",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png",
+            "caption": "Proteção da pintura",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-3.png",
+            "caption": "Interior detalhado",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
+            "caption": "Técnica",
+            "source": "upload"
+          },
+          {
+            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png",
+            "caption": "Pronto para a rua",
+            "source": "upload"
+          }
+        ],
+        "layout": "featured",
+        "featuredPosition": "left",
+        "eyebrow": "Resultados reais",
+        "maxVisible": 5
+      },
+      "type": "GALLERY",
       "enabled": true
     },
     {
@@ -66,25 +149,10 @@
         "contentPositionY": "center"
       },
       "type": "BOOKING_CTA",
-      "enabled": true
-    },
-    {
-      "data": {
-        "title": "Nosso Trabalho",
-        "images": [
-          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-1.png", "caption": "Resultado final", "source": "upload" },
-          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png", "caption": "Proteção da pintura", "source": "upload" },
-          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-3.png", "caption": "Interior detalhado", "source": "upload" },
-          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png", "caption": "Técnica", "source": "upload" },
-          { "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png", "caption": "Pronto para a rua", "source": "upload" }
-        ],
-        "layout": "featured",
-        "featuredPosition": "left",
-        "eyebrow": "Resultados reais",
-        "maxVisible": 5
-      },
-      "type": "GALLERY",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "contentWidth": "wide"
+      }
     },
     {
       "data": {
@@ -163,6 +231,6 @@
   "seo": {
     "title": "Belo Auto Estética Premium",
     "description": "Belo Auto Estética",
-    "ogImageUrl": "https://storage.googleapis.com/ikaro-public-staging/tenants/019fa8c2-541d-72fe-af5c-c5dcb5ee9be0/hotsite/seo-og-image/019fb067-7d6c-77ca-9809-add66a36d12c/beloauto.webp"
+    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/og.png"
   }
 }

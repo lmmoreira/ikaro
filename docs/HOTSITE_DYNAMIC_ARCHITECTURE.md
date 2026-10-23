@@ -628,21 +628,16 @@ export default async function HotsiteLayout({ children, params }: HotsiteLayoutP
 
 The `<html>` and `<body>` elements live in the root `app/layout.tsx`, not in this layout; the hotsite layout wraps its pages in `#hotsite-root` so the `--ba-*` token set applies only inside the hotsite tree.
 
-**`app/[slug]/page.tsx`** — renders enabled modules in manifest order. **Corrected 2026-08-08 (docs-audit, promoted via `/discovery-to-milestone` for the CHATBOT module):** the actual implementation is not a `MODULE_MAP` lookup table — it's a direct per-type component-import chain, fed by `buildHotsiteModuleRenderPlan()` (`apps/web/features/platform/hotsite/page-model.ts`), which does the generic `enabled` filter (the outcome this doc originally described is still accurate — no per-module logic needed for the on/off toggle — just not via the mechanism previously documented here):
+**`app/[slug]/page.tsx`** — renders enabled modules in manifest order. The page does not map module types to components itself: `buildHotsiteModuleRenderPlan()` (`apps/web/features/platform/hotsite/page-model.ts`) does the generic `enabled` filter and parsing once, and each plan item is rendered by **`HotsiteModuleView`** (`apps/web/shells/hotsite/components/HotsiteModuleView.tsx`), the single type → component switch. The editor's preview renders through the very same view (adding only its selection wrapper), so what a manager sees is what gets published, and a module type added to the union without a case no longer type-checks (TD56-S02). Earlier revisions of this page were a `MODULE_MAP` table and then a per-type `else if` chain inside `page.tsx`; neither exists any more.
 
 ```typescript
 // apps/web/app/[slug]/page.tsx (real shape, simplified)
-// Corrected 2026-08-08: the module components live under @/shells/hotsite/components/,
-// not @/features/platform/hotsite/components/ — only buildHotsiteModuleRenderPlan()
-// itself lives in the features/ slice. buildHotsiteModuleRenderPlan() also takes
-// (layout, alternateSectionBg), not the whole manifest, and returns { parsed, bgVariant }
-// items, not the parsed module directly.
-import { buildHotsiteModuleRenderPlan } from '@/features/platform/hotsite/page-model';
-import { HeroModule } from '@/shells/hotsite/components/HeroModule';
-import { ServiceListModule } from '@/shells/hotsite/components/ServiceListModule';
-import { ContactModule } from '@/shells/hotsite/components/ContactModule';
-// ...one import per module component (the CHATBOT module renders ChatbotWidget)
-import { Footer } from '@/shells/hotsite/components/Footer';
+import {
+  buildHotsiteModuleRenderPlan,
+  resolveHotsiteNavigation,
+} from '@/features/platform/hotsite/page-model';
+import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
+import { HotsiteModuleView } from '@/shells/hotsite/components/HotsiteModuleView';
 
 export default async function HotsitePage({
   params,
@@ -651,26 +646,42 @@ export default async function HotsitePage({
 }) {
   const { slug } = await params;
   const manifest = await fetchManifest(slug);
-  // does the enabled-filter, generically, once — also resolves each module's
-  // alternating-section-background variant from the branding token
-  const plan = buildHotsiteModuleRenderPlan(manifest.layout, manifest.branding.alternateSectionBg);
+  // The enabled filter, the per-section alternating background (`bgVariant`), the validated
+  // `presentation` and — for a section that sets `presentation.surface` — its scoped contrast
+  // tokens (`sectionTokens`, from the tenant's branding), once, for every module.
+  const plan = buildHotsiteModuleRenderPlan(
+    manifest.layout,
+    manifest.branding.alternateSectionBg ?? false,
+    manifest.branding,
+  );
+  // NAVIGATION is page chrome, not a section: its links go to the top bar, never into the plan.
+  const navigation = resolveHotsiteNavigation(manifest.layout, plan);
 
   return (
     <main>
-      {plan.map(({ parsed, bgVariant }) => {
-        let moduleEl = null;
-        if (parsed.type === 'HERO') moduleEl = <HeroModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
-        else if (parsed.type === 'SERVICE_LIST') moduleEl = <ServiceListModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
-        else if (parsed.type === 'CONTACT') moduleEl = <ContactModule data={parsed.data} slug={slug} bgVariant={bgVariant} />;
-        else if (parsed.type === 'CHATBOT') moduleEl = <ChatbotWidget data={parsed.data} slug={slug} business={business} tenantName={displayName} />;
-        // ...one branch per module type
-        else if (parsed.type === 'FOOTER') moduleEl = <Footer slug={slug} />; // FOOTER is one more branch here, not unconditionally appended outside the loop
-        return moduleEl;
-      })}
+      <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} navigation={navigation} />
+      {plan.map((item, index) => (
+        <HotsiteModuleView key={`${item.parsed.type}-${index}`} item={item} slug={slug} /* …tenant name, brand, logo, business, services */ />
+      ))}
     </main>
   );
 }
 ```
+
+**Section shell.** Every full-width section renders through **`HotsiteSectionShell`** (`apps/web/shells/hotsite/components/HotsiteSectionShell.tsx`). It reads the module's `presentation` and falls back to the module's own legacy choice (`bgVariant` / `bgStyle` / `--ba-hero-bg`), so a module without `presentation` renders the markup and styles it always did:
+
+| `presentation` field | Effect |
+|---|---|
+| `surface` | Section background and text come from the scoped `--ba-section-bg` / `--ba-section-text` / `--ba-section-card-bg` / `--ba-section-divider` tokens `deriveSectionTokens()` computes (contrast ≥ 4.5:1). They are set on that one `<section>`, never on the page root, so the global `--ba-*` layer is untouched. An explicit `surface` wins over `bgVariant`, `bgStyle` and the hero tokens. Modules read `var(--ba-section-text, var(--ba-text))`-style fallbacks, so without a surface nothing changes. |
+| `contentWidth` | Bounds the inner content container: `narrow` `max-w-3xl`, `standard` `max-w-7xl` (today's), `wide` `max-w-[90rem]`, `full` none. Hero, Booking CTA and Lead Form lay out their own stage, so it narrows or widens their text column or grid instead. |
+| `minHeight`, `padding` | `minHeight` sets a minimum height (`viewport` = `100vh`) and centres a flow section's content; `padding` overrides only the vertical padding, never the 1.5rem gutter. |
+| `background` (+ `overlay`) | An image behind a section that has none of its own, drawn as a separate layer; the overlay (`solid` or `linear-gradient`) is a further non-interactive layer above it (`pointer-events: none`). A section with a photo behind its text that opted into `presentation` but has no overlay (absent or `none`) gets a built-in minimum scrim. A module that never set `presentation` is never given one, so existing photo sections are unchanged. |
+
+Sections stay viewport-wide: their background, colour and divider belong to the full-width section, and only the inner content is width-bounded.
+
+**Navigation.** `NAVIGATION` links render inside the one top bar, never as a second header: `HotsiteAuthBar` (all three of its states — loading skeleton, signed-out, signed-in) and the editor preview's inert `HotsiteAuthBarSignedOut` both host `HotsiteNavigation`, which shows the links inline from `md` up and a `<details>` menu below it (closing on Escape, an outside click and a link tap). Hrefs are absolute to the home page (`/{slug}#service-list`), so they work from `/booking` and `/booking/availability-alert`, whose pages resolve the same links with `resolveManifestNavigation(manifest)`. `/lead-form` shows none: its public manifest stubs `layout: []`.
+
+**Strong variants.** The closed `variant` / `layout` values added by TD56 are real layouts, not labels: Hero / Booking CTA / Lead Form `immersive` (the centered composition pinned bottom-left over a full-bleed photo, taller, larger title), Service List `numbered` (ordered price menu) and `feature-cards`, Gallery `portfolio` (an asymmetric 12-column rhythm repeating every four tiles), Testimonials `editorial-quote` (pull-quotes in the heading font), About `editorial` (a single long-form column). `CONTENT_BLOCK` renders its six variants in `ContentBlockModule.tsx`; manager-written Markdown (About, CONTENT_BLOCK bodies, the service long description in a later story) goes through the one restricted renderer, `RestrictedMarkdown` (paragraphs, emphasis, lists and links; no raw HTML, no images; links `rel="noopener noreferrer nofollow"`).
 
 ### Booking flow architecture (`/[slug]/booking`, M22–M23)
 
@@ -783,7 +794,9 @@ In the **same commit**, also add the new member to `HotsiteModuleType` in `packa
 
 Create `apps/web/shells/hotsite/components/XxxModule.tsx`. Rules:
 - Use **only** `var(--ba-*)` CSS variables for colors, fonts, radius, spacing, shadows — never hardcode visual values
-- **Content-width convention:** any free-flowing content (not a full-bleed background image) must be nested in `mx-auto max-w-7xl` — the same container `ServiceListModule`/`AboutModule`/`ContactModule` already use, and `HeroModule`/`BookingCtaModule`'s "stage" div (M18-S05). The section's own padding (`px-6` or an equivalent inline `padding`) stays on the outer `<section>`; the `max-w-7xl mx-auto` layer wraps the content directly inside it. Any left/right positioning feature must anchor content *within* that container, never directly against the section's own edge — otherwise anchoring pushes content flush against the raw viewport edge on wide screens instead of respecting the site's usual content width (found only after M18-S05 shipped, via user feedback on a live wide-viewport screen — not caught by unit tests, which don't exercise real viewport widths).
+- **Section shell and content width:** render the module's `<section>` through `HotsiteSectionShell` (§ `app/[slug]/page.tsx` above) — it owns the full-width surface, background photo and overlay, minimum height and vertical padding, and bounds free-flowing content in the `max-w-7xl mx-auto` container (`presentation.contentWidth` changes the bound). A flow module passes `flow` and its legacy background/colour/padding and arranges content inside; a module with its own stage (Hero, Booking CTA, Lead Form) passes `selfLayout` and keeps its stage inside the `max-w-7xl` container. Any left/right positioning feature must anchor content *within* that container, never directly against the section's own edge — otherwise anchoring pushes content flush against the raw viewport edge on wide screens instead of respecting the site's usual content width (found only after M18-S05 shipped, via user feedback on a live wide-viewport screen — not caught by unit tests, which don't exercise real viewport widths).
+- **Text and card colours:** use `sectionTextColor` / `sectionCardBackground()` (`module-styles.ts`), not a bare `var(--ba-text)`, so a section with an explicit `presentation.surface` follows its derived, contrast-safe tokens.
+
 #### Implicit vs. explicit CSS defaults
 
   A field documented as "unset renders identically to today" must check whether today's behavior is an *explicit* class/value or an *implicit* engine default before wiring the field's own default through generically. A generic "unset → apply this field's default" derivation is only actually a no-op for elements whose current output already matches that default explicitly — an element relying on an implicit default (e.g. a flex container with no `justify-content` at all, which browsers resolve to `normal`/`flex-start`) gets a real, silent behavior change the moment an explicit value for that same default is applied to it. **M18-S05 precedent (2026-07-30):** `HeroModule.tsx`'s CTA row had no `justify-content` class at all pre-story — unlike its sibling elements, which already hardcoded `items-center`/`justify-center` explicitly. Applying the new `contentPositionX` field's `'center'` default uniformly would have silently added `justify-center` to that one row, changing its real rendered position despite the story's own "identical to today" requirement; fixed by special-casing that one element to only apply a class when the field is explicitly set. Found via user review after the first push, not caught by the original implementation. Before trusting "defaults to X is safe" for every affected element, check each element's *actual current* CSS output, not just the containing pattern's stated intent.
@@ -810,7 +823,7 @@ Add a `XxxModuleDataSchema` to `apps/web/features/platform/hotsite/module-schema
 
 **4. Register the render branch**
 
-Add an `else if (parsed.type === 'XXX')` branch (importing the new module's component) to the if/else-if chain in `apps/web/app/[slug]/page.tsx` — see § 3 "Module Type Union" above for the real, current shape of this chain (not a `MODULE_MAP` lookup table, corrected 2026-08-08).
+Add a `case 'XXX':` to the switch in `apps/web/shells/hotsite/components/HotsiteModuleView.tsx` (importing the new module's component). The public page and the editor preview both render through that one view, so there is nothing to add in `app/[slug]/page.tsx` or in `renderHotsitePreviewModule`; the switch is exhaustive, so a type left out fails `tsc`. See § 3 "Module Type Union" and the `app/[slug]/page.tsx` section above.
 
 **5. Add the admin configuration form**
 

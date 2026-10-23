@@ -497,9 +497,15 @@
     }
   },
   "hotsite": {
+    "navigation": {
+      "ariaLabel": "Page sections",
+      "openMenu": "Open menu",
+      "closeMenu": "Close menu"
+    },
     "services": {
       "defaultTitle": "Our Services",
       "pointsSuffix": "+{count} points",
+      "bookCta": "Book",
       "empty": "No services available at the moment"
     },
     "gallery": {
