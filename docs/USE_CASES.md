@@ -784,6 +784,7 @@ Returns:
   - **A2: Price change** → Past bookings unaffected (snapshots are immutable); future bookings use new price
   - **A3: Toggle `requiresPickupAddress`** → Only affects future bookings. Existing `booking_lines` retain their snapshotted `requiresPickupAddressAtBooking` value.
   - **A4: Reactivate service** (`M13-S24`) → Admin calls `PATCH /v1/services/:id/activate` → sets `isActive = true`. Only the Detalhes tab locks into a "Reativar" view while a service is inactive — the M22 Cluster 2 tabs (Recursos, Políticas de reserva, Formulário de reserva; UC-050–055) stay editable regardless of `isActive`, since deactivating a service clears none of that configuration.
+  - **A5: Publish the service's public page** (`TD56-S03`) → Admin fills the "Página pública do serviço" card on the Detalhes tab: a public slug (`[a-z0-9-]`, 3–60, unique within the tenant) and a profile — cover image, up to 8 gallery images, a long description (restricted Markdown, ≤ 4000 chars), up to 12 inclusions (≤ 120 chars each) and preparation notes (≤ 1000 chars). Saved with the same `PATCH /v1/services/:id`: an omitted field is unchanged, `null` clears it. A slug already used by another service of the tenant → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` (the same slug in another tenant is fine). Clearing the slug unpublishes the page without deleting the stored profile. Image upload is `MANAGER`-only (the signed-upload endpoint); STAFF can edit the slug and the text fields. The page itself is UC-109.
 
 - **Postconditions:** Service updated. New bookings reflect all changes including `requiresPickupAddress`.
 - **Events Triggered:** None
@@ -1916,6 +1917,27 @@ Returns:
 
 ---
 
+### **UC-109: Visitor Opens a Service Page**
+
+> Drafted 2026-10-23 (`TD56-S03`). Journey: `journeys/guest/service-detail.md`; manager side: UC-013 A5.
+
+- **Actor:** GUEST | CUSTOMER
+- **Endpoint:** `GET /public/services/by-slug/:publicSlug` (BFF, tenant from `x-tenant-slug`) → backend `GET /v1/services/by-slug/:publicSlug`
+- **Preconditions:** The tenant's hotsite is published; the service is active and has a public slug and profile.
+- **Trigger:** The visitor taps a service card whose Service List `itemAction` is `details`, follows a search/sitemap link, or opens `/{slug}/servicos/{serviceSlug}` directly.
+- **Main Flow:**
+  1. System loads the hotsite manifest and the service by slug within the resolved tenant.
+  2. System renders the branded page: cover, name, short description, price/duration/loyalty-points chips as `SERVICE_LIST.data.detailPage` allows, long description (restricted Markdown), inclusions, preparation notes and gallery — only the blocks the profile has.
+  3. Visitor taps "Agendar este serviço" → `/{slug}/booking?serviceId=<id>` (no date). The booking flow decides every following step from the live service model (UC-001 / UC-002).
+- **Alternative Flows:**
+  - **A1: Hotsite unpublished, service inactive or missing, slug cleared or changed, or service without a public profile** → the same unavailable page as other missing public pages (`noindex`); no redirect from an old slug.
+  - **A2: A Service List card set to `details` whose service has no public slug** → the card shows its booking action instead of a dead link.
+  - **A3: `SERVICE_LIST` disabled or absent** → the page still resolves by URL with the default `detailPage` look; it is just not linked from the home page.
+- **Postconditions:** None (read-only). The response never includes manager booking configuration.
+- **Events Triggered:** None
+
+---
+
 ---
 
 ## Authentication & User Management Use Cases
@@ -2683,7 +2705,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-010d | Remove a schedule opening | STAFF \| MANAGER | `ScheduleOpening` deleted; no event |
 | UC-011 | View calendar | Any | Read available slots filtered by basket's total duration |
 | UC-012 | Create service | STAFF \| MANAGER | Service created with points value |
-| UC-013 | Edit service | STAFF \| MANAGER | Service updated |
+| UC-013 | Edit service (incl. A5 — publish the service's public page) | STAFF \| MANAGER | Service updated |
 | UC-016 | View loyalty metrics | Customer/Admin | Read-only: `current_points` (O(1) balance), next expiry date/points, paginated earning entries + redemptions |
 | UC-016b | Weekly loyalty expiry warning | System (cron) | Monday 06:00 UTC — emit `PointsExpiringSoon` per customer with expiring points; Notification context sends email |
 | UC-017 | View analytics | Admin | Future feature |
@@ -2779,3 +2801,4 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 | UC-106 | System expires a waitlist offer *(planned, not built)* | System | `PROMOTION_PENDING` → `CANCELLED`; next entry promoted |
 | UC-107 | Staff records a manually reported charge at session close-out *(planned, not built)* | STAFF \| MANAGER | `class_session_payments` row created |
 | UC-108 | Staff creates a one-off booking on a customer's behalf | STAFF \| MANAGER | `Booking` created directly `APPROVED`, `type = CUSTOMER` or `GUEST` |
+| UC-109 | Visitor opens a service page | GUEST \| CUSTOMER | Branded read-only page; booking starts with the service preselected |

@@ -367,9 +367,23 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 
 **List action.** `SERVICE_LIST.itemAction`/`itemCtaLabel` are defined by Story 1; this story renders `details` (link to the detail page using `publicSlug`, falling back to booking when the service has none) while Story 2 renders `booking`/`none`. Booking receives the service ID only. `buildBookingDeepLinkUrl` (`packages/types/src/booking-deep-link.ts`) still requires `date` in `BookingDeepLinkInput` and always writes it, while the parser (`parseBookingDeepLink`) and the web seed resolver (`resolveBookingDeepLinkSeed`) already treat `date` as nullable. Make `date` optional in the builder and omit the query parameter when absent, so a service-only link carries no fake date; the builder works unchanged with a relative base such as `/{slug}` (it only returns the input untouched when the base is empty), so no relative-URL change is needed. The existing backend caller (availability-alert emails) is unaffected because it still passes a date. The booking page only honours the seed when the service is in its bookable list, so an inactive service's link falls through to the normal form.
 
+**Locked in discovery (2026-10-23):**
+
+1. **Image promotion is extracted, not duplicated.** The generic tmp → permanent step of `HotsiteImagePromotionService` (validate the `tmp/<tenantId>/<purpose>/<uuid>/<file>` shape, check existence, compute the permanent path, copy + delete after commit, delete superseded objects) moves into `src/shared/` behind `IStorageService`, parametrised by the target prefix and a caller-supplied error. `HotsiteImagePromotionService` delegates to it with unchanged behaviour (its existing specs and the integration spec are the regression net); Booking's create/update service use cases use the same shared step with the `service-profile` purpose. No cross-context import, so no `architecture-policy.json` entry. A test pins that a hotsite save never deletes a service image and the reverse.
+2. **Image upload is MANAGER-only.** Service create/edit stays STAFF | MANAGER, but the signed-upload endpoint is `@Roles('MANAGER')`. STAFF see the cover/gallery controls disabled with a note and can edit the slug and every text field (prototype `03i`). The backend does not need a role check on the paths: a STAFF save can only reference an image already stored or a tmp path a manager uploaded in the same tenant.
+3. **Prototype first.** Screens `03g` (card, manager), `03h` (slug conflict, whole form kept) and `03i` (STAFF) in `journeys/staff/prototypes/servicos/`; the visitor journey `journeys/guest/service-detail.md` with prototype `guest/prototypes/service-detail/` (`01`–`01d`, `02`); UC-013 A5 and UC-109 are documented. The implementation matches these screens and their `dev-notes.md` sections.
+4. **Cache key bump.** `CachingServiceRepository`'s `ServiceCacheRecord` gains `publicSlug` and `publicProfile`; `CACHE_KEY_PREFIX` goes `booking:service:v4:` → `v5:` with the usual comment, so no v4 entry (missing the fields) is read back during a rolling deploy.
+5. **Slug uniqueness primitive.** No new lock. `UpdateServiceUseCase` keeps its `findByIdForUpdate`; cross-service slug uniqueness is the DB partial unique index (a unique violation maps to `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`, 409, the same way `typeorm-resource.repository.ts` maps its constraint). `docs/LOCK_CATALOG.md` needs no entry; the PR notes say so.
+6. **Error plumbing.** The class lives in `booking-service.error.ts` and the code as a new `BookingErrorCode` member in `packages/types/src/error-codes.ts` (value `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`), with an entry in both locale `errors.json` files.
+7. **Sitemap is failure-isolated.** `sitemap.ts` wraps each tenant's `fetchServices(slug)` in try/catch and skips that tenant on failure (logged), so one bad tenant never breaks `/sitemap.xml`.
+8. **Slug auto-suggest is browser-side only** — derived from the name while the field is untouched; never saved unless the manager keeps it.
+9. **Public read gate.** The backend/BFF by-slug lookup returns an active service's profile regardless of hotsite publication (like the existing `/public/services` list); the web page enforces "published hotsite only" and `noindex`.
+10. **Reachability.** The detail page and the card ship in this story, but nothing in the shipped UI sets `itemAction: 'details'` until Story 5's controls. Until then the page is reachable by URL and sitemap, or through manifest JSON; the PR body says so and gives an API recipe to try it.
+11. **Docs ship with the code.** `docs/DOMAIN_MODEL.md`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md`, `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` and the journeys' `dev-notes.md` + GAP→Built status flips (`staff/servicos.md`, `guest/service-detail.md`, `journeys/README.md`) are updated in the implementing PR. UC-013 A5 and UC-109 are already in `docs/USE_CASES.md`.
+
 **Backend HTTP surface:** extend authenticated service create/update (`ServiceController`, DTOs `create-service.dto.ts`/`update-service.dto.ts`) and the service read results with the profile fields; add `GET /v1/services/by-slug/:publicSlug` to `ServicePublicController` (tenant from the `X-Tenant-ID` set by the BFF, like its existing routes).
 **BFF endpoint spec:** extend manager `POST/PATCH /services`; add public `GET /public/services/by-slug/:publicSlug` in `ServicesPublicController`, tenant resolved exclusively from the `x-tenant-slug` header via `withPublicTenant`, response excludes manager-only booking configuration; extend `GET /public/services` items with `publicSlug`.
-**Prototype references:** `journeys/manager/prototypes/hotsite/hotsite-impl/origem.html` (ritual detail intent and service-first CTA); `casa47.html`; `clinica-lume.html`.
+**Prototype references:** `journeys/staff/prototypes/servicos/03g-service-edit-public-profile.html`, `03h-service-edit-slug-conflict.html`, `03i-service-edit-public-profile-staff.html` and their `dev-notes.md` section (manager card); `journeys/guest/prototypes/service-detail/` (`index.html`, `01`–`01d`, `02`; visitor page and list action); intent also in `journeys/manager/prototypes/hotsite/hotsite-impl/origem.html`, `casa47.html`, `clinica-lume.html`.
 **New migration / i18n keys / env vars / feature flags:** migration (booking context) adds `public_profile JSONB NULL`, `public_slug VARCHAR NULL`, and the tenant-first unique partial index (`UNIQUE (tenant_id, public_slug) WHERE public_slug IS NOT NULL`, plain `CREATE UNIQUE INDEX` per the repo precedent above); i18n keys for the service-profile form, validation messages, the public detail page, and the new error code in both locales; no environment variable or feature flag.
 
 **Files to create/modify:**
@@ -384,10 +398,10 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 - `apps/backend/src/contexts/booking/application/use-cases/update-service.use-case.ts` and spec (modify)
 - `apps/backend/src/contexts/booking/application/use-cases/get-public-service-by-slug.use-case.ts` and spec (new — returns profile-facing fields only)
 - `apps/backend/src/contexts/booking/application/use-cases/service-result.mapper.ts` and spec (modify)
-- the service-image tmp-promotion step per *Service images* (new or extracted, with specs; location decided in discovery)
+- `apps/backend/src/shared/**` — the extracted generic tmp-promotion step (new, with spec; decision 1) and `apps/backend/src/contexts/platform/application/services/hotsite-image-promotion.service.ts` + spec (modify — delegates to it, behaviour unchanged); the service create/update use cases consume the same step
 - `apps/backend/src/contexts/booking/infrastructure/entities/service.entity.ts` (modify)
 - `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.mapper.ts` (modify — lossless JSONB mapping)
-- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts` and spec, `caching-service.repository.ts` and spec, `service.repository.integration.spec.ts` (modify — `findByPublicSlug`, unique-violation mapping, cache invalidation)
+- `apps/backend/src/contexts/booking/infrastructure/repositories/typeorm-service.repository.ts` and spec, `caching-service.repository.ts` and spec (cache key `v4` → `v5`), `service.repository.integration.spec.ts` (modify — `findByPublicSlug`, unique-violation mapping, cache invalidation)
 - `apps/backend/src/contexts/booking/infrastructure/migrations/` (new migration)
 - `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (modify — map the new error to 409; confirm path)
 - `apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.ts` and specs (modify)
@@ -413,6 +427,7 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 - `apps/web/app/[slug]/servicos/[serviceSlug]/page.spec.tsx` only if page-level unit coverage is practical; otherwise extract and test presentation under `apps/web/shells/hotsite/components/`
 - `apps/web/shells/hotsite/components/ServiceDetailPage.tsx` and `.spec.tsx` (new)
 - `apps/web/shells/hotsite/components/ServiceListModule.tsx` and spec (modify — `details` rendering and fallback)
+- docs and journeys per decision 11: `docs/DOMAIN_MODEL.md`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md`, `docs/VALUE_OBJECTS_REFERENCE.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `journeys/staff/servicos.md`, `journeys/staff/prototypes/servicos/dev-notes.md`, `journeys/guest/service-detail.md`, `journeys/guest/prototypes/service-detail/dev-notes.md`, `journeys/README.md`
 - `packages/i18n/locales/pt-BR/web.json` (modify)
 - `packages/i18n/locales/en/web.json` (modify)
 
@@ -425,6 +440,7 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 - [ ] A Service List card set to `details` for a service without a public slug falls back to its booking action — never a dead link.
 - [ ] Choosing a slug already used by another service of the same tenant shows a localized conflict error; the same slug in another tenant is accepted.
 - [ ] Clearing a service's slug removes its detail page (and sitemap entry) without deleting the saved profile.
+- [ ] A STAFF user can edit the slug and every text field of the profile but cannot upload or replace images (controls disabled with the explanatory note); a MANAGER can do both.
 
 **Acceptance criteria — technical:**
 
@@ -434,6 +450,9 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
   - [ ] Booking deep-link builder has a named service-only test (`date` omitted) and does not add a fake date; the existing availability-alert link output is unchanged.
   - [ ] Service detail presentation handles every optional profile field, every `detailPage` option and branded surface safely; Markdown is rendered through `rehype-sanitize` (a `<script>`/`javascript:` payload renders inert).
   - [ ] `ServicePublicProfileCard` covers slug auto-suggest, conflict error display, image add/remove, inclusions add/remove, and Markdown preview.
+  - [ ] The extracted shared promotion step has direct specs (valid, foreign-tenant, booking-shaped and missing tmp paths); `HotsiteImagePromotionService`'s existing specs pass unchanged. Negative guarantee, named test: a hotsite save never deletes a service image and a service save never deletes a hotsite image.
+  - [ ] `CachingServiceRepository` writes and reads `v5` records and ignores a leftover `v4` entry.
+  - [ ] `sitemap.ts` skips a tenant whose service fetch throws and still lists the others (named test).
   - [ ] Service create/update use cases promote tmp images after commit (not inside the transaction), reject a foreign-tenant or booking-shaped tmp path, and delete superseded objects.
 - Integration:
   - [ ] Service persistence enforces tenant-scoped unique public slug (two NULL slugs coexist), maps profile JSONB losslessly, and the 409 error code reaches the HTTP response.

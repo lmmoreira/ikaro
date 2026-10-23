@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Massagem Relaxante — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="service-detail.css">
+</head>
+<body>
+  <!--
+    01 — default look: detailPage { heroStyle: cover, galleryLayout: grid, showPrice/showDuration/showLoyaltyPoints: true }, every optional profile field filled.
+    ROUTE: /{slug}/servicos/{serviceSlug}   (app/[slug]/servicos/[serviceSlug]/page.tsx — NEW, TD56-S03)
+    COMPONENT: ServiceDetailPage (apps/web/shells/hotsite/components/ServiceDetailPage.tsx — NEW)
+    DATA: manifest (published only) + GET /public/services/by-slug/:publicSlug — profile-facing fields only, never booking configuration.
+    LOOK: SERVICE_LIST.data.detailPage (heroStyle, galleryLayout, showPrice, showDuration, showLoyaltyPoints, bookingCtaLabel).
+    CTA: /{slug}/booking?serviceId=<id> — no date; the booking flow decides every following step from the live service model.
+  -->
+  <div class="proto-banner">Protótipo — redimensione para ver mobile (390px) e desktop</div>
+  <!--
+    CHROME (production): HotsiteAuthBar renders the NAVIGATION links (desktop) / menu (mobile) — the SAME bar as the home page and /booking,
+    hrefs are absolute-to-home (/{slug}#service-list …) so they work from this page. NO chatbot widget on this page. Footer only if a FOOTER module is enabled.
+  -->
+  <div class="auth-bar" style="justify-content: space-between; gap:1rem;">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <div style="width:1.75rem;height:1.75rem;border-radius:9999px;background:var(--ba-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.875rem;">Vitta Studio</span>
+    </div>
+    <nav class="nav-links" aria-label="Navegação do site">
+      <a href="../../../shared/hotsite.html#service-list">Serviços</a>
+      <a href="../../../shared/hotsite.html#gallery">Galeria</a>
+      <a href="../../../shared/hotsite.html#about">Sobre</a>
+      <a href="../../../shared/hotsite.html#contact">Contato</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button class="nav-menu-btn" aria-haspopup="true" aria-label="Abrir menu">☰ Menu</button>
+      <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+    </div>
+  </div>
+  <main class="sd-wrap">
+    <a class="sd-back" href="../../../shared/hotsite.html#service-list">← Voltar aos serviços</a>
+    <div class="sd-cover " role="img" aria-label="Massagem Relaxante"></div>
+    <h1 class="sd-title">Massagem Relaxante</h1>
+    <p class="sd-short">Massagem relaxante com óleos essenciais e pedras quentes, 60 minutos.</p>
+    <div class="sd-facts"><span class="sd-fact price">R$ 120,00</span><span class="sd-fact">60 min</span><span class="sd-fact">+8 pontos de fidelidade</span></div>
+    <a class="btn-primary" href="../book-a-service/02-calendar-slot.html" style="text-decoration:none;display:inline-block;">Agendar este serviço</a>
+
+    <section class="sd-section"><h2>Sobre o serviço</h2>
+      <div class="sd-body">
+        <p>Uma pausa para o corpo e para a mente. Cada sessão é conduzida no seu ritmo, em uma sala silenciosa e aquecida.</p>
+        <p><strong>O que acontece na sessão</strong></p>
+        <ul><li>Acolhimento e conversa rápida sobre o que você precisa</li><li>Massagem com óleos essenciais e pedras quentes</li><li>Alongamento final guiado</li></ul>
+      </div>
+    </section>
+    <section class="sd-section"><h2>O que está incluído</h2><ul class="sd-incl"><li>Óleos essenciais</li><li>Pedras quentes</li><li>Chá de boas-vindas</li><li>Toalhas e vestiário</li></ul></section>
+    <section class="sd-section"><h2>Como se preparar</h2><div class="sd-note">Chegue com 10 minutos de antecedência. Evite refeições pesadas na hora anterior.</div></section>
+    <section class="sd-section"><h2>Fotos</h2><div class="sd-gallery"><div class="img img-b"></div><div class="img img-c"></div><div class="img img-a"></div></div></section>
+
+    <div class="sd-cta"><p>Escolha o dia e o horário no próximo passo. Você confirma tudo antes de finalizar.</p>
+      <a class="btn-primary" href="../book-a-service/02-calendar-slot.html" style="text-decoration:none;">Agendar este serviço</a></div>
+  </main>
+  <footer class="sd-footer">Vitta Studio · (11) 99999-0000 · São Paulo, SP</footer>
+</body>
+</html>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nossos serviços — ação “Ver detalhes”</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="service-detail.css">
+</head>
+<body>
+  <!--
+    02 — SERVICE_LIST with itemAction: "details". A service WITH a public slug links to its page; a service WITHOUT one falls back to its booking action — never a dead link. (itemAction "booking"/"none" already ship in TD56-S02.)
+    ROUTE: /{slug}/servicos/{serviceSlug}   (app/[slug]/servicos/[serviceSlug]/page.tsx — NEW, TD56-S03)
+    COMPONENT: ServiceDetailPage (apps/web/shells/hotsite/components/ServiceDetailPage.tsx — NEW)
+    DATA: manifest (published only) + GET /public/services/by-slug/:publicSlug — profile-facing fields only, never booking configuration.
+    LOOK: SERVICE_LIST.data.detailPage (heroStyle, galleryLayout, showPrice, showDuration, showLoyaltyPoints, bookingCtaLabel).
+    CTA: /{slug}/booking?serviceId=<id> — no date; the booking flow decides every following step from the live service model.
+  -->
+  <div class="proto-banner">Protótipo — redimensione para ver mobile (390px) e desktop</div>
+  <!--
+    CHROME (production): HotsiteAuthBar renders the NAVIGATION links (desktop) / menu (mobile) — the SAME bar as the home page and /booking,
+    hrefs are absolute-to-home (/{slug}#service-list …) so they work from this page. NO chatbot widget on this page. Footer only if a FOOTER module is enabled.
+  -->
+  <div class="auth-bar" style="justify-content: space-between; gap:1rem;">
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <div style="width:1.75rem;height:1.75rem;border-radius:9999px;background:var(--ba-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">V</div>
+      <span style="font-weight:700;font-size:0.875rem;">Vitta Studio</span>
+    </div>
+    <nav class="nav-links" aria-label="Navegação do site">
+      <a href="../../../shared/hotsite.html#service-list">Serviços</a>
+      <a href="../../../shared/hotsite.html#gallery">Galeria</a>
+      <a href="../../../shared/hotsite.html#about">Sobre</a>
+      <a href="../../../shared/hotsite.html#contact">Contato</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:0.75rem;">
+      <button class="nav-menu-btn" aria-haspopup="true" aria-label="Abrir menu">☰ Menu</button>
+      <a href="../../../shared/login.html" style="font-size:0.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+    </div>
+  </div>
+  <section class="sd-wrap" id="service-list">
+    <h2 style="font-size:1.5rem;font-weight:700;margin:1.5rem 0;">Nossos serviços</h2>
+    <div class="service-grid">
+      <div class="service-card"><h3>Massagem Relaxante</h3><p>Óleos essenciais e pedras quentes, 60 minutos.</p>
+        <div class="row"><span class="service-price" style="font-weight:700;color:var(--ba-primary);">R$ 120,00</span><span style="font-size:0.8rem;opacity:0.6;">60 min</span></div>
+        <a class="btn-secondary" href="01-service-detail.html">Ver detalhes</a></div>
+      <div class="service-card"><h3>Drenagem Linfática</h3><p>Sessão focada em reduzir inchaço e retenção.</p>
+        <div class="row"><span class="service-price" style="font-weight:700;color:var(--ba-primary);">R$ 150,00</span><span style="font-size:0.8rem;opacity:0.6;">50 min</span></div>
+        <a class="btn-secondary" href="01c-service-detail-minimal.html">Ver detalhes</a></div>
+      <!-- No public slug yet → the card's action is "booking" (itemCtaLabel or the default label), pointing at /{slug}/booking?serviceId=<id>. -->
+      <div class="service-card"><h3>Banho de Lua</h3><p>Esfoliação suave e hidratação.</p>
+        <div class="row"><span class="service-price" style="font-weight:700;color:var(--ba-primary);">R$ 90,00</span><span style="font-size:0.8rem;opacity:0.6;">40 min</span></div>
+        <a class="btn-primary" href="../book-a-service/02-calendar-slot.html">Agendar</a></div>
+    </div>
+  </section>
+  <footer class="sd-footer">Vitta Studio · (11) 99999-0000 · São Paulo, SP</footer>
+</body>
+</html>

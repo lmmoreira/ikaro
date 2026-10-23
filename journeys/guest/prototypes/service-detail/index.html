@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — GUEST: Página do Serviço</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; } h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; } p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; } li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    li a { color: var(--ba-primary); font-weight: 500; } .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-new { background: #fee2e2; color: #dc2626; } .tag-green { background: #dcfce7; color: #15803d; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — GUEST: Página do Serviço</h1>
+  <p>O visitante abre a página própria de um serviço a partir da lista de serviços do hotsite (<code>itemAction: "details"</code>), lê a descrição completa e segue para o agendamento com o serviço já escolhido. Story: <code>TD56-S03</code>.</p>
+  <ul>
+    <li><a href="00-hotsite.html">Tela 0 — Hotsite (ponto de entrada)</a><span class="tag tag-green">EXISTS</span></li>
+    <li><a href="02-service-list-details-action.html">Lista de serviços com “Ver detalhes” (e o fallback “Agendar” sem slug)</a><span class="tag tag-new">NEW: ServiceListModule · itemAction details</span></li>
+    <li><a href="01-service-detail.html">1 — Página do serviço (aparência padrão)</a><span class="tag tag-new">NEW: ServiceDetailPage</span></li>
+    <li><a href="01b-service-detail-compact-featured.html">1b — Capa compacta, galeria em destaque, sem preço/pontos, CTA personalizado</a><span class="tag tag-new">NEW: detailPage settings</span></li>
+    <li><a href="01c-service-detail-minimal.html">1c — Perfil mínimo (só nome/descrição curta)</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="01d-service-detail-unavailable.html">1d — Página indisponível</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="../book-a-service/02-calendar-slot.html">→ Agendamento com o serviço pré-selecionado</a><span class="tag tag-green">EXISTS: <code>?serviceId=</code> deep link</span></li>
+  </ul>
+  <hr>
+  <div class="note">
+    <strong>Checklist de revisão</strong>
+    <ul style="display:block;margin:0.5rem 0 0 1.25rem;list-style:disc;">
+      <li style="display:list-item;">O botão “Agendar” deixa claro que o próximo passo é escolher data e horário (sem calendário na própria página)?</li>
+      <li style="display:list-item;">A página funciona com qualquer combinação de campos preenchidos (1c) sem “buracos”?</li>
+      <li style="display:list-item;">O link “Voltar aos serviços” e o menu de navegação levam para as âncoras da home?</li>
+      <li style="display:list-item;">Em 390px, a barra de navegação mostra um único menu (sem segundo cabeçalho)?</li>
+      <li style="display:list-item;">O editor do gerente (<a href="../../../staff/prototypes/servicos/03g-service-edit-public-profile.html">staff/servicos 03g</a>) cobre tudo que esta página exibe?</li>
+    </ul>
+  </div>
+</body>
+</html>

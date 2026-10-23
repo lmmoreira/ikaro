@@ -344,3 +344,39 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 **Props:** `ServiceBookingPolicyPanel` receives the saved `resourceRequirements`, `legs` and `requiresPickupAddress` from `ServiceEditConfigTabPanels` (today it gets only `hasLegs`). The hint reflects the last-saved service; unsaved edits in the Recursos tab are not reflected, which the copy says ("salve primeiro"). Not shown for a `SESSION` service (the panel does not exist there).
 
 **Copy (pt-BR, final wording confirmed in review):** see `03f`; keys under `dashboard.servicesPage.politicasRecurrenceHint*` in both locales.
+
+---
+
+## TD56-S03 — "Página pública do serviço" card (`03g`, `03h`, `03i`) — prototype, not yet built
+
+**What it is:** one card at the bottom of the Detalhes tab (above the form actions) where a manager or staff member gives a service its own public page: an address (slug), cover image, gallery, long Markdown description, inclusions and preparation notes. It saves with the tab's existing "Salvar alterações" — the same `PATCH /v1/services/:id`, with two new optional fields. The visitor side is `guest/prototypes/service-detail/`.
+
+**File map**
+
+| Prototype | Production |
+|---|---|
+| `03g` card | `features/booking/components/dashboard/services/ServicePublicProfileCard.tsx` (new), mounted by `ServiceFormFields` → `ServiceCreatePage` + `ServiceEditDetailsTab` |
+| `03h` slug conflict | same card, `error` state fed by the 409 mapped through the shared error-translation helper |
+| `03i` STAFF view | same card, `canUploadImages = role === 'MANAGER'`; image tiles and "Adicionar" disabled, note shown |
+
+**Props (proposed):** `value: { publicSlug: string | null; publicProfile: ServicePublicProfileInput | null }`, `onChange`, `serviceName` (slug suggestion), `slugError?: string`, `canUploadImages: boolean`, `publicPageUrlBase: string` (tenant host + `/servicos/`), `serviceId?` (absent on create).
+
+**BFF calls:** `PATCH /v1/services/:id` and `POST /v1/services` (STAFF | MANAGER) carry `publicSlug?: string | null` and `publicProfile?: {…} | null` — omitted = unchanged, `null` = clear. Images use the existing MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`; the saved paths are `tenants/<tenantId>/hotsite/service-profile/…`. `GET /v1/services/:id` (`StaffServiceResponse`) returns both fields back.
+
+**Validation table**
+
+| Field | Rule | Error copy (pt-BR) |
+|---|---|---|
+| `publicSlug` | `[a-z0-9-]`, 3–60, no leading/trailing hyphen; lowercased and trimmed on input; empty = not published | "Use de 3 a 60 letras minúsculas, números e hífens." |
+| `publicSlug` (server) | unique per tenant → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` | "Este endereço já está em uso por outro serviço. Escolha outro." |
+| cover | one image | — |
+| gallery | ≤ 8 images | "A galeria aceita até 8 imagens." |
+| `longDescription` | ≤ 4000 chars, restricted Markdown (no HTML, no images) | counter `n / 4000` |
+| `inclusions` | ≤ 12 items × 120 chars; blank rows dropped on save | counter `n de 12` |
+| `preparationNotes` | ≤ 1000 chars | counter `n / 1000` |
+
+**States:** (1) no slug — chip "Não publicada", link "Ver página pública" hidden; (2) slug set — chip "Publicada", link shown; (3) slug conflict (`03h`) — the **whole form stays visible**, only the slug field is flagged and the card scrolls into view; (4) STAFF (`03i`) — images disabled with the note "Somente gerentes podem enviar ou trocar as imagens da página pública."; (5) slug cleared — saves `publicSlug: null`; the profile content is kept and reappears if a slug is set again. The slug auto-suggests from the name in the browser only while the field is untouched and empty; a suggestion is never saved unless the manager keeps it. On create (`ServiceCreatePage`) the card renders with an empty state and the same fields.
+
+**Reuse inventory (`shared/components/ui/`):** `section-card` for the card shell, `textarea` for the Markdown and notes fields, `button` for add/remove. Image tiles reuse the hotsite editor's `SingleImageUploadField` upload mechanics. The Markdown preview uses the shared `RestrictedMarkdown` renderer, so the manager sees what the visitor will see. No existing primitive for a tab strip inside a card — the Escrever/Pré-visualizar toggle is two buttons with `aria-selected`.
+
+**i18n:** keys under `dashboard.servicesPage.publicProfile*` in both locales, plus the `BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` entry in `errors.json`.
