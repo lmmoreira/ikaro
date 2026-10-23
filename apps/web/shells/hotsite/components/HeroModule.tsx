@@ -11,6 +11,7 @@ import {
   textColumnWidthClass,
 } from '@/features/platform/hotsite/section-presentation';
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
+import { BrandCard } from './BrandCard';
 import { SectionEyebrow } from './SectionEyebrow';
 
 interface HeroModuleProps extends SectionPresentationProps {
@@ -42,42 +43,6 @@ const secondaryBtnStyle: React.CSSProperties = {
   borderRadius: 'var(--ba-radius)',
   opacity: 0.85,
 };
-
-function BrandCard({
-  name,
-  tagline,
-}: {
-  readonly name: string;
-  readonly tagline?: string;
-}): React.JSX.Element {
-  return (
-    <div
-      className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
-      style={{
-        backgroundColor: 'var(--ba-secondary)',
-        border: '2px solid var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-      }}
-      data-testid="brand-card"
-    >
-      <div
-        className="text-2xl font-black uppercase tracking-widest sm:text-3xl"
-        style={{ color: 'var(--ba-primary)' }}
-      >
-        {name}
-      </div>
-      {tagline && (
-        <div
-          className="mt-2 text-xs uppercase tracking-widest"
-          style={{ color: 'var(--ba-text)', opacity: 0.6 }}
-          data-testid="brand-card-tagline"
-        >
-          {tagline}
-        </div>
-      )}
-    </div>
-  );
-}
 
 function HeroTextContent({
   data,
@@ -140,7 +105,11 @@ interface HeroVariantProps extends SectionPresentationProps {
 
 // The centered composition, and `immersive`: the same composition pinned bottom-left over a
 // full-bleed photo, taller and with a larger title (an explicit contentPositionX/Y still wins).
-function HeroCentered({ data, presentation, sectionTokens }: HeroVariantProps): React.JSX.Element {
+function HeroCentered({
+  data,
+  presentation,
+  sectionTokens,
+}: Omit<HeroVariantProps, 'tenantBrand'>): React.JSX.Element {
   const ctaHref = `#${data.ctaTarget}`;
   const bgUrl = data.backgroundImageUrl;
   const objectPosition = `${data.backgroundImagePosition ?? 'center'} center`;
@@ -169,15 +138,10 @@ function HeroCentered({ data, presentation, sectionTokens }: HeroVariantProps): 
   const ctaJustifyClass = data.contentPositionX || isImmersive ? justifyClass : '';
 
   return (
-    // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a
-    // vh (viewport-height-relative) one — vh is pinned to the browser's viewport height, so as the
-    // window is narrowed (without the screen itself changing height), a vh-based floor stays
-    // fixed while the container's width shrinks, making the box progressively more portrait
-    // and cropping progressively worse at every width in between, not just at the mobile
-    // breakpoint. Both values approximate a landscape ratio close to a typical wide banner
-    // (mobile: 21:9 via 42.86vw; sm:+: ~16:5 via 31.25vw, close to the desktop shape this
-    // already had via the old 60vh at a typical monitor's proportions) — but because they're
-    // width-relative, the ratio stays roughly constant at every window width, not just one.
+    // Both breakpoints use a vw-relative (container-width-relative) min-height floor, never a vh
+    // one: vh stays pinned to the viewport height while the container narrows, so the box gets
+    // progressively more portrait and the crop worse at every width in between. 42.86vw (21:9) and
+    // 31.25vw (~16:5) keep a landscape ratio at every window width.
     <HotsiteSectionShell
       dataVariant={data.variant}
       className={sectionClassName}
@@ -264,7 +228,12 @@ function HeroLeftAligned({
             <HeroTextContent data={data} ctaHref={ctaHref} ctaJustifyClass="" />
           </div>
           {rightPanel === 'brand-card' && tenantBrand && (
-            <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
+            <BrandCard
+              name={tenantBrand.name}
+              tagline={tenantBrand.tagline}
+              testId="brand-card"
+              taglineTestId="brand-card-tagline"
+            />
           )}
           {rightPanel === 'image' && bgUrl && (
             // sm:min-h-[15.6vw], not vh — same reasoning as the centered variant above. This

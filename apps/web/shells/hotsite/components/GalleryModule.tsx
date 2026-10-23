@@ -55,7 +55,10 @@ const PORTFOLIO_SLOTS = [
 
 interface GalleryLayoutProps {
   readonly data: GalleryModuleData;
-  readonly layout: GalleryModuleData['layout'];
+}
+
+interface StandardGalleryProps extends GalleryLayoutProps {
+  readonly layout: 'grid' | 'masonry';
 }
 
 function PortfolioGallery({ data }: GalleryLayoutProps): React.JSX.Element {
@@ -118,7 +121,7 @@ function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
 }
 
 // Grid, and masonry (a flex-wrap row of natural-aspect tiles).
-function StandardGallery({ data, layout }: GalleryLayoutProps): React.JSX.Element {
+function StandardGallery({ data, layout }: StandardGalleryProps): React.JSX.Element {
   return (
     <GalleryGrid maxVisible={data.maxVisible} totalImages={data.images.length}>
       <div
@@ -155,9 +158,12 @@ function StandardGallery({ data, layout }: GalleryLayoutProps): React.JSX.Elemen
   );
 }
 
-function GalleryLayout({ data, layout }: GalleryLayoutProps): React.JSX.Element {
-  if (layout === 'portfolio') return <PortfolioGallery data={data} layout={layout} />;
-  if (layout === 'featured') return <FeaturedGallery data={data} layout={layout} />;
+function GalleryLayout({
+  data,
+  layout,
+}: GalleryLayoutProps & { readonly layout: GalleryModuleData['layout'] }): React.JSX.Element {
+  if (layout === 'portfolio') return <PortfolioGallery data={data} />;
+  if (layout === 'featured') return <FeaturedGallery data={data} />;
   return <StandardGallery data={data} layout={layout} />;
 }
 

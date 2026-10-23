@@ -12,6 +12,7 @@ import {
   textColumnWidthClass,
 } from '@/features/platform/hotsite/section-presentation';
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
+import { BrandCard } from './BrandCard';
 import { SectionEyebrow } from './SectionEyebrow';
 
 interface BookingCtaModuleProps extends SectionPresentationProps {
@@ -38,41 +39,6 @@ function resolveTextColor(bgStyle: BookingCtaModuleData['bgStyle']): string {
   // An explicit presentation.surface carries derived, contrast-safe section tokens; without it
   // this is the module's own bgStyle choice, unchanged.
   return `var(--ba-section-text, ${fallback})`;
-}
-
-function BrandCard({
-  name,
-  tagline,
-}: {
-  readonly name: string;
-  readonly tagline?: string;
-}): React.JSX.Element {
-  return (
-    <div
-      className="flex flex-shrink-0 flex-col items-center justify-center p-8 text-center sm:p-10"
-      style={{
-        backgroundColor: 'var(--ba-secondary)',
-        border: '2px solid var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-      }}
-      data-testid="booking-cta-brand-card"
-    >
-      <div
-        className="text-2xl font-black uppercase tracking-widest sm:text-3xl"
-        style={{ color: 'var(--ba-primary)' }}
-      >
-        {name}
-      </div>
-      {tagline && (
-        <div
-          className="mt-2 text-xs uppercase tracking-widest"
-          style={{ color: 'var(--ba-text)', opacity: 0.6 }}
-        >
-          {tagline}
-        </div>
-      )}
-    </div>
-  );
 }
 
 function BookingCtaContent({
@@ -157,7 +123,11 @@ export function BookingCtaModule({
               <BookingCtaContent data={data} slug={slug} />
             </div>
             {showBrandCard && tenantBrand && (
-              <BrandCard name={tenantBrand.name} tagline={tenantBrand.tagline} />
+              <BrandCard
+                name={tenantBrand.name}
+                tagline={tenantBrand.tagline}
+                testId="booking-cta-brand-card"
+              />
             )}
             {!showBrandCard && bgUrl && (
               <div className="relative aspect-[21/9] sm:aspect-auto sm:h-full sm:min-h-[15.6vw]">
