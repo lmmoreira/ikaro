@@ -22,9 +22,26 @@
   "layout": [
     {
       "type": "NAVIGATION",
-      "enabled": false,
+      "enabled": true,
       "data": {
-        "items": []
+        "items": [
+          {
+            "label": "Serviços",
+            "target": "service-list"
+          },
+          {
+            "label": "Resultados",
+            "target": "gallery"
+          },
+          {
+            "label": "Sobre",
+            "target": "about"
+          },
+          {
+            "label": "Contato",
+            "target": "contact"
+          }
+        ]
       }
     },
     {

@@ -22,7 +22,7 @@
   "layout": [
     {
       "type": "NAVIGATION",
-      "enabled": false,
+      "enabled": true,
       "data": {
         "items": [
           {
