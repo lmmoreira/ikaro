@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { HotsiteAdminContentResponse, HotsiteManifestResponse } from '@ikaro/types';
@@ -461,6 +461,60 @@ describe('HotsitePreviewCanvas', () => {
 
       expect(fetchSpy).not.toHaveBeenCalledWith(expect.stringContaining('/api/session'));
       fetchSpy.mockRestore();
+    });
+
+    it('shows the draft NAVIGATION links in the inert bar, only for enabled sections', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      const base = makeDraft();
+      const draft = makeDraft({
+        layout: [
+          {
+            type: 'NAVIGATION',
+            enabled: true,
+            data: {
+              items: [
+                { label: 'Sobre nós', target: 'about' },
+                { label: 'Galeria', target: 'gallery' },
+              ],
+            },
+          },
+          ...base.layout,
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: { title: 'Sobre', body: 'Texto', imagePosition: 'left' },
+          },
+        ],
+      });
+      renderWithIntl(<HotsitePreviewCanvas draft={draft} />);
+
+      const bar = await screen.findByTestId('hotsite-preview-auth-bar');
+      const nav = within(bar).getByTestId('hotsite-navigation');
+
+      expect(nav).toHaveTextContent('Sobre nós');
+      expect(nav).not.toHaveTextContent('Galeria');
+      expect(bar).toHaveAttribute('inert');
+      expect(screen.getAllByTestId('hotsite-auth-bar')).toHaveLength(1);
+    });
+
+    it('derives the section tokens of a section that sets a surface from the draft branding', async () => {
+      mockFetchManifest.mockResolvedValue(makeManifest());
+      const draft = makeDraft({
+        layout: [
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: { title: 'Sobre', body: 'Texto', imagePosition: 'left' },
+            presentation: { surface: 'primary' },
+          },
+        ],
+      });
+      renderWithIntl(<HotsitePreviewCanvas draft={draft} />);
+
+      await screen.findByTestId('hotsite-preview-content');
+
+      const about = document.querySelector('section#about') as HTMLElement;
+      expect(about.style.getPropertyValue('--ba-section-bg')).toBe('#0055A4');
     });
 
     it('renders no selectable section for the bar and leaves the module render plan untouched', async () => {
