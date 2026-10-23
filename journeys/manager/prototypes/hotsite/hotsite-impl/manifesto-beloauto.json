@@ -3,7 +3,7 @@
     "logoUrl": "",
     "spacing": "comfortable",
     "brandName": "BELOAUTO",
-    "textColor": "#FFFFFF",
+    "textColor": "#F5F5F5",
     "buttonStyle": "filled",
     "heroBgStyle": "background",
     "shadowStyle": "subtle",
@@ -12,9 +12,9 @@
     "dividerStyle": "gradient",
     "primaryColor": "#F5A800",
     "bodyFontFamily": "Montserrat",
-    "secondaryColor": "#1A1A1A",
-    "backgroundColor": "#0A0A0A",
-    "buttonTextColor": "#0A0A0A",
+    "secondaryColor": "#181818",
+    "backgroundColor": "#090909",
+    "buttonTextColor": "#090909",
     "headingFontFamily": "Montserrat",
     "alternateSectionBg": true,
     "buttonBackgroundColor": "#F5A800"
@@ -29,15 +29,12 @@
     },
     {
       "data": {
-        "title": "Cuidado completo para o seu carro",
-        "eyebrow": "Estética automotiva premium · SJC-SP",
+        "title": "Cuidado completo para o seu carro.",
+        "eyebrow": "ESTÉTICA AUTOMOTIVA PREMIUM",
         "variant": "centered",
         "ctaLabel": "Ver serviços",
-        "subtitle": "Resultados impecáveis com atenção aos detalhes",
+        "subtitle": "Resultado impecável, técnica precisa e atenção em cada detalhe.",
         "ctaTarget": "service-list",
-        "rightPanel": "none",
-        "secondaryCtaLabel": "Agendar agora",
-        "secondaryCtaTarget": "booking-form",
         "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/hero.png",
         "backgroundImagePosition": "center",
         "contentPositionX": "left",
@@ -46,58 +43,35 @@
       "type": "HERO",
       "enabled": true,
       "presentation": {
+        "minHeight": "lg",
         "overlay": {
           "type": "linear-gradient",
           "direction": "to-top",
-          "fromColor": "#0A0A0A",
-          "fromOpacity": 0.85,
-          "toColor": "#0A0A0A",
-          "toOpacity": 0.15
-        },
-        "minHeight": "lg"
-      }
-    },
-    {
-      "type": "CONTENT_BLOCK",
-      "enabled": true,
-      "data": {
-        "variant": "trust-grid",
-        "eyebrow": "Por que escolher",
-        "title": "Cuidado que você percebe",
-        "items": [
-          {
-            "label": "Produtos profissionais",
-            "description": "Linha selecionada para cada superfície."
-          },
-          {
-            "label": "Equipe treinada",
-            "description": "Atenção aos detalhes em cada etapa."
-          },
-          {
-            "label": "Agendamento simples",
-            "description": "Escolha o serviço e reserve em minutos."
-          }
-        ]
-      },
-      "presentation": {
-        "surface": "secondary",
-        "padding": "compact"
+          "fromColor": "#090909",
+          "fromOpacity": 1,
+          "toColor": "#090909",
+          "toOpacity": 0
+        }
       }
     },
     {
       "data": {
-        "title": "Nossos Serviços",
+        "title": "Serviços de precisão.",
         "layout": "grid",
-        "eyebrow": "O que fazemos",
-        "showPoints": true,
+        "eyebrow": "O QUE FAZEMOS",
+        "showPoints": false,
         "showPrices": true
       },
       "type": "SERVICE_LIST",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#141414"
+      }
     },
     {
       "data": {
-        "title": "Nosso Trabalho",
+        "title": "O detalhe muda tudo.",
         "images": [
           {
             "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-1.png",
@@ -127,20 +101,98 @@
         ],
         "layout": "featured",
         "featuredPosition": "left",
-        "eyebrow": "Resultados reais",
+        "eyebrow": "RESULTADOS REAIS",
         "maxVisible": 5
       },
       "type": "GALLERY",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "surface": "background"
+      }
+    },
+    {
+      "type": "CONTENT_BLOCK",
+      "enabled": true,
+      "data": {
+        "variant": "technical-callout",
+        "title": "O brilho é só a primeira camada.",
+        "body": "Produtos de alta performance e um processo transparente protegem a pintura muito depois do brilho.",
+        "align": "left",
+        "facts": [
+          {
+            "value": "01",
+            "label": "PROTEÇÃO DE VERDADE"
+          }
+        ]
+      },
+      "presentation": {
+        "background": {
+          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png"
+        },
+        "overlay": {
+          "type": "linear-gradient",
+          "direction": "to-right",
+          "fromColor": "#090909",
+          "fromOpacity": 0.95,
+          "toColor": "#090909",
+          "toOpacity": 0.2
+        },
+        "minHeight": "md"
+      }
     },
     {
       "data": {
-        "title": "Agende seu horário",
+        "body": "Produtos de alta performance, profissionais especializados e um processo transparente.",
+        "title": "Técnica visível no resultado.",
+        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
+        "imagePosition": "right",
+        "eyebrow": "SOBRE NÓS",
+        "variant": "split"
+      },
+      "type": "ABOUT",
+      "enabled": true,
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#181818"
+      }
+    },
+    {
+      "data": {
+        "items": [
+          {
+            "authorName": "Marcelo",
+            "text": "O carro voltou melhor que quando saiu da loja.",
+            "rating": 5
+          },
+          {
+            "authorName": "Paulo",
+            "text": "Explicaram cada etapa e entregaram no horário.",
+            "rating": 5
+          },
+          {
+            "authorName": "Carla",
+            "text": "Acabamento realmente impecável.",
+            "rating": 5
+          }
+        ],
+        "title": "Confiança conquistada.",
+        "layout": "grid",
+        "eyebrow": "QUEM JÁ CONHECE"
+      },
+      "type": "TESTIMONIALS",
+      "enabled": true,
+      "presentation": {
+        "surface": "primary"
+      }
+    },
+    {
+      "data": {
+        "title": "Seu carro merece este cuidado.",
         "bgStyle": "background",
-        "eyebrow": "Reserve agora",
+        "eyebrow": "RESERVE AGORA",
         "variant": "centered",
         "ctaLabel": "Agendar agora",
-        "subtitle": "Reserve em poucos minutos e cuide do seu carro com a gente",
+        "subtitle": "Escolha o serviço e siga para o agendamento completo.",
         "rightPanel": "none",
         "datePickerType": "carousel",
         "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png",
@@ -151,63 +203,34 @@
       "type": "BOOKING_CTA",
       "enabled": true,
       "presentation": {
-        "contentWidth": "wide"
+        "minHeight": "md",
+        "contentWidth": "narrow"
       }
     },
     {
       "data": {
-        "items": [
-          {
-            "text": "Atendimento excelente, recomendo!",
-            "rating": 5,
-            "authorName": "Maria Silva"
-          },
-          {
-            "text": "Carro ficou impecável, voltarei sempre.",
-            "rating": 4,
-            "authorName": "João Pereira"
-          },
-          {
-            "text": "Rápido e com ótimo preço.",
-            "rating": 5,
-            "authorName": "Ana Costa"
-          }
-        ],
-        "title": "O que nossos clientes dizem",
-        "layout": "carousel",
-        "eyebrow": "Quem já conhece"
-      },
-      "type": "TESTIMONIALS",
-      "enabled": true
-    },
-    {
-      "data": {
-        "body": "Somos uma estética automotiva **premium** com mais de 10 anos de experiência cuidando do seu carro com carinho e atenção aos detalhes.\n\n- Produtos de alta qualidade\n- Profissional especializado\n- Agendamento rápido",
-        "title": "Sobre nós",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
-        "imagePosition": "right"
-      },
-      "type": "ABOUT",
-      "enabled": true
-    },
-    {
-      "data": {
-        "title": "Fale conosco",
-        "eyebrow": "Vem nos visitar",
-        "showMap": true,
-        "showEmail": true,
-        "showPhone": true,
+        "title": "Fale com a gente.",
+        "eyebrow": "ESTAMOS AQUI",
+        "showMap": false,
+        "showEmail": false,
+        "showPhone": false,
         "showAddress": true,
         "displayStyle": "icon-cards",
         "showWhatsapp": true,
-        "whatsappCtaLabel": "Chamar no WhatsApp"
+        "whatsappCtaLabel": "Chamar no WhatsApp",
+        "showInstagram": true,
+        "showFacebook": false
       },
       "type": "CONTACT",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#141414"
+      }
     },
     {
       "data": {
-        "tagline": "Estética Automotiva Premium · São José dos Campos, SP, Brasil",
+        "tagline": "Estética automotiva premium",
         "showWhatsapp": true,
         "copyrightNote": "Todos os direitos reservados."
       },
@@ -231,6 +254,6 @@
   "seo": {
     "title": "Belo Auto Estética Premium",
     "description": "Belo Auto Estética",
-    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/og.png"
+    "ogImageUrl": ""
   }
 }

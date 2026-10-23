@@ -24,7 +24,24 @@
       "type": "NAVIGATION",
       "enabled": false,
       "data": {
-        "items": []
+        "items": [
+          {
+            "label": "Banho e tosa",
+            "target": "service-list"
+          },
+          {
+            "label": "Galeria",
+            "target": "gallery"
+          },
+          {
+            "label": "Histórias",
+            "target": "testimonials"
+          },
+          {
+            "label": "Contato",
+            "target": "contact"
+          }
+        ]
       }
     },
     {
@@ -37,46 +54,86 @@
         "eyebrow": "CUIDADO QUE ABANA O RABO",
         "contentPositionX": "left",
         "contentPositionY": "center",
-        "ctaLabel": "Agendar banho",
-        "ctaTarget": "booking-form",
-        "secondaryCtaLabel": "Ver galeria",
-        "secondaryCtaTarget": "gallery",
-        "rightPanel": "none"
+        "ctaLabel": "Conhecer os mimos",
+        "ctaTarget": "service-list",
+        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/hero-v2.png",
+        "backgroundImagePosition": "right"
       },
       "presentation": {
-        "surface": "secondary",
-        "minHeight": "md"
+        "minHeight": "lg",
+        "overlay": {
+          "type": "linear-gradient",
+          "direction": "to-right",
+          "fromColor": "#FFF7EF",
+          "fromOpacity": 1,
+          "toColor": "#FFF7EF",
+          "toOpacity": 0
+        }
+      }
+    },
+    {
+      "type": "SERVICE_LIST",
+      "enabled": true,
+      "data": {
+        "title": "Cuidado para todas as patinhas.",
+        "eyebrow": "NOSSOS SERVIÇOS",
+        "showPrices": true,
+        "showPoints": true,
+        "layout": "feature-cards"
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#FFFFFF"
       }
     },
     {
       "type": "CONTENT_BLOCK",
       "enabled": true,
       "data": {
-        "variant": "collage-callout",
-        "eyebrow": "Nosso cantinho",
-        "title": "Um espaço feito para abanar o rabinho.",
-        "body": "Conheça o lugar onde cada visita é cheia de carinho.",
-        "images": [
+        "variant": "trust-grid",
+        "eyebrow": "O JEITO MIMO",
+        "title": "Cada pet tem seu tempo.",
+        "body": "Rotina clara, produtos gentis e uma equipe que respeita o ritmo de cada animal.",
+        "items": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
-            "alt": ""
+            "label": "Check-in com contexto"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/booking.png",
-            "alt": ""
+            "label": "Produtos gentis"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-1.png",
-            "alt": ""
+            "label": "Equipe presente"
+          },
+          {
+            "label": "Retorno feliz"
           }
         ]
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#DCEFDC"
+      }
+    },
+    {
+      "type": "ABOUT",
+      "enabled": true,
+      "data": {
+        "title": "Confiança começa no cuidado.",
+        "eyebrow": "CARINHO QUE SE VÊ",
+        "body": "Rotina segura, produtos gentis e uma equipe que respeita o tempo de cada animal.",
+        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
+        "imagePosition": "left",
+        "variant": "split"
+      },
+      "presentation": {
+        "surface": "background"
       }
     },
     {
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Fofura em cada detalhe",
+        "title": "Fofura em cada detalhe.",
         "eyebrow": "CLIENTES FELIZES",
         "images": [
           {
@@ -115,24 +172,13 @@
             "height": 1024
           }
         ],
-        "layout": "masonry",
+        "layout": "featured",
         "featuredPosition": "left",
         "maxVisible": 5
-      }
-    },
-    {
-      "type": "SERVICE_LIST",
-      "enabled": true,
-      "data": {
-        "title": "Cuidado para todas as patinhas",
-        "eyebrow": "NOSSOS SERVIÇOS",
-        "showPrices": true,
-        "showPoints": true,
-        "layout": "feature-cards"
       },
       "presentation": {
-        "surface": "primary",
-        "padding": "spacious"
+        "surface": "custom",
+        "customColor": "#FCE4D3"
       }
     },
     {
@@ -141,31 +187,35 @@
       "data": {
         "title": "Quem conhece, recomenda",
         "eyebrow": "AMOR EM QUATRO PATAS",
-        "layout": "carousel",
+        "layout": "grid",
         "items": [
           {
             "authorName": "Camila, mãe da Mel",
             "text": "A Mel sai feliz e cheirosa. Confio de olhos fechados.",
-            "rating": 5,
-            "avatarUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-1.png"
+            "rating": 5
           },
           {
             "authorName": "Bruno, pai do Theo",
-            "text": "Equipe cuidadosa e muito atenciosa.",
-            "rating": 5,
-            "avatarUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-3.png"
+            "text": "O Theo é ansioso e aqui respeitam o tempo dele.",
+            "rating": 5
+          },
+          {
+            "authorName": "Luana, mãe do Nino",
+            "text": "Atendimento atento desde a chegada até a volta para casa.",
+            "rating": 5
           }
         ]
       },
       "presentation": {
-        "surface": "secondary"
+        "surface": "custom",
+        "customColor": "#FFFFFF"
       }
     },
     {
       "type": "BOOKING_CTA",
       "enabled": true,
       "data": {
-        "variant": "centered",
+        "variant": "left-aligned",
         "title": "Vamos cuidar do seu melhor amigo?",
         "subtitle": "O agendamento começa pelo serviço e segue com as etapas adequadas para o seu pet.",
         "eyebrow": "É SÓ ESCOLHER",
@@ -177,13 +227,24 @@
         "rightPanel": "none",
         "contentPositionX": "left",
         "contentPositionY": "center"
+      },
+      "presentation": {
+        "minHeight": "md",
+        "overlay": {
+          "type": "linear-gradient",
+          "direction": "to-right",
+          "fromColor": "#2E241F",
+          "fromOpacity": 0.92,
+          "toColor": "#2E241F",
+          "toOpacity": 0.25
+        }
       }
     },
     {
       "type": "CONTACT",
       "enabled": true,
       "data": {
-        "title": "Fale com a Mimo",
+        "title": "Fale com a gente.",
         "eyebrow": "ESTAMOS POR PERTO",
         "showAddress": true,
         "showPhone": true,
@@ -194,26 +255,18 @@
         "showFacebook": false,
         "displayStyle": "icon-cards",
         "whatsappCtaLabel": "Chamar no WhatsApp"
+      },
+      "presentation": {
+        "surface": "background"
       }
     },
     {
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Mimo Pet · cuidado, confiança e carinho",
+        "tagline": "Cuidado, confiança e carinho",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
-      }
-    },
-    {
-      "type": "ABOUT",
-      "enabled": false,
-      "data": {
-        "title": "Confiança começa no cuidado.",
-        "eyebrow": "CARINHO QUE SE VÊ",
-        "body": "Rotina segura, produtos gentis e uma equipe que respeita o tempo de cada animal.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
-        "imagePosition": "left"
       }
     },
     {
@@ -236,6 +289,6 @@
   "seo": {
     "title": "Mimo Pet — Banho e tosa com carinho",
     "description": "Agende banho, tosa e bem-estar para seu pet.",
-    "ogImageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/og.png"
+    "ogImageUrl": ""
   }
 }

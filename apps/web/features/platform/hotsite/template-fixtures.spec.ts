@@ -180,17 +180,10 @@ describe('template manifests', () => {
       expect(new Set(order).size).toBe(drafts.length);
     });
 
-    it('differ by enabled module set', () => {
-      const sets = signatures((draft) =>
-        enabledModules(draft)
-          .map((module) => module.type)
-          .sort()
-          .join(','),
-      );
-
-      expect(new Set(sets).size).toBe(drafts.length);
-    });
-
+    // Two templates may enable the same set of modules: the prototype compositions themselves do
+    // (BeloAuto and Mimo Pet both use hero, services, content block, about, gallery, testimonials,
+    // booking, contact and footer). What keeps them apart is the ordered sequence above, the
+    // content-block variant, the presentation choices and the palette — not the bare set.
     it('differ by their strong variants', () => {
       const variants = signatures((draft) => strongVariants(draft).sort().join(','));
 
