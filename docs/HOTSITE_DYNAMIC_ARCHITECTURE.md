@@ -265,7 +265,7 @@ interface ServiceListModuleData {
   showPrices: boolean;
   showPoints: boolean;   // show loyalty points per service
   layout: 'grid' | 'list' | 'numbered' | 'feature-cards';  // default: 'grid'; the last two added by TD56
-  itemAction?: 'details' | 'booking' | 'none';   // what a card does on click; omitted => 'none' (today's behaviour)
+  itemAction?: 'details' | 'booking' | 'none';   // what a card does; omitted => 'none' (today's behaviour). 'booking' links the card to /{slug}/booking?serviceId=<id> (label: itemCtaLabel, default "Agendar"); 'details' renders no action until service detail pages exist
   itemCtaLabel?: string;                          // <= 40 chars
   detailPage?: ServiceDetailPageSettings;         // look of every public service detail page, closed set
 }

@@ -239,7 +239,9 @@ Rendering (the shared section shell, full-width surfaces, the NAVIGATION/CONTENT
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 2 — Render reusable presentation variants and the six template compositions
+### Story 2 — Render reusable presentation variants and the six template compositions ✅ Done
+
+  - Shipped in PR #660 with two deliberate deviations from the file list below: the variant controls under `features/platform/components/hotsite/modules/` are Story 5's (the guided-control labels belong there), and `template-compositions.css` needed no change.
 
 **Agent:** frontend-ts
 **Complexity:** L

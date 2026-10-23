@@ -102,7 +102,7 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 
 ## Reference artifacts in this folder
 
-- `hotsite-impl/` holds examples of live manifestos for the **current** hotsite: `beloauto.html` and `manifesto-beloauto.json` (a real tenant's branding, layout and SEO as the editor stores them). They are reference material for how a complete manifest looks, not a spec and not a screen of this prototype.
+- `hotsite-impl/` holds the six template manifests (`manifesto-beloauto.json`, `casa47`, `mimo-pet`, `origem`, `clinica-lume`, `lume-studio`) in the final TD56 schema, each with its public-site reference `<name>.html`. The manifests are the source of truth for each composition's module order, enabled set, variants and presentation, and a web spec and the backend layout audit parse them. They carry no tenant logo and reference platform template assets by URL until the catalogue converts them to versioned paths. They are reference material, not a screen of this prototype.
 - `editor-vision/` holds the prototypes of the visual editor shipped by TD55 (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html` and `dev-notes.md` (which files are authoritative for what). The screens above are the detailed (tabbed) editor, reached through "Editar em detalhes".
 
 ## Error handling
