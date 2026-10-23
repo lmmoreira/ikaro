@@ -64,6 +64,9 @@ graph TD
   S1 --> S3["Story 3: Service public profiles and detail page"]
   S2 --> S4["Story 4: Catalogue and tenant-safe application"]
   S4 --> S5["Story 5: Template picker and new controls in both editors"]
+  S2 --> S6["Story 6: Engine fidelity gaps found while reconciling the templates"]
+  S6 -.->|recommended first| S4
+  S6 -.->|recommended first| S5
 ```
 
 ### Template application contract
@@ -471,7 +474,7 @@ Map the six example manifests to these renderers and rewrite their fixtures to t
 **Agent:** backend-ts + bff-ts + frontend-ts (API/mapping layer only, no UI) + devops
 **Complexity:** L
 **Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 1. The Hotsite Manifest Pattern and image-storage rules; `docs/DOMAIN_MODEL.md` § HotsiteConfig and Service; `docs/ENGINEERING_RULES_SHARED.md` § Schema-level enforcement; `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer; `infra/terraform/README.md` § Layout, § New-resource PR-sequencing playbook and § IAM binding review discipline; `infra/terraform/foundation/README.md`; `docs/RUNBOOKS.md` (the release path); `docs/TENANTS_SETTINGS_SCHEMA.md` § `language`.
-**Dependencies:** Story 2 (and, through it, Story 1). Story 3 is **not** required — templates never use `itemAction: 'details'` and the schema fields are Story 1's — so Stories 3 and 4 can run in parallel; they share no files except `packages/types/src/hotsite.ts`, `packages/types/src/error-codes.ts`, and the two `errors.json` files (additive edits; merge, never rebase, per `CLAUDE.md` §9).
+**Dependencies:** Story 2 (and, through it, Story 1). **Soft ordering:** Story 6 (engine fidelity gaps) is recommended first, so the `v1` definitions can use its new fields; if Story 4 goes first, the affected definitions get a later version when Story 6 lands. Story 3 is **not** required — templates never use `itemAction: 'details'` and the schema fields are Story 1's — so Stories 3 and 4 can run in parallel; they share no files except `packages/types/src/hotsite.ts`, `packages/types/src/error-codes.ts`, and the two `errors.json` files (additive edits; merge, never rebase, per `CLAUDE.md` §9).
 **Pattern:** immutable versioned preset catalogue (structure + per-locale copy, bundled in the backend) plus a pure application service that materializes a tenant-owned draft manifest; catalogue images are shared, public, append-only objects delivered by the deploy pipelines and referenced by path. No named GoF pattern applies beyond that; there is no strategy/factory per template — the six templates are data, not code.
 
 **Decisions locked at story-discovery (2026-10-23):**
@@ -635,7 +638,7 @@ Implemented in `infra/terraform/foundation/modules/static-resource-iam` (new `pu
 **Agent:** frontend-ts
 **Complexity:** L (large single story, built in three ordered parts — see *Build order*)
 **Docs to load:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md` § Editor state model (locked contract for all stories) and Story 2; `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 3. Shared Component Library — shadcn/ui; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` relevant manager manifest controls; `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys; `journeys/manager/hotsite.md` and `journeys/manager/prototypes/hotsite/editor-vision/dev-notes.md`.
-**Dependencies:** Story 4 (and, through it, Stories 1–2) — all assumed merged when this story starts; the `itemAction`/`detailPage` controls edit Story 1's schema and do not need Story 3 to be merged, though their E2E assertion that a `details` card links to a detail page needs Story 3 — keep that single assertion in Story 3's own E2E instead. Story 3 is **not** a dependency of anything below (in particular the Markdown preview in `ContentBlockConfigPanel` reuses Story 2's `shells/hotsite/components/RestrictedMarkdown.tsx`, not Story 3's service-form preview).
+**Dependencies:** Story 4 (and, through it, Stories 1–2) — all assumed merged when this story starts; **soft ordering:** Story 6 (engine fidelity gaps) is recommended before this story — if it merges first, Part A builds the guided controls for its new fields, otherwise Story 6 adds them; the `itemAction`/`detailPage` controls edit Story 1's schema and do not need Story 3 to be merged, though their E2E assertion that a `details` card links to a detail page needs Story 3 — keep that single assertion in Story 3's own E2E instead. Story 3 is **not** a dependency of anything below (in particular the Markdown preview in `ContentBlockConfigPanel` reuses Story 2's `shells/hotsite/components/RestrictedMarkdown.tsx`, not Story 3's service-form preview).
 **Pattern:** shared editor-draft reducer with a catalogue selection context and an explicit local-to-draft apply transition. Templates is a **fourth global `VisualContext` kind** (next to `structure`, `branding`, `sharing`), so it enters through the existing `requestGlobalContext()` Apply-or-discard guard in `useVisualModuleBuffer` and inherits the TD55 dirty-module rule with no new mechanism. No named GoF pattern applies.
 
 **Decisions locked at story-discovery (2026-10-23, product owner approved):**
@@ -746,6 +749,74 @@ State lives in `HotsiteEditor` (the owner of `draft`): `appliedTemplate`, the un
 - [ ] `tsc --noEmit` clean, lint clean.
 
 **Build order inside the branch:** (1) Part A — exposure switch, panels, presentation fields, extended panels, field-coverage guard; (2) Part B — session context, gallery, dialogs, apply/undo, detailed tab; (3) Part C — prototype, journeys, UC-027, stale sweep. Commit per part. If bot review reaches the round-5 stuck condition (CLAUDE.md §9), stop and ask rather than pushing a sixth round.
+
+### Story 6 — Close the engine fidelity gaps found while reconciling the six template manifests with their prototypes
+
+**Agent:** frontend-ts + backend-ts
+**Complexity:** L
+**Docs to load:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 4. Module Data Contracts (TypeScript) and § 7. Adding a New Module (Developer Checklist); `docs/ENGINEERING_RULES_SHARED.md` § Single source of truth for a validation rule's code; `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `journeys/manager/prototypes/hotsite/hotsite-impl/` (`template-compositions.css` and the six template HTML files).
+**Dependencies:** Story 1 and Story 2 (both done). **Soft ordering, not a hard dependency:** recommended to merge before Story 4 and Story 5 (default order 6 → 4 → 5). Story 4 can ship without it, but its `v1` definitions then cannot use the new fields and the affected templates need a later definition version; Story 5 can ship without it, but Story 6 then adds the guided controls for its own new fields (Story 5's field-coverage guard fails any schema key with no control).
+**Pattern:** plain composition — extend the existing module data contracts with optional, closed, additive fields; an omitted field renders exactly as today. No new named pattern applies.
+
+**Discovered:** 2026-10-23, TD56 Story 4/5 discovery — the Casa 47 and Mimo Pet manifests were applied to a tenant and compared with `casa47.html` / `mimo-pet.html`.
+**Root cause:** Story 2 built the renderer variants from the prototype CSS but nothing compared each shipped template with its prototype. Traced in code: `ServiceListCards.tsx:226-232` (feature-cards use one `cardBg`, `md:grid-cols-2`); `ContentBlockModule.tsx:106-128` (`trust-grid` is a centered title over a ruled list); `AboutModule.tsx:80-92` (the photo is a rounded 4:3 box inside the content-width grid); `packages/types/src/hotsite.ts:303-312` and `font-config.ts` (no Manrope); `GalleryModule.tsx:185-190` (`featured` needs ≥5 images, else renders as `grid`); `HeroModule.tsx:188-243` (`left-aligned` paints its photo only as the right-hand panel).
+
+**Description:**
+
+Reconciling the six template manifests with their prototype HTML (done template by template, with a visual check by the product owner) exposes places where the engine cannot reproduce what the prototype shows. This story is the **gap register** plus the engine work it justifies. The register below is completed as the remaining reconciliations (BeloAuto, Origem, Clínica Lume, Lume Studio) finish; `/story-discovery` runs only after that, and it confirms the decision for every row with the product owner. Reconciliation edits to the six `manifesto-*.json` fixtures are committed to `main` as they are agreed (Casa 47 first); the fixture spec `template-fixtures.spec.ts` currently requires six distinct enabled-module sets, which the prototypes themselves do not satisfy (BeloAuto and Mimo Pet share one) — resolving that rule (relax it to the ordered sequence, or force the sets apart) is a pending product decision that this story's discovery closes.
+
+**Decision rule per gap:** (1) *add an engine capability* when the gap defines a template's identity or two or more templates need it, and a closed, optional, additive field can express it; (2) *adjust the prototype* when the prototype uses something the product should not offer; (3) *accept the difference* when the engine already reaches an equivalent look. Every added field is optional and an omitted field renders **identically to today** (CLAUDE.md §7: check whether today's behaviour is an explicit value or an implicit engine default before wording it).
+
+| # | Prototype shows | Engine today | Proposed decision |
+|---|---|---|---|
+| G1 | Mimo Pet: three pastel service cards (peach, green, lilac), 3 columns | `feature-cards`: one card colour, 2 columns | **Add** optional `cardColumns` (2 \| 3) and `cardTone` (`plain` \| `tinted`; tinted cycles three tints derived from the branding colours with `color-mix`, no new colour fields) on `SERVICE_LIST.data`. The staggered middle card is **accepted** (dropped). |
+| G2 | Mimo Pet: "O jeito Mimo" — copy left, a 2×2 grid of coloured tiles with big numbers 01–04 | `trust-grid`: centered title over a ruled list, no numbers | **Add** one optional `appearance` (`rule` \| `tiles`) on the `trust-grid` variant: `tiles` = split layout, tinted tiles, numbered. One enum instead of three fields. |
+| G3 | Mimo Pet: a photo that fills half the section edge to edge beside the copy | `About` `split`: photo in a rounded 4:3 box inside the content width | **Add** value `bleed` to `ABOUT.data.variant` (`split` \| `editorial` \| `bleed`); stacks on mobile. |
+| G4 | Mimo Pet headings in Manrope | `HOTSITE_FONT_FAMILIES` has no Manrope | **Add** Manrope (type list, validation copy, `font-config.ts` via `next/font`). |
+| G5 | Casa 47: four gallery images in a custom arrangement | `featured` needs ≥5 images, otherwise renders as `grid` | **Accept**: templates use five images (already done in the Casa 47 manifest). |
+| G6 | Mimo Pet: copy on the left over a full-bleed photo | `left-aligned` paints the photo only as a right panel | **Accept**: the supported combination is `centered` + `contentPositionX: 'left'` + `backgroundImageUrl` + an overlay (already used by the Mimo Pet manifest); document it in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`. |
+| G7+ | *appended from the BeloAuto, Origem, Clínica Lume and Lume Studio reconciliations* | | |
+
+**Closed-enum copies (CLAUDE.md §3 shared closed-enum rule).** The `ABOUT.data.variant` values, the `trust-grid` fields, the `SERVICE_LIST` fields and the font list each have independent copies: `packages/types/src/hotsite.ts` + `hotsite-schemas.ts`, `packages/validation/src/hotsite.ts`, `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`, and the web mirror `apps/web/features/platform/hotsite/module-schemas.ts`. They change together, held by the shared contract fixtures (`@ikaro/types/testing/hotsite-module-contract`) and `module-contract.parity.spec.ts`.
+
+**Scope boundary.** This story adds schema, validation, renderer and tests only. The **guided controls** for the new fields belong to Story 5 when Story 5 merges after this story (see Dependencies); until a control exists the new fields are editable through the Manifesto tab. After the engine changes, the six fixtures are updated to use the new fields where the register says "add".
+
+**Backend HTTP surface:** none (the existing `PATCH /v1/tenants/hotsite` accepts the extended `data`; no route change).
+**BFF endpoint spec:** none.
+**Prototype references:** `journeys/manager/prototypes/hotsite/hotsite-impl/` (`template-compositions.css`, the six `*.html`, the six `manifesto-*.json`).
+**New migration / i18n keys / env vars / feature flags:** none (no migration — fields live inside the `layout` JSONB; panel copy is Story 5).
+
+**Files to create/modify:** (verified to exist)
+
+- `packages/types/src/hotsite.ts`, `packages/types/src/hotsite-schemas.ts`, `packages/types/src/testing/hotsite-module-contract.ts` (modify)
+- `packages/validation/src/hotsite.ts` and spec (modify)
+- `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts` and its specs (modify)
+- `apps/web/features/platform/hotsite/module-schemas.ts`, `font-config.ts`, `module-contract.parity.spec.ts` and specs (modify)
+- `apps/web/shells/hotsite/components/ServiceListCards.tsx`, `ServiceListModule.tsx`, `ContentBlockModule.tsx`, `AboutModule.tsx` and their `.spec.tsx` (modify)
+- `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-*.json` (modify — use the new fields)
+- `apps/web/e2e/hotsite-templates.spec.ts` (modify — assert the reconciled compositions)
+- `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (modify — new fields, the G6 combination)
+
+**Acceptance criteria — product:**
+
+- [ ] Each template the register marks "add" renders the feature its prototype shows (tinted three-column cards, numbered tiles, edge-to-edge About photo, Manrope headings) when its manifest uses the new field.
+- [ ] A manifest that does not use any new field renders exactly as before.
+- [ ] Every register row has a recorded decision (add / adjust / accept) before implementation starts.
+
+**Acceptance criteria — technical:**
+
+- Unit:
+  - [ ] Each new field is accepted and invalid values rejected, in every copy (types, validation, backend, web mirror), pinned by the shared contract fixtures and the parity spec.
+  - [ ] **Negative guarantee:** a module without the new field renders byte-identical markup to today (one test per module).
+  - [ ] Renderer tests: tinted cards and three columns; `tiles` numbering and split layout; `bleed` About image and mobile stacking; Manrope variable applied to headings.
+  - [ ] Tinted tiles and cards keep readable text contrast on every branding palette in the six templates.
+- Integration:
+  - [ ] `PATCH /v1/tenants/hotsite` accepts the extended `data` and rejects unknown values.
+- Tenant isolation: none — the change is manifest shape only, no tenant data access.
+- E2E:
+  - [ ] The existing `hotsite-templates.spec.ts` renders each reconciled composition and asserts the new feature for the templates that use it.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
 
 ## Documentation and journey updates after implementation
 
