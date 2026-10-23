@@ -2,6 +2,7 @@ import { ClassResourceSlot } from '../../domain/class-resource-slot';
 import { ResourceRequirementProps } from '../../domain/resource-requirement';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceLegReconstituteProps } from '../../domain/service-leg';
+import { ServicePublicProfileProps } from '../../domain/service-public-profile.vo';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { TenantBookingWindow } from '../ports/booking-platform.port';
 import { resolveEffectiveBookingWindow } from './booking-window.helpers';
@@ -24,6 +25,9 @@ export interface ServiceUseCaseResult {
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ReturnType<ClassResourceSlot['toJSON']>[] | null;
   bookingPolicy: ServiceBookingPolicyResult;
+  publicPagePublished: boolean;
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileProps | null;
 }
 
 // The saved policy plus the booking window the service really has: its own override clamped to the
@@ -90,5 +94,8 @@ export function toServiceResult(
       ? service.classResourceSlots.map((s) => s.toJSON())
       : null,
     bookingPolicy: resolveBookingPolicyResult(service, autoApproveEnabled, tenantWindow),
+    publicPagePublished: service.publicPagePublished,
+    publicSlug: service.publicSlug?.value ?? null,
+    publicProfile: service.publicProfile?.toJSON() ?? null,
   };
 }

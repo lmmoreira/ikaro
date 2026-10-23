@@ -16,6 +16,7 @@ import {
 } from '../entities/service-resource-requirement.entity';
 import { ServiceEntity } from '../entities/service.entity';
 import { applyBookingPolicy, toBookingPolicy } from './typeorm-service-booking-policy.mapper';
+import { applyPublicPage, toPublicPage } from './typeorm-service-public-page.mapper';
 
 export interface ServiceChildRows {
   requirements: ServiceResourceRequirementEntity[];
@@ -66,6 +67,7 @@ export function toDomain(
     legs,
     classResourceSlots,
     bookingPolicy: toBookingPolicy(entity),
+    ...toPublicPage(entity),
   });
 }
 
@@ -168,6 +170,7 @@ export function toEntity(service: Service): ServiceEntity {
   entity.bookingModel = service.bookingModel;
   entity.bufferAfterMinutes = service.bufferAfterMinutes;
   applyBookingPolicy(entity, service.bookingPolicy);
+  applyPublicPage(entity, service);
   return entity;
 }
 

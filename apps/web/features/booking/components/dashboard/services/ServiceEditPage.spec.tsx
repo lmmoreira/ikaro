@@ -32,6 +32,7 @@ vi.mock('@/features/booking/services/useServices', () => ({
   useUpdateServiceLegs: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateServiceBookingPolicy: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePublishServiceIntakeSchema: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateServicePublicPage: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
@@ -62,6 +63,9 @@ const service: StaffServiceResponse = {
   bufferAfterMinutes: null,
   legs: null,
   classResourceSlots: null,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
   bookingPolicy: {
     defaultApprovalMode: null,
     manualHoldMinutes: null,
@@ -274,7 +278,7 @@ describe('ServiceEditPage', () => {
     expect(mockUpdateService).not.toHaveBeenCalled();
   });
 
-  it('renders all 4 tabs, with Detalhes active by default', () => {
+  it('renders all 5 tabs, with Detalhes active by default', () => {
     const { container } = renderWithIntl(
       <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
     );
@@ -283,6 +287,7 @@ describe('ServiceEditPage', () => {
     expect(getTabButton(container, 'recursos')).toHaveAttribute('aria-selected', 'false');
     expect(getTabButton(container, 'politicas')).toBeInTheDocument();
     expect(getTabButton(container, 'formulario')).toBeInTheDocument();
+    expect(getTabButton(container, 'pagina')).toBeInTheDocument();
   });
 
   it('switches tabs and renders the Recursos panel', async () => {
@@ -506,7 +511,7 @@ describe('ServiceEditPage', () => {
     expect(screen.queryByTestId('service-created-banner')).not.toBeInTheDocument();
   });
 
-  it('exposes all 4 tabs even when the service is inactive', () => {
+  it('exposes all 5 tabs even when the service is inactive', () => {
     const { container } = renderWithIntl(
       <ServiceEditPage service={{ ...service, isActive: false }} intakeSchema={intakeSchema} />,
     );
@@ -515,5 +520,27 @@ describe('ServiceEditPage', () => {
     expect(getTabButton(container, 'recursos')).toBeInTheDocument();
     expect(getTabButton(container, 'politicas')).toBeInTheDocument();
     expect(getTabButton(container, 'formulario')).toBeInTheDocument();
+    expect(getTabButton(container, 'pagina')).toBeInTheDocument();
+  });
+
+  it('opens the Página pública tab and keeps its draft when switching away and back (TD56-S03)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderWithIntl(
+      <ServiceEditPage service={service} intakeSchema={intakeSchema} />,
+    );
+
+    await user.click(getTabButton(container, 'pagina'));
+    await user.type(screen.getByTestId('public-page-preparation'), 'Chegue cedo');
+    expect(
+      getTabButton(container, 'pagina').querySelector('[data-testid="service-edit-tab-dirty-dot"]'),
+    ).toBeInTheDocument();
+
+    await user.click(getTabButton(container, 'detalhes'));
+    await user.click(getTabButton(container, 'pagina'));
+
+    expect(screen.getByTestId('public-page-preparation')).toHaveValue('Chegue cedo');
+    expect(screen.getByTestId('service-desktop-tab-action')).toHaveTextContent(
+      'Salvar página pública',
+    );
   });
 });

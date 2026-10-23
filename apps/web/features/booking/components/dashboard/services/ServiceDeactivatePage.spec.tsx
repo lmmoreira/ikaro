@@ -36,6 +36,9 @@ const service: StaffServiceResponse = {
   bufferAfterMinutes: null,
   legs: null,
   classResourceSlots: null,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
   bookingPolicy: {
     defaultApprovalMode: null,
     manualHoldMinutes: null,

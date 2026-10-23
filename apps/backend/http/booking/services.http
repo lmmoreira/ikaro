@@ -553,3 +553,70 @@ X-Tenant-ID: {{tenantId}}
 ### 404 — quote for an unknown, inactive or cross-tenant service
 GET {{baseUrl}}/services/00000000-0000-4000-8000-000000009999/quote?durationMinutes=60
 X-Tenant-ID: {{tenantId}}
+
+###
+
+### Publish the service's public page and set its profile (UC-013 A5, TD56-S03) — the slug is generated
+PATCH {{baseUrl}}/services/{{serviceId}}/public-page
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "published": true,
+  "profile": {
+    "longDescription": "Uma pausa para o corpo e para a mente.",
+    "inclusions": ["Óleos essenciais", "Chá de boas-vindas"],
+    "preparationNotes": "Chegue com 10 minutos de antecedência."
+  }
+}
+
+###
+
+### Unpublish the page (keeps the slug and the profile)
+PATCH {{baseUrl}}/services/{{serviceId}}/public-page
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "published": false }
+
+###
+
+### Clear the stored profile (null = clear, omitted = unchanged)
+PATCH {{baseUrl}}/services/{{serviceId}}/public-page
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "profile": null }
+
+###
+
+### 422 — a profile image that was never uploaded (BOOKING_SERVICE_PUBLIC_PROFILE_INVALID)
+PATCH {{baseUrl}}/services/{{serviceId}}/public-page
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{ "profile": { "coverImageUrl": "tmp/{{tenantId}}/service-profile/00000000-0000-4000-8000-000000000001/missing.webp" } }
+
+###
+
+### Public read of a published, active service by its generated slug (UC-109)
+GET {{baseUrl}}/services/by-slug/massagem-relaxante
+X-Tenant-ID: {{tenantId}}
+
+###
+
+### 404 — an unpublished page, an inactive service, an unknown slug or another tenant's slug
+GET {{baseUrl}}/services/by-slug/nao-existe
+X-Tenant-ID: {{tenantId}}

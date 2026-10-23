@@ -2,6 +2,8 @@ import { Service, ServiceBookingModel } from '../../../contexts/booking/domain/s
 import { ClassResourceSlot } from '../../../contexts/booking/domain/class-resource-slot';
 import { ResourceRequirement } from '../../../contexts/booking/domain/resource-requirement';
 import { ServiceLeg } from '../../../contexts/booking/domain/service-leg';
+import { ServicePublicProfile } from '../../../contexts/booking/domain/service-public-profile.vo';
+import { ServicePublicSlug } from '../../../contexts/booking/domain/service-public-slug.vo';
 import {
   defaultServiceBookingPolicyProps,
   ServiceBookingPolicyProps,
@@ -25,6 +27,9 @@ export class ServiceBuilder {
   private legs: ServiceLeg[] | null = null;
   private classResourceSlots: ClassResourceSlot[] | null = null;
   private bookingPolicy: ServiceBookingPolicyProps = defaultServiceBookingPolicyProps();
+  private publicPagePublished = false;
+  private publicSlug: ServicePublicSlug | null = null;
+  private publicProfile: ServicePublicProfile | null = null;
 
   withId(id: string): this {
     this.id = id;
@@ -101,6 +106,21 @@ export class ServiceBuilder {
     return this;
   }
 
+  withPublicPagePublished(publicPagePublished: boolean): this {
+    this.publicPagePublished = publicPagePublished;
+    return this;
+  }
+
+  withPublicSlug(publicSlug: string | null): this {
+    this.publicSlug = publicSlug === null ? null : ServicePublicSlug.create(publicSlug);
+    return this;
+  }
+
+  withPublicProfile(publicProfile: ServicePublicProfile | null): this {
+    this.publicProfile = publicProfile;
+    return this;
+  }
+
   // Simulates an already-persisted row (Service.reconstitute()) — a test that needs
   // resourceRequirements/legs/classResourceSlots actually written to the DB on save() must call
   // the matching setter (setResourceRequirements()/setLegs()) on the built instance first, the
@@ -125,6 +145,9 @@ export class ServiceBuilder {
       legs: this.legs,
       classResourceSlots: this.classResourceSlots,
       bookingPolicy: this.bookingPolicy,
+      publicPagePublished: this.publicPagePublished,
+      publicSlug: this.publicSlug,
+      publicProfile: this.publicProfile,
     });
   }
 }

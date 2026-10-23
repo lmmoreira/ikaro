@@ -36,9 +36,11 @@ export function clearPublicEnv(): void {
 // service — spread into a spec's own service fixture so each spec keeps its own name/price.
 export const hotsiteServiceBookingDefaults: Pick<
   HotsiteServiceResponse,
-  'bookingModel' | 'resourceRequirements' | 'legs' | 'bookingPolicy'
+  'bookingModel' | 'resourceRequirements' | 'legs' | 'bookingPolicy' | 'publicSlug'
 > = {
   bookingModel: 'APPOINTMENT',
+  // No published detail page unless a spec says so (a service card then keeps its booking action).
+  publicSlug: null,
   resourceRequirements: [{ type: 'LOCATION', selectionMode: 'NONE', requiredQuantity: 1 }],
   legs: null,
   bookingPolicy: {

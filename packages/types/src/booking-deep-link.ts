@@ -5,8 +5,12 @@
 
 export interface BookingDeepLinkInput {
   readonly serviceId: string;
-  /** YYYY-MM-DD, the tenant-local day of the matched slot. */
-  readonly date: string;
+  /**
+   * YYYY-MM-DD, the tenant-local day of the matched slot. Omitted by a link that only preselects
+   * the service (a service's public page): no fake date is written, and the booking page then
+   * opens on its normal date step.
+   */
+  readonly date?: string | null;
   readonly durationMinutes?: number | null;
   readonly resourceId?: string | null;
 }
@@ -28,10 +32,14 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const BOOKING_PATH = '/booking';
 
-/** `{hotsiteUrl}/booking?serviceId=…&date=…`; an empty hotsite URL stays empty (never a relative link). */
+/**
+ * `{hotsiteUrl}/booking?serviceId=…&date=…`, with `date` left out when the link has none; an empty
+ * hotsite URL stays empty (never a relative link) — pass a base such as `/{slug}` for a relative one.
+ */
 export function buildBookingDeepLinkUrl(hotsiteUrl: string, link: BookingDeepLinkInput): string {
   if (!hotsiteUrl) return hotsiteUrl;
-  const query = new URLSearchParams({ serviceId: link.serviceId, date: link.date });
+  const query = new URLSearchParams({ serviceId: link.serviceId });
+  if (link.date) query.set('date', link.date);
   if (link.durationMinutes) query.set('durationMinutes', String(link.durationMinutes));
   if (link.resourceId) query.set('resourceId', link.resourceId);
   return `${hotsiteUrl}${BOOKING_PATH}?${query.toString()}`;

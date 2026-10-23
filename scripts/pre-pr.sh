@@ -125,8 +125,10 @@ run_check "12. No Zod v3 / as unknown as in production (review each hit)"
 # resolve-error-message.ts console.warn calls are a deliberate TD23 §7 observability
 # signal for an unresolvable/mismatched error code, not a debug leftover;
 # packages/infra-scripts is a standalone CLI tool with no NestJS/AppLogger —
-# console.log/error is its actual CLI output, not a debug leftover, M17-S18)
-grep_into_tmp "$(echo "$ts_prod" | grep -vE 'shared/lib/i18n/resolve-error-message\.ts$|packages/infra-scripts/src/')" \
+# console.log/error is its actual CLI output, not a debug leftover, M17-S18; apps/web/app/sitemap.ts
+# logs the tenant whose service pages it skipped so one failing tenant never breaks /sitemap.xml
+# yet is never silent, TD56-S03)
+grep_into_tmp "$(echo "$ts_prod" | grep -vE 'shared/lib/i18n/resolve-error-message\.ts$|packages/infra-scripts/src/|apps/web/app/sitemap\.ts$')" \
   "console\.(log|error|warn)\("
 run_check "17. No console.log/error/warn in production"
 

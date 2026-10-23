@@ -1,3 +1,4 @@
+import { ServicePublicProfileProps } from '../../../contexts/booking/domain/service-public-profile.vo';
 import { uuidv7 } from '../../../shared/domain/uuid-v7';
 import {
   ServiceApprovalMode,
@@ -38,6 +39,9 @@ export class ServiceEntityBuilder {
   private pricingIncrementMinutes: number | null = null;
   private pricePerIncrementAmount: string | null = null;
   private minimumChargeAmount: string | null = null;
+  private publicProfile: ServicePublicProfileProps | null = null;
+  private publicSlug: string | null = null;
+  private publicPagePublished = false;
 
   withId(id: string): this {
     this.id = id;
@@ -179,6 +183,21 @@ export class ServiceEntityBuilder {
     return this;
   }
 
+  withPublicProfile(publicProfile: ServicePublicProfileProps | null): this {
+    this.publicProfile = publicProfile;
+    return this;
+  }
+
+  withPublicSlug(publicSlug: string | null): this {
+    this.publicSlug = publicSlug;
+    return this;
+  }
+
+  withPublicPagePublished(publicPagePublished: boolean): this {
+    this.publicPagePublished = publicPagePublished;
+    return this;
+  }
+
   build(): ServiceEntity {
     const e = new ServiceEntity();
     e.id = this.id;
@@ -211,6 +230,9 @@ export class ServiceEntityBuilder {
     e.pricingIncrementMinutes = this.pricingIncrementMinutes;
     e.pricePerIncrementAmount = this.pricePerIncrementAmount;
     e.minimumChargeAmount = this.minimumChargeAmount;
+    e.publicProfile = this.publicProfile;
+    e.publicSlug = this.publicSlug;
+    e.publicPagePublished = this.publicPagePublished;
     return e;
   }
 }

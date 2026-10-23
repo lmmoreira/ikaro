@@ -54,6 +54,11 @@ interface SingleImageUploadFieldProps {
   readonly uploadErrorLabel: string;
   readonly lowResolutionErrorLabel?: string;
   readonly removeLabel: string;
+  // Set by a field whose saved value is a *persisted* image (a service's public page): removing it
+  // only clears the reference, and the save deletes the superseded object. Without this a "remove"
+  // followed by leaving the page without saving would already have deleted the stored image. A
+  // not-yet-saved tmp/ upload is still deleted at once either way.
+  readonly keepStoredOnRemove?: boolean;
 }
 
 type UploadStatus = 'idle' | 'uploading' | 'error';
@@ -81,6 +86,7 @@ export function SingleImageUploadField({
   uploadErrorLabel,
   lowResolutionErrorLabel,
   removeLabel,
+  keepStoredOnRemove = false,
 }: SingleImageUploadFieldProps): React.JSX.Element {
   const locale = useResolvedLocale();
   const [status, setStatus] = useState<UploadStatus>('idle');
@@ -165,7 +171,7 @@ export function SingleImageUploadField({
     // A raw "tenants/<id>/hotsite/..." (already-promoted) or "tmp/<id>/..." (not-yet-promoted)
     // storage path can actually be deleted — a resolved public URL (the shape `value` has on
     // first load, straight from GET) doesn't match the delete endpoint's path validation.
-    if (value.startsWith('tenants/') || isTmpImagePath(value)) {
+    if ((!keepStoredOnRemove && value.startsWith('tenants/')) || isTmpImagePath(value)) {
       try {
         await deleteHotsiteImage(value);
       } catch {

@@ -1,5 +1,6 @@
 import { Controller, Get, Headers, Param, Query } from '@nestjs/common';
 import {
+  HotsiteServiceDetailResponse,
   HotsiteServiceListResponse,
   HotsiteServiceQuoteResponse,
   HotsiteServiceResourceOptionsResponse,
@@ -9,14 +10,16 @@ import { CanonicalParseUUIDPipe, ZodValidationPipe } from '@ikaro/nestjs-http';
 import { Public } from '../../shared/decorators/public.decorator';
 import { BackendHttpService } from '../../shared/http/backend-http.service';
 import { withPublicTenant } from '../../shared/http/public-tenant';
-import { QuoteQuery, QuoteQuerySchema } from './services.schemas';
+import { PublicServiceSlugParamSchema, QuoteQuery, QuoteQuerySchema } from './services.schemas';
 import {
+  GetPublicServiceBySlugResult,
   GetPublicServiceIntakeSchemaResult,
   GetServiceQuoteResult,
   GetServiceResourceOptionsResult,
   ServiceListResponse,
 } from './services.types';
 import {
+  toPublicServiceDetailResponse,
   toPublicServiceIntakeSchemaResponse,
   toPublicServiceListResponse,
   toPublicServiceQuoteResponse,
@@ -35,6 +38,24 @@ export class ServicesPublicController {
     return withPublicTenant(this.backendHttp, tenantSlug, async (tenantId) =>
       toPublicServiceListResponse(
         await this.backendHttp.getForPublic<ServiceListResponse>('/services', tenantId),
+      ),
+    );
+  }
+
+  // UC-109 — a published, active service by its page address. Declared before every `:id/...` route
+  // so `by-slug/...` can never be shadowed by an id.
+  @Get('by-slug/:publicSlug')
+  @Public()
+  async getBySlug(
+    @Headers('x-tenant-slug') tenantSlug: string | undefined,
+    @Param('publicSlug', new ZodValidationPipe(PublicServiceSlugParamSchema)) publicSlug: string,
+  ): Promise<HotsiteServiceDetailResponse> {
+    return withPublicTenant(this.backendHttp, tenantSlug, async (tenantId) =>
+      toPublicServiceDetailResponse(
+        await this.backendHttp.getForPublic<GetPublicServiceBySlugResult>(
+          `/services/by-slug/${publicSlug}`,
+          tenantId,
+        ),
       ),
     );
   }

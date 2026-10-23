@@ -1,5 +1,6 @@
 import {
   ClassResourceSlotItem,
+  HotsiteServiceDetailResponse,
   HotsiteServiceLeg,
   HotsiteServiceQuoteResponse,
   HotsiteServiceResourceOptionsResponse,
@@ -17,6 +18,7 @@ import {
 import {
   ClassResourceSlotDetail,
   GetPublicServiceIntakeSchemaResult,
+  GetPublicServiceBySlugResult,
   GetServiceIntakeSchemaResult,
   GetServiceQuoteResult,
   GetServiceResourceOptionsResult,
@@ -72,6 +74,9 @@ export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResp
       ? service.classResourceSlots.map(toClassResourceSlotItem)
       : null,
     bookingPolicy: service.bookingPolicy,
+    publicPagePublished: service.publicPagePublished,
+    publicSlug: service.publicSlug,
+    publicProfile: service.publicProfile,
   };
 }
 
@@ -184,6 +189,35 @@ export function toPublicServiceResponse(service: ServiceDetail): HotsiteServiceR
       recurrenceEligible: policy.recurrenceEligible,
       recurringHorizonDays: policy.recurringHorizonDays,
       availabilityAlertEligible: policy.availabilityAlertEligible,
+    },
+    // Only a published page exposes its slug, so the hotsite card can never link to a dead page.
+    publicSlug: service.publicPagePublished ? service.publicSlug : null,
+  };
+}
+
+// Named field by field, like toPublicServiceResponse: only what a visitor may read.
+export function toPublicServiceDetailResponse(
+  result: GetPublicServiceBySlugResult,
+): HotsiteServiceDetailResponse {
+  return {
+    id: result.id,
+    name: result.name,
+    description: result.description,
+    price: {
+      amount: result.price.amount,
+      currency: result.price.currency,
+      formatted: result.price.formatted,
+    },
+    durationMinutes: result.durationMinutes,
+    loyaltyPointsValue: result.loyaltyPointsValue,
+    durationPolicy: result.durationPolicy,
+    publicSlug: result.publicSlug,
+    profile: {
+      coverImageUrl: result.profile.coverImageUrl,
+      galleryImageUrls: result.profile.galleryImageUrls,
+      longDescription: result.profile.longDescription,
+      inclusions: result.profile.inclusions,
+      preparationNotes: result.profile.preparationNotes,
     },
   };
 }

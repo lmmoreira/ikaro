@@ -718,7 +718,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | Journey | Folder | Prototype | Status |
 |---|---|---|---|
 | GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`, incl. combined-basket screens; ✅ built — `M23-S31` alert button on the calendar step) |
-| GUEST — Service Detail Page | `guest/service-detail.md` | `guest/prototypes/service-detail/` | Draft (TD56-S03) |
+| GUEST — Service Detail Page | `guest/service-detail.md` | `guest/prototypes/service-detail/` | Built (TD56-S03) |
 | GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Reviewed |
 | GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Built (M19-S11) |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
@@ -727,7 +727,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
 | CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`) |
-| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04); public-page card `03g`–`03i` Draft (TD56-S03) |
+| STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04); public-page tab `03g`–`03i` Built (TD56-S03) |
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Built (M13-S31) |

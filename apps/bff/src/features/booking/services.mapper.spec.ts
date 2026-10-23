@@ -7,6 +7,7 @@ import {
   toPublicServiceListResponse,
   toPublicServiceQuoteResponse,
   toPublicServiceResourceOptionsResponse,
+  toPublicServiceDetailResponse,
   toPublicServiceResponse,
   toPublicServiceIntakeSchemaResponse,
   toServiceIntakeSchemaResponse,
@@ -53,6 +54,9 @@ const serviceDetail: ServiceDetail = {
   legs: null,
   classResourceSlots: null,
   bookingPolicy,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
 };
 
 describe('toStaffServiceResponse()', () => {
@@ -75,6 +79,9 @@ describe('toStaffServiceResponse()', () => {
       legs: null,
       classResourceSlots: null,
       bookingPolicy,
+      publicPagePublished: false,
+      publicSlug: null,
+      publicProfile: null,
     });
   });
 
@@ -339,6 +346,7 @@ describe('toPublicServiceResponse() (M23-S29)', () => {
         recurringHorizonDays: 90,
         availabilityAlertEligible: true,
       },
+      publicSlug: null,
     });
   });
 
@@ -407,5 +415,84 @@ describe('toPublicServiceResourceOptionsResponse() / toPublicServiceQuoteRespons
         price: { amount: 100, currency: 'BRL', extra: 1 } as never,
       }),
     ).toEqual({ durationMinutes: 90, price: { amount: 100, currency: 'BRL' } });
+  });
+});
+
+describe('public page fields (TD56-S03)', () => {
+  const profile = {
+    coverImageUrl: 'tenants/t/hotsite/service-profile/u/cover.webp',
+    galleryImageUrls: ['g1.webp'],
+    longDescription: 'Texto',
+    inclusions: ['Chá'],
+    preparationNotes: 'Chegue cedo.',
+  };
+
+  it('toStaffServiceResponse() returns the switch, the generated slug and the stored profile', () => {
+    const result = toStaffServiceResponse({
+      ...serviceDetail,
+      publicPagePublished: true,
+      publicSlug: 'lavagem-completa',
+      publicProfile: profile,
+    });
+
+    expect(result).toMatchObject({
+      publicPagePublished: true,
+      publicSlug: 'lavagem-completa',
+      publicProfile: profile,
+    });
+  });
+
+  it('toPublicServiceResponse() exposes the slug only while the page is published', () => {
+    const published = {
+      ...serviceDetail,
+      publicSlug: 'lavagem-completa',
+      publicPagePublished: true,
+    };
+    const unpublished = { ...published, publicPagePublished: false };
+
+    expect(toPublicServiceResponse(published).publicSlug).toBe('lavagem-completa');
+    expect(toPublicServiceResponse(unpublished).publicSlug).toBeNull();
+  });
+
+  it('toPublicServiceResponse() never leaks the profile or the publish flag to an anonymous caller', () => {
+    const result = toPublicServiceResponse({
+      ...serviceDetail,
+      publicPagePublished: true,
+      publicSlug: 'lavagem-completa',
+      publicProfile: profile,
+    });
+
+    expect(Object.keys(result)).not.toContain('publicProfile');
+    expect(Object.keys(result)).not.toContain('publicPagePublished');
+  });
+
+  it('toPublicServiceDetailResponse() maps profile-facing fields only, ignoring anything extra from the backend', () => {
+    const backend = {
+      id: serviceDetail.id,
+      name: 'Lavagem Completa',
+      description: 'Lavagem exterior e interior',
+      price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+      durationMinutes: 60,
+      loyaltyPointsValue: 10,
+      durationPolicy: 'FIXED' as const,
+      publicSlug: 'lavagem-completa',
+      profile,
+      bookingPolicy: { secret: true },
+      resourceRequirements: [{ resourcePoolIds: ['x'] }],
+    };
+
+    const result = toPublicServiceDetailResponse(backend);
+
+    expect(result).toEqual({
+      id: serviceDetail.id,
+      name: 'Lavagem Completa',
+      description: 'Lavagem exterior e interior',
+      price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+      durationMinutes: 60,
+      loyaltyPointsValue: 10,
+      durationPolicy: 'FIXED',
+      publicSlug: 'lavagem-completa',
+      profile,
+    });
   });
 });

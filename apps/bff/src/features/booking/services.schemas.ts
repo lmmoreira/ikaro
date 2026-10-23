@@ -6,6 +6,7 @@ import {
   PublishServiceIntakeSchemaSchema as PublishServiceIntakeSchemaBodySchema,
   UpdateServiceBookingPolicySchema as UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsSchema as UpdateServiceLegsBodySchema,
+  UpdateServicePublicPageSchema as UpdateServicePublicPageBodySchema,
   UpdateServiceResourceRequirementsSchema as UpdateServiceResourceRequirementsBodySchema,
 } from '@ikaro/validation';
 
@@ -28,6 +29,7 @@ export {
   PublishServiceIntakeSchemaBodySchema,
   UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsBodySchema,
+  UpdateServicePublicPageBodySchema,
   UpdateServiceResourceRequirementsBodySchema,
 };
 export {
@@ -77,4 +79,10 @@ export type UpdateServiceResourceRequirementsBody = z.infer<
 >;
 export type UpdateServiceLegsBody = z.infer<typeof UpdateServiceLegsBodySchema>;
 export type UpdateServiceBookingPolicyBody = z.infer<typeof UpdateServiceBookingPolicyBodySchema>;
+export type UpdateServicePublicPageBody = z.infer<typeof UpdateServicePublicPageBodySchema>;
+
+// The address segment of a published service page (the backend generates it: lowercase letters,
+// digits and hyphens, 3–60 characters). Anything else cannot exist, so it is refused before it
+// reaches the backend.
+export const PublicServiceSlugParamSchema = z.string().regex(/^[a-z0-9-]{3,60}$/);
 export type PublishServiceIntakeSchemaBody = z.infer<typeof PublishServiceIntakeSchemaBodySchema>;

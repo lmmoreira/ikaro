@@ -52,6 +52,9 @@ const mockServiceDetail: ServiceDetail = {
   legs: null,
   classResourceSlots: null,
   bookingPolicy: mockBookingPolicy,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
 };
 
 const mockStaffServiceResponse = {
@@ -70,6 +73,9 @@ const mockStaffServiceResponse = {
   legs: null,
   classResourceSlots: null,
   bookingPolicy: mockBookingPolicy,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
 };
 
 const validCreateBody = {
@@ -463,6 +469,74 @@ describe('ServicesController (component)', () => {
         .send({ durationPolicy: 'CUSTOMER_SELECTED' });
 
       expect(res.status).toBe(422);
+    });
+  });
+
+  describe('PATCH /v1/services/:id/public-page (TD56-S03)', () => {
+    it('returns 401 without a token', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/public-page`)
+        .send({ published: true });
+      expect(res.status).toBe(401);
+    });
+
+    it('returns 403 for CUSTOMER role', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/public-page`)
+        .set('Authorization', `Bearer ${makeCustomerJwt(jwtService)}`)
+        .send({ published: true });
+      expect(res.status).toBe(403);
+    });
+
+    it.each([
+      ['MANAGER', makeManagerJwt],
+      ['STAFF', makeStaffJwt],
+    ])('%s JWT → 200, forwards to PATCH /services/:id/public-page', async (_role, makeJwt) => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockResolvedValueOnce({
+        id: SERVICE_ID,
+        publicPagePublished: true,
+        publicSlug: 'lavagem-completa',
+        publicProfile: null,
+      });
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/public-page`)
+        .set('Authorization', `Bearer ${makeJwt(jwtService)}`)
+        .send({ published: true, profile: { inclusions: ['Chá'] } });
+
+      expect(res.status).toBe(200);
+      expect(res.body.publicSlug).toBe('lavagem-completa');
+      expect(backendHttpService.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}/public-page`, {
+        published: true,
+        profile: { inclusions: ['Chá'] },
+      });
+    });
+
+    it('rejects an invalid profile with 400 before calling the backend', async () => {
+      setupActiveGuardMock(httpService);
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/public-page`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ profile: { inclusions: Array.from({ length: 13 }, () => 'x') } });
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.patch).not.toHaveBeenCalled();
+    });
+
+    it('propagates the 409 of a simultaneous first publish', async () => {
+      setupActiveGuardMock(httpService);
+      backendHttpService.patch.mockRejectedValueOnce(
+        new HttpException({ title: 'Conflict', status: 409 }, 409),
+      );
+
+      const res = await request(app.getHttpServer())
+        .patch(`/v1/services/${SERVICE_ID}/public-page`)
+        .set('Authorization', `Bearer ${makeManagerJwt(jwtService)}`)
+        .send({ published: true });
+
+      expect(res.status).toBe(409);
     });
   });
 

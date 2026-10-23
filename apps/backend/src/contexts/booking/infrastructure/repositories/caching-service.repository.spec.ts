@@ -7,6 +7,8 @@ import { AppLogger } from '../../../../shared/observability/app-logger';
 import { Money } from '../../../../shared/value-objects/money';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
+import { ServicePublicProfile } from '../../domain/service-public-profile.vo';
+import { ServicePublicSlug } from '../../domain/service-public-slug.vo';
 import { CachingServiceRepository } from './caching-service.repository';
 
 describe('CachingServiceRepository', () => {
@@ -25,7 +27,7 @@ describe('CachingServiceRepository', () => {
     await inner.save(service);
     await repo.findAllByTenant('tenant-1', { status: 'ACTIVE' });
 
-    expect(cache.has('booking:service:v4:tenant-1:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-1:ACTIVE')).toBe(true);
 
     // Mutate the same service directly on the underlying repository — bypassing the caching
     // decorator entirely, the way an out-of-band write would. If the second call actually reads
@@ -51,7 +53,7 @@ describe('CachingServiceRepository', () => {
     const result = await repo.findAllByTenant('tenant-2', { status: 'ANY' });
 
     expect(result).toEqual([service]);
-    expect(cache.has('booking:service:v4:tenant-2:ANY')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-2:ANY')).toBe(true);
   });
 
   it('falls through to the repository when the cache read fails, without throwing', async () => {
@@ -64,7 +66,7 @@ describe('CachingServiceRepository', () => {
 
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Cache read failed for booking:service:v4:tenant-3:ACTIVE'),
+      expect.stringContaining('Cache read failed for booking:service:v5:tenant-3:ACTIVE'),
     );
 
     warnSpy.mockRestore();
@@ -80,9 +82,9 @@ describe('CachingServiceRepository', () => {
 
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Cache write failed for booking:service:v4:tenant-4:ACTIVE'),
+      expect.stringContaining('Cache write failed for booking:service:v5:tenant-4:ACTIVE'),
     );
-    expect(cache.has('booking:service:v4:tenant-4:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v5:tenant-4:ACTIVE')).toBe(false);
 
     warnSpy.mockRestore();
   });
@@ -98,7 +100,7 @@ describe('CachingServiceRepository', () => {
     expect(result).toEqual([service]);
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining(
-        'Cache write failed for booking:service:v4:tenant-4b:ACTIVE: not an Error instance',
+        'Cache write failed for booking:service:v5:tenant-4b:ACTIVE: not an Error instance',
       ),
     );
 
@@ -111,7 +113,7 @@ describe('CachingServiceRepository', () => {
 
     await repo.findAllByTenant('tenant-5', { status: 'ACTIVE', search: 'lavagem' });
 
-    expect(cache.has('booking:service:v4:tenant-5:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v5:tenant-5:ACTIVE')).toBe(false);
   });
 
   it('bypasses the cache entirely when an ids filter is present', async () => {
@@ -161,7 +163,7 @@ describe('CachingServiceRepository', () => {
     await expect(repo.existsById(service.id, service.tenantId)).resolves.toBe(true);
     await expect(repo.existsById(service.id, 'another-tenant')).resolves.toBe(false);
     await expect(repo.findByIdForUpdate(service.id, service.tenantId)).resolves.toEqual(service);
-    expect(cache.has(`booking:service:v4:tenant-8:ACTIVE`)).toBe(false);
+    expect(cache.has(`booking:service:v5:tenant-8:ACTIVE`)).toBe(false);
   });
 
   it('never returns another tenant’s cached services (cross-tenant isolation)', async () => {
@@ -179,8 +181,8 @@ describe('CachingServiceRepository', () => {
     await repo.findAllByTenant('tenant-9a', { status: 'ACTIVE' });
     const tenant2Result = await repo.findAllByTenant('tenant-9b', { status: 'ACTIVE' });
 
-    expect(cache.has('booking:service:v4:tenant-9a:ACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v4:tenant-9b:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-9a:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-9b:ACTIVE')).toBe(true);
     expect(tenant2Result).toEqual([tenant2Service]);
     expect(tenant2Result.map((s) => s.name)).not.toContain('Tenant 9a Service');
   });
@@ -204,9 +206,9 @@ describe('CachingServiceRepository', () => {
     await repo.findAllByTenant('tenant-11', { status: 'ACTIVE' });
     await repo.findAllByTenant('tenant-11', { status: 'INACTIVE' });
     await repo.findAllByTenant('tenant-11', { status: 'ANY' });
-    expect(cache.has('booking:service:v4:tenant-11:ACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v4:tenant-11:INACTIVE')).toBe(true);
-    expect(cache.has('booking:service:v4:tenant-11:ANY')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-11:ACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-11:INACTIVE')).toBe(true);
+    expect(cache.has('booking:service:v5:tenant-11:ANY')).toBe(true);
 
     const mockDataSource = {
       transaction: jest.fn(async (fn: (em: EntityManager) => Promise<void>) =>
@@ -217,9 +219,9 @@ describe('CachingServiceRepository', () => {
 
     await txManager.run(() => repo.save(service));
 
-    expect(cache.has('booking:service:v4:tenant-11:ACTIVE')).toBe(false);
-    expect(cache.has('booking:service:v4:tenant-11:INACTIVE')).toBe(false);
-    expect(cache.has('booking:service:v4:tenant-11:ANY')).toBe(false);
+    expect(cache.has('booking:service:v5:tenant-11:ACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v5:tenant-11:INACTIVE')).toBe(false);
+    expect(cache.has('booking:service:v5:tenant-11:ANY')).toBe(false);
   });
 
   it('round-trips bookingModel/resourceRequirements/bufferAfterMinutes/legs through the cache (v3)', async () => {
@@ -280,5 +282,68 @@ describe('CachingServiceRepository', () => {
     );
 
     warnSpy.mockRestore();
+  });
+  describe('public page (TD56-S03)', () => {
+    it('round-trips publicPagePublished, publicSlug and publicProfile through the cache', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId('tenant-20')
+        .withPublicSlug('massagem')
+        .withPublicPagePublished(true)
+        .withPublicProfile(
+          ServicePublicProfile.create({ longDescription: 'Texto', inclusions: ['Chá'] }),
+        )
+        .build();
+      await inner.save(service);
+      await repo.findAllByTenant('tenant-20', { status: 'ACTIVE' });
+
+      const [cached] = await repo.findAllByTenant('tenant-20', { status: 'ACTIVE' });
+
+      expect(cached.publicPagePublished).toBe(true);
+      expect(cached.publicSlug?.value).toBe('massagem');
+      expect(cached.publicProfile?.toJSON()).toMatchObject({
+        longDescription: 'Texto',
+        inclusions: ['Chá'],
+      });
+    });
+
+    it('ignores a leftover v4 entry (written before these fields existed) and reads from the repository', async () => {
+      const service = new ServiceBuilder().withTenantId('tenant-21').withName('Fresh').build();
+      await inner.save(service);
+      await cache.set('booking:service:v4:tenant-21:ACTIVE', [{ id: 'stale', name: 'Stale' }]);
+
+      const result = await repo.findAllByTenant('tenant-21', { status: 'ACTIVE' });
+
+      expect(result.map((s) => s.name)).toEqual(['Fresh']);
+    });
+
+    it('shows the new slug and published flag after an update (cache invalidated on save)', async () => {
+      const service = new ServiceBuilder().withTenantId('tenant-22').build();
+      await inner.save(service);
+      await repo.findAllByTenant('tenant-22', { status: 'ACTIVE' });
+
+      service.publishPublicPage(ServicePublicSlug.create('servico-novo'));
+      await repo.save(service);
+      const [reloaded] = await repo.findAllByTenant('tenant-22', { status: 'ACTIVE' });
+
+      expect(reloaded.publicPagePublished).toBe(true);
+      expect(reloaded.publicSlug?.value).toBe('servico-novo');
+    });
+
+    it('findByPublicSlug() reads through to the repository, scoped to the tenant (never cached)', async () => {
+      const mine = new ServiceBuilder()
+        .withTenantId('tenant-23')
+        .withPublicSlug('massagem')
+        .build();
+      const theirs = new ServiceBuilder()
+        .withTenantId('tenant-24')
+        .withPublicSlug('massagem')
+        .build();
+      await inner.save(mine);
+      await inner.save(theirs);
+
+      expect((await repo.findByPublicSlug('massagem', 'tenant-23'))?.id).toBe(mine.id);
+      expect((await repo.findByPublicSlug('massagem', 'tenant-24'))?.id).toBe(theirs.id);
+      expect(await repo.findByPublicSlug('massagem', 'tenant-25')).toBeNull();
+    });
   });
 });

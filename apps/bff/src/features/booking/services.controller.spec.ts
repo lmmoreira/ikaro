@@ -47,6 +47,9 @@ const mockServiceDetail: ServiceDetail = {
   legs: null,
   classResourceSlots: null,
   bookingPolicy: mockBookingPolicy,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
 };
 
 const SERVICE_ID = '10000000-0000-4000-8000-000000000001';
@@ -81,6 +84,9 @@ describe('ServicesController', () => {
             legs: null,
             classResourceSlots: null,
             bookingPolicy: mockBookingPolicy,
+            publicPagePublished: false,
+            publicSlug: null,
+            publicProfile: null,
           },
         ],
         total: 1,
@@ -247,6 +253,35 @@ describe('ServicesController', () => {
       await expect(
         controller.updateBookingPolicy(SERVICE_ID, { durationPolicy: 'CUSTOMER_SELECTED' }),
       ).rejects.toThrow('422');
+    });
+  });
+
+  describe('updatePublicPage() (TD56-S03)', () => {
+    it('calls PATCH /services/:id/public-page with the body (never a slug)', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({
+          id: SERVICE_ID,
+          publicPagePublished: true,
+          publicSlug: 'lavagem-completa',
+          publicProfile: null,
+        }),
+      });
+      const controller = new ServicesController(backendHttp);
+      const body = { published: true, profile: { longDescription: 'Texto' } };
+
+      const result = await controller.updatePublicPage(SERVICE_ID, body);
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}/public-page`, body);
+      expect(result.publicSlug).toBe('lavagem-completa');
+    });
+
+    it('propagates backend errors', async () => {
+      const backendHttp = makeBackendHttp({ patch: jest.fn().mockRejectedValue(new Error('409')) });
+      const controller = new ServicesController(backendHttp);
+
+      await expect(controller.updatePublicPage(SERVICE_ID, { published: true })).rejects.toThrow(
+        '409',
+      );
     });
   });
 

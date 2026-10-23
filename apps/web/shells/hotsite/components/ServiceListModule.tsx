@@ -10,7 +10,7 @@ import {
 } from '@/features/platform/hotsite/module-styles';
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { SectionEyebrow } from './SectionEyebrow';
-import { ServiceItems } from './ServiceListCards';
+import { ServiceItems, type ServiceCardAction } from './ServiceListCards';
 
 interface ServiceListModuleProps extends SectionPresentationProps {
   readonly data: ServiceListModuleData;
@@ -20,6 +20,25 @@ interface ServiceListModuleProps extends SectionPresentationProps {
 }
 
 const headingStyle = sectionHeadingStyle;
+
+function resolveCardAction(
+  data: ServiceListModuleData,
+  slug: string,
+  defaults: { readonly book: string; readonly details: string },
+): ServiceCardAction | undefined {
+  if (data.itemAction === 'booking') {
+    return { slug, kind: 'booking', label: data.itemCtaLabel || defaults.book };
+  }
+  if (data.itemAction === 'details') {
+    return {
+      slug,
+      kind: 'details',
+      label: data.itemCtaLabel || defaults.details,
+      fallbackLabel: defaults.book,
+    };
+  }
+  return undefined;
+}
 
 export function ServiceListModule({
   data,
@@ -35,13 +54,13 @@ export function ServiceListModule({
   const cardBg = sectionCardBackground(bgVariant);
   const showPrices = data.showPrices;
   const showPoints = data.showPoints;
-  // Only 'booking' is a card action here. 'details' links to a service page that does not exist
-  // yet (a service has no public slug until the service-profile story), and an omitted value is
-  // 'none', today's behaviour.
-  const action =
-    data.itemAction === 'booking'
-      ? { slug, label: data.itemCtaLabel || t('services.bookCta') }
-      : undefined;
+  // 'booking' enters the service-first booking flow; 'details' opens the service's own page (a
+  // service whose page is not published keeps the booking action — see ServiceCardAction); an
+  // omitted value is 'none', today's behaviour.
+  const action = resolveCardAction(data, slug, {
+    book: t('services.bookCta'),
+    details: t('services.detailsCta'),
+  });
 
   return (
     <HotsiteSectionShell

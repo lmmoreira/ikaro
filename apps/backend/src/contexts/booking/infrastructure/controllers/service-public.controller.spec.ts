@@ -1,3 +1,4 @@
+import { GetPublicServiceBySlugUseCase } from '../../application/use-cases/get-public-service-by-slug.use-case';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
@@ -27,6 +28,7 @@ describe('ServicePublicController (M23-S29)', () => {
       ctx,
       new ListServiceResourceOptionsUseCase(serviceRepo, resourceRepo),
       new QuoteServiceDurationUseCase(serviceRepo, new BookingQuoteService()),
+      new GetPublicServiceBySlugUseCase(serviceRepo),
     );
   });
 
@@ -104,6 +106,50 @@ describe('ServicePublicController (M23-S29)', () => {
     it('maps ServiceNotFoundError to 404', async () => {
       const err = await controller.quote(UNKNOWN_ID, {}).catch((e: unknown) => e);
 
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+  });
+  describe('bySlug()', () => {
+    it('returns the published, active service with profile-facing fields only', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withName('Massagem')
+        .withPublicSlug('massagem')
+        .withPublicPagePublished(true)
+        .build();
+      await serviceRepo.save(service);
+
+      const result = await controller.bySlug('massagem');
+
+      expect(result).toMatchObject({ id: service.id, name: 'Massagem', publicSlug: 'massagem' });
+      expect(result.profile.galleryImageUrls).toEqual([]);
+      expect(Object.keys(result)).not.toContain('bookingPolicy');
+      expect(Object.keys(result)).not.toContain('resourceRequirements');
+    });
+
+    it.each([
+      ['an unpublished page', { published: false, active: true }],
+      ['an inactive service', { published: true, active: false }],
+    ])('answers 404 for %s', async (_label, { published, active }) => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_A)
+        .withPublicSlug('massagem')
+        .withPublicPagePublished(published)
+        .withIsActive(active)
+        .build();
+      await serviceRepo.save(service);
+      const err = await controller.bySlug('massagem').catch((e: unknown) => e);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
+    });
+
+    it('answers 404 for a slug that belongs to another tenant (tenant isolation)', async () => {
+      const other = new ServiceBuilder()
+        .withTenantId('10000000-0000-4000-8000-0000000000bb')
+        .withPublicSlug('massagem')
+        .withPublicPagePublished(true)
+        .build();
+      await serviceRepo.save(other);
+      const err = await controller.bySlug('massagem').catch((e: unknown) => e);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });

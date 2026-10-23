@@ -38,6 +38,7 @@ export class BookingAddressValidationError extends Error implements DomainErrorS
 export * from './booking-schedule.error';
 export * from './booking-service.error';
 export * from './booking-service-policy.error';
+export * from './booking-service-public-page.error';
 export * from './booking-discount.error';
 export * from './booking-lifecycle.error';
 export * from './resource.error';

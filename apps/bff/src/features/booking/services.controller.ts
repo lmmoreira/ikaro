@@ -26,6 +26,7 @@ import {
   ServiceListResponse,
   UpdateServiceBookingPolicyResult,
   UpdateServiceLegsResult,
+  UpdateServicePublicPageResult,
   UpdateServiceResourceRequirementsResult,
 } from './services.types';
 import {
@@ -45,6 +46,8 @@ import {
   UpdateServiceBookingPolicyBodySchema,
   UpdateServiceLegsBody,
   UpdateServiceLegsBodySchema,
+  UpdateServicePublicPageBody,
+  UpdateServicePublicPageBodySchema,
   UpdateServiceResourceRequirementsBody,
   UpdateServiceResourceRequirementsBodySchema,
 } from './services.schemas';
@@ -139,6 +142,23 @@ export class ServicesController {
   ): Promise<UpdateServiceBookingPolicyResult> {
     return this.backendHttp.patch<UpdateServiceBookingPolicyResult>(
       `/services/${id}/booking-policy`,
+      body,
+    );
+  }
+
+  // TD56-S03 / UC-013 A5 — the Página pública tab: publish switch + public profile. The slug is
+  // never sent; the backend generates it on the first publish. Image upload itself is MANAGER-only
+  // (the hotsite signed-url endpoint), so a STAFF save can only reference images already stored.
+  @Patch(':id/public-page')
+  @HttpCode(HttpStatus.OK)
+  @Roles('MANAGER', 'STAFF')
+  async updatePublicPage(
+    @Param('id', CanonicalParseUUIDPipe) id: string,
+    @Body(new ZodValidationPipe(UpdateServicePublicPageBodySchema))
+    body: UpdateServicePublicPageBody,
+  ): Promise<UpdateServicePublicPageResult> {
+    return this.backendHttp.patch<UpdateServicePublicPageResult>(
+      `/services/${id}/public-page`,
       body,
     );
   }

@@ -30,9 +30,12 @@ import {
 import { ResourceRequirement } from './resource-requirement';
 import { ServiceLeg } from './service-leg';
 import { computeLegsTotalSpanMinutes } from './service-leg-span';
+import { ServicePublicProfile } from './service-public-profile.vo';
+import { ServicePublicSlug } from './service-public-slug.vo';
 import {
   CreateServiceProps,
   defaultServiceBookingPolicyProps,
+  defaultServicePublicPageProps,
   ServiceBookingModel,
   ServiceBookingPolicyProps,
   ServiceProps,
@@ -118,6 +121,15 @@ export class Service extends AggregateRoot {
   get bookingPolicy(): ServiceBookingPolicyProps {
     return { ...this.props.bookingPolicy };
   }
+  get publicPagePublished(): boolean {
+    return this.props.publicPagePublished;
+  }
+  get publicSlug(): ServicePublicSlug | null {
+    return this.props.publicSlug;
+  }
+  get publicProfile(): ServicePublicProfile | null {
+    return this.props.publicProfile;
+  }
 
   private static validateFields(
     name: string,
@@ -170,6 +182,7 @@ export class Service extends AggregateRoot {
       legs: null,
       classResourceSlots: isSession ? classResourceSlots : null,
       bookingPolicy: defaultServiceBookingPolicyProps(),
+      ...defaultServicePublicPageProps(),
     };
   }
 
@@ -401,6 +414,28 @@ export class Service extends AggregateRoot {
     }
     this.props.updatedAt = new Date();
     this.childrenDirty = true;
+  }
+
+  // TD56-S03. A null profile clears the stored content; the slug and the published flag are
+  // independent of it. None of the three public-page setters needs the service to be active: like
+  // the booking policy, the page can be prepared while a service is switched off (the public read
+  // simply returns nothing for an inactive service).
+  setPublicProfile(profile: ServicePublicProfile | null): void {
+    this.props.publicProfile = profile;
+    this.props.updatedAt = new Date();
+  }
+
+  // The slug is fixed by the first publish — republishing after an unpublish, or after a rename,
+  // keeps the URL the service already had. `slugForFirstPublish` is ignored once one exists.
+  publishPublicPage(slugForFirstPublish: ServicePublicSlug): void {
+    this.props.publicSlug ??= slugForFirstPublish;
+    this.props.publicPagePublished = true;
+    this.props.updatedAt = new Date();
+  }
+
+  unpublishPublicPage(): void {
+    this.props.publicPagePublished = false;
+    this.props.updatedAt = new Date();
   }
 
   deactivate(): void {

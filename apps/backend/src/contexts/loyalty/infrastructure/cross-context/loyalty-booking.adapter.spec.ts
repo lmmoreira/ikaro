@@ -46,6 +46,9 @@ describe('LoyaltyBookingAdapter', () => {
             effectiveMinBookingAdvanceHours: 0,
             effectiveMaxBookingAdvanceDays: 90,
           },
+          publicPagePublished: false,
+          publicSlug: null,
+          publicProfile: null,
         },
       ],
     });

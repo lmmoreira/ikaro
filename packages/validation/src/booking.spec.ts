@@ -9,6 +9,7 @@ import {
   ScheduleClosuresRangeQuerySchema,
   ScheduleDayGridQuerySchema,
   UpdateServiceBookingPolicySchema,
+  UpdateServicePublicPageSchema,
   MarkBookingNoShowSchema,
   CorrectBookingNoShowSchema,
 } from './booking';
@@ -251,5 +252,49 @@ describe('RequestRecurringBookingScheduleBodySchema renewsScheduleId (M23-S35)',
       renewsScheduleId: 'not-a-uuid',
     });
     expect(result.success).toBe(false);
+  });
+});
+
+describe('UpdateServicePublicPageSchema (TD56-S03)', () => {
+  it('accepts an empty body (every field is optional) and a publish-only body', () => {
+    expect(UpdateServicePublicPageSchema.safeParse({}).success).toBe(true);
+    expect(UpdateServicePublicPageSchema.safeParse({ published: false }).success).toBe(true);
+  });
+
+  it('distinguishes "profile omitted" (unchanged) from "profile null" (clear it)', () => {
+    expect(UpdateServicePublicPageSchema.parse({ published: true }).profile).toBeUndefined();
+    expect(UpdateServicePublicPageSchema.parse({ profile: null }).profile).toBeNull();
+  });
+
+  it('accepts a full profile at the exact limits', () => {
+    const result = UpdateServicePublicPageSchema.safeParse({
+      profile: {
+        coverImageUrl: 'tmp/t/service-profile/u/cover.webp',
+        galleryImageUrls: Array.from({ length: 8 }, (_, i) => `g${i}.webp`),
+        longDescription: 'x'.repeat(4000),
+        inclusions: Array.from({ length: 12 }, () => 'x'.repeat(120)),
+        preparationNotes: 'x'.repeat(1000),
+      },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it.each([
+    [
+      'a 9th gallery image',
+      { galleryImageUrls: Array.from({ length: 9 }, (_, i) => `g${i}.webp`) },
+    ],
+    ['a 4001-char description', { longDescription: 'x'.repeat(4001) }],
+    ['a 13th inclusion', { inclusions: Array.from({ length: 13 }, () => 'x') }],
+    ['a 121-char inclusion', { inclusions: ['x'.repeat(121)] }],
+    ['1001-char notes', { preparationNotes: 'x'.repeat(1001) }],
+    ['an empty image path', { coverImageUrl: '' }],
+  ])('rejects %s', (_label, profile) => {
+    expect(UpdateServicePublicPageSchema.safeParse({ profile }).success).toBe(false);
+  });
+
+  it('does not accept a slug from the client (the system generates it)', () => {
+    const parsed = UpdateServicePublicPageSchema.parse({ published: true, publicSlug: 'mine' });
+    expect(parsed).not.toHaveProperty('publicSlug');
   });
 });

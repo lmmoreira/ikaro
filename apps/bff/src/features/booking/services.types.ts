@@ -1,3 +1,5 @@
+import type { ServicePublicProfileItem } from '@ikaro/types';
+
 export type ServiceBookingModel = 'APPOINTMENT' | 'SESSION';
 export type ResourceRequirementSelectionMode =
   'NONE' | 'CUSTOMER_CHOICE' | 'AUTO_ANY' | 'AUTO_FUNGIBLE_POOL';
@@ -64,6 +66,9 @@ export interface ServiceDetail {
   legs: ServiceLegDetail[] | null;
   classResourceSlots: ClassResourceSlotDetail[] | null;
   bookingPolicy: ServiceBookingPolicyDetail;
+  publicPagePublished: boolean;
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileItem | null;
 }
 
 export interface ServiceListResponse {
@@ -79,6 +84,26 @@ export interface UpdateServiceLegsResult {
   id: string;
   legs: ServiceLegDetail[];
   totalSpanMinutes: number;
+}
+
+export interface UpdateServicePublicPageResult {
+  id: string;
+  publicPagePublished: boolean;
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileItem | null;
+}
+
+// Backend GET /services/by-slug/:publicSlug (UC-109).
+export interface GetPublicServiceBySlugResult {
+  id: string;
+  name: string;
+  description: string | null;
+  price: { amount: number; currency: string; formatted: string };
+  durationMinutes: number;
+  loyaltyPointsValue: number;
+  durationPolicy: ServiceDurationPolicy;
+  publicSlug: string;
+  profile: ServicePublicProfileItem;
 }
 
 export interface UpdateServiceBookingPolicyResult {

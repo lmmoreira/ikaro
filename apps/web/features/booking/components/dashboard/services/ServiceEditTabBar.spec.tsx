@@ -13,7 +13,7 @@ function getTab(container: HTMLElement, tab: string): HTMLElement {
 }
 
 describe('ServiceEditTabBar', () => {
-  it('renders all 4 tabs with role=tab and marks the active one selected', () => {
+  it('renders all 5 tabs with role=tab and marks the active one selected', () => {
     const { container } = renderWithIntl(
       <ServiceEditTabBar
         activeTab="recursos"
@@ -22,7 +22,7 @@ describe('ServiceEditTabBar', () => {
       />,
     );
 
-    expect(screen.getAllByRole('tab')).toHaveLength(4);
+    expect(screen.getAllByRole('tab')).toHaveLength(5);
     expect(getTab(container, 'recursos')).toHaveAttribute('aria-selected', 'true');
     expect(getTab(container, 'detalhes')).toHaveAttribute('aria-selected', 'false');
   });
@@ -42,11 +42,11 @@ describe('ServiceEditTabBar', () => {
     expect(onTabChange).toHaveBeenCalledWith('politicas');
   });
 
-  it('shows a dirty dot only for tabs marked dirty, including formulario', () => {
+  it('shows a dirty dot only for tabs marked dirty, including formulario and pagina', () => {
     const { container } = renderWithIntl(
       <ServiceEditTabBar
         activeTab="detalhes"
-        dirty={{ detalhes: true, recursos: false, politicas: true, formulario: true }}
+        dirty={{ detalhes: true, recursos: false, politicas: true, formulario: true, pagina: true }}
         onTabChange={vi.fn()}
       />,
     );
@@ -63,6 +63,21 @@ describe('ServiceEditTabBar', () => {
     expect(
       container.querySelector('[data-testid="service-edit-tab-dirty-dot"][data-tab="formulario"]'),
     ).toBeInTheDocument();
+    expect(
+      container.querySelector('[data-testid="service-edit-tab-dirty-dot"][data-tab="pagina"]'),
+    ).toBeInTheDocument();
+  });
+
+  it('labels the fifth tab "Página pública" (TD56-S03)', () => {
+    const { container } = renderWithIntl(
+      <ServiceEditTabBar
+        activeTab="detalhes"
+        dirty={INITIAL_SERVICE_EDIT_DIRTY_STATE}
+        onTabChange={vi.fn()}
+      />,
+    );
+
+    expect(getTab(container, 'pagina')).toHaveTextContent('Página pública');
   });
 
   it('scrolls horizontally only: overflow-y is hidden and the active tab does not overhang the box', () => {
