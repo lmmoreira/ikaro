@@ -172,7 +172,7 @@ export function ServiceEditPage({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
         <div>
-          {/* All 4 panels stay mounted — hidden (not unmounted) via the native `hidden`
+          {/* All 5 panels stay mounted — hidden (not unmounted) via the native `hidden`
               attribute — so switching tabs never discards a panel's own local, unsaved draft
               state. Each panel manages its own dirty/save lifecycle independently either way. */}
           <div
@@ -228,6 +228,7 @@ export function ServiceEditPage({
             requiresPickupAddress={savedRequiresPickupAddress}
             onRequirementsSaved={setSavedRequirements}
             intakeSchema={intakeSchema}
+            isActive={isActive}
             onTabDirtyChange={setTabDirty}
             onTabActionChange={handleTabActionChange}
             onLegsSaved={(totalSpanMinutes) => {

@@ -10,4 +10,5 @@ export {
   setBookingPolicy,
   setResourceRequirements,
   setServiceLegs,
+  setServicePublicPage,
 } from './service-config-api';

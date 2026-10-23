@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager, In, QueryFailedError, Repository } from 'typeorm';
 import { runInNewTransaction } from '../../../../shared/infrastructure/run-in-new-transaction';
 import { getActiveEntityManager } from '../../../../shared/infrastructure/transaction-context';
 import { escapeLikePattern } from '../../../../shared/utils/escape-like-pattern';
@@ -12,6 +12,7 @@ import {
   IServiceRepository,
   ServiceFilters,
 } from '../../application/ports/service-repository.port';
+import { ServicePublicSlugTakenError } from '../../domain/errors/booking-domain.error';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceClassResourcePoolEntity } from '../entities/service-class-resource-pool.entity';
 import {
@@ -28,6 +29,8 @@ import { loadServiceChildren } from './typeorm-service-child-loader';
 import { toChildEntities } from './typeorm-service-child-entities.mapper';
 import { emptyChildRows, toDomain, toEntity } from './typeorm-service.mapper';
 
+const SERVICE_PUBLIC_SLUG_UNIQUE_INDEX = 'UQ_booking_services_tenant_public_slug';
+
 @Injectable()
 export class TypeOrmServiceRepository implements IServiceRepository {
   constructor(
@@ -42,6 +45,14 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
     const children = await loadServiceChildren(this.repo.manager, tenantId, [id]);
     return toDomain(entity, currency, children.get(id) ?? emptyChildRows());
+  }
+
+  async findByPublicSlug(slug: string, tenantId: string): Promise<Service | null> {
+    const entity = await this.repo.findOne({ where: { publicSlug: slug, tenantId } });
+    if (!entity) return null;
+    const { currency } = (await this.settingsPort.getSettings(tenantId)).localization;
+    const children = await loadServiceChildren(this.repo.manager, tenantId, [entity.id]);
+    return toDomain(entity, currency, children.get(entity.id) ?? emptyChildRows());
   }
 
   async existsById(id: string, tenantId: string): Promise<boolean> {
@@ -140,13 +151,30 @@ export class TypeOrmServiceRepository implements IServiceRepository {
     service: Service,
     entity: ServiceEntity,
   ): Promise<void> {
-    await manager.save(ServiceEntity, entity);
+    try {
+      await manager.save(ServiceEntity, entity);
+    } catch (err) {
+      this.rethrowSaveError(err);
+    }
     // Skip the child wholesale-replace entirely when nothing resource-shape-related changed —
     // a plain name/price/isActive update on a service with the maximum permitted 20 legs x 20
     // requirements x 50 pool IDs would otherwise rewrite ~20,000 rows on every save.
     // Service.hasChildrenChanges is true on create() and after setResourceRequirements()/
     // setLegs()/changeBookingModel(), false otherwise (see service.aggregate.ts).
     if (service.hasChildrenChanges) await this.syncChildren(manager, service);
+  }
+
+  // The unique index is the authority for a public slug (TD56-S03): the use case checks for a clash
+  // first, so this only fires when two same-named services are first published at the same moment.
+  private rethrowSaveError(err: unknown): never {
+    const driverError = err instanceof QueryFailedError ? err.driverError : undefined;
+    if (
+      driverError?.code === '23505' &&
+      driverError.constraint === SERVICE_PUBLIC_SLUG_UNIQUE_INDEX
+    ) {
+      throw new ServicePublicSlugTakenError();
+    }
+    throw err;
   }
 
   // Wholesale replace, per the story's own "replaces resourceRequirements wholesale (not a

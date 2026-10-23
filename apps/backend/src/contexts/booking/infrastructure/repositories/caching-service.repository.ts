@@ -12,6 +12,11 @@ import { ClassResourceSlot, ClassResourceSlotProps } from '../../domain/class-re
 import { ResourceRequirement, ResourceRequirementProps } from '../../domain/resource-requirement';
 import { Service, ServiceBookingModel } from '../../domain/service.aggregate';
 import { ServiceLeg, ServiceLegReconstituteProps } from '../../domain/service-leg';
+import {
+  ServicePublicProfile,
+  ServicePublicProfileProps,
+} from '../../domain/service-public-profile.vo';
+import { ServicePublicSlug } from '../../domain/service-public-slug.vo';
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { TypeOrmServiceRepository } from './typeorm-service.repository';
@@ -35,6 +40,9 @@ type ServiceCacheRecord = {
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ClassResourceSlotProps[] | null;
   bookingPolicy: ServiceBookingPolicyProps;
+  publicPagePublished: boolean;
+  publicSlug: string | null;
+  publicProfile: ServicePublicProfileProps | null;
 };
 
 const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
@@ -42,6 +50,9 @@ const CACHEABLE_STATUSES: ServiceStatusFilter[] = ['ACTIVE', 'INACTIVE', 'ANY'];
 @Injectable()
 export class CachingServiceRepository implements IServiceRepository {
   private static readonly CACHE_TTL_MS = 60_000;
+  // v5 (TD56-S03): cache records now also carry publicPagePublished/publicSlug/publicProfile —
+  // bumped so no v4 entry (missing these fields) is ever read back with them silently undefined
+  // during a rolling deploy. Same discipline as the earlier bumps below.
   // v4 (M22-S02): cache records now also carry bookingPolicy (defaultApprovalMode/
   // manualHoldMinutes/duration+pricing policy fields/etc) — bumped so no v3 entry (missing this
   // field) is ever read back with it silently undefined during the rollout. Same discipline as
@@ -49,7 +60,7 @@ export class CachingServiceRepository implements IServiceRepository {
   // v3 (M22-S01): cache records now carry bookingModel/resourceRequirements/bufferAfterMinutes/
   // legs/classResourceSlots — bumped so no v2 entry (missing these fields) is ever read back
   // with them silently undefined during the rollout. Same discipline as the v1->v2 bump above.
-  private static readonly CACHE_KEY_PREFIX = 'booking:service:v4:';
+  private static readonly CACHE_KEY_PREFIX = 'booking:service:v5:';
   private readonly logger = new AppLogger(CachingServiceRepository.name);
 
   constructor(
@@ -68,6 +79,11 @@ export class CachingServiceRepository implements IServiceRepository {
 
   async findByIds(ids: string[], tenantId: string): Promise<Service[]> {
     return this.repo.findByIds(ids, tenantId);
+  }
+
+  // Pass-through — a single indexed lookup by the unique (tenant_id, public_slug) index (TD56-S03).
+  async findByPublicSlug(slug: string, tenantId: string): Promise<Service | null> {
+    return this.repo.findByPublicSlug(slug, tenantId);
   }
 
   // Pass-through — a single indexed existence probe, nothing worth caching.
@@ -187,6 +203,13 @@ export class CachingServiceRepository implements IServiceRepository {
         ? record.classResourceSlots.map((s) => ClassResourceSlot.reconstitute(s))
         : null,
       bookingPolicy: record.bookingPolicy,
+      publicPagePublished: record.publicPagePublished,
+      publicSlug:
+        record.publicSlug === null ? null : ServicePublicSlug.reconstitute(record.publicSlug),
+      publicProfile:
+        record.publicProfile === null
+          ? null
+          : ServicePublicProfile.reconstitute(record.publicProfile),
     });
   }
 
@@ -212,6 +235,9 @@ export class CachingServiceRepository implements IServiceRepository {
         ? service.classResourceSlots.map((s) => s.toJSON())
         : null,
       bookingPolicy: service.bookingPolicy,
+      publicPagePublished: service.publicPagePublished,
+      publicSlug: service.publicSlug?.value ?? null,
+      publicProfile: service.publicProfile?.toJSON() ?? null,
     };
   }
 }

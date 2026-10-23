@@ -410,6 +410,53 @@ describe('SingleImageUploadField', () => {
     expect(onChange).toHaveBeenCalledWith('');
   });
 
+  it('keepStoredOnRemove: removing a persisted image only clears the reference — the save deletes the object', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="service-cover"
+        value="tenants/tenant-1/hotsite/service-profile/u1/cover.png"
+        onChange={onChange}
+        purpose="service-profile"
+        keepStoredOnRemove
+        {...LABELS}
+      />,
+    );
+
+    await user.click(getByFieldId('single-image-upload-remove', 'service-cover'));
+
+    expect(deleteHotsiteImage).not.toHaveBeenCalled();
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('keepStoredOnRemove: a not-yet-saved tmp/ upload is still deleted at once', async () => {
+    const user = userEvent.setup();
+    vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({
+      signedUrl: 'https://storage.example.com/signed-read?sig=abc',
+      expiresAt: '2026-06-15T12:00:00.000Z',
+    });
+    vi.mocked(deleteHotsiteImage).mockResolvedValue(undefined);
+    const onChange = vi.fn();
+
+    renderWithIntl(
+      <SingleImageUploadField
+        id="service-cover"
+        value="tmp/tenant-1/service-profile/u1/cover.png"
+        onChange={onChange}
+        purpose="service-profile"
+        keepStoredOnRemove
+        {...LABELS}
+      />,
+    );
+
+    await user.click(await screen.findByTestId('single-image-upload-remove'));
+
+    expect(deleteHotsiteImage).toHaveBeenCalledWith('tmp/tenant-1/service-profile/u1/cover.png');
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
   it('removing a not-yet-promoted tmp/ image calls deleteHotsiteImage and clears the value', async () => {
     const user = userEvent.setup();
     vi.mocked(generateHotsiteImageReadSignedUrl).mockResolvedValue({

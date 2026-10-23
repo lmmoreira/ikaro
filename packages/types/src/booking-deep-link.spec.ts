@@ -41,6 +41,36 @@ describe('buildBookingDeepLinkUrl()', () => {
     expect(queryOf(url).has('resourceId')).toBe(false);
   });
 
+  it('preselects only the service when the link has no date (a service page link, TD56-S03)', () => {
+    const url = buildBookingDeepLinkUrl(HOTSITE, { serviceId: SERVICE_ID });
+
+    expect(url).toBe(`${HOTSITE}/booking?serviceId=${SERVICE_ID}`);
+    expect(queryOf(url).has('date')).toBe(false);
+  });
+
+  it.each([null, ''])('writes no fake date for a date of %p', (date) => {
+    const url = buildBookingDeepLinkUrl(HOTSITE, { serviceId: SERVICE_ID, date });
+
+    expect(queryOf(url).has('date')).toBe(false);
+  });
+
+  it('builds a relative link from a base such as /{slug}', () => {
+    expect(buildBookingDeepLinkUrl('/lavacar', { serviceId: SERVICE_ID })).toBe(
+      `/lavacar/booking?serviceId=${SERVICE_ID}`,
+    );
+  });
+
+  it('a service-only link parses back with a null date', () => {
+    const url = buildBookingDeepLinkUrl(HOTSITE, { serviceId: SERVICE_ID });
+
+    expect(parseBookingDeepLink(queryOf(url))).toEqual({
+      serviceId: SERVICE_ID,
+      date: null,
+      durationMinutes: null,
+      resourceId: null,
+    });
+  });
+
   it('stays empty when there is no hotsite URL, never a relative link', () => {
     expect(buildBookingDeepLinkUrl('', { serviceId: SERVICE_ID, date: '2030-03-04' })).toBe('');
   });

@@ -3,6 +3,8 @@ import { ClassResourceSlot } from './class-resource-slot';
 import { ActiveResourceIdsByType, ServiceBookingModel } from './resource-requirement-availability';
 import { ResourceRequirement } from './resource-requirement';
 import { ServiceLeg } from './service-leg';
+import { ServicePublicProfile } from './service-public-profile.vo';
+import { ServicePublicSlug } from './service-public-slug.vo';
 
 // Split out of service.aggregate.ts to stay under docs/CODE_STANDARDS.md's file-length limit —
 // pure type/interface declarations, no logic, so the split carries no behavioral risk.
@@ -65,6 +67,15 @@ export function defaultServiceBookingPolicyProps(): ServiceBookingPolicyProps {
   };
 }
 
+// A service starts with no public page: unpublished, no slug (generated on the first publish), no
+// profile content.
+export function defaultServicePublicPageProps(): Pick<
+  ServiceProps,
+  'publicPagePublished' | 'publicSlug' | 'publicProfile'
+> {
+  return { publicPagePublished: false, publicSlug: null, publicProfile: null };
+}
+
 export interface ServiceProps {
   id: string;
   tenantId: string;
@@ -83,6 +94,11 @@ export interface ServiceProps {
   legs: ServiceLeg[] | null;
   classResourceSlots: ClassResourceSlot[] | null;
   bookingPolicy: ServiceBookingPolicyProps;
+  // TD56-S03 — the service's own public page (UC-013 A5 / UC-109). The slug is generated on the
+  // first publish and never changes after; the page is public only while publicPagePublished.
+  publicPagePublished: boolean;
+  publicSlug: ServicePublicSlug | null;
+  publicProfile: ServicePublicProfile | null;
 }
 
 export interface CreateServiceProps {

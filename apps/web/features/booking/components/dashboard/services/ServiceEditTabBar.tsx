@@ -3,12 +3,13 @@
 import { useTranslations } from 'next-intl';
 import type { ServiceEditDirtyState, ServiceEditTabKey } from '@/features/booking/types/service';
 
-const TABS: ServiceEditTabKey[] = ['detalhes', 'recursos', 'politicas', 'formulario'];
+const TABS: ServiceEditTabKey[] = ['detalhes', 'recursos', 'politicas', 'formulario', 'pagina'];
 const TAB_LABEL_KEYS: Record<ServiceEditTabKey, string> = {
   detalhes: 'tabDetalhes',
   recursos: 'tabRecursos',
   politicas: 'tabPoliticas',
   formulario: 'tabFormulario',
+  pagina: 'tabPaginaPublica',
 };
 
 interface ServiceEditTabBarProps {

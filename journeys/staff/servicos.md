@@ -2,8 +2,8 @@
 
 **Actor(s):** STAFF | MANAGER  
 **Goal:** Create, edit, and deactivate services offered by the tenant  
-**UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`; A5 public page — 📝 prototyped, `TD56-S03`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (✅ shipped — M22-S04, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
-**Status:** Base CRUD and M22 Cluster 2 extension both shipped (M22-S04) — see `dev-notes.md` for implementation detail. The "Página pública" tab (UC-013 A5) is prototyped (`03g`–`03i`) and awaiting implementation in `TD56-S03`.
+**UCs covered:** UC-012, UC-013 (shipped, `M13-S22`–`S24`; A5 public page — ✅ built, `TD56-S03`) · UC-050, UC-051, UC-052, UC-053, UC-054, UC-055, UC-056 (✅ shipped — M22-S04, resource requirements/bundles/legs/buffer/intake-schema/booking-policy/booking-model extensions)  
+**Status:** Base CRUD and M22 Cluster 2 extension both shipped (M22-S04) — see `dev-notes.md` for implementation detail. The "Página pública" tab (UC-013 A5) is built (`TD56-S03`); its screens are `03g`–`03i`.
 
 ## Flow
 
@@ -61,7 +61,7 @@ flowchart TD
     ActivateSuccess --> EditForm
 
     class List,EditForm,DeactivateConfirm,EditSuccess,DeactivateSuccess,InactiveEdit,ActivateSuccess existing
-    class PublicTab,PublicLive,Unpublished,StaffLocked gap
+    class PublicTab,PublicLive,Unpublished,StaffLocked existing
 ```
 
 ## Pages referenced
@@ -102,9 +102,9 @@ Folder: `staff/prototypes/servicos/`
 | `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |
 | `03e-service-edit-intake-error.html` | Error — booking-intake form with 0 questions and no consent text (Formulário de reserva tab) | UC-054 | ✅ Criado — shipped (M22-S04) |
 | `03f-service-edit-recurrence-hint.html` | Políticas de reserva tab — advisory hint under "Permitir recorrência" when the saved service cannot recur (never blocks saving) | UC-055 step 3 | ✅ Criado (TD49-S03) |
-| `03g-service-edit-public-page.html` | New 5th tab "Página pública" — MANAGER view, page published (switch on) | UC-013 A5 | 📝 Prototype — TD56-S03 |
-| `03h-service-edit-public-page-unpublished.html` | Same tab with the switch off — chip "Não publicada", link disabled, content still editable | UC-013 A5 | 📝 Prototype — TD56-S03 |
-| `03i-service-edit-public-page-staff.html` | STAFF view — image fields disabled (upload endpoint is MANAGER-only); switch and text fields editable | UC-013 A5 | 📝 Prototype — TD56-S03 |
+| `03g-service-edit-public-page.html` | New 5th tab "Página pública" — MANAGER view, page published (switch on) | UC-013 A5 | ✅ Built — TD56-S03 |
+| `03h-service-edit-public-page-unpublished.html` | Same tab with the switch off — chip "Não publicada", link disabled, content still editable | UC-013 A5 | ✅ Built — TD56-S03 |
+| `03i-service-edit-public-page-staff.html` | STAFF view — image fields disabled (upload endpoint is MANAGER-only); switch and text fields editable | UC-013 A5 | ✅ Built — TD56-S03 |
 | `dev-notes.md` | Implementation handoff | — | ✅ Criado |
 
 Note: the booking-model picker for UC-056 (Agendamento/Turma, at creation time) lives on `02-service-create.html`, not a separate file — see that file's own header comment.

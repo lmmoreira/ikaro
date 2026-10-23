@@ -499,6 +499,19 @@ Generic bookable unit. Every existing tenant receives one active `LOCATION` reso
 
 `bookingModel`, `resourceRequirements`, `legs`, and `classResourceSlots` (the array-shaped fields) are normalized into the child tables below, not stored as JSONB columns on `services` itself — matching this schema's existing normalization discipline (`docs/DATABASE_SCHEMA`'s own convention, not JSONB-for-everything).
 
+### `booking.services` — public page (TD56-S03)
+
+> A service's own public page (UC-013 A5 / UC-109). Migration `1748500000038-AddServicePublicPage`. See `docs/DOMAIN_MODEL.md` § Aggregate: Service.
+
+| New column | Type | Constraints |
+|--------|------|-------------|
+| public_page_published | BOOLEAN | NOT NULL DEFAULT false — the publish switch |
+| public_slug | VARCHAR(60) | NULLABLE — generated on the first publish and never changed; format enforced by the `ServicePublicSlug` value object (no CHECK) |
+| public_profile | JSONB | NULLABLE — `{ coverImageUrl, galleryImageUrls[], longDescription, inclusions[], preparationNotes }`, bounds enforced by the `ServicePublicProfile` value object |
+| **UNIQUE (partial)** | (tenant_id, public_slug) WHERE public_slug IS NOT NULL | `UQ_booking_services_tenant_public_slug` — many services without a slug coexist; the same slug may exist in two tenants. A unique violation (only reachable when two same-named services are first published at the same instant) surfaces as `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN`. No standalone cross-tenant index: every read is per tenant |
+
+The three column adds are metadata-only on a live table (nullable columns; a constant `DEFAULT false` needs no rewrite on PostgreSQL 11+). The unique index is a plain `CREATE UNIQUE INDEX` (migrations run transactionally).
+
 ### `booking.service_resource_requirements` / `booking.service_resource_requirement_pool`
 
 Normalizes `Service.resourceRequirements[]`. Today's car wash is the degenerate case: one row, `resource_type='LOCATION'`, `selection_mode='NONE'`, empty pool (unrestricted).

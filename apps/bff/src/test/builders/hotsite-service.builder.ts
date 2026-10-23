@@ -4,6 +4,7 @@ export class HotsiteServiceBuilder {
   private id = '10000000-0000-4000-8000-000000000001';
   private name = 'Lavagem Completa';
   private isActive = true;
+  private publicSlug: string | null = null;
   private bookingPolicy: HotsiteServiceBookingPolicy = {
     effectiveMinBookingAdvanceHours: 0,
     effectiveMaxBookingAdvanceDays: 90,
@@ -27,6 +28,11 @@ export class HotsiteServiceBuilder {
 
   withName(name: string): this {
     this.name = name;
+    return this;
+  }
+
+  withPublicSlug(publicSlug: string | null): this {
+    this.publicSlug = publicSlug;
     return this;
   }
 
@@ -55,6 +61,7 @@ export class HotsiteServiceBuilder {
       resourceRequirements: [{ type: 'LOCATION', selectionMode: 'NONE', requiredQuantity: 1 }],
       legs: null,
       bookingPolicy: { ...this.bookingPolicy },
+      publicSlug: this.publicSlug,
     };
   }
 }

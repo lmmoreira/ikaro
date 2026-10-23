@@ -37,6 +37,14 @@ export class InMemoryServiceRepository implements IServiceRepository {
     return result;
   }
 
+  async findByPublicSlug(slug: string, tenantId: string): Promise<Service | null> {
+    return (
+      Array.from(this.store.values()).find(
+        (s) => s.tenantId === tenantId && s.publicSlug?.value === slug,
+      ) ?? null
+    );
+  }
+
   async existsById(id: string, tenantId: string): Promise<boolean> {
     return this.lookup(id, tenantId) !== null;
   }

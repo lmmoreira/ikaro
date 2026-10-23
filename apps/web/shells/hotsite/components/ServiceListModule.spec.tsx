@@ -387,16 +387,95 @@ describe('ServiceListModule item action', () => {
     expect(screen.getByTestId('service-action')).toHaveTextContent('Reservar este serviço');
   });
 
-  // 'details' links to a service page that does not exist until a service has a public slug.
-  it('details renders no action until service detail pages exist', () => {
-    renderWithIntl(
-      <ServiceListModule
-        data={makeData({ itemAction: 'details' })}
-        slug="tenant"
-        services={services}
-      />,
-    );
+  describe("itemAction 'details' (TD56-S03)", () => {
+    const published = makeService({
+      id: '00000000-0000-0000-0000-0000000000bb',
+      name: 'Massagem',
+      publicSlug: 'massagem',
+    });
+    const unpublished = makeService({
+      id: '00000000-0000-0000-0000-0000000000cc',
+      name: 'Banho de Lua',
+      publicSlug: null,
+    });
 
-    expect(screen.queryByTestId('service-action')).not.toBeInTheDocument();
+    it('links a service with a published page to its own page, labelled "Ver detalhes"', () => {
+      renderWithIntl(
+        <ServiceListModule
+          data={makeData({ itemAction: 'details' })}
+          slug="tenant"
+          services={[published]}
+        />,
+      );
+
+      const link = screen.getByTestId('service-action');
+      expect(link).toHaveAttribute('href', '/tenant/servicos/massagem');
+      expect(link).toHaveAttribute('data-action', 'details');
+      expect(link).toHaveTextContent('Ver detalhes');
+    });
+
+    it('falls back to the booking action for a service whose page is not published — never a dead link', () => {
+      renderWithIntl(
+        <ServiceListModule
+          data={makeData({ itemAction: 'details' })}
+          slug="tenant"
+          services={[unpublished]}
+        />,
+      );
+
+      const link = screen.getByTestId('service-action');
+      expect(link).toHaveAttribute(
+        'href',
+        '/tenant/booking?serviceId=00000000-0000-0000-0000-0000000000cc',
+      );
+      expect(link).toHaveAttribute('data-action', 'booking');
+      expect(link).toHaveTextContent('Agendar');
+      expect(link.getAttribute('href')).not.toContain('/servicos/');
+    });
+
+    it('mixes both in one list, each card by its own service', () => {
+      renderWithIntl(
+        <ServiceListModule
+          data={makeData({ itemAction: 'details' })}
+          slug="tenant"
+          services={[published, unpublished]}
+        />,
+      );
+
+      const links = screen.getAllByTestId('service-action');
+      expect(links.map((link) => link.getAttribute('data-action'))).toEqual(['details', 'booking']);
+    });
+
+    it('uses the configured CTA label for the details link, not for the booking fallback', () => {
+      renderWithIntl(
+        <ServiceListModule
+          data={makeData({ itemAction: 'details', itemCtaLabel: 'Saiba mais' })}
+          slug="tenant"
+          services={[published, unpublished]}
+        />,
+      );
+
+      const [detailsLink, bookingLink] = screen.getAllByTestId('service-action');
+      expect(detailsLink).toHaveTextContent('Saiba mais');
+      expect(bookingLink).toHaveTextContent('Agendar');
+    });
+
+    it.each(['grid', 'list', 'numbered', 'feature-cards'] as const)(
+      '%s layout renders the details link',
+      (layout) => {
+        renderWithIntl(
+          <ServiceListModule
+            data={makeData({ itemAction: 'details', layout })}
+            slug="tenant"
+            services={[published]}
+          />,
+        );
+
+        expect(screen.getByTestId('service-action')).toHaveAttribute(
+          'href',
+          '/tenant/servicos/massagem',
+        );
+      },
+    );
   });
 });

@@ -66,11 +66,7 @@ import { OpenScheduleUseCase } from './application/use-cases/open-schedule.use-c
 import { RemoveClosureUseCase } from './application/use-cases/remove-closure.use-case';
 import { RemoveScheduleOpeningUseCase } from './application/use-cases/remove-schedule-opening.use-case';
 import { UpdateServiceUseCase } from './application/use-cases/update-service.use-case';
-import { UpdateServiceResourceRequirementsUseCase } from './application/use-cases/update-service-resource-requirements.use-case';
-import { UpdateServiceLegsUseCase } from './application/use-cases/update-service-legs.use-case';
-import { UpdateServiceBookingPolicyUseCase } from './application/use-cases/update-service-booking-policy.use-case';
-import { PublishServiceIntakeSchemaUseCase } from './application/use-cases/publish-service-intake-schema.use-case';
-import { GetServiceIntakeSchemaUseCase } from './application/use-cases/get-service-intake-schema.use-case';
+import { serviceConfigProviders } from './booking.module-service-config-providers';
 import { ListServiceResourceOptionsUseCase } from './application/use-cases/list-service-resource-options.use-case';
 import { QuoteServiceDurationUseCase } from './application/use-cases/quote-service-duration.use-case';
 import { ApproveBookingUseCase } from './application/use-cases/approve-booking.use-case';
@@ -190,11 +186,7 @@ export const bookingModuleProviders: Provider[] = [
   GetServiceByIdUseCase,
   GetBookingByIdUseCase,
   UpdateServiceUseCase,
-  UpdateServiceResourceRequirementsUseCase,
-  UpdateServiceLegsUseCase,
-  UpdateServiceBookingPolicyUseCase,
-  PublishServiceIntakeSchemaUseCase,
-  GetServiceIntakeSchemaUseCase,
+  ...serviceConfigProviders,
   ListServiceResourceOptionsUseCase,
   QuoteServiceDurationUseCase,
   DeactivateServiceUseCase,

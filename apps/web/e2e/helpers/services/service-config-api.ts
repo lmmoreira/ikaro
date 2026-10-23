@@ -4,6 +4,7 @@ import type {
   ResourceRequirementRequestItem,
   ServiceLegRequestItem,
   UpdateServiceBookingPolicyRequest,
+  UpdateServicePublicPageRequest,
 } from '@ikaro/types';
 import { BFF_URL, WEB_INTERNAL_KEY } from '../auth/shared';
 
@@ -65,4 +66,19 @@ export async function publishIntakeSchema(
     headers: headers(),
   });
   await expectOk(res, 'publish intake schema');
+}
+
+// TD56-S03 — publishes/unpublishes a service's public page and sets its content without driving
+// the Página pública tab. Returns the generated slug (null while unpublished and never published).
+export async function setServicePublicPage(
+  page: Page,
+  serviceId: string,
+  body: UpdateServicePublicPageRequest,
+): Promise<{ publicPagePublished: boolean; publicSlug: string | null }> {
+  const res = await page.request.patch(`${BFF_URL}/services/${serviceId}/public-page`, {
+    data: body,
+    headers: headers(),
+  });
+  await expectOk(res, 'set service public page');
+  return (await res.json()) as { publicPagePublished: boolean; publicSlug: string | null };
 }

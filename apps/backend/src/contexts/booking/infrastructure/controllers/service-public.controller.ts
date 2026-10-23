@@ -10,6 +10,10 @@ import {
   ListServiceResourceOptionsUseCaseResult,
 } from '../../application/use-cases/list-service-resource-options.use-case';
 import {
+  GetPublicServiceBySlugUseCase,
+  GetPublicServiceBySlugUseCaseResult,
+} from '../../application/use-cases/get-public-service-by-slug.use-case';
+import {
   QuoteServiceDurationUseCase,
   QuoteServiceDurationUseCaseResult,
 } from '../../application/use-cases/quote-service-duration.use-case';
@@ -24,7 +28,20 @@ export class ServicePublicController {
     private readonly tenantContext: RequestContext,
     private readonly listServiceResourceOptions: ListServiceResourceOptionsUseCase,
     private readonly quoteServiceDuration: QuoteServiceDurationUseCase,
+    private readonly getPublicServiceBySlug: GetPublicServiceBySlugUseCase,
   ) {}
+
+  // UC-109 — declared before every `:id/...` route so `by-slug/...` can never be read as an id.
+  @Get('by-slug/:publicSlug')
+  bySlug(@Param('publicSlug') publicSlug: string): Promise<GetPublicServiceBySlugUseCaseResult> {
+    return this.getPublicServiceBySlug
+      .execute({
+        tenantId: this.tenantContext.tenantId,
+        publicSlug,
+        locale: this.tenantContext.settings.localization.language,
+      })
+      .catch(mapBookingError);
+  }
 
   // The active resources a customer may pick per CUSTOMER_CHOICE requirement — { resourceId, name }
   // only, never refId, hours or the linked staff record.

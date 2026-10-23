@@ -356,6 +356,9 @@ describe('Service', () => {
         legs: null,
         classResourceSlots: null,
         bookingPolicy: defaultServiceBookingPolicyProps(),
+        publicPagePublished: false,
+        publicSlug: null,
+        publicProfile: null,
       });
       expect(service.id).toBe('some-id');
       expect(service.isActive).toBe(false);

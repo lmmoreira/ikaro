@@ -78,6 +78,10 @@ export class AutoDegenerateServiceRepository implements IServiceRepository {
     return existing ?? this.autoCreate(id, tenantId);
   }
 
+  async findByPublicSlug(slug: string, tenantId: string): Promise<Service | null> {
+    return this.inner.findByPublicSlug(slug, tenantId);
+  }
+
   async existsById(id: string, tenantId: string): Promise<boolean> {
     return (await this.findById(id, tenantId)) !== null;
   }

@@ -12,6 +12,7 @@ vi.mock('@/features/booking/services/useServices', () => ({
   useUpdateService: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useUpdateServiceBookingPolicy: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePublishServiceIntakeSchema: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateServicePublicPage: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
 vi.mock('@/features/booking/hooks/useResources', () => ({
@@ -35,6 +36,9 @@ const service: StaffServiceResponse = {
   bufferAfterMinutes: null,
   legs: null,
   classResourceSlots: null,
+  publicPagePublished: false,
+  publicSlug: null,
+  publicProfile: null,
   bookingPolicy: {
     defaultApprovalMode: null,
     manualHoldMinutes: null,
@@ -88,7 +92,7 @@ describe('ServiceEditConfigTabPanels', () => {
     expect(screen.getByRole('option', { name: /Cliente escolhe/ })).toBeDisabled();
   });
 
-  it('renders all 3 panels mounted, hiding all but the active tab via the hidden attribute', () => {
+  it('renders all 4 panels mounted, hiding all but the active tab via the hidden attribute', () => {
     renderWithIntl(
       <ServiceEditConfigTabPanels
         activeTab="recursos"
@@ -105,6 +109,7 @@ describe('ServiceEditConfigTabPanels', () => {
     );
     expect(document.getElementById('service-edit-tabpanel-politicas')).toHaveAttribute('hidden');
     expect(document.getElementById('service-edit-tabpanel-formulario')).toHaveAttribute('hidden');
+    expect(document.getElementById('service-edit-tabpanel-pagina')).toHaveAttribute('hidden');
   });
 
   it('forwards a dirty-change callback per tab', async () => {
@@ -145,6 +150,7 @@ describe('ServiceEditConfigTabPanels', () => {
       recursos: 'Salvar recursos',
       politicas: 'Salvar políticas',
       formulario: 'Publicar formulário',
+      pagina: 'Salvar página pública',
     });
   });
 

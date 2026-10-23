@@ -53,6 +53,7 @@ import { ScheduleClosureController } from './infrastructure/controllers/schedule
 import { ScheduleOpeningController } from './infrastructure/controllers/schedule-opening.controller';
 import { ServiceController } from './infrastructure/controllers/service.controller';
 import { ServicePublicController } from './infrastructure/controllers/service-public.controller';
+import { ServicePublicPageController } from './infrastructure/controllers/service-public-page.controller';
 import { SharedCacheModule } from '../../shared/infrastructure/cache/shared-cache.module';
 import { bookingModuleProviders } from './booking.module-providers';
 import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.module';
@@ -101,6 +102,7 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     BookingCompletionController,
     ServiceController,
     ServicePublicController,
+    ServicePublicPageController,
     ScheduleClosureController,
     ScheduleOpeningController,
     ScheduleAvailabilityController,

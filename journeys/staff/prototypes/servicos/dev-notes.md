@@ -347,9 +347,9 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 
 ---
 
-## TD56-S03 — "Página pública" tab (`03g`, `03h`, `03i`) — prototype, not yet built
+## TD56-S03 — "Página pública" tab (`03g`, `03h`, `03i`) — ✅ built
 
-**What it is:** a fifth tab on the service edit page where a manager or staff member publishes the service's own public page and writes its content: cover image, gallery, long Markdown description, inclusions and preparation notes. It has its own "Salvar página pública" button (same per-tab-save pattern as the other tabs) and sends `PATCH /v1/services/:id` with `publicPagePublished` and `publicProfile`. The visitor side is `guest/prototypes/service-detail/`. The other editor screens (`03`, `03c`–`03f`, `02c`) carry the extra tab as a link to `03g`.
+**What it is:** a fifth tab on the service edit page where a manager or staff member publishes the service's own public page and writes its content: cover image, gallery, long Markdown description, inclusions and preparation notes. It has its own "Salvar página pública" button (same per-tab-save pattern as the other tabs) and sends `PATCH /v1/services/:id/public-page` with `published` and `profile` (its own endpoint like the booking policy, so it also works on a deactivated service). The visitor side is `guest/prototypes/service-detail/`. The other editor screens (`03`, `03c`–`03f`, `02c`) carry the extra tab as a link to `03g`.
 
 **Decisions from prototype review (2026-10-23):** the page is a tab of its own, not a card inside Detalhes; there is **no address field** — the system generates the slug on first publish (from the service name; an id-prefix suffix on a clash) and never changes it; a **publish switch** replaces "clear the slug to unpublish"; "Ver página pública ↗" opens a **new browser tab** (`target="_blank" rel="noopener noreferrer"`) so the manager stays in the editor, and is disabled while unpublished. The hotsite service cards show "Ver detalhes" only for services whose page is published.
 
@@ -363,9 +363,9 @@ A full pass against Nielsen-style heuristics found 2 critical issues and several
 
 The create page (`ServiceCreatePage`) gets no tab: the service must exist first, as for the other config tabs. After creation the manager lands on the edit page, where the tab is available.
 
-**Props (proposed):** `service` (`StaffServiceResponse` incl. `publicPagePublished`, `publicSlug` read-only, `publicProfile`), `canUploadImages: boolean`, `publicPageUrl: string | null` (built from the saved slug; null until the first publish), `onSave`.
+**Props (as built):** `service` (`StaffServiceResponse` incl. `publicPagePublished`, `publicSlug` read-only, `publicProfile`), `isActive` (live flag), `onDirtyChange`, `onActionChange` (the tab registers its "Salvar página pública" action with `ServiceEditPage`'s sticky panel like the other tabs). Upload rights come from `useTenant().role === 'MANAGER'`; the link's address is built from the *saved* published flag + slug, so it stays disabled until the page is really live. Split across `ServicePublicPageTab` (state + save), `ServicePublicPageSwitchCard`, `ServicePublicPageImages` and `ServicePublicPageContent`.
 
-**BFF calls:** `PATCH /v1/services/:id` (STAFF | MANAGER) carries `publicPagePublished?: boolean` and `publicProfile?: {…} | null` — omitted = unchanged, `null` clears the profile. `publicSlug` is never sent. Images use the existing MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`; saved paths are `tenants/<tenantId>/hotsite/service-profile/…`. `GET /v1/services/:id` returns `publicPagePublished`, `publicSlug` and `publicProfile`.
+**BFF calls:** `PATCH /v1/services/:id/public-page` (STAFF | MANAGER) carries `published?: boolean` and `profile?: {…} | null` — omitted = unchanged, `null` clears the profile. `publicSlug` is never sent. Images use the existing MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`; saved paths are `tenants/<tenantId>/hotsite/service-profile/…`. `GET /v1/services/:id` returns `publicPagePublished`, `publicSlug` and `publicProfile`.
 
 **Validation table**
 
@@ -376,7 +376,7 @@ The create page (`ServiceCreatePage`) gets no tab: the service must exist first,
 | `longDescription` | ≤ 4000 chars, restricted Markdown (no HTML, no images) | counter `n / 4000` |
 | `inclusions` | ≤ 12 items × 120 chars; blank rows dropped on save | counter `n de 12` |
 | `preparationNotes` | ≤ 1000 chars | counter `n / 1000` |
-| publish (server) | simultaneous first publish of two same-named services can hit the unique index → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` | "Não foi possível publicar agora. Tente novamente." |
+| publish (server) | simultaneous first publish of two same-named services can hit the unique index → `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` | "Não foi possível publicar a página agora. Tente novamente." |
 
 **States:** (1) published — chip "Publicada", link enabled; (2) not published (`03h`) — chip "Não publicada", link disabled, helper text explains that the site card shows only "Agendar"; content stays editable so it can be prepared first; (3) STAFF (`03i`) — images disabled with the note "Somente gerentes podem enviar ou trocar as imagens da página pública.", switch and texts editable; (4) inactive service — the public page is unavailable whatever the switch says; the tab shows the switch state but the helper adds that the service must be active (production copy to be settled in implementation); (5) unsaved changes show the tab's amber dirty dot like the other tabs.
 

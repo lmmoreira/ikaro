@@ -60,6 +60,69 @@ describe('ServicesPublicController (component)', () => {
     });
   });
 
+  // ─── GET /v1/public/services/by-slug/:publicSlug (TD56-S03, UC-109) ──────────
+
+  describe('GET /v1/public/services/by-slug/:publicSlug', () => {
+    const tenantInfo = { id: 'tenant-uuid', slug: 'vitta', name: 'Vitta' };
+
+    it('returns 400 when X-Tenant-Slug header is missing', async () => {
+      const res = await request(app.getHttpServer()).get('/v1/public/services/by-slug/massagem');
+      expect(res.status).toBe(400);
+    });
+
+    it('returns the page content without a JWT, never the booking configuration', async () => {
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.getForPublic = jest.fn().mockResolvedValueOnce({
+        id: 'svc-1',
+        name: 'Massagem',
+        description: null,
+        price: { amount: 120, currency: 'BRL', formatted: 'R$ 120,00' },
+        durationMinutes: 60,
+        loyaltyPointsValue: 8,
+        durationPolicy: 'FIXED',
+        publicSlug: 'massagem',
+        profile: {
+          coverImageUrl: null,
+          galleryImageUrls: [],
+          longDescription: 'Texto',
+          inclusions: [],
+          preparationNotes: null,
+        },
+        bookingPolicy: { secret: true },
+      });
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/public/services/by-slug/massagem')
+        .set('X-Tenant-Slug', 'vitta');
+
+      expect(res.status).toBe(200);
+      expect(res.body.publicSlug).toBe('massagem');
+      expect(res.body.bookingPolicy).toBeUndefined();
+    });
+
+    it('refuses a malformed slug with 400 without calling the backend', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/v1/public/services/by-slug/NOT_A_SLUG')
+        .set('X-Tenant-Slug', 'vitta');
+
+      expect(res.status).toBe(400);
+      expect(backendHttpService.get).not.toHaveBeenCalled();
+    });
+
+    it('propagates 404 when the page is unpublished, inactive or unknown', async () => {
+      backendHttpService.get.mockResolvedValueOnce(tenantInfo);
+      backendHttpService.getForPublic = jest
+        .fn()
+        .mockRejectedValueOnce(new HttpException({ title: 'Not Found', status: 404 }, 404));
+
+      const res = await request(app.getHttpServer())
+        .get('/v1/public/services/by-slug/massagem')
+        .set('X-Tenant-Slug', 'vitta');
+
+      expect(res.status).toBe(404);
+    });
+  });
+
   // ─── GET /v1/public/services/:id/intake-schema (M23-S02, UC-068) ────────────
 
   const SERVICE_ID = '10000000-0000-4000-8000-000000000002';
