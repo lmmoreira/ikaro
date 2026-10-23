@@ -70,6 +70,8 @@ export interface ServiceListModuleData {
   itemAction?: ServiceListItemAction;
   itemCtaLabel?: string;
   detailPage?: ServiceDetailPageSettings;
+  cardColumns?: 2 | 3;
+  cardTone?: 'plain' | 'tinted' | 'ruled';
 }
 
 export interface GalleryImage {
@@ -136,7 +138,7 @@ export interface AboutModuleData {
   imageUrl?: string | null;
   imagePosition: 'left' | 'right';
   // Omitted ⇒ 'split', today's behaviour (image beside the copy; imagePosition applies inside it).
-  variant?: 'split' | 'editorial';
+  variant?: 'split' | 'editorial' | 'bleed';
 }
 
 export interface FooterModuleData {
@@ -199,6 +201,7 @@ export interface HotsiteNavigationItem {
 
 export interface NavigationModuleData {
   items: HotsiteNavigationItem[];
+  cta?: { label: string; target: 'booking-form' | 'lead-form' };
 }
 
 // Same target set as HeroModuleData.ctaTarget — not cross-checked against enabled modules.
@@ -221,12 +224,14 @@ export interface ContentBlockCommon {
 
 export interface ContentBlockTrustGridData extends ContentBlockCommon {
   variant: 'trust-grid';
+  appearance?: 'rule' | 'tiles';
   items: { label: string; description?: string }[];
 }
 
 export interface ContentBlockProcessStepsData extends ContentBlockCommon {
   variant: 'process-steps';
-  items: { title: string; body: string }[];
+  appearance?: 'plain' | 'ruled';
+  items: { title: string; body: string; label?: string }[];
 }
 
 export interface ContentBlockCollageCalloutData extends ContentBlockCommon {
@@ -238,6 +243,7 @@ export interface ContentBlockCollageCalloutData extends ContentBlockCommon {
 export interface ContentBlockTechnicalCalloutData extends ContentBlockCommon {
   variant: 'technical-callout';
   facts?: { value: string; label: string }[];
+  factsPlacement?: 'side' | 'kicker';
 }
 
 export interface ContentBlockImageStatementData extends ContentBlockCommon {
@@ -309,6 +315,8 @@ export const HOTSITE_FONT_FAMILIES = [
   'Oswald',
   'Lato',
   'Roboto',
+  'Manrope',
+  'DM Sans',
 ] as const;
 
 export type HotsiteFontFamily = (typeof HOTSITE_FONT_FAMILIES)[number];
@@ -335,7 +343,10 @@ export interface HotsiteBrandingResponse {
   headingFontFamily: string;
   bodyFontFamily: string;
   logoUrl: string;
-  borderRadius: 'sharp' | 'rounded' | 'pill';
+  borderRadius: 'sharp' | 'rounded' | 'pill' | 'soft';
+  buttonRadius?: 'sharp' | 'rounded' | 'pill';
+  headingWeight?: 400 | 500 | 600 | 700 | 800 | 900;
+  headingTransform?: 'none' | 'uppercase';
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';

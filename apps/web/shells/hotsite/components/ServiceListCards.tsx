@@ -4,6 +4,7 @@ import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
 import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
+import { FeatureServiceCard } from './FeatureServiceCard';
 
 const headingStyle = sectionHeadingStyle;
 
@@ -142,57 +143,6 @@ function NumberedServiceRow({
   );
 }
 
-function FeatureServiceCard({
-  service,
-  showPrices,
-  showPoints,
-  cardBg,
-  action,
-}: ServiceCardProps): React.JSX.Element {
-  const t = useTranslations('hotsite');
-  const { duration, price } = useDurationAndPrice(service);
-  return (
-    <li
-      className="flex flex-col gap-3 border-t-4 p-8"
-      style={{
-        backgroundColor: cardBg,
-        borderColor: 'var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-        boxShadow: 'var(--ba-shadow)',
-      }}
-      data-testid="feature-service-card"
-    >
-      <h3 className="text-2xl font-bold" style={headingStyle}>
-        {service.name}
-      </h3>
-      {service.description && (
-        <p className="text-sm leading-relaxed opacity-80">{service.description}</p>
-      )}
-      <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-4">
-        {showPrices && (
-          <span
-            className="text-2xl font-bold"
-            style={{ color: 'var(--ba-primary)' }}
-            data-testid="price-badge"
-          >
-            {price}
-          </span>
-        )}
-        <span className="text-xs opacity-75">
-          {duration}
-          {showPoints && (
-            <span data-testid="loyalty-points-badge">
-              {duration ? ' · ' : ''}
-              {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
-            </span>
-          )}
-        </span>
-      </div>
-      {action && <ServiceActionLink service={service} action={action} />}
-    </li>
-  );
-}
-
 // The services of a Service List in one of its four layouts: grid and list (cards), numbered (a
 // price menu) or feature-cards (large cards).
 export function ServiceItems({
@@ -202,6 +152,8 @@ export function ServiceItems({
   showPoints,
   cardBg,
   action,
+  cardColumns,
+  cardTone,
 }: {
   readonly layout: ServiceListModuleData['layout'];
   readonly services: readonly HotsiteServiceResponse[];
@@ -209,6 +161,8 @@ export function ServiceItems({
   readonly showPoints: boolean;
   readonly cardBg: string;
   readonly action?: ServiceCardAction;
+  readonly cardColumns?: 2 | 3;
+  readonly cardTone?: 'plain' | 'tinted' | 'ruled';
 }): React.JSX.Element {
   const shared = { showPrices, showPoints, action };
   if (layout === 'numbered') {
@@ -225,9 +179,18 @@ export function ServiceItems({
   }
   if (layout === 'feature-cards') {
     return (
-      <ul className="grid list-none grid-cols-1 gap-8 md:grid-cols-2">
-        {services.map((service) => (
-          <FeatureServiceCard key={service.id} service={service} cardBg={cardBg} {...shared} />
+      <ul
+        className={`grid list-none grid-cols-1 gap-8 ${cardColumns === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}
+      >
+        {services.map((service, index) => (
+          <FeatureServiceCard
+            key={service.id}
+            service={service}
+            cardBg={cardBg}
+            index={index}
+            tone={cardTone === 'tinted' ? 'tinted' : 'plain'}
+            {...shared}
+          />
         ))}
       </ul>
     );
@@ -236,6 +199,24 @@ export function ServiceItems({
     layout === 'list'
       ? 'list-none flex flex-col gap-4 max-w-2xl mx-auto'
       : 'list-none grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  if (layout === 'grid' && cardTone === 'ruled') {
+    return (
+      <ul className="list-none grid grid-cols-1 md:grid-cols-3" data-testid="ruled-service-list">
+        {services.map((service, index) => (
+          <li
+            key={service.id}
+            className={`p-7 ${index ? 'border-l' : ''}`}
+            style={{ borderColor: 'var(--ba-section-divider)' }}
+          >
+            <span className="text-sm font-semibold" style={{ color: 'var(--ba-primary)' }}>
+              {String(index + 1).padStart(2, '0')}
+            </span>
+            <ServiceCard service={service} cardBg="transparent" {...shared} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
   return (
     <ul className={listClassName}>
       {services.map((service) => (

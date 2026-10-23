@@ -37,7 +37,10 @@ export interface UpdateHotsiteBrandingRequest {
   readonly headingFontFamily?: string;
   readonly bodyFontFamily?: string;
   readonly logoUrl?: string;
-  readonly borderRadius?: 'sharp' | 'rounded' | 'pill';
+  readonly borderRadius?: 'sharp' | 'rounded' | 'pill' | 'soft';
+  readonly buttonRadius?: 'sharp' | 'rounded' | 'pill';
+  readonly headingWeight?: 400 | 500 | 600 | 700 | 800 | 900;
+  readonly headingTransform?: 'none' | 'uppercase';
   readonly buttonStyle?: 'filled' | 'outline' | 'ghost';
   readonly spacing?: 'compact' | 'comfortable' | 'spacious';
   readonly shadowStyle?: 'none' | 'subtle' | 'strong';

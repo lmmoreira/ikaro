@@ -57,6 +57,8 @@ export const ServiceListModuleDataSchema = z.object({
   itemCtaLabel: z.string().max(40).optional(),
   // A closed set (adding a field later is a new story), so unknown keys are rejected.
   detailPage: ServiceDetailPageSettingsSchema.optional(),
+  cardColumns: z.union([z.literal(2), z.literal(3)]).optional(),
+  cardTone: z.enum(['plain', 'tinted', 'ruled']).optional(),
 }) satisfies z.ZodType<ServiceListModuleData>;
 
 // Mirrors GalleryImage (packages/types/src/hotsite.ts) — keep in sync when that type changes.
@@ -122,7 +124,7 @@ export const AboutModuleDataSchema = z.object({
   eyebrow: z.string().optional(),
   imageUrl: z.string().nullable().optional(),
   imagePosition: z.enum(['left', 'right']),
-  variant: z.enum(['split', 'editorial']).optional(),
+  variant: z.enum(['split', 'editorial', 'bleed']).optional(),
 }) satisfies z.ZodType<AboutModuleData>;
 
 // Mirrors ContactModuleData (packages/types/src/hotsite.ts) — keep in sync when that type changes.

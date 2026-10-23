@@ -66,7 +66,10 @@ export function StaffAreaLink({ slug }: { readonly slug: string }): React.JSX.El
       href={`/dashboard/login?tenantSlug=${encodeURIComponent(slug)}`}
       data-testid="hotsite-staff-link"
       className="flex items-center gap-1.5 border-l pl-3 text-[0.8125rem] font-medium no-underline opacity-40"
-      style={{ color: 'var(--ba-text)', borderColor: 'rgba(17,24,39,0.12)' }}
+      style={{
+        color: 'var(--ba-secondary-text, var(--ba-text))',
+        borderColor: 'var(--ba-secondary-divider, rgba(17,24,39,0.12))',
+      }}
     >
       <BriefcaseIcon />
       {t('staffArea')}

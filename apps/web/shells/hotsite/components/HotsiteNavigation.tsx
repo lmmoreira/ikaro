@@ -66,7 +66,7 @@ export function HotsiteNavigation({
             key={`${item.target}-${item.label}`}
             href={`/${slug}#${item.target}`}
             className={LINK_CLASS}
-            style={{ color: 'var(--ba-text)' }}
+            style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
           >
             {item.label}
           </a>
@@ -80,7 +80,7 @@ export function HotsiteNavigation({
       >
         <summary
           className="flex h-8 w-8 cursor-pointer list-none items-center justify-center [&::-webkit-details-marker]:hidden"
-          style={{ color: 'var(--ba-text)' }}
+          style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
         >
           <svg
             width="20"
@@ -112,7 +112,7 @@ export function HotsiteNavigation({
               href={`/${slug}#${item.target}`}
               onClick={closeMenu}
               className={`${LINK_CLASS} px-4 py-3`}
-              style={{ color: 'var(--ba-text)' }}
+              style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
             >
               {item.label}
             </a>

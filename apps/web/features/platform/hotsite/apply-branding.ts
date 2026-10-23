@@ -3,7 +3,7 @@ import type React from 'react';
 
 import { FONT_MAP } from './font-config';
 
-const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px' };
+const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px', soft: '24px' };
 const SECTION_PY = { compact: '3rem', comfortable: '5rem', spacious: '8rem' };
 const SHADOW = {
   none: 'none',
@@ -166,6 +166,7 @@ export function applyBranding(
   branding: HotsiteBrandingResponse,
 ): React.CSSProperties & Record<`--ba-${string}`, string> {
   const btn = deriveButtonTokens(branding);
+  const secondaryTokens = deriveSectionTokens(branding, 'secondary');
   return {
     '--ba-primary': branding.primaryColor,
     '--ba-secondary': branding.secondaryColor,
@@ -174,6 +175,9 @@ export function applyBranding(
     '--ba-heading-font': FONT_MAP[branding.headingFontFamily] ?? FONT_MAP['Inter'],
     '--ba-body-font': FONT_MAP[branding.bodyFontFamily] ?? FONT_MAP['Inter'],
     '--ba-radius': BORDER_RADIUS[branding.borderRadius],
+    '--ba-btn-radius': BORDER_RADIUS[branding.buttonRadius ?? branding.borderRadius],
+    '--ba-heading-weight': String(branding.headingWeight ?? 700),
+    '--ba-heading-transform': branding.headingTransform ?? 'none',
     '--ba-section-py': SECTION_PY[branding.spacing],
     '--ba-shadow': SHADOW[branding.shadowStyle],
     '--ba-btn-variant': branding.buttonStyle,
@@ -184,5 +188,7 @@ export function applyBranding(
     '--ba-hero-bg': deriveHeroBg(branding),
     '--ba-hero-text': deriveHeroTextColor(branding),
     '--ba-divider': deriveDivider(branding),
+    '--ba-secondary-text': secondaryTokens['--ba-section-text'],
+    '--ba-secondary-divider': secondaryTokens['--ba-section-divider'],
   };
 }

@@ -10,6 +10,7 @@ import {
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { RestrictedMarkdown } from './RestrictedMarkdown';
 import { SectionEyebrow } from './SectionEyebrow';
+import { KickerCallout, TrustGridTiles } from './ContentBlockSpecialLayouts';
 
 interface ContentBlockModuleProps extends SectionPresentationProps {
   readonly data: ContentBlockModuleData;
@@ -104,6 +105,9 @@ function VariantBody({
   readonly align: Align;
 }): React.JSX.Element {
   if (data.variant === 'trust-grid') {
+    if (data.appearance === 'tiles') {
+      return <TrustGridTiles items={data.items} copy={<Copy data={data} align={align} />} />;
+    }
     return (
       <>
         <Copy data={data} align={align} />
@@ -132,16 +136,36 @@ function VariantBody({
     return (
       <>
         <Copy data={data} align={align} />
-        <ol className="mt-10 grid list-none grid-cols-1 gap-8 md:grid-cols-3" data-testid="steps">
+        <ol
+          className={`mt-10 grid list-none grid-cols-1 gap-8 md:grid-cols-3 ${data.appearance === 'ruled' ? 'border-y py-6' : ''}`}
+          data-testid="steps"
+        >
           {data.items.map((item, index) => (
-            <li key={`${item.title}-${index}`}>
-              <span
-                aria-hidden="true"
-                className="mb-3 block text-4xl font-light tabular-nums opacity-50"
-                style={{ fontFamily: 'var(--ba-heading-font)' }}
-              >
-                {String(index + 1).padStart(2, '0')}
-              </span>
+            <li
+              key={`${item.title}-${index}`}
+              className={data.appearance === 'ruled' && index ? 'border-l pl-6' : undefined}
+              style={
+                data.appearance === 'ruled'
+                  ? { borderColor: 'var(--ba-section-divider)' }
+                  : undefined
+              }
+            >
+              {item.label ? (
+                <span
+                  className="mb-3 block text-sm font-semibold uppercase tracking-widest"
+                  style={{ color: 'var(--ba-primary)' }}
+                >
+                  {String(index + 1).padStart(2, '0')} · {item.label}
+                </span>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="mb-3 block text-4xl font-light tabular-nums opacity-50"
+                  style={{ fontFamily: 'var(--ba-heading-font)' }}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              )}
               <h3 className="mb-2 text-lg font-semibold" style={sectionHeadingStyle}>
                 {item.title}
               </h3>
@@ -180,6 +204,9 @@ function VariantBody({
   }
 
   if (data.variant === 'technical-callout') {
+    if (data.factsPlacement === 'kicker' && data.facts?.[0]) {
+      return <KickerCallout fact={data.facts[0]} copy={<Copy data={data} align={align} />} />;
+    }
     return (
       <div
         className="grid items-center gap-10 border-l-4 pl-6 md:grid-cols-2"

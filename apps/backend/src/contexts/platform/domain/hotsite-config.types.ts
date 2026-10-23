@@ -68,6 +68,8 @@ export interface ServiceListModuleData {
   itemAction?: ServiceListItemAction;
   itemCtaLabel?: string;
   detailPage?: ServiceDetailPageSettings;
+  cardColumns?: 2 | 3;
+  cardTone?: 'plain' | 'tinted' | 'ruled';
 }
 
 export interface GalleryImage {
@@ -128,7 +130,7 @@ export interface AboutModuleData {
   eyebrow?: string;
   imageUrl?: string;
   imagePosition: 'left' | 'right';
-  variant?: 'split' | 'editorial';
+  variant?: 'split' | 'editorial' | 'bleed';
 }
 
 export interface FooterModuleData {
@@ -215,7 +217,10 @@ export interface HotsiteBranding {
   headingFontFamily: string;
   bodyFontFamily: string;
   logoUrl: string;
-  borderRadius: 'sharp' | 'rounded' | 'pill';
+  borderRadius: 'sharp' | 'rounded' | 'pill' | 'soft';
+  buttonRadius?: 'sharp' | 'rounded' | 'pill';
+  headingWeight?: 400 | 500 | 600 | 700 | 800 | 900;
+  headingTransform?: 'none' | 'uppercase';
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';
@@ -241,7 +246,10 @@ export interface HotsiteBrandingProps {
   headingFontFamily: string;
   bodyFontFamily: string;
   logoUrl: string;
-  borderRadius: 'sharp' | 'rounded' | 'pill';
+  borderRadius: 'sharp' | 'rounded' | 'pill' | 'soft';
+  buttonRadius?: 'sharp' | 'rounded' | 'pill';
+  headingWeight?: 400 | 500 | 600 | 700 | 800 | 900;
+  headingTransform?: 'none' | 'uppercase';
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';

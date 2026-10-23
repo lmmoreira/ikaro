@@ -71,6 +71,8 @@ export function ServiceListModule({
           showPoints={showPoints}
           cardBg={cardBg}
           action={action}
+          cardColumns={data.cardColumns}
+          cardTone={data.cardTone}
         />
       )}
     </HotsiteSectionShell>

@@ -55,7 +55,7 @@ export function Footer({
     <footer
       style={{
         backgroundColor: 'var(--ba-secondary)',
-        color: 'var(--ba-text)',
+        color: 'var(--ba-secondary-text, var(--ba-text))',
         padding: '2.5rem 1.5rem',
         textAlign: 'center',
       }}
@@ -84,7 +84,7 @@ export function Footer({
           style={{
             backgroundColor: 'var(--ba-primary)',
             color: 'var(--ba-btn-text)',
-            borderRadius: 'var(--ba-radius)',
+            borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
             display: 'inline-flex',
             marginTop: '1rem',
           }}

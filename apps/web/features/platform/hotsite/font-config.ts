@@ -7,6 +7,8 @@ import {
   Oswald,
   Lato,
   Roboto,
+  Manrope,
+  DM_Sans,
 } from 'next/font/google';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -28,6 +30,8 @@ const roboto = Roboto({
   weight: ['400', '500', '700'],
   variable: '--font-roboto',
 });
+const manrope = Manrope({ subsets: ['latin'], variable: '--font-manrope' });
+const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm-sans' });
 
 export const FONT_VARIABLES: string[] = [
   inter.variable,
@@ -38,6 +42,8 @@ export const FONT_VARIABLES: string[] = [
   oswald.variable,
   lato.variable,
   roboto.variable,
+  manrope.variable,
+  dmSans.variable,
 ];
 
 export const FONT_MAP: Record<string, string> = {
@@ -49,6 +55,8 @@ export const FONT_MAP: Record<string, string> = {
   Oswald: 'var(--font-oswald)',
   Lato: 'var(--font-lato)',
   Roboto: 'var(--font-roboto)',
+  Manrope: 'var(--font-manrope)',
+  'DM Sans': 'var(--font-dm-sans)',
 };
 
 export const FONT_CLASS_MAP: Record<string, string> = {
@@ -60,6 +68,8 @@ export const FONT_CLASS_MAP: Record<string, string> = {
   Oswald: oswald.variable,
   Lato: lato.variable,
   Roboto: roboto.variable,
+  Manrope: manrope.variable,
+  'DM Sans': dmSans.variable,
 };
 
 const DEFAULT_FONT = 'Inter';

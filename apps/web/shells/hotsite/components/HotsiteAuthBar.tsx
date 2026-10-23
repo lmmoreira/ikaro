@@ -111,13 +111,13 @@ export function HotsiteAuthBar({
         {isStaff ? (
           <div
             className="flex items-center gap-3 border-l pl-3"
-            style={{ borderColor: 'rgba(17,24,39,0.12)' }}
+            style={{ borderColor: 'var(--ba-secondary-divider, rgba(17,24,39,0.12))' }}
           >
             <Link
               href="/dashboard"
               data-testid="hotsite-staff-authenticated-link"
               className="flex items-center gap-1.5 text-[0.8125rem] font-medium no-underline"
-              style={{ color: 'var(--ba-text)' }}
+              style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
             >
               <BriefcaseIcon />
               {displayName || t('staffArea')}
@@ -126,7 +126,7 @@ export function HotsiteAuthBar({
               href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
               data-testid="hotsite-staff-logout-link"
               className="text-[0.8125rem] font-medium no-underline opacity-60"
-              style={{ color: 'var(--ba-text)' }}
+              style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
             >
               {t('signOut')}
             </a>
