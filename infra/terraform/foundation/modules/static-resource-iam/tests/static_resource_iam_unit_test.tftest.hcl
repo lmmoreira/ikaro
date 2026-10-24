@@ -15,6 +15,17 @@ variables {
     }
   }
 
+  public_bucket_members = {
+    app_deployer_catalogue_assets_creator = {
+      role   = "roles/storage.objectCreator"
+      member = "serviceAccount:ikaro-app-deployer@ikaro-staging.iam.gserviceaccount.com"
+      condition = {
+        title      = "hotsite-template-assets-create-only"
+        expression = "resource.name.startsWith('projects/_/buckets/ikaro-public-staging/objects/shared/')"
+      }
+    }
+  }
+
   artifact_registry_members = {
     staging_deployer_writer = {
       location   = "southamerica-east1"
@@ -53,4 +64,42 @@ run "static_resource_iam_preserves_exact_reviewed_policies" {
     condition     = length(google_project_iam_audit_config.service) == 3 && toset([for config in values(google_project_iam_audit_config.service) : config.service]) == toset(["cloudsql.googleapis.com", "iap.googleapis.com", "secretmanager.googleapis.com"]) && toset([for config in google_project_iam_audit_config.service["cloudsql.googleapis.com"].audit_log_config : config.log_type]) == toset(["DATA_WRITE"]) && toset([for config in google_project_iam_audit_config.service["iap.googleapis.com"].audit_log_config : config.log_type]) == toset(["ADMIN_READ", "DATA_READ", "DATA_WRITE"]) && toset([for config in google_project_iam_audit_config.service["secretmanager.googleapis.com"].audit_log_config : config.log_type]) == toset(["DATA_READ"])
     error_message = "Foundation must retain exactly the reviewed relay audit-log types for Cloud SQL, IAP, and Secret Manager."
   }
+}
+
+run "public_bucket_member_is_create_only_and_prefix_scoped" {
+  command = plan
+
+  assert {
+    condition     = length(google_storage_bucket_iam_member.public_member) == 1 && google_storage_bucket_iam_member.public_member["app_deployer_catalogue_assets_creator"].bucket == "ikaro-public-staging" && google_storage_bucket_iam_member.public_member["app_deployer_catalogue_assets_creator"].role == "roles/storage.objectCreator" && google_storage_bucket_iam_member.public_member["app_deployer_catalogue_assets_creator"].member == "serviceAccount:ikaro-app-deployer@ikaro-staging.iam.gserviceaccount.com"
+    error_message = "The catalogue-asset grant must be the staging deployer's objectCreator on the staging public bucket only."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.public_member["app_deployer_catalogue_assets_creator"].condition[0].expression == "resource.name.startsWith('projects/_/buckets/ikaro-public-staging/objects/shared/')"
+    error_message = "The catalogue-asset grant must be limited to the shared/ object prefix."
+  }
+
+  assert {
+    condition     = google_storage_bucket_iam_member.public_viewer.member == "allUsers" && google_storage_bucket_iam_member.public_viewer.role == "roles/storage.objectViewer"
+    error_message = "Adding the conditional grant must not change the reviewed public viewer grant."
+  }
+}
+
+run "public_bucket_members_reject_public_principals" {
+  command = plan
+
+  variables {
+    public_bucket_members = {
+      bad = {
+        role   = "roles/storage.objectCreator"
+        member = "allUsers"
+        condition = {
+          title      = "bad"
+          expression = "true"
+        }
+      }
+    }
+  }
+
+  expect_failures = [var.public_bucket_members]
 }

@@ -57,6 +57,20 @@ locals {
     }
   }
 
+  # TD56-S04: the environment's own app-deployer may only create (never
+  # overwrite or delete) catalogue assets under shared/ in its own public bucket.
+  static_resource_public_bucket_members = {
+    app_deployer_catalogue_assets_creator = {
+      role   = "roles/storage.objectCreator"
+      member = "serviceAccount:ikaro-app-deployer@${var.project_id}.iam.gserviceaccount.com"
+      condition = {
+        title       = "hotsite-template-assets-create-only"
+        description = "Catalogue assets under shared/ only; objectCreator cannot overwrite or delete."
+        expression  = "resource.name.startsWith('projects/_/buckets/ikaro-public-${var.environment}/objects/shared/')"
+      }
+    }
+  }
+
   static_resource_audit_log_types_by_service = {
     "cloudsql.googleapis.com"      = ["DATA_WRITE"]
     "iap.googleapis.com"           = ["ADMIN_READ", "DATA_READ", "DATA_WRITE"]
@@ -73,6 +87,7 @@ module "static_resource_iam" {
   project_id         = var.project_id
   public_bucket_name = "ikaro-public-${var.environment}"
 
+  public_bucket_members      = local.static_resource_public_bucket_members
   artifact_registry_members  = local.static_resource_artifact_registry_members
   audit_log_types_by_service = local.static_resource_audit_log_types_by_service
 }
