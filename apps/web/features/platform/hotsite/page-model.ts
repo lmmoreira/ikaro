@@ -9,7 +9,6 @@ import type {
   GalleryModuleData,
   HeroModuleData,
   HotsiteManifestResponse,
-  HotsiteModulePresentation,
   HotsiteModuleResponse,
   HotsiteModuleType,
   HotsiteNavigationItem,
@@ -32,8 +31,9 @@ import {
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
 } from './module-schemas';
-import { deriveSectionTokens, type SectionTokens } from './apply-branding';
-import { isValidPresentation } from './presentation-schema';
+import type { SectionTokens } from './apply-branding';
+import { resolveItemPresentation, resolveItemTints } from './presentation-tokens';
+import type { SectionTint } from './section-tints';
 
 export type HotsiteSectionBgVariant = 'default' | 'alt';
 
@@ -62,6 +62,7 @@ export interface HotsiteModuleRenderPlanItem {
   // and the plan was built with the tenant's branding. HotsiteSectionShell puts them on the
   // section element; nothing else reads them.
   readonly sectionTokens?: SectionTokens;
+  readonly tints?: readonly [SectionTint, SectionTint, SectionTint];
 }
 
 // CHATBOT included: the bubble variant is a fixed-position floating element with its own
@@ -170,19 +171,14 @@ export function resolveHotsiteNavigation(
   return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
 }
 
-// The module's own `presentation` (an invalid one is ignored) and, for a section that sets a
-// surface, the scoped contrast tokens derived from it with the tenant's branding.
-function resolveItemPresentation(
-  layoutModule: HotsiteModuleResponse,
-  branding: HotsiteBrandingResponse | undefined,
-): Pick<HotsiteModuleRenderPlanItem, 'presentation' | 'sectionTokens'> {
-  if (!isValidPresentation(layoutModule.presentation)) return {};
-  const { presentation } = layoutModule;
-  if (!branding || !presentation.surface) return { presentation };
-  return {
-    presentation,
-    sectionTokens: deriveSectionTokens(branding, presentation.surface, presentation.customColor),
-  };
+// A header CTA belongs to the same enabled, validated NAVIGATION entry as the section links.
+export function resolveHotsiteNavigationCta(
+  layout: ReadonlyArray<HotsiteModuleResponse>,
+): NavigationModuleData['cta'] | undefined {
+  const navigation = layout.find((module) => module.type === 'NAVIGATION');
+  if (!navigation?.enabled) return undefined;
+  const parsed = NavigationModuleDataSchema.safeParse(navigation.data);
+  return parsed.success ? parsed.data.cta : undefined;
 }
 
 export function buildHotsiteModuleRenderPlan(
@@ -203,10 +199,12 @@ export function buildHotsiteModuleRenderPlan(
     const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
+    const bgVariant = participates && isAlt ? 'alt' : 'default';
     items.push({
       parsed,
-      bgVariant: participates && isAlt ? 'alt' : 'default',
-      ...resolveItemPresentation(layoutModule, branding),
+      bgVariant,
+      ...resolveItemPresentation(layoutModule, branding, bgVariant),
+      ...resolveItemTints(layoutModule, parsed, branding, bgVariant),
     });
   }
 

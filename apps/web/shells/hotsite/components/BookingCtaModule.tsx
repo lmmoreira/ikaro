@@ -25,7 +25,7 @@ const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 function resolveSectionBg(bgStyle: BookingCtaModuleData['bgStyle']): string {
@@ -57,7 +57,12 @@ function BookingCtaContent({
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
       <h2
         className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
-        style={{ ...sectionHeadingFont, color: textColor }}
+        style={{
+          ...sectionHeadingFont,
+          color: textColor,
+          fontWeight: 'var(--ba-heading-weight, 700)',
+          textTransform: 'var(--ba-heading-transform, none)',
+        }}
       >
         {data.title}
       </h2>

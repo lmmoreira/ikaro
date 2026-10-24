@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { KickerCallout, TrustGridTiles } from './ContentBlockSpecialLayouts';
+import { KickerCallout, TechnicalFacts, TrustGridTiles } from './ContentBlockSpecialLayouts';
 
 describe('ContentBlockSpecialLayouts', () => {
   it('numbers tinted trust tiles and preserves their descriptions', () => {
@@ -22,5 +22,11 @@ describe('ContentBlockSpecialLayouts', () => {
     );
     expect(container.querySelector('strong')).toHaveTextContent('01');
     expect(container.querySelector('strong')).toAppearBefore(screen.getByRole('heading'));
+  });
+
+  it('renders technical facts as term and value pairs', () => {
+    render(<TechnicalFacts facts={[{ value: '12', label: 'Anos' }]} />);
+    expect(screen.getByText('Anos').tagName).toBe('DT');
+    expect(screen.getByText('12').tagName).toBe('DD');
   });
 });

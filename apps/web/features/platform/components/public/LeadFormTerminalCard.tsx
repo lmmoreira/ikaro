@@ -4,7 +4,7 @@ const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 interface LeadFormTerminalCardProps {
@@ -62,7 +62,10 @@ export function LeadFormTerminalCard({
             <a
               href={`/${slug}`}
               className="border px-6 py-3"
-              style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+              style={{
+                borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
+                borderColor: 'var(--ba-secondary)',
+              }}
             >
               {t('leadForm.backToSiteButton')}
             </a>

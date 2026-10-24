@@ -26,7 +26,10 @@ export function LeadFormSuccess({ slug }: { readonly slug: string }): React.JSX.
         <a
           href={`/${slug}`}
           className="mt-4 inline-block border px-6 py-3"
-          style={{ borderRadius: 'var(--ba-radius)', borderColor: 'var(--ba-secondary)' }}
+          style={{
+            borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
+            borderColor: 'var(--ba-secondary)',
+          }}
         >
           {t('leadForm.backToSiteButton')}
         </a>

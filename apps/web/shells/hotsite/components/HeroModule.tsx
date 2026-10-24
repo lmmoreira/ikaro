@@ -27,20 +27,22 @@ const HERO_TEXT = 'var(--ba-section-text, var(--ba-hero-text))';
 const headingStyle: React.CSSProperties = {
   ...sectionHeadingFont,
   color: HERO_TEXT,
+  fontWeight: 'var(--ba-heading-weight, 700)',
+  textTransform: 'var(--ba-heading-transform, none)',
 };
 
 const primaryBtnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 const secondaryBtnStyle: React.CSSProperties = {
   backgroundColor: 'transparent',
   color: HERO_TEXT,
   borderColor: HERO_TEXT,
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
   opacity: 0.85,
 };
 

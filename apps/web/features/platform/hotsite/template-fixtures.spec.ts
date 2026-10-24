@@ -66,6 +66,29 @@ function presentationChoices(draft: ManifestDraft): string[] {
 }
 
 describe('template manifests', () => {
+  it.each([
+    ['casa47', 4, 'booking-form'],
+    ['beloauto', 4, 'booking-form'],
+    ['mimo-pet', 4, 'booking-form'],
+    ['origem', 4, 'booking-form'],
+    ['clinica-lume', 4, 'booking-form'],
+    ['lume-studio', 3, 'lead-form'],
+  ] as const)(
+    '%s uses the reconciled gallery, About, CTA and footer capabilities',
+    (name, count, target) => {
+      const draft = loadDraft(`manifesto-${name}.json`);
+      const fixtureModule = (type: HotsiteModuleResponse['type']): HotsiteModuleResponse => {
+        const found = draft.layout.find((item) => item.type === type);
+        if (!found) throw new Error(`${name}: missing ${type}`);
+        return found;
+      };
+      expect(fixtureModule('GALLERY').data.images).toHaveLength(count);
+      expect(fixtureModule('GALLERY').data.layout).toBe('featured');
+      expect(fixtureModule('ABOUT').data.variant).toBe('bleed');
+      expect((fixtureModule('NAVIGATION').data.cta as { target: string }).target).toBe(target);
+      expect(fixtureModule('FOOTER').presentation?.surface).toBe('custom');
+    },
+  );
   it('finds the six templates', () => {
     expect(TEMPLATES).toHaveLength(6);
   });

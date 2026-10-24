@@ -61,6 +61,19 @@ const block = { title: 'Title' };
 export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[] = [
   // NAVIGATION — new type, strict
   accept('NAVIGATION', 'no items', { items: [] }),
+  accept('NAVIGATION', 'booking CTA', {
+    items: [],
+    cta: { label: 'Agendar', target: 'booking-form' },
+  }),
+  accept('NAVIGATION', 'lead CTA', { items: [], cta: { label: 'Começar', target: 'lead-form' } }),
+  reject('NAVIGATION', 'unknown CTA target', {
+    items: [],
+    cta: { label: 'Go', target: 'contact' },
+  }),
+  reject('NAVIGATION', 'empty CTA label', {
+    items: [],
+    cta: { label: '', target: 'booking-form' },
+  }),
   accept('NAVIGATION', 'two items', {
     items: [
       { label: 'Serviços', target: 'service-list' },
@@ -110,6 +123,15 @@ export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[]
   accept('SERVICE_LIST', 'grid', serviceListBase),
   accept('SERVICE_LIST', 'numbered layout', { ...serviceListBase, layout: 'numbered' }),
   accept('SERVICE_LIST', 'feature-cards layout', { ...serviceListBase, layout: 'feature-cards' }),
+  accept('SERVICE_LIST', 'three tinted cards', {
+    ...serviceListBase,
+    layout: 'feature-cards',
+    cardColumns: 3,
+    cardTone: 'tinted',
+  }),
+  accept('SERVICE_LIST', 'ruled cards', { ...serviceListBase, cardTone: 'ruled' }),
+  reject('SERVICE_LIST', 'four columns', { ...serviceListBase, cardColumns: 4 }),
+  reject('SERVICE_LIST', 'unknown card tone', { ...serviceListBase, cardTone: 'outline' }),
   accept('SERVICE_LIST', 'itemAction and itemCtaLabel', {
     ...serviceListBase,
     itemAction: 'details',
@@ -160,6 +182,7 @@ export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[]
 
   // TESTIMONIALS
   accept('TESTIMONIALS', 'grid', testimonialsBase),
+  accept('TESTIMONIALS', 'empty title hides heading', { ...testimonialsBase, title: '' }),
   accept('TESTIMONIALS', 'editorial-quote layout', {
     ...testimonialsBase,
     layout: 'editorial-quote',
@@ -193,6 +216,7 @@ export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[]
   accept('ABOUT', 'minimal', aboutBase),
   accept('ABOUT', 'editorial variant', { ...aboutBase, variant: 'editorial' }),
   accept('ABOUT', 'split variant', { ...aboutBase, variant: 'split' }),
+  accept('ABOUT', 'bleed variant', { ...aboutBase, variant: 'bleed' }),
   reject('ABOUT', 'unknown variant', { ...aboutBase, variant: 'zzz' }),
   reject('ABOUT', 'missing imagePosition', { title: 'T', body: 'B' }),
 
@@ -229,9 +253,39 @@ export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[]
     variant: 'trust-grid',
     items: [{ label: 'A' }, { label: 'B', description: 'D' }],
   }),
+  accept('CONTENT_BLOCK', 'numbered tiles', {
+    ...block,
+    variant: 'trust-grid',
+    appearance: 'tiles',
+    items: [{ label: 'A' }, { label: 'B' }],
+  }),
+  reject('CONTENT_BLOCK', 'unknown trust-grid appearance', {
+    ...block,
+    variant: 'trust-grid',
+    appearance: 'cards',
+    items: [{ label: 'A' }, { label: 'B' }],
+  }),
   accept('CONTENT_BLOCK', 'process-steps', {
     ...block,
     variant: 'process-steps',
+    items: [
+      { title: 'One', body: 'First' },
+      { title: 'Two', body: 'Second' },
+    ],
+  }),
+  accept('CONTENT_BLOCK', 'ruled process with labels', {
+    ...block,
+    variant: 'process-steps',
+    appearance: 'ruled',
+    items: [
+      { title: 'One', body: 'First', label: 'Escuta' },
+      { title: 'Two', body: 'Second' },
+    ],
+  }),
+  reject('CONTENT_BLOCK', 'unknown process appearance', {
+    ...block,
+    variant: 'process-steps',
+    appearance: 'tiles',
     items: [
       { title: 'One', body: 'First' },
       { title: 'Two', body: 'Second' },
@@ -245,6 +299,17 @@ export const HOTSITE_MODULE_CONTRACT_CASES: readonly HotsiteModuleContractCase[]
   accept('CONTENT_BLOCK', 'technical-callout without facts', {
     ...block,
     variant: 'technical-callout',
+  }),
+  accept('CONTENT_BLOCK', 'technical kicker', {
+    ...block,
+    variant: 'technical-callout',
+    factsPlacement: 'kicker',
+    facts: [{ value: '01', label: 'Proteção' }],
+  }),
+  reject('CONTENT_BLOCK', 'unknown facts placement', {
+    ...block,
+    variant: 'technical-callout',
+    factsPlacement: 'below',
   }),
   accept('CONTENT_BLOCK', 'technical-callout with four facts', {
     ...block,

@@ -10,7 +10,7 @@ import {
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { RestrictedMarkdown } from './RestrictedMarkdown';
 import { SectionEyebrow } from './SectionEyebrow';
-import { KickerCallout, TrustGridTiles } from './ContentBlockSpecialLayouts';
+import { KickerCallout, TechnicalFacts, TrustGridTiles } from './ContentBlockSpecialLayouts';
 
 interface ContentBlockModuleProps extends SectionPresentationProps {
   readonly data: ContentBlockModuleData;
@@ -46,7 +46,7 @@ const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 function CtaLink({ cta }: { readonly cta: ContentBlockCta }): React.JSX.Element {
@@ -75,12 +75,14 @@ function Copy({
   return (
     <div className={ALIGN_CLASS[align]}>
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
-      <h2
-        className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
-        style={sectionHeadingStyle}
-      >
-        {data.title}
-      </h2>
+      {data.title !== '' && (
+        <h2
+          className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
+          style={sectionHeadingStyle}
+        >
+          {data.title}
+        </h2>
+      )}
       {data.body && (
         <div className="mb-6" data-testid="content-block-body">
           <RestrictedMarkdown density={large ? 'comfortable' : 'compact'}>
@@ -100,13 +102,21 @@ function Copy({
 function VariantBody({
   data,
   align,
+  tints,
 }: {
   readonly data: ContentBlockModuleData;
   readonly align: Align;
+  readonly tints?: SectionPresentationProps['tints'];
 }): React.JSX.Element {
   if (data.variant === 'trust-grid') {
     if (data.appearance === 'tiles') {
-      return <TrustGridTiles items={data.items} copy={<Copy data={data} align={align} />} />;
+      return (
+        <TrustGridTiles
+          items={data.items}
+          copy={<Copy data={data} align={align} />}
+          tints={tints}
+        />
+      );
     }
     return (
       <>
@@ -213,24 +223,7 @@ function VariantBody({
         style={{ borderColor: 'var(--ba-primary)' }}
       >
         <Copy data={data} align={align} />
-        {data.facts && data.facts.length > 0 && (
-          <dl className="grid grid-cols-2 gap-6" data-testid="technical-facts">
-            {data.facts.map((fact, index) => (
-              <div key={`${fact.label}-${index}`} className="flex flex-col-reverse">
-                <dt className="mt-1 text-xs uppercase tracking-widest opacity-70">{fact.label}</dt>
-                <dd
-                  className="text-3xl font-bold tabular-nums"
-                  style={{
-                    ...sectionHeadingStyle,
-                    color: 'var(--ba-section-text, var(--ba-primary))',
-                  }}
-                >
-                  {fact.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        {data.facts && data.facts.length > 0 && <TechnicalFacts facts={data.facts} />}
       </div>
     );
   }
@@ -246,6 +239,7 @@ export function ContentBlockModule({
   bgVariant,
   presentation,
   sectionTokens,
+  tints,
 }: ContentBlockModuleProps): React.JSX.Element {
   const align = data.align ?? STATEMENT_DEFAULT_ALIGN[data.variant];
   const isImmersive = data.variant === 'immersive-statement';
@@ -262,7 +256,7 @@ export function ContentBlockModule({
       presentation={presentation}
       sectionTokens={sectionTokens}
     >
-      <VariantBody data={data} align={align} />
+      <VariantBody data={data} align={align} tints={tints} />
     </HotsiteSectionShell>
   );
 }

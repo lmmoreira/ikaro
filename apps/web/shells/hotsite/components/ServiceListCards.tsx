@@ -1,11 +1,12 @@
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import type React from 'react';
-import { buildBookingDeepLinkUrl } from '@ikaro/types';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
 import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
 import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
 import { FeatureServiceCard } from './FeatureServiceCard';
+import { ServiceActionLink, type ServiceCardAction } from './ServiceActionLink';
+export type { ServiceCardAction } from './ServiceActionLink';
+import type { SectionTint } from '@/features/platform/hotsite/section-tints';
 
 const headingStyle = sectionHeadingStyle;
 
@@ -15,52 +16,12 @@ const headingStyle = sectionHeadingStyle;
 // `publicSlug` then, and null otherwise); any other service falls back to the booking link under
 // `fallbackLabel`, so a card never links to a page that does not exist. Absent means the card has no
 // action, which is today's behaviour.
-export interface ServiceCardAction {
-  readonly slug: string;
-  readonly label: string;
-  readonly kind?: 'booking' | 'details';
-  readonly fallbackLabel?: string;
-}
-
 interface ServiceCardProps {
   readonly service: HotsiteServiceResponse;
   readonly showPrices: boolean;
   readonly showPoints: boolean;
   readonly cardBg: string;
   readonly action?: ServiceCardAction;
-}
-
-const actionStyle: React.CSSProperties = {
-  backgroundColor: 'var(--ba-btn-bg)',
-  color: 'var(--ba-btn-text)',
-  borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
-};
-
-function ServiceActionLink({
-  service,
-  action,
-}: {
-  readonly service: HotsiteServiceResponse;
-  readonly action: ServiceCardAction;
-}): React.JSX.Element {
-  const detailsHref =
-    action.kind === 'details' && service.publicSlug
-      ? `/${action.slug}/servicos/${service.publicSlug}`
-      : null;
-  return (
-    <Link
-      href={detailsHref ?? buildBookingDeepLinkUrl(`/${action.slug}`, { serviceId: service.id })}
-      data-testid="service-action"
-      data-action={detailsHref ? 'details' : 'booking'}
-      style={actionStyle}
-      className="mt-3 inline-block self-start border-2 px-5 py-2 text-sm font-semibold transition-all hover:bg-[var(--ba-btn-hover-bg)] hover:opacity-90"
-    >
-      {detailsHref || action.kind !== 'details'
-        ? action.label
-        : (action.fallbackLabel ?? action.label)}
-    </Link>
-  );
 }
 
 function ServiceCard({
@@ -99,6 +60,43 @@ function ServiceCard({
         <span className="text-xs opacity-75" data-testid="loyalty-points-badge">
           {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
         </span>
+      )}
+      {action && <ServiceActionLink service={service} action={action} />}
+    </li>
+  );
+}
+
+function RuledServiceCard({
+  service,
+  index,
+  showPrices,
+  showPoints,
+  action,
+}: Omit<ServiceCardProps, 'cardBg'> & { readonly index: number }): React.JSX.Element {
+  const t = useTranslations('hotsite');
+  const { duration, price } = useDurationAndPrice(service);
+  return (
+    <li
+      className={`flex flex-col gap-3 p-7 ${index ? 'md:border-l' : ''}`}
+      style={{ borderColor: 'var(--ba-section-divider)' }}
+    >
+      <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--ba-primary)' }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <h3 className="text-xl font-semibold" style={headingStyle}>
+        {service.name}
+      </h3>
+      {service.description && <p className="text-sm opacity-80">{service.description}</p>}
+      <p className="text-sm opacity-75">{duration}</p>
+      {showPrices && (
+        <p className="font-bold" data-testid="price-badge">
+          {price}
+        </p>
+      )}
+      {showPoints && (
+        <p className="text-xs opacity-75" data-testid="loyalty-points-badge">
+          {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
+        </p>
       )}
       {action && <ServiceActionLink service={service} action={action} />}
     </li>
@@ -167,6 +165,7 @@ export function ServiceItems({
   action,
   cardColumns,
   cardTone,
+  tints,
 }: {
   readonly layout: ServiceListModuleData['layout'];
   readonly services: readonly HotsiteServiceResponse[];
@@ -176,6 +175,7 @@ export function ServiceItems({
   readonly action?: ServiceCardAction;
   readonly cardColumns?: 2 | 3;
   readonly cardTone?: 'plain' | 'tinted' | 'ruled';
+  readonly tints?: readonly [SectionTint, SectionTint, SectionTint];
 }): React.JSX.Element {
   const shared = { showPrices, showPoints, action };
   if (layout === 'numbered') {
@@ -200,8 +200,8 @@ export function ServiceItems({
             key={service.id}
             service={service}
             cardBg={cardBg}
-            index={index}
             tone={cardTone === 'tinted' ? 'tinted' : 'plain'}
+            tint={tints?.[index % 3]}
             {...shared}
           />
         ))}
@@ -216,16 +216,7 @@ export function ServiceItems({
     return (
       <ul className="list-none grid grid-cols-1 md:grid-cols-3" data-testid="ruled-service-list">
         {services.map((service, index) => (
-          <li
-            key={service.id}
-            className={`p-7 ${index ? 'border-l' : ''}`}
-            style={{ borderColor: 'var(--ba-section-divider)' }}
-          >
-            <span className="text-sm font-semibold" style={{ color: 'var(--ba-primary)' }}>
-              {String(index + 1).padStart(2, '0')}
-            </span>
-            <ServiceCard service={service} cardBg="transparent" {...shared} />
-          </li>
+          <RuledServiceCard key={service.id} service={service} index={index} {...shared} />
         ))}
       </ul>
     );

@@ -26,7 +26,7 @@ describe('FeatureServiceCard', () => {
           showPoints
           cardBg="white"
           tone="tinted"
-          index={0}
+          tint={{ background: '#FCE4D3', text: '#3C2A24' }}
         />
         <FeatureServiceCard
           service={{ ...service, id: '00000000-0000-0000-0000-000000000002' }}
@@ -34,7 +34,7 @@ describe('FeatureServiceCard', () => {
           showPoints
           cardBg="white"
           tone="tinted"
-          index={1}
+          tint={{ background: '#DCEFDC', text: '#3C2A24' }}
         />
       </ul>,
     );

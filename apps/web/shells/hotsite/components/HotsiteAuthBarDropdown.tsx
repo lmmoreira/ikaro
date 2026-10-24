@@ -32,7 +32,7 @@ export function HotsiteAuthBarDropdown({
     <details className="relative">
       <summary
         className="flex cursor-pointer list-none items-center gap-2 text-sm font-medium [&::-webkit-details-marker]:hidden"
-        style={{ color: 'var(--ba-text)' }}
+        style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
       >
         <span
           className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold"
@@ -62,7 +62,7 @@ export function HotsiteAuthBarDropdown({
         <Link
           href={`/${slug}/my-account`}
           className="block px-4 py-2.5 text-sm font-medium"
-          style={{ color: 'var(--ba-text)' }}
+          style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
         >
           {t('myAccount')}
         </Link>
@@ -71,7 +71,7 @@ export function HotsiteAuthBarDropdown({
             href="/switch-tenant"
             data-testid="hotsite-switch-tenant-link"
             className="block px-4 py-2.5 text-sm font-medium"
-            style={{ color: 'var(--ba-text)' }}
+            style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
           >
             {t('switchTenant')}
           </Link>
@@ -81,7 +81,7 @@ export function HotsiteAuthBarDropdown({
           href={`${getPublicEnv('NEXT_PUBLIC_BFF_URL')}/auth/logout?tenantSlug=${slug}`}
           data-testid="hotsite-customer-logout-link"
           className="block px-4 py-2.5 text-sm opacity-60"
-          style={{ color: 'var(--ba-text)' }}
+          style={{ color: 'var(--ba-secondary-text, var(--ba-text))' }}
         >
           {t('signOut')}
         </a>

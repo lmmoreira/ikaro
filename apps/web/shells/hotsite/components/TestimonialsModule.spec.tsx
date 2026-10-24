@@ -23,6 +23,11 @@ function makeData(overrides?: Partial<TestimonialsModuleData>): TestimonialsModu
 }
 
 describe('TestimonialsModule', () => {
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(<TestimonialsModule data={makeData({ title: '' })} slug="tenant" />);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+    expect(screen.getByText('Maria Silva')).toBeInTheDocument();
+  });
   it('renders the default title when none is provided', () => {
     renderWithIntl(<TestimonialsModule data={makeData()} slug="tenant" />);
 

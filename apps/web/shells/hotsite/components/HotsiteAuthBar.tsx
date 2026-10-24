@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import type { HotsiteNavigationItem, SessionResponse } from '@ikaro/types';
+import type { HotsiteNavigationItem, NavigationModuleData, SessionResponse } from '@ikaro/types';
 import { getPublicEnv } from '@/shared/lib/runtime-env/public-env';
 import { HotsiteAuthBarDropdown } from './HotsiteAuthBarDropdown';
 import { HotsiteNavigation } from './HotsiteNavigation';
@@ -20,6 +20,7 @@ interface HotsiteAuthBarProps {
   readonly tenantName: string;
   // The NAVIGATION module's resolved links (resolveHotsiteNavigation); none renders nothing.
   readonly navigation?: readonly HotsiteNavigationItem[];
+  readonly navigationCta?: NavigationModuleData['cta'];
 }
 
 // Client-side, after hydration — not SSR. Reading cookies() during the [slug] page's server
@@ -39,6 +40,7 @@ export function HotsiteAuthBar({
   logoUrl,
   tenantName,
   navigation = [],
+  navigationCta,
 }: HotsiteAuthBarProps): React.JSX.Element {
   const t = useTranslations('auth');
   // null (distinct from { staff: null, customer: null }) means "the fetch hasn't resolved yet" —
@@ -77,7 +79,7 @@ export function HotsiteAuthBar({
             style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
           />
         </div>
-        <HotsiteNavigation items={navigation} slug={slug} />
+        <HotsiteNavigation items={navigation} slug={slug} cta={navigationCta} />
         <div
           className="h-3.5 w-16 animate-pulse rounded"
           style={{ backgroundColor: 'var(--ba-text)', opacity: 0.15 }}
@@ -95,6 +97,7 @@ export function HotsiteAuthBar({
         logoUrl={logoUrl}
         tenantName={tenantName}
         navigation={navigation}
+        navigationCta={navigationCta}
       />
     );
   }
@@ -135,7 +138,7 @@ export function HotsiteAuthBar({
           <StaffAreaLink slug={slug} />
         )}
       </div>
-      <HotsiteNavigation items={navigation} slug={slug} />
+      <HotsiteNavigation items={navigation} slug={slug} cta={navigationCta} />
       {isCustomer ? (
         <HotsiteAuthBarDropdown name={displayName} slug={slug} />
       ) : (
@@ -143,7 +146,7 @@ export function HotsiteAuthBar({
           href={`/${slug}/login`}
           data-testid="hotsite-login-link"
           className="text-sm font-medium"
-          style={{ color: 'var(--ba-primary)' }}
+          style={{ color: 'var(--ba-secondary-accent, var(--ba-primary))' }}
         >
           {t('signIn')}
         </a>

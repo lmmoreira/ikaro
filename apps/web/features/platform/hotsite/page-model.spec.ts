@@ -8,6 +8,7 @@ import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
   resolveHotsiteNavigation,
+  resolveHotsiteNavigationCta,
   resolveManifestNavigation,
   shouldSkipDivider,
 } from './page-model';
@@ -38,6 +39,32 @@ describe('resolveHotsiteDisplayName', () => {
     } as HotsiteManifestResponse;
 
     expect(resolveHotsiteDisplayName(manifest)).toBe('Belo Auto');
+  });
+});
+
+describe('resolveHotsiteNavigationCta', () => {
+  it('returns the validated CTA from an enabled navigation module', () => {
+    const cta = { label: 'Agendar', target: 'booking-form' };
+    expect(
+      resolveHotsiteNavigationCta([
+        makeLayoutItem({ type: 'NAVIGATION', data: { items: [], cta } }),
+      ]),
+    ).toEqual(cta);
+  });
+
+  it('returns nothing for an omitted or disabled CTA', () => {
+    expect(
+      resolveHotsiteNavigationCta([makeLayoutItem({ type: 'NAVIGATION', data: { items: [] } })]),
+    ).toBeUndefined();
+    expect(
+      resolveHotsiteNavigationCta([
+        makeLayoutItem({
+          type: 'NAVIGATION',
+          enabled: false,
+          data: { items: [], cta: { label: 'Go', target: 'booking-form' } },
+        }),
+      ]),
+    ).toBeUndefined();
   });
 });
 
@@ -496,6 +523,56 @@ describe('section tokens in the render plan', () => {
     );
 
     expect(item.sectionTokens?.['--ba-section-bg']).toBe('#112233');
+  });
+
+  it('derives light text from a dark overlay over a light booking palette without a surface workaround', () => {
+    const clinicBrand = {
+      ...branding,
+      primaryColor: '#167F98',
+      backgroundColor: '#F3F9FB',
+      textColor: '#143846',
+    };
+    const [item] = buildHotsiteModuleRenderPlan(
+      [
+        makeLayoutItem({
+          type: 'BOOKING_CTA',
+          data: {
+            title: 'Reserve',
+            ctaLabel: 'Agendar',
+            contentPositionX: 'left',
+            backgroundImageUrl: 'https://example.com/photo.jpg',
+          },
+          presentation: {
+            overlay: {
+              type: 'linear-gradient',
+              direction: 'to-right',
+              fromColor: '#0C3D4A',
+              fromOpacity: 0.92,
+              toColor: '#0C3D4A',
+              toOpacity: 0.24,
+            },
+          },
+        }),
+      ],
+      false,
+      clinicBrand,
+    );
+    expect(item.sectionTokens?.['--ba-section-text']).toBe('#F3F9FB');
+  });
+
+  it('derives a footer surface independently of the header', () => {
+    const [item] = buildHotsiteModuleRenderPlan(
+      [
+        makeLayoutItem({
+          type: 'FOOTER',
+          data: {},
+          presentation: { surface: 'custom', customColor: '#18231E' },
+        }),
+      ],
+      false,
+      branding,
+    );
+    expect(item.sectionTokens?.['--ba-section-bg']).toBe('#18231E');
   });
 
   // Negative guarantee: a manifest without `presentation.surface` yields exactly the plan items it

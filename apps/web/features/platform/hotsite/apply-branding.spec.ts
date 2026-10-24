@@ -2,7 +2,12 @@ import type { HotsiteBrandingResponse } from '@ikaro/types';
 import { describe, expect, it } from 'vitest';
 
 // next/font/google is aliased to __mocks__/next-font-google.ts in vitest.config.ts
-import { applyBranding, contrastRatio, deriveSectionTokens } from './apply-branding';
+import {
+  applyBranding,
+  contrastRatio,
+  deriveOverlayTextTokens,
+  deriveSectionTokens,
+} from './apply-branding';
 
 type CSSTokens = Record<string, string>;
 
@@ -64,6 +69,62 @@ describe('applyBranding', () => {
     expect(
       (applyBranding(makeBranding({ borderRadius: 'pill' })) as CSSTokens)['--ba-radius'],
     ).toBe('9999px');
+  });
+
+  it('keeps omitted buttonRadius on the surface radius and permits independent soft surfaces and pill buttons', () => {
+    const unchanged = applyBranding(makeBranding({ borderRadius: 'pill' })) as CSSTokens;
+    const split = applyBranding(
+      makeBranding({ borderRadius: 'soft', buttonRadius: 'pill' }),
+    ) as CSSTokens;
+    expect(unchanged['--ba-btn-radius']).toBe(unchanged['--ba-radius']);
+    expect(split['--ba-radius']).toBe('24px');
+    expect(split['--ba-btn-radius']).toBe('9999px');
+  });
+
+  it('maps heading weight and case, while omitted values keep the legacy heading style', () => {
+    const unchanged = applyBranding(makeBranding()) as CSSTokens;
+    const strong = applyBranding(
+      makeBranding({ headingWeight: 900, headingTransform: 'uppercase' }),
+    ) as CSSTokens;
+    expect(unchanged['--ba-heading-weight']).toBe('700');
+    expect(unchanged['--ba-heading-transform']).toBe('none');
+    expect(strong['--ba-heading-weight']).toBe('900');
+    expect(strong['--ba-heading-transform']).toBe('uppercase');
+  });
+
+  it('picks readable text for dark and light overlays', () => {
+    const light = makeBranding();
+    const dark = makeBranding({ backgroundColor: '#101820', textColor: '#FFFFFF' });
+    expect(
+      deriveOverlayTextTokens(light, 'background', {
+        type: 'solid',
+        color: '#000000',
+        opacity: 0.9,
+      })['--ba-section-text'],
+    ).toBe('#F5F5F5');
+    expect(
+      deriveOverlayTextTokens(dark, 'background', {
+        type: 'solid',
+        color: '#FFFFFF',
+        opacity: 0.95,
+      })['--ba-section-text'],
+    ).toBe('#101820');
+  });
+
+  it('uses the copy-side endpoint of a gradient', () => {
+    const overlay = {
+      type: 'linear-gradient' as const,
+      direction: 'to-right' as const,
+      fromColor: '#FFFFFF',
+      fromOpacity: 0,
+      toColor: '#0C3D4A',
+      toOpacity: 0.95,
+    };
+    const light = makeBranding();
+    const left = deriveOverlayTextTokens(light, 'background', overlay, undefined, 'left');
+    const right = deriveOverlayTextTokens(light, 'background', overlay, undefined, 'right');
+    expect(left['--ba-section-text']).toBe('#111111');
+    expect(right['--ba-section-text']).toBe('#F5F5F5');
   });
 
   it('maps spacing variants to section padding tokens', () => {

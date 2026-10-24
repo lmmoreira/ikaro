@@ -47,6 +47,7 @@ export function ServiceListModule({
   bgVariant,
   presentation,
   sectionTokens,
+  tints,
 }: ServiceListModuleProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const title = data.title ?? t('services.defaultTitle');
@@ -92,6 +93,7 @@ export function ServiceListModule({
           action={action}
           cardColumns={data.cardColumns}
           cardTone={data.cardTone}
+          tints={tints}
         />
       )}
     </HotsiteSectionShell>

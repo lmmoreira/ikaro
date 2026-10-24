@@ -14,6 +14,8 @@ const SUPPORTED_FONTS = [
   'Oswald',
   'Lato',
   'Roboto',
+  'Manrope',
+  'DM Sans',
 ];
 
 describe('FONT_VARIABLES', () => {
@@ -39,6 +41,8 @@ describe('FONT_MAP', () => {
     expect(FONT_MAP['Inter']).toBe('var(--font-inter)');
     expect(FONT_MAP['Playfair Display']).toBe('var(--font-playfair-display)');
     expect(FONT_MAP['Roboto']).toBe('var(--font-roboto)');
+    expect(FONT_MAP['Manrope']).toBe('var(--font-manrope)');
+    expect(FONT_MAP['DM Sans']).toBe('var(--font-dm-sans)');
   });
 });
 

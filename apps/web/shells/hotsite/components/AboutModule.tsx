@@ -69,7 +69,7 @@ export function AboutModule({
 
   if (data.variant === 'bleed') {
     const bleedImage = data.imageUrl && (
-      <div className="relative min-h-[20rem] overflow-hidden md:min-h-[540px]">
+      <div className="relative aspect-[4/3] overflow-hidden md:aspect-auto md:min-h-[540px]">
         <Image
           src={data.imageUrl}
           alt={data.title}
@@ -91,8 +91,7 @@ export function AboutModule({
       </div>
     );
     return (
-      <HotsiteSectionShell {...shellProps} flow={false} dataVariant="bleed">
-        {' '}
+      <HotsiteSectionShell {...shellProps} flow={false} legacyPadding="0" dataVariant="bleed">
         <div className="grid md:grid-cols-2">
           {imagePosition === 'left' ? (
             <>

@@ -15,6 +15,7 @@ import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import {
   resolveHotsiteDisplayName,
   resolveManifestNavigation,
+  resolveHotsiteNavigationCta,
 } from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
@@ -86,6 +87,7 @@ export default async function AvailabilityAlertRoute({
         logoUrl={manifest.branding.logoUrl}
         tenantName={resolveHotsiteDisplayName(manifest)}
         navigation={resolveManifestNavigation(manifest)}
+        navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
       />
       <AvailabilityAlertPage
         slug={slug}

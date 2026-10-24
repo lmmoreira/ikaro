@@ -1403,7 +1403,7 @@
             "layoutGrid": "Grade",
             "layoutMasonry": "Mosaico",
             "layoutFeatured": "Destaque",
-            "featuredRequiresFiveImages": "O layout Destaque exige pelo menos 5 imagens.",
+            "featuredRequiresThreeImages": "O layout Destaque exige pelo menos 3 imagens.",
             "featuredUsesFirstFiveImages": "O layout Destaque usa apenas as 5 primeiras imagens.",
             "featuredPositionLabel": "Posição da foto em destaque",
             "featuredPositionLeft": "Esquerda",

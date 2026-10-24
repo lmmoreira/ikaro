@@ -44,6 +44,36 @@ describe('Footer', () => {
     vi.useRealTimers();
   });
 
+  it('uses a chosen contrast-safe surface without changing the default footer', () => {
+    const common = {
+      slug: 'tenant',
+      data: makeData(),
+      tenantName: 'Tenant',
+      business: makeBusiness(),
+      logoUrl: '',
+    };
+    const { container, rerender } = renderWithIntl(<Footer {...common} />);
+    expect(container.querySelector('footer')).toHaveStyle({
+      backgroundColor: 'var(--ba-secondary)',
+    });
+    rerender(
+      <Footer
+        {...common}
+        presentation={{ surface: 'custom', customColor: '#18231E' }}
+        sectionTokens={{
+          '--ba-section-bg': '#18231E',
+          '--ba-section-text': '#FFFFFF',
+          '--ba-section-card-bg': '#18231E',
+          '--ba-section-divider': '#555555',
+        }}
+      />,
+    );
+    expect(container.querySelector('footer')).toHaveStyle({
+      backgroundColor: 'var(--ba-section-bg)',
+      color: 'var(--ba-section-text)',
+    });
+  });
+
   it('renders the brand, tagline, copyright, and whatsapp link', () => {
     renderWithIntl(
       <Footer

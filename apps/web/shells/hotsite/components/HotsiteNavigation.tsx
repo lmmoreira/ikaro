@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
-import type { HotsiteNavigationItem } from '@ikaro/types';
+import type { HotsiteNavigationItem, NavigationModuleData } from '@ikaro/types';
 
 interface HotsiteNavigationProps {
   readonly items: readonly HotsiteNavigationItem[];
   readonly slug: string;
+  readonly cta?: NavigationModuleData['cta'];
 }
 
 const LINK_CLASS = 'text-[0.8125rem] font-medium no-underline hover:opacity-70';
@@ -21,6 +22,7 @@ const LINK_CLASS = 'text-[0.8125rem] font-medium no-underline hover:opacity-70';
 export function HotsiteNavigation({
   items,
   slug,
+  cta,
 }: HotsiteNavigationProps): React.JSX.Element | null {
   const t = useTranslations('hotsite.navigation');
   const menuRef = useRef<HTMLDetailsElement>(null);
@@ -48,7 +50,15 @@ export function HotsiteNavigation({
     };
   }, []);
 
-  if (items.length === 0) return null;
+  if (items.length === 0 && !cta) return null;
+
+  const ctaHref = cta ? `/${slug}/${cta.target === 'lead-form' ? 'lead-form' : 'booking'}` : '';
+  const ctaStyle = {
+    backgroundColor: 'var(--ba-btn-bg)',
+    color: 'var(--ba-btn-text)',
+    borderColor: 'var(--ba-btn-border)',
+    borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
+  };
 
   const closeMenu = (): void => {
     if (menuRef.current) menuRef.current.open = false;
@@ -71,6 +81,16 @@ export function HotsiteNavigation({
             {item.label}
           </a>
         ))}
+        {cta && (
+          <a
+            href={ctaHref}
+            data-testid="hotsite-navigation-cta"
+            className="border px-4 py-2 text-sm font-semibold"
+            style={ctaStyle}
+          >
+            {cta.label}
+          </a>
+        )}
       </nav>
       <details
         ref={menuRef}
@@ -117,6 +137,17 @@ export function HotsiteNavigation({
               {item.label}
             </a>
           ))}
+          {cta && (
+            <a
+              href={ctaHref}
+              onClick={closeMenu}
+              data-testid="hotsite-navigation-mobile-cta"
+              className="m-3 border px-4 py-2 text-center text-sm font-semibold"
+              style={ctaStyle}
+            >
+              {cta.label}
+            </a>
+          )}
         </nav>
       </details>
     </>

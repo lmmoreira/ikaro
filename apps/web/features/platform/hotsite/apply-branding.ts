@@ -1,4 +1,8 @@
-import type { HotsiteBrandingResponse, HotsiteSectionSurface } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteSectionOverlay,
+  HotsiteSectionSurface,
+} from '@ikaro/types';
 import type React from 'react';
 
 import { FONT_MAP } from './font-config';
@@ -151,6 +155,56 @@ export function deriveSectionTokens(
   };
 }
 
+type ContentAnchor = 'left' | 'center' | 'right' | 'top' | 'bottom';
+
+function overlayAtContent(
+  overlay: HotsiteSectionOverlay,
+  x: ContentAnchor,
+  y: ContentAnchor,
+): { readonly color: string; readonly opacity: number } | null {
+  if (overlay.type === 'none') return null;
+  if (overlay.type === 'solid') return overlay;
+  const position = overlay.direction === 'to-right' || overlay.direction === 'to-left' ? x : y;
+  const fraction =
+    position === 'center'
+      ? 0.5
+      : overlay.direction === 'to-right'
+        ? position === 'right'
+          ? 1
+          : 0
+        : overlay.direction === 'to-left'
+          ? position === 'left'
+            ? 1
+            : 0
+          : overlay.direction === 'to-bottom'
+            ? position === 'bottom'
+              ? 1
+              : 0
+            : position === 'top'
+              ? 1
+              : 0;
+  return {
+    color: mixHex(overlay.fromColor, overlay.toColor, fraction),
+    opacity: overlay.fromOpacity + (overlay.toOpacity - overlay.fromOpacity) * fraction,
+  };
+}
+
+export function deriveOverlayTextTokens(
+  branding: HotsiteBrandingResponse,
+  surface: HotsiteSectionSurface,
+  overlay: HotsiteSectionOverlay,
+  customColor?: string,
+  x: ContentAnchor = 'center',
+  y: ContentAnchor = 'center',
+): SectionTokens {
+  const base = deriveSectionTokens(branding, surface, customColor);
+  const textSide = overlayAtContent(overlay, x, y);
+  if (!textSide) return base;
+  const effective = mixHex(base['--ba-section-bg'], textSide.color, textSide.opacity);
+  const readable = deriveSectionTokens(branding, 'custom', effective);
+  return { ...readable, '--ba-section-bg': base['--ba-section-bg'] };
+}
+
 // CSS value for the divider rendered between sections.
 function deriveDivider(branding: HotsiteBrandingResponse): string {
   if (branding.dividerStyle === 'gradient') {
@@ -167,6 +221,10 @@ export function applyBranding(
 ): React.CSSProperties & Record<`--ba-${string}`, string> {
   const btn = deriveButtonTokens(branding);
   const secondaryTokens = deriveSectionTokens(branding, 'secondary');
+  const secondaryText =
+    contrastRatio(branding.secondaryColor, branding.textColor) >= MIN_TEXT_CONTRAST
+      ? branding.textColor
+      : secondaryTokens['--ba-section-text'];
   return {
     '--ba-primary': branding.primaryColor,
     '--ba-secondary': branding.secondaryColor,
@@ -188,7 +246,11 @@ export function applyBranding(
     '--ba-hero-bg': deriveHeroBg(branding),
     '--ba-hero-text': deriveHeroTextColor(branding),
     '--ba-divider': deriveDivider(branding),
-    '--ba-secondary-text': secondaryTokens['--ba-section-text'],
+    '--ba-secondary-text': secondaryText,
     '--ba-secondary-divider': secondaryTokens['--ba-section-divider'],
+    '--ba-secondary-accent':
+      contrastRatio(branding.secondaryColor, branding.primaryColor) >= MIN_TEXT_CONTRAST
+        ? branding.primaryColor
+        : secondaryText,
   };
 }

@@ -8,7 +8,7 @@
     "backgroundColor": "#16130F",
     "textColor": "#EEE5D8",
     "headingFontFamily": "Playfair Display",
-    "bodyFontFamily": "Inter",
+    "bodyFontFamily": "DM Sans",
     "borderRadius": "sharp",
     "buttonStyle": "filled",
     "buttonBackgroundColor": "#D3A655",
@@ -41,7 +41,11 @@
             "label": "Contato",
             "target": "contact"
           }
-        ]
+        ],
+        "cta": {
+          "label": "AGENDAR",
+          "target": "booking-form"
+        }
       }
     },
     {
@@ -84,7 +88,7 @@
         "body": "Técnica, tempo e atenção em cada atendimento. Produtos selecionados, profissionais experientes e café por nossa conta.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/about.png",
         "imagePosition": "left",
-        "variant": "split"
+        "variant": "bleed"
       },
       "presentation": {
         "surface": "secondary"
@@ -140,11 +144,6 @@
           {
             "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/about.png",
             "caption": "Atendimento",
-            "source": "upload"
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/booking.png",
-            "caption": "Seu momento",
             "source": "upload"
           }
         ],
@@ -244,6 +243,10 @@
         "tagline": "Barbearia de bairro",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#0C0A08"
       }
     },
     {

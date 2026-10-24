@@ -15,6 +15,21 @@ function makeData(overrides?: Partial<AboutModuleData>): AboutModuleData {
 }
 
 describe('AboutModule', () => {
+  it('places a bleed image edge to edge with a mobile aspect ratio', () => {
+    const { container } = render(
+      <AboutModule
+        data={makeData({ variant: 'bleed', imageUrl: 'https://storage.example.com/about.jpg' })}
+        slug="tenant"
+      />,
+    );
+    const section = container.querySelector('#about');
+    expect(section).toHaveAttribute('data-variant', 'bleed');
+    expect(section).toHaveStyle({ padding: '0' });
+    expect(section?.querySelector('img')?.parentElement).toHaveClass(
+      'aspect-[4/3]',
+      'md:min-h-[540px]',
+    );
+  });
   it('renders the title and markdown body as HTML', () => {
     render(<AboutModule data={makeData()} slug="tenant" />);
 

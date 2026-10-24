@@ -6,7 +6,10 @@ import { HotsiteAuthBar } from '@/shells/hotsite/components/HotsiteAuthBar';
 import { Unavailable } from '@/shells/hotsite/components/Unavailable';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import { resolveLeadFormModule } from '@/features/platform/hotsite/lead-form-module';
-import { resolveHotsiteDisplayName } from '@/features/platform/hotsite/page-model';
+import {
+  resolveHotsiteDisplayName,
+  resolveHotsiteNavigationCta,
+} from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
 
@@ -45,7 +48,12 @@ export default async function LeadFormPage({ params }: LeadFormPageProps) {
 
   return (
     <>
-      <HotsiteAuthBar slug={slug} logoUrl={manifest.branding.logoUrl} tenantName={displayName} />
+      <HotsiteAuthBar
+        slug={slug}
+        logoUrl={manifest.branding.logoUrl}
+        tenantName={displayName}
+        navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
+      />
       <LeadFormWidget
         slug={slug}
         title={data.title}

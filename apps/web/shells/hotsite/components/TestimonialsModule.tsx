@@ -84,9 +84,11 @@ export function TestimonialsModule({
           <SectionEyebrow text={data.eyebrow} />
         </div>
       )}
-      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-        {title}
-      </h2>
+      {title !== '' && (
+        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+          {title}
+        </h2>
+      )}
       {data.layout === 'editorial-quote' && <EditorialQuotes items={data.items} />}
       {data.layout === 'carousel' && (
         <TestimonialsCarousel>

@@ -124,7 +124,7 @@ describe('assertValidLayoutStructure', () => {
   });
 
   describe('presentation is only accepted on some module types', () => {
-    it.each(['NAVIGATION', 'FOOTER', 'CHATBOT'] as const)('rejects presentation on %s', (type) => {
+    it.each(['NAVIGATION', 'CHATBOT'] as const)('rejects presentation on %s', (type) => {
       const module = {
         type,
         enabled: true,
@@ -136,6 +136,19 @@ describe('assertValidLayoutStructure', () => {
       expect(act).toThrow(
         expect.objectContaining({ code: PlatformErrorCode.HOTSITE_PRESENTATION_NOT_ALLOWED }),
       );
+    });
+
+    it('accepts a footer surface and rejects other footer presentation fields', () => {
+      const footer = (presentation: HotsiteModule['presentation']): HotsiteModule => ({
+        type: 'FOOTER',
+        enabled: true,
+        data: {},
+        presentation,
+      });
+      expect(() => assertValidLayoutStructure([footer({ surface: 'primary' })])).not.toThrow();
+      expect(() =>
+        assertValidLayoutStructure([footer({ surface: 'primary', padding: 'spacious' })]),
+      ).toThrow(HotsitePresentationNotAllowedError);
     });
 
     it('accepts presentation on a module that supports it', () => {

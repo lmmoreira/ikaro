@@ -8,7 +8,7 @@
     "backgroundColor": "#171321",
     "textColor": "#F5F1FF",
     "headingFontFamily": "Montserrat",
-    "bodyFontFamily": "Raleway",
+    "bodyFontFamily": "DM Sans",
     "borderRadius": "sharp",
     "buttonStyle": "filled",
     "buttonBackgroundColor": "#C5FF4A",
@@ -17,7 +17,9 @@
     "shadowStyle": "strong",
     "heroBgStyle": "background",
     "alternateSectionBg": true,
-    "dividerStyle": "gradient"
+    "dividerStyle": "gradient",
+    "headingWeight": 900,
+    "headingTransform": "uppercase"
   },
   "layout": [
     {
@@ -41,7 +43,11 @@
             "label": "Contato",
             "target": "contact"
           }
-        ]
+        ],
+        "cta": {
+          "label": "COMEÇAR PROJETO",
+          "target": "lead-form"
+        }
       }
     },
     {
@@ -90,16 +96,6 @@
           {
             "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-3.png",
             "caption": "Estudo de movimento",
-            "source": "upload"
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
-            "caption": "Bastidores",
-            "source": "upload"
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/lead.png",
-            "caption": "Processo",
             "source": "upload"
           }
         ],
@@ -165,7 +161,7 @@
         "body": "Estratégia, direção e execução em um mesmo estúdio.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
         "imagePosition": "left",
-        "variant": "split"
+        "variant": "bleed"
       },
       "presentation": {
         "surface": "background"
@@ -254,6 +250,10 @@
         "tagline": "Fotografia e direção criativa",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#0D0A13"
       }
     },
     {

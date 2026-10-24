@@ -71,7 +71,10 @@ interface HotsiteBrandingResponse {
   logoUrl: string;            // GCS URL
 
   // — Semantic choices (admin picks from options) —
-  borderRadius: 'sharp' | 'rounded' | 'pill';
+  borderRadius: 'sharp' | 'rounded' | 'pill' | 'soft';
+  buttonRadius?: 'sharp' | 'rounded' | 'pill'; // defaults to borderRadius
+  headingWeight?: 400 | 500 | 600 | 700 | 800 | 900; // default 700
+  headingTransform?: 'none' | 'uppercase'; // default none
   buttonStyle:  'filled' | 'outline' | 'ghost';
   spacing:      'compact' | 'comfortable' | 'spacious';
   shadowStyle:  'none' | 'subtle' | 'strong';
@@ -107,6 +110,8 @@ Fonts are pre-loaded at build time via `next/font/google` in `apps/web/features/
 | `"Oswald"` | Oswald | Strong, condensed — garages, auto shops |
 | `"Lato"` | Lato | Clean, trustworthy — clinics, corporate |
 | `"Roboto"` | Roboto | Neutral, reliable — mechanics, services |
+| `"Manrope"` | Manrope | Rounded display headings — Mimo Pet |
+| `"DM Sans"` | DM Sans | Body copy across the six template prototypes |
 
 `font-config.ts` exports `FONT_VARIABLES` (array of CSS variable class names, applied to `<body className>`) and `FONT_MAP` (key → CSS variable string, e.g. `{ "Inter": "var(--font-inter)" }`). Unknown keys fall back to `"Inter"`.
 
@@ -117,7 +122,7 @@ The `applyBranding(branding)` helper (called in `app/[slug]/layout.tsx`) resolve
 ```typescript
 // apps/web/features/platform/hotsite/apply-branding.ts
 
-const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px' };
+const BORDER_RADIUS = { sharp: '0px', rounded: '8px', soft: '24px', pill: '9999px' };
 const SECTION_PY    = { compact: '3rem', comfortable: '5rem', spacious: '8rem' };
 const SHADOW        = {
   none:   'none',
@@ -134,6 +139,9 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
     '--ba-heading-font':  FONT_MAP[branding.headingFontFamily] ?? FONT_MAP['Inter'],
     '--ba-body-font':     FONT_MAP[branding.bodyFontFamily]    ?? FONT_MAP['Inter'],
     '--ba-radius':        BORDER_RADIUS[branding.borderRadius],
+    '--ba-btn-radius':    BORDER_RADIUS[branding.buttonRadius ?? branding.borderRadius],
+    '--ba-heading-weight': String(branding.headingWeight ?? 700),
+    '--ba-heading-transform': branding.headingTransform ?? 'none',
     '--ba-section-py':    SECTION_PY[branding.spacing],
     '--ba-shadow':        SHADOW[branding.shadowStyle],
     '--ba-btn-variant':   branding.buttonStyle,
@@ -265,6 +273,8 @@ interface ServiceListModuleData {
   showPrices: boolean;
   showPoints: boolean;   // show loyalty points per service
   layout: 'grid' | 'list' | 'numbered' | 'feature-cards';  // default: 'grid'; the last two added by TD56
+  cardColumns?: 2 | 3;                 // feature-cards; omitted keeps two columns
+  cardTone?: 'plain' | 'tinted' | 'ruled'; // tinted uses contrast-checked brand tints; ruled is the specialty-card layout
   itemAction?: 'details' | 'booking' | 'none';   // what a card does; omitted => 'none' (today's behaviour). 'booking' links the card to /{slug}/booking?serviceId=<id> (label: itemCtaLabel, default "Agendar"); 'details' links the card to the service's own page /{slug}/servicos/{publicSlug} (label: itemCtaLabel, default "Ver detalhes") — only for a service whose page is published (its public-list `publicSlug` is non-null); any other service keeps the booking action under the default "Agendar" label, so a card never links to a page that does not exist
   itemCtaLabel?: string;                          // <= 40 chars
   detailPage?: ServiceDetailPageSettings;         // look of every public service detail page, closed set
@@ -305,6 +315,8 @@ interface GalleryModuleData {
 }
 ```
 
+`featured` accepts three, four or five images. It keeps the five-image composition unchanged; fewer than three render as `grid`. The editor enables it at three images.
+
 **Image hosting & URL resolution (M12-S10 — read this before M12-S02's original framing):**
 Hotsite images are **public marketing assets** — unlike booking photos, there is no privacy reason to gate them. They live in a separate **public** GCS bucket with fixed, permanently-cacheable addresses (`IStorageService.getPublicUrl()` — a pure string template, no signed URL, no expiry, no regeneration). This is what makes the manifest's `Cache-Control: public, max-age=300` + Next.js ISR + future CDN (§10) actually safe to rely on: nothing inside the cached payload can expire mid-cache-window. `GetHotsiteManifestUseCase`/`GetHotsiteContentUseCase` resolve every stored `filePath` (`branding.logoUrl`, `seo.ogImageUrl` (M18-S03), module `*Url` fields, `GalleryImage.url`) to this public address before returning — one resolution path, used identically by the public manifest and the admin endpoint, regardless of `GalleryImage.source`.
 
@@ -332,6 +344,8 @@ interface TestimonialsModuleData {
   layout: 'grid' | 'carousel' | 'editorial-quote';  // default: 'grid'; 'editorial-quote' added by TD56
 }
 ```
+
+An explicitly empty `title` hides the heading; an omitted title still shows the default.
 
 ### BOOKING_CTA
 
@@ -497,10 +511,11 @@ Canonical rationale, domain model, and behavior: `docs/DOMAIN_MODEL.md` § `Lead
 ```typescript
 interface NavigationModuleData {
   items: { label: string; target: 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' }[];
+  cta?: { label: string; target: 'booking-form' | 'lead-form' }; // header button, 1–30 characters
 }
 ```
 
-Page chrome, **not a section**: it is always the first `layout` entry, it never takes part in section alternation or dividers, and the public page and the editor preview hand its links to the top bar (`HotsiteAuthBar`) instead of rendering it in the section flow — one header only. `label` is 1–30 characters, at most 6 items. Targets are the existing same-page anchors (`#service-list`, `#gallery`, …); booking is never a navigation item and the separate `/lead-form` route is not an anchor. The module has its own `enabled` toggle and is pinned first (the layout editor offers no drag handle for it).
+Page chrome, **not a section**: it is always the first `layout` entry, it never takes part in section alternation or dividers, and the public page and the editor preview hand its links to the top bar (`HotsiteAuthBar`) instead of rendering it in the section flow — one header only. `label` is 1–30 characters, at most 6 items. Item targets are the existing same-page anchors (`#service-list`, `#gallery`, …); booking and lead form are separate CTA routes. The optional CTA appears on desktop and in the mobile menu and links to `/{slug}/booking` or `/{slug}/lead-form`. The module has its own `enabled` toggle and is pinned first (the layout editor offers no drag handle for it).
 
 Rules, each owned by exactly one layer:
 
@@ -524,10 +539,10 @@ interface ContentBlockCommon {
   body?: string;                   // <= 1000, restricted Markdown — never HTML
   cta?: { label: string /* <= 40 */; target: 'booking-form' | 'service-list' | 'gallery' | 'testimonials' | 'about' | 'contact' };
 }
-// trust-grid          items 2-6 x { label <= 60; description? <= 140 }
-// process-steps       items 2-6 x { title <= 60; body <= 240 }   (the renderer numbers the steps)
+// trust-grid          appearance?: 'rule' | 'tiles'; items 2-6 x { label <= 60; description? <= 140 }
+// process-steps       appearance?: 'plain' | 'ruled'; items 2-6 x { title <= 60; body <= 240; label? <= 30 }
 // collage-callout     images 2-4 x { url; alt? <= 120 }          (empty alt = decorative)
-// technical-callout   facts? 0-4 x { value <= 20; label <= 40 }
+// technical-callout   factsPlacement?: 'side' | 'kicker'; facts? 0-4 x { value <= 20; label <= 40 }
 // image-statement     (no extra fields; imagery comes from presentation.background)
 // immersive-statement (no extra fields)
 ```
@@ -560,13 +575,16 @@ Which modules accept it:
 |---|---|---|
 | `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `ABOUT`, `CONTACT`, `CONTENT_BLOCK` | yes | yes |
 | `HERO`, `BOOKING_CTA`, `LEAD_FORM` | yes | **no** — they keep `data.backgroundImageUrl`, so one section never has two competing background images |
-| `NAVIGATION`, `FOOTER`, `CHATBOT` | **no** | no |
+| `FOOTER` | `surface` and optional `customColor` only | no |
+| `NAVIGATION`, `CHATBOT` | **no** | no |
 
 `overlay` is accepted wherever `presentation` is, and is drawn over whichever background image the section has (its own, or `presentation.background`); with no image it tints the section surface. Violations are `HotsitePresentationNotAllowedError` / `HotsitePresentationBackgroundNotAllowedError` from `HotsiteConfig` (`hotsite-layout.rules.ts`); the closed shape is the schema's.
 
 **Precedence with today's switches:** an explicit `presentation.surface` always wins; when absent, `branding.alternateSectionBg` (`bgVariant`), `branding.heroBgStyle` and each module's own `bgStyle` behave exactly as before. `CONTENT_BLOCK` alternates like `ABOUT`/`TESTIMONIALS` unless it sets a surface. An **invalid** `presentation` at render time is ignored (the module renders with defaults); it never removes the module the way malformed `data` does.
 
-**Contrast.** `deriveSectionTokens()` (`apply-branding.ts`) derives a section's text, card and divider colours from its surface — the better-contrasting of the branding background/text colours, falling back to black or white — so text and card text always meet 4.5:1 and nothing is rejected. They are scoped custom properties (`--ba-section-*`) set on the section element, never an override of the global `--ba-*` tokens. Text over a *photo* cannot be measured: the renderer applies a built-in minimum scrim when a section has an image and `overlay` is `none`, and accepts an explicit overlay as written.
+For a full-bleed photo with copy over it, use `variant: 'centered'`, `contentPositionX: 'left'`, `data.backgroundImageUrl` and `presentation.overlay` on `HERO` or `BOOKING_CTA`. Their `left-aligned` variant instead draws the image in a separate side panel.
+
+**Contrast.** `deriveSectionTokens()` (`apply-branding.ts`) derives a section's text, card and divider colours from its surface — the better-contrasting of the branding background/text colours, falling back to black or white — so text and card text always meet 4.5:1 and nothing is rejected. They are scoped custom properties (`--ba-section-*`) set on the section element, never an override of the global `--ba-*` tokens. A photo with an explicit overlay derives text tokens from the overlay colour and opacity at the copy's horizontal or vertical anchor, composited over the section surface. Averaging the entire gradient would choose dark text for Clínica Lume's dark left edge over a light surface. The renderer applies a minimum scrim to a photo without an explicit overlay. `sectionTints()` derives three tinted card and tile backgrounds from the brand and the actual section surface, then pairs each with text meeting 4.5:1.
 
 ### Validation: where each layer stops (TD56)
 
@@ -679,7 +697,7 @@ export default async function HotsitePage({
 
 Sections stay viewport-wide: their background, colour and divider belong to the full-width section, and only the inner content is width-bounded.
 
-**Navigation.** `NAVIGATION` links render inside the one top bar, never as a second header: `HotsiteAuthBar` (all three of its states — loading skeleton, signed-out, signed-in) and the editor preview's inert `HotsiteAuthBarSignedOut` both host `HotsiteNavigation`, which shows the links inline from `md` up and a `<details>` menu below it (closing on Escape, an outside click and a link tap). Hrefs are absolute to the home page (`/{slug}#service-list`), so they work from `/booking` and `/booking/availability-alert`, whose pages resolve the same links with `resolveManifestNavigation(manifest)`. `/lead-form` shows none: its public manifest stubs `layout: []`.
+**Navigation.** `NAVIGATION` links and its optional CTA render inside the one top bar, never as a second header: `HotsiteAuthBar` (all three of its states — loading skeleton, signed-out, signed-in) and the editor preview's inert `HotsiteAuthBarSignedOut` both host `HotsiteNavigation`, which shows them inline from `md` up and in a `<details>` menu below it (closing on Escape, an outside click and a link tap). Section-link hrefs are absolute to the home page (`/{slug}#service-list`), so they work from `/booking` and `/booking/availability-alert`, whose pages resolve the same links with `resolveManifestNavigation(manifest)`. `/lead-form` shows none when its public manifest stubs `layout: []`.
 
 **Strong variants.** The closed `variant` / `layout` values added by TD56 are real layouts, not labels: Hero / Booking CTA / Lead Form `immersive` (the centered composition pinned bottom-left over a full-bleed photo, taller, larger title), Service List `numbered` (ordered price menu) and `feature-cards`, Gallery `portfolio` (an asymmetric 12-column rhythm repeating every four tiles), Testimonials `editorial-quote` (pull-quotes in the heading font), About `editorial` (a single long-form column). `CONTENT_BLOCK` renders its six variants in `ContentBlockModule.tsx`; manager-written Markdown (About, CONTENT_BLOCK bodies, the service long description in a later story) goes through the one restricted renderer, `RestrictedMarkdown` (paragraphs, emphasis, lists and links; no raw HTML, no images; links `rel="noopener noreferrer nofollow"`).
 

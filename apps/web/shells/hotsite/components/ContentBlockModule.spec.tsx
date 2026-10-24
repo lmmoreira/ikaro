@@ -52,6 +52,51 @@ function renderBlock(
 }
 
 describe('ContentBlockModule', () => {
+  it('renders numbered, tinted trust tiles alongside the copy', () => {
+    renderBlock(
+      {
+        ...VARIANTS[0],
+        variant: 'trust-grid',
+        appearance: 'tiles',
+        items: [{ label: 'Primeiro' }, { label: 'Segundo' }],
+      },
+      {
+        tints: [
+          { background: '#FCE4D3', text: '#3C2A24' },
+          { background: '#DCEFDC', text: '#3C2A24' },
+          { background: '#ECDFFD', text: '#3C2A24' },
+        ],
+      },
+    );
+    const tiles = screen.getByTestId('trust-grid-tiles');
+    expect(within(tiles).getAllByRole('listitem')).toHaveLength(2);
+    expect(within(tiles).getByText('01')).toBeInTheDocument();
+    expect(within(tiles).getByText('02')).toBeInTheDocument();
+    expect(within(tiles).getByText('Primeiro').closest('li')).toHaveStyle({
+      backgroundColor: '#FCE4D3',
+    });
+  });
+
+  it('shows ruled process labels and a technical kicker', () => {
+    renderBlock({
+      variant: 'process-steps',
+      title: 'Etapas',
+      appearance: 'ruled',
+      items: [
+        { title: 'Primeiro', body: 'A', label: 'Escuta' },
+        { title: 'Segundo', body: 'B' },
+      ],
+    });
+    expect(screen.getByText(/Escuta/)).toBeInTheDocument();
+    expect(screen.getByTestId('steps')).toHaveClass('border-y');
+    renderBlock({
+      variant: 'technical-callout',
+      title: 'Detalhe',
+      factsPlacement: 'kicker',
+      facts: [{ value: '01', label: 'Proteção' }],
+    });
+    expect(screen.getByText('Proteção')).toBeInTheDocument();
+  });
   it.each(VARIANTS)(
     'renders the $variant variant with its title as the section heading',
     (data) => {

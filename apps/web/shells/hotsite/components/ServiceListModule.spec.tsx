@@ -32,6 +32,38 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
 }
 
 describe('ServiceListModule', () => {
+  it('uses three columns and individually tinted feature cards when requested', () => {
+    const { container } = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards', cardColumns: 3, cardTone: 'tinted' })}
+        slug="tenant"
+        services={[makeService(), makeService({ id: '00000000-0000-0000-0000-000000000002' })]}
+        tints={[
+          { background: '#FCE4D3', text: '#3C2A24' },
+          { background: '#DCEFDC', text: '#3C2A24' },
+          { background: '#ECDFFD', text: '#3C2A24' },
+        ]}
+      />,
+    );
+    expect(container.querySelector('ul')).toHaveClass('md:grid-cols-3');
+    const cards = screen.getAllByTestId('feature-service-card');
+    expect(cards[0]).toHaveStyle({ backgroundColor: '#FCE4D3', color: '#3C2A24' });
+    expect(cards[1]).toHaveStyle({ backgroundColor: '#DCEFDC' });
+  });
+
+  it('renders ruled service cards as direct list items with visible numbers', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ cardTone: 'ruled' })}
+        slug="tenant"
+        services={[makeService()]}
+      />,
+    );
+    const list = screen.getByTestId('ruled-service-list');
+    expect(list.querySelectorAll(':scope > li')).toHaveLength(1);
+    expect(list.querySelector('li li')).toBeNull();
+    expect(screen.getByText('01')).toBeInTheDocument();
+  });
   it('renders cards from the provided services', () => {
     renderWithIntl(
       <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,

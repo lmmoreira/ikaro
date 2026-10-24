@@ -75,24 +75,24 @@ describe('GalleryConfigPanel', () => {
   });
 
   describe('"Destaque" layout (M18-S07)', () => {
-    it('disables the "Destaque" pill and shows the "requires at least 5" hint below 5 images', () => {
+    it('disables the "Destaque" pill and shows the minimum-image hint below 3 images', () => {
       renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
 
       expect(getPillOption('gallery-layout', 'featured')).toBeDisabled();
-      expect(screen.getByText('O layout Destaque exige pelo menos 5 imagens.')).toBeInTheDocument();
+      expect(screen.getByText('O layout Destaque exige pelo menos 3 imagens.')).toBeInTheDocument();
     });
 
-    it('enables the "Destaque" pill and hides the "requires at least 5" hint at exactly 5 images', () => {
+    it('enables the "Destaque" pill and hides the minimum-image hint at exactly 3 images', () => {
       renderWithIntl(
         <GalleryConfigPanel
-          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES })}
+          data={writeModuleData({ ...GALLERY, images: FIVE_IMAGES.slice(0, 3) })}
           onChange={vi.fn()}
         />,
       );
 
       expect(getPillOption('gallery-layout', 'featured')).not.toBeDisabled();
       expect(
-        screen.queryByText('O layout Destaque exige pelo menos 5 imagens.'),
+        screen.queryByText('O layout Destaque exige pelo menos 3 imagens.'),
       ).not.toBeInTheDocument();
     });
 
@@ -181,12 +181,12 @@ describe('GalleryConfigPanel', () => {
     // grid fallback on the live site (GalleryModule's effectiveLayout) — the position selector
     // must not stay visibly editable for a layout that isn't currently active (Copilot + CodeRabbit
     // review, PR #329).
-    it('does not render the position pill when layout is "featured" but fewer than 5 images remain', () => {
+    it('does not render the position pill when layout is "featured" but fewer than 3 images remain', () => {
       renderWithIntl(
         <GalleryConfigPanel
           data={writeModuleData({
             ...GALLERY,
-            images: FIVE_IMAGES.slice(0, 3),
+            images: FIVE_IMAGES.slice(0, 2),
             layout: 'featured',
           })}
           onChange={vi.fn()}

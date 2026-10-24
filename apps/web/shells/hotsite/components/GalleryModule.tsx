@@ -97,22 +97,12 @@ function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
       : count === 4
         ? ['big', 's1', 's2', 's3']
         : FEATURED_GRID_AREAS;
-  const template =
-    count === 3 ? "'big s1' 'big s2'" : count === 4 ? "'big s1 s2' 'big s3 s3'" : undefined;
   return (
     <GalleryGrid maxVisible={count} totalImages={count}>
       <div
         className="gallery-featured-grid gap-3"
         data-featured-position={data.featuredPosition ?? 'left'}
         data-featured-count={count}
-        style={
-          template
-            ? {
-                gridTemplateAreas: template,
-                gridTemplateColumns: count === 3 ? '1.45fr .72fr' : '1.45fr .72fr .72fr',
-              }
-            : undefined
-        }
       >
         {data.images.slice(0, 5).map((image, i) => (
           <a

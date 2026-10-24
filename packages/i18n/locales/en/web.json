@@ -1403,7 +1403,7 @@
             "layoutGrid": "Grid",
             "layoutMasonry": "Masonry",
             "layoutFeatured": "Featured",
-            "featuredRequiresFiveImages": "The Featured layout requires at least 5 images.",
+            "featuredRequiresThreeImages": "The Featured layout requires at least 3 images.",
             "featuredUsesFirstFiveImages": "The Featured layout uses only the first 5 images.",
             "featuredPositionLabel": "Featured photo position",
             "featuredPositionLeft": "Left",
