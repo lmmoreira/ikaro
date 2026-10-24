@@ -77,7 +77,6 @@ export function AboutModule({
           loading="lazy"
           sizes="(min-width: 768px) 50vw, 100vw"
           className="object-cover"
-          style={{ objectPosition: `${imagePosition} center` }}
         />
       </div>
     );

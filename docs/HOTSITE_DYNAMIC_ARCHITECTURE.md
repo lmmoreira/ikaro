@@ -140,8 +140,9 @@ export function applyBranding(branding: HotsiteBrandingResponse): React.CSSPrope
     '--ba-body-font':     FONT_MAP[branding.bodyFontFamily]    ?? FONT_MAP['Inter'],
     '--ba-radius':        BORDER_RADIUS[branding.borderRadius],
     '--ba-btn-radius':    BORDER_RADIUS[branding.buttonRadius ?? branding.borderRadius],
-    '--ba-heading-weight': String(branding.headingWeight ?? 700),
-    '--ba-heading-transform': branding.headingTransform ?? 'none',
+    // Emitted only when set: an unset weight leaves each heading its own (semibold card titles stay 600)
+    ...(branding.headingWeight ? { '--ba-heading-weight': String(branding.headingWeight) } : {}),
+    ...(branding.headingTransform ? { '--ba-heading-transform': branding.headingTransform } : {}),
     '--ba-section-py':    SECTION_PY[branding.spacing],
     '--ba-shadow':        SHADOW[branding.shadowStyle],
     '--ba-btn-variant':   branding.buttonStyle,
@@ -376,7 +377,7 @@ interface AboutModuleData {
   eyebrow?: string;                       // short label above the heading
   imageUrl?: string | null;               // GCS URL — team/owner photo (null clears it)
   imagePosition: 'left' | 'right';       // default: 'right'
-  variant?: 'split' | 'editorial';       // TD56; omitted => 'split' (today's behaviour); imagePosition applies inside 'split'
+  variant?: 'split' | 'editorial' | 'bleed'; // TD56; omitted => 'split' (today's behaviour); imagePosition applies inside 'split' and 'bleed'. 'bleed' = edge-to-edge photo column beside the copy, stacked on mobile
 }
 ```
 
@@ -586,6 +587,8 @@ For a full-bleed photo with copy over it, use `variant: 'centered'`, `contentPos
 
 **Contrast.** `deriveSectionTokens()` (`apply-branding.ts`) derives a section's text, card and divider colours from its surface — the better-contrasting of the branding background/text colours, falling back to black or white — so text and card text always meet 4.5:1 and nothing is rejected. They are scoped custom properties (`--ba-section-*`) set on the section element, never an override of the global `--ba-*` tokens. A photo with an explicit overlay derives text tokens from the overlay colour and opacity at the copy's horizontal or vertical anchor, composited over the section surface. Averaging the entire gradient would choose dark text for Clínica Lume's dark left edge over a light surface. The renderer applies a minimum scrim to a photo without an explicit overlay. `sectionTints()` derives three tinted card and tile backgrounds from the brand and the actual section surface, then pairs each with text meeting 4.5:1.
 
+**Text over an overlay and the top bar (TD56 Story 6).** When a section has a background photo and an explicit `presentation.overlay`, its text tokens are derived from the overlay colour and opacity at the copy's content anchor (`contentPositionX/Y`, else `align`) composited over the section surface (`deriveOverlayTextTokens`), so a dark overlay on a light palette gets light text with no `surface: custom` workaround. The top bar, navigation and footer read `--ba-secondary-text`, `--ba-secondary-divider` and `--ba-secondary-accent`, which fall back to a readable colour when `textColor` is close to `secondaryColor`; `FOOTER.presentation.surface` (and `customColor`) chooses an intentional footer surface.
+
 ### Validation: where each layer stops (TD56)
 
 `HotsiteModuleSchema` (`packages/validation/src/hotsite-modules.ts`) is one `z.discriminatedUnion('type')` over all twelve types and replaces the former unconstrained `data: z.record()`. The two TD56 types (`NAVIGATION`, `CONTENT_BLOCK`), the section `presentation` and the service detail-page settings are strict objects defined **once**, in `packages/types/src/hotsite-schemas.ts`, and imported by both `@ikaro/validation` and `apps/web` (which never imports `@ikaro/validation`). The ten older modules use loose objects whose declared keys are fully validated (required fields, enums, bounds) while unknown keys are tolerated — as the web schemas always did — and stay an independent mirror in `module-schemas.ts`; the fixtures in `@ikaro/types/testing/hotsite-module-contract` are run by both specs, so a case accepted by one set and rejected by the other fails a test. A stored layout that violated the old web schemas is rejected on its next save.
@@ -699,7 +702,7 @@ Sections stay viewport-wide: their background, colour and divider belong to the 
 
 **Navigation.** `NAVIGATION` links and its optional CTA render inside the one top bar, never as a second header: `HotsiteAuthBar` (all three of its states — loading skeleton, signed-out, signed-in) and the editor preview's inert `HotsiteAuthBarSignedOut` both host `HotsiteNavigation`, which shows them inline from `md` up and in a `<details>` menu below it (closing on Escape, an outside click and a link tap). Section-link hrefs are absolute to the home page (`/{slug}#service-list`), so they work from `/booking` and `/booking/availability-alert`, whose pages resolve the same links with `resolveManifestNavigation(manifest)`. `/lead-form` shows none when its public manifest stubs `layout: []`.
 
-**Strong variants.** The closed `variant` / `layout` values added by TD56 are real layouts, not labels: Hero / Booking CTA / Lead Form `immersive` (the centered composition pinned bottom-left over a full-bleed photo, taller, larger title), Service List `numbered` (ordered price menu) and `feature-cards`, Gallery `portfolio` (an asymmetric 12-column rhythm repeating every four tiles), Testimonials `editorial-quote` (pull-quotes in the heading font), About `editorial` (a single long-form column). `CONTENT_BLOCK` renders its six variants in `ContentBlockModule.tsx`; manager-written Markdown (About, CONTENT_BLOCK bodies, the service long description in a later story) goes through the one restricted renderer, `RestrictedMarkdown` (paragraphs, emphasis, lists and links; no raw HTML, no images; links `rel="noopener noreferrer nofollow"`).
+**Strong variants.** The closed `variant` / `layout` values added by TD56 are real layouts, not labels: Hero / Booking CTA / Lead Form `immersive` (the centered composition pinned bottom-left over a full-bleed photo, taller, larger title), Service List `numbered` (ordered price menu) and `feature-cards`, Gallery `portfolio` (an asymmetric 12-column rhythm repeating every four tiles), Testimonials `editorial-quote` (pull-quotes in the heading font), About `editorial` (a single long-form column) and `bleed` (a full-height photo column beside the copy, no radius, stacked on mobile). `CONTENT_BLOCK` renders its six variants in `ContentBlockModule.tsx`; manager-written Markdown (About, CONTENT_BLOCK bodies, the service long description in a later story) goes through the one restricted renderer, `RestrictedMarkdown` (paragraphs, emphasis, lists and links; no raw HTML, no images; links `rel="noopener noreferrer nofollow"`).
 
 ### Booking flow architecture (`/[slug]/booking`, M22–M23)
 

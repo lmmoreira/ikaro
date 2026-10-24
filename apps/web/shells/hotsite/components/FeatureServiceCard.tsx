@@ -26,12 +26,13 @@ export function FeatureServiceCard({
 }: FeatureServiceCardProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const { duration, price } = useServiceDurationAndPrice(service);
+  const activeTint = tone === 'tinted' ? tint : undefined;
   return (
     <li
       className="flex flex-col gap-3 border-t-4 p-8"
       style={{
-        backgroundColor: tone === 'tinted' && tint ? tint.background : cardBg,
-        ...(tone === 'tinted' && tint ? { color: tint.text } : {}),
+        backgroundColor: activeTint ? activeTint.background : cardBg,
+        ...(activeTint ? { color: activeTint.text } : {}),
         borderColor: 'var(--ba-primary)',
         borderRadius: 'var(--ba-radius)',
         boxShadow: 'var(--ba-shadow)',
@@ -40,7 +41,7 @@ export function FeatureServiceCard({
     >
       <h3
         className="text-2xl font-bold"
-        style={{ ...sectionHeadingStyle, ...(tint ? { color: 'inherit' } : {}) }}
+        style={{ ...sectionHeadingStyle, ...(activeTint ? { color: 'inherit' } : {}) }}
       >
         {service.name}
       </h3>
@@ -51,7 +52,7 @@ export function FeatureServiceCard({
         {showPrices && (
           <span
             className="text-2xl font-bold"
-            style={{ color: tint ? 'inherit' : 'var(--ba-primary)' }}
+            style={{ color: activeTint ? 'inherit' : 'var(--ba-primary)' }}
             data-testid="price-badge"
           >
             {price}

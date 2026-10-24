@@ -86,8 +86,9 @@ describe('applyBranding', () => {
     const strong = applyBranding(
       makeBranding({ headingWeight: 900, headingTransform: 'uppercase' }),
     ) as CSSTokens;
-    expect(unchanged['--ba-heading-weight']).toBe('700');
-    expect(unchanged['--ba-heading-transform']).toBe('none');
+    // Not emitted when unset, so each heading keeps its own weight (semibold card titles stay 600).
+    expect(unchanged).not.toHaveProperty('--ba-heading-weight');
+    expect(unchanged).not.toHaveProperty('--ba-heading-transform');
     expect(strong['--ba-heading-weight']).toBe('900');
     expect(strong['--ba-heading-transform']).toBe('uppercase');
   });

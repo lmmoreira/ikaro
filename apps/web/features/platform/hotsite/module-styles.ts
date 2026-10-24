@@ -17,6 +17,12 @@ export const sectionHeadingStyle: React.CSSProperties = {
   textTransform: 'var(--ba-heading-transform, none)',
 };
 
+// Card/step titles are semibold today; the branding weight, when set, still wins.
+export const sectionHeadingStyle600: React.CSSProperties = {
+  ...sectionHeadingStyle,
+  fontWeight: 'var(--ba-heading-weight, 600)',
+};
+
 // The section's own background while `presentation.surface` is unset: the default tenant
 // background, or the secondary one on an alternate section.
 export function legacySectionBackground(bgVariant: 'default' | 'alt' | undefined): string {

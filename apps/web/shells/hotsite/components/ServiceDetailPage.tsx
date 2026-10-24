@@ -135,7 +135,10 @@ export function ServiceDetailPage({
           </div>
         )}
 
-        <h1 className="mt-5 text-3xl font-extrabold leading-tight" style={headingStyle}>
+        <h1
+          className="mt-5 text-3xl font-extrabold leading-tight"
+          style={{ ...headingStyle, fontWeight: 'var(--ba-heading-weight, 800)' }}
+        >
           {service.name}
         </h1>
         {service.description && (

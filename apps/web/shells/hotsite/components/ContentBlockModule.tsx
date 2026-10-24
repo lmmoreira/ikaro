@@ -5,6 +5,7 @@ import {
   LEGACY_SECTION_PADDING,
   legacySectionBackground,
   sectionHeadingStyle,
+  sectionHeadingStyle600,
   sectionTextColor,
 } from '@/features/platform/hotsite/module-styles';
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
@@ -176,7 +177,7 @@ function VariantBody({
                   {String(index + 1).padStart(2, '0')}
                 </span>
               )}
-              <h3 className="mb-2 text-lg font-semibold" style={sectionHeadingStyle}>
+              <h3 className="mb-2 text-lg font-semibold" style={sectionHeadingStyle600}>
                 {item.title}
               </h3>
               <p className="text-sm opacity-80">{item.body}</p>

@@ -510,4 +510,37 @@ describe('ServiceListModule item action', () => {
       },
     );
   });
+
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(<ServiceListModule data={makeData({ title: '' })} slug="t" services={[]} />);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
+
+  it('keeps plain feature cards on the primary price colour even when tints are supplied', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards' })}
+        slug="t"
+        services={[makeService()]}
+        tints={[
+          { background: '#FCE4D3', text: '#3C2A24' },
+          { background: '#DCEFDC', text: '#3C2A24' },
+          { background: '#ECDFFD', text: '#3C2A24' },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('price-badge')).toHaveStyle({ color: 'var(--ba-primary)' });
+  });
+
+  it('renders the ruled card action as a text link', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ cardTone: 'ruled', itemAction: 'booking' })}
+        slug="t"
+        services={[makeService()]}
+      />,
+    );
+    expect(screen.getByTestId('service-action')).toHaveStyle({ color: 'var(--ba-primary)' });
+    expect(screen.getByTestId('service-action').className).not.toContain('border-2');
+  });
 });

@@ -78,9 +78,11 @@ export function ServiceListModule({
           <SectionEyebrow text={data.eyebrow} />
         </div>
       )}
-      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-        {title}
-      </h2>
+      {title !== '' && (
+        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+          {title}
+        </h2>
+      )}
       {services.length === 0 ? (
         <p className="text-center opacity-75">{t('services.empty')}</p>
       ) : (

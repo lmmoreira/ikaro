@@ -457,4 +457,9 @@ describe('GalleryModule portfolio layout', () => {
 
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(<GalleryModule data={makeData({ title: '' })} slug="t" />);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
 });

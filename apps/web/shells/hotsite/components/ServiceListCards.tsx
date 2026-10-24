@@ -1,14 +1,14 @@
 import { useTranslations } from 'next-intl';
 import type React from 'react';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
-import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
+import { sectionHeadingStyle600 } from '@/features/platform/hotsite/module-styles';
 import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
 import { FeatureServiceCard } from './FeatureServiceCard';
 import { ServiceActionLink, type ServiceCardAction } from './ServiceActionLink';
 export type { ServiceCardAction } from './ServiceActionLink';
 import type { SectionTint } from '@/features/platform/hotsite/section-tints';
 
-const headingStyle = sectionHeadingStyle;
+const headingStyle600 = sectionHeadingStyle600;
 
 // What a service card does. 'booking' (the default): a link into the service-first booking flow with
 // that service preselected (no date), labelled `label`. 'details': a link to the service's own page,
@@ -40,7 +40,7 @@ function ServiceCard({
   };
   return (
     <li className="flex flex-col gap-2 p-6" style={cardStyle}>
-      <h3 className="text-xl font-semibold" style={headingStyle}>
+      <h3 className="text-xl font-semibold" style={headingStyle600}>
         {service.name}
       </h3>
       {service.description && <p className="text-sm opacity-80">{service.description}</p>}
@@ -83,7 +83,7 @@ function RuledServiceCard({
       <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--ba-primary)' }}>
         {String(index + 1).padStart(2, '0')}
       </span>
-      <h3 className="text-xl font-semibold" style={headingStyle}>
+      <h3 className="text-xl font-semibold" style={headingStyle600}>
         {service.name}
       </h3>
       {service.description && <p className="text-sm opacity-80">{service.description}</p>}
@@ -98,7 +98,7 @@ function RuledServiceCard({
           {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
         </p>
       )}
-      {action && <ServiceActionLink service={service} action={action} />}
+      {action && <ServiceActionLink service={service} action={{ ...action, appearance: 'link' }} />}
     </li>
   );
 }
@@ -126,7 +126,7 @@ function NumberedServiceRow({
         {String(index + 1).padStart(2, '0')}
       </span>
       <div>
-        <h3 className="text-xl font-semibold" style={headingStyle}>
+        <h3 className="text-xl font-semibold" style={headingStyle600}>
           {service.name}
         </h3>
         {service.description && <p className="mt-1 text-sm opacity-80">{service.description}</p>}

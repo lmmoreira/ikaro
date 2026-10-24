@@ -59,9 +59,11 @@ export function ContactModule({
           <SectionEyebrow text={data.eyebrow} />
         </div>
       )}
-      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-        {title}
-      </h2>
+      {title !== '' && (
+        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+          {title}
+        </h2>
+      )}
       <div className="grid gap-10 md:grid-cols-2">
         {isIconCards ? (
           <IconCardsLayout
