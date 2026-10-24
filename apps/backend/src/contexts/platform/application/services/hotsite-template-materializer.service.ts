@@ -82,7 +82,7 @@ export class HotsiteTemplateMaterializer {
     draft: HotsiteModule | undefined,
   ): boolean {
     const own = template.layout.find((module) => module.type === 'TESTIMONIALS');
-    if (own === undefined || !own.enabled) return false;
+    if (!own?.enabled) return false;
     return hasItems(this.collection(own, 'items')) && !hasItems(this.collection(draft, 'items'));
   }
 
