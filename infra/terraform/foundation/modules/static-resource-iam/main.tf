@@ -10,6 +10,23 @@ resource "google_storage_bucket_iam_member" "public_viewer" {
   member = "allUsers"
 }
 
+# TD56-S04: create-only access to catalogue assets. Every entry is explicit and
+# conditioned to an object-name prefix, so Foundation never grants bucket-wide
+# write access; objectCreator cannot overwrite or delete existing objects.
+resource "google_storage_bucket_iam_member" "public_member" {
+  for_each = var.public_bucket_members
+
+  bucket = var.public_bucket_name
+  role   = each.value.role
+  member = each.value.member
+
+  condition {
+    title       = each.value.condition.title
+    description = each.value.condition.description
+    expression  = each.value.condition.expression
+  }
+}
+
 resource "google_project_iam_member" "project_member" {
   for_each = var.project_members
 
