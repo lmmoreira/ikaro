@@ -628,7 +628,7 @@ Implemented in `infra/terraform/foundation/modules/static-resource-iam` (new `pu
   - [ ] An applied draft whose previous hotsite had tenant-owned hero/about images schedules deletion of exactly those superseded `tenants/<id>/…` objects on save (documents decision 9), and never of the preserved Gallery images.
   - [ ] Unknown `templateId` returns 404 with the new code and a localized message.
 - Deployment / live check (delivery mechanism):
-  - [ ] The *Live-verification check* above passes against staging before merge review: every manifest path returns 200 anonymously with immutable headers and a matching hash, an overwrite/delete attempt as `app-deployer` returns 403, and a second deploy run is a no-op.
+  - [ ] The *Live-verification check* above passes, in the two parts decided at discovery (the staging objects cannot exist before the first post-merge deploy): **before the merge review**, PR A is applied (both buckets list the conditional `objectCreator` binding, confirmed with `get-iam-policy`); **on the first staging deploy after merge**, every manifest path returns 200 anonymously with immutable headers and a matching hash, the deployer's overwrite of a released object is refused with 403 (`--check-immutability`; overwriting needs `storage.objects.delete`, so this one refusal also proves delete is not granted, and no delete is attempted because a mistaken grant would make it destructive), and a second deploy run is a no-op.
   - [ ] Production's promote workflow runs the sync and `--verify` steps against `ikaro-public-prod` and fails on any mismatch.
   - [ ] The local/CI seed makes every manifest path resolvable in the GCS emulator (asserted in the E2E below).
 - Tenant isolation:

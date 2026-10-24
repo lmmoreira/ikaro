@@ -83,8 +83,7 @@ export class HotsiteTemplateMaterializer {
   ): boolean {
     const own = template.layout.find((module) => module.type === 'TESTIMONIALS');
     if (own === undefined || !own.enabled) return false;
-    const draftItems = draft === undefined ? undefined : this.collection(draft, 'items');
-    return hasItems(this.collection(own, 'items')) && !hasItems(draftItems);
+    return hasItems(this.collection(own, 'items')) && !hasItems(this.collection(draft, 'items'));
   }
 
   // The template's palette, typography, shape and rhythm; the draft's identity (name, tagline,
@@ -118,8 +117,8 @@ export class HotsiteTemplateMaterializer {
     };
   }
 
-  private collection(module: HotsiteModule, field: 'images' | 'items'): Collection {
-    return (module.data as Record<string, Collection>)[field];
+  private collection(module: HotsiteModule | undefined, field: 'images' | 'items'): Collection {
+    return (module?.data as Record<string, Collection> | undefined)?.[field];
   }
 
   // Two template choices can clash with tenant data the template must not change; both resolve to
