@@ -163,25 +163,42 @@ describe('useHotsiteTemplateApplication', () => {
       await waitFor(() => expect(result.current.controller.isApplying).toBe(false));
     });
 
-    // The response can arrive after the manager kept editing; the undo step must hold what the
-    // draft really was, not what it was when the card was clicked.
-    it('snapshots the draft as it is when the response arrives', async () => {
-      let resolve: (value: ApplyHotsiteTemplateResponse) => void = () => undefined;
-      vi.mocked(applyHotsiteTemplate).mockReturnValue(
-        new Promise((r) => {
-          resolve = r;
-        }),
-      );
+    // The server keeps the identity and collections of the draft it was sent, so a result computed
+    // from an older draft must never replace a newer one.
+    it('applies again over the current draft when it was edited while the request was in flight', async () => {
+      let resolveFirst: (value: ApplyHotsiteTemplateResponse) => void = () => undefined;
+      vi.mocked(applyHotsiteTemplate)
+        .mockReturnValueOnce(
+          new Promise((r) => {
+            resolveFirst = r;
+          }),
+        )
+        .mockResolvedValueOnce(responseFor('casa47', 'Casa segunda'));
       const { result } = setup();
       act(() => result.current.controller.apply('casa47'));
       await waitFor(() => expect(result.current.controller.isApplying).toBe(true));
 
       act(() => result.current.setDraft((current) => ({ ...current, layout: [hero('editado')] })));
-      await act(async () => resolve(responseFor('casa47', 'Casa')));
-      await waitFor(() => expect(result.current.controller.canUndo).toBe(true));
-      act(() => result.current.controller.undo());
+      await act(async () => resolveFirst(responseFor('casa47', 'Casa primeira')));
 
+      await waitFor(() => expect(result.current.controller.appliedTemplateId).toBe('casa47'));
+      expect(applyHotsiteTemplate).toHaveBeenCalledTimes(2);
+      const [, secondBody] = vi.mocked(applyHotsiteTemplate).mock.calls[1];
+      expect(secondBody.content.layout[0].data.title).toBe('editado');
+      // The stale first result was dropped; only the one computed from the edited draft landed.
+      expect(result.current.draft.layout[0].data.title).toBe('Casa segunda');
+      act(() => result.current.controller.undo());
       expect(result.current.draft.layout[0].data.title).toBe('editado');
+    });
+
+    it('does not repeat the request when the draft is unchanged', async () => {
+      vi.mocked(applyHotsiteTemplate).mockResolvedValue(responseFor('casa47', 'Casa'));
+      const { result } = setup();
+
+      act(() => result.current.controller.apply('casa47'));
+
+      await waitFor(() => expect(result.current.controller.appliedTemplateId).toBe('casa47'));
+      expect(applyHotsiteTemplate).toHaveBeenCalledTimes(1);
     });
   });
 

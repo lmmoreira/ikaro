@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useLayoutEffect, useRef, useState, type MutableRefObject } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import type {
   ApplyHotsiteTemplateResponse,
   HotsiteAdminContentResponse,
@@ -15,6 +15,7 @@ import {
   applyTemplateResult,
   buildApplyRequest,
   countTenantImagesReplacedByTemplate,
+  hasContentChanged,
   restoreUndoSnapshot,
   shouldConfirmUndo,
   undoSnapshotAfterApply,
@@ -24,7 +25,7 @@ import {
 type SetDraft = (
   updater: (current: HotsiteAdminContentResponse) => HotsiteAdminContentResponse,
 ) => void;
-type DraftRef = MutableRefObject<HotsiteAdminContentResponse>;
+type DraftRef = RefObject<HotsiteAdminContentResponse>;
 
 // Everything the template gallery shows and does. One object, so the visual inspector and the
 // detailed Templates tab render the very same session state.
@@ -121,9 +122,16 @@ function useApplyFlow({ latestDraft, tenantId, onApplied }: ApplyFlowArgs) {
 
   const run = (templateId: HotsiteTemplateId): void => {
     setLastRequested(templateId);
+    const sent = latestDraft.current;
     mutation.mutate(
-      { templateId, body: buildApplyRequest(latestDraft.current, tenantId) },
-      { onSuccess: onApplied },
+      { templateId, body: buildApplyRequest(sent, tenantId) },
+      {
+        // The server keeps the draft's identity and collections from what it was sent. If the
+        // manager edited while the request was in flight, applying that result would revert those
+        // edits, so the template is applied again over the current draft instead.
+        onSuccess: (result) =>
+          hasContentChanged(latestDraft.current, sent) ? run(templateId) : onApplied(result),
+      },
     );
   };
   const apply = (templateId: HotsiteTemplateId): void => {

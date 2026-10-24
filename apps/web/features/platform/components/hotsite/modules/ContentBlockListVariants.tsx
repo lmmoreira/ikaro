@@ -7,7 +7,13 @@ import {
   CONTENT_BLOCK_LIMITS,
   clearEmpty,
 } from '@/features/platform/hotsite/content-block-variants';
-import { ListShell, RemoveButton, TextInput, replaceAt } from './ContentBlockFieldParts';
+import {
+  ListShell,
+  RemoveButton,
+  TextInput,
+  replaceAt,
+  useItemKeys,
+} from './ContentBlockFieldParts';
 
 export function TrustGridFields({
   data,
@@ -18,6 +24,7 @@ export function TrustGridFields({
 }): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.contentBlock');
   const limits = CONTENT_BLOCK_LIMITS.trustItems;
+  const itemKeys = useItemKeys(data.items.length);
   return (
     <>
       <PillSelect<NonNullable<ContentBlockTrustGridData['appearance']>>
@@ -37,10 +44,16 @@ export function TrustGridFields({
         min={limits.min}
         max={limits.max}
         addLabel={t('addTrustItem')}
-        onAdd={() => onChange({ ...data, items: [...data.items, { label: '' }] })}
+        onAdd={() => {
+          itemKeys.add();
+          onChange({ ...data, items: [...data.items, { label: '' }] });
+        }}
       >
         {data.items.map((item, index) => (
-          <div key={index} className="space-y-2 rounded-md border border-gray-200 p-3">
+          <div
+            key={itemKeys.keys[index]}
+            className="space-y-2 rounded-md border border-gray-200 p-3"
+          >
             <TextInput
               id={`content-block-item-${index}-label`}
               label={t('trustItemLabel', { position: index + 1 })}
@@ -72,7 +85,10 @@ export function TrustGridFields({
             <RemoveButton
               disabled={data.items.length <= limits.min}
               label={t('removeItem', { position: index + 1 })}
-              onClick={() => onChange({ ...data, items: data.items.filter((_, i) => i !== index) })}
+              onClick={() => {
+                itemKeys.remove(index);
+                onChange({ ...data, items: data.items.filter((_, i) => i !== index) });
+              }}
             />
           </div>
         ))}
@@ -90,6 +106,7 @@ export function ProcessStepsFields({
 }): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.contentBlock');
   const limits = CONTENT_BLOCK_LIMITS.steps;
+  const itemKeys = useItemKeys(data.items.length);
   return (
     <>
       <PillSelect<NonNullable<ContentBlockProcessStepsData['appearance']>>
@@ -109,10 +126,16 @@ export function ProcessStepsFields({
         min={limits.min}
         max={limits.max}
         addLabel={t('addStep')}
-        onAdd={() => onChange({ ...data, items: [...data.items, { title: '', body: '' }] })}
+        onAdd={() => {
+          itemKeys.add();
+          onChange({ ...data, items: [...data.items, { title: '', body: '' }] });
+        }}
       >
         {data.items.map((item, index) => (
-          <div key={index} className="space-y-2 rounded-md border border-gray-200 p-3">
+          <div
+            key={itemKeys.keys[index]}
+            className="space-y-2 rounded-md border border-gray-200 p-3"
+          >
             <TextInput
               id={`content-block-item-${index}-title`}
               label={t('stepTitle', { position: index + 1 })}
@@ -146,7 +169,10 @@ export function ProcessStepsFields({
             <RemoveButton
               disabled={data.items.length <= limits.min}
               label={t('removeItem', { position: index + 1 })}
-              onClick={() => onChange({ ...data, items: data.items.filter((_, i) => i !== index) })}
+              onClick={() => {
+                itemKeys.remove(index);
+                onChange({ ...data, items: data.items.filter((_, i) => i !== index) });
+              }}
             />
           </div>
         ))}

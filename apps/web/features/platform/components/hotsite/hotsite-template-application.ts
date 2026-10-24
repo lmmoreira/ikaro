@@ -70,6 +70,15 @@ export function applyTemplateResult(
   return { ...draft, ...result.content };
 }
 
+// True when the editable presentation of `current` differs from `earlier` — used to notice that
+// the draft was edited while an apply request was in flight.
+export function hasContentChanged(
+  current: HotsiteAdminContentResponse,
+  earlier: HotsiteAdminContentResponse,
+): boolean {
+  return !isStructurallyEqual(contentOf(current), contentOf(earlier));
+}
+
 export interface TemplateUndoSnapshot {
   // The presentation held just before the apply — what Undo puts back.
   readonly before: HotsiteTemplateDraftContent;

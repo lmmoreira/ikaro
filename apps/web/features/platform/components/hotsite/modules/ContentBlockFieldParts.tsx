@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
 
@@ -97,4 +98,30 @@ export function RemoveButton({
 
 export function replaceAt<T>(items: readonly T[], index: number, next: T): T[] {
   return items.map((item, i) => (i === index ? next : item));
+}
+
+// One stable key per item of a bounded list the panel edits, so removing the second of three keeps
+// the first and third rows' inputs (and focus) instead of re-pointing them at shifted data. The data
+// itself carries no id (the closed schema has no room for one), so the keys live beside it; the
+// same approach as TestimonialsConfigPanel. If the list length is changed from outside, the missing
+// keys fall back to positions, which is still unique.
+export interface ItemKeys {
+  readonly keys: readonly string[];
+  readonly add: () => void;
+  readonly remove: (index: number) => void;
+}
+
+export function useItemKeys(length: number): ItemKeys {
+  const [stored, setStored] = useState<readonly string[]>(() =>
+    Array.from({ length }, () => crypto.randomUUID()),
+  );
+  const keys =
+    stored.length === length
+      ? stored
+      : Array.from({ length }, (_, index) => stored[index] ?? `position-${index}`);
+  return {
+    keys,
+    add: () => setStored([...keys, crypto.randomUUID()]),
+    remove: (index) => setStored(keys.filter((_, i) => i !== index)),
+  };
 }

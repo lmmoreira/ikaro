@@ -1,9 +1,15 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { act, renderHook, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
-import { ListShell, RemoveButton, TextInput, replaceAt } from './ContentBlockFieldParts';
+import {
+  ListShell,
+  RemoveButton,
+  TextInput,
+  replaceAt,
+  useItemKeys,
+} from './ContentBlockFieldParts';
 
 describe('TextInput', () => {
   it('is labelled, bounded, and reports what is typed', async () => {
@@ -87,5 +93,52 @@ describe('replaceAt', () => {
 
     expect(replaceAt(items, 1, 'x')).toEqual(['a', 'x', 'c']);
     expect(items).toEqual(['a', 'b', 'c']);
+  });
+});
+
+describe('useItemKeys', () => {
+  it('gives each item its own key', () => {
+    const { result } = renderHook(() => useItemKeys(3));
+
+    expect(new Set(result.current.keys).size).toBe(3);
+  });
+
+  it('adds a fresh key without touching the others', () => {
+    const { result, rerender } = renderHook(({ length }) => useItemKeys(length), {
+      initialProps: { length: 2 },
+    });
+    const before = [...result.current.keys];
+
+    act(() => result.current.add());
+    rerender({ length: 3 });
+
+    expect(result.current.keys.slice(0, 2)).toEqual(before);
+    expect(new Set(result.current.keys).size).toBe(3);
+  });
+
+  // The point of stable keys: removing the middle row keeps the rows around it as they were.
+  it('removes the key at an index and keeps the rest in order', () => {
+    const { result, rerender } = renderHook(({ length }) => useItemKeys(length), {
+      initialProps: { length: 3 },
+    });
+    const [first, , third] = result.current.keys;
+
+    act(() => result.current.remove(1));
+    rerender({ length: 2 });
+
+    expect(result.current.keys).toEqual([first, third]);
+  });
+
+  it('still returns one unique key per item if the length changes from outside', () => {
+    const { result, rerender } = renderHook(({ length }) => useItemKeys(length), {
+      initialProps: { length: 2 },
+    });
+    const [first] = result.current.keys;
+
+    rerender({ length: 4 });
+
+    expect(result.current.keys).toHaveLength(4);
+    expect(result.current.keys[0]).toBe(first);
+    expect(new Set(result.current.keys).size).toBe(4);
   });
 });

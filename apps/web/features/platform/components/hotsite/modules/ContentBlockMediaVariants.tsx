@@ -11,7 +11,13 @@ import {
   clearEmpty,
 } from '@/features/platform/hotsite/content-block-variants';
 import { SingleImageUploadField } from '../SingleImageUploadField';
-import { ListShell, RemoveButton, TextInput, replaceAt } from './ContentBlockFieldParts';
+import {
+  ListShell,
+  RemoveButton,
+  TextInput,
+  replaceAt,
+  useItemKeys,
+} from './ContentBlockFieldParts';
 
 export function CollageFields({
   data,
@@ -22,6 +28,7 @@ export function CollageFields({
 }): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.contentBlock');
   const limits = CONTENT_BLOCK_LIMITS.collage;
+  const itemKeys = useItemKeys(data.images.length);
   return (
     <ListShell
       title={t('collageLabel')}
@@ -30,10 +37,13 @@ export function CollageFields({
       min={limits.min}
       max={limits.max}
       addLabel={t('addImage')}
-      onAdd={() => onChange({ ...data, images: [...data.images, { url: '' }] })}
+      onAdd={() => {
+        itemKeys.add();
+        onChange({ ...data, images: [...data.images, { url: '' }] });
+      }}
     >
       {data.images.map((image, index) => (
-        <div key={index} className="space-y-2 rounded-md border border-gray-200 p-3">
+        <div key={itemKeys.keys[index]} className="space-y-2 rounded-md border border-gray-200 p-3">
           <SingleImageUploadField
             id={`content-block-image-${index}`}
             value={image.url}
@@ -64,7 +74,10 @@ export function CollageFields({
           <RemoveButton
             disabled={data.images.length <= limits.min}
             label={t('removeImage', { position: index + 1 })}
-            onClick={() => onChange({ ...data, images: data.images.filter((_, i) => i !== index) })}
+            onClick={() => {
+              itemKeys.remove(index);
+              onChange({ ...data, images: data.images.filter((_, i) => i !== index) });
+            }}
           />
         </div>
       ))}
@@ -82,6 +95,7 @@ export function TechnicalCalloutFields({
   const t = useTranslations('dashboard.hotsitePage.layout.panels.contentBlock');
   const limits = CONTENT_BLOCK_LIMITS.facts;
   const facts = data.facts ?? [];
+  const itemKeys = useItemKeys(facts.length);
   return (
     <>
       <PillSelect<NonNullable<ContentBlockTechnicalCalloutData['factsPlacement']>>
@@ -101,10 +115,16 @@ export function TechnicalCalloutFields({
         min={0}
         max={limits.max}
         addLabel={t('addFact')}
-        onAdd={() => onChange({ ...data, facts: [...facts, { value: '', label: '' }] })}
+        onAdd={() => {
+          itemKeys.add();
+          onChange({ ...data, facts: [...facts, { value: '', label: '' }] });
+        }}
       >
         {facts.map((fact, index) => (
-          <div key={index} className="space-y-2 rounded-md border border-gray-200 p-3">
+          <div
+            key={itemKeys.keys[index]}
+            className="space-y-2 rounded-md border border-gray-200 p-3"
+          >
             <TextInput
               id={`content-block-fact-${index}-value`}
               label={t('factValue', { position: index + 1 })}
@@ -126,7 +146,10 @@ export function TechnicalCalloutFields({
             <RemoveButton
               disabled={false}
               label={t('removeFact', { position: index + 1 })}
-              onClick={() => onChange({ ...data, facts: facts.filter((_, i) => i !== index) })}
+              onClick={() => {
+                itemKeys.remove(index);
+                onChange({ ...data, facts: facts.filter((_, i) => i !== index) });
+              }}
             />
           </div>
         ))}

@@ -13,6 +13,7 @@ import {
   buildApplyRequest,
   contentOf,
   countTenantImagesReplacedByTemplate,
+  hasContentChanged,
   restoreUndoSnapshot,
   shouldConfirmUndo,
   undoSnapshotAfterApply,
@@ -146,6 +147,28 @@ describe('buildApplyRequest', () => {
     const { content } = buildApplyRequest(draftOf([]), TENANT);
 
     expect(Object.keys(content).sort()).toEqual(['branding', 'layout', 'seo']);
+  });
+});
+
+describe('hasContentChanged', () => {
+  it('is false for the same presentation, whatever the key order, and ignores non-presentation fields', () => {
+    const a = draftOf([module('HERO', { title: 'x', ctaLabel: 'y' })]);
+    const b = {
+      ...draftOf([module('HERO', { ctaLabel: 'y', title: 'x' })]),
+      isPublished: false,
+    };
+
+    expect(hasContentChanged(a, b)).toBe(false);
+  });
+
+  it('is true when the layout, branding or SEO differ', () => {
+    const base = draftOf([module('HERO', { title: 'x' })]);
+
+    expect(hasContentChanged(draftOf([module('HERO', { title: 'z' })]), base)).toBe(true);
+    expect(
+      hasContentChanged({ ...base, branding: { ...base.branding, primaryColor: '#999999' } }, base),
+    ).toBe(true);
+    expect(hasContentChanged({ ...base, seo: { ...base.seo, title: 'novo' } }, base)).toBe(true);
   });
 });
 

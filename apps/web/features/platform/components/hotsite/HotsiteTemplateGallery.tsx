@@ -84,9 +84,9 @@ function CatalogueBody({
 
   if (controller.isLoading) {
     return (
-      <p role="status" data-testid="template-loading" className="text-sm text-gray-500">
+      <output data-testid="template-loading" className="block text-sm text-gray-500">
         {t('loading')}
-      </p>
+      </output>
     );
   }
   if (controller.isError || !controller.templates) {
@@ -143,13 +143,12 @@ export function HotsiteTemplateGallery({
       </div>
 
       {controller.showSampleNotice && (
-        <p
-          role="status"
+        <output
           data-testid="template-sample-notice"
-          className="rounded-md bg-amber-50 p-3 text-sm text-amber-800"
+          className="block rounded-md bg-amber-50 p-3 text-sm text-amber-800"
         >
           {t('sampleNotice')}
-        </p>
+        </output>
       )}
 
       {controller.applyFailed && (
