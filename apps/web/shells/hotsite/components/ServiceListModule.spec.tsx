@@ -564,4 +564,18 @@ describe('ServiceListModule item action', () => {
     );
     expect(explicit.container.innerHTML).toBe(html);
   });
+
+  it('starts each ruled row without a left rule and rules off rows after the first', () => {
+    const services = [1, 2, 3, 4].map((n) =>
+      makeService({ id: `00000000-0000-0000-0000-00000000000${n}` }),
+    );
+    const { container } = renderWithIntl(
+      <ServiceListModule data={makeData({ cardTone: 'ruled' })} slug="t" services={services} />,
+    );
+    const items = container.querySelectorAll('[data-testid="ruled-service-list"] > li');
+    expect(items[0]).not.toHaveClass('md:border-l');
+    expect(items[1]).toHaveClass('md:border-l');
+    expect(items[3]).not.toHaveClass('md:border-l');
+    expect(items[3]).toHaveClass('md:border-t');
+  });
 });

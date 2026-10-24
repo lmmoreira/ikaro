@@ -77,7 +77,8 @@ function RuledServiceCard({
   const { duration, price } = useDurationAndPrice(service);
   return (
     <li
-      className={`flex flex-col gap-3 p-7 ${index ? 'md:border-l' : ''}`}
+      // Three columns: a rule between neighbours in a row, and a top rule on every row after the first.
+      className={`flex flex-col gap-3 p-7 ${index % 3 ? 'md:border-l' : ''} ${index >= 3 ? 'md:border-t' : ''}`}
       style={{ borderColor: 'var(--ba-section-divider, var(--ba-divider, rgba(0,0,0,0.15)))' }}
     >
       <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--ba-primary)' }}>
