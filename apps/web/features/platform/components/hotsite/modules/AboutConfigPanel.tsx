@@ -64,6 +64,18 @@ export function AboutConfigPanel({ data, onChange }: ModuleConfigPanelProps): Re
       </div>
 
       <PillSelect
+        label={t('variantLabel')}
+        value={about.variant ?? 'split'}
+        onChange={(variant) => update({ variant })}
+        testId="about-variant"
+        options={[
+          { value: 'split', label: t('variantSplit') },
+          { value: 'editorial', label: t('variantEditorial') },
+          { value: 'bleed', label: t('variantBleed') },
+        ]}
+      />
+
+      <PillSelect
         label={t('imagePositionLabel')}
         value={about.imagePosition}
         onChange={(imagePosition) => update({ imagePosition })}

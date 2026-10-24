@@ -1283,7 +1283,14 @@
         "dividerStyleLabel": "Divisor entre seções",
         "dividerStyleNone": "Nenhum",
         "dividerStyleGradient": "Gradiente",
-        "dividerStyleSolid": "Sólido"
+        "dividerStyleSolid": "Sólido",
+        "borderRadiusSoft": "Suaves",
+        "buttonRadiusLabel": "Cantos dos botões",
+        "buttonRadiusInherit": "Igual aos cantos",
+        "headingWeightLabel": "Peso dos títulos",
+        "headingWeightAuto": "Automático",
+        "headingUppercaseLabel": "Títulos em maiúsculas",
+        "headingUppercaseHint": "Exibe os títulos das seções em letras maiúsculas."
       },
       "layout": {
         "configureLabel": "Configurar",
@@ -1392,7 +1399,16 @@
             "showPointsLabel": "Mostrar pontos de fidelidade",
             "layoutLabel": "Layout",
             "layoutGrid": "Grade",
-            "layoutList": "Lista"
+            "layoutList": "Lista",
+            "layoutNumbered": "Numerada",
+            "layoutFeatureCards": "Cartões em destaque",
+            "cardColumnsLabel": "Colunas",
+            "cardColumnsTwo": "2 colunas",
+            "cardColumnsThree": "3 colunas",
+            "cardToneLabel": "Estilo dos cartões",
+            "cardTonePlain": "Simples",
+            "cardToneTinted": "Coloridos",
+            "cardToneRuled": "Com filetes"
           },
           "gallery": {
             "titleLabel": "Título (opcional)",
@@ -1495,7 +1511,11 @@
             "imageFormatHint": "PNG ou JPG",
             "imageUploading": "Enviando...",
             "imageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
-            "imageRemove": "Remover imagem"
+            "imageRemove": "Remover imagem",
+            "variantLabel": "Estilo da seção",
+            "variantSplit": "Imagem ao lado",
+            "variantEditorial": "Editorial",
+            "variantBleed": "Imagem de borda a borda"
           },
           "contact": {
             "titleLabel": "Título (opcional)",
