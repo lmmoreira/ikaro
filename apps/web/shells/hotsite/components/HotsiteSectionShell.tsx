@@ -2,6 +2,7 @@ import Image from 'next/image';
 import type React from 'react';
 import type { HotsiteModulePresentation } from '@ikaro/types';
 import type { SectionTokens } from '@/features/platform/hotsite/apply-branding';
+import type { SectionTint } from '@/features/platform/hotsite/section-tints';
 import {
   contentWidthClass,
   resolveMinHeight,
@@ -16,9 +17,10 @@ import {
 export interface SectionPresentationProps {
   readonly presentation?: HotsiteModulePresentation;
   readonly sectionTokens?: SectionTokens;
+  readonly tints?: readonly [SectionTint, SectionTint, SectionTint];
 }
 
-interface HotsiteSectionShellProps extends SectionPresentationProps {
+interface HotsiteSectionShellProps extends Omit<SectionPresentationProps, 'tints'> {
   readonly id?: string;
   readonly className?: string;
   readonly dataVariant?: string;
@@ -60,7 +62,7 @@ export function HotsiteSectionShell({
   sectionTokens,
   children,
 }: HotsiteSectionShellProps): React.JSX.Element {
-  const hasSurface = presentation?.surface !== undefined && sectionTokens !== undefined;
+  const hasSurface = sectionTokens !== undefined;
   const backgroundImage = resolvePresentationBackgroundImage(presentation);
   const hasPhoto = backgroundImage !== null || ownBackground !== undefined;
   const scrim = resolveSectionScrim(presentation, hasPhoto);

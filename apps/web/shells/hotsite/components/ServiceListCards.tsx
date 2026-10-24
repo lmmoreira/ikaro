@@ -1,12 +1,14 @@
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import type React from 'react';
-import { buildBookingDeepLinkUrl } from '@ikaro/types';
 import type { HotsiteServiceResponse, ServiceListModuleData } from '@ikaro/types';
-import { sectionHeadingStyle } from '@/features/platform/hotsite/module-styles';
+import { sectionHeadingStyle600 } from '@/features/platform/hotsite/module-styles';
 import { useServiceDurationAndPrice as useDurationAndPrice } from './use-service-duration-and-price';
+import { FeatureServiceCard } from './FeatureServiceCard';
+import { ServiceActionLink, type ServiceCardAction } from './ServiceActionLink';
+export type { ServiceCardAction } from './ServiceActionLink';
+import type { SectionTint } from '@/features/platform/hotsite/section-tints';
 
-const headingStyle = sectionHeadingStyle;
+const headingStyle600 = sectionHeadingStyle600;
 
 // What a service card does. 'booking' (the default): a link into the service-first booking flow with
 // that service preselected (no date), labelled `label`. 'details': a link to the service's own page,
@@ -14,52 +16,12 @@ const headingStyle = sectionHeadingStyle;
 // `publicSlug` then, and null otherwise); any other service falls back to the booking link under
 // `fallbackLabel`, so a card never links to a page that does not exist. Absent means the card has no
 // action, which is today's behaviour.
-export interface ServiceCardAction {
-  readonly slug: string;
-  readonly label: string;
-  readonly kind?: 'booking' | 'details';
-  readonly fallbackLabel?: string;
-}
-
 interface ServiceCardProps {
   readonly service: HotsiteServiceResponse;
   readonly showPrices: boolean;
   readonly showPoints: boolean;
   readonly cardBg: string;
   readonly action?: ServiceCardAction;
-}
-
-const actionStyle: React.CSSProperties = {
-  backgroundColor: 'var(--ba-btn-bg)',
-  color: 'var(--ba-btn-text)',
-  borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
-};
-
-function ServiceActionLink({
-  service,
-  action,
-}: {
-  readonly service: HotsiteServiceResponse;
-  readonly action: ServiceCardAction;
-}): React.JSX.Element {
-  const detailsHref =
-    action.kind === 'details' && service.publicSlug
-      ? `/${action.slug}/servicos/${service.publicSlug}`
-      : null;
-  return (
-    <Link
-      href={detailsHref ?? buildBookingDeepLinkUrl(`/${action.slug}`, { serviceId: service.id })}
-      data-testid="service-action"
-      data-action={detailsHref ? 'details' : 'booking'}
-      style={actionStyle}
-      className="mt-3 inline-block self-start border-2 px-5 py-2 text-sm font-semibold transition-all hover:bg-[var(--ba-btn-hover-bg)] hover:opacity-90"
-    >
-      {detailsHref || action.kind !== 'details'
-        ? action.label
-        : (action.fallbackLabel ?? action.label)}
-    </Link>
-  );
 }
 
 function ServiceCard({
@@ -78,7 +40,7 @@ function ServiceCard({
   };
   return (
     <li className="flex flex-col gap-2 p-6" style={cardStyle}>
-      <h3 className="text-xl font-semibold" style={headingStyle}>
+      <h3 className="text-xl font-semibold" style={headingStyle600}>
         {service.name}
       </h3>
       {service.description && <p className="text-sm opacity-80">{service.description}</p>}
@@ -100,6 +62,44 @@ function ServiceCard({
         </span>
       )}
       {action && <ServiceActionLink service={service} action={action} />}
+    </li>
+  );
+}
+
+function RuledServiceCard({
+  service,
+  index,
+  showPrices,
+  showPoints,
+  action,
+}: Omit<ServiceCardProps, 'cardBg'> & { readonly index: number }): React.JSX.Element {
+  const t = useTranslations('hotsite');
+  const { duration, price } = useDurationAndPrice(service);
+  return (
+    <li
+      // Three columns: a rule between neighbours in a row, and a top rule on every row after the first.
+      className={`flex flex-col gap-3 p-7 ${index % 3 ? 'md:border-l' : ''} ${index >= 3 ? 'md:border-t' : ''}`}
+      style={{ borderColor: 'var(--ba-section-divider, var(--ba-divider, rgba(0,0,0,0.15)))' }}
+    >
+      <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--ba-primary)' }}>
+        {String(index + 1).padStart(2, '0')}
+      </span>
+      <h3 className="text-xl font-semibold" style={headingStyle600}>
+        {service.name}
+      </h3>
+      {service.description && <p className="text-sm opacity-80">{service.description}</p>}
+      <p className="text-sm opacity-75">{duration}</p>
+      {showPrices && (
+        <p className="font-bold" data-testid="price-badge">
+          {price}
+        </p>
+      )}
+      {showPoints && (
+        <p className="text-xs opacity-75" data-testid="loyalty-points-badge">
+          {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
+        </p>
+      )}
+      {action && <ServiceActionLink service={service} action={{ ...action, appearance: 'link' }} />}
     </li>
   );
 }
@@ -127,7 +127,7 @@ function NumberedServiceRow({
         {String(index + 1).padStart(2, '0')}
       </span>
       <div>
-        <h3 className="text-xl font-semibold" style={headingStyle}>
+        <h3 className="text-xl font-semibold" style={headingStyle600}>
           {service.name}
         </h3>
         {service.description && <p className="mt-1 text-sm opacity-80">{service.description}</p>}
@@ -155,57 +155,6 @@ function NumberedServiceRow({
   );
 }
 
-function FeatureServiceCard({
-  service,
-  showPrices,
-  showPoints,
-  cardBg,
-  action,
-}: ServiceCardProps): React.JSX.Element {
-  const t = useTranslations('hotsite');
-  const { duration, price } = useDurationAndPrice(service);
-  return (
-    <li
-      className="flex flex-col gap-3 border-t-4 p-8"
-      style={{
-        backgroundColor: cardBg,
-        borderColor: 'var(--ba-primary)',
-        borderRadius: 'var(--ba-radius)',
-        boxShadow: 'var(--ba-shadow)',
-      }}
-      data-testid="feature-service-card"
-    >
-      <h3 className="text-2xl font-bold" style={headingStyle}>
-        {service.name}
-      </h3>
-      {service.description && (
-        <p className="text-sm leading-relaxed opacity-80">{service.description}</p>
-      )}
-      <div className="mt-auto flex flex-wrap items-end justify-between gap-2 pt-4">
-        {showPrices && (
-          <span
-            className="text-2xl font-bold"
-            style={{ color: 'var(--ba-primary)' }}
-            data-testid="price-badge"
-          >
-            {price}
-          </span>
-        )}
-        <span className="text-xs opacity-75">
-          {duration}
-          {showPoints && (
-            <span data-testid="loyalty-points-badge">
-              {duration ? ' · ' : ''}
-              {t('services.pointsSuffix', { count: service.loyaltyPointsValue })}
-            </span>
-          )}
-        </span>
-      </div>
-      {action && <ServiceActionLink service={service} action={action} />}
-    </li>
-  );
-}
-
 // The services of a Service List in one of its four layouts: grid and list (cards), numbered (a
 // price menu) or feature-cards (large cards).
 export function ServiceItems({
@@ -215,6 +164,9 @@ export function ServiceItems({
   showPoints,
   cardBg,
   action,
+  cardColumns,
+  cardTone,
+  tints,
 }: {
   readonly layout: ServiceListModuleData['layout'];
   readonly services: readonly HotsiteServiceResponse[];
@@ -222,6 +174,9 @@ export function ServiceItems({
   readonly showPoints: boolean;
   readonly cardBg: string;
   readonly action?: ServiceCardAction;
+  readonly cardColumns?: 2 | 3;
+  readonly cardTone?: 'plain' | 'tinted' | 'ruled';
+  readonly tints?: readonly [SectionTint, SectionTint, SectionTint];
 }): React.JSX.Element {
   const shared = { showPrices, showPoints, action };
   if (layout === 'numbered') {
@@ -238,9 +193,18 @@ export function ServiceItems({
   }
   if (layout === 'feature-cards') {
     return (
-      <ul className="grid list-none grid-cols-1 gap-8 md:grid-cols-2">
-        {services.map((service) => (
-          <FeatureServiceCard key={service.id} service={service} cardBg={cardBg} {...shared} />
+      <ul
+        className={`grid list-none grid-cols-1 gap-8 ${cardColumns === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}
+      >
+        {services.map((service, index) => (
+          <FeatureServiceCard
+            key={service.id}
+            service={service}
+            cardBg={cardBg}
+            tone={cardTone === 'tinted' ? 'tinted' : 'plain'}
+            tint={tints?.[index % 3]}
+            {...shared}
+          />
         ))}
       </ul>
     );
@@ -249,6 +213,15 @@ export function ServiceItems({
     layout === 'list'
       ? 'list-none flex flex-col gap-4 max-w-2xl mx-auto'
       : 'list-none grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+  if (layout === 'grid' && cardTone === 'ruled') {
+    return (
+      <ul className="list-none grid grid-cols-1 md:grid-cols-3" data-testid="ruled-service-list">
+        {services.map((service, index) => (
+          <RuledServiceCard key={service.id} service={service} index={index} {...shared} />
+        ))}
+      </ul>
+    );
+  }
   return (
     <ul className={listClassName}>
       {services.map((service) => (

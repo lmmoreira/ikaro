@@ -60,6 +60,8 @@ const ServiceListDataSchema = z.looseObject({
   itemAction: z.enum(['details', 'booking', 'none']).optional(),
   itemCtaLabel: z.string().max(40).optional(),
   detailPage: ServiceDetailPageSettingsSchema.optional(),
+  cardColumns: z.union([z.literal(2), z.literal(3)]).optional(),
+  cardTone: z.enum(['plain', 'tinted', 'ruled']).optional(),
 });
 
 const GalleryImageSchema = z.looseObject({
@@ -119,7 +121,7 @@ const AboutDataSchema = z.looseObject({
   eyebrow: z.string().optional(),
   imageUrl: z.string().nullable().optional(),
   imagePosition: z.enum(['left', 'right']),
-  variant: z.enum(['split', 'editorial']).optional(),
+  variant: z.enum(['split', 'editorial', 'bleed']).optional(),
 });
 
 const ContactDataSchema = z.looseObject({

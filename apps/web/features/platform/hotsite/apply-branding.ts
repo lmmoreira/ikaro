@@ -1,9 +1,14 @@
-import type { HotsiteBrandingResponse, HotsiteSectionSurface } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteOverlayDirection,
+  HotsiteSectionOverlay,
+  HotsiteSectionSurface,
+} from '@ikaro/types';
 import type React from 'react';
 
 import { FONT_MAP } from './font-config';
 
-const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px' };
+const BORDER_RADIUS = { sharp: '0px', rounded: '8px', pill: '9999px', soft: '24px' };
 const SECTION_PY = { compact: '3rem', comfortable: '5rem', spacious: '8rem' };
 const SHADOW = {
   none: 'none',
@@ -151,6 +156,52 @@ export function deriveSectionTokens(
   };
 }
 
+type ContentAnchor = 'left' | 'center' | 'right' | 'top' | 'bottom';
+
+const GRADIENT_END: Record<HotsiteOverlayDirection, ContentAnchor> = {
+  'to-right': 'right',
+  'to-left': 'left',
+  'to-bottom': 'bottom',
+  'to-top': 'top',
+};
+
+// How far along the gradient the copy sits: its end is 1, the opposite end 0, the middle 0.5.
+function gradientFraction(direction: HotsiteOverlayDirection, position: ContentAnchor): number {
+  if (position === 'center') return 0.5;
+  return GRADIENT_END[direction] === position ? 1 : 0;
+}
+
+function overlayAtContent(
+  overlay: HotsiteSectionOverlay,
+  x: ContentAnchor,
+  y: ContentAnchor,
+): { readonly color: string; readonly opacity: number } | null {
+  if (overlay.type === 'none') return null;
+  if (overlay.type === 'solid') return overlay;
+  const position = overlay.direction === 'to-right' || overlay.direction === 'to-left' ? x : y;
+  const fraction = gradientFraction(overlay.direction, position);
+  return {
+    color: mixHex(overlay.fromColor, overlay.toColor, fraction),
+    opacity: overlay.fromOpacity + (overlay.toOpacity - overlay.fromOpacity) * fraction,
+  };
+}
+
+export function deriveOverlayTextTokens(
+  branding: HotsiteBrandingResponse,
+  surface: HotsiteSectionSurface,
+  overlay: HotsiteSectionOverlay,
+  customColor?: string,
+  x: ContentAnchor = 'center',
+  y: ContentAnchor = 'center',
+): SectionTokens {
+  const base = deriveSectionTokens(branding, surface, customColor);
+  const textSide = overlayAtContent(overlay, x, y);
+  if (!textSide) return base;
+  const effective = mixHex(base['--ba-section-bg'], textSide.color, textSide.opacity);
+  const readable = deriveSectionTokens(branding, 'custom', effective);
+  return { ...readable, '--ba-section-bg': base['--ba-section-bg'] };
+}
+
 // CSS value for the divider rendered between sections.
 function deriveDivider(branding: HotsiteBrandingResponse): string {
   if (branding.dividerStyle === 'gradient') {
@@ -166,6 +217,11 @@ export function applyBranding(
   branding: HotsiteBrandingResponse,
 ): React.CSSProperties & Record<`--ba-${string}`, string> {
   const btn = deriveButtonTokens(branding);
+  const secondaryTokens = deriveSectionTokens(branding, 'secondary');
+  const secondaryText =
+    contrastRatio(branding.secondaryColor, branding.textColor) >= MIN_TEXT_CONTRAST
+      ? branding.textColor
+      : secondaryTokens['--ba-section-text'];
   return {
     '--ba-primary': branding.primaryColor,
     '--ba-secondary': branding.secondaryColor,
@@ -174,6 +230,9 @@ export function applyBranding(
     '--ba-heading-font': FONT_MAP[branding.headingFontFamily] ?? FONT_MAP['Inter'],
     '--ba-body-font': FONT_MAP[branding.bodyFontFamily] ?? FONT_MAP['Inter'],
     '--ba-radius': BORDER_RADIUS[branding.borderRadius],
+    '--ba-btn-radius': BORDER_RADIUS[branding.buttonRadius ?? branding.borderRadius],
+    ...(branding.headingWeight ? { '--ba-heading-weight': String(branding.headingWeight) } : {}),
+    ...(branding.headingTransform ? { '--ba-heading-transform': branding.headingTransform } : {}),
     '--ba-section-py': SECTION_PY[branding.spacing],
     '--ba-shadow': SHADOW[branding.shadowStyle],
     '--ba-btn-variant': branding.buttonStyle,
@@ -184,5 +243,11 @@ export function applyBranding(
     '--ba-hero-bg': deriveHeroBg(branding),
     '--ba-hero-text': deriveHeroTextColor(branding),
     '--ba-divider': deriveDivider(branding),
+    '--ba-secondary-text': secondaryText,
+    '--ba-secondary-divider': secondaryTokens['--ba-section-divider'],
+    '--ba-secondary-accent':
+      contrastRatio(branding.secondaryColor, branding.primaryColor) >= MIN_TEXT_CONTRAST
+        ? branding.primaryColor
+        : secondaryText,
   };
 }

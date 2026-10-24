@@ -213,7 +213,7 @@ describe('UpdateHotsiteContentUseCase', () => {
         tenantId: TENANT_A,
         layout: [
           {
-            type: 'FOOTER',
+            type: 'CHATBOT',
             enabled: true,
             data: {},
             presentation: { surface: 'primary' },

@@ -47,7 +47,10 @@ const HEX_COLOR_FIELDS = [
   'textColor',
 ] as const;
 const OPTIONAL_HEX_COLOR_FIELDS = ['buttonBackgroundColor', 'buttonTextColor'] as const;
-const BORDER_RADIUS_VALUES = ['sharp', 'rounded', 'pill'] as const;
+const BORDER_RADIUS_VALUES = ['sharp', 'rounded', 'pill', 'soft'] as const;
+const BUTTON_RADIUS_VALUES = ['sharp', 'rounded', 'pill'] as const;
+const HEADING_WEIGHT_VALUES: readonly number[] = [400, 500, 600, 700, 800, 900];
+const HEADING_TRANSFORM_VALUES = ['none', 'uppercase'] as const;
 const BUTTON_STYLE_VALUES = ['filled', 'outline', 'ghost'] as const;
 const SPACING_VALUES = ['compact', 'comfortable', 'spacious'] as const;
 const SHADOW_STYLE_VALUES = ['none', 'subtle', 'strong'] as const;
@@ -214,6 +217,20 @@ export class HotsiteConfig extends AggregateRoot {
       }
     }
     this.validateEnum('borderRadius', branding.borderRadius, BORDER_RADIUS_VALUES);
+    if (branding.buttonRadius !== undefined) {
+      this.validateEnum('buttonRadius', branding.buttonRadius, BUTTON_RADIUS_VALUES);
+    }
+    if (branding.headingWeight !== undefined) {
+      if (!HEADING_WEIGHT_VALUES.includes(branding.headingWeight)) {
+        throw new HotsiteBrandingOptionInvalidError(
+          'headingWeight',
+          HEADING_WEIGHT_VALUES.map(String),
+        );
+      }
+    }
+    if (branding.headingTransform !== undefined) {
+      this.validateEnum('headingTransform', branding.headingTransform, HEADING_TRANSFORM_VALUES);
+    }
     this.validateEnum('buttonStyle', branding.buttonStyle, BUTTON_STYLE_VALUES);
     this.validateEnum('spacing', branding.spacing, SPACING_VALUES);
     this.validateEnum('shadowStyle', branding.shadowStyle, SHADOW_STYLE_VALUES);

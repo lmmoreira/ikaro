@@ -322,4 +322,24 @@ describe('parseManifestJson — NAVIGATION, CONTENT_BLOCK and presentation', () 
 
     expect(result.success).toBe(true);
   });
+
+  it('keeps the new optional branding tokens instead of stripping them', () => {
+    const result = parseManifestJson(
+      manifestJson({
+        branding: {
+          ...VALID_BRANDING,
+          buttonRadius: 'pill',
+          headingWeight: 900,
+          headingTransform: 'uppercase',
+        },
+      }),
+    );
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.value.branding).toMatchObject({
+      buttonRadius: 'pill',
+      headingWeight: 900,
+      headingTransform: 'uppercase',
+    });
+  });
 });

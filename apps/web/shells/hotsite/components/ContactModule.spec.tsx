@@ -332,4 +332,11 @@ describe('ContactModule section shell', () => {
 
     expect(container.innerHTML).toContain('var(--ba-section-card-bg, var(--ba-secondary))');
   });
+
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(
+      <ContactModule data={makeData({ title: '' })} business={makeBusiness()} slug="t" />,
+    );
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
 });

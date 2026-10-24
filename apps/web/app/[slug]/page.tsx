@@ -9,6 +9,7 @@ import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
   resolveHotsiteNavigation,
+  resolveHotsiteNavigationCta,
   shouldSkipDivider,
 } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata, buildLocalBusinessJsonLd } from '@/features/platform/hotsite/seo';
@@ -76,6 +77,7 @@ export default async function HotsitePage({ params }: HotsitePageProps) {
         logoUrl={branding.logoUrl}
         tenantName={displayName}
         navigation={navigation}
+        navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
       />
       <JsonLdScript data={localBusinessJsonLd} />
       {modulesWithVariant.map((item, index) => {

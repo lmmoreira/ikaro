@@ -27,6 +27,10 @@ const SLUG = 'autospa-premium';
 const DESKTOP = { width: 1280, height: 800 } as const;
 const MOBILE = { width: 390, height: 844 } as const;
 
+function rgbFromHex(hex: string): string {
+  return `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+}
+
 // The anchor each enabled section renders, in page order. HERO has no id; it is the first section.
 const SECTION_SELECTOR: Partial<Record<HotsiteModuleType, string>> = {
   HERO: 'main > div:first-of-type > section[data-variant]',
@@ -47,13 +51,13 @@ const SECTION_SELECTOR: Partial<Record<HotsiteModuleType, string>> = {
 const SIGNATURE: Readonly<Record<TemplateName, readonly string[]>> = {
   beloauto: ['[data-variant="technical-callout"]', '[data-testid="section-overlay"]'],
   casa47: ['[data-variant="image-statement"]', 'section[data-variant="left-aligned"]'],
-  'mimo-pet': ['[data-testid="feature-service-card"]', '[data-testid="trust-grid-items"]'],
+  'mimo-pet': ['[data-testid="feature-service-card"]', '[data-testid="trust-grid-tiles"]'],
   origem: [
     '[data-testid="numbered-service"]',
     '[data-testid="editorial-quotes"]',
     '[data-variant="immersive-statement"]',
   ],
-  'clinica-lume': ['[data-testid="steps"]', 'section[data-variant="left-aligned"]'],
+  'clinica-lume': ['[data-testid="steps"]', '[data-testid="ruled-service-list"]'],
   'lume-studio': [
     '[data-testid="collage-images"]',
     'section[data-variant="immersive"]',
@@ -140,6 +144,25 @@ test.describe.serial('hotsite template compositions (MANAGER)', () => {
         expect(tops).toEqual([...tops].sort((a, b) => a - b));
         for (const selector of SIGNATURE[name]) {
           await expect(page.locator(selector).first()).toBeVisible();
+        }
+        await expect(page.locator('#about[data-variant="bleed"]')).toBeVisible();
+        await expect(page.locator('.gallery-featured-grid')).toHaveAttribute(
+          'data-featured-count',
+          name === 'lume-studio' ? '3' : '4',
+        );
+        const cta = fixture.layout[0].data.cta as { label: string; target: string };
+        await expect(page.getByTestId('hotsite-navigation-cta')).toHaveText(cta.label);
+        await expect(page.getByTestId('hotsite-navigation-cta')).toHaveAttribute(
+          'href',
+          `/${SLUG}/${cta.target === 'lead-form' ? 'lead-form' : 'booking'}`,
+        );
+        const footer = enabled.find((module) => module.type === 'FOOTER');
+        expect(footer?.presentation?.surface).toBe('custom');
+        if (footer?.presentation?.customColor) {
+          await expect(page.locator('footer')).toHaveCSS(
+            'background-color',
+            rgbFromHex(footer.presentation.customColor),
+          );
         }
         await expectNoHorizontalOverflow(page);
       });

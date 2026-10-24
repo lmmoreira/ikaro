@@ -9,6 +9,11 @@ overrides:
   # that carries the SNYK-JS-BRACEEXPANSION-17706650 chain. No upstream release
   # fixes this yet — override until google-cloud libraries loosen their pin.
   'gaxios': '7.1.5'
+  # @nestjs/platform-express pins multer exactly (2.4.0 in every release through 12.2.0),
+  # which Trivy flags as CVE-2026-113872 (HIGH, DoS via aborted request), fixed in 2.5.0.
+  # No upstream release allows 2.5.0 yet — override until platform-express bumps its pin,
+  # then drop this entry.
+  'multer': '2.5.0'
   # google-gax@5.0.7 directly depends on rimraf@^5 which chains to brace-expansion@2.x
   # (SNYK-JS-BRACEEXPANSION-17706650). Snyk claims fixed in google-gax@5.0.7 but
   # 5.0.7 still carries the dep. No newer google-gax exists. rimraf@6 uses glob@11

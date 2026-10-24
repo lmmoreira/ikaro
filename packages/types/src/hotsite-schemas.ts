@@ -52,6 +52,12 @@ export const NavigationModuleDataSchema = z.strictObject({
       }),
     )
     .max(6),
+  cta: z
+    .strictObject({
+      label: z.string().min(1).max(30),
+      target: z.enum(['booking-form', 'lead-form']),
+    })
+    .optional(),
 }) satisfies z.ZodType<NavigationModuleData>;
 
 const contentBlockCommon = {
@@ -66,6 +72,7 @@ export const ContentBlockModuleDataSchema = z.discriminatedUnion('variant', [
   z.strictObject({
     variant: z.literal('trust-grid'),
     ...contentBlockCommon,
+    appearance: z.enum(['rule', 'tiles']).optional(),
     items: z
       .array(
         z.strictObject({ label: z.string().max(60), description: z.string().max(140).optional() }),
@@ -76,8 +83,15 @@ export const ContentBlockModuleDataSchema = z.discriminatedUnion('variant', [
   z.strictObject({
     variant: z.literal('process-steps'),
     ...contentBlockCommon,
+    appearance: z.enum(['plain', 'ruled']).optional(),
     items: z
-      .array(z.strictObject({ title: z.string().max(60), body: z.string().max(240) }))
+      .array(
+        z.strictObject({
+          title: z.string().max(60),
+          body: z.string().max(240),
+          label: z.string().max(30).optional(),
+        }),
+      )
       .min(2)
       .max(6),
   }),
@@ -97,6 +111,7 @@ export const ContentBlockModuleDataSchema = z.discriminatedUnion('variant', [
       .array(z.strictObject({ value: z.string().max(20), label: z.string().max(40) }))
       .max(4)
       .optional(),
+    factsPlacement: z.enum(['side', 'kicker']).optional(),
   }),
   z.strictObject({ variant: z.literal('image-statement'), ...contentBlockCommon }),
   z.strictObject({ variant: z.literal('immersive-statement'), ...contentBlockCommon }),

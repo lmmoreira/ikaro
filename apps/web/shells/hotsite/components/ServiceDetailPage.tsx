@@ -14,13 +14,18 @@ interface ServiceDetailPageProps {
   readonly settings: ServiceDetailPageSettings;
 }
 
-const headingStyle: React.CSSProperties = { ...sectionHeadingFont, color: 'var(--ba-text)' };
+const headingStyle: React.CSSProperties = {
+  ...sectionHeadingFont,
+  color: 'var(--ba-text)',
+  fontWeight: 'var(--ba-heading-weight, 700)',
+  textTransform: 'var(--ba-heading-transform, none)',
+};
 
 const buttonStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 const COVER_ASPECT: Record<ServiceDetailPageSettings['heroStyle'], string> = {
@@ -130,7 +135,10 @@ export function ServiceDetailPage({
           </div>
         )}
 
-        <h1 className="mt-5 text-3xl font-extrabold leading-tight" style={headingStyle}>
+        <h1
+          className="mt-5 text-3xl font-extrabold leading-tight"
+          style={{ ...headingStyle, fontWeight: 'var(--ba-heading-weight, 800)' }}
+        >
           {service.name}
         </h1>
         {service.description && (

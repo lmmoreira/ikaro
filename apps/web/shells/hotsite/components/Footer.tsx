@@ -2,8 +2,9 @@ import Image from 'next/image';
 import { useTranslations } from 'next-intl';
 import type { FooterModuleData, HotsiteBusinessInfoResponse } from '@ikaro/types';
 import { digitsOnly } from '@/shared/utils/digits-only';
+import type { SectionPresentationProps } from './HotsiteSectionShell';
 
-interface FooterProps {
+interface FooterProps extends SectionPresentationProps {
   readonly slug: string;
   readonly data: FooterModuleData;
   readonly tenantName: string;
@@ -44,6 +45,8 @@ export function Footer({
   tenantName,
   business,
   logoUrl,
+  presentation,
+  sectionTokens,
 }: FooterProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const whatsapp = business.socialLinks?.whatsapp;
@@ -54,8 +57,16 @@ export function Footer({
   return (
     <footer
       style={{
-        backgroundColor: 'var(--ba-secondary)',
-        color: 'var(--ba-text)',
+        ...(presentation?.surface && sectionTokens
+          ? {
+              ...sectionTokens,
+              backgroundColor: 'var(--ba-section-bg)',
+              color: 'var(--ba-section-text)',
+            }
+          : {
+              backgroundColor: 'var(--ba-secondary)',
+              color: 'var(--ba-secondary-text, var(--ba-text))',
+            }),
         padding: '2.5rem 1.5rem',
         textAlign: 'center',
       }}
@@ -64,7 +75,11 @@ export function Footer({
         <FooterBrandMark logoUrl={logoUrl} tenantName={tenantName} />
         <div
           className="text-lg font-black uppercase tracking-widest"
-          style={{ color: 'var(--ba-primary)' }}
+          style={{
+            color: presentation?.surface
+              ? 'var(--ba-section-text)'
+              : 'var(--ba-secondary-accent, var(--ba-primary))',
+          }}
           data-testid="footer-brand-name"
         >
           {tenantName}
@@ -84,7 +99,7 @@ export function Footer({
           style={{
             backgroundColor: 'var(--ba-primary)',
             color: 'var(--ba-btn-text)',
-            borderRadius: 'var(--ba-radius)',
+            borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
             display: 'inline-flex',
             marginTop: '1rem',
           }}

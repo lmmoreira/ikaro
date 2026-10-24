@@ -12,6 +12,7 @@ import { BookingCtaModuleDataSchema } from '@/features/platform/hotsite/module-s
 import {
   resolveHotsiteDisplayName,
   resolveManifestNavigation,
+  resolveHotsiteNavigationCta,
 } from '@/features/platform/hotsite/page-model';
 
 export const revalidate = 300;
@@ -70,6 +71,7 @@ export default async function BookingPage({ params }: BookingPageProps) {
         logoUrl={manifest.branding.logoUrl}
         tenantName={displayName}
         navigation={resolveManifestNavigation(manifest)}
+        navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
       />
       {/* Reading the link's query string opts this subtree into client rendering, so the page's
           static HTML carries the plain form as the Suspense fallback and stays cached. */}

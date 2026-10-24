@@ -4,11 +4,11 @@
     "brandTagline": "Studio de bem-estar",
     "logoUrl": "",
     "primaryColor": "#7A684D",
-    "secondaryColor": "#E9E3D6",
+    "secondaryColor": "#26372F",
     "backgroundColor": "#E9E3D6",
     "textColor": "#26372F",
     "headingFontFamily": "Playfair Display",
-    "bodyFontFamily": "Lato",
+    "bodyFontFamily": "DM Sans",
     "borderRadius": "sharp",
     "buttonStyle": "outline",
     "buttonBackgroundColor": "#26372F",
@@ -37,7 +37,11 @@
             "label": "Contato",
             "target": "contact"
           }
-        ]
+        ],
+        "cta": {
+          "label": "RESERVAR",
+          "target": "booking-form"
+        }
       }
     },
     {
@@ -67,11 +71,10 @@
         "body": "Um espaço calmo, técnica cuidadosa, produtos naturais e escuta de verdade.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png",
         "imagePosition": "left",
-        "variant": "split"
+        "variant": "bleed"
       },
       "presentation": {
-        "surface": "custom",
-        "customColor": "#26372F"
+        "surface": "secondary"
       }
     },
     {
@@ -96,9 +99,7 @@
           "toColor": "#18352E",
           "toOpacity": 0.74
         },
-        "minHeight": "md",
-        "surface": "custom",
-        "customColor": "#18352E"
+        "minHeight": "md"
       }
     },
     {
@@ -144,11 +145,6 @@
             "url": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png",
             "caption": "Chegar",
             "source": "upload"
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png",
-            "caption": "Respirar",
-            "source": "upload"
           }
         ],
         "layout": "featured",
@@ -163,8 +159,7 @@
       "type": "TESTIMONIALS",
       "enabled": true,
       "data": {
-        "title": "Presença que permanece",
-        "eyebrow": "DEPOIMENTO",
+        "title": "",
         "items": [
           {
             "authorName": "Marina A.",
@@ -202,9 +197,7 @@
           "type": "solid",
           "color": "#16231D",
           "opacity": 0.71
-        },
-        "surface": "custom",
-        "customColor": "#16231D"
+        }
       }
     },
     {
@@ -224,8 +217,7 @@
         "whatsappCtaLabel": "Falar com a gente"
       },
       "presentation": {
-        "surface": "custom",
-        "customColor": "#26372F"
+        "surface": "secondary"
       }
     },
     {
@@ -235,6 +227,10 @@
         "tagline": "Studio de bem-estar",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#18231E"
       }
     },
     {

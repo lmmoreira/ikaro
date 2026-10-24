@@ -39,8 +39,8 @@ export function HotsiteModuleView({
   business,
   services,
 }: HotsiteModuleViewProps): React.JSX.Element | null {
-  const { parsed, bgVariant, presentation, sectionTokens } = item;
-  const section = { presentation, sectionTokens };
+  const { parsed, bgVariant, presentation, sectionTokens, tints } = item;
+  const section = { presentation, sectionTokens, tints };
 
   switch (parsed.type) {
     case 'NAVIGATION':
@@ -93,6 +93,7 @@ export function HotsiteModuleView({
           tenantName={tenantName}
           business={business}
           logoUrl={logoUrl}
+          {...section}
         />
       );
     case 'CHATBOT':

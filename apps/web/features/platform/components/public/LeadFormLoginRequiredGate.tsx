@@ -9,7 +9,7 @@ const primaryBtnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 // UC-040 A1 — audienceMode === 'CUSTOMER_ONLY' and the visitor is unauthenticated. No existing
@@ -52,7 +52,7 @@ export function LeadFormLoginRequiredGate({
             data-testid="lead-form-login-required-back"
             className="border px-6 py-3"
             style={{
-              borderRadius: 'var(--ba-radius)',
+              borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
               borderColor: 'var(--ba-secondary)',
             }}
           >

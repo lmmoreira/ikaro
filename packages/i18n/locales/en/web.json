@@ -1283,7 +1283,14 @@
         "dividerStyleLabel": "Divider between sections",
         "dividerStyleNone": "None",
         "dividerStyleGradient": "Gradient",
-        "dividerStyleSolid": "Solid"
+        "dividerStyleSolid": "Solid",
+        "borderRadiusSoft": "Soft",
+        "buttonRadiusLabel": "Button corners",
+        "buttonRadiusInherit": "Same as corners",
+        "headingWeightLabel": "Heading weight",
+        "headingWeightAuto": "Automatic",
+        "headingUppercaseLabel": "Uppercase headings",
+        "headingUppercaseHint": "Shows section headings in capital letters."
       },
       "layout": {
         "configureLabel": "Configure",
@@ -1392,7 +1399,16 @@
             "showPointsLabel": "Show loyalty points",
             "layoutLabel": "Layout",
             "layoutGrid": "Grid",
-            "layoutList": "List"
+            "layoutList": "List",
+            "layoutNumbered": "Numbered",
+            "layoutFeatureCards": "Feature cards",
+            "cardColumnsLabel": "Columns",
+            "cardColumnsTwo": "2 columns",
+            "cardColumnsThree": "3 columns",
+            "cardToneLabel": "Card style",
+            "cardTonePlain": "Plain",
+            "cardToneTinted": "Tinted",
+            "cardToneRuled": "Ruled"
           },
           "gallery": {
             "titleLabel": "Title (optional)",
@@ -1403,7 +1419,7 @@
             "layoutGrid": "Grid",
             "layoutMasonry": "Masonry",
             "layoutFeatured": "Featured",
-            "featuredRequiresFiveImages": "The Featured layout requires at least 5 images.",
+            "featuredRequiresThreeImages": "The Featured layout requires at least 3 images.",
             "featuredUsesFirstFiveImages": "The Featured layout uses only the first 5 images.",
             "featuredPositionLabel": "Featured photo position",
             "featuredPositionLeft": "Left",
@@ -1495,7 +1511,11 @@
             "imageFormatHint": "PNG or JPG",
             "imageUploading": "Uploading...",
             "imageUploadError": "Could not upload the image. Try again.",
-            "imageRemove": "Remove image"
+            "imageRemove": "Remove image",
+            "variantLabel": "Section style",
+            "variantSplit": "Image beside text",
+            "variantEditorial": "Editorial",
+            "variantBleed": "Edge-to-edge image"
           },
           "contact": {
             "titleLabel": "Title (optional)",

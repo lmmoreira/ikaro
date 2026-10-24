@@ -7,9 +7,9 @@
     "secondaryColor": "#FCEBDD",
     "backgroundColor": "#FFF7EF",
     "textColor": "#3C2A24",
-    "headingFontFamily": "Poppins",
-    "bodyFontFamily": "Lato",
-    "borderRadius": "rounded",
+    "headingFontFamily": "Manrope",
+    "bodyFontFamily": "DM Sans",
+    "borderRadius": "soft",
     "buttonStyle": "filled",
     "buttonBackgroundColor": "#E87959",
     "buttonTextColor": "#FFFFFF",
@@ -17,7 +17,9 @@
     "shadowStyle": "subtle",
     "heroBgStyle": "background",
     "alternateSectionBg": true,
-    "dividerStyle": "gradient"
+    "dividerStyle": "gradient",
+    "headingWeight": 800,
+    "buttonRadius": "pill"
   },
   "layout": [
     {
@@ -41,7 +43,11 @@
             "label": "Contato",
             "target": "contact"
           }
-        ]
+        ],
+        "cta": {
+          "label": "AGENDAR BANHO",
+          "target": "booking-form"
+        }
       }
     },
     {
@@ -79,7 +85,9 @@
         "eyebrow": "NOSSOS SERVIÇOS",
         "showPrices": true,
         "showPoints": true,
-        "layout": "feature-cards"
+        "layout": "feature-cards",
+        "cardColumns": 3,
+        "cardTone": "tinted"
       },
       "presentation": {
         "surface": "custom",
@@ -107,7 +115,8 @@
           {
             "label": "Retorno feliz"
           }
-        ]
+        ],
+        "appearance": "tiles"
       },
       "presentation": {
         "surface": "custom",
@@ -123,7 +132,7 @@
         "body": "Rotina segura, produtos gentis e uma equipe que respeita o tempo de cada animal.",
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
         "imagePosition": "left",
-        "variant": "split"
+        "variant": "bleed"
       },
       "presentation": {
         "surface": "background"
@@ -160,13 +169,6 @@
           {
             "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
             "caption": "Cuidado próximo",
-            "source": "upload",
-            "width": 1536,
-            "height": 1024
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/booking.png",
-            "caption": "Dia feliz",
             "source": "upload",
             "width": 1536,
             "height": 1024
@@ -236,9 +238,7 @@
           "fromOpacity": 0.92,
           "toColor": "#2E241F",
           "toOpacity": 0.25
-        },
-        "surface": "custom",
-        "customColor": "#2E241F"
+        }
       }
     },
     {
@@ -268,6 +268,10 @@
         "tagline": "Cuidado, confiança e carinho",
         "copyrightNote": "Todos os direitos reservados.",
         "showWhatsapp": true
+      },
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#3C2A24"
       }
     },
     {

@@ -15,7 +15,7 @@ import { HotsiteModule, HotsiteModuleType, NavigationModuleData } from './hotsit
 // rule's code) — a condition is reported by exactly one of the two layers, never both.
 
 // Modules whose section may carry a `presentation` at all. NAVIGATION is page chrome rendered by
-// the top bar, FOOTER keeps its own treatment and CHATBOT is a floating widget.
+// the top bar, while CHATBOT is a floating widget.
 const PRESENTATION_MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'HERO',
   'SERVICE_LIST',
@@ -26,6 +26,7 @@ const PRESENTATION_MODULE_TYPES: ReadonlySet<HotsiteModuleType> = new Set([
   'CONTACT',
   'LEAD_FORM',
   'CONTENT_BLOCK',
+  'FOOTER',
 ]);
 
 // Modules without a background image of their own. HERO, BOOKING_CTA and LEAD_FORM keep their
@@ -56,6 +57,12 @@ function assertModulePresentation(module: HotsiteModule): void {
     throw new HotsitePresentationNotAllowedError(module.type);
   }
   if (
+    module.type === 'FOOTER' &&
+    Object.keys(module.presentation).some((key) => key !== 'surface' && key !== 'customColor')
+  ) {
+    throw new HotsitePresentationNotAllowedError(module.type);
+  }
+  if (
     module.presentation.background !== undefined &&
     !PRESENTATION_BACKGROUND_MODULE_TYPES.has(module.type)
   ) {
@@ -75,6 +82,12 @@ function assertNavigationTargetsEnabled(layout: readonly HotsiteModule[]): void 
     if (!enabledTypes.has(NAVIGATION_TARGET_MODULE_TYPE[item.target])) {
       throw new HotsiteNavigationTargetNotEnabledError(item.target);
     }
+  }
+  // The header button to /{slug}/lead-form is a link too: that route is unavailable without an
+  // enabled LEAD_FORM module.
+  const cta = (navigation.data as NavigationModuleData).cta;
+  if (cta?.target === 'lead-form' && !enabledTypes.has('LEAD_FORM')) {
+    throw new HotsiteNavigationTargetNotEnabledError(cta.target);
   }
 }
 

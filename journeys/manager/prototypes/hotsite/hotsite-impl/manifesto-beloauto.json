@@ -11,13 +11,15 @@
     "brandTagline": "Estética Automotiva",
     "dividerStyle": "gradient",
     "primaryColor": "#F5A800",
-    "bodyFontFamily": "Montserrat",
+    "bodyFontFamily": "DM Sans",
     "secondaryColor": "#181818",
     "backgroundColor": "#090909",
     "buttonTextColor": "#090909",
     "headingFontFamily": "Montserrat",
     "alternateSectionBg": true,
-    "buttonBackgroundColor": "#F5A800"
+    "buttonBackgroundColor": "#F5A800",
+    "headingWeight": 900,
+    "headingTransform": "uppercase"
   },
   "layout": [
     {
@@ -41,7 +43,11 @@
             "label": "Contato",
             "target": "contact"
           }
-        ]
+        ],
+        "cta": {
+          "label": "AGENDAR",
+          "target": "booking-form"
+        }
       }
     },
     {
@@ -74,10 +80,11 @@
     {
       "data": {
         "title": "Serviços de precisão.",
-        "layout": "grid",
+        "layout": "feature-cards",
         "eyebrow": "O QUE FAZEMOS",
         "showPoints": false,
-        "showPrices": true
+        "showPrices": true,
+        "cardColumns": 3
       },
       "type": "SERVICE_LIST",
       "enabled": true,
@@ -109,11 +116,6 @@
             "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
             "caption": "Técnica",
             "source": "upload"
-          },
-          {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png",
-            "caption": "Pronto para a rua",
-            "source": "upload"
           }
         ],
         "layout": "featured",
@@ -140,7 +142,8 @@
             "value": "01",
             "label": "PROTEÇÃO DE VERDADE"
           }
-        ]
+        ],
+        "factsPlacement": "kicker"
       },
       "presentation": {
         "background": {
@@ -164,7 +167,7 @@
         "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
         "imagePosition": "right",
         "eyebrow": "SOBRE NÓS",
-        "variant": "split"
+        "variant": "bleed"
       },
       "type": "ABOUT",
       "enabled": true,
@@ -252,7 +255,11 @@
         "copyrightNote": "Todos os direitos reservados."
       },
       "type": "FOOTER",
-      "enabled": true
+      "enabled": true,
+      "presentation": {
+        "surface": "custom",
+        "customColor": "#050505"
+      }
     },
     {
       "type": "CHATBOT",

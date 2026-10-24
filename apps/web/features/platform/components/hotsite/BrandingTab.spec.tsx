@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteBrandingResponse } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { BrandingTab } from './BrandingTab';
 
 // BrandingTab is a fully controlled component — a static onChange mock would never update its
@@ -114,7 +114,7 @@ describe('BrandingTab', () => {
     const onChange = vi.fn();
     renderWithIntl(<BrandingTab value={BRANDING} onChange={onChange} />);
 
-    await user.click(screen.getByRole('radio', { name: 'Retos' }));
+    await user.click(getPillOption('hotsite-border-radius', 'sharp'));
 
     expect(onChange).toHaveBeenCalledWith({ ...BRANDING, borderRadius: 'sharp' });
   });
@@ -127,5 +127,64 @@ describe('BrandingTab', () => {
     await user.click(screen.getByTestId('hotsite-alternate-section-bg'));
 
     expect(onChange).toHaveBeenCalledWith({ ...BRANDING, alternateSectionBg: true });
+  });
+
+  it.each([['soft'], ['pill']] as const)(
+    'the %s corner pill sets the border radius',
+    async (borderRadius) => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderWithIntl(<BrandingTab value={BRANDING} onChange={onChange} />);
+
+      await user.click(getPillOption('hotsite-border-radius', borderRadius));
+
+      expect(onChange).toHaveBeenCalledWith({ ...BRANDING, borderRadius });
+    },
+  );
+
+  it('sets the button radius and clears it again with "Same as corners"', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderWithIntl(<BrandingTab value={BRANDING} onChange={onChange} />);
+
+    expect(getPillOption('hotsite-button-radius', 'inherit')).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+
+    await user.click(getPillOption('hotsite-button-radius', 'pill'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, buttonRadius: 'pill' });
+
+    rerender(<BrandingTab value={{ ...BRANDING, buttonRadius: 'pill' }} onChange={onChange} />);
+    await user.click(getPillOption('hotsite-button-radius', 'inherit'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, buttonRadius: undefined });
+  });
+
+  it('sets a numeric heading weight and clears it with "Automático"', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderWithIntl(<BrandingTab value={BRANDING} onChange={onChange} />);
+
+    await user.click(getPillOption('hotsite-heading-weight', '800'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, headingWeight: 800 });
+
+    rerender(<BrandingTab value={{ ...BRANDING, headingWeight: 800 }} onChange={onChange} />);
+    await user.click(getPillOption('hotsite-heading-weight', 'auto'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, headingWeight: undefined });
+  });
+
+  it('the uppercase switch sets headingTransform and unsets it again', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderWithIntl(<BrandingTab value={BRANDING} onChange={onChange} />);
+
+    await user.click(screen.getByTestId('hotsite-heading-uppercase'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, headingTransform: 'uppercase' });
+
+    rerender(
+      <BrandingTab value={{ ...BRANDING, headingTransform: 'uppercase' }} onChange={onChange} />,
+    );
+    await user.click(screen.getByTestId('hotsite-heading-uppercase'));
+    expect(onChange).toHaveBeenLastCalledWith({ ...BRANDING, headingTransform: undefined });
   });
 });

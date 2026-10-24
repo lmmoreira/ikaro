@@ -46,7 +46,9 @@ describe('HotsiteAuthBarSignedOut', () => {
     expect(screen.getByTestId('hotsite-auth-bar')).toHaveStyle({
       backgroundColor: 'var(--ba-secondary)',
     });
-    expect(screen.getByTestId('hotsite-login-link')).toHaveStyle({ color: 'var(--ba-primary)' });
+    expect(screen.getByTestId('hotsite-login-link')).toHaveStyle({
+      color: 'var(--ba-secondary-accent, var(--ba-primary))',
+    });
   });
 
   it('is interactive on its own: no ancestor is inert', () => {

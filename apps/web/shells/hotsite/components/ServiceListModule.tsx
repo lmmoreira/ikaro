@@ -47,6 +47,7 @@ export function ServiceListModule({
   bgVariant,
   presentation,
   sectionTokens,
+  tints,
 }: ServiceListModuleProps): React.JSX.Element {
   const t = useTranslations('hotsite');
   const title = data.title ?? t('services.defaultTitle');
@@ -77,9 +78,11 @@ export function ServiceListModule({
           <SectionEyebrow text={data.eyebrow} />
         </div>
       )}
-      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-        {title}
-      </h2>
+      {title !== '' && (
+        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+          {title}
+        </h2>
+      )}
       {services.length === 0 ? (
         <p className="text-center opacity-75">{t('services.empty')}</p>
       ) : (
@@ -90,6 +93,9 @@ export function ServiceListModule({
           showPoints={showPoints}
           cardBg={cardBg}
           action={action}
+          cardColumns={data.cardColumns}
+          cardTone={data.cardTone}
+          tints={tints}
         />
       )}
     </HotsiteSectionShell>

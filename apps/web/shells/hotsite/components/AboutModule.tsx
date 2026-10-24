@@ -67,6 +67,50 @@ export function AboutModule({
     );
   }
 
+  if (data.variant === 'bleed') {
+    const bleedImage = data.imageUrl && (
+      <div className="relative aspect-[4/3] overflow-hidden md:aspect-auto md:min-h-[540px]">
+        <Image
+          src={data.imageUrl}
+          alt={data.title}
+          fill
+          loading="lazy"
+          sizes="(min-width: 768px) 50vw, 100vw"
+          className="object-cover"
+        />
+      </div>
+    );
+    const bleedCopy = (
+      <div className="px-6 py-[var(--ba-section-py)] md:px-[9%]">
+        {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
+        <h2 className="mb-6 text-3xl font-bold" style={headingStyle}>
+          {data.title}
+        </h2>
+        <RestrictedMarkdown>{data.body}</RestrictedMarkdown>
+      </div>
+    );
+    return (
+      <HotsiteSectionShell {...shellProps} flow={false} legacyPadding="0" dataVariant="bleed">
+        <div
+          className={`relative z-10 grid ${bleedImage ? 'md:grid-cols-2' : ''}`}
+          data-testid="about-bleed"
+        >
+          {imagePosition === 'left' ? (
+            <>
+              {bleedImage}
+              {bleedCopy}
+            </>
+          ) : (
+            <>
+              {bleedCopy}
+              {bleedImage}
+            </>
+          )}
+        </div>
+      </HotsiteSectionShell>
+    );
+  }
+
   const textBlock = (
     <div>
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}

@@ -32,6 +32,38 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
 }
 
 describe('ServiceListModule', () => {
+  it('uses three columns and individually tinted feature cards when requested', () => {
+    const { container } = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards', cardColumns: 3, cardTone: 'tinted' })}
+        slug="tenant"
+        services={[makeService(), makeService({ id: '00000000-0000-0000-0000-000000000002' })]}
+        tints={[
+          { background: '#FCE4D3', text: '#3C2A24' },
+          { background: '#DCEFDC', text: '#3C2A24' },
+          { background: '#ECDFFD', text: '#3C2A24' },
+        ]}
+      />,
+    );
+    expect(container.querySelector('ul')).toHaveClass('md:grid-cols-3');
+    const cards = screen.getAllByTestId('feature-service-card');
+    expect(cards[0]).toHaveStyle({ backgroundColor: '#FCE4D3', color: '#3C2A24' });
+    expect(cards[1]).toHaveStyle({ backgroundColor: '#DCEFDC' });
+  });
+
+  it('renders ruled service cards as direct list items with visible numbers', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ cardTone: 'ruled' })}
+        slug="tenant"
+        services={[makeService()]}
+      />,
+    );
+    const list = screen.getByTestId('ruled-service-list');
+    expect(list.querySelectorAll(':scope > li')).toHaveLength(1);
+    expect(list.querySelector('li li')).toBeNull();
+    expect(screen.getByText('01')).toBeInTheDocument();
+  });
   it('renders cards from the provided services', () => {
     renderWithIntl(
       <ServiceListModule data={makeData()} slug="tenant" services={[makeService()]} />,
@@ -477,5 +509,73 @@ describe('ServiceListModule item action', () => {
         );
       },
     );
+  });
+
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(<ServiceListModule data={makeData({ title: '' })} slug="t" services={[]} />);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+  });
+
+  it('keeps plain feature cards on the primary price colour even when tints are supplied', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards' })}
+        slug="t"
+        services={[makeService()]}
+        tints={[
+          { background: '#FCE4D3', text: '#3C2A24' },
+          { background: '#DCEFDC', text: '#3C2A24' },
+          { background: '#ECDFFD', text: '#3C2A24' },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('price-badge')).toHaveStyle({ color: 'var(--ba-primary)' });
+  });
+
+  it('renders the ruled card action as a text link', () => {
+    renderWithIntl(
+      <ServiceListModule
+        data={makeData({ cardTone: 'ruled', itemAction: 'booking' })}
+        slug="t"
+        services={[makeService()]}
+      />,
+    );
+    expect(screen.getByTestId('service-action')).toHaveStyle({ color: 'var(--ba-primary)' });
+    expect(screen.getByTestId('service-action').className).not.toContain('border-2');
+  });
+
+  it('renders feature cards identically when the new fields carry their defaults', () => {
+    const services = [makeService(), makeService({ id: '00000000-0000-0000-0000-000000000002' })];
+    const base = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards' })}
+        slug="t"
+        services={services}
+      />,
+    );
+    const html = base.container.innerHTML;
+    base.unmount();
+    const explicit = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards', cardColumns: 2, cardTone: 'plain' })}
+        slug="t"
+        services={services}
+      />,
+    );
+    expect(explicit.container.innerHTML).toBe(html);
+  });
+
+  it('starts each ruled row without a left rule and rules off rows after the first', () => {
+    const services = [1, 2, 3, 4].map((n) =>
+      makeService({ id: `00000000-0000-0000-0000-00000000000${n}` }),
+    );
+    const { container } = renderWithIntl(
+      <ServiceListModule data={makeData({ cardTone: 'ruled' })} slug="t" services={services} />,
+    );
+    const items = container.querySelectorAll('[data-testid="ruled-service-list"] > li');
+    expect(items[0]).not.toHaveClass('md:border-l');
+    expect(items[1]).toHaveClass('md:border-l');
+    expect(items[3]).not.toHaveClass('md:border-l');
+    expect(items[3]).toHaveClass('md:border-t');
   });
 });

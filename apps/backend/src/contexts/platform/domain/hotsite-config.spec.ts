@@ -161,6 +161,34 @@ describe('HotsiteConfig', () => {
       ).not.toThrow();
     });
 
+    it('accepts soft surfaces, independent pill buttons and uppercase heavyweight headings', () => {
+      const config = new HotsiteConfigBuilder().build();
+      const branding: HotsiteBranding = {
+        ...DEFAULT_HOTSITE_BRANDING,
+        borderRadius: 'soft',
+        buttonRadius: 'pill',
+        headingWeight: 900,
+        headingTransform: 'uppercase',
+      };
+      config.updateContent(branding, VALID_LAYOUT, DEFAULT_HOTSITE_SEO, CTX);
+      expect(config.branding).toMatchObject(branding);
+    });
+
+    it.each([{ headingWeight: 950 }, { headingTransform: 'lowercase' }, { buttonRadius: 'soft' }])(
+      'rejects an unsupported new branding choice: %o',
+      (choice) => {
+        const config = new HotsiteConfigBuilder().build();
+        expect(() =>
+          config.updateContent(
+            { ...DEFAULT_HOTSITE_BRANDING, ...choice } as HotsiteBranding,
+            VALID_LAYOUT,
+            DEFAULT_HOTSITE_SEO,
+            CTX,
+          ),
+        ).toThrow(PlatformDomainError);
+      },
+    );
+
     it('throws for an unknown module type', () => {
       const config = new HotsiteConfigBuilder().build();
       const layout = [{ ...VALID_LAYOUT[0], type: 'UNKNOWN' }] as unknown as HotsiteModule[];

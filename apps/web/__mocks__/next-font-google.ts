@@ -16,3 +16,5 @@ export const Raleway = font('raleway');
 export const Oswald = font('oswald');
 export const Lato = font('lato');
 export const Roboto = font('roboto');
+export const Manrope = font('manrope');
+export const DM_Sans = font('dm-sans');

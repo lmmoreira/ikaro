@@ -5,11 +5,13 @@ import {
   LEGACY_SECTION_PADDING,
   legacySectionBackground,
   sectionHeadingStyle,
+  sectionHeadingStyle600,
   sectionTextColor,
 } from '@/features/platform/hotsite/module-styles';
 import { HotsiteSectionShell, type SectionPresentationProps } from './HotsiteSectionShell';
 import { RestrictedMarkdown } from './RestrictedMarkdown';
 import { SectionEyebrow } from './SectionEyebrow';
+import { KickerCallout, TechnicalFacts, TrustGridTiles } from './ContentBlockSpecialLayouts';
 
 interface ContentBlockModuleProps extends SectionPresentationProps {
   readonly data: ContentBlockModuleData;
@@ -41,11 +43,16 @@ const STATEMENT_DEFAULT_ALIGN: Readonly<Record<ContentBlockModuleData['variant']
   'immersive-statement': 'center',
 };
 
+// The ruled process rules: the section divider, falling back when no section surface sets one.
+const RULE_STYLE: React.CSSProperties = {
+  borderColor: 'var(--ba-section-divider, var(--ba-divider, rgba(0,0,0,0.15)))',
+};
+
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
   borderColor: 'var(--ba-btn-border)',
-  borderRadius: 'var(--ba-radius)',
+  borderRadius: 'var(--ba-btn-radius, var(--ba-radius))',
 };
 
 function CtaLink({ cta }: { readonly cta: ContentBlockCta }): React.JSX.Element {
@@ -74,12 +81,14 @@ function Copy({
   return (
     <div className={ALIGN_CLASS[align]}>
       {data.eyebrow && <SectionEyebrow text={data.eyebrow} />}
-      <h2
-        className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
-        style={sectionHeadingStyle}
-      >
-        {data.title}
-      </h2>
+      {data.title !== '' && (
+        <h2
+          className={`mb-4 font-bold ${large ? 'text-4xl sm:text-6xl' : 'text-3xl sm:text-4xl'}`}
+          style={sectionHeadingStyle}
+        >
+          {data.title}
+        </h2>
+      )}
       {data.body && (
         <div className="mb-6" data-testid="content-block-body">
           <RestrictedMarkdown density={large ? 'comfortable' : 'compact'}>
@@ -99,11 +108,22 @@ function Copy({
 function VariantBody({
   data,
   align,
+  tints,
 }: {
   readonly data: ContentBlockModuleData;
   readonly align: Align;
+  readonly tints?: NonNullable<SectionPresentationProps['tints']>;
 }): React.JSX.Element {
   if (data.variant === 'trust-grid') {
+    if (data.appearance === 'tiles') {
+      return (
+        <TrustGridTiles
+          items={data.items}
+          copy={<Copy data={data} align={align} />}
+          tints={tints}
+        />
+      );
+    }
     return (
       <>
         <Copy data={data} align={align} />
@@ -132,17 +152,34 @@ function VariantBody({
     return (
       <>
         <Copy data={data} align={align} />
-        <ol className="mt-10 grid list-none grid-cols-1 gap-8 md:grid-cols-3" data-testid="steps">
+        <ol
+          className={`mt-10 grid list-none grid-cols-1 gap-8 md:grid-cols-3 ${data.appearance === 'ruled' ? 'border-y py-6' : ''}`}
+          style={data.appearance === 'ruled' ? RULE_STYLE : undefined}
+          data-testid="steps"
+        >
           {data.items.map((item, index) => (
-            <li key={`${item.title}-${index}`}>
-              <span
-                aria-hidden="true"
-                className="mb-3 block text-4xl font-light tabular-nums opacity-50"
-                style={{ fontFamily: 'var(--ba-heading-font)' }}
-              >
-                {String(index + 1).padStart(2, '0')}
-              </span>
-              <h3 className="mb-2 text-lg font-semibold" style={sectionHeadingStyle}>
+            <li
+              key={`${item.title}-${index}`}
+              className={data.appearance === 'ruled' && index ? 'border-l pl-6' : undefined}
+              style={data.appearance === 'ruled' ? RULE_STYLE : undefined}
+            >
+              {item.label ? (
+                <span
+                  className="mb-3 block text-sm font-semibold uppercase tracking-widest"
+                  style={{ color: 'var(--ba-primary)' }}
+                >
+                  {String(index + 1).padStart(2, '0')} · {item.label}
+                </span>
+              ) : (
+                <span
+                  aria-hidden="true"
+                  className="mb-3 block text-4xl font-light tabular-nums opacity-50"
+                  style={{ fontFamily: 'var(--ba-heading-font)' }}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+              )}
+              <h3 className="mb-2 text-lg font-semibold" style={sectionHeadingStyle600}>
                 {item.title}
               </h3>
               <p className="text-sm opacity-80">{item.body}</p>
@@ -180,30 +217,16 @@ function VariantBody({
   }
 
   if (data.variant === 'technical-callout') {
+    if (data.factsPlacement === 'kicker' && data.facts?.[0]) {
+      return <KickerCallout fact={data.facts[0]} copy={<Copy data={data} align={align} />} />;
+    }
     return (
       <div
         className="grid items-center gap-10 border-l-4 pl-6 md:grid-cols-2"
         style={{ borderColor: 'var(--ba-primary)' }}
       >
         <Copy data={data} align={align} />
-        {data.facts && data.facts.length > 0 && (
-          <dl className="grid grid-cols-2 gap-6" data-testid="technical-facts">
-            {data.facts.map((fact, index) => (
-              <div key={`${fact.label}-${index}`} className="flex flex-col-reverse">
-                <dt className="mt-1 text-xs uppercase tracking-widest opacity-70">{fact.label}</dt>
-                <dd
-                  className="text-3xl font-bold tabular-nums"
-                  style={{
-                    ...sectionHeadingStyle,
-                    color: 'var(--ba-section-text, var(--ba-primary))',
-                  }}
-                >
-                  {fact.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
+        {data.facts && data.facts.length > 0 && <TechnicalFacts facts={data.facts} />}
       </div>
     );
   }
@@ -219,6 +242,7 @@ export function ContentBlockModule({
   bgVariant,
   presentation,
   sectionTokens,
+  tints,
 }: ContentBlockModuleProps): React.JSX.Element {
   const align = data.align ?? STATEMENT_DEFAULT_ALIGN[data.variant];
   const isImmersive = data.variant === 'immersive-statement';
@@ -235,7 +259,7 @@ export function ContentBlockModule({
       presentation={presentation}
       sectionTokens={sectionTokens}
     >
-      <VariantBody data={data} align={align} />
+      <VariantBody data={data} align={align} tints={tints} />
     </HotsiteSectionShell>
   );
 }

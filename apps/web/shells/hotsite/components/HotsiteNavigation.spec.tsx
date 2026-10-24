@@ -17,6 +17,34 @@ function menu(): HTMLDetailsElement {
 }
 
 describe('HotsiteNavigation', () => {
+  it('renders a booking CTA in desktop and mobile navigation', () => {
+    renderWithIntl(
+      <HotsiteNavigation
+        items={ITEMS}
+        slug="casa47"
+        cta={{ label: 'AGENDAR', target: 'booking-form' }}
+      />,
+    );
+    expect(screen.getByTestId('hotsite-navigation-cta')).toHaveAttribute('href', '/casa47/booking');
+    expect(screen.getByTestId('hotsite-navigation-mobile-cta')).toHaveAttribute(
+      'href',
+      '/casa47/booking',
+    );
+  });
+
+  it('renders a lead CTA even when there are no section links', () => {
+    renderWithIntl(
+      <HotsiteNavigation
+        items={[]}
+        slug="studio"
+        cta={{ label: 'COMEÇAR', target: 'lead-form' }}
+      />,
+    );
+    expect(screen.getByTestId('hotsite-navigation-cta')).toHaveAttribute(
+      'href',
+      '/studio/lead-form',
+    );
+  });
   it('renders nothing without items', () => {
     const { container } = renderWithIntl(<HotsiteNavigation items={[]} slug="casa47" />);
 

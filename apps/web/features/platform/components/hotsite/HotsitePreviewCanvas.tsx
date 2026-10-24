@@ -9,6 +9,7 @@ import { HotsiteAuthBarSignedOut } from '@/shells/hotsite/components/HotsiteAuth
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteNavigation,
+  resolveHotsiteNavigationCta,
 } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
 import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
@@ -105,6 +106,7 @@ export function HotsitePreviewCanvas({
               logoUrl={branding.logoUrl}
               tenantName={branding.brandName || data.tenantName}
               navigation={navigation}
+              navigationCta={resolveHotsiteNavigationCta(layout)}
             />
           </div>
           {modulesWithVariant.map((moduleWithVariant, index) =>

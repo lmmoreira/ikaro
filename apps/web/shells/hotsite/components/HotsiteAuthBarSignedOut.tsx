@@ -1,6 +1,6 @@
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
-import type { HotsiteNavigationItem } from '@ikaro/types';
+import type { HotsiteNavigationItem, NavigationModuleData } from '@ikaro/types';
 import { HotsiteNavigation } from './HotsiteNavigation';
 
 interface HotsiteAuthBarSignedOutProps {
@@ -8,6 +8,7 @@ interface HotsiteAuthBarSignedOutProps {
   readonly logoUrl: string;
   readonly tenantName: string;
   readonly navigation?: readonly HotsiteNavigationItem[];
+  readonly navigationCta?: NavigationModuleData['cta'];
 }
 
 // Brand mark, left-most element — see journeys/shared/hotsite.html's topbar section for the
@@ -66,7 +67,10 @@ export function StaffAreaLink({ slug }: { readonly slug: string }): React.JSX.El
       href={`/dashboard/login?tenantSlug=${encodeURIComponent(slug)}`}
       data-testid="hotsite-staff-link"
       className="flex items-center gap-1.5 border-l pl-3 text-[0.8125rem] font-medium no-underline opacity-40"
-      style={{ color: 'var(--ba-text)', borderColor: 'rgba(17,24,39,0.12)' }}
+      style={{
+        color: 'var(--ba-secondary-text, var(--ba-text))',
+        borderColor: 'var(--ba-secondary-divider, rgba(17,24,39,0.12))',
+      }}
     >
       <BriefcaseIcon />
       {t('staffArea')}
@@ -82,6 +86,7 @@ export function HotsiteAuthBarSignedOut({
   logoUrl,
   tenantName,
   navigation = [],
+  navigationCta,
 }: HotsiteAuthBarSignedOutProps): React.JSX.Element {
   const t = useTranslations('auth');
 
@@ -95,12 +100,12 @@ export function HotsiteAuthBarSignedOut({
         <BrandMark logoUrl={logoUrl} tenantName={tenantName} />
         <StaffAreaLink slug={slug} />
       </div>
-      <HotsiteNavigation items={navigation} slug={slug} />
+      <HotsiteNavigation items={navigation} slug={slug} cta={navigationCta} />
       <a
         href={`/${slug}/login`}
         data-testid="hotsite-login-link"
         className="text-sm font-medium"
-        style={{ color: 'var(--ba-primary)' }}
+        style={{ color: 'var(--ba-secondary-accent, var(--ba-primary))' }}
       >
         {t('signIn')}
       </a>

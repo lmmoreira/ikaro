@@ -199,7 +199,7 @@ describe('GalleryModule', () => {
       );
     });
 
-    it('falls back to rendering as grid when there are fewer than 5 images', () => {
+    it('renders three images as a featured mosaic', () => {
       const { container } = renderWithIntl(
         <GalleryModule
           data={makeData({ layout: 'featured', images: makeImages(3), maxVisible: 6 })}
@@ -207,7 +207,28 @@ describe('GalleryModule', () => {
         />,
       );
 
-      expect(galleryGridContainer(container)).toHaveClass('grid-cols-2', 'sm:grid-cols-3');
+      expect(galleryGridContainer(container)).toHaveClass('gallery-featured-grid');
+      expect(galleryGridContainer(container)).toHaveAttribute('data-featured-count', '3');
+    });
+
+    it('renders four images as a featured mosaic', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(4), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
+      expect(galleryGridContainer(container)).toHaveAttribute('data-featured-count', '4');
+      expect(container.querySelectorAll('[data-gallery-url]')).toHaveLength(4);
+    });
+
+    it('falls back to grid below three images', () => {
+      const { container } = renderWithIntl(
+        <GalleryModule
+          data={makeData({ layout: 'featured', images: makeImages(2), maxVisible: 6 })}
+          slug="tenant"
+        />,
+      );
       expect(galleryGridContainer(container)).not.toHaveClass('gallery-featured-grid');
     });
 
@@ -435,5 +456,10 @@ describe('GalleryModule portfolio layout', () => {
     );
 
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('hides the heading for an explicitly empty title', () => {
+    renderWithIntl(<GalleryModule data={makeData({ title: '' })} slug="t" />);
+    expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
   });
 });

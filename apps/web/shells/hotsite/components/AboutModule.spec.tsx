@@ -15,6 +15,21 @@ function makeData(overrides?: Partial<AboutModuleData>): AboutModuleData {
 }
 
 describe('AboutModule', () => {
+  it('places a bleed image edge to edge with a mobile aspect ratio', () => {
+    const { container } = render(
+      <AboutModule
+        data={makeData({ variant: 'bleed', imageUrl: 'https://storage.example.com/about.jpg' })}
+        slug="tenant"
+      />,
+    );
+    const section = container.querySelector('#about');
+    expect(section).toHaveAttribute('data-variant', 'bleed');
+    expect(section).toHaveStyle({ padding: '0' });
+    expect(section?.querySelector('img')?.parentElement).toHaveClass(
+      'aspect-[4/3]',
+      'md:min-h-[540px]',
+    );
+  });
   it('renders the title and markdown body as HTML', () => {
     render(<AboutModule data={makeData()} slug="tenant" />);
 
@@ -162,5 +177,21 @@ describe('AboutModule editorial variant', () => {
       'rel',
       'noopener noreferrer nofollow',
     );
+  });
+
+  it('keeps the split layout unchanged when no variant is set', () => {
+    const data = makeData({ imageUrl: 'https://storage.example.com/about.jpg' });
+    const omitted = render(<AboutModule data={data} slug="t" />);
+    const html = omitted.container.innerHTML;
+    omitted.unmount();
+    const explicit = render(<AboutModule data={{ ...data, variant: 'split' }} slug="t" />);
+    expect(explicit.container.innerHTML).toBe(html);
+  });
+
+  it('lets bleed copy use the full width without an image, above any section background layer', () => {
+    render(<AboutModule data={makeData({ variant: 'bleed' })} slug="tenant" />);
+    const grid = screen.getByTestId('about-bleed');
+    expect(grid).not.toHaveClass('md:grid-cols-2');
+    expect(grid).toHaveClass('relative', 'z-10');
   });
 });

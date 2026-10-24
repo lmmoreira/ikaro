@@ -1,22 +1,10 @@
 import type {
-  AboutModuleData,
   HotsiteBrandingResponse,
-  BookingCtaModuleData,
-  ChatbotModuleData,
-  ContactModuleData,
-  ContentBlockModuleData,
-  FooterModuleData,
-  GalleryModuleData,
-  HeroModuleData,
   HotsiteManifestResponse,
-  HotsiteModulePresentation,
   HotsiteModuleResponse,
   HotsiteModuleType,
   HotsiteNavigationItem,
-  LeadFormModuleData,
   NavigationModuleData,
-  ServiceListModuleData,
-  TestimonialsModuleData,
 } from '@ikaro/types';
 import {
   AboutModuleDataSchema,
@@ -32,37 +20,14 @@ import {
   ServiceListModuleDataSchema,
   TestimonialsModuleDataSchema,
 } from './module-schemas';
-import { deriveSectionTokens, type SectionTokens } from './apply-branding';
-import { isValidPresentation } from './presentation-schema';
+import { resolveItemPresentation, resolveItemTints } from './presentation-tokens';
+import type { HotsiteModuleParsed, HotsiteModuleRenderPlanItem } from './render-plan.types';
 
-export type HotsiteSectionBgVariant = 'default' | 'alt';
-
-export type HotsiteModuleParsed =
-  | { readonly type: 'NAVIGATION'; readonly data: NavigationModuleData }
-  | { readonly type: 'CONTENT_BLOCK'; readonly data: ContentBlockModuleData }
-  | { readonly type: 'HERO'; readonly data: HeroModuleData }
-  | { readonly type: 'SERVICE_LIST'; readonly data: ServiceListModuleData }
-  | { readonly type: 'GALLERY'; readonly data: GalleryModuleData }
-  | { readonly type: 'TESTIMONIALS'; readonly data: TestimonialsModuleData }
-  | { readonly type: 'BOOKING_CTA'; readonly data: BookingCtaModuleData }
-  | { readonly type: 'ABOUT'; readonly data: AboutModuleData }
-  | { readonly type: 'CONTACT'; readonly data: ContactModuleData }
-  | { readonly type: 'FOOTER'; readonly data: FooterModuleData }
-  | { readonly type: 'CHATBOT'; readonly data: ChatbotModuleData }
-  | { readonly type: 'LEAD_FORM'; readonly data: LeadFormModuleData };
-
-export interface HotsiteModuleRenderPlanItem {
-  readonly parsed: HotsiteModuleParsed;
-  readonly bgVariant: HotsiteSectionBgVariant;
-  // The module's own section presentation, only when it parses. An invalid one is ignored — the
-  // section renders with its defaults — and never removes the module the way malformed `data` does
-  // (a stored manifest can predate a tightened rule; a cosmetic field must not blank a section).
-  readonly presentation?: HotsiteModulePresentation;
-  // The scoped contrast tokens for `presentation.surface`, present only when the module sets one
-  // and the plan was built with the tenant's branding. HotsiteSectionShell puts them on the
-  // section element; nothing else reads them.
-  readonly sectionTokens?: SectionTokens;
-}
+export type {
+  HotsiteModuleParsed,
+  HotsiteModuleRenderPlanItem,
+  HotsiteSectionBgVariant,
+} from './render-plan.types';
 
 // CHATBOT included: the bubble variant is a fixed-position floating element with its own
 // self-contained background (not a full-width section), and the inline variant uses a fixed
@@ -170,19 +135,20 @@ export function resolveHotsiteNavigation(
   return parsed.data.items.filter((item) => renderedTypes.has(NAVIGATION_TARGET_TYPE[item.target]));
 }
 
-// The module's own `presentation` (an invalid one is ignored) and, for a section that sets a
-// surface, the scoped contrast tokens derived from it with the tenant's branding.
-function resolveItemPresentation(
-  layoutModule: HotsiteModuleResponse,
-  branding: HotsiteBrandingResponse | undefined,
-): Pick<HotsiteModuleRenderPlanItem, 'presentation' | 'sectionTokens'> {
-  if (!isValidPresentation(layoutModule.presentation)) return {};
-  const { presentation } = layoutModule;
-  if (!branding || !presentation.surface) return { presentation };
-  return {
-    presentation,
-    sectionTokens: deriveSectionTokens(branding, presentation.surface, presentation.customColor),
-  };
+// A header CTA belongs to the same enabled, validated NAVIGATION entry as the section links; a
+// lead-form CTA additionally needs an enabled LEAD_FORM module.
+export function resolveHotsiteNavigationCta(
+  layout: ReadonlyArray<HotsiteModuleResponse>,
+): NavigationModuleData['cta'] | undefined {
+  const navigation = layout.find((module) => module.type === 'NAVIGATION');
+  if (!navigation?.enabled) return undefined;
+  const parsed = NavigationModuleDataSchema.safeParse(navigation.data);
+  const cta = parsed.success ? parsed.data.cta : undefined;
+  // /{slug}/lead-form is unavailable without an enabled LEAD_FORM: never render a dead button.
+  if (cta?.target === 'lead-form' && !layout.some((m) => m.type === 'LEAD_FORM' && m.enabled)) {
+    return undefined;
+  }
+  return cta;
 }
 
 export function buildHotsiteModuleRenderPlan(
@@ -203,10 +169,12 @@ export function buildHotsiteModuleRenderPlan(
     const participates = !NON_ALTERNATING_TYPES.has(layoutModule.type);
     altIndex++;
 
+    const bgVariant = participates && isAlt ? 'alt' : 'default';
     items.push({
       parsed,
-      bgVariant: participates && isAlt ? 'alt' : 'default',
-      ...resolveItemPresentation(layoutModule, branding),
+      bgVariant,
+      ...resolveItemPresentation(layoutModule, branding, bgVariant),
+      ...resolveItemTints(layoutModule, parsed, branding, bgVariant),
     });
   }
 

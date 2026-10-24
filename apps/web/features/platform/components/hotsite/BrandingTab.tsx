@@ -22,6 +22,12 @@ const FONT_PREVIEW_CLASS = FONT_VARIABLES.join(' ');
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
+const HEADING_WEIGHTS = [400, 500, 600, 700, 800, 900] as const;
+
+function parseHeadingWeight(raw: string): (typeof HEADING_WEIGHTS)[number] | undefined {
+  return HEADING_WEIGHTS.find((weight) => String(weight) === raw);
+}
+
 interface BrandingTabProps {
   readonly value: HotsiteBrandingResponse;
   readonly onChange: (branding: HotsiteBrandingResponse) => void;
@@ -110,6 +116,25 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
             emptyLabel={t('fontSearchEmpty')}
           />
         </div>
+        <PillSelect
+          label={t('headingWeightLabel')}
+          value={value.headingWeight === undefined ? 'auto' : String(value.headingWeight)}
+          testId="hotsite-heading-weight"
+          options={[
+            { value: 'auto', label: t('headingWeightAuto') },
+            ...HEADING_WEIGHTS.map((weight) => ({ value: String(weight), label: String(weight) })),
+          ]}
+          onChange={(v) =>
+            setField('headingWeight', v === 'auto' ? undefined : parseHeadingWeight(v))
+          }
+        />
+        <SwitchField
+          testId="hotsite-heading-uppercase"
+          checked={value.headingTransform === 'uppercase'}
+          onChange={(checked) => setField('headingTransform', checked ? 'uppercase' : undefined)}
+          label={t('headingUppercaseLabel')}
+          hint={t('headingUppercaseHint')}
+        />
       </SectionCard>
 
       <SectionCard title={t('sections.shape')}>
@@ -119,10 +144,23 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
           testId="hotsite-border-radius"
           options={[
             { value: 'sharp', label: t('borderRadiusSharp') },
+            { value: 'soft', label: t('borderRadiusSoft') },
             { value: 'rounded', label: t('borderRadiusRounded') },
             { value: 'pill', label: t('borderRadiusPill') },
           ]}
           onChange={(v) => setField('borderRadius', v)}
+        />
+        <PillSelect
+          label={t('buttonRadiusLabel')}
+          value={value.buttonRadius ?? 'inherit'}
+          testId="hotsite-button-radius"
+          options={[
+            { value: 'inherit', label: t('buttonRadiusInherit') },
+            { value: 'sharp', label: t('borderRadiusSharp') },
+            { value: 'rounded', label: t('borderRadiusRounded') },
+            { value: 'pill', label: t('borderRadiusPill') },
+          ]}
+          onChange={(v) => setField('buttonRadius', v === 'inherit' ? undefined : v)}
         />
         <PillSelect
           label={t('buttonStyleLabel')}

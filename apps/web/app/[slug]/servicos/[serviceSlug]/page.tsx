@@ -4,8 +4,10 @@ import { fetchManifest } from '@/features/platform/api.server';
 import { fetchServiceBySlug } from '@/features/platform/hotsite/api/services.server';
 import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import {
+  buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
   resolveManifestNavigation,
+  resolveHotsiteNavigationCta,
 } from '@/features/platform/hotsite/page-model';
 import { buildHotsiteMetadata } from '@/features/platform/hotsite/seo';
 import {
@@ -68,6 +70,11 @@ export default async function ServiceDetailRoute({ params }: ServiceDetailRouteP
 
   const displayName = resolveHotsiteDisplayName(manifest);
   const footer = resolveServiceDetailFooter(manifest);
+  const footerPresentation = buildHotsiteModuleRenderPlan(
+    manifest.layout,
+    false,
+    manifest.branding,
+  ).find((item) => item.parsed.type === 'FOOTER');
 
   return (
     <>
@@ -76,6 +83,7 @@ export default async function ServiceDetailRoute({ params }: ServiceDetailRouteP
         logoUrl={manifest.branding.logoUrl}
         tenantName={displayName}
         navigation={resolveManifestNavigation(manifest)}
+        navigationCta={resolveHotsiteNavigationCta(manifest.layout)}
       />
       <ServiceDetailPage
         slug={slug}
@@ -89,6 +97,8 @@ export default async function ServiceDetailRoute({ params }: ServiceDetailRouteP
           tenantName={displayName}
           business={manifest.business}
           logoUrl={manifest.branding.logoUrl}
+          presentation={footerPresentation?.presentation}
+          sectionTokens={footerPresentation?.sectionTokens}
         />
       )}
     </>

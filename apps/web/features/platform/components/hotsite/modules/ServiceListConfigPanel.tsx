@@ -79,8 +79,48 @@ export function ServiceListConfigPanel({
         options={[
           { value: 'grid', label: t('layoutGrid') },
           { value: 'list', label: t('layoutList') },
+          { value: 'numbered', label: t('layoutNumbered') },
+          { value: 'feature-cards', label: t('layoutFeatureCards') },
         ]}
       />
+
+      {serviceList.layout === 'feature-cards' && (
+        <>
+          <PillSelect
+            label={t('cardColumnsLabel')}
+            value={serviceList.cardColumns === 3 ? '3' : '2'}
+            onChange={(columns) => update({ cardColumns: columns === '3' ? 3 : 2 })}
+            testId="service-list-card-columns"
+            options={[
+              { value: '2', label: t('cardColumnsTwo') },
+              { value: '3', label: t('cardColumnsThree') },
+            ]}
+          />
+          <PillSelect
+            label={t('cardToneLabel')}
+            value={serviceList.cardTone === 'tinted' ? 'tinted' : 'plain'}
+            onChange={(cardTone) => update({ cardTone })}
+            testId="service-list-card-tone"
+            options={[
+              { value: 'plain', label: t('cardTonePlain') },
+              { value: 'tinted', label: t('cardToneTinted') },
+            ]}
+          />
+        </>
+      )}
+
+      {serviceList.layout === 'grid' && (
+        <PillSelect
+          label={t('cardToneLabel')}
+          value={serviceList.cardTone === 'ruled' ? 'ruled' : 'plain'}
+          onChange={(cardTone) => update({ cardTone })}
+          testId="service-list-card-tone"
+          options={[
+            { value: 'plain', label: t('cardTonePlain') },
+            { value: 'ruled', label: t('cardToneRuled') },
+          ]}
+        />
+      )}
     </div>
   );
 }

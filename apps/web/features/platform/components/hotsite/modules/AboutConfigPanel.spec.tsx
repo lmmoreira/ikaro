@@ -83,4 +83,16 @@ describe('AboutConfigPanel', () => {
       writeModuleData({ ...ABOUT, imageUrl: 'tenants/tenant-1/hotsite/about/photo.png' }),
     );
   });
+
+  it('shows the split variant by default and switches to bleed', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={onChange} />);
+
+    expect(getPillOption('about-variant', 'split')).toHaveAttribute('aria-checked', 'true');
+
+    await user.click(getPillOption('about-variant', 'bleed'));
+
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...ABOUT, variant: 'bleed' }));
+  });
 });

@@ -272,8 +272,15 @@ describe('HotsiteAdminController (integration)', () => {
           'PLATFORM_HOTSITE_MODULE_DUPLICATE',
         ],
         [
-          'presentation on FOOTER',
-          [{ type: 'FOOTER', enabled: true, data: {}, presentation: { surface: 'primary' } }],
+          'unsupported presentation field on FOOTER',
+          [
+            {
+              type: 'FOOTER',
+              enabled: true,
+              data: {},
+              presentation: { surface: 'primary', padding: 'spacious' },
+            },
+          ],
           'PLATFORM_HOTSITE_PRESENTATION_NOT_ALLOWED',
         ],
         [
@@ -293,6 +300,29 @@ describe('HotsiteAdminController (integration)', () => {
           .getRepository(HotsiteConfigEntity)
           .findOneByOrFail({ tenantId: TENANT_LAYOUT });
         expect(after.layout).toEqual(before.layout);
+      });
+
+      it('round-trips the new presentation and module fields through PATCH', async () => {
+        const layout = [
+          {
+            ...navigation,
+            data: {
+              items: [{ label: 'Sobre', target: 'about' }],
+              cta: { label: 'Agendar', target: 'booking-form' },
+            },
+          },
+          { ...hero, data: { ...hero.data, variant: 'centered' } },
+          { ...about, data: { ...about.data, variant: 'bleed' } },
+          { ...contentBlock, data: { ...contentBlock.data, appearance: 'tiles' } },
+          {
+            type: 'FOOTER',
+            enabled: true,
+            data: {},
+            presentation: { surface: 'custom', customColor: '#18231E' },
+          },
+        ];
+        const { body } = await patchLayout(layout).expect(200);
+        expect(body.layout).toEqual(layout);
       });
 
       it('rejects malformed module data with a field-level violation', async () => {
@@ -325,6 +355,47 @@ describe('HotsiteAdminController (integration)', () => {
         expect(body.violations).toEqual([
           expect.objectContaining({
             field: 'branding.headingFontFamily',
+            code: 'GENERIC_VALUE_INVALID',
+          }),
+        ]);
+      });
+
+      it('accepts the new font and independent heading/button shape choices', async () => {
+        const { body } = await request(app.getHttpServer())
+          .patch('/tenants/hotsite')
+          .set('X-Tenant-ID', TENANT_LAYOUT)
+          .set('X-Actor-Role', 'MANAGER')
+          .send({
+            branding: {
+              headingFontFamily: 'Manrope',
+              bodyFontFamily: 'DM Sans',
+              borderRadius: 'soft',
+              buttonRadius: 'pill',
+              headingWeight: 800,
+              headingTransform: 'uppercase',
+            },
+          })
+          .expect(200);
+        expect(body.branding).toMatchObject({
+          headingFontFamily: 'Manrope',
+          bodyFontFamily: 'DM Sans',
+          borderRadius: 'soft',
+          buttonRadius: 'pill',
+          headingWeight: 800,
+          headingTransform: 'uppercase',
+        });
+      });
+
+      it('rejects an invalid heading weight at the request boundary', async () => {
+        const { body } = await request(app.getHttpServer())
+          .patch('/tenants/hotsite')
+          .set('X-Tenant-ID', TENANT_LAYOUT)
+          .set('X-Actor-Role', 'MANAGER')
+          .send({ branding: { headingWeight: 950 } })
+          .expect(400);
+        expect(body.violations).toEqual([
+          expect.objectContaining({
+            field: 'branding.headingWeight',
             code: 'GENERIC_VALUE_INVALID',
           }),
         ]);

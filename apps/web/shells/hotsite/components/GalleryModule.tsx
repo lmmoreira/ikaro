@@ -89,12 +89,21 @@ function PortfolioGallery({ data }: GalleryLayoutProps): React.JSX.Element {
   );
 }
 
+// The grid areas each featured mosaic fills: 3 and 4 images have their own template, 5 the full one.
+const FEATURED_AREAS_BY_COUNT: Readonly<Record<number, readonly string[]>> = {
+  3: ['big', 's1', 's2'],
+  4: ['big', 's1', 's2', 's3'],
+};
+
 function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
+  const count = Math.min(data.images.length, 5);
+  const areas = FEATURED_AREAS_BY_COUNT[count] ?? FEATURED_GRID_AREAS;
   return (
-    <GalleryGrid maxVisible={5} totalImages={5}>
+    <GalleryGrid maxVisible={count} totalImages={count}>
       <div
         className="gallery-featured-grid gap-3"
         data-featured-position={data.featuredPosition ?? 'left'}
+        data-featured-count={count}
       >
         {data.images.slice(0, 5).map((image, i) => (
           <a
@@ -105,7 +114,7 @@ function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
             data-gallery-url={image.url}
             data-gallery-caption={image.caption ?? ''}
             className="block cursor-zoom-in overflow-hidden"
-            style={{ gridArea: FEATURED_GRID_AREAS[i], borderRadius: 'var(--ba-radius)' }}
+            style={{ gridArea: areas[i], borderRadius: 'var(--ba-radius)' }}
           >
             <GalleryItem
               image={image}
@@ -182,13 +191,12 @@ export function GalleryModule({
 
   const title = data.title ?? t('gallery.defaultTitle');
 
-  // 'featured' needs at least 5 images to fill its fixed template — fewer than that renders as
-  // 'grid' instead. More than 5 is fine: only the first 5 (images.slice(0, 5) below) are used,
-  // matching the config panel's own gate. Display-time only: the stored layout value is
-  // untouched, so restoring a 5th image brings the featured view back with no re-selection
-  // needed (M18-S07).
+  // 'featured' needs at least 3 images (3, 4 and 5 each have their own mosaic) — fewer than that
+  // renders as 'grid' instead. More than 5 is fine: only the first 5 are used, matching the
+  // config panel's own gate. Display-time only: the stored layout value is untouched, so
+  // restoring the missing image brings the featured view back with no re-selection needed.
   const effectiveLayout: GalleryModuleData['layout'] =
-    data.layout === 'featured' && data.images.length < 5 ? 'grid' : data.layout;
+    data.layout === 'featured' && data.images.length < 3 ? 'grid' : data.layout;
 
   return (
     <HotsiteSectionShell
@@ -205,9 +213,11 @@ export function GalleryModule({
           <SectionEyebrow text={data.eyebrow} />
         </div>
       )}
-      <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
-        {title}
-      </h2>
+      {title !== '' && (
+        <h2 className="mb-10 text-center text-3xl font-bold" style={headingStyle}>
+          {title}
+        </h2>
+      )}
       <GalleryLayout data={data} layout={effectiveLayout} />
     </HotsiteSectionShell>
   );
