@@ -1,8 +1,8 @@
 {
+  "id": "origem",
+  "version": 1,
+  "thumbnail": "shared/hotsite-templates/origem/v1/thumbnail.webp",
   "branding": {
-    "brandName": "ORIGEM",
-    "brandTagline": "Studio de bem-estar",
-    "logoUrl": "",
     "primaryColor": "#7A684D",
     "secondaryColor": "#26372F",
     "backgroundColor": "#E9E3D6",
@@ -26,20 +26,20 @@
       "data": {
         "items": [
           {
-            "label": "O espaço",
+            "label": "",
             "target": "about"
           },
           {
-            "label": "Rituais",
+            "label": "",
             "target": "service-list"
           },
           {
-            "label": "Contato",
+            "label": "",
             "target": "contact"
           }
         ],
         "cta": {
-          "label": "RESERVAR",
+          "label": "",
           "target": "booking-form"
         }
       }
@@ -49,12 +49,12 @@
       "enabled": true,
       "data": {
         "variant": "centered",
-        "title": "Um tempo inteiro para você.",
-        "subtitle": "Rituais de bem-estar que respeitam seu corpo, seu ritmo e sua rotina.",
-        "eyebrow": "PAUSE · RESPIRE · RECOMECE",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
         "contentPositionX": "center",
         "contentPositionY": "center",
-        "ctaLabel": "Conhecer rituais",
+        "ctaLabel": "",
         "ctaTarget": "service-list"
       },
       "presentation": {
@@ -66,10 +66,10 @@
       "type": "ABOUT",
       "enabled": true,
       "data": {
-        "title": "Bem-estar é presença.",
-        "eyebrow": "O ESPAÇO",
-        "body": "Um espaço calmo, técnica cuidadosa, produtos naturais e escuta de verdade.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png",
+        "title": "",
+        "eyebrow": "",
+        "body": "",
+        "imageUrl": "shared/hotsite-templates/origem/v1/about.webp",
         "imagePosition": "left",
         "variant": "bleed"
       },
@@ -82,14 +82,14 @@
       "enabled": true,
       "data": {
         "variant": "immersive-statement",
-        "eyebrow": "UMA PAUSA NÃO PRECISA SER PEQUENA",
-        "title": "O corpo entende quando há espaço.",
-        "body": "Um intervalo inteiro, sem pressa, para respirar fundo e recomeçar.",
+        "eyebrow": "",
+        "title": "",
+        "body": "",
         "align": "center"
       },
       "presentation": {
         "background": {
-          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-1.png"
+          "imageUrl": "shared/hotsite-templates/origem/v1/gallery-1.webp"
         },
         "overlay": {
           "type": "linear-gradient",
@@ -106,13 +106,13 @@
       "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "Rituais para voltar ao eixo.",
-        "eyebrow": "BEM-ESTAR COM INTENÇÃO",
+        "title": "",
+        "eyebrow": "",
         "showPrices": false,
         "showPoints": false,
         "layout": "numbered",
         "itemAction": "booking",
-        "itemCtaLabel": "Agendar"
+        "itemCtaLabel": ""
       },
       "presentation": {
         "surface": "custom",
@@ -123,27 +123,27 @@
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Um espaço que desacelera.",
-        "eyebrow": "TEXTURAS DA PAUSA",
+        "title": "",
+        "eyebrow": "",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-1.png",
-            "caption": "Sala de ritual",
+            "url": "shared/hotsite-templates/origem/v1/gallery-1.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-2.png",
-            "caption": "Óleos botânicos",
+            "url": "shared/hotsite-templates/origem/v1/gallery-2.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/origem/gallery-3.png",
-            "caption": "Linho e pedra",
+            "url": "shared/hotsite-templates/origem/v1/gallery-3.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/origem/about.png",
-            "caption": "Chegar",
+            "url": "shared/hotsite-templates/origem/v1/about.webp",
+            "caption": "",
             "source": "upload"
           }
         ],
@@ -162,8 +162,8 @@
         "title": "",
         "items": [
           {
-            "authorName": "Marina A.",
-            "text": "Cuidar de si também é criar espaço para o que importa.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           }
         ],
@@ -179,11 +179,11 @@
       "enabled": true,
       "data": {
         "variant": "centered",
-        "title": "Reserve seu momento.",
-        "subtitle": "Escolha o ritual e siga para o agendamento completo.",
-        "eyebrow": "A SUA PAUSA COMEÇA AQUI",
-        "ctaLabel": "Ver agenda",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/origem/booking.png",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
+        "ctaLabel": "",
+        "backgroundImageUrl": "shared/hotsite-templates/origem/v1/booking.webp",
         "backgroundImagePosition": "center",
         "datePickerType": "calendar",
         "bgStyle": "background",
@@ -204,8 +204,8 @@
       "type": "CONTACT",
       "enabled": true,
       "data": {
-        "title": "Venha nos visitar.",
-        "eyebrow": "ESTAMOS POR PERTO",
+        "title": "",
+        "eyebrow": "",
         "showAddress": true,
         "showPhone": false,
         "showWhatsapp": true,
@@ -214,7 +214,7 @@
         "showInstagram": false,
         "showFacebook": false,
         "displayStyle": "icon-cards",
-        "whatsappCtaLabel": "Falar com a gente"
+        "whatsappCtaLabel": ""
       },
       "presentation": {
         "surface": "secondary"
@@ -224,8 +224,8 @@
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Studio de bem-estar",
-        "copyrightNote": "Todos os direitos reservados.",
+        "tagline": "",
+        "copyrightNote": "",
         "showWhatsapp": true
       },
       "presentation": {
@@ -242,14 +242,9 @@
       "type": "LEAD_FORM",
       "enabled": false,
       "data": {
-        "title": "Fale com a Origem",
-        "ctaLabel": "Enviar"
+        "title": "",
+        "ctaLabel": ""
       }
     }
-  ],
-  "seo": {
-    "title": "Origem — Studio de bem-estar",
-    "description": "Rituais de bem-estar para respeitar seu ritmo e sua rotina.",
-    "ogImageUrl": ""
-  }
+  ]
 }

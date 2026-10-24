@@ -46,8 +46,8 @@ const SECTION_SELECTOR: Partial<Record<HotsiteModuleType, string>> = {
 };
 
 // What makes each composition recognisably itself: an engine capability only its template uses.
-// Kept in step with the reconciled fixtures (journeys/manager/prototypes/hotsite/hotsite-impl/
-// manifesto-*.json), which are the source of truth for each composition.
+// Kept in step with the catalogue definitions (packages/hotsite-templates/definitions/*.json),
+// which are the source of truth for each composition.
 const SIGNATURE: Readonly<Record<TemplateName, readonly string[]>> = {
   beloauto: ['[data-variant="technical-callout"]', '[data-testid="section-overlay"]'],
   casa47: ['[data-variant="image-statement"]', 'section[data-variant="left-aligned"]'],

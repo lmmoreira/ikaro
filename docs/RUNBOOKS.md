@@ -110,6 +110,37 @@ Recipe from a real incident (M17-S27, 2026-07-24): a tenant hotsite manifest loo
    ```
 7. **Verify a migrate-job replay actually ran fresh**, not a no-op, by reading its own execution logs: `"N migrations are new migrations must be executed"` means it replayed; `"No migrations are pending"` means nothing happened and the reset didn't take.
 
+## Hotsite template catalogue
+
+The hotsite template images are shared, immutable objects in the public bucket (`ikaro-public-<env>`, prefix `shared/hotsite-templates/`). They are delivered by the deploy pipelines, with no manual bucket step. The maintainer guide (adding a template, shipping a new version, the tools) is `packages/hotsite-templates/README.md`; this section is the production-facing part.
+
+### Releasing a template or a new version
+
+1. Run the package's `build-assets` for the template (writes `assets/<id>/v<n>/` and extends `asset-manifest.json`; existing entries must stay byte-identical).
+2. Add or change the definition and its two copy files, register the id (`CATALOGUE_TEMPLATE_IDS`, `HOTSITE_TEMPLATE_IDS`, both `web.json` files). The package tests are the gate.
+3. Open a PR that touches `packages/**` and locale keys only (no infrastructure). On merge, the staging deploy's sync step uploads the new objects **first**, then deploys the backend that references them. Promote to production with the usual promote workflow: its sync step uploads to the production bucket first.
+4. To change an existing template, **never edit a released file**: add `v<n+1>` assets, bump the definition's `version`, leave every older asset in place (tenants that applied an earlier version still reference those paths).
+
+### Verifying a release
+
+Each deploy job runs `sync-hotsite-template-assets` and then `--verify`, which fetches every path in `asset-manifest.json` anonymously over `https://storage.googleapis.com/ikaro-public-<env>/<key>` and requires HTTP 200, `Content-Type: image/webp`, `Cache-Control` containing `immutable` and a matching hash. A green deploy job is the verification. By hand (read-only, no credentials):
+
+```bash
+curl -sI https://storage.googleapis.com/ikaro-public-staging/shared/hotsite-templates/casa47/v1/hero.webp | head -5
+```
+
+### When the sync step fails
+
+| Message | Meaning | Action |
+|---|---|---|
+| `<key> already exists with different content: a changed image must ship as a new v<n>` | a released file was edited, or someone put a different object under a released key | Do not overwrite. Restore the file in the PR to its released bytes and ship the change as a new `v<n>`; if the *bucket* object is the wrong one, treat it as an incident (the deployer cannot overwrite it by design) |
+| `403` on the upload | the deployer's conditional `objectCreator` grant is missing or does not cover the prefix | The grant is Foundation's (`static-resource-iam`): check `gcloud storage buckets get-iam-policy gs://ikaro-public-<env>` for the conditional `roles/storage.objectCreator` binding, and whether Foundation was applied after the grant merged |
+| `verify failed:` with a list | an object is missing, served with the wrong type or cache header, or its content differs | Re-run the job (the sync is idempotent); if it persists, compare the object with the manifest entry |
+| `the committed file does not match asset-manifest.json` | the repository is inconsistent (the package tests would also have failed) | Fix the PR; never regenerate a released entry |
+| `the deployer was able to overwrite a released object; IAM is too broad` | the staging immutability check succeeded where a `403` was required | Stop. The grant has widened (a role other than the conditional `objectCreator`); find the binding and remove it before any further deploy |
+
+Because assets are only ever added, a rollback (re-running a previous SHA) re-runs the sync as a no-op, and an old release never needs a catalogue object removed.
+
 ## Pub/Sub and scheduled jobs
 
 Naming (from `infra/terraform/modules/pubsub` and `modules/scheduler`): a topic is `ikaro-<topic>`, each consumer's push subscription is `ikaro-<topic>-<consumer>`, its dead-letter topic is `ikaro-<topic>-<consumer>-dlq` and the operator pull subscription on it is `ikaro-<topic>-<consumer>-dlq-inspect`. Cloud Scheduler jobs are `ikaro-cron-*`. The authoritative topic and consumer list is `infra/terraform/pubsub-catalog.json`.

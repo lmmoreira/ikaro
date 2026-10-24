@@ -11,10 +11,14 @@ import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-pa
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { FeatureBookingPhotoUseCase } from '../../application/use-cases/feature-booking-photo.use-case';
 import { FeatureBookingPhotoSchema } from '../../application/dtos/feature-booking-photo.dto';
+import { ApplyHotsiteTemplateUseCase } from '../../application/use-cases/apply-hotsite-template.use-case';
+import { ListHotsiteTemplatesUseCase } from '../../application/use-cases/list-hotsite-templates.use-case';
+import { HotsiteTemplateMaterializer } from '../../application/services/hotsite-template-materializer.service';
 import { DeleteHotsiteImageUseCase } from '../../application/use-cases/delete-hotsite-image.use-case';
 import { DeleteHotsiteImageSchema } from '../../application/dtos/delete-hotsite-image.dto';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from '../../application/services/hotsite-image-promotion.service';
+import { PackageTemplateCatalogueAdapter } from '../adapters/package-template-catalogue.adapter';
 import { GetHotsiteContentUseCase } from '../../application/use-cases/get-hotsite-content.use-case';
 import { UpdateHotsiteContentUseCase } from '../../application/use-cases/update-hotsite-content.use-case';
 import { PublishHotsiteUseCase } from '../../application/use-cases/publish-hotsite.use-case';
@@ -73,7 +77,11 @@ describe('HotsiteAdminController', () => {
         tenantRepo,
         txManager,
         imagePathsService,
-        new HotsiteImagePromotionService(storageService, imagePathsService),
+        new HotsiteImagePromotionService(
+          storageService,
+          imagePathsService,
+          new PackageTemplateCatalogueAdapter(),
+        ),
         new HotsiteImageUrlResolver(),
         storageService,
       ),
@@ -83,6 +91,14 @@ describe('HotsiteAdminController', () => {
       new GenerateHotsiteImageReadSignedUrlUseCase(storageService),
       new FeatureBookingPhotoUseCase(storageService),
       new DeleteHotsiteImageUseCase(storageService),
+      new ListHotsiteTemplatesUseCase(new PackageTemplateCatalogueAdapter(), storageService),
+      new ApplyHotsiteTemplateUseCase(
+        tenantRepo,
+        new PackageTemplateCatalogueAdapter(),
+        storageService,
+        new HotsiteTemplateMaterializer(),
+        new HotsiteImageUrlResolver(),
+      ),
     );
   });
 
@@ -368,6 +384,50 @@ describe('HotsiteAdminController', () => {
       });
 
       expect(result.success).toBe(true);
+    });
+  });
+  describe('listTemplates', () => {
+    it('returns the six catalogue templates with resolved thumbnail URLs and capabilities', () => {
+      const { templates } = controller.listTemplates();
+
+      expect(templates.map((template) => template.id)).toEqual([
+        'beloauto',
+        'casa47',
+        'mimo-pet',
+        'origem',
+        'clinica-lume',
+        'lume-studio',
+      ]);
+      for (const template of templates) {
+        expect(template.thumbnailUrl).toBe(
+          `http://fake-public-gcs/ikaro-local-public/shared/hotsite-templates/${template.id}/v${template.version}/thumbnail.webp`,
+        );
+        expect(template.capabilities.length).toBeGreaterThan(0);
+      }
+    });
+  });
+
+  describe('applyTemplate', () => {
+    const content = { branding: {}, layout: [], seo: {} };
+
+    it('returns a draft with the template applied and persists nothing', async () => {
+      const config = new HotsiteConfigBuilder().withTenantId(TENANT_A).buildWithContent();
+      await repo.save(config);
+
+      const result = await controller.applyTemplate('casa47', { content });
+
+      expect(result.appliedTemplate).toEqual({ id: 'casa47', version: 1 });
+      expect(result.content.layout.map((module) => module.type)[0]).toBe('NAVIGATION');
+      const stored = await repo.findByTenantId(TENANT_A);
+      expect(stored?.layout).toEqual(config.layout);
+      expect(stored?.isPublished).toBe(config.isPublished);
+    });
+
+    it('maps an unknown template id to 404', async () => {
+      const err = await controller.applyTemplate('unknown', { content }).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(HttpException);
+      expect((err as HttpException).getStatus()).toBe(HttpStatus.NOT_FOUND);
     });
   });
 });

@@ -19,6 +19,7 @@
 │   ├── config/           # shared ESLint, tsconfig, Prettier configs
 │   ├── observability/    # shared BaseAppLogger (backend + bff each subclass it)
 │   ├── env-validation/   # shared validateEnvWithSchema() (backend + bff env.validation.ts)
+│   ├── hotsite-templates/ # the hotsite template catalogue: definitions, per-locale copy, versioned image assets + append-only asset manifest (README.md is the maintainer guide)
 │   ├── http-utils/       # shared HTTP helpers
 │   ├── i18n/             # shared locale files + formatting helpers
 │   ├── infra-scripts/    # shared infra/tooling scripts

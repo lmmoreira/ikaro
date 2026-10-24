@@ -21,6 +21,7 @@ import {
   OPENROUTER_LLM_PROVIDER,
   OPENROUTER_PROVIDER_NAME,
 } from './application/ports/llm-provider.port';
+import { TEMPLATE_CATALOGUE } from './application/ports/template-catalogue.port';
 import { TENANT_REPOSITORY } from './application/ports/tenant-repository.port';
 import { CLOUDFLARE_TURNSTILE_PROVIDER } from './application/ports/turnstile-verifier.port';
 import {
@@ -32,6 +33,7 @@ import { HotsiteImageUrlResolver } from './domain/services/hotsite-image-url-res
 import { ChatbotBalancePollJob } from './application/jobs/chatbot-balance-poll.job';
 import { ChatbotRetentionPurgeJob } from './application/jobs/chatbot-retention-purge.job';
 import { LeadFormRetentionPurgeJob } from './application/jobs/lead-form-retention-purge.job';
+import { ApplyHotsiteTemplateUseCase } from './application/use-cases/apply-hotsite-template.use-case';
 import { DeleteHotsiteImageUseCase } from './application/use-cases/delete-hotsite-image.use-case';
 import { FeatureBookingPhotoUseCase } from './application/use-cases/feature-booking-photo.use-case';
 import { GenerateHotsiteImageReadSignedUrlUseCase } from './application/use-cases/generate-hotsite-image-read-signed-url.use-case';
@@ -51,6 +53,7 @@ import { ListLeadFormSubmissionsUseCase } from './application/use-cases/list-lea
 import { GetTenantByIdUseCase } from './application/use-cases/get-tenant-by-id.use-case';
 import { GetTenantBySlugUseCase } from './application/use-cases/get-tenant-by-slug.use-case';
 import { GetTenantsUseCase } from './application/use-cases/get-tenants.use-case';
+import { ListHotsiteTemplatesUseCase } from './application/use-cases/list-hotsite-templates.use-case';
 import { ListPublishedHotsitesUseCase } from './application/use-cases/list-published-hotsites.use-case';
 import { ProvisionTenantUseCase } from './application/use-cases/provision-tenant.use-case';
 import { PublishHotsiteUseCase } from './application/use-cases/publish-hotsite.use-case';
@@ -78,6 +81,8 @@ import { OpenRouterLlmAdapter } from './infrastructure/llm/openrouter-llm.adapte
 import { CloudflareTurnstileAdapter } from './infrastructure/turnstile/cloudflare-turnstile.adapter';
 import { HotsiteContentReader } from './application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from './application/services/hotsite-image-promotion.service';
+import { HotsiteTemplateMaterializer } from './application/services/hotsite-template-materializer.service';
+import { PackageTemplateCatalogueAdapter } from './infrastructure/adapters/package-template-catalogue.adapter';
 import { ChatbotController } from './infrastructure/controllers/chatbot.controller';
 import { CronChatbotController } from './infrastructure/controllers/cron-chatbot.controller';
 import { CronLeadFormController } from './infrastructure/controllers/cron-lead-form.controller';
@@ -185,6 +190,10 @@ import { AuditLogModule } from '../../shared/infrastructure/audit-log/audit-log.
     HotsiteImagePathsService,
     HotsiteImagePromotionService,
     HotsiteImageUrlResolver,
+    { provide: TEMPLATE_CATALOGUE, useClass: PackageTemplateCatalogueAdapter },
+    HotsiteTemplateMaterializer,
+    ApplyHotsiteTemplateUseCase,
+    ListHotsiteTemplatesUseCase,
     DeleteHotsiteImageUseCase,
     FeatureBookingPhotoUseCase,
     GenerateHotsiteImageReadSignedUrlUseCase,

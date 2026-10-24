@@ -4,16 +4,22 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import React from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  useApplyHotsiteTemplate,
   useChatbotCapStatus,
   useFeatureBookingPhoto,
   useGenerateHotsiteImageSignedUrl,
   useHotsiteConfig,
+  useHotsiteTemplates,
   usePublishHotsite,
   useUnpublishHotsite,
   useUpdateHotsiteConfig,
 } from './useHotsite';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
+  listHotsiteTemplates: vi.fn().mockResolvedValue([{ id: 'casa47' }]),
+  applyHotsiteTemplate: vi
+    .fn()
+    .mockResolvedValue({ appliedTemplate: { id: 'casa47', version: 1 } }),
   getHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   updateHotsiteConfig: vi.fn().mockResolvedValue({ id: 'h-1', branding: {}, layout: [], seo: {} }),
   publishHotsite: vi.fn().mockResolvedValue({ publishedAt: '' }),
@@ -89,6 +95,35 @@ describe('useFeatureBookingPhoto', () => {
       result.current.mutate({ bookingId: 'b-1', photoType: 'after', filePath: 'path/photo.jpg' }),
     );
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
+  });
+});
+
+describe('useHotsiteTemplates', () => {
+  it('fetches the catalogue', async () => {
+    const { result } = renderHook(() => useHotsiteTemplates(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual([{ id: 'casa47' }]);
+  });
+});
+
+describe('useApplyHotsiteTemplate', () => {
+  it('applies a template without touching the saved hotsite query', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const isolated = ({ children }: { readonly children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children);
+    const { result } = renderHook(() => useApplyHotsiteTemplate(), { wrapper: isolated });
+
+    act(() =>
+      result.current.mutate({
+        templateId: 'casa47',
+        body: { content: { branding: {}, layout: [], seo: {} } } as never,
+      }),
+    );
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toEqual({ appliedTemplate: { id: 'casa47', version: 1 } });
+    expect(invalidate).not.toHaveBeenCalled();
   });
 });
 

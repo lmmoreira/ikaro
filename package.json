@@ -9,7 +9,7 @@
   },
   "scripts": {
     "postinstall": "pnpm build:libs",
-    "build:libs": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build && pnpm --filter @ikaro/nestjs-http build && pnpm --filter @ikaro/validation build && pnpm --filter @ikaro/http-utils build",
+    "build:libs": "pnpm --filter @ikaro/i18n build && pnpm --filter @ikaro/observability build && pnpm --filter @ikaro/env-validation build && pnpm --filter @ikaro/types build && pnpm --filter @ikaro/nestjs-http build && pnpm --filter @ikaro/validation build && pnpm --filter @ikaro/http-utils build && pnpm --filter @ikaro/hotsite-templates build",
     "dev": "pnpm build:libs && pnpm -r --parallel run dev",
     "build": "pnpm -r run build",
     "up": "pnpm infra:up && pnpm dev",
@@ -19,7 +19,8 @@
     "build:test-deps": "pnpm build:libs",
     "format": "pnpm -r run format",
     "test:e2e": "pnpm --filter @ikaro/web run e2e",
-    "infra:up": "docker compose -f docker/docker-compose.yml up -d",
+    "infra:up": "docker compose -f docker/docker-compose.yml up -d --wait && pnpm hotsite-templates:seed",
+    "hotsite-templates:seed": "pnpm --filter @ikaro/infra-scripts run sync-hotsite-template-assets --emulator",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
     "db:migrate": "pnpm --filter @ikaro/backend migration:run",
     "db:revert": "pnpm --filter @ikaro/backend migration:revert",

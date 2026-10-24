@@ -22,6 +22,7 @@ import {
   HotsiteNavigationNotFirstError,
   HotsiteNavigationTargetNotEnabledError,
   HotsiteNotFoundError,
+  HotsiteTemplateNotFoundError,
   HotsitePresentationBackgroundNotAllowedError,
   HotsitePresentationNotAllowedError,
   SlugAlreadyTakenError,
@@ -127,6 +128,12 @@ describe('mapPlatformError', () => {
     const err = call(new HotsiteNotFoundError('tenant-1'));
     expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
     expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.HOTSITE_NOT_FOUND });
+  });
+
+  it('maps HotsiteTemplateNotFoundError to 404 with code', () => {
+    const err = call(new HotsiteTemplateNotFoundError('unknown'));
+    expect(err.getStatus()).toBe(HttpStatus.NOT_FOUND);
+    expect(err.getResponse()).toMatchObject({ code: PlatformErrorCode.HOTSITE_TEMPLATE_NOT_FOUND });
   });
 
   it('maps HotsiteConfigConcurrentModificationError to 409 with code', () => {

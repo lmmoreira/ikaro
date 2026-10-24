@@ -1,30 +1,28 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import type { HotsiteModuleResponse } from '@ikaro/types';
+import { buildTemplateManifest, CATALOGUE_TEMPLATE_IDS } from '@ikaro/hotsite-templates';
 import { parseManifestJson, type ManifestDraft } from './manifest-schema';
 import { buildHotsiteModuleRenderPlan, resolveHotsiteNavigation } from './page-model';
 
-// The six template manifests are the source of truth for each composition (module order, enabled
-// set, variants, presentation). They are parsed here exactly as the Manifesto tab parses a pasted
-// manifest, so a fixture that breaks the contract fails CI instead of failing a manager's paste.
-// The backend side (request schema, aggregate cross-field rules, branding) is held by
-// hotsite-legacy-layouts.audit.spec.ts, which reads the same files.
-const FIXTURE_DIR = fileURLToPath(
-  new URL('../../../../../journeys/manager/prototypes/hotsite/hotsite-impl/', import.meta.url),
-);
+// The six catalogue templates (packages/hotsite-templates) are the source of truth for each
+// composition: module order, enabled set, variants, presentation. Each is built through the same
+// buildTemplateManifest the backend uses and parsed here exactly as the Manifesto tab parses a
+// pasted manifest, so a definition that breaks the contract fails CI instead of failing a
+// manager's paste. The backend side (request schema, aggregate cross-field rules, branding) is held
+// by the package-adapter spec and hotsite-legacy-layouts.audit.spec.ts, which read the same data.
+const IDENTITY = { brandName: 'Marca Exemplo', tagline: 'Slogan de exemplo' };
 
-const TEMPLATES = readdirSync(FIXTURE_DIR)
-  .filter((file) => /^manifesto-(?!v2-layout-proposal).+\.json$/.test(file))
-  .sort();
+const TEMPLATES = [...CATALOGUE_TEMPLATE_IDS];
 
-function loadRaw(file: string): string {
-  return readFileSync(`${FIXTURE_DIR}${file}`, 'utf8');
+type TemplateId = (typeof TEMPLATES)[number];
+
+function loadRaw(id: TemplateId): string {
+  return JSON.stringify(buildTemplateManifest(id, 'pt-BR', IDENTITY));
 }
 
-function loadDraft(file: string): ManifestDraft {
-  const result = parseManifestJson(loadRaw(file));
-  if (!result.success) throw new Error(`${file}: ${result.error}`);
+function loadDraft(id: TemplateId): ManifestDraft {
+  const result = parseManifestJson(loadRaw(id));
+  if (!result.success) throw new Error(`${id}: ${result.error}`);
   return result.value;
 }
 
@@ -76,7 +74,7 @@ describe('template manifests', () => {
   ] as const)(
     '%s uses the reconciled gallery, About, CTA and footer capabilities',
     (name, count, target) => {
-      const draft = loadDraft(`manifesto-${name}.json`);
+      const draft = loadDraft(name);
       const fixtureModule = (type: HotsiteModuleResponse['type']): HotsiteModuleResponse => {
         const found = draft.layout.find((item) => item.type === type);
         if (!found) throw new Error(`${name}: missing ${type}`);
@@ -93,15 +91,15 @@ describe('template manifests', () => {
     expect(TEMPLATES).toHaveLength(6);
   });
 
-  describe.each(TEMPLATES)('%s', (file) => {
+  describe.each(TEMPLATES)('%s', (id) => {
     it('parses with the full manifest schema', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
 
       expect(draft.layout.map((module) => module.type)).toHaveLength(12);
     });
 
     it('keeps NAVIGATION first and every navigation target on an enabled section', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
 
       expect(draft.layout[0].type).toBe('NAVIGATION');
       const enabledTypes = new Set(enabledModules(draft).map((module) => module.type));
@@ -120,7 +118,7 @@ describe('template manifests', () => {
     });
 
     it('renders every enabled section — none is dropped as malformed', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
       const sections = enabledModules(draft).filter((module) => module.type !== 'NAVIGATION');
 
       const plan = buildHotsiteModuleRenderPlan(
@@ -133,7 +131,7 @@ describe('template manifests', () => {
     });
 
     it('resolves every configured navigation item (no dead link)', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
       const plan = buildHotsiteModuleRenderPlan(draft.layout, false, draft.branding);
       const navigation = draft.layout[0];
       const configured = (navigation.data.items ?? []) as unknown[];
@@ -144,13 +142,13 @@ describe('template manifests', () => {
     });
 
     it('never links service cards to a detail page (a new tenant’s services have no slug yet)', () => {
-      const serviceList = loadDraft(file).layout.find((module) => module.type === 'SERVICE_LIST');
+      const serviceList = loadDraft(id).layout.find((module) => module.type === 'SERVICE_LIST');
 
       expect(serviceList?.data.itemAction ?? 'none').not.toBe('details');
     });
 
     it('points its calls to action at sections that are enabled', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
       const enabledTypes = new Set(enabledModules(draft).map((module) => module.type));
       const targetType: Record<string, string> = {
         'booking-form': 'BOOKING_CTA',
@@ -169,15 +167,15 @@ describe('template manifests', () => {
     });
 
     it('seeds no fictional tenant data: no logo, no service, no booking slot', () => {
-      const draft = loadDraft(file);
-      const raw = loadRaw(file);
+      const draft = loadDraft(id);
+      const raw = loadRaw(id);
 
       expect(draft.branding.logoUrl).toBe('');
       expect(raw).not.toMatch(/"(serviceId|bookingId|scheduledAt)"/);
     });
 
     it('demonstrates at least one strong variant and one presentation choice', () => {
-      const draft = loadDraft(file);
+      const draft = loadDraft(id);
 
       expect(strongVariants(draft).length).toBeGreaterThan(0);
       expect(presentationChoices(draft).length).toBeGreaterThan(0);
@@ -187,7 +185,7 @@ describe('template manifests', () => {
   // Distinct by composition, not by palette or imagery alone: module order, enabled set, a strong
   // variant and a presentation choice must each separate every template from every other.
   describe('the six compositions are distinct', () => {
-    const drafts = TEMPLATES.map((file) => [file, loadDraft(file)] as const);
+    const drafts = TEMPLATES.map((id) => [id, loadDraft(id)] as const);
 
     function signatures(select: (draft: ManifestDraft) => string): string[] {
       return drafts.map(([, draft]) => select(draft));

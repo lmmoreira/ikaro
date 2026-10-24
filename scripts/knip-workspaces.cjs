@@ -77,11 +77,16 @@ module.exports = [
     project: ['*.js'],
   },
   { dir: 'packages/env-validation', project: ['src/**/*.ts'] },
+  {
+    dir: 'packages/hotsite-templates',
+    entry: ['scripts/build-assets.ts'],
+    project: ['src/**/*.ts', 'scripts/**/*.ts'],
+  },
   { dir: 'packages/http-utils', project: ['src/**/*.ts'] },
   { dir: 'packages/i18n', project: ['src/**/*.ts'] },
   {
     dir: 'packages/infra-scripts',
-    entry: ['src/env-contract.ts', 'src/pubsub-catalog.ts'],
+    entry: ['src/env-contract.ts', 'src/pubsub-catalog.ts', 'src/sync-hotsite-template-assets.ts'],
     project: ['src/**/*.ts'],
   },
   { dir: 'packages/nestjs-http', plugins: { nest: true }, project: ['src/**/*.ts'] },

@@ -9,6 +9,7 @@ export class InMemoryStorageService implements IStorageService {
     destinationBucket: 'private' | 'public';
   }> = [];
   readonly deletedPaths: string[] = [];
+  readonly existenceChecks: string[] = [];
   private readonly existingPaths = new Set<string>();
 
   async generateWriteSignedUrl(
@@ -37,6 +38,7 @@ export class InMemoryStorageService implements IStorageService {
   }
 
   async exists(storagePath: string, _bucket: 'private' | 'public' = 'private'): Promise<boolean> {
+    this.existenceChecks.push(storagePath);
     return this.existingPaths.has(storagePath);
   }
 

@@ -25,4 +25,5 @@ module.exports = [
   { name: '@ikaro/nestjs-http', dir: 'packages/nestjs-http' },
   { name: '@ikaro/validation', dir: 'packages/validation' },
   { name: '@ikaro/http-utils', dir: 'packages/http-utils' },
+  { name: '@ikaro/hotsite-templates', dir: 'packages/hotsite-templates' },
 ];
