@@ -19,18 +19,6 @@ export const MODULE_ORDER: readonly HotsiteModuleType[] = [
   'LEAD_FORM',
 ];
 
-// The types materializeLayout() adds to a layout that lacks them. NAVIGATION and CONTENT_BLOCK are
-// excluded until the editor can actually configure them: appending them now would
-// show a Layout row whose "Configure" opens a placeholder. They exist only when a manifest already
-// carries them (the Manifesto tab, or an applied template). Delete this exclusion once it can.
-const NOT_YET_MATERIALIZED: ReadonlySet<HotsiteModuleType> = new Set([
-  'NAVIGATION',
-  'CONTENT_BLOCK',
-]);
-export const MATERIALIZED_MODULE_ORDER: readonly HotsiteModuleType[] = MODULE_ORDER.filter(
-  (type) => !NOT_YET_MATERIALIZED.has(type),
-);
-
 // Minimal data satisfying each module data type's required fields (module-schemas.ts) — used
 // only to materialize a type not yet present in a tenant's saved layout (new tenants start with
 // layout: [] — HotsiteConfig.create() on the backend). Kept in sync with module-schemas.ts.
@@ -59,19 +47,22 @@ export const DEFAULT_MODULE_DATA: Partial<Record<HotsiteModuleType, Record<strin
   LEAD_FORM: { title: '', ctaLabel: '' },
 };
 
-// Appends any module type missing from `existing` (disabled, with minimal default data) — never
+// Adds any module type missing from `existing` (disabled, with minimal default data) — never
 // reorders what's already there, so a tenant's saved custom order is preserved. Ensures
-// LayoutTab always has a row for every materialized module type regardless of what was saved.
+// LayoutTab always has a row for every module type regardless of what was saved. NAVIGATION is
+// page chrome the backend requires first, so a missing one goes in front; the rest are appended.
 export function materializeLayout(
   existing: readonly HotsiteModuleResponse[],
 ): HotsiteModuleResponse[] {
   const existingTypes = new Set(existing.map((module) => module.type));
-  const missing = MATERIALIZED_MODULE_ORDER.filter((type) => !existingTypes.has(type)).map(
+  const missing = MODULE_ORDER.filter((type) => !existingTypes.has(type)).map(
     (type): HotsiteModuleResponse => ({
       type,
       enabled: false,
       data: DEFAULT_MODULE_DATA[type] ?? {},
     }),
   );
-  return [...existing, ...missing];
+  const pinned = missing.filter((module) => module.type === 'NAVIGATION');
+  const appended = missing.filter((module) => module.type !== 'NAVIGATION');
+  return [...pinned, ...existing, ...appended];
 }

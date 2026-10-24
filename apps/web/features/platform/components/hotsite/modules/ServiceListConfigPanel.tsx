@@ -5,6 +5,12 @@ import type { ServiceListModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import { ServiceListActionFields } from './ServiceListActionFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -17,8 +23,13 @@ export function ServiceListConfigPanel({
   const t = useTranslations('dashboard.hotsitePage.layout.panels.serviceList');
   const serviceList = readModuleData<ServiceListModuleData>(data);
 
+  // A field set to `undefined` (a cleared optional label) is removed, not stored as an empty key.
   function update(patch: Partial<ServiceListModuleData>): void {
-    onChange(writeModuleData({ ...serviceList, ...patch }));
+    const next = { ...serviceList, ...patch };
+    for (const key of Object.keys(next) as (keyof ServiceListModuleData)[]) {
+      if (next[key] === undefined) delete next[key];
+    }
+    onChange(writeModuleData(next));
   }
 
   return (
@@ -38,6 +49,7 @@ export function ServiceListConfigPanel({
           onChange={(event) => update({ title: event.target.value })}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
@@ -121,6 +133,13 @@ export function ServiceListConfigPanel({
           ]}
         />
       )}
+      <ServiceListActionFields serviceList={serviceList} update={update} />
+
+      <SectionPresentationFields
+        moduleType="SERVICE_LIST"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

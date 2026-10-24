@@ -34,6 +34,41 @@ const WITH_ITEM: TestimonialsModuleData = {
 };
 
 describe('TestimonialsConfigPanel', () => {
+  it('picks the Editorial quote layout (Story 2)', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(<TestimonialsConfigPanel data={writeModuleData(EMPTY)} onChange={onChange} />);
+
+    await user.click(getPillOption('testimonials-layout', 'editorial-quote'));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...EMPTY, layout: 'editorial-quote' }),
+    );
+  });
+
+  it('tells the manager that clearing the title hides the heading', () => {
+    renderWithIntl(<TestimonialsConfigPanel data={writeModuleData(EMPTY)} onChange={vi.fn()} />);
+
+    expect(screen.getByText('Apague o texto para ocultar este título.')).toBeInTheDocument();
+  });
+
+  it('keeps the section presentation when the layout changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <TestimonialsConfigPanel
+        data={writeModuleData({ ...EMPTY, presentation: { padding: 'compact' } })}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(getPillOption('testimonials-layout', 'carousel'));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...EMPTY, layout: 'carousel', presentation: { padding: 'compact' } }),
+    );
+  });
+
   it('shows an empty message when there are no items', () => {
     renderWithIntl(<TestimonialsConfigPanel data={writeModuleData(EMPTY)} onChange={vi.fn()} />);
 

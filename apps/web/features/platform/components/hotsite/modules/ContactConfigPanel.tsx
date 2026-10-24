@@ -5,6 +5,11 @@ import type { ContactModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -32,6 +37,7 @@ export function ContactConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
           onChange={(event) => update({ title: event.target.value })}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
@@ -121,6 +127,11 @@ export function ContactConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
       </div>
+      <SectionPresentationFields
+        moduleType="CONTACT"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

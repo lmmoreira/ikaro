@@ -15,6 +15,48 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
 const BOOKING_CTA: BookingCtaModuleData = { title: 'Pronto?', ctaLabel: 'Agendar' };
 
 describe('BookingCtaConfigPanel', () => {
+  it('picks the Immersive variant, which drops the horizontal content position', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const { rerender } = renderWithIntl(
+      <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={onChange} />,
+    );
+
+    await user.click(getPillOption('booking-cta-variant', 'immersive'));
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...BOOKING_CTA, variant: 'immersive' }),
+    );
+
+    rerender(
+      <BookingCtaConfigPanel
+        data={writeModuleData({ ...BOOKING_CTA, variant: 'immersive' })}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(queryPillOption('booking-cta-content-position-x', 'left')).toBeNull();
+  });
+
+  it('keeps the section presentation when a field changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <BookingCtaConfigPanel
+        data={writeModuleData({ ...BOOKING_CTA, presentation: { padding: 'none' } })}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(getPillOption('booking-cta-variant', 'left-aligned'));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({
+        ...BOOKING_CTA,
+        variant: 'left-aligned',
+        presentation: { padding: 'none' },
+      }),
+    );
+  });
+
   it('renders current values', () => {
     renderWithIntl(
       <BookingCtaConfigPanel data={writeModuleData(BOOKING_CTA)} onChange={vi.fn()} />,

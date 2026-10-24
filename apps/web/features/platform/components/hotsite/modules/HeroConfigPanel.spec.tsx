@@ -20,6 +20,56 @@ const HERO: HeroModuleData = {
 };
 
 describe('HeroConfigPanel', () => {
+  describe('immersive variant', () => {
+    it('picks Immersive', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={onChange} />);
+
+      await user.click(getPillOption('hero-variant', 'immersive'));
+
+      expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...HERO, variant: 'immersive' }));
+    });
+
+    // Negative guarantee: immersive pins the copy bottom-left, so the horizontal position applies
+    // to the centered variant only.
+    it('offers the horizontal content position only for the centered variant', () => {
+      const { rerender } = renderWithIntl(
+        <HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />,
+      );
+      expect(queryPillOption('hero-content-position-x', 'left')).not.toBeNull();
+
+      rerender(
+        <HeroConfigPanel
+          data={writeModuleData({ ...HERO, variant: 'immersive' })}
+          onChange={vi.fn()}
+        />,
+      );
+      expect(queryPillOption('hero-content-position-x', 'left')).toBeNull();
+    });
+  });
+
+  it('keeps the section presentation when a field changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <HeroConfigPanel
+        data={writeModuleData({ ...HERO, presentation: { overlay: { type: 'none' } } })}
+        onChange={onChange}
+      />,
+    );
+
+    await user.type(screen.getByLabelText('Título *'), 'X');
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({
+        ...HERO,
+        title: 'Bem-vindoX',
+        presentation: { overlay: { type: 'none' } },
+      }),
+    );
+  });
+
   it('renders current values', () => {
     renderWithIntl(<HeroConfigPanel data={writeModuleData(HERO)} onChange={vi.fn()} />);
 

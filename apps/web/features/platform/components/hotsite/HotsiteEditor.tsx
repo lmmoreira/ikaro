@@ -40,10 +40,19 @@ import {
   type LeadFormConfigDraft,
 } from './hotsite-editor-views';
 import { executeHotsitePublish } from './hotsite-editor-publish';
-import { applyModuleConfig, cancelModuleConfig } from './hotsite-module-buffer';
+import { applyModuleConfig } from './hotsite-module-buffer';
+import { useModuleConfigDiscard } from './useModuleConfigDiscard';
 
 interface HotsiteEditorProps {
   readonly initial: HotsiteAdminContentResponse;
+}
+
+// Which message explains a publish refused from a module's preview: the lead form has its own
+// per-question wording, every other module just needs to be completed.
+function publishBlockedMessageKey(type: HotsiteModuleType): string {
+  return type === 'LEAD_FORM'
+    ? 'layout.panels.leadForm.validation.publishBlocked'
+    : 'layout.publishBlockedInvalidModule';
 }
 
 export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Element {
@@ -69,7 +78,6 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     layout: materializeLayout(initial.layout),
   }));
   const [actionBanner, setActionBanner] = useState<ActionBanner | null>(null);
-  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
   const { tenantId, tenantSlug } = useTenant();
   const updateConfig = useUpdateHotsiteConfig();
   const publishHotsite = usePublishHotsite();
@@ -87,6 +95,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
   const leadFormConfigBaseline =
     leadFormConfigDraft ??
     (leadFormConfig.data ? extractLeadFormConfig(leadFormConfig.data) : null);
+  const moduleDiscard = useModuleConfigDiscard(view, draft, leadFormConfigBaseline, setView);
   const clearBanner = (): void => setActionBanner(null);
   const setLayout = (layout: HotsiteAdminContentResponse['layout']): void =>
     updateEditorDraft(setDraft, clearBanner, (current) => ({ ...current, layout }));
@@ -136,8 +145,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     moduleConfigPreview,
     onBackToModuleConfigPreview,
     onBackToTabs,
-    // Hoisted function declaration below — safe to reference before its textual definition.
-    requestCancelConfig,
+    requestCancelConfig: moduleDiscard.requestCancel,
     t,
     setOnBackOverride,
     setBackLabelOverride,
@@ -188,39 +196,21 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       setView({ view: 'tabs' }),
     );
 
-  // Only discards immediately when there's nothing to lose. Otherwise opens the discard-confirm
-  // dialog instead of navigating away silently — the actual discard happens in
-  // handleConfirmDiscardConfig below, once the admin confirms.
-  function requestCancelConfig(): void {
-    cancelModuleConfig(
-      view,
-      draft,
-      leadFormConfigBaseline,
-      () => setDiscardConfirmOpen(true),
-      () => setView({ view: 'tabs' }),
-    );
-  }
-
-  const handleConfirmDiscardConfig = (): void => {
-    setDiscardConfirmOpen(false);
-    setView({ view: 'tabs' });
-  };
-  const handleCancelDiscardConfig = (): void => setDiscardConfirmOpen(false);
-
   if (view.view === 'module-config') {
     return (
       <ModuleConfigView
         type={view.type}
+        layout={draft.layout}
         localData={view.localData}
         moduleLabel={t(`layout.modules.${view.type}`)}
-        onBack={requestCancelConfig}
+        onBack={moduleDiscard.requestCancel}
         onApply={handleApply}
         onPreview={() =>
           setView({ view: 'module-config-preview', type: view.type, localData: view.localData })
         }
-        discardConfirmOpen={discardConfirmOpen}
-        onConfirmDiscard={handleConfirmDiscardConfig}
-        onCancelDiscard={handleCancelDiscardConfig}
+        discardConfirmOpen={moduleDiscard.discardConfirmOpen}
+        onConfirmDiscard={moduleDiscard.confirmDiscard}
+        onCancelDiscard={moduleDiscard.keepEditing}
         onChange={handleLocalDataChange}
       />
     );
@@ -238,7 +228,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
           setActionBanner({
             kind: 'publish',
             status: 'error',
-            message: t('layout.panels.leadForm.validation.publishBlocked'),
+            message: t(publishBlockedMessageKey(view.type)),
           });
           setView({ view: 'tabs' });
         }}

@@ -1340,9 +1340,6 @@
           }
         },
         "panels": {
-          "placeholder": {
-            "description": "The settings for this module are coming soon. Until then it can only be edited in the Manifest tab."
-          },
           "hero": {
             "titleLabel": "Title *",
             "titlePlaceholder": "Main headline shown at the top of your site",
@@ -1388,7 +1385,8 @@
             "backgroundImagePositionLabel": "Image focal point",
             "backgroundImagePositionLeft": "Left",
             "backgroundImagePositionCenter": "Center",
-            "backgroundImagePositionRight": "Right"
+            "backgroundImagePositionRight": "Right",
+            "variantImmersive": "Immersive"
           },
           "serviceList": {
             "titleLabel": "Title (optional)",
@@ -1408,7 +1406,28 @@
             "cardToneLabel": "Card style",
             "cardTonePlain": "Plain",
             "cardToneTinted": "Tinted",
-            "cardToneRuled": "Ruled"
+            "cardToneRuled": "Ruled",
+            "titleHint": "Clear the text to hide this heading.",
+            "itemActionLabel": "When a visitor clicks a service",
+            "itemActionNone": "Nothing",
+            "itemActionBooking": "Go to booking",
+            "itemActionDetails": "Open the service page",
+            "itemActionDetailsHint": "Services whose public page is not published go to booking instead, so a card never links to a page that does not exist.",
+            "itemCtaLabel": "Card button label (optional)",
+            "itemCtaPlaceholder": "Learn more",
+            "detailPageLegend": "Service pages",
+            "detailPageHint": "How every public service page looks.",
+            "detailHeroStyleLabel": "Page opening",
+            "detailHeroStyleCover": "Cover image",
+            "detailHeroStyleCompact": "Compact",
+            "detailGalleryLayoutLabel": "Photos",
+            "detailGalleryLayoutGrid": "Grid",
+            "detailGalleryLayoutFeatured": "Featured photo",
+            "detailShowPriceLabel": "Show the price",
+            "detailShowDurationLabel": "Show the duration",
+            "detailShowLoyaltyPointsLabel": "Show the loyalty points",
+            "detailBookingCtaLabel": "Booking button label (optional)",
+            "detailBookingCtaPlaceholder": "Book this service"
           },
           "gallery": {
             "titleLabel": "Title (optional)",
@@ -1425,7 +1444,9 @@
             "featuredPositionLeft": "Left",
             "featuredPositionRight": "Right",
             "maxVisibleLabel": "Max visible images",
-            "imagesLabel": "Images"
+            "imagesLabel": "Images",
+            "titleHint": "Clear the text to hide this heading.",
+            "layoutPortfolio": "Portfolio"
           },
           "bookingCta": {
             "titleLabel": "Title *",
@@ -1468,7 +1489,8 @@
             "datePickerTypeLabel": "Date picker",
             "datePickerTypeCarousel": "Carousel",
             "datePickerTypeCalendar": "Calendar",
-            "carouselDaysLabel": "Number of days shown"
+            "carouselDaysLabel": "Number of days shown",
+            "variantImmersive": "Immersive"
           },
           "testimonials": {
             "titleLabel": "Title (optional)",
@@ -1493,7 +1515,9 @@
             "avatarUploading": "Uploading...",
             "avatarUploadError": "Could not upload the image. Try again.",
             "avatarRemove": "Remove photo",
-            "emptyItemsLabel": "No testimonials added yet."
+            "emptyItemsLabel": "No testimonials added yet.",
+            "titleHint": "Clear the text to hide this heading.",
+            "layoutEditorialQuote": "Editorial quote"
           },
           "about": {
             "titleLabel": "Title *",
@@ -1533,7 +1557,8 @@
             "displayStyleList": "List",
             "displayStyleIconCards": "Icon cards",
             "whatsappCtaLabelLabel": "WhatsApp button text (optional)",
-            "whatsappCtaLabelPlaceholder": "Chat with us on WhatsApp"
+            "whatsappCtaLabelPlaceholder": "Chat with us on WhatsApp",
+            "titleHint": "Clear the text to hide this heading."
           },
           "footer": {
             "taglineLabel": "Tagline (optional)",
@@ -1586,7 +1611,8 @@
               "backgroundImagePositionLabel": "Image focal point",
               "backgroundImagePositionLeft": "Left",
               "backgroundImagePositionCenter": "Center",
-              "backgroundImagePositionRight": "Right"
+              "backgroundImagePositionRight": "Right",
+              "variantImmersive": "Immersive"
             },
             "audience": {
               "title": "Who can respond",
@@ -1633,8 +1659,178 @@
               "options": "Add between 2 and 10 options.",
               "publishBlocked": "Fix the invalid questions before publishing."
             }
+          },
+          "navigation": {
+            "description": "The links in the top bar. Each one scrolls to a section of this page.",
+            "incomplete": "Fill in every link’s label to apply these changes.",
+            "dragLabel": "Reorder link {position}",
+            "itemLabel": "Link {position} label",
+            "remove": "Remove",
+            "removeItem": "Remove link {position}",
+            "itemTarget": "Link {position} goes to",
+            "targets": {
+              "service-list": "Services",
+              "gallery": "Gallery",
+              "testimonials": "Testimonials",
+              "about": "About",
+              "contact": "Contact"
+            },
+            "targetDisabled": "The “{section}” section is turned off, so this link cannot work. Turn the section on, or choose another destination.",
+            "addItem": "Add link",
+            "itemCount": "{count} of {max} links",
+            "ctaToggle": "Show a button in the top bar",
+            "ctaHint": "A call-to-action next to the links, for example “Book now”.",
+            "ctaLabel": "Button label",
+            "ctaTarget": "Button goes to",
+            "ctaTargetBooking": "Booking",
+            "ctaTargetLeadForm": "Contact form",
+            "ctaLeadFormDisabled": "The contact form is turned off, so this button cannot work. Turn the lead form on, or choose Booking."
+          },
+          "contentBlock": {
+            "variantLabel": "Block style",
+            "variants": {
+              "trust-grid": "Trust points",
+              "process-steps": "Steps",
+              "collage-callout": "Photo collage",
+              "technical-callout": "Technical highlight",
+              "image-statement": "Statement over an image",
+              "immersive-statement": "Immersive statement"
+            },
+            "incomplete": "Complete the required fields (and any image) to apply these changes.",
+            "eyebrowLabel": "Eyebrow text (optional)",
+            "titleLabel": "Title",
+            "bodyLabel": "Text (optional)",
+            "bodyHint": "Supports simple markdown: **bold**, lists, and links.",
+            "bodyPreview": "Preview",
+            "alignLabel": "Text alignment",
+            "alignDefault": "Automatic",
+            "alignLeft": "Left",
+            "alignCenter": "Center",
+            "alignRight": "Right",
+            "ctaToggle": "Add a button",
+            "ctaLabel": "Button label",
+            "ctaTarget": "Button goes to",
+            "ctaTargets": {
+              "booking-form": "Booking",
+              "service-list": "Services",
+              "gallery": "Gallery",
+              "testimonials": "Testimonials",
+              "about": "About",
+              "contact": "Contact"
+            },
+            "listBounds": "Between {min} and {max} items.",
+            "remove": "Remove",
+            "removeItem": "Remove item {position}",
+            "appearanceLabel": "Appearance",
+            "appearanceRule": "Ruled list",
+            "appearanceTiles": "Numbered tiles",
+            "appearancePlain": "Plain",
+            "appearanceRuled": "Ruled columns",
+            "trustItemsLabel": "Points",
+            "addTrustItem": "Add point",
+            "trustItemLabel": "Point {position} title",
+            "trustItemDescription": "Point {position} description (optional)",
+            "stepsLabel": "Steps",
+            "addStep": "Add step",
+            "stepTitle": "Step {position} title",
+            "stepBody": "Step {position} text",
+            "stepLabel": "Step {position} marker (optional)",
+            "collageLabel": "Photos",
+            "addImage": "Add photo",
+            "imageLabel": "Photo {position}",
+            "imageAlt": "Photo {position} description (leave empty if decorative)",
+            "removeImage": "Remove photo {position}",
+            "imageClickToAdd": "Drag an image or click to upload",
+            "imageFormatHint": "PNG or JPG",
+            "imageUploading": "Uploading...",
+            "imageUploadError": "Could not upload the image. Try again.",
+            "imageRemove": "Remove image",
+            "factsPlacementLabel": "Highlights placement",
+            "factsPlacementSide": "Beside the text",
+            "factsPlacementKicker": "Above the title",
+            "factsLabel": "Highlights",
+            "addFact": "Add highlight",
+            "factValue": "Highlight {position} value",
+            "factLabel": "Highlight {position} label",
+            "removeFact": "Remove highlight {position}",
+            "statementImageHint": "The image comes from “Section appearance” below: add a background image there."
+          },
+          "presentation": {
+            "title": "Section appearance",
+            "hint": "Optional. Leave everything on Automatic to keep the site’s default look.",
+            "automatic": "Automatic",
+            "surfaceLabel": "Section background",
+            "surface": {
+              "background": "Page background",
+              "secondary": "Secondary colour",
+              "primary": "Primary colour",
+              "custom": "Custom colour"
+            },
+            "customColorLabel": "Custom colour",
+            "colorError": "Use a colour in the #RRGGBB format.",
+            "contentWidthLabel": "Content width",
+            "contentWidth": {
+              "narrow": "Narrow",
+              "standard": "Standard",
+              "wide": "Wide",
+              "full": "Full width"
+            },
+            "minHeightLabel": "Minimum height",
+            "minHeight": {
+              "auto": "Fit content",
+              "sm": "Small",
+              "md": "Medium",
+              "lg": "Large",
+              "viewport": "Full screen"
+            },
+            "paddingLabel": "Inner spacing",
+            "padding": {
+              "none": "None",
+              "compact": "Compact",
+              "comfortable": "Comfortable",
+              "spacious": "Spacious"
+            },
+            "backgroundImageLabel": "Background image (optional)",
+            "imageClickToAdd": "Drag an image or click to upload",
+            "imageFormatHint": "PNG or JPG",
+            "imageUploading": "Uploading...",
+            "imageUploadError": "Could not upload the image. Try again.",
+            "imageRemove": "Remove image",
+            "backgroundPositionLabel": "Image focus",
+            "backgroundPosition": {
+              "left": "Left",
+              "center": "Center",
+              "right": "Right"
+            },
+            "overlayLabel": "Colour layer over the image",
+            "overlay": {
+              "none": "None",
+              "solid": "Solid",
+              "linear-gradient": "Gradient"
+            },
+            "overlayColorLabel": "Layer colour",
+            "overlayOpacityLabel": "Opacity (%)",
+            "overlayDirectionLabel": "Gradient direction",
+            "overlayDirection": {
+              "to-right": "Left to right",
+              "to-left": "Right to left",
+              "to-bottom": "Top to bottom",
+              "to-top": "Bottom to top"
+            },
+            "overlayFromColorLabel": "Start colour",
+            "overlayFromOpacityLabel": "Start opacity (%)",
+            "overlayToColorLabel": "End colour",
+            "overlayToOpacityLabel": "End opacity (%)"
           }
-        }
+        },
+        "pinnedLabel": "Always first on the page",
+        "navigationDependency": {
+          "title": "Remove the link and turn it off?",
+          "description": "The navigation menu links to “{section}”. Turning this section off also removes that link, so the menu never points to a section that is not on the page.",
+          "confirm": "Remove link and turn off",
+          "cancel": "Cancel"
+        },
+        "publishBlockedInvalidModule": "Complete the module you were editing before publishing."
       },
       "seo": {
         "sectionTitle": "SEO",

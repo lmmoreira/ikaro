@@ -10,7 +10,7 @@ export type LeadFormTeaserDraft = {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: 'left' | 'center' | 'right';
   bgStyle?: 'primary' | 'background';
@@ -70,6 +70,7 @@ export function LeadFormTeaserFields({
         options={[
           { value: 'centered', label: t('teaser.variantCentered') },
           { value: 'left-aligned', label: t('teaser.variantLeftAligned') },
+          { value: 'immersive', label: t('teaser.variantImmersive') },
         ]}
       />
       <PillSelect

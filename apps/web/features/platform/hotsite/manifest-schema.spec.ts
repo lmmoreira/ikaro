@@ -38,14 +38,14 @@ function manifestJson(overrides: Record<string, unknown> = {}): string {
 }
 
 describe('parseManifestJson', () => {
-  it('parses a valid manifest and materializes the layout to all 10 module types', () => {
+  it('parses a valid manifest and materializes the layout to all 12 module types', () => {
     const result = parseManifestJson(manifestJson());
 
     expect(result.success).toBe(true);
     if (!result.success) return;
     expect(result.value.branding).toMatchObject(VALID_BRANDING);
     expect(result.value.seo).toEqual(VALID_SEO);
-    expect(result.value.layout).toHaveLength(10);
+    expect(result.value.layout).toHaveLength(12);
     expect(result.value.layout.find((m) => m.type === 'HERO')).toMatchObject(VALID_HERO_MODULE);
     expect(result.value.layout.find((m) => m.type === 'FOOTER')?.enabled).toBe(false);
     expect(result.value.layout.find((m) => m.type === 'CHATBOT')?.enabled).toBe(false);
@@ -258,10 +258,15 @@ describe('parseManifestJson — NAVIGATION, CONTENT_BLOCK and presentation', () 
     );
   });
 
-  it('does not append NAVIGATION or CONTENT_BLOCK to a manifest that lacks them', () => {
+  // Both are materialized as disabled rows now that the editor has a panel for each; NAVIGATION is
+  // put first, where the backend requires it.
+  it('adds NAVIGATION (first) and CONTENT_BLOCK, both disabled, to a manifest that lacks them', () => {
     const result = parseManifestJson(manifestJson());
 
-    expect(result.success && result.value.layout).toHaveLength(10);
+    expect(result.success && result.value.layout).toHaveLength(12);
+    if (!result.success) return;
+    expect(result.value.layout[0]).toMatchObject({ type: 'NAVIGATION', enabled: false });
+    expect(result.value.layout.find((m) => m.type === 'CONTENT_BLOCK')?.enabled).toBe(false);
   });
 
   it('rejects a NAVIGATION that is not the first module with navigationNotFirst', () => {

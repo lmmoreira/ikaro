@@ -116,7 +116,7 @@ export function VisualModuleInspector({
           {t('visual.moduleDisabledNote')}
         </p>
       )}
-      <Panel key={buffer.type} data={buffer.localData} onChange={onBufferChange} />
+      <Panel key={buffer.type} data={buffer.localData} onChange={onBufferChange} layout={layout} />
       <div className="flex gap-3">
         <Button
           type="button"

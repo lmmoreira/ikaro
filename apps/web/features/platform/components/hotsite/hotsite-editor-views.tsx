@@ -9,6 +9,10 @@ import { ModuleConfigShell } from '@/features/platform/components/hotsite/module
 import { MODULE_CONFIG_PANELS } from './hotsite-editor-lazy-panels';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
 import { hasQuestionValidationError } from './modules/LeadFormSortableQuestion';
+import {
+  splitPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
 
 export type EditorView =
   | { readonly view: 'tabs' }
@@ -40,12 +44,20 @@ export type LeadFormConfigDraft = {
   questions: LeadFormQuestion[];
 };
 
+// `localData` is a module's edit buffer: its data with its section `presentation` folded in under a
+// reserved key (module-presentation.ts), split back onto the module entry here.
 export function mergeLocalDataIntoLayout(
   layout: HotsiteAdminContentResponse['layout'],
   type: HotsiteModuleType,
   localData: Record<string, unknown>,
 ): HotsiteAdminContentResponse['layout'] {
-  return layout.map((module) => (module.type === type ? { ...module, data: localData } : module));
+  const { data, presentation } = splitPresentation(localData);
+  return layout.map((module) => {
+    if (module.type !== type) return module;
+    const next = { ...module, data };
+    delete next.presentation;
+    return presentation === undefined ? next : { ...next, presentation };
+  });
 }
 export function isModuleDataDirty(
   committed: Record<string, unknown>,
@@ -124,9 +136,11 @@ export function buildModuleBuffer(
   leadFormConfigDraft: LeadFormConfigDraft | null,
 ): Record<string, unknown> {
   const selected = draft.layout.find((module) => module.type === type);
-  return type === 'LEAD_FORM' && leadFormConfigDraft
-    ? { ...selected?.data, ...leadFormConfigDraft }
-    : (selected?.data ?? {});
+  const data =
+    type === 'LEAD_FORM' && leadFormConfigDraft
+      ? { ...selected?.data, ...leadFormConfigDraft }
+      : (selected?.data ?? {});
+  return withPresentation(data, selected?.presentation);
 }
 
 export function configureModule(
@@ -143,6 +157,7 @@ export function configureModule(
 }
 export function ModuleConfigView({
   type,
+  layout,
   localData,
   moduleLabel,
   onBack,
@@ -154,6 +169,7 @@ export function ModuleConfigView({
   onChange,
 }: {
   readonly type: HotsiteModuleType;
+  readonly layout: HotsiteAdminContentResponse['layout'];
   readonly localData: Record<string, unknown>;
   readonly moduleLabel: string;
   readonly onBack: () => void;
@@ -176,7 +192,7 @@ export function ModuleConfigView({
       onConfirmDiscard={onConfirmDiscard}
       onCancelDiscard={onCancelDiscard}
     >
-      <Panel data={localData} onChange={onChange} />
+      <Panel data={localData} onChange={onChange} layout={layout} />
     </ModuleConfigShell>
   );
 }

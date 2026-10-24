@@ -24,6 +24,39 @@ const FIVE_IMAGES = Array.from({ length: 5 }, (_, i) => ({
 }));
 
 describe('GalleryConfigPanel', () => {
+  it('picks the Portfolio layout (Story 2)', () => {
+    const onChange = vi.fn();
+    renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={onChange} />);
+
+    fireEvent.click(getPillOption('gallery-layout', 'portfolio'));
+
+    expect(onChange).toHaveBeenLastCalledWith(writeModuleData({ ...GALLERY, layout: 'portfolio' }));
+  });
+
+  it('tells the manager that clearing the title hides the heading', () => {
+    renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
+
+    expect(screen.getByText('Apague o texto para ocultar este título.')).toBeInTheDocument();
+  });
+
+  it('keeps the section presentation when a field changes', () => {
+    const onChange = vi.fn();
+    renderWithIntl(
+      <GalleryConfigPanel
+        data={writeModuleData({ ...GALLERY, presentation: { surface: 'secondary' } })}
+        onChange={onChange}
+      />,
+    );
+
+    fireEvent.change(screen.getByLabelText('Máximo de imagens visíveis'), {
+      target: { value: '8' },
+    });
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...GALLERY, maxVisible: 8, presentation: { surface: 'secondary' } }),
+    );
+  });
+
   it('renders current values', () => {
     renderWithIntl(<GalleryConfigPanel data={writeModuleData(GALLERY)} onChange={vi.fn()} />);
 

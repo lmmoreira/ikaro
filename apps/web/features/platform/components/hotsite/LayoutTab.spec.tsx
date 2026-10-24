@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteModuleResponse } from '@ikaro/types';
@@ -58,6 +58,145 @@ describe('reorderLayout', () => {
     const result = reorderLayout(LAYOUT, 'HERO', 'FOOTER');
 
     expect(result.map((m) => m.type)).toEqual(['HERO', 'SERVICE_LIST', 'GALLERY']);
+  });
+});
+
+describe('LayoutTab — the pinned NAVIGATION row and the dependency dialog', () => {
+  const NAV_DATA = {
+    items: [
+      { label: 'Fotos', target: 'gallery' },
+      { label: 'Sobre', target: 'about' },
+    ],
+    cta: { label: 'Falar', target: 'lead-form' },
+  };
+  function withNavigation(navigationEnabled = true): HotsiteModuleResponse[] {
+    return [
+      { type: 'NAVIGATION', enabled: navigationEnabled, data: NAV_DATA },
+      { type: 'HERO', enabled: true, data: {} },
+      { type: 'GALLERY', enabled: true, data: {} },
+      { type: 'ABOUT', enabled: true, data: {} },
+      { type: 'LEAD_FORM', enabled: true, data: {} },
+    ];
+  }
+  function navigationRow(): HTMLElement {
+    const row = screen
+      .getAllByTestId('layout-row')
+      .find((el) => el.dataset.moduleType === 'NAVIGATION');
+    if (!row) throw new Error('no NAVIGATION row');
+    return row;
+  }
+
+  it('marks NAVIGATION as always first with a lock, and gives it no drag handle', () => {
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={vi.fn()} onConfigure={vi.fn()} />,
+    );
+
+    const pinned = within(navigationRow()).getByTestId('layout-row-pinned');
+    expect(pinned).toHaveAccessibleName('Sempre no topo da página');
+    expect(within(navigationRow()).queryByTestId('layout-row-drag')).not.toBeInTheDocument();
+    expect(screen.getAllByTestId('layout-row-drag')).toHaveLength(4);
+  });
+
+  it('turning off a linked section opens the dialog and changes nothing yet', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-GALLERY'));
+
+    expect(screen.getByTestId('navigation-dependency-dialog')).toBeInTheDocument();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  // Negative guarantee: Cancel leaves the layout exactly as it was.
+  it('Cancel closes the dialog without changing anything', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-GALLERY'));
+    await user.click(screen.getByTestId('navigation-dependency-cancel'));
+
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('navigation-dependency-dialog')).not.toBeInTheDocument();
+  });
+
+  it('confirming removes the links to it and turns it off in one change', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-GALLERY'));
+    await user.click(screen.getByTestId('navigation-dependency-confirm'));
+
+    expect(onChange).toHaveBeenCalledTimes(1);
+    const next = onChange.mock.calls[0][0] as HotsiteModuleResponse[];
+    expect(next.find((m) => m.type === 'GALLERY')?.enabled).toBe(false);
+    expect(next.find((m) => m.type === 'NAVIGATION')?.data).toEqual({
+      items: [{ label: 'Sobre', target: 'about' }],
+      cta: NAV_DATA.cta,
+    });
+  });
+
+  it('turning off the lead form removes the header button that points at it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-LEAD_FORM'));
+    await user.click(screen.getByTestId('navigation-dependency-confirm'));
+
+    const next = onChange.mock.calls[0][0] as HotsiteModuleResponse[];
+    expect(next.find((m) => m.type === 'NAVIGATION')?.data).toEqual({ items: NAV_DATA.items });
+  });
+
+  // Negative guarantee: no dialog when nothing links to the module.
+  it('turns off a section nothing links to without asking', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation()} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-HERO'));
+
+    expect(screen.queryByTestId('navigation-dependency-dialog')).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not ask while the navigation itself is turned off', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <LayoutTab layout={withNavigation(false)} onChange={onChange} onConfigure={vi.fn()} />,
+    );
+
+    await user.click(screen.getByTestId('layout-row-toggle-GALLERY'));
+
+    expect(screen.queryByTestId('navigation-dependency-dialog')).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('turning a section on never asks', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    const layout = withNavigation().map((m) =>
+      m.type === 'GALLERY' ? { ...m, enabled: false } : m,
+    );
+    renderWithIntl(<LayoutTab layout={layout} onChange={onChange} onConfigure={vi.fn()} />);
+
+    await user.click(screen.getByTestId('layout-row-toggle-GALLERY'));
+
+    expect(screen.queryByTestId('navigation-dependency-dialog')).not.toBeInTheDocument();
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 });
 

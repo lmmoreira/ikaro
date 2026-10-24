@@ -2,7 +2,7 @@
 import { screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import userEvent from '@testing-library/user-event';
-import { renderWithIntl } from '@/test-utils';
+import { getPillOption, renderWithIntl } from '@/test-utils';
 import { useLeadFormConfig } from '@/features/platform/hotsite/useHotsite';
 import { LeadFormConfigPanel } from './LeadFormConfigPanel';
 
@@ -120,6 +120,81 @@ describe('LeadFormConfigPanel', () => {
       'aria-checked',
       'true',
     );
+  });
+
+  describe('section presentation (the panel rebuilds its data from its own draft)', () => {
+    const LOADED = {
+      data: { title: 'T', ctaLabel: 'C', audienceMode: 'GUEST_AND_CUSTOMER', questions: [] },
+      isLoading: false,
+      isError: false,
+    } as unknown as ReturnType<typeof useLeadFormConfig>;
+    const SYNCED = {
+      title: 'T',
+      ctaLabel: 'C',
+      audienceMode: 'GUEST_AND_CUSTOMER',
+      questions: [],
+    };
+
+    // Negative guarantee: without putting it back, the first edit would silently drop the
+    // presentation the buffer carries.
+    it('puts the presentation back on every edit', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      mockUseLeadFormConfig.mockReturnValue(LOADED);
+      renderWithIntl(
+        <LeadFormConfigPanel
+          data={{ ...SYNCED, presentation: { surface: 'primary' } }}
+          onChange={onChange}
+        />,
+      );
+
+      await user.click(screen.getByRole('button', { name: '+ Adicionar pergunta' }));
+
+      const [next] = onChange.mock.lastCall as [Record<string, unknown>];
+      expect(next.presentation).toEqual({ surface: 'primary' });
+      expect(next.questions).toHaveLength(1);
+    });
+
+    it('carries it through the first sync from the loaded config', async () => {
+      const onChange = vi.fn();
+      mockUseLeadFormConfig.mockReturnValue(LOADED);
+      renderWithIntl(
+        <LeadFormConfigPanel data={{ presentation: { padding: 'none' } }} onChange={onChange} />,
+      );
+
+      await waitFor(() => expect(onChange).toHaveBeenCalled());
+
+      expect((onChange.mock.lastCall as [Record<string, unknown>])[0].presentation).toEqual({
+        padding: 'none',
+      });
+    });
+
+    it('edits the presentation without touching the teaser or the questions', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      mockUseLeadFormConfig.mockReturnValue(LOADED);
+      renderWithIntl(<LeadFormConfigPanel data={SYNCED} onChange={onChange} />);
+
+      await user.click(getPillOption('presentation-padding', 'spacious'));
+
+      const [next] = onChange.mock.lastCall as [Record<string, unknown>];
+      expect(next).toMatchObject({
+        title: 'T',
+        ctaLabel: 'C',
+        presentation: { padding: 'spacious' },
+      });
+    });
+
+    it('picks the Immersive teaser variant', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      mockUseLeadFormConfig.mockReturnValue(LOADED);
+      renderWithIntl(<LeadFormConfigPanel data={SYNCED} onChange={onChange} />);
+
+      await user.click(getPillOption('lead-form-teaser-variant', 'immersive'));
+
+      expect((onChange.mock.lastCall as [Record<string, unknown>])[0].variant).toBe('immersive');
+    });
   });
 
   it('adds an editable starter question', async () => {

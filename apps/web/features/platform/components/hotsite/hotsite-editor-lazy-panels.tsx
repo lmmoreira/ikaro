@@ -12,14 +12,12 @@ export const MODULE_CONFIG_PANELS: Record<
   HotsiteModuleType,
   React.ComponentType<ModuleConfigPanelProps>
 > = {
-  // NAVIGATION and CONTENT_BLOCK get their real panels later; until then they share a
-  // labelled placeholder so the non-partial Record compiles (see PlaceholderConfigPanel).
   NAVIGATION: dynamic(
-    () => import('./modules/PlaceholderConfigPanel').then((m) => m.PlaceholderConfigPanel),
+    () => import('./modules/NavigationConfigPanel').then((m) => m.NavigationConfigPanel),
     { ssr: false },
   ),
   CONTENT_BLOCK: dynamic(
-    () => import('./modules/PlaceholderConfigPanel').then((m) => m.PlaceholderConfigPanel),
+    () => import('./modules/ContentBlockConfigPanel').then((m) => m.ContentBlockConfigPanel),
     { ssr: false },
   ),
   HERO: dynamic(() => import('./modules/HeroConfigPanel').then((m) => m.HeroConfigPanel), {
