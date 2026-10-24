@@ -34,7 +34,7 @@ The exact job list can evolve; do not duplicate it in milestone plans. Read the 
 5. deploy the application services;
 6. run smoke/health verification.
 
-Migration failure blocks deployment. Applications never run schema synchronization at startup. A `check-current` job gates the migrate-and-deploy job on this run's commit still being the tip of `main`, so a slower older run cannot overwrite a newer deploy.
+Before the migration, both `migrate-and-deploy` jobs sync the hotsite template catalogue's images to the public bucket (create-only, hash-checked, then verified over the public URL), so no code that references a catalogue path deploys before its image exists; staging additionally proves the deployer cannot overwrite a released object (`docs/RUNBOOKS.md` § Hotsite template catalogue). Migration failure blocks deployment. Applications never run schema synchronization at startup. A `check-current` job gates the migrate-and-deploy job on this run's commit still being the tip of `main`, so a slower older run cannot overwrite a newer deploy.
 
 ## Production promotion and rollback
 

@@ -628,7 +628,7 @@ Implemented in `infra/terraform/foundation/modules/static-resource-iam` (new `pu
   - [ ] An applied draft whose previous hotsite had tenant-owned hero/about images schedules deletion of exactly those superseded `tenants/<id>/…` objects on save (documents decision 9), and never of the preserved Gallery images.
   - [ ] Unknown `templateId` returns 404 with the new code and a localized message.
 - Deployment / live check (delivery mechanism):
-  - [ ] The *Live-verification check* above passes against staging before merge review: every manifest path returns 200 anonymously with immutable headers and a matching hash, an overwrite/delete attempt as `app-deployer` returns 403, and a second deploy run is a no-op.
+  - [ ] The *Live-verification check* above passes, in the two parts decided at discovery (the staging objects cannot exist before the first post-merge deploy): **before the merge review**, PR A is applied (both buckets list the conditional `objectCreator` binding, confirmed with `get-iam-policy`); **on the first staging deploy after merge**, every manifest path returns 200 anonymously with immutable headers and a matching hash, the deployer's overwrite of a released object is refused with 403 (`--check-immutability`; overwriting needs `storage.objects.delete`, so this one refusal also proves delete is not granted, and no delete is attempted because a mistaken grant would make it destructive), and a second deploy run is a no-op.
   - [ ] Production's promote workflow runs the sync and `--verify` steps against `ikaro-public-prod` and fails on any mismatch.
   - [ ] The local/CI seed makes every manifest path resolvable in the GCS emulator (asserted in the E2E below).
 - Tenant isolation:
@@ -638,6 +638,17 @@ Implemented in `infra/terraform/foundation/modules/static-resource-iam` (new `pu
   - [ ] **Save round trip:** the applied draft is stripped and saved with `PATCH /tenants/hotsite`, read back with `GET`, stripped and saved again — the second save succeeds and the stored manifest equals the template's values plus the tenant's preserved data (this is the test that fails if decision 11 is missing).
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean; `pnpm dep-cruise`, knip and attw pass with the new package registered.
+
+**Recorded at implementation (PR B, 2026-10-24) — where the shipped result differs from the text above, and why:**
+
+1. **`content` in the apply request/response is `{ branding, layout, seo }`**, shared as `HotsiteTemplateDraftContent` in `@ikaro/types`, not the whole `HotsiteAdminContentResponse`. Apply is a pure function that reads only the tenant, so it cannot know `isPublished` or `updatedAt` without a second read of the saved config; the editor keeps those from its own draft. Story 5 merges the returned `content` into its draft.
+2. **The apply use case does inject the storage port**, for `getPublicUrl` only (decision 12: a pure string build, resolved with the same `HotsiteImageUrlResolver` as GET). A spec pins that no other storage method is called. This reconciles the earlier "the storage port is not injected" sentence with decision 12.
+3. **Two fittings the matrix did not anticipate**, so that an applied draft is always saveable: a template's booking carousel is lowered to the tenant's `maxBookingAdvanceDays`; and when a template's header button targets the lead form but the tenant keeps `LEAD_FORM` off (preserved by decision 9), the button is pointed at `booking-form` instead. Both are in `docs/BUSINESS_LOGIC_REFERENCE.md` § Hotsite template application and pinned by tests.
+4. **`{{brandName}}` falls back to the tenant's name** in the copy when the draft has no brand name (the draft's own branding is returned unchanged, nothing is invented).
+5. **Live check (b), the 403 overwrite test, runs in the pipeline**: the deployer identity cannot be impersonated from a workstation (by design) and the IAM troubleshooter API is not enabled, so `sync-hotsite-template-assets --check-immutability` re-uploads one released object's own bytes in the staging deploy job and requires a 403 (harmless if IAM were wrong, because the bytes are identical). The IAM bindings were confirmed read-only with `get-iam-policy` on both buckets after PR A was applied.
+6. **No `hotsite-templates.types.ts` in the BFF**: the response shapes already live in `@ikaro/types` (the `ikaro-types-drift` rule), so a sibling file would only re-export them. The request schema is in `hotsite-templates.schemas.ts`.
+7. **`scripts/apply-hotsite-template.py` (TD56-S06's local tool) is removed**: it PATCHed the `manifesto-*.json` files this story moves, and the apply operation plus the seeded emulator replace it. The six `manifesto-*.json` files are removed from `hotsite-impl/` (they live on as `definitions/` + `copy/`); `manifesto-v2-layout-proposal.json` stays as the superseded sketch.
+8. **The Foundation README note for the conditional grant is not part of PR B**: PR B may not touch `infra/terraform/**` (no `infra-app-mix-ok`), and PR A merged without it. The grant is documented in `docs/RUNBOOKS.md` and `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §12; a Foundation-only docs follow-up can add the README line.
 
 ### Story 5 — Add the template picker and the guided controls for the new manifest fields to visual and detailed hotsite editing
 

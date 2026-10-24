@@ -1,14 +1,14 @@
 {
+  "id": "beloauto",
+  "version": 1,
+  "thumbnail": "shared/hotsite-templates/beloauto/v1/thumbnail.webp",
   "branding": {
-    "logoUrl": "",
     "spacing": "comfortable",
-    "brandName": "BELOAUTO",
     "textColor": "#F5F5F5",
     "buttonStyle": "filled",
     "heroBgStyle": "background",
     "shadowStyle": "subtle",
     "borderRadius": "rounded",
-    "brandTagline": "Estética Automotiva",
     "dividerStyle": "gradient",
     "primaryColor": "#F5A800",
     "bodyFontFamily": "DM Sans",
@@ -28,37 +28,37 @@
       "data": {
         "items": [
           {
-            "label": "Serviços",
+            "label": "",
             "target": "service-list"
           },
           {
-            "label": "Resultados",
+            "label": "",
             "target": "gallery"
           },
           {
-            "label": "Sobre",
+            "label": "",
             "target": "about"
           },
           {
-            "label": "Contato",
+            "label": "",
             "target": "contact"
           }
         ],
         "cta": {
-          "label": "AGENDAR",
+          "label": "",
           "target": "booking-form"
         }
       }
     },
     {
       "data": {
-        "title": "Cuidado completo para o seu carro.",
-        "eyebrow": "ESTÉTICA AUTOMOTIVA PREMIUM",
+        "title": "",
+        "eyebrow": "",
         "variant": "centered",
-        "ctaLabel": "Ver serviços",
-        "subtitle": "Resultado impecável, técnica precisa e atenção em cada detalhe.",
+        "ctaLabel": "",
+        "subtitle": "",
         "ctaTarget": "service-list",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/hero.png",
+        "backgroundImageUrl": "shared/hotsite-templates/beloauto/v1/hero.webp",
         "backgroundImagePosition": "center",
         "contentPositionX": "left",
         "contentPositionY": "bottom"
@@ -79,9 +79,9 @@
     },
     {
       "data": {
-        "title": "Serviços de precisão.",
+        "title": "",
         "layout": "feature-cards",
-        "eyebrow": "O QUE FAZEMOS",
+        "eyebrow": "",
         "showPoints": false,
         "showPrices": true,
         "cardColumns": 3
@@ -95,32 +95,32 @@
     },
     {
       "data": {
-        "title": "O detalhe muda tudo.",
+        "title": "",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-1.png",
-            "caption": "Resultado final",
+            "url": "shared/hotsite-templates/beloauto/v1/gallery-1.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png",
-            "caption": "Proteção da pintura",
+            "url": "shared/hotsite-templates/beloauto/v1/gallery-2.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-3.png",
-            "caption": "Interior detalhado",
+            "url": "shared/hotsite-templates/beloauto/v1/gallery-3.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
-            "caption": "Técnica",
+            "url": "shared/hotsite-templates/beloauto/v1/about.webp",
+            "caption": "",
             "source": "upload"
           }
         ],
         "layout": "featured",
         "featuredPosition": "left",
-        "eyebrow": "RESULTADOS REAIS",
+        "eyebrow": "",
         "maxVisible": 5
       },
       "type": "GALLERY",
@@ -134,20 +134,20 @@
       "enabled": true,
       "data": {
         "variant": "technical-callout",
-        "title": "O brilho é só a primeira camada.",
-        "body": "Produtos de alta performance e um processo transparente protegem a pintura muito depois do brilho.",
+        "title": "",
+        "body": "",
         "align": "left",
         "facts": [
           {
-            "value": "01",
-            "label": "PROTEÇÃO DE VERDADE"
+            "value": "",
+            "label": ""
           }
         ],
         "factsPlacement": "kicker"
       },
       "presentation": {
         "background": {
-          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/gallery-2.png"
+          "imageUrl": "shared/hotsite-templates/beloauto/v1/gallery-2.webp"
         },
         "overlay": {
           "type": "linear-gradient",
@@ -162,11 +162,11 @@
     },
     {
       "data": {
-        "body": "Produtos de alta performance, profissionais especializados e um processo transparente.",
-        "title": "Técnica visível no resultado.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/about.png",
+        "body": "",
+        "title": "",
+        "imageUrl": "shared/hotsite-templates/beloauto/v1/about.webp",
         "imagePosition": "right",
-        "eyebrow": "SOBRE NÓS",
+        "eyebrow": "",
         "variant": "bleed"
       },
       "type": "ABOUT",
@@ -180,24 +180,24 @@
       "data": {
         "items": [
           {
-            "authorName": "Marcelo",
-            "text": "O carro voltou melhor que quando saiu da loja.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Paulo",
-            "text": "Explicaram cada etapa e entregaram no horário.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Carla",
-            "text": "Acabamento realmente impecável.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           }
         ],
-        "title": "Confiança conquistada.",
+        "title": "",
         "layout": "grid",
-        "eyebrow": "QUEM JÁ CONHECE"
+        "eyebrow": ""
       },
       "type": "TESTIMONIALS",
       "enabled": true,
@@ -207,15 +207,15 @@
     },
     {
       "data": {
-        "title": "Seu carro merece este cuidado.",
+        "title": "",
         "bgStyle": "background",
-        "eyebrow": "RESERVE AGORA",
+        "eyebrow": "",
         "variant": "centered",
-        "ctaLabel": "Agendar agora",
-        "subtitle": "Escolha o serviço e siga para o agendamento completo.",
+        "ctaLabel": "",
+        "subtitle": "",
         "rightPanel": "none",
         "datePickerType": "carousel",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/beloauto/booking.png",
+        "backgroundImageUrl": "shared/hotsite-templates/beloauto/v1/booking.webp",
         "backgroundImagePosition": "center",
         "contentPositionX": "right",
         "contentPositionY": "center"
@@ -229,15 +229,15 @@
     },
     {
       "data": {
-        "title": "Fale com a gente.",
-        "eyebrow": "ESTAMOS AQUI",
+        "title": "",
+        "eyebrow": "",
         "showMap": false,
         "showEmail": false,
         "showPhone": false,
         "showAddress": true,
         "displayStyle": "icon-cards",
         "showWhatsapp": true,
-        "whatsappCtaLabel": "Chamar no WhatsApp",
+        "whatsappCtaLabel": "",
         "showInstagram": true,
         "showFacebook": false
       },
@@ -250,9 +250,9 @@
     },
     {
       "data": {
-        "tagline": "Estética automotiva premium",
+        "tagline": "",
         "showWhatsapp": true,
-        "copyrightNote": "Todos os direitos reservados."
+        "copyrightNote": ""
       },
       "type": "FOOTER",
       "enabled": true,
@@ -274,10 +274,5 @@
         "ctaLabel": ""
       }
     }
-  ],
-  "seo": {
-    "title": "Belo Auto Estética Premium",
-    "description": "Belo Auto Estética",
-    "ogImageUrl": ""
-  }
+  ]
 }

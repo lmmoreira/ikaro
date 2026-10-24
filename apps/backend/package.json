@@ -49,6 +49,7 @@
     "@google-cloud/pubsub": "^5.3.1",
     "@google-cloud/storage": "^7.21.0",
     "@ikaro/env-validation": "workspace:*",
+    "@ikaro/hotsite-templates": "workspace:*",
     "@ikaro/i18n": "workspace:*",
     "@ikaro/nestjs-http": "workspace:*",
     "@ikaro/observability": "workspace:*",

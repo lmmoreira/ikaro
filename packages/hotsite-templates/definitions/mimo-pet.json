@@ -1,8 +1,8 @@
 {
+  "id": "mimo-pet",
+  "version": 1,
+  "thumbnail": "shared/hotsite-templates/mimo-pet/v1/thumbnail.webp",
   "branding": {
-    "brandName": "MIMO PET",
-    "brandTagline": "Cuidado, confiança e carinho",
-    "logoUrl": "",
     "primaryColor": "#E87959",
     "secondaryColor": "#FCEBDD",
     "backgroundColor": "#FFF7EF",
@@ -28,24 +28,24 @@
       "data": {
         "items": [
           {
-            "label": "Banho e tosa",
+            "label": "",
             "target": "service-list"
           },
           {
-            "label": "Galeria",
+            "label": "",
             "target": "gallery"
           },
           {
-            "label": "Histórias",
+            "label": "",
             "target": "testimonials"
           },
           {
-            "label": "Contato",
+            "label": "",
             "target": "contact"
           }
         ],
         "cta": {
-          "label": "AGENDAR BANHO",
+          "label": "",
           "target": "booking-form"
         }
       }
@@ -55,14 +55,14 @@
       "enabled": true,
       "data": {
         "variant": "centered",
-        "title": "Todo carinho que seu pet merece.",
-        "subtitle": "Banho, tosa e bem-estar com uma equipe que chama cada cliente pelo nome.",
-        "eyebrow": "CUIDADO QUE ABANA O RABO",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
         "contentPositionX": "left",
         "contentPositionY": "center",
-        "ctaLabel": "Conhecer os mimos",
+        "ctaLabel": "",
         "ctaTarget": "service-list",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/hero-v2.png",
+        "backgroundImageUrl": "shared/hotsite-templates/mimo-pet/v1/hero-v2.webp",
         "backgroundImagePosition": "right"
       },
       "presentation": {
@@ -81,8 +81,8 @@
       "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "Cuidado para todas as patinhas.",
-        "eyebrow": "NOSSOS SERVIÇOS",
+        "title": "",
+        "eyebrow": "",
         "showPrices": true,
         "showPoints": true,
         "layout": "feature-cards",
@@ -99,21 +99,21 @@
       "enabled": true,
       "data": {
         "variant": "trust-grid",
-        "eyebrow": "O JEITO MIMO",
-        "title": "Cada pet tem seu tempo.",
-        "body": "Rotina clara, produtos gentis e uma equipe que respeita o ritmo de cada animal.",
+        "eyebrow": "",
+        "title": "",
+        "body": "",
         "items": [
           {
-            "label": "Check-in com contexto"
+            "label": ""
           },
           {
-            "label": "Produtos gentis"
+            "label": ""
           },
           {
-            "label": "Equipe presente"
+            "label": ""
           },
           {
-            "label": "Retorno feliz"
+            "label": ""
           }
         ],
         "appearance": "tiles"
@@ -127,10 +127,10 @@
       "type": "ABOUT",
       "enabled": true,
       "data": {
-        "title": "Confiança começa no cuidado.",
-        "eyebrow": "CARINHO QUE SE VÊ",
-        "body": "Rotina segura, produtos gentis e uma equipe que respeita o tempo de cada animal.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
+        "title": "",
+        "eyebrow": "",
+        "body": "",
+        "imageUrl": "shared/hotsite-templates/mimo-pet/v1/about.webp",
         "imagePosition": "left",
         "variant": "bleed"
       },
@@ -142,33 +142,33 @@
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Fofura em cada detalhe.",
-        "eyebrow": "CLIENTES FELIZES",
+        "title": "",
+        "eyebrow": "",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-1.png",
-            "caption": "Depois do banho",
+            "url": "shared/hotsite-templates/mimo-pet/v1/gallery-1.webp",
+            "caption": "",
             "source": "upload",
             "width": 1536,
             "height": 1024
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-2.png",
-            "caption": "Escovação tranquila",
+            "url": "shared/hotsite-templates/mimo-pet/v1/gallery-2.webp",
+            "caption": "",
             "source": "upload",
             "width": 1024,
             "height": 1536
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/gallery-3.png",
-            "caption": "Hora do banho",
+            "url": "shared/hotsite-templates/mimo-pet/v1/gallery-3.webp",
+            "caption": "",
             "source": "upload",
             "width": 1024,
             "height": 1024
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/about.png",
-            "caption": "Cuidado próximo",
+            "url": "shared/hotsite-templates/mimo-pet/v1/about.webp",
+            "caption": "",
             "source": "upload",
             "width": 1536,
             "height": 1024
@@ -187,23 +187,23 @@
       "type": "TESTIMONIALS",
       "enabled": true,
       "data": {
-        "title": "Quem conhece, recomenda",
-        "eyebrow": "AMOR EM QUATRO PATAS",
+        "title": "",
+        "eyebrow": "",
         "layout": "grid",
         "items": [
           {
-            "authorName": "Camila, mãe da Mel",
-            "text": "A Mel sai feliz e cheirosa. Confio de olhos fechados.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Bruno, pai do Theo",
-            "text": "O Theo é ansioso e aqui respeitam o tempo dele.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Luana, mãe do Nino",
-            "text": "Atendimento atento desde a chegada até a volta para casa.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           }
         ]
@@ -218,11 +218,11 @@
       "enabled": true,
       "data": {
         "variant": "centered",
-        "title": "Vamos cuidar do seu melhor amigo?",
-        "subtitle": "O agendamento começa pelo serviço e segue com as etapas adequadas para o seu pet.",
-        "eyebrow": "É SÓ ESCOLHER",
-        "ctaLabel": "Começar agendamento",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/mimo-pet/booking.png",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
+        "ctaLabel": "",
+        "backgroundImageUrl": "shared/hotsite-templates/mimo-pet/v1/booking.webp",
         "backgroundImagePosition": "center",
         "datePickerType": "calendar",
         "bgStyle": "primary",
@@ -245,8 +245,8 @@
       "type": "CONTACT",
       "enabled": true,
       "data": {
-        "title": "Fale com a gente.",
-        "eyebrow": "ESTAMOS POR PERTO",
+        "title": "",
+        "eyebrow": "",
         "showAddress": true,
         "showPhone": true,
         "showWhatsapp": true,
@@ -255,7 +255,7 @@
         "showInstagram": true,
         "showFacebook": false,
         "displayStyle": "icon-cards",
-        "whatsappCtaLabel": "Chamar no WhatsApp"
+        "whatsappCtaLabel": ""
       },
       "presentation": {
         "surface": "background"
@@ -265,8 +265,8 @@
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Cuidado, confiança e carinho",
-        "copyrightNote": "Todos os direitos reservados.",
+        "tagline": "",
+        "copyrightNote": "",
         "showWhatsapp": true
       },
       "presentation": {
@@ -286,14 +286,9 @@
       "type": "LEAD_FORM",
       "enabled": false,
       "data": {
-        "title": "Fale com a gente",
-        "ctaLabel": "Enviar"
+        "title": "",
+        "ctaLabel": ""
       }
     }
-  ],
-  "seo": {
-    "title": "Mimo Pet — Banho e tosa com carinho",
-    "description": "Agende banho, tosa e bem-estar para seu pet.",
-    "ogImageUrl": ""
-  }
+  ]
 }

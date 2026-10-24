@@ -1,6 +1,5 @@
-import { readFileSync } from 'node:fs';
-import path from 'node:path';
 import type { Page } from '@playwright/test';
+import { buildTemplateManifest } from '@ikaro/hotsite-templates';
 import type {
   GenerateHotsiteImageSignedUrlResponse,
   HotsiteAdminContentResponse,
@@ -22,20 +21,19 @@ export type TemplateName = (typeof TEMPLATE_NAMES)[number];
 
 type TemplateFixture = Pick<HotsiteAdminContentResponse, 'branding' | 'layout' | 'seo'>;
 
-// The six template manifests are the source of truth for each composition; the spec applies them
-// through the real PATCH so the public page is rendered from what a manager would really publish.
-const FIXTURE_DIR = path.resolve(
-  __dirname,
-  '../../../../../journeys/manager/prototypes/hotsite/hotsite-impl',
-);
+// The six catalogue templates (packages/hotsite-templates) are the source of truth for each
+// composition; the spec applies them through the real PATCH so the public page is rendered from
+// what a manager would really publish.
+const IDENTITY = { brandName: 'Marca Exemplo', tagline: 'Slogan de exemplo' };
 
-// The fixtures reference platform template assets by absolute URL; the PATCH only accepts the
-// tenant's own storage paths, so every such reference is replaced with one image this tenant owns.
-const TEMPLATE_ASSET_URL = /^https:\/\/storage\.googleapis\.com\/ikaro-template-assets\//;
+// Catalogue images are platform-owned objects uploaded by the deploy pipelines; this suite renders
+// every composition against one image the tenant owns instead, so it does not depend on the
+// catalogue upload having run (hotsite-templates-api.spec.ts covers the real catalogue paths).
+const TEMPLATE_ASSET_PATH = /^shared\/hotsite-templates\//;
 
 function substituteTemplateAssets<T>(value: T, replacement: string): T {
   if (typeof value === 'string') {
-    return (TEMPLATE_ASSET_URL.test(value) ? replacement : value) as T;
+    return (TEMPLATE_ASSET_PATH.test(value) ? replacement : value) as T;
   }
   if (Array.isArray(value)) {
     return value.map((item) => substituteTemplateAssets(item, replacement)) as T;
@@ -52,7 +50,7 @@ function substituteTemplateAssets<T>(value: T, replacement: string): T {
 }
 
 export function loadTemplateFixture(name: TemplateName): TemplateFixture {
-  return JSON.parse(readFileSync(path.join(FIXTURE_DIR, `manifesto-${name}.json`), 'utf8'));
+  return buildTemplateManifest(name, 'pt-BR', IDENTITY);
 }
 
 // Uploads one small image to the tenant's tmp staging area through the real signed-URL flow and

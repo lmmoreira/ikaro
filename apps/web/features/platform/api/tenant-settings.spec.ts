@@ -2,6 +2,7 @@ import MockAdapter from 'axios-mock-adapter';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { bffClient } from '@/shared/lib/api/bff-client';
 import {
+  applyHotsiteTemplate,
   deleteHotsiteImage,
   featureBookingPhoto,
   generateHotsiteImageReadSignedUrl,
@@ -9,6 +10,7 @@ import {
   getChatbotCapStatus,
   getHotsiteConfig,
   getTenantSettings,
+  listHotsiteTemplates,
   publishHotsite,
   resolveTenantFormatting,
   resolveWelcomeStaffScreenDays,
@@ -122,6 +124,45 @@ describe('updateHotsiteConfig', () => {
     mock.onPatch('/tenants/hotsite').reply(200, hotsiteConfig);
     const res = await updateHotsiteConfig({ branding: { brandName: 'Acme' } });
     expect(res).toMatchObject(hotsiteConfig);
+  });
+});
+
+describe('listHotsiteTemplates', () => {
+  it('calls GET /tenants/hotsite/templates and returns the plain list', async () => {
+    const templates = [
+      { id: 'casa47', version: 1, thumbnailUrl: 'https://x/thumbnail.webp', capabilities: [] },
+    ];
+    mock.onGet('/tenants/hotsite/templates').reply(200, templates);
+
+    expect(await listHotsiteTemplates()).toEqual(templates);
+  });
+});
+
+describe('applyHotsiteTemplate', () => {
+  const content = {
+    branding: hotsiteConfig.branding,
+    layout: hotsiteConfig.layout,
+    seo: hotsiteConfig.seo,
+  } as never;
+
+  it('calls POST /tenants/hotsite/templates/:id/apply with the draft and returns the applied draft', async () => {
+    const response = {
+      content: { branding: {}, layout: [], seo: {} },
+      appliedTemplate: { id: 'origem', version: 1 },
+      appliedSampleTestimonials: false,
+    };
+    mock.onPost('/tenants/hotsite/templates/origem/apply').reply(200, response);
+
+    const res = await applyHotsiteTemplate('origem', { content });
+
+    expect(res).toEqual(response);
+    expect(JSON.parse(mock.history.post[0].data)).toEqual({ content });
+  });
+
+  it('propagates a 404 for an unknown template', async () => {
+    mock.onPost('/tenants/hotsite/templates/casa47/apply').reply(404, {});
+
+    await expect(applyHotsiteTemplate('casa47', { content })).rejects.toBeDefined();
   });
 });
 

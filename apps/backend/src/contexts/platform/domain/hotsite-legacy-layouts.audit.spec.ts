@@ -1,5 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { buildTemplateManifest, CATALOGUE_TEMPLATE_IDS } from '@ikaro/hotsite-templates';
 import { HotsiteBrandingSchema, HotsiteModuleSchema } from '@ikaro/validation';
 import { HotsiteConfigBuilder } from '../../../test/builders/platform';
 import type { HotsiteModule } from './hotsite-config.types';
@@ -22,10 +21,8 @@ import {
 // Not covered here, deliberately: apps/web's DEFAULT_MODULE_DATA (default-layout.spec.ts checks it
 // against the web mirror of these schemas, which the shared contract fixtures keep in step) and
 // the e2e helpers, which carry no layout literal — they read the live config and send it back.
-const PROTOTYPE_DIR = join(
-  __dirname,
-  '../../../../../../journeys/manager/prototypes/hotsite/hotsite-impl',
-);
+const IDENTITY = { brandName: 'Marca Exemplo', tagline: 'Slogan de exemplo' };
+const LOCALES = ['pt-BR', 'en'] as const;
 
 function expectEveryModuleToPass(layout: readonly unknown[]): void {
   // An empty fixture proves nothing, so it fails rather than passing vacuously.
@@ -62,40 +59,39 @@ describe('legacy layout audit', () => {
     expectEveryModuleToPass(new HotsiteConfigEntityBuilder().build().layout);
   });
 
-  // The six template manifests are what a manager could paste into the Manifesto tab and what the
-  // catalogue will apply. They use the final schema (NAVIGATION, CONTENT_BLOCK, presentation), so
-  // each must pass the request schema, the aggregate's cross-field rules and the branding schema.
-  describe('prototype manifests (journeys/manager/prototypes/hotsite/hotsite-impl)', () => {
-    const manifests = readdirSync(PROTOTYPE_DIR).filter((file) =>
-      /^manifesto-(?!v2-layout-proposal).+\.json$/.test(file),
+  // The six catalogue templates are what the apply operation hands a manager and what they could
+  // paste into the Manifesto tab. They use the final schema (NAVIGATION, CONTENT_BLOCK,
+  // presentation), so each must pass the request schema, the aggregate's cross-field rules and the
+  // branding schema, in every locale the copy ships in.
+  describe('catalogue templates (packages/hotsite-templates)', () => {
+    it('finds the six template manifests', () => {
+      expect(CATALOGUE_TEMPLATE_IDS).toHaveLength(6);
+    });
+
+    const cases = CATALOGUE_TEMPLATE_IDS.flatMap((id) =>
+      LOCALES.map((locale) => [id, locale] as const),
     );
 
-    it('finds the six template manifests', () => {
-      expect(manifests).toHaveLength(6);
+    it.each(cases)('%s (%s) layout passes the module schema', (id, locale) => {
+      expectEveryModuleToPass(buildTemplateManifest(id, locale, IDENTITY).layout);
     });
 
-    function readManifest(file: string): { layout: unknown[]; branding: unknown } {
-      return JSON.parse(readFileSync(join(PROTOTYPE_DIR, file), 'utf8')) as {
-        layout: unknown[];
-        branding: unknown;
-      };
-    }
-
-    it.each(manifests)('%s layout passes the module schema', (file) => {
-      expectEveryModuleToPass(readManifest(file).layout);
-    });
-
-    it.each(manifests)(
-      '%s layout passes the aggregate cross-field rules (NAVIGATION first, enabled targets, presentation placement)',
-      (file) => {
+    it.each(cases)(
+      '%s (%s) layout passes the aggregate cross-field rules (NAVIGATION first, enabled targets, presentation placement)',
+      (id, locale) => {
         expect(() =>
-          assertValidLayoutStructure(readManifest(file).layout as HotsiteModule[]),
+          assertValidLayoutStructure(
+            buildTemplateManifest(id, locale, IDENTITY).layout as HotsiteModule[],
+          ),
         ).not.toThrow();
       },
     );
 
-    it.each(manifests)('%s branding passes the branding schema', (file) => {
-      expect(HotsiteBrandingSchema.safeParse(readManifest(file).branding).success).toBe(true);
+    it.each(cases)('%s (%s) branding passes the branding schema', (id, locale) => {
+      expect(
+        HotsiteBrandingSchema.safeParse(buildTemplateManifest(id, locale, IDENTITY).branding)
+          .success,
+      ).toBe(true);
     });
   });
 });

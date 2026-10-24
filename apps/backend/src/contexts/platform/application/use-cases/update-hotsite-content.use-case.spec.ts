@@ -16,6 +16,7 @@ import { DEFAULT_HOTSITE_BRANDING } from '../../domain/hotsite-config.aggregate'
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
+import { PackageTemplateCatalogueAdapter } from '../../infrastructure/adapters/package-template-catalogue.adapter';
 import { UpdateHotsiteContentUseCase } from './update-hotsite-content.use-case';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
@@ -40,7 +41,11 @@ describe('UpdateHotsiteContentUseCase', () => {
       tenantRepo,
       new InMemoryTransactionManager(),
       imagePathsService,
-      new HotsiteImagePromotionService(storageService, imagePathsService),
+      new HotsiteImagePromotionService(
+        storageService,
+        imagePathsService,
+        new PackageTemplateCatalogueAdapter(),
+      ),
       new HotsiteImageUrlResolver(),
       storageService,
     );

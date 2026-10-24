@@ -1,5 +1,9 @@
 import type {
+  ApplyHotsiteTemplateRequest,
+  ApplyHotsiteTemplateResponse,
   HotsiteAdminContentResponse,
+  HotsiteTemplateId,
+  HotsiteTemplateSummaryResponse,
   HotsiteImagePurpose,
   PublishHotsiteResponse,
   UnpublishHotsiteResponse,
@@ -89,6 +93,28 @@ export async function updateHotsiteConfig(
   body: UpdateHotsiteRequest,
 ): Promise<HotsiteAdminContentResponse> {
   const res = await bffClient.patch<HotsiteAdminContentResponse>('/tenants/hotsite', body);
+  return res.data;
+}
+
+// The platform-owned template catalogue (TD56-S04): identical for every tenant, so nothing here
+// carries a tenant id. Display names and descriptions live in the web's own locale files, keyed by
+// template id.
+export async function listHotsiteTemplates(): Promise<HotsiteTemplateSummaryResponse[]> {
+  const res = await bffClient.get<HotsiteTemplateSummaryResponse[]>('/tenants/hotsite/templates');
+  return res.data;
+}
+
+// Pure: returns the draft with the template applied and persists nothing, so the caller shows it
+// as the live draft. `body.content` must carry image fields as storage paths (run the draft
+// through stripResolvedImageUrls first, exactly like a save).
+export async function applyHotsiteTemplate(
+  templateId: HotsiteTemplateId,
+  body: ApplyHotsiteTemplateRequest,
+): Promise<ApplyHotsiteTemplateResponse> {
+  const res = await bffClient.post<ApplyHotsiteTemplateResponse>(
+    `/tenants/hotsite/templates/${templateId}/apply`,
+    body,
+  );
   return res.data;
 }
 

@@ -33,9 +33,10 @@ export async function getHotsiteConfig(page: Page): Promise<HotsiteAdminContentR
 // source, only other e2e helpers, so this is a self-contained copy scoped to this file. No
 // tenantId parameter needed here (unlike the app's version): every value this suite ever reads
 // back belongs to the one authenticated tenant for that test, so a generic
-// tenants/<any-id>/... match is unambiguous. A value with no such segment (empty, or already a
+// tenants/<any-id>/... match is unambiguous. A platform template image
+// (shared/hotsite-templates/<id>/v<n>/<file>) is recovered the same way. A value with no such segment (empty, or already a
 // raw path) passes through unchanged.
-const TENANT_STORAGE_PATH = /tenants\/[^/]+\/.*/;
+const TENANT_STORAGE_PATH = /(?:tenants\/[^/]+\/|shared\/hotsite-templates\/).*/;
 
 function toRawPath(value: string): string {
   const match = TENANT_STORAGE_PATH.exec(value);

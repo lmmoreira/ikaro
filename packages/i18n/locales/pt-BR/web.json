@@ -1658,6 +1658,32 @@
           "invalidPresentation": "JSON inválido: apresentação de seção inválida para o módulo \"{moduleType}\".",
           "navigationNotFirst": "JSON inválido: o módulo de navegação deve ser o primeiro módulo do layout."
         }
+      },
+      "templates": {
+        "beloauto": {
+          "name": "BeloAuto",
+          "description": "Campanha automotiva em tela cheia: abertura com imagem, faixa de confiança, serviços em cartões, galeria e chamada para agendar."
+        },
+        "casa47": {
+          "name": "Casa47",
+          "description": "Editorial escuro e sofisticado: abertura assimétrica, menu de preços numerado, depoimento em destaque e a história da casa."
+        },
+        "mimo-pet": {
+          "name": "Mimo Pet",
+          "description": "Álbum divertido e acolhedor: faixas de cor, destaques em cartões, galeria de descobertas e os serviços logo em seguida."
+        },
+        "origem": {
+          "name": "Origem",
+          "description": "Diário de bem-estar tranquilo: abertura só com tipografia, menu de rituais e um ritmo editorial de leitura longa."
+        },
+        "clinica-lume": {
+          "name": "Clínica Lume",
+          "description": "Jornada de cuidado estruturada: abertura calma em duas colunas, especialidades, etapas da primeira consulta e contato."
+        },
+        "lume-studio": {
+          "name": "Lume Studio",
+          "description": "Portfólio de direção de arte: abertura imersiva, sequência de projetos, galeria assimétrica e formulário de contato."
+        }
       }
     },
     "settingsPage": {

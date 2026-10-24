@@ -2,7 +2,7 @@
   "name": "@ikaro/infra-scripts",
   "version": "0.0.1",
   "private": true,
-  "description": "Standalone CI tooling scripts for infra/terraform (env/secret contract check, Pub/Sub topic/subscription catalog) — not consumed by any app at runtime",
+  "description": "Standalone CI tooling scripts for infra/terraform (env/secret contract check, Pub/Sub topic/subscription catalog) and the deploy pipelines (hotsite template asset sync) — not consumed by any app at runtime",
   "scripts": {
     "build": "tsc",
     "type-check": "tsc --noEmit",
@@ -10,9 +10,11 @@
     "test": "jest",
     "test:cov": "jest --coverage",
     "env-contract": "tsc -p tsconfig.json && node dist/env-contract.js",
-    "pubsub-catalog": "tsc -p tsconfig.json && node dist/pubsub-catalog.js"
+    "pubsub-catalog": "tsc -p tsconfig.json && node dist/pubsub-catalog.js",
+    "sync-hotsite-template-assets": "tsc -p tsconfig.json && node dist/sync-hotsite-template-assets.js"
   },
   "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
     "typescript": "^6.0.3"
   },
   "devDependencies": {

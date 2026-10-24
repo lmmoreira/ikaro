@@ -1,0 +1,87 @@
+# BFF — Hotsite template catalogue (TD56-S04)
+# Manager lists the platform-owned templates and applies one to the draft they are editing.
+# Guarded by @Roles('MANAGER') — requires a manager JWT (Authorization: Bearer <token>).
+# Applying is pure: nothing is saved or published.
+#
+# Prerequisites:
+#   1. pnpm infra:up   (also uploads the template images to the local GCS emulator)
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev  (port 3001)
+#   5. pnpm --filter @ikaro/bff run dev      (port 3002)
+#   6. ENABLE_DEV_AUTH=true in apps/bff/.env.local
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@managerToken = {{managerLogin.response.body.accessToken}}
+@staffToken   = {{staffLogin.response.body.accessToken}}
+
+###
+# @name managerLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "admin@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+###
+# @name staffLogin
+POST {{bffUrl}}/v1/auth/dev-login
+Content-Type: application/json
+
+{ "email": "funcionario@lavacar.com.br", "tenantSlug": "{{tenantSlug}}", "type": "staff" }
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List the catalogue: id, version, thumbnailUrl, capabilities (display names live in the web)
+GET {{bffUrl}}/v1/tenants/hotsite/templates
+Authorization: Bearer {{managerToken}}
+
+###
+
+### Apply Lume Studio to the current draft (image fields as storage paths)
+POST {{bffUrl}}/v1/tenants/hotsite/templates/lume-studio/apply
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "content": {
+    "branding": { "brandName": "Lava Car", "brandTagline": "Estética automotiva" },
+    "layout": [],
+    "seo": {}
+  }
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Unknown template id → 404 PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND
+POST {{bffUrl}}/v1/tenants/hotsite/templates/unknown/apply
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "content": { "branding": {}, "layout": [], "seo": {} } }
+
+###
+
+### Missing layout → 400
+POST {{bffUrl}}/v1/tenants/hotsite/templates/casa47/apply
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{ "content": { "branding": {}, "seo": {} } }
+
+###
+
+### Staff (not manager) → 403
+GET {{bffUrl}}/v1/tenants/hotsite/templates
+Authorization: Bearer {{staffToken}}
+
+###
+
+### No token → 401
+GET {{bffUrl}}/v1/tenants/hotsite/templates

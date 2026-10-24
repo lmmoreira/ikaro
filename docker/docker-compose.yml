@@ -39,7 +39,9 @@ services:
     ports:
       - '4443:4443'
     healthcheck:
-      test: ['CMD-SHELL', 'curl -sf http://localhost:4443/_internal/healthcheck || exit 1']
+      # The fake-gcs-server image ships busybox wget but no curl; with curl the check always failed,
+      # which `docker compose up --wait` (pnpm infra:up) turns into a hard error.
+      test: ['CMD-SHELL', 'wget -qO- http://localhost:4443/_internal/healthcheck || exit 1']
       interval: 5s
       timeout: 5s
       retries: 10

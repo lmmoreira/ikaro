@@ -7,6 +7,7 @@ import {
 } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImagePromotionService } from './hotsite-image-promotion.service';
+import { PackageTemplateCatalogueAdapter } from '../../infrastructure/adapters/package-template-catalogue.adapter';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000001';
 const TENANT_B = '10000000-0000-4000-8000-000000000002';
@@ -17,7 +18,11 @@ describe('HotsiteImagePromotionService', () => {
 
   beforeEach(() => {
     storageService = new InMemoryStorageService();
-    service = new HotsiteImagePromotionService(storageService, new HotsiteImagePathsService());
+    service = new HotsiteImagePromotionService(
+      storageService,
+      new HotsiteImagePathsService(),
+      new PackageTemplateCatalogueAdapter(),
+    );
   });
 
   describe('prepareImagePromotion()', () => {
@@ -137,7 +142,7 @@ describe('HotsiteImagePromotionService', () => {
         ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
       });
 
-      it('rejects a shared templates/ path until the template catalogue exists', async () => {
+      it('rejects a templates/ path that is not a registered catalogue asset', async () => {
         await expect(
           service.prepareImagePromotion(
             DEFAULT_HOTSITE_BRANDING,
@@ -290,5 +295,109 @@ describe('HotsiteImagePromotionService', () => {
     it('resolves without doing anything for empty promotions and deletions', async () => {
       await expect(service.executeImagePromotion([], [])).resolves.toBeUndefined();
     });
+  });
+});
+
+describe('HotsiteImagePromotionService — catalogue assets', () => {
+  const REGISTERED = 'shared/hotsite-templates/casa47/v1/hero.webp';
+  const heroWith = (backgroundImageUrl: string): HotsiteModule[] => [
+    {
+      type: 'HERO',
+      enabled: true,
+      data: { variant: 'centered', title: 'T', backgroundImageUrl },
+    } as HotsiteModule,
+  ];
+  let storageService: InMemoryStorageService;
+  let service: HotsiteImagePromotionService;
+
+  beforeEach(() => {
+    storageService = new InMemoryStorageService();
+    service = new HotsiteImagePromotionService(
+      storageService,
+      new HotsiteImagePathsService(),
+      new PackageTemplateCatalogueAdapter(),
+    );
+  });
+
+  it('accepts an exact registered catalogue path as-is, with no storage call and no promotion', async () => {
+    const result = await service.prepareImagePromotion(
+      DEFAULT_HOTSITE_BRANDING,
+      heroWith(REGISTERED),
+      DEFAULT_HOTSITE_SEO,
+      TENANT_A,
+    );
+
+    expect(result.promotions).toEqual([]);
+    expect((result.layout[0].data as { backgroundImageUrl: string }).backgroundImageUrl).toBe(
+      REGISTERED,
+    );
+    expect(storageService.existenceChecks).toEqual([]);
+  });
+
+  it('accepts a registered path of any tenant: the catalogue is shared by every tenant', async () => {
+    await expect(
+      service.prepareImagePromotion(
+        DEFAULT_HOTSITE_BRANDING,
+        heroWith(REGISTERED),
+        DEFAULT_HOTSITE_SEO,
+        TENANT_B,
+      ),
+    ).resolves.toBeDefined();
+  });
+
+  it('rejects an unregistered path under the shared prefix', async () => {
+    await expect(
+      service.prepareImagePromotion(
+        DEFAULT_HOTSITE_BRANDING,
+        heroWith('shared/hotsite-templates/casa47/v1/not-released.webp'),
+        DEFAULT_HOTSITE_SEO,
+        TENANT_A,
+      ),
+    ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+  });
+
+  it.each([
+    'shared/',
+    'shared/hotsite-templates/',
+    'shared/hotsite-templates/casa47/v1/',
+    'shared/other.webp',
+  ])('rejects %s: there is no shared/ wildcard', async (path) => {
+    await expect(
+      service.prepareImagePromotion(
+        DEFAULT_HOTSITE_BRANDING,
+        heroWith(path),
+        DEFAULT_HOTSITE_SEO,
+        TENANT_A,
+      ),
+    ).rejects.toBeInstanceOf(HotsiteImageNotUploadedError);
+  });
+
+  it('never schedules a shared object for deletion when a save drops it', () => {
+    const mine = `tenants/${TENANT_A}/hotsite/hero/u1/old.jpg`;
+
+    const deletions = service.computeDeletions(
+      [REGISTERED, mine],
+      DEFAULT_HOTSITE_BRANDING,
+      heroWith(''),
+      DEFAULT_HOTSITE_SEO,
+      TENANT_A,
+    );
+
+    expect(deletions).toEqual([mine]);
+  });
+
+  it('still schedules the tenant-owned objects an applied template superseded', () => {
+    const oldHero = `tenants/${TENANT_A}/hotsite/hero/u1/old.jpg`;
+    const oldAbout = `tenants/${TENANT_A}/hotsite/about/u1/old.jpg`;
+
+    const deletions = service.computeDeletions(
+      [oldHero, oldAbout],
+      DEFAULT_HOTSITE_BRANDING,
+      heroWith(REGISTERED),
+      DEFAULT_HOTSITE_SEO,
+      TENANT_A,
+    );
+
+    expect(deletions).toEqual([oldHero, oldAbout]);
   });
 });

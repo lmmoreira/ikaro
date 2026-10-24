@@ -33,6 +33,23 @@ describe('DeleteHotsiteImageUseCase', () => {
     expect(storageService.deletedPaths).not.toContain(OTHER_TENANT_IMAGE_PATH);
   });
 
+  describe('catalogue assets are shared and immutable', () => {
+    it.each([
+      'shared/hotsite-templates/casa47/v1/hero.webp',
+      'shared/hotsite-templates/casa47/v1/thumbnail.webp',
+      'shared/anything.webp',
+    ])('never deletes %s: it belongs to no tenant', async (path) => {
+      storageService.markAsUploaded(path);
+
+      await expect(useCase.execute({ tenantId: TENANT_A, filePath: path })).rejects.toThrow(
+        HotsiteImageNotUploadedError,
+      );
+
+      expect(storageService.deletedPaths).toEqual([]);
+      expect(await storageService.exists(path, 'public')).toBe(true);
+    });
+  });
+
   describe('tmp/ staging paths (not-yet-promoted uploads)', () => {
     const TMP_PATH = `tmp/${TENANT_A}/branding/u1/logo.png`;
     const OTHER_TENANT_TMP_PATH = `tmp/${TENANT_B}/branding/u1/logo.png`;

@@ -45,6 +45,16 @@ export class HotsiteNotFoundError extends PlatformDomainError {
   }
 }
 
+export class HotsiteTemplateNotFoundError extends PlatformDomainError {
+  constructor(templateId: string) {
+    super(
+      `Hotsite template '${templateId}' not found`,
+      PlatformErrorCode.HOTSITE_TEMPLATE_NOT_FOUND,
+    );
+    this.name = 'HotsiteTemplateNotFoundError';
+  }
+}
+
 export class HotsiteImageNotUploadedError extends PlatformDomainError {
   constructor(storagePath: string) {
     super(

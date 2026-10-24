@@ -17,7 +17,9 @@ import { TENANT_SETTINGS_PORT } from '../../../../shared/ports/tenant-settings.p
 import { HOTSITE_CONFIG_REPOSITORY } from '../../application/ports/hotsite-config-repository.port';
 import { LEAD_FORM_CONFIG_REPOSITORY } from '../../application/ports/lead-form-config-repository.port';
 import { LEAD_FORM_SUBMISSION_REPOSITORY } from '../../application/ports/lead-form-submission-repository.port';
+import { TEMPLATE_CATALOGUE } from '../../application/ports/template-catalogue.port';
 import { TENANT_REPOSITORY } from '../../application/ports/tenant-repository.port';
+import { PackageTemplateCatalogueAdapter } from '../adapters/package-template-catalogue.adapter';
 import { HotsiteContentReader } from '../../application/services/hotsite-content-reader.service';
 import { HotsiteImagePromotionService } from '../../application/services/hotsite-image-promotion.service';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
@@ -54,6 +56,7 @@ describe('LeadFormController', () => {
         { provide: LEAD_FORM_CONFIG_REPOSITORY, useValue: new InMemoryLeadFormConfigRepository() },
         { provide: LEAD_FORM_SUBMISSION_REPOSITORY, useValue: submissionRepo },
         { provide: TENANT_REPOSITORY, useValue: tenantRepo },
+        { provide: TEMPLATE_CATALOGUE, useClass: PackageTemplateCatalogueAdapter },
         { provide: TRANSACTION_MANAGER, useValue: new InMemoryTransactionManager() },
         { provide: STORAGE_SERVICE, useValue: new InMemoryStorageService() },
         { provide: TENANT_SETTINGS_PORT, useValue: new InMemoryTenantSettingsPort() },
