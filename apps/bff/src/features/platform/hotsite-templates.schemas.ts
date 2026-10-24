@@ -1,16 +1,10 @@
 import { z } from 'zod';
-import { HotsiteBrandingSchema, HotsiteModuleSchema, HotsiteSeoSchema } from '@ikaro/validation';
+import { ApplyHotsiteTemplateSchema } from '@ikaro/validation';
 
 // Request shape of POST /tenants/hotsite/templates/:templateId/apply — the manager's current
-// (possibly unsaved) draft, image fields as storage paths exactly like a PATCH. The backend
-// maintains the same schema independently (apply-hotsite-template.dto.ts); keep them in step.
-export const ApplyHotsiteTemplateBodySchema = z.object({
-  content: z.object({
-    branding: HotsiteBrandingSchema.default({}),
-    layout: z.array(HotsiteModuleSchema),
-    seo: HotsiteSeoSchema.default({}),
-  }),
-});
+// (possibly unsaved) draft, image fields as storage paths exactly like a PATCH. The schema is the
+// shared one in @ikaro/validation, used unchanged by the backend DTO.
+export const ApplyHotsiteTemplateBodySchema = ApplyHotsiteTemplateSchema;
 
 export type ApplyHotsiteTemplateBody = z.infer<typeof ApplyHotsiteTemplateBodySchema>;
 

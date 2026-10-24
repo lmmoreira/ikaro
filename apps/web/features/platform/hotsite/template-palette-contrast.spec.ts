@@ -43,8 +43,7 @@ describe('top bar, navigation and footer tokens (G14)', () => {
   });
 
   it.each(TEMPLATES)('%s: header text and accent meet AA over its secondary colour', (id) => {
-    const branding = buildTemplateManifest(id, 'pt-BR', IDENTITY)
-      .branding as unknown as HotsiteBrandingResponse;
+    const { branding } = buildTemplateManifest(id, 'pt-BR', IDENTITY);
     const tokens = headerTokens(branding);
     expect(
       contrastRatio(branding.secondaryColor, tokens['--ba-secondary-text']),

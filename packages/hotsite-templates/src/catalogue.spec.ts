@@ -46,6 +46,24 @@ describe('template catalogue', () => {
       expect(types[0]).toBe('NAVIGATION');
     });
 
+    it('carries every presentation field a hotsite branding requires', () => {
+      // The loader casts the JSON to TemplateBranding once; this is what makes that cast true.
+      for (const field of [
+        'primaryColor',
+        'secondaryColor',
+        'backgroundColor',
+        'textColor',
+        'headingFontFamily',
+        'bodyFontFamily',
+        'borderRadius',
+        'buttonStyle',
+        'spacing',
+        'shadowStyle',
+      ]) {
+        expect(definition.branding).toHaveProperty(field);
+      }
+    });
+
     it('never sets tenant identity, logo, SEO or an og image', () => {
       expect(definition.branding).not.toHaveProperty('brandName');
       expect(definition.branding).not.toHaveProperty('brandTagline');

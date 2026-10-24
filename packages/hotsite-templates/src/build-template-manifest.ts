@@ -1,12 +1,17 @@
-import type { HotsiteModuleResponse, HotsiteTemplateId } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteSeoResponse,
+  HotsiteTemplateId,
+} from '@ikaro/types';
 import { applyTemplateCopy } from './apply-copy';
 import { getTemplateCopy, getTemplateDefinition } from './catalogue';
 import { TemplateIdentity, TemplateLocale } from './types';
 
 export interface BuiltTemplateManifest {
-  branding: Record<string, unknown>;
+  branding: HotsiteBrandingResponse;
   layout: HotsiteModuleResponse[];
-  seo: { title: null; description: null; ogImageUrl: '' };
+  seo: HotsiteSeoResponse;
 }
 
 /**

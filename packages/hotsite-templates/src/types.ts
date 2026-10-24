@@ -1,6 +1,20 @@
-import type { HotsiteModuleResponse, HotsiteTemplateId } from '@ikaro/types';
+import type {
+  HotsiteBrandingResponse,
+  HotsiteModuleResponse,
+  HotsiteTemplateId,
+} from '@ikaro/types';
 
 export type TemplateLocale = 'pt-BR' | 'en';
+
+/**
+ * A template's presentation branding: everything in a hotsite's branding except the tenant's own
+ * identity. The definition JSON is cast to this once, in the loader, and the package tests prove
+ * every definition really carries all of it.
+ */
+export type TemplateBranding = Omit<
+  HotsiteBrandingResponse,
+  'logoUrl' | 'brandName' | 'brandTagline'
+>;
 
 export const TEMPLATE_LOCALES: readonly TemplateLocale[] = ['pt-BR', 'en'];
 
@@ -14,7 +28,7 @@ export interface TemplateDefinition {
   readonly id: HotsiteTemplateId;
   readonly version: number;
   readonly thumbnail: string;
-  readonly branding: Readonly<Record<string, unknown>>;
+  readonly branding: Readonly<TemplateBranding>;
   readonly layout: readonly HotsiteModuleResponse[];
 }
 

@@ -14,7 +14,7 @@ import {
   TemplateCatalogueIdentity,
   TemplateCatalogueLocale,
 } from '../../application/ports/template-catalogue.port';
-import { HotsiteBranding, HotsiteModule } from '../../domain/hotsite-config.aggregate';
+import { HotsiteModule } from '../../domain/hotsite-config.aggregate';
 
 /**
  * Adapter over @ikaro/hotsite-templates, whose definitions are bundled into the backend build.
@@ -45,7 +45,7 @@ export class PackageTemplateCatalogueAdapter implements ITemplateCatalogue {
       id: templateId,
       version: definition.version,
       // A definition's branding is presentation only: tenant identity is the caller's to preserve.
-      branding: { ...definition.branding } as Partial<HotsiteBranding>,
+      branding: { ...definition.branding },
       layout: buildTemplateManifest(templateId, locale, identity).layout as HotsiteModule[],
     };
   }

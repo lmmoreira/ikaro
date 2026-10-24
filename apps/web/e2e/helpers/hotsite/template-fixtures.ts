@@ -50,7 +50,7 @@ function substituteTemplateAssets<T>(value: T, replacement: string): T {
 }
 
 export function loadTemplateFixture(name: TemplateName): TemplateFixture {
-  return buildTemplateManifest(name, 'pt-BR', IDENTITY) as unknown as TemplateFixture;
+  return buildTemplateManifest(name, 'pt-BR', IDENTITY);
 }
 
 // Uploads one small image to the tenant's tmp staging area through the real signed-URL flow and
