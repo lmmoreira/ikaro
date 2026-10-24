@@ -9,6 +9,7 @@ import type {
   GalleryModuleData,
   HeroModuleData,
   HotsiteManifestResponse,
+  HotsiteModulePresentation,
   HotsiteModuleResponse,
   HotsiteModuleType,
   HotsiteNavigationItem,
