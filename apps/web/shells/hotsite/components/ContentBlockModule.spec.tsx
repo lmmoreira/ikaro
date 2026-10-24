@@ -246,4 +246,22 @@ describe('ContentBlockModule', () => {
     expect(section.style.backgroundColor).toBe('var(--ba-section-bg)');
     expect(section.firstElementChild).toHaveClass('max-w-7xl');
   });
+
+  it.each([
+    ['trust-grid', { variant: 'trust-grid', appearance: 'rule' }],
+    ['process-steps', { variant: 'process-steps', appearance: 'plain' }],
+    ['technical-callout', { variant: 'technical-callout', factsPlacement: 'side' }],
+  ] as const)(
+    'renders %s identically when the new field carries its default',
+    (name, withField) => {
+      const base = VARIANTS.find((item) => item.variant === name) as ContentBlockModuleData;
+      const plain = render(<ContentBlockModule data={base} slug="t" />);
+      const html = plain.container.innerHTML;
+      plain.unmount();
+      const explicit = render(
+        <ContentBlockModule data={{ ...base, ...withField } as ContentBlockModuleData} slug="t" />,
+      );
+      expect(explicit.container.innerHTML).toBe(html);
+    },
+  );
 });

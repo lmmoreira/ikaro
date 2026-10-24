@@ -543,4 +543,25 @@ describe('ServiceListModule item action', () => {
     expect(screen.getByTestId('service-action')).toHaveStyle({ color: 'var(--ba-primary)' });
     expect(screen.getByTestId('service-action').className).not.toContain('border-2');
   });
+
+  it('renders feature cards identically when the new fields carry their defaults', () => {
+    const services = [makeService(), makeService({ id: '00000000-0000-0000-0000-000000000002' })];
+    const base = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards' })}
+        slug="t"
+        services={services}
+      />,
+    );
+    const html = base.container.innerHTML;
+    base.unmount();
+    const explicit = renderWithIntl(
+      <ServiceListModule
+        data={makeData({ layout: 'feature-cards', cardColumns: 2, cardTone: 'plain' })}
+        slug="t"
+        services={services}
+      />,
+    );
+    expect(explicit.container.innerHTML).toBe(html);
+  });
 });

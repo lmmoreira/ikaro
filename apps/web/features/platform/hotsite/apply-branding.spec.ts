@@ -471,4 +471,12 @@ describe('deriveSectionTokens', () => {
       expect.arrayContaining(['--ba-primary', '--ba-hero-bg', '--ba-hero-text', '--ba-divider']),
     );
   });
+
+  it('resolves the Manrope and DM Sans headings and body to their font variables', () => {
+    const tokens = applyBranding(
+      makeBranding({ headingFontFamily: 'Manrope', bodyFontFamily: 'DM Sans' }),
+    ) as CSSTokens;
+    expect(tokens['--ba-heading-font']).toBe('var(--font-manrope)');
+    expect(tokens['--ba-body-font']).toBe('var(--font-dm-sans)');
+  });
 });

@@ -178,4 +178,13 @@ describe('AboutModule editorial variant', () => {
       'noopener noreferrer nofollow',
     );
   });
+
+  it('keeps the split layout unchanged when no variant is set', () => {
+    const data = makeData({ imageUrl: 'https://storage.example.com/about.jpg' });
+    const omitted = render(<AboutModule data={data} slug="t" />);
+    const html = omitted.container.innerHTML;
+    omitted.unmount();
+    const explicit = render(<AboutModule data={{ ...data, variant: 'split' }} slug="t" />);
+    expect(explicit.container.innerHTML).toBe(html);
+  });
 });
