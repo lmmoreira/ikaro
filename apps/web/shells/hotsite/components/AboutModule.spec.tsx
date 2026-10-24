@@ -187,4 +187,11 @@ describe('AboutModule editorial variant', () => {
     const explicit = render(<AboutModule data={{ ...data, variant: 'split' }} slug="t" />);
     expect(explicit.container.innerHTML).toBe(html);
   });
+
+  it('lets bleed copy use the full width without an image, above any section background layer', () => {
+    render(<AboutModule data={makeData({ variant: 'bleed' })} slug="tenant" />);
+    const grid = screen.getByTestId('about-bleed');
+    expect(grid).not.toHaveClass('md:grid-cols-2');
+    expect(grid).toHaveClass('relative', 'z-10');
+  });
 });

@@ -118,6 +118,32 @@ describe('assertValidLayoutStructure', () => {
       ).not.toThrow();
     });
 
+    it('rejects a lead-form header CTA when LEAD_FORM is not enabled', () => {
+      const withCta: HotsiteModule = {
+        type: 'NAVIGATION',
+        enabled: true,
+        data: { items: [], cta: { label: 'Começar', target: 'lead-form' } },
+      };
+      expect(() => assertValidLayoutStructure([withCta, hero()])).toThrow(
+        HotsiteNavigationTargetNotEnabledError,
+      );
+      const leadForm: HotsiteModule = {
+        type: 'LEAD_FORM',
+        enabled: true,
+        data: { variant: 'centered', title: 'T', ctaLabel: 'Go' },
+      } as HotsiteModule;
+      expect(() => assertValidLayoutStructure([withCta, hero(), leadForm])).not.toThrow();
+    });
+
+    it('accepts a booking header CTA without any other module', () => {
+      const withCta: HotsiteModule = {
+        type: 'NAVIGATION',
+        enabled: true,
+        data: { items: [], cta: { label: 'Agendar', target: 'booking-form' } },
+      };
+      expect(() => assertValidLayoutStructure([withCta, hero()])).not.toThrow();
+    });
+
     it('accepts an enabled NAVIGATION with no items', () => {
       expect(() => assertValidLayoutStructure([navigation([]), hero()])).not.toThrow();
     });

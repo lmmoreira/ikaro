@@ -52,6 +52,21 @@ describe('resolveHotsiteNavigationCta', () => {
     ).toEqual(cta);
   });
 
+  it('drops a lead-form CTA unless a LEAD_FORM module is enabled', () => {
+    const cta = { label: 'Começar', target: 'lead-form' };
+    const navigation = makeLayoutItem({ type: 'NAVIGATION', data: { items: [], cta } });
+    expect(resolveHotsiteNavigationCta([navigation])).toBeUndefined();
+    expect(
+      resolveHotsiteNavigationCta([
+        navigation,
+        makeLayoutItem({ type: 'LEAD_FORM', enabled: false, data: {} }),
+      ]),
+    ).toBeUndefined();
+    expect(
+      resolveHotsiteNavigationCta([navigation, makeLayoutItem({ type: 'LEAD_FORM', data: {} })]),
+    ).toEqual(cta);
+  });
+
   it('returns nothing for an omitted or disabled CTA', () => {
     expect(
       resolveHotsiteNavigationCta([makeLayoutItem({ type: 'NAVIGATION', data: { items: [] } })]),

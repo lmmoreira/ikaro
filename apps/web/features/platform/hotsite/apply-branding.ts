@@ -1,5 +1,6 @@
 import type {
   HotsiteBrandingResponse,
+  HotsiteOverlayDirection,
   HotsiteSectionOverlay,
   HotsiteSectionSurface,
 } from '@ikaro/types';
@@ -157,6 +158,19 @@ export function deriveSectionTokens(
 
 type ContentAnchor = 'left' | 'center' | 'right' | 'top' | 'bottom';
 
+const GRADIENT_END: Record<HotsiteOverlayDirection, ContentAnchor> = {
+  'to-right': 'right',
+  'to-left': 'left',
+  'to-bottom': 'bottom',
+  'to-top': 'top',
+};
+
+// How far along the gradient the copy sits: its end is 1, the opposite end 0, the middle 0.5.
+function gradientFraction(direction: HotsiteOverlayDirection, position: ContentAnchor): number {
+  if (position === 'center') return 0.5;
+  return GRADIENT_END[direction] === position ? 1 : 0;
+}
+
 function overlayAtContent(
   overlay: HotsiteSectionOverlay,
   x: ContentAnchor,
@@ -165,24 +179,7 @@ function overlayAtContent(
   if (overlay.type === 'none') return null;
   if (overlay.type === 'solid') return overlay;
   const position = overlay.direction === 'to-right' || overlay.direction === 'to-left' ? x : y;
-  const fraction =
-    position === 'center'
-      ? 0.5
-      : overlay.direction === 'to-right'
-        ? position === 'right'
-          ? 1
-          : 0
-        : overlay.direction === 'to-left'
-          ? position === 'left'
-            ? 1
-            : 0
-          : overlay.direction === 'to-bottom'
-            ? position === 'bottom'
-              ? 1
-              : 0
-            : position === 'top'
-              ? 1
-              : 0;
+  const fraction = gradientFraction(overlay.direction, position);
   return {
     color: mixHex(overlay.fromColor, overlay.toColor, fraction),
     opacity: overlay.fromOpacity + (overlay.toOpacity - overlay.fromOpacity) * fraction,

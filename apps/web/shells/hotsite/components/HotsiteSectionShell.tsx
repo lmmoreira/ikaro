@@ -20,7 +20,7 @@ export interface SectionPresentationProps {
   readonly tints?: readonly [SectionTint, SectionTint, SectionTint];
 }
 
-interface HotsiteSectionShellProps extends SectionPresentationProps {
+interface HotsiteSectionShellProps extends Omit<SectionPresentationProps, 'tints'> {
   readonly id?: string;
   readonly className?: string;
   readonly dataVariant?: string;

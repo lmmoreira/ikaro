@@ -43,6 +43,11 @@ const STATEMENT_DEFAULT_ALIGN: Readonly<Record<ContentBlockModuleData['variant']
   'immersive-statement': 'center',
 };
 
+// The ruled process rules: the section divider, falling back when no section surface sets one.
+const RULE_STYLE: React.CSSProperties = {
+  borderColor: 'var(--ba-section-divider, var(--ba-divider, rgba(0,0,0,0.15)))',
+};
+
 const btnStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
@@ -107,7 +112,7 @@ function VariantBody({
 }: {
   readonly data: ContentBlockModuleData;
   readonly align: Align;
-  readonly tints?: SectionPresentationProps['tints'];
+  readonly tints?: NonNullable<SectionPresentationProps['tints']>;
 }): React.JSX.Element {
   if (data.variant === 'trust-grid') {
     if (data.appearance === 'tiles') {
@@ -149,17 +154,14 @@ function VariantBody({
         <Copy data={data} align={align} />
         <ol
           className={`mt-10 grid list-none grid-cols-1 gap-8 md:grid-cols-3 ${data.appearance === 'ruled' ? 'border-y py-6' : ''}`}
+          style={data.appearance === 'ruled' ? RULE_STYLE : undefined}
           data-testid="steps"
         >
           {data.items.map((item, index) => (
             <li
               key={`${item.title}-${index}`}
               className={data.appearance === 'ruled' && index ? 'border-l pl-6' : undefined}
-              style={
-                data.appearance === 'ruled'
-                  ? { borderColor: 'var(--ba-section-divider)' }
-                  : undefined
-              }
+              style={data.appearance === 'ruled' ? RULE_STYLE : undefined}
             >
               {item.label ? (
                 <span

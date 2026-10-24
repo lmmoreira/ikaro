@@ -52,7 +52,8 @@ export function HotsiteNavigation({
 
   if (items.length === 0 && !cta) return null;
 
-  const ctaHref = cta ? `/${slug}/${cta.target === 'lead-form' ? 'lead-form' : 'booking'}` : '';
+  const ctaPath = cta?.target === 'lead-form' ? 'lead-form' : 'booking';
+  const ctaHref = cta ? `/${slug}/${ctaPath}` : '';
   const ctaStyle = {
     backgroundColor: 'var(--ba-btn-bg)',
     color: 'var(--ba-btn-text)',

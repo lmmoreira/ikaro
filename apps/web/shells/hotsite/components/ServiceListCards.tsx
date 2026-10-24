@@ -78,7 +78,7 @@ function RuledServiceCard({
   return (
     <li
       className={`flex flex-col gap-3 p-7 ${index ? 'md:border-l' : ''}`}
-      style={{ borderColor: 'var(--ba-section-divider)' }}
+      style={{ borderColor: 'var(--ba-section-divider, var(--ba-divider, rgba(0,0,0,0.15)))' }}
     >
       <span className="text-sm font-semibold tabular-nums" style={{ color: 'var(--ba-primary)' }}>
         {String(index + 1).padStart(2, '0')}

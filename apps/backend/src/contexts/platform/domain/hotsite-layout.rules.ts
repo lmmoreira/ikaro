@@ -83,6 +83,12 @@ function assertNavigationTargetsEnabled(layout: readonly HotsiteModule[]): void 
       throw new HotsiteNavigationTargetNotEnabledError(item.target);
     }
   }
+  // The header button to /{slug}/lead-form is a link too: that route is unavailable without an
+  // enabled LEAD_FORM module.
+  const cta = (navigation.data as NavigationModuleData).cta;
+  if (cta?.target === 'lead-form' && !enabledTypes.has('LEAD_FORM')) {
+    throw new HotsiteNavigationTargetNotEnabledError(cta.target);
+  }
 }
 
 export function assertValidLayoutStructure(layout: readonly HotsiteModule[]): void {

@@ -89,14 +89,15 @@ function PortfolioGallery({ data }: GalleryLayoutProps): React.JSX.Element {
   );
 }
 
+// The grid areas each featured mosaic fills: 3 and 4 images have their own template, 5 the full one.
+const FEATURED_AREAS_BY_COUNT: Readonly<Record<number, readonly string[]>> = {
+  3: ['big', 's1', 's2'],
+  4: ['big', 's1', 's2', 's3'],
+};
+
 function FeaturedGallery({ data }: GalleryLayoutProps): React.JSX.Element {
   const count = Math.min(data.images.length, 5);
-  const areas =
-    count === 3
-      ? ['big', 's1', 's2']
-      : count === 4
-        ? ['big', 's1', 's2', 's3']
-        : FEATURED_GRID_AREAS;
+  const areas = FEATURED_AREAS_BY_COUNT[count] ?? FEATURED_GRID_AREAS;
   return (
     <GalleryGrid maxVisible={count} totalImages={count}>
       <div
@@ -190,11 +191,10 @@ export function GalleryModule({
 
   const title = data.title ?? t('gallery.defaultTitle');
 
-  // 'featured' needs at least 3 images — fewer than that renders as
-  // 'grid' instead. More than 5 is fine: only the first 5 (images.slice(0, 5) below) are used,
-  // matching the config panel's own gate. Display-time only: the stored layout value is
-  // untouched, so restoring a 5th image brings the featured view back with no re-selection
-  // needed (M18-S07).
+  // 'featured' needs at least 3 images (3, 4 and 5 each have their own mosaic) — fewer than that
+  // renders as 'grid' instead. More than 5 is fine: only the first 5 are used, matching the
+  // config panel's own gate. Display-time only: the stored layout value is untouched, so
+  // restoring the missing image brings the featured view back with no re-selection needed.
   const effectiveLayout: GalleryModuleData['layout'] =
     data.layout === 'featured' && data.images.length < 3 ? 'grid' : data.layout;
 

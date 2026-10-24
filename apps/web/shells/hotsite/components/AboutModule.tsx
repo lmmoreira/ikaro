@@ -91,7 +91,10 @@ export function AboutModule({
     );
     return (
       <HotsiteSectionShell {...shellProps} flow={false} legacyPadding="0" dataVariant="bleed">
-        <div className="grid md:grid-cols-2">
+        <div
+          className={`relative z-10 grid ${bleedImage ? 'md:grid-cols-2' : ''}`}
+          data-testid="about-bleed"
+        >
           {imagePosition === 'left' ? (
             <>
               {bleedImage}

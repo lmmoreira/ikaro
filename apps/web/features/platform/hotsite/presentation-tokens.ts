@@ -10,7 +10,7 @@ import type {
   HotsiteModuleParsed,
   HotsiteModuleRenderPlanItem,
   HotsiteSectionBgVariant,
-} from './page-model';
+} from './render-plan.types';
 
 function resolveSurfaceColor(
   branding: HotsiteBrandingResponse,
