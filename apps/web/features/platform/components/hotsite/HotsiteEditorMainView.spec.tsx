@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { HotsiteEditorMainView } from './HotsiteEditorMainView';
+import { makeTemplatesController } from './templates-controller.fixture';
 
 vi.mock('@/features/platform/components/hotsite/BrandingTab', () => ({
   BrandingTab: () => <div data-testid="mock-branding-tab" />,
@@ -48,6 +49,7 @@ function baseProps() {
     tenantSlug: 'tenant-a',
     isPublishing: false,
     isUnpublishing: false,
+    templates: makeTemplatesController(),
     onBrandingChange: vi.fn(),
     onLayoutChange: vi.fn(),
     onSeoChange: vi.fn(),
@@ -60,6 +62,54 @@ function baseProps() {
 }
 
 describe('HotsiteEditorMainView', () => {
+  describe('Templates tab', () => {
+    function tabOrder(): (string | undefined)[] {
+      return screen.getAllByTestId('hotsite-tab').map((tab) => tab.dataset.tab);
+    }
+
+    it('is the first tab, and Manifest stays last', () => {
+      renderWithIntl(<HotsiteEditorMainView {...baseProps()} />);
+
+      expect(tabOrder()).toEqual(['templates', 'branding', 'layout', 'seo', 'manifest']);
+    });
+
+    it('renders the template gallery in its panel', () => {
+      renderWithIntl(<HotsiteEditorMainView {...baseProps()} activeTab="templates" />);
+
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('id', 'hotsite-tabpanel-templates');
+      expect(screen.getByTestId('template-gallery')).toBeInTheDocument();
+      expect(screen.getAllByTestId('template-card')).toHaveLength(6);
+      expect(screen.queryByTestId('mock-branding-tab')).not.toBeInTheDocument();
+    });
+
+    it('shows the same session state as the visual inspector: the applied card is selected', () => {
+      renderWithIntl(
+        <HotsiteEditorMainView
+          {...baseProps()}
+          activeTab="templates"
+          templates={makeTemplatesController({ appliedTemplateId: 'origem' })}
+        />,
+      );
+
+      const selected = screen
+        .getAllByTestId('template-card')
+        .filter((c) => c.dataset.selected === 'true');
+      expect(selected.map((card) => card.dataset.templateId)).toEqual(['origem']);
+    });
+
+    it('switches to it through onActiveTabChange', async () => {
+      const user = userEvent.setup();
+      const props = baseProps();
+      renderWithIntl(<HotsiteEditorMainView {...props} />);
+
+      await user.click(
+        screen.getAllByTestId('hotsite-tab').find((tab) => tab.dataset.tab === 'templates')!,
+      );
+
+      expect(props.onActiveTabChange).toHaveBeenCalledWith('templates');
+    });
+  });
+
   it('renders the active tab content and switches tabs via onActiveTabChange', async () => {
     const user = userEvent.setup();
     const props = baseProps();

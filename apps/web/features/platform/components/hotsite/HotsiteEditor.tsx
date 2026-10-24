@@ -41,6 +41,7 @@ import {
 } from './hotsite-editor-views';
 import { executeHotsitePublish } from './hotsite-editor-publish';
 import { applyModuleConfig } from './hotsite-module-buffer';
+import { useHotsiteTemplateApplication } from './useHotsiteTemplateApplication';
 import { useModuleConfigDiscard } from './useModuleConfigDiscard';
 
 interface HotsiteEditorProps {
@@ -114,6 +115,12 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
     onCommit: commitModuleData,
     onClearBanner: clearBanner,
   });
+  const templates = useHotsiteTemplateApplication({
+    draft,
+    setDraft,
+    tenantId,
+    onDraftChanged: clearBanner,
+  });
   const topbarStatus = useDashboardTopbarStatus();
   const setOnBackOverride = topbarStatus?.setOnBackOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -173,7 +180,10 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       setDraft,
       onSettled: () => setView({ view: 'tabs' }),
       onBanner: setActionBanner,
-      onLeadFormPublished: () => setLeadFormConfigDraft(null),
+      onLeadFormPublished: () => {
+        setLeadFormConfigDraft(null);
+        templates.clearUndo();
+      },
       onSaved: mode === 'visual' ? visualBuffer.resyncAfterSave : undefined,
     });
 
@@ -252,6 +262,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
         isPublishing={isPublishing}
         publishBlocked={visualBuffer.isDirty}
         inspector={visualBuffer.inspector}
+        templates={templates}
         onSelectModule={visualBuffer.requestSelectModule}
         onShowContext={visualBuffer.requestGlobalContext}
         onBrandingChange={setBranding}
@@ -271,6 +282,7 @@ export function HotsiteEditor({ initial }: HotsiteEditorProps): React.JSX.Elemen
       tenantSlug={tenantSlug}
       isPublishing={isPublishing}
       isUnpublishing={unpublishHotsite.isPending}
+      templates={templates}
       onBrandingChange={setBranding}
       onLayoutChange={setLayout}
       onSeoChange={setSeo}

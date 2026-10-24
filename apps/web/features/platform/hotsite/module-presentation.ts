@@ -1,4 +1,5 @@
 import type { HotsiteModulePresentation, HotsiteModuleType } from '@ikaro/types';
+import { isStructurallyEqual } from './canonical-json';
 
 // A module entry is `{ type, enabled, data, presentation? }`, but an editor panel only ever edits
 // one flat object. The open module's buffer therefore carries `presentation` under this reserved
@@ -55,25 +56,13 @@ export function splitPresentation(localData: Record<string, unknown>): {
   };
 }
 
-// Key order never carries meaning in a manifest, and a buffer re-folded after an Apply need not
-// list `presentation` where it was, so equality is structural.
-function canonicalJson(value: unknown): string {
-  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-  if (value !== null && typeof value === 'object') {
-    const entries = Object.entries(value as Record<string, unknown>)
-      .filter(([, entry]) => entry !== undefined)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`);
-    return `{${entries.join(',')}}`;
-  }
-  return JSON.stringify(value) ?? 'null';
-}
-
+// A buffer re-folded after an Apply need not list `presentation` where it was, so equality is
+// structural (canonical-json.ts).
 export function isPresentationEqual(
   a: HotsiteModulePresentation | undefined,
   b: HotsiteModulePresentation | undefined,
 ): boolean {
   const normalize = (value: HotsiteModulePresentation | undefined): unknown =>
     value !== undefined && Object.keys(value).length === 0 ? undefined : value;
-  return canonicalJson(normalize(a)) === canonicalJson(normalize(b));
+  return isStructurallyEqual(normalize(a), normalize(b));
 }

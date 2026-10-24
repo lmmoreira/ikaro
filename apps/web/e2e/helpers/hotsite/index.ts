@@ -1,4 +1,8 @@
-export { enterDetailedEditor, openDetailedEditor } from './hotsite-editor-navigation';
+export {
+  enterDetailedEditor,
+  openDetailedEditor,
+  openVisualEditor,
+} from './hotsite-editor-navigation';
 export {
   getHotsiteConfig,
   updateHotsiteConfig,

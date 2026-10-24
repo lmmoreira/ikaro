@@ -1176,7 +1176,8 @@
         "branding": "Branding",
         "layout": "Layout",
         "seo": "SEO",
-        "manifest": "Manifesto"
+        "manifest": "Manifesto",
+        "templates": "Templates"
       },
       "publish": "Publicar alterações",
       "preview": "Preview",
@@ -1204,7 +1205,8 @@
           "sharing": "Compartilhamento",
           "detail": "Editar em detalhes",
           "publish": "Publicar",
-          "viewLive": "Ver site publicado"
+          "viewLive": "Ver site publicado",
+          "templates": "Templates"
         },
         "previewLabel": "Prévia do rascunho",
         "previewStatusIdle": "Rascunho — selecione uma seção da prévia",
@@ -1879,6 +1881,49 @@
         "lume-studio": {
           "name": "Lume Studio",
           "description": "Portfólio de direção de arte: abertura imersiva, sequência de projetos, galeria assimétrica e formulário de contato."
+        },
+        "heading": "Comece com um template",
+        "intro": "Escolha uma base visual para o seu hotsite. Seu nome, logo, serviços, contatos e horários continuam os mesmos; você pode personalizar tudo depois.",
+        "note": "O template substitui cores, fontes, ordem das seções e textos de exemplo. Revise os textos antes de publicar.",
+        "selected": "Selecionado",
+        "sampleNotice": "Este template inclui depoimentos de exemplo — edite ou remova antes de publicar.",
+        "imagesWarning": "As imagens que você enviou nestas seções serão substituídas e removidas quando você salvar.",
+        "listLabel": "Templates disponíveis",
+        "thumbnailAlt": "Prévia do template {name}",
+        "use": "Usar este template",
+        "applying": "Aplicando…",
+        "undo": "Desfazer template",
+        "loading": "Carregando templates…",
+        "error": "Não foi possível carregar os templates.",
+        "applyError": "Não foi possível aplicar o template. Seu rascunho não foi alterado.",
+        "retry": "Tentar novamente",
+        "replaceConfirm": {
+          "title": "Substituir as imagens que você enviou?",
+          "cancel": "Cancelar",
+          "confirm": "Aplicar template"
+        },
+        "undoConfirm": {
+          "title": "Desfazer o template?",
+          "description": "Isso também descarta as edições feitas depois de aplicar o template.",
+          "keep": "Cancelar",
+          "confirm": "Desfazer mesmo assim"
+        },
+        "capabilities": {
+          "navigation": "Menu de navegação",
+          "split-hero": "Abertura em duas colunas",
+          "immersive-hero": "Abertura imersiva",
+          "feature-card-services": "Serviços em cards",
+          "numbered-services": "Serviços numerados",
+          "trust-grid": "Pontos de confiança",
+          "process-steps": "Etapas do processo",
+          "collage": "Colagem de fotos",
+          "image-statement": "Mensagem sobre imagem",
+          "immersive-statement": "Mensagem imersiva",
+          "technical-callout": "Destaque técnico",
+          "editorial-quote": "Citação editorial",
+          "icon-card-contact": "Contato em cards",
+          "lead-form": "Formulário de contato",
+          "chatbot": "Assistente de chat"
         }
       }
     },

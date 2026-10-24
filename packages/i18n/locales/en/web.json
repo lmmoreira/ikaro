@@ -1176,7 +1176,8 @@
         "branding": "Branding",
         "layout": "Layout",
         "seo": "SEO",
-        "manifest": "Manifest"
+        "manifest": "Manifest",
+        "templates": "Templates"
       },
       "publish": "Publish changes",
       "preview": "Preview",
@@ -1204,7 +1205,8 @@
           "sharing": "Sharing",
           "detail": "Edit in detail",
           "publish": "Publish",
-          "viewLive": "View published site"
+          "viewLive": "View published site",
+          "templates": "Templates"
         },
         "previewLabel": "Draft preview",
         "previewStatusIdle": "Draft — select a section of the preview",
@@ -1879,6 +1881,49 @@
         "lume-studio": {
           "name": "Lume Studio",
           "description": "Art-directed portfolio: immersive opening, project sequence, asymmetric gallery and a contact form."
+        },
+        "heading": "Start with a template",
+        "intro": "Pick a visual starting point for your hotsite. Your name, logo, services, contacts and hours stay the same; you can customize everything afterwards.",
+        "note": "The template replaces colours, fonts, section order and sample texts. Review the texts before publishing.",
+        "selected": "Selected",
+        "sampleNotice": "This template includes sample testimonials — edit or remove them before publishing.",
+        "imagesWarning": "The images you uploaded in these sections will be replaced and removed when you save.",
+        "listLabel": "Available templates",
+        "thumbnailAlt": "Preview of the {name} template",
+        "use": "Use this template",
+        "applying": "Applying…",
+        "undo": "Undo template",
+        "loading": "Loading templates…",
+        "error": "Could not load the templates.",
+        "applyError": "Could not apply the template. Your draft was not changed.",
+        "retry": "Try again",
+        "replaceConfirm": {
+          "title": "Replace the images you uploaded?",
+          "cancel": "Cancel",
+          "confirm": "Apply template"
+        },
+        "undoConfirm": {
+          "title": "Undo the template?",
+          "description": "This also discards the edits made since applying the template.",
+          "keep": "Cancel",
+          "confirm": "Undo anyway"
+        },
+        "capabilities": {
+          "navigation": "Navigation menu",
+          "split-hero": "Split opening",
+          "immersive-hero": "Immersive opening",
+          "feature-card-services": "Service cards",
+          "numbered-services": "Numbered services",
+          "trust-grid": "Trust points",
+          "process-steps": "Process steps",
+          "collage": "Photo collage",
+          "image-statement": "Image statement",
+          "immersive-statement": "Immersive statement",
+          "technical-callout": "Technical highlight",
+          "editorial-quote": "Editorial quote",
+          "icon-card-contact": "Contact cards",
+          "lead-form": "Contact form",
+          "chatbot": "Chat assistant"
         }
       }
     },

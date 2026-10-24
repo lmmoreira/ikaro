@@ -81,6 +81,18 @@ export function mapHotsiteImageFields(
   };
 }
 
+// The image paths of a single module entry — its data and its presentation background. Lets a
+// caller reason about one module's images (what a template apply replaces) without branding or
+// SEO fields, which the apply never touches.
+export function collectModuleImagePaths(module: HotsiteModuleResponse): string[] {
+  const paths: string[] = [];
+  transformModule(module, (value) => {
+    if (value) paths.push(value);
+    return value;
+  });
+  return paths;
+}
+
 // Read-only twin of mapHotsiteImageFields — returns every non-empty image path instead of
 // rewriting them. Used to find tmp/-prefixed (not-yet-promoted) paths that need a private
 // signed-read URL before rendering (see docs/API_CONTRACTS.md § Hotsite Image Preview).

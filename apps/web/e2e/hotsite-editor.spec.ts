@@ -7,6 +7,7 @@ import {
   getHotsiteConfig,
   getPublicManifest,
   openDetailedEditor,
+  openVisualEditor,
   publishHotsite,
   toUpdateRequest,
   makeSolidPng,
@@ -115,12 +116,12 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('opens in the visual editor with the persistent draft preview and the editor commands (TD55-S01)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
 
     await expect(page.getByTestId('visual-editor')).toBeVisible();
     await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
     await expect(page.getByRole('tablist')).toHaveCount(0);
-    await expect(page.getByTestId('visual-command')).toHaveCount(6);
+    await expect(page.getByTestId('visual-command')).toHaveCount(7);
   });
 
   test('the preview starts with the signed-out public top bar, inert, with no session request, even for the signed-in manager (TD55-S05)', async ({
@@ -131,7 +132,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       if (request.url().includes('/api/session')) sessionRequests.push(request.url());
     });
 
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
 
     const bar = page.getByTestId('hotsite-preview-auth-bar');
     await expect(bar).toBeVisible();
@@ -197,7 +198,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   });
 
   test('a preview section is selectable from the keyboard (TD55-S01)', async ({ page }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     const hero = page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]');
 
     await hero.focus();
@@ -210,7 +211,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Edit in detail and Back to visual editing keep the unsaved draft and the selected section (TD55-S01)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator('[data-testid="preview-section-select"][data-module-type="HERO"]').click();
 
     await enterDetailedEditor(page);
@@ -224,7 +225,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   });
 
   test('publishes from the visual editor and stays in it (TD55-S01)', async ({ page }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
 
     await page.locator('[data-testid="visual-command"][data-command="publish"]').click();
 
@@ -1331,7 +1332,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Organize modules: enables and configures About and Testimonials in the inspector, shows edits live, applies, publishes and keeps them after a reload (TD55-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     const preview = page.getByTestId('hotsite-preview-content');
 
     await page.locator(layoutToggle('ABOUT')).click();
@@ -1370,14 +1371,18 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Organize modules: dragging a module above another changes the list and the published order (TD55-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     const rows = page.getByTestId('layout-row');
     const order = async () => rows.evaluateAll((els) => els.map((el) => el.dataset.moduleType));
     const before = (await order()) as string[];
+    // NAVIGATION is pinned first and cannot be dragged, so the swap is between the first two
+    // modules below it.
+    const pinned = before.filter((type) => type === 'NAVIGATION');
+    const [first, second, ...rest] = before.filter((type) => type !== 'NAVIGATION');
 
     // dnd-kit's pointer sensor: press on the second row's handle, drag it above the first row, drop.
-    const handle = page.locator(`[data-testid="layout-row-drag"][data-module-type="${before[1]}"]`);
-    const target = page.locator(`[data-testid="layout-row"][data-module-type="${before[0]}"]`);
+    const handle = page.locator(`[data-testid="layout-row-drag"][data-module-type="${second}"]`);
+    const target = page.locator(`[data-testid="layout-row"][data-module-type="${first}"]`);
     const handleBox = (await handle.boundingBox())!;
     const targetBox = (await target.boundingBox())!;
     await page.mouse.move(handleBox.x + handleBox.width / 2, handleBox.y + handleBox.height / 2);
@@ -1385,22 +1390,18 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
     await page.mouse.move(handleBox.x + handleBox.width / 2, targetBox.y + 2, { steps: 12 });
     await page.mouse.up();
 
-    await expect.poll(order).toEqual([before[1], before[0], ...before.slice(2)]);
+    await expect.poll(order).toEqual([...pinned, second, first, ...rest]);
 
     await page.locator(visualCommand('publish')).click();
     await expect(page.getByTestId('hotsite-action-success-banner')).toBeVisible();
     const saved = await getHotsiteConfig(page);
-    expect(saved.layout.map((module) => module.type)).toEqual([
-      before[1],
-      before[0],
-      ...before.slice(2),
-    ]);
+    expect(saved.layout.map((module) => module.type)).toEqual([...pinned, second, first, ...rest]);
   });
 
   test('a module far down the preview opens in the inspector, edits live, and Cancel / Discard leaves the draft untouched (TD55-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(layoutToggle('CONTACT')).click();
     const preview = page.getByTestId('hotsite-preview-content');
     const select = page.locator(previewSelect('CONTACT'));
@@ -1428,7 +1429,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Publish is blocked while a module has unapplied edits and works again after Apply (TD55-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(layoutToggle('CONTACT')).click();
     await page.locator(configureButton('CONTACT')).click();
 
@@ -1450,7 +1451,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('LEAD_FORM in the inspector: teaser, audience and a question are applied and published, and layout[].data never carries the aggregate-only fields (TD55-S02)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(layoutToggle('LEAD_FORM')).click();
     await page.locator(configureButton('LEAD_FORM')).click();
     await expect(page.getByTestId('lead-form-config-panel')).toBeVisible();
@@ -1485,7 +1486,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Branding and style: a colour edit shows on the draft preview at once and survives Sharing and Organize modules, then publishes (TD55-S03)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(visualCommand('branding')).click();
 
     await page.getByTestId('hotsite-primary-color').fill('#123456');
@@ -1511,7 +1512,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Sharing: the title and description update the Google and WhatsApp simulations while typing, the URL carries the tenant slug, and publishing saves them (TD55-S03)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(visualCommand('sharing')).click();
 
     await expect(page.getByTestId('visual-sharing-disclaimer')).toBeVisible();
@@ -1550,7 +1551,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('a dirty module cannot be left for Branding and style or Sharing without Apply or discard (TD55-S03)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
     await page.locator(layoutToggle('CONTACT')).click();
     await page.locator(configureButton('CONTACT')).click();
     await page.locator('#contact-title').fill('Título ainda não aplicado');
@@ -1567,7 +1568,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('full manager journey: branding, module Apply, Sharing, a dirty module sent to the detailed editor, Manifesto, back with the draft kept, Publish, reload and the public site (TD55-S04)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
 
     await page.locator(visualCommand('branding')).click();
     await page.getByTestId('hotsite-primary-color').fill('#123456');
@@ -1627,7 +1628,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
   test('Edit in detail, Back to visual editing and Publish are all operable from the keyboard (TD55-S04)', async ({
     page,
   }) => {
-    await page.goto('/dashboard/hotsite');
+    await openVisualEditor(page);
 
     await page.locator(visualCommand('detail')).focus();
     await page.keyboard.press('Enter');
@@ -1651,7 +1652,7 @@ test.describe.serial('hotsite editor (MANAGER)', () => {
       page,
     }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
-      await page.goto('/dashboard/hotsite');
+      await openVisualEditor(page);
 
       await expect(page.locator(visualCommand('detail'))).toBeVisible();
       const preview = await page.getByTestId('visual-preview').boundingBox();

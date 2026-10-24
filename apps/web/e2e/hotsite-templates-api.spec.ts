@@ -14,7 +14,7 @@ import {
 } from './helpers/hotsite';
 
 // The template catalogue through the real BFF and backend (TD56-S04): list, apply, and the save
-// round trip. There is no UI here — the picker is TD56-S05 — so this is an API-level spec, and it
+// round trip. There is no UI here — the picker is covered by hotsite-template-picker.spec.ts — so this is an API-level spec, and it
 // is also the only place the deploy-time image upload (the emulator seed) is proved to make every
 // catalogue path resolvable.
 //

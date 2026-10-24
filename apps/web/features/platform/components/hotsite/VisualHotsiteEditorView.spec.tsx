@@ -7,6 +7,7 @@ import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
 import { VisualHotsiteEditorView } from './VisualHotsiteEditorView';
 import type { VisualContext } from './hotsite-editor-views';
+import { makeTemplatesController } from './templates-controller.fixture';
 
 // The real canvas is covered by HotsitePreviewCanvas.spec.tsx; here it only needs to prove the
 // view hands it the draft (with the open buffer merged in) and a selection that reports back. The
@@ -152,6 +153,7 @@ function renderView(overrides: Partial<React.ComponentProps<typeof VisualHotsite
       onConfirmDiscard: vi.fn(),
       onKeepEditing: vi.fn(),
     },
+    templates: makeTemplatesController(),
     onSelectModule: vi.fn(),
     onShowContext: vi.fn(),
     onBrandingChange: vi.fn(),
@@ -172,7 +174,7 @@ function command(name: string): HTMLElement {
 }
 
 describe('VisualHotsiteEditorView', () => {
-  it('offers the six editor commands in a labelled group, none of them a tab', () => {
+  it('offers the seven editor commands in a labelled group, none of them a tab', () => {
     renderView();
 
     const group = screen.getByRole('group', { name: 'Ações do editor' });
@@ -180,7 +182,7 @@ describe('VisualHotsiteEditorView', () => {
       within(group)
         .getAllByTestId('visual-command')
         .map((el) => el.dataset.command),
-    ).toEqual(['branding', 'structure', 'sharing', 'detail', 'view-live', 'publish']);
+    ).toEqual(['templates', 'branding', 'structure', 'sharing', 'detail', 'view-live', 'publish']);
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(command('branding')).toHaveTextContent('Branding e estilo');
     expect(command('structure')).toHaveTextContent('Organizar módulos');
@@ -217,6 +219,14 @@ describe('VisualHotsiteEditorView', () => {
     for (const name of ['branding', 'structure', 'sharing']) {
       expect(command(name)).toHaveAttribute('aria-pressed', String(name === pressed));
     }
+  });
+
+  it('hosts the template gallery in the inspector for the Templates context, keeping the preview', () => {
+    renderView({ visualContext: { kind: 'templates' } });
+
+    const inspector = screen.getByTestId('visual-inspector');
+    expect(within(inspector).getByTestId('template-gallery')).toBeInTheDocument();
+    expect(screen.getByTestId('mock-canvas')).toBeInTheDocument();
   });
 
   it('hosts the real Branding fields in the inspector and keeps the page preview', async () => {

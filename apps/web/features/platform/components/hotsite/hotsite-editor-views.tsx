@@ -33,7 +33,7 @@ export type EditorMode = 'visual' | 'detailed';
 // (the same `localData` semantics as the detailed editor's module-config view), so a module
 // context can never exist without one.
 export type VisualContext =
-  | { readonly kind: 'structure' | 'branding' | 'sharing' }
+  | { readonly kind: 'structure' | 'branding' | 'sharing' | 'templates' }
   | {
       readonly kind: 'module';
       readonly type: HotsiteModuleType;
