@@ -6,6 +6,7 @@ import {
   HotsiteModuleTypeInvalidError,
   HotsiteNoEnabledModulesError,
   HotsiteNotFoundError,
+  HotsiteTemplateNotFoundError,
   HotsiteSeoDescriptionTooLongError,
   HotsiteSeoTitleTooLongError,
   PlatformDomainError,
@@ -62,6 +63,14 @@ describe('TenantInactiveError', () => {
 describe('HotsiteNotFoundError', () => {
   it('carries PLATFORM_HOTSITE_NOT_FOUND', () => {
     expect(new HotsiteNotFoundError('tenant-1').code).toBe(PlatformErrorCode.HOTSITE_NOT_FOUND);
+  });
+});
+
+describe('HotsiteTemplateNotFoundError', () => {
+  it('carries PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND and survives instanceof', () => {
+    const err = new HotsiteTemplateNotFoundError('unknown');
+    expect(err.code).toBe(PlatformErrorCode.HOTSITE_TEMPLATE_NOT_FOUND);
+    expect(err).toBeInstanceOf(HotsiteTemplateNotFoundError);
   });
 });
 

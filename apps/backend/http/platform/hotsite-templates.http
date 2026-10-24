@@ -1,0 +1,81 @@
+# Platform — Hotsite template catalogue (TD56-S04)
+# Manager lists the platform-owned templates and applies one to the draft they are editing.
+# Guarded by ManagerRoleGuard — requires X-Actor-Role: MANAGER on every request.
+# Applying is pure: nothing is saved or published; the returned draft is the manager's to edit and
+# publish through the normal flow.
+#
+# Prerequisites:
+#   1. pnpm infra:up   (also uploads the template images to the local GCS emulator)
+#   2. pnpm --filter @ikaro/backend run migration:run
+#   3. pnpm --filter @ikaro/backend run seed
+#   4. pnpm --filter @ikaro/backend run dev
+#
+# REST Client environment: select "local" in VS Code status bar
+
+@baseUrl = {{backendUrl}}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# HAPPY PATH
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List the catalogue: id, version, thumbnailUrl and capabilities (no display strings)
+GET {{baseUrl}}/tenants/hotsite/templates
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+###
+
+### Apply Casa47 to an empty draft (copy follows the tenant's own language)
+POST {{baseUrl}}/tenants/hotsite/templates/casa47/apply
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "content": {
+    "branding": { "brandName": "Lava Car", "brandTagline": "Estética automotiva" },
+    "layout": [],
+    "seo": {}
+  }
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR CASES
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Unknown template id → 404 PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND
+POST {{baseUrl}}/tenants/hotsite/templates/unknown/apply
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "content": { "branding": {}, "layout": [], "seo": {} } }
+
+###
+
+### Missing layout → 400 (request validation)
+POST {{baseUrl}}/tenants/hotsite/templates/casa47/apply
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{ "content": { "branding": {}, "seo": {} } }
+
+###
+
+### Staff (not manager) → 403
+GET {{baseUrl}}/tenants/hotsite/templates
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: STAFF

@@ -1,10 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  applyHotsiteTemplate,
   featureBookingPhoto,
   generateHotsiteImageSignedUrl,
   getChatbotCapStatus,
   getLeadFormConfig,
   getHotsiteConfig,
+  listHotsiteTemplates,
   publishHotsite,
   unpublishHotsite,
   updateHotsiteConfig,
@@ -12,6 +14,7 @@ import {
   type HotsiteImageSignedUrlRequest,
   type UpdateHotsiteRequest,
 } from '@/features/platform/api/tenant-settings';
+import type { ApplyHotsiteTemplateRequest, HotsiteTemplateId } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 
 export function useHotsiteConfig() {
@@ -19,6 +22,29 @@ export function useHotsiteConfig() {
   return useQuery({
     queryKey: ['hotsite', tenantId],
     queryFn: getHotsiteConfig,
+  });
+}
+
+// The catalogue is platform-owned and only changes with a deploy, so it is fetched once per session.
+export function useHotsiteTemplates() {
+  return useQuery({
+    queryKey: ['hotsite-templates'],
+    queryFn: listHotsiteTemplates,
+    staleTime: Infinity,
+  });
+}
+
+// Applying is pure on the server (nothing is saved or published), so there is deliberately no
+// invalidation here: the saved ['hotsite', tenantId] config must keep reflecting what is stored.
+export function useApplyHotsiteTemplate() {
+  return useMutation({
+    mutationFn: ({
+      templateId,
+      body,
+    }: {
+      readonly templateId: HotsiteTemplateId;
+      readonly body: ApplyHotsiteTemplateRequest;
+    }) => applyHotsiteTemplate(templateId, body),
   });
 }
 

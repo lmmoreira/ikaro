@@ -13,6 +13,11 @@ module.exports = [
     tsConfig: 'packages/env-validation/tsconfig.json',
   },
   {
+    name: 'hotsite-templates',
+    source: 'packages/hotsite-templates/src',
+    tsConfig: 'packages/hotsite-templates/tsconfig.json',
+  },
+  {
     name: 'http-utils',
     source: 'packages/http-utils/src',
     tsConfig: 'packages/http-utils/tsconfig.json',

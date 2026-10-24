@@ -8,6 +8,7 @@ import {
 import { HotsiteImageNotUploadedError } from '../../domain/errors/platform-domain.error';
 import { HotsiteBranding, HotsiteModule, HotsiteSeo } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
+import { ITemplateCatalogue, TEMPLATE_CATALOGUE } from '../ports/template-catalogue.port';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 
 export type { ImagePromotionOperation };
@@ -26,6 +27,7 @@ export class HotsiteImagePromotionService {
   constructor(
     @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
     private readonly imagePathsService: HotsiteImagePathsService,
+    @Inject(TEMPLATE_CATALOGUE) private readonly templateCatalogue: ITemplateCatalogue,
   ) {}
 
   /**
@@ -75,10 +77,17 @@ export class HotsiteImagePromotionService {
 
   // The tmp/permanent path rules live in shared/utils/tenant-image-promotion.ts (the Booking service
   // public page uses the same ones); a hotsite image may sit anywhere under the tenant's own prefix.
-  private checkAndPreparePath(
+  private async checkAndPreparePath(
     path: string,
     tenantId: string,
   ): Promise<ImagePromotionOperation | null> {
+    // An exact path registered by a released catalogue version is shared, public and immutable:
+    // accepted as-is, with no tenant-prefix check and no storage existence call (the deploy
+    // pipeline guarantees existence, and a call per image per save would add latency for every
+    // template tenant). Deliberately not a `shared/` prefix test — an unregistered path under it
+    // falls through to the rules below and is rejected.
+    if (this.templateCatalogue.isRegisteredAssetPath(path)) return null;
+
     return prepareTenantImagePromotion(this.storageService, path, tenantId, {
       permanentPrefix: `tenants/${tenantId}/`,
       invalidPathError: (invalidPath) => new HotsiteImageNotUploadedError(invalidPath),

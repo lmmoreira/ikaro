@@ -877,7 +877,7 @@ Visit `http://localhost:3000/<tenant-slug>` to see any tenant's hotsite.
 
 **Custom domains (post-MVP):** Cloud Run domain mapping allows `autowashpro.com.br` to point to the same service. Next.js middleware reads the `Host` header and uses it as the slug lookup key — no code changes needed.
 
-**CI/CD:** Part of the shared pipelines (`pr-quality.yml`, `pr-tests.yml`, `deploy-staging.yml`, `deploy-production.yml`); `apps/web/` is built and deployed there. No separate hotsite pipeline.
+**CI/CD:** Part of the shared pipelines (`pr-quality.yml`, `pr-tests.yml`, `deploy-staging.yml`, `deploy-production.yml`); `apps/web/` is built and deployed there. No separate hotsite pipeline. The one hotsite-specific deploy step is the template catalogue's image sync (§12): both `migrate-and-deploy` jobs upload any missing catalogue image to the public bucket before they migrate or deploy.
 
 ---
 
@@ -933,3 +933,16 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 **Status:** Phase 2 - Technical Architecture — updated with full token system, typed module contracts, and developer extensibility guide.
 **Validated:** Matches Multi-Tenancy Strategy, GCS photo upload flow (M115-S01), and UC-027 (admin manages hotsite).
+
+---
+
+## 12. Template Catalogue (TD56-S04)
+
+A manager can start from one of six platform-owned compositions instead of configuring modules one at a time. The catalogue is data, not code: `packages/hotsite-templates/` holds each template's **structure** (`definitions/<id>.json`: module order, enabled set, variants, `presentation`, image paths, no visible text), its **text** (`copy/<locale>/<id>.json`, keyed `<MODULE_TYPE>.<dotted.path>`) and an append-only **asset manifest**; the image binaries live in the same package but ship only to the public bucket. The package README is the maintainer guide.
+
+- **Applying a template is a pure function** of the manager's current draft, the tenant and that tenant's language (`POST /v1/tenants/hotsite/templates/:templateId/apply`, `docs/API_CONTRACTS.md`). It returns a draft; nothing is saved, published or copied. What the draft keeps and what the template supplies: `docs/BUSINESS_LOGIC_REFERENCE.md` § Hotsite template application.
+- **The result is an ordinary manifest.** Nothing in a tenant's saved config refers back to the catalogue except its image paths, so a later catalogue change never alters a tenant's site unless they apply a template again.
+- **Catalogue images are shared, public, immutable and versioned**: `shared/hotsite-templates/<templateId>/v<n>/<file>.webp` in the existing public bucket (`ikaro-public-<env>`), referenced by every tenant that applied the template, never copied. A changed image ships as a new `v<n>`; a released object is never edited or removed. The path index that validation uses is the manifest (every released version), so a tenant on `v1` keeps saving after `v2` ships.
+- **Resolving and saving** need no special handling beyond two rules: the image URL resolvers already build the public URL for any non-absolute path; and `stripResolvedImageUrls` (web) must recover `shared/hotsite-templates/…` from a resolved URL, or an applied draft cannot be saved.
+- **Delivery** is the deploy pipelines' `sync-hotsite-template-assets` step (create-only, hash-checked, then verified over the public URL), not Terraform; immutability is enforced by a conditional `objectCreator` IAM grant (`infra/terraform/foundation`). Runbook: `docs/RUNBOOKS.md` § Hotsite template catalogue.
+- **Adding a template, shipping a new version, retiring one**: the package README.

@@ -8,6 +8,7 @@ import { HotsiteConfig } from '../../domain/hotsite-config.aggregate';
 import { HotsiteImagePathsService } from '../../domain/services/hotsite-image-paths.service';
 import { HotsiteImageUrlResolver } from '../../domain/services/hotsite-image-url-resolver.service';
 import { HotsiteImagePromotionService } from '../services/hotsite-image-promotion.service';
+import { PackageTemplateCatalogueAdapter } from '../../infrastructure/adapters/package-template-catalogue.adapter';
 import { HotsiteConfigEntity } from '../../infrastructure/entities/hotsite-config.entity';
 import { LeadFormConfigEntity } from '../../infrastructure/entities/lead-form-config.entity';
 import { TenantEntity } from '../../infrastructure/entities/tenant.entity';
@@ -66,7 +67,11 @@ describe('UpdateHotsiteContentUseCase (integration — real Postgres cross-aggre
       tenantRepo,
       txManager,
       imagePathsService,
-      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImagePromotionService(
+        new InMemoryStorageService(),
+        imagePathsService,
+        new PackageTemplateCatalogueAdapter(),
+      ),
       new HotsiteImageUrlResolver(),
       new InMemoryStorageService(),
     );
@@ -104,7 +109,11 @@ describe('UpdateHotsiteContentUseCase (integration — real Postgres cross-aggre
       tenantRepo,
       txManager,
       imagePathsService,
-      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImagePromotionService(
+        new InMemoryStorageService(),
+        imagePathsService,
+        new PackageTemplateCatalogueAdapter(),
+      ),
       new HotsiteImageUrlResolver(),
       new InMemoryStorageService(),
     );
@@ -145,7 +154,11 @@ describe('UpdateHotsiteContentUseCase (integration — real Postgres cross-aggre
       tenantRepo,
       txManager,
       imagePathsService,
-      new HotsiteImagePromotionService(new InMemoryStorageService(), imagePathsService),
+      new HotsiteImagePromotionService(
+        new InMemoryStorageService(),
+        imagePathsService,
+        new PackageTemplateCatalogueAdapter(),
+      ),
       new HotsiteImageUrlResolver(),
       new InMemoryStorageService(),
     );

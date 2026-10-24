@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Param,
   Patch,
   Post,
   UseGuards,
@@ -11,6 +12,10 @@ import {
 import { RequestContext } from '../../../../shared/request/request-context';
 import { ZodValidationPipe } from '@ikaro/nestjs-http';
 import { ManagerRoleGuard } from '../../../../shared/guards/manager-role.guard';
+import {
+  ApplyHotsiteTemplateDto,
+  ApplyHotsiteTemplateSchema,
+} from '../../application/dtos/apply-hotsite-template.dto';
 import {
   DeleteHotsiteImageDto,
   DeleteHotsiteImageSchema,
@@ -31,6 +36,10 @@ import {
   UpdateHotsiteContentDto,
   UpdateHotsiteContentSchema,
 } from '../../application/dtos/update-hotsite-content.dto';
+import {
+  ApplyHotsiteTemplateUseCase,
+  ApplyHotsiteTemplateUseCaseResult,
+} from '../../application/use-cases/apply-hotsite-template.use-case';
 import { DeleteHotsiteImageUseCase } from '../../application/use-cases/delete-hotsite-image.use-case';
 import {
   FeatureBookingPhotoUseCase,
@@ -48,6 +57,10 @@ import {
   GetHotsiteContentUseCase,
   GetHotsiteContentUseCaseResult,
 } from '../../application/use-cases/get-hotsite-content.use-case';
+import {
+  ListHotsiteTemplatesUseCase,
+  ListHotsiteTemplatesUseCaseResult,
+} from '../../application/use-cases/list-hotsite-templates.use-case';
 import {
   PublishHotsiteUseCase,
   PublishHotsiteUseCaseResult,
@@ -75,11 +88,32 @@ export class HotsiteAdminController {
     private readonly generateHotsiteImageReadSignedUrl: GenerateHotsiteImageReadSignedUrlUseCase,
     private readonly featureHotsiteBookingPhoto: FeatureBookingPhotoUseCase,
     private readonly deleteHotsiteImage: DeleteHotsiteImageUseCase,
+    private readonly listHotsiteTemplates: ListHotsiteTemplatesUseCase,
+    private readonly applyHotsiteTemplate: ApplyHotsiteTemplateUseCase,
   ) {}
 
   @Get()
   getContent(): Promise<GetHotsiteContentUseCaseResult> {
     return this.getHotsiteContent.execute({ tenantId: this.ctx.tenantId }).catch(mapPlatformError);
+  }
+
+  // Static segment before any dynamic one: the catalogue is identical for every tenant.
+  @Get('templates')
+  listTemplates(): ListHotsiteTemplatesUseCaseResult {
+    return this.listHotsiteTemplates.execute();
+  }
+
+  // Pure: returns the draft with the template applied and persists nothing — the manager previews
+  // it as the live draft and publishes through the existing flow.
+  @Post('templates/:templateId/apply')
+  @HttpCode(HttpStatus.OK)
+  applyTemplate(
+    @Param('templateId') templateId: string,
+    @Body(new ZodValidationPipe(ApplyHotsiteTemplateSchema)) dto: ApplyHotsiteTemplateDto,
+  ): Promise<ApplyHotsiteTemplateUseCaseResult> {
+    return this.applyHotsiteTemplate
+      .execute({ ...dto, templateId, tenantId: this.ctx.tenantId })
+      .catch(mapPlatformError);
   }
 
   @Patch()

@@ -1,17 +1,12 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import type { HotsiteBrandingResponse } from '@ikaro/types';
+import { buildTemplateManifest, CATALOGUE_TEMPLATE_IDS } from '@ikaro/hotsite-templates';
 import { describe, expect, it } from 'vitest';
 import { applyBranding, contrastRatio } from './apply-branding';
 import { parseManifestJson } from './manifest-schema';
 import { buildHotsiteModuleRenderPlan } from './page-model';
 
-const FIXTURE_DIR = fileURLToPath(
-  new URL('../../../../../journeys/manager/prototypes/hotsite/hotsite-impl/', import.meta.url),
-);
-const FILES = readdirSync(FIXTURE_DIR)
-  .filter((file) => /^manifesto-(?!v2-layout-proposal).+\.json$/.test(file))
-  .sort();
+const IDENTITY = { brandName: 'Marca Exemplo', tagline: 'Slogan de exemplo' };
+const TEMPLATES = [...CATALOGUE_TEMPLATE_IDS];
 
 function headerTokens(branding: HotsiteBrandingResponse): Record<string, string> {
   return applyBranding(branding) as unknown as Record<string, string>;
@@ -47,10 +42,8 @@ describe('top bar, navigation and footer tokens (G14)', () => {
     expect(headerTokens(palette)['--ba-secondary-text']).toBe('#FFFFFF');
   });
 
-  it.each(FILES)('%s: header text and accent meet AA over its secondary colour', (file) => {
-    const { branding } = JSON.parse(readFileSync(`${FIXTURE_DIR}${file}`, 'utf8')) as {
-      branding: HotsiteBrandingResponse;
-    };
+  it.each(TEMPLATES)('%s: header text and accent meet AA over its secondary colour', (id) => {
+    const { branding } = buildTemplateManifest(id, 'pt-BR', IDENTITY);
     const tokens = headerTokens(branding);
     expect(
       contrastRatio(branding.secondaryColor, tokens['--ba-secondary-text']),
@@ -62,8 +55,8 @@ describe('top bar, navigation and footer tokens (G14)', () => {
 });
 
 describe('text over an overlay (G20)', () => {
-  it.each(FILES)('%s: every solid-overlay photo section gets readable text', (file) => {
-    const result = parseManifestJson(readFileSync(`${FIXTURE_DIR}${file}`, 'utf8'));
+  it.each(TEMPLATES)('%s: every solid-overlay photo section gets readable text', (id) => {
+    const result = parseManifestJson(JSON.stringify(buildTemplateManifest(id, 'pt-BR', IDENTITY)));
     if (!result.success) throw new Error(result.error);
     const { branding, layout } = result.value;
     const plan = buildHotsiteModuleRenderPlan(

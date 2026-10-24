@@ -96,13 +96,13 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 
 ## Manifesto (advanced editing)
 
-`ManifestTab.tsx` is the fourth editor tab. It accepts the JSON object `{ branding, layout, seo }`, validates its structure, known unique module types and each module's data shape before applying it to the draft. It is an advanced escape hatch; Branding, Layout and SEO remain the guided manager workflow. `01-hotsite-editor.html` includes this delivered state, while `hotsite-impl/manifesto-beloauto.json` is a realistic configuration fixture and `hotsite-impl/beloauto.html` its public-site output reference.
+`ManifestTab.tsx` is the fourth editor tab. It accepts the JSON object `{ branding, layout, seo }`, validates its structure, known unique module types and each module's data shape before applying it to the draft. It is an advanced escape hatch; Branding, Layout and SEO remain the guided manager workflow. `01-hotsite-editor.html` includes this delivered state, while `packages/hotsite-templates/definitions/beloauto.json` (merged with its copy by `buildTemplateManifest`) is a realistic configuration and `hotsite-impl/beloauto.html` its public-site output reference.
 
 ---
 
 ## Reference artifacts in this folder
 
-- `hotsite-impl/` holds the six template manifests (`manifesto-beloauto.json`, `casa47`, `mimo-pet`, `origem`, `clinica-lume`, `lume-studio`) in the final TD56 schema, each with its public-site reference `<name>.html`. The manifests are the source of truth for each composition's module order, enabled set, variants and presentation, and a web spec and the backend layout audit parse them. They carry no tenant logo and reference platform template assets by URL until the catalogue converts them to versioned paths. They are reference material, not a screen of this prototype.
+- `hotsite-impl/` holds the six public-site references (`<name>.html`: `beloauto`, `casa47`, `mimo-pet`, `origem`, `clinica-lume`, `lume-studio`) and their design-reference images. The template compositions themselves live in `packages/hotsite-templates/` (definitions for structure, per-locale copy files for text, a versioned asset manifest), which is the source of truth for each composition's module order, enabled set, variants and presentation; the web specs and the backend layout audit build them through `buildTemplateManifest`. They carry no tenant logo, and their images are shared catalogue objects delivered by the deploy pipelines. The folder is reference material, not a screen of this prototype.
 - `editor-vision/` holds the prototypes of the visual editor shipped by TD55 (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html` and `dev-notes.md` (which files are authoritative for what). The screens above are the detailed (tabbed) editor, reached through "Editar em detalhes".
 
 ## Error handling

@@ -145,6 +145,105 @@ describe('stripResolvedImageUrls', () => {
     );
   });
 
+  describe('catalogue (template) images', () => {
+    const CATALOGUE_PATH = 'shared/hotsite-templates/casa47/v1/hero.webp';
+    const RESOLVED_CATALOGUE_URL = `https://storage.googleapis.com/ikaro-public-staging/${CATALOGUE_PATH}`;
+    const heroWith = (backgroundImageUrl: string): HotsiteModuleResponse[] => [
+      { type: 'HERO', enabled: true, data: { backgroundImageUrl } },
+    ];
+
+    it('recovers a catalogue path from its resolved public URL, so an applied template can be saved', () => {
+      const result = stripResolvedImageUrls(
+        makeBranding(),
+        heroWith(RESOLVED_CATALOGUE_URL),
+        makeSeo(),
+        TENANT_ID,
+      );
+
+      expect(result.layout[0].data.backgroundImageUrl).toBe(CATALOGUE_PATH);
+    });
+
+    it('recovers catalogue paths nested in a section background, a collage and a gallery', () => {
+      const nested: HotsiteModuleResponse[] = [
+        {
+          type: 'ABOUT',
+          enabled: true,
+          data: {},
+          presentation: { background: { imageUrl: RESOLVED_CATALOGUE_URL } },
+        },
+        {
+          type: 'CONTENT_BLOCK',
+          enabled: true,
+          data: { variant: 'collage-callout', images: [{ url: RESOLVED_CATALOGUE_URL }] },
+        },
+        {
+          type: 'GALLERY',
+          enabled: true,
+          data: { images: [{ url: RESOLVED_CATALOGUE_URL, source: 'upload' }] },
+        },
+      ];
+
+      const [about, block, gallery] = stripResolvedImageUrls(
+        makeBranding(),
+        nested,
+        makeSeo(),
+        TENANT_ID,
+      ).layout;
+
+      expect(about.presentation?.background?.imageUrl).toBe(CATALOGUE_PATH);
+      expect((block.data.images as Array<{ url: string }>)[0].url).toBe(CATALOGUE_PATH);
+      expect((gallery.data.images as Array<{ url: string }>)[0].url).toBe(CATALOGUE_PATH);
+    });
+
+    it('is idempotent on an already-raw catalogue path', () => {
+      const result = stripResolvedImageUrls(
+        makeBranding(),
+        heroWith(CATALOGUE_PATH),
+        makeSeo(),
+        TENANT_ID,
+      );
+
+      expect(result.layout[0].data.backgroundImageUrl).toBe(CATALOGUE_PATH);
+    });
+
+    it('still recovers this tenant’s own paths next to a catalogue path', () => {
+      const result = stripResolvedImageUrls(
+        makeBranding({ logoUrl: RESOLVED_LOGO_URL }),
+        heroWith(RESOLVED_CATALOGUE_URL),
+        makeSeo(),
+        TENANT_ID,
+      );
+
+      expect(result.branding.logoUrl).toBe(RAW_LOGO_PATH);
+      expect(result.layout[0].data.backgroundImageUrl).toBe(CATALOGUE_PATH);
+    });
+
+    it('does not rewrite another tenant’s URL into this tenant’s prefix (negative guarantee)', () => {
+      const otherTenantUrl =
+        'https://storage.googleapis.com/ikaro-public/tenants/99999999-0000-7000-8000-000000000009/hotsite/hero/abc/bg.jpg';
+
+      const result = stripResolvedImageUrls(
+        makeBranding(),
+        heroWith(otherTenantUrl),
+        makeSeo(),
+        TENANT_ID,
+      );
+
+      expect(result.layout[0].data.backgroundImageUrl).toBe(otherTenantUrl);
+    });
+
+    it('passes any other absolute URL through unchanged', () => {
+      const result = stripResolvedImageUrls(
+        makeBranding(),
+        heroWith('https://example.com/hero.jpg'),
+        makeSeo(),
+        TENANT_ID,
+      );
+
+      expect(result.layout[0].data.backgroundImageUrl).toBe('https://example.com/hero.jpg');
+    });
+  });
+
   it('leaves a module with no image fields unchanged', () => {
     const modules: HotsiteModuleResponse[] = [
       {

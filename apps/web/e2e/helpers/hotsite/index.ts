@@ -7,6 +7,11 @@ export {
   getPublicManifest,
   toUpdateRequest,
 } from './hotsite-api';
+export {
+  applyHotsiteTemplate,
+  applyHotsiteTemplateRequest,
+  listHotsiteTemplates,
+} from './hotsite-templates-api';
 export { makeSolidPng } from './test-png';
 export { TEMPLATE_NAMES, applyTemplateFixture, loadTemplateFixture } from './template-fixtures';
 export type { TemplateName } from './template-fixtures';

@@ -1,8 +1,8 @@
 {
+  "id": "casa47",
+  "version": 1,
+  "thumbnail": "shared/hotsite-templates/casa47/v1/thumbnail.webp",
   "branding": {
-    "brandName": "CASA 47",
-    "brandTagline": "Barbearia de bairro",
-    "logoUrl": "",
     "primaryColor": "#D3A655",
     "secondaryColor": "#2A211B",
     "backgroundColor": "#16130F",
@@ -26,24 +26,24 @@
       "data": {
         "items": [
           {
-            "label": "O ritual",
+            "label": "",
             "target": "testimonials"
           },
           {
-            "label": "Serviços",
+            "label": "",
             "target": "service-list"
           },
           {
-            "label": "A casa",
+            "label": "",
             "target": "about"
           },
           {
-            "label": "Contato",
+            "label": "",
             "target": "contact"
           }
         ],
         "cta": {
-          "label": "AGENDAR",
+          "label": "",
           "target": "booking-form"
         }
       }
@@ -53,13 +53,13 @@
       "enabled": true,
       "data": {
         "variant": "left-aligned",
-        "title": "Seu estilo, no seu ritmo.",
-        "subtitle": "Corte, barba e cuidado de verdade em uma cadeira que já conhece você.",
-        "eyebrow": "BARBEARIA DE BAIRRO · DESDE 2014",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/hero.png",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
+        "backgroundImageUrl": "shared/hotsite-templates/casa47/v1/hero.webp",
         "backgroundImagePosition": "right",
         "contentPositionY": "center",
-        "ctaLabel": "Ver o menu",
+        "ctaLabel": "",
         "ctaTarget": "service-list",
         "rightPanel": "image"
       }
@@ -68,8 +68,8 @@
       "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "O menu da casa.",
-        "eyebrow": "ESCOLHA SEU MOMENTO",
+        "title": "",
+        "eyebrow": "",
         "showPrices": true,
         "showPoints": false,
         "layout": "list"
@@ -83,10 +83,10 @@
       "type": "ABOUT",
       "enabled": true,
       "data": {
-        "title": "Boa conversa começa no espelho.",
-        "eyebrow": "A CASA",
-        "body": "Técnica, tempo e atenção em cada atendimento. Produtos selecionados, profissionais experientes e café por nossa conta.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/about.png",
+        "title": "",
+        "eyebrow": "",
+        "body": "",
+        "imageUrl": "shared/hotsite-templates/casa47/v1/about.webp",
         "imagePosition": "left",
         "variant": "bleed"
       },
@@ -99,14 +99,14 @@
       "enabled": true,
       "data": {
         "variant": "image-statement",
-        "eyebrow": "O RITUAL DA CASA",
-        "title": "Tempo reservado também é cuidado.",
-        "body": "Cada atendimento reserva o tempo que ele merece, sem pressa e com atenção aos detalhes.",
+        "eyebrow": "",
+        "title": "",
+        "body": "",
         "align": "left"
       },
       "presentation": {
         "background": {
-          "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/gallery-2.png"
+          "imageUrl": "shared/hotsite-templates/casa47/v1/gallery-2.webp"
         },
         "overlay": {
           "type": "linear-gradient",
@@ -123,27 +123,27 @@
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Detalhes da casa.",
-        "eyebrow": "NOSSO ESPAÇO",
+        "title": "",
+        "eyebrow": "",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/gallery-1.png",
-            "caption": "O espaço",
+            "url": "shared/hotsite-templates/casa47/v1/gallery-1.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/gallery-2.png",
-            "caption": "Ritual de barba",
+            "url": "shared/hotsite-templates/casa47/v1/gallery-2.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/gallery-3.png",
-            "caption": "Ferramentas e café",
+            "url": "shared/hotsite-templates/casa47/v1/gallery-3.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/casa47/about.png",
-            "caption": "Atendimento",
+            "url": "shared/hotsite-templates/casa47/v1/about.webp",
+            "caption": "",
             "source": "upload"
           }
         ],
@@ -159,23 +159,23 @@
       "type": "TESTIMONIALS",
       "enabled": true,
       "data": {
-        "title": "O ritual, por quem conhece.",
-        "eyebrow": "QUEM SENTA, VOLTA",
+        "title": "",
+        "eyebrow": "",
         "layout": "grid",
         "items": [
           {
-            "authorName": "Rafael M.",
-            "text": "Corte preciso, conversa boa e atenção em cada detalhe.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "André R.",
-            "text": "Virou meu lugar fixo no bairro.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Gustavo L.",
-            "text": "Sem pressa e com resultado impecável.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           }
         ]
@@ -189,11 +189,11 @@
       "enabled": true,
       "data": {
         "variant": "centered",
-        "title": "Sua cadeira está aqui.",
-        "subtitle": "Escolha primeiro o serviço; profissional, disponibilidade e confirmação aparecem na sequência certa.",
-        "eyebrow": "AGENDE NO SEU RITMO",
-        "ctaLabel": "Começar agendamento",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/casa47/booking.png",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
+        "ctaLabel": "",
+        "backgroundImageUrl": "shared/hotsite-templates/casa47/v1/booking.webp",
         "backgroundImagePosition": "center",
         "datePickerType": "carousel",
         "carouselDays": 14,
@@ -219,8 +219,8 @@
       "type": "CONTACT",
       "enabled": true,
       "data": {
-        "title": "A casa é no bairro.",
-        "eyebrow": "VENHA TOMAR UM CAFÉ",
+        "title": "",
+        "eyebrow": "",
         "showAddress": true,
         "showPhone": true,
         "showWhatsapp": true,
@@ -229,7 +229,7 @@
         "showInstagram": true,
         "showFacebook": false,
         "displayStyle": "list",
-        "whatsappCtaLabel": "Falar com a barbearia"
+        "whatsappCtaLabel": ""
       },
       "presentation": {
         "surface": "custom",
@@ -240,8 +240,8 @@
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Barbearia de bairro",
-        "copyrightNote": "Todos os direitos reservados.",
+        "tagline": "",
+        "copyrightNote": "",
         "showWhatsapp": true
       },
       "presentation": {
@@ -255,22 +255,17 @@
       "data": {
         "variant": "bubble",
         "accentColor": "primary",
-        "botName": "Casa 47",
-        "welcomeMessage": "Como podemos ajudar?"
+        "botName": "",
+        "welcomeMessage": ""
       }
     },
     {
       "type": "LEAD_FORM",
       "enabled": false,
       "data": {
-        "title": "Fale com a gente",
-        "ctaLabel": "Enviar mensagem"
+        "title": "",
+        "ctaLabel": ""
       }
     }
-  ],
-  "seo": {
-    "title": "Casa 47 — Barbearia de bairro",
-    "description": "Corte, barba e cuidado de verdade. Reserve seu horário na Casa 47.",
-    "ogImageUrl": ""
-  }
+  ]
 }

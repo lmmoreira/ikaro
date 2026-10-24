@@ -1,8 +1,8 @@
 {
+  "id": "lume-studio",
+  "version": 1,
+  "thumbnail": "shared/hotsite-templates/lume-studio/v1/thumbnail.webp",
   "branding": {
-    "brandName": "LUME STUDIO",
-    "brandTagline": "Fotografia e direção criativa",
-    "logoUrl": "",
     "primaryColor": "#C5FF4A",
     "secondaryColor": "#211A31",
     "backgroundColor": "#171321",
@@ -28,24 +28,24 @@
       "data": {
         "items": [
           {
-            "label": "Portfólio",
+            "label": "",
             "target": "gallery"
           },
           {
-            "label": "Serviços",
+            "label": "",
             "target": "service-list"
           },
           {
-            "label": "Estúdio",
+            "label": "",
             "target": "about"
           },
           {
-            "label": "Contato",
+            "label": "",
             "target": "contact"
           }
         ],
         "cta": {
-          "label": "COMEÇAR PROJETO",
+          "label": "",
           "target": "lead-form"
         }
       }
@@ -55,13 +55,13 @@
       "enabled": true,
       "data": {
         "variant": "immersive",
-        "title": "Imagens que deixam uma marca.",
-        "eyebrow": "FOTOGRAFIA & DIREÇÃO CRIATIVA",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/hero.png",
+        "title": "",
+        "eyebrow": "",
+        "backgroundImageUrl": "shared/hotsite-templates/lume-studio/v1/hero.webp",
         "backgroundImagePosition": "center",
         "contentPositionX": "left",
         "contentPositionY": "bottom",
-        "ctaLabel": "Ver portfólio",
+        "ctaLabel": "",
         "ctaTarget": "gallery"
       },
       "presentation": {
@@ -80,22 +80,22 @@
       "type": "GALLERY",
       "enabled": true,
       "data": {
-        "title": "Trabalhos em foco.",
-        "eyebrow": "PORTFÓLIO",
+        "title": "",
+        "eyebrow": "",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-1.png",
-            "caption": "Editorial de moda",
+            "url": "shared/hotsite-templates/lume-studio/v1/gallery-1.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-2.png",
-            "caption": "Fotografia de produto",
+            "url": "shared/hotsite-templates/lume-studio/v1/gallery-2.webp",
+            "caption": "",
             "source": "upload"
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-3.png",
-            "caption": "Estudo de movimento",
+            "url": "shared/hotsite-templates/lume-studio/v1/gallery-3.webp",
+            "caption": "",
             "source": "upload"
           }
         ],
@@ -112,8 +112,8 @@
       "type": "SERVICE_LIST",
       "enabled": true,
       "data": {
-        "title": "Projetos que fazemos.",
-        "eyebrow": "DO CONCEITO À ENTREGA",
+        "title": "",
+        "eyebrow": "",
         "showPrices": false,
         "showPoints": false,
         "layout": "grid"
@@ -128,22 +128,22 @@
       "enabled": true,
       "data": {
         "variant": "collage-callout",
-        "eyebrow": "NÃO É SÓ FOTOGRAFAR",
-        "title": "Uma direção para cada imagem.",
-        "body": "Cada projeto começa por uma ideia e termina em uma imagem que fica.",
+        "eyebrow": "",
+        "title": "",
+        "body": "",
         "align": "left",
         "images": [
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-2.png",
-            "alt": "Objeto editorial"
+            "url": "shared/hotsite-templates/lume-studio/v1/gallery-2.webp",
+            "alt": ""
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/gallery-3.png",
-            "alt": "Estudo de movimento"
+            "url": "shared/hotsite-templates/lume-studio/v1/gallery-3.webp",
+            "alt": ""
           },
           {
-            "url": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
-            "alt": "Bastidores do estúdio"
+            "url": "shared/hotsite-templates/lume-studio/v1/about.webp",
+            "alt": ""
           }
         ]
       },
@@ -156,10 +156,10 @@
       "type": "ABOUT",
       "enabled": true,
       "data": {
-        "title": "Uma ideia bem enquadrada.",
-        "eyebrow": "SOBRE O ESTÚDIO",
-        "body": "Estratégia, direção e execução em um mesmo estúdio.",
-        "imageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/about.png",
+        "title": "",
+        "eyebrow": "",
+        "body": "",
+        "imageUrl": "shared/hotsite-templates/lume-studio/v1/about.webp",
         "imagePosition": "left",
         "variant": "bleed"
       },
@@ -171,23 +171,23 @@
       "type": "TESTIMONIALS",
       "enabled": true,
       "data": {
-        "title": "Quem já criou com a gente.",
-        "eyebrow": "PARCERIAS QUE FICAM",
+        "title": "",
+        "eyebrow": "",
         "layout": "grid",
         "items": [
           {
-            "authorName": "Ana, marca Aurora",
-            "text": "Traduziram exatamente a energia da marca.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Caio, Estúdio Norte",
-            "text": "Processo claro e resultado autoral.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           },
           {
-            "authorName": "Laís, marca Noma",
-            "text": "As imagens mudaram nossa presença.",
+            "authorName": "",
+            "text": "",
             "rating": 5
           }
         ]
@@ -202,11 +202,11 @@
       "enabled": true,
       "data": {
         "variant": "immersive",
-        "title": "Conte a ideia. O resto é luz.",
-        "subtitle": "Conte um pouco do seu projeto. A gente volta com o melhor próximo passo.",
-        "eyebrow": "COMEÇAR UM PROJETO",
-        "ctaLabel": "Enviar briefing",
-        "backgroundImageUrl": "https://storage.googleapis.com/ikaro-template-assets/lume-studio/lead.png",
+        "title": "",
+        "subtitle": "",
+        "eyebrow": "",
+        "ctaLabel": "",
+        "backgroundImageUrl": "shared/hotsite-templates/lume-studio/v1/lead.webp",
         "backgroundImagePosition": "right",
         "bgStyle": "background"
       },
@@ -226,8 +226,8 @@
       "type": "CONTACT",
       "enabled": true,
       "data": {
-        "title": "Vamos conversar sobre seu projeto.",
-        "eyebrow": "CAFÉ, IDEIAS E PRÓXIMOS PASSOS",
+        "title": "",
+        "eyebrow": "",
         "showAddress": true,
         "showPhone": false,
         "showWhatsapp": false,
@@ -236,7 +236,7 @@
         "showInstagram": true,
         "showFacebook": false,
         "displayStyle": "icon-cards",
-        "whatsappCtaLabel": "Chamar no WhatsApp"
+        "whatsappCtaLabel": ""
       },
       "presentation": {
         "surface": "custom",
@@ -247,8 +247,8 @@
       "type": "FOOTER",
       "enabled": true,
       "data": {
-        "tagline": "Fotografia e direção criativa",
-        "copyrightNote": "Todos os direitos reservados.",
+        "tagline": "",
+        "copyrightNote": "",
         "showWhatsapp": true
       },
       "presentation": {
@@ -262,22 +262,17 @@
       "data": {
         "variant": "inline",
         "accentColor": "primary",
-        "botName": "Lume",
-        "welcomeMessage": "Quer ajuda para escolher o formato do seu projeto?"
+        "botName": "",
+        "welcomeMessage": ""
       }
     },
     {
       "type": "BOOKING_CTA",
       "enabled": false,
       "data": {
-        "title": "Agende",
-        "ctaLabel": "Ver agenda"
+        "title": "",
+        "ctaLabel": ""
       }
     }
-  ],
-  "seo": {
-    "title": "Lume Studio — Fotografia e direção criativa",
-    "description": "Fotografia, direção e conteúdo para negócios que querem ser lembrados.",
-    "ogImageUrl": ""
-  }
+  ]
 }

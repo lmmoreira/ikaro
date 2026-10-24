@@ -1,0 +1,164 @@
+{
+  "assets": {
+    "shared/hotsite-templates/beloauto/v1/about.webp": {
+      "sha256": "91be1ec15c5ab32774531a7fbf54e005f25d986aa5dfcac156605d0e8a8b6e19",
+      "size": 156862
+    },
+    "shared/hotsite-templates/beloauto/v1/booking.webp": {
+      "sha256": "c75df1a51ba07f1b486aa3da9afe50bd1bfae03fef058ef0e681d0c68a2f5b72",
+      "size": 74224
+    },
+    "shared/hotsite-templates/beloauto/v1/gallery-1.webp": {
+      "sha256": "3624a4aaca3e58842a1e61621273d3de9e8f325348a7979aa33be939c006dd61",
+      "size": 194942
+    },
+    "shared/hotsite-templates/beloauto/v1/gallery-2.webp": {
+      "sha256": "bd47d43cbc2686f248f633d1cfb5d2aaacc25c11e611426c53eb08dd75b01d9d",
+      "size": 289626
+    },
+    "shared/hotsite-templates/beloauto/v1/gallery-3.webp": {
+      "sha256": "a134f2c4c9594e82011b5e55c3f5efafcdcceea161cf98edc0aaf359a7018051",
+      "size": 141102
+    },
+    "shared/hotsite-templates/beloauto/v1/hero.webp": {
+      "sha256": "cb51476a108193f6ce57e28157fbb27ae1cb848eca60bb6a25015462ef4a7039",
+      "size": 78470
+    },
+    "shared/hotsite-templates/beloauto/v1/thumbnail.webp": {
+      "sha256": "0de1d1cc80b9a376763b92be4ecbfd344853c9c1d8cfeabb411b822d286bd4f4",
+      "size": 18210
+    },
+    "shared/hotsite-templates/casa47/v1/about.webp": {
+      "sha256": "bb468dfc1a3fd24ceed9f3881928ae4fff41f7c3119ead0ba6f4970fa37d2591",
+      "size": 118184
+    },
+    "shared/hotsite-templates/casa47/v1/booking.webp": {
+      "sha256": "44c4d0037a5fed87f16e23d776e1f6af67ba17de45cb3fad775219f34e26b81d",
+      "size": 63412
+    },
+    "shared/hotsite-templates/casa47/v1/gallery-1.webp": {
+      "sha256": "4d8f6cbd16cf53e1e2a82094ea57573e5a5ce60a6344171486df10ab02490817",
+      "size": 199820
+    },
+    "shared/hotsite-templates/casa47/v1/gallery-2.webp": {
+      "sha256": "01cac206c3a84d3a38414e9e2b19de890c0aa03e325f816dbaadbd344a22250d",
+      "size": 144644
+    },
+    "shared/hotsite-templates/casa47/v1/gallery-3.webp": {
+      "sha256": "e226030c57f73fb183c3afb29c3a1102729e9b8febbd7bf6dc3f7e49675508e7",
+      "size": 249112
+    },
+    "shared/hotsite-templates/casa47/v1/hero.webp": {
+      "sha256": "39ddea3fc8b75e1a50707a5ba38975b974e63647e06d2881ef0533a050ed421d",
+      "size": 137330
+    },
+    "shared/hotsite-templates/casa47/v1/thumbnail.webp": {
+      "sha256": "f1210975c379aecbc00be4b8e2939fcbaa59d6e4a228d2ead91cff37c480ac11",
+      "size": 31800
+    },
+    "shared/hotsite-templates/clinica-lume/v1/about.webp": {
+      "sha256": "932a918ff23464a5ce4f0e0981902a14c9598c65be60d87a8755bc3658935342",
+      "size": 100314
+    },
+    "shared/hotsite-templates/clinica-lume/v1/booking.webp": {
+      "sha256": "e3f6cce55278b3cfec2a820b49bb2cd7db362c89739e428d6d6618c0debd4a94",
+      "size": 28680
+    },
+    "shared/hotsite-templates/clinica-lume/v1/gallery-1.webp": {
+      "sha256": "31497e72867c1ebcdf2022d5e7e1854df65088ed4241f29afad33d603f7f3c4e",
+      "size": 181672
+    },
+    "shared/hotsite-templates/clinica-lume/v1/gallery-2.webp": {
+      "sha256": "822bcd08b8e9363c796f123e5486d71768b640c050bb83075164c3b0197e4c14",
+      "size": 99190
+    },
+    "shared/hotsite-templates/clinica-lume/v1/hero-v2.webp": {
+      "sha256": "8c5e6db0b07a91755c038027c70fbe11584fe335dad24036dff36dcb54fdb159",
+      "size": 60340
+    },
+    "shared/hotsite-templates/clinica-lume/v1/thumbnail.webp": {
+      "sha256": "3ef0e932c2c5967047999f4d86d32731d4aa1212609a336d6fe39114fd67bbb7",
+      "size": 18874
+    },
+    "shared/hotsite-templates/lume-studio/v1/about.webp": {
+      "sha256": "8b48a00e4a3d34f0e082fb7aa91831b2eb5ec9fa34a182a1b2b067c00b71b4e2",
+      "size": 133848
+    },
+    "shared/hotsite-templates/lume-studio/v1/gallery-1.webp": {
+      "sha256": "414d918cca50c4b4baddf9e9301b4e7ee5983f103571a1caded93544895aaf49",
+      "size": 66522
+    },
+    "shared/hotsite-templates/lume-studio/v1/gallery-2.webp": {
+      "sha256": "2c1cb6ed7a71b4c07cfe5fe70c7b7f8aead2de234a2a14876e4db14f93894b54",
+      "size": 89394
+    },
+    "shared/hotsite-templates/lume-studio/v1/gallery-3.webp": {
+      "sha256": "057f680ace6bf4a414f931773beb56d90460d0d004b23a887498175dc04dcc10",
+      "size": 180528
+    },
+    "shared/hotsite-templates/lume-studio/v1/hero.webp": {
+      "sha256": "9ecc225f24488236d3fa03e6cec82788146e3536932e4a74938ab9ab4ff05ddb",
+      "size": 53036
+    },
+    "shared/hotsite-templates/lume-studio/v1/lead.webp": {
+      "sha256": "06d2a66f925430b432553fd501af5cfe30916083a11a6d05881db0c12011e564",
+      "size": 111692
+    },
+    "shared/hotsite-templates/lume-studio/v1/thumbnail.webp": {
+      "sha256": "06d7051af35dd14096cb5f879e63f0351611d3cba5a042c2381ea2683eaa5962",
+      "size": 13840
+    },
+    "shared/hotsite-templates/mimo-pet/v1/about.webp": {
+      "sha256": "8a3717e9df016db4d942e64173eaca6f5b404262ea4f452dcb67dd62c44168f7",
+      "size": 136342
+    },
+    "shared/hotsite-templates/mimo-pet/v1/booking.webp": {
+      "sha256": "a3a320e3b9bfde755be865ff6983a170da18e7f50742f3a8e67d917034be4c76",
+      "size": 159958
+    },
+    "shared/hotsite-templates/mimo-pet/v1/gallery-1.webp": {
+      "sha256": "20703307a8aadc142414dff9c9093514096c229c439b153aa7319f7fa6c5a53c",
+      "size": 95718
+    },
+    "shared/hotsite-templates/mimo-pet/v1/gallery-2.webp": {
+      "sha256": "f8329298c9feba0efc942fd8c1ff171f466d71cc5431730508d0af132c12fd4c",
+      "size": 113374
+    },
+    "shared/hotsite-templates/mimo-pet/v1/gallery-3.webp": {
+      "sha256": "72ed8ea4dc166b7f0e0276dd1153ea7127fe9f04883cfd5049879d7bad96171f",
+      "size": 113214
+    },
+    "shared/hotsite-templates/mimo-pet/v1/hero-v2.webp": {
+      "sha256": "ed0c2649b485456939d1b218cd6de7bde04c65d24d991a2f94bf8a412e2d62f4",
+      "size": 90610
+    },
+    "shared/hotsite-templates/mimo-pet/v1/thumbnail.webp": {
+      "sha256": "9e775f6cdd8af87d6b3106a77c4d5495fafb787b1938f3cb04d814a5c498247b",
+      "size": 26812
+    },
+    "shared/hotsite-templates/origem/v1/about.webp": {
+      "sha256": "bdb750246f52a031d6d3e2411cef9bd032c9343e46b25c2afc6173e2836b137a",
+      "size": 179422
+    },
+    "shared/hotsite-templates/origem/v1/booking.webp": {
+      "sha256": "55f06b023f53f920dbf65f213b0a2317d581170963fbc196c22cbd71ed8a876c",
+      "size": 143008
+    },
+    "shared/hotsite-templates/origem/v1/gallery-1.webp": {
+      "sha256": "889bd562420b29f329ae18330cb662e666cfd76222bce32dd3c9b2481fb45834",
+      "size": 216154
+    },
+    "shared/hotsite-templates/origem/v1/gallery-2.webp": {
+      "sha256": "3cb8831dbb6b677b2092a46088ec6ed0f6105eaa8f84da66987b929b30bedee5",
+      "size": 141440
+    },
+    "shared/hotsite-templates/origem/v1/gallery-3.webp": {
+      "sha256": "f1035e504e0e756736c7ef9925106063eb60cab270694fe81a617afcaedaf402",
+      "size": 247420
+    },
+    "shared/hotsite-templates/origem/v1/thumbnail.webp": {
+      "sha256": "74d7b396ad9e1a822a5b9add0ab58be11e755109a2806d4153935a848d79256a",
+      "size": 47244
+    }
+  }
+}

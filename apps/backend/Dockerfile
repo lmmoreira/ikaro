@@ -15,6 +15,7 @@ COPY packages/observability/package.json packages/observability/
 COPY packages/env-validation/package.json packages/env-validation/
 COPY packages/nestjs-http/package.json packages/nestjs-http/
 COPY packages/validation/package.json packages/validation/
+COPY packages/hotsite-templates/package.json packages/hotsite-templates/
 COPY apps/backend/package.json apps/backend/
 
 # --ignore-scripts avoids native builds from other workspace packages (e.g. sharp via next/web)
@@ -30,7 +31,10 @@ COPY apps/backend/ apps/backend/
 # catalogs are imported as values, e.g. BookingErrorCode.SERVICE_NOT_FOUND, not just as types.
 # packages/nestjs-http — the shared CanonicalParseUUIDPipe/CanonicalParseIntPipe, TD23 Story 11
 # — depends on @ikaro/types and must build after it. packages/validation — shared Address/Phone
-# Zod schemas, TD11 — also depends on @ikaro/types.) Node's native TS type-stripping
+# Zod schemas, TD11 — also depends on @ikaro/types. packages/hotsite-templates — the hotsite template
+# catalogue; its JSON definitions/copy/asset manifest compile into dist/, the image binaries stay in
+# the builder stage and reach the public bucket through the deploy pipelines — depends on
+# @ikaro/types.) Node's native TS type-stripping
 # explicitly refuses files under node_modules (ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING),
 # so shipping raw .ts source here would crash `node dist/main.js` at container startup. The
 # root postinstall handles this in dev/CI; here we build explicitly because pnpm install uses
@@ -41,6 +45,7 @@ RUN pnpm --filter @ikaro/i18n build \
     && pnpm --filter @ikaro/types build \
     && pnpm --filter @ikaro/nestjs-http build \
     && pnpm --filter @ikaro/validation build \
+    && pnpm --filter @ikaro/hotsite-templates build \
     && pnpm --filter @ikaro/backend build \
     && pnpm --filter @ikaro/backend deploy --prod /standalone --legacy
 

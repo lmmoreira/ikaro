@@ -1,6 +1,6 @@
 # Ikaro — Business Logic Reference (Visual)
 
-> **When to load:** implementing or changing a complex rule that spans several use cases or aggregates (resource-scoped scheduling, booking window, recurring reservations, the worklist, availability alerts, no-show); read the one section for your context. Aggregate shapes are in `docs/DOMAIN_MODEL.md`, flows in `docs/USE_CASES.md`.
+> **When to load:** implementing or changing a complex rule that spans several use cases or aggregates (resource-scoped scheduling, booking window, recurring reservations, the worklist, availability alerts, no-show, hotsite template application); read the one section for your context. Aggregate shapes are in `docs/DOMAIN_MODEL.md`, flows in `docs/USE_CASES.md`.
 > **Tags:** backend
 
 **Audience:** developers and AI agents who need to understand a genuinely complex, cross-cutting piece of business logic without re-deriving it from prose scattered across several docs.
@@ -622,6 +622,72 @@ flowchart TD
 
 ---
 
+## Platform — Hotsite Template Catalogue (TD56-S04)
+
+### Why this exists
+
+A manager used to reach a different public site only by configuring modules one field at a time. The catalogue gives them six platform-owned compositions to start from. Applying one has to replace the **presentation** (palette, typography, module order, variants, images, sample copy) while keeping everything that is real tenant data, and it has to do so without a second set of rules for what "real tenant data" means. That rule is written down once, below, and implemented in one pure class (`HotsiteTemplateMaterializer`). The catalogue itself (definitions, per-locale copy, the asset manifest) lives in `packages/hotsite-templates/`; its day-to-day guide is that package's `README.md`.
+
+### Hotsite template application
+
+`POST /v1/tenants/hotsite/templates/:templateId/apply` is a **pure function** of three inputs: the request body (the manager's current draft, possibly unsaved), the tenant from the JWT and that tenant's own `tenants.settings.localization.language`. It persists nothing, never sets `isPublished`, creates no Service and calls no storage method other than the string-building `getPublicUrl`. The manager sees the returned draft as the live draft and publishes through the existing flow.
+
+```mermaid
+flowchart TD
+    Body["request body:<br/>current draft (image fields as paths)"] --> Use["ApplyHotsiteTemplateUseCase"]
+    JWT["JWT tenant"] --> Use
+    Use -->|"read once"| Tenant["tenant: name, language,<br/>maxBookingAdvanceDays"]
+    Tenant -->|"resolveSupportedLocale(language)<br/>(not 'en' → pt-BR)"| Catalogue["ITemplateCatalogue.materialize<br/>definition + locale copy + identity"]
+    Catalogue -->|"unknown id"| NF["404 PLATFORM_HOTSITE_TEMPLATE_NOT_FOUND"]
+    Catalogue --> Mat["HotsiteTemplateMaterializer<br/>(preservation matrix)"]
+    Body --> Mat
+    Mat --> Fit["fit to the tenant:<br/>carousel days, header lead-form button"]
+    Fit --> Rules["assertValidLayoutStructure<br/>(same rules as a save)"]
+    Rules --> Resolve["HotsiteImageUrlResolver → public URLs"]
+    Resolve --> Out["{ content, appliedTemplate,<br/>appliedSampleTestimonials }"]
+```
+
+**Preservation matrix — what the draft keeps, what the template supplies:**
+
+| Part | From | Rule |
+|---|---|---|
+| `brandName`, `brandTagline`, `logoUrl` | the draft | identity is never part of a template |
+| Palette, fonts, shape, spacing, shadow, `heroBgStyle`, `alternateSectionBg`, `dividerStyle`, button colours | the template | presentation |
+| SEO (`title`, `description`, `ogImageUrl`) | the draft, entirely | a definition carries no SEO |
+| Module order, `enabled`, variants, `presentation`, copy, images | the template | the draft's layout is replaced, not merged |
+| `LEAD_FORM` and `CHATBOT` `data` **and** `enabled` | the draft when it has the module | operational availability is the tenant's; with no such module in the draft the template's own default is used. The module's `presentation` stays the template's |
+| `GALLERY.images` | the draft when it has any | the template still supplies the module's layout, title and `enabled`; with none, the template's sample images are used |
+| `TESTIMONIALS.items` | the draft when it has any | with none, the template's sample testimonials are used and `appliedSampleTestimonials` is `true` |
+| Services, booking model/policy/intake/resources, address, contacts, staff | untouched | they never live in the manifest; the `SERVICE_LIST`/`CONTACT` modules only hold display settings |
+
+**Copy and identity.** Copy is chosen by the **tenant's** language (`en` and region-qualified `en-*` give English; anything else, Portuguese), not by the manager's UI language. The two placeholders `{{brandName}}` and `{{tagline}}` are filled from the draft's `brandName`/`brandTagline`; when the draft has no brand name the tenant's name fills `{{brandName}}` in the copy, and the returned branding still carries whatever the draft had (nothing is invented). No interpolation language is left in the result.
+
+**Two fittings, because a template must never produce a draft the manager cannot save.**
+
+- A booking carousel can show at most `maxBookingAdvanceDays`, a tenant setting. A template's `carouselDays` above it is lowered to it (the save would otherwise fail with `PLATFORM_HOTSITE_CAROUSEL_DAYS_EXCEEDS_MAX_ADVANCE`).
+- The header button may point at the lead form only while `LEAD_FORM` is enabled. Enabling the lead form is the tenant's choice (preserved above), so when a template's button targets it and the tenant keeps it off, the button is pointed at `booking-form` instead (otherwise the save would fail with `PLATFORM_HOTSITE_NAVIGATION_TARGET_NOT_ENABLED`).
+
+### Catalogue images
+
+Images are platform-owned, public, immutable and versioned: `shared/hotsite-templates/<templateId>/v<n>/<file>.webp`. A manifest references the shared path directly; nothing is copied per tenant, so applying a template needs no rollback and leaves no orphan.
+
+- **Saving accepts them by exact registration.** `HotsiteImagePromotionService` accepts a path only if it is in the catalogue's append-only `asset-manifest.json` (every released version, not just the current definitions, so a tenant that applied `v1` keeps saving after `v2` ships). There is **no** `shared/` wildcard and no storage existence call for these paths. Any other `shared/…` path is rejected like any unknown path.
+- **They can never be deleted by a tenant.** `computeDeletions` only returns `tenants/<tenantId>/…` paths and `DeleteHotsiteImageUseCase` rejects anything whose path does not belong to the caller's tenant, so a shared object cannot go through a tenant save.
+- **Applying replaces tenant-owned section images.** Hero, About, booking and lead images (and `presentation.background`) become the template's shared ones; a later save then deletes the tenant's superseded `tenants/<id>/…` uploads (irreversible once saved; the web warns before applying). Gallery images and testimonials the tenant already has are kept, so they are not deleted.
+- **The web recovers the path before saving.** `GET /tenants/hotsite` returns every image as a public URL and a save sends paths, so `stripResolvedImageUrls` recovers `shared/hotsite-templates/…` from a resolved catalogue URL exactly as it recovers `tenants/<id>/…`; an applied draft cannot be saved without it.
+
+### Delivery of the files
+
+The image binaries reach the public bucket through the deploy pipelines, not Terraform: `sync-hotsite-template-assets` (`packages/infra-scripts`) runs in both `migrate-and-deploy` jobs before the migration. Per manifest entry: absent → upload create-only; present with the same bytes → skip; present with different bytes → fail the job ("a changed image must ship as a new `v<n>`"). `--verify` then fetches every path anonymously and compares status, content type, cache header and hash. Immutability is enforced by IAM (the deployer holds only a conditional `roles/storage.objectCreator` on the `shared/` prefix of its own environment's public bucket, which cannot overwrite or delete), and the staging job proves it each deploy with `--check-immutability`. The local emulator is seeded by `pnpm infra:up` / `pnpm hotsite-templates:seed` and by a step in the PR E2E job.
+
+### Known limitations
+
+- Applying has no per-change undo on the server: it persists nothing, so the editor's one-step "Undo template" (TD56-S05) is client-side and only works before Save.
+- A template's sample testimonials are ordinary manifest data once applied; the sample-content label and the apply-time notice are the editor's (TD56-S05), driven by `appliedSampleTestimonials`.
+- `capabilities` are derived from the enabled modules and their variants (a closed token set in `@ikaro/types`), not authored; a variant that no rule maps contributes no token.
+
+---
+
 ## Other bounded contexts
 
-Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning on `BookingCompleted`, the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Add a section here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.
+Not yet written as sections in this doc. **Loyalty is not logic-free** — points earning on `BookingCompleted`, the expiry cron, the weekly expiring-points warning and manual redemption are implemented; until a section is written here, read them from `docs/BOUNDED_CONTEXTS.md` § 2. Loyalty Context, `docs/DOMAIN_MODEL.md` § Loyalty Context (and § Expiration window), `docs/USE_CASES.md` UC-009 / UC-016 / UC-016b, and the code under `apps/backend/src/contexts/loyalty/`. Likewise there is no booking status-machine section here: the transition table is CLAUDE.md §5 / `.copilot/context.md` §5 and the aggregate (`booking-status-transition.ts`). Platform has one section above (the hotsite template catalogue); add another here the next time a story in Customer, Staff, Loyalty, Notification, or Platform introduces business logic complex enough to earn one — see this doc's own header for the "incremental, not upfront" rule, and `/story-discovery`'s checklist item that flags the decision at discovery time.

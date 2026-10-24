@@ -1,7 +1,8 @@
-import type {
-  HotsiteBrandingResponse,
-  HotsiteModuleResponse,
-  HotsiteSeoResponse,
+import {
+  HOTSITE_TEMPLATE_ASSET_PREFIX,
+  type HotsiteBrandingResponse,
+  type HotsiteModuleResponse,
+  type HotsiteSeoResponse,
 } from '@ikaro/types';
 import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 
@@ -15,10 +16,19 @@ import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 // raw path directly from the resolved URL by locating the tenant-prefixed segment. A value that
 // doesn't contain that segment (a fresh tmp/ or tenants/ upload, or an empty logoUrl) passes
 // through unchanged, so this is safe to apply unconditionally to every field, changed or not.
+//
+// A template's own images are the second shape: platform-owned catalogue objects resolve to
+// `.../shared/hotsite-templates/<id>/v<n>/<file>`, which has no tenant marker. Without recovering
+// that path too, a draft with a template applied could not be saved at all — the backend rejects
+// an absolute URL where it expects a registered catalogue path. Only the tenant's own marker or
+// the catalogue marker is ever recovered; another tenant's URL carries neither and stays as is, so
+// it is never rewritten into this tenant's prefix.
 function extractRawStoragePath(value: string, tenantId: string): string {
-  const marker = `tenants/${tenantId}/`;
-  const index = value.indexOf(marker);
-  return index === -1 ? value : value.slice(index);
+  const tenantMarker = `tenants/${tenantId}/`;
+  const tenantIndex = value.indexOf(tenantMarker);
+  if (tenantIndex !== -1) return value.slice(tenantIndex);
+  const catalogueIndex = value.indexOf(HOTSITE_TEMPLATE_ASSET_PREFIX);
+  return catalogueIndex === -1 ? value : value.slice(catalogueIndex);
 }
 
 export function stripResolvedImageUrls(

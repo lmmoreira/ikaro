@@ -628,3 +628,68 @@ export interface HotsiteLeadFormAnswerRequest {
 export interface HotsiteLeadFormSubmissionResponse {
   submissionId: string;
 }
+
+// ─── Template catalogue (Manager — TD56-S04) ──────────────────────────────────
+
+// The one closed list of catalogue template ids. @ikaro/hotsite-templates' catalogue list must
+// equal it (a package test pins that), and the web keys its picker names/descriptions by id.
+export const HOTSITE_TEMPLATE_IDS = [
+  'beloauto',
+  'casa47',
+  'mimo-pet',
+  'origem',
+  'clinica-lume',
+  'lume-studio',
+] as const;
+export type HotsiteTemplateId = (typeof HOTSITE_TEMPLATE_IDS)[number];
+
+// Where every catalogue image lives in the public bucket: platform-owned, shared by all tenants,
+// immutable and versioned (`<prefix><templateId>/v<n>/<file>`). A stored image path outside this
+// prefix and a tenant's own `tenants/<id>/` prefix is never a catalogue asset.
+export const HOTSITE_TEMPLATE_ASSET_PREFIX = 'shared/hotsite-templates/';
+
+// Closed set of capability tokens a template definition can derive from its enabled modules and
+// variants; the Story 5 gallery renders localized chips from an exhaustive map of it and never
+// prints a raw token. The exact derivation lives in @ikaro/hotsite-templates (pinned per template).
+export const HOTSITE_TEMPLATE_CAPABILITIES = [
+  'navigation',
+  'split-hero',
+  'immersive-hero',
+  'feature-card-services',
+  'numbered-services',
+  'trust-grid',
+  'process-steps',
+  'collage',
+  'image-statement',
+  'immersive-statement',
+  'technical-callout',
+  'editorial-quote',
+  'icon-card-contact',
+  'lead-form',
+  'chatbot',
+] as const;
+export type HotsiteTemplateCapability = (typeof HOTSITE_TEMPLATE_CAPABILITIES)[number];
+
+export interface HotsiteTemplateSummaryResponse {
+  id: HotsiteTemplateId;
+  version: number;
+  thumbnailUrl: string;
+  capabilities: HotsiteTemplateCapability[];
+}
+
+// The editable part of the hotsite draft. Applying a template is a pure function of this value,
+// so it carries neither isPublished nor updatedAt (the editor keeps those from its own draft).
+export type HotsiteTemplateDraftContent = Pick<
+  HotsiteAdminContentResponse,
+  'branding' | 'layout' | 'seo'
+>;
+
+export interface ApplyHotsiteTemplateRequest {
+  content: HotsiteTemplateDraftContent;
+}
+
+export interface ApplyHotsiteTemplateResponse {
+  content: HotsiteTemplateDraftContent;
+  appliedTemplate: { id: HotsiteTemplateId; version: number };
+  appliedSampleTestimonials: boolean;
+}

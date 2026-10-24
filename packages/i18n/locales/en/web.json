@@ -1658,6 +1658,32 @@
           "invalidPresentation": "Invalid JSON: invalid section presentation for module \"{moduleType}\".",
           "navigationNotFirst": "Invalid JSON: the navigation module must be the first module of the layout."
         }
+      },
+      "templates": {
+        "beloauto": {
+          "name": "BeloAuto",
+          "description": "Full-bleed automotive campaign: image-led opening, trust strip, service cards, gallery and a booking call to action."
+        },
+        "casa47": {
+          "name": "Casa47",
+          "description": "Dark, refined editorial: asymmetric opening, numbered price menu, a featured quote and the story of the house."
+        },
+        "mimo-pet": {
+          "name": "Mimo Pet",
+          "description": "Playful, welcoming scrapbook: colour bands, card highlights, a discovery gallery and the services right after."
+        },
+        "origem": {
+          "name": "Origem",
+          "description": "Quiet wellness journal: typography-only opening, a menu of rituals and a long-form editorial rhythm."
+        },
+        "clinica-lume": {
+          "name": "Clínica Lume",
+          "description": "Structured care pathway: calm two-column opening, specialties, first-appointment steps and contact."
+        },
+        "lume-studio": {
+          "name": "Lume Studio",
+          "description": "Art-directed portfolio: immersive opening, project sequence, asymmetric gallery and a contact form."
+        }
       }
     },
     "settingsPage": {
