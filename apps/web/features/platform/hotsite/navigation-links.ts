@@ -1,8 +1,9 @@
-import type {
-  HotsiteModuleResponse,
-  HotsiteModuleType,
-  HotsiteNavigationTarget,
-  NavigationModuleData,
+import {
+  NavigationModuleDataSchema,
+  type HotsiteModuleResponse,
+  type HotsiteModuleType,
+  type HotsiteNavigationTarget,
+  type NavigationModuleData,
 } from '@ikaro/types';
 
 // The section a navigation item scrolls to, by target. Mirrors the backend's
@@ -53,6 +54,13 @@ function enabledNavigation(
   return layout.find((module) => module.type === 'NAVIGATION' && module.enabled);
 }
 
+// The navigation's data when it parses. A committed draft always does (an incomplete buffer is
+// never applied), so an unparseable value is simply treated as having no links to protect.
+function navigationData(module: HotsiteModuleResponse): NavigationModuleData | undefined {
+  const parsed = NavigationModuleDataSchema.safeParse(module.data);
+  return parsed.success ? parsed.data : undefined;
+}
+
 // What an enabled NAVIGATION links to on the module about to be turned off. A disabled navigation
 // renders nothing and is not checked by the backend, so it never counts.
 export function navigationReferences(
@@ -60,8 +68,8 @@ export function navigationReferences(
   type: HotsiteModuleType,
 ): { readonly items: number; readonly cta: boolean } {
   const navigation = enabledNavigation(layout);
-  if (!navigation) return { items: 0, cta: false };
-  const data = navigation.data as unknown as NavigationModuleData;
+  const data = navigation && navigationData(navigation);
+  if (!data) return { items: 0, cta: false };
   return {
     items: data.items.filter((item) => NAVIGATION_TARGET_MODULE[item.target] === type).length,
     cta: type === 'LEAD_FORM' && data.cta?.target === 'lead-form',
@@ -85,7 +93,9 @@ export function disableModuleRemovingLinks(
   return layout.map((module) => {
     if (module.type === type) return { ...module, enabled: false };
     if (module.type !== 'NAVIGATION') return module;
-    const { items, cta, ...rest } = module.data as unknown as NavigationModuleData;
+    const data = navigationData(module);
+    if (!data) return module;
+    const { items, cta, ...rest } = data;
     const keepCta = cta !== undefined && !(type === 'LEAD_FORM' && cta.target === 'lead-form');
     return {
       ...module,
