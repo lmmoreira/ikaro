@@ -84,7 +84,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
 | tenant_id | UUID | NOT NULL, FK → `platform.tenants(id)`, UNIQUE |
-| branding | JSONB | `HotsiteBranding` shape — ~17 fields (colors, fonts, logo, borderRadius, buttonStyle, spacing, shadowStyle, brand identity); see `docs/DOMAIN_MODEL.md`'s `HotsiteConfig` aggregate for the full field list, not just `primary_color`/`logo_url`/`font` |
+| branding | JSONB | `HotsiteBranding` shape — ~21 fields (colors, fonts, logo, borderRadius, buttonRadius, buttonStyle, spacing, shadowStyle, headingWeight, headingTransform, brand identity); see `docs/DOMAIN_MODEL.md`'s `HotsiteConfig` aggregate for the full field list, not just `primary_color`/`logo_url`/`font` |
 | layout | JSONB | Array of modules: `[{ type, data }]` |
 | seo | JSONB | NOT NULL DEFAULT `'{"title": null, "description": null}'::jsonb` — `{ title, description }`, both nullable; tenant-configured SEO overrides |
 | is_published | BOOLEAN | NOT NULL DEFAULT false |

@@ -1506,9 +1506,10 @@ Tenant {
 HotsiteConfig {
   configId:      HotsiteConfigId
   tenantId:      TenantId
-  branding:      HotsiteBranding -- ~17 fields: colors (primary/secondary/background/text/button),
-                                 -- fonts (heading/body), logoUrl, borderRadius, buttonStyle, spacing,
-                                 -- shadowStyle, visual-rhythm + brand-identity overrides — see
+  branding:      HotsiteBranding -- ~21 fields: colors (primary/secondary/background/text/button),
+                                 -- fonts (heading/body), logoUrl, borderRadius (incl. soft), optional buttonRadius,
+                                 -- buttonStyle, spacing, shadowStyle, optional headingWeight/headingTransform,
+                                 -- visual-rhythm + brand-identity overrides — see
                                  -- `apps/backend/src/contexts/platform/domain/hotsite-config.aggregate.ts`
                                  -- for the full `HotsiteBranding` interface, this is a summary not the full shape
   layout:        LayoutModule[]  -- ordered list of UI modules to render; each entry is
