@@ -57,7 +57,7 @@ describe('useHotsiteEditorSession', () => {
     }
   });
 
-  it.each(['structure', 'branding', 'sharing'] as const)(
+  it.each(['structure', 'branding', 'sharing', 'templates'] as const)(
     'switching to the %s context drops the module buffer',
     (kind) => {
       const { result } = renderHook(() => useHotsiteEditorSession());
@@ -95,7 +95,7 @@ describe('useHotsiteEditorSession', () => {
     });
   });
 
-  it.each(['structure', 'branding', 'sharing'] as const)(
+  it.each(['structure', 'branding', 'sharing', 'templates'] as const)(
     'ignores a buffer update in the %s context, so no module context appears without a module',
     (kind) => {
       const { result } = renderHook(() => useHotsiteEditorSession());
