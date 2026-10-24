@@ -66,7 +66,7 @@ interface HotsiteBranding {
 }
 ```
 
-The current editor exposes all 18 fields in five sections: Cores; Logo e identidade; Tipografia; Forma e estilo; Ritmo visual. `heroBgStyle` is `primary | background`, `alternateSectionBg` is a boolean switch, and `dividerStyle` is `none | gradient | solid`.
+The current editor exposes all 18 fields in five sections: Cores; Logo e identidade; Tipografia; Forma e estilo; Ritmo visual. `heroBgStyle` is `primary | background`, `alternateSectionBg` is a boolean switch, and `dividerStyle` is `none | gradient | solid`. `TD56-S06` (2026-10-24) added `borderRadius: soft`, `buttonRadius`, `headingWeight` and `headingTransform` to this tab, so the count is now 21; see `journeys/manager/hotsite.md` for the panel controls added alongside.
 
 ---
 

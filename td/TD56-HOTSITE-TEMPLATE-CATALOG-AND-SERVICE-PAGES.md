@@ -752,7 +752,7 @@ State lives in `HotsiteEditor` (the owner of `draft`): `appliedTemplate`, the un
 
 **Build order inside the branch:** (1) Part A — exposure switch, panels, presentation fields, extended panels, field-coverage guard; (2) Part B — session context, gallery, dialogs, apply/undo, detailed tab; (3) Part C — prototype, journeys, UC-027, stale sweep. Commit per part. If bot review reaches the round-5 stuck condition (CLAUDE.md §9), stop and ask rather than pushing a sixth round.
 
-### Story 6 — Close the engine fidelity gaps found while reconciling the six template manifests with their prototypes
+### Story 6 — Close the engine fidelity gaps found while reconciling the six template manifests with their prototypes ✅ Done
 
 **Agent:** frontend-ts + backend-ts
 **Complexity:** L
@@ -941,6 +941,7 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - [ ] A manifest that does not use any new field renders exactly as before.
 - [ ] Every register row has a recorded decision (add / adjust / accept) before implementation starts.
 - [ ] The reconciliation is re-run after the engine changes (*After the story is done*): every interim workaround is removed, the fixtures use the new fields, and the product owner signs off each of the six templates against its prototype.
+  - ⚠️ Product-owner visual sign-off of the six templates deferred at the product owner's call at merge (PR #662) — verify with `scripts/apply-hotsite-template.py` against a stack started from `main`, 2026-10-24
 
 **Acceptance criteria — technical:**
 
