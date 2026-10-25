@@ -122,6 +122,13 @@ install the permanent foundation bindings. The bridge and its migration-only
 Terraform module have now been removed; the foundation identities own these
 prefixes directly.
 
+### Hotsite template catalogue grant (TD56-S04)
+
+The hotsite template images are platform-owned objects under `shared/hotsite-templates/` in each environment's public bucket. The deploy pipelines upload them (`docs/RUNBOOKS.md` § Hotsite template catalogue), so the environment's own `ikaro-app-deployer` service account holds one **conditional, create-only** grant: `roles/storage.objectCreator` on `ikaro-public-<env>`, limited by an IAM condition to object names that start with `shared/`. `objectCreator` cannot overwrite or delete, so a released image stays immutable even to the deployer, which is what the staging deploy's overwrite-attempt check proves on every run.
+
+- The grant is the `app_deployer_catalogue_assets_creator` entry of `static_resource_public_bucket_members` in `envs/<env>/main.tf`, passed to the `static-resource-iam` module's `public_bucket_members` input. Every entry of that input must carry a condition, and its validation rejects `allUsers`/`allAuthenticatedUsers` (the public viewer grant belongs to the module itself).
+- Like every Foundation change it is **not live until the manual `apply=true` dispatch** runs. A `403` on the deploy's asset-sync step means the grant has not been applied yet (or was removed); check the bucket's IAM policy for the conditional binding before touching the pipeline.
+
 ## Migration order
 
 1. Bootstrap this control plane and verify foundation WIF.

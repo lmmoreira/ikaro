@@ -1,5 +1,5 @@
 {
-  "$comment": "Proposta de extensão do manifesto. Não é aplicável pelo engine atual até CONTENT_BLOCK e presentation serem implementados.",
+  "$comment": "Esboço histórico (superado). NAVIGATION, CONTENT_BLOCK e presentation já estão implementados (TD56); o contrato vale pelo que está em packages/types e packages/validation, e as seis composições reais estão em packages/hotsite-templates/definitions/.",
   "schemaAdditions": {
     "moduleType": "CONTENT_BLOCK",
     "modulePresentation": {

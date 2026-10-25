@@ -5,7 +5,7 @@
 - **Type:** Product-enabling technical debt / hotsite capability expansion
 - **Priority:** High — this turns the existing hotsite editor from a field-by-field configuration tool into a guided way to reach materially different public-site compositions.
 - **Created:** 2026-10-22
-- **Decision status:** Ready for `/story-discovery`, in the sequence below. This TD follows TD55; it does not reopen TD55's visual-editor foundation.
+- **Decision status:** All six stories are implemented and merged (PRs #659–#665, 2026-10-23 to 2026-10-25); one acceptance line is open: the product owner's visual sign-off of the six templates (Story 6). This TD follows TD55; it does not reopen TD55's visual-editor foundation.
 - **Use cases:** extends UC-027 (manager manages hotsite) and adds the service-publication and visitor-detail flows described here before they are promoted into `docs/USE_CASES.md`.
 - **Related:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md` (all five stories done); `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; `journeys/manager/hotsite.md`; `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html`; `journeys/manager/prototypes/hotsite/hotsite-impl/`.
 
@@ -14,7 +14,7 @@
 1. **No new top-level manifest keys, no migration for the hotsite.** `hotsite_configs` stores `branding`, `layout` and `seo` as JSONB; everything new fits inside `layout`. Navigation is a **module** (`NAVIGATION`); the service-detail-page settings are a nested object inside `SERVICE_LIST.data`.
 2. **Template images are shared, not copied.** Catalogue assets are platform-owned, public, versioned and immutable; every tenant manifest may reference the same path. There is no per-tenant asset copy, rollback or orphan cleanup. (Story 4 discovery, 2026-10-23: they live in `ikaro-public-<env>` under `shared/hotsite-templates/<templateId>/v<n>/<file>`, are delivered by a create-only CI sync inside the existing deploy jobs, and the path index is append-only across every released version — see Story 4's *Decisions locked at story-discovery*.)
 3. **Templates keep their sample testimonials.** They are ordinary `TESTIMONIALS` data the manager sees and edits; the editor labels them as sample content (see *Template application contract*).
-4. **Module registry grows by two types** — `NAVIGATION` and `CONTENT_BLOCK` — so a layout holds at most 12 modules (today 10).
+4. **Module registry grows by two types** — `NAVIGATION` and `CONTENT_BLOCK` — so a layout holds at most 12 modules (it held 10 before this TD).
 5. **The backend validates every module's `data` in full (Story 1, shipped 2026-10-23, PR #659).** One canonical `discriminatedUnion('type')` in `@ikaro/validation` covers all twelve module types. The strict shapes (`NAVIGATION`, `CONTENT_BLOCK`, `presentation`, `SERVICE_LIST.data.detailPage`) are defined **once** in `@ikaro/types` (`packages/types/src/hotsite-schemas.ts`) and imported by both `@ikaro/validation` and `apps/web` — a duplicate in each app failed SonarCloud's duplication gate. The ten existing types use loose objects (declared keys fully validated, unknown keys tolerated) and stay an independent web mirror, held together by the shared contract fixtures (`@ikaro/types/testing/hotsite-module-contract`). Also shipped: the branding font allow-list (`HOTSITE_FONT_FAMILIES` plus the legacy `'Inter, sans-serif'` default) and one `HOTSITE_IMAGE_PURPOSES` tuple.
 6. **The Manifesto tab stays consistent with today's split:** it rejects on the web what would break the client at once (shape, unique types, data and `presentation` validity, NAVIGATION first) and leaves business rules that need the whole layout (a navigation target must be an enabled module) to the backend, shown on Publish through the existing banner.
 7. **An invalid `presentation` at render time is ignored** (the module renders with defaults); it never removes the module the way malformed `data` does.
@@ -953,7 +953,7 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - `journeys/manager/prototypes/hotsite/hotsite-impl/manifesto-*.json` (modify — use the new fields)
 - `apps/web/e2e/hotsite-templates.spec.ts` (modify — assert the reconciled compositions)
 - `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (modify — new fields, the G6 combination)
-- `scripts/apply-hotsite-template.py` (new — the local simulation tool described in *After the story is done*, promoted from the throwaway script)
+- `scripts/apply-hotsite-template.py` (new — the local simulation tool described in *After the story is done*, promoted from the throwaway script; removed again by Story 4, decision 7, once the apply endpoint and the seeded emulator replaced it)
 
 **Acceptance criteria — product:**
 
@@ -961,7 +961,7 @@ Reconciling the six template manifests with their prototype HTML (done template 
 - [ ] A manifest that does not use any new field renders exactly as before.
 - [ ] Every register row has a recorded decision (add / adjust / accept) before implementation starts.
 - [ ] The reconciliation is re-run after the engine changes (*After the story is done*): every interim workaround is removed, the fixtures use the new fields, and the product owner signs off each of the six templates against its prototype.
-  - ⚠️ Product-owner visual sign-off of the six templates deferred at the product owner's call at merge (PR #662) — verify against a stack started from `main` (`pnpm infra:up` seeds the template images; apply each template with `POST /v1/tenants/hotsite/templates/<id>/apply`, or with the picker once TD56-S05 ships; the local script this note first named was removed by TD56-S04), 2026-10-24
+  - ⚠️ Product-owner visual sign-off of the six templates deferred at the product owner's call at merge (PR #662) — verify against a stack started from `main` (`pnpm infra:up` seeds the template images; apply each template with the Templates picker in the editor (TD56-S05, merged 2026-10-25) or with `POST /v1/tenants/hotsite/templates/<id>/apply`; the local script this note first named was removed by TD56-S04), 2026-10-24. Still open on 2026-10-25
 
 **Acceptance criteria — technical:**
 

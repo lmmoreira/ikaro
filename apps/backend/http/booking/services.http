@@ -599,7 +599,7 @@ X-Actor-Role: MANAGER
 
 ###
 
-### 422 — a profile image that was never uploaded (BOOKING_SERVICE_PUBLIC_PROFILE_INVALID)
+### 400 — a profile image that was never uploaded (BOOKING_SERVICE_PUBLIC_PROFILE_INVALID)
 PATCH {{baseUrl}}/services/{{serviceId}}/public-page
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}

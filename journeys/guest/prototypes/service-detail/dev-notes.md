@@ -24,7 +24,7 @@ The page inherits branding, locale and formatting from `app/[slug]/layout.tsx`. 
 | `generateMetadata` | shares the page's fetch through React `cache()`; `buildHotsiteMetadata` gains an optional `title`/`description`/`ogImageUrl` override, `path: '/servicos/<slug>'` |
 | sitemap | `sitemap.ts` lists one URL per service whose page is published, via the cached `fetchServices(slug)` per published tenant |
 
-Cache: the by-slug fetch uses `hotsiteServicesCacheTag(slug)`, so the existing service create/update revalidation clears it; no `revalidate` route change is expected (every `apps/web` route renders per request) and a unit test pins the tag.
+Cache: the by-slug fetch uses `hotsiteServicesCacheTag(slug)`, so the existing service create/update revalidation clears it; the route's `revalidate = 300` literal (kept in step with `HOTSITE_REVALIDATE_SECONDS`) has no effect while the root layout forces dynamic rendering (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 6. Manifest Caching), so the page renders per request and the Data Cache tag is what service updates clear; a unit test pins the tag.
 
 ## `detailPage` settings → what changes (`01` vs `01b`)
 
@@ -57,4 +57,4 @@ The long description goes through the shared `RestrictedMarkdown` renderer (para
 ## Known limitations
 
 - The prototype uses gradients for images and a fixed tenant (Vitta Studio) with the default blue tokens; production uses the tenant's branding.
-- `itemAction: 'details'` is only settable from the Story 5 editor controls or the manifest JSON until then.
+- `itemAction: 'details'` is set from the Service List panel's "Abrir a página do serviço" option (TD56-S05) or the manifest JSON.
