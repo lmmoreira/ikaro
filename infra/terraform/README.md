@@ -26,7 +26,7 @@ infra/terraform/
 │   ├── modules/runtime-identities/  runtime SAs + least-privilege per-SA
 │   │                                 accessor bindings (originally M17-S17's
 │   │                                 modules/iam, moved here under TD34)
-│   ├── modules/static-resource-iam/ static resource-scoped IAM: public-assets bucket viewer, project members, Artifact Registry members, audit-log config (TD34)
+│   ├── modules/static-resource-iam/ static resource-scoped IAM: public-assets bucket viewer, conditional public-bucket members (`public_bucket_members`: today the deployer's create-only `objectCreator` on `shared/`, TD56-S04), project members, Artifact Registry members, audit-log config (TD34)
 │   ├── modules/workload-iam/        workload IAM members: Cloud Run invokers, Pub/Sub topic/subscription members, service-account members
 │   └── envs/         # isolated roots: foundation/staging and /prod
 └── envs/             # root modules — one state per env, never shared
@@ -146,6 +146,8 @@ The check never prints a raw bucket-config value or IAM policy to the (public) j
 ## IAM binding review discipline (read before adding any `google_*_iam_*` resource)
 
 Every `google_*_iam_member` / `google_*_iam_binding` / `google_*_iam_policy` resource in this repo must specify an explicit, deliberately-reviewed `member`/`members` value. Never add `allUsers`, `allAuthenticatedUsers`, or a principal outside `ikaro.online`'s own domain without that being the specific, intentional point of the resource (e.g. `modules/storage`'s public hotsite bucket) — and call it out in review. **Do not assume an org-level policy will catch a mistake here** — current org-policy state (and the reasoning behind any project-level exception) lives in the gitignored, operator-local `docs/BOOTSTRAP_LOG.md`, not in this repo's public history.
+
+**The one conditional public-bucket grant (TD56-S04):** the environment's app-deployer may create (never overwrite or delete) objects under `shared/` of its own `ikaro-public-<env>` bucket, through the `static-resource-iam` module's `public_bucket_members` input (`roles/storage.objectCreator` plus an IAM condition on the object-name prefix). New entries must carry a condition and may never target a public principal; the module validates both. See `foundation/README.md` § Hotsite template catalogue grant.
 
 **Enforced automatically, not just by review discipline:** a custom Checkov check (`CKV_IKARO_1`, `.checkov/custom_checks/no_public_iam_grant.py`) hard-fails CI on any `allUsers`/`allAuthenticatedUsers` grant across every IAM resource type used in this repo, unless explicitly suppressed with a documented `#checkov:skip=CKV_IKARO_1:<reason>` — same discipline as every other Checkov skip here. Static analysis only: it has no visibility into anything created outside this repo's `.tf` files. Reproduce CI's scan locally with:
 
