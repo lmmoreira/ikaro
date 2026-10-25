@@ -49,8 +49,13 @@ function renderImages(props: Partial<Parameters<typeof ServicePublicPageImages>[
   return { onCoverChange, onGalleryChange };
 }
 
+const IMAGE_HOST = 'https://img.example.test/public-bucket';
+
 describe('ServicePublicPageImages', () => {
-  beforeEach(() => stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://cdn.test' }));
+  // A deliberately different host: the saved images are rendered as the URLs they arrive as.
+  beforeEach(() =>
+    stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://wrong-host.invalid' }),
+  );
   afterEach(() => clearPublicEnv());
 
   describe('a manager', () => {
@@ -116,8 +121,8 @@ describe('ServicePublicPageImages', () => {
     it('sees the stored images with no upload or remove control, and the explanatory note', () => {
       renderImages({
         canUpload: false,
-        cover: 'tenants/t/hotsite/service-profile/u/cover.webp',
-        gallery: ['tenants/t/hotsite/service-profile/u/g1.webp', ''],
+        cover: `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/cover.webp`,
+        gallery: [`${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g1.webp`, ''],
       });
 
       expect(screen.getByTestId('public-page-images-locked')).toHaveTextContent(
@@ -127,8 +132,8 @@ describe('ServicePublicPageImages', () => {
       expect(screen.queryByTestId('public-page-gallery-add')).not.toBeInTheDocument();
       const images = screen.getAllByRole('img');
       expect(images.map((img) => img.getAttribute('src'))).toEqual([
-        'https://cdn.test/tenants/t/hotsite/service-profile/u/cover.webp',
-        'https://cdn.test/tenants/t/hotsite/service-profile/u/g1.webp',
+        `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/cover.webp`,
+        `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g1.webp`,
       ]);
     });
   });

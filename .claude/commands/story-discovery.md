@@ -156,6 +156,7 @@ Run every check silently. Tag each finding as **BLOCKER**, **RISK**, or **CONFIR
 ### 4h. API contract
 - BFF endpoint: method, path, auth requirement (role/JWT), and response body fields are all specified
 - Shared endpoints (same path, different role) explicitly state how routing/branching works
+- Every response or request field that holds an object-storage path states who resolves it to a URL (the backend, via the storage port — `docs/API_CONTRACTS.md` Base Standards § 5) and which side strips it back to a path on write; a spec silent on this is a **RISK** (TD56-S07: a service's image paths were returned raw and each web caller composed its own URL, wrong on every deployed environment)
 
 ### 4i. Configuration / settings
 - Every configurable threshold names its exact `tenants.settings` path

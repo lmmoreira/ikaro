@@ -4,7 +4,6 @@ import { useTranslations } from 'next-intl';
 import type { HotsiteSeoResponse } from '@ikaro/types';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { resolveDraftImageUrl } from '@/features/platform/hotsite/resolve-draft-image-urls';
-import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { buildPublicHotsiteUrl } from '@/features/platform/hotsite/site-origin';
 import { useSharingDefaults, useTmpSignedUrlMap } from './useHotsitePreviewData';
 
@@ -53,7 +52,7 @@ export function HotsiteSharingPreview({
   const needsDefaults = seo.title === null || seo.description === null;
   const { defaults, loadError } = useSharingDefaults(tenantSlug, needsDefaults);
   const tmpSignedUrls = useTmpSignedUrlMap([seo.ogImageUrl]);
-  const imageUrl = resolveDraftImageUrl(seo.ogImageUrl, hotsiteImageBaseUrl(), tmpSignedUrls);
+  const imageUrl = resolveDraftImageUrl(seo.ogImageUrl, tmpSignedUrls);
   const title = seo.title ?? defaults?.title ?? null;
   const description = seo.description ?? defaults?.description ?? null;
   const url = buildPublicHotsiteUrl(tenantSlug);

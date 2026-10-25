@@ -1,4 +1,5 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
+import { ServicePublicProfile } from '../../domain/service-public-profile.vo';
 import { resolveBookingPolicyResult, toServiceResult } from './service-result.mapper';
 
 const TENANT_WINDOW = { minBookingAdvanceHours: 2, maxBookingAdvanceDays: 90 };
@@ -53,9 +54,38 @@ describe('toServiceResult', () => {
       .withBookingPolicy({ maxBookingAdvanceDaysOverride: 14 })
       .build();
 
-    expect(toServiceResult(service, 'pt-BR', false, TENANT_WINDOW).bookingPolicy).toMatchObject({
+    expect(
+      toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, (path) => path).bookingPolicy,
+    ).toMatchObject({
       effectiveMinBookingAdvanceHours: 2,
       effectiveMaxBookingAdvanceDays: 14,
+    });
+  });
+
+  describe('public profile', () => {
+    const resolveUrl = (path: string) => `https://img.example.test/${path}`;
+
+    it('resolves the stored image paths through the given callback', () => {
+      const path = 'tenants/t1/hotsite/service-profile/u1/cover.webp';
+      const service = new ServiceBuilder()
+        .withPublicProfile(ServicePublicProfile.create({ coverImageUrl: path }))
+        .build();
+
+      const result = toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, resolveUrl);
+
+      expect(result.publicProfile?.coverImageUrl).toBe(resolveUrl(path));
+    });
+
+    it('keeps a service without a profile at null', () => {
+      const result = toServiceResult(
+        new ServiceBuilder().build(),
+        'pt-BR',
+        false,
+        TENANT_WINDOW,
+        resolveUrl,
+      );
+
+      expect(result.publicProfile).toBeNull();
     });
   });
 });

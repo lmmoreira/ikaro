@@ -131,10 +131,10 @@ describe('HotsitePreviewCanvas', () => {
     expect(screen.getByText('Seu carro impecável')).toBeInTheDocument();
   });
 
-  it('resolves a freshly-uploaded (not-yet-saved) HERO background image into an absolute URL instead of passing the raw storage path to next/image', async () => {
+  it('renders a saved HERO background image exactly as the URL the backend resolved, not composed against the image-origin variable', async () => {
     mockFetchManifest.mockResolvedValue(makeManifest());
-    const rawPath =
-      'tenants/tenant-a-id/hotsite/hero/019f420c-e46d-7f42-8524-4621e4642832/dfsda.png';
+    const resolvedUrl =
+      'https://img.example.test/public-bucket/tenants/tenant-a-id/hotsite/hero/019f420c-e46d-7f42-8524-4621e4642832/dfsda.png';
     const draft = makeDraft({
       layout: [
         {
@@ -145,7 +145,7 @@ describe('HotsitePreviewCanvas', () => {
             title: 'Seu carro impecável',
             ctaLabel: 'Agendar agora',
             ctaTarget: 'booking-form',
-            backgroundImageUrl: rawPath,
+            backgroundImageUrl: resolvedUrl,
           },
         },
       ],
@@ -159,7 +159,7 @@ describe('HotsitePreviewCanvas', () => {
     // alt="" makes this a presentational image (removed from the accessibility tree by ARIA
     // rules), so it isn't reachable via getByRole('img') — query the DOM directly instead.
     const image = container.querySelector('img');
-    expect(image).toHaveAttribute('src', `${IMAGE_BASE_URL}/${rawPath}`);
+    expect(image).toHaveAttribute('src', resolvedUrl);
   });
 
   it('resolves a not-yet-promoted tmp/ HERO background image via a private read-signed-URL', async () => {

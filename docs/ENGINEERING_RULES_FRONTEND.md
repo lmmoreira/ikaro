@@ -192,3 +192,13 @@ Real incident: M23-S14, 2026-10-15 (found by the manager while testing, not by a
 - **Cover it in the E2E that opens the detail:** click `topbar-back-button` and assert the URL is the list you came from, not just that the detail opened.
 
 Real incident: M23-S14, 2026-10-15.
+
+## A saved image is rendered as the URL the backend returned — the web composes no public storage URL
+
+Every response field that refers to a saved public image is already a full URL (`docs/API_CONTRACTS.md` § Base Standards, "Stored objects in responses and requests"). Put it in `<img src>` / `next/image` as given. There is no web-side resolver for saved data: `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` is an **origin only**, read by `next.config.ts` (`remotePatterns`) and `proxy.ts` (CSP `img-src`), and nothing may append a path to it.
+
+- **The only image-path decision the web makes** is `isTmpImagePath()`: an upload not yet saved lives under `tmp/` in the private bucket and previews through a signed read URL (`docs/API_CONTRACTS.md` § Hotsite Image Preview).
+- **On write, recover the path from the URL the form holds** with `extractRawStoragePath()` (`features/platform/hotsite/strip-resolved-image-urls.ts`), the function the hotsite editor's `stripResolvedImageUrls` uses — never a second copy. A `tmp/` path passes through unchanged.
+- **A component test** that renders an image sets the base-URL variable to a deliberately wrong host and asserts the `src` is still the URL it was given; a web-side composition would change it.
+
+Real incident: TD56-S07, 2026-10-25.

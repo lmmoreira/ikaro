@@ -255,3 +255,11 @@ Where the strategy lives: `docs/TESTING_STRATEGY.md` § Concurrency Tests; the l
 - **A test that holds a lock must not make the waiter wait more than 2s**, because every transaction now fails with `TransactionContentionError` after `DB_LOCK_TIMEOUT_MS` (M23-S49). The contract tests release as soon as the blocked-lock probe sees the waiter; a test that means to outlast the timeout asserts that error instead (`run-in-new-transaction.integration.spec.ts`). To prove a pooled connection does not carry the timeout, use a `DataSource` with `extra: { max: 1 }`.
 - **Run an integration spec under `timeout`** when iterating (`timeout 240 pnpm test:integration -- <file>`), so a hang costs seconds.
 - **A spec that builds its own TypeORM entity list** must include every entity the code under test now reads. `outbox-full-topology` returned 500 on approve until `FutureCommitmentExceptionEntity` was added, because approve began reading the booking's open worklist entries.
+
+## A test of URL composition uses a base URL shaped like the deployed one and different from the local default
+
+A URL that is composed from configuration (a public host, a bucket) is correct only if the test configures it the way a deployed environment does. Local and CI shared one convention (a bucket-inclusive value) that the web's resolver relied on and Terraform did not provide, so every unit test and E2E passed while staging showed broken images (TD56-S07, 2026-10-25).
+
+- Give the test double or the config a base URL that **differs from the local default** in host, in path shape and in whether it carries the bucket (`https://img.example.test/public-bucket`), and assert the whole composed URL, not a suffix.
+- A test that passes only because local and CI agree proves nothing about a deployed environment. Where a value can be wrong only after deploy, add an E2E assertion on the real result (an `<img>` with `naturalWidth > 0` and a `src` on the backend-resolved host) instead of on the input.
+- Trace how the consumer composes an app-consumed environment variable before you wire its value (`infra/terraform/README.md` § Gotchas).

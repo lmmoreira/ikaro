@@ -451,3 +451,14 @@ Real incident: M23-S14, 2026-10-15 (the worklist read made this query run on eve
 - **Prefer closing over refusing when the action is legitimate** and its outcome makes the record meaningless (a cancelled booking needs no decision); prefer refusing when the action would make the decision harder (completing a booking whose resource is gone).
 
 Real incident: M23-S14/S46, 2026-10-15; closed by M23-S48, see `docs/BUSINESS_LOGIC_REFERENCE.md` § Close with the booking change.
+
+## Resolve stored object paths at the response boundary — never return a path a client must compose
+
+A field that refers to a stored public object (an image, a document) is stored as a path and **returned as a full URL**, built by `IStorageService.getPublicUrl` — the one URL composer. Resolve it where the result is assembled (the use case's result mapping, after the repository read), with a pure helper that takes `getPublicUrl` as a callback and passes an already-absolute value through; the aggregate, the repository and its cache keep storing paths, so resolving needs no cache version bump. Recover the path on write with the same boundary in mind: the request takes only paths, and the domain still rejects a URL.
+
+- **Why one composer:** two (a backend `getPublicUrl` and a web resolver) diverge the first time the public host differs from what local and CI use, and nothing but a deployed environment exercises the difference. The planned `img.ikaro.online` domain is then a backend configuration change.
+- **Name the field in the story:** every response or request field that holds an object-storage path states who resolves it (the backend, through the storage port) and which side strips it on write — `/story-discovery` check 4h.
+- **Examples to copy:** `HotsiteImageUrlResolver` (platform) and `resolveServicePublicProfileUrls` (booking, `application/services/service-public-profile-urls.ts`). A context imports neither the other's helper nor its types; each owns its small resolver.
+- Contract and the list of fields: `docs/API_CONTRACTS.md` § Base Standards, "Stored objects in responses and requests".
+
+Real incident: TD56-S07, 2026-10-25 — the service public page and its edit tab showed broken images on staging because the endpoints returned storage paths and the web composed the URL from a host-only variable.

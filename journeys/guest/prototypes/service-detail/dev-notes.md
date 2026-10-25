@@ -56,5 +56,6 @@ The long description goes through the shared `RestrictedMarkdown` renderer (para
 
 ## Known limitations
 
+- Production renders the cover and gallery as the full URLs the backend resolved (TD56-S07), as given, and the detail route's `og:image` is the same cover URL; the web composes no image URL.
 - The prototype uses gradients for images and a fixed tenant (Vitta Studio) with the default blue tokens; production uses the tenant's branding.
 - `itemAction: 'details'` is set from the Service List panel's "Abrir a página do serviço" option (TD56-S05) or the manifest JSON.

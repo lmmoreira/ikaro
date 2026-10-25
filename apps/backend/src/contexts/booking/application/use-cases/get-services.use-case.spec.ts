@@ -1,4 +1,5 @@
 import { Money } from '../../../../shared/value-objects/money';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
@@ -15,7 +16,7 @@ describe('GetServicesUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
-    useCase = new GetServicesUseCase(repo, bookingPlatform);
+    useCase = new GetServicesUseCase(repo, bookingPlatform, new InMemoryStorageService());
   });
 
   it('returns only active services when status filter is ACTIVE', async () => {

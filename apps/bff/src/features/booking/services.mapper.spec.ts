@@ -420,8 +420,12 @@ describe('toPublicServiceResourceOptionsResponse() / toPublicServiceQuoteRespons
 
 describe('public page fields (TD56-S03)', () => {
   const profile = {
-    coverImageUrl: 'tenants/t/hotsite/service-profile/u/cover.webp',
-    galleryImageUrls: ['g1.webp'],
+    // The backend resolves a stored path to a full URL (TD56-S07); the BFF never rewrites it.
+    coverImageUrl:
+      'https://img.example.test/public-bucket/tenants/t/hotsite/service-profile/u/cover.webp',
+    galleryImageUrls: [
+      'https://img.example.test/public-bucket/tenants/t/hotsite/service-profile/u/g1.webp',
+    ],
     longDescription: 'Texto',
     inclusions: ['Chá'],
     preparationNotes: 'Chegue cedo.',
@@ -440,6 +444,26 @@ describe('public page fields (TD56-S03)', () => {
       publicSlug: 'lavagem-completa',
       publicProfile: profile,
     });
+  });
+
+  it('passes the backend-resolved image URLs through unchanged in the staff and public detail responses (TD56-S07)', () => {
+    const staff = toStaffServiceResponse({ ...serviceDetail, publicProfile: profile });
+    const publicDetail = toPublicServiceDetailResponse({
+      id: serviceDetail.id,
+      name: 'Lavagem Completa',
+      description: null,
+      price: { amount: 150, currency: 'BRL', formatted: 'R$ 150,00' },
+      durationMinutes: 60,
+      loyaltyPointsValue: 10,
+      durationPolicy: 'FIXED',
+      publicSlug: 'lavagem-completa',
+      profile,
+    });
+
+    for (const result of [staff.publicProfile, publicDetail.profile]) {
+      expect(result?.coverImageUrl).toBe(profile.coverImageUrl);
+      expect(result?.galleryImageUrls).toEqual(profile.galleryImageUrls);
+    }
   });
 
   it('toPublicServiceResponse() exposes the slug only while the page is published', () => {

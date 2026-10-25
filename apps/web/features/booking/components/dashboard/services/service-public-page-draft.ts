@@ -1,4 +1,5 @@
 import type { ServicePublicProfileItem } from '@ikaro/types';
+import { extractRawStoragePath } from '@/features/platform/hotsite/strip-resolved-image-urls';
 
 // One "what is included" row. The id keeps the row's identity while the manager adds, edits and
 // removes rows (the text alone is neither unique nor stable, and the position changes).
@@ -50,10 +51,18 @@ function nullIfBlank(value: string): string | null {
 }
 
 // What a save sends: blank text becomes null, blank inclusions and empty gallery slots are dropped.
-export function toPublicPageProfileRequest(draft: PublicPageDraft): ServicePublicProfileItem {
+// The backend returns a saved image as a full public URL but accepts only its storage path, so each
+// image is recovered to `tenants/<tenantId>/…` here; a fresh `tmp/` upload has no such segment and
+// passes through unchanged (docs/API_CONTRACTS.md § Base Standards, "Stored objects").
+export function toPublicPageProfileRequest(
+  draft: PublicPageDraft,
+  tenantId: string,
+): ServicePublicProfileItem {
+  const toPath = (url: string): string => extractRawStoragePath(url, tenantId);
+  const cover = nullIfBlank(draft.coverImageUrl);
   return {
-    coverImageUrl: nullIfBlank(draft.coverImageUrl),
-    galleryImageUrls: draft.galleryImageUrls.filter((url) => url !== ''),
+    coverImageUrl: cover === null ? null : toPath(cover),
+    galleryImageUrls: draft.galleryImageUrls.filter((url) => url !== '').map(toPath),
     longDescription: nullIfBlank(draft.longDescription),
     inclusions: draft.inclusions.map((item) => item.text.trim()).filter((text) => text !== ''),
     preparationNotes: nullIfBlank(draft.preparationNotes),

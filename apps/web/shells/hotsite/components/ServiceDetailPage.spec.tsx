@@ -9,6 +9,8 @@ import { ServiceDetailPage } from './ServiceDetailPage';
 
 const SERVICE_ID = '00000000-0000-4000-8000-000000000001';
 
+const IMAGE_HOST = 'https://img.example.test/public-bucket';
+
 function makeService(
   overrides: Partial<HotsiteServiceDetailResponse> = {},
   profile: Partial<HotsiteServiceDetailResponse['profile']> = {},
@@ -23,8 +25,11 @@ function makeService(
     durationPolicy: 'FIXED',
     publicSlug: 'massagem-relaxante',
     profile: {
-      coverImageUrl: 'tenants/t/hotsite/service-profile/u/cover.webp',
-      galleryImageUrls: ['tenants/t/hotsite/service-profile/u/g1.webp', 'https://cdn.test/g2.webp'],
+      coverImageUrl: `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/cover.webp`,
+      galleryImageUrls: [
+        `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g1.webp`,
+        `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g2.webp`,
+      ],
       longDescription: 'Uma pausa para o corpo.\n\n- Acolhimento\n- Alongamento',
       inclusions: ['Chá de boas-vindas', 'Toalhas'],
       preparationNotes: 'Chegue com 10 minutos de antecedência.',
@@ -49,14 +54,16 @@ function renderPage(
 
 describe('ServiceDetailPage', () => {
   beforeEach(() => {
-    stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://cdn.test' });
+    // Deliberately not the host of the profile's URLs: the page renders what the backend resolved,
+    // so a web-side composition against this variable would change every src below.
+    stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://wrong-host.invalid' });
   });
 
   afterEach(() => {
     clearPublicEnv();
   });
 
-  it('renders every field of a full profile, with the images resolved against the public bucket', () => {
+  it('renders every field of a full profile, with the backend-resolved image URLs rendered as given', () => {
     const { container } = renderPage(makeService());
 
     expect(screen.getByRole('heading', { level: 1, name: 'Massagem Relaxante' })).toBeVisible();
@@ -72,12 +79,12 @@ describe('ServiceDetailPage', () => {
     expect(screen.getByTestId('service-preparation')).toHaveTextContent('Chegue com 10 minutos');
     expect(container.querySelector('[data-testid="service-cover"] img')).toHaveAttribute(
       'src',
-      'https://cdn.test/tenants/t/hotsite/service-profile/u/cover.webp',
+      `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/cover.webp`,
     );
     const gallery = Array.from(container.querySelectorAll('[data-testid="service-gallery"] img'));
     expect(gallery.map((img) => img.getAttribute('src'))).toEqual([
-      'https://cdn.test/tenants/t/hotsite/service-profile/u/g1.webp',
-      'https://cdn.test/g2.webp',
+      `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g1.webp`,
+      `${IMAGE_HOST}/tenants/t/hotsite/service-profile/u/g2.webp`,
     ]);
   });
 

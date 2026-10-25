@@ -7,6 +7,7 @@ import {
   deactivateService,
   makeUniqueServiceName,
   setServicePublicPage,
+  uploadServiceProfileImage,
 } from './helpers/services';
 
 // TD56-S03 — a service's own public page (UC-013 A5 manager side, UC-109 visitor side). Every test
@@ -169,6 +170,70 @@ test.describe('service public page — manager publishes, visitor reads', () => 
       await expect(guest.getByTestId('service-detail-unavailable')).toBeVisible();
     } finally {
       await visitor.close();
+    }
+  });
+
+  test('the saved cover and gallery load on the public page and in the edit tab, and survive an edit that does not touch them (TD56-S07)', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const service = await newService(page, 'imagens');
+    const published = await setServicePublicPage(page, service.serviceId, {
+      published: true,
+      profile: {
+        coverImageUrl: await uploadServiceProfileImage(page, 'cover.png'),
+        galleryImageUrls: [await uploadServiceProfileImage(page, 'g1.png')],
+        longDescription: 'Texto da página.',
+      },
+    });
+    // The backend answers with full public URLs, never the stored paths.
+    const coverUrl = published.publicProfile?.coverImageUrl ?? '';
+    const galleryUrl = published.publicProfile?.galleryImageUrls[0] ?? '';
+    expect(coverUrl).toMatch(/^https?:\/\/.+\/tenants\/.+\/hotsite\/service-profile\//);
+    expect(galleryUrl).toMatch(/^https?:\/\/.+\/tenants\/.+\/hotsite\/service-profile\//);
+
+    try {
+      const visitor = await browser.newContext({
+        baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+      });
+      const guest = await visitor.newPage();
+      try {
+        const pagePath = `/${TENANT_SLUG}/servicos/${published.publicSlug}`;
+        const expectImagesLoaded = async (): Promise<void> => {
+          await guest.goto(pagePath);
+          const cover = guest.locator('[data-testid="service-cover"] img');
+          const gallery = guest.locator('[data-testid="service-gallery"] img');
+          await expect(cover).toHaveAttribute('src', coverUrl);
+          await expect(gallery).toHaveAttribute('src', galleryUrl);
+          for (const image of [cover, gallery]) {
+            await expect
+              .poll(() => image.evaluate((img: HTMLImageElement) => img.naturalWidth))
+              .toBeGreaterThan(0);
+          }
+        };
+        await expectImagesLoaded();
+
+        // The edit tab previews the same saved images.
+        await openPublicPageTab(page, service.serviceId);
+        const previews = page.locator('img[data-testid="single-image-upload-preview"]');
+        await expect(previews).toHaveCount(2);
+        for (let index = 0; index < 2; index += 1) {
+          await expect
+            .poll(() => previews.nth(index).evaluate((img: HTMLImageElement) => img.naturalWidth))
+            .toBeGreaterThan(0);
+        }
+
+        // Saving an edit that does not touch the images keeps them: the tab sent paths back.
+        await page.getByTestId('public-page-description').fill('Texto da página, editado.');
+        await page.getByTestId('service-desktop-tab-action').click();
+        await expect(page.getByTestId('public-page-saved')).toBeVisible();
+        await expectImagesLoaded();
+      } finally {
+        await visitor.close();
+      }
+    } finally {
+      await deactivateService(page, service.serviceId);
     }
   });
 

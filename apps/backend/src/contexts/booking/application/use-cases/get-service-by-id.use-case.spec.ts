@@ -1,4 +1,5 @@
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
@@ -15,7 +16,7 @@ describe('GetServiceByIdUseCase', () => {
   beforeEach(() => {
     repo = new InMemoryServiceRepository();
     bookingPlatform = new InMemoryBookingPlatformPort();
-    useCase = new GetServiceByIdUseCase(repo, bookingPlatform);
+    useCase = new GetServiceByIdUseCase(repo, bookingPlatform, new InMemoryStorageService());
   });
 
   it('returns the service with pt-BR formatted price', async () => {

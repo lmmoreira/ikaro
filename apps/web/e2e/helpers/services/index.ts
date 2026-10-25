@@ -11,4 +11,5 @@ export {
   setResourceRequirements,
   setServiceLegs,
   setServicePublicPage,
+  uploadServiceProfileImage,
 } from './service-config-api';

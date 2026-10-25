@@ -138,9 +138,8 @@ export async function generateHotsiteImageSignedUrl(
   return res.data;
 }
 
-// Only for tmp/-prefixed values (not-yet-promoted uploads) — an already-permanent
-// tenants/<id>/hotsite/... path resolves via the pure NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL
-// template instead (see resolveHotsiteImageDisplayUrl). See docs/API_CONTRACTS.md.
+// Only for tmp/-prefixed values (not-yet-promoted uploads) — a saved image arrives as a full public
+// URL resolved by the backend and is rendered as given. See docs/API_CONTRACTS.md.
 export async function generateHotsiteImageReadSignedUrl(
   filePath: string,
 ): Promise<GenerateHotsiteImageReadSignedUrlResponse> {

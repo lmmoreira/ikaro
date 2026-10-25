@@ -37,7 +37,7 @@ export function ServicePublicPageTab({
 }: ServicePublicPageTabProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
-  const { tenantSlug, role } = useTenant();
+  const { tenantId, tenantSlug, role } = useTenant();
   const updatePublicPage = useUpdateServicePublicPage();
 
   const [published, setPublished] = useState(service.publicPagePublished);
@@ -73,7 +73,7 @@ export function ServicePublicPageTab({
     try {
       const result = await updatePublicPage.mutateAsync({
         id: service.serviceId,
-        body: { published, profile: toPublicPageProfileRequest(draft) },
+        body: { published, profile: toPublicPageProfileRequest(draft, tenantId) },
       });
       setSaved({ published: result.publicPagePublished, slug: result.publicSlug });
       if (editRevisionRef.current === revisionAtSubmit) {

@@ -3,7 +3,6 @@
 import { useTranslations } from 'next-intl';
 import { SERVICE_PUBLIC_PROFILE_LIMITS } from '@ikaro/types';
 import { SingleImageUploadField } from '@/features/platform/components/hotsite/SingleImageUploadField';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { SectionCard } from '@/shared/components/ui/section-card';
 
 interface ServicePublicPageImagesProps {
@@ -17,11 +16,11 @@ interface ServicePublicPageImagesProps {
   readonly canUpload: boolean;
 }
 
-function StoredImage({ path, alt }: { readonly path: string; readonly alt: string }) {
+function StoredImage({ url, alt }: { readonly url: string; readonly alt: string }) {
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- stored public image, resolved against the public bucket
+    // eslint-disable-next-line @next/next/no-img-element -- stored public image, the backend-resolved URL as given
     <img
-      src={resolveHotsiteImageDisplayUrl(path)}
+      src={url}
       alt={alt}
       className="aspect-[4/3] w-full rounded-md border border-gray-200 object-cover opacity-70"
     />
@@ -62,14 +61,14 @@ export function ServicePublicPageImages({
         <p role="note" data-testid="public-page-images-locked" className="text-sm text-amber-800">
           {t('publicPageImagesLockedNote')}
         </p>
-        {cover && <StoredImage path={cover} alt={t('publicPageCoverLabel')} />}
+        {cover && <StoredImage url={cover} alt={t('publicPageCoverLabel')} />}
         <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           {gallery
             .filter((path) => path !== '')
             .map((path, index) => (
               <li key={`${path}-${index}`}>
                 <StoredImage
-                  path={path}
+                  url={path}
                   alt={t('publicPageGalleryItemLabel', { index: index + 1 })}
                 />
               </li>

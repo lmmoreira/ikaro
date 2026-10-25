@@ -3,6 +3,8 @@
 const PUBLIC_ENV_KEYS = [
   'NEXT_PUBLIC_BFF_URL',
   'NEXT_PUBLIC_SITE_URL',
+  // Origin of the public image host only (CSP img-src, next/image remotePatterns). No web code
+  // composes an image URL with it: the backend resolves every saved image to a full URL.
   'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL',
   // M20-S05 — Cloudflare Turnstile site key, read by the lead-form page's widget (M20-S09).
   'NEXT_PUBLIC_TURNSTILE_SITE_KEY',

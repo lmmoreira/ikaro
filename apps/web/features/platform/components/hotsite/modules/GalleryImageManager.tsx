@@ -10,10 +10,7 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImageWithDimensions } from '@/shared/utils/compress-image';
-import {
-  isTmpImagePath,
-  resolveHotsiteImageDisplayUrl,
-} from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { BookingPhotoPicker } from './BookingPhotoPicker';
@@ -79,7 +76,7 @@ export function GalleryImageManager({
   function displayUrl(image: GalleryImage): string {
     if (previewUrls.has(image.url)) return previewUrls.get(image.url)!;
     if (isTmpImagePath(image.url)) return remoteReadUrls.get(image.url) ?? '';
-    return resolveHotsiteImageDisplayUrl(image.url);
+    return image.url;
   }
 
   async function handleUpload(event: React.ChangeEvent<HTMLInputElement>): Promise<void> {

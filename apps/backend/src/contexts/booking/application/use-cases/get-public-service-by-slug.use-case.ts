@@ -1,7 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { ServicePublicProfileProps } from '../../domain/service-public-profile.vo';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
+import { resolveServicePublicProfileUrls } from '../services/service-public-profile-urls';
 
 export interface GetPublicServiceBySlugUseCaseInput {
   tenantId: string;
@@ -37,7 +39,10 @@ const EMPTY_PROFILE: ServicePublicProfileProps = {
 // visitor: the same 404 as an unknown slug, so nothing reveals which of those it was.
 @Injectable()
 export class GetPublicServiceBySlugUseCase {
-  constructor(@Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository) {}
+  constructor(
+    @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
+    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
+  ) {}
 
   async execute(
     input: GetPublicServiceBySlugUseCaseInput,
@@ -60,7 +65,10 @@ export class GetPublicServiceBySlugUseCase {
       loyaltyPointsValue: service.loyaltyPointsValue,
       durationPolicy: service.bookingPolicy.durationPolicy,
       publicSlug: service.publicSlug.value,
-      profile: service.publicProfile?.toJSON() ?? EMPTY_PROFILE,
+      profile: resolveServicePublicProfileUrls(
+        service.publicProfile?.toJSON() ?? EMPTY_PROFILE,
+        (path) => this.storageService.getPublicUrl(path),
+      ),
     };
   }
 }

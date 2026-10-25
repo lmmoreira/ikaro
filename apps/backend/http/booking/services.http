@@ -557,6 +557,8 @@ X-Tenant-ID: {{tenantId}}
 ###
 
 ### Publish the service's public page and set its profile (UC-013 A5, TD56-S03) — the slug is generated
+# The request takes storage paths only (a tmp/ path from the signed-upload flow, or a saved tenants/<id>/... path);
+# the response's publicProfile returns the cover and gallery as full public URLs.
 PATCH {{baseUrl}}/services/{{serviceId}}/public-page
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
@@ -612,6 +614,8 @@ X-Actor-Role: MANAGER
 ###
 
 ### Public read of a published, active service by its generated slug (UC-109)
+# profile.coverImageUrl and profile.galleryImageUrls come back as full public URLs (the backend resolves the
+# stored paths through the storage port, TD56-S07); the PATCH above and GET /services/:id do the same.
 GET {{baseUrl}}/services/by-slug/massagem-relaxante
 X-Tenant-ID: {{tenantId}}
 

@@ -5,7 +5,7 @@ import type {
   HotsiteSeoResponse,
 } from '@ikaro/types';
 import { HOTSITE_IMAGE_SLOT_CASES } from '@ikaro/types/testing/hotsite-module-contract';
-import { collectHotsiteImagePaths } from './map-hotsite-image-fields';
+import { collectHotsiteImagePaths, mapHotsiteImageFields } from './map-hotsite-image-fields';
 import { resolveDraftImageUrls } from './resolve-draft-image-urls';
 import { stripResolvedImageUrls } from './strip-resolved-image-urls';
 
@@ -38,8 +38,13 @@ describe.each(HOTSITE_IMAGE_SLOT_CASES)('web image walkers: $name', ({ module, p
     expect(collectHotsiteImagePaths(branding, layout, seo)).toEqual(paths);
   });
 
+  // A saved image arrives already resolved; the draft preview swaps only a not-yet-promoted tmp/
+  // upload for its signed read URL. So the walker is exercised by staging every slot as a tmp/ path.
+  const tmpLayout = mapHotsiteImageFields(branding, layout, seo, (value) => `tmp/${value}`).layout;
+  const signedUrls = new Map(paths.map((path) => [`tmp/${path}`, `${BASE_URL}/${path}`]));
+
   it('resolveDraftImageUrls resolves every slot, and nothing else', () => {
-    const resolved = resolveDraftImageUrls(branding, layout, seo, BASE_URL);
+    const resolved = resolveDraftImageUrls(branding, tmpLayout, seo, signedUrls);
 
     expect(collectHotsiteImagePaths(branding, resolved.layout, seo)).toEqual(
       paths.map((path) => `${BASE_URL}/${path}`),
@@ -47,7 +52,7 @@ describe.each(HOTSITE_IMAGE_SLOT_CASES)('web image walkers: $name', ({ module, p
   });
 
   it('stripResolvedImageUrls turns every resolved slot back into its raw path (round trip)', () => {
-    const resolved = resolveDraftImageUrls(branding, layout, seo, BASE_URL);
+    const resolved = resolveDraftImageUrls(branding, tmpLayout, seo, signedUrls);
 
     const stripped = stripResolvedImageUrls(branding, resolved.layout, seo, TENANT_ID);
 
@@ -68,7 +73,7 @@ describe('web image walkers: presentation without a background', () => {
       },
     ] as unknown as HotsiteModuleResponse[];
 
-    const resolved = resolveDraftImageUrls(branding, layout, seo, BASE_URL);
+    const resolved = resolveDraftImageUrls(branding, layout, seo);
 
     expect(resolved.layout[0].presentation).toEqual(presentation);
   });
@@ -78,7 +83,7 @@ describe('web image walkers: presentation without a background', () => {
       { type: 'ABOUT', enabled: true, data: { title: 'T', body: 'B', imagePosition: 'left' } },
     ] as unknown as HotsiteModuleResponse[];
 
-    const resolved = resolveDraftImageUrls(branding, layout, seo, BASE_URL);
+    const resolved = resolveDraftImageUrls(branding, layout, seo);
 
     expect('presentation' in resolved.layout[0]).toBe(false);
   });

@@ -126,6 +126,16 @@ A change to the file also ratchets the budgets in `packages/architecture-check/a
 
 **Exercises:** `context.md` §7's trace-loss bullet → `docs/ENGINEERING_RULES_INFRA.md` § Cloud Run CPU throttling.
 
+### 17. Stored object in a response
+
+**Prompt:** "Add a `logoImageUrl` field to the staff service list: the manager uploads a logo for each service, and the dashboard list shows it next to the name."
+
+**Expected behavior:** the backend stores the storage path, and the use case's result mapping returns the full public URL through `IStorageService.getPublicUrl`; the request takes only the path; the web renders the URL it receives as given and, on save, recovers the path from it with `extractRawStoragePath` — no web code appends a path to `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL`.
+
+**Pass/fail:** fail if the response carries the raw `tenants/…` path, or if any web code composes a public storage URL for saved data (`resolveHotsiteImageDisplayUrl` or any string concatenation with the image base URL).
+
+**Exercises:** `context.md` §7's "A response field that refers to a stored object" bullet → `docs/API_CONTRACTS.md` § Base Standards ("Stored objects in responses and requests"); `docs/ANTI_PATTERNS.md` (the "web composes a public storage URL" row).
+
 ## Workflow scenarios (§9 and the skills it points to)
 
 Run these in "tools mode": the agent may read files (including `.claude/commands/` and `.agents/skills/`) but cannot run commands or change anything. They check that the always-on text still routes an agent to the rule when the rule's mechanics live in a skill, not that a skill is well written. Each scenario is compared before and after a change with the same samples per cell.

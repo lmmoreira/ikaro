@@ -6,6 +6,10 @@ import { ServicePublicProfileProps } from '../../domain/service-public-profile.v
 import { ServiceBookingPolicyProps } from '../../domain/service.types';
 import { TenantBookingWindow } from '../ports/booking-platform.port';
 import { resolveEffectiveBookingWindow } from './booking-window.helpers';
+import {
+  ResolveImageUrl,
+  resolveServicePublicProfileUrls,
+} from '../services/service-public-profile-urls';
 
 // Shared by CreateServiceUseCase and UpdateServiceUseCase — both return the same fully-resolved
 // Service shape (docs/CODE_STANDARDS.md's "extract once a second real caller exists").
@@ -71,6 +75,7 @@ export function toServiceResult(
   locale: string,
   autoApproveEnabled: boolean,
   tenantWindow: TenantBookingWindow,
+  resolveImageUrl: ResolveImageUrl,
 ): ServiceUseCaseResult {
   return {
     id: service.id,
@@ -96,6 +101,8 @@ export function toServiceResult(
     bookingPolicy: resolveBookingPolicyResult(service, autoApproveEnabled, tenantWindow),
     publicPagePublished: service.publicPagePublished,
     publicSlug: service.publicSlug?.value ?? null,
-    publicProfile: service.publicProfile?.toJSON() ?? null,
+    publicProfile: service.publicProfile
+      ? resolveServicePublicProfileUrls(service.publicProfile.toJSON(), resolveImageUrl)
+      : null,
   };
 }
