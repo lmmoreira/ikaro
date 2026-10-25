@@ -136,6 +136,9 @@ For changed `apps/web/` files:
 - `bffClient` in a Server Component (`page.tsx`, `layout.tsx`, or any file without `'use client'`) → **FAIL**
 - Raw `fetch()` building a BFF route URL outside `lib/api/<name>.ts` → **FAIL**
 
+### Stored objects resolved on the backend
+For changed backend `*.use-case.ts` / `*.mapper.ts` / controller result mapping and BFF mappers: a response field that refers to a stored object (an image or document path: `tenants/…`, `tmp/…`, a `*ImageUrl` / `*Path` field built from a stored value) must be a full URL from `IStorageService.getPublicUrl`, resolved at the response boundary, never the raw stored path — and requests take the path. For changed `apps/web/` files, no code may join a host to a path for saved data (ESLint `IMAGE_BASE_URL_SELECTOR` blocks reading `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL`; a hardcoded host or a second variable is not caught by it). `docs/API_CONTRACTS.md` § Stored objects in responses and requests.
+
 ### RequestModule imported explicitly
 For changed `*.module.ts` files whose controllers or services inject `RequestContext`, verify `RequestModule` appears in the `imports:` array. `RequestModule` is not `@Global()` — every consuming module must import it explicitly.
 

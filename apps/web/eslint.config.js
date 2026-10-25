@@ -51,6 +51,31 @@ const LOCALE_LITERAL_SELECTOR = {
   message:
     "Do not hardcode a locale string in a protected-area layout — read payload.locale ?? 'pt-BR' from the decoded JWT instead (docs/ENGINEERING_RULES_SHARED.md §RequestContext; M13-S15 incident).",
 };
+// NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL is the ORIGIN of the public image host, read only by the CSP
+// (proxy.ts) and next/image's remotePatterns (next.config.ts). A saved image reaches the web as a
+// full URL the backend resolved, so any other read is a web-side URL composition — which produced
+// broken service images on every deployed environment, because Terraform sets the variable
+// host-only while local and CI used a bucket-inclusive value (TD56-S07; docs/API_CONTRACTS.md
+// § Stored objects in responses and requests). The variable's name is matched wherever it appears,
+// so the three documented bypass shapes are covered by construction (docs/ENGINEERING_RULES_SHARED.md
+// § `no-restricted-syntax` selectors must be checked): a computed literal (process.env['…'],
+// getPublicEnv('…')) is a Literal; a template literal with no substitution is a TemplateElement;
+// a dotted member, a destructured key and a shorthand binding are an Identifier. A variable that
+// holds the name in a constant is the one shape a syntax selector cannot follow.
+const IMAGE_BASE_URL_VARIABLE = 'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL';
+const IMAGE_BASE_URL_SELECTOR = {
+  selector: `:matches(Literal[value='${IMAGE_BASE_URL_VARIABLE}'], TemplateElement[value.cooked='${IMAGE_BASE_URL_VARIABLE}'], Identifier[name='${IMAGE_BASE_URL_VARIABLE}'])`,
+  message:
+    'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL is an origin for the CSP and next/image only — never compose a saved image URL from it. The backend returns every saved image as a full URL; render it as given (docs/API_CONTRACTS.md § Stored objects in responses and requests).',
+};
+// The only files that may name the variable: the CSP and image-host config, the runtime-env key
+// list that injects it, and the shared test helper that stubs it.
+const imageBaseUrlAllowedPaths = [
+  'proxy.ts',
+  'next.config.ts',
+  'shared/lib/runtime-env/public-env.ts',
+  'test-utils.tsx',
+];
 // `as React.CSSProperties` on a function's returned value is an unnecessary assertion
 // (SonarCloud) that also loses type precision on custom `--ba-*` keys — return
 // `React.CSSProperties & Record<`--ba-${string}`, string>` instead (docs/ANTI_PATTERNS.md).
@@ -138,6 +163,7 @@ const E2E3_SELECTOR = {
 // this file's own "Six rules share one block" comment below, and
 // apps/backend/eslint.config.js's TD24-S03 comment, for the same trap already documented twice).
 const NON_FETCH_SELECTORS = [
+  IMAGE_BASE_URL_SELECTOR,
   LOCALE_LITERAL_SELECTOR,
   CSS_PROPERTIES_RETURN_SELECTOR,
   CSS_PROPERTIES_ARROW_SELECTOR,
@@ -219,6 +245,21 @@ module.exports = [
     ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
     rules: {
       'no-restricted-syntax': ['error', ...NON_FETCH_SELECTORS],
+    },
+  },
+  // The files allowed to name the image-host variable keep every other ban: a later block REPLACES
+  // the earlier one's selector list for the files it matches, so this one restates the list minus
+  // IMAGE_BASE_URL_SELECTOR (and keeps the raw-fetch ban, which none of these files is reviewed to
+  // skip).
+  {
+    files: imageBaseUrlAllowedPaths,
+    ignores: ['**/*.spec.ts', '**/*.spec.tsx'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        RAW_FETCH_SELECTOR,
+        ...NON_FETCH_SELECTORS.filter((entry) => entry !== IMAGE_BASE_URL_SELECTOR),
+      ],
     },
   },
   // TD37-S23: E2E-1 only — scoped to Playwright e2e specs themselves, which the two
