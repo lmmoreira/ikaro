@@ -1,4 +1,5 @@
 import { GetPublicServiceBySlugUseCase } from '../../application/use-cases/get-public-service-by-slug.use-case';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
@@ -10,6 +11,7 @@ import { ListServiceResourceOptionsUseCase } from '../../application/use-cases/l
 import { QuoteServiceDurationUseCase } from '../../application/use-cases/quote-service-duration.use-case';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
+import { ServicePublicProfile } from '../../domain/service-public-profile.vo';
 import { ServicePublicController } from './service-public.controller';
 
 const TENANT_A = '10000000-0000-4000-8000-0000000029c1';
@@ -19,16 +21,18 @@ describe('ServicePublicController (M23-S29)', () => {
   let controller: ServicePublicController;
   let serviceRepo: InMemoryServiceRepository;
   let resourceRepo: InMemoryResourceRepository;
+  let storage: InMemoryStorageService;
 
   beforeEach(() => {
     serviceRepo = new InMemoryServiceRepository();
     resourceRepo = new InMemoryResourceRepository();
+    storage = new InMemoryStorageService();
     const ctx = new RequestContextBuilder().withTenantId(TENANT_A).build();
     controller = new ServicePublicController(
       ctx,
       new ListServiceResourceOptionsUseCase(serviceRepo, resourceRepo),
       new QuoteServiceDurationUseCase(serviceRepo, new BookingQuoteService()),
-      new GetPublicServiceBySlugUseCase(serviceRepo),
+      new GetPublicServiceBySlugUseCase(serviceRepo, storage),
     );
   });
 
@@ -125,6 +129,27 @@ describe('ServicePublicController (M23-S29)', () => {
       expect(result.profile.galleryImageUrls).toEqual([]);
       expect(Object.keys(result)).not.toContain('bookingPolicy');
       expect(Object.keys(result)).not.toContain('resourceRequirements');
+    });
+
+    it('returns the cover and gallery as full public URLs, not the stored paths (TD56-S07)', async () => {
+      const cover = `tenants/${TENANT_A}/hotsite/service-profile/u1/cover.webp`;
+      const gallery = `tenants/${TENANT_A}/hotsite/service-profile/u2/a.webp`;
+      await serviceRepo.save(
+        new ServiceBuilder()
+          .withTenantId(TENANT_A)
+          .withName('Massagem')
+          .withPublicSlug('massagem')
+          .withPublicPagePublished(true)
+          .withPublicProfile(
+            ServicePublicProfile.create({ coverImageUrl: cover, galleryImageUrls: [gallery] }),
+          )
+          .build(),
+      );
+
+      const result = await controller.bySlug('massagem');
+
+      expect(result.profile.coverImageUrl).toBe(storage.getPublicUrl(cover));
+      expect(result.profile.galleryImageUrls).toEqual([storage.getPublicUrl(gallery)]);
     });
 
     it.each([

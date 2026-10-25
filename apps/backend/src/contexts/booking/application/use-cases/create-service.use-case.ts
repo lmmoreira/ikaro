@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -29,6 +30,7 @@ export class CreateServiceUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
+    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
   async execute(input: CreateServiceUseCaseInput): Promise<CreateServiceUseCaseResult> {
@@ -65,6 +67,8 @@ export class CreateServiceUseCase {
 
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
     const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(tenantId);
-    return toServiceResult(service, locale, autoApproveEnabled, tenantWindow);
+    return toServiceResult(service, locale, autoApproveEnabled, tenantWindow, (path) =>
+      this.storageService.getPublicUrl(path),
+    );
   }
 }

@@ -77,20 +77,14 @@ describe('GalleryImageManager', () => {
     expect(screen.getByDisplayValue('Foto 1')).toBeInTheDocument();
   });
 
-  it('resolves a raw storage path (re-opened after a save, no fresh local preview) into a displayable absolute URL', () => {
-    stubPublicEnv({
-      NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'http://localhost:4443/ikaro-local-public',
-    });
-    const images: GalleryImage[] = [
-      { url: 'tenants/tenant-1/hotsite/gallery/g1.jpg', source: 'upload' },
-    ];
+  it('renders a saved image exactly as the URL the backend resolved, whatever the image-origin variable holds', () => {
+    stubPublicEnv({ NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL: 'https://wrong-host.invalid' });
+    const url = 'https://img.example.test/public-bucket/tenants/tenant-1/hotsite/gallery/g1.jpg';
+    const images: GalleryImage[] = [{ url, source: 'upload' }];
 
     renderWithIntl(<GalleryImageManager images={images} onChange={vi.fn()} />);
 
-    expect(screen.getByTestId('gallery-image')).toHaveAttribute(
-      'src',
-      'http://localhost:4443/ikaro-local-public/tenants/tenant-1/hotsite/gallery/g1.jpg',
-    );
+    expect(screen.getByTestId('gallery-image')).toHaveAttribute('src', url);
   });
 
   it('resolves a tmp/ (not-yet-promoted) image via a private read-signed-URL instead of the public base URL', async () => {

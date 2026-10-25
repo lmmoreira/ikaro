@@ -26,6 +26,7 @@ describe('ServicePublicPageController (TD56-S03, UC-013 A5)', () => {
         new InMemoryBookingPlatformPort(),
         new InMemoryTransactionManager(),
         new ServiceImagePromotionService(new InMemoryStorageService()),
+        new InMemoryStorageService(),
       ),
     );
   });

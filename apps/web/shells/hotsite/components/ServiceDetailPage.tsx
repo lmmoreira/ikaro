@@ -4,7 +4,6 @@ import type React from 'react';
 import { buildBookingDeepLinkUrl } from '@ikaro/types';
 import type { HotsiteServiceDetailResponse, ServiceDetailPageSettings } from '@ikaro/types';
 import { sectionHeadingFont } from '@/features/platform/hotsite/module-styles';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { RestrictedMarkdown } from './RestrictedMarkdown';
 
@@ -77,9 +76,9 @@ function Gallery({
           key={`${url}-${index}`}
           className={featured && index === 0 ? 'col-span-2 aspect-[16/8]' : 'aspect-[4/3]'}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element -- tenant-uploaded public image, resolved against the public bucket */}
+          {/* eslint-disable-next-line @next/next/no-img-element -- tenant-uploaded public image, the backend-resolved URL as given */}
           <img
-            src={resolveHotsiteImageDisplayUrl(url)}
+            src={url}
             alt=""
             loading="lazy"
             className="h-full w-full object-cover"
@@ -134,9 +133,9 @@ export function ServiceDetailPage({
             data-testid="service-cover"
             data-hero-style={settings.heroStyle}
           >
-            {/* eslint-disable-next-line @next/next/no-img-element -- tenant-uploaded public image, resolved against the public bucket */}
+            {/* eslint-disable-next-line @next/next/no-img-element -- tenant-uploaded public image, the backend-resolved URL as given */}
             <img
-              src={resolveHotsiteImageDisplayUrl(profile.coverImageUrl)}
+              src={profile.coverImageUrl}
               alt={service.name}
               className="h-full w-full object-cover"
             />

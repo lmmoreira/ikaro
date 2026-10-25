@@ -32,6 +32,7 @@ describe('UpdateServicePublicPageUseCase', () => {
       bookingPlatform,
       txManager,
       new ServiceImagePromotionService(storage),
+      storage,
     );
   });
 
@@ -188,6 +189,44 @@ describe('UpdateServicePublicPageUseCase', () => {
   });
 
   describe('images', () => {
+    it('returns full public URLs while the aggregate keeps storing the paths', async () => {
+      const path = `${PREFIX}u1/cover.webp`;
+      const gallery = `${PREFIX}u2/a.webp`;
+      storage.markAsUploaded(path);
+      storage.markAsUploaded(gallery);
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+
+      const result = await useCase.execute({
+        id: service.id,
+        tenantId: TENANT_A,
+        profile: { coverImageUrl: path, galleryImageUrls: [gallery] },
+      });
+
+      expect(result.publicProfile).toMatchObject({
+        coverImageUrl: storage.getPublicUrl(path),
+        galleryImageUrls: [storage.getPublicUrl(gallery)],
+      });
+      const stored = await serviceRepo.findById(service.id, TENANT_A);
+      expect(stored?.publicProfile?.toJSON()).toMatchObject({
+        coverImageUrl: path,
+        galleryImageUrls: [gallery],
+      });
+    });
+
+    it('still rejects a URL in the request body (the domain accepts storage paths only)', async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+
+      await expect(
+        useCase.execute({
+          id: service.id,
+          tenantId: TENANT_A,
+          profile: { coverImageUrl: storage.getPublicUrl(`${PREFIX}u1/cover.webp`) },
+        }),
+      ).rejects.toBeInstanceOf(ServicePublicProfileInvalidError);
+    });
+
     it('promotes a tmp upload to its permanent path after the save, not before', async () => {
       const tmp = `tmp/${TENANT_A}/service-profile/u1/cover.webp`;
       storage.markAsUploaded(tmp);
@@ -200,7 +239,9 @@ describe('UpdateServicePublicPageUseCase', () => {
         profile: { coverImageUrl: tmp },
       });
 
-      expect(result.publicProfile?.coverImageUrl).toBe(`${PREFIX}u1/cover.webp`);
+      expect(result.publicProfile?.coverImageUrl).toBe(
+        storage.getPublicUrl(`${PREFIX}u1/cover.webp`),
+      );
       expect(storage.copiedPaths.map((c) => c.destinationPath)).toEqual([`${PREFIX}u1/cover.webp`]);
       expect(storage.deletedPaths).toContain(tmp);
     });

@@ -1,4 +1,5 @@
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
@@ -43,6 +44,7 @@ describe('UpdateServiceUseCase', () => {
       resourceRepo,
       bookingPlatform,
       new InMemoryTransactionManager(),
+      new InMemoryStorageService(),
     );
   });
 

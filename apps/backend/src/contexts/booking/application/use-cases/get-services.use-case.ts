@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ServiceUseCaseResult, toServiceResult } from './service-result.mapper';
@@ -22,6 +23,7 @@ export class GetServicesUseCase {
   constructor(
     @Inject(SERVICE_REPOSITORY) private readonly serviceRepo: IServiceRepository,
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
+    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
   async execute(input: GetServicesUseCaseInput): Promise<GetServicesUseCaseResult> {
@@ -35,7 +37,11 @@ export class GetServicesUseCase {
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(input.tenantId);
     const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(input.tenantId);
     return {
-      items: services.map((s) => toServiceResult(s, locale, autoApproveEnabled, tenantWindow)),
+      items: services.map((s) =>
+        toServiceResult(s, locale, autoApproveEnabled, tenantWindow, (path) =>
+          this.storageService.getPublicUrl(path),
+        ),
+      ),
     };
   }
 }

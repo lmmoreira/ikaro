@@ -1,4 +1,5 @@
 import { HttpException, HttpStatus } from '@nestjs/common';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingPlatformPort } from '../../../../test/infrastructure/in-memory-booking-platform.port';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
@@ -59,13 +60,21 @@ describe('ServiceController', () => {
       .build();
     const txManager = new InMemoryTransactionManager();
     const bookingPlatform = new InMemoryBookingPlatformPort();
+    const storage = new InMemoryStorageService();
     controller = new ServiceController(
       ctx,
-      new CreateServiceUseCase(repo, resourceRepo, bookingPlatform, txManager),
-      new GetServicesUseCase(repo, bookingPlatform),
-      new GetServiceByIdUseCase(repo, bookingPlatform),
+      new CreateServiceUseCase(repo, resourceRepo, bookingPlatform, txManager, storage),
+      new GetServicesUseCase(repo, bookingPlatform, storage),
+      new GetServiceByIdUseCase(repo, bookingPlatform, storage),
       new ActivateServiceUseCase(repo, bookingPlatform, txManager),
-      new UpdateServiceUseCase(repo, bookingRepo, resourceRepo, bookingPlatform, txManager),
+      new UpdateServiceUseCase(
+        repo,
+        bookingRepo,
+        resourceRepo,
+        bookingPlatform,
+        txManager,
+        storage,
+      ),
       new DeactivateServiceUseCase(repo, bookingPlatform, txManager),
       new UpdateServiceResourceRequirementsUseCase(repo, resourceRepo, bookingPlatform, txManager),
       new UpdateServiceLegsUseCase(repo, resourceRepo, bookingPlatform, txManager),

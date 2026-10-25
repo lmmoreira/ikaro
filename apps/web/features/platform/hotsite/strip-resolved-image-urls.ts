@@ -23,7 +23,7 @@ import { mapHotsiteImageFields } from './map-hotsite-image-fields';
 // an absolute URL where it expects a registered catalogue path. Only the tenant's own marker or
 // the catalogue marker is ever recovered; another tenant's URL carries neither and stays as is, so
 // it is never rewritten into this tenant's prefix.
-function extractRawStoragePath(value: string, tenantId: string): string {
+export function extractRawStoragePath(value: string, tenantId: string): string {
   const tenantMarker = `tenants/${tenantId}/`;
   const tenantIndex = value.indexOf(tenantMarker);
   if (tenantIndex !== -1) return value.slice(tenantIndex);

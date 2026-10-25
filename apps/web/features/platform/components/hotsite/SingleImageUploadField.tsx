@@ -9,10 +9,7 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE } from '@/shared/utils/compress-image';
-import {
-  isTmpImagePath,
-  resolveHotsiteImageDisplayUrl,
-} from '@/features/platform/hotsite/resolve-hotsite-image-url';
+import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
@@ -183,13 +180,10 @@ export function SingleImageUploadField({
     onChange('');
   }
 
-  // `value` is a raw storage path until the next GET resolves it — on re-opening this field
-  // after a save (no fresh local blob preview), it would otherwise be passed to <img src>
-  // unresolved and fail to load. See resolveHotsiteImageUrl for the full rationale. A tmp/ path
-  // is private-bucket only, so it resolves via remoteReadUrl (fetched above) instead of the
-  // public-bucket string template.
-  const displaySrc =
-    previewUrl ?? (isTmpImagePath(value) ? remoteReadUrl : resolveHotsiteImageDisplayUrl(value));
+  // A saved `value` is already the full public URL the backend resolved, rendered as given. Only a
+  // tmp/ path (an upload not yet saved) is private-bucket only, so it resolves via remoteReadUrl
+  // (fetched above) when there is no local blob preview.
+  const displaySrc = previewUrl ?? (isTmpImagePath(value) ? remoteReadUrl : value);
 
   return (
     <div>

@@ -12,7 +12,6 @@ import {
   resolveHotsiteNavigationCta,
 } from '@/features/platform/hotsite/page-model';
 import { resolveDraftImageUrls } from '@/features/platform/hotsite/resolve-draft-image-urls';
-import { hotsiteImageBaseUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { usePreviewSupplementaryData, useTmpSignedUrls } from './useHotsitePreviewData';
 import { renderHotsitePreviewModule, type PreviewSelection } from './renderHotsitePreviewModule';
 
@@ -40,7 +39,6 @@ export function HotsitePreviewCanvas({
     draft.branding,
     draft.layout,
     draft.seo,
-    hotsiteImageBaseUrl(),
     tmpSignedUrls,
   );
   const alternateSectionBg = branding.alternateSectionBg ?? false;

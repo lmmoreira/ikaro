@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { fetchManifest } from '@/features/platform/api.server';
 import { fetchServiceBySlug } from '@/features/platform/hotsite/api/services.server';
-import { resolveHotsiteImageDisplayUrl } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import {
   buildHotsiteModuleRenderPlan,
   resolveHotsiteDisplayName,
@@ -54,7 +53,7 @@ export async function generateMetadata({ params }: ServiceDetailRouteProps): Pro
     override: {
       title: `${service.name} — ${resolveHotsiteDisplayName(manifest)}`,
       description: resolveServiceMetaDescription(service),
-      ogImageUrl: coverImageUrl ? resolveHotsiteImageDisplayUrl(coverImageUrl) : undefined,
+      ogImageUrl: coverImageUrl ?? undefined,
     },
   });
 }

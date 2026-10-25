@@ -121,6 +121,9 @@ For even better performance with large datasets (Phase 2), consider cursor-based
 - More efficient, no deep scanning needed
 - Can be introduced non-breaking: keep limit/offset, add `after` as alternative
 
+### 5. **Stored objects in responses and requests (images, documents)**
+A response field that refers to a stored public object is a **full public URL, resolved by the backend** through `IStorageService.getPublicUrl` at the response boundary; a request field that refers to one takes the **storage path** (`tenants/<tenantId>/…`, or a `tmp/…` staging path for a fresh upload). The web renders the URL it receives as given and never composes a public storage URL for saved data — so a change of public host (the planned `img.ikaro.online` domain) needs no web **code** change. The web's image-origin configuration must still match the new host: `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` (an origin only) feeds `next.config.ts` `remotePatterns` and the CSP `img-src`, and a stale origin blocks the images the backend now points to. Where a form edits a saved object, the web recovers the path on write from the URL it holds (`extractRawStoragePath`, the function the hotsite editor's `stripResolvedImageUrls` uses); a `tmp/` path passes through unchanged. Each resource section below names the fields that follow this rule: the hotsite manifest and admin content (all image fields) and a service's public profile (`coverImageUrl`, `galleryImageUrls` — TD56-S07). The booking photos in the private bucket are the other model: a fresh read-signed URL at display time (see "Media Upload"). Rule for backend code: `docs/ENGINEERING_RULES_BACKEND.md` § Resolve stored object paths at the response boundary.
+
 ---
 
 ## 1. Authentication & Multi-Tenancy
@@ -574,7 +577,7 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   ```
   Bounds (`SERVICE_PUBLIC_PROFILE_LIMITS` in `@ikaro/types`, enforced by `UpdateServicePublicPageSchema` and again by the `ServicePublicProfile` value object): gallery ≤ 8 images; `longDescription` ≤ 4000 characters of restricted Markdown (never HTML); `inclusions` ≤ 12 items × 120 characters (blank rows dropped); `preparationNotes` ≤ 1000. `profile: null` clears the stored content; omitting it leaves it. Unpublishing keeps the slug and the profile, so republishing restores the same URL.
   - Images: a `tmp/<tenantId>/service-profile/<uuid>/<file>` path (uploaded through the MANAGER-only `POST /v1/tenants/hotsite/images/signed-url` with purpose `service-profile`) is validated and checked outside the transaction, moved to `tenants/<tenantId>/hotsite/service-profile/…` in the public bucket **after the save commits**, and a superseded permanent image of this prefix is deleted then; anything else (another tenant's tmp path, a booking-shaped tmp path, a hotsite image, a path that was never uploaded) is `400 BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`. A hotsite save never deletes a service image and the reverse.
-  - Response `200`: `{ "id": "uuid", "publicPagePublished": true, "publicSlug": "massagem-relaxante", "publicProfile": { ... } }` — the stored paths (a tmp upload comes back permanent). `StaffServiceResponse` (`GET /services/:id`, the list and the edit view) also carries `publicPagePublished`, `publicSlug` (read-only) and `publicProfile`.
+  - Response `200`: `{ "id": "uuid", "publicPagePublished": true, "publicSlug": "massagem-relaxante", "publicProfile": { ... } }` — `coverImageUrl` and every `galleryImageUrls` entry are **full public URLs** (a tmp upload comes back as its permanent object's URL); the stored value stays the path, and the request still takes only paths (a URL in the body is `400 BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`) — see Base Standards § 5. `StaffServiceResponse` (`GET /services/:id`, the list and the edit view, and the create and update results) also carries `publicPagePublished`, `publicSlug` (read-only) and `publicProfile`, with the same resolved URLs.
   - Works on an inactive service (the page can be prepared while the service is off); the page simply is not visible until it is active.
   - After the commit the use case asks the hotsite to revalidate its public pages (best-effort: a failure is swallowed, the save already succeeded) and `CachingServiceRepository` invalidates the tenant's services list cache, so a publish or unpublish reaches the public site at once.
   - `404 BOOKING_SERVICE_NOT_FOUND` (unknown or another tenant); `400 BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`; `409 BOOKING_SERVICE_PUBLIC_SLUG_TAKEN` (retryable — two same-named services were first published at the same instant); `403` for a `CUSTOMER`.
@@ -586,9 +589,10 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
     "price": { "amount": 120.00, "currency": "BRL", "formatted": "R$ 120,00" },
     "durationMinutes": 60, "loyaltyPointsValue": 8, "durationPolicy": "FIXED",
     "publicSlug": "massagem-relaxante",
-    "profile": { "coverImageUrl": "...", "galleryImageUrls": [], "longDescription": "...", "inclusions": [], "preparationNotes": null }
+    "profile": { "coverImageUrl": "https://<public host>/<bucket>/tenants/<tenantId>/hotsite/service-profile/<uuid>/cover.webp", "galleryImageUrls": [], "longDescription": "...", "inclusions": [], "preparationNotes": null }
   }
   ```
+  `coverImageUrl` and `galleryImageUrls` are full public URLs resolved by the backend (`GetPublicServiceBySlugUseCase`, Base Standards § 5); the page renders them as given, and the BFF passes them through unchanged.
   `durationPolicy: "CUSTOMER_SELECTED"` tells the page to show neither price nor duration (the booking flow quotes them). **Whitelisted:** the BFF names every field (`toPublicServiceDetailResponse`) — never the booking policy, resource requirements, legs, intake schema or buffers. `404 BOOKING_SERVICE_NOT_FOUND` for an unknown slug, another tenant's slug, an **unpublished** page or an **inactive** service — one answer for all of them. It does not know whether the hotsite is published; the web page checks that.
 
 - `PATCH /services/:id/booking-policy` -> Set an appointment service's booking policy (UC-055). Body:

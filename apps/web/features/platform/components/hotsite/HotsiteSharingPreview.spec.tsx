@@ -17,6 +17,7 @@ const mockFetchManifest = vi.mocked(fetchManifestClient);
 const mockReadSignedUrl = vi.mocked(generateHotsiteImageReadSignedUrl);
 
 const IMAGE_BASE_URL = 'http://localhost:4443/ikaro-local-public';
+const RESOLVED_HOST = 'https://img.example.test/public-bucket';
 const ADDRESS = {
   street: 'Rua A',
   number: '1',
@@ -199,9 +200,9 @@ describe('HotsiteSharingPreview', () => {
   it.each([
     ['an absolute URL', 'https://cdn.example.com/og.png', 'https://cdn.example.com/og.png'],
     [
-      'a raw storage path',
-      'tenants/t1/hotsite/seo-og-image/a/og.png',
-      `${IMAGE_BASE_URL}/tenants/t1/hotsite/seo-og-image/a/og.png`,
+      'a resolved URL on the backend host, not the image-origin variable',
+      `${RESOLVED_HOST}/tenants/t1/hotsite/seo-og-image/a/og.png`,
+      `${RESOLVED_HOST}/tenants/t1/hotsite/seo-og-image/a/og.png`,
     ],
   ])('renders the sharing image from %s', (_label, ogImageUrl, expectedSrc) => {
     renderPreview(seo({ title: 'T', description: 'D', ogImageUrl }));

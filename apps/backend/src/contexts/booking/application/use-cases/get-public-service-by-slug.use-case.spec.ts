@@ -1,4 +1,5 @@
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
+import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import { ServiceNotFoundError } from '../../domain/errors/booking-domain.error';
 import { ServicePublicProfile } from '../../domain/service-public-profile.vo';
@@ -9,11 +10,13 @@ const TENANT_B = '10000000-0000-4000-8000-000000000002';
 
 describe('GetPublicServiceBySlugUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
+  let storage: InMemoryStorageService;
   let useCase: GetPublicServiceBySlugUseCase;
 
   beforeEach(() => {
     serviceRepo = new InMemoryServiceRepository();
-    useCase = new GetPublicServiceBySlugUseCase(serviceRepo);
+    storage = new InMemoryStorageService();
+    useCase = new GetPublicServiceBySlugUseCase(serviceRepo, storage);
   });
 
   function published(overrides: { tenantId?: string } = {}) {
@@ -46,6 +49,27 @@ describe('GetPublicServiceBySlugUseCase', () => {
       profile: { longDescription: 'Texto', inclusions: ['Chá'] },
     });
     expect(result.price.formatted).toBe('R$ 100,00');
+  });
+
+  it('returns the stored image paths as full public URLs', async () => {
+    const cover = `tenants/${TENANT_A}/hotsite/service-profile/u1/cover.webp`;
+    const gallery = `tenants/${TENANT_A}/hotsite/service-profile/u2/a.webp`;
+    await serviceRepo.save(
+      published()
+        .withPublicProfile(
+          ServicePublicProfile.create({ coverImageUrl: cover, galleryImageUrls: [gallery] }),
+        )
+        .build(),
+    );
+
+    const result = await useCase.execute({
+      tenantId: TENANT_A,
+      publicSlug: 'massagem',
+      locale: 'pt-BR',
+    });
+
+    expect(result.profile.coverImageUrl).toBe(storage.getPublicUrl(cover));
+    expect(result.profile.galleryImageUrls).toEqual([storage.getPublicUrl(gallery)]);
   });
 
   it('returns an empty profile (not an error) for a published page with no content yet', async () => {

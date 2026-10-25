@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { IStorageService, STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import {
   ITransactionManager,
   TRANSACTION_MANAGER,
@@ -15,6 +16,7 @@ import { UpdateServicePublicPageDto } from '../dtos/update-service-public-page.d
 import { BOOKING_PLATFORM_PORT, IBookingPlatformPort } from '../ports/booking-platform.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ServiceImagePromotionService } from '../services/service-image-promotion.service';
+import { resolveServicePublicProfileUrls } from '../services/service-public-profile-urls';
 
 export type UpdateServicePublicPageUseCaseInput = UpdateServicePublicPageDto & {
   id: string;
@@ -42,6 +44,7 @@ export class UpdateServicePublicPageUseCase {
     @Inject(BOOKING_PLATFORM_PORT) private readonly bookingPlatform: IBookingPlatformPort,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly imagePromotion: ServiceImagePromotionService,
+    @Inject(STORAGE_SERVICE) private readonly storageService: IStorageService,
   ) {}
 
   async execute(
@@ -80,7 +83,11 @@ export class UpdateServicePublicPageUseCase {
       id: service.id,
       publicPagePublished: service.publicPagePublished,
       publicSlug: service.publicSlug?.value ?? null,
-      publicProfile: service.publicProfile?.toJSON() ?? null,
+      publicProfile: service.publicProfile
+        ? resolveServicePublicProfileUrls(service.publicProfile.toJSON(), (path) =>
+            this.storageService.getPublicUrl(path),
+          )
+        : null,
     };
   }
 
