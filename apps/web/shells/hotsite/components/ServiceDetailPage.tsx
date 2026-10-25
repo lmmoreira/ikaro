@@ -21,6 +21,14 @@ const headingStyle: React.CSSProperties = {
   textTransform: 'var(--ba-heading-transform, none)',
 };
 
+// Every block painted on the secondary colour sets that colour's own text token: the page text
+// colour (--ba-text) is only guaranteed to be legible on the page background, and a tenant's
+// secondary colour can sit close to it (applyBranding derives --ba-secondary-text for this).
+const onSecondaryStyle: React.CSSProperties = {
+  backgroundColor: 'var(--ba-secondary)',
+  color: 'var(--ba-secondary-text, var(--ba-text))',
+};
+
 const buttonStyle: React.CSSProperties = {
   backgroundColor: 'var(--ba-btn-bg)',
   color: 'var(--ba-btn-text)',
@@ -159,7 +167,7 @@ export function ServiceDetailPage({
             {settings.showDuration && isFixed && (
               <li
                 className="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-                style={{ backgroundColor: 'var(--ba-secondary)' }}
+                style={onSecondaryStyle}
                 data-testid="service-duration"
               >
                 {formatDuration(service.durationMinutes)}
@@ -168,7 +176,7 @@ export function ServiceDetailPage({
             {settings.showLoyaltyPoints && service.loyaltyPointsValue > 0 && (
               <li
                 className="rounded-full px-3.5 py-1.5 text-sm font-semibold"
-                style={{ backgroundColor: 'var(--ba-secondary)' }}
+                style={onSecondaryStyle}
                 data-testid="service-points"
               >
                 {t('loyaltyPoints', { count: service.loyaltyPointsValue })}
@@ -219,7 +227,7 @@ export function ServiceDetailPage({
           <Section title={t('preparation')}>
             <p
               className="whitespace-pre-line p-4 leading-relaxed"
-              style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+              style={{ ...onSecondaryStyle, borderRadius: 'var(--ba-radius)' }}
               data-testid="service-preparation"
             >
               {profile.preparationNotes}
@@ -235,7 +243,7 @@ export function ServiceDetailPage({
 
         <div
           className="mt-12 flex flex-wrap items-center justify-between gap-4 p-6"
-          style={{ backgroundColor: 'var(--ba-secondary)', borderRadius: 'var(--ba-radius)' }}
+          style={{ ...onSecondaryStyle, borderRadius: 'var(--ba-radius)' }}
         >
           <p className="max-w-md text-sm opacity-80">{t('bookHint')}</p>
           <Link
