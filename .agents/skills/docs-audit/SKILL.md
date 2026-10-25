@@ -184,7 +184,7 @@ Tables and lists that enumerate files, exports, constraints, locks, routes, erro
 ### 3a. UC internal consistency — only if UCs in scope
 - Summary table row matches the detail section's `**Actor:**` line and outcome
 - Every "see UC-XXX"/"superseded by UC-XXX"/"lives in UC-XXX" reference points to a UC that exists, with a status consistent with how it's being referenced (don't cite an active flow as living inside a UC marked SUPERSEDED)
-- `.copilot/context.md` §6 UC index matches the summary table in `docs/USE_CASES.md`
+- `.copilot/context.md` §6 ("Traps" and "Missing UCs" — there is no longer a full UC index there) still agrees with `docs/USE_CASES.md`: every UC named as a trap (UC-014, UC-015, UC-017, UC-030) has the status/title §6 claims in the summary table, and nothing listed under "Missing UCs" has since been documented
 - Any booking-status transition named in a UC is valid per CLAUDE.md §5; `NO_SHOW` is valid via UC-074 (M23-S09); no UC references UC-014 or UC-015 as active
 
 ### 3b. Cross-doc consistency — for any in-scope doc pair that cross-references (deep- or light-check)
@@ -209,7 +209,8 @@ Direct-read pass per in-scope journey. Only promote to a real subagent — bound
 - No duplicated subsections (read top to bottom once; flag any heading/content block that repeats)
 - No rule/pattern named in `context.md` is restated in full elsewhere when it should only be a pointer — cross-check `context.md`'s own bullets against the Standards/structure agent's duplication findings (Step 2b) when that group is in scope; a `context.md` bullet describing a named pattern should point to its canonical doc (per TD41's canonical-home rule), not duplicate the explanation
 - Every criterion-(c) "writing-time trap" bullet in `context.md` (per TD41's keep-in-file test) has a matching scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, and every scenario there still points to a bullet that exists — flag either direction of drift
-- §6's UC index matches `docs/USE_CASES.md`'s summary table (status + title)
+- §6's "Traps" and "Missing UCs" lists match `docs/USE_CASES.md` (status + title of each named UC; a "missing" UC that now exists is a finding)
+- Section numbering: `context.md` currently has no §14 or §16. A citation to a section that does not exist (e.g. `§14`, `§16`, `§19`) is a dead pointer; a gap in the numbering is not itself a finding
 - §3's Bounded Contexts table matches `docs/BOUNDED_CONTEXTS.md`
 - §10's dynamic-loading table references files that actually exist on disk
 - §17's command table lists every file actually present in `.claude/commands/`, and vice versa
@@ -260,7 +261,7 @@ Every finding is tagged **verified** (main agent re-read the cited file:line) or
 2. [inventory][docs/X.md table] row `foo` — in code, missing from the doc (file:line) · verified → add row
 
 ### Internal inconsistencies (doc vs. doc)
-1. [CLAUDE.md §19] "Folder structure" subsection appears twice, identical content
+1. [CLAUDE.md §11] a subsection appears twice, identical content
 
 ### Cross-doc duplication (same pattern fully restated in 2+ files)
 1. [useExisting/useClass DI pattern] two docs both fully explain this independently → canonical home: the doc `.copilot/context.md` names for it (`TESTING_STRATEGY.md`); collapse the other to a pointer. **No-loss proof:** canonical copy Read, contains <X, Y>; extra detail Z from the other copy merged first; target heading exists ✓
