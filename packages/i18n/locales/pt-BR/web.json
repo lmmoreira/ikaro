@@ -1176,7 +1176,8 @@
         "branding": "Branding",
         "layout": "Layout",
         "seo": "SEO",
-        "manifest": "Manifesto"
+        "manifest": "Manifesto",
+        "templates": "Templates"
       },
       "publish": "Publicar alterações",
       "preview": "Preview",
@@ -1204,7 +1205,8 @@
           "sharing": "Compartilhamento",
           "detail": "Editar em detalhes",
           "publish": "Publicar",
-          "viewLive": "Ver site publicado"
+          "viewLive": "Ver site publicado",
+          "templates": "Templates"
         },
         "previewLabel": "Prévia do rascunho",
         "previewStatusIdle": "Rascunho — selecione uma seção da prévia",
@@ -1340,9 +1342,6 @@
           }
         },
         "panels": {
-          "placeholder": {
-            "description": "As configurações deste módulo estarão disponíveis em breve. Até lá, ele só pode ser editado na aba Manifesto."
-          },
           "hero": {
             "titleLabel": "Título *",
             "titlePlaceholder": "Título principal exibido no topo do seu site",
@@ -1388,7 +1387,8 @@
             "backgroundImagePositionLabel": "Ponto focal da imagem",
             "backgroundImagePositionLeft": "Esquerda",
             "backgroundImagePositionCenter": "Centro",
-            "backgroundImagePositionRight": "Direita"
+            "backgroundImagePositionRight": "Direita",
+            "variantImmersive": "Imersivo"
           },
           "serviceList": {
             "titleLabel": "Título (opcional)",
@@ -1408,7 +1408,28 @@
             "cardToneLabel": "Estilo dos cartões",
             "cardTonePlain": "Simples",
             "cardToneTinted": "Coloridos",
-            "cardToneRuled": "Com filetes"
+            "cardToneRuled": "Com filetes",
+            "titleHint": "Apague o texto para ocultar este título.",
+            "itemActionLabel": "Ao clicar em um serviço",
+            "itemActionNone": "Nada",
+            "itemActionBooking": "Ir para o agendamento",
+            "itemActionDetails": "Abrir a página do serviço",
+            "itemActionDetailsHint": "Serviços sem página pública publicada levam ao agendamento, para que um card nunca aponte para uma página que não existe.",
+            "itemCtaLabel": "Texto do botão do card (opcional)",
+            "itemCtaPlaceholder": "Saiba mais",
+            "detailPageLegend": "Páginas dos serviços",
+            "detailPageHint": "Como é a página pública de cada serviço.",
+            "detailHeroStyleLabel": "Abertura da página",
+            "detailHeroStyleCover": "Imagem de capa",
+            "detailHeroStyleCompact": "Compacta",
+            "detailGalleryLayoutLabel": "Fotos",
+            "detailGalleryLayoutGrid": "Grade",
+            "detailGalleryLayoutFeatured": "Foto em destaque",
+            "detailShowPriceLabel": "Mostrar o preço",
+            "detailShowDurationLabel": "Mostrar a duração",
+            "detailShowLoyaltyPointsLabel": "Mostrar os pontos de fidelidade",
+            "detailBookingCtaLabel": "Texto do botão de agendamento (opcional)",
+            "detailBookingCtaPlaceholder": "Agendar este serviço"
           },
           "gallery": {
             "titleLabel": "Título (opcional)",
@@ -1425,7 +1446,9 @@
             "featuredPositionLeft": "Esquerda",
             "featuredPositionRight": "Direita",
             "maxVisibleLabel": "Máximo de imagens visíveis",
-            "imagesLabel": "Imagens"
+            "imagesLabel": "Imagens",
+            "titleHint": "Apague o texto para ocultar este título.",
+            "layoutPortfolio": "Portfólio"
           },
           "bookingCta": {
             "titleLabel": "Título *",
@@ -1468,7 +1491,8 @@
             "datePickerTypeLabel": "Seletor de data",
             "datePickerTypeCarousel": "Carrossel",
             "datePickerTypeCalendar": "Calendário",
-            "carouselDaysLabel": "Número de dias exibidos"
+            "carouselDaysLabel": "Número de dias exibidos",
+            "variantImmersive": "Imersivo"
           },
           "testimonials": {
             "titleLabel": "Título (opcional)",
@@ -1493,7 +1517,9 @@
             "avatarUploading": "Enviando...",
             "avatarUploadError": "Não foi possível enviar a imagem. Tente novamente.",
             "avatarRemove": "Remover foto",
-            "emptyItemsLabel": "Nenhum depoimento adicionado ainda."
+            "emptyItemsLabel": "Nenhum depoimento adicionado ainda.",
+            "titleHint": "Apague o texto para ocultar este título.",
+            "layoutEditorialQuote": "Citação editorial"
           },
           "about": {
             "titleLabel": "Título *",
@@ -1533,7 +1559,8 @@
             "displayStyleList": "Lista",
             "displayStyleIconCards": "Cartões com ícones",
             "whatsappCtaLabelLabel": "Texto do botão do WhatsApp (opcional)",
-            "whatsappCtaLabelPlaceholder": "Fale conosco no WhatsApp"
+            "whatsappCtaLabelPlaceholder": "Fale conosco no WhatsApp",
+            "titleHint": "Apague o texto para ocultar este título."
           },
           "footer": {
             "taglineLabel": "Slogan (opcional)",
@@ -1586,7 +1613,8 @@
               "backgroundImagePositionLabel": "Ponto focal da imagem",
               "backgroundImagePositionLeft": "Esquerda",
               "backgroundImagePositionCenter": "Centro",
-              "backgroundImagePositionRight": "Direita"
+              "backgroundImagePositionRight": "Direita",
+              "variantImmersive": "Imersivo"
             },
             "audience": {
               "title": "Quem pode responder",
@@ -1633,8 +1661,178 @@
               "options": "Adicione entre 2 e 10 opções.",
               "publishBlocked": "Corrija as perguntas inválidas antes de publicar."
             }
+          },
+          "navigation": {
+            "description": "Os links da barra do topo. Cada um leva a uma seção desta página.",
+            "incomplete": "Preencha o nome de todos os links para aplicar as alterações.",
+            "dragLabel": "Reordenar o link {position}",
+            "itemLabel": "Nome do link {position}",
+            "remove": "Remover",
+            "removeItem": "Remover o link {position}",
+            "itemTarget": "O link {position} leva a",
+            "targets": {
+              "service-list": "Serviços",
+              "gallery": "Galeria",
+              "testimonials": "Depoimentos",
+              "about": "Sobre",
+              "contact": "Contato"
+            },
+            "targetDisabled": "A seção “{section}” está desativada, então este link não pode funcionar. Ative a seção ou escolha outro destino.",
+            "addItem": "Adicionar link",
+            "itemCount": "{count} de {max} links",
+            "ctaToggle": "Mostrar um botão na barra do topo",
+            "ctaHint": "Um botão de ação ao lado dos links, por exemplo “Agendar”.",
+            "ctaLabel": "Texto do botão",
+            "ctaTarget": "O botão leva a",
+            "ctaTargetBooking": "Agendamento",
+            "ctaTargetLeadForm": "Formulário de contato",
+            "ctaLeadFormDisabled": "O formulário de contato está desativado, então este botão não pode funcionar. Ative o formulário ou escolha Agendamento."
+          },
+          "contentBlock": {
+            "variantLabel": "Estilo do bloco",
+            "variants": {
+              "trust-grid": "Pontos de confiança",
+              "process-steps": "Etapas",
+              "collage-callout": "Colagem de fotos",
+              "technical-callout": "Destaque técnico",
+              "image-statement": "Mensagem sobre imagem",
+              "immersive-statement": "Mensagem imersiva"
+            },
+            "incomplete": "Preencha os campos obrigatórios (e as imagens) para aplicar as alterações.",
+            "eyebrowLabel": "Texto de destaque (opcional)",
+            "titleLabel": "Título",
+            "bodyLabel": "Texto (opcional)",
+            "bodyHint": "Suporta markdown simples: **negrito**, listas e links.",
+            "bodyPreview": "Pré-visualização",
+            "alignLabel": "Alinhamento do texto",
+            "alignDefault": "Automático",
+            "alignLeft": "Esquerda",
+            "alignCenter": "Centro",
+            "alignRight": "Direita",
+            "ctaToggle": "Adicionar um botão",
+            "ctaLabel": "Texto do botão",
+            "ctaTarget": "O botão leva a",
+            "ctaTargets": {
+              "booking-form": "Agendamento",
+              "service-list": "Serviços",
+              "gallery": "Galeria",
+              "testimonials": "Depoimentos",
+              "about": "Sobre",
+              "contact": "Contato"
+            },
+            "listBounds": "Entre {min} e {max} itens.",
+            "remove": "Remover",
+            "removeItem": "Remover o item {position}",
+            "appearanceLabel": "Aparência",
+            "appearanceRule": "Lista com filetes",
+            "appearanceTiles": "Blocos numerados",
+            "appearancePlain": "Simples",
+            "appearanceRuled": "Colunas com divisórias",
+            "trustItemsLabel": "Pontos",
+            "addTrustItem": "Adicionar ponto",
+            "trustItemLabel": "Título do ponto {position}",
+            "trustItemDescription": "Descrição do ponto {position} (opcional)",
+            "stepsLabel": "Etapas",
+            "addStep": "Adicionar etapa",
+            "stepTitle": "Título da etapa {position}",
+            "stepBody": "Texto da etapa {position}",
+            "stepLabel": "Marcador da etapa {position} (opcional)",
+            "collageLabel": "Fotos",
+            "addImage": "Adicionar foto",
+            "imageLabel": "Foto {position}",
+            "imageAlt": "Descrição da foto {position} (deixe vazio se for decorativa)",
+            "removeImage": "Remover a foto {position}",
+            "imageClickToAdd": "Arraste uma imagem ou clique para enviar",
+            "imageFormatHint": "PNG ou JPG",
+            "imageUploading": "Enviando...",
+            "imageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
+            "imageRemove": "Remover imagem",
+            "factsPlacementLabel": "Posição dos destaques",
+            "factsPlacementSide": "Ao lado do texto",
+            "factsPlacementKicker": "Acima do título",
+            "factsLabel": "Destaques",
+            "addFact": "Adicionar destaque",
+            "factValue": "Valor do destaque {position}",
+            "factLabel": "Rótulo do destaque {position}",
+            "removeFact": "Remover o destaque {position}",
+            "statementImageHint": "A imagem vem de “Aparência da seção”, abaixo: adicione ali uma imagem de fundo."
+          },
+          "presentation": {
+            "title": "Aparência da seção",
+            "hint": "Opcional. Deixe tudo em Automático para manter o visual padrão do site.",
+            "automatic": "Automático",
+            "surfaceLabel": "Fundo da seção",
+            "surface": {
+              "background": "Fundo da página",
+              "secondary": "Cor secundária",
+              "primary": "Cor primária",
+              "custom": "Cor personalizada"
+            },
+            "customColorLabel": "Cor personalizada",
+            "colorError": "Use uma cor no formato #RRGGBB.",
+            "contentWidthLabel": "Largura do conteúdo",
+            "contentWidth": {
+              "narrow": "Estreita",
+              "standard": "Padrão",
+              "wide": "Larga",
+              "full": "Largura total"
+            },
+            "minHeightLabel": "Altura mínima",
+            "minHeight": {
+              "auto": "Ajustada ao conteúdo",
+              "sm": "Pequena",
+              "md": "Média",
+              "lg": "Grande",
+              "viewport": "Tela cheia"
+            },
+            "paddingLabel": "Espaçamento interno",
+            "padding": {
+              "none": "Nenhum",
+              "compact": "Compacto",
+              "comfortable": "Confortável",
+              "spacious": "Amplo"
+            },
+            "backgroundImageLabel": "Imagem de fundo (opcional)",
+            "imageClickToAdd": "Arraste uma imagem ou clique para enviar",
+            "imageFormatHint": "PNG ou JPG",
+            "imageUploading": "Enviando...",
+            "imageUploadError": "Não foi possível enviar a imagem. Tente novamente.",
+            "imageRemove": "Remover imagem",
+            "backgroundPositionLabel": "Foco da imagem",
+            "backgroundPosition": {
+              "left": "Esquerda",
+              "center": "Centro",
+              "right": "Direita"
+            },
+            "overlayLabel": "Camada de cor sobre a imagem",
+            "overlay": {
+              "none": "Nenhuma",
+              "solid": "Sólida",
+              "linear-gradient": "Degradê"
+            },
+            "overlayColorLabel": "Cor da camada",
+            "overlayOpacityLabel": "Opacidade (%)",
+            "overlayDirectionLabel": "Direção do degradê",
+            "overlayDirection": {
+              "to-right": "Da esquerda para a direita",
+              "to-left": "Da direita para a esquerda",
+              "to-bottom": "De cima para baixo",
+              "to-top": "De baixo para cima"
+            },
+            "overlayFromColorLabel": "Cor inicial",
+            "overlayFromOpacityLabel": "Opacidade inicial (%)",
+            "overlayToColorLabel": "Cor final",
+            "overlayToOpacityLabel": "Opacidade final (%)"
           }
-        }
+        },
+        "pinnedLabel": "Sempre no topo da página",
+        "navigationDependency": {
+          "title": "Remover o link e desativar?",
+          "description": "O menu de navegação tem um link para “{section}”. Desativar esta seção também remove esse link, para que o menu nunca aponte para uma seção que não está na página.",
+          "confirm": "Remover link e desativar",
+          "cancel": "Cancelar"
+        },
+        "publishBlockedInvalidModule": "Conclua o módulo que você estava editando antes de publicar."
       },
       "seo": {
         "sectionTitle": "SEO",
@@ -1683,6 +1881,49 @@
         "lume-studio": {
           "name": "Lume Studio",
           "description": "Portfólio de direção de arte: abertura imersiva, sequência de projetos, galeria assimétrica e formulário de contato."
+        },
+        "heading": "Comece com um template",
+        "intro": "Escolha uma base visual para o seu hotsite. Seu nome, logo, serviços, contatos e horários continuam os mesmos; você pode personalizar tudo depois.",
+        "note": "O template substitui cores, fontes, ordem das seções e textos de exemplo. Revise os textos antes de publicar.",
+        "selected": "Selecionado",
+        "sampleNotice": "Este template inclui depoimentos de exemplo — edite ou remova antes de publicar.",
+        "imagesWarning": "As imagens que você enviou nestas seções serão substituídas e removidas quando você salvar.",
+        "listLabel": "Templates disponíveis",
+        "thumbnailAlt": "Prévia do template {name}",
+        "use": "Usar este template",
+        "applying": "Aplicando…",
+        "undo": "Desfazer template",
+        "loading": "Carregando templates…",
+        "error": "Não foi possível carregar os templates.",
+        "applyError": "Não foi possível aplicar o template. Seu rascunho não foi alterado.",
+        "retry": "Tentar novamente",
+        "replaceConfirm": {
+          "title": "Substituir as imagens que você enviou?",
+          "cancel": "Cancelar",
+          "confirm": "Aplicar template"
+        },
+        "undoConfirm": {
+          "title": "Desfazer o template?",
+          "description": "Isso também descarta as edições feitas depois de aplicar o template.",
+          "keep": "Cancelar",
+          "confirm": "Desfazer mesmo assim"
+        },
+        "capabilities": {
+          "navigation": "Menu de navegação",
+          "split-hero": "Abertura em duas colunas",
+          "immersive-hero": "Abertura imersiva",
+          "feature-card-services": "Serviços em cards",
+          "numbered-services": "Serviços numerados",
+          "trust-grid": "Pontos de confiança",
+          "process-steps": "Etapas do processo",
+          "collage": "Colagem de fotos",
+          "image-statement": "Mensagem sobre imagem",
+          "immersive-statement": "Mensagem imersiva",
+          "technical-callout": "Destaque técnico",
+          "editorial-quote": "Citação editorial",
+          "icon-card-contact": "Contato em cards",
+          "lead-form": "Formulário de contato",
+          "chatbot": "Assistente de chat"
         }
       }
     },

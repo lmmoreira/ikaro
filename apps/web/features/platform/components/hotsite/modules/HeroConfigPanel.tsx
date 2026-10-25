@@ -13,6 +13,11 @@ import {
 import { SingleImageUploadField } from '../SingleImageUploadField';
 import { ConfigTextField } from './ConfigTextField';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -71,6 +76,7 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
         options={[
           { value: 'centered', label: t('variantCentered') },
           { value: 'left-aligned', label: t('variantLeftAligned') },
+          { value: 'immersive', label: t('variantImmersive') },
         ]}
       />
 
@@ -204,6 +210,11 @@ export function HeroConfigPanel({ data, onChange }: ModuleConfigPanelProps): Rea
           ]}
         />
       )}
+      <SectionPresentationFields
+        moduleType="HERO"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

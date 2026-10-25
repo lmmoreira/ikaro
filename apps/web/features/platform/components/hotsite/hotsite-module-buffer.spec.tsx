@@ -20,6 +20,168 @@ function makeDraft(leadFormData: Record<string, unknown>): HotsiteAdminContentRe
   } as unknown as HotsiteAdminContentResponse;
 }
 
+function makeLayoutDraft(
+  layout: HotsiteAdminContentResponse['layout'],
+): HotsiteAdminContentResponse {
+  return {
+    branding: {},
+    layout,
+    seo: {},
+    updatedAt: '2026-10-24T00:00:00.000Z',
+    isPublished: false,
+  } as unknown as HotsiteAdminContentResponse;
+}
+
+describe('section presentation in the buffer', () => {
+  const ABOUT = { title: 'T', body: 'B', imagePosition: 'left' };
+
+  it('is dirty when only the presentation differs from the committed module', () => {
+    const draft = makeLayoutDraft([
+      { type: 'ABOUT', enabled: true, data: ABOUT, presentation: { surface: 'primary' } },
+    ]);
+
+    expect(
+      isModuleBufferDirty(
+        { type: 'ABOUT', localData: { ...ABOUT, presentation: { surface: 'secondary' } } },
+        draft,
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  it('is clean when the buffer carries the committed presentation, wherever the key sits', () => {
+    const draft = makeLayoutDraft([
+      {
+        type: 'ABOUT',
+        enabled: true,
+        data: ABOUT,
+        presentation: { surface: 'primary', padding: 'none' },
+      },
+    ]);
+
+    expect(
+      isModuleBufferDirty(
+        {
+          type: 'ABOUT',
+          localData: { presentation: { padding: 'none', surface: 'primary' }, ...ABOUT },
+        },
+        draft,
+        null,
+      ),
+    ).toBe(false);
+  });
+
+  it('is dirty when a presentation is added to a module that had none', () => {
+    const draft = makeLayoutDraft([{ type: 'ABOUT', enabled: true, data: ABOUT }]);
+
+    expect(
+      isModuleBufferDirty(
+        { type: 'ABOUT', localData: { ...ABOUT, presentation: { padding: 'none' } } },
+        draft,
+        null,
+      ),
+    ).toBe(true);
+  });
+
+  it('shows the buffer’s presentation in the preview, not in the module data', () => {
+    const draft = makeLayoutDraft([{ type: 'ABOUT', enabled: true, data: ABOUT }]);
+
+    const preview = buildPreviewDraft(draft, {
+      type: 'ABOUT',
+      localData: { ...ABOUT, presentation: { surface: 'primary' } },
+    });
+
+    expect(preview.layout[0]).toEqual({
+      type: 'ABOUT',
+      enabled: true,
+      data: ABOUT,
+      presentation: { surface: 'primary' },
+    });
+  });
+
+  it('commits the buffer unchanged, presentation included', () => {
+    const onCommit = vi.fn();
+    const localData = { ...ABOUT, presentation: { surface: 'primary' } };
+
+    commitModuleBuffer({ type: 'ABOUT', localData }, vi.fn(), onCommit);
+
+    expect(onCommit).toHaveBeenCalledWith('ABOUT', localData);
+  });
+
+  // Negative guarantee: a half-typed colour must never reach the draft (the backend would refuse
+  // the save and the client would drop the module).
+  it('does not commit a presentation that fails the schema', () => {
+    const onCommit = vi.fn();
+
+    const committed = commitModuleBuffer(
+      {
+        type: 'ABOUT',
+        localData: { ...ABOUT, presentation: { surface: 'custom', customColor: '#12' } },
+      },
+      vi.fn(),
+      onCommit,
+    );
+
+    expect(committed).toBe(false);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+});
+
+describe('NAVIGATION and CONTENT_BLOCK buffers', () => {
+  const NAVIGATION = { items: [{ label: 'Fotos', target: 'gallery' }] };
+
+  it('commits a complete NAVIGATION buffer with no special-casing beyond its data', () => {
+    const onCommit = vi.fn();
+
+    const committed = commitModuleBuffer(
+      { type: 'NAVIGATION', localData: NAVIGATION },
+      vi.fn(),
+      onCommit,
+    );
+
+    expect(committed).toBe(true);
+    expect(onCommit).toHaveBeenCalledWith('NAVIGATION', NAVIGATION);
+  });
+
+  // Negative guarantee: the module stays open and nothing reaches the draft.
+  it.each([
+    ['NAVIGATION', { items: [{ label: '', target: 'gallery' }] }],
+    [
+      'CONTENT_BLOCK',
+      { variant: 'collage-callout', title: 'T', images: [{ url: '' }, { url: '' }] },
+    ],
+    ['CONTENT_BLOCK', { variant: 'trust-grid', title: 'T', items: [{ label: 'só um' }] }],
+  ] as const)('does not commit an incomplete %s buffer', (type, localData) => {
+    const onCommit = vi.fn();
+
+    expect(commitModuleBuffer({ type, localData }, vi.fn(), onCommit)).toBe(false);
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('commits a complete CONTENT_BLOCK buffer', () => {
+    const onCommit = vi.fn();
+    const localData = { variant: 'image-statement', title: 'Quem somos' };
+
+    expect(commitModuleBuffer({ type: 'CONTENT_BLOCK', localData }, vi.fn(), onCommit)).toBe(true);
+    expect(onCommit).toHaveBeenCalledWith('CONTENT_BLOCK', localData);
+  });
+
+  it('is clean for an untouched NAVIGATION buffer and dirty once an item changes', () => {
+    const draft = makeLayoutDraft([{ type: 'NAVIGATION', enabled: true, data: NAVIGATION }]);
+
+    expect(isModuleBufferDirty({ type: 'NAVIGATION', localData: NAVIGATION }, draft, null)).toBe(
+      false,
+    );
+    expect(
+      isModuleBufferDirty(
+        { type: 'NAVIGATION', localData: { items: [{ label: 'Outro', target: 'gallery' }] } },
+        draft,
+        null,
+      ),
+    ).toBe(true);
+  });
+});
+
 describe('hotsite module buffer helpers', () => {
   it('does not commit an invalid lead-form configuration', () => {
     const onLeadFormConfig = vi.fn();

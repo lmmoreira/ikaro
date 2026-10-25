@@ -14,3 +14,12 @@ export async function openDetailedEditor(page: Page): Promise<void> {
   await page.goto('/dashboard/hotsite');
   await enterDetailedEditor(page);
 }
+
+// Opens /dashboard/hotsite and waits until the editor has hydrated. The draft preview is a
+// client-only (ssr: false) component, so it appearing is the signal that React owns the page: a
+// click made earlier can be lost, because hydration resets the inspector's scroll to the top and
+// moves a row that had just been scrolled into view (the longer the module list, the likelier).
+export async function openVisualEditor(page: Page): Promise<void> {
+  await page.goto('/dashboard/hotsite');
+  await expect(page.getByTestId('hotsite-preview-content')).toBeVisible();
+}

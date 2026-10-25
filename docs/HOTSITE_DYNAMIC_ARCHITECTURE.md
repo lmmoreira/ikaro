@@ -205,9 +205,9 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
 
-The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MATERIALIZED_MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
+The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
-**Twelve types, each a singleton.** A layout holds at most one entry per type, so at most 12. `NAVIGATION` and `CONTENT_BLOCK` are in `MODULE_ORDER` (which validates a pasted layout's `type` values and its length) but not in `MATERIALIZED_MODULE_ORDER`, so `materializeLayout` does not append them as disabled rows until the editor can configure them (TD56 Story 5); until then they exist only in a manifest that already carries them.
+**Twelve types, each a singleton.** A layout holds at most one entry per type, so at most 12. `MODULE_ORDER` validates a pasted layout's `type` values and its length, and `materializeLayout` adds every missing type as a disabled row — `NAVIGATION` in front (the backend requires it first), the others at the end — so the Layout list and the visual structure list always show all twelve.
 
 ### Module Type Union
 

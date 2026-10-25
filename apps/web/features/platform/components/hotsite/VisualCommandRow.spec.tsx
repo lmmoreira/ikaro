@@ -21,6 +21,27 @@ function renderRow(overrides: Partial<React.ComponentProps<typeof VisualCommandR
 }
 
 describe('VisualCommandRow', () => {
+  it('lists Templates as the first command, ahead of Branding', () => {
+    renderRow();
+
+    const names = screen.getAllByRole('button').map((button) => button.textContent);
+
+    expect(names.slice(0, 2)).toEqual(['Templates', 'Branding e estilo']);
+  });
+
+  it('requests the templates context, and marks it pressed while it is the active one', async () => {
+    const user = userEvent.setup();
+    const { props } = renderRow({ activeContext: 'templates' });
+
+    expect(screen.getByRole('button', { name: 'Templates' })).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    await user.click(screen.getByRole('button', { name: 'Templates' }));
+
+    expect(props.onShowContext).toHaveBeenCalledWith('templates');
+  });
+
   it('requests the clicked global context', async () => {
     const user = userEvent.setup();
     const { props } = renderRow();

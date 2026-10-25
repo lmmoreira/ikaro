@@ -5,6 +5,11 @@ import type { AboutModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SingleImageUploadField } from '../SingleImageUploadField';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -98,6 +103,11 @@ export function AboutConfigPanel({ data, onChange }: ModuleConfigPanelProps): Re
         uploadingLabel={t('imageUploading')}
         uploadErrorLabel={t('imageUploadError')}
         removeLabel={t('imageRemove')}
+      />
+      <SectionPresentationFields
+        moduleType="ABOUT"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
       />
     </div>
   );

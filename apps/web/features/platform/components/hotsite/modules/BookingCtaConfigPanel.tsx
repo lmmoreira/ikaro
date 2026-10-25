@@ -5,6 +5,11 @@ import type { BookingCtaModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { SingleImageUploadField } from '../SingleImageUploadField';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -56,6 +61,7 @@ export function BookingCtaConfigPanel({
         options={[
           { value: 'centered', label: t('variantCentered') },
           { value: 'left-aligned', label: t('variantLeftAligned') },
+          { value: 'immersive', label: t('variantImmersive') },
         ]}
       />
 
@@ -186,6 +192,11 @@ export function BookingCtaConfigPanel({
           </div>
         )}
       </div>
+      <SectionPresentationFields
+        moduleType="BOOKING_CTA"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

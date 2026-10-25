@@ -7,6 +7,11 @@ import { PillSelect } from '@/shared/components/ui/pill-select';
 import { Button } from '@/shared/components/ui/button';
 import { SingleImageUploadField } from '../SingleImageUploadField';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -69,6 +74,7 @@ export function TestimonialsConfigPanel({
           onChange={(event) => update({ title: event.target.value })}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
@@ -96,6 +102,7 @@ export function TestimonialsConfigPanel({
         options={[
           { value: 'grid', label: t('layoutGrid') },
           { value: 'carousel', label: t('layoutCarousel') },
+          { value: 'editorial-quote', label: t('layoutEditorialQuote') },
         ]}
       />
 
@@ -207,6 +214,11 @@ export function TestimonialsConfigPanel({
           ))}
         </div>
       </div>
+      <SectionPresentationFields
+        moduleType="TESTIMONIALS"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

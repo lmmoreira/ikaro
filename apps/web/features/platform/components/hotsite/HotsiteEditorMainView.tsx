@@ -14,6 +14,8 @@ import { BrandingTab } from '@/features/platform/components/hotsite/BrandingTab'
 import { LayoutTab } from '@/features/platform/components/hotsite/LayoutTab';
 import { SeoTab } from '@/features/platform/components/hotsite/SeoTab';
 import { ManifestTab } from '@/features/platform/components/hotsite/ManifestTab';
+import { HotsiteTemplateGallery } from '@/features/platform/components/hotsite/HotsiteTemplateGallery';
+import type { HotsiteTemplatesController } from '@/features/platform/components/hotsite/useHotsiteTemplateApplication';
 import {
   HotsiteActionBanner,
   type ActionBanner,
@@ -22,11 +24,11 @@ import type { ManifestDraft } from '@/features/platform/hotsite/manifest-schema'
 
 export type { ActionBanner };
 
-export type EditorTab = 'branding' | 'layout' | 'seo' | 'manifest';
+export type EditorTab = 'templates' | 'branding' | 'layout' | 'seo' | 'manifest';
 
-// 'manifest' stays last — it's the raw-JSON escape hatch for the other 3 tabs combined, not a
+// 'manifest' stays last — it's the raw-JSON escape hatch for the other tabs combined, not a
 // peer content section.
-const TABS: readonly EditorTab[] = ['branding', 'layout', 'seo', 'manifest'];
+const TABS: readonly EditorTab[] = ['templates', 'branding', 'layout', 'seo', 'manifest'];
 
 interface HotsiteEditorMainViewProps {
   readonly draft: HotsiteAdminContentResponse;
@@ -36,6 +38,7 @@ interface HotsiteEditorMainViewProps {
   readonly tenantSlug: string;
   readonly isPublishing: boolean;
   readonly isUnpublishing: boolean;
+  readonly templates: HotsiteTemplatesController;
   readonly onBrandingChange: (branding: HotsiteBrandingResponse) => void;
   readonly onLayoutChange: (layout: HotsiteAdminContentResponse['layout']) => void;
   readonly onSeoChange: (seo: HotsiteSeoResponse) => void;
@@ -56,6 +59,7 @@ export function HotsiteEditorMainView({
   tenantSlug,
   isPublishing,
   isUnpublishing,
+  templates,
   onBrandingChange,
   onLayoutChange,
   onSeoChange,
@@ -96,6 +100,15 @@ export function HotsiteEditorMainView({
             ))}
           </div>
 
+          {activeTab === 'templates' && (
+            <div
+              role="tabpanel"
+              id="hotsite-tabpanel-templates"
+              aria-labelledby="hotsite-tab-templates"
+            >
+              <HotsiteTemplateGallery controller={templates} />
+            </div>
+          )}
           {activeTab === 'branding' && (
             <div
               role="tabpanel"

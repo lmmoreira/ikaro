@@ -1,4 +1,14 @@
-import type { HotsiteAdminContentResponse, HotsiteModuleType } from '@ikaro/types';
+import {
+  ContentBlockModuleDataSchema,
+  HotsiteModulePresentationSchema,
+  NavigationModuleDataSchema,
+  type HotsiteAdminContentResponse,
+  type HotsiteModuleType,
+} from '@ikaro/types';
+import {
+  isPresentationEqual,
+  splitPresentation,
+} from '@/features/platform/hotsite/module-presentation';
 import {
   extractLeadFormConfig,
   hasInvalidLeadFormQuestion,
@@ -16,14 +26,37 @@ export interface ModuleBuffer {
   readonly localData: Record<string, unknown>;
 }
 
+// NAVIGATION and CONTENT_BLOCK are the two strict, closed shapes a panel can leave momentarily
+// incomplete (a collage with fewer than two images, a navigation item with no label), and any
+// module's `presentation` can hold a half-typed colour. The client drops a module whose data does
+// not parse, and the backend would refuse the save, so such a buffer is never committed and the
+// panel says what is missing.
+export function isModuleDataApplicable(
+  type: HotsiteModuleType,
+  localData: Record<string, unknown>,
+): boolean {
+  const { data, presentation } = splitPresentation(localData);
+  if (
+    presentation !== undefined &&
+    !HotsiteModulePresentationSchema.safeParse(presentation).success
+  ) {
+    return false;
+  }
+  if (type === 'NAVIGATION') return NavigationModuleDataSchema.safeParse(data).success;
+  if (type === 'CONTENT_BLOCK') return ContentBlockModuleDataSchema.safeParse(data).success;
+  return true;
+}
+
 // Commits a buffer. A LEAD_FORM buffer is split here: its audienceMode/questions go to the
 // LeadFormConfig session state and are stripped from the layout[].data that is committed. Returns
-// false — committing nothing — when a LEAD_FORM buffer is invalid.
+// false — committing nothing — when a LEAD_FORM buffer is invalid, or a NAVIGATION/CONTENT_BLOCK
+// buffer does not parse.
 export function commitModuleBuffer(
   buffer: ModuleBuffer,
   onLeadFormConfig: (config: LeadFormConfigDraft) => void,
   onCommit: (type: HotsiteModuleType, data: Record<string, unknown>) => void,
 ): boolean {
+  if (!isModuleDataApplicable(buffer.type, buffer.localData)) return false;
   let localData = buffer.localData;
   if (buffer.type === 'LEAD_FORM') {
     const config = extractLeadFormConfig(localData);
@@ -79,12 +112,19 @@ export function isModuleBufferDirty(
   draft: HotsiteAdminContentResponse,
   leadFormConfigBaseline: LeadFormConfigDraft | null,
 ): boolean {
-  const layoutData = draft.layout.find((module) => module.type === buffer.type)?.data ?? {};
+  const committedModule = draft.layout.find((module) => module.type === buffer.type);
+  const layoutData = committedModule?.data ?? {};
+  // `presentation` rides in the buffer under a reserved key; it is compared on its own, by
+  // structure, so the data comparison below is untouched by where the key happens to sit.
+  const { data: bufferData, presentation: bufferPresentation } = splitPresentation(
+    buffer.localData,
+  );
+  if (!isPresentationEqual(committedModule?.presentation, bufferPresentation)) return true;
   const isLeadForm = buffer.type === 'LEAD_FORM';
   // A LEAD_FORM buffer that has no LeadFormConfig portion yet is one whose panel is still loading
   // it, so nothing in it can be an edit: it is compared against the layout data alone, never
   // against a baseline that has just arrived ahead of the panel's own sync.
-  const hasLeadFormPortion = isLeadForm && extractLeadFormConfig(buffer.localData) !== null;
+  const hasLeadFormPortion = isLeadForm && extractLeadFormConfig(bufferData) !== null;
   const committed = hasLeadFormPortion
     ? mergeLeadFormBaseline(layoutData, leadFormConfigBaseline)
     : layoutData;
@@ -93,11 +133,8 @@ export function isModuleBufferDirty(
   // never on the baseline above) so it can never itself cause a false "dirty" — not comparing raw
   // localData directly.
   const current = isLeadForm
-    ? mergeLeadFormBaseline(
-        stripLeadFormConfig(buffer.localData),
-        extractLeadFormConfig(buffer.localData),
-      )
-    : buffer.localData;
+    ? mergeLeadFormBaseline(stripLeadFormConfig(bufferData), extractLeadFormConfig(bufferData))
+    : bufferData;
   return isModuleDataDirty(committed, current);
 }
 

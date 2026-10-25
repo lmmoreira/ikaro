@@ -16,6 +16,33 @@ const CONTACT: ContactModuleData = {
 };
 
 describe('ContactConfigPanel', () => {
+  it('tells the manager that clearing the title hides the heading', () => {
+    renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={vi.fn()} />);
+
+    expect(screen.getByText('Apague o texto para ocultar este título.')).toBeInTheDocument();
+  });
+
+  it('keeps the section presentation when a field changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <ContactConfigPanel
+        data={writeModuleData({ ...CONTACT, presentation: { surface: 'primary' } })}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(getPillOption('contact-display-style', 'icon-cards'));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({
+        ...CONTACT,
+        displayStyle: 'icon-cards',
+        presentation: { surface: 'primary' },
+      }),
+    );
+  });
+
   it('renders current values, defaulting showInstagram/showFacebook to true when absent', () => {
     renderWithIntl(<ContactConfigPanel data={writeModuleData(CONTACT)} onChange={vi.fn()} />);
 

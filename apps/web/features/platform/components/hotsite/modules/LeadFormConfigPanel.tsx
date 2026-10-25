@@ -19,6 +19,11 @@ import {
 } from '@dnd-kit/sortable';
 import { Button } from '@/shared/components/ui/button';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -42,7 +47,7 @@ type LeadFormDraft = Record<string, unknown> & {
   subtitle?: string;
   eyebrow?: string;
   ctaLabel: string;
-  variant?: 'centered' | 'left-aligned';
+  variant?: 'centered' | 'left-aligned' | 'immersive';
   backgroundImageUrl?: string | null;
   backgroundImagePosition?: 'left' | 'center' | 'right';
   bgStyle?: 'primary' | 'background';
@@ -65,6 +70,9 @@ function starterQuestion(label: string): AdminQuestion {
 export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps): React.JSX.Element {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.leadForm');
   const base = readModuleData<Partial<LeadFormDraft>>(data);
+  // The panel rebuilds its data from its own draft, so the section presentation the buffer
+  // carries (module-presentation.ts) has to be put back on every write or it would be lost.
+  const presentation = readPresentation(data);
   const config = useLeadFormConfig();
   // `audienceMode`/`questions` only exist in the editor-owned temporary draft. When the panel is
   // reopened after Aplicar, that draft must win over the cached pre-publish GET response.
@@ -91,13 +99,13 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
       questions: normalizeQuestions(config.data.questions),
     } as LeadFormDraft;
     setDraft(next);
-    onChange(writeModuleData(next));
-  }, [config.data, onChange]);
+    onChange(withPresentation(writeModuleData(next), presentation));
+  }, [config.data, onChange, presentation]);
 
   function update(patch: Partial<LeadFormDraft>): void {
     const next = { ...draft, ...patch };
     setDraft(next);
-    onChange(writeModuleData(next));
+    onChange(withPresentation(writeModuleData(next), presentation));
   }
 
   function addQuestion(question = newQuestion()): void {
@@ -211,6 +219,11 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
           <p className="text-sm text-amber-700">{t('questions.limit')}</p>
         )}
       </div>
+      <SectionPresentationFields
+        moduleType="LEAD_FORM"
+        value={presentation}
+        onChange={(next) => onChange(withPresentation(writeModuleData(draft), next))}
+      />
       <AlertDialog
         open={confirmRemoveId !== null}
         onOpenChange={(open) => {

@@ -2,6 +2,7 @@
 
 import type { HotsiteAdminContentResponse, HotsiteModuleType } from '@ikaro/types';
 import { HotsitePreview } from './hotsite-editor-lazy-panels';
+import { isModuleDataApplicable } from './hotsite-module-buffer';
 import {
   extractLeadFormConfig,
   hasInvalidLeadFormQuestion,
@@ -41,12 +42,15 @@ export function ModuleConfigPreviewScreen({
   // path that can send it to the backend unvalidated (CodeRabbit finding, PR #429).
   const leadFormInvalid =
     type === 'LEAD_FORM' && (!leadFormConfig || hasInvalidLeadFormQuestion(leadFormConfig));
+  // Same gate for the strict NAVIGATION / CONTENT_BLOCK shapes: an unparseable buffer must not be
+  // sent to the backend from here either.
+  const publishBlocked = leadFormInvalid || !isModuleDataApplicable(type, localData);
 
   return (
     <HotsitePreview
       draft={previewDraft}
       onPublish={() => {
-        if (leadFormInvalid) {
+        if (publishBlocked) {
           onPublishBlocked();
           return;
         }

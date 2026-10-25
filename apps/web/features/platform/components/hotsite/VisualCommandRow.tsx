@@ -6,7 +6,12 @@ import type { VisualContext } from './hotsite-editor-views';
 
 export type GlobalContextKind = Exclude<VisualContext, { kind: 'module' }>['kind'];
 
-const CONTEXT_COMMANDS: readonly GlobalContextKind[] = ['branding', 'structure', 'sharing'];
+const CONTEXT_COMMANDS: readonly GlobalContextKind[] = [
+  'templates',
+  'branding',
+  'structure',
+  'sharing',
+];
 const PUBLISH_BLOCKED_HINT_ID = 'hotsite-visual-publish-blocked';
 
 interface VisualCommandRowProps {
@@ -21,7 +26,7 @@ interface VisualCommandRowProps {
   readonly onPublish: () => void;
 }
 
-// The compact command row above the preview: the three global contexts, Edit in detail, and the
+// The compact command row above the preview: the four global contexts, Edit in detail, and the
 // publish actions (View site / Publish — mirrored in a fixed bar on narrow screens by the view).
 export function VisualCommandRow({
   activeContext,

@@ -13,6 +13,7 @@ import { Card, CardContent } from '@/shared/components/ui/card';
 import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar';
 import { BrandingTab } from './BrandingTab';
 import { HotsiteActionBanner, type ActionBanner } from './HotsiteActionBanner';
+import { HotsiteTemplateGallery } from './HotsiteTemplateGallery';
 import { HotsiteSharingPreview } from './HotsiteSharingPreview';
 import { HotsitePreviewCanvas } from './hotsite-editor-lazy-panels';
 import type { VisualContext } from './hotsite-editor-views';
@@ -24,6 +25,7 @@ import {
   type GlobalContextKind,
 } from './VisualCommandRow';
 import { VisualModuleInspector, type ModuleInspectorActions } from './VisualModuleInspector';
+import type { HotsiteTemplatesController } from './useHotsiteTemplateApplication';
 
 interface VisualHotsiteEditorViewProps {
   readonly draft: HotsiteAdminContentResponse;
@@ -35,6 +37,7 @@ interface VisualHotsiteEditorViewProps {
   // disabled until the manager applies or cancels them.
   readonly publishBlocked: boolean;
   readonly inspector: ModuleInspectorActions;
+  readonly templates: HotsiteTemplatesController;
   readonly onSelectModule: (type: HotsiteModuleType) => void;
   readonly onShowContext: (kind: GlobalContextKind) => void;
   readonly onBrandingChange: (branding: HotsiteBrandingResponse) => void;
@@ -60,6 +63,7 @@ interface InspectorProps {
   readonly draft: HotsiteAdminContentResponse;
   readonly visualContext: VisualContext;
   readonly actions: ModuleInspectorActions;
+  readonly templates: HotsiteTemplatesController;
   readonly onConfigure: (type: HotsiteModuleType) => void;
   readonly onBrandingChange: (branding: HotsiteBrandingResponse) => void;
   readonly onSeoChange: (seo: HotsiteSeoResponse) => void;
@@ -71,10 +75,14 @@ function InspectorContent({
   draft,
   visualContext,
   actions,
+  templates,
   onConfigure,
   onBrandingChange,
   onSeoChange,
 }: InspectorProps): React.JSX.Element {
+  if (visualContext.kind === 'templates') {
+    return <HotsiteTemplateGallery controller={templates} />;
+  }
   if (visualContext.kind === 'branding') {
     return <BrandingTab value={draft.branding} onChange={onBrandingChange} />;
   }
@@ -130,6 +138,7 @@ export function VisualHotsiteEditorView({
   isPublishing,
   publishBlocked,
   inspector,
+  templates,
   onSelectModule,
   onShowContext,
   onBrandingChange,
@@ -194,6 +203,7 @@ export function VisualHotsiteEditorView({
           draft={draft}
           visualContext={visualContext}
           actions={inspector}
+          templates={templates}
           onConfigure={onSelectModule}
           onBrandingChange={onBrandingChange}
           onSeoChange={onSeoChange}

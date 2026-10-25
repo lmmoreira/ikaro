@@ -15,12 +15,15 @@ import {
   publishHotsite,
   unpublishHotsite,
   getLeadFormConfig,
+  listHotsiteTemplates,
+  applyHotsiteTemplate,
 } from '@/features/platform/api/tenant-settings';
 import { fetchManifestClient } from '@/features/platform/api';
 import { fetchServicesClient } from '@/features/platform/hotsite/api/services';
 import { ApiError } from '@/shared/lib/api/errors';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import { HotsiteEditor } from './HotsiteEditor';
+import { makeTemplateSummaries } from './templates-controller.fixture';
 
 vi.mock('@/features/platform/api/tenant-settings', () => ({
   getHotsiteConfig: vi.fn(),
@@ -32,6 +35,8 @@ vi.mock('@/features/platform/api/tenant-settings', () => ({
   featureBookingPhoto: vi.fn(),
   getLeadFormConfig: vi.fn(),
   updateLeadFormConfig: vi.fn(),
+  listHotsiteTemplates: vi.fn(),
+  applyHotsiteTemplate: vi.fn(),
 }));
 
 vi.mock('@/providers/tenant-provider', () => ({
@@ -56,6 +61,8 @@ const mockUnpublishHotsite = vi.mocked(unpublishHotsite);
 const mockFetchManifestClient = vi.mocked(fetchManifestClient);
 const mockFetchServicesClient = vi.mocked(fetchServicesClient);
 const mockGetLeadFormConfig = vi.mocked(getLeadFormConfig);
+const mockListHotsiteTemplates = vi.mocked(listHotsiteTemplates);
+const mockApplyHotsiteTemplate = vi.mocked(applyHotsiteTemplate);
 
 const INITIAL: HotsiteAdminContentResponse = {
   branding: {
@@ -177,6 +184,8 @@ describe('HotsiteEditor', () => {
     mockUnpublishHotsite.mockReset();
     mockFetchManifestClient.mockReset().mockResolvedValue(MANIFEST);
     mockFetchServicesClient.mockReset().mockResolvedValue([]);
+    mockListHotsiteTemplates.mockReset().mockResolvedValue(makeTemplateSummaries());
+    mockApplyHotsiteTemplate.mockReset();
     mockGetLeadFormConfig.mockReset().mockResolvedValue({
       title: '',
       ctaLabel: '',
@@ -189,11 +198,17 @@ describe('HotsiteEditor', () => {
     fetchSpy.mockRestore();
   });
 
-  it('loads with 4 tabs, Branding active by default and Manifesto last', () => {
+  it('loads with 5 tabs, Templates first, Branding active by default and Manifesto last', () => {
     renderDetailedEditor();
 
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Branding', 'Layout', 'SEO', 'Manifesto']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      'Templates',
+      'Branding',
+      'Layout',
+      'SEO',
+      'Manifesto',
+    ]);
     expect(screen.getByRole('tab', { name: 'Branding' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByRole('tab', { name: 'Layout' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByRole('tab', { name: 'SEO' })).toHaveAttribute('aria-selected', 'false');
@@ -653,6 +668,363 @@ describe('HotsiteEditor', () => {
 
       expect(screen.getByTestId('lead-form-config-panel')).toBeInTheDocument();
       expect(screen.queryByTestId('visual-structure')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Templates (visual and detailed editors)', () => {
+    type User = ReturnType<typeof userEvent.setup>;
+
+    const BASE = 'https://storage.example.com/ikaro-public-staging';
+    const OWN_HERO: HotsiteAdminContentResponse = {
+      ...INITIAL,
+      layout: [
+        {
+          type: 'HERO',
+          enabled: true,
+          data: {
+            variant: 'centered',
+            title: 'Seu carro',
+            ctaLabel: 'Agendar',
+            ctaTarget: 'booking-form',
+            backgroundImageUrl: `${BASE}/tenants/tenant-a-id/hotsite/hero/mine.png`,
+          },
+        },
+      ],
+    };
+
+    // What the BFF returns for an apply: the template's presentation, image fields resolved.
+    function applied(
+      id: 'casa47' | 'origem' | 'mimo-pet',
+      color: string,
+      sampleTestimonials = false,
+    ) {
+      return {
+        content: {
+          branding: { ...INITIAL.branding, primaryColor: color },
+          layout: [
+            {
+              type: 'HERO' as const,
+              enabled: true,
+              data: {
+                variant: 'centered',
+                title: `Hero ${id}`,
+                ctaLabel: 'Ir',
+                ctaTarget: 'booking-form',
+                backgroundImageUrl: `${BASE}/shared/hotsite-templates/${id}/v1/hero.webp`,
+              },
+            },
+          ],
+          seo: INITIAL.seo,
+        },
+        appliedTemplate: { id, version: 1 },
+        appliedSampleTestimonials: sampleTestimonials,
+      };
+    }
+
+    async function openTemplates(user: User): Promise<void> {
+      await user.click(visualCommand('templates'));
+      await screen.findAllByTestId('template-card');
+    }
+
+    async function applyCard(user: User, id: string): Promise<void> {
+      const card = screen
+        .getAllByTestId('template-card')
+        .find((el) => el.dataset.templateId === id)!;
+      await user.click(within(card).getByTestId('template-apply'));
+    }
+
+    async function primaryColor(user: User): Promise<string> {
+      await user.click(visualCommand('branding'));
+      return (screen.getByTestId('hotsite-primary-color') as HTMLInputElement).value;
+    }
+
+    it('opens the gallery from the first command, keeping the page preview', async () => {
+      const user = userEvent.setup();
+      renderVisualEditor();
+
+      expect(screen.getAllByTestId('visual-command')[0].dataset.command).toBe('templates');
+      await openTemplates(user);
+
+      expect(
+        within(screen.getByTestId('visual-inspector')).getByTestId('template-gallery'),
+      ).toBeInTheDocument();
+      expect(screen.getAllByTestId('template-card')).toHaveLength(6);
+      expect(screen.getByTestId('visual-preview')).toBeInTheDocument();
+    });
+
+    it('applies a card to the local draft only: the colour changes, nothing is saved or published', async () => {
+      mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openTemplates(user);
+
+      await applyCard(user, 'casa47');
+
+      await waitFor(() =>
+        expect(screen.getByTestId('template-selected-badge')).toBeInTheDocument(),
+      );
+      expect(await primaryColor(user)).toBe('#abcdef');
+      expect(mockUpdateHotsiteConfig).not.toHaveBeenCalled();
+      expect(mockPublishHotsite).not.toHaveBeenCalled();
+    });
+
+    it('sends the draft to the apply endpoint with its image fields as storage paths', async () => {
+      mockApplyHotsiteTemplate.mockResolvedValue(applied('origem', '#112233'));
+      const user = userEvent.setup();
+      renderVisualEditor({
+        ...INITIAL,
+        layout: [
+          {
+            type: 'ABOUT',
+            enabled: true,
+            data: {
+              title: 'Sobre',
+              body: 'b',
+              imagePosition: 'left',
+              imageUrl: `${BASE}/shared/hotsite-templates/casa47/v1/about.webp`,
+            },
+          },
+        ],
+      });
+      await openTemplates(user);
+
+      await applyCard(user, 'origem');
+
+      await waitFor(() => expect(mockApplyHotsiteTemplate).toHaveBeenCalledTimes(1));
+      const [id, body] = mockApplyHotsiteTemplate.mock.calls[0];
+      expect(id).toBe('origem');
+      const about = body.content.layout.find((module) => module.type === 'ABOUT');
+      expect(about?.data.imageUrl).toBe('shared/hotsite-templates/casa47/v1/about.webp');
+    });
+
+    it('shows the sample-testimonials notice only when the template brought them', async () => {
+      mockApplyHotsiteTemplate
+        .mockResolvedValueOnce(applied('origem', '#112233', true))
+        .mockResolvedValueOnce(applied('casa47', '#445566', false));
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openTemplates(user);
+
+      await applyCard(user, 'origem');
+      expect(await screen.findByTestId('template-sample-notice')).toBeInTheDocument();
+
+      await applyCard(user, 'casa47');
+      await waitFor(() =>
+        expect(screen.queryByTestId('template-sample-notice')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('applies Mimo Pet and then Origem, highlighting only the latest', async () => {
+      mockApplyHotsiteTemplate
+        .mockResolvedValueOnce(applied('mimo-pet', '#111111'))
+        .mockResolvedValueOnce(applied('origem', '#222222'));
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openTemplates(user);
+
+      await applyCard(user, 'mimo-pet');
+      await waitFor(() =>
+        expect(
+          screen.getAllByTestId('template-card').find((el) => el.dataset.templateId === 'mimo-pet'),
+        ).toHaveAttribute('data-selected', 'true'),
+      );
+      await applyCard(user, 'origem');
+
+      await waitFor(() =>
+        expect(
+          screen.getAllByTestId('template-card').find((el) => el.dataset.templateId === 'origem'),
+        ).toHaveAttribute('data-selected', 'true'),
+      );
+      expect(screen.getAllByTestId('template-selected-badge')).toHaveLength(1);
+    });
+
+    describe('a failed apply', () => {
+      // Negative guarantee: the draft keeps its colour, nothing is selected, and there is no Undo.
+      it('shows an alert with Retry and leaves the draft untouched', async () => {
+        mockApplyHotsiteTemplate.mockRejectedValue(new Error('boom'));
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await openTemplates(user);
+
+        await applyCard(user, 'casa47');
+
+        expect(await screen.findByTestId('template-apply-error')).toBeInTheDocument();
+        expect(screen.queryByTestId('template-selected-badge')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('template-undo')).not.toBeInTheDocument();
+        expect(await primaryColor(user)).toBe('#2563eb');
+      });
+    });
+
+    describe('replacing the manager’s own uploads', () => {
+      it('asks first and does not call the API until confirmed', async () => {
+        mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+        const user = userEvent.setup();
+        renderVisualEditor(OWN_HERO);
+        await openTemplates(user);
+
+        await applyCard(user, 'casa47');
+
+        expect(screen.getByTestId('apply-template-dialog')).toBeInTheDocument();
+        expect(mockApplyHotsiteTemplate).not.toHaveBeenCalled();
+
+        await user.click(screen.getByTestId('apply-template-confirm'));
+        await waitFor(() => expect(mockApplyHotsiteTemplate).toHaveBeenCalledTimes(1));
+      });
+
+      it('Cancel leaves the draft untouched', async () => {
+        const user = userEvent.setup();
+        renderVisualEditor(OWN_HERO);
+        await openTemplates(user);
+        await applyCard(user, 'casa47');
+
+        await user.click(screen.getByTestId('apply-template-cancel'));
+
+        expect(mockApplyHotsiteTemplate).not.toHaveBeenCalled();
+        expect(screen.queryByTestId('apply-template-dialog')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('template-selected-badge')).not.toBeInTheDocument();
+      });
+
+      it('applies without asking when the manager has no uploads of their own', async () => {
+        mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await openTemplates(user);
+
+        await applyCard(user, 'casa47');
+
+        expect(screen.queryByTestId('apply-template-dialog')).not.toBeInTheDocument();
+        await waitFor(() => expect(mockApplyHotsiteTemplate).toHaveBeenCalledTimes(1));
+      });
+    });
+
+    describe('undo', () => {
+      it('puts the previous presentation back', async () => {
+        mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await openTemplates(user);
+        await applyCard(user, 'casa47');
+        await user.click(await screen.findByTestId('template-undo'));
+
+        expect(screen.queryByTestId('template-selected-badge')).not.toBeInTheDocument();
+        expect(screen.queryByTestId('template-undo')).not.toBeInTheDocument();
+        expect(await primaryColor(user)).toBe('#2563eb');
+      });
+
+      it('asks first once the draft was edited after the apply', async () => {
+        mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await openTemplates(user);
+        await applyCard(user, 'casa47');
+        await screen.findByTestId('template-undo');
+        await user.click(visualCommand('branding'));
+        const input = screen.getByTestId('hotsite-primary-color');
+        await user.clear(input);
+        await user.type(input, '#010203');
+        await user.click(visualCommand('templates'));
+
+        await user.click(screen.getByTestId('template-undo'));
+        expect(screen.getByText(/descarta as edições feitas depois/)).toBeInTheDocument();
+
+        await user.click(screen.getByTestId('template-undo-confirm'));
+        expect(await primaryColor(user)).toBe('#2563eb');
+      });
+
+      it('is gone after a successful publish', async () => {
+        mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+        mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+        mockPublishHotsite.mockResolvedValue({ isPublished: true });
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await openTemplates(user);
+        await applyCard(user, 'casa47');
+        await screen.findByTestId('template-undo');
+
+        await user.click(visualCommand('publish'));
+
+        await waitFor(() =>
+          expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument(),
+        );
+        expect(screen.queryByTestId('template-undo')).not.toBeInTheDocument();
+      });
+    });
+
+    it('saves with the template’s shared images as storage paths, so a later save keeps working', async () => {
+      mockApplyHotsiteTemplate.mockResolvedValue(applied('casa47', '#abcdef'));
+      mockUpdateHotsiteConfig.mockResolvedValue({ ...INITIAL });
+      mockPublishHotsite.mockResolvedValue({ isPublished: true });
+      const user = userEvent.setup();
+      renderVisualEditor();
+      await openTemplates(user);
+      await applyCard(user, 'casa47');
+      await screen.findByTestId('template-undo');
+
+      await user.click(visualCommand('publish'));
+
+      await waitFor(() => expect(mockUpdateHotsiteConfig).toHaveBeenCalledTimes(1));
+      const saved = mockUpdateHotsiteConfig.mock.calls[0][0];
+      const hero = saved.layout?.find((module) => module.type === 'HERO');
+      expect(hero?.data.backgroundImageUrl).toBe('shared/hotsite-templates/casa47/v1/hero.webp');
+    });
+
+    it('keeps one selection across the visual -> detailed -> visual round trip', async () => {
+      mockApplyHotsiteTemplate.mockResolvedValue(applied('origem', '#abcdef'));
+      const user = userEvent.setup();
+      renderEditorWithTopbarProbe();
+      await openTemplates(user);
+      await applyCard(user, 'origem');
+      await screen.findByTestId('template-selected-badge');
+      const selectedIds = (): (string | undefined)[] =>
+        screen
+          .getAllByTestId('template-card')
+          .filter((el) => el.dataset.selected === 'true')
+          .map((el) => el.dataset.templateId);
+
+      await user.click(visualCommand('detail'));
+      await user.click(screen.getByRole('tab', { name: 'Templates' }));
+      expect(selectedIds()).toEqual(['origem']);
+
+      await user.click(screen.getByTestId('probe-trigger-back'));
+      await openTemplates(user);
+      expect(selectedIds()).toEqual(['origem']);
+      expect(await primaryColor(user)).toBe('#abcdef');
+    });
+
+    describe('dirty module buffer', () => {
+      async function dirtyContact(user: User): Promise<void> {
+        const configure = screen
+          .getAllByTestId('layout-row-configure')
+          .find((el) => el.dataset.moduleType === 'CONTACT')!;
+        await user.click(configure);
+        await user.click(await screen.findByTestId('contact-show-address'));
+      }
+
+      // Negative guarantee: Cancel keeps the unapplied edit and the gallery never opens.
+      it('parks the Templates context behind the discard confirmation; Cancel keeps the buffer', async () => {
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await dirtyContact(user);
+
+        await user.click(visualCommand('templates'));
+
+        expect(screen.getByTestId('visual-module-discard-confirm')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Continuar editando' }));
+        expect(screen.getByTestId('contact-show-address')).toBeInTheDocument();
+        expect(screen.queryByTestId('template-gallery')).not.toBeInTheDocument();
+      });
+
+      it('Discard lets the gallery open', async () => {
+        const user = userEvent.setup();
+        renderVisualEditor();
+        await dirtyContact(user);
+        await user.click(visualCommand('templates'));
+
+        await user.click(screen.getByTestId('visual-module-discard-confirm'));
+
+        expect(await screen.findByTestId('template-gallery')).toBeInTheDocument();
+        expect(screen.queryByTestId('contact-show-address')).not.toBeInTheDocument();
+      });
     });
   });
 

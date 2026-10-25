@@ -5,6 +5,11 @@ import type { GalleryModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
 import { GalleryImageManager } from './GalleryImageManager';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -32,6 +37,7 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
           onChange={(event) => update({ title: event.target.value })}
           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
         />
+        <p className="mt-1 text-xs text-gray-400">{t('titleHint')}</p>
       </div>
 
       <div>
@@ -59,6 +65,7 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
         options={[
           { value: 'grid', label: t('layoutGrid') },
           { value: 'masonry', label: t('layoutMasonry') },
+          { value: 'portfolio', label: t('layoutPortfolio') },
           { value: 'featured', label: t('layoutFeatured'), disabled: gallery.images.length < 3 },
         ]}
       />
@@ -103,6 +110,11 @@ export function GalleryConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
         <span className="mb-1.5 block text-sm font-semibold text-gray-900">{t('imagesLabel')}</span>
         <GalleryImageManager images={gallery.images} onChange={(images) => update({ images })} />
       </div>
+      <SectionPresentationFields
+        moduleType="GALLERY"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
+      />
     </div>
   );
 }

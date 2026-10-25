@@ -41,7 +41,7 @@ flowchart TD
 - [x] **Where does the page get its look?** — Resolved (TD56 decisions): `SERVICE_LIST.data.detailPage` (hero style, gallery layout, price/duration/points visibility, CTA label); content comes from the service's own public profile.
 - [x] **Dead links** — Resolved: a card set to `details` whose service's page is not published renders its booking action instead.
 - [x] **Unavailable URL** — Resolved: same not-found treatment as other missing public pages, `noindex`; unpublishing makes the URL unavailable at once and republishing restores the same URL, so no redirect in this version.
-- [ ] **Reachability until TD56-S05 (open, by design):** the "Ver detalhes" action needs the Story 5 editor control (or manifest JSON); until then the page is reachable by URL and sitemap.
+- [x] **Reachability (TD56-S05):** the "Ver detalhes" action is turned on by the manager in the hotsite editor's Serviços panel ("Ao clicar em um serviço" → "Abrir a página do serviço"); the page is also reachable by URL and sitemap.
 
 ## Prototype
 

@@ -6,6 +6,7 @@ import {
   configureModule,
   extractLeadFormConfig,
   hasInvalidLeadFormQuestion,
+  mergeLocalDataIntoLayout,
   stripLeadFormConfig,
 } from './hotsite-editor-views';
 
@@ -67,6 +68,51 @@ describe('hotsite editor lead-form view helpers', () => {
   });
 });
 
+describe('mergeLocalDataIntoLayout', () => {
+  const LAYOUT = [
+    { type: 'ABOUT', enabled: true, data: { title: 'A' }, presentation: { surface: 'primary' } },
+    { type: 'GALLERY', enabled: false, data: {} },
+  ] as unknown as HotsiteAdminContentResponse['layout'];
+
+  it('splits the folded presentation back onto the module entry', () => {
+    const merged = mergeLocalDataIntoLayout(LAYOUT, 'ABOUT', {
+      title: 'B',
+      presentation: { padding: 'none' },
+    });
+
+    expect(merged[0]).toEqual({
+      type: 'ABOUT',
+      enabled: true,
+      data: { title: 'B' },
+      presentation: { padding: 'none' },
+    });
+  });
+
+  // Negative guarantee: the reserved key must never leak into layout[].data, where the strict
+  // schemas would reject it.
+  it('never leaves the reserved key inside data', () => {
+    const merged = mergeLocalDataIntoLayout(LAYOUT, 'ABOUT', {
+      title: 'B',
+      presentation: { padding: 'none' },
+    });
+
+    expect(merged[0].data).not.toHaveProperty('presentation');
+  });
+
+  it('removes the module’s presentation when the buffer no longer carries one', () => {
+    const merged = mergeLocalDataIntoLayout(LAYOUT, 'ABOUT', { title: 'B' });
+
+    expect(merged[0]).toEqual({ type: 'ABOUT', enabled: true, data: { title: 'B' } });
+    expect(merged[0]).not.toHaveProperty('presentation');
+  });
+
+  it('leaves the other modules as they were', () => {
+    const merged = mergeLocalDataIntoLayout(LAYOUT, 'ABOUT', { title: 'B' });
+
+    expect(merged[1]).toBe(LAYOUT[1]);
+  });
+});
+
 describe('module buffer helpers', () => {
   const LEAD_FORM_CONFIG = {
     audienceMode: 'CUSTOMER_ONLY' as const,
@@ -93,6 +139,24 @@ describe('module buffer helpers', () => {
       ...LEAD_FORM_CONFIG,
     });
     expect(buildModuleBuffer(draft, 'LEAD_FORM', null)).toEqual({ title: 'Receba uma proposta' });
+  });
+
+  it('folds the module’s section presentation into its buffer', () => {
+    const draft = {
+      layout: [
+        {
+          type: 'ABOUT',
+          enabled: true,
+          data: { title: 'Sobre nós' },
+          presentation: { surface: 'primary' },
+        },
+      ],
+    } as unknown as HotsiteAdminContentResponse;
+
+    expect(buildModuleBuffer(draft, 'ABOUT', null)).toEqual({
+      title: 'Sobre nós',
+      presentation: { surface: 'primary' },
+    });
   });
 
   it('opens the module-config view on the same buffer', () => {

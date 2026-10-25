@@ -207,3 +207,14 @@ button, input, textarea { font: inherit; }
   .vision-detail-layout #module-fields { position:static; grid-column:1; grid-row:3; max-height:none; overflow:visible; }
   .vision-mobile-actions { display:none; }
 }
+
+.vision-module-row .vision-pinned { display:inline-flex; width:1.25rem; justify-content:center; color:#9ca3af; }
+.vision-module-count { margin:.5rem 0 0; color:#6b7280; font-size:.75rem; }
+.template-chips { display:flex; flex-wrap:wrap; gap:.25rem; margin-top:.5rem; }
+.template-chip { border-radius:999px; padding:.125rem .45rem; background:#f1f5f9; color:#475569; font-size:.625rem; font-weight:700; }
+.template-simulate { display:flex; align-items:center; gap:.5rem; margin:1rem 0 .75rem; color:#6b7280; font-size:.75rem; }
+.prototype-dialog { position:fixed; inset:0; z-index:50; display:flex; align-items:center; justify-content:center; padding:1rem; background:rgba(17,24,39,.5); }
+.prototype-dialog-card { width:min(26rem,100%); border-radius:.5rem; padding:1.25rem; background:white; box-shadow:0 10px 30px rgba(0,0,0,.2); }
+.prototype-dialog-card h3 { margin:0 0 .5rem; font-size:1rem; }
+.prototype-dialog-card p { margin:0 0 1rem; color:#4b5563; font-size:.875rem; line-height:1.5; }
+.prototype-dialog-actions { display:flex; justify-content:flex-end; gap:.5rem; }

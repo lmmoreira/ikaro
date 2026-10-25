@@ -4,6 +4,11 @@ import { useTranslations } from 'next-intl';
 import type { FooterModuleData } from '@ikaro/types';
 import { SwitchField } from '@/shared/components/ui/switch-field';
 import {
+  readPresentation,
+  withPresentation,
+} from '@/features/platform/hotsite/module-presentation';
+import { SectionPresentationFields } from './SectionPresentationFields';
+import {
   readModuleData,
   writeModuleData,
   type ModuleConfigPanelProps,
@@ -58,6 +63,11 @@ export function FooterConfigPanel({ data, onChange }: ModuleConfigPanelProps): R
         onChange={(showWhatsapp) => update({ showWhatsapp })}
         label={t('showWhatsappLabel')}
         testId="footer-show-whatsapp"
+      />
+      <SectionPresentationFields
+        moduleType="FOOTER"
+        value={readPresentation(data)}
+        onChange={(presentation) => onChange(withPresentation(data, presentation))}
       />
     </div>
   );

@@ -20,6 +20,23 @@ function makeFile(name: string, type: string): File {
 const ABOUT: AboutModuleData = { title: 'Sobre nós', body: 'Texto', imagePosition: 'left' };
 
 describe('AboutConfigPanel', () => {
+  it('keeps the section presentation when a field changes', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    renderWithIntl(
+      <AboutConfigPanel
+        data={writeModuleData({ ...ABOUT, presentation: { surface: 'primary' } })}
+        onChange={onChange}
+      />,
+    );
+
+    await user.click(getPillOption('about-image-position', 'right'));
+
+    expect(onChange).toHaveBeenLastCalledWith(
+      writeModuleData({ ...ABOUT, imagePosition: 'right', presentation: { surface: 'primary' } }),
+    );
+  });
+
   it('renders current values', () => {
     renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={vi.fn()} />);
 
@@ -74,8 +91,9 @@ describe('AboutConfigPanel', () => {
 
     renderWithIntl(<AboutConfigPanel data={writeModuleData(ABOUT)} onChange={onChange} />);
 
+    // The panel's own image field comes first; the section-appearance background field follows.
     await user.upload(
-      screen.getByTestId('single-image-upload-input'),
+      screen.getAllByTestId('single-image-upload-input')[0],
       makeFile('photo.png', 'image/png'),
     );
 
