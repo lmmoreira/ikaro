@@ -1032,6 +1032,98 @@ A quick automated check of the saved page: list its `<section>` ids and `data-va
 - The GCS emulator keeps data in memory; after a restart, re-run the script.
 - The fixture spec requires distinct ordered module sequences and distinct strong variants and presentation choices; it no longer requires distinct enabled sets (decided 2026-10-23).
 
+### Story 7 — Resolve every saved public image URL on the backend, so the web never composes one
+
+**Agent:** fullstack-ts
+**Complexity:** M
+**Docs to load:** `docs/API_CONTRACTS.md` (the service `PATCH /services/:id/public-page`, `GET /public/services/by-slug/:publicSlug` and staff service sections, plus § Hotsite Image Upload); `docs/ENGINEERING_RULES_BACKEND.md` § Backend read use cases for cross-context access; `docs/ENGINEERING_RULES_SHARED.md` § Single source of truth for a validation rule's code; `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 12 and § 6. Manifest Caching; `docs/VALUE_OBJECTS_REFERENCE.md` (`ServicePublicProfile`); `docs/TESTING_STRATEGY.md` § Layer 5; `journeys/guest/prototypes/service-detail/dev-notes.md`; `journeys/staff/prototypes/servicos/dev-notes.md`.
+**Dependencies:** Story 3 and Story 5 (both done). Related, not a dependency: the Terraform value of `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` (host-only) is only wrong for a web-side caller that composes a path, so this story removes the composition instead of correcting the value (decision 5); a branch with the alternative fix (`fix/staging-prod-hotsite-image-base-url`, PR #669, closed unmerged) is kept in case the audit finds a caller that must keep composing.
+**Pattern:** plain composition — resolve at the response-mapping boundary through the one URL composer that already exists (`IStorageService.getPublicUrl`), exactly the way `HotsiteImageUrlResolver` takes a `getPublicUrl` callback for the hotsite; recover the path on write the way `stripResolvedImageUrls` does for the hotsite editor. No new named pattern applies.
+
+**Discovered:** 2026-10-25, user report on staging: the service public page and the service edit "Página pública" tab showed broken images (`https://storage.googleapis.com/tenants/<id>/hotsite/service-profile/<id>/images.webp`, no bucket segment).
+**Root cause:** Story 3's endpoints return the stored path (`ServicePublicProfile` holds `tenants/…` paths; `get-public-service-by-slug.use-case.ts` and `service-result.mapper.ts` emit `service.publicProfile.toJSON()` unchanged), so the web composes the URL itself with `resolveHotsiteImageDisplayUrl` (`ServiceDetailPage.tsx`, the detail route's og:image in `app/[slug]/servicos/[serviceSlug]/page.tsx`, `ServicePublicPageImages.tsx`), using `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL`. Terraform wired that variable to the host-only `module.storage.public_base_url` (staging and prod), while the resolver appends the path directly and local/CI use a bucket-inclusive value, so nothing but a deployed environment exercised the wrong one. Hotsite manifest images never hit it because the platform context resolves them in every GET/PATCH/apply response. Story 3 never said who resolves the service images, so there are two URL composers (backend `getPublicUrl`, web resolver) where there should be one.
+
+**Description:**
+
+The rule this story establishes: **a saved public image is resolved to a full URL by the backend, in every response that carries it; the web renders that URL as given and sends a storage path back on write.** The only URL composer is `IStorageService.getPublicUrl`; a change of public host (the planned `img.ikaro.online` custom domain) is then a backend config change with no web change.
+
+Decisions locked here (not left to discovery):
+
+1. **Where it resolves.** A pure helper in the booking application layer maps a `ServicePublicProfileProps` through a `getPublicUrl` callback (`coverImageUrl`, each `galleryImageUrls`), passing an already-absolute value through. It is applied in the three places that emit a profile: `GetPublicServiceBySlugUseCase`, `UpdateServicePublicPageUseCase` (its `200` body) and `service-result.mapper.ts` (which feeds the staff create/update/get/edit-view/list results; discovery confirms the exact set by tracing every caller). The helper is booking's own (one domain uses it, CLAUDE.md §11) and imports nothing from the platform context.
+2. **Domain and cache stay path-only.** `ServicePublicProfile`, the repository and `CachingServiceRepository` keep storing paths and still reject URLs; resolution happens after the repository read, so no cache version bump.
+3. **Write path.** `PATCH /services/:id/public-page` still accepts only storage paths. The edit tab strips resolved URLs back to paths before sending, by recovering the `tenants/<tenantId>/` segment with the same function the hotsite editor uses (exported from `strip-resolved-image-urls.ts`, not copied). A tmp path from a fresh upload passes through unchanged.
+4. **Web rendering.** `ServiceDetailPage`, the detail route's og:image and `ServicePublicPageImages` use the URL they receive. They no longer import `resolveHotsiteImageDisplayUrl`.
+5. **Audit of the remaining web-side composition.** Every other caller of `resolveHotsiteImageDisplayUrl`/`resolveHotsiteImageUrl`/`hotsiteImageBaseUrl` (`SingleImageUploadField`, `GalleryImageManager`, `HotsitePreviewCanvas`, `HotsiteSharingPreview`, `resolve-draft-image-urls.ts`) is traced to whether a raw `tenants/…` path can still reach it: uploads land under `tmp/` and previews use a signed read URL, and saved images arrive already resolved. A caller with no reachable raw path loses its composition; one that keeps it is documented with the case that needs it. The variable itself stays: `next.config.ts` (`remotePatterns`) and `proxy.ts` (CSP) read its origin. **Outcome the audit aims for:** no web code composes a path with it, so the variable is origin-only and Terraform's host-only value is correct as it stands; its doc comment and `apps/web/.env.example` say "origin only" and the local value drops the bucket segment. Only if the audit finds a caller that must keep composing is the Terraform value corrected, in a separate infra PR (the `infra-app-mix` check forbids mixing it with this one), with the bucket-inclusive `public_object_base_url` output already prepared on the closed PR #669's branch. The resolver's own comment, which says raw `tenants/` paths exist right after upload, is corrected.
+6. **No new env var, no migration, no new error code.**
+
+**Why it happened, and why nothing caught it:**
+
+- **The spec never assigned the job.** Story 3 defined what the endpoints carry (`coverImageUrl`, `galleryImageUrls` as stored paths) but not who turns a path into a URL. The hotsite answered that question in code (`HotsiteImageUrlResolver`) but it was written down only in comments on the platform side, so a booking story had nothing to copy from.
+- **The convenient helper hid the gap.** `resolveHotsiteImageDisplayUrl` exists on the web side for unsaved draft previews; using it for saved data looked free, and its own comment (raw `tenants/` paths exist right after upload) was already stale, so it read as a general-purpose helper.
+- **Two sources of one URL, only one of them tested.** The backend builds it from `GCS_PUBLIC_BASE_URL` plus the bucket; the web from `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL`. Local and CI set the web value to a bucket-inclusive string, Terraform set it host-only, and no unit test or E2E ran with a deployed-shaped value, so every check was green.
+- **The discovery checklist asks about routes, not about what a response field means.** `/story-discovery` 4h checks method, path, role and field names, and never asks "this field holds an object-storage path: who resolves it?".
+- **The one written warning was about the other direction.** `infra/terraform/README.md` § Gotchas already says to trace how the consuming code composes an app-consumed env var, but only for `GCS_PUBLIC_BASE_URL` (backend); the web variable was filled in by analogy.
+
+**Documentation changes so it cannot repeat (part of this story, same PR as the code):**
+
+1. `docs/API_CONTRACTS.md` § Base Standards: a new standard, "Stored objects in responses and requests". Any response field that refers to a stored object (image, document) is a full public URL resolved by the backend through the storage port; a request field takes the storage path; the web never composes a public storage URL for saved data. Each resource section that has such a field says which fields. This is the canonical home; the others point to it.
+2. `docs/ENGINEERING_RULES_BACKEND.md`: a short rule under the response-mapping guidance ("resolve stored object paths at the response boundary with `IStorageService.getPublicUrl`; never return a path a client must compose") with a pointer to `docs/API_CONTRACTS.md`.
+3. `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives (or the section that holds the hotsite image rules): the web resolver is for **unsaved draft previews only**; a saved image arrives as a URL and is rendered as given.
+4. `docs/ANTI_PATTERNS.md`: a row, "Web composes a public storage URL for saved data / a response returns a raw storage path", with the fix above, so `/pre-pr` loads it.
+5. `.claude/commands/story-discovery.md` check 4h (API contract): "every response or request field that holds an object-storage path states who resolves it to a URL (the backend, via the storage port) and which side strips it on write". `docs/DEFINITION_OF_DONE.md`: the matching checklist item.
+6. `docs/ENGINEERING_RULES_TESTING.md`: a test of URL composition uses a base URL shaped like the deployed one and **different** from the local default; a test that passes only because local and CI share a convention proves nothing about a deployed environment. Pointer from `infra/terraform/README.md` § Gotchas (the existing entry about tracing how a consumer composes an app-consumed env var).
+7. `.copilot/context.md` §7 critical code invariants: one bullet, "A response field that refers to a stored object is a full URL resolved on the backend, never a path the web composes", with its `→ docs/API_CONTRACTS.md` pointer, and the matching scenario in `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` (CI's `agent-context-file` detector requires both, and the file has a size budget, so the bullet replaces wording rather than adding length).
+8. `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § 12 and `journeys/**` dev-notes: the service page text that says paths are resolved by the web.
+
+**Backend HTTP surface:** no new route; extends the response bodies of `GET /services/by-slug/:publicSlug` (public), `PATCH /services/:id/public-page` and the staff service responses so image fields are full URLs (they were paths).
+**BFF endpoint spec:** no new route; the mapper passes the URLs through unchanged (`services.mapper.ts`); response shapes keep their field names, only the value changes from path to URL.
+**Prototype references:** none (no visual change).
+**New migration / i18n keys / env vars / feature flags:** none.
+
+**Files to create/modify:**
+
+- `apps/backend/src/contexts/booking/application/services/service-public-profile-urls.ts` and `.spec.ts` (new — the pure resolver; sibling of `service-image-promotion.service.ts`, grep first for the exported symbol)
+- `apps/backend/src/contexts/booking/application/use-cases/get-public-service-by-slug.use-case.ts` and `.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/update-service-public-page.use-case.ts` and `.spec.ts` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/service-result.mapper.ts` and its callers' specs (modify)
+- `apps/backend/src/contexts/booking/booking.module-providers.ts` (modify only if the use cases need the storage token injected beyond what they already have)
+- `apps/bff/src/features/booking/services.mapper.ts` and `.spec.ts` (modify — pin that URLs pass through unchanged)
+- `apps/web/shells/hotsite/components/ServiceDetailPage.tsx` and `.spec.tsx` (modify)
+- `apps/web/app/[slug]/servicos/[serviceSlug]/page.tsx` (modify — og:image as given)
+- `apps/web/features/booking/components/dashboard/services/ServicePublicPageImages.tsx` and `.spec.tsx`, `ServicePublicPageTab.tsx`, `service-public-page-draft.ts` and `.spec.ts` (modify — strip on save)
+- `apps/web/features/platform/hotsite/strip-resolved-image-urls.ts` and its spec (modify — export the path-recovery function)
+- `apps/web/features/platform/hotsite/resolve-hotsite-image-url.ts`, `apps/web/.env.example`, `apps/web/test-utils.tsx` and the audited callers listed in decision 5 (modify as the audit decides)
+- `apps/web/e2e/service-public-page.spec.ts` (modify — real image-load assertions)
+- The documentation changes listed under *Documentation changes so it cannot repeat*: `docs/API_CONTRACTS.md`, `docs/ENGINEERING_RULES_BACKEND.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ANTI_PATTERNS.md`, `docs/DEFINITION_OF_DONE.md`, `docs/ENGINEERING_RULES_TESTING.md`, `.claude/commands/story-discovery.md`, `.copilot/context.md` (§7) and `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md`, `infra/terraform/README.md` (pointer only, in a docs-only PR if it cannot ride with the application change)
+- `docs/USE_CASES.md` (UC-013 A5, UC-109), `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (§ 12), `journeys/guest/prototypes/service-detail/dev-notes.md`, `journeys/staff/prototypes/servicos/dev-notes.md`, `apps/backend/http/booking/services.http` (modify — responses show URLs)
+
+**Acceptance criteria — product:**
+
+- [ ] On every deployed environment, the service public page shows its cover and gallery, and the service edit tab previews them, with no dependency on the web app's image environment variable.
+- [ ] A manager can edit a service's public page (text, publish switch, replace or remove an image) and save: the saved page keeps its images and the stored values are still paths.
+- [ ] Changing the public image host in backend configuration changes every image URL on the service pages with no web change.
+- [ ] The eight documentation changes above are in place, so the next story that returns a stored object reads the rule in the API standards, the anti-pattern list and the discovery checklist before it writes code.
+
+**Acceptance criteria — technical:**
+
+- Unit:
+  - [ ] The resolver maps cover and every gallery entry through `getPublicUrl`, passes an already-absolute value and `null` through unchanged, and does not mutate its input.
+  - [ ] `GetPublicServiceBySlugUseCase`, `UpdateServicePublicPageUseCase` and the staff result mapper return resolved URLs, and the empty-profile default stays empty.
+  - [ ] Negative guarantee, named test: `ServicePublicProfile` and the repository still store and reject the path/URL as before (a URL in a PATCH body is still `BOOKING_SERVICE_PUBLIC_PROFILE_INVALID`).
+  - [ ] Negative guarantee, named test: `ServiceDetailPage` renders the URL it is given untouched even when `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` is set to a deliberately wrong host (a web-side composition would change the `src`).
+  - [ ] The edit tab sends storage paths on save: resolved cover/gallery URLs are stripped to `tenants/<tenantId>/…`, a `tmp/` path is unchanged, and an untouched image is not dropped.
+  - [ ] The og:image of the detail route is the URL as given.
+  - [ ] `strip-resolved-image-urls` keeps its existing behaviour after the path-recovery function is exported.
+  - [ ] BFF mapper: URLs pass through unchanged.
+  - [ ] `pnpm architecture-check` passes with the new `context.md` bullet and its trap scenario (the `agent-context-file` detector), and every new `→ doc § heading` pointer resolves.
+- Integration: none new — the existing booking public-page integration spec keeps passing (the repository is unchanged); the by-slug controller spec asserts the resolved URL in the body.
+- Tenant isolation:
+  - [ ] The existing cross-tenant `404` on `GET /services/by-slug/:publicSlug` and the cross-tenant `PATCH` rejection stay green; the resolver only prefixes a path the tenant already owns and never reads another tenant's object.
+- E2E:
+  - [ ] `service-public-page.spec.ts`: after a manager uploads a cover and a gallery image and publishes, the public service page's cover and gallery `<img>` elements have `naturalWidth > 0` and a `src` that starts with the backend-resolved host, and the edit tab's previews load the same way.
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
 ## Documentation and journey updates after implementation
 
 The stories above must promote the finalized decisions into the canonical documents, without duplicating rules across them:
