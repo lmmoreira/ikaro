@@ -50,7 +50,7 @@ apps/bff/src/
 | File | Audience | Example |
 |---|---|---|
 | `<context>.controller.ts` | Authenticated dashboard (STAFF/MANAGER/CUSTOMER), `@Roles(...)` guarded | `ServicesController` — `GET /services`, `GET /services/:id`, `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` |
-| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`; `PlatformPublicController` — `GET /public/platform/manifest/:slug` |
+| `<context>.public.controller.ts` | Unauthenticated hotsite, `@Public()` | `ServicesPublicController` — `GET /public/services`, `GET /public/services/by-slug/:publicSlug`; `PlatformPublicController` — `GET /public/platform/manifest/:slug` |
 
 **Sibling files, same flat `features/<domain>/` folder (no `presentation/application/infrastructure` subfolders):** `<context>.mapper.ts` (extracted mapper functions, see below), `<context>.types.ts` (request/response interfaces), and `<context>.schemas.ts` (Zod validation schemas — present in nearly every feature folder alongside the other three).
 
@@ -380,10 +380,12 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /public/platform/chatbot/status`, `POST /public/platform/chatbot/messages` | No | X-Tenant-Slug | — |
 | `GET /public/platform/lead-form/:slug`, `POST /public/platform/lead-form/:slug/submissions` | No | X-Tenant-Slug | — |
 | `GET /public/services` | No | X-Tenant-Slug | — |
+| `GET /public/services/by-slug/:publicSlug` (published service detail page; one 404 for unknown, other-tenant, unpublished or inactive) | No | X-Tenant-Slug | — |
 | `GET /public/services/:id/resource-options`, `/quote`, `/intake-schema` | No | X-Tenant-Slug | — |
 | `GET /services` (authenticated, includes inactive) | JWT | No | STAFF \| MANAGER |
 | `GET /services/:id`, `GET /services/:id/edit-view`, `GET /services/:id/intake-schema` | JWT | No | STAFF \| MANAGER |
 | `POST /services`, `PATCH /services/:id`, `DELETE /services/:id` (deactivate), `PATCH /services/:id/activate` | JWT | No | STAFF \| MANAGER |
+| `PATCH /services/:id/public-page` (publish switch and public profile; image upload stays MANAGER-only) | JWT | No | STAFF \| MANAGER |
 | `PATCH /services/:id/resource-requirements`, `PUT /services/:id/legs`, `PATCH /services/:id/booking-policy`, `POST /services/:id/intake-schema` | JWT | No | STAFF \| MANAGER |
 | `GET /schedule/availability`, `GET /schedule/availability/summary` | No | X-Tenant-Slug | — |
 | `GET /schedule/day-grid` | JWT | No | MANAGER |
@@ -413,6 +415,7 @@ Full pattern (code catalog, naming convention, frontend resolver, "adding a new 
 | `GET /tenants/settings` | JWT | No | STAFF \| MANAGER |
 | `PATCH /tenants/settings`, `PATCH /tenants` (rename), `GET /tenants/chatbot/cap-status` | JWT | No | MANAGER |
 | `GET`/`PATCH /tenants/hotsite`, `POST /tenants/hotsite/{publish,unpublish}`, hotsite image/gallery routes | JWT | No | MANAGER |
+| `GET /tenants/hotsite/templates`, `POST /tenants/hotsite/templates/:templateId/apply` (pure: returns the draft content, persists nothing) | JWT | No | MANAGER |
 | `GET /tenants/lead-form/config` | JWT | No | MANAGER |
 | `GET /tenants/lead-form/status`, `/submissions`, `/submissions/filter-options`, `/submissions/:id` | JWT | No | STAFF \| MANAGER |
 | `GET /staff`, `GET /staff/:id`, `POST /staff/invite`, `PATCH /staff/:id`, `PATCH /staff/:id/deactivate`, `PATCH /staff/:id/activate` | JWT | No | MANAGER |

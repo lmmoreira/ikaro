@@ -204,6 +204,7 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CONTACT` | Address, phone, social, map | Tenant settings |
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
+| `FOOTER` | Closing footer: business info, links and a surface-only `presentation` (`surface`, `customColor`) | Manifest + tenant business info (see § FOOTER; appended disabled by `materializeLayout`) |
 
 The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
@@ -610,6 +611,7 @@ https://<ikaro-domain>/autowash-pro          → app/[slug]/page.tsx
 https://<ikaro-domain>/autowash-pro/booking  → app/[slug]/booking/page.tsx
 https://<ikaro-domain>/autowash-pro/booking/availability-alert → app/[slug]/booking/availability-alert/page.tsx (M23-S31)
 https://<ikaro-domain>/autowash-pro/lead-form → app/[slug]/lead-form/page.tsx
+https://<ikaro-domain>/autowash-pro/servicos/massagem-relaxante → app/[slug]/servicos/[serviceSlug]/page.tsx (TD56-S03, UC-109 — see § Per-page metadata)
 https://<ikaro-domain>/autowash-pro/login    → app/[slug]/login/page.tsx
 https://<ikaro-domain>/autowash-pro/my-account/* → app/[slug]/my-account/ (customer shell — docs/DASHBOARD_FRONTEND_ARCHITECTURE)
 https://<ikaro-domain>/dashboard             → app/dashboard/ (requires auth)
@@ -937,6 +939,8 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 ---
 
 ## 12. Template Catalogue (TD56-S04)
+
+> Adding a template, shipping a new version, the asset tools and the PR checklist: `packages/hotsite-templates/README.md`. The release and failure procedure for operators: `docs/RUNBOOKS.md` § Hotsite template catalogue.
 
 A manager can start from one of six platform-owned compositions instead of configuring modules one at a time. The catalogue is data, not code: `packages/hotsite-templates/` holds each template's **structure** (`definitions/<id>.json`: module order, enabled set, variants, `presentation`, image paths, no visible text), its **text** (`copy/<locale>/<id>.json`, keyed `<MODULE_TYPE>.<dotted.path>`) and an append-only **asset manifest**; the image binaries live in the same package but ship only to the public bucket. The package README is the maintainer guide.
 

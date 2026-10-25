@@ -43,6 +43,10 @@ step "BFF unit tests"
 pnpm --filter @ikaro/bff test:unit
 ok "BFF unit tests"
 
+step "Hotsite templates package tests"
+pnpm --filter @ikaro/hotsite-templates test
+ok "Hotsite templates package tests"
+
 step "Web tests (Vitest)"
 pnpm --filter @ikaro/web test
 ok "Web tests (Vitest)"

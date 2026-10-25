@@ -79,7 +79,7 @@ Folder: `manager/prototypes/hotsite/`
 | File | Screen | UC | Status |
 |---|---|---|---|
 | `index.html` | Navigation hub + dry-run checklist | — | ✅ Criado |
-| `01-hotsite-editor.html` | Editor — Branding (18 fields) / Layout (12 module types) / SEO / Manifesto | UC-027 | ✅ Criado |
+| `01-hotsite-editor.html` | Editor baseline — Branding (18 fields) / Layout (the 10 module types of this prototype) / SEO / Manifesto. The shipped editor has 5 tabs (Templates first), 12 module types (NAVIGATION pinned first, CONTENT_BLOCK) and 21 branding controls; see `editor-vision/` and `manager/prototypes/hotsite/dev-notes.md` | UC-027 | ✅ Criado |
 | `01b-color-error.html` | Invalid hex color error | UC-027 A1 | ✅ Criado |
 | `01c-image-upload-fallback.html` | Image upload failure → inline error and retry | UC-027 A2 | ✅ Criado |
 | `01d-module-config-hero.html` | Per-module config drill-down (HERO, complete shipped field set) | — | ✅ Criado |

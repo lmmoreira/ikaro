@@ -114,6 +114,8 @@ public bucket if it is missing and is safe to repeat.
 
 ## What the tests enforce
 
+They are the only gate on the catalogue, so they run everywhere a change can land: `ci:fast` (the pre-push hook), `scripts/ci-local.sh`, and, with coverage, the PR's SonarCloud job. Run them by hand with `pnpm --filter @ikaro/hotsite-templates test`.
+
 | Failing test | What it means |
 |---|---|
 | `catalogue.spec.ts` | a definition is not valid against the shared manifest schema in one of the two locales, does not list all twelve module types, sets a logo/SEO/brand name, or links a service card to a detail page |

@@ -731,7 +731,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Built (M13-S31) |
-| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Built (M13-S35, S36, S37) |
+| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Built (M13-S35, S36, S37; visual editor TD55; templates, NAVIGATION/CONTENT_BLOCK panels and presentation controls TD56) |
 | GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Built (M20-S07, M20-S09) |
 | CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Built (M20-S09) |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Shipped (M20-S08) |

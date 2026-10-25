@@ -351,7 +351,7 @@ Remove every per-file `vi.mock('next/link', ...)` that used JSX — the global a
 
 ## Pre-push hook failures (`ci:fast`)
 
-`ci:fast` = `pnpm build:test-deps && pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm architecture-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit` (TD37-S22, 2026-09-01: added `pnpm architecture-check` after `type-check` — full-codebase static architecture validation now runs at push time, not just in a separate CI job)
+`ci:fast` = `pnpm build:test-deps && pnpm lint && pnpm prettier --check . && pnpm type-check && pnpm architecture-check && pnpm --filter @ikaro/backend test:unit && pnpm --filter @ikaro/bff test:unit && pnpm --filter @ikaro/hotsite-templates test` (the last step was added with TD56: the package's specs are the only gate on the template catalogue and its append-only asset manifest, and no CI job ran them before; TD37-S22, 2026-09-01: added `pnpm architecture-check` after `type-check` — full-codebase static architecture validation now runs at push time, not just in a separate CI job)
 
 Runs automatically on `git push`. Fix these before re-pushing.
 

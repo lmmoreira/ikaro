@@ -29,7 +29,7 @@ flowchart TD
     PriceCheck -- "sim → 201" --> CreateSuccess["✅ Redirect direto para a edição<br/>Banner inline na aba Detalhes"]
 
     %% UC-013 — Edit
-    EditClick --> EditForm["/dashboard/services/[id]/edit<br/>Edit Service Form — 5 abas: Detalhes/Recursos/Políticas de reserva/Formulário de reserva/Página pública (TD56-S03, prototype only; also exposes Ativar/Desativar)"]
+    EditClick --> EditForm["/dashboard/services/[id]/edit<br/>Edit Service Form — 5 abas: Detalhes/Recursos/Políticas de reserva/Formulário de reserva/Página pública (TD56-S03; also exposes Ativar/Desativar)"]
     EditForm --> EditSubmit(("Click 'Salvar alterações'"))
     EditSubmit --> EditCheck{"Válido?"}
     EditCheck -- "não" --> EditForm
@@ -96,7 +96,7 @@ Folder: `staff/prototypes/servicos/`
 | `02-service-create.html` | Create service form | UC-012 | ✅ Criado |
 | `02b-service-create-error.html` | Duplicate name error state | UC-012 A1 | ✅ Criado |
 | `02c-service-create-success.html` | Service created — redirects straight to the edit page (Detalhes tab, inline success banner), all 4 tabs unlocked showing their empty/default state | UC-012 | ✅ Criado — redesigned 2026-09-17, was previously a banner on the list page |
-| `03-service-edit.html` | Edit service form — 4 tabs: Detalhes (UC-013, shipped) · Recursos (UC-050–053) · Políticas de reserva (UC-055) · Formulário de reserva (UC-054) | UC-013, 050–055 | ✅ Criado — all 4 tabs shipped (M22-S04) |
+| `03-service-edit.html` | Edit service form — 4 tabs (the 5th, Página pública, is `03g`–`03i`): Detalhes (UC-013, shipped) · Recursos (UC-050–053) · Políticas de reserva (UC-055) · Formulário de reserva (UC-054) | UC-013, 050–055 | ✅ Criado — all 4 tabs shipped (M22-S04) |
 | `03b-deactivate-confirm.html` | Deactivation confirmation | UC-013 A1 | ✅ Criado (still branded for the pre-M22 protagonist — see `dev-notes.md`'s known follow-up) |
 | `03c-service-edit-inactive.html` | Edit form, inactive-service variant — same 4 tabs as `03`, "Ativar" action instead of Salvar+danger-zone on Detalhes (reactivation, shipped 2026-07-31; rebuilt with tabs 2026-09-17) | UC-013 A4 | ✅ Criado |
 | `03d-service-edit-policy-error.html` | Error — variable duration without pricing policy (Políticas de reserva tab) | UC-055 A2 | ✅ Criado — shipped (M22-S04) |

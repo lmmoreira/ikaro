@@ -2549,12 +2549,12 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
       - Button text color (optional)
       
       **Section B: Layout / Modules** (drag-drop list of module types — the 12 `HotsiteModuleType` values: HERO, SERVICE_LIST, GALLERY, TESTIMONIALS, BOOKING_CTA, ABOUT, CONTACT, FOOTER built in M12/M13-S36, then CHATBOT and LEAD_FORM, and finally NAVIGATION and CONTENT_BLOCK (TD56). A layout that lacks a type gets it as a disabled row, NAVIGATION always first)
-      - [x] NAVIGATION (the top-bar links, each scrolling to an **enabled** section; at most 6; an optional header button to booking or the contact form) — toggle on/off; pinned first (a lock, no drag handle). Turning off a section an enabled navigation links to asks to remove those links first
+      - [x] NAVIGATION (the top-bar links, each scrolling to an **enabled** section; at most 6; an optional header button to the booking form or the lead form) — toggle on/off; pinned first (a lock, no drag handle). Turning off a section an enabled navigation links to asks to remove those links first
       - [x] HERO (title, subtitle, optional background image upload) — toggle on/off
       - [x] SERVICE_LIST (services from catalog, with price/points badges) — toggle on/off
       - [x] GALLERY (booking after-photos + curated images) — toggle on/off + limit (6 default)
       - [x] BOOKING_CTA (call-to-action linking to the booking page) — toggle on/off
-      - [x] TESTIMONIALS (author, text, optional rating; grid or carousel) — toggle on/off
+      - [x] TESTIMONIALS (author, text, optional rating; grid, carousel or editorial quote) — toggle on/off
       - [x] ABOUT (markdown body + optional image, configurable position) — toggle on/off
       - [x] CONTENT_BLOCK (one of six closed variants — trust points, steps, photo collage, technical highlight, statement over an image, immersive statement — with its title, optional markdown text and optional button) — toggle on/off
       - [x] CONTACT (address/phone/email/WhatsApp/map, each independently toggleable) — toggle on/off

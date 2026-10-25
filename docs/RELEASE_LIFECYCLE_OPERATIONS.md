@@ -13,7 +13,7 @@ This document provides a step-by-step operational guide for the entire lifecycle
 
 ### **Step 1: Local Development**
 1. **Branch:** Create a short-lived branch `feat/M0X-SYY-<short-description>` (see CLAUDE.md §1).
-2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/OBSERVABILITY_STRATEGY.md` § Local development.
+2. **Environment:** Run `pnpm infra:up` (`docker/docker-compose.yml`, plus the template-image seed into the GCS emulator) for a local PostgreSQL, GCP Pub/Sub Emulator, GCS emulator, and Mailhog. No Prometheus/Grafana/Loki stack exists locally or otherwise (`package.json`'s `obs:up` script was removed 2026-08-04 — it pointed at a compose file that never existed). To see real traces locally, see `docs/OBSERVABILITY_STRATEGY.md` § Local development.
 3. **TDD:** Write a failing test in the `domain` or `application` layer.
 4. **Implement:** Write the minimal code to pass the test.
 5. **Verify:** Run `pnpm ci:fast` locally (lint, type-check, architecture-check and unit tests; the pre-push hook runs it too).

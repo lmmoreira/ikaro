@@ -117,7 +117,7 @@ The hotsite template images are shared, immutable objects in the public bucket (
 ### Releasing a template or a new version
 
 1. Run the package's `build-assets` for the template (writes `assets/<id>/v<n>/` and extends `asset-manifest.json`; existing entries must stay byte-identical).
-2. Add or change the definition and its two copy files, register the id (`CATALOGUE_TEMPLATE_IDS`, `HOTSITE_TEMPLATE_IDS`, both `web.json` files). The package tests are the gate.
+2. Add or change the definition and its two copy files, register the id (`CATALOGUE_TEMPLATE_IDS`, `HOTSITE_TEMPLATE_IDS`, both `web.json` files). The package tests are the gate: `pnpm --filter @ikaro/hotsite-templates test` runs in the pre-push `ci:fast` and again, with coverage, in the PR's SonarCloud job.
 3. Open a PR that touches `packages/**` and locale keys only (no infrastructure). On merge, the staging deploy's sync step uploads the new objects **first**, then deploys the backend that references them. Promote to production with the usual promote workflow: its sync step uploads to the production bucket first.
 4. To change an existing template, **never edit a released file**: add `v<n+1>` assets, bump the definition's `version`, leave every older asset in place (tenants that applied an earlier version still reference those paths).
 

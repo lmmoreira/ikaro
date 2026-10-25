@@ -30,7 +30,7 @@ The exact job list can evolve; do not duplicate it in milestone plans. Read the 
 1. build immutable application images;
 2. scan the images;
 3. push them to Artifact Registry;
-4. execute the migration Cloud Run job and wait for success;
+4. sync the hotsite template catalogue's images to the public bucket (create-only, then verified — details below), then execute the migration Cloud Run job and wait for success;
 5. deploy the application services;
 6. run smoke/health verification.
 
@@ -38,7 +38,7 @@ Before the migration, both `migrate-and-deploy` jobs sync the hotsite template c
 
 ## Production promotion and rollback
 
-- `.github/workflows/deploy-production.yml` promotes reviewed artifacts to production through the protected production workflow.
+- `.github/workflows/deploy-production.yml` promotes reviewed artifacts to production through the protected production workflow; its `migrate-and-deploy` job runs the same catalogue asset sync and `--verify` before the migration (it has no overwrite-attempt check; that proof is staging's).
 - `.github/workflows/rollback-production.yml` performs the explicit production traffic rollback procedure.
 
 Production is a promotion of known artifacts, not an independent rebuild. After a manual Cloud Run diagnostic deployment, verify that traffic points to the latest revision; see `infra/terraform/README.md` § Gotchas.
