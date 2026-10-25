@@ -390,7 +390,7 @@ module "cloudrun_web" {
     NEXT_PUBLIC_BFF_URL                = "/v1"
     BFF_UPSTREAM_URL                   = "https://bff.${local.root_domain}/v1"
     NEXT_PUBLIC_SITE_URL               = "https://${local.root_domain}"
-    NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_base_url
+    NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL = module.storage.public_object_base_url
     NEXT_PUBLIC_TURNSTILE_SITE_KEY     = cloudflare_turnstile_widget.site.sitekey
   }
 

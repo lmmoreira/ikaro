@@ -26,6 +26,15 @@ run "bucket_names_carry_environment_suffix" {
   }
 }
 
+run "public_object_base_url_includes_the_bucket" {
+  command = plan
+
+  assert {
+    condition     = output.public_object_base_url == "https://storage.googleapis.com/ikaro-public-staging"
+    error_message = "public_object_base_url must be the host plus the public bucket name: the web app appends a stored object path directly, so a host-only value produces object URLs that miss the bucket."
+  }
+}
+
 run "public_access_prevention_is_asymmetric" {
   command = plan
 
