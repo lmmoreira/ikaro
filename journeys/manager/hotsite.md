@@ -71,6 +71,18 @@ flowchart TD
 - [x] **Preview semantics** — resolved — client-side live preview, confirmed shipped. `HotsiteEditor` passes a `draft: HotsiteAdminContentResponse` prop directly into `apps/web/features/platform/components/hotsite/HotsitePreview.tsx`, which renders the module tree client-side from that prop. No BFF preview-mode parameter/token exists or is needed.
 - [x] **Unpublish action** — resolved: the editor exposes "Despublicar hotsite" in a danger-zone section (per `01-hotsite-editor.html`), with its own confirmation screen (`03b-unpublish-success.html`). See the `Unpublish`/`UnpublishSuccess` nodes in the flow above.
 - [x] **CHATBOT config panel** — **Resolved/shipped (`M19-S12`, 2026-08-18).** `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`) follows the same drill-down pattern as the other module panels, plus a standing AI-provider-credit disclosure note and a conditional daily-cap-reached banner (`GET /v1/tenants/chatbot/cap-status`, UC-027 A5) that no other module panel has. `default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` also updated so the Layout tab and Manifesto tab both reach the 9th module type. See `manager/prototypes/hotsite/01e-module-config-chatbot.html` and its `dev-notes.md` entry.
+- [ ] **Product-owner visual sign-off of the six templates** — open since TD56 Story 6 (deferred at merge, PR #662; the TD is now `archive/td/TD56-HOTSITE-TEMPLATE-CATALOG-AND-SERVICE-PAGES.md`, Story 6 *Reconciliation procedure*). Verify against a stack started from `main` (`pnpm infra:up` seeds the template images): apply each template with the Templates picker in the editor (or `POST /v1/tenants/hotsite/templates/<id>/apply`), **reload** `/dashboard/hotsite`, open the public page and compare it section by section with `prototypes/hotsite/hotsite-impl/<name>.html`. Expected enabled order:
+
+  | Template | Expected section order | Content block |
+  |---|---|---|
+  | casa47 | navigation, hero, services, about, statement, gallery, testimonials, booking, contact, footer | `image-statement` |
+  | beloauto | navigation, hero, services, gallery, callout, about, testimonials, booking, contact, footer | `technical-callout` |
+  | mimo-pet | navigation, hero, services, trust, about, gallery, testimonials, booking, contact, footer | `trust-grid` |
+  | origem | navigation, hero, about, statement, services, gallery, quote, booking, contact, footer | `immersive-statement` |
+  | clinica-lume | navigation, hero, services, process, gallery, testimonials, about, booking, contact, footer (+ chatbot) | `process-steps` |
+  | lume-studio | navigation, hero, gallery, services, collage, about, testimonials, lead form, contact, footer (+ chatbot) | `collage-callout` |
+
+  Record per template "looks right" or a short list of differences. A difference is either a manifest edit in `packages/hotsite-templates/definitions/<id>.json` (do it now) or a new decision to add / adjust / accept (the reconciliation register lives in the archived TD). The prototype's own `data-proposed-module` / `data-variant` is the source of truth for the variant, not the TD's prose; the prototypes' sample data (three curated services, a fictional address) differs from the tenant's real data by design. Still open on 2026-10-25.
 
 ## Prototype
 
@@ -93,7 +105,7 @@ Folder: `manager/prototypes/hotsite/`
 
 ## Editor visual (entregue — TD55)
 
-`/dashboard/hotsite` abre no editor visual (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`, Stories 1–4). Nenhum módulo ou campo de manifesto foi acrescentado: é uma mudança de apresentação e de navegação sobre o mesmo rascunho.
+`/dashboard/hotsite` abre no editor visual (`archive/td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`, Stories 1–4). Nenhum módulo ou campo de manifesto foi acrescentado: é uma mudança de apresentação e de navegação sobre o mesmo rascunho.
 
 - **Quadro:** barra de comandos (Templates, Branding e estilo, Organizar módulos, Compartilhamento, Editar em detalhes, Publicar, Ver site publicado), prévia persistente do rascunho com seções selecionáveis (a seleção nunca segue um CTA, envia um formulário nem abre o Chatbot) e inspetor lateral fixo — abaixo da prévia em telas estreitas, com a barra de ações fixa no rodapé.
 - **Organizar módulos:** lista dos doze módulos (a Navegação sempre no topo, com cadeado) com ordenação, ativar/desativar e "Configurar" (também para módulos desativados). Os campos são os dos mesmos painéis do editor em abas, na mesma ordem, com "Aplicar" / "Cancelar"; a prévia muda enquanto o gerente edita. Sair de uma edição não aplicada (outra seção, voltar à lista, Editar em detalhes) pede a confirmação de descarte, e "Publicar" fica desabilitado até aplicar ou cancelar.
@@ -104,7 +116,7 @@ Folder: `manager/prototypes/hotsite/`
 
 ## Templates (entregue — TD56)
 
-Templates é o primeiro comando do editor visual (abre a galeria no inspetor) e a primeira aba do editor em detalhes; as duas mostram a mesma galeria sobre o mesmo rascunho (`td/TD56-HOTSITE-TEMPLATE-CATALOG-AND-SERVICE-PAGES.md`, Story 5; protótipo em `editor-vision/09-inline-realistic-editor.html`).
+Templates é o primeiro comando do editor visual (abre a galeria no inspetor) e a primeira aba do editor em detalhes; as duas mostram a mesma galeria sobre o mesmo rascunho (`archive/td/TD56-HOTSITE-TEMPLATE-CATALOG-AND-SERVICE-PAGES.md`, Story 5; protótipo em `editor-vision/09-inline-realistic-editor.html`).
 
 - **Galeria:** seis cards — BeloAuto, Casa47, Mimo Pet, Origem, Clínica Lume e Lume Studio — com miniatura, nome, descrição e até quatro chips de capacidades.
 - **Aplicar é também pré-visualizar:** clicar num card aplica o template ao rascunho e a prévia muda na hora. Nada é publicado; a publicação segue o fluxo único do editor. Nome, logo, slogan, serviços, contatos e a configuração de agendamento continuam os do negócio; a galeria, os depoimentos, o formulário de captura e o chatbot do gerente são mantidos.

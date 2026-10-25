@@ -105,7 +105,7 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 ## Reference artifacts in this folder
 
 - `hotsite-impl/` holds the six public-site references (`<name>.html`: `beloauto`, `casa47`, `mimo-pet`, `origem`, `clinica-lume`, `lume-studio`) and their design-reference images. The template compositions themselves live in `packages/hotsite-templates/` (definitions for structure, per-locale copy files for text, a versioned asset manifest), which is the source of truth for each composition's module order, enabled set, variants and presentation; the web specs and the backend layout audit build them through `buildTemplateManifest`. They carry no tenant logo, and their images are shared catalogue objects delivered by the deploy pipelines. The folder is reference material, not a screen of this prototype.
-- `editor-vision/` holds the prototypes of the visual editor shipped by TD55 (`td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html` and `dev-notes.md` (which files are authoritative for what). The screens above are the detailed (tabbed) editor, reached through "Editar em detalhes".
+- `editor-vision/` holds the prototypes of the visual editor shipped by TD55 (`archive/td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`), with its own `index.html` and `dev-notes.md` (which files are authoritative for what). The screens above are the detailed (tabbed) editor, reached through "Editar em detalhes".
 
 ## Error handling
 

@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-A edição do hotsite é guiada pela prévia: o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e vê o efeito de Branding e Compartilhamento no lugar. Manifesto, módulos e regras não mudaram; mudaram a apresentação e a navegação. Entregue pelas Stories 1–4 de `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`; o comportamento está descrito em `journeys/manager/hotsite.md` § Editor visual.
+A edição do hotsite é guiada pela prévia: o gerente vê o rascunho enquanto edita, seleciona uma seção diretamente na prévia e vê o efeito de Branding e Compartilhamento no lugar. Manifesto, módulos e regras não mudaram; mudaram a apresentação e a navegação. Entregue pelas Stories 1–4 de `archive/td/TD55-HOTSITE-VISUAL-EDITOR-UX.md`; o comportamento está descrito em `journeys/manager/hotsite.md` § Editor visual.
 
 ## Quais arquivos valem
 
