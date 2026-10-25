@@ -82,8 +82,8 @@ describe('SeoTab', () => {
   });
 
   it('threads value.ogImageUrl through to the upload field preview', () => {
-    // Already-absolute (as a resolved GET response would have it) so resolveHotsiteImageDisplayUrl
-    // passes it through unchanged — see LogoUpload.spec.tsx's equivalent test for the same pattern.
+    // Already-absolute (as a resolved GET response would have it) so the upload field
+    // renders it as given — see LogoUpload.spec.tsx's equivalent test for the same pattern.
     renderWithIntl(
       <SeoTab
         value={{ ...SEO, ogImageUrl: 'https://cdn.example.com/og-image.png' }}
