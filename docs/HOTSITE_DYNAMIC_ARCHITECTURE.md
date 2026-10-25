@@ -940,6 +940,8 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 ## 12. Template Catalogue (TD56-S04)
 
+> Adding a template, shipping a new version, the asset tools and the PR checklist: `packages/hotsite-templates/README.md`. The release and failure procedure for operators: `docs/RUNBOOKS.md` § Hotsite template catalogue.
+
 A manager can start from one of six platform-owned compositions instead of configuring modules one at a time. The catalogue is data, not code: `packages/hotsite-templates/` holds each template's **structure** (`definitions/<id>.json`: module order, enabled set, variants, `presentation`, image paths, no visible text), its **text** (`copy/<locale>/<id>.json`, keyed `<MODULE_TYPE>.<dotted.path>`) and an append-only **asset manifest**; the image binaries live in the same package but ship only to the public bucket. The package README is the maintainer guide.
 
 - **Applying a template is a pure function** of the manager's current draft, the tenant and that tenant's language (`POST /v1/tenants/hotsite/templates/:templateId/apply`, `docs/API_CONTRACTS.md`). It returns a draft; nothing is saved, published or copied. What the draft keeps and what the template supplies: `docs/BUSINESS_LOGIC_REFERENCE.md` § Hotsite template application.
