@@ -285,4 +285,68 @@ describe('TD37-S04 restricted syntax (web)', () => {
       );
     });
   });
+
+  describe('image-host variable ban (TD56-S07)', () => {
+    const NAME = 'NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL';
+    const isImageHostMessage = (message: { message: string }): boolean =>
+      message.message.includes('origin for the CSP and next/image only');
+
+    it.each([
+      ['getPublicEnv() with a string literal', `const base = getPublicEnv('${NAME}');`],
+      ['a dotted process.env member', `const base = process.env.${NAME};`],
+      ['a computed process.env literal', `const base = process.env['${NAME}'];`],
+      ['a no-substitution template literal', `const base = getPublicEnv(\`${NAME}\`);`],
+      ['a destructured key', `const { ${NAME}: base } = process.env;`],
+      ['a shorthand destructured binding', `const { ${NAME} } = process.env;`],
+      ['a nested conditional', `const base = ok ? getPublicEnv('${NAME}') : '';`],
+    ])('rejects reading the variable through %s', (_label, source) => {
+      expect(
+        lint(source, 'features/platform/hotsite/compose.ts').filter(isImageHostMessage),
+      ).not.toHaveLength(0);
+    });
+
+    it('rejects it in a component file too', () => {
+      expect(
+        lint(
+          `export function A() { return <img src={getPublicEnv('${NAME}')} alt="" />; }`,
+          'features/platform/components/hotsite/A.tsx',
+        ).filter(isImageHostMessage),
+      ).not.toHaveLength(0);
+    });
+
+    it.each([
+      'proxy.ts',
+      'next.config.ts',
+      'shared/lib/runtime-env/public-env.ts',
+      'test-utils.tsx',
+    ])('permits %s, the origin-only consumers', (filePath) => {
+      expect(
+        lint(`const base = getPublicEnv('${NAME}');`, filePath).filter(isImageHostMessage),
+      ).toHaveLength(0);
+    });
+
+    it('an allowed file still enforces the other bans', () => {
+      const messages = lint(
+        `const base = getPublicEnv('${NAME}'); export async function a() { return fetch('https://example.com'); }`,
+        'proxy.ts',
+      );
+
+      expect(messages).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            ruleId: 'no-restricted-syntax',
+            message: expect.stringContaining('sanctioned BFF transport helpers'),
+          }),
+        ]),
+      );
+    });
+
+    it('does not flag an unrelated variable', () => {
+      expect(
+        lint(`const base = getPublicEnv('NEXT_PUBLIC_SITE_URL');`, 'features/a/b.ts').filter(
+          isImageHostMessage,
+        ),
+      ).toHaveLength(0);
+    });
+  });
 });
