@@ -103,6 +103,23 @@ describe('ServiceDetailPage', () => {
     expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
   });
 
+  it("pairs every block painted on the secondary colour with that colour's own text token", () => {
+    renderPage(makeService());
+
+    const blocks = [
+      screen.getByTestId('service-duration'),
+      screen.getByTestId('service-points'),
+      screen.getByTestId('service-preparation'),
+      screen.getByText(/Escolha o dia e o horário/).parentElement as HTMLElement,
+    ];
+
+    for (const block of blocks) {
+      const style = block.getAttribute('style') ?? '';
+      expect(style).toContain('background-color: var(--ba-secondary)');
+      expect(style).toContain('color: var(--ba-secondary-text, var(--ba-text))');
+    }
+  });
+
   describe('detailPage settings', () => {
     it('heroStyle changes the cover shape', () => {
       const { rerender } = renderPage(makeService());
