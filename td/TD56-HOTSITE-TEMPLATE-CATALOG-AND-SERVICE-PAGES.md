@@ -650,7 +650,7 @@ Implemented in `infra/terraform/foundation/modules/static-resource-iam` (new `pu
 7. **`scripts/apply-hotsite-template.py` (TD56-S06's local tool) is removed**: it PATCHed the `manifesto-*.json` files this story moves, and the apply operation plus the seeded emulator replace it. The six `manifesto-*.json` files are removed from `hotsite-impl/` (they live on as `definitions/` + `copy/`); `manifesto-v2-layout-proposal.json` stays as the superseded sketch.
 8. **The Foundation README note for the conditional grant is not part of PR B**: PR B may not touch `infra/terraform/**` (no `infra-app-mix-ok`), and PR A merged without it. The grant is documented in `docs/RUNBOOKS.md` and `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §12; a Foundation-only docs follow-up can add the README line.
 
-### Story 5 — Add the template picker and the guided controls for the new manifest fields to visual and detailed hotsite editing
+### Story 5 — Add the template picker and the guided controls for the new manifest fields to visual and detailed hotsite editing ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L (large single story, built in three ordered parts — see *Build order*)
