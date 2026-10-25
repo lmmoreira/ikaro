@@ -5,7 +5,7 @@
 - **Type:** Product-enabling technical debt / hotsite capability expansion
 - **Priority:** High — this turns the existing hotsite editor from a field-by-field configuration tool into a guided way to reach materially different public-site compositions.
 - **Created:** 2026-10-22
-- **Decision status:** All six stories are implemented and merged (PRs #659–#665, 2026-10-23 to 2026-10-25); the only open item recorded in the stories is the product owner's visual sign-off of the six templates (the ⚠️ note under Story 6's acceptance criteria; the acceptance checkboxes stay unticked by this file's convention, and each story's `✅ Done` heading is its completion record). This TD follows TD55; it does not reopen TD55's visual-editor foundation.
+- **Decision status:** All seven stories are implemented and merged (PRs #659–#665 for Stories 1–6, 2026-10-23 to 2026-10-25; PR #671 for Story 7, 2026-10-25); the only open item recorded in the stories is the product owner's visual sign-off of the six templates (the ⚠️ note under Story 6's acceptance criteria; the acceptance checkboxes stay unticked by this file's convention, and each story's `✅ Done` heading is its completion record). This TD follows TD55; it does not reopen TD55's visual-editor foundation.
 - **Use cases:** extends UC-027 (manager manages hotsite) and adds the service-publication and visitor-detail flows described here before they are promoted into `docs/USE_CASES.md`.
 - **Related:** `td/TD55-HOTSITE-VISUAL-EDITOR-UX.md` (all five stories done); `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`; `journeys/manager/hotsite.md`; `journeys/manager/prototypes/hotsite/editor-vision/09-inline-realistic-editor.html`; `journeys/manager/prototypes/hotsite/hotsite-impl/`.
 
@@ -1032,7 +1032,7 @@ A quick automated check of the saved page: list its `<section>` ids and `data-va
 - The GCS emulator keeps data in memory; after a restart, re-run the script.
 - The fixture spec requires distinct ordered module sequences and distinct strong variants and presentation choices; it no longer requires distinct enabled sets (decided 2026-10-23).
 
-### Story 7 — Resolve every saved public image URL on the backend, so the web never composes one
+### Story 7 — Resolve every saved public image URL on the backend, so the web never composes one ✅ Done
 
 **Agent:** fullstack-ts
 **Complexity:** M
