@@ -459,7 +459,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     });
   });
 
-  describe('working hours (TD50)', () => {
+  describe('working hours', () => {
     it('refuses a customer booking on a closed day and publishes nothing', async () => {
       await expect(
         useCase.execute({ ...baseInput(), scheduledAt: `${nextWeekday(0)}T13:00:00.000Z` }),

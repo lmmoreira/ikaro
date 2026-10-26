@@ -56,7 +56,7 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   alsoLockResourceIds?: readonly string[];
   // What an earlier lock step already read; the resolution starts from it instead of reading again.
   resolutionSnapshot?: ResolutionSnapshot;
-  // TD50: closures, openings and the tenant's hours. When set, an automatic pick prefers a resource
+  // Closures, openings and the tenant's hours. When set, an automatic pick prefers a resource
   // that is open and every chosen candidate must be open over its own window; when unset the
   // resolution is exactly what it was before.
   hoursSource?: HoursSource;

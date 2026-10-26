@@ -18,12 +18,12 @@ import {
   resourceWindowHoursVerdict,
 } from './schedule-hours.helpers';
 
-// What a booking-creating use case's input carries so the tenant's working hours apply (TD50).
+// What a booking-creating use case's input carries so the tenant's working hours apply.
 export interface BookingHoursRequest {
   businessHours: BusinessHours;
 }
 
-// TD50 — what a booking-creating caller hands to the resource resolution so it can steer the pick
+// What a booking-creating caller hands to the resource resolution so it can steer the pick
 // toward resources that are open and refuse the ones that are not. Absent = today's behavior.
 export interface HoursSource {
   repos: HoursScheduleRepos;

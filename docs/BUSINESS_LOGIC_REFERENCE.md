@@ -331,7 +331,7 @@ flowchart TD
 - **Order and cost.** The hours reads happen inside the booking transaction, after the resource locks and before the occupancy check, so a closed day reports as closed even when the slot is also taken. They are a fixed four queries (two per table, tenant-wide and resource-scoped) whatever the number of lines or resources.
 - **No lock, by design.** Booking creation does not take the tenant-day lock: a closure that commits while a booking is in flight is indistinguishable from the booking having been made first, because closing a day never looks at existing bookings (`docs/LOCK_CATALOG.md` § Known hazards (H6)). Existing bookings are never re-checked.
 - **No exemption.** Staff and managers are held to it too (UC-108 A8); the only rule staff skip on the creation path is the minimum notice.
-- **Not covered here.** A reschedule or an approval at a new time (TD50 Story 1) and the booking page's handling of the two codes (Story 2). A window that crosses local midnight is judged by wall-clock time like the availability read does.
+- **Not covered here.** A reschedule or an approval at a new time (TD50 Story 1) and the booking page's handling of the two codes (Story 2). A window that runs into the next local day is outside the hours, for the read and the write alike (`windowVerdictWithinDay()`).
 
 ### Cap + locking protocol
 

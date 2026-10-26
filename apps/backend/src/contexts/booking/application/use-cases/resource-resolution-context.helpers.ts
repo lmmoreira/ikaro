@@ -30,7 +30,7 @@ export interface ResolutionContext {
   // findConflictingResourceIds already has via excludeBookingLineIds. Empty at creation time (the
   // lines are brand new, nothing to exclude).
   excludeBookingLineIds: string[];
-  // TD50 — when set, a resource that is closed or outside its hours for a window counts as
+  // When set, a resource that is closed or outside its hours for a window counts as
   // unavailable for that window, so an automatic pick lands on an open resource. Unset (approve,
   // reschedule, reassign) leaves selection exactly as it was.
   hoursGate?: HoursGate;

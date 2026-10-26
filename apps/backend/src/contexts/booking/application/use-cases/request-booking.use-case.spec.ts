@@ -547,7 +547,7 @@ describe('RequestBookingUseCase', () => {
     });
   });
 
-  describe('working hours (TD50)', () => {
+  describe('working hours', () => {
     const sunday = () => `${nextWeekday(0)}T13:00:00.000Z`;
 
     it('refuses a guest booking on a closed day and publishes nothing', async () => {

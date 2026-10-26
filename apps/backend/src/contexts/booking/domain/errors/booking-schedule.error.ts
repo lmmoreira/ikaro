@@ -129,7 +129,7 @@ export class InvalidTimeRangeError extends BookingDomainError {
   }
 }
 
-// TD50 — the requested start is not one availability would offer. Closed covers the whole day
+// The requested start is not one availability would offer. Closed covers the whole day
 // (weekday off, full-day closure) and a partial closure or resource closure over the window;
 // outside-hours means the day is open but the window starts before opening or ends after closing.
 export class BookingSlotClosedError extends BookingDomainError {

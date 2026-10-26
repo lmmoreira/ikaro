@@ -10,6 +10,7 @@ import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { Resource } from '../resource.aggregate';
 import { ScheduleClosure } from '../schedule-closure.aggregate';
 import { ScheduleOpening } from '../schedule-opening.aggregate';
+import { hhmmOverlaps, windowVerdictWithinDay } from './window-day-verdict';
 
 export interface ServiceDuration {
   durationMinutes: number;
@@ -242,9 +243,8 @@ export class AvailabilityService {
     };
   }
 
-  /** Two HH:MM half-open intervals [aStart, aEnd) and [bStart, bEnd) overlap when aStart < bEnd && bStart < aEnd. */
   private overlaps(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
-    return aStart < bEnd && bStart < aEnd;
+    return hhmmOverlaps(aStart, aEnd, bStart, bEnd);
   }
 
   // UC-059 step 1 — a flat service's effective gap is the larger of its cleanup buffer and the
@@ -277,17 +277,7 @@ export class AvailabilityService {
     );
     if (!effectiveHours) return 'CLOSED';
 
-    const startHHMM = utcDateToLocalHHMM(window.start, businessHours.timezone);
-    const endHHMM = utcDateToLocalHHMM(window.end, businessHours.timezone);
-    if (startHHMM < effectiveHours.open || endHHMM > effectiveHours.close) return 'OUTSIDE_HOURS';
-    if (
-      effectiveHours.partialClosures.some((c) =>
-        this.overlaps(startHHMM, endHHMM, c.startTime!.value, c.endTime!.value),
-      )
-    ) {
-      return 'CLOSED';
-    }
-    return 'FREE';
+    return windowVerdictWithinDay(effectiveHours, window, businessHours.timezone, date);
   }
 
   // Free/busy check for one [start, end) window against a resource's (or tenant's) hours/

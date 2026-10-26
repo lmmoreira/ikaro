@@ -584,7 +584,7 @@ describe('CreateBookingByStaffUseCase', () => {
     });
   });
 
-  describe('working hours (TD50)', () => {
+  describe('working hours', () => {
     const sunday = () => `${nextWeekday(0)}T13:00:00.000Z`;
 
     it('refuses a staff booking on a closed day — staff are not exempt', async () => {

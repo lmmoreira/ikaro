@@ -46,7 +46,7 @@ function weekdayHours(open: string, close: string): ResourceWorkingHours {
   };
 }
 
-describe('resolveBookingLinesResourceCandidates — working hours, closures and openings (TD50)', () => {
+describe('resolveBookingLinesResourceCandidates — working hours, closures and openings', () => {
   let resourceRepo: InMemoryResourceRepository;
   let occupancyRepo: InMemoryResourceOccupancyRepository;
   let closureRepo: InMemoryScheduleClosureRepository;

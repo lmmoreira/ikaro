@@ -11,7 +11,7 @@ import { IScheduleClosureRepository } from '../ports/schedule-closure-repository
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 
 // The working-hours-and-closures half of a creation-time check, shared by the recurring schedule
-// (M23-S18, UC-070 step 2) and the one-off booking (TD50). The verdict per window is
+// (M23-S18, UC-070 step 2) and the one-off booking. The verdict per window is
 // AvailabilityService.windowHoursVerdict() — the same rule isWindowFree() (availability) applies —
 // so creation and availability can never disagree about what is open.
 

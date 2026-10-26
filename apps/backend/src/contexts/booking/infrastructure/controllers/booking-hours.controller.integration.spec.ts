@@ -9,6 +9,8 @@ import {
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
+import { getUtcWeekDayName, localDateTimeToUTCIso } from '../../../../shared/utils/calendar-date';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { nextWeekday, openDate, openSlotAt } from '../../../../test/utils/date-helpers';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -18,7 +20,7 @@ import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ServiceEntity } from '../entities/service.entity';
 
-// TD50 — the three booking-creating routes refuse a start the business is closed for, against a
+// the three booking-creating routes refuse a start the business is closed for, against a
 // real database. The default tenant is open Monday–Friday 09:00–18:00 and Saturday 09:00–17:00 in
 // America/Sao_Paulo; the service takes 30 minutes with no trailing buffer unless a case says so.
 const TEST_KEY = 'booking-integ-test-key-hours-xxxxx'; // 36 chars
@@ -32,7 +34,7 @@ interface Route {
   send: (scheduledAt: string, serviceId?: string) => request.Test;
 }
 
-describe('booking creation honours hours, closures and openings (integration, TD50)', () => {
+describe('booking creation honours hours, closures and openings (integration)', () => {
   let app: INestApplication;
   let ds: DataSource;
   let tenantAId: string;
@@ -172,10 +174,21 @@ describe('booking creation honours hours, closures and openings (integration, TD
 
     it("counts the service's trailing buffer: the last start whose buffer ends by closing is accepted", async () => {
       const day = openDate(60 + route.index);
-      const late = `${day}T20:00:00.000Z`; // 17:00 local: 30 + 60 minutes ends 18:30
-      const { body } = await route.send(late, bufferedServiceId).expect(409);
+      // The 30-minute service plus its 60-minute buffer must end by closing, which is earlier on a
+      // Saturday (17:00) than on a weekday (18:00).
+      const closing = DEFAULT_TEST_BUSINESS_HOURS[getUtcWeekDayName(day)]!.close;
+      const [closeHour, closeMinute] = closing.split(':').map(Number);
+      const lastStart = closeHour * 60 + closeMinute - 90;
+      const startAt = (minutes: number) =>
+        localDateTimeToUTCIso(
+          day,
+          `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`,
+          DEFAULT_TEST_BUSINESS_HOURS.timezone,
+        );
+      const { body } = await route.send(startAt(lastStart + 30), bufferedServiceId).expect(409);
       expect(body.code).toBe('BOOKING_OUTSIDE_BUSINESS_HOURS');
-      await route.send(`${day}T19:30:00.000Z`, bufferedServiceId).expect(201); // 16:30 ends 18:00
+      const { body: created } = await route.send(startAt(lastStart), bufferedServiceId).expect(201);
+      expect(created.bookingId).toEqual(expect.any(String));
     });
 
     it('refuses a full-day closure with 409 BOOKING_SLOT_CLOSED', async () => {
@@ -220,7 +233,8 @@ describe('booking creation honours hours, closures and openings (integration, TD
   it("tenant isolation: another tenant's closure on the same date does not refuse the booking", async () => {
     const date = openDate(50);
     await closeDay(tenantBId, date);
-    await routes()[0].send(`${date}T13:00:00.000Z`).expect(201);
+    const { body } = await routes()[0].send(`${date}T13:00:00.000Z`).expect(201);
+    expect(body.bookingId).toEqual(expect.any(String));
   });
 
   it('leaves a booking made before a closure untouched when the closure is added later', async () => {

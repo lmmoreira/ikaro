@@ -264,7 +264,7 @@ describe('persistRequestedBooking', () => {
     expect(candidatesByLine.get(line.lineId)!.candidates[0].resourceId).toBe(staff.id);
   });
 
-  describe('working hours, closures and openings (TD50)', () => {
+  describe('working hours, closures and openings', () => {
     // 2031-03-04 is a Tuesday and 2031-03-02 a Sunday; America/Sao_Paulo is UTC-3.
     const TUESDAY_10H = new Date('2031-03-04T13:00:00.000Z');
     const SUNDAY_10H = new Date('2031-03-02T13:00:00.000Z');

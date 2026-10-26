@@ -794,6 +794,13 @@ describe('AvailabilityService', () => {
       ).toBe('OUTSIDE_HOURS');
     });
 
+    it('is OUTSIDE_HOURS for a window that runs past local midnight into the next day', () => {
+      // 17:00 local plus nine hours ends at 02:00 the next day: "02:00" is below the 18:00 close.
+      expect(
+        svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 17, 9 * 60)),
+      ).toBe('OUTSIDE_HOURS');
+    });
+
     it('is FREE for a window that ends exactly at closing', () => {
       expect(
         svc.windowHoursVerdict(monday, DEFAULT_HOURS, tenantWide(), window(monday, 17, 60)),

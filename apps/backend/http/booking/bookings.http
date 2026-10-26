@@ -609,7 +609,7 @@ X-Correlation-ID: test-corr-006
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR — the business is closed that day (a Sunday, or a day with a closure) → 409 BOOKING_SLOT_CLOSED
-# TD50: the same rule the availability read applies; staff are not exempt.
+# The same rule the availability read applies; staff are not exempt. Use a future Sunday inside the booking window (2026-11-01 is one).
 # ─────────────────────────────────────────────────────────────────────────────
 
 POST {{baseUrl}}/bookings
@@ -621,7 +621,7 @@ X-Correlation-ID: test-corr-td50-001
   "contactEmail": "joao@example.com",
   "contactName": "João Silva",
   "contactPhone": "+5531999999999",
-  "scheduledAt": "2026-06-14T13:00:00.000Z",
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
 
@@ -629,7 +629,7 @@ X-Correlation-ID: test-corr-td50-001
 
 # ─────────────────────────────────────────────────────────────────────────────
 # ERROR — open day, start before opening or ending after closing → 409 BOOKING_OUTSIDE_BUSINESS_HOURS
-# (06:00 local with the default Mon–Fri 09:00–18:00 hours; the booking's trailing buffer counts)
+# (06:00 local on 2026-11-03, a Tuesday, with Mon–Fri 09:00–18:00 hours; the booking's trailing buffer counts)
 # ─────────────────────────────────────────────────────────────────────────────
 
 POST {{baseUrl}}/bookings
@@ -641,7 +641,7 @@ X-Correlation-ID: test-corr-td50-002
   "contactEmail": "joao@example.com",
   "contactName": "João Silva",
   "contactPhone": "+5531999999999",
-  "scheduledAt": "2026-06-16T09:00:00.000Z",
+  "scheduledAt": "2026-11-03T09:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
 ###
@@ -808,7 +808,7 @@ X-Correlation-ID: test-corr-td50-004
 
 {
   "customerId": "{{customerId}}",
-  "scheduledAt": "2026-06-14T13:00:00.000Z",
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
 ###
@@ -951,7 +951,7 @@ X-Actor-Role: CUSTOMER
 X-Correlation-ID: test-corr-td50-003
 
 {
-  "scheduledAt": "2026-06-14T13:00:00.000Z",
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
   "serviceIds": ["{{serviceId}}"]
 }
 ###

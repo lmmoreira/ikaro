@@ -117,7 +117,7 @@ async function preferFreeResources(
     start: windowStart,
     end: new Date(windowEnd.getTime() + effectiveGapMinutes(resource) * 60_000),
   });
-  // TD50: a resource that is closed or outside its hours is as unavailable as a busy one. When
+  // A resource that is closed or outside its hours is as unavailable as a busy one. When
   // fewer than requiredQuantity are open, the unfiltered list falls through to the verification
   // that names the hours reason.
   const gate = ctx.hoursGate;
