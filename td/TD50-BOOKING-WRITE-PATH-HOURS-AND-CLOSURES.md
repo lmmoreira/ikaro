@@ -49,7 +49,7 @@ The booking page hides closed slots, so the promise "the business is closed then
 
 ## Stories
 
-### Story 0 — Enforce hours, closures and openings when a one-off booking is created
+### Story 0 — Enforce hours, closures and openings when a one-off booking is created ✅ Done
 
 **Agent:** backend-ts + bff-ts (BFF: `.http` only)
 **Complexity:** L (the check is small; the selection change and the test migration are not)
