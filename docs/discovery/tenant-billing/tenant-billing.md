@@ -2,7 +2,7 @@
 
 **Status:** Discovery — pre-canonical. Nothing here is implemented or promoted. Use cases are labeled `CAND-XX`, never `UC-XXX`.
 **Date:** 2026-10-26 · **Slug:** `tenant-billing`
-**Companion docs:** `tenant-billing_USECASES.md` (CAND-01..CAND-30) · `tenant-billing_DATA_MODEL.md` (schema `billing`) · `tenant-billing_API.md` (endpoints, webhook, crons) · `tenant-billing_MODULE.md` (hotsite module `TRIAL_SIGNUP_CTA`) · `prototype/` (start at `index.html`)
+**Companion docs:** `tenant-billing_USECASES.md` (CAND-01..CAND-31) · `tenant-billing_DATA_MODEL.md` (schema `billing`) · `tenant-billing_API.md` (endpoints, webhook, crons) · `tenant-billing_MODULE.md` (hotsite module `TRIAL_SIGNUP_CTA`) · `prototype/` (start at `index.html`)
 **Promote with:** `/discovery-to-milestone docs/discovery/tenant-billing/tenant-billing.md`
 
 ---
@@ -13,7 +13,7 @@ Ikaro is a multi-tenant SaaS, and today nothing in it models Ikaro itself being 
 
 The business needs to:
 
-1. Charge each tenant a **different, negotiable price per feature**, in the currency of its country (BR → BRL, US → USD).
+1. Charge each tenant a **price per feature, set by its country** (BR → BRL, US → USD), with one list for everyone and no per-tenant negotiation.
 2. **Sell features separately** (hotsite only, or hotsite + booking + loyalty + chatbot + recurrence + lead form + availability alerts) and switch each one on only while it is paid for.
 3. **Stop tenants that do not pay** without a hard "login blocked" wall: a lapsed tenant's manager can still log in, but only to a billing page where they can pay.
 4. Let **anyone start a 14-day trial on their own** (self-signup from Ikaro's own hotsite), with all features, no card.
@@ -26,13 +26,14 @@ The business needs to:
 | R1 | **The payment provider owns the money.** Charging, retries, hosted payment pages, receipts, refunds, chargebacks, saved cards and Pix mandates are the provider's. Ikaro stores only the status it needs (see R8). Ikaro never stores card data and never renders card forms. |
 | R2 | **Entitlement gates, preference tunes, and both must pass.** An *entitlement* (Ikaro grants the feature because the tenant pays for it) is a different layer from a manager *preference* (hotsite `enabled`, `settings.*`). Effective availability = entitled AND enabled. Losing an entitlement never deletes or rewrites the manager's preference; regaining it resumes exactly as left. |
 | R3 | **Everything sellable is a feature**, including the hotsite. A plan is a bundle of features. There is no always-included base. |
-| R4 | **Price is per feature × country × tier**, in the country's currency. No FX conversion. A tenant's price is a snapshot copied into its subscription item when the feature is added; later list-price changes never touch existing tenants. |
-| R5 | **Nothing fiscal is ever required of the tenant.** Tax ID, legal name and address are optional billing identity. Nota fiscal (NFS-e) is a fiscal process outside Ikaro v1 (handled in the provider console / by the accountant). |
+| R4 | **Price is per feature × country × tier × cycle**, from one list, in the country's currency. No FX conversion and **no per-tenant prices or negotiation**. A charge uses the list price in force **when it is issued** and snapshots it in its lines; a list increase applies from the next charge issued and never to a charge already issued or paid. Annual / semester contracts are extra price rows (`cycle`), deferred. |
+| R5 | **Nothing fiscal is ever required of the tenant, and formats follow the billing country.** Address and tax-ID fields, labels and validation come from the existing per-country `CountrySpec` (`AddressSpec` + a new tax-ID entry), in the tenant's language. Tax ID, legal name and address are optional billing identity. Nota fiscal (NFS-e) is a fiscal process outside Ikaro v1 (handled in the provider console / by the accountant). |
 | R6 | **Access control reads state, not events.** The tenant's billing status and entitled features are read synchronously through one shared `TenantAccessPort` (fail open). Events exist only to trigger emails. |
 | R7 | **Billing never mutates the manager's `isPublished`.** Effective published = manager's `isPublished` AND tenant operational. |
 | R8 | **Ikaro owns three policies only:** the access ladder, the entitlement set, and the clean-up. Everything else is mirrored from the provider via webhook + a reconcile job. |
 | R9 | **Provider behind a port.** `BillingProviderPort` is defined in Ikaro's terms (start payment, give a payment link, cancel, enable auto-billing; inbound normalized events), never in the provider's. Asaas is the first adapter; Stripe is a later adapter for USD. |
 | R10 | **Billing emails to the manager are exempt from the suspension gate**; every tenant-facing and customer-facing send stops while suspended. |
+| R11 | **Plan changes are self-service.** The manager adds or removes features and picks the chatbot tier on a "Plano" tab, sees the new total before saving, and no contact is needed. There is no operator step for prices. |
 
 ## 3. Industry research and provider decision record
 
@@ -72,12 +73,12 @@ Adding a feature whose dependency is not active is rejected; removing a feature 
 
 | Aggregate | Owns |
 |---|---|
-| `Subscription` (1 per tenant) | status, suspension reason, currency, country, cycle (`MONTHLY` only in v1), anchor day, trial end, period, `pastDueSince`, `graceUntil`, `cancelAt`, provider ids; child **items** (feature, tier, price snapshot, `startsAt`, `endsAt`) |
+| `Subscription` (1 per tenant) | status, suspension reason, currency, country, cycle (`MONTHLY` only in v1), anchor day, trial end, period, `pastDueSince`, `graceUntil`, `cancelAt`, `exempt`, provider ids; child **items** (feature, tier, `startsAt`, `endsAt`, `firstBilledAt` — **no price**) |
 | `BillingAccount` (1 per tenant) | optional tax identity (type, number), legal name, billing email, address, provider customer id, accepted terms |
 | `Charge` | one bill for one period (due date, amount, status, method, provider charge id, payment link) + **lines** (price snapshot per feature) |
 | `FeaturePrice` (platform-wide, no `tenant_id`) | list price per feature × country × tier × cycle; the starting point copied into items |
 
-Entitlement is not an aggregate: **the entitled features are the currently active subscription items**. A granted/free feature is an item at price 0.
+Entitlement is not an aggregate: **the entitled features are the currently active subscription items**. Free access (Ikaro's own tenant, staging tenants) is the `exempt` flag on the subscription, not a price of zero. Items carry no price: the amount of a charge is read from the price list when the charge is issued.
 
 Boundary note: paying a `Charge` may move the `Subscription` back to `ACTIVE`. This is two aggregates in one use case, in one transaction, with a row lock on the subscription (`findByIdForUpdate`). Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on the transaction alone.
 
@@ -129,7 +130,7 @@ A daily job erases tenants that stay `SUSPENDED` too long: **90 days** if the te
 | RECURRENCE | R$ 29,00 | US$ 7 |
 | AVAILABILITY_ALERTS | R$ 19,00 | US$ 5 |
 
-Adding a feature mid-cycle: switches on now, billed from the next cycle. Removing: effective at period end (operator can force). Price change on an item: from the next cycle. Annual billing: **deferred** (the `cycle` column exists so it can be added; it needs proration or aligned renewals first). No coupons. Billing country is fixed when the subscription starts.
+**Self-service plan changes (R11):** *Add* a feature (or upgrade the chatbot tier): switches on **now**, charged in full from the next charge, and it **cannot be removed (or downgraded) until it has been charged once** — this closes the add-use-remove loophole without proration. *Remove* (or downgrade): effective at the end of the paid period. A plan always keeps at least one feature. Additions are blocked while `PAST_DUE`/`SUSPENDED`; removals are allowed. During the **trial** changes are free and immediate, and the manager is prompted to review the plan before the first charge (which is built from the selection at issue time). A newly added feature costs the list price for the tenant's country. If the next period's charge is already issued and unpaid when the plan changes, it is cancelled and re-issued; if it is already paid, the change affects the following period. **List price changes (no per-tenant prices):** the operator updates the list; every tenant's next *issued* charge uses the new amount, while already-issued or paid charges are untouched. A price must never be deleted while an active item references it (deactivating only stops new selections). A price-change notice email to managers is recommended before an increase takes effect (open thread). Annual billing: **deferred** (the `cycle` column exists so it can be added; it needs proration or aligned renewals first). No coupons. Billing country is fixed when the subscription starts.
 
 ## 5. Architecture
 
@@ -160,7 +161,7 @@ Adding a sellable feature then means: add the `FeatureKey`, decorate its control
 
 ## 6. Self-signup, trial and Ikaro's own tenant
 
-- Ikaro is a tenant too (its hotsite is the marketing site). That tenant is **exempt from billing** (subscription with every feature at price 0).
+- Ikaro is a tenant too (its hotsite is the marketing site). That tenant is **exempt from billing** (`exempt = true`: all features, never charged, never suspended, never purged).
 - Hotsite module **`TRIAL_SIGNUP_CTA`** (title, optional text, button label) — a CTA only, no form. It is restricted to the tenant whose slug is the platform owner's (`PLATFORM_OWNER_TENANT_SLUG`). The button opens the public page **`/ikaro-trial`**. Detail: `tenant-billing_MODULE.md`.
 - `/ikaro-trial` shows feature descriptions (translated copy in the web app) and the **price table** (read from `FeaturePrice`, BR/US switch), then: Turnstile → Google sign-in (verified email and name) → form (business name, slug, country BR|US, language, **Terms and Privacy checkbox**) → provision → welcome. The signup endpoint lives in **Platform** and calls the existing `ProvisionTenantUseCase`; Billing reacts to `TenantProvisioned` (CAND-01).
 - **US at signup:** the country selector offers BR; **US is enabled by `FEATURE_FLAG_SIGNUP_US=true` once the Stripe adapter is live**, so no US trial can end without a way to pay. US prices exist in `feature_prices` from the start.
@@ -169,11 +170,11 @@ Adding a sellable feature then means: add the `FeatureKey`, decorate its control
 
 ## 7. Roles and visibility
 
-Operator = Ikaro staff acting through scripts/internal endpoints (no backoffice screen in v1). Every operator action is audited (who, when, why). Every MANAGER of a tenant sees its billing page; billing emails go to the billing email, falling back to the managers' emails. Alerts to Ikaro (failed webhooks, reconcile drift, daily overdue/suspended list) are emails to the manager of Ikaro's own tenant.
+Operator = Ikaro staff acting through scripts/internal endpoints (no backoffice screen in v1), used only for the price list, manual payments, grace and suspend/reactivate; plan changes are done by the manager (R11) and there is no per-tenant price negotiation. Every operator action is audited (who, when, why). Every MANAGER of a tenant sees its billing page; billing emails go to the billing email, falling back to the managers' emails. Alerts to Ikaro (failed webhooks, reconcile drift, daily overdue/suspended list) are emails to the manager of Ikaro's own tenant.
 
 ## 8. Non-Goals / explicitly deferred
 
-Annual billing and proration · coupons / free months · in-app payment-method forms · refund screens (provider console) · NFS-e issuing · FX conversion · currency or country change after start · operator backoffice screen · trial-extension action · additional limits beyond the chatbot tier (staff count, resources, services, lead submissions) · plan bundles / templates · usage-based pricing · self-serve plan changes (every change goes through the operator) · replaying events produced during a suspension.
+Annual billing and proration · coupons / free months · in-app payment-method forms · refund screens (provider console) · NFS-e issuing · FX conversion · currency or country change after start · operator backoffice screen · trial-extension action · additional limits beyond the chatbot tier (staff count, resources, services, lead submissions) · plan bundles / templates · usage-based pricing · replaying events produced during a suspension.
 
 ## 9. Standing "known good" integrations and reuse
 
@@ -199,24 +200,27 @@ Hotsite publish state already exists (`hotsite_configs.is_published`, `<Unavaila
 16. *Refunds/chargebacks:* provider console; Ikaro only records `REFUNDED`/`CHARGEBACK`.
 17. *Limits:* chatbot tier (model + caps) is the only v1 limit; annual billing deferred with a `cycle` column; no coupons; no trial extension.
 18. *Signup details:* module `TRIAL_SIGNUP_CTA` (CTA only) on Ikaro's tenant, `/ikaro-trial` page, Google first, Terms checkbox, one trial per Google account, slug rules.
-19. *Existing tenants:* none real; staging tenants migrated by script as `ACTIVE`, features at price 0.
+19. *Existing tenants:* none real; staging tenants are migrated by script as `ACTIVE` with `exempt = true`.
 20. *Billing visibility:* all managers.
 21. *Route name:* the signup page is `/ikaro-trial` (not `/testar`); the reserved-slug list comes from the real top-level routes.
 22. *UI pattern:* billing is one page with tabs (Resumo, Cobranças, Dados de cobrança, Cobrança automática) and a single primary action per tab, like the service editor; destructive actions are a separate confirmation page.
 23. *Enforcement design:* declarative (decorators + one guard + dispatcher/cron/notification choke points), a CI detector for completeness, and one kill switch (§5.1) — accepted so no feature flags are scattered through the code.
 24. *Stripe:* the adapter is in scope of the milestone sequence; US signup is gated by `FEATURE_FLAG_SIGNUP_US` until it is live.
 25. *Access staleness:* a short cache TTL is acceptable.
+27. *Self-service plan changes (reverses an earlier default):* the manager adds/removes features and picks the chatbot tier; add = on now, charged from next cycle, not removable until charged once; remove = end of paid period; trial changes are free and the plan is reviewed before the first charge.
+28. *No per-tenant prices:* prices come only from the list by country/tier/cycle; no operator negotiation or overrides; a charge uses the list price at issue time (snapshot in its lines); an increase applies from the next charge only; free access = `exempt`; annual/semester contracts are extra price rows (deferred).
 26. *Suspended tenants stay visible in the staff tenant selection;* staff who select one see the suspended notice. (A customer selector does not exist in the code today.)
 
 ## 11. Open threads
 
 - Asaas: hosted payment page and "update payment method" flow; full charge-event list and `PAYMENT_OVERDUE` payload; whether Asaas emails payers about issued/paid/overdue charges; card-tokenization flow (hosted vs in-app, PCI impact); sandbox parity; fees; account approval for the entity. Pix Automático availability on the owner's account.
 - Accountant: nota fiscal obligation for BR tenants; export-of-services and US sales-tax treatment; retention period for billing history.
+- `CountrySpec` has an address spec but no tax-ID spec: add one (BR: CNPJ/CPF check digits; US: none) alongside the existing `AddressSpec`, reusing the shared `Address` VO and `useAddressLookup` (ViaCEP) for Brazil.
 - Existing auth error reason `tenant-deactivated` (`journeys/staff/prototypes/login/01d-error-tenant-deactivated.html`): suspension must **not** reuse it (login is never blocked); decide whether it stays for true deactivation (`is_active=false`).
 - Stripe: USD charging and settlement for a Brazilian entity; account opening.
 - Whether `<Unavailable />` already renders the top bar (needed for "Página não publicada" with team/customer login).
 - Whether a booking-only tenant without a hotsite should exist (assumed no).
-- Chatbot tier names and the model/caps per tier; real prices.
+- Chatbot tier names and the model/caps per tier; real prices; whether to send a price-change notice before an increase (recommended).
 - Design of the short-lived signup session between Google sign-in and provisioning (cookie vs token) — decide in story discovery, reusing the staff selection-token pattern where possible.
 - Enforcement checklist per feature (public chatbot endpoint, recurring renewal reminders cron, availability-alert creation, lead-form endpoint, loyalty write paths).
 - Legal texts for Termos de Uso and Política de Privacidade (owner to provide).

@@ -9,7 +9,7 @@
 The schema serves five reads: (1) the **access check** on every request/send (by `tenant_id`, hot, cached), (2) the **billing page** (summary + paginated charges), (3) the **cross-tenant jobs** (charge issuing, status sweep, reconcile, purge) that cannot seek by `tenant_id`, (4) **webhook dedupe and tenant resolution**, (5) the **public price list**.
 
 Database-expert findings applied:
-- **Snapshots, three levels:** list price (`feature_prices`) → tenant price (`subscription_items.unit_price_minor`) → charge price (`charge_lines.unit_price_minor`). A later edit at an upper level never rewrites a lower one (same idea as `BookingLine.priceAtBooking`).
+- **Snapshot, one level:** items carry **no price**. The list price (`feature_prices`) is read when a charge is issued and copied into `charge_lines.unit_price_minor`, so a later list change never rewrites an issued charge (same idea as `BookingLine.priceAtBooking`). Prices referenced by an active item are never deleted, only deactivated.
 - **One denormalization:** `charges.amount_minor` is a cached sum of its lines. It exists because the provider bills a single number that must equal what the tenant is shown, and the history list should not aggregate lines per row. It is written once at issue time and never edited (a price change creates a new charge).
 - **Aggregate boundary:** `charges` are not a child of `subscriptions` (one per period forever = unbounded). Paying a charge may reactivate the subscription: same-context, one transaction, row lock on the subscription (`findByIdForUpdate`); status is recomputable by the reconcile job.
 - **Cross-tenant job indexes** (CLAUDE.md rule): a tenant-first composite index cannot be seeked without `tenant_id`, so each cron has its own standalone index.
@@ -42,10 +42,10 @@ Database-expert findings applied:
 | `id` | uuid PK | |
 | `tenant_id` | uuid NOT NULL | `UNIQUE(tenant_id)`; also `UNIQUE(tenant_id, id)` for composite FKs |
 | `tax_id_type` | text NULL | `CNPJ` \| `CPF` \| `OTHER`; NULL when none |
-| `tax_id` | text NULL | digits only for BR (check digits via VO); free text for `OTHER` |
+| `tax_id` | text NULL | digits only for BR (check digits via VO); free text for `OTHER`. Which types a country accepts comes from a new `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: none, optional free text) |
 | `legal_name` | text NULL | |
 | `billing_email` | text NULL | falls back to the managers' emails |
-| `address` | jsonb NULL | bounded object (street, number, city, state, zip, country); size capped by the schema, not an array |
+| `address` | jsonb NULL | shaped exactly like the shared `Address` value object (`street`, `number`, `complement?`, `neighborhood?`, `city`, `state`, `zipCode`), validated with the **billing country's `AddressSpec`** from `packages/i18n/src/country-defaults.ts` (labels, postal regex, state pattern, neighbourhood on/off). The country is `subscriptions.country_code`, not repeated inside the JSON. A single bounded object, never an array |
 | `provider` | text NULL | `ASAAS` \| `STRIPE` \| `MANUAL` |
 | `provider_customer_id` | text NULL | |
 | `auto_billing` | text NOT NULL DEFAULT `'NONE'` | `NONE` \| `CARD` \| `PIX_AUTOMATICO`; mirrored from the provider (no card data) |
@@ -79,7 +79,7 @@ Database-expert findings applied:
 | `cancel_at` | timestamptz NULL | end of the paid period when the manager cancelled |
 | `suspended_at` | timestamptz NULL | starts the clean-up clock |
 | `has_ever_paid` | boolean NOT NULL DEFAULT false | selects the 90 vs 180 day clean-up delay |
-| `exempt` | boolean NOT NULL DEFAULT false | Ikaro's own tenant: never charged, never suspended, never purged |
+| `exempt` | boolean NOT NULL DEFAULT false | free access: Ikaro's own tenant and staging tenants — never charged, never suspended, never purged (replaces "price 0" items) |
 | `provider_subscription_id` | text NULL | |
 | `version` | int NOT NULL DEFAULT 0 | optimistic lock (second line of defence next to `FOR UPDATE`) |
 | `created_at`, `updated_at` | timestamptz | |
@@ -98,10 +98,10 @@ Cross-tenant job indexes (standalone, partial):
 | `subscription_id` | uuid NOT NULL | composite FK `(tenant_id, subscription_id)` → `subscriptions(tenant_id, id)` |
 | `feature_key` | text NOT NULL | |
 | `tier` | text NOT NULL DEFAULT `'STANDARD'` | |
-| `unit_price_minor` | bigint NOT NULL CHECK (>= 0) | **snapshot** copied from `feature_prices` or overridden; 0 = granted |
 | `starts_at` | timestamptz NOT NULL | |
 | `ends_at` | timestamptz NULL | NULL = open-ended |
-| `created_by` | text NOT NULL | operator id or `SYSTEM` |
+| `created_by` | text NOT NULL | operator id, manager actor id, or `SYSTEM` |
+| `first_billed_at` | timestamptz NULL | set when the item first appears in an issued charge; an item with NULL cannot be removed or downgraded by the manager outside the trial (closes the add-use-remove loophole, R11) |
 | `created_at` | timestamptz | |
 
 - **One active item per feature:** partial unique `(tenant_id, subscription_id, feature_key) WHERE ends_at IS NULL`.
@@ -166,7 +166,7 @@ Cross-tenant job indexes (standalone, partial):
 | `id` | uuid PK | |
 | `tenant_id` | uuid NOT NULL | |
 | `actor` | text NOT NULL | operator identifier (script/user) |
-| `action` | text NOT NULL | `ADD_FEATURE`, `REMOVE_FEATURE`, `CHANGE_PRICE`, `MARK_PAID`, `GRACE`, `SUSPEND`, `REACTIVATE` |
+| `action` | text NOT NULL | `SET_FEATURE_PRICE`, `MARK_PAID`, `GRACE`, `SUSPEND`, `REACTIVATE` |
 | `payload` | jsonb NOT NULL | bounded; includes the reason |
 | `occurred_at` | timestamptz NOT NULL | |
 
@@ -184,7 +184,7 @@ Cross-tenant job indexes (standalone, partial):
 
 1. Create schema `billing` and tables (expand only, no existing table touched).
 2. Seed `feature_prices` (illustrative values; real prices are an operator decision).
-3. Backfill existing tenants (CAND-21): `ACTIVE`, all features, price 0, `exempt = false` (Ikaro's own tenant `exempt = true`). Idempotent; per the migration-backfill rule the endpoints are not live traffic yet, but the backfill runs in the same release anyway so no tenant is ever without a row.
+3. Backfill existing tenants (CAND-21): `ACTIVE`, all features, `exempt = true` (real tenants created later start as `TRIALING` through CAND-01; Ikaro's own tenant is `exempt = true` too). Idempotent; per the migration-backfill rule the endpoints are not live traffic yet, but the backfill runs in the same release anyway so no tenant is ever without a row.
 4. Add the Billing notification templates.
 5. Deploy code with enforcement behind **fail-open** so a gap in step 3 cannot lock anyone out.
 6. Terraform: Cloud Scheduler jobs, Secret Manager entries (`ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`), env `PLATFORM_OWNER_TENANT_SLUG`.
@@ -208,4 +208,4 @@ If the provider already notifies payers about issued/paid/overdue charges, the f
 
 ## 6. Final decisions carried to the domain document
 
-Entitlement = active items (no separate aggregate); price list is global, items snapshot it; suspension reason is a column, not a status; cancel is `cancel_at` + a later sweep; `exempt` protects Ikaro's own tenant; auto-billing mirrors only a label; fiscal history is retained after purge.
+Entitlement = active items (no separate aggregate); price list is global, items carry no price, charge lines snapshot it at issue; suspension reason is a column, not a status; cancel is `cancel_at` + a later sweep; `exempt` protects Ikaro's own tenant; auto-billing mirrors only a label; fiscal history is retained after purge.

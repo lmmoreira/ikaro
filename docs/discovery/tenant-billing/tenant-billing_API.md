@@ -17,6 +17,9 @@ All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; sta
 | `GET /v1/billing/identity` | read billing identity | 13 |
 | `PUT /v1/billing/identity` | save billing identity | 13 |
 | `POST /v1/billing/charges/{chargeId}/payment-link` | (re)generate a hosted payment URL | 14 |
+| `GET /v1/billing/plan` | catalog for the tenant's country: each feature with price, tiers, dependencies, current selection, `removableFrom` | 31 |
+| `POST /v1/billing/plan/preview` | preview of a selection: changes (starts/ends), new total, warnings | 31 |
+| `PUT /v1/billing/plan` | save the selection (`items: [{ featureKey, tier }]`) | 31 |
 | `POST /v1/billing/cancel` | schedule cancellation at end of paid period | 28 |
 | `POST /v1/billing/reactivate` | undo scheduled cancel / create the reactivation charge | 29 |
 | `POST /v1/billing/auto-billing` | start provider-hosted authorization → `{ authorizationUrl }` | 30 |
@@ -30,7 +33,7 @@ GET /v1/billing/summary
   "currency": "BRL", "countryCode": "BR",
   "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null, "suspendsAt": null,
   "cancelAt": null, "purgeAt": null,
-  "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 },
+  "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 },   // current list price (items store no price)
              { "featureKey": "CHATBOT", "tier": "BASIC", "unitPriceMinor": 3900 } ],
   "totalMinor": 8800,
   "openCharge": { "id": "…", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true } | null,
@@ -46,8 +49,9 @@ GET /v1/billing/charges?limit=20&offset=0
 
 PUT /v1/billing/identity   (every field optional)
 { "taxIdType": "CNPJ|CPF|OTHER|null", "taxId": "12.345.678/0001-90", "legalName": "…",
-  "billingEmail": "…", "address": { "street","number","city","state","zip","country" } }
-200 same shape | 422 BILLING_IDENTITY_TAX_ID_INVALID | BILLING_IDENTITY_EMAIL_INVALID
+  "billingEmail": "…", "address": { "street","number","complement?","neighborhood?","city","state","zipCode" } }
+200 same shape | 422 BILLING_IDENTITY_TAX_ID_INVALID | BILLING_IDENTITY_EMAIL_INVALID | the existing Address error codes (postal/state format for the billing country)
+   Field labels, placeholders and validation come from the billing country's CountrySpec.address; the BR form reuses the CEP lookup (useAddressLookup / ViaCEP).
 
 POST /v1/billing/charges/{id}/payment-link   → 200 { "paymentUrl": "https://…", "expiresAt": "…" }
 POST /v1/billing/cancel                      → 200 { "cancelAt": "…" } | 409 BILLING_ALREADY_CANCELLING
@@ -114,9 +118,6 @@ POST /v1/public/signup/tenant
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
 | `POST /internal/billing/webhooks/asaas` | normalized processing of the provider webhook | 09 |
 | `PUT /internal/billing/feature-prices` | upsert list prices | 07 |
-| `POST /internal/tenants/{tenantId}/billing/items` | add feature `{featureKey, tier?, unitPriceMinor?, reason}` | 02 |
-| `DELETE /internal/tenants/{tenantId}/billing/items/{featureKey}?immediate=` | remove feature | 03 |
-| `PATCH /internal/tenants/{tenantId}/billing/items/{featureKey}/price` | change a tenant's price | 04 |
 | `POST /internal/tenants/{tenantId}/billing/charges/{chargeId}/mark-paid` | manual payment | 05 |
 | `POST /internal/tenants/{tenantId}/billing/grace` \| `/suspend` \| `/reactivate` | operator controls | 06 |
 | `GET /internal/billing/tenants?status=` | operator list: status, overdue age, last charge | 06 |
@@ -155,7 +156,7 @@ Adapters: `AsaasBillingProvider` (BRL), `ManualBillingProvider` (operator marks 
 
 ## 8. New error codes (each needs entries in both `packages/i18n/locales/{pt-BR,en}/errors.json`, CI-enforced)
 
-`FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_ALREADY_ACTIVE`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TRIAL_ALREADY_ACTIVE`, `SIGNUP_RATE_LIMITED`, `TURNSTILE_FAILED` (reuse the existing code if one exists).
+`FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_ALREADY_ACTIVE`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_FEATURE_NOT_REMOVABLE_YET`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TRIAL_ALREADY_ACTIVE`, `SIGNUP_RATE_LIMITED`, `TURNSTILE_FAILED` (reuse the existing code if one exists).
 
 ## 9. Declarative gating metadata
 

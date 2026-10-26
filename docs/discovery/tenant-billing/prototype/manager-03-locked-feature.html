@@ -56,6 +56,7 @@
     Here the tenant has HOTSITE + BOOKING only: Fidelidade (LOYALTY) is locked in the menu; Chatbot (CHATBOT) is locked in Configurações.
     COMPONENT (changed): DashboardSidebar / BottomNav (lock + href to upsell) -- EXISTS, needs GAP prop `lockedFeatures`; SettingsForm Chatbot section (EXISTS per journeys 01d, shown as a GAP there) swaps its body for a new GAP component <FeatureLockedCard feature="CHATBOT" tier />.
     BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }  (CHATBOT absent from `features` => locked)
+    CTA (self-service plan, CAND-31): the single primary is "Contratar este recurso" -> manager-08-plan-edit.html (Plano tab); "Falar com a gente" is only a small text link for pricing questions.
     Related variants: manager-03b-locked-feature-direct-url.html (reaching a locked route by URL).
   -->
 
@@ -104,15 +105,17 @@
                 O <strong>Chatbot</strong> responde dúvidas dos seus clientes no hotsite, 24 horas por dia: horários, preços e serviços. Ele alivia o atendimento da equipe e ajuda a transformar visitas em agendamentos.
               </p>
               <p style="font-size:0.8125rem;opacity:0.6;color:var(--ba-text);line-height:1.5;margin-bottom:1rem;">
-                O recurso tem dois níveis (Básico e Plus) — o Plus atende mais conversas por dia. Fale com a gente para contratar o nível ideal.
+                O recurso tem dois níveis (Básico e Plus) — o Plus atende mais conversas por dia. Você escolhe o nível ao contratar, na aba Plano da assinatura.
               </p>
               <div class="inline-info" style="margin-bottom:1.25rem;">
                 <svg class="" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <div><strong>Suas configurações foram mantidas.</strong> O texto de conhecimento e as demais opções do chatbot que você já salvou continuam guardados e voltam a valer assim que o recurso for contratado.</div>
               </div>
               <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
-                <a class="btn-primary" href="https://ikaro.example/ikaro/booking" target="_blank" rel="noopener" style="text-decoration:none;">Falar com a gente</a>
+                <a class="btn-primary" href="manager-08-plan-edit.html" style="text-decoration:none;">Contratar este recurso</a>
                 <a class="btn-secondary" href="manager-01-billing-active.html" style="text-decoration:none;">Ver minha assinatura</a>
+              </div>
+              <div style="margin-top:0.75rem;font-size:0.8125rem;"><a href="https://ikaro.example/ikaro/booking" target="_blank" rel="noopener" style="color:#2563eb;">Dúvidas sobre preço? Falar com a gente</a>
               </div>
             </div>
           </div>

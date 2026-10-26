@@ -14,7 +14,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 |---|---|
 | A — Subscription and pricing (operator / system reaction) | 01–07 |
 | B — System jobs and provider integration | 08–11 |
-| C — Manager billing | 12–14, 28–30 |
+| C — Manager billing | 12–14, 28–31 |
 | D — Enforcement across the system | 15–21 |
 | E — Self-signup, trial, clean-up | 22–27 |
 
@@ -29,16 +29,16 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Main Flow:**
   1. Handler calls one use case with `tenantId`, `countryCode` and `correlationId`.
   2. Use case creates the `Subscription` (`TRIALING`, `trialEndsAt = now + 14 days`, currency from the country's price rows, cycle `MONTHLY`).
-  3. For every feature it creates an item with the list price copied (chatbot at tier `BASIC`). Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`) gets every item at price 0 and status `ACTIVE` (exempt from billing).
+  3. For every feature it creates an item (chatbot at tier `BASIC`); items carry no price. Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`) gets `status ACTIVE` and `exempt = true`.
   4. It creates an empty `BillingAccount`, then invalidates the access cache after commit.
 - **Alternative Flows:**
   - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
   - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (error logged, event retried); the tenant stays without a subscription row and **fails open** until fixed; an ops alert is sent.
-  - **A3: Provisioning script passes an explicit feature subset or price overrides** → items are created from that subset; the others are not created.
+  - **A3: Provisioning script passes an explicit feature subset** → items are created from that subset; the others are not created.
 - **Postconditions:** Tenant has a `TRIALING` subscription with all items.
 - **Events Triggered:** None (the audit log is the `TenantProvisioned` handler itself).
 
-### **CAND-02: Operator Adds a Feature to a Tenant**
+### **CAND-02: Operator Adds a Feature to a Tenant** — *WITHDRAWN 2026-10-26 (managers add features themselves via CAND-31; no per-tenant prices). Number kept so references stay valid.*
 - **Actor:** Operator.
 - **Preconditions:** Tenant has a subscription (any status except cancelled-and-purged).
 - **Trigger:** Operator runs the add-feature script/endpoint with `tenantId`, `featureKey`, optional `tier`, optional `unitPriceMinor` override, `reason`.
@@ -56,7 +56,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Postconditions:** Item active; next charge includes the line.
 - **Events Triggered:** None.
 
-### **CAND-03: Operator Removes a Feature from a Tenant**
+### **CAND-03: Operator Removes a Feature from a Tenant** — *WITHDRAWN 2026-10-26 (managers do this via CAND-31). Text kept for history.*
 - **Actor:** Operator.
 - **Preconditions:** Item is active.
 - **Trigger:** Operator runs remove-feature with `tenantId`, `featureKey`, optional `immediate`, `reason`.
@@ -71,11 +71,11 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Postconditions:** Feature entitlement ends at the chosen moment; data remains stored.
 - **Events Triggered:** None.
 
-### **CAND-04: Operator Changes a Tenant's Item Price**
+### **CAND-04: Operator Changes a Tenant's Item Price** — *WITHDRAWN 2026-10-26 (no per-tenant prices; list changes via CAND-07 apply from the next issued charge). Text kept for history.*
 - **Actor:** Operator.
 - **Preconditions:** Item active.
 - **Trigger:** Operator runs change-price with `tenantId`, `featureKey`, `unitPriceMinor`, `reason`.
-- **Main Flow:** The current item gets `endsAt = end of period`; a new item row with the new price and `startsAt = next period start` is added (price history kept without extra tables). Already-issued charges are unaffected (their lines are snapshots).
+- **Main Flow:** *(withdrawn — see title.)* Original idea kept for history: end the current item and add a new item row with the new price; already-issued charges unaffected.
 - **Alternative Flows:**
   - **A1: Negative price** → rejected. **Zero price** → allowed (granted feature).
   - **A2: A charge for the next period is already issued** → the new price applies from the period after; a warning is returned.
@@ -108,7 +108,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** Operator.
 - **Preconditions:** None.
 - **Trigger:** Operator upserts a price row: `featureKey`, `countryCode`, `tier`, `cycle`, `amountMinor`, `currency`, `active`.
-- **Main Flow:** The row is created/updated; existing tenants' items are not touched (R4); the public price endpoint serves the new value.
+- **Main Flow:** The row is created/updated; the public price endpoint and the Plano tab serve the new value immediately; every tenant's next *issued* charge uses it (R4); already-issued and paid charges are untouched.
 - **Alternative Flows:**
   - **A1: Currency does not match the country** (BR must be BRL, US must be USD in v1) → rejected.
   - **A2: Deactivating a price in use** → allowed; existing items unaffected; new subscriptions cannot use it.
@@ -128,7 +128,8 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
   1. For each due subscription (standalone index on `(status, next_due_date)`), compute the lines from the active items for the next period.
   2. Insert the `Charge` and its lines (`UNIQUE(tenant_id, subscription_id, period_start)` makes a re-run idempotent), then — outside the DB transaction — ask the provider (via the port) to create the charge and store its id and payment link.
 - **Alternative Flows:**
-  - **A1: Total is zero** (all items price 0, e.g. Ikaro's own tenant) → no charge created.
+  - **A1: Subscription is `exempt`** (Ikaro's own tenant, staging) → no charge created.
+  - **A6: No active price row for an item's (feature, tier, country, cycle)** → the charge is not issued, an ops alert is sent (prices are never deleted while referenced).
   - **A2: Provider call fails** → charge stays `PENDING` without a provider id; the next run retries; an ops alert after N failures.
   - **A3: Job runs twice** → no duplicates.
   - **A4: Tenant `SUSPENDED`** → skipped (no charges while suspended).
@@ -202,11 +203,12 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** Logged in.
 - **Trigger:** Manager edits identity on the billing page.
-- **Main Flow:** Fields (all optional): tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number, legal name, billing email, address. System validates by country and saves; synced to the provider customer when a charge is next issued.
+- **Main Flow:** Fields (all optional): tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number, legal name, billing email, address. The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood) in the tenant's language. System validates by country (shared `Address` value object + `AddressSpec`) and saves; synced to the provider customer when a charge is next issued.
 - **Alternative Flows:**
   - **A1: Invalid CNPJ/CPF check digits** → field error.
   - **A2: Invalid email** → field error.
-  - **A3: US tenant** → no CNPJ/CPF type offered.
+  - **A3: US tenant** → no CNPJ/CPF type offered; address labels and formats in English.
+  - **A5: Postal code or state in the wrong format for the country** → field error from the country's rule (e.g. CEP `00000-000`, US ZIP `90210`).
   - **A4: Save fails** → error message, form kept.
 - **Postconditions:** Identity stored; never blocks a payment (R5).
 - **Events Triggered:** None.
@@ -306,10 +308,10 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** System (migration/script).
 - **Preconditions:** `billing` schema migrated. No real tenants exist; staging tenants are test data.
 - **Trigger:** Release.
-- **Main Flow:** For every tenant without a subscription: create `ACTIVE` subscription, all features, price 0, plus a billing account; idempotent.
+- **Main Flow:** For every tenant without a subscription: create an `ACTIVE`, `exempt = true` subscription with all features, plus a billing account; idempotent.
 - **Alternative Flows:**
   - **A1: Subscription already exists** → skipped.
-  - **A2: Tenant country has no price rows** → uses the tenant's `localization.currency` with price 0.
+  - **A2: Tenant country has no price rows** → uses the tenant's `localization.country` and `localization.currency` on the exempt subscription.
 - **Postconditions:** No tenant is suspended by the release.
 - **Events Triggered:** None.
 
@@ -366,12 +368,34 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** `TRIALING`.
 - **Trigger:** Any dashboard page.
-- **Main Flow:** Banner "Faltam N dias do seu teste" links to billing; 10 days before the end the first charge is issued (CAND-08) and the manager is emailed.
+- **Main Flow:** Banner "Faltam N dias do seu teste" links to billing and prompts the manager to review the plan (CAND-31); 10 days before the end the first charge is issued from the current selection (CAND-08) and the manager is emailed.
 - **Alternative Flows:**
   - **A1: Trial ends the same day the charge is issued** → charge issued immediately, normal due date.
   - **A2: Trial ended unpaid** → `PAST_DUE` banner (CAND-10).
 - **Postconditions:** None.
 - **Events Triggered:** `ChargeIssued` (via CAND-08).
+
+### **CAND-31: Manager Changes the Plan (Self-Service)**
+- **Actor:** Staff (MANAGER).
+- **Preconditions:** Subscription not `SUSPENDED`.
+- **Trigger:** Manager opens the "Plano" tab on the billing page.
+- **Main Flow:**
+  1. The tab lists every feature with its price for the tenant's country, a toggle, the chatbot tier choice (Básico/Plus), dependency hints and a live total.
+  2. Manager changes the selection; the page previews each change ("entra agora, cobrado a partir de 10/11" / "sai em 10/11") and the new total.
+  3. Manager saves (single primary action). System validates dependencies, applies additions (item starts now, `first_billed_at` null) and removals (`ends_at` = end of paid period), and if the next charge is already issued and unpaid, cancels and re-issues it (provider call after commit).
+- **Alternative Flows:**
+  - **A1: Dependency unmet / dependents active** (Loyalty without Booking; removing Booking while Loyalty is active) → whole selection rejected with the specific message; nothing saved.
+  - **A2: Removing a feature not yet charged once** → blocked with "disponível para remover a partir de dd/mm" (the add-use-remove rule); not applied during the trial.
+  - **A3: `PAST_DUE`** → additions disabled, removals allowed. **`SUSPENDED`** → plan tab read-only ("reative para alterar o plano").
+  - **A4: Trial** → changes immediate and free; prompt to review before the first charge.
+  - **A5: Empty selection** → rejected (at least one feature).
+  - **A6: No list price for the country/tier** → feature shown as unavailable.
+  - **A7: Next charge already paid** → change applies from the following period; the page says so.
+  - **A8: Provider re-issue fails** → local change saved, charge re-issue retried; reconcile flags drift.
+  - **A9: Save error** → message, selection kept.
+  - **A10: Cancellation scheduled (`cancelAt` set)** → plan tab read-only ("reative a assinatura para alterar o plano").
+- **Postconditions:** Items updated; entitlements follow immediately for additions.
+- **Events Triggered:** None (a re-issued charge raises `ChargeIssued`).
 
 ### **CAND-26: Manager Configures the `TRIAL_SIGNUP_CTA` Module (Ikaro's Tenant Only)**
 - **Actor:** Staff (MANAGER of the Ikaro tenant).
