@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Configurações — Chatbot não contratado — Lavacar BeloAuto</title>
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
+  <style>
+    .sidebar-nav-item.locked { opacity: 0.6; }
+    .sidebar-nav-item.locked .lock-ic { margin-left: auto; flex-shrink: 0; }
+    .bottom-nav-item.locked { opacity: 0.6; position: relative; }
+    .bottom-nav-item .lock-ic { position: absolute; top: 0.25rem; right: 0.75rem; }
+    .form-group { margin-bottom: 1.25rem; }
+    .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .form-error { font-size: 0.8125rem; color: #dc2626; margin-top: 0.375rem; display: flex; align-items: center; gap: 0.25rem; }
+    .form-input.error { border-color: #ef4444; background: #fef2f2; }
+    textarea.form-input { resize: vertical; min-height: 4.5rem; font-family: inherit; }
+    .pill-options { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .pill-option { padding: 0.5rem 0.875rem; border-radius: 9999px; border: 1.5px solid var(--ba-secondary); background: white; font-size: 0.8125rem; font-weight: 600; cursor: pointer; }
+    .pill-option.selected { background: var(--ba-primary); color: white; border-color: var(--ba-primary); }
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 0.875rem 1rem; border-radius: var(--ba-radius); background: var(--ba-secondary); margin-bottom: 1.25rem; }
+    .toggle-label { font-size: 0.9375rem; font-weight: 600; color: var(--ba-text); }
+    .toggle-sub { font-size: 0.8125rem; opacity: 0.55; margin-top: 0.125rem; }
+    .toggle-switch { width: 2.75rem; height: 1.5rem; border-radius: 9999px; background: #d1d5db; position: relative; cursor: pointer; flex-shrink: 0; border: none; padding: 0; }
+    .toggle-switch.on { background: var(--ba-primary); }
+    .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
+    .form-actions { position: fixed; bottom: 3.75rem; left: 0; right: 0; z-index: 20; background: white; border-top: 1px solid var(--ba-secondary); padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06); display: flex; gap: 0.75rem; }
+    .form-actions .btn-primary { flex: 1; text-align: center; padding: 0.875rem; }
+    .form-actions .btn-secondary { flex: 0 0 auto; padding: 0.875rem 1.25rem; }
+    .detail-layout { display: block; }
+    .detail-aside { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: minmax(0,1fr) 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside { display: block; position: sticky; top: 1.5rem; }
+      .form-actions { display: none !important; }
+      .topbar-brand { }
+    }
+    .status-banner { border-radius: var(--ba-radius); padding: 0.875rem 1rem; margin-bottom: 1.25rem; display: flex; gap: 0.75rem; align-items: flex-start; flex-wrap: wrap; font-size: 0.875rem; line-height: 1.5; }
+    .status-banner .sb-body { flex: 1; min-width: 12rem; }
+    .status-banner .btn-primary { font-size: 0.8125rem; padding: 0.4375rem 0.875rem; text-decoration: none; white-space: nowrap; }
+    .status-banner.trial { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e40af; }
+    .status-banner.pastdue { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; }
+    .upsell-icon { width: 3rem; height: 3rem; border-radius: 9999px; background: var(--ba-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .inline-info { background: #f0fdf4; border: 1px solid #86efac; color: #166534; border-radius: var(--ba-radius); padding: 0.75rem 1rem; font-size: 0.8125rem; line-height: 1.5; display: flex; gap: 0.5rem; align-items: flex-start; }
+    
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
+    Grounds the entitlement-enforcement state of the billing discovery: a feature the tenant does NOT pay for is LOCKED (upsell), never silently hidden.
+    CAND (enforcement of tenant entitlements, see ../tenant-billing.md): menu items of unpurchased features show a padlock; the Chatbot section of Configurações shows the upsell card.
+    Entitlement (set by Ikaro) is separate from the manager's own on/off preference: stored chatbot.* settings are preserved ("Suas configurações foram mantidas").
+    Here the tenant has HOTSITE + BOOKING only: Fidelidade (LOYALTY) is locked in the menu; Chatbot (CHATBOT) is locked in Configurações.
+    COMPONENT (changed): DashboardSidebar / BottomNav (lock + href to upsell) -- EXISTS, needs GAP prop `lockedFeatures`; SettingsForm Chatbot section (EXISTS per journeys 01d, shown as a GAP there) swaps its body for a new GAP component <FeatureLockedCard feature="CHATBOT" tier />.
+    BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }  (CHATBOT absent from `features` => locked)
+    Related variants: manager-03b-locked-feature-direct-url.html (reaching a locked route by URL).
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-20 (enforcement) — menu com recurso bloqueado + seção Chatbot sem entitlement
+  </div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">L</div><span class="topbar-tenant-name">Lavacar BeloAuto</span></div>
+    <h1 class="topbar-page-title">Configurações</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../journeys/shared/staff-login.html" class="auth-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 26 de outubro de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">L</div>
+        <div><p class="sidebar-tenant-name">Lavacar BeloAuto</p><p class="sidebar-tenant-slug">@lavacar-beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;"><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/agenda/00-agenda.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/horarios/00-schedule.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/servicos/01-servicos-list.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a><a class="sidebar-nav-item locked" href="manager-03b-locked-feature-direct-url.html" title="Recurso não contratado"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span>Fidelidade</span><svg class="lock-ic" width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></a></nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav"><a class="sidebar-nav-item" href="manager-01-billing-active.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Cobrança</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/equipe/01-team-list.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a><a class="sidebar-nav-item active" href="manager-03-locked-feature.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a></nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../journeys/shared/staff-login.html" title="Sair"><svg class="" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:5.5rem;">
+      <div class="dashboard-body">
+
+        <div class="section-header" style="display:flex;"><p class="section-label">Chatbot</p></div>
+        <div class="card" style="padding:1.5rem;">
+          <div style="display:flex;gap:1rem;align-items:flex-start;flex-wrap:wrap;">
+            <div class="upsell-icon"><svg class="" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
+            <div style="flex:1;min-width:14rem;">
+              <div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.375rem;">
+                <h2 style="font-size:1.125rem;font-weight:700;color:var(--ba-text);margin:0;">Recurso não contratado</h2>
+                <span class="status-badge status-cancelled">Não contratado</span>
+              </div>
+              <p style="font-size:0.9375rem;color:var(--ba-text);line-height:1.6;margin-bottom:0.75rem;">
+                O <strong>Chatbot</strong> responde dúvidas dos seus clientes no hotsite, 24 horas por dia: horários, preços e serviços. Ele alivia o atendimento da equipe e ajuda a transformar visitas em agendamentos.
+              </p>
+              <p style="font-size:0.8125rem;opacity:0.6;color:var(--ba-text);line-height:1.5;margin-bottom:1rem;">
+                O recurso tem dois níveis (Básico e Plus) — o Plus atende mais conversas por dia. Fale com a gente para contratar o nível ideal.
+              </p>
+              <div class="inline-info" style="margin-bottom:1.25rem;">
+                <svg class="" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <div><strong>Suas configurações foram mantidas.</strong> O texto de conhecimento e as demais opções do chatbot que você já salvou continuam guardados e voltam a valer assim que o recurso for contratado.</div>
+              </div>
+              <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                <a class="btn-primary" href="https://ikaro.example/ikaro/booking" target="_blank" rel="noopener" style="text-decoration:none;">Falar com a gente</a>
+                <a class="btn-secondary" href="manager-01-billing-active.html" style="text-decoration:none;">Ver minha assinatura</a>
+              </div>
+            </div>
+          </div>
+        </div>
+        <p class="form-hint" style="margin-top:1rem;">Os campos do Chatbot ficam ocultos e desativados enquanto o recurso não estiver contratado. As demais seções de Configurações continuam editáveis.</p>
+
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav"><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/agenda/00-agenda.html"><svg class="bottom-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/horarios/00-schedule.html"><svg class="bottom-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/servicos/01-servicos-list.html"><svg class="bottom-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a><a class="bottom-nav-item locked" href="manager-03b-locked-feature-direct-url.html"><svg class="bottom-nav-icon" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade<svg class="lock-ic" width="11" height="11" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></a><button class="bottom-nav-item active" onclick="openSheet()"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item" href="manager-01-billing-active.html"><svg  width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Cobrança</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/equipe/01-team-list.html"><svg  width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a><a class="bottom-sheet-item active" href="manager-03-locked-feature.html"><svg  width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/hotsite/01-hotsite-editor.html"><svg  width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../../journeys/shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;"><svg class="" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair</a>
+    </div>
+  </div>
+
+  <script>
+    function selectPill(btn) { btn.parentElement.querySelectorAll('.pill-option').forEach(function(e){e.classList.remove('selected');}); btn.classList.add('selected'); }
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+  </script>
+</body>
+</html>
