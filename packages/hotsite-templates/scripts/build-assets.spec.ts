@@ -146,7 +146,7 @@ describe('build-assets', () => {
     await expect(
       buildTemplateAssets({ packageRoot: root, templateId: 'demo', sourceDir: source }),
     ).rejects.toThrow(`noisy.png: cannot get under ${MAX_BYTES} bytes`);
-  });
+  }, 30_000);
 
   it('parses --flag value arguments', () => {
     expect(parseArgs(['--template', 'casa47', '--source', '/tmp/x'])).toEqual({

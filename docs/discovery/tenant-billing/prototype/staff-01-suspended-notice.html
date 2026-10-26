@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conta suspensa — Lavacar BeloAuto</title>
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
+    Grounds the SUSPENDED behaviour for STAFF (CAND-16): a staff member of a suspended tenant CAN log in (valid JWT) but every dashboard route renders only this full-page notice. No nav, no data, no API access (backend answers 403 TENANT_SUSPENDED).
+    Reason-neutral: does not say unpaid/canceled; the manager sees the details on the billing page. No "Falar com a gente" for staff (they are not the payer) -- the only action is Sair.
+    COMPONENT (GAP): <TenantSuspendedNotice role="STAFF" /> rendered by app/dashboard/layout.tsx when GET /v1/billing/access -> status = SUSPENDED and role = STAFF. Visually reuses the staff-login card (app/dashboard/login/page.tsx): fixed indigo mark, not tenant-branded.
+    BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — CAND-16 — Funcionário entra com a empresa suspensa
+  </div>
+
+  <div style="min-height: calc(100vh - 2rem); display: flex; align-items: center; justify-content: center; background: #f9fafb; padding: 1rem;">
+    <div style="width: 100%; max-width: 26rem; padding: 2.25rem; text-align: center; background: white; border-radius: 0.5rem; box-sizing: border-box;">
+      <div style="width: 4rem; height: 4rem; background: #4f46e5; border-radius: 0.75rem; margin: 0 auto 1.5rem; display: flex; align-items: center; justify-content: center;">
+        <span style="color: white; font-weight: 700; font-size: 1.25rem;">I</span>
+      </div>
+      <h1 style="font-size: 1.375rem; font-weight: 700; color: #111827;">Conta suspensa</h1>
+      <p style="font-size: 0.9375rem; color: #374151; margin-top: 0.75rem; line-height: 1.6;">Esta conta está suspensa. Fale com o gerente.</p>
+      <p style="font-size: 0.8125rem; color: #6b7280; margin-top: 0.5rem;">Você está conectado como Rafael Lima (Lavacar BeloAuto).</p>
+      <a href="../../../../journeys/shared/staff-login.html" class="btn-secondary" style="display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; margin-top: 1.75rem; text-decoration: none; padding: 0.625rem 1.5rem;">
+        <svg class="" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg> Sair
+      </a>
+    </div>
+  </div>
+
+</body>
+</html>

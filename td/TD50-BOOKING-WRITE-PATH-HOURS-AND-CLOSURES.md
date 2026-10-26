@@ -125,7 +125,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 - Integration:
   - [ ] `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff` each return the new refusals for the closed-day, off-hours, partial-closure and resource-closure cases against a real database, and 201 for the control
   - [ ] A closure committed before the POST is honored by it (the check reads inside the booking transaction, after the locks)
-  - [ ] The migrated existing specs pass on any weekday: run the booking and loyalty integration suites with the clock faked to a Sunday and to a Wednesday
+  - [x] The migrated existing specs pass whatever today's weekday is. Method, changed at implementation: the integration suites run against a real database and its timers, so the system clock is not faked. The date helpers derive every start from today's date and the tenant's hours, and are unit-tested under a fixed clock on a Friday, a Saturday and a Sunday (`date-helpers.spec.ts`); the booking, loyalty, notification and outbox integration suites were also run with the helpers' day base shifted by 2, 5 and 6 days (today then looks like a Wednesday, a Saturday and a Sunday). The only failures were the three window tests whose limits are measured from the real clock, which the shift itself invalidates.
 - Tenant isolation:
   - [ ] Tenant B's closure does not refuse Tenant A's booking on the same date
 - E2E: none — server-side; Story 2 owns the browser scenario. The e2e API-seeding helpers are checked (files list) and fixed if they book at a fixed time.

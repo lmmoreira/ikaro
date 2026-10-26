@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assinatura — sem cobranças — Lavacar BeloAuto</title>
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
+  <style>
+    .bill-layout { display:block; }
+    .bill-aside { margin-top:1.25rem; }
+    @media (min-width:1024px) { .bill-layout { display:grid; grid-template-columns:minmax(0,1fr) 20rem; gap:1.5rem; align-items:start; } .bill-aside { position:sticky; top:1.5rem; margin-top:0; } .topbar-user-name { display:inline !important; } }
+    .detail-layout { display:block; } .detail-aside { display:none; }
+    @media (min-width:1024px) { .detail-layout { display:grid; grid-template-columns:minmax(0,1fr) 22rem; gap:1.5rem; align-items:start; } .detail-aside { display:block; position:sticky; top:1.5rem; }  }
+    .sidebar-nav-item.disabled, .bottom-nav-item.disabled { opacity:0.4; pointer-events:none; cursor:not-allowed; }
+    .bottom-nav-item.active { color:#2563eb; }
+    .page-title-row { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; margin-bottom:1rem; }
+    .page-title-row h2 { font-size:1.25rem; font-weight:700; color:var(--ba-text); margin:0; }
+    .muted { color:var(--ba-text); opacity:0.6; font-size:0.8125rem; }
+    .eyebrow { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.45); margin:0 0 0.375rem; }
+    .alert { border-radius:var(--ba-radius); padding:1rem 1.125rem; margin-bottom:1.25rem; display:flex; gap:0.75rem; align-items:flex-start; font-size:0.875rem; line-height:1.5; }
+    .alert .ai { flex-shrink:0; margin-top:0.0625rem; }
+    .alert p { margin:0; } .alert .t { font-weight:700; font-size:0.9375rem; margin-bottom:0.125rem; }
+    .alert-red { background:#fef2f2; border:1px solid #fca5a5; color:#dc2626; }
+    .alert-amber { background:#fffbeb; border:1px solid #fcd34d; color:#92400e; }
+    .alert-blue { background:#eff6ff; border:1px solid #bfdbfe; color:#1d4ed8; }
+    .alert-green { background:#f0fdf4; border:1px solid #86efac; color:#166534; }
+    .alert-grey { background:#f8fafc; border:1px solid #e2e8f0; color:#475569; }
+    .alert .actions { margin-top:0.75rem; display:flex; gap:0.625rem; flex-wrap:wrap; }
+    .btn-sm { display:inline-block; padding:0.5rem 1rem !important; font-size:0.875rem !important; text-decoration:none; text-align:center; cursor:pointer; }
+    .big-amount { font-size:1.75rem; font-weight:800; color:var(--ba-text); line-height:1.1; }
+    .kv { display:flex; justify-content:space-between; gap:1rem; padding:0.5rem 0; font-size:0.875rem; color:var(--ba-text); border-top:1px solid var(--ba-secondary); }
+    .kv:first-of-type { border-top:none; }
+    .kv span:first-child { opacity:0.65; }
+    .feat-row { display:flex; justify-content:space-between; align-items:center; gap:0.75rem; padding:0.625rem 0; border-top:1px solid var(--ba-secondary); font-size:0.9375rem; color:var(--ba-text); }
+    .feat-row:first-of-type { border-top:none; }
+    .feat-row small { display:block; opacity:0.55; font-size:0.75rem; }
+    .feat-row.locked { opacity:0.6; }
+    .feat-total { display:flex; justify-content:space-between; padding-top:0.75rem; margin-top:0.25rem; border-top:2px solid var(--ba-secondary); font-weight:800; color:var(--ba-text); }
+    .ch-head, .ch-row { display:grid; grid-template-columns:7rem 1fr 6.5rem 7.5rem; gap:0.75rem; align-items:center; padding:0.75rem 0; border-top:1px solid var(--ba-secondary); font-size:0.875rem; color:var(--ba-text); }
+    .ch-head { display:none; border-top:none; font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.45); padding-top:0; }
+    .ch-row .amt { text-align:right; font-weight:600; }
+    .ch-row .ref small { display:block; opacity:0.55; font-size:0.75rem; }
+    @media (max-width:1023px) { .ch-row { grid-template-columns:1fr auto; grid-template-areas:"d a" "r s"; row-gap:0.25rem; } .ch-row .d { grid-area:d; font-weight:600; } .ch-row .amt { grid-area:a; } .ch-row .ref { grid-area:r; } .ch-row .st { grid-area:s; text-align:right; } }
+    @media (min-width:1024px) { .ch-head { display:grid; } }
+    .st-pending { background:#fef3c7; color:#92400e; } .st-paid { background:#dcfce7; color:#15803d; } .st-overdue { background:#fee2e2; color:#dc2626; }
+    .st-failed { background:#fee2e2; color:#dc2626; } .st-canceled { background:#f1f5f9; color:#475569; } .st-refunded { background:#dbeafe; color:#1d4ed8; } .st-chargeback { background:#ede9fe; color:#6d28d9; }
+    .pager { display:flex; justify-content:space-between; align-items:center; padding-top:0.875rem; border-top:1px solid var(--ba-secondary); font-size:0.8125rem; color:var(--ba-text); }
+    .side-link { display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0; border-top:1px solid var(--ba-secondary); text-decoration:none; color:var(--ba-text); font-size:0.9375rem; }
+    .side-link:first-of-type { border-top:none; padding-top:0; }
+    .side-link small { display:block; opacity:0.55; font-size:0.75rem; }
+    .side-link .chev { opacity:0.4; }
+    .danger-link { color:#dc2626; font-size:0.875rem; text-decoration:underline; }
+    .skel { border-radius:6px; background:linear-gradient(90deg,#f1f5f9 25%,#e2e8f0 37%,#f1f5f9 63%); background-size:400% 100%; animation:sh 1.4s ease infinite; }
+    @keyframes sh { 0%{background-position:100% 50%} 100%{background-position:0 50%} }
+    .spin { width:1rem; height:1rem; border:2px solid currentColor; border-top-color:transparent; border-radius:9999px; animation:rot 0.8s linear infinite; display:inline-block; }
+    @keyframes rot { to { transform:rotate(360deg); } }
+    .form-group { margin-bottom:1.125rem; }
+    .form-label { display:block; font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.45); margin-bottom:0.375rem; }
+    .form-input { width:100%; box-sizing:border-box; border:1.5px solid var(--ba-secondary); border-radius:var(--ba-radius); padding:0.6875rem 0.875rem; font-size:0.9375rem; font-family:inherit; color:var(--ba-text); background:white; }
+    .form-input.error { border-color:#ef4444; background:#fef2f2; }
+    .form-input[readonly] { background:#f8fafc; color:rgba(17,24,39,0.6); }
+    .form-error { font-size:0.8125rem; color:#dc2626; margin-top:0.375rem; display:flex; align-items:flex-start; gap:0.25rem; }
+    .form-hint { font-size:0.8125rem; opacity:0.55; color:var(--ba-text); margin-top:0.375rem; }
+    .form-row { display:grid; grid-template-columns:1fr; gap:0 1rem; } @media (min-width:640px) { .form-row.two { grid-template-columns:1fr 1fr; } .form-row.cep { grid-template-columns:10rem 1fr; } .form-row.cityuf { grid-template-columns:1fr 6rem; } .form-row.street { grid-template-columns:1fr 8rem; } }
+    .seg { display:flex; gap:0.5rem; } .seg label { flex:1; border:1.5px solid var(--ba-secondary); border-radius:var(--ba-radius); padding:0.625rem 0.875rem; font-size:0.9375rem; color:var(--ba-text); display:flex; gap:0.5rem; align-items:center; cursor:pointer; } .seg label.on { border-color:#2563eb; border-width:2px; background:#eff6ff; }
+    .opt-card { border:1.5px solid var(--ba-secondary); border-radius:var(--ba-radius); padding:0.875rem 1rem; margin-bottom:0.75rem; display:flex; gap:0.75rem; align-items:flex-start; color:var(--ba-text); cursor:pointer; }
+    .opt-card.on { border-color:#2563eb; border-width:2px; background:#eff6ff; }
+    .opt-card strong { display:block; font-size:0.9375rem; } .opt-card span.d { font-size:0.8125rem; opacity:0.65; }
+    .form-actions { display:flex; gap:0.75rem; margin-top:1.5rem; }
+    .form-actions .btn-primary, .form-actions .btn-secondary { padding:0.75rem 1.5rem; text-align:center; text-decoration:none; }
+    .steps { counter-reset:s; padding:0; margin:0.5rem 0 0; list-style:none; } .steps li { counter-increment:s; display:flex; gap:0.75rem; padding:0.5rem 0; font-size:0.9375rem; color:var(--ba-text); } .steps li::before { content:counter(s); width:1.5rem; height:1.5rem; border-radius:9999px; background:#eff6ff; color:#2563eb; font-weight:700; font-size:0.8125rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    ul.plain { margin:0.5rem 0 0; padding-left:1.125rem; font-size:0.9375rem; line-height:1.6; color:var(--ba-text); }
+
+    
+  
+    /* --- Assinatura page: tabs (same shape as servicos/03-service-edit.html + hotsite editor) --- */
+    .bill-wrap { min-width:0; }
+    @media (min-width:1024px) { .bill-wrap .form-actions, .bill-wrap .foot-links { display:none !important; } }
+    .pane-hint { font-size:0.8125rem; opacity:0.6; color:var(--ba-text); line-height:1.5; margin:0.75rem 0 0; }
+    .pane-sec { display:block; text-align:center; text-decoration:none; padding:0.75rem; margin-bottom:0.625rem; }
+    .pane-divider { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--ba-secondary); }
+    .editor-tabs { display:flex; gap:0.25rem; padding:0 0 1rem; border-bottom:1px solid var(--ba-secondary); margin-bottom:1.25rem; overflow-x:auto; }
+    .editor-tab { padding:0.625rem 1rem; border-radius:var(--ba-radius) var(--ba-radius) 0 0; font-size:0.9375rem; font-weight:600; border:none; background:none; color:var(--ba-text); opacity:0.5; cursor:pointer; white-space:nowrap; font-family:inherit; }
+    .editor-tab.active { opacity:1; color:var(--ba-primary); border-bottom:2px solid var(--ba-primary); margin-bottom:-1px; }
+    .editor-panel { display:none; } .editor-panel.active { display:block; }
+    .tab-dirty-dot { display:none; width:0.4375rem; height:0.4375rem; border-radius:9999px; background:#f59e0b; margin-left:0.375rem; vertical-align:middle; }
+    .tab-dirty-dot.on { display:inline-block; }
+    .tab-label-short { display:none; }
+    @media (max-width:480px) { .tab-label-full { display:none; } .tab-label-short { display:inline; } .editor-tab { padding:0.625rem 0.5rem; font-size:0.8125rem; } .editor-tabs { gap:0; } }
+    .form-actions { align-items:center; flex-wrap:wrap; }
+    .btn-secondary.danger { color:#dc2626; border-color:#fca5a5; }
+    .btn-primary[aria-disabled="true"] { opacity:0.45; pointer-events:none; }
+    .plan-card { border:1.5px solid var(--ba-secondary); border-radius:var(--ba-radius); padding:1rem; margin-bottom:0.75rem; background:white; }
+    .plan-card.has-err { border-color:#ef4444; background:#fef2f2; }
+    .plan-card-main { display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+    .plan-card-main strong { color:var(--ba-text); font-size:0.9375rem; }
+    .plan-card-main small { display:block; opacity:0.6; font-size:0.8125rem; color:var(--ba-text); margin-top:0.125rem; }
+    .plan-price { display:block; font-size:0.8125rem; font-weight:600; color:var(--ba-text); margin-top:0.375rem; }
+    .toggle-switch { width:2.75rem; height:1.5rem; border-radius:9999px; background:#d1d5db; position:relative; cursor:pointer; flex-shrink:0; border:none; padding:0; }
+    .toggle-switch.on { background:var(--ba-primary); }
+    .toggle-switch:disabled { opacity:0.45; cursor:not-allowed; }
+    .toggle-knob { position:absolute; top:2px; left:2px; width:1.25rem; height:1.25rem; border-radius:9999px; background:white; transition:transform 0.15s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+    .toggle-switch.on .toggle-knob { transform:translateX(1.25rem); }
+    .tier-row { display:flex; gap:0.625rem; margin-top:0.875rem; padding-top:0.875rem; border-top:1px solid var(--ba-secondary); flex-wrap:wrap; }
+    .tier-opt { flex:1; min-width:9rem; border:1.5px solid var(--ba-secondary); border-radius:var(--ba-radius); padding:0.625rem 0.875rem; display:flex; gap:0.5rem; align-items:flex-start; cursor:pointer; color:var(--ba-text); font-size:0.9375rem; }
+    .tier-opt.on { border-color:#2563eb; border-width:2px; background:#eff6ff; }
+    .tier-opt.dis { opacity:0.5; cursor:not-allowed; }
+    .tier-opt small { display:block; opacity:0.65; font-size:0.75rem; }
+    #plan-preview ul { margin-bottom:0.75rem; } #plan-preview li { margin-bottom:0.375rem; }
+    .pane-total { margin-top:1rem; padding-top:0.75rem; border-top:1px solid var(--ba-secondary); font-size:0.875rem; color:var(--ba-text); }
+    .foot-links { display:flex; gap:1.5rem; flex-wrap:wrap; align-items:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid var(--ba-secondary); font-size:0.875rem; }
+    .text-link { color:#2563eb; text-decoration:underline; font-size:0.875rem; }
+    .inline-link { color:#2563eb; text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+  <!--
+    DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
+    Grounds CAND-12 (Manager Views the Billing Page) (histórico vazio). See ../tenant-billing.md and ../tenant-billing_USECASES.md.
+    Now a TAB of the single "Assinatura" page (Cobranças tab pre-selected): one page, 5 tabs (Resumo | Plano | Cobranças | Dados de cobrança | Cobrança automática), switched with showTab() like servicos/03-service-edit.html.
+    COMPONENT: BillingPage (GAP) with BillingTabs (reuses the existing tab pattern .editor-tabs/.editor-tab/.editor-panel — EXISTS in ServiceEditPage and the hotsite editor; the billing content is GAP)
+               -> ResumoTab (GAP), PlanoTab (GAP: FeatureToggleCard, ChatbotTierPicker, PlanChangePreview), CobrancasTab (GAP), DadosCobrancaTab (GAP), CobrancaAutomaticaTab (GAP)
+    FOCUS:     CobrancasTab -> ChargeHistoryTable com estado vazio (GAP)
+    BFF CALL:  GET /v1/billing/charges?page=1&limit=5 -> items: [] / pagination.total = 0 ; GET /v1/billing/summary
+    Estado: ACTIVE logo após a conversão do teste; a primeira cobrança está em aberto (aba Resumo) e o histórico ainda não tem itens.
+    ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
+    Single primary action on this tab: nenhuma nesta aba (a aba Resumo tem "Pagar agora").
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — Assinatura › Cobranças — ACTIVE, histórico vazio</div>
+
+  <div class="dashboard-topbar">
+    <div class="topbar-brand"><div class="topbar-logo-mark">L</div><span class="topbar-tenant-name">Lavacar BeloAuto</span></div>
+    <h1 class="topbar-page-title">Assinatura</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../../journeys/shared/staff-login.html" class="auth-avatar" title="Sair">AP</a>
+      <span class="topbar-user-name" style="display:none;font-size:0.875rem;font-weight:500;color:var(--ba-text);">Ana Pereira</span>
+      <span class="topbar-date">Hoje, 26 de outubro de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">L</div>
+        <div><p class="sidebar-tenant-name">Lavacar BeloAuto</p><p class="sidebar-tenant-slug">@lavacar-beloauto</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;"><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/agenda/00-agenda.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/horarios/00-schedule.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/servicos/01-servicos-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a><a class="sidebar-nav-item" href="../../../../journeys/staff/prototypes/fidelidade/00-customer-search.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade</a></nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav"><a class="sidebar-nav-item active" href="manager-01-billing-active.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Assinatura</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/resources/01-resources-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Recursos</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/equipe/01-team-list.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/configuracoes/01-settings-form.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a><a class="sidebar-nav-item" href="../../../../journeys/manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="sidebar-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a></nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../../journeys/shared/staff-login.html" title="Sair"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></a>
+      </div>
+    </aside>
+
+    <main class="main-content" style="padding-bottom:5.5rem;">
+      <div class="dashboard-body">
+<div class="detail-layout"><div class="bill-wrap"><div class="page-title-row"><h2>Assinatura</h2><span class="status-badge status-approved">Ativa</span></div><div class="editor-tabs" role="tablist" aria-label="Assinatura"><button type="button" class="editor-tab" id="tab-resumo" data-tab="resumo" role="tab" aria-selected="false" aria-controls="panel-resumo" onclick="showTab('resumo', this)"><span class="tab-label-full">Resumo</span><span class="tab-label-short">Resumo</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-plano" data-tab="plano" role="tab" aria-selected="false" aria-controls="panel-plano" onclick="showTab('plano', this)"><span class="tab-label-full">Plano</span><span class="tab-label-short">Plano</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab active" id="tab-cobrancas" data-tab="cobrancas" role="tab" aria-selected="true" aria-controls="panel-cobrancas" onclick="showTab('cobrancas', this)"><span class="tab-label-full">Cobranças</span><span class="tab-label-short">Cobranças</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-dados" data-tab="dados" role="tab" aria-selected="false" aria-controls="panel-dados" onclick="showTab('dados', this)"><span class="tab-label-full">Dados de cobrança</span><span class="tab-label-short">Dados</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-automatica" data-tab="automatica" role="tab" aria-selected="false" aria-controls="panel-automatica" onclick="showTab('automatica', this)"><span class="tab-label-full">Cobrança automática</span><span class="tab-label-short">Automática</span><span class="tab-dirty-dot" aria-hidden="true"></span></button></div>
+<div class="editor-panel" id="panel-resumo" role="tabpanel" aria-labelledby="tab-resumo"><section class="section-card"><p class="section-card-title">Situação</p><p class="section-card-sub">Sua assinatura está em dia.</p><div class="kv"><span>Valor mensal</span><strong>R$ 215,00</strong></div><div class="kv"><span>Próximo vencimento</span><strong>04/11/2026</strong></div><div class="kv"><span>Forma de pagamento</span><span>Link a cada ciclo (cartão, Pix ou boleto)</span></div><div class="kv"><span>Cobrança automática</span><span><a class="inline-link" href="#" onclick="gotoTab('automatica');return false;">Desativada · Ativar</a></span></div></section><section class="section-card"><p class="section-card-title">Cobrança em aberto</p><p class="section-card-sub">Primeira cobrança da assinatura.</p><div style="display:flex;justify-content:space-between;align-items:flex-end;gap:1rem;flex-wrap:wrap;"><div><div class="big-amount">R$ 215,00</div><p class="muted" style="margin-top:0.25rem;">Vencimento 04/11/2026 · Assinatura de novembro/2026</p></div></div><p class="muted" style="margin-top:0.75rem;">Você será levado à página segura de pagamento (cartão, Pix ou boleto).</p></section><section class="section-card"><p class="section-card-title">Seu plano</p><p class="section-card-sub">Valores mensais.</p><div class="feat-row"><div>Hotsite<small>Página pública do seu negócio</small></div><strong>R$ 49,00</strong></div><div class="feat-row"><div>Agendamento<small>Reservas online e agenda</small></div><strong>R$ 79,00</strong></div><div class="feat-row"><div>Fidelidade<small>Pontos e resgates</small></div><strong>R$ 29,00</strong></div><div class="feat-row"><div>Chatbot — plano Básico<small>Atendimento automático no hotsite</small></div><strong>R$ 39,00</strong></div><div class="feat-row"><div>Formulário de contato<small>Captação de leads</small></div><strong>R$ 19,00</strong></div><div class="feat-total"><span>Total</span><span>R$ 215,00 <span class="muted" style="font-weight:400;">por mês</span></span></div><p style="margin-top:0.75rem;"><a class="inline-link" href="#" onclick="gotoTab('plano');return false;">Alterar plano</a></p></section><div class="foot-links"><a class="text-link" href="../../../../journeys/shared/hotsite.html">Falar com a gente</a><a class="danger-link" href="manager-06-cancel-confirm.html">Cancelar assinatura</a></div><div class="form-actions"><a class="btn-primary" href="manager-01i-billing-payment-pending.html">Pagar agora</a></div></div>
+<div class="editor-panel" id="panel-plano" role="tabpanel" aria-labelledby="tab-plano"><p class="muted" style="margin-bottom:1rem;">Recursos adicionados entram agora e são cobrados por inteiro a partir da próxima cobrança; só podem ser removidos depois de cobrados uma vez. Remoções valem no fim do período pago. O plano mantém pelo menos um recurso.</p><div class="plan-card" id="pc-HOTSITE" data-key="HOTSITE" data-req=""><div class="plan-card-main"><div style="min-width:0;"><strong>Hotsite</strong><small>Página pública do seu negócio</small><span class="plan-price">R$ 49,00 por mês</span><p class="form-hint plan-note" id="note-HOTSITE" style="display:none;"></p><p class="form-error plan-err" id="err-HOTSITE" style="display:none;"></p></div><button type="button" class="toggle-switch on" id="tg-HOTSITE" role="switch" aria-checked="true" aria-label="Hotsite" onclick="toggleFeat('HOTSITE')"><span class="toggle-knob"></span></button></div></div><div class="plan-card" id="pc-BOOKING" data-key="BOOKING" data-req="HOTSITE"><div class="plan-card-main"><div style="min-width:0;"><strong>Agendamento</strong><small>Reservas online e agenda</small><small>Precisa de Hotsite</small><span class="plan-price">R$ 79,00 por mês</span><p class="form-hint plan-note" id="note-BOOKING" style="display:none;"></p><p class="form-error plan-err" id="err-BOOKING" style="display:none;"></p></div><button type="button" class="toggle-switch on" id="tg-BOOKING" role="switch" aria-checked="true" aria-label="Agendamento" onclick="toggleFeat('BOOKING')"><span class="toggle-knob"></span></button></div></div><div class="plan-card" id="pc-LOYALTY" data-key="LOYALTY" data-req="BOOKING"><div class="plan-card-main"><div style="min-width:0;"><strong>Fidelidade</strong><small>Pontos e resgates</small><small>Precisa de Agendamento</small><span class="plan-price">R$ 29,00 por mês</span><p class="form-hint plan-note" id="note-LOYALTY" style="display:none;"></p><p class="form-error plan-err" id="err-LOYALTY" style="display:none;"></p></div><button type="button" class="toggle-switch on" id="tg-LOYALTY" role="switch" aria-checked="true" aria-label="Fidelidade" onclick="toggleFeat('LOYALTY')"><span class="toggle-knob"></span></button></div></div><div class="plan-card" id="pc-CHATBOT" data-key="CHATBOT" data-req="HOTSITE"><div class="plan-card-main"><div style="min-width:0;"><strong>Chatbot</strong><small>Atendimento automático no hotsite</small><small>Precisa de Hotsite</small><span class="plan-price">A partir de R$ 39,00 por mês</span><p class="form-hint plan-note" id="note-CHATBOT" style="display:none;"></p><p class="form-error plan-err" id="err-CHATBOT" style="display:none;"></p></div><button type="button" class="toggle-switch on" id="tg-CHATBOT" role="switch" aria-checked="true" aria-label="Chatbot" onclick="toggleFeat('CHATBOT')"><span class="toggle-knob"></span></button></div><div class="tier-row" id="tier-row"><label class="tier-opt on" id="tier-B"><input type="radio" name="tier" value="B" checked onchange="setTier('B')"> <span><strong>Básico</strong><small>R$ 39,00 por mês</small></span></label><label class="tier-opt" id="tier-P"><input type="radio" name="tier" value="P" onchange="setTier('P')"> <span><strong>Plus</strong><small>R$ 79,00 por mês — mais conversas por dia</small></span></label></div></div><div class="plan-card" id="pc-LEAD_FORM" data-key="LEAD_FORM" data-req="HOTSITE"><div class="plan-card-main"><div style="min-width:0;"><strong>Formulário de contato</strong><small>Captação de leads</small><small>Precisa de Hotsite</small><span class="plan-price">R$ 19,00 por mês</span><p class="form-hint plan-note" id="note-LEAD_FORM" style="display:none;"></p><p class="form-error plan-err" id="err-LEAD_FORM" style="display:none;"></p></div><button type="button" class="toggle-switch on" id="tg-LEAD_FORM" role="switch" aria-checked="true" aria-label="Formulário de contato" onclick="toggleFeat('LEAD_FORM')"><span class="toggle-knob"></span></button></div></div><div class="plan-card" id="pc-RECURRENCE" data-key="RECURRENCE" data-req="BOOKING"><div class="plan-card-main"><div style="min-width:0;"><strong>Recorrência</strong><small>Reservas que se repetem toda semana</small><small>Precisa de Agendamento</small><span class="plan-price">R$ 29,00 por mês</span><p class="form-hint plan-note" id="note-RECURRENCE" style="display:none;"></p><p class="form-error plan-err" id="err-RECURRENCE" style="display:none;"></p></div><button type="button" class="toggle-switch" id="tg-RECURRENCE" role="switch" aria-checked="false" aria-label="Recorrência" onclick="toggleFeat('RECURRENCE')"><span class="toggle-knob"></span></button></div></div><div class="plan-card" id="pc-AVAILABILITY_ALERTS" data-key="AVAILABILITY_ALERTS" data-req="BOOKING"><div class="plan-card-main"><div style="min-width:0;"><strong>Alertas de disponibilidade</strong><small>Avisa clientes quando abrir um horário</small><small>Precisa de Agendamento</small><span class="plan-price">R$ 19,00 por mês</span><p class="form-hint plan-note" id="note-AVAILABILITY_ALERTS" style="display:none;"></p><p class="form-error plan-err" id="err-AVAILABILITY_ALERTS" style="display:none;"></p></div><button type="button" class="toggle-switch" id="tg-AVAILABILITY_ALERTS" role="switch" aria-checked="false" aria-label="Alertas de disponibilidade" onclick="toggleFeat('AVAILABILITY_ALERTS')"><span class="toggle-knob"></span></button></div></div><section class="section-card" id="plan-preview" style="margin-top:1.25rem;"><p class="section-card-title">Alterações</p><ul class="plain" id="pv-list"></ul><div class="feat-total"><span>Novo total mensal</span><span id="pv-total"></span></div><p class="muted" id="pv-note" style="margin-top:0.5rem;"></p></section><div class="form-actions"><a class="btn-primary" id="plan-save" href="manager-08d-plan-saved.html">Salvar plano</a><a class="btn-secondary" href="javascript:resetPlan()">Descartar alterações</a></div><script>var PLAN = {"us": false, "trial": false, "readonly": false, "lockAdd": false, "notrem": {}, "next": "10/11/2026", "end": "10/11/2026", "reissue": true, "feats": [{"key": "HOTSITE", "name": "Hotsite", "req": [], "price": 49, "on0": true, "on": true}, {"key": "BOOKING", "name": "Agendamento", "req": ["HOTSITE"], "price": 79, "on0": true, "on": true}, {"key": "LOYALTY", "name": "Fidelidade", "req": ["BOOKING"], "price": 29, "on0": true, "on": true}, {"key": "CHATBOT", "name": "Chatbot", "req": ["HOTSITE"], "price": 39, "on0": true, "on": true}, {"key": "LEAD_FORM", "name": "Formulário de contato", "req": ["HOTSITE"], "price": 19, "on0": true, "on": true}, {"key": "RECURRENCE", "name": "Recorrência", "req": ["BOOKING"], "price": 29, "on0": false, "on": false}, {"key": "AVAILABILITY_ALERTS", "name": "Alertas de disponibilidade", "req": ["BOOKING"], "price": 19, "on0": false, "on": false}], "tierPrice": {"B": 39, "P": 79}, "tier0": "B", "tier": "B", "names": {"HOTSITE": "Hotsite", "BOOKING": "Agendamento", "LOYALTY": "Fidelidade", "CHATBOT": "Chatbot", "LEAD_FORM": "Formulário de contato", "RECURRENCE": "Recorrência", "AVAILABILITY_ALERTS": "Alertas de disponibilidade"}, "msg": {"add": "Entra agora — cobrado a partir de ", "addTrial": "Entra agora — sem cobrança no teste; entra na primeira cobrança de ", "rem": "Sai em ", "remTrial": "Sai agora — não será cobrado", "up": "Chatbot Básico → Plus: entra agora — cobrado a partir de ", "down": "Chatbot Plus → Básico: vale em ", "upTrial": "Chatbot Básico → Plus: agora, sem cobrança no teste", "downTrial": "Chatbot Plus → Básico: agora", "none": "Nenhuma alteração. O plano atual segue como está.", "reissue": "A cobrança de 10/11/2026 ainda não foi paga: ela será cancelada e emitida de novo com o novo valor.", "needs": "Precisa de ", "needsOn": ". Ative-o primeiro.", "depErr": " depende de ", "depErr2": ", que está saindo do plano.", "dependents": " depende dele: remova também ou mantenha este recurso.", "atLeast": "O plano precisa de pelo menos um recurso.", "notrem": "Disponível para remover a partir de ", "lockAdd": "Indisponível enquanto houver cobrança em atraso.", "ro": "Reative a assinatura para alterar.", "perMonth": "por mês", "before": "antes"}};</script></div>
+<div class="editor-panel active" id="panel-cobrancas" role="tabpanel" aria-labelledby="tab-cobrancas"><section class="section-card"><p class="section-card-title">Histórico de cobranças</p><p class="section-card-sub">Todas as cobranças da assinatura.</p><div style="text-align:center;padding:1.5rem 0.5rem;color:var(--ba-text);"><p style="font-weight:700;margin:0 0 0.25rem;">Nenhuma cobrança paga ainda</p><p class="muted" style="margin:0;">Assim que a primeira cobrança for paga, ela aparece aqui com a situação de cada pagamento. A cobrança em aberto está na aba Resumo.</p></div></section></div>
+<div class="editor-panel" id="panel-dados" role="tabpanel" aria-labelledby="tab-dados"><p class="muted" style="margin-bottom:1.25rem;">Todos os campos são opcionais. Essas informações aparecem nos seus documentos de cobrança. Se o e-mail ficar vazio, enviamos para os e-mails dos gerentes.</p><div class="form-group"><label class="form-label">Tipo de documento</label><div class="seg"><label class="on"><input type="radio" name="docType" checked> CNPJ</label><label><input type="radio" name="docType"> CPF</label></div></div><div class="form-group"><label class="form-label" for="taxId">CNPJ</label><input class="form-input" id="taxId" name="taxId" value="12.345.678/0001-95" placeholder="00.000.000/0000-00"><p class="form-hint">Somente números ou no formato 00.000.000/0000-00.</p></div><div class="form-group"><label class="form-label" for="legalName">Razão social</label><input class="form-input" id="legalName" name="legalName" value="Lavacar BeloAuto Serviços Automotivos Ltda." placeholder="Nome da empresa"></div><div class="form-group"><label class="form-label" for="billingEmail">E-mail de cobrança</label><input class="form-input" id="billingEmail" name="billingEmail" value="financeiro@lavacarbeloauto.com.br" placeholder="financeiro@suaempresa.com.br"><p class="form-hint">Receberá os avisos e links de pagamento.</p></div><p class="eyebrow" style="margin-top:1.5rem;">Endereço de cobrança</p><div class="form-row cep"><div class="form-group"><label class="form-label" for="zip">CEP</label><input class="form-input" id="zip" name="zip" value="30140-071" placeholder="00000-000"><p class="form-hint">Digite o CEP para preencher o endereço</p></div><div class="form-group"><label class="form-label" for="country">País</label><input class="form-input" id="country" name="country" value="Brasil" placeholder="" readonly></div></div><div class="form-row street"><div class="form-group"><label class="form-label" for="street">Rua <span style="font-weight:600;color:#15803d;text-transform:none;letter-spacing:0;">· preenchido pelo CEP</span></label><input class="form-input" id="street" name="street" value="Av. Afonso Pena" placeholder="" style="background:#f0fdf4;"></div><div class="form-group"><label class="form-label" for="number">Número</label><input class="form-input" id="number" name="number" value="1500" placeholder=""></div></div><div class="form-row two"><div class="form-group"><label class="form-label" for="complement">Complemento</label><input class="form-input" id="complement" name="complement" value="Sala 12" placeholder=""></div><div class="form-group"><label class="form-label" for="district">Bairro <span style="font-weight:600;color:#15803d;text-transform:none;letter-spacing:0;">· preenchido pelo CEP</span></label><input class="form-input" id="district" name="district" value="Centro" placeholder="" style="background:#f0fdf4;"></div></div><div class="form-row cityuf"><div class="form-group"><label class="form-label" for="city">Cidade <span style="font-weight:600;color:#15803d;text-transform:none;letter-spacing:0;">· preenchido pelo CEP</span></label><input class="form-input" id="city" name="city" value="Belo Horizonte" placeholder="" style="background:#f0fdf4;"></div><div class="form-group"><label class="form-label" for="state">UF <span style="font-weight:600;color:#15803d;text-transform:none;letter-spacing:0;">· preenchido pelo CEP</span></label><input class="form-input" id="state" name="state" value="MG" placeholder="MG" style="background:#f0fdf4;"></div></div><div class="form-actions save-row"><a href="manager-02-billing-identity-br.html" class="btn-secondary">Cancelar</a><a href="manager-02d-billing-identity-saved.html" class="btn-primary">Salvar alterações</a></div></div>
+<div class="editor-panel" id="panel-automatica" role="tabpanel" aria-labelledby="tab-automatica"><section class="section-card"><p class="section-card-title">Cobrança automática</p><p class="section-card-sub">Desativada.</p><div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;"><span style="color:var(--ba-text);">Autorize uma vez e a mensalidade de R$ 215,00 é cobrada automaticamente a cada ciclo.</span><span class="status-badge st-canceled">Desativada</span></div></section><p class="eyebrow">Escolha como autorizar</p><label class="opt-card on"><input type="radio" name="m" checked style="margin-top:0.25rem;"><div><strong>Cartão de crédito</strong><span class="d">Salvamos o cartão na página segura do parceiro; cobramos todo mês.</span></div></label><label class="opt-card"><input type="radio" name="m" style="margin-top:0.25rem;"><div><strong>Pix Automático</strong><span class="d">Você aprova a autorização no app do seu banco; a cobrança sai no vencimento.</span></div></label><section class="section-card" style="margin-top:1.25rem;"><p class="section-card-title">O que vai acontecer</p><ol class="steps"><li>Você será levado a uma página segura de pagamento, fora da Ikaro.</li><li>Informe o cartão ou aprove o Pix Automático no seu banco.</li><li>Voltamos para cá e mostramos o status da autorização.</li></ol></section><p class="muted">A cobrança automática é feita pelo nosso parceiro de pagamento; a Ikaro não guarda dados do seu cartão. O link de pagamento manual a cada ciclo continua valendo. Você pode desativar quando quiser.</p><div class="form-actions"><a class="btn-primary" href="manager-07c-auto-billing-pending.html">Ativar cobrança automática</a></div></div>
+</div><aside class="detail-aside" aria-label="Ações da assinatura"><div class="card" style="padding:1.25rem;"><p class="eyebrow" style="display:inline-block;">Assinatura</p><span class="status-badge status-approved" style="margin-left:0.5rem;">Ativa</span><a id="aside-primary" class="btn-primary" href="#" style="display:block;text-align:center;text-decoration:none;padding:.75rem;margin:1rem 0 .625rem;"></a><div id="aside-secondary"></div><div class="pane-total" id="aside-total-box" style="display:none;">Novo total mensal<br><span id="aside-total"></span></div><a class="btn-secondary pane-sec" href="../../../../journeys/shared/hotsite.html">Falar com a gente</a><p class="pane-hint" id="aside-hint"></p><div class="pane-divider"><a class="danger-link" href="manager-06-cancel-confirm.html">Cancelar assinatura →</a></div></div></aside></div>
+<script>var PANE = {"resumo": {"primary": ["Pagar agora", "manager-01i-billing-payment-pending.html", false], "sec": [], "hint": "Você será levado à página segura de pagamento (cartão, Pix ou boleto)."}, "plano": {"primary": ["Salvar plano", "manager-08d-plan-saved.html", true], "sec": [["Descartar alterações", "javascript:resetPlan()", false]], "hint": "Salva só a aba “Plano”. Adições entram agora e são cobradas na próxima cobrança.", "plan": true}, "cobrancas": {"primary": null, "sec": [], "hint": "Esta aba é só leitura."}, "dados": {"primary": ["Salvar alterações", "manager-02d-billing-identity-saved.html", false], "sec": [["Cancelar", "manager-02-billing-identity-br.html", false]], "hint": "Salva só a aba “Dados de cobrança”."}, "automatica": {"primary": ["Ativar cobrança automática", "manager-07c-auto-billing-pending.html", false], "sec": [], "hint": "Você será levado à página segura do parceiro de pagamento."}};</script>
+      </div>
+    </main>
+  </div>
+
+  <nav class="bottom-nav"><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/agenda/00-agenda.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</a><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/horarios/00-schedule.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Horários</a><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/servicos/01-servicos-list.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>Serviços</a><a class="bottom-nav-item" href="../../../../journeys/staff/prototypes/fidelidade/00-customer-search.html"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>Fidelidade</a>
+    <button class="bottom-nav-item active" onclick="openSheet()"><svg class="bottom-nav-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+  </nav>
+
+  <div class="sheet-backdrop" id="sheet-backdrop" onclick="closeSheet()"></div>
+  <div class="bottom-sheet" id="manager-sheet">
+    <div class="bottom-sheet-handle"></div>
+    <p class="bottom-sheet-label">Somente Gerente</p>
+    <a class="bottom-sheet-item active" href="manager-01-billing-active.html"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Assinatura</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/resources/01-resources-list.html"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>Recursos</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/equipe/01-team-list.html"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Equipe</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/configuracoes/01-settings-form.html"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a><a class="bottom-sheet-item" href="../../../../journeys/manager/prototypes/hotsite/01-hotsite-editor.html"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Hotsite</a>
+    <div style="padding:0.75rem 1.25rem;border-top:1px solid var(--ba-secondary);margin-top:0.25rem;">
+      <a href="../../../../journeys/shared/staff-login.html" style="display:flex;align-items:center;gap:0.875rem;color:#dc2626;font-size:0.9375rem;font-weight:500;text-decoration:none;"><svg class="" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>Sair</a>
+    </div>
+  </div>
+  <script>
+    function openSheet() { document.getElementById('manager-sheet').classList.add('open'); document.getElementById('sheet-backdrop').classList.add('open'); }
+    function closeSheet() { document.getElementById('manager-sheet').classList.remove('open'); document.getElementById('sheet-backdrop').classList.remove('open'); }
+  </script>
+<script>
+    function showTab(name, btn) {
+      document.querySelectorAll('.editor-panel').forEach(function (el) { el.classList.remove('active'); });
+      document.querySelectorAll('.editor-tab').forEach(function (el) { el.classList.remove('active'); el.setAttribute('aria-selected', 'false'); });
+      document.getElementById('panel-' + name).classList.add('active');
+      btn.classList.add('active');
+      btn.setAttribute('aria-selected', 'true');
+      curTab = name;
+      updateAside(name);
+    }
+    function updateAside(name) {
+      var p = PANE[name], el = document.getElementById('aside-primary');
+      if (!el) return;
+      var tb = document.getElementById('aside-total-box'); if (tb) tb.style.display = (name === 'plano' && typeof PLAN !== 'undefined' && !PLAN.readonly) ? '' : 'none';
+      if (name === 'plano' && p.primary && typeof planCanSave === 'function' && PS) p.primary[2] = !planCanSave();
+      var sec = document.getElementById('aside-secondary');
+      if (p.primary) { el.style.display = 'block'; el.textContent = p.primary[0]; el.href = p.primary[1]; el.setAttribute('aria-disabled', p.primary[2] ? 'true' : 'false'); el.style.opacity = p.primary[2] ? '.45' : ''; el.style.pointerEvents = p.primary[2] ? 'none' : ''; } else { el.style.display = 'none'; }
+      sec.innerHTML = p.sec.map(function (x) { return '<a class="btn-secondary pane-sec' + (x[2] ? ' danger' : '') + '" href="' + x[1] + '">' + x[0] + '</a>'; }).join('');
+      document.getElementById('aside-hint').textContent = p.hint;
+    }
+    document.addEventListener('DOMContentLoaded', function () { var t = document.querySelector('.editor-tab.active'); if (t) curTab = t.dataset.tab; if (typeof PLAN !== 'undefined') planInit(); if (t) updateAside(t.dataset.tab); });
+    function gotoTab(name) { showTab(name, document.getElementById('tab-' + name)); }
+    function goPage(n) {
+      var p1 = document.getElementById('pg-1'), p2 = document.getElementById('pg-2');
+      if (!p1 || !p2) return;
+      p1.style.display = n === 1 ? '' : 'none'; p2.style.display = n === 2 ? '' : 'none';
+      document.getElementById('pg-info').textContent = n === 1 ? '1–5 de 8 cobranças' : '6–8 de 8 cobranças';
+      var pv = document.getElementById('pg-prev'), nx = document.getElementById('pg-next');
+      pv.disabled = n === 1; pv.style.opacity = n === 1 ? '.5' : ''; nx.disabled = n === 2; nx.style.opacity = n === 2 ? '.5' : '';
+    }
+  
+    var curTab = 'resumo';
+    var PS = null;
+    function fmt(n) { return PLAN.us ? 'US$ ' + n.toFixed(2) : 'R$ ' + n.toFixed(2).replace('.', ','); }
+    function fdef(k) { return PLAN.feats.filter(function (f) { return f.key === k; })[0]; }
+    function featPrice(f) { return f.key === 'CHATBOT' ? PLAN.tierPrice[PS.tier] : f.price; }
+    function planInit() {
+      if (typeof PLAN === 'undefined') return;
+      PS = { on: {}, tier: PLAN.tier };
+      PLAN.feats.forEach(function (f) { PS.on[f.key] = f.on; });
+      planRefresh();
+    }
+    function toggleFeat(k) {
+      var el = document.getElementById('tg-' + k);
+      if (!el || el.disabled) return;
+      PS.on[k] = !PS.on[k]; planRefresh();
+    }
+    function setTier(t) { var r = document.querySelector('#tier-' + t + ' input'); if (r && r.disabled) return; PS.tier = t; planRefresh(); }
+    function resetPlan() {
+      PLAN.feats.forEach(function (f) { PS.on[f.key] = f.on0; }); PS.tier = PLAN.tier0; planRefresh();
+    }
+    function planTotal() { var s = 0; PLAN.feats.forEach(function (f) { if (PS.on[f.key]) s += featPrice(f); }); return s; }
+    function planBaseTotal() { var s = 0; PLAN.feats.forEach(function (f) { if (f.on0) s += (f.key === 'CHATBOT' ? PLAN.tierPrice[PLAN.tier0] : f.price); }); return s; }
+    function planDirty() { return PLAN.feats.some(function (f) { return PS.on[f.key] !== f.on0; }) || PS.tier !== PLAN.tier0; }
+    var planErrors = [];
+    function planCanSave() { return !PLAN.readonly && planDirty() && planErrors.length === 0; }
+    function planRefresh() {
+      var M = PLAN.msg, errs = [];
+      PLAN.feats.forEach(function (f) {
+        var k = f.key, on = PS.on[k], dis = false, note = '', err = '';
+        var unmet = f.req.filter(function (r) { return !PS.on[r]; });
+        var dependents = PLAN.feats.filter(function (g) { return PS.on[g.key] && g.req.indexOf(k) >= 0; });
+        if (PLAN.readonly) { dis = true; note = M.ro; }
+        else if (PLAN.notrem[k] && f.on0 && !PLAN.trial) { if (on) { dis = true; note = M.notrem + PLAN.notrem[k] + '.'; } }
+        else if (PLAN.lockAdd && !f.on0 && !on) { dis = true; note = M.lockAdd; }
+        else if (!on && unmet.length) { dis = true; note = M.needs + PLAN.names[unmet[0]] + M.needsOn; }
+        if (PLAN.notrem[k] && f.on0 && !PLAN.trial && !PLAN.readonly && on) { dis = true; note = M.notrem + PLAN.notrem[k] + '.'; }
+        if (on && unmet.length) { err = f.name + M.depErr + PLAN.names[unmet[0]] + M.depErr2; }
+        if (!on && dependents.length) { err = PLAN.names[dependents[0].key] + M.dependents; }
+        var tg = document.getElementById('tg-' + k);
+        tg.classList.toggle('on', on); tg.setAttribute('aria-checked', on ? 'true' : 'false'); tg.disabled = dis;
+        var n = document.getElementById('note-' + k); n.textContent = note; n.style.display = note ? '' : 'none';
+        var e = document.getElementById('err-' + k); e.innerHTML = err; e.style.display = err ? '' : 'none';
+        document.getElementById('pc-' + k).classList.toggle('has-err', !!err);
+        if (err) errs.push(err);
+      });
+      if (!PLAN.feats.some(function (f) { return PS.on[f.key]; })) errs.push(M.atLeast);
+      planErrors = errs;
+      // tier radios
+      var ch = PS.on['CHATBOT'];
+      ['B', 'P'].forEach(function (t) {
+        var lab = document.getElementById('tier-' + t), r = lab.querySelector('input');
+        var dis = PLAN.readonly || !ch || (t === 'B' && PLAN.tier0 === 'P' && !!PLAN.notrem['CHATBOT'] && !PLAN.trial) || (t === 'P' && PLAN.lockAdd && PLAN.tier0 === 'B');
+        r.disabled = dis; r.checked = PS.tier === t; lab.classList.toggle('on', PS.tier === t); lab.classList.toggle('dis', dis);
+      });
+      // preview
+      var li = '', delta;
+      PLAN.feats.forEach(function (f) {
+        var k = f.key;
+        if (PS.on[k] && !f.on0) li += '<li><strong>' + f.name + (k === 'CHATBOT' && PS.tier === 'P' ? ' Plus' : '') + '</strong>: ' + (PLAN.trial ? M.addTrial + PLAN.next : M.add + PLAN.next) + ' <strong>+ ' + fmt(featPrice(f)) + '</strong></li>';
+        else if (!PS.on[k] && f.on0) li += '<li><strong>' + f.name + '</strong>: ' + (PLAN.trial ? M.remTrial : M.rem + PLAN.end) + ' <strong>− ' + fmt(k === 'CHATBOT' ? PLAN.tierPrice[PLAN.tier0] : f.price) + '</strong></li>';
+        else if (k === 'CHATBOT' && PS.on[k] && f.on0 && PS.tier !== PLAN.tier0) {
+          var d = PLAN.tierPrice[PS.tier] - PLAN.tierPrice[PLAN.tier0];
+          li += '<li>' + (PS.tier === 'P' ? (PLAN.trial ? M.upTrial : M.up + PLAN.next) : (PLAN.trial ? M.downTrial : M.down + PLAN.end)) + ' <strong>' + (d > 0 ? '+ ' : '− ') + fmt(Math.abs(d)) + '</strong></li>';
+        }
+      });
+      document.getElementById('pv-list').innerHTML = li || '<li style="list-style:none;margin-left:-1.125rem;">' + M.none + '</li>';
+      var tot = planTotal(), base = planBaseTotal();
+      var tt = '<strong>' + fmt(tot) + '</strong> <span class="muted" style="font-weight:400;">' + M.perMonth + '</span>' + (tot !== base ? ' <span class="muted" style="font-weight:400;">(' + M.before + ' ' + fmt(base) + ')</span>' : '');
+      document.getElementById('pv-total').innerHTML = tt;
+      document.getElementById('pv-note').textContent = (planDirty() && PLAN.reissue) ? M.reissue : '';
+      var save = document.getElementById('plan-save');
+      if (save) save.setAttribute('aria-disabled', planCanSave() ? 'false' : 'true');
+      var dot = document.querySelector('#tab-plano .tab-dirty-dot'); if (dot) dot.classList.toggle('on', planDirty());
+      var at = document.getElementById('aside-total'); if (at) at.innerHTML = tt;
+      if (curTab === 'plano') updateAside('plano');
+    }
+  </script>
+</body>
+</html>
