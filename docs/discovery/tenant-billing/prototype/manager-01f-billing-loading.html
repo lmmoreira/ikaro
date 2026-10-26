@@ -74,7 +74,11 @@
     
   
     /* --- Assinatura page: tabs (same shape as servicos/03-service-edit.html + hotsite editor) --- */
-    .bill-wrap { max-width:52rem; }
+    .bill-wrap { min-width:0; }
+    @media (min-width:1024px) { .bill-wrap .form-actions, .bill-wrap .foot-links { display:none !important; } }
+    .pane-hint { font-size:0.8125rem; opacity:0.6; color:var(--ba-text); line-height:1.5; margin:0.75rem 0 0; }
+    .pane-sec { display:block; text-align:center; text-decoration:none; padding:0.75rem; margin-bottom:0.625rem; }
+    .pane-divider { margin-top:1rem; padding-top:1rem; border-top:1px solid var(--ba-secondary); }
     .editor-tabs { display:flex; gap:0.25rem; padding:0 0 1rem; border-bottom:1px solid var(--ba-secondary); margin-bottom:1.25rem; overflow-x:auto; }
     .editor-tab { padding:0.625rem 1rem; border-radius:var(--ba-radius) var(--ba-radius) 0 0; font-size:0.9375rem; font-weight:600; border:none; background:none; color:var(--ba-text); opacity:0.5; cursor:pointer; white-space:nowrap; font-family:inherit; }
     .editor-tab.active { opacity:1; color:var(--ba-primary); border-bottom:2px solid var(--ba-primary); margin-bottom:-1px; }
@@ -102,6 +106,7 @@
     FOCUS:     BillingPage com skeletons (verificar shared/components/ui antes de criar um)
     BFF CALL:  GET /v1/billing/summary (em andamento) ; GET /v1/billing/charges?page=1&limit=5 (em andamento)
     Estado: Barra de abas visível; skeleton no painel em vez de spinner de página inteira; sem ações (nenhum botão) até o resumo chegar.
+    ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
     Single primary action on this tab: nenhuma enquanto carrega.
   -->
 
@@ -136,12 +141,13 @@
 
     <main class="main-content" style="padding-bottom:5.5rem;">
       <div class="dashboard-body">
-<div class="bill-wrap"><div class="page-title-row"><h2>Assinatura</h2><div class="skel" style="width:4.5rem;height:1.5rem;"></div></div><div class="editor-tabs" role="tablist" aria-label="Assinatura"><button type="button" class="editor-tab active" id="tab-resumo" data-tab="resumo" role="tab" aria-selected="true" aria-controls="panel-resumo" onclick="showTab('resumo', this)"><span class="tab-label-full">Resumo</span><span class="tab-label-short">Resumo</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-cobrancas" data-tab="cobrancas" role="tab" aria-selected="false" aria-controls="panel-cobrancas" onclick="showTab('cobrancas', this)"><span class="tab-label-full">Cobranças</span><span class="tab-label-short">Cobranças</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-dados" data-tab="dados" role="tab" aria-selected="false" aria-controls="panel-dados" onclick="showTab('dados', this)"><span class="tab-label-full">Dados de cobrança</span><span class="tab-label-short">Dados</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-automatica" data-tab="automatica" role="tab" aria-selected="false" aria-controls="panel-automatica" onclick="showTab('automatica', this)"><span class="tab-label-full">Cobrança automática</span><span class="tab-label-short">Automática</span><span class="tab-dirty-dot" aria-hidden="true"></span></button></div>
+<div class="detail-layout"><div class="bill-wrap"><div class="page-title-row"><h2>Assinatura</h2><div class="skel" style="width:4.5rem;height:1.5rem;"></div></div><div class="editor-tabs" role="tablist" aria-label="Assinatura"><button type="button" class="editor-tab active" id="tab-resumo" data-tab="resumo" role="tab" aria-selected="true" aria-controls="panel-resumo" onclick="showTab('resumo', this)"><span class="tab-label-full">Resumo</span><span class="tab-label-short">Resumo</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-cobrancas" data-tab="cobrancas" role="tab" aria-selected="false" aria-controls="panel-cobrancas" onclick="showTab('cobrancas', this)"><span class="tab-label-full">Cobranças</span><span class="tab-label-short">Cobranças</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-dados" data-tab="dados" role="tab" aria-selected="false" aria-controls="panel-dados" onclick="showTab('dados', this)"><span class="tab-label-full">Dados de cobrança</span><span class="tab-label-short">Dados</span><span class="tab-dirty-dot" aria-hidden="true"></span></button><button type="button" class="editor-tab" id="tab-automatica" data-tab="automatica" role="tab" aria-selected="false" aria-controls="panel-automatica" onclick="showTab('automatica', this)"><span class="tab-label-full">Cobrança automática</span><span class="tab-label-short">Automática</span><span class="tab-dirty-dot" aria-hidden="true"></span></button></div>
 <div class="editor-panel active" id="panel-resumo" role="tabpanel" aria-labelledby="tab-resumo"><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section></div>
 <div class="editor-panel" id="panel-cobrancas" role="tabpanel" aria-labelledby="tab-cobrancas"><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section></div>
 <div class="editor-panel" id="panel-dados" role="tabpanel" aria-labelledby="tab-dados"><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section></div>
 <div class="editor-panel" id="panel-automatica" role="tabpanel" aria-labelledby="tab-automatica"><section class="section-card" aria-busy="true"><div class="skel" style="width:30%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:55%;height:0.875rem;margin-bottom:1.25rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:1rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:70%;height:1rem;"></div></section></div>
-</div>
+</div><aside class="detail-aside" aria-label="Ações da assinatura"><div class="card" style="padding:1.25rem;"><div class="skel" style="width:35%;height:0.75rem;margin-bottom:0.75rem;"></div><div class="skel" style="width:100%;height:2.75rem;margin-bottom:0.625rem;"></div><div class="skel" style="width:100%;height:2.5rem;margin-bottom:0.625rem;"></div></div></aside></div>
+<script>var PANE = {"resumo": {"primary": null, "sec": [], "hint": "Carregando a assinatura…"}, "cobrancas": {"primary": null, "sec": [], "hint": "Carregando a assinatura…"}, "dados": {"primary": null, "sec": [], "hint": "Carregando a assinatura…"}, "automatica": {"primary": null, "sec": [], "hint": "Carregando a assinatura…"}};</script>
       </div>
     </main>
   </div>
@@ -170,7 +176,17 @@
       document.getElementById('panel-' + name).classList.add('active');
       btn.classList.add('active');
       btn.setAttribute('aria-selected', 'true');
+      updateAside(name);
     }
+    function updateAside(name) {
+      var p = PANE[name], el = document.getElementById('aside-primary');
+      if (!el) return;
+      var sec = document.getElementById('aside-secondary');
+      if (p.primary) { el.style.display = 'block'; el.textContent = p.primary[0]; el.href = p.primary[1]; el.setAttribute('aria-disabled', p.primary[2] ? 'true' : 'false'); el.style.opacity = p.primary[2] ? '.45' : ''; el.style.pointerEvents = p.primary[2] ? 'none' : ''; } else { el.style.display = 'none'; }
+      sec.innerHTML = p.sec.map(function (x) { return '<a class="btn-secondary pane-sec' + (x[2] ? ' danger' : '') + '" href="' + x[1] + '">' + x[0] + '</a>'; }).join('');
+      document.getElementById('aside-hint').textContent = p.hint;
+    }
+    document.addEventListener('DOMContentLoaded', function () { var t = document.querySelector('.editor-tab.active'); if (t) updateAside(t.dataset.tab); });
     function gotoTab(name) { showTab(name, document.getElementById('tab-' + name)); }
     function goPage(n) {
       var p1 = document.getElementById('pg-1'), p2 = document.getElementById('pg-2');
