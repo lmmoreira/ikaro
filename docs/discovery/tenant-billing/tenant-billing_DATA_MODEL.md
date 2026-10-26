@@ -9,7 +9,7 @@
 The schema serves five reads: (1) the **access check** on every request/send (by `tenant_id`, hot, cached), (2) the **billing page** (summary + paginated charges), (3) the **cross-tenant jobs** (charge issuing, status sweep, reconcile, purge) that cannot seek by `tenant_id`, (4) **webhook dedupe and tenant resolution**, (5) the **public price list**.
 
 Database-expert findings applied:
-- **Snapshot, one level:** items carry **no price**. The list price (`feature_prices`) is read when a charge is issued and copied into `charge_lines.unit_price_minor`, so a later list change never rewrites an issued charge (same idea as `BookingLine.priceAtBooking`). Prices referenced by an active item are never deleted, only deactivated.
+- **Snapshot, one level:** items carry **no price**. The list price in force on the issue date (`feature_price_versions`) is read when a charge is issued and copied into `charge_lines.unit_price_minor`, so a later list change never rewrites an issued charge (same idea as `BookingLine.priceAtBooking`). Prices referenced by an active item are never deleted, only deactivated.
 - **One denormalization:** `charges.amount_minor` is a cached sum of its lines. It exists because the provider bills a single number that must equal what the tenant is shown, and the history list should not aggregate lines per row. It is written once at issue time and never edited (a price change creates a new charge).
 - **Aggregate boundary:** `charges` are not a child of `subscriptions` (one per period forever = unbounded). Paying a charge may reactivate the subscription: same-context, one transaction, row lock on the subscription (`findByIdForUpdate`); status is recomputable by the reconcile job.
 - **Cross-tenant job indexes** (CLAUDE.md rule): a tenant-first composite index cannot be seeked without `tenant_id`, so each cron has its own standalone index.
@@ -27,13 +27,30 @@ Database-expert findings applied:
 | `tier` | text NOT NULL DEFAULT `'STANDARD'` | `BASIC`/`PLUS` for `CHATBOT`; `STANDARD` elsewhere |
 | `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | only `MONTHLY` accepted in v1 (CHECK); column exists so annual can be added |
 | `currency` | char(3) NOT NULL | BR→BRL, US→USD (validated by the VO) |
-| `amount_minor` | bigint NOT NULL CHECK (>= 0) | centavos / cents |
 | `active` | boolean NOT NULL DEFAULT true | deactivating never touches existing items |
 | `created_at`, `updated_at` | timestamptz | |
 
 - `UNIQUE(feature_key, country_code, tier, cycle)`.
 - **Tenant-id exemption:** global operator data with no tenant owner, same justification as `platform.chatbot_provider_balance`. To be listed in `DATABASE_SCHEMA.md` § exemptions on promotion.
+- The **amount** lives in `feature_price_versions` (below), so a price change is a new dated row, never an in-place edit.
 - Read: `WHERE country_code = :c AND active` (public price endpoint) — table is tiny; the unique index covers it.
+
+### `billing.feature_price_versions` — dated amounts (exempt from `tenant_id`, same justification)
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `feature_price_id` | uuid NOT NULL | FK → `feature_prices(id)` |
+| `amount_minor` | bigint NOT NULL CHECK (>= 0) | centavos / cents |
+| `effective_from` | date NOT NULL | the **first charge issued on or after this date** uses the amount |
+| `announced_at` | timestamptz NULL | when the managers were notified (NULL for the seed versions) |
+| `created_by` | text NOT NULL | operator id |
+| `reason` | text NOT NULL | |
+| `created_at` | timestamptz NOT NULL | |
+
+- `UNIQUE(feature_price_id, effective_from)`; read the amount in force with `ORDER BY effective_from DESC` where `effective_from <= :issueDate` (index on `(feature_price_id, effective_from DESC)`).
+- A not-yet-effective version can be **superseded** by a new version for the same price (the pending row is replaced and managers are notified again). Versions already in effect are immutable history.
+- Growth: one row per price change, negligible.
 
 ### `billing.billing_accounts` — one per tenant
 
@@ -183,7 +200,7 @@ Cross-tenant job indexes (standalone, partial):
 ## 4. Migration ordering
 
 1. Create schema `billing` and tables (expand only, no existing table touched).
-2. Seed `feature_prices` (illustrative values; real prices are an operator decision).
+2. Seed `feature_prices` and one `feature_price_versions` row each, `effective_from` = release date (illustrative values; real prices are an operator decision).
 3. Backfill existing tenants (CAND-21): `ACTIVE`, all features, `exempt = true` (real tenants created later start as `TRIALING` through CAND-01; Ikaro's own tenant is `exempt = true` too). Idempotent; per the migration-backfill rule the endpoints are not live traffic yet, but the backfill runs in the same release anyway so no tenant is ever without a row.
 4. Add the Billing notification templates.
 5. Deploy code with enforcement behind **fail-open** so a gap in step 3 cannot lock anyone out.
@@ -202,6 +219,7 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 | `SubscriptionPastDue` | `subscriptionId`, `pastDueSince`, `suspendsAt` | Notification |
 | `SubscriptionSuspended` | `subscriptionId`, `reason`, `suspendedAt`, `purgeAt` | Notification; hotsite revalidation |
 | `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt` | Notification; hotsite revalidation |
+| `SubscriptionPriceChangeAnnounced` | `featureKey`, `tier`, `oldAmountMinor`, `newAmountMinor`, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` — **one event per affected tenant** (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
 | `TenantPurgeRequested` | `tenantId`, `reason` | every bounded context (each deletes its own data), storage cleanup |
 
 If the provider already notifies payers about issued/paid/overdue charges, the first three events and their handlers are removed.

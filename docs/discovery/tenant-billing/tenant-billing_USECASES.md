@@ -107,14 +107,18 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 ### **CAND-07: Operator Maintains the List Prices (`FeaturePrice`)**
 - **Actor:** Operator.
 - **Preconditions:** None.
-- **Trigger:** Operator upserts a price row: `featureKey`, `countryCode`, `tier`, `cycle`, `amountMinor`, `currency`, `active`.
-- **Main Flow:** The row is created/updated; the public price endpoint and the Plano tab serve the new value immediately; every tenant's next *issued* charge uses it (R4); already-issued and paid charges are untouched.
+- **Trigger:** Operator creates a price (`featureKey`, `countryCode`, `tier`, `cycle`, first `amountMinor`, `currency`) or schedules a price change (`amountMinor`, `effectiveFrom`, `reason`) through the operator-only endpoint (optionally `dryRun`).
+- **Main Flow:** A dry run lists the affected tenants (`ACTIVE`/`PAST_DUE`, active item for that feature and tier in that country, not `exempt`) without saving. Without dry run, one transaction writes a dated `feature_price_versions` row and one `SubscriptionPriceChangeAnnounced` outbox event per affected tenant. The first charge issued on or after `effectiveFrom` uses the new amount (R4); already-issued and paid charges are untouched. The Plano tab and public prices show the current amount and the upcoming one.
 - **Alternative Flows:**
   - **A1: Currency does not match the country** (BR must be BRL, US must be USD in v1) → rejected.
   - **A2: Deactivating a price in use** → allowed; existing items unaffected; new subscriptions cannot use it.
   - **A3: Cycle other than `MONTHLY`** → rejected in v1.
-- **Postconditions:** List price available.
-- **Events Triggered:** None.
+  - **A4: Increase with less than `PRICE_CHANGE_MIN_NOTICE_DAYS` (default 30) of notice** → rejected (`BILLING_PRICE_NOTICE_TOO_SHORT`); decreases may take effect today.
+  - **A5: A pending (not yet effective) version already exists for this price** → it is superseded by the new one and managers are notified again with the new date.
+  - **A6: No affected tenants** → version saved, no events.
+  - **A7: Same amount as the current one** → rejected (nothing to change).
+- **Postconditions:** Price available / scheduled; affected managers notified.
+- **Events Triggered:** `SubscriptionPriceChangeAnnounced` (one per affected tenant).
 
 ---
 
@@ -125,7 +129,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Preconditions:** Subscription `TRIALING` or `ACTIVE`, not cancelling, due date within 10 days.
 - **Trigger:** Daily cron.
 - **Main Flow:**
-  1. For each due subscription (standalone index on `(status, next_due_date)`), compute the lines from the active items for the next period.
+  1. For each due subscription (standalone index on `(status, next_due_date)`), compute the lines from the active items for the next period, reading each amount from the price **version in force on the issue date**.
   2. Insert the `Charge` and its lines (`UNIQUE(tenant_id, subscription_id, period_start)` makes a re-run idempotent), then — outside the DB transaction — ask the provider (via the port) to create the charge and store its id and payment link.
 - **Alternative Flows:**
   - **A1: Subscription is `exempt`** (Ikaro's own tenant, staging) → no charge created.
@@ -282,7 +286,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 ### **CAND-19: Billing Emails to the Manager**
 - **Actor:** System (one event handler per event; each handler calls exactly one use case).
 - **Preconditions:** Template exists in the tenant's language (pt-BR/en) — seeded for new tenants and backfilled for existing ones.
-- **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated` (the first three are dropped if the provider already emails payers).
+- **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated` (the first three are dropped if the provider already emails payers), and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …").
 - **Main Flow:** Resolve recipients (billing email, else the tenant's managers), render, send, log.
 - **Alternative Flows:**
   - **A1: Template missing** → fail with alert; no silent drop.

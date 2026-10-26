@@ -38,7 +38,8 @@ GET /v1/billing/summary
   "totalMinor": 8800,
   "openCharge": { "id": "…", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true } | null,
   "autoBilling": { "mode": "NONE" | "CARD" | "PIX_AUTOMATICO", "label": "Cartão final 4242" | null },
-  "paymentConfirmationPending": false
+  "paymentConfirmationPending": false,
+  "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":3900,"newAmountMinor":4900,"effectiveFrom":"2026-12-10" } ]
 }
 
 GET /v1/billing/charges?limit=20&offset=0
@@ -117,7 +118,8 @@ POST /v1/public/signup/tenant
 | `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
 | `POST /internal/billing/webhooks/asaas` | normalized processing of the provider webhook | 09 |
-| `PUT /internal/billing/feature-prices` | upsert list prices | 07 |
+| `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or deactivate it | 07 |
+| `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | **schedule a price change** `{ amountMinor, effectiveFrom, reason }`; operator-only; announces it to every affected manager | 07 |
 | `POST /internal/tenants/{tenantId}/billing/charges/{chargeId}/mark-paid` | manual payment | 05 |
 | `POST /internal/tenants/{tenantId}/billing/grace` \| `/suspend` \| `/reactivate` | operator controls | 06 |
 | `GET /internal/billing/tenants?status=` | operator list: status, overdue age, last charge | 06 |
@@ -136,6 +138,18 @@ Operator calls run from the script/relay path exactly like `scripts/provision-te
 | `POST /cron/billing-ops-digest` | daily overdue/suspended list to Ikaro's ops manager | alerts |
 
 All idempotent; each takes explicit `tenantId`s from queries (no `RequestContext`); provider calls never inside `txManager.run()`.
+
+### Price-change endpoint (operator only)
+
+```
+POST /internal/billing/feature-prices/CHATBOT/BR/PLUS/versions?dryRun=true
+  Body: { "amountMinor": 4900, "effectiveFrom": "2026-12-10", "reason": "annual adjustment" }
+  200 { "affectedTenants": 14, "currency": "BRL", "oldAmountMinor": 3900, "newAmountMinor": 4900,
+        "minNoticeDays": 30, "effectiveFrom": "2026-12-10" }          // dryRun: nothing saved, nothing sent
+  Without dryRun: 201 { "versionId": "…", "affectedTenants": 14, "announced": true }
+  422 BILLING_PRICE_NOTICE_TOO_SHORT  (an increase must be effective at least PRICE_CHANGE_MIN_NOTICE_DAYS from today; decreases may start today)
+```
+It runs through the operator path (script / relay) like the other internal operator routes: `InternalApiGuard` + `PlatformAdminGuard`, audited. The affected tenants are those in `ACTIVE` or `PAST_DUE` with an active item for that feature and tier in that country, and not `exempt`. Trial tenants see the new price on the Plano tab; suspended tenants are not notified. In **one transaction** it writes the version and one outbox event `SubscriptionPriceChangeAnnounced` per affected tenant; the Notification handler sends the email (no network I/O in the transaction). `GET /v1/public/billing/prices` and the Plano tab show the current amount and, when a future version exists, an `upcoming: { amountMinor, effectiveFrom }`.
 
 ## 7. Provider port (Ikaro's terms)
 
@@ -156,7 +170,7 @@ Adapters: `AsaasBillingProvider` (BRL), `ManualBillingProvider` (operator marks 
 
 ## 8. New error codes (each needs entries in both `packages/i18n/locales/{pt-BR,en}/errors.json`, CI-enforced)
 
-`FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_ALREADY_ACTIVE`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_FEATURE_NOT_REMOVABLE_YET`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TRIAL_ALREADY_ACTIVE`, `SIGNUP_RATE_LIMITED`, `TURNSTILE_FAILED` (reuse the existing code if one exists).
+`FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_ALREADY_ACTIVE`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_FEATURE_NOT_REMOVABLE_YET`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TRIAL_ALREADY_ACTIVE`, `SIGNUP_RATE_LIMITED`, `TURNSTILE_FAILED` (reuse the existing code if one exists).
 
 ## 9. Declarative gating metadata
 

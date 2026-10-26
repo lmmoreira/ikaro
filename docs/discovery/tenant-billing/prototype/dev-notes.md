@@ -4,7 +4,7 @@
 
 ## Overview
 
-56 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
+57 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
 
 ## What is real vs invented
 
@@ -156,6 +156,9 @@ Blue alert "Recorrência foi adicionada neste ciclo" / "Ela só pode ser removid
 
 ## Screen 29 — Plano save error — manager-08h-plan-save-error.html
 `PUT /v1/billing/plan` 5xx (A9): red alert "Não foi possível salvar o plano" / "Algo deu errado do nosso lado e nada foi alterado. Sua seleção foi mantida; tente novamente em instantes."; selection and preview kept; "Salvar plano" stays enabled. If only the provider re-issue of the open charge fails (A8) the plan IS saved and the retry happens server-side — no UI state.
+
+## Screen 30 — Price-change notice (Resumo + Plano tabs) — manager-01k-billing-price-change-notice.html
+Operator-only price changes are dated and announced (`tenant-billing_API.md` "Price-change endpoint", `feature_price_versions`, CAND-07/19); managers get an email AND see it in the product. **Component:** `PriceChangeNotice` (GAP, info alert at the top of `ResumoTab`); `FeatureLineItems` shows the current price struck/muted plus "R$ 49,00 a partir de 10/12"; `FeatureToggleCard` shows a read-only note "Novo valor a partir de 10/12: R$ 49,00 por mês" (no extra buttons). **BFF:** `GET /v1/billing/summary` gains `upcomingPriceChanges: [{ featureKey, tier, currentAmountMinor, newAmountMinor, effectiveFrom }]`; `GET /v1/billing/plan` items gain `upcoming` (same shape, per item). **Copy:** "Aviso de reajuste" / "O valor de Chatbot (plano Básico) passa de R$ 39,00 para R$ 49,00 a partir de 10/12/2026. Seu novo total mensal será R$ 225,00 a partir da primeira cobrança emitida nessa data." (new total = current R$ 215,00 + R$ 10,00). Single primary stays "Pagar agora". Not dismissible; disappears once the change takes effect. The Plano preview/total keeps using the current price until `effectiveFrom` (open question: show the new price in the live total if the next charge is issued after it).
 
 ## Known limitations / notes for the lead
 - "Falar com a gente" links to `journeys/shared/hotsite.html` as a stand-in for Ikaro's own booking page.
