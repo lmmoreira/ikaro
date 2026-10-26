@@ -1,6 +1,7 @@
 import { utcDateToLocalDate, utcDateToLocalHHMM } from '../../../../shared/utils/calendar-date';
 import type { ScheduleClosure } from '../schedule-closure.aggregate';
-import type { WindowHoursVerdict } from './availability.service';
+
+export type WindowHoursVerdict = 'FREE' | 'CLOSED' | 'OUTSIDE_HOURS';
 
 export interface DayHoursWindow {
   open: string;

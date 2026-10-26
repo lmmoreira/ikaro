@@ -10,7 +10,7 @@ import { ResourceOccupiedSlot } from '../resource-occupied-slot';
 import { Resource } from '../resource.aggregate';
 import { ScheduleClosure } from '../schedule-closure.aggregate';
 import { ScheduleOpening } from '../schedule-opening.aggregate';
-import { hhmmOverlaps, windowVerdictWithinDay } from './window-day-verdict';
+import { hhmmOverlaps, WindowHoursVerdict, windowVerdictWithinDay } from './window-day-verdict';
 
 export interface ServiceDuration {
   durationMinutes: number;
@@ -64,7 +64,7 @@ export type WindowScheduleContext = Pick<
   'resource' | 'closures' | 'opening' | 'resourceOpening'
 >;
 
-export type WindowHoursVerdict = 'FREE' | 'CLOSED' | 'OUTSIDE_HOURS';
+export type { WindowHoursVerdict };
 
 export class AvailabilityService {
   calculate(input: AvailabilityInput): AvailableSlot[] {
