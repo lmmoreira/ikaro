@@ -1,5 +1,8 @@
 import {
+  addDaysUTC,
   getUtcWeekDayName,
+  localDateTimeToUTCIso,
+  todayUTC,
   utcDateToLocalDate,
   utcDateToLocalHHMM,
 } from '../../shared/utils/calendar-date';
@@ -39,31 +42,32 @@ export function nextWeekday(utcDayOfWeek: 0 | 1 | 2 | 3 | 4 | 5 | 6, weeksAhead 
 // The default test tenant (TenantSettings.default(): America/Sao_Paulo, Monday–Saturday open,
 // Sunday closed) refuses a booking on a closed day or outside its hours. These return a start the
 // tenant is open for, so a spec that only needs "a valid booking time" never depends on today's
-// weekday. 13:00Z is 10:00 in America/Sao_Paulo, inside every open day's hours.
-const OPEN_SLOT_UTC_TIME = 'T13:00:00.000Z';
+// weekday. 10:00 tenant-local is inside every open day's hours.
+const OPEN_SLOT_LOCAL_HOUR = 10;
 
 // The nth day after today (n >= 1) the default test tenant is open. Two different n are always two
 // different dates, so specs that need separate days (to avoid contending for the same resource)
 // pass separate n.
 export function openDate(nthOpenDay = 1): string {
-  const d = new Date();
+  let date = todayUTC();
   let remaining = nthOpenDay;
   do {
-    d.setUTCDate(d.getUTCDate() + 1);
-    if (d.getUTCDay() !== 0) remaining -= 1;
+    date = addDaysUTC(date, 1);
+    if (DEFAULT_TEST_BUSINESS_HOURS[getUtcWeekDayName(date)]) remaining -= 1;
   } while (remaining > 0);
-  return d.toISOString().slice(0, 10);
+  return date;
 }
 
 export function openSlot(nthOpenDay = 1): string {
-  return `${openDate(nthOpenDay)}${OPEN_SLOT_UTC_TIME}`;
+  return openSlotAt(nthOpenDay, OPEN_SLOT_LOCAL_HOUR);
 }
 
-// openSlot() with the wall-clock hour of the default test tenant (America/Sao_Paulo, UTC-3) chosen
+// openSlot() with the wall-clock hour of the default test tenant (America/Sao_Paulo) chosen
 // by the caller: hours 9–15 are inside every open day's hours for a 30-minute service. A specs's
 // "two bookings at different times on one day" pass different hours.
 export function openSlotAt(nthOpenDay: number, localHour: number): string {
-  return `${openDate(nthOpenDay)}T${String(localHour + 3).padStart(2, '0')}:00:00.000Z`;
+  const time = `${String(localHour).padStart(2, '0')}:00`;
+  return localDateTimeToUTCIso(openDate(nthOpenDay), time, DEFAULT_TEST_BUSINESS_HOURS.timezone);
 }
 
 // The nth (0-based) half-hour start, at least 30 minutes from now, at which the default test tenant

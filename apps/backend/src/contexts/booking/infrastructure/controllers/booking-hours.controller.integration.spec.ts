@@ -12,6 +12,7 @@ import { createBookingIntegrationApp } from '../../../../test/utils/booking-inte
 import { nextWeekday, openDate, openSlotAt } from '../../../../test/utils/date-helpers';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
+import { BookingEntity } from '../entities/booking.entity';
 import { ResourceEntity } from '../entities/resource.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
@@ -230,7 +231,7 @@ describe('booking creation honours hours, closures and openings (integration, TD
     await closeDay(tenantAId, date);
 
     const row = await ds
-      .getRepository('BookingEntity')
+      .getRepository(BookingEntity)
       .findOneByOrFail({ id: body.bookingId, tenantId: tenantAId });
     expect(row).toMatchObject({ id: body.bookingId, status: 'PENDING' });
     const { body: refused } = await route.send(`${date}T15:00:00.000Z`).expect(409);

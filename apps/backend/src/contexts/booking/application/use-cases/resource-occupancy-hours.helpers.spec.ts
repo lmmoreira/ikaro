@@ -1,3 +1,4 @@
+import { localDateTimeToUTCIso } from '../../../../shared/utils/calendar-date';
 import { ServiceBuilder } from '../../../../test/builders/booking/index';
 import { ResourceBuilder } from '../../../../test/builders/booking/resource.builder';
 import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
@@ -29,10 +30,7 @@ const SUNDAY = '2031-03-02';
 
 // A start at the given tenant-local wall-clock time.
 function local(date: string, hhmm: string): Date {
-  const [h, m] = hhmm.split(':').map(Number);
-  return new Date(
-    `${date}T${String(h + 3).padStart(2, '0')}:${String(m).padStart(2, '0')}:00.000Z`,
-  );
+  return new Date(localDateTimeToUTCIso(date, hhmm, TIMEZONE));
 }
 
 function weekdayHours(open: string, close: string): ResourceWorkingHours {
