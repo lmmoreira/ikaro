@@ -128,3 +128,20 @@ export class InvalidTimeRangeError extends BookingDomainError {
     this.name = 'InvalidTimeRangeError';
   }
 }
+
+// TD50 — the requested start is not one availability would offer. Closed covers the whole day
+// (weekday off, full-day closure) and a partial closure or resource closure over the window;
+// outside-hours means the day is open but the window starts before opening or ends after closing.
+export class BookingSlotClosedError extends BookingDomainError {
+  constructor() {
+    super('The business is closed at the requested time', BookingErrorCode.SLOT_CLOSED);
+    this.name = 'BookingSlotClosedError';
+  }
+}
+
+export class BookingOutsideBusinessHoursError extends BookingDomainError {
+  constructor() {
+    super('The requested time is outside business hours', BookingErrorCode.OUTSIDE_BUSINESS_HOURS);
+    this.name = 'BookingOutsideBusinessHoursError';
+  }
+}

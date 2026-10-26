@@ -22,6 +22,8 @@ import {
   BookingTooSoonError,
   BookingServiceNotActiveError,
   BookingServiceNotInTenantError,
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
   BookingSlotUnavailableError,
   CancellationWindowExpiredError,
   ClosureDateInPastError,
@@ -169,6 +171,16 @@ describe('booking domain error subclasses', () => {
       label: 'BookingNotYetEndedError',
       build: () => new BookingNotYetEndedError(new Date('2026-06-16T10:30:00Z')),
       code: BookingErrorCode.NOT_YET_ENDED,
+    },
+    {
+      label: 'BookingSlotClosedError',
+      build: () => new BookingSlotClosedError(),
+      code: BookingErrorCode.SLOT_CLOSED,
+    },
+    {
+      label: 'BookingOutsideBusinessHoursError',
+      build: () => new BookingOutsideBusinessHoursError(),
+      code: BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
     },
     {
       label: 'BookingSlotUnavailableError',

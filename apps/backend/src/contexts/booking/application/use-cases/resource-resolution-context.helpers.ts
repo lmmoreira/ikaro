@@ -3,6 +3,7 @@ import { Resource } from '../../domain/resource.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { IResourceOccupancyRepository } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository } from '../ports/resource-repository.port';
+import type { HoursGate } from './booking-hours-gate.helpers';
 
 // Shared by resource-occupancy.helpers.ts, resource-occupancy-candidate-builders.helpers.ts, and
 // resource-requirement-resolution.helpers.ts (all split out of one file — docs/CODE_STANDARDS.md's
@@ -29,6 +30,10 @@ export interface ResolutionContext {
   // findConflictingResourceIds already has via excludeBookingLineIds. Empty at creation time (the
   // lines are brand new, nothing to exclude).
   excludeBookingLineIds: string[];
+  // TD50 — when set, a resource that is closed or outside its hours for a window counts as
+  // unavailable for that window, so an automatic pick lands on an open resource. Unset (approve,
+  // reschedule, reassign) leaves selection exactly as it was.
+  hoursGate?: HoursGate;
 }
 
 // What a resolution read about the tenant's resources. The worklist's reschedule locks the resources

@@ -34,6 +34,8 @@ import {
   BookingServiceLegsTooFewError,
   BookingServiceResourceTypeUnavailableError,
   BookingServiceSessionNotBookableError,
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
   BookingSlotUnavailableError,
   BookingTooFarAheadError,
   BookingTooSoonError,
@@ -275,6 +277,19 @@ describe('mapBookingError', () => {
     const err = call(new BookingSlotUnavailableError());
     expect(err).toBeInstanceOf(HttpException);
     expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+  });
+
+  it.each([
+    ['BookingSlotClosedError', new BookingSlotClosedError(), BookingErrorCode.SLOT_CLOSED],
+    [
+      'BookingOutsideBusinessHoursError',
+      new BookingOutsideBusinessHoursError(),
+      BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
+    ],
+  ])('maps %s to 409 with its own code', (_label, error, code) => {
+    const err = call(error);
+    expect(err.getStatus()).toBe(HttpStatus.CONFLICT);
+    expect(err.getResponse()).toMatchObject({ code });
   });
 
   it('maps BookingConcurrentModificationError to 409', () => {

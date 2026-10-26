@@ -5,6 +5,7 @@ import {
 } from '../../domain/errors/booking-domain.error';
 import { Resource } from '../../domain/resource.aggregate';
 import { ResourceRequirement } from '../../domain/resource-requirement';
+import { gateVerdict } from './booking-hours-gate.helpers';
 import { ResolutionContext } from './resource-resolution-context.helpers';
 import { filterByResourcePool, isInResourcePool } from './resource-pool.helpers';
 
@@ -112,20 +113,31 @@ async function preferFreeResources(
   requiredQuantity: number,
 ): Promise<Resource[]> {
   if (windowEnd === null || resources.length <= 1) return resources;
-  const windows = resources.map((resource) => ({
-    resourceId: resource.id,
-    startsAt: windowStart,
-    endsAt: new Date(windowEnd.getTime() + effectiveGapMinutes(resource) * 60_000),
-  }));
+  const windowOf = (resource: Resource): { start: Date; end: Date } => ({
+    start: windowStart,
+    end: new Date(windowEnd.getTime() + effectiveGapMinutes(resource) * 60_000),
+  });
+  // TD50: a resource that is closed or outside its hours is as unavailable as a busy one. When
+  // fewer than requiredQuantity are open, the unfiltered list falls through to the verification
+  // that names the hours reason.
+  const gate = ctx.hoursGate;
+  const open = gate
+    ? resources.filter((resource) => gateVerdict(gate, resource, windowOf(resource)) === 'FREE')
+    : resources;
+  const considered = open.length >= requiredQuantity ? open : resources;
   const conflicting = new Set(
     await ctx.occupancyRepo.findConflictingResourceIds(
       ctx.tenantId,
-      windows,
+      considered.map((resource) => ({
+        resourceId: resource.id,
+        startsAt: windowStart,
+        endsAt: windowOf(resource).end,
+      })),
       ctx.excludeBookingLineIds,
     ),
   );
-  const free = resources.filter((resource) => !conflicting.has(resource.id));
-  return free.length >= requiredQuantity ? free : resources;
+  const free = considered.filter((resource) => !conflicting.has(resource.id));
+  return free.length >= requiredQuantity ? free : considered;
 }
 
 // requiredQuantity > 1 combined with CUSTOMER_CHOICE has no named UC example (the "several

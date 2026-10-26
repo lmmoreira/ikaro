@@ -17,7 +17,10 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
+import { futureDate, nextWeekday, openSlot, pastDate } from '../../../../test/utils/date-helpers';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
@@ -26,6 +29,7 @@ import {
   BookingInvalidMultipleVariableServicesError,
   BookingPhotoNotUploadedError,
   BookingServiceSessionNotBookableError,
+  BookingSlotClosedError,
   BookingSlotUnavailableError,
   CustomerPhoneNotSetError,
   BookingScheduledInPastError,
@@ -39,7 +43,7 @@ const TENANT_A = '10000000-0000-4000-8000-000000000200';
 const CUSTOMER_ID = '20000000-0000-4000-8000-000000000001';
 const CORRELATION_ID = 'corr-auth-booking-test';
 
-const scheduledAt = `${futureDate(1)}T10:00:00.000Z`;
+const scheduledAt = openSlot(1);
 
 describe('RequestAuthenticatedBookingUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
@@ -50,6 +54,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
   let eventBus: InMemoryEventBus;
   let customerProfilePort: InMemoryBookingCustomerPort;
   let storageService: InMemoryStorageService;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: RequestAuthenticatedBookingUseCase;
   let serviceId: string;
 
@@ -64,6 +70,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
 
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     useCase = new RequestAuthenticatedBookingUseCase(
       customerProfilePort,
       serviceRepo,
@@ -71,6 +79,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       occupancyRepo,
       intakeSchemaRepo,
       new AvailabilityService(),
+      closureRepo,
+      openingRepo,
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       new BookingQuoteService(),
@@ -106,6 +116,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     customerId: CUSTOMER_ID,
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
+    businessHours: DEFAULT_TEST_BUSINESS_HOURS,
     tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
   });
 
@@ -179,6 +190,8 @@ describe('RequestAuthenticatedBookingUseCase', () => {
       occupancyRepo,
       intakeSchemaRepo,
       new AvailabilityService(),
+      closureRepo,
+      openingRepo,
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       new BookingQuoteService(),
@@ -442,6 +455,15 @@ describe('RequestAuthenticatedBookingUseCase', () => {
         .execute({ ...baseInput(), scheduledAt: `${futureDate(120)}T10:00:00.000Z` })
         .catch(() => undefined);
 
+      expect(eventBus.published).toHaveLength(0);
+    });
+  });
+
+  describe('working hours (TD50)', () => {
+    it('refuses a customer booking on a closed day and publishes nothing', async () => {
+      await expect(
+        useCase.execute({ ...baseInput(), scheduledAt: `${nextWeekday(0)}T13:00:00.000Z` }),
+      ).rejects.toBeInstanceOf(BookingSlotClosedError);
       expect(eventBus.published).toHaveLength(0);
     });
   });

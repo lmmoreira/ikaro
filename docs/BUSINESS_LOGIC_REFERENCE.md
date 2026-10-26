@@ -302,6 +302,37 @@ Then the occupancy layer:
 
 **`assertPatternConflictFree()`** (`recurring-booking-schedule-request.helpers.ts`) — checks every enumerated occurrence against `resource_occupancy` in a number of queries independent of the occurrence count: the resources that decide the outcome are resolved once, locked once (`lockResources()`), every (resource × occurrence) window — each extended by that resource's own trailing gap, `max(service.bufferAfterMinutes, resource.turnoverMinutes)` — goes into a single `IResourceOccupancyRepository.findConflictingWindows()` query, and the verdict is decided per occurrence in memory. Which resources decide it follows the requirement's `selectionMode`, mirroring what `resolveRequirementResources()` does for a one-off booking: `CUSTOMER_CHOICE` (`FIXED_ASSIGNMENT`) — the caller's pick, validated by the same rules, must be free in every occurrence; `AUTO_ANY` — an occurrence is blocked only when **every** eligible resource is busy in it (the workload tie-break never affects accept/reject), where busy and closed count together: `findCombinedRefusals()` refuses an occurrence when each considered resource is busy or closed in it, whichever mix, so a closed free resource and an open busy one never satisfy the two checks separately; `AUTO_FUNGIBLE_POOL` — like `AUTO_ANY`, an occurrence is blocked only when **every** eligible unit is busy, since a one-off booking now assigns any free unit (M23-S32); only the pick differs (below). Zero occurrences make no queries at all. It sees every already-materialized `Booking` row — a one-off booking or another schedule's materialized occurrence — so two recurring schedules colliding on the same resource are reported here as ordinary `OCCUPIED` entries in the one `conflicts` list (there is no separate schedule-versus-schedule check: M23-S05 removed it, because once every `ACTIVE` schedule holds its occurrences this check alone catches the collision).
 
+### One-off bookings — hours, closures and resource selection (TD50)
+
+A one-off booking (`POST /bookings`, `/bookings/authenticated`, `/bookings/staff`) is held to the same hours-and-closures rule as a recurring occurrence, with one difference in shape: it is judged **per resource candidate**, not per occurrence. A basket has one window per line and a legged service one per leg, each on its own resource, and availability judges exactly those windows (`enoughCandidatesFree` → `isWindowFree`), so the write path does too.
+
+```mermaid
+flowchart TD
+  A[lock step: every resource a requirement can land on is cached and locked] --> B[load closures and openings once: 4 reads, the tenant-local dates the booking can touch]
+  B --> C{requirement}
+  C -- AUTO_ANY / AUTO_FUNGIBLE_POOL --> D[keep resources open for their own window, then free of other bookings]
+  C -- CUSTOMER_CHOICE / NONE --> E[the pick, as before]
+  D --> F{enough open and free?}
+  F -- yes --> G[pick by workload or id among them]
+  F -- no, enough open but busy --> H[pick among the open: the occupancy check refuses as taken]
+  F -- no open resource --> I[full list: the verification below refuses as closed or outside hours]
+  E --> J
+  G --> J[verify every chosen candidate over its own window, buffer and turnover included]
+  H --> J
+  I --> J
+  J -- closed day / closure --> K[409 BOOKING_SLOT_CLOSED]
+  J -- outside the day's hours --> L[409 BOOKING_OUTSIDE_BUSINESS_HOURS]
+  J -- open --> M[occupancy check, then save]
+```
+
+- **Same rule as availability.** The verdict is `AvailabilityService.windowHoursVerdict()` through `resourceWindowHoursVerdict()` (`schedule-hours.helpers.ts`, shared with the recurring check): tenant hours, the resource's own hours, full and partial closures (tenant-wide and resource-scoped) and openings. The window is the candidate's own `[startsAt, endsAt)`, which already carries the line's trailing buffer and the resource's turnover, so a slot whose buffer runs past closing is refused as the read would refuse it. The day is the tenant-local date the window starts on.
+- **Selection is steered, not only audited.** `AUTO_ANY` and `AUTO_FUNGIBLE_POOL` pick by occupancy and workload alone, so a check made only after the pick would refuse a slot availability offers whenever the lowest-workload resource is closed (its own hours, or a resource closure) and another is open. A closed resource is excluded in `preferFreeResources` like a busy one, and the pick falls back (open but busy, then the full list) so the refusal names the right reason. `CUSTOMER_CHOICE` and `NONE` are verified, not re-chosen.
+- **Bundles and baskets.** Every requirement of every line and leg must be satisfied, so a bundle needs all its requirements open and an automatic requirement needs one open unit.
+- **Order and cost.** The hours reads happen inside the booking transaction, after the resource locks and before the occupancy check, so a closed day reports as closed even when the slot is also taken. They are a fixed four queries (two per table, tenant-wide and resource-scoped) whatever the number of lines or resources.
+- **No lock, by design.** Booking creation does not take the tenant-day lock: a closure that commits while a booking is in flight is indistinguishable from the booking having been made first, because closing a day never looks at existing bookings (`docs/LOCK_CATALOG.md` § Known hazards (H6)). Existing bookings are never re-checked.
+- **No exemption.** Staff and managers are held to it too (UC-108 A8); the only rule staff skip on the creation path is the minimum notice.
+- **Not covered here.** A reschedule or an approval at a new time (TD50 Story 1) and the booking page's handling of the two codes (Story 2). A window that crosses local midnight is judged by wall-clock time like the availability read does.
+
 ### Cap + locking protocol
 
 Every request and every approval first locks on `serviceId` (`lockService()`), then resolves the resources that decide each requirement — the pick for a `CUSTOMER_CHOICE` one, every eligible resource for `AUTO_ANY`, `AUTO_FUNGIBLE_POOL` and `NONE` — and locks the union in one `ITenantLockPort.lockResources()` call (canonical order, each resource once; TD49 Story 0). The resource lock is taken before the cap is read, so a request for another service that picks the same resource cannot race the per-resource cap. Both locks, acquired inside the same transaction, atomically cover two things in one critical section: the `MAX_ACTIVE_SCHEDULES_PER_RESOURCE`/`MAX_ACTIVE_RESOLVE_PER_OCCURRENCE_SCHEDULES_PER_SERVICE` cap check (both 50, app-enforced), and — inside `prepareRequest()` — a `findByIdForUpdate()` re-read of the `Service` row itself, so a concurrent `UpdateServiceBookingPolicyUseCase`/resource-requirements write can never be based on a stale eligibility/approval-policy read (both use cases lock the same `Service` row).

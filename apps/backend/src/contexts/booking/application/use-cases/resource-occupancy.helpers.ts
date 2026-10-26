@@ -13,6 +13,11 @@ import {
   resolveFlatLineCandidates,
   resolveLeggedLineCandidates,
 } from './resource-occupancy-candidate-builders.helpers';
+import {
+  assertCandidatesWithinHours,
+  HoursSource,
+  loadHoursGate,
+} from './booking-hours-gate.helpers';
 import { lockCandidateResources } from './resource-candidate-locking.helpers';
 import {
   ResolutionContext,
@@ -51,6 +56,10 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   alsoLockResourceIds?: readonly string[];
   // What an earlier lock step already read; the resolution starts from it instead of reading again.
   resolutionSnapshot?: ResolutionSnapshot;
+  // TD50: closures, openings and the tenant's hours. When set, an automatic pick prefers a resource
+  // that is open and every chosen candidate must be open over its own window; when unset the
+  // resolution is exactly what it was before.
+  hoursSource?: HoursSource;
 }
 
 // Resolves every booking line's service resourceRequirements/legs into concrete
@@ -71,6 +80,7 @@ export async function resolveBookingLinesResourceCandidates(
   const { scheduledAt, lines, serviceMap, resourceSelections = [] } = params;
   const ctx = buildResolutionContext(params);
   await lockWithContext(params, ctx);
+  await attachHoursGate(params, ctx);
   const selectionsByKey = buildSelectionsByKey(resourceSelections);
   const result = new Map<string, ResolvedLineCandidates>();
   let cursor = scheduledAt;
@@ -94,7 +104,36 @@ export async function resolveBookingLinesResourceCandidates(
     cursor = lineEnd;
   }
 
+  if (ctx.hoursGate) {
+    assertCandidatesWithinHours(
+      ctx.hoursGate,
+      [...result.values()].flatMap((line) => line.candidates),
+      ctx.resourceCache,
+    );
+  }
   return result;
+}
+
+// Loaded after the lock step, which has cached every resource an automatic requirement can land
+// on; the customer's own picks are added by id. One batched read per table, whatever the number of
+// lines or resources.
+async function attachHoursGate(
+  params: ResolveBookingLinesResourceCandidatesParams,
+  ctx: ResolutionContext,
+): Promise<void> {
+  if (!params.hoursSource) return;
+  const resourceIds = new Set([
+    ...ctx.resourceCache.keys(),
+    ...(params.resourceSelections ?? []).map((selection) => selection.resourceId),
+  ]);
+  ctx.hoursGate = await loadHoursGate({
+    source: params.hoursSource,
+    availabilityService: params.availabilityService,
+    tenantId: params.tenantId,
+    resourceIds: [...resourceIds],
+    scheduledAt: params.scheduledAt,
+    totalDurationMinutes: params.lines.reduce((sum, line) => sum + line.durationMinsAtBooking, 0),
+  });
 }
 
 // Only the lock step of the resolution above: every resource the lines can land on, in one call.

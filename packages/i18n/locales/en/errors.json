@@ -21,6 +21,8 @@
   "BOOKING_ALREADY_TERMINAL": "This booking is already closed and can no longer be changed this way.",
   "BOOKING_NOT_YET_ENDED": "This appointment has not ended yet, so it cannot be marked as a no-show.",
   "BOOKING_SLOT_UNAVAILABLE": "The requested time slot is no longer available.",
+  "BOOKING_SLOT_CLOSED": "The business is closed at the requested time.",
+  "BOOKING_OUTSIDE_BUSINESS_HOURS": "The requested time is outside business hours.",
   "BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE": "Part of this booking is no longer available.",
   "BOOKING_LEG_UNAVAILABLE": "One part of this journey is no longer available.",
   "BOOKING_DURATION_OUT_OF_RANGE": "The selected duration isn't valid for this service.",
