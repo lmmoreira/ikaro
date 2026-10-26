@@ -6,7 +6,7 @@
 # Originally pinned 2026-08-04 to 0.157.0 (M17-S34). Current digest is
 # otel/opentelemetry-collector-contrib:0.161.0 (confirmed 2026-09-22 via the
 # image's org.opencontainers.image.version label).
-FROM otel/opentelemetry-collector-contrib@sha256:fd328de2552466ad78385e1b1289c3f2402b1c45f265b252aab1955b42845ac1
+FROM otel/opentelemetry-collector-contrib@sha256:7f22d2a6748110ffb6a59bc0df448bccbf501cdb667d610ede4c61d3863d5849
 
 # Explicit non-root USER (Snyk IaC hardening). The base image already runs as
 # 10001:10001 by default (confirmed empirically via `docker inspect` on this
