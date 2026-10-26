@@ -109,6 +109,7 @@ export class BookingController {
         correlationId,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
+        businessHours: settings.businessHours,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
@@ -129,6 +130,7 @@ export class BookingController {
         customerId: customerId!,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
+        businessHours: settings.businessHours,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
@@ -150,6 +152,7 @@ export class BookingController {
         staffId: staffId!,
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
+        businessHours: settings.businessHours,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);

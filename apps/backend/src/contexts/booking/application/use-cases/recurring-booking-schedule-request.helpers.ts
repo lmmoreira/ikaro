@@ -16,11 +16,8 @@ import { IResourceRepository } from '../ports/resource-repository.port';
 import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
 import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import { ITenantLockPort } from '../ports/tenant-lock.port';
-import {
-  evaluateHours,
-  HoursEvaluation,
-  loadHoursScheduleData,
-} from './recurring-booking-schedule-hours.helpers';
+import { evaluateHours, HoursEvaluation } from './recurring-booking-schedule-hours.helpers';
+import { loadHoursScheduleData } from './schedule-hours.helpers';
 import { ConsideredRequirement } from './recurring-considered-resources.helpers';
 import {
   findCombinedRefusals,

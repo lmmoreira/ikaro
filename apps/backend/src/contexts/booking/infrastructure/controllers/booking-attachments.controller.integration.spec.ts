@@ -6,7 +6,7 @@ import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { PlatformModule } from '../../../platform/platform.module';
@@ -84,7 +84,7 @@ describe('BookingAttachmentsController (integration)', () => {
       .set({ 'x-tenant-id': tenantId, 'x-correlation-id': 'corr-attach-integ' })
       .send({
         serviceIds: [serviceId],
-        scheduledAt: `${futureDate(3)}T09:00:00.000Z`,
+        scheduledAt: openSlotAt(3, 9),
         contactName: 'João',
         contactEmail: 'joao@test.com',
         contactPhone: '+5531988888888',

@@ -4,18 +4,11 @@ import {
   ScheduleClosureBuilder,
   ScheduleOpeningBuilder,
 } from '../../../../test/builders/booking/index';
-import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
-import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { RecurrenceOccurrence } from '../../domain/recurrence-rule.helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
-import {
-  findHoursConflicts,
-  HoursCheckInput,
-  loadHoursScheduleData,
-} from './recurring-booking-schedule-hours.helpers';
+import { findHoursConflicts, HoursCheckInput } from './recurring-booking-schedule-hours.helpers';
 
 const TENANT = '10000000-0000-4000-8000-000000000500';
-const OTHER_TENANT = '10000000-0000-4000-8000-000000000501';
 
 const BUSINESS_HOURS: BusinessHours = {
   timezone: 'America/Sao_Paulo',
@@ -285,47 +278,5 @@ describe('findHoursConflicts — a tenant in a timezone with DST', () => {
     expect(conflicts).toEqual([
       { occurrenceStart: beforeDst.occurrenceStart, reason: 'OUTSIDE_HOURS' },
     ]);
-  });
-});
-
-describe('loadHoursScheduleData', () => {
-  it('loads tenant-wide and resource-scoped rows in four queries, scoped to the tenant', async () => {
-    const closureRepo = new InMemoryScheduleClosureRepository();
-    const openingRepo = new InMemoryScheduleOpeningRepository();
-    const room = new ResourceBuilder().withTenantId(TENANT).build();
-    await closureRepo.save(
-      new ScheduleClosureBuilder().withTenantId(TENANT).withDate('2031-03-04').build(),
-    );
-    await closureRepo.save(
-      new ScheduleClosureBuilder()
-        .withTenantId(TENANT)
-        .withResourceId(room.id)
-        .withDate('2031-03-11')
-        .build(),
-    );
-    await closureRepo.save(
-      new ScheduleClosureBuilder().withTenantId(OTHER_TENANT).withDate('2031-03-04').build(),
-    );
-    await openingRepo.save(
-      new ScheduleOpeningBuilder()
-        .withTenantId(TENANT)
-        .withResourceId(room.id)
-        .withDate('2031-03-08')
-        .build(),
-    );
-
-    const data = await loadHoursScheduleData(
-      { closureRepo, openingRepo },
-      TENANT,
-      [room.id],
-      '2031-03-01',
-      '2031-03-31',
-    );
-
-    expect(data.closures.map((c) => c.date.value)).toEqual(['2031-03-04', '2031-03-11']);
-    expect(data.tenantOpenings).toEqual([]);
-    expect(data.resourceOpenings.map((o) => o.date.value)).toEqual(['2031-03-08']);
-    expect(closureRepo.rangeQueryCount + closureRepo.resourcesRangeQueryCount).toBe(2);
-    expect(openingRepo.rangeQueryCount + openingRepo.resourcesRangeQueryCount).toBe(2);
   });
 });

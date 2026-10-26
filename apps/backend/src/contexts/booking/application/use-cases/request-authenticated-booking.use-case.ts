@@ -17,6 +17,14 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import {
   IServiceIntakeSchemaRepository,
@@ -44,10 +52,12 @@ import {
 } from './booking-request-subject.helpers';
 import { buildLineInputs, toBookingResult, toResourceSelections } from './booking-request.mapper';
 import { BookingRequestResult } from './booking-request.types';
+import { BookingHoursRequest } from './booking-hours-gate.helpers';
 import { assertWithinEffectiveBookingWindow, BookingWindowRequest } from './booking-window.helpers';
 
 export type RequestAuthenticatedBookingUseCaseInput = RequestAuthenticatedBookingDto &
-  BookingWindowRequest & {
+  BookingWindowRequest &
+  BookingHoursRequest & {
     tenantId: string;
     correlationId: string;
     customerId: string;
@@ -67,6 +77,8 @@ export class RequestAuthenticatedBookingUseCase {
     @Inject(SERVICE_INTAKE_SCHEMA_REPOSITORY)
     private readonly intakeSchemaRepo: IServiceIntakeSchemaRepository,
     private readonly availabilityService: AvailabilityService,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly photoExistenceService: PhotoExistenceService,
     private readonly quoteService: BookingQuoteService,
@@ -133,12 +145,14 @@ export class RequestAuthenticatedBookingUseCase {
         resourceRepo: this.resourceRepo,
         occupancyRepo: this.occupancyRepo,
         availabilityService: this.availabilityService,
+        hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
       },
       {
         booking,
         tenantId: input.tenantId,
         scheduledAt,
         timezone: input.timezone,
+        businessHours: input.businessHours,
         operations,
         serviceMap,
         resourceSelections: toResourceSelections(input.resourceSelections),

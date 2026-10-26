@@ -21,6 +21,8 @@
   "BOOKING_ALREADY_TERMINAL": "Este agendamento já foi encerrado e não pode mais ser alterado desta forma.",
   "BOOKING_NOT_YET_ENDED": "Este atendimento ainda não terminou, por isso não pode ser marcado como não comparecimento.",
   "BOOKING_SLOT_UNAVAILABLE": "O horário solicitado não está mais disponível.",
+  "BOOKING_SLOT_CLOSED": "O negócio está fechado no horário solicitado.",
+  "BOOKING_OUTSIDE_BUSINESS_HOURS": "O horário solicitado está fora do horário de funcionamento.",
   "BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE": "Parte deste agendamento não está mais disponível.",
   "BOOKING_LEG_UNAVAILABLE": "Uma das etapas deste agendamento não está mais disponível.",
   "BOOKING_DURATION_OUT_OF_RANGE": "A duração selecionada não é válida para este serviço.",

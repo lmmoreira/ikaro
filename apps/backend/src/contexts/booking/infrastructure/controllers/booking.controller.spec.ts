@@ -10,6 +10,8 @@ import { InMemoryBookingCustomerPort } from '../../../../test/infrastructure/in-
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryServiceRepository } from '../../../../test/repositories/booking/in-memory-service.repository';
 import {
   BookingBuilder,
@@ -17,7 +19,7 @@ import {
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlot } from '../../../../test/utils/date-helpers';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -86,6 +88,8 @@ describe('BookingController', () => {
         occupancyRepo,
         intakeSchemaRepo,
         new AvailabilityService(),
+        new InMemoryScheduleClosureRepository(),
+        new InMemoryScheduleOpeningRepository(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
         new BookingQuoteService(),
@@ -101,6 +105,8 @@ describe('BookingController', () => {
         occupancyRepo,
         intakeSchemaRepo,
         new AvailabilityService(),
+        new InMemoryScheduleClosureRepository(),
+        new InMemoryScheduleOpeningRepository(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new PhotoExistenceService(storageService),
         new BookingQuoteService(),
@@ -161,6 +167,8 @@ describe('BookingController', () => {
       occupancyRepo,
       intakeSchemaRepo,
       new AvailabilityService(),
+      new InMemoryScheduleClosureRepository(),
+      new InMemoryScheduleOpeningRepository(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       new BookingQuoteService(),
@@ -173,7 +181,7 @@ describe('BookingController', () => {
     contactEmail: 'guest@example.com',
     contactName: 'João Silva',
     contactPhone: '+5531999999999',
-    scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+    scheduledAt: openSlot(1),
     serviceIds: [serviceId],
   });
 
@@ -183,6 +191,18 @@ describe('BookingController', () => {
       expect(result.bookingId).toBeDefined();
       expect(result.status).toBe('PENDING');
       expect(result.lines).toHaveLength(1);
+    });
+
+    it("hands the tenant's business hours from the request settings to the use case", async () => {
+      const execute = jest.spyOn(RequestBookingUseCase.prototype, 'execute');
+      try {
+        await controller.create(validBody());
+        expect(execute.mock.calls[0][0].businessHours).toEqual(
+          expect.objectContaining({ timezone: 'America/Sao_Paulo' }),
+        );
+      } finally {
+        execute.mockRestore();
+      }
     });
 
     it('maps BookingSlotUnavailableError to 409', async () => {
@@ -200,7 +220,7 @@ describe('BookingController', () => {
         ])
         .build();
       await serviceRepo.save(locationService);
-      const conflictAt = new Date(`${futureDate(1)}T10:00:00.000Z`);
+      const conflictAt = new Date(openSlot(1));
       occupancyRepo.seed(TENANT_A, 'other-line-id', {
         resourceId: location.id,
         resourceType: location.type,
@@ -227,6 +247,8 @@ describe('BookingController', () => {
           occupancyRepo,
           intakeSchemaRepo,
           new AvailabilityService(),
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           new BookingQuoteService(),
@@ -241,6 +263,8 @@ describe('BookingController', () => {
           occupancyRepo,
           intakeSchemaRepo,
           new AvailabilityService(),
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           new BookingQuoteService(),
@@ -280,7 +304,7 @@ describe('BookingController', () => {
 
   describe('createAuthenticated()', () => {
     const authBody = () => ({
-      scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+      scheduledAt: openSlot(1),
       serviceIds: [serviceId],
     });
 
@@ -315,6 +339,8 @@ describe('BookingController', () => {
           occupancyRepo,
           intakeSchemaRepo,
           new AvailabilityService(),
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           new BookingQuoteService(),
@@ -329,6 +355,8 @@ describe('BookingController', () => {
           occupancyRepo,
           intakeSchemaRepo,
           new AvailabilityService(),
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new PhotoExistenceService(storageService),
           new BookingQuoteService(),
@@ -361,7 +389,7 @@ describe('BookingController', () => {
     it('creates an APPROVED booking for a customer, recording the acting staff member', async () => {
       const result = await controller.createByStaff({
         customerId: CUSTOMER_ID,
-        scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+        scheduledAt: openSlot(1),
         serviceIds: [serviceId],
       });
 
@@ -377,7 +405,7 @@ describe('BookingController', () => {
         contactName: 'Pessoa Nova',
         contactPhone: '+5531977777777',
         contactEmail: 'nova@example.com',
-        scheduledAt: `${futureDate(1)}T11:00:00.000Z`,
+        scheduledAt: new Date(new Date(openSlot(1)).getTime() + 2 * 3_600_000).toISOString(),
         serviceIds: [serviceId],
       });
 
@@ -391,7 +419,7 @@ describe('BookingController', () => {
       const err = await controller
         .createByStaff({
           customerId: '00000000-0000-4000-8000-000000009998',
-          scheduledAt: `${futureDate(1)}T10:00:00.000Z`,
+          scheduledAt: openSlot(1),
           serviceIds: [serviceId],
         })
         .catch((e: unknown) => e);

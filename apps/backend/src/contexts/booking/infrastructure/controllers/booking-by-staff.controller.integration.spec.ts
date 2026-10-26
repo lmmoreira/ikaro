@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { futureDate, openSlotAt } from '../../../../test/utils/date-helpers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
@@ -19,8 +19,8 @@ const TEST_KEY = 'booking-integ-test-key-staffbk-xxx'; // 36 chars
 const STAFF_ID = '20000000-0000-4000-8000-000000000391';
 const CORRELATION_ID = '01980000-0000-7000-8000-0000000000c9';
 
-const slot = (daysAhead: number, hour: number) =>
-  `${futureDate(daysAhead)}T${String(hour).padStart(2, '0')}:00:00.000Z`;
+// Hours are tenant-local (America/Sao_Paulo) on the nth day the default tenant is open.
+const slot = openSlotAt;
 
 describe('POST /bookings/staff (integration, M23-S39)', () => {
   let app: INestApplication;
@@ -363,7 +363,7 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
     it('still refuses a start beyond the maximum advance with 422', async () => {
       const { body } = await post({
         customerId,
-        scheduledAt: slot(400, 9),
+        scheduledAt: `${futureDate(400)}T12:00:00.000Z`,
         serviceIds: [serviceId],
       }).expect(422);
 
@@ -474,7 +474,7 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
     it('still refuses an unknown intakeSchemaVersion sent on its own', async () => {
       const { body } = await post({
         customerId,
-        scheduledAt: slot(9, 19),
+        scheduledAt: slot(9, 12),
         serviceIds: [intakeServiceId],
         intakeSchemaVersion: 999,
       }).expect(422);
@@ -485,7 +485,7 @@ describe('POST /bookings/staff (integration, M23-S39)', () => {
     it('still rejects an answer of the wrong type from staff', async () => {
       const res = await post({
         customerId,
-        scheduledAt: slot(9, 17),
+        scheduledAt: slot(9, 14),
         serviceIds: [intakeServiceId],
         intakeAnswers: { vehiclePlate: true },
       });

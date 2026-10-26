@@ -19,7 +19,8 @@ import {
   resourceLockIsFree,
   waitForBlockedLock,
 } from '../../../../test/utils/booking-lock-race-world';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlot } from '../../../../test/utils/date-helpers';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { occupiedResourceIds } from '../../../../test/utils/future-commitment-db-fixture';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ExpireBookingHoldsJob } from '../jobs/expire-booking-holds.job';
@@ -27,6 +28,8 @@ import { PhotoExistenceService } from '../services/photo-existence.service';
 import { RESOURCE_OCCUPANCY_REPOSITORY } from '../ports/resource-occupancy-repository.port';
 import { BOOKING_REPOSITORY } from '../ports/booking-repository.port';
 import { RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import { SCHEDULE_CLOSURE_REPOSITORY } from '../ports/schedule-closure-repository.port';
+import { SCHEDULE_OPENING_REPOSITORY } from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -90,7 +93,7 @@ describe('booking lock order (integration)', () => {
     await app.close();
   });
 
-  const newSlot = () => `${futureDate(9)}T15:00:00.000Z`;
+  const newSlot = () => openSlot(9);
 
   // A scenario seeds its own world and returns what to run and what must be true afterwards.
   interface Prepared {
@@ -459,12 +462,17 @@ describe('booking lock order (integration)', () => {
             resourceRepo: app.get(RESOURCE_REPOSITORY),
             occupancyRepo: env.occupancyRepo,
             availabilityService: app.get(AvailabilityService),
+            hoursRepos: {
+              closureRepo: app.get(SCHEDULE_CLOSURE_REPOSITORY),
+              openingRepo: app.get(SCHEDULE_OPENING_REPOSITORY),
+            },
           },
           {
             booking,
             tenantId: world.tenantId,
             scheduledAt: new Date(newSlot()),
             timezone: TIMEZONE,
+            businessHours: DEFAULT_TEST_BUSINESS_HOURS,
             operations: [],
             serviceMap: new Map([[service.id, service]]),
             resourceSelections: [],

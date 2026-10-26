@@ -10,7 +10,10 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
+import { futureDate, nextWeekday, openSlot, pastDate } from '../../../../test/utils/date-helpers';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ResourceType } from '../../domain/resource.types';
@@ -21,6 +24,8 @@ import {
   BookingServiceSessionNotBookableError,
   BookingDurationOutOfRangeError,
   BookingIntakeAnswerMissingError,
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
   BookingSlotUnavailableError,
   BookingTooFarAheadError,
   BookingTooSoonError,
@@ -40,7 +45,7 @@ const CUSTOMER_ID = '20000000-0000-4000-8000-000000000390';
 const STAFF_ID = '20000000-0000-4000-8000-000000000391';
 const CORRELATION_ID = 'corr-staff-booking-test';
 
-const scheduledAt = `${futureDate(1)}T10:00:00.000Z`;
+const scheduledAt = openSlot(1);
 const window = { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 };
 
 describe('CreateBookingByStaffUseCase', () => {
@@ -52,6 +57,8 @@ describe('CreateBookingByStaffUseCase', () => {
   let eventBus: InMemoryEventBus;
   let customerPort: InMemoryBookingCustomerPort;
   let storageService: InMemoryStorageService;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: CreateBookingByStaffUseCase;
   let customerUseCase: RequestAuthenticatedBookingUseCase;
   let serviceId: string;
@@ -65,6 +72,8 @@ describe('CreateBookingByStaffUseCase', () => {
     bookingRepo = new InMemoryBookingRepository(eventBus);
     customerPort = new InMemoryBookingCustomerPort();
     storageService = new InMemoryStorageService();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     const txManager = new InMemoryTransactionManager();
     const sharedDeps = [
       serviceRepo,
@@ -72,6 +81,8 @@ describe('CreateBookingByStaffUseCase', () => {
       occupancyRepo,
       intakeSchemaRepo,
       new AvailabilityService(),
+      closureRepo,
+      openingRepo,
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       new BookingQuoteService(),
@@ -105,6 +116,7 @@ describe('CreateBookingByStaffUseCase', () => {
     staffId: STAFF_ID,
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
+    businessHours: DEFAULT_TEST_BUSINESS_HOURS,
     tenantBookingWindow: window,
   });
 
@@ -119,6 +131,7 @@ describe('CreateBookingByStaffUseCase', () => {
     staffId: STAFF_ID,
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
+    businessHours: DEFAULT_TEST_BUSINESS_HOURS,
     tenantBookingWindow: window,
   });
 
@@ -289,6 +302,7 @@ describe('CreateBookingByStaffUseCase', () => {
           customerId: CUSTOMER_ID,
           countryCode: 'BR',
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
           tenantBookingWindow: strict,
         }),
       ).rejects.toBeInstanceOf(BookingTooSoonError);
@@ -372,6 +386,7 @@ describe('CreateBookingByStaffUseCase', () => {
           customerId: CUSTOMER_ID,
           countryCode: 'BR',
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
           tenantBookingWindow: window,
         }),
       ).rejects.toBeInstanceOf(BookingIntakeAnswerMissingError);
@@ -566,6 +581,26 @@ describe('CreateBookingByStaffUseCase', () => {
 
       const saved = await bookingRepo.findById(result.bookingId, TENANT_A);
       expect(saved!.intake).toBeNull();
+    });
+  });
+
+  describe('working hours', () => {
+    const sunday = () => `${nextWeekday(0)}T13:00:00.000Z`;
+
+    it('refuses a staff booking on a closed day — staff are not exempt', async () => {
+      await expect(
+        useCase.execute({ ...customerInput(), scheduledAt: sunday() }),
+      ).rejects.toBeInstanceOf(BookingSlotClosedError);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('refuses a staff guest booking outside the working hours', async () => {
+      await expect(
+        useCase.execute({
+          ...guestInput(),
+          scheduledAt: `${futureDate(1)}T23:00:00.000Z`,
+        }),
+      ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
     });
   });
 });

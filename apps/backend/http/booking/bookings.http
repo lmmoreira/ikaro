@@ -604,6 +604,46 @@ X-Correlation-ID: test-corr-006
   "serviceIds": ["{{serviceId}}"]
 }
 
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — the business is closed that day (a Sunday, or a day with a closure) → 409 BOOKING_SLOT_CLOSED
+# The same rule the availability read applies; staff are not exempt. Use a future Sunday inside the booking window (2026-11-01 is one).
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-td50-001
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "+5531999999999",
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — open day, start before opening or ending after closing → 409 BOOKING_OUTSIDE_BUSINESS_HOURS
+# (06:00 local on 2026-11-03, a Tuesday, with Mon–Fri 09:00–18:00 hours; the booking's trailing buffer counts)
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Correlation-ID: test-corr-td50-002
+
+{
+  "contactEmail": "joao@example.com",
+  "contactName": "João Silva",
+  "contactPhone": "+5531999999999",
+  "scheduledAt": "2026-11-03T09:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -751,6 +791,26 @@ X-Correlation-ID: test-corr-s39-004
   "serviceIds": ["{{serviceId}}"]
 }
 
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — staff are not exempt: closed day → 409 BOOKING_SLOT_CLOSED, outside hours → 409 BOOKING_OUTSIDE_BUSINESS_HOURS
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/staff
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-td50-004
+
+{
+  "customerId": "{{customerId}}",
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -875,6 +935,25 @@ X-Correlation-ID: test-corr-012
   "serviceIds": ["{{serviceId}}"]
 }
 
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ERROR — closed day or outside business hours (authenticated) → 409 BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS
+# ─────────────────────────────────────────────────────────────────────────────
+
+POST {{baseUrl}}/bookings/authenticated
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-td50-003
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z",
+  "serviceIds": ["{{serviceId}}"]
+}
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────

@@ -5,7 +5,7 @@ import { CustomerEntityBuilder } from '../../../../test/builders/customer/index'
 import { StaffEntityBuilder } from '../../../../test/builders/staff';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { PlatformModule } from '../../../platform/platform.module';
 import { StaffEntity } from '../../../staff/infrastructure/entities/staff.entity';
@@ -23,7 +23,7 @@ describe('GET /bookings/:id — reschedule block (integration)', () => {
   let staffResourceId: string;
   let serviceId: string;
 
-  const scheduledAtOn = (daysAhead: number) => `${futureDate(daysAhead)}T13:00:00.000Z`;
+  const scheduledAtOn = (daysAhead: number) => openSlotAt(daysAhead, 10);
 
   async function createTenant(slug: string): Promise<string> {
     const { body } = await request(app.getHttpServer())
