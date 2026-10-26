@@ -6,7 +6,7 @@
 - **Context**: apps/backend — booking context; apps/bff — booking feature (error pass-through only); apps/web — public booking flow and staff booking flow (error routing); packages/types, packages/i18n
 - **Created**: 2026-10-10
 - **Discovered**: reviewing M23-S39 (staff books on a customer's behalf, PR #586): a staff booking on a closed day returned 201, and probing showed a guest booking does too
-- **Decision status**: Ready for discovery. Story 0 first; Story 1 depends on it; Story 2 depends on Story 0. Each story still begins with `/story-discovery`.
+- **Decision status**: Story 0 discovered 2026-10-26 (decisions locked below). Story 1 depends on it; Story 2 depends on Story 0. Stories 1 and 2 still begin with `/story-discovery`.
 - **Related**: M23-S18 (the recurring-schedule check this reuses), M23-S39, M23-S33 (the booking-window check this sits beside), M23-S08 (the future-commitment worklist reschedule), UC-001, UC-002, UC-004, UC-069, UC-108, `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy
 
 ## Problem
@@ -33,10 +33,11 @@ The rule already exists and is already enforced for one flow: a **recurring sche
 ### Why this matters
 The booking page hides closed slots, so the promise "the business is closed then" is kept only by the client. A page open while a manager adds a closure, a hand-built request, or any second client (the staff screen, an integration) can create a booking the business has said it cannot serve. A `PENDING` booking is then in a manager's queue for a time that is closed; a staff booking is `APPROVED` straight away.
 
-## Chosen approach (decided in the drafting session, 2026-10-10 — story-discovery has not yet run)
+## Chosen approach (drafted 2026-10-10; revised by Story 0's discovery, 2026-10-26)
 
-- Reuse the recurring check; do not write a second rule. `evaluateHours` already takes a list of occurrences, so a one-off booking is a call with one occurrence. Move `loadHoursScheduleData` / `evaluateHours` and their types out of the `recurring-` file into a neutral `schedule-hours.helpers.ts` (the recurring code imports it from there), so create, reschedule, approve and recurrence share one implementation and cannot disagree with availability.
-- Run it inside the same transaction as the occupancy check, after the resources are resolved and locked, so a closure added concurrently is seen under the same lock discipline the recurring path uses.
+- Reuse the recurring rule; do not write a second one. The rule is `AvailabilityService.windowHoursVerdict`. Move `loadHoursScheduleData`, `evaluateHours` and their types out of the `recurring-` file into a neutral `schedule-hours.helpers.ts` (the recurring code imports it from there) and expose the per-window verdict they are built on. A one-off booking is **not** "a call with one occurrence": a basket has one window per line and a legged service one per leg, each with its own resource, so the one-off check is a verdict **per resource candidate** over that candidate's own `[startsAt, endsAt)`, which is exactly what availability judges (`enoughCandidatesFree` → `isWindowFree`).
+- Hours must also steer resource **selection**, not only audit it: `AUTO_ANY` and `AUTO_FUNGIBLE_POOL` pick by occupancy and workload alone, so a check after the pick would refuse a slot availability offers whenever the lowest-workload resource is closed (its own working hours, or a resource-scoped closure) and another is open. Closed or out-of-hours resources are excluded in `preferFreeResources` exactly like busy ones, then every chosen candidate is verified.
+- Run it inside the booking transaction, after the resource locks, before the occupancy check. No new lock: booking creation takes only the service and resource locks, and a closure that commits while a booking is in flight is indistinguishable from the booking having been made first (closing a day never looks at existing bookings).
 - Existing bookings are never re-checked; a closure added later does not cancel anything (that is M23-S08's worklist).
 - Refusals are new, typed domain errors with their own codes in `@ikaro/types` and both locale files (one for a closed day or closure, one for outside working hours), mapped in `booking-error.mapper.ts`.
 
@@ -50,63 +51,84 @@ The booking page hides closed slots, so the promise "the business is closed then
 
 ### Story 0 — Enforce hours, closures and openings when a one-off booking is created
 
-**Agent:** backend-ts + bff-ts
-**Complexity:** M
-**Docs to load:** `docs/USE_CASES.md` UC-001, UC-002, UC-108, UC-010 (closures and openings), UC-070 A1; `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy and § Booking Window; `docs/TENANTS_SETTINGS_SCHEMA.md` § Business Hours; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, § Choosing a race-condition primitive; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/API_CONTRACTS.md` § Booking Requests; `docs/ANTI_PATTERNS.md`
+**Agent:** backend-ts + bff-ts (BFF: `.http` only)
+**Complexity:** L (the check is small; the selection change and the test migration are not)
+**Docs to load:** `docs/USE_CASES.md` UC-001, UC-002, UC-108, UC-010 (closures and openings), UC-070 A1; `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy and § Booking Window; `docs/TENANTS_SETTINGS_SCHEMA.md` § Business Hours; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions, § Choosing a race-condition primitive; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ENGINEERING_RULES_TESTING.md` § Shared test-builder date defaults, § An E2E test that computes "today"; `docs/API_CONTRACTS.md` § Booking Requests; `docs/ERROR_CATALOG.md` § Code Origins; `docs/LOCK_CATALOG.md` § 3 (A1, A3) and § 5; `docs/ANTI_PATTERNS.md`
 **Dependencies:** none (the recurring check from M23-S18 is already merged)
-**Pattern:** plain composition — one shared pure check (`evaluateHours`) called from the existing `persistRequestedBooking` step, so guest, authenticated and staff creation get it from one place; no new named pattern.
+**Pattern:** plain composition — one per-window verdict primitive (`windowHoursVerdict`) shared by availability, the recurring check and the one-off check; an optional hours input on the resource-resolution context so selection and verification use the same verdict. No new named pattern.
 
 **Discovered:** 2026-10-10, reviewing M23-S39; reproduced against a real database (table in the Problem).
 **Root cause:** `persistRequestedBooking` (`booking-request.helpers.ts`) resolves candidate resources and calls `assertSlotFree`, which asks `findConflictingResourceIds` about other bookings only; nothing calls `AvailabilityService.windowHoursVerdict` or loads closures/openings on this path.
 
 **Description:**
-Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff` refuse a start that availability would not offer. After the resources are resolved and locked, load the closures and openings for the booking's date (tenant-wide and for the resolved resources) with `loadHoursScheduleData`, evaluate the window `[start, start + duration + effective trailing gap)` with `evaluateHours` using the same any-open-resource-suffices rule recurrence uses per selection mode, and refuse with a typed error when the window is closed or outside working hours. The window checked is the occupancy window, as for recurrence, so a slot whose buffer or turnover runs past closing is refused as availability would refuse it. The check is in the shared step, so it needs one call site and the three entry points cannot drift.
+Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff` refuse a start that availability would not offer, and make resource selection prefer a resource that is open.
 
-**Open for `/story-discovery`:**
-1. **Staff override.** UC-108 says staff bookings are checked "as for a customer", but a business may want to take a walk-in or phone booking outside its published hours. Decide whether staff and managers are exempt (and from what: hours only, closures too), and whether an exemption is a parameter or a separate rule. Default if undecided: no exemption, matching customers.
-2. **HTTP status and codes.** `409` (conflict with the schedule) or `422`; and one code or two (`BOOKING_SLOT_CLOSED`, `BOOKING_OUTSIDE_BUSINESS_HOURS`). The recurring path already distinguishes `CLOSED` and `OUTSIDE_HOURS`.
-3. **Resource-scoped closures** for a service whose requirements span several resources (a bundle): all considered resources must be open for a bundle, one is enough for `AUTO_ANY` — confirm the recurring per-mode rule applies unchanged.
+1. **Shared module.** Create `schedule-hours.helpers.ts` holding what the recurring file holds today (`loadHoursScheduleData`, `evaluateHours`, `findHoursConflicts`, their types, the day lookup) plus one exported per-window verdict function (a resource, its window, the day lookup, the tenant business hours → `FREE | CLOSED | OUTSIDE_HOURS`). `evaluateHours` is rebuilt on it; the recurring code imports from the new file and keeps only what is recurrence-specific.
+2. **Hours input to resolution.** `resolveBookingLinesResourceCandidates` takes an optional `hoursSource` (the two repositories and the tenant business hours). When present, after the lock step it loads closures and openings once (the four existing reads: tenant-wide and resource-scoped, for the resource ids already cached by the lock step) for every tenant-local date any candidate window can touch, and builds the day lookup onto the resolution context. When absent (approve, reschedule, reassign, the worklist today) behavior is byte-identical to today.
+3. **Selection.** In `preferFreeResources`, a resource whose window verdict is not `FREE` is treated like a busy one (the same fallback: if fewer than `requiredQuantity` remain, return the full list so the verification below refuses with the right reason, never a misleading "type unavailable"). Applies to `AUTO_ANY` and `AUTO_FUNGIBLE_POOL`. `CUSTOMER_CHOICE` and `NONE` are not narrowed (a pick is the customer's; the MVP has one `LOCATION`); they are verified.
+4. **Verification.** In `resolveAndCheckCandidates`, after resolution and before `assertSlotFree`, every candidate is judged over its own `[startsAt, endsAt)` (which already carries the line's buffer and the resource's turnover) on its own tenant-local start date. The first refusing candidate, in candidate order, names the reason. Hours are checked before occupancy, so a closed day reports "closed" rather than "taken".
+5. **Same rule as availability, by construction.** Per requirement, `requiredQuantity` candidates must be open and free; every requirement of every line and leg must be satisfied, so a bundle needs all its requirements open and an `AUTO_*` requirement needs one open unit.
 
-**Backend use case steps:** the three creation use cases are unchanged; `persistRequestedBooking` gains the hours step between "resolve candidates / lock" and "assert slot free", throwing the new typed errors.
-**Backend HTTP surface:** reuses `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff`; each gains the new refusal in its error list in `docs/API_CONTRACTS.md`.
+**Decisions locked at discovery (2026-10-26):**
+1. **No staff or manager exemption.** UC-108 step 3 already promises closures apply; recurring schedules created by staff are not exempt either. (The only staff exemption in the booking path is the minimum notice, M23-S33.) A walk-in outside published hours would be its own story and permission.
+2. **`409`, two codes:** `BOOKING_SLOT_CLOSED` (closed day, full or partial closure, resource closure) and `BOOKING_OUTSIDE_BUSINESS_HOURS` (day open, window outside its hours). They mirror the recurring `CLOSED` / `OUTSIDE_HOURS` reasons and sit beside `BOOKING_SLOT_UNAVAILABLE`, so the booking page treats them as "pick another slot" (Story 2).
+3. **Resource-scoped closures and bundles:** as item 5 above; no separate rule.
+4. **Business hours come from `RequestContext` (`settings.businessHours`), passed by the controller,** exactly as the availability controllers do, so both sides read the same value (including the same cache lag after a settings change). They are not read through the platform port the recurring path uses.
+5. **No new lock.** Booking creation does not take the tenant-day lock (A1), and `docs/DATABASE_SCHEMA.md` still claims it does (stale since M22-S03; fixed here). A closure committing during a booking transaction is equivalent to the booking having been made first, because closing a day never scans existing bookings. `docs/LOCK_CATALOG.md` § 5 records this, and says that any later story that makes a closure act on existing bookings must take A1 in booking creation.
+6. **Existing tests are migrated, not hidden.** A shared helper returns the next open weekday slot in tenant time; integration specs stop booking at fixed UTC times and `futureDate(n)` days (06:00 and 07:00 local, or a Sunday, are now refused). Seeding integration tenants with 24/7 hours was rejected as a workaround that hides the check in every other spec.
+
+**Known limits, accepted:** a window crossing local midnight is judged by HH:MM like availability does (parity, not fixed here); `NONE` with several eligible resources keeps its first-eligible pick (not reachable in the MVP).
+
+**Backend use case steps:** the three creation use cases gain `businessHours` on their input and the two schedule repositories on their `persistRequestedBooking` deps; `persistRequestedBooking` builds the `hoursSource`; resolution and verification as above.
+**Backend HTTP surface:** reuses `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff`; each gains the two refusals in its error list in `docs/API_CONTRACTS.md`.
 **BFF endpoint spec:** none — the BFF forwards the backend problem response unchanged; add the new error blocks to the BFF `.http` file.
-**New migration / i18n keys / env vars / feature flags:** no migration; new error codes in `packages/types/src/error-codes.ts` with entries in **both** `packages/i18n/locales/pt-BR/errors.json` and `packages/i18n/locales/en/errors.json` (the web exhaustiveness test fails otherwise); no env var, no flag.
+**New migration / i18n keys / env vars / feature flags:** no migration; two new error codes in `packages/types/src/error-codes.ts` with entries in **both** `packages/i18n/locales/pt-BR/errors.json` and `packages/i18n/locales/en/errors.json` (the web exhaustiveness test fails otherwise); no env var, no flag.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/schedule-hours.helpers.ts` (+ `.spec.ts`) (new — `loadHoursScheduleData`, `evaluateHours`, `findHoursConflicts` and their types, moved from the recurring file)
-- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-hours.helpers.ts` and `.spec.ts` (modify or delete — the recurring code imports from the new file; keep only what is recurrence-specific)
+- `apps/backend/src/contexts/booking/application/use-cases/schedule-hours.helpers.ts` (+ `.spec.ts`) (new — the moved code and the per-window verdict)
+- `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-hours.helpers.ts` and `.spec.ts` (modify or delete — keep only what is recurrence-specific)
 - `apps/backend/src/contexts/booking/application/use-cases/recurring-booking-schedule-request.helpers.ts`, `approve-recurring-booking-schedule.use-case.ts` (modify — imports)
-- `apps/backend/src/contexts/booking/application/use-cases/booking-request.helpers.ts` (+ `.spec.ts`) (modify — the hours step in `persistRequestedBooking`; its deps gain the closure and opening repositories and the tenant business hours)
-- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`, `create-booking-by-staff.use-case.ts` (+ specs) (modify — pass the new deps and the tenant business hours)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts` (+ spec) (modify — pass the tenant business hours from `RequestContext` settings)
-- `apps/backend/src/contexts/booking/domain/errors/booking-schedule.error.ts` or `booking-lifecycle.error.ts` (modify — the typed errors, with `Object.setPrototypeOf`)
+- `apps/backend/src/contexts/booking/application/use-cases/resource-occupancy.helpers.ts`, `resource-resolution-context.helpers.ts`, `resource-requirement-resolution.helpers.ts` (+ specs) (modify — optional `hoursSource`, the lookup on the context, the hours-aware `preferFreeResources`)
+- `apps/backend/src/contexts/booking/application/use-cases/booking-request.helpers.ts` (+ `.spec.ts`) (modify — the verification step in `resolveAndCheckCandidates`; deps gain the closure and opening repositories; params gain `businessHours`)
+- `apps/backend/src/contexts/booking/application/use-cases/request-booking.use-case.ts`, `request-authenticated-booking.use-case.ts`, `create-booking-by-staff.use-case.ts` (+ specs) (modify — inject the repositories, take `businessHours`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.ts` (+ spec) (modify — pass `settings.businessHours`)
+- `apps/backend/src/contexts/booking/domain/errors/booking-schedule.error.ts` (modify — the two typed errors, with `Object.setPrototypeOf`) and `booking-domain.error.spec.ts`
 - `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.ts` (+ spec) (modify)
 - `packages/types/src/error-codes.ts`, `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json` (modify)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-by-staff.controller.integration.spec.ts`, `booking.controller.integration.spec.ts` (modify — the closed-day and off-hours scenarios)
+- `apps/backend/src/test/utils/date-helpers.ts` (+ spec) (modify — the next-open-slot helper, derived from the test tenant's hours and timezone, never a hardcoded date)
+- Every integration spec that creates a booking through `POST /bookings*` or seeds one with a fixed `scheduledAt` (find them with `grep -rln "scheduledAt" apps/backend/src --include=*.integration.spec.ts`: the booking, loyalty, attachments, fungible-pool and recurring specs among them), and the unit specs of the three use cases and `persistRequestedBooking` (modify — valid open slots; in-memory closure and opening repositories, not `jest.fn()`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-by-staff.controller.integration.spec.ts`, `booking.controller.integration.spec.ts` (modify — the closed-day, off-hours, partial-closure, resource-closure scenarios)
+- `apps/web/e2e/**` (check — any helper that seeds a booking through the API at a fixed time; the browser flows pick slots from availability and should be unaffected)
 - `apps/backend/http/booking/bookings.http`, `apps/bff/http/bookings/bookings.http` (modify)
-- `docs/USE_CASES.md`, `docs/API_CONTRACTS.md`, `docs/BUSINESS_LOGIC_REFERENCE.md` (modify)
+- `docs/USE_CASES.md` (UC-001, UC-002, UC-108: the new alternative flow), `docs/API_CONTRACTS.md`, `docs/ERROR_CATALOG.md`, `docs/BUSINESS_LOGIC_REFERENCE.md` (one-off subsection beside the recurring one, with the selection rule), `docs/LOCK_CATALOG.md` (§ 5 note), `docs/DATABASE_SCHEMA.md` (line 403: remove the stale "shared with the slot-conflict check" claim) (modify)
+- Stale sweep: grep `docs/`, `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/**` and `scripts/**` for `recurring-booking-schedule-hours.helpers` and fix any reference the move leaves behind
 
 **Acceptance criteria — product:**
-- [ ] A guest, a customer and a staff member cannot create a booking for a time the business is closed (day of week, full-day closure, partial closure) or outside its working hours; the response says why.
+- [ ] A guest, a customer and a staff member cannot create a booking for a time the business is closed (day of week, full-day closure, partial closure) or outside its working hours; the response says which of the two it is.
 - [ ] A resource-scoped closure refuses a booking that needs that resource, and does not refuse one that can use another open resource.
+- [ ] When several resources could serve an automatic requirement, a closed one is never chosen while an open one is free.
 - [ ] A schedule opening on a normally-closed day makes bookings inside the opening possible and refuses those outside it.
 - [ ] A booking inside open hours and outside every closure is created exactly as before.
 - [ ] Bookings that already exist are not touched.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `schedule-hours.helpers.spec.ts`: the moved cases, plus a one-occurrence call for each verdict (FREE, CLOSED, OUTSIDE_HOURS)
-  - [ ] **Parity:** for a table of dates, times, closures and openings, the one-off verdict equals `AvailabilityService.windowHoursVerdict` (the read) — a slot the read lists is accepted and a slot it omits is refused
-  - [ ] `persistRequestedBooking`: closed, outside hours, opening-extends-hours, resource-scoped closure, and a bundle where one resource is closed
-  - [ ] The three entry points each refuse a closed day (one use-case test each)
+  - [ ] `schedule-hours.helpers.spec.ts`: the moved cases, plus the per-window verdict for each of FREE, CLOSED, OUTSIDE_HOURS
+  - [ ] **Parity:** for a table of dates, times, closures, openings and resource hours, the one-off verdict equals `AvailabilityService.windowHoursVerdict`, and a slot availability lists is accepted while one it omits is refused
+  - [ ] **Selection:** `AUTO_ANY` with the lowest-workload resource closed (its own hours, and separately a resource-scoped closure) and a second resource open and free picks the second; `AUTO_FUNGIBLE_POOL` likewise; with no open resource left the full list is returned and the refusal names the hours reason, not "type unavailable"
+  - [ ] `persistRequestedBooking`: closed, outside hours, opening extends hours, resource-scoped closure, a bundle where one requirement's resource is closed, a two-line basket whose second line ends after closing, a legged service whose last leg runs past closing, hours refused before occupancy when both apply
+  - [ ] Without `hoursSource`, `resolveBookingLinesResourceCandidates` returns exactly what it returns today (approve and reschedule specs pass unmodified)
+  - [ ] The three entry points each refuse a closed day (one use-case test each), and the staff entry point is not exempt
   - [ ] **Negative guarantee, own test:** an existing booking inside a closure created later is not changed or re-validated by any read or write path
+  - [ ] **Fixed cost:** the hours reads are four, whatever the number of lines or resources (repository call counts asserted)
   - [ ] Recurring-schedule specs pass unmodified apart from their imports
 - Integration:
-  - [ ] `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff` each return the new refusal for the closed-day, off-hours, partial-closure and resource-closure cases against a real database, and 201 for the control
-  - [ ] The refusal happens in the same transaction as the occupancy check: a closure committed between the availability read and the POST is honored
+  - [ ] `POST /bookings`, `POST /bookings/authenticated`, `POST /bookings/staff` each return the new refusals for the closed-day, off-hours, partial-closure and resource-closure cases against a real database, and 201 for the control
+  - [ ] A closure committed before the POST is honored by it (the check reads inside the booking transaction, after the locks)
+  - [ ] The migrated existing specs pass on any weekday: run the booking and loyalty integration suites with the clock faked to a Sunday and to a Wednesday
 - Tenant isolation:
   - [ ] Tenant B's closure does not refuse Tenant A's booking on the same date
-- E2E: none — server-side; Story 2 owns the browser scenario
+- E2E: none — server-side; Story 2 owns the browser scenario. The e2e API-seeding helpers are checked (files list) and fixed if they book at a fixed time.
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
