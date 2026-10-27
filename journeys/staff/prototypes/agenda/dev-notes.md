@@ -72,7 +72,7 @@ type ActionState =
 |---|---|---|---|
 | `idle` | Click "Aprovar" | `submitting` | All buttons disabled |
 | `submitting` | `PATCH .../approve` → 200 | `approved` | Green banner replaces action panel; "Pedir info" hidden; "Voltar à agenda" shown |
-| `submitting` | `PATCH .../approve` → 409 | `slot-conflict` | `SlotConflictAlert` shown with adjacent slot suggestions |
+| `submitting` | `PATCH .../approve` → 409 | `slot-conflict` | `SlotConflictAlert` shown with adjacent slot suggestions. When the refusal is `BOOKING_SLOT_CLOSED` / `BOOKING_OUTSIDE_BUSINESS_HOURS` (TD50) the alert says the business is closed or the time is outside business hours instead of "ocupado". The queue shortcut sends the approver here with `?conflict=1&reason=<code>`, kept by `BookingDetailPage` as `initialConflictCode` |
 | `slot-conflict` | Admin picks alternate slot + retries | `submitting` → `approved` | Same as approve happy path |
 | `idle` | Click "Rejeitar" | — | Opens `RejectBookingSheet` (no state change yet) |
 | `RejectBookingSheet` confirm | `PATCH .../reject` → 200 | `rejected` | Red banner replaces action panel; no further actions (terminal) |
