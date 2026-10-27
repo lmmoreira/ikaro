@@ -13,19 +13,17 @@ import {
   openBooking,
   pickFirstSlot,
   seedChoiceService,
-  seedResource,
+  seedSingleRoomService,
   selectService,
   serviceCard,
   stepIndicator,
   TENANT_SLUG,
 } from './helpers/booking-form';
 import {
-  createService,
-  deactivateService,
-  makeUniqueServiceName,
-  setBookingPolicy,
-  setResourceRequirements,
-} from './helpers/services';
+  createScheduleClosureAt,
+  removeScheduleClosure,
+} from './helpers/schedule/schedule-helpers';
+import { deactivateService, setBookingPolicy } from './helpers/services';
 
 // M23-S11a — where a submit error returns the customer to, the per-time service card and the
 // booking-details box. Real conflicts are seeded where the stack can produce them; the rest
@@ -36,20 +34,6 @@ async function newGuestPage(browser: Browser): Promise<{ page: Page; close: () =
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
   });
   return { page: await context.newPage(), close: () => context.close() };
-}
-
-async function seedSingleRoomService(page: Page, prefix: string) {
-  const room = await seedResource(page, 'ROOM');
-  const service = await createService(page, {
-    name: makeUniqueServiceName(prefix),
-    priceAmount: 150,
-    durationMinutes: 60,
-    loyaltyPointsValue: 10,
-  });
-  await setResourceRequirements(page, service.serviceId, [
-    { type: 'ROOM', selectionMode: 'AUTO_FUNGIBLE_POOL', resourcePoolIds: [room.id] },
-  ]);
-  return { service, room };
 }
 
 function problemRoute(status: number, code: string) {
@@ -96,6 +80,35 @@ test.describe('M23-S11a — submit routing and details', () => {
       await expect(serviceCard(guest.page, service.serviceId).getByRole('checkbox')).toBeChecked();
     } finally {
       await guest.close();
+      await deactivateService(page, service.serviceId);
+      await deactivateResource(page, room.id);
+    }
+  });
+
+  test('a closure added while the page is open returns to availability with the closed message and the selections kept', async ({
+    page,
+    browser,
+  }) => {
+    await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);
+    const { service, room } = await seedSingleRoomService(page, 'e2e-closed');
+    const guest = await newGuestPage(browser);
+    let closureId: string | undefined;
+
+    try {
+      const date = await reachConfirmation(guest.page, service.serviceId);
+      closureId = (
+        await createScheduleClosureAt(page, date, { reason: 'MAINTENANCE', resourceId: room.id })
+      ).id;
+      await confirmBooking(guest.page);
+
+      await expect(guest.page.getByTestId('step2-error')).toContainText(
+        'O negócio está fechado no horário solicitado.',
+      );
+      await guest.page.getByRole('button', { name: 'Voltar' }).click();
+      await expect(serviceCard(guest.page, service.serviceId).getByRole('checkbox')).toBeChecked();
+    } finally {
+      await guest.close();
+      if (closureId) await removeScheduleClosure(page, closureId);
       await deactivateService(page, service.serviceId);
       await deactivateResource(page, room.id);
     }

@@ -96,6 +96,7 @@ export class SchedulingExceptionController {
         actorRole: staffActorRole(actorRole),
         correlationId,
         timezone: settings.businessHours.timezone,
+        businessHours: settings.businessHours,
         exceptionIds: body.exceptionIds,
         resolutionType: body.resolutionType,
         reason: body.reason,

@@ -17,13 +17,21 @@ import {
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
 import { testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlot } from '../../../../test/utils/date-helpers';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import {
   BookingAddressValidationError,
   BookingServiceConcurrentModificationError,
 } from '../../domain/errors/booking-domain.error';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
 import { PhotoExistenceService } from '../services/photo-existence.service';
+import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
+import {
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
+} from '../../domain/errors/booking-domain.error';
 import { createBookingAddress, persistRequestedBooking } from './booking-request.helpers';
 
 const TENANT_A = '10000000-0000-4000-8000-000000000100';
@@ -60,7 +68,9 @@ describe('persistRequestedBooking', () => {
   let txManager: InMemoryTransactionManager;
   let slotConflictService: BookingSlotConflictService;
   let photoExistenceService: PhotoExistenceService;
-  const scheduledAt = new Date(`${futureDate(1)}T10:00:00.000Z`);
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
+  const scheduledAt = new Date(openSlot(1));
 
   beforeEach(async () => {
     serviceRepo = new InMemoryServiceRepository();
@@ -68,6 +78,8 @@ describe('persistRequestedBooking', () => {
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     bookingRepo = new InMemoryBookingRepository(new InMemoryEventBus());
     txManager = new InMemoryTransactionManager();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     slotConflictService = new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock());
     photoExistenceService = new PhotoExistenceService(new InMemoryStorageService());
     // M22-S03: a service with zero resourceRequirements (every fixture here, and every real
@@ -83,6 +95,7 @@ describe('persistRequestedBooking', () => {
     serviceMap: Map<string, ReturnType<ServiceBuilder['build']>>,
     resourceSelections: Parameters<typeof persistRequestedBooking>[1]['resourceSelections'] = [],
     occupancyLockState?: 'HOLD' | 'COMMITTED',
+    startsAt: Date = scheduledAt,
   ) =>
     persistRequestedBooking(
       {
@@ -94,12 +107,14 @@ describe('persistRequestedBooking', () => {
         resourceRepo,
         occupancyRepo,
         availabilityService: new AvailabilityService(),
+        hoursRepos: { closureRepo, openingRepo },
       },
       {
         booking,
         tenantId: TENANT_A,
-        scheduledAt,
+        scheduledAt: startsAt,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         operations: [],
         serviceMap,
         resourceSelections,
@@ -247,5 +262,105 @@ describe('persistRequestedBooking', () => {
     ]);
 
     expect(candidatesByLine.get(line.lineId)!.candidates[0].resourceId).toBe(staff.id);
+  });
+
+  describe('working hours, closures and openings', () => {
+    // 2031-03-04 is a Tuesday and 2031-03-02 a Sunday; America/Sao_Paulo is UTC-3.
+    const TUESDAY_10H = new Date('2031-03-04T13:00:00.000Z');
+    const SUNDAY_10H = new Date('2031-03-02T13:00:00.000Z');
+
+    const bookingFor = async () => {
+      const service = new ServiceBuilder().withTenantId(TENANT_A).build();
+      await serviceRepo.save(service);
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withLines([new BookingLineBuilder().withServiceId(service.id).build()])
+        .build();
+      return { booking, serviceMap: new Map([[service.id, service]]) };
+    };
+
+    it('creates the booking inside open hours', async () => {
+      const { booking, serviceMap } = await bookingFor();
+
+      await run(booking, serviceMap, [], undefined, TUESDAY_10H);
+
+      expect(await bookingRepo.findById(booking.id, TENANT_A)).not.toBeNull();
+    });
+
+    it('refuses a closed day and saves neither the booking nor its occupancy', async () => {
+      const { booking, serviceMap } = await bookingFor();
+
+      await expect(run(booking, serviceMap, [], undefined, SUNDAY_10H)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+
+      expect(await bookingRepo.findById(booking.id, TENANT_A)).toBeNull();
+      const rows = await occupancyRepo.findOccupancyByBookingLines(TENANT_A, [
+        booking.lines[0].lineId,
+      ]);
+      expect(rows).toHaveLength(0);
+    });
+
+    it('refuses a start outside the working hours', async () => {
+      const { booking, serviceMap } = await bookingFor();
+
+      await expect(
+        run(booking, serviceMap, [], undefined, new Date('2031-03-04T23:00:00.000Z')),
+      ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
+    });
+
+    it('reports the hours reason before the occupancy one when both apply', async () => {
+      const { booking, serviceMap } = await bookingFor();
+      const location = (
+        await resourceRepo.findByTenant(TENANT_A, { type: ResourceType.LOCATION })
+      )[0];
+      occupancyRepo.seed(TENANT_A, 'other-line', {
+        resourceId: location.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: location.name,
+        legIndex: null,
+        quantityPosition: null,
+        selectionMode: 'NONE',
+        isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
+        startsAt: SUNDAY_10H,
+        endsAt: new Date(SUNDAY_10H.getTime() + 60 * 60_000),
+      });
+
+      await expect(run(booking, serviceMap, [], undefined, SUNDAY_10H)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+    });
+
+    it('refuses a start inside a closure that was created for the tenant', async () => {
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_A).withDate('2031-03-04').build(),
+      );
+      const { booking, serviceMap } = await bookingFor();
+
+      await expect(run(booking, serviceMap, [], undefined, TUESDAY_10H)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+    });
+
+    // A closure never reaches back to bookings that already exist: they stay as they were, and
+    // nothing reads or re-validates them when a closure is created later.
+    it('leaves a booking made before a closure untouched when a closure is added later', async () => {
+      const { booking, serviceMap } = await bookingFor();
+      await run(booking, serviceMap, [], undefined, TUESDAY_10H);
+      const before = await bookingRepo.findById(booking.id, TENANT_A);
+
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_A).withDate('2031-03-04').build(),
+      );
+
+      const after = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(after).toEqual(before);
+      const rows = await occupancyRepo.findOccupancyByBookingLines(TENANT_A, [
+        booking.lines[0].lineId,
+      ]);
+      expect(rows.length).toBeGreaterThan(0);
+    });
   });
 });

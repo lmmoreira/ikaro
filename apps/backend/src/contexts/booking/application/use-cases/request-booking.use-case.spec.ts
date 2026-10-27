@@ -18,7 +18,10 @@ import { ResourceRequirement } from '../../domain/resource-requirement';
 import { ServiceBookingIntakeSchema } from '../../domain/service-booking-intake-schema';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
+import { futureDate, nextWeekday, openSlot, pastDate } from '../../../../test/utils/date-helpers';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { AddressErrorCode } from '@ikaro/types';
 import {
   BookingAddressValidationError,
@@ -28,6 +31,8 @@ import {
   BookingPhotoNotUploadedError,
   BookingServiceConcurrentModificationError,
   BookingServiceSessionNotBookableError,
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
   BookingSlotUnavailableError,
   BookingScheduledInPastError,
   BookingTooFarAheadError,
@@ -39,7 +44,7 @@ import { RequestBookingUseCase } from './request-booking.use-case';
 const TENANT_A = '10000000-0000-4000-8000-000000000100';
 const CORRELATION_ID = 'corr-request-booking-test';
 
-const scheduledAt = `${futureDate(1)}T10:00:00.000Z`;
+const scheduledAt = openSlot(1);
 
 describe('RequestBookingUseCase', () => {
   let serviceRepo: InMemoryServiceRepository;
@@ -49,6 +54,8 @@ describe('RequestBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
   let eventBus: InMemoryEventBus;
   let storageService: InMemoryStorageService;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: RequestBookingUseCase;
   let serviceId: string;
 
@@ -61,12 +68,16 @@ describe('RequestBookingUseCase', () => {
     bookingRepo = new InMemoryBookingRepository(eventBus);
     storageService = new InMemoryStorageService();
     const txManager = new InMemoryTransactionManager();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     useCase = new RequestBookingUseCase(
       serviceRepo,
       resourceRepo,
       occupancyRepo,
       intakeSchemaRepo,
       new AvailabilityService(),
+      closureRepo,
+      openingRepo,
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new PhotoExistenceService(storageService),
       new BookingQuoteService(),
@@ -97,6 +108,7 @@ describe('RequestBookingUseCase', () => {
     correlationId: CORRELATION_ID,
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
+    businessHours: DEFAULT_TEST_BUSINESS_HOURS,
     tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
   });
 
@@ -277,8 +289,8 @@ describe('RequestBookingUseCase', () => {
       isBundleMember: false,
       gapMinutes: null,
       gapSource: null,
-      startsAt: new Date(`${futureDate(1)}T10:00:00.000Z`),
-      endsAt: new Date(`${futureDate(1)}T10:30:00.000Z`),
+      startsAt: new Date(scheduledAt),
+      endsAt: new Date(new Date(scheduledAt).getTime() + 30 * 60_000),
     });
 
     await expect(
@@ -532,6 +544,23 @@ describe('RequestBookingUseCase', () => {
         .catch(() => undefined);
 
       expect(eventBus.published).toHaveLength(0);
+    });
+  });
+
+  describe('working hours', () => {
+    const sunday = () => `${nextWeekday(0)}T13:00:00.000Z`;
+
+    it('refuses a guest booking on a closed day and publishes nothing', async () => {
+      await expect(
+        useCase.execute({ ...baseInput(), scheduledAt: sunday() }),
+      ).rejects.toBeInstanceOf(BookingSlotClosedError);
+      expect(eventBus.published).toHaveLength(0);
+    });
+
+    it('refuses a start outside the working hours', async () => {
+      await expect(
+        useCase.execute({ ...baseInput(), scheduledAt: `${futureDate(1)}T23:00:00.000Z` }),
+      ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
     });
   });
 });

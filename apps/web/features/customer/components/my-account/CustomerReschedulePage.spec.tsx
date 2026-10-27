@@ -253,6 +253,29 @@ describe('CustomerReschedulePage', () => {
     await waitFor(() => expect(pickerMounts.mock.calls.length).toBeGreaterThan(mountsBefore));
   });
 
+  it.each([
+    [BookingErrorCode.SLOT_CLOSED, 'O negócio está fechado no horário solicitado.'],
+    [
+      BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
+      'O horário solicitado está fora do horário de funcionamento.',
+    ],
+  ])(
+    '%s shows the catalogue message, clears the slot and reloads the list',
+    async (code, message) => {
+      rejectWith(code);
+      renderPage();
+      const mountsBefore = pickerMounts.mock.calls.length;
+
+      await pickSlotAndConfirm();
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(message);
+      expect(alert).toHaveTextContent('Seu agendamento continua no horário original.');
+      expect(screen.getAllByRole('button', { name: 'Confirmar novo horário' })[0]).toBeDisabled();
+      await waitFor(() => expect(pickerMounts.mock.calls.length).toBeGreaterThan(mountsBefore));
+    },
+  );
+
   it.each([BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE, BookingErrorCode.LEG_UNAVAILABLE])(
     '%s says nothing was changed and reloads the list',
     async (code) => {

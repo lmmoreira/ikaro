@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
 import { IEventBus, EVENT_BUS } from '../../../../shared/ports/event-bus.port';
 import { InMemoryNotificationDispatcher } from '../../../../test/infrastructure/in-memory-notification-dispatcher';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { createNotificationIntegrationApp } from '../../../../test/utils/notification-integration-app';
 import { ServiceEntityBuilder } from '../../../../test/builders/booking/service-entity.builder';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/customer-entity.builder';
@@ -163,7 +163,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
-      .send({ scheduledAt: `${futureDate(4)}T10:00:00.000Z`, serviceIds: [serviceId] })
+      .send({ scheduledAt: openSlotAt(4, 10), serviceIds: [serviceId] })
       .expect(201);
 
     const booking1Id = b1.bookingId as string;
@@ -210,7 +210,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
         contactEmail,
         contactName: 'Ana Costa',
         contactPhone: '+5531998765432',
-        scheduledAt: `${futureDate(2)}T14:00:00.000Z`,
+        scheduledAt: openSlotAt(2, 14),
         serviceIds: [serviceId],
       })
       .expect(201);
@@ -249,7 +249,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
         contactEmail: booking3GuestEmail,
         contactName: 'Pedro Santos',
         contactPhone: '+5531997654321',
-        scheduledAt: `${futureDate(3)}T10:00:00.000Z`,
+        scheduledAt: openSlotAt(3, 10),
         serviceIds: [serviceId],
       })
       .expect(201);
@@ -273,7 +273,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .set('X-Actor-ID', staffId)
       .set('X-Actor-Type', 'STAFF')
       .set('X-Actor-Role', 'MANAGER')
-      .send({ scheduledAt: `${futureDate(7)}T10:00:00.000Z` })
+      .send({ scheduledAt: openSlotAt(7, 10) })
       .expect(200);
 
     // 11. Authenticated customer creates booking4 → approve → complete
@@ -285,7 +285,7 @@ describe('Story: full booking lifecycle → event bus → all notification email
       .set('X-Actor-ID', customerId)
       .set('X-Actor-Type', 'CUSTOMER')
       .set('X-Actor-Role', 'CUSTOMER')
-      .send({ scheduledAt: `${futureDate(8)}T10:00:00.000Z`, serviceIds: [serviceId] })
+      .send({ scheduledAt: openSlotAt(8, 10), serviceIds: [serviceId] })
       .expect(201);
     const booking4Id = b4.bookingId as string;
 

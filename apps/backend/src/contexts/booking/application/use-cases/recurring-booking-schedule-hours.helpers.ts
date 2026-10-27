@@ -2,66 +2,20 @@ import { BusinessHours } from '../../../../shared/value-objects/business-hours.v
 import { RecurringScheduleOccurrenceConflict } from '../../domain/errors/recurring-booking-schedule.error';
 import { RecurrenceOccurrence } from '../../domain/recurrence-rule.helpers';
 import { Resource } from '../../domain/resource.aggregate';
-import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
-import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { ResourceOccupancyWindow } from '../ports/resource-occupancy-repository.port';
-import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
-import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
+import {
+  buildHoursDayLookup,
+  HoursDayLookup,
+  HoursScheduleData,
+  resourceWindowHoursVerdict,
+} from './schedule-hours.helpers';
 
-// M23-S18 — the working-hours-and-closures half of a recurring schedule's creation-time checks
-// (UC-070 step 2). Written as a loader plus one pure in-memory pass so M23-S05's approval step can
-// run the identical check again without the request context. The verdict per window is
-// AvailabilityService.windowHoursVerdict() — the same rule isWindowFree() (availability) applies —
-// so creation and availability can never disagree about what is open.
-
-export interface HoursScheduleData {
-  // Tenant-wide AND resource-scoped closures across the term.
-  closures: ScheduleClosure[];
-  // Tenant-wide openings (resourceId IS NULL).
-  tenantOpenings: ScheduleOpening[];
-  // Resource-scoped openings for the considered resources.
-  resourceOpenings: ScheduleOpening[];
-}
-
-export interface HoursScheduleRepos {
-  closureRepo: IScheduleClosureRepository;
-  openingRepo: IScheduleOpeningRepository;
-}
-
-// A fixed number of queries (four) regardless of how many occurrences the term has or how many
-// resources are considered: tenant-wide rows via findByTenantAndDateRange (which returns
-// tenant-wide records only when resourceId is omitted) and resource-scoped rows via one batched
-// call per repository. The four reads run one after another, not in a Promise.all: the caller is
-// inside a transaction, where every query shares one connection, and concurrent queries on a
-// single pg client are deprecated.
-export async function loadHoursScheduleData(
-  repos: HoursScheduleRepos,
-  tenantId: string,
-  resourceIds: string[],
-  from: string,
-  to: string,
-): Promise<HoursScheduleData> {
-  const tenantClosures = await repos.closureRepo.findByTenantAndDateRange(tenantId, from, to);
-  const resourceClosures = await repos.closureRepo.findByTenantAndResourcesAndDateRange(
-    tenantId,
-    resourceIds,
-    from,
-    to,
-  );
-  const tenantOpenings = await repos.openingRepo.findByTenantAndDateRange(tenantId, from, to);
-  const resourceOpenings = await repos.openingRepo.findByTenantAndResourcesAndDateRange(
-    tenantId,
-    resourceIds,
-    from,
-    to,
-  );
-  return {
-    closures: [...tenantClosures, ...resourceClosures],
-    tenantOpenings,
-    resourceOpenings,
-  };
-}
+// M23-S18 — the recurrence-specific half of a recurring schedule's hours-and-closures check
+// (UC-070 step 2): one pass over the term's occurrences, written as pure in-memory code so
+// M23-S05's approval step can run the identical check again without the request context. The
+// loader, the day lookup and the per-window verdict are shared with the one-off booking in
+// schedule-hours.helpers.ts.
 
 export interface HoursCheckInput {
   availabilityService: AvailabilityService;
@@ -96,7 +50,7 @@ export interface HoursEvaluation {
 
 // findHoursConflicts() plus the per-resource verdicts it decides from.
 export function evaluateHours(input: HoursCheckInput): HoursEvaluation {
-  const lookup = buildDayLookup(input);
+  const lookup = buildHoursDayLookup(input.schedule);
   const conflicts: RecurringScheduleOccurrenceConflict[] = [];
   const unavailable: ResourceOccupancyWindow[] = [];
   for (const occurrence of input.occurrences) {
@@ -123,57 +77,24 @@ export function evaluateHours(input: HoursCheckInput): HoursEvaluation {
   return { conflicts, unavailable };
 }
 
-interface DayLookup {
-  closuresByDate: Map<string, ScheduleClosure[]>;
-  tenantOpeningByDate: Map<string, ScheduleOpening>;
-  resourceOpeningByKey: Map<string, ScheduleOpening>;
-}
-
-function buildDayLookup(input: HoursCheckInput): DayLookup {
-  return {
-    closuresByDate: groupByDate(input.schedule.closures),
-    tenantOpeningByDate: new Map(input.schedule.tenantOpenings.map((o) => [o.date.value, o])),
-    resourceOpeningByKey: new Map(
-      input.schedule.resourceOpenings.map((o) => [`${o.resourceId}|${o.date.value}`, o]),
-    ),
-  };
-}
-
 // One resource's verdict for one occurrence window (start → start + duration + its trailing gap).
 function resourceVerdict(
   input: HoursCheckInput,
-  lookup: DayLookup,
+  lookup: HoursDayLookup,
   occurrence: RecurrenceOccurrence,
   resource: Resource,
-): ReturnType<AvailabilityService['windowHoursVerdict']> {
-  const date = occurrence.occurrenceStartLocalDate;
+): ReturnType<typeof resourceWindowHoursVerdict> {
   const gapMinutes = input.availabilityService.effectiveFlatGapMinutes(
     input.bufferAfterMinutes,
     resource.turnoverMinutes,
   );
   const start = occurrence.occurrenceStart;
   const end = new Date(start.getTime() + (input.durationMinutes + gapMinutes) * 60_000);
-  return input.availabilityService.windowHoursVerdict(
-    date,
-    input.businessHours,
-    {
-      resource,
-      closures: (lookup.closuresByDate.get(date) ?? []).filter(
-        (c) => c.resourceId === null || c.resourceId === resource.id,
-      ),
-      opening: lookup.tenantOpeningByDate.get(date) ?? null,
-      resourceOpening: lookup.resourceOpeningByKey.get(`${resource.id}|${date}`) ?? null,
-    },
-    { start, end },
-  );
-}
-
-function groupByDate(closures: ScheduleClosure[]): Map<string, ScheduleClosure[]> {
-  const byDate = new Map<string, ScheduleClosure[]>();
-  for (const closure of closures) {
-    const list = byDate.get(closure.date.value);
-    if (list) list.push(closure);
-    else byDate.set(closure.date.value, [closure]);
-  }
-  return byDate;
+  return resourceWindowHoursVerdict({
+    availabilityService: input.availabilityService,
+    businessHours: input.businessHours,
+    lookup,
+    resource,
+    window: { start, end },
+  });
 }

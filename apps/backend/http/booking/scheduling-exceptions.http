@@ -145,6 +145,24 @@ Content-Type: application/json
   "scheduledAt": "2026-10-20T13:00:00.000Z"
 }
 
+###
+
+### RESCHEDULE to a closed day or outside the working hours — 200 with the entry STILL_OPEN and
+### errorCode BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (TD50 Story 1: no worklist
+### exemption; the booking and the entry are unchanged. REASSIGN keeps the time and is not checked.)
+POST {{baseUrl}}/scheduling-exceptions/resolve
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "RESCHEDULE",
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — dismiss (UC-077 A2)
 # ─────────────────────────────────────────────────────────────────────────────

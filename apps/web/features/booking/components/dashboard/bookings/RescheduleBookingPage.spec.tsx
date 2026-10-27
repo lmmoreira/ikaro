@@ -236,6 +236,38 @@ describe('RescheduleBookingPage', () => {
     ).toBeInTheDocument();
   });
 
+  it('says the time is closed, not occupied, when the reschedule is refused for a closure', async () => {
+    const user = userEvent.setup();
+    rescheduleBookingMutateAsync.mockRejectedValueOnce(
+      new ApiError(409, 'closed', { code: 'BOOKING_SLOT_CLOSED' }),
+    );
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-17',
+      available: true,
+      slots: [{ startsAt: '2026-06-17T10:00:00.000Z', endsAt: '2026-06-17T10:30:00.000Z' }],
+    });
+
+    renderWithIntl(
+      <RescheduleBookingPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        maxBookingAdvanceDays={90}
+        timezone="UTC"
+        backHref="/dashboard/bookings/b-1"
+        agendaHref="/dashboard/schedule?weekStart=2026-06-16&date=2026-06-16"
+      />,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'choose date' }));
+    await user.click(screen.getByRole('button', { name: 'choose slot' }));
+    await user.click(screen.getAllByRole('button', { name: 'Reagendar' })[0]);
+
+    expect(
+      await screen.findByText('O negócio está fechado no horário solicitado.'),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/foi ocupado/)).not.toBeInTheDocument();
+  });
+
   it('dismisses the conflict alert when the back action is used', async () => {
     const user = userEvent.setup();
     rescheduleBookingMutateAsync.mockRejectedValueOnce(new ApiError(409, 'slot unavailable'));

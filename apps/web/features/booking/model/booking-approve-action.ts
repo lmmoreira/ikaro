@@ -4,6 +4,7 @@ import {
   type StaffBookingDetailResponse,
 } from '@ikaro/types';
 import { ApiError } from '@/shared/lib/api/errors';
+import { extractProblemCode } from '@/shared/lib/i18n/resolve-error-message';
 import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import type { BookingDetailActionState } from '../components/dashboard/bookings/BookingDetailMainBanner';
 import type { BookingDetailSheetState } from '../components/dashboard/bookings/BookingDetailSheets';
@@ -21,6 +22,7 @@ interface BuildApproveHandlerParams {
   readonly setSheetState: (state: BookingDetailSheetState) => void;
   readonly setSlotSuggestions: (suggestions: readonly SlotConflictSuggestion[]) => void;
   readonly setInlineError: (message: string | null) => void;
+  readonly setConflictCode: (code: string | undefined) => void;
   readonly translateLoadingAlternativesError: () => string;
   readonly translateApproveError: () => string;
 }
@@ -68,6 +70,7 @@ export function buildApproveHandler(
       params.setActionState('approved');
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
+        params.setConflictCode(extractProblemCode(err));
         await recoverFromSlotConflict(params);
         return;
       }

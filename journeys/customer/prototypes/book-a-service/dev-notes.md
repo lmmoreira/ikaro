@@ -93,7 +93,7 @@ POST /bookings/authenticated
       //      intakeAnswers?, consentAccepted?, attendees?  (identical to the guest endpoint)
     }
   201 Created → BookingResponse
-  409 Conflict → slot taken
+  409 Conflict → slot taken, or closed / outside business hours (BOOKING_SLOT_CLOSED, BOOKING_OUTSIDE_BUSINESS_HOURS) — all go back to step 2
 ```
 
 ---

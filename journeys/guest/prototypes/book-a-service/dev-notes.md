@@ -105,7 +105,7 @@ Response: AvailabilityResponse
 - `selectedSlot: AvailableSlot | null`
 - `step2Error: string | null`
 
-**Error handling:** a failed `POST /bookings` is routed by its error code through `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`), which returns the step to go back to and the catalogue message from `packages/i18n/locales/{pt-BR,en}/errors.json` (for example `BOOKING_SLOT_UNAVAILABLE` returns to the availability step with "O horário solicitado não está mais disponível."; data-testid: `step2-error`). A code with no mapped step falls back to Confirmation with the generic message.
+**Error handling:** a failed `POST /bookings` is routed by its error code through `resolveErrorStep()` (`apps/web/features/booking/model/booking-steps.ts`), which returns the step to go back to and the catalogue message from `packages/i18n/locales/{pt-BR,en}/errors.json` (for example `BOOKING_SLOT_UNAVAILABLE` returns to the availability step with "O horário solicitado não está mais disponível."; data-testid: `step2-error`; `BOOKING_SLOT_CLOSED` and `BOOKING_OUTSIDE_BUSINESS_HOURS` take the same route with their catalogue messages, TD50 Story 2). A code with no mapped step falls back to Confirmation with the generic message.
 
 **Loading states:** `AvailabilityCarousel` renders skeleton placeholders while fetching (already implemented).
 
@@ -287,6 +287,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 | Code | Lands on | Screen | Keeps | Clears |
 |---|---|---|---|---|
 | `BOOKING_SLOT_UNAVAILABLE` | availability | `02e` | everything | slot |
+| `BOOKING_SLOT_CLOSED`, `BOOKING_OUTSIDE_BUSINESS_HOURS` (a closure or working hours refuse the time) | availability | `02e` (catalogue message: closed / outside business hours) | everything | slot |
 | `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` | availability | `09b` | services, picks, duration | slot |
 | `BOOKING_LEG_UNAVAILABLE` | availability | `10b` | services, picks, duration | slot |
 | `BOOKING_DURATION_OUT_OF_RANGE` (`field = durationMinutes`) | duration step | `12b` | services, picks | duration |

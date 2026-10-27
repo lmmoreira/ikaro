@@ -74,6 +74,7 @@ export class BookingLifecycleController {
         actorRole: staffActorRole(actorRole),
         correlationId,
         timezone: settings.businessHours.timezone,
+        businessHours: settings.businessHours,
       })
       .catch(mapBookingError);
   }

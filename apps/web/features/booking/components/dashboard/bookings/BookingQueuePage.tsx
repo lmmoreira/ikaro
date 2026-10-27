@@ -22,7 +22,10 @@ import { toLocalDate } from '@/features/booking/schedule/schedule-timeline';
 import { toISODateInTimezone } from '@/shared/lib/formatting/date-utils';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import {
+  extractProblemCode,
+  resolveErrorMessageFromApiError,
+} from '@/shared/lib/i18n/resolve-error-message';
 import { FloatingFilterDock } from '../FloatingFilterDock';
 import { AgendaFilterMenu } from './AgendaFilterMenu';
 import { BookingCard } from './BookingCard';
@@ -80,7 +83,9 @@ export function BookingQueuePage({
       await approveBookingMutation.mutateAsync({ id: bookingId });
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
-        router.push(`/dashboard/bookings/${bookingId}?conflict=1`);
+        const reason = extractProblemCode(err);
+        const query = new URLSearchParams({ conflict: '1', ...(reason ? { reason } : {}) });
+        router.push(`/dashboard/bookings/${bookingId}?${query.toString()}`);
         return;
       }
       setApproveError(resolveErrorMessageFromApiError(err, locale));

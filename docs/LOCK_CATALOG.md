@@ -183,12 +183,12 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 |---|---|
 | `OpenScheduleUseCase` | R3 → A1 (resource-scoped openings only) |
 | `CloseScheduleUseCase`, `RemoveScheduleOpeningUseCase` | A1 |
-| One-off booking creation | R2 → A3 (candidates, one call) → booking `save` |
-| `ApproveBookingUseCase` | A3 (candidates + the resources it holds now, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
-| Reschedule, staff or customer | A3 (candidates + the resources it holds now, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
+| One-off booking creation | R2 → A3 (candidates, one call) → hours reads (closures and openings, no lock; TD50) → booking `save` |
+| `ApproveBookingUseCase` | A3 (candidates + the resources it holds now, one call) → hours reads (closures and openings, no lock; TD50) → R4 → booking `save` → occupancy → dismiss stale entries |
+| Reschedule, staff or customer | A3 (candidates + the resources it holds now, one call) → hours reads (closures and openings, no lock; TD50) → R4 → booking `save` → occupancy → dismiss stale entries |
 | Reassign (worklist) | R4 → A3 (candidate targets only) → occupancy |
 | Resolve CANCEL (worklist) | A3 (the booking's resources) → R4 → booking `save` → occupancy release → dismiss sibling entries |
-| Resolve RESCHEDULE (worklist) | A3 (the booking's resources, the entry's source and the candidates, one call) → R4 → booking `save` → occupancy → dismiss stale entries |
+| Resolve RESCHEDULE (worklist) | A3 (the booking's resources, the entry's source and the candidates, one call) → hours reads (closures and openings, no lock; TD50) → R4 → booking `save` → occupancy → dismiss stale entries |
 | `ReactivateResourceUseCase` | A2 → A3 → R4 → resource `save` |
 | `CascadeStaffDeactivationUseCase` | A2 → resource `save` → raise (A3 → impact read → entry inserts) |
 | `DeactivateResourceUseCase` | resource `save` → raise (A3 → impact read → entry inserts); the resource row is written before A3, unlike the cancel paths |
@@ -212,6 +212,7 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 | H3 | `countActiveManagersByTenant` locks manager rows with no `ORDER BY`; two concurrent deactivations rely on identical scan order. | **Closed in M23-S48** (`ORDER BY id`). A lock-contract test holds an uncommitted manager deactivation and checks that the last-manager guard waits for it, then refuses with `LastActiveManagerError` (the earlier two-request race passed without the lock and was replaced). |
 | H4 | Cancel, reject and end-recurring take no resource lock, so a stale future-commitment entry can be inserted by a concurrent raise. | **Closed in M23-S48** (A3 → R4 → booking `save`); cancel racing a deactivation, and cancel racing the worklist's CANCEL, are covered by integration tests. |
 | H5 | **No `lock_timeout` or `statement_timeout` anywhere in the backend** (before M23-S49) (search over `*.ts` and infra found none). A deadlock is detected by Postgres after `deadlock_timeout` and one side fails with `40P01`, which no code maps; a merely slow holder (a raise over a resource with many bookings, a long `end-recurring`) makes others wait without bound. | **Closed in M23-S49** (design, why 2s and the retry contract: the "Lock waits are bounded (M23-S49)" paragraph in `docs/ENGINEERING_RULES_BACKEND.md`, near the top). A `40P01` deadlock is still a real defect to fix by ordering (§2); the 503 only makes it visible and retryable instead of a 500. |
+| H6 | **Booking creation, approval and reschedule (the customer's, the staff's and the worklist's) read closures and openings without the tenant-day lock (A1).** `CloseScheduleUseCase` takes A1 and these paths take only R2/A3 (and R4), so a closure can commit while a transaction that has already read "no closure" is in flight, and that booking lands inside the closure. | **Accepted (TD50).** It is indistinguishable from the booking having been made, approved or moved a moment before the closure, which is always allowed: closing a day does not read or act on existing bookings. It holds only while that stays true; a later story that makes a closure scan or cancel existing bookings must take A1 in booking creation, approval and reschedule (before R2/A3, the L1 position) and add the concurrent test. |
 
 ---
 

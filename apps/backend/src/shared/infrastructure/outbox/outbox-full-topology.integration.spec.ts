@@ -4,7 +4,7 @@ import { DataSource } from 'typeorm';
 import { ServiceEntityBuilder } from '../../../test/builders/booking/index';
 import { InMemoryNotificationDispatcher } from '../../../test/infrastructure/in-memory-notification-dispatcher';
 import { createNotificationIntegrationApp } from '../../../test/utils/notification-integration-app';
-import { futureDate } from '../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../test/utils/date-helpers';
 import { actorHeaders } from '../../../test/utils/actor-headers';
 import { BookingModule } from '../../../contexts/booking/booking.module';
 import { BookingEntity } from '../../../contexts/booking/infrastructure/entities/booking.entity';
@@ -133,7 +133,7 @@ describe('Outbox full topology: booking approval → real outbox → relay → n
         contactEmail,
         contactName: 'João Silva',
         contactPhone: '+5531999999999',
-        scheduledAt: `${futureDate(2)}T13:00:00.000Z`,
+        scheduledAt: openSlotAt(2, 13),
         serviceIds: [serviceId],
       })
       .expect(201);

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Discovery Prototype — Tenant Billing</title>
+  <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
+  <style>
+    body { padding: 2rem; max-width: 52rem; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.0625rem; font-weight: 700; margin: 1.75rem 0 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; line-height: 1.6; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.625rem; margin: 1rem 0; }
+    li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-actor { background: var(--ba-secondary); color: var(--ba-text); }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; font-size: 0.875rem; line-height: 1.6; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Discovery Prototype — Tenant Billing</h1>
+  <p>
+    Mockups for the model in <a href="../tenant-billing.md">tenant-billing.md</a>, use cases in
+    <a href="../tenant-billing_USECASES.md">tenant-billing_USECASES.md</a>, API in
+    <a href="../tenant-billing_API.md">tenant-billing_API.md</a> and module spec in
+    <a href="../tenant-billing_MODULE.md">tenant-billing_MODULE.md</a>. Fictional tenants (Lavacar BeloAuto and Ikaro for BR, Sunrise Auto Spa for US) and one fictional visitor (Maria Souza):
+    <strong>Lavacar BeloAuto</strong> (BR, pays Ikaro) and <strong>Ikaro</strong> (the platform's own tenant and marketing site).
+    Handoff details per screen: <a href="dev-notes.md">dev-notes.md</a>.
+  </p>
+  <div class="note">
+    <strong>Illustrative only.</strong> This is <em>not</em> a <code>journeys/</code> prototype: prices, dates, tier
+    names and the Ikaro URL are invented. Tokens, the dashboard shell and the hotsite pages are the real ones from
+    <code>journeys/shared/</code>. Tags: <span class="tag tag-green">green</span> = reuses an existing component,
+    <span class="tag tag-red">red</span> = new component (GAP).
+  </div>
+
+  <h1 style="font-size:1.25rem;margin-top:1.5rem;">Fluxo principal</h1>
+<h2>Manager — página de cobrança (Assinatura)</h2>
+<ul>
+  <li><a href="manager-01-billing-active.html">Assinatura › aba Resumo — ACTIVE (itens, total, cobrança aberta; aba Cobranças com reembolso/chargeback)</a> <span class="tag tag-actor">CAND-12, 14</span> <span class="tag tag-red">GAP: BillingPage</span></li>
+  <li><a href="manager-01b-billing-trial.html">Assinatura › Resumo — Em teste (dias restantes, primeira cobrança)</a> <span class="tag tag-actor">CAND-12, 25</span> <span class="tag tag-red">GAP: BillingPage (trial)</span></li>
+  <li><a href="manager-01c-billing-past-due.html">Assinatura › Resumo — PAST_DUE (14 dias de carência)</a> <span class="tag tag-actor">CAND-12, 14</span> <span class="tag tag-red">GAP: BillingStatusBanner</span></li>
+  <li><a href="manager-01d-billing-suspended.html">Assinatura › Resumo — SUSPENDED por falta de pagamento (única página acessível)</a> <span class="tag tag-actor">CAND-16, 12, 14</span> <span class="tag tag-red">GAP: SuspendedGate</span></li>
+  <li><a href="manager-01e-billing-suspended-canceled.html">Assinatura › Resumo — SUSPENDED por cancelamento (Reativar assinatura)</a> <span class="tag tag-actor">CAND-29, 27, 16</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-01k-billing-price-change-notice.html">Assinatura › Resumo — aviso de reajuste (novo valor a partir de 10/12)</a> <span class="tag tag-actor">CAND-07, 19</span> <span class="tag tag-red">GAP: PriceChangeNotice</span></li>
+  <li><a href="manager-01l-billing-exempt.html">Assinatura — conta isenta de cobrança (exempt)</a> <span class="tag tag-actor">CAND-32</span> <span class="tag tag-red">GAP: exempt state</span></li>
+  <li><a href="manager-02-billing-identity-br.html">Assinatura › aba Dados de cobrança — BR (CPF/CNPJ obrigatório, demais campos opcionais, um botão Salvar)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP: BillingIdentityForm</span></li>
+  <li><a href="manager-02c-billing-identity-us.html">Assinatura › aba Dados de cobrança — US (sem CNPJ)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06-cancel-confirm.html">Cancelar assinatura — confirmação (sem reembolso, política de limpeza)</a> <span class="tag tag-actor">CAND-28</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06b-cancel-scheduled.html">Assinatura › Resumo — &#x27;Cancelada — acesso até dd/mm&#x27; + Reativar</a> <span class="tag tag-actor">CAND-28, 29</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-07-auto-billing-activate.html">Assinatura › aba Cobrança automática — ativar (autorização na página do provedor)</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-07b-auto-billing-active.html">Assinatura › aba Cobrança automática — ativa (Pix Automático) + Desativar</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08-plan-edit.html">Assinatura › aba Plano — ativa, mudança em edição com prévia e novo total</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP: PlanTab</span></li>
+  <li><a href="manager-08b-plan-trial-choose.html">Assinatura › aba Plano — teste: revisar o plano antes da primeira cobrança</a> <span class="tag tag-actor">CAND-31, 25</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Manager — dashboard e editor (telas alteradas)</h2>
+<ul>
+  <li><a href="manager-03-locked-feature.html">Menu com recurso bloqueado + upsell no Chatbot (configurações preservadas)</a> <span class="tag tag-actor">CAND-20</span> <span class="tag tag-red">GAP: FeatureLockedCard</span></li>
+  <li><a href="manager-04-dashboard-trial-banner.html">Agenda com banner do teste (faltam N dias)</a> <span class="tag tag-actor">CAND-25</span> <span class="tag tag-red">GAP: SubscriptionBanner</span></li>
+  <li><a href="manager-04b-dashboard-past-due-banner.html">Agenda com banner de pagamento em atraso (acesso total)</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-red">GAP: SubscriptionBanner</span></li>
+  <li><a href="manager-05-hotsite-editor-trial-cta.html">Editor do hotsite — módulo TRIAL_SIGNUP_CTA (só tenant Ikaro)</a> <span class="tag tag-actor">CAND-26</span> <span class="tag tag-red">GAP: TrialSignupCtaConfigPanel</span></li>
+</ul>
+<h2>Equipe, cliente e site público quando suspenso</h2>
+<ul>
+  <li><a href="staff-01-suspended-notice.html">Funcionário: &#x27;Esta conta está suspensa. Fale com o gerente.&#x27;</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-red">GAP: TenantSuspendedNotice</span></li>
+  <li><a href="staff-02-select-tenant-suspended.html">Funcionário com várias empresas: a suspensa continua listada com selo &#x27;Suspensa&#x27;</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-green">EXISTS: SelectStaffTenantClient (+ badge)</span></li>
+  <li><a href="customer-01-account-inactive-business.html">Cliente: Minha conta com selo &#x27;Empresa inativa&#x27;, histórico visível</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-green">EXISTS: my-account list (+ new prop)</span></li>
+  <li><a href="public-01-page-not-published.html">Hotsite: &#x27;Página não publicada&#x27; (neutro) com login da equipe e do cliente</a> <span class="tag tag-actor">CAND-17</span> <span class="tag tag-red">CHANGED: Unavailable gains the login bar + new copy</span></li>
+</ul>
+<h2>Cadastro público (self-signup) na Ikaro</h2>
+<ul>
+  <li><a href="public-02-ikaro-hotsite-cta.html">Hotsite da Ikaro com o módulo TRIAL_SIGNUP_CTA</a> <span class="tag tag-actor">CAND-22, 26</span> <span class="tag tag-red">GAP: TrialSignupCtaModule</span></li>
+  <li><a href="public-03-ikaro-trial-details-br.html">/ikaro-trial — recursos e preços em BRL (alternador BR/US)</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: IkaroTrialDetailsPage, PriceTable</span></li>
+  <li><a href="public-03b-ikaro-trial-details-us.html">/ikaro-trial — preços em USD</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-04-signup-google-step.html">Turnstile + Entrar com Google</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05-signup-form.html">Formulário: negócio, slug, país, CPF/CNPJ (BR), termos</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: SignupForm, SlugInput</span></li>
+  <li><a href="public-06-welcome-trial-started.html">Conta criada: instruções de acesso enviadas por e-mail</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP: SignupAccountCreatedPage</span></li>
+</ul>
+  <hr>
+  <h1 style="font-size:1.25rem;">Estados alternativos (unhappy paths)</h1>
+  <p>Cada tela acima tem variantes para carregando, erro, vazio, validação, envio e sucesso quando se aplicam.</p>
+<h2>Cobrança (estados alternativos)</h2>
+<ul>
+  <li><a href="manager-01f-billing-loading.html">Carregando</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-red">GAP: skeleton</span></li>
+  <li><a href="manager-01g-billing-load-error.html">Erro ao carregar (tentar novamente)</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-green">EXISTS: ErrorAlert</span></li>
+  <li><a href="manager-01h-billing-no-charges.html">Em teste com a primeira cobrança emitida (histórico de pagas vazio)</a> <span class="tag tag-actor">CAND-12, 25, 08</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-01i-billing-payment-pending.html">Pagamento recebido — reativando sua conta…</a> <span class="tag tag-actor">CAND-14, 29</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-01j-billing-payment-link-expired.html">Link de pagamento expirado — gerar novo</a> <span class="tag tag-actor">CAND-14</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-02b-billing-identity-br-erro.html">Identidade: CNPJ, e-mail, CEP e UF inválidos (formulário inteiro)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-02d-billing-identity-saved.html">Identidade salva (sucesso inline)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-02e-billing-identity-us-address-required.html">Dados de cobrança (US, em teste) — endereço completo obrigatório para ser cobrado</a> <span class="tag tag-actor">CAND-13, 08</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-02f-billing-identity-br-address-required.html">Dados de cobrança (BR, em teste) — endereço completo obrigatório para ser cobrado e receber nota fiscal</a> <span class="tag tag-actor">CAND-13, 08 A9</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06c-cancel-error.html">Erro ao cancelar</a> <span class="tag tag-actor">CAND-28</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06d-cancel-immediate.html">Cancelar (teste ou em atraso): vale agora, sem reembolso</a> <span class="tag tag-actor">CAND-28 A3</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06e-cancel-trial-paid.html">Cancelar durante o teste com a primeira cobrança já paga: vale ao fim do teste</a> <span class="tag tag-actor">CAND-28 A3</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-07c-auto-billing-pending.html">Autorização ainda não confirmada</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-07d-auto-billing-error.html">Erro ao iniciar autorização</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08c-plan-dependency-error.html">Plano: remover Agendamento com Fidelidade ativa (erro, formulário inteiro)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08d-plan-saved.html">Plano salvo (sucesso inline)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08e-plan-readonly-suspended.html">Plano somente leitura (suspenso)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08f-plan-past-due-no-add.html">Plano em atraso: somente leitura</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08g-plan-not-removable-yet.html">Plano: alterações agendadas para o próximo período</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08h-plan-save-error.html">Plano: erro ao salvar (seleção mantida)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08i-plan-booking-in-use.html">Plano: remover Agendamento bloqueado (agendamentos, recorrências ou alertas futuros)</a> <span class="tag tag-actor">CAND-31 A11</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Dashboard e editor (estados alternativos)</h2>
+<ul>
+  <li><a href="manager-03b-locked-feature-direct-url.html">Rota de recurso bloqueado aberta por URL</a> <span class="tag tag-actor">CAND-20</span> <span class="tag tag-red">GAP: FeatureLockedPage</span></li>
+  <li><a href="manager-05b-hotsite-editor-trial-cta-validation.html">Módulo TRIAL_SIGNUP_CTA com erros de validação</a> <span class="tag tag-actor">CAND-26</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Suspensão — cliente</h2>
+<ul>
+  <li><a href="customer-01b-open-booking-detail-blocked.html">Detalhe de agendamento aberto bloqueado</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-red">GAP: BookingBlockedNotice</span></li>
+  <li><a href="customer-01c-new-booking-blocked.html">Novo agendamento bloqueado</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Cadastro público (estados alternativos)</h2>
+<ul>
+  <li><a href="public-03c-ikaro-trial-prices-loading.html">Preços carregando</a> <span class="tag tag-actor">CAND-23</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-03d-ikaro-trial-prices-error.html">Erro ao carregar preços (cadastro continua possível)</a> <span class="tag tag-actor">CAND-23</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-04b-signup-turnstile-failed.html">Turnstile falhou</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-04c-signup-trial-already-used.html">Você já tem um teste ativo</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05b-signup-slug-taken.html">Endereço (slug) já em uso</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05c-signup-validation-error.html">Validação: slug reservado, nome vazio, país, CPF/CNPJ inválido, termos (formulário inteiro)</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05d-signup-submitting.html">Criando a conta…</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05e-signup-rate-limited.html">Muitas tentativas (429)</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05f-signup-provision-failed.html">Falha ao criar — nada foi criado, tente de novo</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05g-signup-us-selected.html">Formulário com Estados Unidos selecionado (sem CPF/CNPJ; só quando FEATURE_FLAG_SIGNUP_US)</a> <span class="tag tag-actor">CAND-22 A7</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+  <hr>
+  <h2>O que este protótipo valida</h2>
+  <ul style="list-style:disc;padding-left:1.25rem;display:block;">
+    <li>O gerente entende, na página de cobrança, o que paga, até quando e como pagar em um clique?</li>
+    <li>Ficar suspenso sem poder usar nada além da cobrança é claro, e o caminho para voltar (pagar 1 mês) é óbvio?</li>
+    <li>O selo "Empresa inativa" e o bloqueio do detalhe de agendamentos abertos fazem sentido para o cliente final?</li>
+    <li>O recurso bloqueado (upsell) deixa claro que as configurações foram preservadas?</li>
+    <li>A página /ikaro-trial mostra preços e recursos o suficiente para decidir antes de entrar com o Google?</li>
+    <li>A confirmação de cancelamento deixa claro "sem reembolso" e a política de limpeza dos dados?</li>
+  </ul>
+</body>
+</html>

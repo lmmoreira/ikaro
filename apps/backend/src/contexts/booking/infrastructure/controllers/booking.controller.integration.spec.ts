@@ -7,7 +7,7 @@ import {
 } from '../../../../test/builders/booking/index';
 import { CustomerEntityBuilder } from '../../../../test/builders/customer/index';
 import { actorHeaders } from '../../../../test/utils/actor-headers';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { futureDate, nextOpenInstant, openSlotAt } from '../../../../test/utils/date-helpers';
 import { STORAGE_SERVICE } from '../../../../shared/ports/storage.service.port';
 import { InMemoryStorageService } from '../../../../test/infrastructure/in-memory-storage.service';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
@@ -25,7 +25,7 @@ const TEST_KEY = 'booking-integ-test-key-booking-xxxx'; // 36 chars
 const ACTOR_ID = '20000000-0000-4000-8000-000000000001';
 const STAFF_ID = '20000000-0000-4000-8000-000000000002';
 
-const scheduledAt = `${futureDate(2)}T13:00:00.000Z`;
+const scheduledAt = openSlotAt(2, 13);
 
 function guestHeaders(tenantId: string) {
   return { 'x-tenant-id': tenantId, 'x-correlation-id': '01980000-0000-7000-8000-0000000000c1' };
@@ -270,7 +270,7 @@ describe('BookingController (integration)', () => {
   describe('POST /bookings — resource resolution (M23-S01)', () => {
     // Distinct scheduledAt from the module-level `scheduledAt` above so this block's resource
     // locks never contend with the plain POST /bookings tests' degenerate LOCATION bookings.
-    const resolutionScheduledAt = `${futureDate(20)}T13:00:00.000Z`;
+    const resolutionScheduledAt = openSlotAt(20, 13);
     let staffResourceId: string;
     let customerChoiceServiceId: string;
     let autoAnyServiceId: string;
@@ -427,7 +427,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(21)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(21, 13),
           serviceIds: [customerChoiceServiceId],
           resourceSelections: [
             {
@@ -449,7 +449,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(22)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(22, 13),
           serviceIds: [customerChoiceServiceId],
         })
         .expect(422);
@@ -463,7 +463,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(23)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(23, 13),
           serviceIds: [autoAnyServiceId],
         })
         .expect(201);
@@ -477,7 +477,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(24)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(24, 13),
           serviceIds: [poolServiceId],
         })
         .expect(201);
@@ -491,7 +491,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(25)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(25, 13),
           serviceIds: [leggedServiceId],
         })
         .expect(201);
@@ -507,7 +507,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(27)}T13:00:00.000Z`,
+          scheduledAt: openSlotAt(27, 13),
           serviceIds: [leggedServiceId],
         })
         .expect(201);
@@ -518,7 +518,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('a legged service after another line starts where that line ends (back-to-back cursor)', async () => {
-      const start = `${futureDate(26)}T13:00:00.000Z`;
+      const start = openSlotAt(26, 13);
       const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
@@ -551,7 +551,7 @@ describe('BookingController (integration)', () => {
           .set(guestHeaders(tenantAId))
           .send({
             ...validBody(),
-            scheduledAt: `${futureDate(41)}T13:00:00.000Z`,
+            scheduledAt: openSlotAt(41, 13),
             serviceIds: [customerChoiceServiceId],
             resourceSelections: [
               {
@@ -584,7 +584,7 @@ describe('BookingController (integration)', () => {
           .set(guestHeaders(tenantAId))
           .send({
             ...validBody(),
-            scheduledAt: `${futureDate(42)}T13:00:00.000Z`,
+            scheduledAt: openSlotAt(42, 13),
             serviceIds: [poolServiceId],
           })
           .expect(201);
@@ -602,7 +602,7 @@ describe('BookingController (integration)', () => {
           .set(guestHeaders(tenantAId))
           .send({
             ...validBody(),
-            scheduledAt: `${futureDate(43)}T13:00:00.000Z`,
+            scheduledAt: openSlotAt(43, 13),
             serviceIds: [leggedServiceId],
           })
           .expect(201);
@@ -682,7 +682,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('persists the customer-selected duration and computed quote, and locks the exact window', async () => {
-      const requestScheduledAt = `${futureDate(30)}T10:00:00.000Z`;
+      const requestScheduledAt = openSlotAt(30, 10);
       const { body } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
@@ -711,7 +711,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(37)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(37, 10),
           serviceIds: [variableDurationServiceId],
           durationMinutes: 90,
         })
@@ -728,7 +728,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(31)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(31, 10),
           serviceIds: [variableDurationServiceId],
         })
         .expect(422);
@@ -742,7 +742,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(32)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(32, 10),
           serviceIds: [intakeServiceId],
           intakeAnswers: { vehiclePlate: 'ABC1D23' },
           consentAccepted: true,
@@ -787,7 +787,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(33)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(33, 10),
           serviceIds: [intakeServiceId],
           intakeAnswers: {},
           consentAccepted: true,
@@ -803,7 +803,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantAId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(34)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(34, 10),
           serviceIds: [variableDurationServiceId, intakeServiceId],
           durationMinutes: 60,
         })
@@ -829,8 +829,8 @@ describe('BookingController (integration)', () => {
     });
 
     it('cancels a PENDING booking with no time restriction → CANCELLED', async () => {
-      // scheduled in 30 min — inside any window, but PENDING so no check
-      const nearFuture = new Date(Date.now() + 30 * 60_000).toISOString();
+      // the next bookable half hour — inside any window, but PENDING so no check
+      const nearFuture = nextOpenInstant();
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
@@ -856,7 +856,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(10)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(10, 9), serviceIds: [serviceId] })
         .expect(201);
 
       // approve it first
@@ -874,8 +874,8 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 422 when APPROVED booking is inside the 48h cancellation window', async () => {
-      // scheduled in 1h — inside the default 48h window
-      const nearFuture = new Date(Date.now() + 60 * 60_000).toISOString();
+      // the second bookable half hour from now — inside the default 48h window
+      const nearFuture = nextOpenInstant(1);
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
@@ -900,7 +900,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(15)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(15, 9), serviceIds: [serviceId] })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -915,7 +915,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, cancelCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(16)}T09:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(16, 9), serviceIds: [serviceId] })
         .expect(201);
 
       // cancel once
@@ -964,7 +964,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantBId, customerB.id, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(17)}T09:00:00.000Z`, serviceIds: [svcB.id] })
+        .send({ scheduledAt: openSlotAt(17, 9), serviceIds: [svcB.id] })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -981,7 +981,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(20)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(20, 9) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1005,7 +1005,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(25)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(25, 9) })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1026,7 +1026,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(21)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(21, 9) })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1046,7 +1046,7 @@ describe('BookingController (integration)', () => {
       const completedBooking = new BookingEntityBuilder()
         .withTenantId(tenantAId)
         .withStatus('COMPLETED')
-        .withScheduledAt(new Date(`${futureDate(22)}T09:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(22, 9)))
         .build();
       await ds.getRepository(BookingEntity).save(completedBooking);
 
@@ -1073,7 +1073,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(23)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(23, 9) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1100,7 +1100,7 @@ describe('BookingController (integration)', () => {
         .set(guestHeaders(tenantBId))
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(24)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(24, 9),
           serviceIds: [svcB.id],
         })
         .expect(201);
@@ -1120,7 +1120,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(10)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(10, 9) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1140,7 +1140,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 409 when slot is already taken by another APPROVED booking', async () => {
-      const conflictScheduledAt = `${futureDate(11)}T10:00:00.000Z`;
+      const conflictScheduledAt = openSlotAt(11, 10);
 
       // Create both bookings while slot is still free (both PENDING)
       const { body: first } = await request(app.getHttpServer())
@@ -1174,7 +1174,7 @@ describe('BookingController (integration)', () => {
       // Own day (not futureDate(11)) — the prior test's 10:00 APPROVED booking occupies
       // 10:00-11:30 (30min service + 60min default buffer), which would otherwise collide with
       // an 11:00 slot on the same day.
-      const conflictScheduledAt = `${futureDate(31)}T11:00:00.000Z`;
+      const conflictScheduledAt = openSlotAt(31, 11);
 
       const { body: first } = await request(app.getHttpServer())
         .post('/bookings')
@@ -1214,7 +1214,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(12)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(12, 9) })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1243,7 +1243,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(13)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(13, 9) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1270,7 +1270,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [svcB.id],
-          scheduledAt: `${futureDate(14)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(14, 9),
         })
         .expect(201);
 
@@ -1356,7 +1356,7 @@ describe('BookingController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, customerId, 'CUSTOMER'))
-        .send({ ...authBody(), scheduledAt: `${futureDate(3)}T14:00:00.000Z` })
+        .send({ ...authBody(), scheduledAt: openSlotAt(3, 14) })
         .expect(201);
 
       const wrongTenant = await ds
@@ -1387,7 +1387,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, submitCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(5)}T10:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(5, 10), serviceIds: [serviceId] })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1416,7 +1416,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, submitCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(5)}T11:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(5, 11), serviceIds: [serviceId] })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1438,7 +1438,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, submitCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(5)}T12:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(5, 12), serviceIds: [serviceId] })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1482,7 +1482,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantBId, customerB.id, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(6)}T10:00:00.000Z`, serviceIds: [svcB.id] })
+        .send({ scheduledAt: openSlotAt(6, 10), serviceIds: [svcB.id] })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1510,7 +1510,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), contactEmail, scheduledAt: `${futureDate(7)}T10:00:00.000Z` })
+        .send({ ...validBody(), contactEmail, scheduledAt: openSlotAt(7, 10) })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1548,7 +1548,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, customer.id, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(7)}T11:00:00.000Z`, serviceIds: [serviceId] })
+        .send({ scheduledAt: openSlotAt(7, 11), serviceIds: [serviceId] })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1570,7 +1570,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), contactEmail, scheduledAt: `${futureDate(7)}T12:00:00.000Z` })
+        .send({ ...validBody(), contactEmail, scheduledAt: openSlotAt(7, 12) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
@@ -1609,7 +1609,7 @@ describe('BookingController (integration)', () => {
           ...validBody(),
           contactEmail,
           serviceIds: [svcB2.id],
-          scheduledAt: `${futureDate(8)}T10:00:00.000Z`,
+          scheduledAt: openSlotAt(8, 10),
         })
         .expect(201);
 
@@ -1667,7 +1667,7 @@ describe('BookingController (integration)', () => {
       await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(listTenantId, listCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(20)}T09:00:00.000Z`, serviceIds: [svc.id] })
+        .send({ scheduledAt: openSlotAt(20, 9), serviceIds: [svc.id] })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -1675,7 +1675,7 @@ describe('BookingController (integration)', () => {
         .set({ 'x-tenant-id': listTenantId, 'x-correlation-id': 'list-test-guest' })
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(21)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(21, 9),
           serviceIds: [svc.id],
         })
         .expect(201);
@@ -1802,7 +1802,7 @@ describe('BookingController (integration)', () => {
       const { body: ownBooking } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(detailTenantId, detailCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(25)}T09:00:00.000Z`, serviceIds: [svc.id] })
+        .send({ scheduledAt: openSlotAt(25, 9), serviceIds: [svc.id] })
         .expect(201);
       ownBookingId = ownBooking.bookingId as string;
 
@@ -1811,7 +1811,7 @@ describe('BookingController (integration)', () => {
         .set({ 'x-tenant-id': detailTenantId, 'x-correlation-id': 'detail-test-other' })
         .send({
           ...validBody(),
-          scheduledAt: `${futureDate(26)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(26, 9),
           serviceIds: [svc.id],
         })
         .expect(201);
@@ -1876,7 +1876,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [detailServicePickupId],
-          scheduledAt: `${futureDate(27)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(27, 9),
           contactAddress: {
             street: 'Rua das Flores',
             number: '10',
@@ -1915,7 +1915,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [detailServiceId],
-          scheduledAt: `${futureDate(28)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(28, 9),
           beforeServicePhotoUrls: [tmpPath],
         })
         .expect(201);
@@ -1946,7 +1946,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [detailServiceId],
-          scheduledAt: `${futureDate(29)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(29, 9),
         })
         .expect(201);
 
@@ -1966,8 +1966,8 @@ describe('BookingController (integration)', () => {
   });
 
   describe('PATCH /bookings/:id/reschedule-admin', () => {
-    const rescheduleSlot = `${futureDate(40)}T09:00:00.000Z`;
-    const newSlot = `${futureDate(41)}T10:00:00.000Z`;
+    const rescheduleSlot = openSlotAt(40, 9);
+    const newSlot = openSlotAt(41, 10);
 
     async function createApprovedBooking(scheduledAt: string) {
       const { body: created } = await request(app.getHttpServer())
@@ -2002,7 +2002,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(42)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(42, 9) })
         .expect(201);
 
       await request(app.getHttpServer())
@@ -2014,7 +2014,7 @@ describe('BookingController (integration)', () => {
         .patch(`/bookings/${created.bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
         .send({
-          scheduledAt: `${futureDate(43)}T14:00:00.000Z`,
+          scheduledAt: openSlotAt(43, 14),
           adminNotes: 'Customer requested change',
         })
         .expect(200);
@@ -2022,9 +2022,7 @@ describe('BookingController (integration)', () => {
       const row = await ds
         .getRepository(BookingEntity)
         .findOne({ where: { id: created.bookingId, tenantId: tenantAId } });
-      expect(row!.scheduledAt.toISOString()).toBe(
-        new Date(`${futureDate(43)}T14:00:00.000Z`).toISOString(),
-      );
+      expect(row!.scheduledAt.toISOString()).toBe(new Date(openSlotAt(43, 14)).toISOString());
       expect(row!.adminNotes).toBe('Customer requested change');
     });
 
@@ -2032,20 +2030,20 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(44)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(44, 9) })
         .expect(201);
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${created.bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
-        .send({ scheduledAt: `${futureDate(45)}T10:00:00.000Z` })
+        .send({ scheduledAt: openSlotAt(45, 10) })
         .expect(422);
 
       expect(body.status).toBe(422);
     });
 
     it('returns 422 when newScheduledAt is in the past', async () => {
-      const bookingId = await createApprovedBooking(`${futureDate(46)}T09:00:00.000Z`);
+      const bookingId = await createApprovedBooking(openSlotAt(46, 9));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-admin`)
@@ -2057,9 +2055,9 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 409 when new slot conflicts with another APPROVED booking', async () => {
-      const conflictSlot = `${futureDate(47)}T09:00:00.000Z`;
+      const conflictSlot = openSlotAt(47, 9);
       await createApprovedBooking(conflictSlot);
-      const bookingId = await createApprovedBooking(`${futureDate(48)}T12:00:00.000Z`);
+      const bookingId = await createApprovedBooking(openSlotAt(48, 12));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-admin`)
@@ -2081,7 +2079,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 403 when no role headers are provided', async () => {
-      const bookingId = await createApprovedBooking(`${futureDate(49)}T09:00:00.000Z`);
+      const bookingId = await createApprovedBooking(openSlotAt(49, 9));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-admin`)
@@ -2120,7 +2118,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [svcIsolation.id],
-          scheduledAt: `${futureDate(50)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(50, 9),
         })
         .expect(201);
 
@@ -2202,43 +2200,43 @@ describe('BookingController (integration)', () => {
     }
 
     it('reschedules the caller-owned APPROVED booking → 200 with updated scheduledAt', async () => {
-      const bookingId = await createApprovedCustomerBooking(`${futureDate(70)}T09:00:00.000Z`);
+      const bookingId = await createApprovedCustomerBooking(openSlotAt(51, 9));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-customer`)
         .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(71)}T10:00:00.000Z` })
+        .send({ scheduledAt: openSlotAt(52, 10) })
         .expect(200);
 
       expect(body.bookingId).toBe(bookingId);
       expect(body.status).toBe('APPROVED');
-      expect(body.scheduledAt).toBe(new Date(`${futureDate(71)}T10:00:00.000Z`).toISOString());
+      expect(body.scheduledAt).toBe(new Date(openSlotAt(52, 10)).toISOString());
       expect(body.quoteRevision).toBeUndefined();
     });
 
     it('returns 403 when the caller is not the booking owner', async () => {
-      const bookingId = await createApprovedCustomerBooking(`${futureDate(72)}T09:00:00.000Z`);
+      const bookingId = await createApprovedCustomerBooking(openSlotAt(53, 9));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-customer`)
         .set(actorHeaders(tenantAId, ACTOR_ID, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(73)}T10:00:00.000Z` })
+        .send({ scheduledAt: openSlotAt(54, 10) })
         .expect(403);
 
       expect(body.status).toBe(403);
     });
 
     it('returns 422 when inside the default 48h reschedule window', async () => {
-      // 47h2m out: still inside the 48h window, but far from every other now()-relative fixture
-      // in this file (30min/60min) to avoid colliding with the shared degenerate LOCATION
-      // resource those leave APPROVED/occupied.
-      const nearFuture = new Date(Date.now() + 47 * 3_600_000 + 2 * 60_000).toISOString();
+      // The fifth bookable half hour from now: inside the 48h window, but two slots clear of every
+      // other now()-relative fixture in this file (the first two) so it does not collide with the
+      // shared degenerate LOCATION resource those leave APPROVED/occupied.
+      const nearFuture = nextOpenInstant(4);
       const bookingId = await createApprovedCustomerBooking(nearFuture);
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-customer`)
         .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(74)}T10:00:00.000Z` })
+        .send({ scheduledAt: openSlotAt(55, 10) })
         .expect(422);
 
       expect(body.code).toBe('BOOKING_RESCHEDULE_WINDOW_EXPIRED');
@@ -2246,7 +2244,7 @@ describe('BookingController (integration)', () => {
 
     it('durationMinutes change re-quotes the line, records a booking_quote_revisions row, and returns quoteRevision', async () => {
       const bookingId = await createApprovedCustomerBooking(
-        `${futureDate(75)}T09:00:00.000Z`,
+        openSlotAt(56, 9),
         [variableDurationServiceId],
         30,
       );
@@ -2254,7 +2252,7 @@ describe('BookingController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-customer`)
         .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(76)}T10:00:00.000Z`, durationMinutes: 90 })
+        .send({ scheduledAt: openSlotAt(57, 10), durationMinutes: 90 })
         .expect(200);
 
       expect(body.quoteRevision).toEqual({
@@ -2279,16 +2277,16 @@ describe('BookingController (integration)', () => {
       const { body } = await request(app.getHttpServer())
         .patch('/bookings/00000000-0000-4000-8000-000000009996/reschedule-customer')
         .set(actorHeaders(tenantAId, rescheduleCustomerId, 'CUSTOMER'))
-        .send({ scheduledAt: `${futureDate(77)}T10:00:00.000Z` })
+        .send({ scheduledAt: openSlotAt(58, 10) })
         .expect(404);
 
       expect(body.status).toBe(404);
     });
 
     it('serializes concurrent reschedules targeting the same slot so exactly one succeeds, the loser keeps its original scheduledAt', async () => {
-      const conflictTarget = `${futureDate(78)}T11:00:00.000Z`;
-      const firstId = await createApprovedCustomerBooking(`${futureDate(79)}T09:00:00.000Z`);
-      const secondId = await createApprovedCustomerBooking(`${futureDate(80)}T09:00:00.000Z`);
+      const conflictTarget = openSlotAt(59, 11);
+      const firstId = await createApprovedCustomerBooking(openSlotAt(66, 9));
+      const secondId = await createApprovedCustomerBooking(openSlotAt(67, 9));
 
       const [firstReschedule, secondReschedule] = await Promise.all([
         request(app.getHttpServer())
@@ -2310,9 +2308,7 @@ describe('BookingController (integration)', () => {
       // never actually released.
       const loserId = firstReschedule.status === 409 ? firstId : secondId;
       const loserOriginalScheduledAt =
-        firstReschedule.status === 409
-          ? `${futureDate(79)}T09:00:00.000Z`
-          : `${futureDate(80)}T09:00:00.000Z`;
+        firstReschedule.status === 409 ? openSlotAt(66, 9) : openSlotAt(67, 9);
       const loserRow = await ds
         .getRepository(BookingEntity)
         .findOne({ where: { id: loserId, tenantId: tenantAId } });
@@ -2328,7 +2324,7 @@ describe('BookingController (integration)', () => {
   });
 
   describe('PATCH /bookings/:id/complete', () => {
-    const completeSlot = `${futureDate(60)}T09:00:00.000Z`;
+    const completeSlot = openSlotAt(60, 9);
 
     async function createAndApproveBooking(scheduledAt: string) {
       const { body: created } = await request(app.getHttpServer())
@@ -2374,7 +2370,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('persists actualPriceCharged, completedBy, adminNotes in DB', async () => {
-      const bookingId = await createAndApproveBooking(`${futureDate(61)}T09:00:00.000Z`);
+      const bookingId = await createAndApproveBooking(openSlotAt(61, 9));
       const lineIds = await getLineIds(bookingId);
       const tmpPath = `tmp/${tenantAId}/upload-1/after.jpg`;
       storageService.markAsUploaded(tmpPath);
@@ -2408,7 +2404,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings')
         .set(guestHeaders(tenantAId))
-        .send({ ...validBody(), scheduledAt: `${futureDate(62)}T09:00:00.000Z` })
+        .send({ ...validBody(), scheduledAt: openSlotAt(62, 9) })
         .expect(201);
       const lineIds = await getLineIds(created.bookingId as string);
 
@@ -2425,7 +2421,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 400 when a booking line is missing from the request', async () => {
-      const bookingId = await createAndApproveBooking(`${futureDate(63)}T09:00:00.000Z`);
+      const bookingId = await createAndApproveBooking(openSlotAt(63, 9));
 
       const { body } = await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/complete`)
@@ -2450,7 +2446,7 @@ describe('BookingController (integration)', () => {
     });
 
     it('returns 403 when no staff role headers are provided', async () => {
-      const bookingId = await createAndApproveBooking(`${futureDate(64)}T09:00:00.000Z`);
+      const bookingId = await createAndApproveBooking(openSlotAt(64, 9));
       const lineIds = await getLineIds(bookingId);
 
       const { body } = await request(app.getHttpServer())
@@ -2493,7 +2489,7 @@ describe('BookingController (integration)', () => {
         .send({
           ...validBody(),
           serviceIds: [svcIsolation.id],
-          scheduledAt: `${futureDate(65)}T09:00:00.000Z`,
+          scheduledAt: openSlotAt(65, 9),
         })
         .expect(201);
 
@@ -2588,14 +2584,14 @@ describe('BookingController (integration)', () => {
       const { body } = await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [shortMaxServiceId],
-        scheduledAt: `${futureDate(10)}T15:00:00.000Z`,
+        scheduledAt: openSlotAt(10, 15),
       }).expect(422);
       expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
 
       await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [shortMaxServiceId],
-        scheduledAt: `${futureDate(1)}T15:00:00.000Z`,
+        scheduledAt: openSlotAt(1, 15),
       }).expect(201);
     });
 
@@ -2603,14 +2599,14 @@ describe('BookingController (integration)', () => {
       const { body } = await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [noticeServiceId],
-        scheduledAt: `${futureDate(2)}T16:00:00.000Z`,
+        scheduledAt: openSlotAt(2, 16),
       }).expect(422);
       expect(body.code).toBe('BOOKING_TOO_SOON');
 
       await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [noticeServiceId],
-        scheduledAt: `${futureDate(8)}T16:00:00.000Z`,
+        scheduledAt: openSlotAt(8, 15),
       }).expect(201);
     });
 
@@ -2618,7 +2614,7 @@ describe('BookingController (integration)', () => {
       const { body } = await guestBooking(tenantAId, {
         ...validBody(),
         serviceIds: [serviceId, shortMaxServiceId],
-        scheduledAt: `${futureDate(10)}T17:00:00.000Z`,
+        scheduledAt: openSlotAt(10, 17),
       }).expect(422);
 
       expect(body.code).toBe('BOOKING_TOO_FAR_AHEAD');
@@ -2638,7 +2634,7 @@ describe('BookingController (integration)', () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/bookings/authenticated')
         .set(actorHeaders(tenantAId, windowCustomerId, 'CUSTOMER'))
-        .send({ serviceIds: [serviceId], scheduledAt: `${futureDate(daysAhead)}T11:00:00.000Z` })
+        .send({ serviceIds: [serviceId], scheduledAt: openSlotAt(daysAhead, 11) })
         .expect(201);
       await request(app.getHttpServer())
         .patch(`/bookings/${created.bookingId}/approve`)
@@ -2662,16 +2658,17 @@ describe('BookingController (integration)', () => {
     it('lets staff reschedule beyond the window, and leaves the existing booking untouched', async () => {
       const bookingId = await createApprovedWindowBooking(61);
 
+      const beyondWindow = openSlotAt(110, 11);
       await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
-        .send({ scheduledAt: `${futureDate(120)}T11:00:00.000Z` })
+        .send({ scheduledAt: beyondWindow })
         .expect(200);
 
       const row = await ds
         .getRepository(BookingEntity)
         .findOneByOrFail({ id: bookingId, tenantId: tenantAId });
-      expect(row.scheduledAt.toISOString()).toBe(`${futureDate(120)}T11:00:00.000Z`);
+      expect(row.scheduledAt.toISOString()).toBe(beyondWindow);
     });
 
     it("tenant isolation: tenant A's service window never applies to tenant B's booking", async () => {
@@ -2680,7 +2677,7 @@ describe('BookingController (integration)', () => {
       const { body } = await guestBooking(tenantBId, {
         ...validBody(),
         serviceIds: [tenantBServiceId],
-        scheduledAt: `${futureDate(10)}T15:00:00.000Z`,
+        scheduledAt: openSlotAt(10, 15),
       }).expect(201);
 
       expect(body.bookingId).toEqual(expect.any(String));

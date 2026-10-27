@@ -1,5 +1,6 @@
 import type { AddressSpec } from '@ikaro/i18n';
 import { ITransactionManager } from '../../../../shared/ports/transaction-manager.port';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Money } from '../../../../shared/value-objects/money';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Booking } from '../../domain/booking.aggregate';
@@ -34,6 +35,7 @@ import {
 } from '../services/photo-existence.service';
 import { assignBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
 import { resolveBookingLinesResourceCandidates } from './resource-occupancy.helpers';
+import { HoursScheduleRepos } from './schedule-hours.helpers';
 import { ResourceSelectionInput } from './resource-occupancy.types';
 import { ResolvedLineCandidates } from '../helpers/resolved-line-candidates.types';
 
@@ -49,6 +51,9 @@ export interface PersistRequestedBookingParams {
   tenantId: string;
   scheduledAt: Date;
   timezone: string;
+  // The tenant's working hours (RequestContext settings, as the availability reads get them): the
+  // booking is refused for a time those hours, a closure or an opening say the business is closed.
+  businessHours: BusinessHours;
   operations: PhotoPromotionOperation[];
   // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
   // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
@@ -72,6 +77,7 @@ export interface PersistRequestedBookingDeps {
   resourceRepo: IResourceRepository;
   occupancyRepo: IResourceOccupancyRepository;
   availabilityService: AvailabilityService;
+  hoursRepos: HoursScheduleRepos;
 }
 
 export function createBookingAddress(
@@ -143,10 +149,17 @@ async function resolveAndCheckCandidates(
   deps: PersistRequestedBookingDeps,
   params: Pick<
     PersistRequestedBookingParams,
-    'booking' | 'tenantId' | 'scheduledAt' | 'timezone' | 'serviceMap' | 'resourceSelections'
+    | 'booking'
+    | 'tenantId'
+    | 'scheduledAt'
+    | 'timezone'
+    | 'businessHours'
+    | 'serviceMap'
+    | 'resourceSelections'
   >,
 ): Promise<Map<string, ResolvedLineCandidates>> {
   const { booking, tenantId, scheduledAt, timezone, serviceMap, resourceSelections } = params;
+  const hoursSource = { repos: deps.hoursRepos, businessHours: params.businessHours };
   const candidatesByLine = await resolveBookingLinesResourceCandidates({
     resourceRepo: deps.resourceRepo,
     availabilityService: deps.availabilityService,
@@ -161,6 +174,7 @@ async function resolveAndCheckCandidates(
     })),
     serviceMap,
     resourceSelections,
+    hoursSource,
     lockResources: (resourceIds) => deps.slotConflictService.lockResources(tenantId, resourceIds),
   });
   const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
@@ -266,8 +280,7 @@ export async function persistRequestedBooking(
   deps: PersistRequestedBookingDeps,
   params: PersistRequestedBookingParams,
 ): Promise<Map<string, ResolvedLineCandidates>> {
-  const { booking, tenantId, scheduledAt, timezone, operations, serviceMap, resourceSelections } =
-    params;
+  const { booking, tenantId, operations, serviceMap } = params;
   const lockState = params.occupancyLockState ?? 'HOLD';
 
   return deps.txManager.run(async () => {
@@ -275,14 +288,7 @@ export async function persistRequestedBooking(
     // two can never wait on each other (docs/LOCK_CATALOG.md § 2, L2 before L3).
     const serviceIds = [...new Set(booking.lines.map((line) => line.serviceId))];
     await lockAndVerifyServiceModels(deps.serviceRepo, serviceIds, tenantId, serviceMap);
-    const candidatesByLine = await resolveAndCheckCandidates(deps, {
-      booking,
-      tenantId,
-      scheduledAt,
-      timezone,
-      serviceMap,
-      resourceSelections,
-    });
+    const candidatesByLine = await resolveAndCheckCandidates(deps, params);
     await deps.bookingRepo.save(booking);
 
     await assignBookingLinesOccupancy(

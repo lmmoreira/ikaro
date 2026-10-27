@@ -1,3 +1,12 @@
+import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import {
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
+} from '../../domain/errors/booking-domain.error';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
@@ -12,7 +21,7 @@ import {
   FutureCommitmentExceptionBuilder,
 } from '../../../../test/builders/booking/index';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
-import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
+import { futureDate, openSlotAt, pastDate } from '../../../../test/utils/date-helpers';
 import { Money } from '../../../../shared/value-objects/money';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
@@ -37,8 +46,8 @@ const OTHER_CUSTOMER_ID = '20000000-0000-4000-8000-000000000602';
 const CORRELATION_ID = 'corr-reschedule-customer-test';
 const DEFAULT_WINDOW_HOURS = 48;
 
-const futureSlot = `${futureDate(5)}T10:00:00.000Z`;
-const newFutureSlot = `${futureDate(6)}T14:00:00.000Z`;
+const futureSlot = openSlotAt(5, 10);
+const newFutureSlot = openSlotAt(6, 14);
 
 describe('RescheduleBookingAsCustomerUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
@@ -47,6 +56,8 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
   let quoteRevisionRepo: InMemoryBookingQuoteRevisionRepository;
   let eventBus: InMemoryEventBus;
   let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: RescheduleBookingAsCustomerUseCase;
 
   beforeEach(() => {
@@ -56,12 +67,16 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
     exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     useCase = new RescheduleBookingAsCustomerUseCase(
       bookingRepo,
       fixtures.serviceRepo,
       fixtures.resourceRepo,
       occupancyRepo,
       quoteRevisionRepo,
+      closureRepo,
+      openingRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new BookingQuoteService(),
@@ -78,6 +93,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       customerId: CUSTOMER_ID,
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       tenantDefaultRescheduleWindowHours: DEFAULT_WINDOW_HOURS,
       tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       ...overrides,
@@ -370,6 +386,60 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       await bookingRepo.save(booking);
 
       await expect(execute({ bookingId: booking.id })).rejects.toThrow(BookingNotFoundError);
+    });
+  });
+
+  describe('working hours and closures (TD50)', () => {
+    const localDate = (instant: string) =>
+      utcDateToLocalDate(new Date(instant), DEFAULT_TEST_BUSINESS_HOURS.timezone);
+
+    async function approvedBooking() {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withCustomerId(CUSTOMER_ID)
+        .build();
+      await bookingRepo.save(booking);
+      return booking;
+    }
+
+    it('refuses a closed day and leaves the booking at its time', async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_A)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      await expect(execute({ bookingId: booking.id })).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+      const saved = await bookingRepo.findById(booking.id, TENANT_A);
+      expect(saved!.scheduledAt.toISOString()).toBe(new Date(futureSlot).toISOString());
+    });
+
+    it('refuses a start outside the working hours', async () => {
+      const booking = await approvedBooking();
+
+      await expect(
+        execute({ bookingId: booking.id, scheduledAt: openSlotAt(6, 20) }),
+      ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
+    });
+
+    it("tenant isolation: another tenant's closure does not refuse the reschedule", async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_B)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      const result = await execute({ bookingId: booking.id });
+
+      expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
     });
   });
 });

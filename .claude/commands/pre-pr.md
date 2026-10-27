@@ -67,6 +67,14 @@ pnpm --filter @ikaro/web run lint 2>&1 | grep -E ' error ' | head -20
 
 Empty output = clean. Any `error TS` line = failure; report and stop.
 
+Also run the dependency graph gate, whenever the diff adds a file or an import (CI's "Dependency graph validation"; `ci:fast` does not run it, so a circular import first shows up on the PR):
+
+```bash
+pnpm dep-cruise 2>&1 | grep -E 'error |violation' | head -20
+```
+
+Only `✔ no dependency violations found` lines = clean. An `error no-circular` or `not-to-unresolvable` line = failure; report and stop. (A `import type` still counts as an edge: break a cycle by moving the shared type into the file both sides import, not by switching to `import type`.)
+
 ---
 
 ## Step 3a — Agent checks (changed files)

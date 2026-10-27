@@ -44,7 +44,7 @@ import { LoyaltyBalanceEntity } from '../entities/loyalty-balance.entity';
 import { LoyaltyRedemptionEntity } from '../entities/loyalty-redemption.entity';
 import { BalanceExpiryLogEntity } from '../entities/balance-expiry-log.entity';
 import { BookingCompleted } from '../../../booking/domain/events/booking-completed.event';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 
 const PLATFORM_KEY = 'discount-completion-integ-key-xxxxx';
 
@@ -232,7 +232,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
       staffId,
       customerId,
       serviceId,
-      scheduledAt: `${futureDate(5)}T10:00:00.000Z`,
+      scheduledAt: openSlotAt(5, 10),
       discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
     });
 
@@ -286,7 +286,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
       staffId,
       customerId,
       serviceId,
-      scheduledAt: `${futureDate(6)}T10:00:00.000Z`,
+      scheduledAt: openSlotAt(6, 10),
       discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
     });
 
@@ -341,7 +341,7 @@ describe('Story: booking completion with a loyalty points discount (integration)
       staffId: tenantA.staffId,
       customerId: tenantA.customerId,
       serviceId: tenantA.serviceId,
-      scheduledAt: `${futureDate(7)}T10:00:00.000Z`,
+      scheduledAt: openSlotAt(7, 10),
       discountByPoints: { pointsUsed: 200, amountDeducted: 20 },
     });
 
