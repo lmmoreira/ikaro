@@ -1,16 +1,16 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type SlotConflictSuggestion, type StaffBookingDetailResponse } from '@ikaro/types';
 import { Badge } from '@/shared/components/ui/badge';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { cn } from '@/shared/utils/cn';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useApproveBooking } from '@/features/booking/hooks/useBookingMutations';
+import { useInitialSlotSuggestions } from '@/features/booking/hooks/useInitialSlotSuggestions';
 import { useNoShowAvailability } from '@/features/booking/hooks/useNoShowAvailability';
 import { buildApproveHandler } from '@/features/booking/model/booking-approve-action';
 import { buildBookingSheetOutcomes } from '@/features/booking/model/booking-sheet-outcomes';
@@ -46,6 +46,8 @@ interface BookingDetailPageProps {
   readonly tenantSlug: string;
   readonly showHeaderStatusBadge?: boolean;
   readonly initialActionState?: ActionState;
+  // The refusal's code when the queue sent the approver here after a 409 (`?reason=`).
+  readonly initialConflictCode?: string;
   readonly returnTo?: string | null;
 }
 
@@ -64,6 +66,7 @@ export function BookingDetailPage({
   tenantSlug,
   showHeaderStatusBadge = true,
   initialActionState = 'idle',
+  initialConflictCode,
   returnTo = null,
 }: BookingDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
@@ -78,6 +81,7 @@ export function BookingDetailPage({
     initialActionState === 'slot-conflict',
   );
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [conflictCode, setConflictCode] = useState<string | undefined>(initialConflictCode);
   const approveBookingMutation = useApproveBooking();
   const { role } = useTenant();
   const { noShowAvailableAt, noShowEndLabel } = useNoShowAvailability(booking);
@@ -99,33 +103,17 @@ export function BookingDetailPage({
   );
   const statusLabels = buildBookingStatusLabels(t);
 
-  useEffect(() => {
-    if (initialActionState !== 'slot-conflict') return;
-
-    let active = true;
-
-    void (async () => {
-      try {
-        const availability = await fetchBookingAvailability(
-          tenantSlug,
-          booking.scheduledAt.slice(0, 10),
-          serviceIds,
-        );
-        if (!active) return;
-        setSlotSuggestions(availability.slots);
-      } catch {
-        if (!active) return;
-        setActionState('idle');
-        setInlineError(t('loadingAlternativesError'));
-      } finally {
-        if (active) setIsLoadingSlotSuggestions(false);
-      }
-    })();
-
-    return () => {
-      active = false;
-    };
-  }, [booking.scheduledAt, initialActionState, serviceIds, t, tenantSlug]);
+  useInitialSlotSuggestions({
+    enabled: initialActionState === 'slot-conflict',
+    tenantSlug,
+    scheduledAt: booking.scheduledAt,
+    serviceIds,
+    errorMessage: t('loadingAlternativesError'),
+    setSlotSuggestions,
+    setActionState,
+    setInlineError,
+    setIsLoading: setIsLoadingSlotSuggestions,
+  });
 
   const handleBookingRefreshed = buildBookingRefreshedHandler({ setBooking, setActionState });
 
@@ -140,6 +128,7 @@ export function BookingDetailPage({
     setSheetState,
     setSlotSuggestions,
     setInlineError,
+    setConflictCode,
     translateLoadingAlternativesError: () => t('loadingAlternativesError'),
     translateApproveError: () => t('approveError'),
   });
@@ -186,6 +175,7 @@ export function BookingDetailPage({
           {actionState === 'slot-conflict' && (
             <SlotConflictAlert
               requestedAt={booking.scheduledAt}
+              conflictCode={conflictCode}
               totalDurationMins={booking.totalDurationMins}
               suggestions={slotSuggestions}
               isLoading={isLoadingSlotSuggestions}

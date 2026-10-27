@@ -5,7 +5,7 @@ import { loadBookingDetailRouteData } from '@/shells/dashboard/model/booking-rou
 
 interface BookingDetailRouteProps {
   readonly params: Promise<{ id: string }>;
-  readonly searchParams: Promise<{ conflict?: string; returnTo?: string }>;
+  readonly searchParams: Promise<{ conflict?: string; reason?: string; returnTo?: string }>;
 }
 
 export default async function BookingDetailRoute({
@@ -13,7 +13,7 @@ export default async function BookingDetailRoute({
   searchParams,
 }: BookingDetailRouteProps): Promise<React.JSX.Element> {
   const { id } = await params;
-  const { conflict, returnTo } = await searchParams;
+  const { conflict, reason, returnTo } = await searchParams;
   const token = await getAccessToken();
   const { booking, tenantSlug } = await loadBookingDetailRouteData(token, id);
 
@@ -23,6 +23,7 @@ export default async function BookingDetailRoute({
       tenantSlug={tenantSlug}
       showHeaderStatusBadge={false}
       initialActionState={conflict === '1' ? 'slot-conflict' : 'idle'}
+      initialConflictCode={reason}
       returnTo={resolveReturnTo(returnTo)}
     />
   );

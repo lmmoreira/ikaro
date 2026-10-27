@@ -2,13 +2,18 @@
 
 import type { SlotConflictSuggestion } from '@ikaro/types';
 import { useTranslations } from 'next-intl';
+import { isScheduleClosedCode } from '@/features/booking/model/reschedule-failure';
 import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 
 interface SlotConflictAlertProps {
   readonly requestedAt: string;
+  // The refusal's code: a closed or outside-hours time says so instead of "taken".
+  readonly conflictCode?: string;
   readonly totalDurationMins: number;
   readonly suggestions: readonly SlotConflictSuggestion[];
   readonly isLoading?: boolean;
@@ -20,6 +25,7 @@ interface SlotConflictAlertProps {
 
 export function SlotConflictAlert({
   requestedAt,
+  conflictCode,
   totalDurationMins,
   suggestions,
   isLoading = false,
@@ -29,6 +35,7 @@ export function SlotConflictAlert({
   backLabel,
 }: SlotConflictAlertProps): React.JSX.Element {
   const t = useTranslations('dashboard.bookingDetail');
+  const locale = useResolvedLocale();
   const { formatTime, formatDateLong } = useFormatting();
   const requested = new Date(requestedAt);
   const retryLabel = chooseSlotLabel ?? t('approveHere');
@@ -56,7 +63,9 @@ export function SlotConflictAlert({
           <div>
             <p className="text-base font-bold text-red-700">{t('slotConflictTitle')}</p>
             <p className="mt-1 text-sm leading-6 text-red-700/90">
-              {t('slotConflictBody', { time: formatTime(requested) })}
+              {isScheduleClosedCode(conflictCode)
+                ? resolveErrorMessage(conflictCode, locale)
+                : t('slotConflictBody', { time: formatTime(requested) })}
             </p>
           </div>
         </div>

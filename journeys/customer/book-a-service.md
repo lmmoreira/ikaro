@@ -42,7 +42,7 @@ flowchart TD
     Submit --> POST["POST /bookings/authenticated<br/>Auth: JWT cookie → X-Actor-* headers"]
     POST --> SlotOk{"HTTP status?"}
     SlotOk -- 201 Created --> Done["'Solicitação enviada!<br/>Aguarde confirmação por email'<br/>+ booking-details box (04d, M23-S11a)"]
-    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível'<br/>→ back to step 2<br/>(shipped: BOOKING_SLOT_UNAVAILABLE routes to the availability step;<br/>no screen here — guest's 02e-slot-conflict.html is the pattern)"]
+    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível'<br/>→ back to step 2<br/>(shipped: BOOKING_SLOT_UNAVAILABLE, BOOKING_SLOT_CLOSED and BOOKING_OUTSIDE_BUSINESS_HOURS route to the availability step;<br/>no screen here — guest's 02e-slot-conflict.html is the pattern)"]
 
     class S1,PickupField,S2,DayClick,SlotPicker,S4,Submit,POST,Done,LoginPage,Callback,Hotsite,CTA,S3,S2Error,Intake existing
 ```

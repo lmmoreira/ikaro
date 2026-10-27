@@ -29,6 +29,22 @@ describe('assertEntryRescheduled', () => {
     }
   });
 
+  it.each(['BOOKING_SLOT_CLOSED', 'BOOKING_OUTSIDE_BUSINESS_HOURS'])(
+    'turns a %s STILL_OPEN into a 409 so the page offers alternatives',
+    (errorCode) => {
+      try {
+        assertEntryRescheduled(
+          { results: [{ exceptionId: 'exc-1', outcome: 'STILL_OPEN', errorCode }] },
+          'exc-1',
+        );
+        expect.unreachable();
+      } catch (err) {
+        expect((err as ApiError).status).toBe(409);
+        expect((err as ApiError).data).toEqual({ code: errorCode });
+      }
+    },
+  );
+
   it('turns any other STILL_OPEN into an error that carries its code (translated by the page)', () => {
     try {
       assertEntryRescheduled(

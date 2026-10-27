@@ -29,7 +29,7 @@ flowchart TD
     Submit --> POST["POST /bookings<br/>Header: X-Tenant-Slug"]
     POST --> SlotOk{"HTTP status?"}
     SlotOk -- 201 Created --> Done["'Solicitação enviada!<br/>Aguarde confirmação por email'"]
-    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível'<br/>→ back to step 2"]
+    SlotOk -- 409 Conflict --> S2Error["'Horário indisponível' / closed / outside hours<br/>→ back to step 2<br/>(BOOKING_SLOT_UNAVAILABLE, BOOKING_SLOT_CLOSED, BOOKING_OUTSIDE_BUSINESS_HOURS)"]
 
     class Start,CTA,S1,PickupField,S2,DayClick,SlotPicker,S3,S4,Submit,POST,Done,S2Error existing
 ```
@@ -79,7 +79,7 @@ flowchart TD
     S3m -->|"no intake schema"| Confirm
     Intake -->|"Próximo (no submit)"| Confirm["Final step: Review & Confirm<br/>(04-confirmation; 04e on the intake path;<br/>10 = journey confirmation with the leg timeline)"]
     Confirm -->|"POST /bookings (always created PENDING)"| Done["Success: 'Solicitação enviada!'<br/>+ booking-details box (04d, 04f)<br/>+ Voltar para o site"]
-    Confirm -->|"409 slot / bundle / leg"| BackAvail["✅ back to availability, slot cleared<br/>(02e; 09b and 10b share the path)"]
+    Confirm -->|"409 slot / closed / outside hours / bundle / leg"| BackAvail["✅ back to availability, slot cleared<br/>(02e; 09b and 10b share the path)"]
     Confirm -->|"422 duration"| Duration
     Confirm -->|"422 resource selection"| Picker
     Confirm -->|"422 intake / 422 multiple variable"| Errors["✅ intake summary (13c) / Step 1 inline (01d)"]

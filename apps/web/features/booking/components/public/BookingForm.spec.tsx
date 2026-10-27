@@ -487,6 +487,28 @@ describe('BookingForm', () => {
     expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
   });
 
+  it.each([
+    ['BOOKING_SLOT_CLOSED', 'O negócio está fechado no horário solicitado.'],
+    [
+      'BOOKING_OUTSIDE_BUSINESS_HOURS',
+      'O horário solicitado está fora do horário de funcionamento.',
+    ],
+  ])(
+    'returns to Step 2 with the catalogue message when the time is refused (%s)',
+    async (code, message) => {
+      const user = userEvent.setup();
+      vi.mocked(createBooking).mockRejectedValue(new ApiError(409, 'closed', { code }));
+
+      await advanceToStep3(user, [makeService()]);
+      await fillContactFields(user);
+
+      await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+
+      expect(await screen.findByTestId('step2-error')).toHaveTextContent(message);
+      expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
+    },
+  );
+
   it('returns to Step 3 with an address-specific error message when the contact address is rejected', async () => {
     const user = userEvent.setup();
     vi.mocked(createBooking).mockRejectedValue(
