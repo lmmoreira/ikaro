@@ -280,7 +280,7 @@ Background painted with `var(--ba-background)` (hotsite full-page rule).
 
 ## Screen public-02 — Ikaro hotsite with trial CTA (`TrialSignupCtaModule`)
 
-**File:** `apps/web/features/platform/components/hotsite/modules/TrialSignupCtaModule.tsx` (GAP; mirrors `BookingCtaModule`). Hero, booking CTA and `HotsiteAuthBar` EXIST.
+**File:** `apps/web/shells/hotsite/components/TrialSignupCtaModule.tsx` (GAP; mirrors `BookingCtaModule` in the same folder). Hero, booking CTA and `HotsiteAuthBar` EXIST.
 **Props:** `{ variant?: 'centered'|'left-aligned'; title: string; subtitle?: string; ctaLabel: string }` plus the section-level `presentation.background.surface` (same as `tenant-billing_MODULE.md`) (module config, only present in the manifest of the platform owner tenant). Button links to `/ikaro-trial`.
 **BFF call:** `GET /v1/public/platform/manifest/ikaro` (existing; new module type `TRIAL_SIGNUP_CTA`).
 **States:** static. **Mobile:** sections stack, buttons centered, not full width on desktop.
@@ -402,3 +402,18 @@ POST /v1/public/signup/tenant
 | Signup error for a missing/invalid tax ID | CAND-22 A9 | `public-05c` already shows the invalid case; an empty value shows `SIGNUP_TAX_ID_REQUIRED` with the same field-error pattern |
 | First-run onboarding (checklist) | CAND-24 | Depends on the onboarding presets work; not a billing screen |
 | Billing and purge-warning emails | CAND-19, CAND-27 | Email templates (pt-BR, en), designed with the notification templates, not as dashboard screens |
+
+---
+
+# Addendum 3 (2026-10-27 second review) — changes the HTML files do not show yet
+
+The HTML screens were not redrawn in this round; where they differ from the list below, **the docs win** and story discovery redraws the affected screens.
+
+- **Features merged (decision 80).** `RECURRENCE` and `AVAILABILITY_ALERTS` are part of `BOOKING`. `manager-08*` (Plano) and the public price tables still draw separate "Recorrência" and "Alertas de disponibilidade" rows; remove them. **BOOKING is R$ 109,00 / US$ 26** (the illustrative R$ 79 in the screens and the R$ 215,00 example total — now R$ 245,00 for the same selection — are out of date).
+- **Remove-BOOKING block (decision 81).** The Plano tab needs one error state: "Cancele ou conclua os agendamentos, recorrências e alertas futuros antes de remover Agendamentos" (`BILLING_FEATURE_IN_USE`), plus a note that the bookable window ends on the removal date once saved.
+- **Trial with a paid first invoice (decision 89).** `manager-06d` (immediate cancel) applies only when nothing was paid; add a variant "Seu teste continua até dd/mm e depois a assinatura é encerrada" for a trial whose first invoice is paid.
+- **Receipts (decision 111).** Each paid row in Cobranças gets a "Recibo" link (provider receipt page).
+- **Reminders (CAND-34).** The trial and past-due banners and emails follow the dunning cadence; the suspension date is stated in the last reminder.
+- **Recovery charge.** `manager-01d` shows no period dates on the recovery charge (the period starts when it is paid).
+- **Billing address for BR (decision 109).** If the accountant confirms automatic NFS-e needs the payer's address, the BR Dados tab shows the same "preencha o endereço completo" alert as the US screen (`manager-02e`) before the first paid selection.
+- **No operator-facing screens.** Operator work is the mapped list in `../tenant-billing_OPERATIONS.md` §4; there is still no backoffice UI.

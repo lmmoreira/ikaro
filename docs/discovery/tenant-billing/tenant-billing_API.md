@@ -2,9 +2,9 @@
 
 **Status:** Discovery — endpoint inventory and shapes at sketch level. Final contracts are written into `docs/API_CONTRACTS.md` on promotion. Conventions follow `docs/API_CONTRACTS.md` § Base Standards: the web only talks to the **BFF** (`/v1`), the BFF forwards actor headers to the internal backend, errors are RFC 9457 Problem Details, money is **integer minor units + ISO currency** (never floats), dates ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). List endpoints use **Pattern A** pagination (`items` + `pagination {limit, offset, total, hasMore}`) like `GET /bookings`.
 
-**Companion docs:** `tenant-billing.md` · `tenant-billing_USECASES.md` · `tenant-billing_DATA_MODEL.md` · `tenant-billing_MODULE.md`.
+**Companion docs:** `tenant-billing.md` · `tenant-billing_USECASES.md` · `tenant-billing_DATA_MODEL.md` · `tenant-billing_MODULE.md` · `tenant-billing_OPERATIONS.md`.
 
-Placement rules: public routes live in the billing slice's `billing.public.controller.ts` (`@Public()`); authenticated routes in `billing.controller.ts`; response types/Zod schemas in sibling `.types.ts`/`.schemas.ts`; mappers in `billing.mapper.ts` (BFF layout, CLAUDE.md §11). Types shared with the web go in `@ikaro/types` (grep it first).
+Placement rules: public routes live in the billing slice's `billing.public.controller.ts` (`@Public()`); authenticated routes in `billing.controller.ts`; the signup routes (`/v1/public/signup/*`) live in the `platform` slice (`platform.public.controller.ts`, decision 96) and reach Billing only through BFF orchestration; response types/Zod schemas in sibling `.types.ts`/`.schemas.ts`; mappers in `billing.mapper.ts` (BFF layout, CLAUDE.md §11). Types shared with the web go in `@ikaro/types` (grep it first).
 
 ## 1. Manager-facing (BFF, JWT, role MANAGER)
 
@@ -17,6 +17,7 @@ All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; sta
 | `GET /v1/billing/identity` | read billing identity | 13 |
 | `PUT /v1/billing/identity` | save billing identity | 13 |
 | `POST /v1/billing/charges/{chargeId}/payment-link` | (re)generate a hosted payment URL | 14 |
+| `POST /v1/billing/charges/{chargeId}/payment-return` | the web calls it when the manager returns from the hosted page: sets `payment_return_seen_at` and triggers an on-demand single-charge refresh from the provider | 09, 14 |
 | `GET /v1/billing/plan` | catalog, current and next-paid-period selection, tiers, dependencies and effective date | 31 |
 | `POST /v1/billing/plan/preview` | preview the proposed **next paid period** selection and total | 31 |
 | `PUT /v1/billing/plan` | schedule the next paid-period selection (`items: [{ featureKey, tier }]`) | 31 |
@@ -30,7 +31,7 @@ GET /v1/billing/summary
 200 {
   "status": "ACTIVE",                       // TRIALING | ACTIVE | PAST_DUE | SUSPENDED
   "exempt": false,                          // true: no charges ever; the page shows "Conta isenta de cobrança" and no actions
-  "suspensionReason": null,                 // NON_PAYMENT | CANCELED | PAYMENT_REVERSED when SUSPENDED
+  "suspensionReason": null,                 // NON_PAYMENT | CANCELED | PAYMENT_REVERSED | OPERATOR when SUSPENDED
   "currency": "BRL", "countryCode": "BR",
   "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null,
   "suspendsAt": null,                       // PAST_DUE only: coalesce(grace_until, past_due_since + 14 days)
@@ -42,14 +43,14 @@ GET /v1/billing/summary
   "totalMinor": 8800,                       // net of tax; for US the page labels it "+ imposto calculado na cobrança" (tax exists only on the issued charge)
   "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
   "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
-  "paymentConfirmationPending": false,      // true from the manager's return from the hosted page until the paid webhook/reconcile lands (UI polls every 5 s, max ~60 s)
+  "paymentConfirmationPending": false,      // true while payment_return_seen_at is set and the charge is still open, until the paid webhook/reconcile lands (UI polls every 5 s, max ~60 s; the return already triggered an on-demand provider refresh)
   "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":7900,"newAmountMinor":8900,"effectiveFrom":"2026-12-10" } ]   // illustrative amounts
 }
 
 GET /v1/billing/charges?limit=20&offset=0
 200 { "items": [ { "id","kind":"PERIOD|RECOVERY","periodStart"|null,"periodEnd"|null,"dueDate","amountMinor","currency",
                    "status": "PAID|PENDING|OVERDUE|FAILED|CANCELED|REFUNDED|CHARGEBACK",
-                   "method":"PIX","paidAt", "lines":[{"featureKey","tier","unitPriceMinor"}] } ],
+                   "method":"PIX","paidAt","receiptUrl"|null, "lines":[{"featureKey","tier","unitPriceMinor"}] } ],
       "pagination": { "limit":20,"offset":0,"total":7,"hasMore":false } }
 
 PUT /v1/billing/identity   (every field optional)
@@ -72,7 +73,7 @@ The BFF mapper (not the backend) builds display strings (e.g. the auto-billing l
 |---|---|---|
 | `GET /v1/billing/access` | role-reduced `{ status, operational, features: [{ key, tier }] }` for the caller's tenant | 15, 16, 20 |
 
-Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashboard (locked items) and the customer account (badge). Cached; **fails open** on error. The BFF global guard calls the backend's internal access endpoint (§5) through the shared `TenantAccessPort` consumer, not this route.
+Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashboard (locked items) and the customer account (badge). Cached (operational answers 60 s/30 s, `SUSPENDED` answers 10 s, explicit invalidation on suspend/reactivate; the billing page bypasses the BFF cache); **fails open** on error. The BFF global guard calls the backend's internal access endpoint (§5) through the shared `TenantAccessPort` consumer, not this route.
 
 ## 3. Public (BFF, `@Public()`, no JWT)
 
@@ -109,7 +110,7 @@ POST /v1/public/signup/tenant
 
 - **Signup session:** after Google sign-in the BFF issues a short-lived (30 min), httpOnly, signed cookie carrying only `{ email, name, googleSub }` (no tenant yet), reusing the signing/verification code of the staff selection token. The `201` clears it and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff.
 - **Abuse protection:** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug-availability is throttled to limit enumeration. The BFF `WebOnlyGuard` allowance must cover these routes.
-- **Webhooks:** both routes carry `@Public()` and the `WebOnlyGuard` bypass. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
+- **Webhooks:** both routes carry `@Public()` and the `WebOnlyGuard` bypass. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). For Asaas, whose token is the only authenticity proof, a state-changing event is applied only after `fetchChargeStatus` confirms it and the amount matches (decision 101). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
 
 ## 4. Hotsite changes
 
@@ -123,14 +124,15 @@ POST /v1/public/signup/tenant
 | Method / path | Purpose | CAND |
 |---|---|---|
 | `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
+| `GET /internal/billing/signup-trial-eligibility?googleSub=` | reserves a signup registration under the advisory lock and answers whether a trial is available (called by the BFF before Platform provisions; decision 96) | 22 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
 | `POST /internal/billing/webhooks/{provider}` | normalized processing of the provider webhook (`asaas` \| `stripe`) | 09 |
 | `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or set `selectable = false` to hide it from new selection | 07 |
 | `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | **schedule a price change** `{ amountMinor, effectiveFrom, reason }`; operator-only; announces it to every affected manager | 07 |
-| `POST /internal/tenants/{tenantId}/billing/grace` \| `/suspend` | operator controls (never payment override or reactivation) | 06 |
+| `POST /internal/tenants/{tenantId}/billing/suspend` (reason `OPERATOR`) \| `/unsuspend` (valid only for an `OPERATOR` suspension) \| `/grace` (rare edge case O9) | the mapped operator edge cases (`tenant-billing_OPERATIONS.md` §4); never a payment override or a reactivation of a payment-based suspension | 06 |
 | `PUT /internal/tenants/{tenantId}/billing/exempt` | `{ exempt: boolean, reason }` — set or clear free access (R12); `403 BILLING_EXEMPT_PROTECTED` for Ikaro's own tenant; audited as `SET_EXEMPT` | 32 |
 | `POST /internal/tenants` (existing, UC-024) | gains optional `exempt: boolean` and, for a non-exempt BR tenant, a **required** valid `taxId` (CPF/CNPJ), both also on `scripts/provision-tenant.sh` (`422 SIGNUP_TAX_ID_REQUIRED`/`_INVALID`); a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off (`BILLING_US_NOT_AVAILABLE`) | 01, 32 |
-| `GET /internal/billing/tenants?status=` | operator list: status, overdue age, last charge | 06 |
+| `GET /internal/billing/tenants?status=` | read-only investigation list (status, overdue age, last charge); not a daily worklist (decision 107) | 06 |
 
 Operator calls run from the script/relay path exactly like `scripts/provision-tenant.sh` (four protection layers); each tenant-scoped call takes `reason` and records `operator_audit`. Price-list changes have no tenant and are audited on `feature_price_versions` (`created_by`, `reason`).
 
@@ -143,11 +145,12 @@ Following `CronLeadFormController`/`CronChatbotController`: in production Cloud 
 | Path | Purpose | CAND |
 |---|---|---|
 | `POST /cron/billing-issue-charges` | issue next charges 10 days before due | 08 |
-| `POST /cron/billing-status-sweep` | tenant-local due date → overdue/past-due, trial end, past-due → suspended, cancel-at | 10 |
-| `POST /cron/billing-reconcile` | reconcile with the provider | 11 |
+| `POST /cron/billing-status-sweep` | **hourly**: tenant-local due date → overdue/past-due, trial end (with the settlement margin), past-due → suspended, cancel-at; honours the suspension freeze | 10 |
+| `POST /cron/billing-reconcile` | reconcile with the provider (daily for all open charges, hourly for at-risk tenants) | 11 |
 | `POST /cron/billing-provider-events-purge` | retention of `provider_events` | 09 |
 | `POST /cron/billing-tenant-purge` | warnings (30/7 days) and erasure | 27 |
-| `POST /cron/billing-ops-digest` | daily overdue/suspended list to Ikaro's ops manager | alerts |
+| `POST /cron/billing-reminders` | daily dunning reminders (`BillingReminderDue`) | 34 |
+| `POST /cron/billing-self-heal` | hourly: provisioning repair, provider health, suspension freeze | 35 |
 
 All idempotent; the job passes an explicit `tenantId` to every use case (no `RequestContext`); provider calls never inside `txManager.run()`. `exempt` subscriptions are skipped by every job.
 
@@ -180,7 +183,7 @@ interface BillingProviderPort {
   ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
   // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
   createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference }):
-    Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax empty/zero for tax-inclusive BR
+    Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty in the BR-only first schema (all prices tax-inclusive); the Stripe adapter fills it in slice E
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
   cancelCharge(providerChargeId): Promise<void>;
   startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;
@@ -198,7 +201,7 @@ Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD) and the no
 
 Names follow the existing per-context convention in `packages/types/src/error-codes.ts` (`STAFF_*`, `LOYALTY_*`, `PLATFORM_*`): Billing codes are `BILLING_*`, signup codes `SIGNUP_*`.
 
-`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` (decided).
+`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_FEATURE_IN_USE`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` (decided).
 
 ## 9. Declarative gating metadata
 

@@ -2,7 +2,7 @@
 
 **Status:** Discovery — research record (2026-10-27). Facts below were read from official provider documentation by two research passes. Labels: **V** = stated in official docs, **I** = inferred (not stated outright), **NF** = not found. Page text came through a summarizing fetch tool, so quotes are paraphrases; **anything that decides money or tax is re-confirmed in the real account/sandbox before activation (§5).**
 
-**Companion docs:** `tenant-billing.md` (rules, decisions 36–37, 56–62) · `tenant-billing_API.md` §7 (provider port) · `tenant-billing_DATA_MODEL.md`.
+**Companion docs:** `tenant-billing_OPERATIONS.md` (operator-free model) · `tenant-billing.md` (rules, decisions 36–37, 56–62, 101, 109) · `tenant-billing_API.md` §7 (provider port) · `tenant-billing_DATA_MODEL.md`.
 
 ## 1. Asaas (BRL) — verified facts and the design they drive
 
@@ -22,7 +22,7 @@
 | A12 | Sandbox `https://api-sandbox.asaas.com/v3` (production `https://api.asaas.com/v3`): separate accounts and keys, auto-approved, partial feature parity; `POST /v3/sandbox/payment/{id}/confirm` simulates payment; an overdue-forcing action exists | docs.asaas.com/docs/sandbox — V | Per-PR tests use the fake; the sandbox runs in staging and in the nightly contract job (§6); interest/fine on boleto/Pix are untestable there. |
 | A13 | API key: generated in the web UI after the account is fully approved; max 10 keys; shown once. Rate limit 25,000 requests per 12 h per account, max 50 concurrent GETs, HTTP 429. No separate production-approval step found (token feature excepted) | central.ajuda.asaas.com, docs.asaas.com/reference/rate-e-quota-limit — V | Billing crons batch and respect 429; reconcile is a daily job, not a per-request poll. |
 | A14 | Fees (public page, confirm in the account): no monthly fee; Pix received R$ 1,99 (promo R$ 0,99 for 3 months); boleto received R$ 1,99 (promo R$ 0,99); card single payment R$ 0,49 + 2,99% (promo 1,99%); NFS-e R$ 0,49 per note | asaas.com/precos-e-taxas — V | Ikaro absorbs fees (`tenant-billing.md` §4.7); on the cheapest BR plan (HOTSITE R$ 49) fees are about 4%/2% (card/Pix). Minimum charge R$ 5 (help center, I) is never reached because HOTSITE is mandatory. |
-| A15 | NFS-e can be emitted automatically with the charge; needs a **PJ** account, municipal registration and prefeitura homologation (MEI and national-portal emitters exempt), a registered service, and the payer's full data (name, valid CPF/CNPJ, email, address with CEP) | central.ajuda.asaas.com, docs.asaas.com/docs/faq-de-notas-fiscais — V | NFS-e stays out of v1 (non-goal), but the BR identity fields (tax ID now required, address optional) already match what a later NFS-e story needs. |
+| A15 | NFS-e can be emitted automatically with the charge; needs a **PJ** account, municipal registration and prefeitura homologation (MEI and national-portal emitters exempt), a registered service, and the payer's full data (name, valid CPF/CNPJ, email, address with CEP) | central.ajuda.asaas.com, docs.asaas.com/docs/faq-de-notas-fiscais — V | Ikaro does not issue NFS-e itself, but **provider-automatic emission configured once in the Asaas account is a BR go-live gate** (decision 109), so there is no monthly manual invoicing. Because the payer's full data (including the CEP address) is needed, the BR billing address becomes required before the first paid selection if the accountant confirms it. |
 | A16 | Card charges settle about 32 days after confirmation; boleto/Pix faster | A1 — V | Cash-flow note for the owner, no design effect. |
 | A17 | Per-charge limit PF R$ 50k, PJ R$ 500k (help center) | I | Irrelevant at our price levels. |
 
@@ -72,6 +72,7 @@ Stripe computes tax when the invoice is finalized, not before. The earlier desig
 ## 5. Launch gates (verify in the real account; none blocks promotion, each blocks activation of its provider)
 
 **Asaas**
+0. Whether the webhook queue can be re-enabled through the API (`webhooks` endpoint), so the provider-health job can heal a paused queue without an operator; automatic NFS-e emission setup and its payer-data requirements.
 1. `invoiceUrl` validity after due date, after cancel and after paid; boleto auto-cancel days; whether a card payment is possible after due date.
 2. Webhook payment object fields (`externalReference`, `billingType`, `status`, `netValue`), retry interval schedule, official IP list.
 3. `externalReference` maximum length (we send the Ikaro charge id).
@@ -88,7 +89,7 @@ Stripe computes tax when the invoice is finalized, not before. The earlier desig
 
 **Accountant (gates the US launch and any tax claim)**
 1. US sales-tax obligation and registration timing for a Brazilian seller of SaaS; Brazilian treatment of USD service exports (IOF/ISS).
-2. Nota fiscal obligation for BR tenants (NFS-e v1 stays out).
+2. Nota fiscal obligation for BR tenants: confirm that provider-automatic NFS-e emission satisfies it (go-live gate, decision 109).
 3. Retention period and what must remain after a tenant purge (fiscal history).
 
 **Owner**
