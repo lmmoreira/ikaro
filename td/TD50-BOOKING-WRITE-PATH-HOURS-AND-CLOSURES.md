@@ -136,46 +136,61 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
-**Docs to load:** `docs/USE_CASES.md` UC-004, UC-069 (reschedule), UC-073; `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy, § Booking Window and the future-commitment worklist section; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/API_CONTRACTS.md` § Booking lifecycle; `docs/ANTI_PATTERNS.md`
-**Dependencies:** TD50 Story 0 (the shared check and its errors)
+**Docs to load:** `docs/USE_CASES.md` UC-003 (approve), UC-069 (reschedule), UC-073, UC-077 (worklist RESCHEDULE); `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy, § Booking Window and the future-commitment worklist section; `docs/ENGINEERING_RULES_BACKEND.md` § Transactions; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/API_CONTRACTS.md` § Booking lifecycle; `docs/LOCK_CATALOG.md` § 3, § 5, H6; `docs/ANTI_PATTERNS.md`
+**Dependencies:** TD50 Story 0 (the shared check and its errors; ✅ Done, #683)
 **Pattern:** plain composition — the same `schedule-hours.helpers.ts` call from the shared reschedule transaction helper and from the approval step; no new pattern.
 
 **Discovered:** 2026-10-10, same probe as Story 0; the reschedule and approve use cases were read and contain no hours or closure reference.
 **Root cause:** `reschedule-booking-in-transaction.helpers.ts` re-resolves candidates and calls `assertSlotFree` only; `approve-booking.use-case.ts` does the same when approval carries a new `scheduledAt`.
 
 **Description:**
-Apply Story 0's check wherever a booking's start changes after creation: the customer reschedule (`PATCH /bookings/:id/reschedule-customer`), the admin reschedule, and an approval that overrides `scheduledAt`. A reschedule to a closed or off-hours time is refused with Story 0's errors and leaves the booking unchanged. Decide at discovery how the M23-S08 worklist's bulk reassign and reschedule behave (they move a booking to resolve a conflict and may reasonably need an exemption, or may need to fail into the worklist like any other unavailable target).
+Apply Story 0's check wherever a booking is about to become (or stay) a commitment at a time: the customer reschedule (`PATCH /bookings/:id/reschedule-customer`), the admin reschedule, the worklist's RESCHEDULE, and every approval (with or without a new `scheduledAt`). A reschedule or approval for a closed or off-hours time is refused with Story 0's errors and leaves the booking unchanged. The window is judged exactly as at creation (the service span plus buffer and turnover, each candidate's own hours, closures, openings; an `AUTO_*` requirement steers to an open resource, a `CUSTOMER_CHOICE` pick is never swapped).
 
-**Open for `/story-discovery`:** the staff/manager exemption (same decision as Story 0, applied to reschedule); the worklist's behavior when the proposed new time is closed.
+**Decisions locked at discovery (2026-10-27):**
+1. **No staff or manager exemption** on the admin reschedule or approve-with-new-time (same as Story 0 decision 1; UC-069 A3 already says staff never bypass capacity or exclusivity).
+2. **No worklist exemption.** The worklist RESCHEDULE goes through the same transaction helper, so a closed or off-hours target leaves that entry `STILL_OPEN` with `errorCode` `BOOKING_SLOT_CLOSED` / `BOOKING_OUTSIDE_BUSINESS_HOURS` (the existing per-entry failure path); the booking and the entry are unchanged. The worklist's REASSIGN does not change the time and is **not** gated.
+3. **Approval always checks the hours, also at the booking's original time.** Otherwise a request made before a closure could be approved into it, which a direct staff booking (UC-108) cannot do; this mirrors the recurring schedule's re-check at approval. A booking refused this way stays `PENDING`/`INFO_REQUESTED`; staff approve with a new open time or reject. This is a creation-time rule only: a booking that is already `APPROVED` is never re-checked by a closure created later, and complete, cancel, no-show, reject, request-info and the worklist's REASSIGN are not gated.
+4. **Business hours come from `RequestContext` (`settings.businessHours`)**, passed by each controller, as in Story 0. `hoursSource` becomes mandatory in `RescheduleBookingInTransactionDeps`, so no caller can forget it.
+5. **No new lock.** The hours reads follow the resource locks, as in creation (`docs/LOCK_CATALOG.md` H6 covers these three paths too).
+6. **Existing specs are migrated** onto Story 0's next-open-slot helper, not hidden behind 24/7 hours.
 
-**Backend use case steps:** `RescheduleBookingAsCustomerUseCase` and `RescheduleBookingUseCase` call the shared transactional helper, which gains the hours step before the occupancy check; `ApproveBookingUseCase` gains it only when `scheduledAt` is overridden.
-**Backend HTTP surface:** reuses the existing reschedule and approve routes; add the new refusal to their documented errors.
+**Backend use case steps:** `RescheduleBookingAsCustomerUseCase`, `RescheduleBookingUseCase` and the worklist reschedule call the shared transactional helper, which builds the `hoursSource` and passes it to the candidate resolution (hours checked before occupancy); `ApproveBookingUseCase` passes it on every approval.
+**Backend HTTP surface:** reuses `PATCH /bookings/:id/approve`, `PATCH /bookings/:id/reschedule-customer`, `PATCH /bookings/:id/reschedule-admin` and `POST /scheduling-exceptions/resolve`; add the two refusals to their documented errors.
 **BFF endpoint spec:** none — pass-through; add blocks to the BFF `.http`.
 **New migration / i18n keys / env vars / feature flags:** none (the error codes and translations come from Story 0).
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking-in-transaction.helpers.ts` (+ spec) (modify)
-- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking-as-customer.use-case.ts`, `reschedule-booking.use-case.ts`, `approve-booking.use-case.ts` (+ specs) (modify — deps and tenant business hours)
-- `apps/backend/src/contexts/booking/application/use-cases/resolve-future-commitment-exceptions.use-case.ts` (modify only if discovery picks a worklist behavior that needs it)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (+ spec) (modify — owns the reschedule routes; pass the tenant business hours)
-- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` (modify — reschedule and approve scenarios)
-- `apps/backend/http/booking/bookings.http`, `apps/bff/http/bookings/bookings.http` (modify)
-- `docs/USE_CASES.md`, `docs/API_CONTRACTS.md`, `docs/BUSINESS_LOGIC_REFERENCE.md` (modify)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking-in-transaction.helpers.ts` (+ spec) (modify — deps gain the closure and opening repositories, params gain `businessHours`; builds the `hoursSource`)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-quote.helpers.ts` (+ spec) (modify — `ResolveRescheduleCandidatesParams` and `toCandidatesParams` carry `hoursSource`)
+- `apps/backend/src/contexts/booking/application/use-cases/reschedule-booking-as-customer.use-case.ts`, `reschedule-booking.use-case.ts`, `approve-booking.use-case.ts` (+ specs) (modify — inject the repositories, take `businessHours`)
+- `apps/backend/src/contexts/booking/application/use-cases/future-commitment-reschedule.helpers.ts`, `resolve-future-commitment-exceptions.use-case.ts` (+ specs) (modify — the worklist deps and `businessHours` on its input)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking-completion.controller.ts` (reschedule routes), `booking-lifecycle.controller.ts` (approve), `scheduling-exception.controller.ts` (worklist resolve) (+ specs) (modify — pass `settings.businessHours`)
+- `apps/backend/src/contexts/booking/infrastructure/controllers/booking.controller.integration.spec.ts` and the reschedule, approve and worklist integration specs (modify — hours scenarios; existing fixed-time specs migrated onto the next-open-slot helper; find them with `grep -rln "reschedule\|approve\|scheduling-exceptions" apps/backend/src --include=*.integration.spec.ts`)
+- `apps/backend/http/booking/bookings.http`, `apps/bff/http/bookings/bookings.http`, and the scheduling-exceptions `.http` files in both apps (modify)
+- `docs/USE_CASES.md` (UC-003 and UC-069 alternative flows, UC-077 RESCHEDULE), `docs/API_CONTRACTS.md` (approve, both reschedule routes, resolve), `docs/BUSINESS_LOGIC_REFERENCE.md` (replace the "Not covered here" line in the recurring section with the one-off reschedule and approve rule; worklist RESCHEDULE note), `docs/LOCK_CATALOG.md` (§ 3, § 5 and H6 cover reschedule, approve and the worklist reschedule) (modify)
 
 **Acceptance criteria — product:**
 - [ ] A customer or staff member cannot reschedule a booking to a closed or off-hours time; the booking keeps its old time.
-- [ ] Approving with a new time that is closed is refused and the booking stays pending.
-- [ ] Rescheduling to an open time still works, including the existing minimum-notice and cancellation-window rules.
+- [ ] Approving a booking whose time (new or original) is closed or off-hours is refused and the booking stays pending (or info-requested); staff can approve with a new open time or reject.
+- [ ] The worklist's reschedule to a closed or off-hours time leaves its entry open with the refusal's code.
+- [ ] Rescheduling or approving at an open time still works, including the existing minimum-notice and cancellation-window rules.
+- [ ] A booking that is already approved is not changed by a closure created later.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] The shared reschedule helper refuses closed, outside-hours and resource-closed targets and leaves the aggregate and occupancy unchanged
-  - [ ] Approve with `scheduledAt` refuses a closed target; approve without `scheduledAt` does not run the check
-  - [ ] **Negative guarantee, own test:** an approval with no new time is not blocked by a closure that exists on the booking's original day
+  - [ ] The shared reschedule helper refuses closed, outside-hours and resource-closed targets and leaves the aggregate and occupancy unchanged; hours are refused before occupancy when both apply
+  - [ ] Selection on reschedule: `AUTO_ANY` with the lowest-workload resource closed picks the open one; a `CUSTOMER_CHOICE` pick on a closed resource is refused
+  - [ ] Approve refuses a closed target both with a new `scheduledAt` and at the original time, and an open one succeeds
+  - [ ] Staff and manager are not exempt on admin reschedule or approve (one test each)
+  - [ ] Worklist RESCHEDULE to a closed target returns `STILL_OPEN` with the error code, the entry unchanged
+  - [ ] **Negative guarantee, own test:** the worklist's REASSIGN of a booking that sits inside a closure is not blocked
+  - [ ] **Negative guarantee, own test:** cancel, reject, complete and no-show of a booking inside a closure are not blocked
+  - [ ] **Fixed cost:** the hours reads stay four, whatever the number of lines or resources
 - Integration:
-  - [ ] Customer reschedule, admin reschedule and approve-with-new-time each refuse a closed day against a real database and succeed for an open one
+  - [ ] Customer reschedule, admin reschedule, approve (new and original time) and the worklist reschedule each refuse a closed day against a real database and succeed for an open one
+  - [ ] A closure created after a booking was approved leaves that booking unchanged
 - Tenant isolation:
-  - [ ] Tenant B's closure does not refuse Tenant A's reschedule
+  - [ ] Tenant B's closure does not refuse Tenant A's reschedule or approval
 - E2E: none — covered by Story 2 for the customer reschedule screen
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
