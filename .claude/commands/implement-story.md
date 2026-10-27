@@ -40,7 +40,7 @@ Write every file the story's "Files to create/modify" lists, following the patte
 
 Run type-check, lint and the tests for every app the change touches, plus `pnpm architecture-check` whenever the diff touches docs, `.claude/**` or `.copilot/context.md` (the file has an enforced size budget), not only for a docs-only change. Judge it by its exit status (`pnpm architecture-check >/tmp/ac.log 2>&1; echo $?`) and read the `file:line [detector]` lines: its output is long, and filtering it hid a violation that then failed the push (TD54-S1). All clean before moving on. `pnpm ci:local` (about 5 minutes, Docker) is optional and worth running first only when touching Dockerfiles, `infra/`, or integration-test paths.
 
-Do not start a dev server or run Playwright/Chromium to verify visually without asking the user first (CLAUDE.md §0, local verification gate).
+Do not start a dev server or run Playwright/Chromium to verify visually without asking the user first (CLAUDE.md §0, local verification gate). When the user agrees, E2E runs only from the story's worktree: `pnpm infra:e2e` before, `pnpm infra:e2e:down` after (`docs/TESTING_STRATEGY.md` § Running Playwright locally).
 
 ---
 

@@ -22,6 +22,8 @@
     "infra:up": "docker compose -f docker/docker-compose.yml up -d --wait && pnpm hotsite-templates:seed",
     "hotsite-templates:seed": "pnpm --filter @ikaro/infra-scripts run sync-hotsite-template-assets --emulator",
     "infra:down": "docker compose -f docker/docker-compose.yml down",
+    "infra:e2e": "bash scripts/infra-e2e.sh up",
+    "infra:e2e:down": "bash scripts/infra-e2e.sh down",
     "db:migrate": "pnpm --filter @ikaro/backend migration:run",
     "db:revert": "pnpm --filter @ikaro/backend migration:revert",
     "db:seed": "pnpm --filter @ikaro/backend seed",
