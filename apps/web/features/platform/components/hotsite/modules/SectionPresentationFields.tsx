@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type {
   HorizontalPosition,
@@ -45,6 +46,10 @@ export function SectionPresentationFields({
   onChange,
 }: SectionPresentationFieldsProps): React.JSX.Element | null {
   const t = useTranslations('dashboard.hotsitePage.layout.panels.presentation');
+  // Expanded at mount when a custom appearance already exists, then purely user-controlled —
+  // deriving `open` from `value` would snap the section shut the moment the last field is set
+  // back to Automatic.
+  const [open, setOpen] = useState(value !== undefined);
   const support = PRESENTATION_SUPPORT[moduleType];
   if (!support) return null;
 
@@ -67,7 +72,8 @@ export function SectionPresentationFields({
   return (
     <details
       className="rounded-md border border-gray-200 p-4"
-      open={value !== undefined}
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
       data-testid="section-presentation"
     >
       <summary className="cursor-pointer text-sm font-semibold text-gray-900">{t('title')}</summary>
