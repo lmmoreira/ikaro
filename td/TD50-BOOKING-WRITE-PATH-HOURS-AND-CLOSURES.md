@@ -195,7 +195,7 @@ Apply Story 0's check wherever a booking is about to become (or stay) a commitme
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — The booking, reschedule and staff screens route the new refusals correctly
+### Story 2 — The booking, reschedule and staff screens route the new refusals correctly ✅ Done
 
 **Agent:** web-ts
 **Complexity:** M (the routing is small; the staff screens, the specs and two E2E scenarios are not)
