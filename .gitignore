@@ -45,9 +45,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# Claude Code — local machine settings (paths, permission allow-lists)
+# Claude Code — local machine settings (paths, permission allow-lists). .claude/settings.json is
+# committed on purpose: it registers the WorktreeCreate hook that prepares every new worktree, so
+# keep personal permissions and paths in settings.local.json.
 .claude/settings.local.json
-.claude/settings.json
 .claude/scheduled_tasks.lock
 packages/i18n/dist
 docs/BOOTSTRAP_LOG.md

@@ -41,6 +41,23 @@ describe('SectionPresentationFields', () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
+  it('stays open when the last custom field goes back to Automatic', async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderWithIntl(
+      <SectionPresentationFields
+        moduleType="ABOUT"
+        value={{ surface: 'primary' }}
+        onChange={vi.fn()}
+      />,
+    );
+    expect(screen.getByTestId('section-presentation')).toHaveAttribute('open');
+
+    await user.click(getPillOption('presentation-surface', 'default'));
+    rerender(<SectionPresentationFields moduleType="ABOUT" value={undefined} onChange={vi.fn()} />);
+
+    expect(screen.getByTestId('section-presentation')).toHaveAttribute('open');
+  });
+
   it('picks a surface, width, height and spacing, each as its own field', async () => {
     const user = userEvent.setup();
     const onChange = renderFields('ABOUT');
