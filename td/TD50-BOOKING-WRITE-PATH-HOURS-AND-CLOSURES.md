@@ -6,7 +6,7 @@
 - **Context**: apps/backend — booking context; apps/bff — booking feature (error pass-through only); apps/web — public booking flow and staff booking flow (error routing); packages/types, packages/i18n
 - **Created**: 2026-10-10
 - **Discovered**: reviewing M23-S39 (staff books on a customer's behalf, PR #586): a staff booking on a closed day returned 201, and probing showed a guest booking does too
-- **Decision status**: Story 0 discovered 2026-10-26 (decisions locked below). Story 1 depends on it; Story 2 depends on Story 0. Stories 1 and 2 still begin with `/story-discovery`.
+- **Decision status**: Story 0 discovered 2026-10-26 (decisions locked below). Story 1 depends on it; Story 2 depends on Story 0. Story 1 done (#684). Story 2 discovered 2026-10-27 (decisions locked below).
 - **Related**: M23-S18 (the recurring-schedule check this reuses), M23-S39, M23-S33 (the booking-window check this sits beside), M23-S08 (the future-commitment worklist reschedule), UC-001, UC-002, UC-004, UC-069, UC-108, `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy
 
 ## Problem
@@ -195,35 +195,58 @@ Apply Story 0's check wherever a booking is about to become (or stay) a commitme
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — The booking and reschedule screens route the new refusals to the date step
+### Story 2 — The booking, reschedule and staff screens route the new refusals correctly
 
 **Agent:** web-ts
-**Complexity:** S
+**Complexity:** M (the routing is small; the staff screens, the specs and two E2E scenarios are not)
 **Docs to load:** `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure, `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`
-**Dependencies:** TD50 Story 0; TD50 Story 1 for the reschedule screen
-**Pattern:** plain composition — extends the existing submit-error routing table (`resolveBookingSubmitErrorRoute` in `booking-steps.ts`); no new pattern.
+**Dependencies:** TD50 Story 0 (✅ Done, #683); TD50 Story 1 (✅ Done, #684)
+**Pattern:** plain composition — two entries in the existing submit-error routing table (`CODE_TARGETS` in `booking-steps.ts`), one new failure kind in the existing reschedule classifier, and a code-aware body on the existing `SlotConflictAlert`; no new pattern.
 
 **Description:**
-The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE`) back to the date step with everything else kept. The two new codes must take the same route, with copy that says the time is no longer open, so a stale page recovers instead of showing a generic error. The same mapping applies to the customer reschedule screen (M23-S30) and is what the staff booking screen (M23-S40) inherits through the shared step engine. No new screen: the existing slot-conflict error state is reused, with new copy keys.
+The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE`) back to the date step with everything else kept. `BOOKING_SLOT_CLOSED` and `BOOKING_OUTSIDE_BUSINESS_HOURS` (409, TD50 Story 0/1) take the same route so a stale page recovers instead of showing a generic error. The same holds on the customer reschedule screen (M23-S30), and the staff booking screen (M23-S40) inherits it through the shared step engine. The staff approve and admin reschedule screens treat any 409 as "slot taken" and would say "foi ocupado" for a closed day; they get the right wording.
 
-**Prototype references:** `journeys/guest/prototypes/book-a-service/` and `journeys/customer/prototypes/book-a-service/` (the existing slot-conflict error screens); confirm at discovery that no prototype change is needed.
-**New migration / i18n keys / env vars / feature flags:** none beyond Story 0's `errors.json` entries; any screen-level copy goes in `packages/i18n/locales/{pt-BR,en}/web.json` in the same commit.
+**Decisions locked at discovery (2026-10-27):**
+1. **Booking page and staff booking screen:** both codes map to `availability` in `CODE_TARGETS`, beside `SLOT_UNAVAILABLE`, which stays unchanged. The message is the catalogue text already in both `errors.json` files ("O negócio está fechado no horário solicitado." / "O horário solicitado está fora do horário de funcionamento."); no new keys.
+2. **Customer reschedule:** `classifyRescheduleFailure` gains a `slotClosed` kind for both codes. It shows the catalogue message with `conflictHint` and `shouldReloadSlots` is true for it, exactly like `slotTaken`. `generic` and `windowExpired` handling is unchanged.
+3. **Staff approve and admin reschedule:** `SlotConflictAlert` takes the error code; for the two new codes its body shows the catalogue message (title stays "Horário não disponível"), for `SLOT_UNAVAILABLE` the existing "foi ocupado" body. Alternative slots are offered as today. No new `web.json` keys.
+4. **Worklist reschedule:** `assertEntryRescheduled` maps the two codes to 409 (with `SLOT_UNAVAILABLE`), so the reschedule page gets alternatives instead of plain text.
+5. **E2E isolation:** a resource-scoped closure on a freshly seeded ROOM (the `seedSingleRoomService` pattern in `booking-submit-routing.spec.ts`), never a tenant-wide closure on the shared test tenant.
+
+**Prototype references:** `journeys/guest/prototypes/book-a-service/02e-slot-conflict.html` is the pattern for the date-step error; the customer journey already records "no screen here". No prototype change.
+**New migration / i18n keys / env vars / feature flags:** none.
+**UI reuse:** no new control; `SlotConflictAlert`, `ErrorAlert` and the existing step error states are reused.
 
 **Files to create/modify:**
-- `apps/web/features/booking/model/booking-steps.ts` (+ `booking-steps.spec.ts`) (modify — `resolveBookingSubmitErrorRoute` routes both codes to the date step)
-- `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (modify only if the error state needs new copy)
-- `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (modify — same mapping on the reschedule screen from M23-S30)
-- `journeys/guest/book-a-service.md`, `journeys/customer/book-a-service.md`, both `dev-notes.md` (modify — record the new error route)
+- `apps/web/features/booking/model/booking-steps.ts` (+ `booking-steps.spec.ts`) (modify — both codes in `CODE_TARGETS`)
+- `apps/web/features/booking/model/reschedule-failure.ts` (+ spec) (modify — `slotClosed` kind, reload on it)
+- `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (modify only if `describeFailure` needs the new kind's hint)
+- `apps/web/features/booking/model/scheduling-exception-reschedule.ts` (+ spec) (modify — 409 for the two codes)
+- `apps/web/features/booking/components/dashboard/bookings/SlotConflictAlert.tsx` (+ spec) (modify — code-aware body)
+- `apps/web/features/booking/model/booking-approve-action.ts`, `RescheduleBookingPage.tsx`, `BookingDetailPage.tsx`, `BookingQueuePage.tsx` (+ specs) (modify — pass the code to the alert)
+- `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (check — only the new-code component cases)
+- `apps/web/e2e/booking-submit-routing.spec.ts`, `apps/web/e2e/my-account-reschedule.spec.ts` (modify — the two scenarios)
+- `journeys/guest/book-a-service.md` (lines 32, 82), `journeys/customer/book-a-service.md` (line 45), both `book-a-service` `dev-notes.md` (the routing table and error-handling paragraph), `journeys/customer/prototypes/minha-conta/dev-notes.md` (§ Reagendar) (modify — record the new routes)
 
 **Acceptance criteria — product:**
-- [ ] If the chosen time closes while the page is open, submitting returns the customer to the date step with their other choices kept and a message that the time is no longer open.
-- [ ] The same holds on the reschedule screen.
+- [ ] If the chosen time closes while the booking page is open, submitting returns the customer to the date step with their other choices kept and a message that the business is closed or the time is outside business hours.
+- [ ] The same holds on the customer reschedule screen: the message shows, the slot list reloads, and the booking keeps its original time.
+- [ ] Staff approving a booking, or rescheduling one, to a closed or off-hours time see a message saying so (not "foi ocupado") and are offered alternative slots.
+- [ ] The worklist reschedule to a closed or off-hours time shows the message and alternatives.
+- [ ] A slot taken by another booking behaves exactly as before on every screen.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `resolveBookingSubmitErrorRoute` maps both new codes to the date step and keeps the slot-conflict mapping unchanged
-  - [ ] Component test: a submit failing with each new code shows the date step and the new message
+  - [ ] `resolveBookingSubmitErrorRoute` maps both codes to `availability` and keeps the `SLOT_UNAVAILABLE` mapping unchanged
+  - [ ] `classifyRescheduleFailure` returns `slotClosed` for both codes; `shouldReloadSlots` is true for it; `generic` and `windowExpired` unchanged
+  - [ ] `assertEntryRescheduled` throws a 409 `ApiError` for both codes and keeps 422 for other codes
+  - [ ] `SlotConflictAlert`: the closed and off-hours codes show the catalogue message, `SLOT_UNAVAILABLE` keeps the "foi ocupado" body
+- Component:
+  - [ ] `BookingForm`: a submit failing with each code shows the availability step and the catalogue message, selections kept
+  - [ ] `CustomerReschedulePage`: each code shows the message with `conflictHint` and reloads the slots
+  - [ ] `RescheduleBookingPage` and the approve action: each code renders the alert with the closed or off-hours body
 - E2E:
-  - [ ] Playwright: create a full-day closure through the API after loading the booking page, submit, and land on the date step with the message
+  - [ ] Playwright, booking page: seed a ROOM service, open the booking page, add a resource-scoped closure through the API for the chosen day, submit, land on the date step with the message and the other choices kept
+  - [ ] Playwright, customer reschedule: same setup on `my-account-reschedule.spec.ts`; the message shows and the slot list reloads
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
