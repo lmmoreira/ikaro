@@ -494,6 +494,17 @@ Authorization: Bearer {{customerToken}}
 PATCH {{bffUrl}}/v1/bookings/{{completedBookingId}}/approve
 Authorization: Bearer {{managerToken}}
 
+###
+
+### ERROR — the booking's time, or the scheduledAt sent, is closed → 409 BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (no staff exemption; the booking stays PENDING)
+PATCH {{bffUrl}}/v1/bookings/{{bookingId}}/approve
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
+}
+
 # ─────────────────────────────────────────────────────────────────────────────
 # PATCH /v1/bookings/:id/reject — admin rejects booking (UC-004)
 # Requires PENDING or INFO_REQUESTED state → use bookingId from seed.
@@ -765,6 +776,17 @@ Authorization: Bearer {{managerToken}}
 
 {
   "scheduledAt": "2026-07-20T14:00:00.000Z"
+}
+
+###
+
+### ERROR — the new time is closed → 409 BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (also for a customer token; the booking keeps its old time)
+PATCH {{bffUrl}}/v1/bookings/{{approvedBookingId}}/reschedule
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
 }
 
 ###

@@ -1,4 +1,8 @@
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
+import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
 import { InMemoryBookingQuoteRevisionRepository } from '../../../../test/repositories/booking/in-memory-booking-quote-revision.repository';
 import { InMemoryRecurringBookingScheduleRepository } from '../../../../test/repositories/booking/in-memory-recurring-booking-schedule.repository';
@@ -21,9 +25,13 @@ import {
 
 const STAFF_ID = '00000000-0000-7000-8000-0000000000aa';
 const CORRELATION_ID = 'corr-resolve-1';
+// Monday 10:00 in the tenant timezone, five days after the pinned clock (a Wednesday), so the
+// default test tenant is open then and the target is later than the 48-hour booking in the fixture.
+const OPEN_NEW_TIME = '2027-03-15T13:00:00.000Z';
 
 describe('ResolveFutureCommitmentExceptionsUseCase', () => {
   let world: FutureCommitmentFixture;
+  let closureRepo: InMemoryScheduleClosureRepository;
   let useCase: ResolveFutureCommitmentExceptionsUseCase;
   let published: DomainEvent[];
 
@@ -52,6 +60,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         published.push(event as DomainEvent);
       },
     });
+    closureRepo = new InMemoryScheduleClosureRepository();
     useCase = new ResolveFutureCommitmentExceptionsUseCase(
       world.exceptionRepo,
       world.bookingRepo,
@@ -64,6 +73,8 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       new InMemoryTransactionManager(),
       new AvailabilityService(),
       new BookingSlotConflictService(world.occupancyRepo, world.tenantLock),
+      closureRepo,
+      new InMemoryScheduleOpeningRepository(),
     );
   });
 
@@ -96,6 +107,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       actorRole: 'STAFF',
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       ...overrides,
     });
 
@@ -292,6 +304,26 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       });
 
       expect(asked).not.toContain(source.id);
+    });
+
+    it("is not gated by a closure on the booking's own day: the time does not change (TD50)", async () => {
+      const source = await world.addResource('Sala 1');
+      const target = await world.addResource('Sala 2');
+      const service = await world.addService();
+      const booking = await world.addBooking({ service, resource: source, startsInHours: 48 });
+      const [entryId] = await raiseFor(source.id);
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2027-03-12').build(),
+      );
+
+      const { results } = await resolve({
+        exceptionIds: [entryId],
+        resolutionType: 'REASSIGN',
+        target: { resourceId: target.id },
+      });
+
+      expect(results).toEqual([{ exceptionId: entryId, outcome: 'RESOLVED' }]);
+      expect(await occupiedResourceIds(booking.id)).toEqual([target.id]);
     });
 
     it('moves the occupancy to the chosen resource at the same window and leaves the booking untouched', async () => {
@@ -575,7 +607,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
         const service = await world.addService();
         await world.addBooking({ service, resource: source, startsInHours: 48 });
         const [entryId] = await raiseFor(source.id);
-        return { source, entryId, newTime: new Date(Date.now() + 96 * 3_600_000).toISOString() };
+        return { source, entryId, newTime: OPEN_NEW_TIME };
       }
 
       it('takes the resource locks before the entry row lock', async () => {
@@ -658,13 +690,92 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       });
     });
 
+    describe('working hours and closures (TD50)', () => {
+      async function setup() {
+        const source = await world.addResource('Sala 1');
+        const replacement = await world.addResource('Sala 2');
+        const service = await world.addService();
+        const booking = await world.addBooking({ service, resource: source, startsInHours: 48 });
+        const [entryId] = await raiseFor(source.id);
+        return { source, replacement, booking, entryId };
+      }
+
+      async function expectStillOpen(entryId: string, bookingId: string, startsAt: number) {
+        expect((await world.exceptionRepo.findById(entryId, TENANT_ID))!.status).toBe('OPEN');
+        const unchanged = (await world.bookingRepo.findById(bookingId, TENANT_ID))!;
+        expect(unchanged.scheduledAt.getTime()).toBe(startsAt);
+      }
+
+      it('keeps the entry open with BOOKING_SLOT_CLOSED when the chosen day is closed, whoever resolves', async () => {
+        const { booking, entryId } = await setup();
+        const startsAt = booking.scheduledAt.getTime();
+        await closureRepo.save(
+          new ScheduleClosureBuilder().withTenantId(TENANT_ID).withDate('2027-03-15').build(),
+        );
+
+        const { results } = await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: OPEN_NEW_TIME,
+          actorRole: 'MANAGER',
+        });
+
+        expect(results).toEqual([
+          {
+            exceptionId: entryId,
+            outcome: 'STILL_OPEN',
+            errorCode: BookingErrorCode.SLOT_CLOSED,
+          },
+        ]);
+        await expectStillOpen(entryId, booking.id, startsAt);
+      });
+
+      it('keeps the entry open with BOOKING_OUTSIDE_BUSINESS_HOURS when the chosen time is off hours', async () => {
+        const { booking, entryId } = await setup();
+        const startsAt = booking.scheduledAt.getTime();
+
+        const { results } = await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: '2027-03-15T23:00:00.000Z',
+        });
+
+        expect(results).toEqual([
+          {
+            exceptionId: entryId,
+            outcome: 'STILL_OPEN',
+            errorCode: BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
+          },
+        ]);
+        await expectStillOpen(entryId, booking.id, startsAt);
+      });
+
+      it("tenant isolation: another tenant's closure does not refuse the reschedule", async () => {
+        const { entryId } = await setup();
+        await closureRepo.save(
+          new ScheduleClosureBuilder()
+            .withTenantId(FCE_OTHER_TENANT_ID)
+            .withDate('2027-03-15')
+            .build(),
+        );
+
+        const { results } = await resolve({
+          exceptionIds: [entryId],
+          resolutionType: 'RESCHEDULE',
+          scheduledAt: OPEN_NEW_TIME,
+        });
+
+        expect(results).toEqual([{ exceptionId: entryId, outcome: 'RESOLVED' }]);
+      });
+    });
+
     it('moves an APPROVED booking to the chosen time and re-resolves its resource', async () => {
       const source = await world.addResource('Sala 1');
       const replacement = await world.addResource('Sala 2');
       const service = await world.addService();
       const booking = await world.addBooking({ service, resource: source, startsInHours: 48 });
       const [entryId] = await raiseFor(source.id);
-      const newTime = new Date(Date.now() + 96 * 3_600_000).toISOString();
+      const newTime = OPEN_NEW_TIME;
 
       const { results } = await resolve({
         exceptionIds: [entryId],
@@ -696,7 +807,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       const { results } = await resolve({
         exceptionIds: [entryId],
         resolutionType: 'RESCHEDULE',
-        scheduledAt: new Date(Date.now() + 96 * 3_600_000).toISOString(),
+        scheduledAt: OPEN_NEW_TIME,
       });
 
       expect(results).toEqual([

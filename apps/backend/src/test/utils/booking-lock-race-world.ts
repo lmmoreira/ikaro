@@ -17,7 +17,7 @@ import {
   RecurringBookingScheduleEntityBuilder,
 } from '../builders/booking/index';
 import { TenantEntityBuilder } from '../builders/platform/tenant-entity.builder';
-import { futureDate } from './date-helpers';
+import { openSlotAt } from './date-helpers';
 import { seedResource, seedService } from './future-commitment-db-fixture';
 
 // Concurrency integration tests (docs/TESTING_STRATEGY.md § Concurrency tests). Every scenario
@@ -79,7 +79,7 @@ export async function createLockRaceWorld(
     roomB,
     serviceId,
     async seedBooking(options) {
-      const startsAt = new Date(`${futureDate(options.startsInDays ?? 5)}T13:00:00.000Z`);
+      const startsAt = new Date(openSlotAt(options.startsInDays ?? 5, 10));
       const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
       const status = options.status ?? 'APPROVED';
       const booking = await ds.getRepository(BookingEntity).save(

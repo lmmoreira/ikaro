@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import {
   ITransactionManager,
@@ -32,6 +33,14 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
@@ -62,6 +71,7 @@ export interface ResolveFutureCommitmentExceptionsUseCaseInput {
   actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
   exceptionIds: string[];
   resolutionType: FutureCommitmentExceptionResolutionType;
   reason?: string;
@@ -99,6 +109,8 @@ export class ResolveFutureCommitmentExceptionsUseCase {
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
   ) {}
 
   async execute(
@@ -234,6 +246,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
       exceptionRepo: this.exceptionRepo,
       serviceRepo: this.serviceRepo,
       tenantLock: this.tenantLock,
+      hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
     };
   }
 

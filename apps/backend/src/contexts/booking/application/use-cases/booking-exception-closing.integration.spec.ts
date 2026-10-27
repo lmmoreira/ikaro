@@ -1,3 +1,4 @@
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -112,6 +113,7 @@ describe('closing a booking’s worklist entries (integration)', () => {
       actorRole: 'MANAGER',
       correlationId: uuidv7(),
       timezone: 'America/Sao_Paulo',
+      businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       exceptionIds: [entryIds[0]],
       resolutionType: 'REASSIGN',
       target: { resourceId: target.id },

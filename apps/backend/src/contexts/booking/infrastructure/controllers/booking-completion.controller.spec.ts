@@ -1,3 +1,6 @@
+import { openSlotAt } from '../../../../test/utils/date-helpers';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -86,6 +89,8 @@ describe('BookingCompletionController', () => {
           fixtures.resourceRepo,
           occupancyRepo,
           quoteRevisionRepo,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),
@@ -98,6 +103,8 @@ describe('BookingCompletionController', () => {
           fixtures.resourceRepo,
           occupancyRepo,
           quoteRevisionRepo,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),
@@ -180,8 +187,8 @@ describe('BookingCompletionController', () => {
 
   describe('rescheduleAsAdmin()', () => {
     it('reschedules an APPROVED booking and returns updated scheduledAt', async () => {
-      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
-      const newSlot = new Date(Date.now() + 6 * 24 * 3_600_000);
+      const futureSlot = new Date(openSlotAt(5, 10));
+      const newSlot = new Date(openSlotAt(6, 10));
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
@@ -200,7 +207,7 @@ describe('BookingCompletionController', () => {
     it('maps BookingNotFoundError to 404', async () => {
       const err = await controller
         .rescheduleAsAdmin('00000000-0000-4000-8000-000000009999', {
-          scheduledAt: new Date(Date.now() + 5 * 24 * 3_600_000).toISOString(),
+          scheduledAt: new Date(openSlotAt(5, 10)).toISOString(),
         })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
@@ -210,8 +217,8 @@ describe('BookingCompletionController', () => {
 
   describe('rescheduleAsCustomer()', () => {
     it('reschedules the caller-owned APPROVED booking outside the reschedule window', async () => {
-      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
-      const newSlot = new Date(Date.now() + 6 * 24 * 3_600_000);
+      const futureSlot = new Date(openSlotAt(5, 10));
+      const newSlot = new Date(openSlotAt(6, 10));
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
@@ -229,7 +236,7 @@ describe('BookingCompletionController', () => {
     });
 
     it('maps BookingForbiddenError to 403 when the booking belongs to another customer', async () => {
-      const futureSlot = new Date(Date.now() + 5 * 24 * 3_600_000);
+      const futureSlot = new Date(openSlotAt(5, 10));
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
@@ -240,7 +247,7 @@ describe('BookingCompletionController', () => {
 
       const err = await customerController
         .rescheduleAsCustomer(booking.id, {
-          scheduledAt: new Date(Date.now() + 6 * 24 * 3_600_000).toISOString(),
+          scheduledAt: new Date(openSlotAt(6, 10)).toISOString(),
         })
         .catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);

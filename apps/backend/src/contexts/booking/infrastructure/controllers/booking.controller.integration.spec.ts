@@ -2658,16 +2658,17 @@ describe('BookingController (integration)', () => {
     it('lets staff reschedule beyond the window, and leaves the existing booking untouched', async () => {
       const bookingId = await createApprovedWindowBooking(61);
 
+      const beyondWindow = openSlotAt(110, 11);
       await request(app.getHttpServer())
         .patch(`/bookings/${bookingId}/reschedule-admin`)
         .set(actorHeaders(tenantAId, STAFF_ID, 'MANAGER'))
-        .send({ scheduledAt: `${futureDate(120)}T11:00:00.000Z` })
+        .send({ scheduledAt: beyondWindow })
         .expect(200);
 
       const row = await ds
         .getRepository(BookingEntity)
         .findOneByOrFail({ id: bookingId, tenantId: tenantAId });
-      expect(row.scheduledAt.toISOString()).toBe(`${futureDate(120)}T11:00:00.000Z`);
+      expect(row.scheduledAt.toISOString()).toBe(beyondWindow);
     });
 
     it("tenant isolation: tenant A's service window never applies to tenant B's booking", async () => {

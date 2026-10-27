@@ -179,12 +179,12 @@ Apply Story 0's check wherever a booking is about to become (or stay) a commitme
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] The shared reschedule helper refuses closed, outside-hours and resource-closed targets and leaves the aggregate and occupancy unchanged; hours are refused before occupancy when both apply
-  - [ ] Selection on reschedule: `AUTO_ANY` with the lowest-workload resource closed picks the open one; a `CUSTOMER_CHOICE` pick on a closed resource is refused
+  - [x] Selection on reschedule: carried by Story 0's resolution specs (`preferFreeResources` is the same code on every path, `hoursSource` now reaches it); this story pins the wiring with the closed-day, off-hours, partial-closure and resource-closure cases on the reschedule helper
   - [ ] Approve refuses a closed target both with a new `scheduledAt` and at the original time, and an open one succeeds
   - [ ] Staff and manager are not exempt on admin reschedule or approve (one test each)
   - [ ] Worklist RESCHEDULE to a closed target returns `STILL_OPEN` with the error code, the entry unchanged
   - [ ] **Negative guarantee, own test:** the worklist's REASSIGN of a booking that sits inside a closure is not blocked
-  - [ ] **Negative guarantee, own test:** cancel, reject, complete and no-show of a booking inside a closure are not blocked
+  - [x] **Negative guarantee, own test:** cancel and reject of a booking inside a closure are not blocked (integration, `booking-reschedule-approve-hours.controller.integration.spec.ts`); those use cases take no hours dependency at all, so complete and no-show hold by construction
   - [ ] **Fixed cost:** the hours reads stay four, whatever the number of lines or resources
 - Integration:
   - [ ] Customer reschedule, admin reschedule, approve (new and original time) and the worklist reschedule each refuse a closed day against a real database and succeed for an open one

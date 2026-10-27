@@ -1,3 +1,4 @@
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Booking } from '../../domain/booking.aggregate';
 import {
   BookingScheduledAtInvalidError,
@@ -25,6 +26,7 @@ export interface WorklistRescheduleParams {
   staffId: string;
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
   scheduledAt: string;
   exception: FutureCommitmentException;
   booking: Booking;
@@ -99,6 +101,7 @@ export async function rescheduleThroughWorklist(
     staffId: params.staffId,
     correlationId: params.correlationId,
     timezone: params.timezone,
+    businessHours: params.businessHours,
     excludeExceptionIds: [params.exception.id],
     resolutionSnapshot: params.resolutionSnapshot,
   });

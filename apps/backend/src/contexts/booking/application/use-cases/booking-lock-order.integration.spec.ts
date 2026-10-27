@@ -225,6 +225,7 @@ describe('booking lock order (integration)', () => {
               actorRole: 'MANAGER',
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
               exceptionIds: [entryIds[0]],
               resolutionType: 'CANCEL',
             }),
@@ -250,6 +251,7 @@ describe('booking lock order (integration)', () => {
               actorRole: 'MANAGER',
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
               exceptionIds: [entryIds[0]],
               resolutionType: 'RESCHEDULE',
               scheduledAt: newSlot(),
@@ -279,6 +281,7 @@ describe('booking lock order (integration)', () => {
               staffId: STAFF_ID,
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
             }),
           verify: async () => {
             expect(await entryStatus(ds, world.tenantId, entryIds[0])).toBe('DISMISSED');
@@ -307,6 +310,7 @@ describe('booking lock order (integration)', () => {
               staffId: STAFF_ID,
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
               resourceSelections: [
                 { serviceId: world.serviceId, resourceType: 'ROOM', resourceId: world.roomB.id },
               ],
@@ -341,6 +345,7 @@ describe('booking lock order (integration)', () => {
               customerId,
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
               tenantDefaultRescheduleWindowHours: 48,
               tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
             }),
@@ -389,6 +394,7 @@ describe('booking lock order (integration)', () => {
               actorRole: 'STAFF',
               correlationId: uuidv7(),
               timezone: TIMEZONE,
+              businessHours: DEFAULT_TEST_BUSINESS_HOURS,
             }),
           verify: async () => {
             expect(await entryStatus(ds, world.tenantId, entryIds[0])).toBe('DISMISSED');
@@ -533,6 +539,7 @@ describe('booking lock order (integration)', () => {
             actorRole: 'MANAGER',
             correlationId: uuidv7(),
             timezone: TIMEZONE,
+            businessHours: DEFAULT_TEST_BUSINESS_HOURS,
             exceptionIds: [entryIds[0]],
             resolutionType: 'CANCEL',
           }),
@@ -624,6 +631,7 @@ describe('booking lock order (integration)', () => {
             staffId: STAFF_ID,
             correlationId: uuidv7(),
             timezone: TIMEZONE,
+            businessHours: DEFAULT_TEST_BUSINESS_HOURS,
           }),
           deactivate.execute({
             id: world.roomA.id,

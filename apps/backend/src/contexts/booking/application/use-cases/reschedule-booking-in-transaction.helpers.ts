@@ -1,3 +1,4 @@
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Booking } from '../../domain/booking.aggregate';
 import { RescheduleDurationChange } from '../../domain/booking.types';
 import { Service } from '../../domain/service.aggregate';
@@ -12,6 +13,7 @@ import {
   dismissStaleExceptionsAfterMove,
   occupiedResourceIds,
 } from '../helpers/booking-exception-closing.helpers';
+import { HoursScheduleRepos } from './schedule-hours.helpers';
 import { ResourceSelectionInput } from './resource-occupancy.types';
 import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
@@ -30,6 +32,8 @@ export interface RescheduleBookingInTransactionDeps {
   availabilityService: AvailabilityService;
   slotConflictService: BookingSlotConflictService;
   exceptionRepo: IFutureCommitmentExceptionRepository;
+  // Closures and openings: the new time must be one the business is open for.
+  hoursRepos: HoursScheduleRepos;
 }
 
 export interface RescheduleBookingInTransactionParams {
@@ -43,6 +47,7 @@ export interface RescheduleBookingInTransactionParams {
   staffId: string;
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
   // Entries the caller closes itself (the worklist's selected entry is RESOLVED by the manager).
   excludeExceptionIds?: readonly string[];
   // What the caller read when it took its resource locks (the worklist's reschedule).
@@ -135,5 +140,6 @@ function toResolveParams(
     timezone: params.timezone,
     overrideSelections: params.overrideSelections,
     durationChange: params.durationChange,
+    hoursSource: { repos: deps.hoursRepos, businessHours: params.businessHours },
   };
 }

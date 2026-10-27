@@ -7,8 +7,8 @@ import {
   BookingForbiddenError,
   BookingNotFoundError,
   BookingScheduledInPastError,
-  RescheduleWindowExpiredError,
 } from '../../domain/errors/booking-domain.error';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Booking } from '../../domain/booking.aggregate';
 import { FutureCommitmentException } from '../../domain/future-commitment-exception.aggregate';
 import { RescheduleDurationChange } from '../../domain/booking.types';
@@ -24,6 +24,14 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
@@ -31,6 +39,7 @@ import {
   IFutureCommitmentExceptionRepository,
 } from '../ports/future-commitment-exception-repository.port';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { toHoursSource } from './booking-hours-gate.helpers';
 import { toResourceSelections } from './booking-request.mapper';
 import { RescheduleBookingAsCustomerDto } from '../dtos/reschedule-booking-as-customer.dto';
 import {
@@ -39,9 +48,9 @@ import {
 } from '../helpers/booking-exception-closing.helpers';
 import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
 import {
+  assertEligibleForReschedule,
   QuoteRevisionResult,
   recordQuoteRevisionIfPriceChanged,
-  resolveEffectiveRescheduleWindowHours,
   resolveRescheduleCandidates,
   resolveRescheduleDurationChange,
 } from './reschedule-quote.helpers';
@@ -53,6 +62,7 @@ export type RescheduleBookingAsCustomerUseCaseInput = RescheduleBookingAsCustome
   customerId: string;
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
   tenantDefaultRescheduleWindowHours: number;
   tenantBookingWindow: TenantBookingWindow;
 };
@@ -78,6 +88,8 @@ export class RescheduleBookingAsCustomerUseCase {
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(BOOKING_QUOTE_REVISION_REPOSITORY)
     private readonly quoteRevisionRepo: IBookingQuoteRevisionRepository,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly quoteService: BookingQuoteService,
@@ -99,7 +111,7 @@ export class RescheduleBookingAsCustomerUseCase {
     if (newScheduledAt <= new Date()) throw new BookingScheduledInPastError();
 
     const serviceMap = await this.loadServiceMap(booking, tenantId);
-    this.assertEligible(booking, serviceMap, input.tenantDefaultRescheduleWindowHours);
+    assertEligibleForReschedule(booking, serviceMap, input.tenantDefaultRescheduleWindowHours);
     assertWithinEffectiveBookingWindow(input, serviceMap.values());
 
     const durationChange = resolveRescheduleDurationChange(
@@ -245,20 +257,8 @@ export class RescheduleBookingAsCustomerUseCase {
       timezone: input.timezone,
       overrideSelections: toResourceSelections(input.resourceSelections),
       durationChange,
+      hoursSource: toHoursSource(this.closureRepo, this.openingRepo, input.businessHours),
     };
-  }
-
-  private assertEligible(
-    booking: Booking,
-    serviceMap: Map<string, Service>,
-    tenantDefaultRescheduleWindowHours: number,
-  ): void {
-    const windowHours = resolveEffectiveRescheduleWindowHours(
-      booking,
-      serviceMap,
-      tenantDefaultRescheduleWindowHours,
-    );
-    if (!booking.isEligibleForReschedule(windowHours)) throw new RescheduleWindowExpiredError();
   }
 
   private async loadServiceMap(booking: Booking, tenantId: string): Promise<Map<string, Service>> {
