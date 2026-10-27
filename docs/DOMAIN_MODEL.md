@@ -298,8 +298,9 @@ Service {
   resourceRequirements:   ResourceRequirement[]        -- flat (non-legged) requirement set; [] on a legged or SESSION service
   bufferAfterMinutes:     int | null                   -- "extra cleanup this service needs, regardless of resource"; null on
                                                         -- legged services (meaningless there — legs use per-leg transition gaps
-                                                        -- instead, UC-053 A1). Pre-filled from the tenant's serviceBufferMinutes
-                                                        -- default at creation, then a genuine per-service override (UC-053).
+                                                        -- instead, UC-053 A1). On an APPOINTMENT service, null = inherit the tenant's
+                                                        -- CURRENT serviceBufferMinutes (new services start null); a number, including 0,
+                                                        -- is an explicit per-service override (UC-053; TD51-S00).
 
   -- APPOINTMENT only — mutually exclusive with resourceRequirements/bufferAfterMinutes (UC-052):
   legs:                   ServiceLeg[] | null           -- ordered sequential stages, each with its own resource requirement(s)

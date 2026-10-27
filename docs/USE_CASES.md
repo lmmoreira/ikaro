@@ -859,9 +859,9 @@ Returns:
 - **Preconditions:** Service exists, `bookingModel = APPOINTMENT`, no `legs` set.
 - **Trigger:** Admin edits the service's cleanup/prep buffer.
 - **Main Flow:**
-  1. Field is pre-filled from the tenant's `serviceBufferMinutes` default at service-creation time.
-  2. Admin overrides with a service-specific value.
-  3. System saves `Service.bufferAfterMinutes`.
+  1. A new service starts with `bufferAfterMinutes = null` — it inherits the tenant's *current* `serviceBufferMinutes`; the field shows that effective value as its placeholder.
+  2. Admin overrides with a service-specific value (`0` = explicit no buffer), or clears the field to restore inheritance (`null`).
+  3. System saves `Service.bufferAfterMinutes` (`number | null`). Existing numeric values are never rewritten automatically.
 - **Alternative Flows:**
   - **A1: Service has `legs`** → Field disabled; legs use per-leg transition gaps and per-resource turnover instead (UC-059).
 - **Postconditions:** Availability calculations for this service use `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
