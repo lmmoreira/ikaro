@@ -225,7 +225,9 @@ The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE
 - `apps/web/features/booking/components/dashboard/bookings/SlotConflictAlert.tsx` (+ spec) (modify — code-aware body)
 - `apps/web/features/booking/model/booking-approve-action.ts`, `RescheduleBookingPage.tsx`, `BookingDetailPage.tsx`, `BookingQueuePage.tsx` (+ specs) (modify — pass the code to the alert)
 - `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (check — only the new-code component cases)
-- `apps/web/e2e/booking-submit-routing.spec.ts`, `apps/web/e2e/my-account-reschedule.spec.ts` (modify — the two scenarios)
+- `apps/web/app/dashboard/bookings/[id]/page.tsx` (modify — passes the queue shortcut's `?reason=` code to `BookingDetailPage`; added at implementation, the queue sends the approver to the detail page and the code would otherwise be lost)
+- `apps/web/features/booking/hooks/useInitialSlotSuggestions.ts` (+ spec) (new — `BookingDetailPage`'s initial alternatives fetch moved out of the component, which was at its file-length limit)
+- `apps/web/e2e/booking-submit-routing.spec.ts`, `apps/web/e2e/my-account-reschedule.spec.ts` (modify — the two scenarios), `apps/web/e2e/helpers/booking-form/seeds.ts` (modify — `seedSingleRoomService` moved here from the routing spec so both specs share it)
 - `journeys/guest/book-a-service.md` (lines 32, 82), `journeys/customer/book-a-service.md` (line 45), both `book-a-service` `dev-notes.md` (the routing table and error-handling paragraph), `journeys/customer/prototypes/minha-conta/dev-notes.md` (§ Reagendar) (modify — record the new routes)
 
 **Acceptance criteria — product:**
