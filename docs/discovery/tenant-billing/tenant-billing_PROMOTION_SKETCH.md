@@ -14,13 +14,13 @@
 
 | # | Story | CAND | Notes |
 |---|---|---|---|
-| A0 | Commercial catalog decisions (prices BRL/USD, chatbot tiers/models/caps, country availability) | 07 | **GATE (owner)**; a document + seed spec, no code risk, but it blocks A1's seed |
+| A0 | Commercial catalog: BR list and tier names are decided; settle the **Kimi model id and Plus caps** from OpenRouter cost data, validate the OpenRouter adapter settings for Kimi, and approve the US list before slice E | 07 | Small; only the Plus model/caps block the production seed, staging can use the decided values |
 | A1 | `billing` schema, 7th context, `FeatureKey`, `FeaturePrice` + versions, seed, docs/`architecture-policy` entries | 07 | Pure expand; `closed-enum-registry` and detector wiring |
-| A2 | `Subscription`/items/`BillingAccount` aggregates; `TenantProvisioned` v2 (+`countryCode`, hint); trial creation handler; backfill of existing tenants as `exempt` | 01, 21 | Rolling-deploy safe (v1 events retried) |
-| A3 | Operator `exempt` endpoint + provisioning flag + audit; US-before-Stripe rejection | 32 | Also unblocks your own test tenants early |
-| A4 | `TenantAccessPort` + caching adapter + access endpoints (`/v1/billing/access`, internal) + kill switch | 15 | Read-only; nothing calls it yet |
+| A2 | `Subscription`/items/`BillingAccount` aggregates; `TenantProvisioned` v2 (+`countryCode`, hint with tax ID, terms, Google `sub`); trial creation handler writing `signup_registrations`; environment-based `merchant_profile_key` assignment; backfill of existing tenants as `exempt`; `taxId` required for non-exempt BR in `POST /internal/tenants` | 01, 21 | v1 events are rejected and retried until the v2 publisher deploys in the same release |
+| A3 | `TenantAccessPort` + caching adapter + access endpoints (`/v1/billing/access`, internal) + kill switch | 15 | Read-only; nothing calls it yet |
+| A4 | Operator `exempt` endpoint + provisioning flag + audit; US-before-Stripe rejection; operator grace/suspend and `GET /internal/billing/tenants` | 32, 06 | Uses the A3 cache invalidation; also unblocks your own test tenants early |
 | A5 | `IClock` port + system clock, adopted by Billing; dev-only `POST /internal/dev/clock/advance` + script; `APP_ENV` guards for dev endpoints | 33 | Every later date rule depends on it, so it lands early |
-| A6 | Provider port + `FakeBillingProvider` + shared contract suite skeleton + `simulate` endpoint; environment-based `merchant_profile_key` assignment and the live-adapter startup guard | 33 | The port shape comes from the verified facts in `tenant-billing_PROVIDERS.md` |
+| A6 | Provider port + `FakeBillingProvider` + shared contract suite skeleton; the live-adapter startup guard and the non-production fake/sandbox key rule | 33 | The port shape comes from the verified facts in `tenant-billing_PROVIDERS.md` |
 | A7 | **Asaas sandbox spike** (about a day): create customer and charge, pay it with the sandbox confirm call, receive the webhook; adjust the port if anything differs | 09 | **GATE (Asaas sandbox account)**; a spike, not the adapter |
 
 ## Milestone B — Enforcement (behind `FEATURE_FLAG_BILLING_ENFORCEMENT`)
@@ -37,18 +37,19 @@
 
 | # | Story | CAND | Notes |
 |---|---|---|---|
-| C1 | Webhook route(s) + `provider_events` idempotency inbox + normalizer + exact-`200` contract, running on the fake provider | 09 | Same code path the real adapters use |
+| C1 | Webhook route(s) + `provider_events` idempotency inbox + normalizer + exact-`200` contract, running on the fake provider; the fake's `simulate` endpoint | 09, 33 | Same code path the real adapters use |
 | C2 | `Charge`/lines, charge-issuing trigger job, recovery-charge issuing, retry of provider creation | 08, 29 | `ITriggerBus` pattern |
 | C3 | Status sweep (due-date overdue, trial end → `SUSPENDED`, `PAST_DUE` → `SUSPENDED`, cancel-at) + reconcile + provider-events purge | 10, 11 | Tenant-timezone logic |
 | C4 | Billing emails (templates pt-BR/en + backfill, six handlers, no provider emails) | 19 | Exempt from the suspension gate |
 | C5 | Billing page read API + Resumo/Cobranças tabs, pay-now link, banners (trial/past-due), "Assinatura" nav | 12, 14, 25 | First manager-visible billing UI |
-| C6 | Billing identity (`CountrySpec` tax-ID entry, BR CPF/CNPJ VO, address, tab) | 13 | BR tax ID already collected at signup (D3) |
+| C6 | Billing identity (`CountrySpec` tax-ID entry, BR CPF/CNPJ VO, address, tab) | 13 | The VO and `CountrySpec` entry are reused by signup (D3) |
 | C7 | Plano tab: preview/save, next-period items, re-issue unpaid invoice | 31 | Dependency-graph validation in the aggregate |
 | C8 | Cancel and reactivate (confirm page, scheduled cancel, recovery flow UI) | 28, 29 | |
 | C9 | Operator price-change endpoint + manager announcement + Plano/Resumo notice | 07, 19 | Can slip past launch if prices are static at first |
-| C10 | Ops digest, alerts, `RUNBOOKS` section | — | Needed before real money |
-| C11 | Seed script (one tenant per billing state), staging `EMAIL_RECIPIENT_ALLOWLIST` + `SKIPPED_NOT_ALLOWLISTED`, nightly sandbox contract-test job | 33 | Makes staging fully testable |
-| C12 | **Real `AsaasBillingProvider`** (customer with `cpfCnpj` and `notificationDisabled`, charge `UNDEFINED`, cancel, link) passing the contract suite on the sandbox, then production | 08, 09 | **GATE (Asaas production account, launch gates in PROVIDERS §5)**; last story before launch |
+| C10 | Ops digest, alerts, `RUNBOOKS` section, production smoke test checklist | — | Needed before real money |
+| C11 | Seed script (one tenant per billing state), staging `EMAIL_RECIPIENT_ALLOWLIST` + `SKIPPED_NOT_ALLOWLISTED` | 33 | Makes staging fully testable |
+| C13 | Infra: Terraform for the six trigger jobs, secrets (sandbox/live pairs), env vars and flags; Platform story mapping chatbot tier → model/caps and removing the manual settings override | — | Chatbot mapping must precede C7 (Plano tab) |
+| C12 | **Real `AsaasBillingProvider`** (customer with `cpfCnpj` and `notificationDisabled`, charge `UNDEFINED`, cancel, link) passing the contract suite on the sandbox, plus the nightly sandbox contract job, then production | 08, 09 | **GATE (Asaas production account, launch gates in PROVIDERS §5)**; last story before launch |
 
 ## Milestone D — Self-signup and trial (BR)
 
@@ -57,7 +58,7 @@
 | D1 | `Slug` VO rules + reserved list from real routes + slug-availability endpoint | 23 | |
 | D2 | Hotsite module `TRIAL_SIGNUP_CTA` (contract, component, editor panel, owner-slug restriction) | 26 | |
 | D3 | Signup session (Google), signup endpoint, Turnstile, rate limits, `signup_registrations`, trial rule, BR tax ID, terms | 22 | Session mechanism decided in story discovery |
-| D4 | `/ikaro-trial` pages (details + prices, form, account-created), public prices endpoint | 22, 23 | Marketing styling decision |
+| D4 | `/ikaro-trial` pages (details + prices, form, account-created), public prices endpoint | 22, 23 | Owner-tenant branding, served via a rewrite to the owner slug (decision 71) |
 | D5 | First-run onboarding checklist | 24 | Optional polish |
 
 ## Later slices (each independent)
@@ -65,12 +66,12 @@
 | Slice | Stories | Gate |
 |---|---|---|
 | **E — US / Stripe** | E1 `StripeBillingProvider` (invoices, webhook, tax breakdown in the provider call); E2 US identity (full address) + plan-save guard; E3 US price rows, `FEATURE_FLAG_SIGNUP_US`, enable signup | **GATE:** Stripe account checks and the accountant's US tax decision |
-| **F — Pix Automático** | F1 authorization flow, tab, webhooks, `MANUAL` charge creation referencing it | **GATE:** real Asaas PJ account verification |
-| **G — Tenant purge** | G1..G7 one deletion story per context + storage/provider; G8 purge coordinator, warnings, trigger job | After launch; enable the cron only when all participants exist |
+| **F — Pix Automático** | F1 (CAND-30) authorization flow, tab, webhooks, `MANUAL` charge creation referencing it | **GATE:** real Asaas PJ account verification |
+| **G — Tenant purge** | G1..G9 one deletion story per participant (Booking, Customer, Staff, Loyalty, Notification, Platform incl. chatbot/audit, Storage, Provider cancellation, Billing anonymization); G10 purge coordinator, `TenantPurgeWarning` emails, trigger job (CAND-27) | After launch; enable the cron only when all participants exist |
 
 ## Suggested critical path to a first BR launch
 
-`A0 → A1 → A2 → A3 → A4 → A5 → A6 → A7` then `(B1 → B2 → B3 → B4 → B5)` in parallel with `(C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C10 → C11)`, then `D1 → D2 → D3 → D4`, and `C12` (real Asaas) last before launch. The whole flow is testable on the fake from C1 onward; enforcement (B) can be merged dark and switched on once C1–C5 work end to end on staging.
+`A0 → A1 → A2 → A3 → A4 → A5 → A6 → A7` then `(B1 → B2 → B3 → B4 → B5)` in parallel with `(C1 → C2 → C3 → C4 → C5 → C6 → C13 → C7 → C8 → C10 → C11)`, then `D1 → D2 → D3 → D4`, and `C12` (real Asaas) last before launch. The whole flow is testable on the fake from C1 onward; enforcement (B) can be merged dark and switched on once C1–C5 work end to end on staging.
 
 ## Open the accounts now
 

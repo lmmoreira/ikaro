@@ -54,7 +54,7 @@
     Per-module config drill-down for the NEW hotsite module TRIAL_SIGNUP_CTA (text + button linking to /ikaro-trial). Mirrors the other module panels in journeys/manager/prototypes/hotsite/01d-module-config-hero.html and 01e-module-config-chatbot.html (same topbar back to the editor, detail-layout, pill options, fixed mobile action bar, desktop aside with Aplicar / Preview / Cancelar).
     Available ONLY when the tenant slug is `ikaro` (Ikaro's own marketing hotsite); the module is not offered in the "adicionar módulo" list of any other tenant. Button destination is fixed to /ikaro-trial (not editable).
     Grounds the self-signup CTA of the tenant-billing discovery (CAND-26).
-    COMPONENT (GAP): TrialSignupCtaConfigPanel -- apps/web/features/platform/components/hotsite/modules/TrialSignupCtaConfigPanel.tsx; props = ModuleConfigPanelProps (data: Record<string, unknown> cast to TrialSignupCtaModuleData: title, description?, buttonLabel, layout, background, enabled), onChange.
+    COMPONENT (GAP): TrialSignupCtaConfigPanel -- apps/web/features/platform/components/hotsite/modules/TrialSignupCtaConfigPanel.tsx; props = ModuleConfigPanelProps (data: Record<string, unknown> cast to TrialSignupCtaModuleData: title, text?, buttonLabel, layout, background, enabled), onChange.
     BFF CALL: PATCH /v1/tenants/hotsite  (module data, existing pattern -- same call as every other module panel)
   -->
 

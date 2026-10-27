@@ -122,7 +122,7 @@
     COMPONENT: BillingPage (GAP) with BillingTabs (reuses the existing tab pattern .editor-tabs/.editor-tab/.editor-panel — EXISTS in ServiceEditPage and the hotsite editor; the billing content is GAP)
                -> ResumoTab (GAP), PlanoTab (GAP: FeatureToggleCard, ChatbotTierPicker, PlanChangePreview), CobrancasTab (GAP), DadosCobrancaTab (GAP), CobrancaAutomaticaTab (GAP)
     FOCUS:     BillingPage com skeletons (verificar shared/components/ui antes de criar um)
-    BFF CALL:  GET /v1/billing/summary (em andamento) ; GET /v1/billing/charges?page=1&limit=5 (em andamento)
+    BFF CALL:  GET /v1/billing/summary (em andamento) ; GET /v1/billing/charges?limit=5&offset=0 (em andamento)
     Estado: Barra de abas visível; skeleton no painel em vez de spinner de página inteira; sem ações (nenhum botão) até o resumo chegar.
     ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
     Single primary action on this tab: nenhuma enquanto carrega.

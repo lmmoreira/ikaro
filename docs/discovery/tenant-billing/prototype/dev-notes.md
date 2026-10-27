@@ -4,7 +4,7 @@
 
 ## Overview
 
-59 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
+61 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
 
 ## What is real vs invented
 
@@ -16,7 +16,7 @@
 
 | Role | After login while `SUSPENDED` | Screens |
 |---|---|---|
-| MANAGER | Only `/dashboard/billing` (+ identity, cancel, auto-billing sub-pages); every other dashboard route redirects there; other nav items rendered disabled | manager-01d, manager-01e |
+| MANAGER | Only `/dashboard/billing` (+ the cancel confirmation page); every other dashboard route redirects there; other nav items rendered disabled | manager-01d, manager-01e |
 | STAFF | Notice page with "Sair" | staff-01 |
 | CUSTOMER | Account page with "Empresa inativa" badge; history viewable; open-booking detail blocked; new booking blocked | customer-01, 01b, 01c |
 | Visitor | "Página não publicada" with top-bar login for team and customers (reason-neutral) | public-01 |
@@ -39,7 +39,7 @@
 
 # Fragment A (CAND mapping: 12 billing page, 13 identity, 14 pay, 16 suspended routing, 25 trial, 27 purge, 28 cancel, 29 reactivate, 30 auto-billing) — Manager billing, identity, cancel, auto-billing (screens 01*, 02*, 06*, 07*)
 
-Shared by all screens below: dashboard shell (EXISTS: dashboard layout/sidebar/bottom-nav), new nav item **"Assinatura"** under "Somente Gerente" (GAP; also in the mobile "Mais" sheet). Billing is visible to every MANAGER. Money `R$ 215,00` = BR list prices for HOTSITE 49 + BOOKING 79 + LOYALTY 29 + CHATBOT(PLUS) 39 + LEAD_FORM 19. Badge reuses `.status-badge` (EXISTS) with local colors for REFUNDED/CHARGEBACK. Success is inline (no toast).
+Shared by all screens below: dashboard shell (EXISTS: dashboard layout/sidebar/bottom-nav), new nav item **"Assinatura"** under "Somente Gerente" (GAP; also in the mobile "Mais" sheet). Billing is visible to every MANAGER. Money `R$ 215,00` = BR list prices for HOTSITE 49 + BOOKING 79 + LOYALTY 29 + CHATBOT(BASIC) 39 + LEAD_FORM 19. Badge reuses `.status-badge` (EXISTS) with local colors for REFUNDED/CHARGEBACK. Success is inline (no toast).
 
 BFF shapes: the canonical request/response contracts are in `../tenant-billing_API.md` §1 (`status` is `TRIALING|ACTIVE|PAST_DUE|SUSPENDED`, `suspensionReason`, money as `*Minor` integers, `GET /v1/billing/charges` uses limit/offset Pattern A pagination). Field names in the per-screen sections below are illustrative where they differ.
 Charge status labels: PENDING "Pendente", PAID "Pago", OVERDUE "Vencida", FAILED "Falhou", CANCELED "Cancelada", REFUNDED "Reembolsada", CHARGEBACK "Chargeback". No refund UI (handled by the provider console).
@@ -52,8 +52,8 @@ Charge status labels: PENDING "Pendente", PAID "Pago", OVERDUE "Vencida", FAILED
 **Resumo tab (this screen):** Situação card (valor mensal, próximo vencimento, forma de pagamento, cobrança automática with a text link that switches to that tab), Cobrança em aberto card, Seu plano (READ-ONLY: features + prices + total, "Não contratados" rows, text link "Alterar plano"; the old sentence "Quer incluir mais recursos? Falar com a gente" is removed — plan changes are self-service, R11; a plain "Falar com a gente" footer link stays for pricing questions only). **Single primary button: "Pagar agora"**, rendered only when an open charge exists. On mobile the primary sits in a bottom `.form-actions` row and the low-emphasis footer links "Falar com a gente" / "Cancelar assinatura" (red text link -> manager-06) sit under it; on desktop both move into the action pane. Never two filled buttons.
 **Cobranças tab:** history table (Vencimento / Referência / Valor / Situação; 2-line cards on mobile), includes REFUNDED and CHARGEBACK rows, pagination "1–5 de 8 cobranças" with Anterior/Próxima (clickable in this file: page 2 has 3 rows), footnote "Reembolsos e contestações são tratados pela nossa equipe…". No buttons other than the pager (secondary). Charge labels: PENDING "Pendente", PAID "Pago", OVERDUE "Vencida", FAILED "Falhou", CANCELED "Cancelada", REFUNDED "Reembolsada", CHARGEBACK "Chargeback"; no refund UI.
 **Per-tab save:** Dados saves (Screen 11) and Plano saves (Screen 22), each to its own endpoint; switching tabs with unsaved Dados changes shows the amber dot on the tab label (same `.tab-dirty-dot` as the service editor).
-**State machine (screen-level):** loading (01f) -> loaded | error (01g); status badge drives the Resumo variant: TRIAL (01b) / ACTIVE (01, 01h, 01j) / PAST_DUE (01c) / SUSPENDED+NON_PAYMENT (01d) / SUSPENDED+CANCELED (01e) / ACTIVE+cancelAt (06b); paying (01i).
-**Action pane (same structure as `ServiceEditPage`):** `.detail-layout` = content column + 22rem `.detail-aside` (`position: sticky; top: 1.5rem`, shown at >= 1024px only). The aside `.card` holds: eyebrow "Assinatura" + status badge (same label as the title row: Em teste, Ativa, Em atraso, Suspensa, Cancelada/Cancelando), ONE full-width primary button for the CURRENT tab (label and target swap in `showTab()` via `updateAside(tab)`, like `saveTab(currentTab)`/`aside-save-btn`), tab-specific secondary buttons (Dados: "Cancelar"; Automática: red "Desativar" / "Cancelar tentativa"), a full-width secondary "Falar com a gente" in every state, a hint line, and a divider + red "Cancelar assinatura →" link to manager-06 (hidden when SUSPENDED, loading/error or already cancelling). Primary per tab: Resumo -> "Pagar agora" / "Reativar assinatura" / "Gerar novo link" by state (none in TRIAL and while reactivating: hint only); Cobranças -> none, hint "Esta aba é só leitura."; Dados -> "Salvar alterações" with the dirty-state hint; Automática -> "Ativar cobrança automática" / "Atualizar status" / "Tentar novamente". Below 1024px the aside is hidden and the in-page bottom `.form-actions` row carries the same single primary (hidden with `display:none !important` at >= 1024px, as in the service editor, together with the bottom `.foot-links`). So exactly one primary button is visible at any width. 01f keeps an aside with skeletons; 01g's aside primary is "Tentar novamente".
+**State machine (screen-level):** loading (01f) -> loaded | error (01g); status badge drives the Resumo variant: TRIALING (01b) / ACTIVE (01, 01h, 01j) / PAST_DUE (01c) / SUSPENDED+NON_PAYMENT (01d) / SUSPENDED+CANCELED (01e) / ACTIVE+cancelAt (06b); paying (01i).
+**Action pane (same structure as `ServiceEditPage`):** `.detail-layout` = content column + 22rem `.detail-aside` (`position: sticky; top: 1.5rem`, shown at >= 1024px only). The aside `.card` holds: eyebrow "Assinatura" + status badge (same label as the title row: Em teste, Ativa, Em atraso, Suspensa, Cancelando), ONE full-width primary button for the CURRENT tab (label and target swap in `showTab()` via `updateAside(tab)`, like `saveTab(currentTab)`/`aside-save-btn`), tab-specific secondary buttons (Dados: "Cancelar"; Automática: red "Desativar" / "Cancelar tentativa"), a full-width secondary "Falar com a gente" in every state, a hint line, and a divider + red "Cancelar assinatura →" link to manager-06 (hidden when SUSPENDED, loading/error or already cancelling). Primary per tab: Resumo -> "Pagar agora" / "Reativar assinatura" / "Gerar novo link" by state (none in TRIAL and while reactivating: hint only); Cobranças -> none, hint "Esta aba é só leitura."; Dados -> "Salvar alterações" with the dirty-state hint; Automática -> "Ativar cobrança automática" / "Atualizar status" / "Tentar novamente". Below 1024px the aside is hidden and the in-page bottom `.form-actions` row carries the same single primary (hidden with `display:none !important` at >= 1024px, as in the service editor, together with the bottom `.foot-links`). So exactly one primary button is visible at any width. 01f keeps an aside with skeletons; 01g's aside primary is "Tentar novamente".
 **Mobile:** bottom nav kept (top-level page); the former "Gerenciar" links are tabs and the actions live in the bottom row; buttons are never stretched on desktop except inside the aside card.
 
 ## Screen 2 — TRIAL (Resumo tab) — manager-01b-billing-trial.html
@@ -63,7 +63,7 @@ Charge status labels: PENDING "Pendente", PAID "Pago", OVERDUE "Vencida", FAILED
 `ResumoTab` + `BillingStatusBanner` (GAP, also rendered on every other dashboard page while PAST_DUE — see manager-04b). Amber alert "Pagamento em atraso — faltam {n} dias para a suspensão" (n = days until `suspendsAt` = due + 14; there is never a PAST_DUE after a trial — an unpaid trial invoice suspends at trial end), no button inside the alert. Single primary: "Pagar agora" in the "Cobrança em atraso" card. Full access in this state. Cobranças tab starts with the OVERDUE row.
 
 ## Screen 4 — SUSPENDED / NON_PAYMENT (Resumo tab) — manager-01d-billing-suspended.html
-`ResumoTab` + `SuspendedGate` (GAP: dashboard layout guard redirects every route except `/billing`; STAFF see "Esta conta está suspensa. Fale com o gerente."). Sidebar and bottom-nav items rendered disabled (`aria-disabled`, no href); **the four tabs all stay usable** (this is the only reachable section). Card "Pague 1 mês para reativar" with single primary "Pagar agora" (open charge re-dated by the backend; no new charges while suspended; never "pague N meses"). Cobranças and Dados work normally; Cobrança automática shows "Disponível depois de reativar a assinatura" with its button disabled (decision to confirm). No cancel link; "Falar com a gente" always visible.
+`ResumoTab` + `SuspendedGate` (GAP: dashboard layout guard redirects every route except `/billing`; STAFF see "Esta conta está suspensa. Fale com o gerente."). Sidebar and bottom-nav items rendered disabled (`aria-disabled`, no href); **Resumo, Plano (read-only), Cobranças and Dados of the five tabs stay usable and Automática is disabled** (this is the only reachable section). Card "Pague 1 mês para reativar" with single primary "Pagar agora" ("Pagar agora" pays the **one-month recovery charge** issued when the account was suspended; the stale charge was cancelled, never re-dated; no new period charges while suspended; never "pague N meses"). Cobranças and Dados work normally; Cobrança automática shows "Disponível depois de reativar a assinatura" with its button disabled (decision to confirm). No cancel link; "Falar com a gente" always visible.
 
 ## Screen 5 — SUSPENDED / CANCELED (Resumo tab) — manager-01e-billing-suspended-canceled.html
 Same gate and tab behaviour. Single primary "Reativar assinatura" -> `POST /v1/billing/reactivate` -> `{ cancelAt: null, openCharge }` (the one-month recovery charge; the old open charge was cancelled, not re-dated) then `POST .../payment-link` for the URL -> hosted page. Shows the clean-up policy: 180 days after suspension if the tenant ever paid (90 if never), purge date from `summary.purgeAt`, e-mails 30 and 7 days before.
@@ -85,11 +85,11 @@ When `openCharge.paymentLinkExpiresAt < now` (`charges.payment_url_expires_at`):
 
 ## Screen 11 — Dados de cobrança tab, BR (`DadosCobrancaTab` / `BillingIdentityForm`) — manager-02-billing-identity-br.html
 Opens on the Dados de cobrança tab (same page as Screen 1). **File:** `BillingIdentityForm.tsx` (GAP; reuse `Input`/`Label` primitives). **BFF:** `GET /v1/billing/identity` (prefill on tab open), `PUT /v1/billing/identity` (save).
-**Locale source of truth:** field labels, placeholders and validation come from `CountrySpec.address` (`packages/i18n/src/country-defaults.ts`, `AddressSpec`: postalLabel/Placeholder/Regex, stateLabel/Pattern, requireNeighborhood + neighborhoodLabel, streetLabel, numberLabel, complementLabel, cityLabel, lookupService) — not translated, picked by the tenant's country; the tax-ID field needs a NEW CountrySpec entry (label, placeholder, validator; BR = CNPJ/CPF with check digits, US = free-text "Tax ID (EIN)") which does not exist yet (GAP). Address JSON shape = shared `Address` VO (`apps/backend/src/shared/value-objects/address.ts`): `{ street, number, complement?, neighborhood?, city, state, zipCode }` (the prototype's "district"/"zip" map to `neighborhood`/`zipCode`); billing fields stay optional even though the VO requires them for a full address. BR (this screen): labels CEP, Rua (spec `streetLabel`), Número, Complemento, Bairro, Cidade, UF; CEP first with hint "Digite o CEP para preencher o endereço"; typing a valid CEP calls the existing ViaCEP hook (`useAddressLookup`, `lookupService: 'viacep'`) and autofills Rua, Bairro, Cidade, UF (shown with a green "preenchido pelo CEP" tag, still editable). Body: `{ taxIdType?: CNPJ|CPF, taxId?, legalName?, billingEmail?, address?: Address }` — everything optional; empty billing e-mail falls back to manager e-mails.
+**Locale source of truth:** field labels, placeholders and validation come from `CountrySpec.address` (`packages/i18n/src/country-defaults.ts`, `AddressSpec`: postalLabel/Placeholder/Regex, stateLabel/Pattern, requireNeighborhood + neighborhoodLabel, streetLabel, numberLabel, complementLabel, cityLabel, lookupService) — not translated, picked by the tenant's country; the tax-ID field needs a NEW CountrySpec entry (label, placeholder, validator; BR = CNPJ/CPF with check digits, US = free-text "Tax ID (EIN)") which does not exist yet (GAP). Address JSON shape = shared `Address` VO (`apps/backend/src/shared/value-objects/address.ts`): `{ street, number, complement?, neighborhood?, city, state, zipCode }` (the prototype's "district"/"zip" map to `neighborhood`/`zipCode`); billing fields stay optional even though the VO requires them for a full address. BR (this screen): labels CEP, Rua (spec `streetLabel`), Número, Complemento, Bairro, Cidade, UF; CEP first with hint "Digite o CEP para preencher o endereço"; typing a valid CEP calls the existing ViaCEP hook (`useAddressLookup`, `lookupService: 'viacep'`) and autofills Rua, Bairro, Cidade, UF (shown with a green "preenchido pelo CEP" tag, still editable). Body: `{ taxIdType?: CNPJ|CPF|OTHER|null, taxId?, legalName?, billingEmail?, address?: Address }` — everything optional; empty billing e-mail falls back to manager e-mails.
 | Field | Rule | Error message |
 |---|---|---|
-| taxId (CNPJ) | optional; if present, 14 digits + valid check digits | "CNPJ inválido. Confira os 14 dígitos." |
-| taxId (CPF) | optional; if present, 11 digits + valid check digits | "CPF inválido. Confira os 11 dígitos." |
+| taxId (CNPJ) | **BR: required and never blankable** (collected at signup, decision 57); 14 digits + valid check digits; US: optional free text | "CNPJ inválido. Confira os 14 dígitos." |
+| taxId (CPF) | **BR: required and never blankable**; 11 digits + valid check digits; code `BILLING_IDENTITY_TAX_ID_INVALID` (an empty value is rejected the same way) | "CPF inválido. Confira os 11 dígitos." |
 | billingEmail | optional; if present, valid e-mail | "Informe um e-mail válido, por exemplo nome@empresa.com.br." |
 | zipCode | optional; `postalRegex` `^\d{5}-?\d{3}$` | "CEP inválido. Use o formato 00000-000." |
 | state (UF) | optional; `statePattern` `^[A-Z]{2}$` | "UF inválida. Use 2 letras maiúsculas, por exemplo MG." |
@@ -105,7 +105,7 @@ Same tab, `country = US`, tenant language `en`: the WHOLE page is English (title
 Inline green alert at the top of the tab "Dados de cobrança salvos" / "Atualizamos as informações. Elas valem para as próximas cobranças." No floating toast; the form stays with saved values.
 
 ## Screen 15 — Cancel confirm (`CancelSubscriptionConfirm`) — manager-06-cancel-confirm.html
-**Standalone confirmation page** (not a tab), same pattern as `03b-deactivate-confirm.html`; reached only from the red text link "Cancelar assinatura" on the Resumo tab. **File:** GAP, `detail-layout` confirmation pattern. **BFF:** `POST /v1/billing/cancel` (no body) -> updated summary (`cancelAt` = end of paid period).
+**Standalone confirmation page** (not a tab), same pattern as `03b-deactivate-confirm.html`; reached only from the red text link "Cancelar assinatura" on the Resumo tab. **File:** GAP, `detail-layout` confirmation pattern. **BFF:** `POST /v1/billing/cancel` (no body) -> `200 { cancelAt }` for ACTIVE (end of the paid period), `200 { status: "SUSPENDED", cancelAt: null }` for TRIALING/PAST_DUE (immediate; see `manager-06d`), `409 BILLING_ALREADY_CANCELLING` shows the scheduled state.
 Copy blocks: "Quando termina" (access until {cancelAt}), "Reembolso: Nenhum valor será reembolsado", "E os seus dados?" (180/90 days, apagados definitivamente, avisos 30 e 7 dias, reativar pagando 1 mês). Buttons: danger "Cancelar assinatura" + secondary "Voltar" (to the Resumo tab). States: idle -> submitting ("Cancelando…") -> 06b / 06c.
 
 ## Screen 16 — Cancel scheduled (Resumo tab) — manager-06b-cancel-scheduled.html
@@ -169,13 +169,13 @@ Operator-only price changes are dated and announced (`tenant-billing_API.md` "Pr
 # Dev-notes fragment B — enforcement states and changed screens
 
 Merged by the lead into `dev-notes.md`; all copy is pt-BR, all data is invented. Common to every screen below:
-`GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }` is the single input. A feature absent from `features` is locked. `status` SUSPENDED (reason NON_PAYMENT or CANCELED) locks the tenant out identically; screens never branch on the reason except the billing page.
+`GET /v1/billing/access -> { status, operational, features: [{ key, tier }] }` (role-reduced for any role, `tenant-billing_API.md` §2) is the single input. A feature absent from `features` is locked. `status` SUSPENDED (reason NON_PAYMENT, CANCELED or PAYMENT_REVERSED) locks the tenant out identically; screens never branch on the reason except the billing page.
 
 Open points for the lead:
 - Sibling link target used for "Ver cobrança / Pagar agora / Ver minha assinatura / Cobrança": `manager-01-billing-active.html` (rename here if the billing fragment uses another file name).
 - "Falar com a gente" points to a fictional URL (`https://ikaro.example/ikaro/booking`, Ikaro's own booking page). It is shown on the manager locked screens only; omitted on staff / customer / public screens (those users are not the payer and the public page is reason-neutral). Confirm.
 - The brief says "Login da equipe" for the hotsite top bar; the real `HotsiteAuthBar` label is "Área da Equipe". The real label is kept.
-- `GET /v1/billing/access` is manager/staff-scoped; customers and anonymous visitors need a reduced projection (only an `active` boolean, no reason). Not in the BFF contract above, flagged as GAP.
+- `GET /v1/billing/access` is role-reduced for any authenticated role (`{ status, operational, features }`; customers see `operational` only, no reason); anonymous visitors only get the effective `isPublished` from the manifest.
 
 ---
 
@@ -201,9 +201,9 @@ Mobile: single column; aside note collapses (desktop aside only, per `detail-lay
 ## Screen 3 — Agenda com banner de teste (`SubscriptionBanner`)
 
 File: `manager-04-dashboard-trial-banner.html` — Status: GAP (banner); Agenda page EXISTS.
-Props: `status: 'TRIAL'`, `daysLeft: number`, `trialEndsAt: string`. Manager-only; mounted once in the dashboard shell above `<main>`; not dismissible. Sidebar gains manager-only "Cobrança".
+Props: `status: 'TRIALING'`, `daysLeft: number`, `trialEndsAt: string`. Manager-only; mounted once in the dashboard shell above `<main>`; not dismissible. Sidebar gains manager-only "Assinatura".
 BFF: `GET /v1/billing/access` (+ dates from the billing subscription read in the billing fragment).
-States: shown while status = TRIAL; hidden for ACTIVE; load-error of the banner fails silent (no banner), never blocks the page.
+States: shown while status = TRIALING; hidden for ACTIVE; load-error of the banner fails silent (no banner), never blocks the page.
 Copy: "Faltam 9 dias do seu teste." / "revise seu plano antes da primeira cobrança." / CTA **"Revisar plano"** -> `manager-08b-plan-trial-choose.html` (Plano tab, CAND-31 A4). Singular "Falta 1 dia", last day "Seu teste termina hoje".
 Mobile: banner wraps, button below text.
 
@@ -223,10 +223,10 @@ Fields and validation:
 | Field | Rule | Error copy |
 |---|---|---|
 | `title` | required, trimmed, 1-80 chars | "Informe o título." / "O título pode ter no máximo 80 caracteres (você digitou N)." |
-| `text` | optional, max 200 chars (`TrialSignupCtaModuleData.text`) | "A descrição pode ter no máximo 200 caracteres." |
-| `buttonLabel` | required, 1-30 chars | "Informe o texto do botão." / "O texto do botão pode ter no máximo 30 caracteres." |
-| `layout` | `CENTERED` \| `LEFT`, default CENTERED | — |
-| `background` | `PRIMARY` \| `SECONDARY` \| `NONE`, default PRIMARY | — |
+| `subtitle` | optional, max 200 chars (`TrialSignupCtaModuleData.subtitle`) | "A descrição pode ter no máximo 200 caracteres." |
+| `ctaLabel` | required, 1-30 chars | "Informe o texto do botão." / "O texto do botão pode ter no máximo 30 caracteres." |
+| `variant` | `centered` \| `left-aligned`, default `centered` | — |
+| `presentation.background.surface` | `primary` \| `secondary` \| `background`, default `primary` (section-level presentation, not module data) | — |
 | `enabled` | boolean, default true | — |
 
 Button target is fixed to `/ikaro-trial` (not editable). Edits go to the draft; publishing is the existing hotsite publish flow.
@@ -281,7 +281,7 @@ Background painted with `var(--ba-background)` (hotsite full-page rule).
 ## Screen public-02 — Ikaro hotsite with trial CTA (`TrialSignupCtaModule`)
 
 **File:** `apps/web/features/platform/components/hotsite/modules/TrialSignupCtaModule.tsx` (GAP; mirrors `BookingCtaModule`). Hero, booking CTA and `HotsiteAuthBar` EXIST.
-**Props:** `{ title: string; text?: string; buttonLabel: string; layout?: 'CENTERED'|'LEFT'; background?: 'PRIMARY'|'SECONDARY'|'NONE' }` (same as `tenant-billing_MODULE.md`) (module config, only present in the manifest of the platform owner tenant). Button links to `/ikaro-trial`.
+**Props:** `{ variant?: 'centered'|'left-aligned'; title: string; subtitle?: string; ctaLabel: string }` plus the section-level `presentation.background.surface` (same as `tenant-billing_MODULE.md`) (module config, only present in the manifest of the platform owner tenant). Button links to `/ikaro-trial`.
 **BFF call:** `GET /v1/public/platform/manifest/ikaro` (existing; new module type `TRIAL_SIGNUP_CTA`).
 **States:** static. **Mobile:** sections stack, buttons centered, not full width on desktop.
 **Restriction:** settled in `../tenant-billing_MODULE.md` §3 — layout rules reject the module on any tenant whose slug is not `PLATFORM_OWNER_TENANT_SLUG` (server-side); `ikaro` is only this prototype's illustrative slug.
@@ -306,14 +306,14 @@ GET /v1/public/billing/prices?country=BR|US   (@Public)
 **Props:** none. Turnstile token held in client state, sent later in the tenant creation call.
 **BFF call:** `GET /v1/public/signup/session` after the OAuth callback -> `{ email, name, trialAvailable }` (`trialAvailable=false` when an earlier self-signup tenant of this Google `sub` never paid; main doc §6).
 **States:** idle (Google button enabled only after Turnstile passes) -> 04b Turnstile failed (button disabled, retry link) / 04c trial not available (`trialAvailable = false`).
-**Error copy:** 04b "Não foi possível verificar que você é uma pessoa." ; 04c "Você já tem um teste ativo" + "Falar com a gente" (Ikaro booking page) + "Entrar na minha conta".
+**Error copy:** 04b "Não foi possível verificar que você é uma pessoa." ; 04c "Você já tem um teste em andamento ou não concluído" (conclua o pagamento do seu teste atual) + "Falar com a gente" (Ikaro booking page) + "Entrar na minha conta".
 **Mobile:** single column, Turnstile widget 20rem max.
 **Open question:** the "session" endpoint name implies a short-lived signup cookie set by the OAuth callback; confirm it is httpOnly and bound to the Google account.
 
 ## Screen public-05 / 05b-05f — Signup form (`SignupForm`)
 
 **File:** `apps/web/features/platform/components/signup/SignupForm.tsx` (GAP). Use primitives from `apps/web/shared/components/ui/` (verify exact names); `SlugInput` with live availability is new.
-**Props:** `{ googleName: string; googleEmail: string }`. The 05d error 409 `SIGNUP_TRIAL_NOT_AVAILABLE` (an earlier self-signup tenant of this Google account never paid) renders the 04c-style "Você já tem um teste em andamento ou não concluído" card. (read-only, from the session).
+**Props:** `{ googleName: string; googleEmail: string }`. The 409 `SIGNUP_TRIAL_NOT_AVAILABLE` on submit (an earlier self-signup tenant of this Google account never paid) renders the 04c-style "Você já tem um teste em andamento ou não concluído" card. (read-only, from the session).
 **BFF calls:**
 ```
 GET  /v1/public/signup/slug-availability?slug=    -> { status: 'available'|'taken'|'reserved'|'invalid', reason? }  (debounced ~400ms)
@@ -376,3 +376,29 @@ POST /v1/public/signup/tenant
 - **Auto-billing is Pix Automático only (decision 58).** The card option and "Cartão final 4242" were removed from `manager-07*` and every Resumo/Automática panel; the activation tab offers only Pix Automático ("Pague o primeiro Pix e aprove a autorização no app do seu banco"). Tenants still pay any monthly charge by card, Pix or boleto on the hosted page. `POST /v1/billing/auto-billing` accepts `{ mode: 'PIX_AUTOMATICO' }` only.
 - **Provider facts and launch gates** for these screens are in `../tenant-billing_PROVIDERS.md`.
 - **No UI for non-production controls.** The simulate, advance-time and seed tools are internal endpoints and scripts only (`tenant-billing_API.md` §5 "Non-production endpoints"); there is no dev panel in the dashboard. The seed script creates one tenant per screen state shown in this prototype (trial, active, scheduled cancel, past due, suspended ×2, exempt, US with and without address).
+
+
+---
+
+# Addendum 2 (2026-10-27 audit round) — new and corrected screens
+
+- **`manager-01h` is now "TRIALING with the first invoice issued"** (badge "Em teste", due = trial end 04/11, history of paid charges empty). It is the state a trial tenant is in from day 4 to day 0. `manager-01b` stays the state before the invoice exists.
+- **`manager-01d` (SUSPENDED / NON_PAYMENT)** now shows the **recovery charge**: "Cobrança de reativação (um mês) · vence em 02/11/2026", says the previous open charge was cancelled and replaced, and shows the 90/180-day clean-up policy. The overdue variant (recovery due date passed) is the same screen with an "Vencida" badge and unchanged "Pagar agora" (the provider link keeps working). `PAYMENT_REVERSED` uses the same layout with the copy "Conta suspensa: o pagamento foi estornado ou contestado".
+- **New `manager-06d-cancel-immediate`** (CAND-28 A3): cancel for TRIALING or PAST_DUE takes effect now, no refund because nothing was paid; leads to `manager-01d`.
+- **New `public-05g-signup-us-selected`** (CAND-22 A7): US selected, CPF/CNPJ hidden, note that the full address is collected in the dashboard before the first charge; only reachable when `FEATURE_FLAG_SIGNUP_US` is on.
+- **US screens (`manager-02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only), Chatbot Plus US$ 19, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
+- **`manager-07d`** shows the real Pix Automático authorization error with the method card kept and "Tentar novamente".
+- **Public price tables**: BR "impostos incluídos", US "before tax; sales tax calculated when each invoice is issued".
+- **Illustrative dates:** each screen uses its own illustrative "today" and charge dates; the 10-day invoice lead (CHARGE_ISSUE_LEAD_DAYS) is only respected by the trial screens (01b, 01h, 04). Other screens are not meant to be read as one continuous timeline.
+
+## Specified but not drawn (copy and rules are fixed here; story discovery draws them)
+
+| Gap | Where specified | What the story must show |
+|---|---|---|
+| US dashboard banner and Plano tab warning when no billing address | CAND-08 A7, decision 42, `summary.taxLocationRequired` | Same amber banner as the BR trial banner with "Add your billing address — without it your account is suspended on {trialEnd}", linking to the Dados tab; Plano shows the same notice and disables Save until saved |
+| US Plano preview total with tax label | decision 38 | "+ tax calculated when each invoice is issued" under the total, same as 02c/02e Resumo |
+| Customer cancels a future booking while suspended; loyalty read-only | CAND-16 | The existing cancel flow stays; the open rows in `customer-01` remain non-links and the detail page offers only "Cancelar agendamento"; loyalty pages hide earning/redemption |
+| Pix Automático revoked at the bank | CAND-30 A3 | Amber alert on the Automática tab "A autorização foi revogada no seu banco; o link de pagamento mensal continua valendo" with "Ativar de novo" |
+| Signup error for a missing/invalid tax ID | CAND-22 A9 | `public-05c` already shows the invalid case; an empty value shows `SIGNUP_TAX_ID_REQUIRED` with the same field-error pattern |
+| First-run onboarding (checklist) | CAND-24 | Depends on the onboarding presets work; not a billing screen |
+| Billing and purge-warning emails | CAND-19, CAND-27 | Email templates (pt-BR, en), designed with the notification templates, not as dashboard screens |

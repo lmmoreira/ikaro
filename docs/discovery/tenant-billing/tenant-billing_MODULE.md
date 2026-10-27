@@ -13,16 +13,19 @@ Naming follows the existing function-based module types (`BOOKING_CTA`, `LEAD_FO
 ## 2. Data contract (flat, per §7 step 1)
 
 ```ts
+// Mirrors BookingCtaModuleData's vocabulary (variant / title / subtitle / ctaLabel) — no second naming scheme.
 export interface TrialSignupCtaModuleData {
-  title: string;            // 1..80 chars
-  text?: string;            // optional, <= 200 chars
-  buttonLabel: string;      // 1..30 chars, default "Testar grátis por 14 dias"
-  layout?: 'CENTERED' | 'LEFT';                       // default CENTERED
-  background?: 'PRIMARY' | 'SECONDARY' | 'NONE';      // default PRIMARY
+  variant?: 'centered' | 'left-aligned';   // default 'centered'
+  title: string;                           // 1..80 chars
+  subtitle?: string;                       // optional, <= 200 chars
+  ctaLabel: string;                        // 1..30 chars, default "Testar grátis por 14 dias"
 }
+// Section background (primary / secondary / none) is NOT a data field: it is the existing
+// section-level `presentation.background.surface` ('primary' | 'secondary' | 'background'), exactly
+// like every other hotsite module (HotsiteModulePresentation, a sibling of `data`).
 ```
 - `href` is not configurable: the module always links to `/ikaro-trial` (the page, with language following the hotsite's language). A configurable URL would turn the module into a generic button.
-- `layout` and `background` match the editor panel in `manager-05*` (`CENTERED|LEFT`, `PRIMARY|SECONDARY|NONE`); the story reconciles them with `BOOKING_CTA`'s existing presentation fields so no second vocabulary is introduced. The prototype's limits (title 80, text 200, label 30) are the contract.
+- The editor panel in `manager-05*` maps to this contract: "Título" → `title`, "Descrição" → `subtitle`, "Texto do botão" → `ctaLabel`, alignment → `variant`, "Fundo da seção" → `presentation.background.surface`, "Exibir esta seção" → the module's `enabled`. Limits: title 80, subtitle 200, label 30. Reconciled with `BOOKING_CTA` on 2026-10-27; nothing is left for story discovery here.
 
 ## 3. Restriction to Ikaro's tenant
 
@@ -41,12 +44,12 @@ export interface TrialSignupCtaModuleData {
 
 ## 5. The `/ikaro-trial` page (not a module)
 
-A Next.js route outside the `[slug]` tree (technical slice, like `auth`), server-rendered:
+A public page served at `/ikaro-trial`, server-rendered, **branded as the Ikaro tenant**: it takes the platform-owner tenant's hotsite branding through the same `applyBranding()` path as any tenant page (the booking page, lead form, …), so the trial pages look like Ikaro's own hotsite (owner decision 2026-10-27, decision 71). Because `--ba-*` tokens only exist under the hotsite tree (CLAUDE.md §8), the pages are implemented inside it — under `app/[slug]/…` for the owner slug only (404 for any other slug) — and the public URL `/ikaro-trial` is a Next.js rewrite to `/{PLATFORM_OWNER_TENANT_SLUG}/ikaro-trial/*`. The routing mechanism is the only detail left to story discovery:
 - feature descriptions (translated copy in `packages/i18n`), dependency hints, tiers for the chatbot;
 - a **price table** read from `GET /v1/public/billing/prices?country=` with a BR/US switch (loading and error states; a failed price load never blocks signup since the trial is free);
 - then Turnstile → Google → form → welcome (CAND-22).
 
-It must not use `--ba-*` tokens unless it is placed under the hotsite tree; as a platform page it uses the Ikaro marketing styling (decided in story discovery, with the CLAUDE.md §8 `--ba-*` boundary in mind).
+Styling is therefore the owner tenant's branding (`--ba-*` through the hotsite layout), not a separate marketing style. If the owner tenant's hotsite is unpublished or suspended (it cannot be suspended, `exempt`), the trial pages still render, because they do not depend on the manager's `isPublished` flag; they only need the branding from the manifest.
 
 ## 6. Edge cases
 

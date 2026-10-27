@@ -32,19 +32,22 @@ GET /v1/billing/summary
   "exempt": false,                          // true: no charges ever; the page shows "Conta isenta de cobrança" and no actions
   "suspensionReason": null,                 // NON_PAYMENT | CANCELED | PAYMENT_REVERSED when SUSPENDED
   "currency": "BRL", "countryCode": "BR",
-  "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null, "suspendsAt": null,
-  "cancelAt": null, "purgeAt": null,
+  "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null,
+  "suspendsAt": null,                       // PAST_DUE only: coalesce(grace_until, past_due_since + 14 days)
+  "cancelAt": null,
+  "purgeAt": null,                          // SUSPENDED only: suspended_at + 90 days (never paid) or 180 days (has_ever_paid)
+  "taxLocationRequired": false,             // US only: true until the full billing address needed for tax is saved; drives the Dados/Plano/banner warning (CAND-08 A7)
   "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 },   // current-period price display (items store no price)
              { "featureKey": "CHATBOT", "tier": "BASIC", "unitPriceMinor": 3900 } ],
   "totalMinor": 8800,                       // net of tax; for US the page labels it "+ imposto calculado na cobrança" (tax exists only on the issued charge)
   "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
   "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
-  "paymentConfirmationPending": false,
-  "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":3900,"newAmountMinor":4900,"effectiveFrom":"2026-12-10" } ]
+  "paymentConfirmationPending": false,      // true from the manager's return from the hosted page until the paid webhook/reconcile lands (UI polls every 5 s, max ~60 s)
+  "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":7900,"newAmountMinor":8900,"effectiveFrom":"2026-12-10" } ]   // illustrative amounts
 }
 
 GET /v1/billing/charges?limit=20&offset=0
-200 { "items": [ { "id","periodStart","periodEnd","dueDate","amountMinor","currency",
+200 { "items": [ { "id","kind":"PERIOD|RECOVERY","periodStart"|null,"periodEnd"|null,"dueDate","amountMinor","currency",
                    "status": "PAID|PENDING|OVERDUE|FAILED|CANCELED|REFUNDED|CHARGEBACK",
                    "method":"PIX","paidAt", "lines":[{"featureKey","tier","unitPriceMinor"}] } ],
       "pagination": { "limit":20,"offset":0,"total":7,"hasMore":false } }
@@ -56,7 +59,7 @@ PUT /v1/billing/identity   (every field optional)
    Field labels, placeholders and validation come from the billing country's CountrySpec.address; the BR form reuses the CEP lookup (useAddressLookup / ViaCEP).
 
 POST /v1/billing/charges/{id}/payment-link   → 200 { "paymentUrl": "https://…", "expiresAt": "…" }
-POST /v1/billing/cancel                      → 200 { "cancelAt": "…" } | 409 BILLING_ALREADY_CANCELLING
+POST /v1/billing/cancel                      → 200 { "cancelAt": "…" } (ACTIVE) | 200 { "status": "SUSPENDED", "cancelAt": null } (PAST_DUE/TRIALING, immediate) | 409 BILLING_ALREADY_CANCELLING
 POST /v1/billing/reactivate                  → 200 { "cancelAt": null, "openCharge": { …, "kind": "RECOVERY" } | null }   (the web then calls payment-link for the URL; reactivate never returns a URL)
 POST /v1/billing/auto-billing {"mode":"PIX_AUTOMATICO"} → 200 { "authorizationUrl": "https://…" }   (field is `mode`, never `method`)
 ```
@@ -77,7 +80,7 @@ Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashb
 |---|---|---|
 | `GET /v1/public/billing/prices?country=BR` | selectable list prices | 23 |
 | `GET /v1/public/signup/slug-availability?slug=` | `available \| taken \| reserved \| invalid` | 23 |
-| `GET /v1/public/signup/session` | verified Google identity of the in-progress signup | 22 |
+| `GET /v1/public/signup/session` | verified Google identity of the in-progress signup → `{ email, name, trialAvailable }` (`trialAvailable = false` when an earlier self-signup tenant of that Google `sub` never paid) | 22 |
 | `POST /v1/public/signup/tenant` | create the tenant (calls Platform's provisioning) | 22 |
 | `POST /v1/public/billing/webhooks/asaas` | Asaas webhook; **must answer exactly `200`** | 09 |
 | `POST /v1/public/billing/webhooks/stripe` | Stripe webhook; `Stripe-Signature` on the raw body, 2xx fast, event ids deduped, object re-read before applying | 09 |
@@ -88,7 +91,7 @@ GET /v1/public/billing/prices?country=BR
       "taxBehavior":"INCLUSIVE",
       "items":[ {"featureKey":"HOTSITE","tier":"STANDARD","amountMinor":4900},
                 {"featureKey":"CHATBOT","tier":"BASIC","amountMinor":3900},
-                {"featureKey":"CHATBOT","tier":"PLUS","amountMinor":7900} ] }
+                {"featureKey":"CHATBOT","tier":"PLUS","amountMinor":7900,"upcoming":{"amountMinor":8900,"effectiveFrom":"2026-12-10"}} ] }   // `upcoming` present only when a dated change is scheduled; amounts illustrative
    (cacheable; feature descriptions are translated copy in the web app, not API data)
 
 GET /v1/public/signup/slug-availability?slug=lavacar-top
@@ -100,17 +103,17 @@ POST /v1/public/signup/tenant
           "acceptedTermsVersion":"2026-10","turnstileToken":"…" }
   (email and name come from the verified signup session, never from the body; language derives from countryCode, there is no language field)
   201 { "tenantSlug":"lavacar-top", "nextPath":"/ikaro-trial/conta-criada" }
-  409 SIGNUP_SLUG_TAKEN | 409 SIGNUP_TRIAL_NOT_AVAILABLE | 422 SIGNUP_SLUG_INVALID | 422 SIGNUP_TAX_ID_INVALID | 422 SIGNUP_TAX_ID_REQUIRED | SIGNUP_TERMS_NOT_ACCEPTED
+  409 SIGNUP_SLUG_TAKEN | 409 SIGNUP_TRIAL_NOT_AVAILABLE | 422 SIGNUP_SLUG_INVALID | 422 SIGNUP_TAX_ID_INVALID | 422 SIGNUP_TAX_ID_REQUIRED | 422 SIGNUP_SLUG_RESERVED | 422 SIGNUP_TERMS_NOT_ACCEPTED
   400 SIGNUP_TURNSTILE_FAILED | 429 SIGNUP_RATE_LIMITED (Retry-After)
 ```
 
-- **Signup session:** after Google sign-in the BFF issues a short-lived, httpOnly, signed cookie carrying only the verified email/name (no tenant yet). The `201` clears that signup-only session and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff. The exact signup-session mechanism (reuse of the staff selection-token pattern vs a new token) is decided in story discovery.
+- **Signup session:** after Google sign-in the BFF issues a short-lived (30 min), httpOnly, signed cookie carrying only `{ email, name, googleSub }` (no tenant yet), reusing the signing/verification code of the staff selection token. The `201` clears it and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff.
 - **Abuse protection:** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug-availability is throttled to limit enumeration. The BFF `WebOnlyGuard` allowance must cover these routes.
 - **Webhooks:** both routes carry `@Public()` and the `WebOnlyGuard` bypass. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
 
 ## 4. Hotsite changes
 
-- `GET /v1/public/platform/hotsite` (manifest): `isPublished` becomes the **effective** value (`manager's flag && operational`); the payload for a suspended tenant keeps `branding` but stays minimal exactly like today's `isPublished: false` (still `200`, never `404`).
+- `GET /v1/public/platform/manifest/:slug` (manifest; the real route in `platform.public.controller.ts`): `isPublished` becomes the **effective** value (`manager's flag && operational`); the payload for a suspended tenant keeps `branding` but stays minimal exactly like today's `isPublished: false` (still `200`, never `404`).
 - `GET /v1/public/platform/published-hotsites`: excludes non-operational tenants.
 - New hotsite module type `TRIAL_SIGNUP_CTA` — see `tenant-billing_MODULE.md`.
 - Customer booking/loyalty: the BFF exposes a customer-safe `tenantOperational` flag for the inactive badge and read-only history. While suspended, Booking allows cancellation of an existing future booking but refuses new booking, reschedule and open-detail access; Loyalty allows balance/history reads but refuses earning/redemption.
@@ -122,11 +125,11 @@ POST /v1/public/signup/tenant
 | `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
 | `POST /internal/billing/webhooks/{provider}` | normalized processing of the provider webhook (`asaas` \| `stripe`) | 09 |
-| `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or deactivate it | 07 |
+| `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or set `selectable = false` to hide it from new selection | 07 |
 | `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | **schedule a price change** `{ amountMinor, effectiveFrom, reason }`; operator-only; announces it to every affected manager | 07 |
 | `POST /internal/tenants/{tenantId}/billing/grace` \| `/suspend` | operator controls (never payment override or reactivation) | 06 |
 | `PUT /internal/tenants/{tenantId}/billing/exempt` | `{ exempt: boolean, reason }` — set or clear free access (R12); `403 BILLING_EXEMPT_PROTECTED` for Ikaro's own tenant; audited as `SET_EXEMPT` | 32 |
-| `POST /internal/tenants` (existing, UC-024) | gains optional `exempt: boolean` (and `scripts/provision-tenant.sh` a flag); a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off (`BILLING_US_NOT_AVAILABLE`) | 01, 32 |
+| `POST /internal/tenants` (existing, UC-024) | gains optional `exempt: boolean` and, for a non-exempt BR tenant, a **required** valid `taxId` (CPF/CNPJ), both also on `scripts/provision-tenant.sh` (`422 SIGNUP_TAX_ID_REQUIRED`/`_INVALID`); a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off (`BILLING_US_NOT_AVAILABLE`) | 01, 32 |
 | `GET /internal/billing/tenants?status=` | operator list: status, overdue age, last charge | 06 |
 
 Operator calls run from the script/relay path exactly like `scripts/provision-tenant.sh` (four protection layers); each tenant-scoped call takes `reason` and records `operator_audit`. Price-list changes have no tenant and are audited on `feature_price_versions` (`created_by`, `reason`).
@@ -154,11 +157,11 @@ All idempotent; the job passes an explicit `tenantId` to every use case (no `Req
 POST /internal/billing/feature-prices/CHATBOT/BR/PLUS/versions?dryRun=true
   Body: { "amountMinor": 4900, "effectiveFrom": "2026-12-10", "reason": "annual adjustment" }
   200 { "affectedTenants": 14, "currency": "BRL", "oldAmountMinor": 3900, "newAmountMinor": 4900,
-        "minNoticeDays": 30, "effectiveFrom": "2026-12-10" }          // dryRun: nothing saved, nothing sent
+        "minNoticeDays": 40, "effectiveFrom": "2026-12-10" }          // dryRun: nothing saved, nothing sent
   Without dryRun: 201 { "versionId": "…", "affectedTenants": 14, "announced": true }
   422 BILLING_PRICE_NOTICE_TOO_SHORT  (an increase must be effective at least PRICE_CHANGE_MIN_NOTICE_DAYS + CHARGE_ISSUE_LEAD_DAYS from today; defaults: 30 + 10 days)
 ```
-It runs through the operator path (script / relay) like the other internal operator routes: `InternalApiGuard` + `PlatformAdminGuard`, audited. The affected tenants are those in `ACTIVE` or `PAST_DUE` with an active or next-period scheduled item for that feature and tier in that country, and not `exempt`. Trial tenants see the new price on the Plano tab; suspended tenants are not notified. In **one transaction** it writes the version and one outbox event `SubscriptionPriceChangeAnnounced` per affected tenant. `effectiveFrom` is the first service-period start that uses the amount, even though its invoice may be issued earlier. `GET /v1/public/billing/prices` and the Plano tab show current and upcoming amounts.
+It runs through the operator path (script / relay) like the other internal operator routes: `InternalApiGuard` + `PlatformAdminGuard`, audited. The affected tenants are those in `TRIALING`, `ACTIVE` or `PAST_DUE` with an active or next-period scheduled item for that feature and tier in that country, and not `exempt`. Trial tenants are announced too (decision 73) and also see it on the Plano tab; suspended tenants are not notified. In **one transaction** it writes the version and one outbox event `SubscriptionPriceChangeAnnounced` per affected tenant. `effectiveFrom` is the first service-period start that uses the amount, even though its invoice may be issued earlier. `GET /v1/public/billing/prices` and the Plano tab show current and upcoming amounts.
 
 ### Non-production endpoints (do not exist when `APP_ENV=production`)
 
@@ -195,7 +198,7 @@ Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD) and the no
 
 Names follow the existing per-context convention in `packages/types/src/error-codes.ts` (`STAFF_*`, `LOYALTY_*`, `PLATFORM_*`): Billing codes are `BILLING_*`, signup codes `SIGNUP_*`.
 
-`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` unless story discovery generalizes the existing one.
+`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` (decided).
 
 ## 9. Declarative gating metadata
 

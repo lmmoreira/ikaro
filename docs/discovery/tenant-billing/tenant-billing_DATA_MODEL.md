@@ -10,7 +10,7 @@ The schema serves five reads: (1) the **access check** on every request/send (by
 
 Database-expert findings applied:
 - **Snapshot, one level:** items carry **no price**. When a charge is issued, the version selected by that charge's **service-period start** (`feature_price_versions.effective_from <= period_start`) is copied into `charge_lines.unit_price_minor`; an invoice may therefore be issued early while using its future period's price. A later list change never rewrites an issued charge (same idea as `BookingLine.priceAtBooking`). Prices referenced by an active item are never deleted; hiding a price only makes it unselectable for new choices.
-- **One denormalization:** `charges.amount_minor` is a cached sum of its lines. It exists because the provider bills a single number that must equal what the tenant is shown, and the history list should not aggregate lines per row. It is written once at issue time and never edited (a price change creates a new charge).
+- **One denormalization:** `charges.subtotal_minor` is the cached sum of its lines, and `amount_minor = subtotal_minor + tax_amount_minor`. They exist because the provider bills a single number that must equal what the tenant is shown, and the history list should not aggregate lines per row. `subtotal_minor` is written at insert; `amount_minor` is written once at insert (BR, tax-inclusive) or once when the provider finalizes the invoice (US, tax-exclusive), and never edited afterwards (a price change creates a new charge).
 - **Aggregate boundary:** `charges` are not a child of `subscriptions` (one per period forever = unbounded). Paying a charge may reactivate the subscription: same-context, one transaction, row lock on the subscription (`findByIdForUpdate`); status is recomputable by the reconcile job.
 - **Cross-tenant job indexes** (CLAUDE.md rule): a tenant-first composite index cannot be seeked without `tenant_id`, so each cron has its own standalone index.
 - **Growth flags:** `provider_events` grows forever (retention purge), `charges` grows one per tenant per month (paginated by `(tenant_id, due_date DESC)`), `operator_audit` grows with operator actions (low).
@@ -90,18 +90,19 @@ Database-expert findings applied:
 | `country_code` | char(2) NOT NULL | fixed at start |
 | `currency` | char(3) NOT NULL | fixed at start |
 | `timezone` | text NOT NULL | IANA zone copied from `TenantProvisioned` at creation, **immutable**. Every "tenant-local" value in this schema (`next_due_date`, charge `due_date`/periods, local-midnight period boundaries, the overdue sweep) uses it; Billing never reads Platform settings |
-| `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_US` in production and **`BRL_FAKE`, `USD_FAKE`, `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` outside it**. The environment configuration decides which key new subscriptions receive (main doc §5.3); there is no per-tenant override, and a fake/sandbox key is rejected when `APP_ENV=production`. No KYC/legal-entity fields are duplicated in Ikaro |
+| `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_BR` in production (the Stripe account is the Brazilian CNPJ's, decision 60) and **`BRL_FAKE`, `USD_FAKE`, `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` outside it**. The environment configuration decides which key new subscriptions receive (main doc §5.3); there is no per-tenant override, and a fake/sandbox key is rejected when `APP_ENV=production`. No KYC/legal-entity fields are duplicated in Ikaro |
 | `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | |
 | `anchor_day` | smallint NOT NULL CHECK (1..28) | avoids the 29–31 problem |
 | `trial_ends_at` | timestamptz NULL | |
-| `current_period_start`, `current_period_end` | timestamptz NULL | |
+| `current_period_start`, `current_period_end` | timestamptz NULL | for `TRIALING` they stay NULL until the trial ends and the first charge is paid; the sweep then sets them (period starts at trial end). For a recovery payment they are set at payment |
 | `next_due_date` | date NULL | tenant-local commercial due date (in `timezone`); for a `TRIALING` subscription it is the trial-end date (the first invoice's due date); the status sweep owns the overdue transition |
 | `past_due_since` | timestamptz NULL | |
 | `grace_until` | timestamptz NULL | operator override |
 | `cancel_at` | timestamptz NULL | end of the paid period when the manager cancelled |
 | `suspended_at` | timestamptz NULL | starts the clean-up clock |
+| `purge_warning_30_sent_at`, `purge_warning_7_sent_at` | timestamptz NULL | dedupe for the 30- and 7-day clean-up warning emails; set in the same transaction that writes the `TenantPurgeWarning` outbox event; cleared on reactivation (decision 74) |
 | `has_ever_paid` | boolean NOT NULL DEFAULT false | set true on the first confirmed payment; **alone** selects the clean-up delay (false = 90 days, true = 180 days, any suspension reason); also gates further self-signup trials |
-| `exempt` | boolean NOT NULL DEFAULT false | free access (R12): Ikaro's own tenant, test and staging tenants — all features, never charged, suspended, purged or emailed about billing (replaces "price 0" items). Set by the audited operator endpoint or at provisioning; reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG` (enforced in the aggregate). Clearing it creates the 14-day first-selection window of a trial (`TRIALING`) |
+| `exempt` | boolean NOT NULL DEFAULT false | free access (R12): Ikaro's own tenant and tenants that must never be charged (the existing staging tenants are backfilled once; new test tenants are charged normally against the fake or sandbox, main doc §5.3) — all features, never charged, suspended, purged or emailed about billing (replaces "price 0" items). Set by the audited operator endpoint or at provisioning; reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG` (enforced in the aggregate). Clearing it creates the 14-day first-selection window of a trial (`TRIALING`) |
 | `version` | int NOT NULL DEFAULT 0 | optimistic lock (second line of defence next to `FOR UPDATE`) |
 | `created_at`, `updated_at` | timestamptz | |
 
@@ -153,11 +154,11 @@ Cross-tenant job indexes (standalone, partial):
 | `payment_url` | text NULL | provider's hosted page; may expire (regenerated on demand) |
 | `payment_url_expires_at` | timestamptz NULL | when the link stops working; drives the "link expired" state and `payment-link` response |
 | `refunded_amount_minor` | bigint NOT NULL DEFAULT 0 | partial-refund total for display; `status = REFUNDED` only for a full refund |
-| `provider_creation_status` | text NOT NULL DEFAULT `'READY'` | `READY` \| `PENDING` \| `FAILED`; a durable retry query owns remote charge creation after local commit |
+| `provider_creation_status` | text NOT NULL DEFAULT `'PENDING'` | `PENDING` \| `READY` \| `FAILED`; every charge is inserted `PENDING` and becomes `READY` only after the provider call succeeds (provider id, link, and for US the tax and `amount_minor` are then written once). CHECK: when `READY`, `provider_charge_id` and `amount_minor` (and `tax_amount_minor` for tax-exclusive charges) are NOT NULL. A durable retry query, run inside the issuing job, owns remote creation after local commit |
 | `provider_creation_attempts`, `provider_creation_last_attempt_at` | int / timestamptz | retry observability; never provider I/O inside the insert transaction |
 | `created_at`, `updated_at` | timestamptz | |
 
-- `UNIQUE(tenant_id, subscription_id, period_start) WHERE period_start IS NOT NULL` — the issuing cron is idempotent; `UNIQUE(tenant_id, subscription_id) WHERE kind = 'RECOVERY' AND status IN ('PENDING','OVERDUE')` — at most one open recovery charge. On a reactivation request any open `PERIOD` charge is cancelled (never re-dated) before the recovery charge is issued.
+- `UNIQUE(tenant_id, subscription_id, period_start) WHERE kind = 'PERIOD'` — the issuing cron is idempotent; CHECK: a `RECOVERY` charge may have NULL `period_*` only while its status is `PENDING`, `OVERDUE`, `CANCELED` or `FAILED`; `UNIQUE(tenant_id, subscription_id) WHERE kind = 'RECOVERY' AND status IN ('PENDING','OVERDUE')` — at most one open recovery charge. On a reactivation request any open `PERIOD` charge is cancelled (never re-dated) before the recovery charge is issued.
 - `UNIQUE(provider, provider_charge_id) WHERE provider_charge_id IS NOT NULL` — standalone, webhook/reconcile lookup.
 - Billing page list: `(tenant_id, due_date DESC)`.
 - Reconcile/open-charge scan: `(status, due_date) WHERE status IN ('PENDING','OVERDUE')`; creation retry: `(provider_creation_status, provider_creation_last_attempt_at) WHERE provider_charge_id IS NULL` — standalone.
@@ -216,7 +217,7 @@ Trial rule (main doc §6): a new self-signup for a `google_sub` is allowed a tri
 
 `tenant_purge_jobs` has `id`, `tenant_id`, `reason`, `status` (`REQUESTED` | `IN_PROGRESS` | `FAILED` | `COMPLETED`), `requested_at`, `completed_at`, `last_error`, and timestamps. `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` permits one in-flight purge only. `tenant_purge_steps` records one idempotent completion per required participant (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) with `completed_at` and diagnostic metadata.
 
-The suspension timestamp decides eligibility; these tables record only execution. Platform deletes the tenant root and releases its slug after the job has every required completion. This is deliberately separate from `subscriptions.status`.
+The suspension timestamp decides eligibility; these tables record only execution. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and all `charges`/`charge_lines`/`charge_tax_lines` rows for fiscal reasons — the composite FKs and `tenant_id` stay, `tenant_id` simply no longer matches a live tenant — and deletes `billing_accounts` personal fields, `signup_registrations`, `provider_events` and `operator_audit` payloads. Retention length is the accountant's decision. Platform deletes the tenant root and releases its slug after the job has every required completion. This is deliberately separate from `subscriptions.status`.
 
 ### `billing.operator_audit` — who changed what
 
@@ -244,11 +245,11 @@ The suspension timestamp decides eligibility; these tables record only execution
 ## 4. Migration ordering
 
 1. Create schema `billing` and tables, including `signup_registrations` (expand only, no existing table touched).
-2. Seed `feature_prices` and one `feature_price_versions` row each, `effective_from` = release date (illustrative values; real prices are an operator decision).
+2. Seed `feature_prices` and one `feature_price_versions` row each, `effective_from` = release date, from the **catalog approved in story A0** (BR launch list per decisions 77; US list only for non-production until decision 78 is closed).
 3. Backfill existing tenants (CAND-21): `ACTIVE`, all features, `exempt = true` (real tenants created later start as `TRIALING` through CAND-01; Ikaro's own tenant is `exempt = true` too). Idempotent; per the migration-backfill rule the endpoints are not live traffic yet, but the backfill runs in the same release anyway so no tenant is ever without a row.
 4. Add the Billing notification templates.
-5. Deploy code with transient-lookup fail-open only; the `TenantProvisioned` v2 consumer must accept v1 events during the rolling deploy. A successful read with no subscription is an alertable provisioning integrity failure and must not grant all features.
-6. Terraform: Cloud Scheduler jobs, Secret Manager entries (`ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`), env `PLATFORM_OWNER_TENANT_SLUG`.
+5. Deploy code with transient-lookup fail-open only; the `TenantProvisioned` v2 consumer rejects a v1 event (it retries until the v2 publisher is live; both deploy in the same release). A successful read with no subscription is an alertable provisioning integrity failure and must not grant all features.
+6. Terraform: Cloud Scheduler jobs (issue charges, status sweep, reconcile, provider-events purge, tenant purge, ops digest), Secret Manager entries (`ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, sandbox and live as separate secrets), env `PLATFORM_OWNER_TENANT_SLUG`, `FEATURE_FLAG_SIGNUP_US`, `FEATURE_FLAG_BILLING_ENFORCEMENT`, staging `EMAIL_RECIPIENT_ALLOWLIST`.
 
 CHECK constraints added to tables that already contain rows (none here — all tables are new) would need the `NOT VALID` + `VALIDATE` split; not applicable.
 
@@ -263,11 +264,12 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 | `SubscriptionPastDue` | `subscriptionId`, `pastDueSince`, `suspendsAt` | Notification |
 | `SubscriptionSuspended` | `subscriptionId`, `reason`, `suspendedAt`, `purgeAt` | Notification; hotsite revalidation |
 | `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt` | Notification; hotsite revalidation |
+| `TenantPurgeWarning` | `subscriptionId`, `daysBefore` (30 or 7), `purgeAt` | Notification (email to the manager; Billing template, exempt from the gate) |
 | `SubscriptionPriceChangeAnnounced` | `featureKey`, `tier`, `oldAmountMinor`, `newAmountMinor`, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` — **one event per affected tenant** (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
 | `TenantPurgeRequested` | `tenantId`, `reason` | every bounded context (each deletes its own data), storage cleanup |
 | `TenantPurgeContextCompleted` | `purgeJobId`, `participant`, `completedAt` | Billing purge coordinator |
 
-Whether provider emails replace any Ikaro billing emails is verified against the actual adapter/account before implementation; no handler is removed on assumption alone.
+Ikaro sends every billing email itself (decision 59); no handler is conditional on provider emails.
 
 ## 6. Final decisions carried to the domain document
 

@@ -50,9 +50,9 @@
 
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
-    Grounds the subscription-status ladder (TRIAL: 14 days, all features, no card). A persistent, dismissal-free banner sits above every dashboard page for the MANAGER while status = TRIAL.
+    Grounds the subscription-status ladder (TRIAL: 14 days, all features, no card). A persistent, dismissal-free banner sits above every dashboard page for the MANAGER while status = TRIALING.
     The rest of the page is the unchanged Agenda (staff/prototypes/agenda/00-agenda.html). Staff do not see this banner (billing is manager-only).
-    COMPONENT (GAP): <SubscriptionBanner status="TRIAL" daysLeft /> mounted once in the dashboard shell, above <main>; the sidebar gains a manager-only "Cobrança" item.
+    COMPONENT (GAP): <SubscriptionBanner status="TRIALING" daysLeft /> mounted once in the dashboard shell, above <main>; the sidebar gains a manager-only "Cobrança" item.
     BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }  (trial end date / days left come from GET /v1/billing/subscription, see the billing fragment)
     CTA: "Revisar plano" -> manager-08b-plan-trial-choose.html (Plano tab, CAND-31 A4: review the plan before the first charge).
     Sibling: manager-04b-dashboard-past-due-banner.html.

@@ -27,7 +27,7 @@
     Mockups for the model in <a href="../tenant-billing.md">tenant-billing.md</a>, use cases in
     <a href="../tenant-billing_USECASES.md">tenant-billing_USECASES.md</a>, API in
     <a href="../tenant-billing_API.md">tenant-billing_API.md</a> and module spec in
-    <a href="../tenant-billing_MODULE.md">tenant-billing_MODULE.md</a>. Two fictional tenants:
+    <a href="../tenant-billing_MODULE.md">tenant-billing_MODULE.md</a>. Fictional tenants (Lavacar BeloAuto and Ikaro for BR, Sunrise Auto Spa for US) and one fictional visitor (Maria Souza):
     <strong>Lavacar BeloAuto</strong> (BR, pays Ikaro) and <strong>Ikaro</strong> (the platform's own tenant and marketing site).
     Handoff details per screen: <a href="dev-notes.md">dev-notes.md</a>.
   </p>
@@ -48,12 +48,12 @@
   <li><a href="manager-01e-billing-suspended-canceled.html">Assinatura › Resumo — SUSPENDED por cancelamento (Reativar assinatura)</a> <span class="tag tag-actor">CAND-29, 27, 16</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-01k-billing-price-change-notice.html">Assinatura › Resumo — aviso de reajuste (novo valor a partir de 10/12)</a> <span class="tag tag-actor">CAND-07, 19</span> <span class="tag tag-red">GAP: PriceChangeNotice</span></li>
   <li><a href="manager-01l-billing-exempt.html">Assinatura — conta isenta de cobrança (exempt)</a> <span class="tag tag-actor">CAND-32</span> <span class="tag tag-red">GAP: exempt state</span></li>
-  <li><a href="manager-02-billing-identity-br.html">Assinatura › aba Dados de cobrança — BR (tudo opcional, um botão Salvar)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP: BillingIdentityForm</span></li>
+  <li><a href="manager-02-billing-identity-br.html">Assinatura › aba Dados de cobrança — BR (CPF/CNPJ obrigatório, demais campos opcionais, um botão Salvar)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP: BillingIdentityForm</span></li>
   <li><a href="manager-02c-billing-identity-us.html">Assinatura › aba Dados de cobrança — US (sem CNPJ)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-06-cancel-confirm.html">Cancelar assinatura — confirmação (sem reembolso, política de limpeza)</a> <span class="tag tag-actor">CAND-28</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-06b-cancel-scheduled.html">Assinatura › Resumo — &#x27;Cancelada — acesso até dd/mm&#x27; + Reativar</a> <span class="tag tag-actor">CAND-28, 29</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-07-auto-billing-activate.html">Assinatura › aba Cobrança automática — ativar (autorização na página do provedor)</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="manager-07b-auto-billing-active.html">Assinatura › aba Cobrança automática — ativa (Cartão final 4242) + Desativar</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-07b-auto-billing-active.html">Assinatura › aba Cobrança automática — ativa (Pix Automático) + Desativar</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-08-plan-edit.html">Assinatura › aba Plano — ativa, mudança em edição com prévia e novo total</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP: PlanTab</span></li>
   <li><a href="manager-08b-plan-trial-choose.html">Assinatura › aba Plano — teste: revisar o plano antes da primeira cobrança</a> <span class="tag tag-actor">CAND-31, 25</span> <span class="tag tag-red">GAP</span></li>
 </ul>
@@ -69,7 +69,7 @@
   <li><a href="staff-01-suspended-notice.html">Funcionário: &#x27;Esta conta está suspensa. Fale com o gerente.&#x27;</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-red">GAP: TenantSuspendedNotice</span></li>
   <li><a href="staff-02-select-tenant-suspended.html">Funcionário com várias empresas: a suspensa continua listada com selo &#x27;Suspensa&#x27;</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-green">EXISTS: SelectStaffTenantClient (+ badge)</span></li>
   <li><a href="customer-01-account-inactive-business.html">Cliente: Minha conta com selo &#x27;Empresa inativa&#x27;, histórico visível</a> <span class="tag tag-actor">CAND-16</span> <span class="tag tag-green">EXISTS: my-account list (+ new prop)</span></li>
-  <li><a href="public-01-page-not-published.html">Hotsite: &#x27;Página não publicada&#x27; (neutro) com login da equipe e do cliente</a> <span class="tag tag-actor">CAND-17</span> <span class="tag tag-green">EXISTS: Unavailable (new copy variant)</span></li>
+  <li><a href="public-01-page-not-published.html">Hotsite: &#x27;Página não publicada&#x27; (neutro) com login da equipe e do cliente</a> <span class="tag tag-actor">CAND-17</span> <span class="tag tag-red">CHANGED: Unavailable gains the login bar + new copy</span></li>
 </ul>
 <h2>Cadastro público (self-signup) na Ikaro</h2>
 <ul>
@@ -77,7 +77,7 @@
   <li><a href="public-03-ikaro-trial-details-br.html">/ikaro-trial — recursos e preços em BRL (alternador BR/US)</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: IkaroTrialDetailsPage, PriceTable</span></li>
   <li><a href="public-03b-ikaro-trial-details-us.html">/ikaro-trial — preços em USD</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-04-signup-google-step.html">Turnstile + Entrar com Google</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="public-05-signup-form.html">Formulário: negócio, slug, país, termos</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: SignupForm, SlugInput</span></li>
+  <li><a href="public-05-signup-form.html">Formulário: negócio, slug, país, CPF/CNPJ (BR), termos</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: SignupForm, SlugInput</span></li>
   <li><a href="public-06-welcome-trial-started.html">Conta criada: instruções de acesso enviadas por e-mail</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP: SignupAccountCreatedPage</span></li>
 </ul>
   <hr>
@@ -87,13 +87,14 @@
 <ul>
   <li><a href="manager-01f-billing-loading.html">Carregando</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-red">GAP: skeleton</span></li>
   <li><a href="manager-01g-billing-load-error.html">Erro ao carregar (tentar novamente)</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-green">EXISTS: ErrorAlert</span></li>
-  <li><a href="manager-01h-billing-no-charges.html">Sem cobranças ainda (histórico vazio)</a> <span class="tag tag-actor">CAND-12</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-01h-billing-no-charges.html">Em teste com a primeira cobrança emitida (histórico de pagas vazio)</a> <span class="tag tag-actor">CAND-12, 25, 08</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-01i-billing-payment-pending.html">Pagamento recebido — reativando sua conta…</a> <span class="tag tag-actor">CAND-14, 29</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-01j-billing-payment-link-expired.html">Link de pagamento expirado — gerar novo</a> <span class="tag tag-actor">CAND-14</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="manager-02b-billing-identity-br-erro.html">Identidade: CNPJ e e-mail inválidos (formulário inteiro)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-02b-billing-identity-br-erro.html">Identidade: CNPJ, e-mail, CEP e UF inválidos (formulário inteiro)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-02d-billing-identity-saved.html">Identidade salva (sucesso inline)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-02e-billing-identity-us-address-required.html">Dados de cobrança (US, em teste) — endereço completo obrigatório para ser cobrado</a> <span class="tag tag-actor">CAND-13, 08</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-06c-cancel-error.html">Erro ao cancelar</a> <span class="tag tag-actor">CAND-28</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-06d-cancel-immediate.html">Cancelar (teste ou em atraso): vale agora, sem reembolso</a> <span class="tag tag-actor">CAND-28 A3</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-07c-auto-billing-pending.html">Autorização ainda não confirmada</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-07d-auto-billing-error.html">Erro ao iniciar autorização</a> <span class="tag tag-actor">CAND-30</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-08c-plan-dependency-error.html">Plano: remover Agendamento com Fidelidade ativa (erro, formulário inteiro)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
@@ -120,10 +121,11 @@
   <li><a href="public-04b-signup-turnstile-failed.html">Turnstile falhou</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-04c-signup-trial-already-used.html">Você já tem um teste ativo</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-05b-signup-slug-taken.html">Endereço (slug) já em uso</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="public-05c-signup-validation-error.html">Validação: slug reservado, nome vazio, país, termos (formulário inteiro)</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05c-signup-validation-error.html">Validação: slug reservado, nome vazio, país, CPF/CNPJ inválido, termos (formulário inteiro)</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-05d-signup-submitting.html">Criando a conta…</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-05e-signup-rate-limited.html">Muitas tentativas (429)</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-05f-signup-provision-failed.html">Falha ao criar — nada foi criado, tente de novo</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="public-05g-signup-us-selected.html">Formulário com Estados Unidos selecionado (sem CPF/CNPJ; só quando FEATURE_FLAG_SIGNUP_US)</a> <span class="tag tag-actor">CAND-22 A7</span> <span class="tag tag-red">GAP</span></li>
 </ul>
   <hr>
   <h2>O que este protótipo valida</h2>
