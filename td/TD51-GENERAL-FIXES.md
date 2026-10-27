@@ -8,7 +8,7 @@
 - **Created**: 2026-10-27
 - **Discovered**: Manager report while editing service `01a17e8d-879c-7830-8ef6-e75f03610509`: a resource-free appointment service created with a historical 60-minute default could not save a new 10-minute buffer because the Resources panel sent an empty requirements array; the public availability picker consequently rendered internal reserved windows as customer appointment times.
 - **Decision status**: Ready for discovery and implementation in the dependency order below; each story still begins with `/story-discovery`.
-- **Related**: `docs/BUSINESS_LOGIC_REFERENCE.md` § Booking / buffer rules; `docs/TENANTS_SETTINGS_SCHEMA.md` § `serviceBufferMinutes`
+- **Related**: `docs/BUSINESS_LOGIC_REFERENCE.md` § Buffer / turnover / transition-gap formulas; `docs/TENANTS_SETTINGS_SCHEMA.md` § `serviceBufferMinutes`
 
 ## Problem
 
