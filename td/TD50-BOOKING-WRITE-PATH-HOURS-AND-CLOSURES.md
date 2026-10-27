@@ -132,7 +132,7 @@ Make `POST /bookings`, `POST /bookings/authenticated` and `POST /bookings/staff`
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 1 — Enforce the same rule when a booking is rescheduled or approved at a new time
+### Story 1 — Enforce the same rule when a booking is rescheduled or approved at a new time ✅ Done
 
 **Agent:** backend-ts + bff-ts
 **Complexity:** M
