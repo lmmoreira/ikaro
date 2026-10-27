@@ -84,9 +84,8 @@ export function BookingQueuePage({
     } catch (err) {
       if (err instanceof ApiError && err.status === 409) {
         const reason = extractProblemCode(err);
-        router.push(
-          `/dashboard/bookings/${bookingId}?conflict=1${reason ? `&reason=${encodeURIComponent(reason)}` : ''}`,
-        );
+        const query = new URLSearchParams({ conflict: '1', ...(reason ? { reason } : {}) });
+        router.push(`/dashboard/bookings/${bookingId}?${query.toString()}`);
         return;
       }
       setApproveError(resolveErrorMessageFromApiError(err, locale));

@@ -287,7 +287,7 @@ Per-leg picks go in `resourceSelections[].legIndex` (there is no `legSelections`
 | Code | Lands on | Screen | Keeps | Clears |
 |---|---|---|---|---|
 | `BOOKING_SLOT_UNAVAILABLE` | availability | `02e` | everything | slot |
-| `BOOKING_SLOT_CLOSED`, `BOOKING_OUTSIDE_BUSINESS_HOURS` (a closure or working hours refuse the time) | availability | `02e` (catalogue message: closed / outside business hours) | everything | slot |
+| `BOOKING_SLOT_CLOSED`, `BOOKING_OUTSIDE_BUSINESS_HOURS` (a closure or working hours refuse the time) | availability | `02e` (catalogue message: closed / outside business hours) | everything, including the refused slot (as for `02e` in the shipped flow) | — |
 | `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` | availability | `09b` | services, picks, duration | slot |
 | `BOOKING_LEG_UNAVAILABLE` | availability | `10b` | services, picks, duration | slot |
 | `BOOKING_DURATION_OUT_OF_RANGE` (`field = durationMinutes`) | duration step | `12b` | services, picks | duration |
