@@ -6,7 +6,7 @@
 - **Context**: apps/backend — booking context; apps/bff — booking feature (error pass-through only); apps/web — public booking flow and staff booking flow (error routing); packages/types, packages/i18n
 - **Created**: 2026-10-10
 - **Discovered**: reviewing M23-S39 (staff books on a customer's behalf, PR #586): a staff booking on a closed day returned 201, and probing showed a guest booking does too
-- **Decision status**: Story 0 discovered 2026-10-26 (decisions locked below). Story 1 depends on it; Story 2 depends on Story 0. Story 1 done (#684). Story 2 discovered 2026-10-27 (decisions locked below).
+- **Decision status**: Complete. Story 0 done (#683), Story 1 done (#684), Story 2 done (discovered 2026-10-27). Archived.
 - **Related**: M23-S18 (the recurring-schedule check this reuses), M23-S39, M23-S33 (the booking-window check this sits beside), M23-S08 (the future-commitment worklist reschedule), UC-001, UC-002, UC-004, UC-069, UC-108, `docs/BUSINESS_LOGIC_REFERENCE.md` § Creation-time checks — hours and closures, occupancy
 
 ## Problem
