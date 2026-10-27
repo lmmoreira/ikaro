@@ -7,7 +7,17 @@ import {
   createFreshApprovedBooking,
   deactivateResource,
 } from './helpers/booking';
-import { MANAGER_EMAIL, seedChoiceService, slotsOnDate, TENANT_SLUG } from './helpers/booking-form';
+import {
+  MANAGER_EMAIL,
+  seedChoiceService,
+  seedSingleRoomService,
+  slotsOnDate,
+  TENANT_SLUG,
+} from './helpers/booking-form';
+import {
+  createScheduleClosureAt,
+  removeScheduleClosure,
+} from './helpers/schedule/schedule-helpers';
 import { deactivateService } from './helpers/services';
 
 const STAFF_EMAIL = 'admin@lavacar.com.br';
@@ -124,6 +134,58 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     await page.goto(detailUrl(setup.bookingId));
     await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Aprovado');
     await expect(desktopPane(page).getByRole('link', { name: 'Reagendar' })).toBeVisible();
+  });
+
+  test('a closure added while the page is open shows the closed message, keeps the booking and reloads the list', async ({
+    page: staff,
+    browser,
+  }) => {
+    await loginAsStaff(staff, MANAGER_EMAIL, TENANT_SLUG);
+    const { service, room } = await seedSingleRoomService(staff, 'e2e-reschedule-closed');
+    const customerEmail = uniqueTestEmail('reschedule-closed');
+    const context = await browser.newContext({
+      baseURL: process.env.PLAYWRIGHT_BASE_URL ?? 'http://localhost:3000',
+    });
+    const page = await context.newPage();
+    let closureId: string | undefined;
+
+    try {
+      const booked = await firstSlotFromDay(staff, service.serviceId, [], skipSunday(6));
+      const { bookingId } = await createApprovedBookingAt(staff, {
+        tenantSlug: TENANT_SLUG,
+        staffEmail: STAFF_EMAIL,
+        contactEmail: customerEmail,
+        scheduledAt: booked.startsAt,
+        serviceIds: [service.serviceId],
+      });
+      await loginAsCustomer(page, customerEmail, TENANT_SLUG);
+      await page.goto(`${detailUrl(bookingId)}/reschedule`);
+      await expect(page.getByTestId('time-slot').first()).toBeVisible();
+      // The picker opens on the booking's own day: the room closes for that whole day.
+      await page.getByTestId('time-slot').first().click();
+      closureId = (
+        await createScheduleClosureAt(staff, booked.date, {
+          reason: 'MAINTENANCE',
+          resourceId: room.id,
+        })
+      ).id;
+      await desktopPane(page).getByRole('button', { name: 'Confirmar novo horário' }).click();
+
+      await expect(page.getByTestId('reschedule-error')).toContainText(
+        'O negócio está fechado no horário solicitado.',
+      );
+      await expect(
+        desktopPane(page).getByRole('button', { name: 'Confirmar novo horário' }),
+      ).toBeDisabled();
+
+      await page.goto(detailUrl(bookingId));
+      await expect(page.getByTestId('topbar-booking-status-badge')).toContainText('Aprovado');
+    } finally {
+      await context.close();
+      if (closureId) await removeScheduleClosure(staff, closureId);
+      await deactivateService(staff, service.serviceId);
+      await deactivateResource(staff, room.id);
+    }
   });
 
   test('past the reschedule window of an APPROVED booking: no button, and the direct URL shows the deadline screen', async ({

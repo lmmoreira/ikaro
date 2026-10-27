@@ -1,11 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { BookingErrorCode } from '@ikaro/types';
-import { classifyRescheduleFailure, shouldReloadSlots } from './reschedule-failure';
+import {
+  classifyRescheduleFailure,
+  isScheduleClosedCode,
+  shouldReloadSlots,
+} from './reschedule-failure';
 
 describe('classifyRescheduleFailure', () => {
   it.each([
     [BookingErrorCode.RESCHEDULE_WINDOW_EXPIRED, 'windowExpired'],
     [BookingErrorCode.SLOT_UNAVAILABLE, 'slotTaken'],
+    [BookingErrorCode.SLOT_CLOSED, 'slotClosed'],
+    [BookingErrorCode.OUTSIDE_BUSINESS_HOURS, 'slotClosed'],
     [BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE, 'bundleUnavailable'],
     [BookingErrorCode.LEG_UNAVAILABLE, 'bundleUnavailable'],
     [BookingErrorCode.SCHEDULED_IN_PAST, 'bookingWindow'],
@@ -30,6 +36,10 @@ describe('shouldReloadSlots', () => {
       true,
     );
     expect(shouldReloadSlots(classifyRescheduleFailure(BookingErrorCode.TOO_SOON))).toBe(true);
+    expect(shouldReloadSlots(classifyRescheduleFailure(BookingErrorCode.SLOT_CLOSED))).toBe(true);
+    expect(
+      shouldReloadSlots(classifyRescheduleFailure(BookingErrorCode.OUTSIDE_BUSINESS_HOURS)),
+    ).toBe(true);
   });
 
   it('keeps the list for a generic failure and for an expired window', () => {
@@ -37,5 +47,14 @@ describe('shouldReloadSlots', () => {
     expect(
       shouldReloadSlots(classifyRescheduleFailure(BookingErrorCode.RESCHEDULE_WINDOW_EXPIRED)),
     ).toBe(false);
+  });
+});
+
+describe('isScheduleClosedCode', () => {
+  it('is true for the closed and outside-hours codes only', () => {
+    expect(isScheduleClosedCode(BookingErrorCode.SLOT_CLOSED)).toBe(true);
+    expect(isScheduleClosedCode(BookingErrorCode.OUTSIDE_BUSINESS_HOURS)).toBe(true);
+    expect(isScheduleClosedCode(BookingErrorCode.SLOT_UNAVAILABLE)).toBe(false);
+    expect(isScheduleClosedCode(undefined)).toBe(false);
   });
 });

@@ -30,6 +30,43 @@ describe('SlotConflictAlert', () => {
     expect(onBack).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    ['BOOKING_SLOT_CLOSED', 'O negócio está fechado no horário solicitado.'],
+    [
+      'BOOKING_OUTSIDE_BUSINESS_HOURS',
+      'O horário solicitado está fora do horário de funcionamento.',
+    ],
+  ])('says why for %s instead of "occupied"', (conflictCode, message) => {
+    renderWithIntl(
+      <SlotConflictAlert
+        requestedAt="2026-06-16T10:00:00.000Z"
+        conflictCode={conflictCode}
+        totalDurationMins={30}
+        suggestions={[]}
+        onChooseSlot={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(message)).toBeInTheDocument();
+    expect(screen.queryByText(/foi ocupado/)).not.toBeInTheDocument();
+  });
+
+  it('keeps the occupied body for a slot taken by another booking', () => {
+    renderWithIntl(
+      <SlotConflictAlert
+        requestedAt="2026-06-16T10:00:00.000Z"
+        conflictCode="BOOKING_SLOT_UNAVAILABLE"
+        totalDurationMins={30}
+        suggestions={[]}
+        onChooseSlot={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText(/foi ocupado/)).toBeInTheDocument();
+  });
+
   it('shows the loading state while alternate slots are being fetched', () => {
     renderWithIntl(
       <SlotConflictAlert

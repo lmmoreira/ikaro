@@ -211,7 +211,8 @@ The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE
 2. **Customer reschedule:** `classifyRescheduleFailure` gains a `slotClosed` kind for both codes. It shows the catalogue message with `conflictHint` and `shouldReloadSlots` is true for it, exactly like `slotTaken`. `generic` and `windowExpired` handling is unchanged.
 3. **Staff approve and admin reschedule:** `SlotConflictAlert` takes the error code; for the two new codes its body shows the catalogue message (title stays "Horário não disponível"), for `SLOT_UNAVAILABLE` the existing "foi ocupado" body. Alternative slots are offered as today. No new `web.json` keys.
 4. **Worklist reschedule:** `assertEntryRescheduled` maps the two codes to 409 (with `SLOT_UNAVAILABLE`), so the reschedule page gets alternatives instead of plain text.
-5. **E2E isolation:** a resource-scoped closure on a freshly seeded ROOM (the `seedSingleRoomService` pattern in `booking-submit-routing.spec.ts`), never a tenant-wide closure on the shared test tenant.
+5. **A refusal drops the refused slot (added during the PR review, 2026-10-27).** On the public and staff booking pages the customer returns to the date step with the slot cleared and the slot list reloaded, so the refused time cannot be resubmitted by pressing Next. The page already did this for `BOOKING_BUNDLE_PARTIALLY_UNAVAILABLE` and `BOOKING_LEG_UNAVAILABLE` (`CLEARS_SLOT` in `useBookingFormCore.ts`); `BOOKING_SLOT_UNAVAILABLE`, `BOOKING_SLOT_CLOSED` and `BOOKING_OUTSIDE_BUSINESS_HOURS` join that set. Everything else the customer chose is kept.
+6. **E2E isolation:** a resource-scoped closure on a freshly seeded ROOM (the `seedSingleRoomService` pattern in `booking-submit-routing.spec.ts`), never a tenant-wide closure on the shared test tenant.
 
 **Prototype references:** `journeys/guest/prototypes/book-a-service/02e-slot-conflict.html` is the pattern for the date-step error; the customer journey already records "no screen here". No prototype change.
 **New migration / i18n keys / env vars / feature flags:** none.
@@ -219,13 +220,16 @@ The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE
 
 **Files to create/modify:**
 - `apps/web/features/booking/model/booking-steps.ts` (+ `booking-steps.spec.ts`) (modify — both codes in `CODE_TARGETS`)
+- `apps/web/features/booking/hooks/useBookingFormCore.ts` (modify — the slot-taken and the two new codes clear the selected slot) (+ the `BookingForm.spec.tsx` cases)
 - `apps/web/features/booking/model/reschedule-failure.ts` (+ spec) (modify — `slotClosed` kind, reload on it)
 - `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` (+ spec) (modify only if `describeFailure` needs the new kind's hint)
 - `apps/web/features/booking/model/scheduling-exception-reschedule.ts` (+ spec) (modify — 409 for the two codes)
 - `apps/web/features/booking/components/dashboard/bookings/SlotConflictAlert.tsx` (+ spec) (modify — code-aware body)
 - `apps/web/features/booking/model/booking-approve-action.ts`, `RescheduleBookingPage.tsx`, `BookingDetailPage.tsx`, `BookingQueuePage.tsx` (+ specs) (modify — pass the code to the alert)
 - `apps/web/features/booking/components/public/BookingForm.tsx` (+ spec) (check — only the new-code component cases)
-- `apps/web/e2e/booking-submit-routing.spec.ts`, `apps/web/e2e/my-account-reschedule.spec.ts` (modify — the two scenarios)
+- `apps/web/app/dashboard/bookings/[id]/page.tsx` (modify — passes the queue shortcut's `?reason=` code to `BookingDetailPage`; added at implementation, the queue sends the approver to the detail page and the code would otherwise be lost)
+- `apps/web/features/booking/hooks/useInitialSlotSuggestions.ts` (+ spec) (new — `BookingDetailPage`'s initial alternatives fetch moved out of the component, which was at its file-length limit)
+- `apps/web/e2e/booking-submit-routing.spec.ts`, `apps/web/e2e/my-account-reschedule.spec.ts` (modify — the two scenarios), `apps/web/e2e/helpers/booking-form/seeds.ts` (modify — `seedSingleRoomService` moved here from the routing spec so both specs share it)
 - `journeys/guest/book-a-service.md` (lines 32, 82), `journeys/customer/book-a-service.md` (line 45), both `book-a-service` `dev-notes.md` (the routing table and error-handling paragraph), `journeys/customer/prototypes/minha-conta/dev-notes.md` (§ Reagendar) (modify — record the new routes)
 
 **Acceptance criteria — product:**
@@ -233,7 +237,8 @@ The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE
 - [ ] The same holds on the customer reschedule screen: the message shows, the slot list reloads, and the booking keeps its original time.
 - [ ] Staff approving a booking, or rescheduling one, to a closed or off-hours time see a message saying so (not "foi ocupado") and are offered alternative slots.
 - [ ] The worklist reschedule to a closed or off-hours time shows the message and alternatives.
-- [ ] A slot taken by another booking behaves exactly as before on every screen.
+- [ ] After any of these refusals on the booking page the refused time is no longer selected, "Próximo" is disabled until another time is chosen, and the list is reloaded.
+- [ ] A slot taken by another booking returns to the date step as before, and now also drops the selected time.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -242,7 +247,7 @@ The public booking flow already sends a slot conflict (`BOOKING_SLOT_UNAVAILABLE
   - [ ] `assertEntryRescheduled` throws a 409 `ApiError` for both codes and keeps 422 for other codes
   - [ ] `SlotConflictAlert`: the closed and off-hours codes show the catalogue message, `SLOT_UNAVAILABLE` keeps the "foi ocupado" body
 - Component:
-  - [ ] `BookingForm`: a submit failing with each code shows the availability step and the catalogue message, selections kept
+  - [ ] `BookingForm`: a submit failing with each of the three codes shows the availability step and the catalogue message, keeps the other selections, drops the refused slot (`aria-pressed="false"`, Próximo disabled) and reloads the availability list
   - [ ] `CustomerReschedulePage`: each code shows the message with `conflictHint` and reloads the slots
   - [ ] `RescheduleBookingPage` and the approve action: each code renders the alert with the closed or off-hours body
 - E2E:

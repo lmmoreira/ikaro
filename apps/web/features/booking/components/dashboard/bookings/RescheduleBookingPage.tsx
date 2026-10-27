@@ -16,7 +16,10 @@ import { fetchBookingAvailability } from '@/features/booking/api/availability';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import {
+  extractProblemCode,
+  resolveErrorMessageFromApiError,
+} from '@/shared/lib/i18n/resolve-error-message';
 import { useRescheduleBooking } from '@/features/booking/hooks/useBookingMutations';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { SlotConflictAlert } from './SlotConflictAlert';
@@ -64,6 +67,7 @@ export function RescheduleBookingPage({
   const [error, setError] = useState<string | null>(null);
   const [slotSuggestions, setSlotSuggestions] = useState<readonly SlotConflictSuggestion[]>([]);
   const [conflictStartsAt, setConflictStartsAt] = useState<string | null>(null);
+  const [conflictCode, setConflictCode] = useState<string | undefined>(undefined);
   const [rescheduled, setRescheduled] = useState(false);
   const [lastReschedule, setLastReschedule] = useState<{
     readonly from: string;
@@ -113,6 +117,7 @@ export function RescheduleBookingPage({
         try {
           const availability = await fetchBookingAvailability(tenantSlug, selectedDate, serviceIds);
           setSlotSuggestions(availability.slots);
+          setConflictCode(extractProblemCode(err));
           setConflictStartsAt(startsAt);
           return;
         } catch {
@@ -153,6 +158,7 @@ export function RescheduleBookingPage({
       {conflictStartsAt && (
         <SlotConflictAlert
           requestedAt={conflictStartsAt}
+          conflictCode={conflictCode}
           totalDurationMins={booking.totalDurationMins}
           suggestions={slotSuggestions}
           chooseSlotLabel={t('rescheduleHere')}

@@ -323,6 +323,20 @@ describe('BookingQueuePage — card rendering', () => {
     expect(routerPush).toHaveBeenCalledWith('/dashboard/bookings/b-0?conflict=1');
   });
 
+  it('carries the refusal code to the detail page when the approval hits a closed time', async () => {
+    approveBookingMutateAsync.mockRejectedValueOnce(
+      new ApiError(409, 'closed', { code: 'BOOKING_SLOT_CLOSED' }),
+    );
+    mockUseActionNeeded.mockReturnValue({ data: makeList(['Maria']) });
+    render(<BookingQueuePage {...DEFAULT_PROPS} />);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Aprovar' }));
+
+    expect(routerPush).toHaveBeenCalledWith(
+      '/dashboard/bookings/b-0?conflict=1&reason=BOOKING_SLOT_CLOSED',
+    );
+  });
+
   it('shows an inline error banner for a non-conflict approval failure instead of failing silently', async () => {
     approveBookingMutateAsync.mockRejectedValueOnce(
       new ApiError(400, 'Cannot transition', { code: 'BOOKING_INVALID_TRANSITION' }),

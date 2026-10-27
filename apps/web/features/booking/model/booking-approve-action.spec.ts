@@ -21,6 +21,7 @@ function baseParams(overrides: Partial<Parameters<typeof buildApproveHandler>[0]
     setSheetState: vi.fn(),
     setSlotSuggestions: vi.fn(),
     setInlineError: vi.fn(),
+    setConflictCode: vi.fn(),
     translateLoadingAlternativesError: () => 'Falha ao carregar horários alternativos.',
     translateApproveError: () => 'Falha ao aprovar.',
     ...overrides,
@@ -83,6 +84,25 @@ describe('buildApproveHandler', () => {
     expect(params.setSlotSuggestions).toHaveBeenCalledWith(suggestions);
     expect(params.setActionState).toHaveBeenLastCalledWith('slot-conflict');
   });
+
+  it.each(['BOOKING_SLOT_CLOSED', 'BOOKING_OUTSIDE_BUSINESS_HOURS'])(
+    'hands the %s code to the conflict state so the alert can say why',
+    async (code) => {
+      vi.mocked(fetchBookingAvailability).mockResolvedValue({
+        date: '2026-06-16',
+        available: true,
+        slots: [],
+      });
+      const params = baseParams({
+        mutateAsync: vi.fn().mockRejectedValue(new ApiError(409, 'closed', { code })),
+      });
+
+      await buildApproveHandler(params)();
+
+      expect(params.setConflictCode).toHaveBeenCalledWith(code);
+      expect(params.setActionState).toHaveBeenLastCalledWith('slot-conflict');
+    },
+  );
 
   it('falls back to a generic error when reloading alternatives after a conflict also fails', async () => {
     vi.mocked(fetchBookingAvailability).mockRejectedValue(new Error('network error'));
