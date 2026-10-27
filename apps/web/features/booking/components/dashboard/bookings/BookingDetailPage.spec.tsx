@@ -240,6 +240,27 @@ describe('BookingDetailPage', () => {
     expect(screen.getByText('Aprovar neste →')).toBeInTheDocument();
   });
 
+  it('says the business is closed when the queue shortcut came from a closed-time refusal', async () => {
+    vi.mocked(fetchBookingAvailability).mockResolvedValue({
+      date: '2026-06-16',
+      slots: [],
+      available: true,
+    });
+
+    renderWithIntl(
+      <BookingDetailPage
+        booking={makeBooking()}
+        tenantSlug="lavacar-bh"
+        initialActionState="slot-conflict"
+        initialConflictCode="BOOKING_SLOT_CLOSED"
+      />,
+    );
+
+    expect(
+      await screen.findByText('O negócio está fechado no horário solicitado.'),
+    ).toBeInTheDocument();
+  });
+
   it('preserves the schedule return target when opening complete flow actions', async () => {
     const user = userEvent.setup();
     const returnTo = '/dashboard/schedule?weekStart=2026-07-01&date=2026-07-02';

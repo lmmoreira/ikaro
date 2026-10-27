@@ -118,6 +118,8 @@ export interface BookingSubmitErrorRoute {
 
 const CODE_TARGETS: Readonly<Record<string, BookingErrorTarget>> = {
   [BookingErrorCode.SLOT_UNAVAILABLE]: 'availability',
+  [BookingErrorCode.SLOT_CLOSED]: 'availability',
+  [BookingErrorCode.OUTSIDE_BUSINESS_HOURS]: 'availability',
   [BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE]: 'availability',
   [BookingErrorCode.LEG_UNAVAILABLE]: 'availability',
   [BookingErrorCode.DURATION_OUT_OF_RANGE]: 'duration',

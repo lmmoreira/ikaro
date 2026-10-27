@@ -44,7 +44,12 @@ export interface BookingFormCoreParams {
   readonly onLogin: () => void;
 }
 
+// A refusal that says the chosen time cannot be booked: the slot is dropped, so the customer
+// picks again from a list the date step reloads on reopening instead of resubmitting it.
 const CLEARS_SLOT = new Set<string>([
+  BookingErrorCode.SLOT_UNAVAILABLE,
+  BookingErrorCode.SLOT_CLOSED,
+  BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
   BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE,
   BookingErrorCode.LEG_UNAVAILABLE,
 ]);

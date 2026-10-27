@@ -470,22 +470,32 @@ describe('BookingForm', () => {
     );
   });
 
-  it('returns to Step 2 with an error message when the slot is no longer available (BOOKING_SLOT_UNAVAILABLE)', async () => {
-    const user = userEvent.setup();
-    vi.mocked(createBooking).mockRejectedValue(
-      new ApiError(409, 'Slot unavailable', { code: 'BOOKING_SLOT_UNAVAILABLE' }),
-    );
+  it.each([
+    ['BOOKING_SLOT_UNAVAILABLE', 'O horário solicitado não está mais disponível.'],
+    ['BOOKING_SLOT_CLOSED', 'O negócio está fechado no horário solicitado.'],
+    [
+      'BOOKING_OUTSIDE_BUSINESS_HOURS',
+      'O horário solicitado está fora do horário de funcionamento.',
+    ],
+  ])(
+    'returns to Step 2 with the catalogue message, drops the refused slot and reloads the list (%s)',
+    async (code, message) => {
+      const user = userEvent.setup();
+      vi.mocked(createBooking).mockRejectedValue(new ApiError(409, 'refused', { code }));
 
-    await advanceToStep3(user, [makeService()]);
-    await fillContactFields(user);
+      await advanceToStep3(user, [makeService()]);
+      await fillContactFields(user);
+      const loadsBefore = vi.mocked(fetchAvailability).mock.calls.length;
 
-    await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
+      await user.click(screen.getByRole('button', { name: 'Confirmar agendamento' }));
 
-    expect(await screen.findByTestId('step2-error')).toHaveTextContent(
-      'O horário solicitado não está mais disponível.',
-    );
-    expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
-  });
+      expect(await screen.findByTestId('step2-error')).toHaveTextContent(message);
+      expect(screen.getByText('Escolha data e horário')).toBeInTheDocument();
+      expect(await screen.findByText('09:00–10:00')).toHaveAttribute('aria-pressed', 'false');
+      expect(screen.getByRole('button', { name: 'Próximo' })).toBeDisabled();
+      expect(vi.mocked(fetchAvailability).mock.calls.length).toBeGreaterThan(loadsBefore);
+    },
+  );
 
   it('returns to Step 3 with an address-specific error message when the contact address is rejected', async () => {
     const user = userEvent.setup();

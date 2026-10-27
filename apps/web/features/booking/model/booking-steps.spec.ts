@@ -195,6 +195,8 @@ function problem(code: string, field?: string): ApiError {
 describe('resolveBookingSubmitErrorRoute', () => {
   const cases: [string, string | undefined, string][] = [
     [BookingErrorCode.SLOT_UNAVAILABLE, undefined, 'availability'],
+    [BookingErrorCode.SLOT_CLOSED, undefined, 'availability'],
+    [BookingErrorCode.OUTSIDE_BUSINESS_HOURS, undefined, 'availability'],
     [BookingErrorCode.BUNDLE_PARTIALLY_UNAVAILABLE, undefined, 'availability'],
     [BookingErrorCode.LEG_UNAVAILABLE, undefined, 'availability'],
     [BookingErrorCode.DURATION_OUT_OF_RANGE, 'durationMinutes', 'duration'],
@@ -216,6 +218,16 @@ describe('resolveBookingSubmitErrorRoute', () => {
     expect(
       resolveBookingSubmitErrorRoute(problem(BookingErrorCode.SLOT_UNAVAILABLE), 'pt-BR').message,
     ).toBe('O horário solicitado não está mais disponível.');
+  });
+
+  it.each([
+    [BookingErrorCode.SLOT_CLOSED, 'O negócio está fechado no horário solicitado.'],
+    [
+      BookingErrorCode.OUTSIDE_BUSINESS_HOURS,
+      'O horário solicitado está fora do horário de funcionamento.',
+    ],
+  ])('resolves the catalogue message of %s', (code, message) => {
+    expect(resolveBookingSubmitErrorRoute(problem(code), 'pt-BR').message).toBe(message);
   });
 
   it('sends a 401 to the login', () => {
