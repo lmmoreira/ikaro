@@ -142,7 +142,7 @@ export interface ResolveRescheduleCandidatesParams {
   alsoLockResourceIds?: readonly string[];
   // The resources an earlier lock step read; resolving from it keeps every later lock inside the set held.
   resolutionSnapshot?: ResolutionSnapshot;
-  // Closures, openings and the tenant's hours (TD50): the new window must be open, hours judged
+  // Closures, openings and the tenant's hours: the new window must be open, hours judged
   // before occupancy, exactly as at creation.
   hoursSource?: HoursSource;
 }

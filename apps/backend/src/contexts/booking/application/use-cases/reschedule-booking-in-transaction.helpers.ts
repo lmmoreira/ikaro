@@ -32,7 +32,7 @@ export interface RescheduleBookingInTransactionDeps {
   availabilityService: AvailabilityService;
   slotConflictService: BookingSlotConflictService;
   exceptionRepo: IFutureCommitmentExceptionRepository;
-  // Closures and openings (TD50): the new time must be one the business is open for.
+  // Closures and openings: the new time must be one the business is open for.
   hoursRepos: HoursScheduleRepos;
 }
 

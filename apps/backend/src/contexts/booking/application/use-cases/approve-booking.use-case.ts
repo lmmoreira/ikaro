@@ -231,7 +231,7 @@ export class ApproveBookingUseCase {
       lockResources: (resourceIds) => this.slotConflictService.lockResources(tenantId, resourceIds),
       alsoLockResourceIds,
       // The approval commits the booking at this time, new or original, so the hours always apply
-      // (TD50 decision 3): a request made before a closure cannot be approved into it.
+      // a request made before a closure cannot be approved into it.
       hoursSource: toHoursSource(this.closureRepo, this.openingRepo, input.businessHours),
     });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);

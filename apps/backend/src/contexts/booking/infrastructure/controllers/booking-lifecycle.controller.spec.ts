@@ -163,7 +163,7 @@ describe('BookingLifecycleController', () => {
     });
 
     it('maps BookingSlotUnavailableError to 409 when slot is taken', async () => {
-      const scheduledAt = new Date(`${futureDate(3)}T11:00:00.000Z`);
+      const scheduledAt = new Date(openSlotAt(3, 10));
       const fixturesB = createAutoBookingResourceFixtures();
       const occupancyRepoB = new InMemoryResourceOccupancyRepository();
       const location = fixturesB.resourceRepo.ensureLocation(TENANT_A);
@@ -233,6 +233,9 @@ describe('BookingLifecycleController', () => {
       const err = await ctrl.approve(booking.id, {}).catch((e: unknown) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect((err as HttpException).getStatus()).toBe(HttpStatus.CONFLICT);
+      expect((err as HttpException).getResponse()).toMatchObject({
+        code: 'BOOKING_SLOT_UNAVAILABLE',
+      });
     });
 
     it('tenant isolation: cannot approve booking from tenantB (returns 404)', async () => {
