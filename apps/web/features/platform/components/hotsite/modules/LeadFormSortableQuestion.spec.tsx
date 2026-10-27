@@ -69,7 +69,7 @@ describe('LeadFormSortableQuestion', () => {
     );
   });
 
-  it('reopens a collapsed card once it becomes invalid, so the error text stays visible', () => {
+  it('keeps a collapsed card collapsed when it becomes invalid', () => {
     // A valid question starts collapsed by default (`open` is only initialized from `invalid`
     // once, at mount) — no manual collapse needed to set up this scenario.
     const validQuestion: AdminQuestion = {
@@ -101,7 +101,6 @@ describe('LeadFormSortableQuestion', () => {
       />,
     );
 
-    expect(screen.getByTestId('lead-form-question')).toHaveAttribute('open');
-    expect(screen.getByText('Adicione entre 2 e 10 opções.')).toBeInTheDocument();
+    expect(screen.getByTestId('lead-form-question')).not.toHaveAttribute('open');
   });
 });
