@@ -38,8 +38,8 @@
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
     Reaching the detail page (customer/prototypes/minha-conta/02-agendamento-detail.html) of an OPEN booking by URL or old link while the tenant is SUSPENDED: the page shows this blocked message instead of the booking. Detail of history bookings is still allowed.
-    COMPONENT (changed, EXISTS): apps/web/app/[slug]/my-account/bookings/[id]/page.tsx -- on 403 TENANT_SUSPENDED (open booking) renders new GAP <BookingBlockedNotice />. Drill-down page: bottom nav hidden (journeys pitfall).
-    BFF CALL: GET /v1/bookings/:id -> 403 Problem Details { code: "TENANT_SUSPENDED" } for non-terminal bookings
+    COMPONENT (changed, EXISTS): apps/web/app/[slug]/my-account/bookings/[id]/page.tsx -- on 403 BILLING_TENANT_SUSPENDED (open booking) renders new GAP <BookingBlockedNotice />. Drill-down page: bottom nav hidden (journeys pitfall).
+    BFF CALL: GET /v1/bookings/:id -> 403 Problem Details { code: "BILLING_TENANT_SUSPENDED" } for non-terminal bookings
     Back to: customer-01-account-inactive-business.html
   -->
 

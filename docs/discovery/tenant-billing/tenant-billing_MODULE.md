@@ -15,16 +15,18 @@ Naming follows the existing function-based module types (`BOOKING_CTA`, `LEAD_FO
 ```ts
 export interface TrialSignupCtaModuleData {
   title: string;            // 1..80 chars
-  text?: string;            // optional, <= 400 chars
-  buttonLabel: string;      // 1..40 chars, default "Testar grátis por 14 dias"
+  text?: string;            // optional, <= 200 chars
+  buttonLabel: string;      // 1..30 chars, default "Testar grátis por 14 dias"
+  layout?: 'CENTERED' | 'LEFT';                       // default CENTERED
+  background?: 'PRIMARY' | 'SECONDARY' | 'NONE';      // default PRIMARY
 }
 ```
 - `href` is not configurable: the module always links to `/ikaro-trial` (the page, with language following the hotsite's language). A configurable URL would turn the module into a generic button.
-- Accepts `presentation` and `presentation.background` like the other CTA modules (`BOOKING_CTA`'s rules): decide in the story; default yes.
+- `layout` and `background` match the editor panel in `manager-05*` (`CENTERED|LEFT`, `PRIMARY|SECONDARY|NONE`); the story reconciles them with `BOOKING_CTA`'s existing presentation fields so no second vocabulary is introduced. The prototype's limits (title 80, text 200, label 30) are the contract.
 
 ## 3. Restriction to Ikaro's tenant
 
-- Layout rules (`hotsite-layout.rules.ts`) **reject** a `TRIAL_SIGNUP_CTA` module on any tenant whose slug is not `PLATFORM_OWNER_TENANT_SLUG` (an env var validated in `env.validation.ts`). The check is server-side (API); the editor also hides the module from the add-module list for other tenants.
+- Layout rules (`hotsite-layout.rules.ts`) **reject** a `TRIAL_SIGNUP_CTA` module on any tenant whose slug is not `PLATFORM_OWNER_TENANT_SLUG` (an env var validated in `env.validation.ts`; the prototype's slug `ikaro` is just its illustrative value, never hardcoded). The editor asks the backend whether the tenant is the platform owner instead of comparing a slug on the client. The check is server-side (API); the editor also hides the module from the add-module list for other tenants.
 - This is a deliberate exception inside a generic engine. The risk is low (a foreign tenant advertising Ikaro signup) but it is closed cheaply; the alternative (a plain dedicated page with an ordinary CTA) was considered and rejected by the owner in favour of using the hotsite engine.
 
 ## 4. Checklist against §7 (promotion-time work)
@@ -49,5 +51,5 @@ It must not use `--ba-*` tokens unless it is placed under the hotsite tree; as a
 ## 6. Edge cases
 
 - Module disabled or removed → the Ikaro hotsite simply has no CTA; `/ikaro-trial` still works if linked.
-- Ikaro's tenant suspended (should never happen: `exempt`) → the guard in CAND-27 A4 and `exempt` prevent it.
+- Ikaro's tenant suspended (should never happen: `exempt`, which cannot be cleared for it) → `exempt` and the guard in CAND-27 A4 prevent it.
 - The module appears in a template catalogue? **No** — templates must not carry it (a template could be applied to a foreign tenant). Template application ignores/rejects it.

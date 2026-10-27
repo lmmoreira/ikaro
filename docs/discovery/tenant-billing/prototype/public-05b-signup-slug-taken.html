@@ -57,7 +57,7 @@ DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
 Grounds CAND-22 (signup form after Google). State: slug taken (live indicator and/or 409 SLUG_TAKEN on submit).
 COMPONENT (GAP): SignupForm (inputs reuse the Form/Input/Select/Checkbox primitives in apps/web/shared/components/ui/ — verify names there; slug field = SlugInput with live availability, GAP).
 BFF CALLS (GAP): GET /v1/public/signup/slug-availability?slug= (debounced, Response: { available:boolean, reason?:"TAKEN"|"RESERVED"|"INVALID" });
-POST /v1/public/signup/tenant { businessName, slug, countryCode, language, acceptedTermsVersion, turnstileToken } -> 201 { tenantSlug } and the JWT cookie for the new manager.
+POST /v1/public/signup/tenant { businessName, slug, countryCode, acceptedTermsVersion, turnstileToken } -> 201 { tenantSlug, nextPath } with no tenant JWT; the next page directs the visitor to the existing invitation/login email.
 -->
 <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — endereço já em uso (409)</div>
 <div class="auth-bar" style="justify-content:space-between;">
@@ -86,7 +86,6 @@ POST /v1/public/signup/tenant { businessName, slug, countryCode, language, accep
   <div class="fh">Seu site ficará em: <b>ikaro.app/lavacar</b></div>
 </div>
 <div class="fg"><label class="fl">País</label><select class="fi"><option value="">Selecione…</option><option selected value="BR">Brasil</option><option value="US">Estados Unidos</option></select><div class="fh">Define a moeda e o fuso padrão. Não poderá ser alterado depois.</div></div>
-<div class="fg"><label class="fl">Idioma</label><select class="fi"><option selected value="pt-BR">Português (Brasil)</option><option value="en">English</option></select></div>
 <div class="fg"><label class="chk"><input type="checkbox" checked> <span>Li e aceito os <a href="#" style="color:var(--ba-primary)">Termos de Uso</a> e a <a href="#" style="color:var(--ba-primary)">Política de Privacidade</a>.</span></label></div>
 <div class="row"><a class="btn-primary" href="public-06-welcome-trial-started.html">Criar minha conta</a><a class="btn-secondary" href="public-04-signup-google-step.html">Voltar</a></div>
 </div>

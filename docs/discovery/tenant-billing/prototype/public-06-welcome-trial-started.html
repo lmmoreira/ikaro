@@ -54,11 +54,11 @@ p.sub{font-size:.9375rem;opacity:.7;color:var(--ba-text);margin-bottom:1.5rem;li
 <body>
 <!--
 DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
-Grounds CAND-22 (success page after signup). Inline success banner, no toast.
-COMPONENT (GAP): TrialWelcomePage (checklist = same pattern as any onboarding list; button goes to the manager dashboard, journeys/staff/prototypes/agenda/00-agenda.html is the dashboard reference).
-BFF CALL (GAP): GET /v1/billing/subscription (authenticated; Response: { status:"TRIAL", trialEndsAt, features:[...] }) to fill the end date and feature list.
+Grounds CAND-22 (account-created page after signup). Inline success banner, no toast.
+COMPONENT (GAP): SignupAccountCreatedPage. Signup does not issue a tenant JWT or redirect to the dashboard: TenantProvisioned asynchronously creates the first manager and Billing trial, and the existing invitation/login email is the access handoff.
+BFF CALL: none after successful signup. This page must not poll provisioning or call an authenticated billing endpoint.
 -->
-<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — teste iniciado (sucesso)</div>
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — conta criada (sucesso)</div>
 <div class="auth-bar" style="justify-content:space-between;">
   <div style="display:flex;align-items:center;gap:.625rem;">
     <div style="width:1.75rem;height:1.75rem;border-radius:.375rem;background:var(--ba-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8125rem;">I</div>
@@ -68,18 +68,11 @@ BFF CALL (GAP): GET /v1/billing/subscription (authenticated; Response: { status:
 </div><div class="wrap">
 <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);padding:1.125rem 1.25rem;margin-bottom:1.5rem;display:flex;align-items:flex-start;gap:.875rem;">
   <div style="width:2rem;height:2rem;border-radius:9999px;background:#16a34a;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>
-  <div><p style="font-weight:700;font-size:.9375rem;color:#15803d;margin-bottom:.125rem;">Seu teste de 14 dias começou</p>
-  <p style="font-size:.875rem;color:#166534;opacity:.85;line-height:1.5;">Sua conta <b>Lavacar BeloAuto</b> foi criada. O teste vai até 09/11/2026 e não precisa de cartão.</p></div>
+  <div><p style="font-weight:700;font-size:.9375rem;color:#15803d;margin-bottom:.125rem;">Sua conta foi criada</p>
+  <p style="font-size:.875rem;color:#166534;opacity:.85;line-height:1.5;">Enviamos as instruções de acesso para <b>ana@lavacarbeloauto.com.br</b>. Abra o e-mail para entrar e começar seu teste de 14 dias.</p></div>
 </div>
-<h2 style="font-size:1.125rem;font-weight:700;margin-bottom:.5rem;color:var(--ba-text)">7 recursos liberados</h2>
-<div class="card"><ul style="list-style:none;padding:0;margin:0"><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Site público do seu negócio</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Agendamento online</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Fidelidade</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Assistente de IA</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Formulário de orçamento</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Reservas recorrentes</li><li style="display:flex;align-items:center;gap:.5rem;padding:.375rem 0;color:var(--ba-text)"><span style="color:#16a34a;font-weight:700">✓</span>Alertas de disponibilidade</li></ul><p class="fh">O assistente de IA usa o plano BASIC durante o teste.</p></div>
-<h2 style="font-size:1.125rem;font-weight:700;margin:1.5rem 0 .25rem;color:var(--ba-text)">Primeiros passos</h2>
-<ul class="cl">
- <li><span class="n">1</span><div><b>Publicar seu site</b><div class="fh" style="margin-top:0">Seu endereço: ikaro.app/lavacar-beloauto</div></div></li>
- <li><span class="n">2</span><div><b>Cadastrar seus serviços</b><div class="fh" style="margin-top:0">Nome, preço e duração.</div></div></li>
- <li><span class="n">3</span><div><b>Definir seus horários</b><div class="fh" style="margin-top:0">Quando você atende.</div></div></li>
-</ul>
-<div class="row"><a class="btn-primary" href="../../../../journeys/staff/prototypes/agenda/00-agenda.html">Ir para o painel</a></div>
+<div class="card" style="margin-bottom:1.25rem;"><p style="font-weight:700;color:var(--ba-text);margin-bottom:.375rem;">Próximo passo</p><p class="fh" style="margin-top:0;">Use o link no e-mail para entrar. Se não o encontrar em alguns minutos, verifique a caixa de spam.</p></div>
+<div class="row"><a class="btn-primary" href="../../../../journeys/shared/staff-login.html">Entrar</a><a class="btn-secondary" href="../../../../journeys/guest/prototypes/book-a-service/01-service-selection.html">Falar com a gente</a></div>
 </div>
 </body>
 </html>

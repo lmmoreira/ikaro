@@ -56,8 +56,8 @@ p.sub{font-size:.9375rem;opacity:.7;color:var(--ba-text);margin-bottom:1.5rem;li
 DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
 Grounds CAND-22 (Turnstile -> Google sign-in step). State: Turnstile ok + Google.
 COMPONENT (GAP): SignupGoogleStep (+ Turnstile widget; Google button follows the existing OAuth pattern of shared/login.html, same GoogleSignInButton used by login pages if one exists, otherwise GAP).
-BFF CALL (GAP): GET /v1/public/signup/session after the OAuth callback (Response: { email, name, trialAlreadyUsed:boolean }); the Turnstile token is kept client-side and sent later in POST /v1/public/signup/tenant.
-Google redirect: GET /api/auth/google?redirect=/ikaro-trial/conta (signup intent, creates no tenant by itself). 04c: trialAlreadyUsed=true -> this screen with contact link "Falar com a gente" (Ikaro booking page).
+BFF CALL (GAP): GET /v1/public/signup/session after the OAuth callback (Response: { email, name, trialAvailable:boolean }); the Turnstile token is kept client-side and sent later in POST /v1/public/signup/tenant.
+Google redirect: GET /api/auth/google?redirect=/ikaro-trial/entrar (signup intent, creates no tenant by itself). 04c: trialAvailable=false -> this screen with contact link "Falar com a gente" (Ikaro booking page).
 -->
 <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — Turnstile ok + Google</div>
 <div class="auth-bar" style="justify-content:space-between;">

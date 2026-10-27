@@ -11,7 +11,7 @@
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
     Grounds the SUSPENDED behaviour for the PUBLIC hotsite (CAND-17). The tenant's hotsite is replaced by a reason-neutral "Página não publicada" page (never says suspended / unpaid / canceled). The top bar (HotsiteAuthBar) stays: the staff entry and the customer "Entrar" remain reachable so staff/managers and customers can still log in.
-    COMPONENT (EXISTS, new copy variant): apps/web/shells/hotsite/components/Unavailable.tsx -- currently renders "Em breve" (tenant has no published hotsite yet). This screen is a NEW COPY VARIANT of the same <Unavailable /> (e.g. variant="suspended": title "Página não publicada" + one neutral line). HotsiteAuthBar (EXISTS) is unchanged. No tenant branding beyond the existing --ba-* tokens.
+    COMPONENT (CHANGED: Unavailable gains HotsiteAuthBar, used for every unpublished hotsite; new copy variant): apps/web/shells/hotsite/components/Unavailable.tsx -- currently renders "Em breve" (tenant has no published hotsite yet). This screen is a NEW COPY VARIANT of the same <Unavailable /> (e.g. variant="suspended": title "Página não publicada" + one neutral line). HotsiteAuthBar (EXISTS) is unchanged. No tenant branding beyond the existing --ba-* tokens.
     BFF CALL: GET /v1/public/platform/manifest/:slug -> manifest unavailable (as for an unpublished hotsite); the shell decides the variant from the same response (no billing detail exposed publicly).
     Label note: the real HotsiteAuthBar entry reads "Área da Equipe" (shared/hotsite.html); the discovery brief calls it "Login da equipe" -- same link, real label kept here.
   -->

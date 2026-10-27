@@ -10,7 +10,7 @@
 
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
-    Grounds the SUSPENDED behaviour for STAFF (CAND-16): a staff member of a suspended tenant CAN log in (valid JWT) but every dashboard route renders only this full-page notice. No nav, no data, no API access (backend answers 403 TENANT_SUSPENDED).
+    Grounds the SUSPENDED behaviour for STAFF (CAND-16): a staff member of a suspended tenant CAN log in (valid JWT) but every dashboard route renders only this full-page notice. No nav, no data, no API access (backend answers 403 BILLING_TENANT_SUSPENDED).
     Reason-neutral: does not say unpaid/canceled; the manager sees the details on the billing page. No "Falar com a gente" for staff (they are not the payer) -- the only action is Sair.
     COMPONENT (GAP): <TenantSuspendedNotice role="STAFF" /> rendered by app/dashboard/layout.tsx when GET /v1/billing/access -> status = SUSPENDED and role = STAFF. Visually reuses the staff-login card (app/dashboard/login/page.tsx): fixed indigo mark, not tenant-branded.
     BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }

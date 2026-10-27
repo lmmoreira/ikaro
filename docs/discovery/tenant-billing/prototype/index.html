@@ -47,6 +47,7 @@
   <li><a href="manager-01d-billing-suspended.html">Assinatura › Resumo — SUSPENDED por falta de pagamento (única página acessível)</a> <span class="tag tag-actor">CAND-16, 12, 14</span> <span class="tag tag-red">GAP: SuspendedGate</span></li>
   <li><a href="manager-01e-billing-suspended-canceled.html">Assinatura › Resumo — SUSPENDED por cancelamento (Reativar assinatura)</a> <span class="tag tag-actor">CAND-29, 27, 16</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-01k-billing-price-change-notice.html">Assinatura › Resumo — aviso de reajuste (novo valor a partir de 10/12)</a> <span class="tag tag-actor">CAND-07, 19</span> <span class="tag tag-red">GAP: PriceChangeNotice</span></li>
+  <li><a href="manager-01l-billing-exempt.html">Assinatura — conta isenta de cobrança (exempt)</a> <span class="tag tag-actor">CAND-32</span> <span class="tag tag-red">GAP: exempt state</span></li>
   <li><a href="manager-02-billing-identity-br.html">Assinatura › aba Dados de cobrança — BR (tudo opcional, um botão Salvar)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP: BillingIdentityForm</span></li>
   <li><a href="manager-02c-billing-identity-us.html">Assinatura › aba Dados de cobrança — US (sem CNPJ)</a> <span class="tag tag-actor">CAND-13</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-06-cancel-confirm.html">Cancelar assinatura — confirmação (sem reembolso, política de limpeza)</a> <span class="tag tag-actor">CAND-28</span> <span class="tag tag-red">GAP</span></li>
@@ -76,8 +77,8 @@
   <li><a href="public-03-ikaro-trial-details-br.html">/ikaro-trial — recursos e preços em BRL (alternador BR/US)</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: IkaroTrialDetailsPage, PriceTable</span></li>
   <li><a href="public-03b-ikaro-trial-details-us.html">/ikaro-trial — preços em USD</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="public-04-signup-google-step.html">Turnstile + Entrar com Google</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="public-05-signup-form.html">Formulário: negócio, slug, país, idioma, termos</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: SignupForm, SlugInput</span></li>
-  <li><a href="public-06-welcome-trial-started.html">Boas-vindas: &#x27;Seu teste de 14 dias começou&#x27;</a> <span class="tag tag-actor">CAND-22, 24</span> <span class="tag tag-red">GAP: TrialWelcomePage</span></li>
+  <li><a href="public-05-signup-form.html">Formulário: negócio, slug, país, termos</a> <span class="tag tag-actor">CAND-22, 23</span> <span class="tag tag-red">GAP: SignupForm, SlugInput</span></li>
+  <li><a href="public-06-welcome-trial-started.html">Conta criada: instruções de acesso enviadas por e-mail</a> <span class="tag tag-actor">CAND-22</span> <span class="tag tag-red">GAP: SignupAccountCreatedPage</span></li>
 </ul>
   <hr>
   <h1 style="font-size:1.25rem;">Estados alternativos (unhappy paths)</h1>
@@ -97,8 +98,8 @@
   <li><a href="manager-08c-plan-dependency-error.html">Plano: remover Agendamento com Fidelidade ativa (erro, formulário inteiro)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-08d-plan-saved.html">Plano salvo (sucesso inline)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-08e-plan-readonly-suspended.html">Plano somente leitura (suspenso)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="manager-08f-plan-past-due-no-add.html">Plano em atraso: adicionar desativado, remover permitido</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
-  <li><a href="manager-08g-plan-not-removable-yet.html">Plano: recurso adicionado neste ciclo ainda não pode ser removido</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08f-plan-past-due-no-add.html">Plano em atraso: somente leitura</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="manager-08g-plan-not-removable-yet.html">Plano: alterações agendadas para o próximo período</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
   <li><a href="manager-08h-plan-save-error.html">Plano: erro ao salvar (seleção mantida)</a> <span class="tag tag-actor">CAND-31</span> <span class="tag tag-red">GAP</span></li>
 </ul>
 <h2>Dashboard e editor (estados alternativos)</h2>

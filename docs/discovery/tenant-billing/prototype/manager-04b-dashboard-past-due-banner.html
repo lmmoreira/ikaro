@@ -52,7 +52,7 @@
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
     Grounds the PAST_DUE rung of the status ladder: 14 days of grace with FULL access (nothing locked), a persistent warning banner and email reminders.
     Same slot and component as manager-04-dashboard-trial-banner.html; only the variant (amber) and copy change. "Pagar agora" goes to the billing page, which opens the provider's hosted payment page (card, Pix or boleto) -- never a provider name in the UI.
-    COMPONENT (GAP): <SubscriptionBanner status="PAST_DUE" dueDate graceEndsAt amount /> in the dashboard shell.
+    COMPONENT (GAP): <SubscriptionBanner status="PAST_DUE" dueDate suspendsAt amount /> in the dashboard shell.
     BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }  (amount and dates from GET /v1/billing/subscription)
   -->
 

@@ -38,8 +38,8 @@
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
     Entry points to the booking flow (my-account "Novo agendamento", FAB, direct link to customer/prototypes/book-a-service/01-service-selection.html) all land here while the tenant is SUSPENDED; the flow is never started. Guests on the public site never reach it (the hotsite is unpublished, see public-01).
-    COMPONENT (changed, EXISTS): apps/web/app/[slug]/booking/page.tsx -- when the access status is not active renders new GAP <BookingBlockedNotice variant="new" /> instead of the service picker. Backend also rejects POST /v1/bookings (403 TENANT_SUSPENDED).
-    BFF CALL: GET /v1/billing/access (customer-safe `active` projection); POST /v1/bookings -> 403 Problem Details { code: "TENANT_SUSPENDED" } if reached anyway
+    COMPONENT (changed, EXISTS): apps/web/app/[slug]/booking/page.tsx -- when the access status is not active renders new GAP <BookingBlockedNotice variant="new" /> instead of the service picker. Backend also rejects POST /v1/bookings (403 BILLING_TENANT_SUSPENDED).
+    BFF CALL: GET /v1/billing/access (customer-safe `active` projection); POST /v1/bookings -> 403 Problem Details { code: "BILLING_TENANT_SUSPENDED" } if reached anyway
   -->
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">

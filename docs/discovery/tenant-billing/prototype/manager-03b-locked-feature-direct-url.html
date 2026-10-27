@@ -51,7 +51,7 @@
   <!--
     DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
     Sibling of manager-03-locked-feature.html: a manager types/bookmarks /dashboard/loyalty for a feature the tenant has not purchased.
-    The route itself stays reachable (HTTP 200, not 404/redirect) and renders the upsell instead of the page: locked, never silently hidden. The backend also rejects the API calls (FEATURE_NOT_ENTITLED, 403), so the page cannot be driven by hand.
+    The route itself stays reachable (HTTP 200, not 404/redirect) and renders the upsell instead of the page: locked, never silently hidden. The backend also rejects the API calls (BILLING_FEATURE_NOT_ENTITLED, 403), so the page cannot be driven by hand.
     COMPONENT (GAP): <FeatureLockedPage feature="LOYALTY" /> rendered by the route guard in app/dashboard/loyalty/layout.tsx (reuses <FeatureLockedCard />).
     CTA (self-service plan, CAND-31): the single primary is "Contratar este recurso" -> manager-08-plan-edit.html; "Falar com a gente" is only a small text link.
     BFF CALL: GET /v1/billing/access -> { status, suspensionReason, features: [{ key, tier }] }  (LOYALTY absent => locked)
@@ -102,7 +102,7 @@
                   A <strong>Fidelidade</strong> permite acumular pontos a cada serviço concluído e trocar por benefícios. Clientes que acumulam pontos voltam mais vezes.
                 </p>
                 <p style="font-size:0.8125rem;opacity:0.6;color:var(--ba-text);line-height:1.5;margin-bottom:1rem;">
-                  Este recurso depende do Agendamento, que já está no seu plano. Seus clientes e pontos já registrados foram mantidos e voltam a aparecer ao contratar.
+                  Este recurso depende do Agendamento, que já está no seu plano. Seus clientes e pontos já registrados foram mantidos e voltam a aparecer ao contratar. O recurso começa no próximo período de cobrança (10/11/2026), não imediatamente.
                 </p>
                 <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
                   <a class="btn-primary" href="manager-08-plan-edit.html" style="text-decoration:none;">Contratar este recurso</a>
