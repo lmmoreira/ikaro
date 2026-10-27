@@ -4,7 +4,7 @@
 
 ## Overview
 
-58 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
+59 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
 
 ## What is real vs invented
 
@@ -115,16 +115,16 @@ Copy blocks: "Quando termina" (access until {cancelAt}), "Reembolso: Nenhum valo
 Standalone confirmation page with a red alert "Não foi possível cancelar a assinatura" / "Algo deu errado do nosso lado e nada foi alterado. Tente novamente em instantes; se persistir, fale com a gente." The danger button becomes "Tentar novamente".
 
 ## Screen 18 — Cobrança automática tab, inactive (`CobrancaAutomaticaTab` / `AutoBillingCard`) — manager-07-auto-billing-activate.html
-Opens on the Cobrança automática tab. **BFF:** `POST /v1/billing/auto-billing` body `{ mode: CARD|PIX_AUTOMATICO }` -> `{ authorizationUrl }` then redirect to the hosted page. Status card "Desativada", method options (radio cards "Cartão de crédito" / "Pix Automático"), "O que vai acontecer" steps. Copy never names the provider; no card inputs in-app. Manual payment link remains valid. **Single primary: "Ativar cobrança automática"** in `.form-actions`. In SUSPENDED the tab shows a grey notice and the button is disabled.
+Opens on the Cobrança automática tab. **BFF:** `POST /v1/billing/auto-billing` body `{ mode: PIX_AUTOMATICO }` -> `{ authorizationUrl }` then redirect to the hosted page. Status card "Desativada", single method card "Pix Automático" (card removed, decision 58), "O que vai acontecer" steps. Copy never names the provider; no card inputs in-app. Manual payment link remains valid. **Single primary: "Ativar cobrança automática"** in `.form-actions`. In SUSPENDED the tab shows a grey notice and the button is disabled.
 
 ## Screen 19 — Cobrança automática active — manager-07b-auto-billing-active.html
-Green alert "Cobrança automática ativada" (inline, after returning from the provider) + status "Cartão final 4242" (or "Pix Automático ativo"), next charge. **No primary button**; only the secondary red "Desativar" -> `DELETE /v1/billing/auto-billing` (open question: add a confirm step; drawn as a direct action). The Resumo tab of this file shows "Cobrança automática — cartão final 4242".
+Green alert "Cobrança automática ativada" (inline, after returning from the provider) + status "Pix Automático ativo", next charge. **No primary button**; only the secondary red "Desativar" -> `DELETE /v1/billing/auto-billing` (open question: add a confirm step; drawn as a direct action). The Resumo tab of this file shows "Cobrança automática — Pix Automático ativo".
 
 ## Screen 20 — Cobrança automática pending — manager-07c-auto-billing-pending.html
 `summary.autoBilling.status = PENDING_AUTHORIZATION` (`billing_accounts.auto_billing_status`): amber alert with spinner "Aguardando a confirmação da autorização", status badge "Pendente". Single primary "Atualizar status" + secondary red "Cancelar tentativa" (`DELETE`); retrying authorization = cancel the attempt, then "Ativar cobrança automática" again. Manual link keeps working.
 
 ## Screen 21 — Cobrança automática error — manager-07d-auto-billing-error.html
-Red alert "Não foi possível iniciar a autorização" / "O parceiro de pagamento não respondeu. Nada foi alterado. Tente novamente; se a autorização for recusada, tente outro cartão ou o Pix Automático." Method options kept; single primary "Tentar novamente". Covers both a 5xx on POST and a declined authorization on return.
+Red alert "Não foi possível iniciar a autorização" / "O parceiro de pagamento não respondeu. Nada foi alterado. Tente novamente; se a autorização for recusada, tente de novo." Method options kept; single primary "Tentar novamente". Covers both a 5xx on POST and a declined authorization on return.
 
 ## Screen 22 — Plano tab, ACTIVE with a staged change (`PlanoTab`) — manager-08-plan-edit.html
 **Files (all GAP):** `apps/web/features/billing/components/PlanoTab.tsx` composing `FeatureToggleCard` (one per feature: name, description, monthly price for the tenant's country, switch, dependency hint, per-card note/error), `ChatbotTierPicker` (radio cards Básico R$ 39,00 / Plus R$ 79,00 inside the Chatbot card) and `PlanChangePreview` (list of changes + live total). Same tab pattern and action pane as the other tabs.
@@ -370,3 +370,8 @@ POST /v1/public/signup/tenant
 - **Staff tenant switch.** The real routes are `GET /auth/staff-tenants` and `POST /auth/switch-staff-tenant`; both exist today and must keep working for a suspended tenant.
 - **Signup.** The language field was removed from `public-05*`; language derives from the country. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the 04c card.
 - **Error code names** are `BILLING_*`/`SIGNUP_*` per the repo convention (`BILLING_TENANT_SUSPENDED`, `BILLING_FEATURE_NOT_ENTITLED`).
+
+- **BR tax ID at signup (decision 57).** `public-05*` now has a required "CPF ou CNPJ da empresa" field for BR (check digits validated; error `SIGNUP_TAX_ID_INVALID`/`SIGNUP_TAX_ID_REQUIRED`; screen 05c shows the invalid case). It is saved to the billing account and is editable but not blankable on the Dados tab for BR tenants.
+- **US full address required before the first paid selection (decision 39, revised).** New screen `manager-02e-billing-identity-us-address-required.html`: a US trial tenant on the Dados tab sees the red alert "Add your full billing address" with street, number, city, state and ZIP highlighted; without it the first invoice cannot be issued and the trial suspends at its end (decision 42). Error code `BILLING_TAX_LOCATION_REQUIRED` from `PUT /v1/billing/plan`.
+- **Auto-billing is Pix Automático only (decision 58).** The card option and "Cartão final 4242" were removed from `manager-07*` and every Resumo/Automática panel; the activation tab offers only Pix Automático ("Pague o primeiro Pix e aprove a autorização no app do seu banco"). Tenants still pay any monthly charge by card, Pix or boleto on the hosted page. `POST /v1/billing/auto-billing` accepts `{ mode: 'PIX_AUTOMATICO' }` only.
+- **Provider facts and launch gates** for these screens are in `../tenant-billing_PROVIDERS.md`.

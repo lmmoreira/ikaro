@@ -57,7 +57,7 @@ DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
 Grounds CAND-22 (signup form after Google). State: submitting (all inputs and buttons disabled, spinner).
 COMPONENT (GAP): SignupForm (inputs reuse the Form/Input/Select/Checkbox primitives in apps/web/shared/components/ui/ — verify names there; slug field = SlugInput with live availability, GAP).
 BFF CALLS (GAP): GET /v1/public/signup/slug-availability?slug= (debounced, Response: { available:boolean, reason?:"TAKEN"|"RESERVED"|"INVALID" });
-POST /v1/public/signup/tenant { businessName, slug, countryCode, acceptedTermsVersion, turnstileToken } -> 201 { tenantSlug, nextPath } with no tenant JWT; the next page directs the visitor to the existing invitation/login email.
+POST /v1/public/signup/tenant { businessName, slug, countryCode, taxId (BR only, CPF or CNPJ), acceptedTermsVersion, turnstileToken } -> 201 { tenantSlug, nextPath } with no tenant JWT; the next page directs the visitor to the existing invitation/login email.
 -->
 <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — enviando</div>
 <div class="auth-bar" style="justify-content:space-between;">
@@ -86,6 +86,7 @@ POST /v1/public/signup/tenant { businessName, slug, countryCode, acceptedTermsVe
   <div class="fh">Seu site ficará em: <b>ikaro.app/lavacar-beloauto</b></div>
 </div>
 <div class="fg"><label class="fl">País</label><select class="fi" disabled><option value="">Selecione…</option><option selected value="BR">Brasil</option><option value="US">Estados Unidos</option></select><div class="fh">Define a moeda e o fuso padrão. Não poderá ser alterado depois.</div></div>
+<div class="fg"><label class="fl">CPF ou CNPJ da empresa</label><input class="fi" value="12.345.678/0001-90" inputmode="numeric" disabled><div class="fh">Necessário para emitir a cobrança do plano; você pode usar o sistema sem pagar durante o teste. Só para empresas no Brasil.</div></div>
 <div class="fg"><label class="chk"><input type="checkbox" checked disabled> <span>Li e aceito os <a href="#" style="color:var(--ba-primary)">Termos de Uso</a> e a <a href="#" style="color:var(--ba-primary)">Política de Privacidade</a>.</span></label></div>
 <div class="row"><button class="btn-primary" disabled><span class="spin"></span>Criando sua conta…</button><a class="btn-secondary" href="public-04-signup-google-step.html" style="opacity:.4;pointer-events:none">Voltar</a></div>
 </div>

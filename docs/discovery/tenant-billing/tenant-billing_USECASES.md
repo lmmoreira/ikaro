@@ -138,8 +138,8 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Trigger:** Daily cron.
 - **Main Flow:**
   1. For each due subscription (standalone partial index on `next_due_date`), compute lines from the items scheduled for the next service period, reading each amount from the price version in force on that period's **start date**.
-  2. Outside a database transaction, calculate tax for a tax-exclusive US charge through `TaxCalculationPort` (Stripe Tax Basic); tax-inclusive BR charges use zero extra tax. The calculation result is a point-in-time input, never fetched during later reads.
-  3. Insert the `Charge` (`kind = PERIOD`), feature lines and tax lines in one transaction (`UNIQUE(tenant_id, subscription_id, period_start)` makes a re-run idempotent), then — outside the DB transaction — ask the provider (via the port) to create the charge and store its id, payment link and link expiry.
+  2. Tax-inclusive BR charges carry zero extra tax and their `amount_minor` is known at insert. A tax-exclusive US charge is inserted with `subtotal_minor` only: Stripe computes the tax when it finalizes the invoice (step 3), so the provider result supplies `tax_amount_minor`, `amount_minor` and the tax lines, written once. There is no separate tax port (decision 62).
+  3. Insert the `Charge` (`kind = PERIOD`) and feature lines in one transaction (`UNIQUE(tenant_id, subscription_id, period_start)` makes a re-run idempotent), then — outside the DB transaction — ask the provider (via the port, `billingType = UNDEFINED` for Asaas, a finalized `send_invoice` invoice for Stripe) to create the charge, and store its id, payment link, link expiry and, for US, the tax result and `amount_minor` with `provider_creation_status = READY`. `ChargeIssued` and the manager email go out only after READY.
   4. For a `TRIALING` subscription the first charge is issued 10 days before trial end from the default paid items (or the manager's saved selection), due at trial end.
 - **Alternative Flows:**
   - **A1: Subscription is `exempt`** (Ikaro's own tenant, staging) → no charge created.
@@ -148,7 +148,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
   - **A3: Job runs twice** → no duplicates.
   - **A4: Tenant `SUSPENDED`** → skipped (no charges while suspended).
   - **A5: Subscription is cancelling (`cancelAt` set)** → no charge for periods after `cancelAt`.
-  - **A7: US customer location is insufficient for tax calculation** → reject first paid-plan selection until billing state and ZIP/postal code are supplied; for an existing paid tenant, hold provider-charge creation, alert the manager and never silently issue an untaxed USD charge. For a trial this means **no charge exists at trial end, and the trial-end rule of CAND-10 suspends the subscription** — the manager is warned by email and banner before that.
+  - **A7: US customer location is insufficient for tax calculation** (Stripe needs at least a 5-digit ZIP, discourages ZIP-only in many states, and leaves a standalone invoice in draft with `invoice.finalization_failed`) → reject first paid-plan selection until the full billing address (street, city, state, ZIP) is supplied; for an existing paid tenant, hold provider-charge creation, alert the manager and never silently issue an untaxed USD charge. For a trial this means **no charge exists at trial end, and the trial-end rule of CAND-10 suspends the subscription** — the manager is warned by email and banner before that.
 - **Postconditions:** Next period's charge exists with a payment link.
 - **Events Triggered:** `ChargeIssued`.
 
@@ -159,7 +159,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Main Flow:**
   1. BFF validates the token (timing-safe) and forwards the raw body to the internal endpoint.
   2. Backend resolves the tenant from the provider customer id, normalizes the event, and in one transaction inserts `provider_events(provider, event_id)` (duplicate → 200), updates local charge/subscription state and writes email outbox events.
-  3. A normalizing adapter maps the payment event to `PaymentConfirmed` / `PaymentOverdue` / `PaymentRefunded` / `PaymentChargeback` / auto-billing authorized / deactivated. **The paid signal is method-dependent:** card `PAYMENT_CONFIRMED`, Pix and boleto `PAYMENT_RECEIVED` (verified in the Asaas sandbox before launch); whichever arrives first for the charge produces the single `PaymentConfirmed`, the later one is a no-op.
+  3. A normalizing adapter maps the payment event to `PaymentConfirmed` / `PaymentOverdue` / `PaymentRefunded` / `PaymentChargeback` / auto-billing authorized / deactivated. **The paid signal is method-dependent (verified in Asaas docs):** Pix emits only `PAYMENT_RECEIVED`, boleto `CONFIRMED` then `RECEIVED`, card `CONFIRMED` then `RECEIVED` about 32 days later; whichever of `CONFIRMED`/`RECEIVED` arrives first for the charge produces the single `PaymentConfirmed`, the later one is a no-op. For Stripe the paid signal is `invoice.paid` (re-read from the API; events can arrive out of order). `PAYMENT_PARTIALLY_REFUNDED` and `charge.refunded` partial → no access change; `PAYMENT_CHARGEBACK_REQUESTED` → dispute opened, no access change.
   4. `PaymentConfirmed` marks paid, sets `has_ever_paid`, and reactivates `PAST_DUE`/`SUSPENDED` subscriptions (row lock); a `SUSPENDED` recovery charge also writes its period and anchor (CAND-29). The local due-date sweep owns `PENDING` → `OVERDUE`/`PAST_DUE`, so an overdue webhook only confirms/reconciles that result.
   5. Respond 200 only after the transaction commits; email delivery is asynchronous from the outbox.
 - **Alternative Flows:**
@@ -218,7 +218,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** Logged in.
 - **Trigger:** Manager edits identity on the billing page.
-- **Main Flow:** Fields (all optional): tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number, legal name, billing email, address. The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood) in the tenant's language. System validates by country (shared `Address` value object + `AddressSpec`) and saves; synced to the provider customer when a charge is next issued.
+- **Main Flow:** Fields: tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number (**BR: always present from signup, editable but never blankable** because the provider needs it, decision 57; US: optional), legal name, billing email, address (**US: the full address is required before the first paid selection**, decision 39; BR: optional). The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood) in the tenant's language. System validates by country (shared `Address` value object + `AddressSpec`) and saves; synced to the provider customer when a charge is next issued.
 - **Alternative Flows:**
   - **A1: Invalid CNPJ/CPF check digits** → field error.
   - **A2: Invalid email** → field error.
@@ -234,7 +234,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Trigger:** Manager clicks **Pagar agora**.
 - **Main Flow:** The BFF returns the provider's hosted payment URL; the manager pays by card, Pix or boleto on the provider's page; the webhook (CAND-09) confirms and the status updates.
 - **Alternative Flows:**
-  - **A1: Link expired** → `POST .../payment-link` asks the provider (port) for a new link.
+  - **A1: Link expired** → `POST .../payment-link` asks the provider (port) for a usable link: Stripe hosted invoice URLs expire 30 days after the due date and a fresh one is issued; Asaas's `invoiceUrl` has no documented expiry (the Pix QR stays valid 12 months after due, a boleto may be auto-cancelled after due), so the adapter re-reads the charge and returns the current URL — behaviour after due date is a launch gate (`tenant-billing_PROVIDERS.md` §5).
   - **A2: Payment pending** (Pix/boleto compensation) → page shows "pagamento em processamento".
   - **A3: Payment fails** → charge stays open; page explains and offers retry.
   - **A4: Charge already paid** → the page refreshes to the paid state.
@@ -297,7 +297,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 ### **CAND-19: Billing Emails to the Manager**
 - **Actor:** System (one event handler per event; each handler calls exactly one use case).
 - **Preconditions:** Template exists in the tenant's language (pt-BR/en) — seeded for new tenants and backfilled for existing ones. The tenant is not `exempt` (R12): exempt tenants receive no billing emails, and the handlers skip them.
-- **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated` (the first three are dropped if the provider already emails payers), and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …").
+- **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated` (Ikaro sends all of them: Asaas customers are created with `notificationDisabled = true` and Stripe customer emails are off, decision 59), and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …").
 - **Main Flow:** Resolve recipients (billing email, else the tenant's managers), render, send, log.
 - **Alternative Flows:**
   - **A1: Template missing** → fail with alert; no silent drop.
@@ -341,7 +341,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Main Flow:**
   1. Page shows feature descriptions and the price table (BR/US switch; CAND-23 supplies prices).
   2. Visitor passes Turnstile and signs in with Google (verified email + name).
-  3. Visitor fills business name, slug, country (BR|US) and accepts Terms and Privacy; language derives from the country.
+  3. Visitor fills business name, slug, country (BR|US), **CPF or CNPJ for BR** and accepts Terms and Privacy; language derives from the country.
   4. System re-validates server-side, applies the trial rule (A3), then calls the existing `ProvisionTenantUseCase` (Platform) with the Google email as first manager; the Google `sub` and accepted terms version/timestamp are recorded in `signup_registrations`.
   5. The endpoint returns the account-created page. `TenantProvisioned` asynchronously triggers Staff (first manager) and Billing (CAND-01); once the first-manager work completes, the existing invitation/login email is sent to the verified Google email. The visitor is not issued a tenant JWT and is not sent to the dashboard by signup.
 - **Alternative Flows:**
@@ -350,6 +350,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
   - **A3: Trial not available for this Google account** (an earlier self-signup tenant of the same `sub` never paid) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído" + contact link. A first signup, or one where every earlier signup tenant has paid, always gets the trial.
   - **A4: Rate limit exceeded** (per IP/day) → friendly "tente mais tarde".
   - **A5: Terms not accepted** → blocked.
+  - **A9: BR tax ID missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
   - **A6: Tenant creation transaction fails** → nothing is created and retry is offered. If a post-commit `TenantProvisioned` consumer is delayed or fails, its durable event retry completes the first-manager and Billing setup; the account-created page still directs the visitor to email rather than implying that dashboard access is already ready.
   - **A7: Country without prices, or US while `FEATURE_FLAG_SIGNUP_US` is off (no Stripe adapter yet)** → not offered.
   - **A8: Google account already manages other tenants** → allowed (multi-tenant staff and owners); trial rule A3 still applies. An owner who pays can create as many tenants as they want.
@@ -465,15 +466,15 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Postconditions:** Tenant active.
 - **Events Triggered:** `ChargeIssued`, `ChargePaid`, `SubscriptionReactivated`.
 
-### **CAND-30: Manager Enables or Disables Automatic Charging** — *DEFERRED RELEASE GATE*
+### **CAND-30: Manager Enables or Disables Automatic Charging (Pix Automático only)** — *DEFERRED RELEASE GATE*
 - **Actor:** Staff (MANAGER).
-- **Preconditions:** Provider supports it for the tenant's currency (BRL via Asaas) **and** Ikaro has verified the actual Asaas account and sandbox flow end-to-end. Until that gate passes, this UI and endpoint are not released.
+- **Preconditions:** BRL tenant on Asaas, Ikaro's Asaas account is a PJ with a CNPJ active 6+ months **and** the Pix Automático flow is verified end-to-end in the sandbox and production (`tenant-billing_PROVIDERS.md` §5). Until that gate passes, this UI and endpoint are not released. Card auto-billing is not offered (Asaas tokenization passes card data through Ikaro's server, decision 58).
 - **Trigger:** Manager clicks "Ativar cobrança automática" / "Desativar".
-- **Main Flow:** BFF asks the provider (port) for a hosted authorization URL (saved card, or Pix Automático approval in the bank app); the manager completes it on the provider's page; the webhook marks automatic charging active; the page shows "Cartão final 4242" / "Pix Automático ativo". Disabling asks the provider to revoke it. The hosted payment link keeps working in every case.
+- **Main Flow:** BFF asks the provider (port) for a hosted authorization URL (Pix Automático: the first payment's QR code carries the authorization, approved in the bank app); the manager completes it on the provider's page; the webhook marks automatic charging active once the bank confirms; the page shows "Pix Automático ativo". Ikaro keeps creating each charge itself (`paymentCreationMode = MANUAL`) referencing the authorization. Disabling asks the provider to revoke it. The hosted payment link keeps working in every case.
 - **Alternative Flows:**
   - **A1: Authorization not completed** → status "pendente" with a way to restart.
   - **A2: Provider error** → message, retry.
   - **A3: Authorization later revoked at the bank** → webhook sets it inactive; next charge falls back to the hosted payment link.
   - **A4: USD tenant** → option hidden until a Stripe adapter exists.
 - **Postconditions:** Subsequent charges are collected automatically.
-- **Events Triggered:** None. *(Built as a later slice; depends on confirming the Asaas card/Pix flow — see open threads.)*
+- **Events Triggered:** None. *(Built as a later slice, after the Pix Automático gate.)*

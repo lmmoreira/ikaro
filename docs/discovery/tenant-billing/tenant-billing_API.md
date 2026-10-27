@@ -38,7 +38,7 @@ GET /v1/billing/summary
              { "featureKey": "CHATBOT", "tier": "BASIC", "unitPriceMinor": 3900 } ],
   "totalMinor": 8800,                       // net of tax; for US the page labels it "+ imposto calculado na cobrança" (tax exists only on the issued charge)
   "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
-  "autoBilling": { "mode": "NONE" | "CARD" | "PIX_AUTOMATICO", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Cartão final 4242" | null },
+  "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
   "paymentConfirmationPending": false,
   "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":3900,"newAmountMinor":4900,"effectiveFrom":"2026-12-10" } ]
 }
@@ -58,7 +58,7 @@ PUT /v1/billing/identity   (every field optional)
 POST /v1/billing/charges/{id}/payment-link   → 200 { "paymentUrl": "https://…", "expiresAt": "…" }
 POST /v1/billing/cancel                      → 200 { "cancelAt": "…" } | 409 BILLING_ALREADY_CANCELLING
 POST /v1/billing/reactivate                  → 200 { "cancelAt": null, "openCharge": { …, "kind": "RECOVERY" } | null }   (the web then calls payment-link for the URL; reactivate never returns a URL)
-POST /v1/billing/auto-billing {"mode":"CARD|PIX_AUTOMATICO"} → 200 { "authorizationUrl": "https://…" }   (field is `mode`, never `method`)
+POST /v1/billing/auto-billing {"mode":"PIX_AUTOMATICO"} → 200 { "authorizationUrl": "https://…" }   (field is `mode`, never `method`)
 ```
 
 The BFF mapper (not the backend) builds display strings (e.g. the auto-billing label comes from the provider as data; formatting of money/dates is the web's) — per the presentation-layer boundary rule.
@@ -79,7 +79,8 @@ Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashb
 | `GET /v1/public/signup/slug-availability?slug=` | `available \| taken \| reserved \| invalid` | 23 |
 | `GET /v1/public/signup/session` | verified Google identity of the in-progress signup | 22 |
 | `POST /v1/public/signup/tenant` | create the tenant (calls Platform's provisioning) | 22 |
-| `POST /v1/public/billing/webhooks/asaas` | provider webhook | 09 |
+| `POST /v1/public/billing/webhooks/asaas` | Asaas webhook; **must answer exactly `200`** | 09 |
+| `POST /v1/public/billing/webhooks/stripe` | Stripe webhook; `Stripe-Signature` on the raw body, 2xx fast, event ids deduped, object re-read before applying | 09 |
 
 ```
 GET /v1/public/billing/prices?country=BR
@@ -95,16 +96,17 @@ GET /v1/public/signup/slug-availability?slug=lavacar-top
 
 POST /v1/public/signup/tenant
   Body: { "businessName","slug","countryCode":"BR|US",
+          "taxId":"12.345.678/0001-90"  (BR only, CPF or CNPJ with valid check digits; omitted for US),
           "acceptedTermsVersion":"2026-10","turnstileToken":"…" }
   (email and name come from the verified signup session, never from the body; language derives from countryCode, there is no language field)
   201 { "tenantSlug":"lavacar-top", "nextPath":"/ikaro-trial/conta-criada" }
-  409 SIGNUP_SLUG_TAKEN | 409 SIGNUP_TRIAL_NOT_AVAILABLE | 422 SIGNUP_SLUG_INVALID | SIGNUP_TERMS_NOT_ACCEPTED
+  409 SIGNUP_SLUG_TAKEN | 409 SIGNUP_TRIAL_NOT_AVAILABLE | 422 SIGNUP_SLUG_INVALID | 422 SIGNUP_TAX_ID_INVALID | 422 SIGNUP_TAX_ID_REQUIRED | SIGNUP_TERMS_NOT_ACCEPTED
   400 SIGNUP_TURNSTILE_FAILED | 429 SIGNUP_RATE_LIMITED (Retry-After)
 ```
 
 - **Signup session:** after Google sign-in the BFF issues a short-lived, httpOnly, signed cookie carrying only the verified email/name (no tenant yet). The `201` clears that signup-only session and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff. The exact signup-session mechanism (reuse of the staff selection-token pattern vs a new token) is decided in story discovery.
 - **Abuse protection:** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug-availability is throttled to limit enumeration. The BFF `WebOnlyGuard` allowance must cover these routes.
-- **Webhook:** header `asaas-access-token` validated timing-safe; raw body preserved (signature/replay checks need it). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
+- **Webhooks:** both routes carry `@Public()` and the `WebOnlyGuard` bypass. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
 
 ## 4. Hotsite changes
 
@@ -119,7 +121,7 @@ POST /v1/public/signup/tenant
 |---|---|---|
 | `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
-| `POST /internal/billing/webhooks/asaas` | normalized processing of the provider webhook | 09 |
+| `POST /internal/billing/webhooks/{provider}` | normalized processing of the provider webhook (`asaas` \| `stripe`) | 09 |
 | `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or deactivate it | 07 |
 | `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | **schedule a price change** `{ amountMinor, effectiveFrom, reason }`; operator-only; announces it to every affected manager | 07 |
 | `POST /internal/tenants/{tenantId}/billing/grace` \| `/suspend` | operator controls (never payment override or reactivation) | 06 |
@@ -162,29 +164,28 @@ It runs through the operator path (script / relay) like the other internal opera
 
 ```ts
 interface BillingProviderPort {
-  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;
-  createCharge(input: { merchantProfileKey, customerId, dueDate, amountMinor, currency, description, externalReference }): Promise<{ providerChargeId, paymentUrl }>;
+  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
+  // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
+  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference }):
+    Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax empty/zero for tax-inclusive BR
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
   cancelCharge(providerChargeId): Promise<void>;
   startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;
   revokeAutoBilling(customerId): Promise<void>;
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
 }
-interface TaxCalculationPort {
-  calculate(input: { merchantProfileKey, currency, taxBehavior, customerLocation, lines }): Promise<{ totalTaxMinor, lines, providerCalculationId? }>;
-}
 // Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent
 //   PaymentConfirmed | PaymentOverdue | PaymentRefunded | PaymentChargeback | AutoBillingAuthorized | AutoBillingRevoked
 //   The adapter decides which provider event is the paid signal per payment method (Asaas: card = PAYMENT_CONFIRMED,
 //   Pix/boleto = PAYMENT_RECEIVED; verify in the sandbox); the first one for a charge yields PaymentConfirmed, a later one is a no-op.
 ```
-Adapters: `AsaasBillingProvider` (BRL) and `StripeBillingProvider` (USD) share this port. `NoTaxCalculation` serves tax-inclusive BR charges; `StripeTaxBasicCalculationAdapter` calculates tax for tax-exclusive US charges. The subscription's immutable `merchantProfileKey` resolves to the provider account and selling legal entity through operational configuration/secrets; provider dashboards remain the source of truth for KYC and legal-entity data. Automatic authorization operations remain in the provider-shaped port but are not released until each real provider flow is verified end to end. There is no `ManualBillingProvider` or manual mark-paid route. No provider type leaks beyond the adapter.
+Adapters: `AsaasBillingProvider` (BRL) and `StripeBillingProvider` (USD) share this port. There is no separate tax port: Stripe returns the tax breakdown from invoice finalization (decision 62), and Asaas charges are tax-inclusive. The subscription's immutable `merchantProfileKey` resolves to the provider account and selling legal entity through operational configuration/secrets; provider dashboards remain the source of truth for KYC and legal-entity data. Automatic authorization operations (Pix Automático only) remain in the provider-shaped port but are not released until the real flow is verified end to end. There is no `ManualBillingProvider` or manual mark-paid route. No provider type leaks beyond the adapter.
 
 ## 8. New error codes (each needs entries in both `packages/i18n/locales/{pt-BR,en}/errors.json`, CI-enforced)
 
 Names follow the existing per-context convention in `packages/types/src/error-codes.ts` (`STAFF_*`, `LOYALTY_*`, `PLATFORM_*`): Billing codes are `BILLING_*`, signup codes `SIGNUP_*`.
 
-`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` unless story discovery generalizes the existing one.
+`BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_TAX_LOCATION_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` unless story discovery generalizes the existing one.
 
 ## 9. Declarative gating metadata
 

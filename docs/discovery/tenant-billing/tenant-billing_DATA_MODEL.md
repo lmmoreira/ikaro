@@ -60,16 +60,16 @@ Database-expert findings applied:
 |---|---|---|
 | `id` | uuid PK | |
 | `tenant_id` | uuid NOT NULL | `UNIQUE(tenant_id)`; also `UNIQUE(tenant_id, id)` for composite FKs |
-| `tax_id_type` | text NULL | `CNPJ` \| `CPF` \| `OTHER`; NULL when none |
+| `tax_id_type` | text NULL | `CNPJ` \| `CPF` \| `OTHER`. **BR: NOT NULL from signup** (`tax_id` required, check digits validated — Asaas needs `cpfCnpj`; enforced by the aggregate and the signup endpoint, columns stay nullable for US and exempt tenants) |
 | `tax_id` | text NULL | digits only for BR (check digits via VO); free text for `OTHER`. Which types a country accepts comes from a new `taxId` entry in `CountrySpec` (BR: CNPJ or CPF; US: none, optional free text) |
 | `legal_name` | text NULL | |
 | `billing_email` | text NULL | falls back to the managers' emails |
 | `address` | jsonb NULL | shaped exactly like the shared `Address` value object (`street`, `number`, `complement?`, `neighborhood?`, `city`, `state`, `zipCode`), validated with the **billing country's `AddressSpec`** from `packages/i18n/src/country-defaults.ts` (labels, postal regex, state pattern, neighbourhood on/off). The country is `subscriptions.country_code`, not repeated inside the JSON. A single bounded object, never an array |
 | `provider` | text NULL | `ASAAS` \| `STRIPE` |
 | `provider_customer_id` | text NULL | |
-| `auto_billing` | text NOT NULL DEFAULT `'NONE'` | `NONE` \| `CARD` \| `PIX_AUTOMATICO`; mirrored from the provider (no card data) |
+| `auto_billing` | text NOT NULL DEFAULT `'NONE'` | `NONE` \| `PIX_AUTOMATICO` (card auto-billing is not offered, decision 58); mirrored from the provider (no card data) |
 | `auto_billing_status` | text NOT NULL DEFAULT `'INACTIVE'` | `INACTIVE` \| `PENDING_AUTHORIZATION` \| `ACTIVE`; drives prototype states 07/07b/07c (deferred release slice) |
-| `auto_billing_label` | text NULL | e.g. `Cartão final 4242` — a display label supplied by the provider, never a PAN |
+| `auto_billing_label` | text NULL | display label supplied by the provider, e.g. `Pix Automático ativo`; never a PAN |
 | `terms_version` | text NULL | version the user accepted at signup |
 | `terms_accepted_at` | timestamptz NULL | |
 | `terms_accepted_by` | text NULL | Google email of the signing user |
@@ -140,9 +140,9 @@ Cross-tenant job indexes (standalone, partial):
 | `kind` | text NOT NULL DEFAULT `'PERIOD'` | `PERIOD` \| `RECOVERY` (one-month charge issued to reactivate a suspended subscription) |
 | `period_start`, `period_end` | date NULL | NOT NULL for `PERIOD`; for `RECOVERY` they are **written when the charge is confirmed paid** (the period starts at payment) — the only fields written after issue. CHECK: NOT NULL when `kind = 'PERIOD'` |
 | `due_date` | date NOT NULL | tenant-timezone date |
-| `subtotal_minor` | bigint NOT NULL | **cached sum of `charge_lines`** before tax, written once |
-| `tax_amount_minor` | bigint NOT NULL DEFAULT 0 | immutable total tax snapshot; zero for tax-inclusive/untaxed charges |
-| `amount_minor` | bigint NOT NULL | final payable amount = `subtotal_minor + tax_amount_minor`, written once |
+| `subtotal_minor` | bigint NOT NULL | **cached sum of `charge_lines`** before tax, written once at insert |
+| `tax_amount_minor` | bigint NULL | immutable tax snapshot. BR/tax-inclusive: 0 at insert. **US/tax-exclusive: NULL at insert, written once when the provider finalizes the invoice** (decision 62) |
+| `amount_minor` | bigint NULL | final payable amount = `subtotal_minor + tax_amount_minor`; BR: set at insert; US: written once with the tax. CHECK: NOT NULL when `provider_creation_status = 'READY'` |
 | `currency` | char(3) NOT NULL | |
 | `merchant_profile_key` | text NOT NULL | snapshot copied from the subscription so historical charges retain their selling-entity/provider-account identity if a later configuration changes |
 | `status` | text NOT NULL | `PENDING` \| `PAID` \| `OVERDUE` \| `FAILED` \| `CANCELED` \| `REFUNDED` \| `CHARGEBACK`. `FAILED` = the provider reported a final non-recoverable payment failure (e.g. capture refused with no retry left); the manager can still get a fresh link, which creates a new provider attempt, not a new Ikaro charge |
@@ -174,7 +174,7 @@ Cross-tenant job indexes (standalone, partial):
 | `provider_calculation_id` | text NULL | Stripe Tax calculation/transaction reference for support and reconciliation, never a live lookup source |
 
 - PK: `(tenant_id, charge_id, jurisdiction, tax_type)`. The charge aggregate writes its lines with the charge; later tax-rate changes never mutate them.
-- `INCLUSIVE` catalogs normally create no separate line; `EXCLUSIVE` US catalogs use Stripe Tax Basic before the hosted payment link is created. Missing customer-location handling is an explicit open decision in the main document.
+- `INCLUSIVE` catalogs normally create no separate line; `EXCLUSIVE` US catalogs get their tax lines from Stripe's invoice finalization (`automatic_tax`), written once together with `provider_creation_status = READY`; with no Stripe registration the result is zero tax and no lines. A US charge whose customer location is invalid (Stripe needs at least a 5-digit ZIP; the full address is required by decision 39) is never issued: provider creation stays `PENDING` and the manager is warned.
 
 ### `billing.charge_lines` — snapshot of what was billed
 

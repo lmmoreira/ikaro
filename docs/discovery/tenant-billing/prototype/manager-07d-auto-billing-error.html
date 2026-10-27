@@ -123,7 +123,7 @@
                -> ResumoTab (GAP), PlanoTab (GAP: FeatureToggleCard, ChatbotTierPicker, PlanChangePreview), CobrancasTab (GAP), DadosCobrancaTab (GAP), CobrancaAutomaticaTab (GAP)
     FOCUS:     CobrancaAutomaticaTab -> AutoBillingCard (GAP)
     BFF CALL:  POST /v1/billing/auto-billing -> 5xx / 502 do provedor ; ou retorno com autorização recusada
-    Estado: Duas causas: falha ao criar a autorização (retry) ou autorização recusada pelo banco/cartão (tentar outra forma).
+    Estado: Duas causas: falha ao criar a autorização (retry) ou autorização recusada pelo banco (tentar de novo).
     ACTION PANE: like ServiceEditPage — desktop (>=1024px) sticky .detail-aside card (22rem) with the current tab's single primary button (label/href swap in showTab via updateAside), secondary links, hint and the red "Cancelar assinatura →" link; below 1024px the aside is hidden and the bottom .form-actions row is the single primary.
     Single primary action on this tab: "Tentar novamente".
   -->
