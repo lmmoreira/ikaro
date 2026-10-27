@@ -2,7 +2,7 @@
 
 **Status:** Discovery — candidate/speculative. Labeled `CAND-XX`, never `UC-XXX`, so this list cannot collide with the canonical index in `docs/USE_CASES.md`. Promotion assigns real UC numbers.
 
-**Companion docs:** `tenant-billing.md` (domain model and rules R1–R10) · `tenant-billing_DATA_MODEL.md` · `tenant-billing_API.md` · `tenant-billing_MODULE.md` · `prototype/` (start at `index.html`).
+**Companion docs:** `tenant-billing.md` (domain model and rules R1–R12) · `tenant-billing_DATA_MODEL.md` · `tenant-billing_API.md` · `tenant-billing_MODULE.md` · `prototype/` (start at `index.html`).
 
 ## Format
 
@@ -287,7 +287,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Actor:** System (Notification send path).
 - **Preconditions:** None.
 - **Trigger:** Any notification about to be sent.
-- **Main Flow:** The send path asks the access port for the tenant; if suspended it skips the send and records `SKIPPED_TENANT_SUSPENDED` (not replayed later); templates belonging to Billing (R10) are exempt.
+- **Main Flow:** The send path asks the access port for the tenant (an `exempt` tenant is never suspended, so its sends are never skipped); if suspended it skips the send and records `SKIPPED_TENANT_SUSPENDED` (not replayed later); templates belonging to Billing (R10) are exempt.
 - **Alternative Flows:**
   - **A1: Billing email but the manager has no address** → logged, ops alert.
   - **A2: Access lookup error** → fail open (send).
@@ -296,7 +296,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 
 ### **CAND-19: Billing Emails to the Manager**
 - **Actor:** System (one event handler per event; each handler calls exactly one use case).
-- **Preconditions:** Template exists in the tenant's language (pt-BR/en) — seeded for new tenants and backfilled for existing ones.
+- **Preconditions:** Template exists in the tenant's language (pt-BR/en) — seeded for new tenants and backfilled for existing ones. The tenant is not `exempt` (R12): exempt tenants receive no billing emails, and the handlers skip them.
 - **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated` (the first three are dropped if the provider already emails payers), and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …").
 - **Main Flow:** Resolve recipients (billing email, else the tenant's managers), render, send, log.
 - **Alternative Flows:**

@@ -208,7 +208,7 @@
       sec.innerHTML = p.sec.map(function (x) { return '<a class="btn-secondary pane-sec' + (x[2] ? ' danger' : '') + '" href="' + x[1] + '">' + x[0] + '</a>'; }).join('');
       document.getElementById('aside-hint').textContent = p.hint;
     }
-    document.addEventListener('DOMContentLoaded', function () { var t = document.querySelector('.editor-tab.active'); if (t) curTab = t.dataset.tab; if (typeof PLAN !== 'undefined') planInit(); if (t) updateAside(t.dataset.tab); });
+    document.addEventListener('DOMContentLoaded', function () { var t = document.querySelector('.editor-tab.active'); if (t) curTab = t.dataset.tab; if (t) updateAside(t.dataset.tab); });
     function gotoTab(name) { showTab(name, document.getElementById('tab-' + name)); }
     function goPage(n) {
       var p1 = document.getElementById('pg-1'), p2 = document.getElementById('pg-2');

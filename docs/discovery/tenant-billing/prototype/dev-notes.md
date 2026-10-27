@@ -284,7 +284,7 @@ Background painted with `var(--ba-background)` (hotsite full-page rule).
 **Props:** `{ title: string; text?: string; buttonLabel: string; layout?: 'CENTERED'|'LEFT'; background?: 'PRIMARY'|'SECONDARY'|'NONE' }` (same as `tenant-billing_MODULE.md`) (module config, only present in the manifest of the platform owner tenant). Button links to `/ikaro-trial`.
 **BFF call:** `GET /v1/public/platform/manifest/ikaro` (existing; new module type `TRIAL_SIGNUP_CTA`).
 **States:** static. **Mobile:** sections stack, buttons centered, not full width on desktop.
-**Open question:** how the module is restricted to slug `ikaro` (manifest-only vs. hard check) is a backend decision.
+**Restriction:** settled in `../tenant-billing_MODULE.md` §3 — layout rules reject the module on any tenant whose slug is not `PLATFORM_OWNER_TENANT_SLUG` (server-side); `ikaro` is only this prototype's illustrative slug.
 
 ## Screen public-03 / 03b / 03c / 03d — /ikaro-trial details (`IkaroTrialDetailsPage`, `PriceTable`)
 

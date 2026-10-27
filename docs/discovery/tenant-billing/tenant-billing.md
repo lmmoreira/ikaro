@@ -203,7 +203,7 @@ Hotsite publish state already exists (`hotsite_configs.is_published`, `<Unavaila
 7. *Suspension behavior:* manager billing-only; staff blocked; customers see badge, history ok, no open-booking detail, no new bookings; hotsite unpublished with topbar login; no notifications/loyalty emails; crons unchanged.
 8. *Loyalty expiry across suspension:* points expire on schedule (no special handling).
 9. *Context:* new `Billing` context + shared `TenantAccessPort`; the Platform-projection idea was rejected as extra machinery.
-10. *Events:* trimmed from 10 to 5 email-triggering + `TenantPurgeRequested`.
+10. *Events:* trimmed from 10 to 5 email-triggering + `TenantPurgeRequested`. *(Superseded 2026-10-27: §5 lists the current set — the five plus `SubscriptionPriceChangeAnnounced` and the purge command/completion events.)*
 11. *Price list:* `FeaturePrice` by feature × country (then × tier × cycle); no fallback; BR and US only.
 12. *Fiscal:* nothing mandatory for the tenant; optional billing identity; nota fiscal outside the product.
 13. *Plan timing (superseded):* the earlier mixed model (mid-cycle add now, removal later) is superseded by decision 30: every plan change is next paid service period only.
@@ -267,4 +267,4 @@ Hotsite publish state already exists (`hotsite_configs.is_published`, `<Unavaila
 
 ## 12. Canonical docs this will touch on promotion
 
-`DOMAIN_MODEL`, `BOUNDED_CONTEXTS` (7th context), `DATABASE_SCHEMA` (schema `billing`, `feature_prices` tenant-id exemption), `USE_CASES`, `API_CONTRACTS`, `DOMAIN_EVENTS`, `TENANTS_SETTINGS_SCHEMA` (chatbot tier source), `HOTSITE_DYNAMIC_ARCHITECTURE` (§3, §4, §7 for `TRIAL_SIGNUP_CTA`; unpublished state), `ERROR_CATALOG` + both locale `errors.json`, `ENGINEERING_RULES_BACKEND` (webhook, cron, access port), `LOCK_CATALOG` (subscription row lock), `RUNBOOKS` (billing incident), `TECH_STACK_DECISIONS` (provider choice), Terraform scheduler/secrets, `CLAUDE.md` §3 and §11 (context and slice lists).
+`DOMAIN_MODEL`, `BOUNDED_CONTEXTS` (7th context), `USE_CASES` UC-024 (its step 9 says the invitation is sent "in pt-BR" — stale: it uses the tenant locale — and it needs the `exempt` flag), `DOMAIN_EVENTS` (`TenantProvisioned` v2), `ENGINEERING_RULES_BACKEND` (`subscribe()` options, `ITriggerBus` billing jobs), `scripts/provision-tenant.sh`, `packages/types` error codes, `DATABASE_SCHEMA` (schema `billing`, `feature_prices` tenant-id exemption), `USE_CASES`, `API_CONTRACTS`, `DOMAIN_EVENTS`, `TENANTS_SETTINGS_SCHEMA` (chatbot tier source), `HOTSITE_DYNAMIC_ARCHITECTURE` (§3, §4, §7 for `TRIAL_SIGNUP_CTA`; unpublished state), `ERROR_CATALOG` + both locale `errors.json`, `ENGINEERING_RULES_BACKEND` (webhook, cron, access port), `LOCK_CATALOG` (subscription row lock), `RUNBOOKS` (billing incident), `TECH_STACK_DECISIONS` (provider choice), Terraform scheduler/secrets, `CLAUDE.md` §3 and §11 (context and slice lists).
