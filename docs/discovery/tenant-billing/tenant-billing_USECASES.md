@@ -123,6 +123,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A3: Job runs twice** → no duplicates.
   - **A4: Tenant `SUSPENDED`** → skipped (no charges while suspended).
   - **A5: Subscription is cancelling (`cancelAt` set)** → no charge for periods after `cancelAt`.
+  - **A9: BR address missing** (decision 109) → same hold as A7 with `BILLING_ADDRESS_REQUIRED`: the first paid-plan selection is rejected until the full address is saved, issuing resumes automatically when it is saved, and a trial reaching its end with no charge is suspended by the CAND-10 trial-end rule after email and banner warnings.
   - **A7: US customer location is insufficient for tax calculation** (Stripe needs at least a 5-digit ZIP, discourages ZIP-only in many states, and leaves a standalone invoice in draft with `invoice.finalization_failed`) → reject first paid-plan selection until the full billing address (street, city, state, ZIP) is supplied; for an existing paid tenant, hold provider-charge creation, alert the manager and never silently issue an untaxed USD charge. For a trial this means **no charge exists at trial end, and the trial-end rule of CAND-10 suspends the subscription** — the manager is warned by email and banner before that.
 - **Postconditions:** Next period's charge exists with a payment link.
 - **Events Triggered:** `ChargeIssued`.
@@ -194,7 +195,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** Logged in.
 - **Trigger:** Manager edits identity on the billing page.
-- **Main Flow:** Fields: tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number (**BR: always present from signup, editable but never blankable** because the provider needs it, decision 57; US: optional), legal name, billing email, address (**US: the full address is required before the first paid selection**, decision 39; BR: optional). The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood) in the tenant's language. System validates by country (shared `Address` value object + `AddressSpec`) and saves; synced to the provider customer when a charge is next issued.
+- **Main Flow:** Fields: tax-ID type (`CNPJ`/`CPF`/`OTHER`) and number (**BR: always present from signup, editable but never blankable** because the provider needs it, decision 57; US: optional), legal name, billing email, address (**BR and US: the full address is required before the first paid selection**, decisions 39 and 109). The form is rendered from the billing country's `CountrySpec` — labels, placeholders, formats and fields follow the country (BR: Logradouro, Número, Complemento, Bairro, Cidade, UF, CEP with ViaCEP autofill; US: Street, Number, Apt/Suite, City, State, ZIP Code, no neighbourhood) in the tenant's language. System validates by country (shared `Address` value object + `AddressSpec`) and saves; synced to the provider customer when a charge is next issued.
 - **Alternative Flows:**
   - **A1: Invalid CNPJ/CPF check digits** → field error.
   - **A2: Invalid email** → field error.
