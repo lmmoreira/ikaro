@@ -9,7 +9,7 @@
 | Area | Artifacts |
 |---|---|
 | Aggregates | `RecurringBookingSchedule` (`PENDING_APPROVAL`/`ACTIVE`/`CANCELLED`/`ENDED`; no `PAUSED`), `AvailabilityAlert`, `FutureCommitmentException`; `Booking` gained `NO_SHOW`, `participantCount`, `attendees`, `intake`, `recurringScheduleId`, `createdByStaffId`, `cancelledAt/By`, `rejectedAt/By`; status changes only through `transitionTo()` (S26) |
-| Resource resolution (S01, S32) | `selectionMode`-aware resolver: `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` (a free unit, not the first eligible) / bundle / leg; approve and reschedule replay the whole resolution |
+| Resource resolution (S01, S32) | `selectionMode`-aware resolver: `CUSTOMER_CHOICE` / `AUTO_ANY` / `AUTO_FUNGIBLE_POOL` (a free unit, not the first eligible) / bundle / leg; approve and reschedule replay the whole resolution (and, since TD50, are held to the business hours and closures like creation) |
 | Duration, intake (S02, S29) | `quote-service-duration`, `list-service-resource-options`; versioned intake labels resolved by booked version |
 | Reschedule (S03, S30) | `reschedule-booking.use-case`, `reschedule-booking-as-customer.use-case`, `reschedule-quote.helpers`, `reschedule-booking-in-transaction.helpers`, `booking-reschedule-options.helpers`; `booking_quote_revisions` is append-only |
 | Booking window (S33, S35) | one effective-window helper (per-service override never looser than the tenant, tenant-timezone dates); called by create, authenticated create, customer reschedule, recurring first occurrence, alert sweep |
