@@ -12,7 +12,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 
 | Group | CANDs |
 |---|---|
-| A — Subscription and pricing (operator / system reaction) | 01–07, 32 |
+| A — Subscription and pricing (operator / system reaction) | 01–07, 32, 33 |
 | B — System jobs and provider integration | 08–11 |
 | C — Manager billing | 12–14, 28–31 |
 | D — Enforcement across the system | 15–21 |
@@ -127,6 +127,21 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
   - **A3: Tenant `SUSPENDED`** → setting `exempt` reactivates it without payment (the only operator route back to access, and only by making the tenant free); `SubscriptionReactivated` is raised.
 - **Postconditions:** Tenant is free (or back on the paid ladder), audited.
 - **Events Triggered:** `SubscriptionReactivated` (A3 only).
+
+### **CAND-33: Developer or Operator Simulates Billing in Non-Production**
+- **Actor:** Developer / operator (never a tenant user).
+- **Preconditions:** `APP_ENV` is `local` or `staging`; for provider events, the target subscription uses a `*_FAKE` merchant profile key (staging subscriptions on sandbox keys receive their events from the real sandbox).
+- **Trigger:** Calls an internal dev endpoint or script: `clock/advance`, `provider/simulate`, or `seed`.
+- **Main Flow:**
+  1. **Advance time:** the injectable clock moves forward; the next trigger run of the sweep, issuing and purge jobs evaluates trial end, due dates, grace and purge age against it.
+  2. **Simulate a provider event:** the fake provider builds the signed webhook for the chosen event (using the verified per-method sequences) and delivers it to the app's own webhook route, optionally duplicated, delayed or out of order, or fails the next provider call (5xx, expired link, invalid location). The normal CAND-09 path processes it; no test-only code path exists in the use cases.
+  3. **Seed:** creates one tenant per billing state through the normal use cases.
+- **Alternative Flows:**
+  - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake/sandbox profile key is rejected at provisioning in production.
+  - **A2: Subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
+  - **A3: Missing or wrong operator keys** → `401` like every operator route.
+- **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; staging email allowlist).
+- **Events Triggered:** whatever the simulated flow triggers (`ChargePaid`, `SubscriptionPastDue`, …).
 
 ---
 
@@ -291,6 +306,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 - **Alternative Flows:**
   - **A1: Billing email but the manager has no address** → logged, ops alert.
   - **A2: Access lookup error** → fail open (send).
+  - **A3: `APP_ENV=staging` and the recipient is not in `EMAIL_RECIPIENT_ALLOWLIST`** → the send is dropped and logged `SKIPPED_NOT_ALLOWLISTED`, for every template including Billing's (decision 69). Ignored in `production` and `local` (Mailhog).
 - **Postconditions:** No tenant/customer/staff messages while suspended.
 - **Events Triggered:** None.
 

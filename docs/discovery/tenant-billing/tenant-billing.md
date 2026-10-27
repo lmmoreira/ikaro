@@ -1,8 +1,8 @@
 # Discovery: Tenant Billing (Ikaro charging its tenants)
 
 **Status:** Discovery — pre-canonical. Nothing here is implemented or promoted. Use cases are labeled `CAND-XX`, never `UC-XXX`.
-**Date:** 2026-10-26 (reviewed and revised 2026-10-27: decisions 42–64) · **Slug:** `tenant-billing`
-**Companion docs:** `tenant-billing_USECASES.md` (CAND-01..CAND-32) · `tenant-billing_DATA_MODEL.md` (schema `billing`) · `tenant-billing_API.md` (endpoints, webhook, crons) · `tenant-billing_MODULE.md` (hotsite module `TRIAL_SIGNUP_CTA`) · `tenant-billing_PROVIDERS.md` (verified Asaas/Stripe facts, account-opening checklist, launch gates) · `tenant-billing_PROMOTION_SKETCH.md` (suggested milestone and story order) · `prototype/` (start at `index.html`)
+**Date:** 2026-10-26 (reviewed and revised 2026-10-27: decisions 42–70) · **Slug:** `tenant-billing`
+**Companion docs:** `tenant-billing_USECASES.md` (CAND-01..CAND-33) · `tenant-billing_DATA_MODEL.md` (schema `billing`) · `tenant-billing_API.md` (endpoints, webhook, crons) · `tenant-billing_MODULE.md` (hotsite module `TRIAL_SIGNUP_CTA`) · `tenant-billing_PROVIDERS.md` (verified Asaas/Stripe facts, account-opening checklist, launch gates) · `tenant-billing_PROMOTION_SKETCH.md` (suggested milestone and story order) · `prototype/` (start at `index.html`)
 **Promote with:** `/discovery-to-milestone docs/discovery/tenant-billing/tenant-billing.md`
 
 ---
@@ -167,8 +167,30 @@ Verified against the code: `ProvisionTenantUseCase` takes `{name, slug, adminEma
 - Self-signup records the creator's Google `sub` and the accepted Terms version/time in the new `billing.signup_registrations` table (data model) and hands the terms to Billing through the same event hint.
 - **A non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off**, by the script path as well as by self-signup (Billing fails loudly and alerts); exempt US tenants (test tenants) are allowed.
 
+### 5.3 Non-production testing (nothing charges anyone, every flow is testable)
+
+`exempt` is **not** the testing mechanism: it switches charging off. In non-production **every tenant is charged normally against a mock or sandbox gateway**, and provider choice is per **environment**, never per tenant. Facts verified in the repo: `APP_ENV` is `local | staging | production`; `EMAIL_ADAPTER=mailhog` is already forbidden outside `local`; there is a Pub/Sub emulator and a BFF dev-login; no clock abstraction exists today.
+
+| Environment (`APP_ENV`) | Provider (`merchant_profile_key` given to new subscriptions) | Email | Time |
+|---|---|---|---|
+| `local` | `BRL_FAKE` / `USD_FAKE` — `FakeBillingProvider`; the real adapters can be opted into with a tunnel for webhooks | Mailhog | injectable clock, "advance N days" |
+| CI per PR | the fake | Mailhog | fixed clock |
+| CI nightly (scheduled job) | n/a — shared contract tests run against the Asaas sandbox and Stripe test mode to catch drift between the fake and the real APIs | — | — |
+| `staging` | `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` | Brevo with a **recipient allowlist**; anything else is dropped and logged `SKIPPED_NOT_ALLOWLISTED` | operator "advance time" action |
+| `production` | live profile keys only | Brevo | real clock |
+
+- **Fake provider** (`FakeBillingProvider`, an `InMemoryXxx`-style double that is also wired as a real adapter in `local`): implements the whole `BillingProviderPort`, returns a hosted-link URL served by the app, and can emit **signed or tokened webhooks to the app's own endpoint** on demand: paid per method with the verified Asaas event sequences (Pix `RECEIVED` only; boleto `CONFIRMED`→`RECEIVED`; card `CONFIRMED`, `RECEIVED` later), overdue, refund, chargeback, **duplicate, delayed and out-of-order** delivery, provider 5xx, expired link, invalid location. A forgiving fake would hide the money loop's real bugs, so it reproduces the verified behaviour.
+- **One contract suite, two implementations:** the same tests run against the fake (every PR) and the real sandbox/test mode (nightly). Passing both is the proof the swap is safe.
+- **Safeguards:** a live adapter refuses to start unless `APP_ENV=production` (validated like the existing mailhog rule in `env.validation.ts`); a `*_FAKE` or `*_SANDBOX` profile key is rejected in production; the simulate and clock endpoints exist only when `APP_ENV` is not `production`, behind `InternalApiGuard` + `PlatformAdminGuard`.
+- **Clock:** a new `IClock` port (system clock in production) used by every Billing date decision (trial end, due dates, grace, cancel-at, purge age) and by the sweep jobs; non-production gets an operator-only `POST /internal/dev/clock/advance` and a script like `provision-tenant.sh`. No UI.
+- **Seed script:** creates one tenant per state — `TRIALING`, `ACTIVE`, `ACTIVE` with a scheduled cancel, `PAST_DUE`, `SUSPENDED` (`NON_PAYMENT` and `CANCELED`), `exempt`, US tenant with and without address — so every screen and job can be exercised.
+- **Production smoke test:** live mode cannot be sandboxed; a smoke test is one real small charge on Ikaro's own non-exempt tenant, then a refund.
+- **Notification change:** the existing send path gains `EMAIL_RECIPIENT_ALLOWLIST` (required when `APP_ENV` is `staging`, ignored in `production` and `local`) and the `NotificationStatus` values `SKIPPED_TENANT_SUSPENDED` and `SKIPPED_NOT_ALLOWLISTED` (today it is `PENDING | SENT | FAILED`, so the type and any DB check change together).
+
+### 5.4 Anti-pattern check and cost tail
+
 - **Anti-pattern check (CLAUDE.md §8):** `useClass` not `useExisting`; no new cross-context Port+Adapter (one shared port); money and tax-id value objects with typed errors (`vo-bare-error`); new error codes in both locale files; check `@ikaro/types` before adding web types; validation schemas duplicated in BFF and backend; no raw SQL outside repositories; `@Global()` modules must `export` their tokens; architecture-policy entries for any permitted edge.
-- **Cost / infra tail:** new third-party dependency (Asaas), secrets (API key, webhook token), 5+ Cloud Scheduler jobs, a new schema `billing`, the 7th context in `BOUNDED_CONTEXTS.md`, new email templates (pt-BR and en) that must reach already-provisioned tenants, Terraform for scheduler/secrets.
+- **Cost / infra tail:** new third-party dependencies (Asaas, Stripe), secrets (API keys and webhook tokens, sandbox and live separately, `STRIPE_WEBHOOK_SECRET`), 5+ Cloud Scheduler jobs, a nightly sandbox contract-test CI job, the staging `EMAIL_RECIPIENT_ALLOWLIST` env, a new schema `billing`, the 7th context in `BOUNDED_CONTEXTS.md`, new email templates (pt-BR and en) that must reach already-provisioned tenants, Terraform for scheduler/secrets.
 
 ## 6. Self-signup, trial and Ikaro's own tenant
 
@@ -258,6 +280,12 @@ Hotsite publish state already exists (`hotsite_configs.is_published`, `<Unavaila
 62. *Tax in the provider call:* `TaxCalculationPort` is removed. Stripe computes tax when it finalizes the invoice, so `createCharge` returns the tax breakdown; for a tax-exclusive charge Billing writes `tax_amount_minor`, `amount_minor` and the tax lines once, with `provider_creation_status = READY`, and emails the manager only afterwards. Provider object: Stripe Invoices (`send_invoice`, hosted URL), never Subscriptions/Billing.
 63. *US tax at launch:* the code is tax-ready (invoice `automatic_tax`, SaaS tax code `txcd_10103001`). Stripe returns zero tax until a registration is added in the Dashboard; whether and when Ikaro registers is the accountant's call (launch gate). Stripe Tax pricing is 0.5% per transaction where registered.
 64. *Recovery-charge due date:* `RECOVERY_CHARGE_DUE_DAYS` (default 7) after issue; an unpaid recovery charge simply becomes `OVERDUE` (the tenant is already suspended) and its provider link keeps working as long as the provider allows it (Asaas Pix: 12 months after due; boleto after due is a launch gate).
+65. *Non-production testing:* provider is chosen per environment (`merchant_profile_key`), never per tenant; every tenant is charged normally against the fake (local, CI) or the provider sandbox (staging); `exempt` stays only for tenants that must never be charged (§5.3).
+66. *Fake provider and contract tests:* a `FakeBillingProvider` implements the whole port and reproduces the verified provider event sequences, including duplicate, delayed and out-of-order webhooks; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly.
+67. *Live-adapter guard:* a live adapter refuses to start unless `APP_ENV=production`; fake and sandbox profile keys are rejected in production; simulate and clock endpoints do not exist in production.
+68. *Injectable clock:* an `IClock` port drives every Billing date decision; non-production has an operator-only advance-time endpoint and script, no UI.
+69. *Staging email:* Brevo with `EMAIL_RECIPIENT_ALLOWLIST`; other recipients are dropped and logged `SKIPPED_NOT_ALLOWLISTED`.
+70. *Seed and smoke test:* a seed script creates a tenant per billing state; the production smoke test is one small real charge on Ikaro's own tenant, then a refund.
 
 ## 11. Open threads
 
@@ -272,4 +300,4 @@ Hotsite publish state already exists (`hotsite_configs.is_published`, `<Unavaila
 
 ## 12. Canonical docs this will touch on promotion
 
-`DOMAIN_MODEL`, `BOUNDED_CONTEXTS` (7th context), `USE_CASES` UC-024 (its step 9 says the invitation is sent "in pt-BR" — stale: it uses the tenant locale — and it needs the `exempt` flag), `DOMAIN_EVENTS` (`TenantProvisioned` v2), `ENGINEERING_RULES_BACKEND` (`subscribe()` options, `ITriggerBus` billing jobs), `scripts/provision-tenant.sh`, `packages/types` error codes, `DATABASE_SCHEMA` (schema `billing`, `feature_prices` tenant-id exemption), `USE_CASES`, `API_CONTRACTS`, `DOMAIN_EVENTS`, `TENANTS_SETTINGS_SCHEMA` (chatbot tier source), `HOTSITE_DYNAMIC_ARCHITECTURE` (§3, §4, §7 for `TRIAL_SIGNUP_CTA`; unpublished state), `ERROR_CATALOG` + both locale `errors.json`, `ENGINEERING_RULES_BACKEND` (webhook, cron, access port), `LOCK_CATALOG` (subscription row lock), `RUNBOOKS` (billing incident), `TECH_STACK_DECISIONS` (provider choice), Terraform scheduler/secrets, `CLAUDE.md` §3 and §11 (context and slice lists).
+`DOMAIN_MODEL`, `BOUNDED_CONTEXTS` (7th context), `USE_CASES` UC-024 (its step 9 says the invitation is sent "in pt-BR" — stale: it uses the tenant locale — and it needs the `exempt` flag), `DOMAIN_EVENTS` (`TenantProvisioned` v2), `ENGINEERING_RULES_BACKEND` (`subscribe()` options, `ITriggerBus` billing jobs), `scripts/provision-tenant.sh`, `packages/types` error codes, `TESTING_STRATEGY` and `ENGINEERING_RULES_TESTING` (fake provider, contract suite, clock), `CI_CD_PIPELINE`/`GITHUB_WORKFLOWS_GUIDELINES` (nightly contract job), `ENGINEERING_RULES_INFRA` (live-adapter and email-allowlist env rules), `NotificationLog` status values, `DATABASE_SCHEMA` (schema `billing`, `feature_prices` tenant-id exemption), `USE_CASES`, `API_CONTRACTS`, `DOMAIN_EVENTS`, `TENANTS_SETTINGS_SCHEMA` (chatbot tier source), `HOTSITE_DYNAMIC_ARCHITECTURE` (§3, §4, §7 for `TRIAL_SIGNUP_CTA`; unpublished state), `ERROR_CATALOG` + both locale `errors.json`, `ENGINEERING_RULES_BACKEND` (webhook, cron, access port), `LOCK_CATALOG` (subscription row lock), `RUNBOOKS` (billing incident), `TECH_STACK_DECISIONS` (provider choice), Terraform scheduler/secrets, `CLAUDE.md` §3 and §11 (context and slice lists).

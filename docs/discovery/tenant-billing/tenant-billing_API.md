@@ -160,6 +160,16 @@ POST /internal/billing/feature-prices/CHATBOT/BR/PLUS/versions?dryRun=true
 ```
 It runs through the operator path (script / relay) like the other internal operator routes: `InternalApiGuard` + `PlatformAdminGuard`, audited. The affected tenants are those in `ACTIVE` or `PAST_DUE` with an active or next-period scheduled item for that feature and tier in that country, and not `exempt`. Trial tenants see the new price on the Plano tab; suspended tenants are not notified. In **one transaction** it writes the version and one outbox event `SubscriptionPriceChangeAnnounced` per affected tenant. `effectiveFrom` is the first service-period start that uses the amount, even though its invoice may be issued earlier. `GET /v1/public/billing/prices` and the Plano tab show current and upcoming amounts.
 
+### Non-production endpoints (do not exist when `APP_ENV=production`)
+
+| Method / path | Purpose | CAND |
+|---|---|---|
+| `POST /internal/dev/clock/advance` | `{ days?, hours? }` advances the injectable `IClock` for Billing decisions | 33 |
+| `POST /internal/dev/billing/provider/simulate` | `{ tenantId or chargeId, event: PAID_PIX \| PAID_BOLETO \| PAID_CARD \| OVERDUE \| REFUND_FULL \| REFUND_PARTIAL \| CHARGEBACK_OPENED \| CHARGEBACK_LOST, delivery: NORMAL \| DUPLICATE \| DELAYED \| OUT_OF_ORDER, failure?: PROVIDER_5XX \| LINK_EXPIRED \| INVALID_LOCATION }` makes the fake provider send the corresponding signed webhook to the app's own webhook route | 33 |
+| `POST /internal/dev/billing/seed` | creates one tenant per billing state through the normal use cases | 33 |
+
+All three sit behind `InternalApiGuard` + `PlatformAdminGuard`, are registered only when `APP_ENV` is `local` or `staging`, and `simulate` only works for subscriptions whose `merchant_profile_key` is a `*_FAKE` key (staging sandboxes receive their events from the real sandbox).
+
 ## 7. Provider port (Ikaro's terms)
 
 ```ts
@@ -179,7 +189,7 @@ interface BillingProviderPort {
 //   The adapter decides which provider event is the paid signal per payment method (Asaas: card = PAYMENT_CONFIRMED,
 //   Pix/boleto = PAYMENT_RECEIVED; verify in the sandbox); the first one for a charge yields PaymentConfirmed, a later one is a no-op.
 ```
-Adapters: `AsaasBillingProvider` (BRL) and `StripeBillingProvider` (USD) share this port. There is no separate tax port: Stripe returns the tax breakdown from invoice finalization (decision 62), and Asaas charges are tax-inclusive. The subscription's immutable `merchantProfileKey` resolves to the provider account and selling legal entity through operational configuration/secrets; provider dashboards remain the source of truth for KYC and legal-entity data. Automatic authorization operations (Pix Automático only) remain in the provider-shaped port but are not released until the real flow is verified end to end. There is no `ManualBillingProvider` or manual mark-paid route. No provider type leaks beyond the adapter.
+Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD) and the non-production `FakeBillingProvider` (BRL/USD) share this port, and one contract test suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. A live adapter refuses to start unless `APP_ENV=production`. There is no separate tax port: Stripe returns the tax breakdown from invoice finalization (decision 62), and Asaas charges are tax-inclusive. The subscription's immutable `merchantProfileKey` resolves to the provider account and selling legal entity through operational configuration/secrets; provider dashboards remain the source of truth for KYC and legal-entity data. Automatic authorization operations (Pix Automático only) remain in the provider-shaped port but are not released until the real flow is verified end to end. There is no `ManualBillingProvider` or manual mark-paid route. No provider type leaks beyond the adapter.
 
 ## 8. New error codes (each needs entries in both `packages/i18n/locales/{pt-BR,en}/errors.json`, CI-enforced)
 

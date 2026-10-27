@@ -90,7 +90,7 @@ Database-expert findings applied:
 | `country_code` | char(2) NOT NULL | fixed at start |
 | `currency` | char(3) NOT NULL | fixed at start |
 | `timezone` | text NOT NULL | IANA zone copied from `TenantProvisioned` at creation, **immutable**. Every "tenant-local" value in this schema (`next_due_date`, charge `due_date`/periods, local-midnight period boundaries, the overdue sweep) uses it; Billing never reads Platform settings |
-| `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_US`; no KYC/legal-entity fields are duplicated in Ikaro |
+| `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_US` in production and **`BRL_FAKE`, `USD_FAKE`, `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` outside it**. The environment configuration decides which key new subscriptions receive (main doc §5.3); there is no per-tenant override, and a fake/sandbox key is rejected when `APP_ENV=production`. No KYC/legal-entity fields are duplicated in Ikaro |
 | `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | |
 | `anchor_day` | smallint NOT NULL CHECK (1..28) | avoids the 29–31 problem |
 | `trial_ends_at` | timestamptz NULL | |
@@ -238,7 +238,8 @@ The suspension timestamp decides eligibility; these tables record only execution
 - `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; effective value is computed — R7).
 - `Slug` value object (`apps/backend/src/shared/value-objects/slug.vo.ts`): add length 3–30, no leading/trailing hyphen, and a reserved-word list with a typed error. Existing tenants are unaffected (`reconstitute()` skips validation).
 - `TenantProvisioned` (event) gains `countryCode` and an optional billing hint (`exempt`, feature subset), `eventVersion` bumped; `ProvisionTenantUseCase` and `POST /internal/tenants` gain optional `exempt`. No language parameter (language derives from country). A non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off.
-- Notification templates: new Billing template keys (pt-BR, en) and a backfill so already-provisioned tenants get them; a new `NotificationLog` status `SKIPPED_TENANT_SUSPENDED` (check the existing status CHECK/enum in the story).
+- Notification templates: new Billing template keys (pt-BR, en) and a backfill so already-provisioned tenants get them; `NotificationLog.status` today is `PENDING | SENT | FAILED` (`notification-log.aggregate.ts`), and gains `SKIPPED_TENANT_SUSPENDED` and `SKIPPED_NOT_ALLOWLISTED` (type, aggregate and any DB check change together; staging `EMAIL_RECIPIENT_ALLOWLIST`, main doc §5.3).
+- Non-production data: a seed script creates one tenant per billing state (main doc §5.3). It writes through the normal use cases, never directly into tables.
 
 ## 4. Migration ordering
 

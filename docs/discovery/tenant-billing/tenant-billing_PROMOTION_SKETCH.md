@@ -6,7 +6,7 @@
 
 1. **Nothing changes for any tenant until enforcement ships**, and enforcement ships only after the access port, the trial/backfill rows and the kill switch exist (so a release can never lock anyone out).
 2. **Backend/BFF before frontend**, per the repo rule; each frontend story sits after the endpoint it needs.
-3. **The money loop (issue → pay → webhook → status) is one small vertical** built on the Asaas sandbox before any screen depends on it.
+3. **The money loop (issue → pay → webhook → status) is one small vertical** built first against a **`FakeBillingProvider`** (every environment can run it with no account), with a thin Asaas sandbox spike right after milestone A to confirm the port shape. The real Asaas adapter is built late, against the same contract tests (`tenant-billing.md` §5.3).
 4. **Each provider and each optional slice is independently releasable and flag-gated** (`FEATURE_FLAG_BILLING_ENFORCEMENT`, `FEATURE_FLAG_SIGNUP_US`, Pix Automático gate).
 5. **Purge ships last**: the first possible erasure is 90 days after the first suspension, so it can follow launch by weeks.
 
@@ -19,6 +19,9 @@
 | A2 | `Subscription`/items/`BillingAccount` aggregates; `TenantProvisioned` v2 (+`countryCode`, hint); trial creation handler; backfill of existing tenants as `exempt` | 01, 21 | Rolling-deploy safe (v1 events retried) |
 | A3 | Operator `exempt` endpoint + provisioning flag + audit; US-before-Stripe rejection | 32 | Also unblocks your own test tenants early |
 | A4 | `TenantAccessPort` + caching adapter + access endpoints (`/v1/billing/access`, internal) + kill switch | 15 | Read-only; nothing calls it yet |
+| A5 | `IClock` port + system clock, adopted by Billing; dev-only `POST /internal/dev/clock/advance` + script; `APP_ENV` guards for dev endpoints | 33 | Every later date rule depends on it, so it lands early |
+| A6 | Provider port + `FakeBillingProvider` + shared contract suite skeleton + `simulate` endpoint; environment-based `merchant_profile_key` assignment and the live-adapter startup guard | 33 | The port shape comes from the verified facts in `tenant-billing_PROVIDERS.md` |
+| A7 | **Asaas sandbox spike** (about a day): create customer and charge, pay it with the sandbox confirm call, receive the webhook; adjust the port if anything differs | 09 | **GATE (Asaas sandbox account)**; a spike, not the adapter |
 
 ## Milestone B — Enforcement (behind `FEATURE_FLAG_BILLING_ENFORCEMENT`)
 
@@ -34,7 +37,7 @@
 
 | # | Story | CAND | Notes |
 |---|---|---|---|
-| C1 | `BillingProviderPort` + `AsaasBillingProvider` (customer, charge, cancel, link), webhook route, `provider_events`, normalizer, exact-`200` contract | 09 | **GATE (Asaas sandbox)**; integration tests use the sandbox |
+| C1 | Webhook route(s) + `provider_events` idempotency inbox + normalizer + exact-`200` contract, running on the fake provider | 09 | Same code path the real adapters use |
 | C2 | `Charge`/lines, charge-issuing trigger job, recovery-charge issuing, retry of provider creation | 08, 29 | `ITriggerBus` pattern |
 | C3 | Status sweep (due-date overdue, trial end → `SUSPENDED`, `PAST_DUE` → `SUSPENDED`, cancel-at) + reconcile + provider-events purge | 10, 11 | Tenant-timezone logic |
 | C4 | Billing emails (templates pt-BR/en + backfill, six handlers, no provider emails) | 19 | Exempt from the suspension gate |
@@ -44,6 +47,8 @@
 | C8 | Cancel and reactivate (confirm page, scheduled cancel, recovery flow UI) | 28, 29 | |
 | C9 | Operator price-change endpoint + manager announcement + Plano/Resumo notice | 07, 19 | Can slip past launch if prices are static at first |
 | C10 | Ops digest, alerts, `RUNBOOKS` section | — | Needed before real money |
+| C11 | Seed script (one tenant per billing state), staging `EMAIL_RECIPIENT_ALLOWLIST` + `SKIPPED_NOT_ALLOWLISTED`, nightly sandbox contract-test job | 33 | Makes staging fully testable |
+| C12 | **Real `AsaasBillingProvider`** (customer with `cpfCnpj` and `notificationDisabled`, charge `UNDEFINED`, cancel, link) passing the contract suite on the sandbox, then production | 08, 09 | **GATE (Asaas production account, launch gates in PROVIDERS §5)**; last story before launch |
 
 ## Milestone D — Self-signup and trial (BR)
 
@@ -65,10 +70,10 @@
 
 ## Suggested critical path to a first BR launch
 
-`A0 → A1 → A2 → A3 → A4 → (B1 → B2 → B3 → B4 → B5)` in parallel with `(C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C10)`, then `D1 → D2 → D3 → D4`. Enforcement (B) can be merged dark and switched on once C1–C5 work end to end on staging.
+`A0 → A1 → A2 → A3 → A4 → A5 → A6 → A7` then `(B1 → B2 → B3 → B4 → B5)` in parallel with `(C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C10 → C11)`, then `D1 → D2 → D3 → D4`, and `C12` (real Asaas) last before launch. The whole flow is testable on the fake from C1 onward; enforcement (B) can be merged dark and switched on once C1–C5 work end to end on staging.
 
 ## Open the accounts now
 
-- **Asaas sandbox now** (free, auto-approved) so C1 can start on real behaviour; **Asaas production** can wait until C1–C3 are done, but request PJ approval early because KYC time is unknown.
-- **Stripe** is not needed until slice E; opening the BR account early only lets you ask support the §5 questions.
+- **Asaas sandbox now** (free, auto-approved) for the A7 spike; **Asaas production** is only needed for C12, but request PJ approval early because KYC time is unknown.
+- **Stripe** is not needed until slice E; opening the BR account early only lets you ask support the §5 questions. E1 follows the same fake-first pattern (the fake already covers USD).
 - **Accountant** questions in `tenant-billing_PROVIDERS.md` §5 gate E and the nota fiscal answer; start them in parallel with A.
