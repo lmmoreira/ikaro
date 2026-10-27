@@ -1,3 +1,12 @@
+import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import {
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
+} from '../../domain/errors/booking-domain.error';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
@@ -13,7 +22,7 @@ import {
   ResourceBuilder,
   ServiceBuilder,
 } from '../../../../test/builders/booking/index';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { seedOccupancy } from '../../../../test/utils/occupancy-seed';
 import { AppLogger } from '../../../../shared/observability/app-logger';
 import { BookingStatus } from '../../domain/booking.aggregate';
@@ -37,7 +46,7 @@ const STAFF_ID = '20000000-0000-4000-8000-000000000201';
 const CORRELATION_ID = 'corr-approve-test';
 const TZ = 'America/Sao_Paulo';
 
-const scheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
+const scheduledAt = new Date(openSlotAt(2, 10));
 
 const ctx = {
   tenantId: TENANT_A,
@@ -45,6 +54,7 @@ const ctx = {
   actorRole: 'STAFF' as const,
   correlationId: CORRELATION_ID,
   timezone: TZ,
+  businessHours: DEFAULT_TEST_BUSINESS_HOURS,
 };
 
 describe('ApproveBookingUseCase', () => {
@@ -55,6 +65,8 @@ describe('ApproveBookingUseCase', () => {
     let fixtures: ReturnType<typeof createAutoBookingResourceFixtures>;
     let occupancyRepo: InMemoryResourceOccupancyRepository;
     let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
+    let closureRepo: InMemoryScheduleClosureRepository;
+    let openingRepo: InMemoryScheduleOpeningRepository;
     let useCase: ApproveBookingUseCase;
 
     beforeEach(() => {
@@ -64,11 +76,15 @@ describe('ApproveBookingUseCase', () => {
       fixtures = createAutoBookingResourceFixtures();
       occupancyRepo = new InMemoryResourceOccupancyRepository();
       exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
+      closureRepo = new InMemoryScheduleClosureRepository();
+      openingRepo = new InMemoryScheduleOpeningRepository();
       useCase = new ApproveBookingUseCase(
         bookingRepo,
         fixtures.serviceRepo,
         fixtures.resourceRepo,
         occupancyRepo,
+        closureRepo,
+        openingRepo,
         new AvailabilityService(),
         new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
         new InMemoryTransactionManager(),
@@ -525,8 +541,8 @@ describe('ApproveBookingUseCase', () => {
     });
 
     it('allows approving with an alternate scheduledAt after a slot conflict', async () => {
-      const originalScheduledAt = new Date(`${futureDate(2)}T13:00:00.000Z`);
-      const retryScheduledAt = new Date(`${futureDate(2)}T14:00:00.000Z`);
+      const originalScheduledAt = new Date(openSlotAt(2, 10));
+      const retryScheduledAt = new Date(openSlotAt(2, 11));
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withScheduledAt(originalScheduledAt)
@@ -731,6 +747,83 @@ describe('ApproveBookingUseCase', () => {
         tenantId: TENANT_A,
         bookingId: booking.id,
         staffId: STAFF_ID,
+      });
+    });
+
+    describe('working hours and closures (TD50)', () => {
+      const localDate = (instant: Date) =>
+        utcDateToLocalDate(instant, DEFAULT_TEST_BUSINESS_HOURS.timezone);
+
+      async function pendingBooking(at: Date = scheduledAt) {
+        const booking = new BookingBuilder().withTenantId(TENANT_A).withScheduledAt(at).build();
+        await bookingRepo.save(booking);
+        return booking;
+      }
+
+      async function closeDayOf(instant: Date, tenantId = TENANT_A) {
+        await closureRepo.save(
+          new ScheduleClosureBuilder().withTenantId(tenantId).withDate(localDate(instant)).build(),
+        );
+      }
+
+      it("refuses an approval at the booking's original time when that day has since been closed", async () => {
+        const booking = await pendingBooking();
+        await closeDayOf(scheduledAt);
+
+        await expect(useCase.execute({ bookingId: booking.id, ...ctx })).rejects.toBeInstanceOf(
+          BookingSlotClosedError,
+        );
+        const saved = await bookingRepo.findById(booking.id, TENANT_A);
+        expect(saved!.status).toBe(BookingStatus.PENDING);
+      });
+
+      it('refuses an approval at a new time on a closed day, staff or manager', async () => {
+        const booking = await pendingBooking();
+        const newAt = new Date(openSlotAt(3, 10));
+        await closeDayOf(newAt);
+
+        for (const actorRole of ['STAFF', 'MANAGER'] as const) {
+          await expect(
+            useCase.execute({
+              bookingId: booking.id,
+              ...ctx,
+              actorRole,
+              scheduledAt: newAt.toISOString(),
+            }),
+          ).rejects.toBeInstanceOf(BookingSlotClosedError);
+        }
+        const saved = await bookingRepo.findById(booking.id, TENANT_A);
+        expect(saved!.status).toBe(BookingStatus.PENDING);
+        expect(saved!.scheduledAt.toISOString()).toBe(scheduledAt.toISOString());
+      });
+
+      it('refuses an approval at a new time outside the working hours', async () => {
+        const booking = await pendingBooking();
+
+        await expect(
+          useCase.execute({ bookingId: booking.id, ...ctx, scheduledAt: openSlotAt(3, 20) }),
+        ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
+      });
+
+      it('approves with a new open time when the original day is closed', async () => {
+        const booking = await pendingBooking();
+        await closeDayOf(scheduledAt);
+        const newAt = openSlotAt(3, 10);
+
+        const result = await useCase.execute({ bookingId: booking.id, ...ctx, scheduledAt: newAt });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
+        const saved = await bookingRepo.findById(booking.id, TENANT_A);
+        expect(saved!.scheduledAt.toISOString()).toBe(newAt);
+      });
+
+      it("tenant isolation: another tenant's closure does not refuse the approval", async () => {
+        const booking = await pendingBooking();
+        await closeDayOf(scheduledAt, TENANT_B);
+
+        const result = await useCase.execute({ bookingId: booking.id, ...ctx });
+
+        expect(result.status).toBe(BookingStatus.APPROVED);
       });
     });
   });

@@ -10,6 +10,8 @@ import {
   WindowHoursVerdict,
 } from '../../domain/services/availability.service';
 import { ResourceOccupancyCandidate } from '../ports/resource-occupancy-repository.port';
+import { IScheduleClosureRepository } from '../ports/schedule-closure-repository.port';
+import { IScheduleOpeningRepository } from '../ports/schedule-opening-repository.port';
 import {
   buildHoursDayLookup,
   HoursDayLookup,
@@ -102,4 +104,12 @@ export function assertCandidatesWithinHours(
     if (verdict === 'CLOSED') throw new BookingSlotClosedError();
     if (verdict === 'OUTSIDE_HOURS') throw new BookingOutsideBusinessHoursError();
   }
+}
+
+export function toHoursSource(
+  closureRepo: IScheduleClosureRepository,
+  openingRepo: IScheduleOpeningRepository,
+  businessHours: BusinessHours,
+): HoursSource {
+  return { repos: { closureRepo, openingRepo }, businessHours };
 }

@@ -1,3 +1,5 @@
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -9,7 +11,7 @@ import { AvailabilityService } from '../../domain/services/availability.service'
 import { InMemoryBookingRepository } from '../../../../test/repositories/booking/in-memory-booking.repository';
 import { BookingBuilder } from '../../../../test/builders/booking/index';
 import { RequestContextBuilder } from '../../../../test/factories/request-context.factory';
-import { futureDate } from '../../../../test/utils/date-helpers';
+import { futureDate, openSlotAt } from '../../../../test/utils/date-helpers';
 import { BookingLifecycleController } from './booking-lifecycle.controller';
 import { ApproveBookingUseCase } from '../../application/use-cases/approve-booking.use-case';
 import { RejectBookingUseCase } from '../../application/use-cases/reject-booking.use-case';
@@ -58,6 +60,8 @@ describe('BookingLifecycleController', () => {
           fixtures.serviceRepo,
           fixtures.resourceRepo,
           occupancyRepo,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
@@ -112,7 +116,7 @@ describe('BookingLifecycleController', () => {
     it('approves a PENDING booking and returns 200 shape', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -125,11 +129,11 @@ describe('BookingLifecycleController', () => {
     it('approves a booking with a retry scheduledAt override', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
-      const retryScheduledAt = new Date(`${futureDate(2)}T11:00:00.000Z`).toISOString();
+      const retryScheduledAt = new Date(openSlotAt(2, 11)).toISOString();
       const result = await controller.approve(booking.id, { scheduledAt: retryScheduledAt });
 
       expect(result.status).toBe(BookingStatus.APPROVED);
@@ -149,7 +153,7 @@ describe('BookingLifecycleController', () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.REJECTED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -190,6 +194,8 @@ describe('BookingLifecycleController', () => {
           fixturesB.serviceRepo,
           fixturesB.resourceRepo,
           occupancyRepoB,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepoB, new InMemoryTenantLock()),
           new InMemoryTransactionManager(),
@@ -232,7 +238,7 @@ describe('BookingLifecycleController', () => {
     it('tenant isolation: cannot approve booking from tenantB (returns 404)', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_B)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -248,7 +254,7 @@ describe('BookingLifecycleController', () => {
     it('rejects a PENDING booking and returns 200 shape with rejectedAt', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -261,7 +267,7 @@ describe('BookingLifecycleController', () => {
     it('rejects an INFO_REQUESTED booking', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .withStatus(BookingStatus.INFO_REQUESTED)
         .build();
       await bookingRepo.save(booking);
@@ -282,7 +288,7 @@ describe('BookingLifecycleController', () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -296,7 +302,7 @@ describe('BookingLifecycleController', () => {
     it('maps BookingRejectionReasonTooShortError to 400', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -308,7 +314,7 @@ describe('BookingLifecycleController', () => {
     it('tenant isolation: cannot reject booking from tenantB (returns 404)', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_B)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -326,7 +332,7 @@ describe('BookingLifecycleController', () => {
     it('transitions PENDING → INFO_REQUESTED and returns 200 shape', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -348,7 +354,7 @@ describe('BookingLifecycleController', () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.INFO_REQUESTED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -362,7 +368,7 @@ describe('BookingLifecycleController', () => {
     it('maps BookingInfoMessageTooShortError to 400', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -376,7 +382,7 @@ describe('BookingLifecycleController', () => {
     it('tenant isolation: cannot request info on a booking from tenantB (returns 404)', async () => {
       const booking = new BookingBuilder()
         .withTenantId(TENANT_B)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -396,7 +402,7 @@ describe('BookingLifecycleController', () => {
         .withTenantId(TENANT_A)
         .withCustomerId(CUSTOMER_ID)
         .withStatus(BookingStatus.INFO_REQUESTED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -411,7 +417,7 @@ describe('BookingLifecycleController', () => {
         .withTenantId(TENANT_A)
         .withCustomerId('99999999-0000-4000-8000-000000000001')
         .withStatus(BookingStatus.INFO_REQUESTED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -435,7 +441,7 @@ describe('BookingLifecycleController', () => {
         .withTenantId(TENANT_A)
         .withCustomerId(CUSTOMER_ID)
         .withStatus(BookingStatus.PENDING)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 
@@ -451,7 +457,7 @@ describe('BookingLifecycleController', () => {
         .withTenantId(TENANT_B)
         .withCustomerId(CUSTOMER_ID)
         .withStatus(BookingStatus.INFO_REQUESTED)
-        .withScheduledAt(new Date(`${futureDate(2)}T10:00:00.000Z`))
+        .withScheduledAt(new Date(openSlotAt(2, 10)))
         .build();
       await bookingRepo.save(booking);
 

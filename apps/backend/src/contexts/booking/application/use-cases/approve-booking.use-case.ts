@@ -11,6 +11,7 @@ import {
   BookingScheduledAtInvalidError,
   BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Booking, BookingStatus } from '../../domain/booking.aggregate';
 import { AvailabilityService } from '../../domain/services/availability.service';
 import { Service } from '../../domain/service.aggregate';
@@ -20,6 +21,14 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import {
   FUTURE_COMMITMENT_EXCEPTION_REPOSITORY,
@@ -32,6 +41,7 @@ import {
   occupiedResourceIds,
 } from '../helpers/booking-exception-closing.helpers';
 import { moveBookingLinesOccupancy } from '../helpers/resource-occupancy-assignment.helpers';
+import { toHoursSource } from './booking-hours-gate.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
   resolveBookingLinesResourceCandidates,
@@ -45,6 +55,7 @@ export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   actorRole: 'STAFF' | 'MANAGER';
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
 };
 
 export interface ApproveBookingUseCaseResult {
@@ -63,6 +74,8 @@ export class ApproveBookingUseCase {
     @Inject(RESOURCE_REPOSITORY) private readonly resourceRepo: IResourceRepository,
     @Inject(RESOURCE_OCCUPANCY_REPOSITORY)
     private readonly occupancyRepo: IResourceOccupancyRepository,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     @Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager,
@@ -110,7 +123,7 @@ export class ApproveBookingUseCase {
         serviceMap,
         tenantId,
         scheduledAt,
-        input.timezone,
+        input,
         [...occupiedBefore],
       );
       const openExceptions = await this.exceptionRepo.findOpenByAffectedForUpdate(
@@ -189,7 +202,7 @@ export class ApproveBookingUseCase {
     serviceMap: Map<string, Service>,
     tenantId: string,
     scheduledAt: Date,
-    timezone: string,
+    input: Pick<ApproveBookingUseCaseInput, 'timezone' | 'businessHours'>,
     alsoLockResourceIds: string[],
   ): Promise<Map<string, ResolvedLineCandidates>> {
     const lineInputs = booking.lines.map((line) => ({
@@ -211,12 +224,15 @@ export class ApproveBookingUseCase {
       occupancyRepo: this.occupancyRepo,
       tenantId,
       scheduledAt,
-      timezone,
+      timezone: input.timezone,
       lines: lineInputs,
       serviceMap,
       resourceSelections,
       lockResources: (resourceIds) => this.slotConflictService.lockResources(tenantId, resourceIds),
       alsoLockResourceIds,
+      // The approval commits the booking at this time, new or original, so the hours always apply
+      // (TD50 decision 3): a request made before a closure cannot be approved into it.
+      hoursSource: toHoursSource(this.closureRepo, this.openingRepo, input.businessHours),
     });
     const allCandidates = [...candidatesByLine.values()].flatMap((v) => v.candidates);
     await this.slotConflictService.assertSlotFree(tenantId, allCandidates, bookingLineIds);

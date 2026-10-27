@@ -1,3 +1,4 @@
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { INestApplication } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { uuidv7 } from '../../../../shared/domain/uuid-v7';
@@ -156,6 +157,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
         actorRole: 'STAFF',
         correlationId: uuidv7(),
         timezone: TIMEZONE,
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       }),
     ).rejects.toThrow(BookingApprovalHoldExpiredError);
 
@@ -245,6 +247,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
           actorRole: 'STAFF',
           correlationId: uuidv7(),
           timezone: TIMEZONE,
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
         job.expireForTenant(world.tenantId, new Date(Date.now() + 2 * 3_600_000)),
       ]);

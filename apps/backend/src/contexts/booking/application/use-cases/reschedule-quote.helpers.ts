@@ -1,4 +1,5 @@
 import { Booking } from '../../domain/booking.aggregate';
+import { RescheduleWindowExpiredError } from '../../domain/errors/booking-domain.error';
 import {
   BookingQuoteRevision,
   BookingQuoteRevisionActorType,
@@ -15,6 +16,7 @@ import {
 import { IResourceRepository } from '../ports/resource-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import { BookingSlotConflictService } from '../services/booking-slot-conflict.service';
+import { HoursSource } from './booking-hours-gate.helpers';
 import { ResolutionSnapshot } from './resource-resolution-context.helpers';
 import {
   deriveResourceSelectionsFromAssignments,
@@ -67,6 +69,21 @@ export function resolveEffectiveRescheduleWindowHours(
     .map((l) => serviceMap.get(l.serviceId)?.bookingPolicy.rescheduleWindowHoursOverride)
     .filter((v): v is number => v != null);
   return overrides.length ? Math.max(...overrides) : tenantDefaultHours;
+}
+
+// UC-069 precondition (customer path only): the booking must still be inside its effective
+// reschedule window.
+export function assertEligibleForReschedule(
+  booking: Booking,
+  serviceMap: Map<string, Service>,
+  tenantDefaultRescheduleWindowHours: number,
+): void {
+  const windowHours = resolveEffectiveRescheduleWindowHours(
+    booking,
+    serviceMap,
+    tenantDefaultRescheduleWindowHours,
+  );
+  if (!booking.isEligibleForReschedule(windowHours)) throw new RescheduleWindowExpiredError();
 }
 
 export interface QuoteRevisionResult {
@@ -125,6 +142,9 @@ export interface ResolveRescheduleCandidatesParams {
   alsoLockResourceIds?: readonly string[];
   // The resources an earlier lock step read; resolving from it keeps every later lock inside the set held.
   resolutionSnapshot?: ResolutionSnapshot;
+  // Closures, openings and the tenant's hours (TD50): the new window must be open, hours judged
+  // before occupancy, exactly as at creation.
+  hoursSource?: HoursSource;
 }
 
 // Shared by RescheduleBookingUseCase (admin) and RescheduleBookingAsCustomerUseCase — resolves the
@@ -179,6 +199,7 @@ function toCandidatesParams(
     lockResources: (resourceIds) => slotConflictService.lockResources(tenantId, resourceIds),
     alsoLockResourceIds: params.alsoLockResourceIds,
     resolutionSnapshot: params.resolutionSnapshot,
+    hoursSource: params.hoursSource,
   };
 }
 

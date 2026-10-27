@@ -1,3 +1,12 @@
+import { ScheduleClosureBuilder } from '../../../../test/builders/booking/schedule-closure.builder';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import {
+  BookingOutsideBusinessHoursError,
+  BookingSlotClosedError,
+} from '../../domain/errors/booking-domain.error';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { InMemoryResourceOccupancyRepository } from '../../../../test/repositories/booking/in-memory-resource-occupancy.repository';
 import { createAutoBookingResourceFixtures } from '../../../../test/repositories/booking/auto-degenerate-fixtures';
@@ -13,7 +22,7 @@ import {
 } from '../../../../test/builders/booking/index';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import { Money } from '../../../../shared/value-objects/money';
-import { futureDate, pastDate } from '../../../../test/utils/date-helpers';
+import { openSlotAt, pastDate } from '../../../../test/utils/date-helpers';
 import { BookingStatus } from '../../domain/booking.aggregate';
 import { ResourceType } from '../../domain/resource.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -32,8 +41,8 @@ const TENANT_B = '10000000-0000-4000-8000-000000000502';
 const STAFF_ID = '20000000-0000-4000-8000-000000000501';
 const CORRELATION_ID = 'corr-reschedule-test';
 
-const futureSlot = `${futureDate(5)}T10:00:00.000Z`;
-const newFutureSlot = `${futureDate(6)}T14:00:00.000Z`;
+const futureSlot = openSlotAt(5, 10);
+const newFutureSlot = openSlotAt(6, 14);
 
 describe('RescheduleBookingUseCase', () => {
   let bookingRepo: InMemoryBookingRepository;
@@ -42,6 +51,8 @@ describe('RescheduleBookingUseCase', () => {
   let quoteRevisionRepo: InMemoryBookingQuoteRevisionRepository;
   let eventBus: InMemoryEventBus;
   let exceptionRepo: InMemoryFutureCommitmentExceptionRepository;
+  let closureRepo: InMemoryScheduleClosureRepository;
+  let openingRepo: InMemoryScheduleOpeningRepository;
   let useCase: RescheduleBookingUseCase;
 
   beforeEach(() => {
@@ -51,12 +62,16 @@ describe('RescheduleBookingUseCase', () => {
     occupancyRepo = new InMemoryResourceOccupancyRepository();
     quoteRevisionRepo = new InMemoryBookingQuoteRevisionRepository();
     exceptionRepo = new InMemoryFutureCommitmentExceptionRepository();
+    closureRepo = new InMemoryScheduleClosureRepository();
+    openingRepo = new InMemoryScheduleOpeningRepository();
     useCase = new RescheduleBookingUseCase(
       bookingRepo,
       fixtures.serviceRepo,
       fixtures.resourceRepo,
       occupancyRepo,
       quoteRevisionRepo,
+      closureRepo,
+      openingRepo,
       new AvailabilityService(),
       new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
       new BookingQuoteService(),
@@ -81,6 +96,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       expect(result.bookingId).toBe(booking.id);
@@ -115,6 +131,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       const kept = await exceptionRepo.findById(keptEntry.id, TENANT_A);
@@ -140,6 +157,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -162,6 +180,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -206,6 +225,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       // Old window is free again.
@@ -247,6 +267,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       expect(eventBus.published).toHaveLength(1);
@@ -280,6 +301,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       expect(result.quoteRevision).toBeUndefined();
@@ -328,6 +350,7 @@ describe('RescheduleBookingUseCase', () => {
         staffId: STAFF_ID,
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
       });
 
       expect(result.quoteRevision).toEqual({
@@ -375,13 +398,14 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(BookingSlotUnavailableError);
     });
 
     it('does not self-conflict when new slot overlaps the original slot on the same day (UC-060 A2)', async () => {
-      const original = new Date(`${futureDate(5)}T10:00:00.000Z`);
-      const overlapping = `${futureDate(5)}T10:15:00.000Z`;
+      const original = new Date(futureSlot);
+      const overlapping = new Date(original.getTime() + 15 * 60_000).toISOString();
       const booking = new BookingBuilder()
         .withTenantId(TENANT_A)
         .withStatus(BookingStatus.APPROVED)
@@ -421,6 +445,7 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).resolves.toBeDefined();
     });
@@ -436,6 +461,7 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });
@@ -456,6 +482,7 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(BookingScheduledInPastError);
     });
@@ -476,6 +503,7 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
@@ -496,6 +524,7 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
@@ -516,8 +545,166 @@ describe('RescheduleBookingUseCase', () => {
           staffId: STAFF_ID,
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
+          businessHours: DEFAULT_TEST_BUSINESS_HOURS,
         }),
       ).rejects.toThrow(BookingNotFoundError);
+    });
+  });
+
+  describe('working hours and closures (TD50)', () => {
+    const localDate = (instant: string) =>
+      utcDateToLocalDate(new Date(instant), DEFAULT_TEST_BUSINESS_HOURS.timezone);
+
+    async function approvedBooking() {
+      const booking = new BookingBuilder()
+        .withTenantId(TENANT_A)
+        .withStatus(BookingStatus.APPROVED)
+        .withScheduledAt(new Date(futureSlot))
+        .withTotalDurationMins(30)
+        .build();
+      await bookingRepo.save(booking);
+      return booking;
+    }
+
+    function reschedule(bookingId: string, scheduledAt: string) {
+      return useCase.execute({
+        bookingId,
+        scheduledAt,
+        tenantId: TENANT_A,
+        staffId: STAFF_ID,
+        correlationId: CORRELATION_ID,
+        timezone: 'America/Sao_Paulo',
+        businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+      });
+    }
+
+    async function expectUnchanged(bookingId: string) {
+      const saved = await bookingRepo.findById(bookingId, TENANT_A);
+      expect(saved!.scheduledAt.toISOString()).toBe(new Date(futureSlot).toISOString());
+    }
+
+    it('refuses a closed day for staff too (no exemption) and leaves the booking at its time', async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_A)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      await expect(reschedule(booking.id, newFutureSlot)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+      await expectUnchanged(booking.id);
+    });
+
+    it('refuses a start outside the working hours', async () => {
+      const booking = await approvedBooking();
+
+      await expect(reschedule(booking.id, openSlotAt(6, 20))).rejects.toBeInstanceOf(
+        BookingOutsideBusinessHoursError,
+      );
+      await expectUnchanged(booking.id);
+    });
+
+    it('refuses a partial closure over the new window', async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_A)
+          .withDate(localDate(newFutureSlot))
+          .withStartTime('13:00')
+          .withEndTime('16:00')
+          .build(),
+      );
+
+      await expect(reschedule(booking.id, newFutureSlot)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+    });
+
+    it('refuses a resource-scoped closure on the resource the booking needs', async () => {
+      const booking = await approvedBooking();
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_A)
+          .withResourceId(resource.id)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      await expect(reschedule(booking.id, newFutureSlot)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+    });
+
+    it('reports the closure, not the conflict, when both apply (hours are checked before occupancy)', async () => {
+      const booking = await approvedBooking();
+      const resource = fixtures.resourceRepo.ensureLocation(TENANT_A);
+      const conflictAt = new Date(newFutureSlot);
+      occupancyRepo.seed(TENANT_A, 'other-line-id', {
+        resourceId: resource.id,
+        resourceType: ResourceType.LOCATION,
+        resourceName: resource.name,
+        legIndex: null,
+        quantityPosition: null,
+        selectionMode: 'NONE' as const,
+        isBundleMember: false,
+        gapMinutes: null,
+        gapSource: null,
+        startsAt: conflictAt,
+        endsAt: new Date(conflictAt.getTime() + 60 * 60_000),
+      });
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_A)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      await expect(reschedule(booking.id, newFutureSlot)).rejects.toBeInstanceOf(
+        BookingSlotClosedError,
+      );
+    });
+
+    it("moves a booking out of a day that has since been closed to an open day (the original day's closure is never consulted)", async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder().withTenantId(TENANT_A).withDate(localDate(futureSlot)).build(),
+      );
+
+      const result = await reschedule(booking.id, newFutureSlot);
+
+      expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
+    });
+
+    it('reads closures and openings in four queries, one per table and scope', async () => {
+      const booking = await approvedBooking();
+      const spies = [
+        jest.spyOn(closureRepo, 'findByTenantAndDateRange'),
+        jest.spyOn(closureRepo, 'findByTenantAndResourcesAndDateRange'),
+        jest.spyOn(openingRepo, 'findByTenantAndDateRange'),
+        jest.spyOn(openingRepo, 'findByTenantAndResourcesAndDateRange'),
+      ];
+
+      await reschedule(booking.id, newFutureSlot);
+
+      for (const spy of spies) expect(spy).toHaveBeenCalledTimes(1);
+    });
+
+    it("tenant isolation: another tenant's closure does not refuse the reschedule", async () => {
+      const booking = await approvedBooking();
+      await closureRepo.save(
+        new ScheduleClosureBuilder()
+          .withTenantId(TENANT_B)
+          .withDate(localDate(newFutureSlot))
+          .build(),
+      );
+
+      const result = await reschedule(booking.id, newFutureSlot);
+
+      expect(result.scheduledAt).toBe(new Date(newFutureSlot).toISOString());
     });
   });
 });

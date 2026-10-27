@@ -1,3 +1,8 @@
+import { ScheduleClosureEntityBuilder } from '../../../../test/builders/booking/index';
+import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
+import { utcDateToLocalDate } from '../../../../shared/utils/calendar-date';
+import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
+import { openSlotAt } from '../../../../test/utils/date-helpers';
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
@@ -408,7 +413,7 @@ describe('SchedulingExceptionController (integration)', () => {
       });
       await deactivate(source.id);
       const [entry] = await openEntries();
-      const newTime = new Date(Date.now() + 120 * 3_600_000).toISOString();
+      const newTime = openSlotAt(8, 11);
 
       const { body } = await resolve({
         exceptionIds: [entry.id],
@@ -422,6 +427,71 @@ describe('SchedulingExceptionController (integration)', () => {
         .findOneByOrFail({ id: seeded.bookingId });
       expect(stored.scheduledAt.toISOString()).toBe(newTime);
       expect(await occupiedResourceIds(ds, TENANT_A, seeded.bookingId)).toEqual([replacement.id]);
+    });
+
+    it('RESCHEDULE to a closed day keeps the entry OPEN with BOOKING_SLOT_CLOSED and leaves the booking where it was (TD50)', async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      const seeded = await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      // Its own day, far from the ones the other cases use: the database is shared by the whole file.
+      const newTime = openSlotAt(60, 11);
+      await ds.getRepository(ScheduleClosureEntity).save(
+        new ScheduleClosureEntityBuilder()
+          .withTenantId(TENANT_A)
+          .withDate(utcDateToLocalDate(new Date(newTime), DEFAULT_TEST_BUSINESS_HOURS.timezone))
+          .build(),
+      );
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results[0]).toMatchObject({
+        outcome: 'STILL_OPEN',
+        errorCode: 'BOOKING_SLOT_CLOSED',
+      });
+      const row = await ds.getRepository(BookingEntity).findOneByOrFail({ id: seeded.bookingId });
+      expect(row.scheduledAt.getTime()).toBe(seeded.startsAt.getTime());
+      expect((await openEntries()).map((e) => e.id)).toEqual([entry.id]);
+    });
+
+    it("RESCHEDULE: another tenant's closure on the new day does not refuse it (TD50)", async () => {
+      const source = await seedResource(ds, TENANT_A, 'Sala 1');
+      await seedResource(ds, TENANT_A, 'Sala 2');
+      const service = await seedService(ds, TENANT_A);
+      await seedFutureBooking(ds, {
+        tenantId: TENANT_A,
+        serviceId: service.id,
+        resource: source,
+        startsInHours: 24,
+      });
+      await deactivate(source.id);
+      const [entry] = await openEntries();
+      const newTime = openSlotAt(8, 11);
+      await ds.getRepository(ScheduleClosureEntity).save(
+        new ScheduleClosureEntityBuilder()
+          .withTenantId(TENANT_B)
+          .withDate(utcDateToLocalDate(new Date(newTime), DEFAULT_TEST_BUSINESS_HOURS.timezone))
+          .build(),
+      );
+
+      const { body } = await resolve({
+        exceptionIds: [entry.id],
+        resolutionType: 'RESCHEDULE',
+        scheduledAt: newTime,
+      }).expect(200);
+
+      expect(body.results).toEqual([{ exceptionId: entry.id, outcome: 'RESOLVED' }]);
     });
 
     it('RESCHEDULE is not held to the booking window — a manager may move a booking past the tenant maximum', async () => {
@@ -438,7 +508,7 @@ describe('SchedulingExceptionController (integration)', () => {
       const [entry] = await openEntries();
       // 400 days ahead is past the highest tenant maximum (365 days), where a customer's own
       // reschedule is refused; the worklist is staff-side and exempt.
-      const newTime = new Date(Date.now() + 400 * 24 * 3_600_000).toISOString();
+      const newTime = openSlotAt(350, 11);
 
       const { body } = await resolve({
         exceptionIds: [entry.id],
@@ -472,7 +542,7 @@ describe('SchedulingExceptionController (integration)', () => {
       const { body } = await resolve({
         exceptionIds: [entry.id],
         resolutionType: 'RESCHEDULE',
-        scheduledAt: new Date(Date.now() + 120 * 3_600_000).toISOString(),
+        scheduledAt: openSlotAt(8, 11),
       }).expect(200);
 
       expect(body.results[0]).toMatchObject({

@@ -264,6 +264,29 @@ X-Correlation-ID: test-corr-approve-003
 ###
 
 # ─────────────────────────────────────────────────────────────────────────────
+# ERROR — the booking's time (or the scheduledAt below) is not one the business is open for
+#         → 409 BOOKING_SLOT_CLOSED (closed weekday, full or partial closure, resource closure)
+#         or 409 BOOKING_OUTSIDE_BUSINESS_HOURS (open day, outside its hours). TD50 Story 1:
+#         an approval is judged at the time it commits, with or without a new scheduledAt, and
+#         staff and managers are not exempt. The booking stays PENDING; approve it with an open
+#         time or reject it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+PATCH {{baseUrl}}/bookings/{{bookingId}}/approve
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-approve-closed-001
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
+}
+
+###
+
+# ─────────────────────────────────────────────────────────────────────────────
 # ERROR — manual-approval request whose hold (manualHoldMinutes) has passed → 409
 #         BOOKING_APPROVAL_HOLD_EXPIRED (TD51). Use a PENDING booking on a resource-scoped
 #         service whose resource_occupancy.hold_expires_at is already in the past; the
@@ -1237,6 +1260,23 @@ X-Correlation-ID: test-corr-reschedule-006b
 
 ###
 
+# ERROR — the new time is on a closed day, inside a closure, or outside the working hours
+#         → 409 BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (TD50 Story 1; staff and
+#         managers are not exempt, and the booking keeps its old time)
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-admin
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{staffId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+X-Correlation-ID: test-corr-reschedule-closed-001
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
+}
+
+###
+
 # ERROR — new slot in the past → 422
 PATCH {{baseUrl}}/bookings/{{bookingId}}/reschedule-admin
 Content-Type: application/json
@@ -1314,6 +1354,23 @@ X-Correlation-ID: test-corr-reschedule-customer-002
 
 {
   "scheduledAt": "2026-07-24T14:00:00.000Z"
+}
+
+###
+
+# ERROR — the new time is on a closed day, inside a closure, or outside the working hours
+#         → 409 BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (TD50 Story 1; the booking
+#         keeps its old time)
+PATCH {{baseUrl}}/bookings/{{approvedBookingId}}/reschedule-customer
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{customerId}}
+X-Actor-Type: CUSTOMER
+X-Actor-Role: CUSTOMER
+X-Correlation-ID: test-corr-reschedule-customer-closed-001
+
+{
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
 }
 
 ###

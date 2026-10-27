@@ -139,6 +139,19 @@ Content-Type: application/json
 
 ###
 
+### RESCHEDULE to a closed day or outside the working hours → 200, the entry STILL_OPEN with errorCode BOOKING_SLOT_CLOSED / BOOKING_OUTSIDE_BUSINESS_HOURS (no exemption; REASSIGN is not checked)
+POST {{bffUrl}}/v1/scheduling-exceptions/resolve
+Authorization: Bearer {{managerToken}}
+Content-Type: application/json
+
+{
+  "exceptionIds": ["{{exceptionId}}"],
+  "resolutionType": "RESCHEDULE",
+  "scheduledAt": "2026-11-01T13:00:00.000Z"
+}
+
+###
+
 ### ERROR — REASSIGN without a target → 400
 POST {{bffUrl}}/v1/scheduling-exceptions/resolve
 Authorization: Bearer {{managerToken}}

@@ -1,3 +1,5 @@
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { InMemoryFutureCommitmentExceptionRepository } from '../../../../test/repositories/booking/in-memory-future-commitment-exception.repository';
 import { HttpException, HttpStatus } from '@nestjs/common';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -86,6 +88,8 @@ describe('BookingCompletionController', () => {
           fixtures.resourceRepo,
           occupancyRepo,
           quoteRevisionRepo,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),
@@ -98,6 +102,8 @@ describe('BookingCompletionController', () => {
           fixtures.resourceRepo,
           occupancyRepo,
           quoteRevisionRepo,
+          new InMemoryScheduleClosureRepository(),
+          new InMemoryScheduleOpeningRepository(),
           new AvailabilityService(),
           new BookingSlotConflictService(occupancyRepo, new InMemoryTenantLock()),
           new BookingQuoteService(),

@@ -7,6 +7,7 @@ import {
   BookingNotFoundError,
   BookingScheduledInPastError,
 } from '../../domain/errors/booking-domain.error';
+import { BusinessHours } from '../../../../shared/value-objects/business-hours.vo';
 import { Booking } from '../../domain/booking.aggregate';
 import { RescheduleDurationChange } from '../../domain/booking.types';
 import { AvailabilityService } from '../../domain/services/availability.service';
@@ -21,6 +22,14 @@ import {
   RESOURCE_OCCUPANCY_REPOSITORY,
 } from '../ports/resource-occupancy-repository.port';
 import { IResourceRepository, RESOURCE_REPOSITORY } from '../ports/resource-repository.port';
+import {
+  IScheduleClosureRepository,
+  SCHEDULE_CLOSURE_REPOSITORY,
+} from '../ports/schedule-closure-repository.port';
+import {
+  IScheduleOpeningRepository,
+  SCHEDULE_OPENING_REPOSITORY,
+} from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { BookingQuoteService } from '../services/booking-quote.service';
 import {
@@ -39,6 +48,7 @@ export type RescheduleBookingUseCaseInput = RescheduleBookingDto & {
   staffId: string;
   correlationId: string;
   timezone: string;
+  businessHours: BusinessHours;
 };
 
 export interface RescheduleBookingUseCaseResult {
@@ -61,6 +71,8 @@ export class RescheduleBookingUseCase {
     private readonly occupancyRepo: IResourceOccupancyRepository,
     @Inject(BOOKING_QUOTE_REVISION_REPOSITORY)
     private readonly quoteRevisionRepo: IBookingQuoteRevisionRepository,
+    @Inject(SCHEDULE_CLOSURE_REPOSITORY) private readonly closureRepo: IScheduleClosureRepository,
+    @Inject(SCHEDULE_OPENING_REPOSITORY) private readonly openingRepo: IScheduleOpeningRepository,
     private readonly availabilityService: AvailabilityService,
     private readonly slotConflictService: BookingSlotConflictService,
     private readonly quoteService: BookingQuoteService,
@@ -118,6 +130,7 @@ export class RescheduleBookingUseCase {
           availabilityService: this.availabilityService,
           slotConflictService: this.slotConflictService,
           exceptionRepo: this.exceptionRepo,
+          hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
         },
         {
           booking,
@@ -130,6 +143,7 @@ export class RescheduleBookingUseCase {
           staffId: input.staffId,
           correlationId: input.correlationId,
           timezone: input.timezone,
+          businessHours: input.businessHours,
         },
       ),
     );

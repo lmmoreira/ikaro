@@ -1,3 +1,5 @@
+import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
+import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
 import { HttpException } from '@nestjs/common';
 import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { InMemoryTransactionManager } from '../../../../test/infrastructure/in-memory-transaction-manager';
@@ -54,6 +56,8 @@ describe('SchedulingExceptionController', () => {
         tx,
         new AvailabilityService(),
         new BookingSlotConflictService(world.occupancyRepo, world.tenantLock),
+        new InMemoryScheduleClosureRepository(),
+        new InMemoryScheduleOpeningRepository(),
       ),
       new DismissFutureCommitmentExceptionsUseCase(world.exceptionRepo, tx),
     );
