@@ -100,7 +100,7 @@ Make `bufferAfterMinutes` nullable for appointment services throughout the domai
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
-### Story 1 — Present customer appointment time separately from reserved time 🔴
+### Story 1 — Present customer appointment time separately from reserved time 🔴 ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** M
