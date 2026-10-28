@@ -34,6 +34,7 @@ const service: StaffServiceResponse = {
   bookingModel: 'APPOINTMENT',
   resourceRequirements: [],
   bufferAfterMinutes: null,
+  tenantDefaultBufferMinutes: 60,
   legs: null,
   classResourceSlots: null,
   publicPagePublished: false,

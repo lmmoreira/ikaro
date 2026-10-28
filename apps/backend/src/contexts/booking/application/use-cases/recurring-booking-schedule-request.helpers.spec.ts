@@ -188,6 +188,7 @@ describe('assertPatternConflictFree', () => {
       tenantId: TENANT,
       timezone: TIMEZONE,
       businessHours: BUSINESS_HOURS,
+      tenantServiceBufferMinutes: 60,
       resourceIds,
       recurrence: {
         frequency: 'WEEKLY',
@@ -424,6 +425,45 @@ describe('assertPatternConflictFree', () => {
       ).resolves.toEqual(expect.any(Array));
     });
 
+    it('uses the tenant default when the service buffer is null (TD51-S00)', async () => {
+      const [room] = await seedResources(1, 5);
+      occupy(room, new Date(occurrenceStart(1).getTime() + (DURATION_MINUTES + 20) * 60_000), {
+        minutes: 30,
+      });
+      const params = {
+        ...buildParams(buildService('CUSTOMER_CHOICE', null), 3, [room.id]),
+        tenantServiceBufferMinutes: 30,
+      };
+
+      await expect(check(deps, params)).rejects.toThrow(RecurringBookingScheduleConflictError);
+    });
+
+    it('ignores a smaller tenant default when the service buffer is null and nothing reaches the next booking (TD51-S00)', async () => {
+      const [room] = await seedResources(1, 5);
+      occupy(room, new Date(occurrenceStart(1).getTime() + (DURATION_MINUTES + 20) * 60_000), {
+        minutes: 30,
+      });
+      const params = {
+        ...buildParams(buildService('CUSTOMER_CHOICE', null), 3, [room.id]),
+        tenantServiceBufferMinutes: 10,
+      };
+
+      await expect(check(deps, params)).resolves.toEqual(expect.any(Array));
+    });
+
+    it('does not apply the tenant default to an explicit zero override (TD51-S00)', async () => {
+      const [room] = await seedResources(1, 5);
+      occupy(room, new Date(occurrenceStart(1).getTime() + (DURATION_MINUTES + 20) * 60_000), {
+        minutes: 30,
+      });
+      const params = {
+        ...buildParams(buildService('CUSTOMER_CHOICE', 0), 3, [room.id]),
+        tenantServiceBufferMinutes: 60,
+      };
+
+      await expect(check(deps, params)).resolves.toEqual(expect.any(Array));
+    });
+
     it("never treats another tenant's occupancy as a conflict", async () => {
       const [room] = await seedResources(1);
       occupy(room, occurrenceStart(2), { tenantId: OTHER_TENANT });
@@ -625,6 +665,7 @@ describe('assertPatternConflictFree', () => {
             tenantId: TENANT,
             scheduledAt,
             timezone: TIMEZONE,
+            tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
             lines: [{ lineId, serviceId: service.id, durationMinsAtBooking: DURATION_MINUTES }],
             serviceMap: new Map([[service.id, service]]),
             resourceSelections,
@@ -1086,6 +1127,22 @@ describe('assertPatternConflictFree', () => {
         ]);
       });
 
+      it('refuses an occurrence whose inherited tenant buffer runs past closing (TD51-S00)', async () => {
+        const [room] = await seedResources(1, 0);
+        const params = {
+          ...withHours(
+            buildParams(buildService('CUSTOMER_CHOICE', null), 2, [room.id]),
+            closesAtEleven,
+          ),
+          tenantServiceBufferMinutes: 15,
+        };
+
+        expect((await conflictsOf(params)).map((c) => c.reason)).toEqual([
+          'OUTSIDE_HOURS',
+          'OUTSIDE_HOURS',
+        ]);
+      });
+
       it("refuses an occurrence whose resource's turnover runs past closing", async () => {
         const [room] = await seedResources(1, 20);
         const params = withHours(
@@ -1397,6 +1454,7 @@ describe('assertPatternConflictFree', () => {
             tenantId: TENANT,
             scheduledAt,
             timezone: TIMEZONE,
+            tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
             lines: [{ lineId, serviceId: service.id, durationMinsAtBooking: DURATION_MINUTES }],
             serviceMap: new Map([[service.id, service]]),
             resourceSelections: [

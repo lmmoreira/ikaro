@@ -178,6 +178,28 @@ Authorization: Bearer {{managerToken}}
 
 ###
 
+### Make the service resource-free: an empty flat list is accepted (TD51-S00)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "resourceRequirements": []
+}
+
+###
+
+### Set the buffer override (0 = no buffer) / clear it with null to inherit the tenant default (UC-053)
+PATCH {{bffUrl}}/v1/services/{{serviceId}}
+Content-Type: application/json
+Authorization: Bearer {{managerToken}}
+
+{
+  "bufferAfterMinutes": null
+}
+
+###
+
 ### Set sequential legs (UC-052)
 PUT {{bffUrl}}/v1/services/{{serviceId}}/legs
 Content-Type: application/json

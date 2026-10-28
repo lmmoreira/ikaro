@@ -49,6 +49,7 @@ export type RescheduleBookingUseCaseInput = RescheduleBookingDto & {
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
 };
 
 export interface RescheduleBookingUseCaseResult {
@@ -144,6 +145,7 @@ export class RescheduleBookingUseCase {
           correlationId: input.correlationId,
           timezone: input.timezone,
           businessHours: input.businessHours,
+          tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
         },
       ),
     );

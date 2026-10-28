@@ -48,6 +48,7 @@ export interface RescheduleBookingInTransactionParams {
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
   // Entries the caller closes itself (the worklist's selected entry is RESOLVED by the manager).
   excludeExceptionIds?: readonly string[];
   // What the caller read when it took its resource locks (the worklist's reschedule).
@@ -138,6 +139,7 @@ function toResolveParams(
     tenantId: params.tenantId,
     newScheduledAt: params.newScheduledAt,
     timezone: params.timezone,
+    tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
     overrideSelections: params.overrideSelections,
     durationChange: params.durationChange,
     hoursSource: { repos: deps.hoursRepos, businessHours: params.businessHours },

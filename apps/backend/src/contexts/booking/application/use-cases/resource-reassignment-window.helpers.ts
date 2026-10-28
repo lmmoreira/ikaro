@@ -8,6 +8,7 @@ import { BookingLineOccupancyRow } from '../ports/resource-occupancy-repository.
 interface ReassignBookingParams {
   booking: Booking;
   serviceMap: Map<string, Service>;
+  tenantServiceBufferMinutes: number;
 }
 
 // A row moved to another resource keeps its start but not its gap: the trailing buffer/turnover
@@ -44,7 +45,10 @@ export function retargetedWindow(
 
   const isLastLine = booking.lines.at(-1)?.lineId === line.lineId;
   const gap = isLastLine
-    ? availabilityService.resolveFlatGap(service.bufferAfterMinutes ?? 0, target.turnoverMinutes)
+    ? availabilityService.resolveFlatGap(
+        service.effectiveBufferAfterMinutes(params.tenantServiceBufferMinutes),
+        target.turnoverMinutes,
+      )
     : null;
   const rawEnd = row.startsAt.getTime() + line.durationMinsAtBooking * 60_000;
   return { endsAt: new Date(rawEnd + (gap?.minutes ?? 0) * 60_000), gap };

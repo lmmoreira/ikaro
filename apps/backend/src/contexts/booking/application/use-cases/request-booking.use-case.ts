@@ -39,6 +39,7 @@ import {
 import { RequestBookingDto } from '../dtos/request-booking.dto';
 import {
   createBookingAddress,
+  PersistRequestedBookingDeps,
   persistRequestedBooking,
   resolveVariableServiceInputs,
   VariableServiceResolution,
@@ -109,6 +110,20 @@ export class RequestBookingUseCase {
     return this.persistAndLog(input, { booking, scheduledAt, operations, serviceMap });
   }
 
+  private persistDeps(): PersistRequestedBookingDeps {
+    return {
+      txManager: this.txManager,
+      slotConflictService: this.slotConflictService,
+      bookingRepo: this.bookingRepo,
+      photoExistenceService: this.photoExistenceService,
+      serviceRepo: this.serviceRepo,
+      resourceRepo: this.resourceRepo,
+      occupancyRepo: this.occupancyRepo,
+      availabilityService: this.availabilityService,
+      hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
+    };
+  }
+
   private async persistAndLog(
     input: RequestBookingUseCaseInput,
     prepared: {
@@ -119,30 +134,17 @@ export class RequestBookingUseCase {
     },
   ): Promise<RequestBookingUseCaseResult> {
     const { booking, scheduledAt, operations, serviceMap } = prepared;
-    const candidatesByLine = await persistRequestedBooking(
-      {
-        txManager: this.txManager,
-        slotConflictService: this.slotConflictService,
-        bookingRepo: this.bookingRepo,
-        photoExistenceService: this.photoExistenceService,
-        serviceRepo: this.serviceRepo,
-        resourceRepo: this.resourceRepo,
-        occupancyRepo: this.occupancyRepo,
-        availabilityService: this.availabilityService,
-        hoursRepos: { closureRepo: this.closureRepo, openingRepo: this.openingRepo },
-      },
-      {
-        booking,
-        tenantId: input.tenantId,
-        scheduledAt,
-        timezone: input.timezone,
-        businessHours: input.businessHours,
-        operations,
-        serviceMap,
-        resourceSelections: toResourceSelections(input.resourceSelections),
-      },
-    );
-
+    const candidatesByLine = await persistRequestedBooking(this.persistDeps(), {
+      booking,
+      tenantId: input.tenantId,
+      scheduledAt,
+      timezone: input.timezone,
+      businessHours: input.businessHours,
+      tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
+      operations,
+      serviceMap,
+      resourceSelections: toResourceSelections(input.resourceSelections),
+    });
     this.logger.log('Booking requested', {
       tenantId: input.tenantId,
       bookingId: booking.id,

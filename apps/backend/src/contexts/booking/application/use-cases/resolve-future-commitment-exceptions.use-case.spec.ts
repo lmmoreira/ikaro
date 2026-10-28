@@ -108,6 +108,7 @@ describe('ResolveFutureCommitmentExceptionsUseCase', () => {
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
       businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+      tenantServiceBufferMinutes: 60,
       ...overrides,
     });
 

@@ -61,6 +61,11 @@ export interface IBookingPlatformPort {
   // first real consumer). Resolved on every read, never persisted onto the service row, so a
   // later tenant-settings change is picked up immediately without touching every service.
   getAutoApproveEnabled(tenantId: string): Promise<boolean>;
+  // TD51-S00: the tenant default a null Service.bufferAfterMinutes inherits
+  // (settings.booking.serviceBufferMinutes — always a number, 0..120). Resolved on every read,
+  // never persisted onto the service row, so a later tenant-settings change applies to every
+  // inheriting service immediately.
+  getServiceBufferMinutes(tenantId: string): Promise<number>;
   // M23-S33: the tenant's booking window — the ceiling a service's own override is validated
   // against when its booking policy is saved.
   getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow>;

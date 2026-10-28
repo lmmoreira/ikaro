@@ -158,6 +158,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
         correlationId: uuidv7(),
         timezone: TIMEZONE,
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       }),
     ).rejects.toThrow(BookingApprovalHoldExpiredError);
 
@@ -248,6 +249,7 @@ describe('ExpireBookingHoldsJob (integration)', () => {
           correlationId: uuidv7(),
           timezone: TIMEZONE,
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
         job.expireForTenant(world.tenantId, new Date(Date.now() + 2 * 3_600_000)),
       ]);

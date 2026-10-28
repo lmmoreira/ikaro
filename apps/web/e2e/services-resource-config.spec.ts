@@ -60,6 +60,49 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(resourceTypeCheckbox(page, 'EQUIPMENT')).toBeChecked();
   });
 
+  // TD51-S00 — a resource-free service must be able to save its buffer (the Resources panel used
+  // to PATCH an empty requirements list first, which the API rejected), and a blank buffer means
+  // "inherit the business default", not zero.
+  test('a resource-free service sets, then clears, its buffer and falls back to the tenant default', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+    const bufferInput = page.getByTestId('resource-buffer-input');
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+
+    // A new service inherits: blank field, the business default shown as the placeholder.
+    await expect(bufferInput).toHaveValue('');
+    await expect(bufferInput).toHaveAttribute('placeholder', /^\d+ \(padrão da empresa\)$/);
+
+    await bufferInput.fill('10');
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('resource-requirements-error')).toHaveCount(0);
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await expect(bufferInput).toHaveValue('10');
+
+    await bufferInput.fill('');
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+
+    await page.reload();
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await expect(bufferInput).toHaveValue('');
+    await expect(bufferInput).toHaveAttribute('placeholder', /^\d+ \(padrão da empresa\)$/);
+
+    // 0 is a real override, distinct from blank.
+    await bufferInput.fill('0');
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await page.reload();
+    await page.getByRole('tab', { name: 'Recursos' }).click();
+    await expect(bufferInput).toHaveValue('0');
+  });
+
   test('switches a service to legs, adds 2 legs, sees the computed total span', async ({
     page,
   }) => {

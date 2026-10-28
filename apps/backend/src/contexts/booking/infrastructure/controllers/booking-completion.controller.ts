@@ -138,6 +138,7 @@ export class BookingCompletionController {
         correlationId,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
         tenantDefaultRescheduleWindowHours: settings.booking.cancellationWindowHours,
         tenantBookingWindow: {
           minBookingAdvanceHours: settings.booking.minBookingAdvanceHours,
@@ -167,6 +168,7 @@ export class BookingCompletionController {
         correlationId,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
       })
       .catch(mapBookingError);
   }

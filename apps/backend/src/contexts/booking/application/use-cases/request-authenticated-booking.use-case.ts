@@ -153,6 +153,7 @@ export class RequestAuthenticatedBookingUseCase {
         scheduledAt,
         timezone: input.timezone,
         businessHours: input.businessHours,
+        tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
         operations,
         serviceMap,
         resourceSelections: toResourceSelections(input.resourceSelections),

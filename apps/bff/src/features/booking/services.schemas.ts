@@ -60,7 +60,7 @@ export const UpdateServiceBodySchema = z
     requiresPickupAddress: z.boolean().optional(),
     // Non-negative to match the backend's identical bound (update-service.dto.ts) — see that
     // file's comment for the settings.serviceBufferMinutes/UC-059 rationale.
-    bufferAfterMinutes: z.number().int().nonnegative().optional(),
+    bufferAfterMinutes: z.number().int().nonnegative().nullable().optional(),
     bookingModel: BookingModelSchema.optional(),
     // Only meaningful (and required) when this same request converts bookingModel to SESSION —
     // mirrors the backend's identical bound (update-service.dto.ts).

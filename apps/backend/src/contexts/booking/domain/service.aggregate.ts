@@ -112,6 +112,12 @@ export class Service extends AggregateRoot {
   get bufferAfterMinutes(): number | null {
     return this.props.bufferAfterMinutes;
   }
+  // The only place a null buffer resolves: null = inherit the tenant's current default, a number
+  // (including 0) is the service's own explicit override. Every availability read and occupancy
+  // write path goes through this so the gap offered always equals the gap persisted (TD51-S00).
+  effectiveBufferAfterMinutes(tenantDefaultMinutes: number): number {
+    return this.props.bufferAfterMinutes ?? tenantDefaultMinutes;
+  }
   get legs(): ServiceLeg[] | null {
     return this.props.legs ? [...this.props.legs] : null;
   }
@@ -160,7 +166,6 @@ export class Service extends AggregateRoot {
       isActive = true,
       description,
       bookingModel = 'APPOINTMENT',
-      tenantServiceBufferMinutes = null,
     } = input;
     const isSession = bookingModel === 'SESSION';
     const now = new Date();
@@ -178,7 +183,9 @@ export class Service extends AggregateRoot {
       updatedAt: now,
       bookingModel,
       resourceRequirements: [],
-      bufferAfterMinutes: isSession ? null : tenantServiceBufferMinutes,
+      // null = inherit the tenant's current serviceBufferMinutes (UC-053, TD51-S00) — never a
+      // creation-time snapshot of it.
+      bufferAfterMinutes: null,
       legs: null,
       classResourceSlots: isSession ? classResourceSlots : null,
       bookingPolicy: defaultServiceBookingPolicyProps(),
@@ -288,12 +295,16 @@ export class Service extends AggregateRoot {
     return totalSpanMinutes;
   }
 
-  setBufferAfterMinutes(bufferAfterMinutes: number): void {
+  // null clears the override (restores inheritance from the tenant default); 0 is an explicit
+  // no-buffer override.
+  setBufferAfterMinutes(bufferAfterMinutes: number | null): void {
     if (this.props.bookingModel !== 'APPOINTMENT') {
       throw new BookingServiceBookingModelMismatchError(this.props.id);
     }
     if (this.props.legs !== null) throw new BookingServiceHasLegsError(this.props.id);
-    if (bufferAfterMinutes < 0) throw new ServiceBufferAfterMinutesInvalidError();
+    if (bufferAfterMinutes !== null && bufferAfterMinutes < 0) {
+      throw new ServiceBufferAfterMinutesInvalidError();
+    }
     this.props.bufferAfterMinutes = bufferAfterMinutes;
     this.props.updatedAt = new Date();
   }

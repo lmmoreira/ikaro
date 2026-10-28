@@ -56,7 +56,13 @@ export type ApproveBookingUseCaseInput = ApproveBookingDto & {
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
 };
+
+type CandidateResolutionInput = Pick<
+  ApproveBookingUseCaseInput,
+  'timezone' | 'businessHours' | 'tenantServiceBufferMinutes'
+>;
 
 export interface ApproveBookingUseCaseResult {
   bookingId: string;
@@ -202,7 +208,7 @@ export class ApproveBookingUseCase {
     serviceMap: Map<string, Service>,
     tenantId: string,
     scheduledAt: Date,
-    input: Pick<ApproveBookingUseCaseInput, 'timezone' | 'businessHours'>,
+    input: CandidateResolutionInput,
     alsoLockResourceIds: string[],
   ): Promise<Map<string, ResolvedLineCandidates>> {
     const lineInputs = booking.lines.map((line) => ({
@@ -225,6 +231,7 @@ export class ApproveBookingUseCase {
       tenantId,
       scheduledAt,
       timezone: input.timezone,
+      tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
       lines: lineInputs,
       serviceMap,
       resourceSelections,

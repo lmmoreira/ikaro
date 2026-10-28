@@ -270,6 +270,106 @@ describe('ServiceController (integration)', () => {
       expect(updated.durationMinutes).toBe(60);
     });
 
+    describe('service buffer inheritance (TD51-S00)', () => {
+      async function createIn(tenantId: string) {
+        const { body } = await request(app.getHttpServer())
+          .post('/services')
+          .set(actorHeaders(tenantId, MANAGER_ID))
+          .send(validBody)
+          .expect(201);
+        return body as { id: string };
+      }
+
+      it('creates a service with a null override that inherits the tenant default, and follows a later change of it', async () => {
+        const isolatedTenant = await provisionTenant();
+
+        const created = await createIn(isolatedTenant);
+        const { body: fetched } = await request(app.getHttpServer())
+          .get(`/services/${created.id}`)
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .expect(200);
+        expect(fetched.bufferAfterMinutes).toBeNull();
+        expect(fetched.tenantDefaultBufferMinutes).toBe(60);
+
+        await request(app.getHttpServer())
+          .patch('/tenants/settings')
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .send({ settings: { booking: { serviceBufferMinutes: 15 } } })
+          .expect(200);
+
+        const { body: afterChange } = await request(app.getHttpServer())
+          .get(`/services/${created.id}`)
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .expect(200);
+        expect(afterChange.bufferAfterMinutes).toBeNull();
+        expect(afterChange.tenantDefaultBufferMinutes).toBe(15);
+      });
+
+      it('sets an override, an explicit zero, and clears it back to null', async () => {
+        const isolatedTenant = await provisionTenant();
+        const created = await createIn(isolatedTenant);
+        const patchBuffer = (bufferAfterMinutes: number | null) =>
+          request(app.getHttpServer())
+            .patch(`/services/${created.id}`)
+            .set(actorHeaders(isolatedTenant, MANAGER_ID))
+            .send({ bufferAfterMinutes })
+            .expect(200);
+
+        expect((await patchBuffer(15)).body.bufferAfterMinutes).toBe(15);
+        expect((await patchBuffer(0)).body.bufferAfterMinutes).toBe(0);
+        const cleared = (await patchBuffer(null)).body;
+        expect(cleared.bufferAfterMinutes).toBeNull();
+        expect(cleared.tenantDefaultBufferMinutes).toBe(60);
+      });
+
+      it('leaves a stored override untouched when the request omits the field', async () => {
+        const isolatedTenant = await provisionTenant();
+        const created = await createIn(isolatedTenant);
+        await request(app.getHttpServer())
+          .patch(`/services/${created.id}`)
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .send({ bufferAfterMinutes: 25 })
+          .expect(200);
+
+        const { body } = await request(app.getHttpServer())
+          .patch(`/services/${created.id}`)
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .send({ name: 'Renomeado' })
+          .expect(200);
+
+        expect(body.bufferAfterMinutes).toBe(25);
+      });
+
+      it('returns 400 for a negative buffer', async () => {
+        const isolatedTenant = await provisionTenant();
+        const created = await createIn(isolatedTenant);
+
+        await request(app.getHttpServer())
+          .patch(`/services/${created.id}`)
+          .set(actorHeaders(isolatedTenant, MANAGER_ID))
+          .send({ bufferAfterMinutes: -1 })
+          .expect(400);
+      });
+
+      it('tenant isolation: tenant A cannot change or clear the buffer of a tenant B service', async () => {
+        const entity = new ServiceEntityBuilder()
+          .withTenantId(tenantB)
+          .withIsActive(true)
+          .withBufferAfterMinutes(20)
+          .build();
+        await ds.getRepository(ServiceEntity).save(entity);
+
+        await request(app.getHttpServer())
+          .patch(`/services/${entity.id}`)
+          .set(actorHeaders(tenantA, MANAGER_ID))
+          .send({ bufferAfterMinutes: null })
+          .expect(404);
+
+        const stored = await ds.getRepository(ServiceEntity).findOneByOrFail({ id: entity.id });
+        expect(stored.bufferAfterMinutes).toBe(20);
+      });
+    });
+
     it('returns 409 when updating a deactivated service', async () => {
       const { body: created } = await request(app.getHttpServer())
         .post('/services')
@@ -337,6 +437,38 @@ describe('ServiceController (integration)', () => {
       expect(fetched.resourceRequirements).toHaveLength(1);
       expect(fetched.resourceRequirements[0].type).toBe('EQUIPMENT');
       expect(fetched.resourceRequirements[0].resourcePoolIds).toEqual([resource.id]);
+    });
+
+    it('accepts an empty flat list — the resource-free service — and persists it (TD51-S00)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+
+      await request(app.getHttpServer())
+        .patch(`/services/${created.id}/resource-requirements`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ resourceRequirements: [] })
+        .expect(200);
+
+      const { body: fetched } = await request(app.getHttpServer())
+        .get(`/services/${created.id}`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .expect(200);
+      expect(fetched.resourceRequirements).toEqual([]);
+    });
+
+    it('tenant isolation: tenant A cannot empty the requirements of a tenant B service', async () => {
+      const entity = new ServiceEntityBuilder().withTenantId(tenantB).withIsActive(true).build();
+      await ds.getRepository(ServiceEntity).save(entity);
+
+      await request(app.getHttpServer())
+        .patch(`/services/${entity.id}/resource-requirements`)
+        .set(actorHeaders(tenantA, MANAGER_ID))
+        .send({ resourceRequirements: [] })
+        .expect(404);
     });
 
     it('returns 422 when the type has no active resources (UC-050 A1)', async () => {
@@ -453,6 +585,27 @@ describe('ServiceController (integration)', () => {
         .expect(200);
       expect(renamed.name).toBe('Jornada Renomeada');
       expect(renamed.durationMinutes).toBe(80);
+    });
+
+    it('returns 400 for a leg with no resource requirement — only the flat list may be empty (TD51-S00)', async () => {
+      const isolatedTenant = await provisionTenant();
+      const { body: created } = await request(app.getHttpServer())
+        .post('/services')
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send(validBody)
+        .expect(201);
+      const emptyLeg = (legIndex: number) => ({
+        legIndex,
+        name: `Etapa ${legIndex}`,
+        durationMinutes: 30,
+        resourceRequirements: [],
+      });
+
+      await request(app.getHttpServer())
+        .put(`/services/${created.id}/legs`)
+        .set(actorHeaders(isolatedTenant, MANAGER_ID))
+        .send({ legs: [emptyLeg(0), emptyLeg(1)] })
+        .expect(400);
     });
 
     it('returns 422 for fewer than 2 legs (UC-052 A1)', async () => {

@@ -132,7 +132,6 @@ export class ServiceController {
         tenantId: this.tenantContext.tenantId,
         currency: this.tenantContext.settings.localization.currency,
         locale: this.tenantContext.settings.localization.language,
-        tenantServiceBufferMinutes: this.tenantContext.settings.booking.serviceBufferMinutes,
       })
       .catch(mapBookingError);
   }

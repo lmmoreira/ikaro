@@ -103,6 +103,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={10}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -119,6 +120,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={10}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={onDirtyChange}
       />,
     );
@@ -136,6 +138,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -155,6 +158,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={30}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -166,24 +170,35 @@ describe('ServiceResourceRequirementsPanel', () => {
     expect(screen.getByTestId('resource-buffer-input')).toBeDisabled();
   });
 
-  it('saving in flat mode calls updateServiceResourceRequirements and updateService for the buffer', async () => {
+  it('saving in flat mode, with both the requirements and the buffer changed, saves requirements first and then the buffer', async () => {
     const user = userEvent.setup();
     stubActiveStaff('staff-1');
     const onDirtyChange = vi.fn();
-    renderWithIntl(
+    const calls: string[] = [];
+    resourceRequirementsMutateAsync.mockImplementationOnce(async () => {
+      calls.push('requirements');
+      return {};
+    });
+    updateServiceMutateAsync.mockImplementationOnce(async () => {
+      calls.push('buffer');
+      return {};
+    });
+    const { container } = renderWithIntl(
       <ResourcePanelWithAction
         serviceId="svc-1"
-        initialResourceRequirements={[
-          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
-        ]}
+        initialResourceRequirements={[]}
         initialLegs={null}
-        initialBufferAfterMinutes={10}
+        initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={onDirtyChange}
       />,
     );
 
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '10');
     await user.click(screen.getByTestId('resource-requirements-save'));
 
+    expect(calls).toEqual(['requirements', 'buffer']);
     expect(resourceRequirementsMutateAsync).toHaveBeenCalledWith({
       id: 'svc-1',
       body: {
@@ -198,6 +213,77 @@ describe('ServiceResourceRequirementsPanel', () => {
     });
     expect(screen.getByTestId('resource-requirements-saved')).toBeInTheDocument();
     expect(onDirtyChange).toHaveBeenCalledWith(false);
+  });
+
+  it('a buffer-only edit on a resource-free service never calls the requirements endpoint (TD51-S00)', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={60}
+        tenantDefaultBufferMinutes={60}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.clear(screen.getByTestId('resource-buffer-input'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '10');
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
+    expect(updateServiceMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: { bufferAfterMinutes: 10 },
+    });
+    expect(screen.getByTestId('resource-requirements-saved')).toBeInTheDocument();
+  });
+
+  it('a requirements-only edit never calls the service endpoint for the buffer', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(resourceRequirementsMutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateServiceMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('retries only the buffer after a half-failed save, not the requirements that already landed', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    updateServiceMutateAsync.mockRejectedValueOnce(new Error('boom'));
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
+    await user.type(screen.getByTestId('resource-buffer-input'), '10');
+    await user.click(screen.getByTestId('resource-requirements-save'));
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
+    expect(resourceRequirementsMutateAsync).toHaveBeenCalledTimes(1);
+    expect(updateServiceMutateAsync).toHaveBeenCalledTimes(2);
   });
 
   it('saving in legs mode calls updateServiceLegs, not updateServiceResourceRequirements', async () => {
@@ -223,6 +309,7 @@ describe('ServiceResourceRequirementsPanel', () => {
           },
         ]}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -244,17 +331,19 @@ describe('ServiceResourceRequirementsPanel', () => {
       resourceRequirements: saved,
     });
     const onRequirementsSaved = vi.fn();
-    renderWithIntl(
+    const { container } = renderWithIntl(
       <ResourcePanelWithAction
         serviceId="svc-1"
-        initialResourceRequirements={saved as never}
+        initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
         onRequirementsSaved={onRequirementsSaved}
       />,
     );
 
+    await user.click(getResourceTypeCheckbox(container, 'STAFF'));
     await user.click(screen.getByTestId('resource-requirements-save'));
 
     expect(onRequirementsSaved).toHaveBeenCalledWith(saved);
@@ -285,6 +374,7 @@ describe('ServiceResourceRequirementsPanel', () => {
           },
         ]}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
         onLegsSaved={onLegsSaved}
       />,
@@ -303,6 +393,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -313,17 +404,16 @@ describe('ServiceResourceRequirementsPanel', () => {
     expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
   });
 
-  it('sends bufferAfterMinutes: 0 (not skipping the PATCH) when the field is cleared', async () => {
+  it('clearing the buffer sends null — inherit the business default — not zero (TD51-S00)', async () => {
     const user = userEvent.setup();
     stubActiveStaff('staff-1');
     renderWithIntl(
       <ResourcePanelWithAction
         serviceId="svc-1"
-        initialResourceRequirements={[
-          { type: 'STAFF', selectionMode: 'AUTO_ANY', resourcePoolIds: null, requiredQuantity: 1 },
-        ]}
+        initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={30}
+        tenantDefaultBufferMinutes={45}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -331,10 +421,59 @@ describe('ServiceResourceRequirementsPanel', () => {
     await user.clear(screen.getByTestId('resource-buffer-input'));
     await user.click(screen.getByTestId('resource-requirements-save'));
 
+    expect(resourceRequirementsMutateAsync).not.toHaveBeenCalled();
+    expect(updateServiceMutateAsync).toHaveBeenCalledWith({
+      id: 'svc-1',
+      body: { bufferAfterMinutes: null },
+    });
+  });
+
+  it('typing 0 sends an explicit zero override, which is not the same as blank', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={45}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    await user.type(screen.getByTestId('resource-buffer-input'), '0');
+    await user.click(screen.getByTestId('resource-requirements-save'));
+
     expect(updateServiceMutateAsync).toHaveBeenCalledWith({
       id: 'svc-1',
       body: { bufferAfterMinutes: 0 },
     });
+  });
+
+  it('shows the business default while the buffer is blank, and blocks saving a negative value', async () => {
+    const user = userEvent.setup();
+    stubActiveStaff('staff-1');
+    renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={45}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-buffer-input')).toHaveAttribute(
+      'placeholder',
+      '45 (padrão da empresa)',
+    );
+
+    await user.type(screen.getByTestId('resource-buffer-input'), '-5');
+
+    expect(screen.getByTestId('resource-buffer-invalid')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-requirements-save')).toBeDisabled();
   });
 
   it('locks the flat mode option once the service is already legged on the server', () => {
@@ -359,6 +498,7 @@ describe('ServiceResourceRequirementsPanel', () => {
           },
         ]}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -374,6 +514,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -396,6 +537,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         ]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -415,6 +557,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={vi.fn()}
       />,
     );
@@ -450,6 +593,7 @@ describe('ServiceResourceRequirementsPanel', () => {
         initialResourceRequirements={[]}
         initialLegs={null}
         initialBufferAfterMinutes={null}
+        tenantDefaultBufferMinutes={60}
         onDirtyChange={onDirtyChange}
       />,
     );
@@ -477,6 +621,7 @@ describe('ServiceResourceRequirementsPanel', () => {
           ]}
           initialLegs={null}
           initialBufferAfterMinutes={null}
+          tenantDefaultBufferMinutes={60}
           onDirtyChange={vi.fn()}
         />,
       );
@@ -552,6 +697,7 @@ describe('ServiceResourceRequirementsPanel', () => {
             },
           ]}
           initialBufferAfterMinutes={null}
+          tenantDefaultBufferMinutes={60}
           onDirtyChange={vi.fn()}
         />,
       );

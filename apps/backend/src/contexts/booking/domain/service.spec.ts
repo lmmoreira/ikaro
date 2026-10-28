@@ -318,6 +318,17 @@ describe('Service', () => {
       expect(service.bufferAfterMinutes).toBeNull();
     });
 
+    it('creates an APPOINTMENT service with a null buffer — it inherits the tenant, nothing is snapshotted (TD51-S00)', () => {
+      const service = Service.create({
+        tenantId: TENANT,
+        name: 'Lavagem',
+        price: PRICE,
+        durationMinutes: DURATION,
+        loyaltyPointsValue: POINTS,
+      });
+      expect(service.bufferAfterMinutes).toBeNull();
+    });
+
     it('rejects creating a non-SESSION service with classResourceSlots supplied', () => {
       expect(() =>
         Service.create({
@@ -688,6 +699,38 @@ describe('Service', () => {
       const service = new ServiceBuilder().withTenantId(TENANT).build();
       service.setBufferAfterMinutes(0);
       expect(service.bufferAfterMinutes).toBe(0);
+    });
+
+    it('clears the override with null so the service inherits the tenant default again (TD51-S00)', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).withBufferAfterMinutes(15).build();
+      service.setBufferAfterMinutes(null);
+      expect(service.bufferAfterMinutes).toBeNull();
+    });
+
+    it('still rejects clearing the override on a legged service', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).build();
+      service.setLegs([leg(0), leg(1)], activeIds(ResourceType.ROOM));
+      expect(() => service.setBufferAfterMinutes(null)).toThrow(BookingServiceHasLegsError);
+    });
+  });
+
+  describe('effectiveBufferAfterMinutes()', () => {
+    it('inherits the tenant default when the override is null', () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT)
+        .withBufferAfterMinutes(null)
+        .build();
+      expect(service.effectiveBufferAfterMinutes(45)).toBe(45);
+    });
+
+    it('uses an explicit override, never the tenant default', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).withBufferAfterMinutes(10).build();
+      expect(service.effectiveBufferAfterMinutes(45)).toBe(10);
+    });
+
+    it('treats an explicit 0 as an override of zero, not as "unset"', () => {
+      const service = new ServiceBuilder().withTenantId(TENANT).withBufferAfterMinutes(0).build();
+      expect(service.effectiveBufferAfterMinutes(45)).toBe(0);
     });
   });
 

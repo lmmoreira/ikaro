@@ -97,6 +97,7 @@ export class SchedulingExceptionController {
         correlationId,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
         exceptionIds: body.exceptionIds,
         resolutionType: body.resolutionType,
         reason: body.reason,

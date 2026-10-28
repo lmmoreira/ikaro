@@ -36,6 +36,8 @@ export interface ReassignBookingParams {
   sourceResourceId: string;
   target: ReassignTarget;
   timezone: string;
+  // settings.booking.serviceBufferMinutes — what a service with a null buffer inherits.
+  tenantServiceBufferMinutes: number;
 }
 
 // UC-077 REASSIGN — moves the booking's occupancy on `sourceResourceId` to another resource at the

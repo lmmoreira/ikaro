@@ -36,6 +36,8 @@ export interface MaterializeOccurrencesParams {
   resources: Resource[][];
   // The approving staff member; null when the schedule auto-confirmed at creation.
   approvedByStaffId: string | null;
+  // settings.booking.serviceBufferMinutes — what the service inherits when its own buffer is null.
+  tenantServiceBufferMinutes: number;
 }
 
 type ContactProfile = CustomerProfileDto & { phone: string };
@@ -154,7 +156,7 @@ function buildCandidate(
     occurrence.occurrenceStart.getTime() + schedule.recurrence.durationMinutes * 60_000,
   );
   const gap = availabilityService.resolveFlatGap(
-    service.bufferAfterMinutes ?? 0,
+    service.effectiveBufferAfterMinutes(params.tenantServiceBufferMinutes),
     resource.turnoverMinutes,
   );
   return {

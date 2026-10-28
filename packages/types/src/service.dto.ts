@@ -144,7 +144,8 @@ export interface UpdateServiceRequest {
   durationMinutes?: number;
   loyaltyPointsValue?: number;
   requiresPickupAddress?: boolean;
-  bufferAfterMinutes?: number;
+  // null clears the override (the service inherits the tenant's current default); 0 = no buffer.
+  bufferAfterMinutes?: number | null;
   bookingModel?: ServiceBookingModel;
   // Only meaningful (and required) when this same request converts bookingModel to SESSION —
   // mirrors CreateServiceRequest's identical field.
@@ -177,7 +178,12 @@ export interface StaffServiceResponse {
   createdAt: string;
   bookingModel: ServiceBookingModel;
   resourceRequirements: ResourceRequirementItem[];
+  // null = inherits the tenant's current serviceBufferMinutes; a number (incl. 0) is the override.
   bufferAfterMinutes: number | null;
+  // The tenant's current serviceBufferMinutes — what the service inherits while bufferAfterMinutes
+  // is null (effective buffer = bufferAfterMinutes ?? tenantDefaultBufferMinutes); null where no
+  // buffer applies (legged and SESSION services).
+  tenantDefaultBufferMinutes: number | null;
   legs: ServiceLegItem[] | null;
   classResourceSlots: ClassResourceSlotItem[] | null;
   bookingPolicy: ServiceBookingPolicyItem;
