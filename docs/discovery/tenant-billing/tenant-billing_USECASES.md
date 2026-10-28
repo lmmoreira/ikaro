@@ -14,7 +14,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 |---|---|
 | A — Subscription and pricing (operator / system reaction) | 01–07, 32, 33, 37 |
 | B — System jobs and provider integration | 08–11, 34, 35 |
-| C — Manager billing | 12–14, 28–31, 38 |
+| C — Manager billing | 12–14, 28–31, 38–40 |
 | D — Enforcement across the system | 15–21 |
 | E — Self-signup, trial, clean-up | 22–27, 36 |
 
@@ -38,8 +38,8 @@ Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deac
   - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (error logged, event retried); the missing row is a provisioning/data-integrity incident, access is denied rather than granted (after the provisioning window), the self-heal job retries it (CAND-35), and an alert fires only if that fails; a missing price set for an enabled country is also caught at deploy time.
   - **A3: Provisioning passes an explicit feature subset** (event hint) → the subset defines the **default paid items**; the trial still grants every feature because it is computed from the status, so the trial is always complete (an exempt tenant gets only the subset, open-ended).
   - **A4: Non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off** → the use case fails loudly and alerts; provisioning paths also reject it up front (main doc §5.2). Exempt US tenants are allowed.
-  - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES`, so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job (CAND-35) runs this same use case.
   - **A5: A legacy `TenantProvisioned` payload** (outbox row written before the deploy, no `countryCode`; the bus does not version-route, verified) → the handler skips it and logs; the self-heal job (CAND-35) creates the trial through the narrow read-only tenant-info port (decision 119). Publisher and handler ship in the same release.
+  - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES`, so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job (CAND-35) runs this same use case.
   - **A7: Event without a `registrationId`** for a non-exempt tenant (an old script call) → the handler creates the subscription without tax id and flags the BR charge hold (CAND-08 A8); the manager supplies it in the dashboard.
 - **Postconditions:** Tenant has a `TRIALING` subscription with all items.
 - **Events Triggered:** None (the audit log is the `TenantProvisioned` handler itself).

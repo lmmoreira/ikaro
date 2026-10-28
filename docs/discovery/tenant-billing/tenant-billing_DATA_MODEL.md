@@ -411,13 +411,13 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 
 | Event | `data` | Consumer |
 |---|---|---|
-| `ChargeIssued` | `chargeId`, `dueDate`, `amountMinor`, `currency`, `paymentUrl` | Notification (email) |
+| `ChargeIssued` | `chargeId`, `kind` (`PERIOD` \| `RECOVERY` \| `ADDON`), `dueDate`, `amountMinor`, `currency`, `paymentUrl` | Notification (email) |
 | `ChargePaid` | `chargeId`, `amountMinor`, `currency`, `method`, `paidAt` | Notification (receipt) |
 | `SubscriptionPastDue` | `subscriptionId`, `pastDueSince`, `suspendsAt` | Notification |
 | `SubscriptionSuspended` | `subscriptionId`, `reason`, `suspendedAt`, `purgeAt` | Notification; hotsite revalidation |
 | `SubscriptionReactivated` | `subscriptionId`, `reactivatedAt` | Notification; hotsite revalidation |
 | `SubscriptionCancelled` | `subscriptionId`, `cancelAt`, `immediate` | Notification (email to the billing email) |
-| `PlanChanged` | `subscriptionId`, `effectiveFrom`, `newMonthlyTotalMinor`, `added[]`, `removed[]` | Notification (email to the billing email) |
+| `PlanChanged` | `subscriptionId`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle; `newMonthlyTotalMinor` while only monthly exists), `added[]`, `removed[]` | Notification (email to the billing email) |
 | `BillingReminderDue` | `kind` (`PLAN_CONFIRMATION` \| `TRIAL_ENDING` \| `CHARGE_DUE_SOON` \| `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?` | Notification (dunning email, CAND-34); `PLAN_CONFIRMATION` asks an unconfirmed trial tenant to confirm its first paid plan (decision 115) |
 | `TenantPurgeWarning` | `subscriptionId`, `daysBefore` (30 or 7), `purgeAt` | Notification (email to the manager; Billing template, exempt from the gate) |
 | `SubscriptionPriceChangeAnnounced` | `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) **limited to the features this tenant actually has**, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or annual total), `batchId?` — **one event per affected tenant per adjustment** (a tenant with five changed features gets one email listing all five, decision 127) (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
