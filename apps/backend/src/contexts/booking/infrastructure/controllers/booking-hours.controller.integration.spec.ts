@@ -228,12 +228,12 @@ describe('booking creation honours hours, closures and openings (integration)', 
     });
 
     it('adds no trailing gap for an explicit zero override even though the tenant default is larger (TD51-S00)', async () => {
-      const { body } = await route.send(at(80, 10)).expect(201);
+      const { body } = await route.send(at(65, 10)).expect(201);
       expect(body.bookingId).toEqual(expect.any(String));
       const row = await ds.getRepository(ResourceOccupancyEntity).findOneByOrFail({
         tenantId: tenantAId,
         resourceId: locationId,
-        startsAt: new Date(at(80, 10)),
+        startsAt: new Date(at(65, 10)),
       });
       expect(row.gapMinutes).toBeNull();
       expect(row.endsAt.getTime() - row.startsAt.getTime()).toBe(30 * 60_000);
