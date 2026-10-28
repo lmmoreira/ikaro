@@ -74,7 +74,7 @@ export function Topbar({ tenantName, userName, action }: TopbarProps): React.JSX
     'flex items-center gap-1.5 text-[0.9375rem] font-semibold text-gray-900 transition-colors hover:text-blue-700';
 
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
+    <header className="sticky top-0 z-10 flex min-h-[3.375rem] items-center gap-3 border-b border-gray-100 bg-white px-4 py-3 lg:px-6">
       {showBackLink ? (
         <div className="flex min-w-0 items-center gap-3">
           {onBackOverride ? (
