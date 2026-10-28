@@ -29,7 +29,7 @@ Database-expert findings applied:
 | `feature_key` | text NOT NULL | closed enum `FeatureKey` (five members: `HOTSITE`, `BOOKING`, `LOYALTY`, `CHATBOT`, `LEAD_FORM`; CHECK mirrors it; `closed-enum-registry` detector) |
 | `country_code` | char(2) NOT NULL | `BR`, `US` in v1 |
 | `tier` | text NOT NULL DEFAULT `'STANDARD'` | `BASIC`/`PLUS` for `CHATBOT`; `STANDARD` elsewhere |
-| `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | only `MONTHLY` accepted in v1 (CHECK); column exists so annual can be added |
+| `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | `MONTHLY` in the first schema (CHECK); **slice H (annual billing, decision 123)** relaxes the CHECK to `MONTHLY` \| `ANNUAL` by an expand migration and seeds the annual rows. Every feature has its own monthly and annual amount; the customer never mixes cycles (the cycle belongs to the subscription) |
 | `currency` | char(3) NOT NULL | BR→BRL, US→USD (validated by the VO) |
 | `tax_behavior` | *slice E* | `INCLUSIVE` (BR) or `EXCLUSIVE` (US); added with the US slice. Until then every price is tax-inclusive and the column does not exist |
 | `selectable` | boolean NOT NULL DEFAULT true | false hides the catalog row from new selection; it never stops renewal for an existing item |
@@ -45,6 +45,9 @@ Database-expert findings applied:
 | id | feature_key | country_code | tier | cycle | currency | selectable |
 |---|---|---|---|---|---|---|
 | `0190…a1` | `CHATBOT` | `BR` | `PLUS` | `MONTHLY` | `BRL` | `true` |
+| `0190…a2` *(slice H)* | `CHATBOT` | `BR` | `PLUS` | `ANNUAL` | `BRL` | `true` |
+
+The annual row has its own version rows (e.g. `amount_minor = 79000`, illustrative: 10× the monthly amount, "2 meses grátis"), independent of the monthly ones.
 
 ### `billing.feature_price_versions` — dated amounts (exempt from `tenant_id`, same justification)
 
@@ -58,6 +61,7 @@ Database-expert findings applied:
 | `created_by` | text NOT NULL | operator id |
 | `reason` | text NOT NULL | |
 | `superseded_at` | timestamptz NULL | set when a newer pending version replaces this not-yet-effective one; the row is kept as history |
+| `batch_id` | uuid NULL | groups the versions created by one percentage adjustment (decision 127); NULL for a single exact-amount change. Lets the audit answer "which prices moved together, by how much, and why" |
 | `created_at` | timestamptz NOT NULL | |
 
 - `UNIQUE(feature_price_id, effective_from) WHERE superseded_at IS NULL`; read the amount in force with `ORDER BY effective_from DESC` where `effective_from <= :periodStart AND superseded_at IS NULL` (index on `(feature_price_id, effective_from DESC) WHERE superseded_at IS NULL`).
@@ -70,6 +74,8 @@ Database-expert findings applied:
 |---|---|---|---|---|---|---|
 | `0190…a1` | `7900` | `2026-11-10` | `NULL` | `seed` | `launch catalog` | `NULL` |
 | `0190…a1` | `8900` | `2027-01-10` | `2026-11-20T12:00Z` | `op:leonardo` | `annual adjustment` | `NULL` |
+
+The second row came from a **+20 % adjustment** applied to every active BR price in one call: all the rows of that batch share `batch_id`, `effective_from`, `announced_at` and `reason` (here `7900 × 1.2 = 9480`, rounded to the whole real = `9500`; the `8900` above is just an illustrative single-price change).
 
 ### `billing.billing_accounts` — one per tenant
 
@@ -116,8 +122,10 @@ After the manager saves the address: `{"street":"Rua das Flores","number":"120",
 | `currency` | char(3) NOT NULL | fixed at start |
 | `timezone` | text NOT NULL | IANA zone copied from `TenantProvisioned` at creation, **immutable**. Every "tenant-local" value in this schema (`next_due_date`, charge `due_date`/periods, local-midnight period boundaries, the overdue sweep) uses it; Billing never reads Platform settings |
 | `merchant_profile_key` | text NOT NULL | immutable operational key for the selling legal entity/provider-account configuration, e.g. `BRL_ASAAS_IKARO_BR` or `USD_STRIPE_IKARO_BR` in production (the Stripe account is the Brazilian CNPJ's, decision 60) and **`BRL_FAKE`, `USD_FAKE`, `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` outside it**. The environment configuration decides which key new subscriptions receive (main doc §5.3); there is no per-tenant override, and a fake/sandbox key is rejected when `APP_ENV=production`. No KYC/legal-entity fields are duplicated in Ikaro |
-| `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | |
+| `cycle` | text NOT NULL DEFAULT `'MONTHLY'` | `MONTHLY` in the first schema; `ANNUAL` with slice H. Applies to the whole subscription and every item |
 | `anchor_day` | smallint NOT NULL CHECK (1..28) | avoids the 29–31 problem |
+| `anchor_month` | *slice H* smallint NULL CHECK (1..12) | for an `ANNUAL` subscription the renewal month (period start month); NULL while monthly. Day 29–31 is clamped to 28 as for monthly |
+| `next_cycle`, `next_cycle_from` | *slice H* text NULL / date NULL | a cycle switch scheduled by the manager (monthly↔annual), applied at the next paid period start like any plan change (decision 123); both NULL when nothing is scheduled. A recovery payment resets `cycle` to `MONTHLY` (decision 125) |
 | `trial_ends_at` | timestamptz NULL | the tenant-local midnight that closes day 14 (decision 84) |
 | `current_period_start`, `current_period_end` | timestamptz NULL | for `TRIALING` they stay NULL until the trial ends and the first charge is paid; the sweep then sets them (period starts at trial end). For a recovery payment they are set at payment |
 | `next_due_date` | date NULL | tenant-local due date of the **next period still to be issued** (in `timezone`). Lifecycle (decision 118): set to the trial-end date at start; **advanced by one cycle (anchor day, clamped to 28) in the same transaction that inserts the `PERIOD` charge for it**, so an already-issued charge is never selected again; a recovery payment sets it to the day after the new period's end; a cancelled-and-re-issued charge (plan change) reuses its period and never rewinds it. The page shows the open charge's own `due_date` when one exists, else this value. The status sweep owns the overdue transition |
@@ -188,8 +196,8 @@ Cross-tenant job indexes (standalone, partial):
 | `id` | uuid PK | |
 | `tenant_id` | uuid NOT NULL | |
 | `subscription_id` | uuid NOT NULL | composite FK |
-| `kind` | text NOT NULL DEFAULT `'PERIOD'` | `PERIOD` \| `RECOVERY` (one-month charge issued to reactivate a suspended subscription) |
-| `period_start`, `period_end` | date NULL | NOT NULL for `PERIOD`; for `RECOVERY` they stay **NULL forever**: the period lives on `subscriptions.current_period_*` and `paid_at` is its start (decision 82). CHECK: NOT NULL when `kind = 'PERIOD'`, NULL when `RECOVERY` |
+| `kind` | text NOT NULL DEFAULT `'PERIOD'` | `PERIOD` \| `RECOVERY` (one-month charge issued to reactivate a suspended subscription; always the monthly price, decision 125) \| `ADDON` (*slice H*: a feature added in the middle of an annual period, paid for the remaining whole months, decision 124; `period_start` = payment day, `period_end` = the current period's end, one line with the prorated amount; its item starts at payment and joins the annual selection at renewal) |
+| `period_start`, `period_end` | date NULL | NOT NULL for `PERIOD`; for `RECOVERY` they stay **NULL forever**: the period lives on `subscriptions.current_period_*` and `paid_at` is its start (decision 82). CHECK: NOT NULL when `kind` is `PERIOD` or `ADDON` (slice H), NULL when `RECOVERY` |
 | `due_date` | date NOT NULL | tenant-timezone date |
 | `subtotal_minor` | bigint NOT NULL | **cached sum of `charge_lines`** before tax, written once at insert |
 | `tax_amount_minor` | *slice E* | immutable tax snapshot for tax-exclusive (US) charges, written once when the provider finalizes the invoice (decision 62). Not in the first schema |
@@ -216,6 +224,16 @@ Cross-tenant job indexes (standalone, partial):
 - Billing page list: `(tenant_id, due_date DESC)`.
 - Reconcile/open-charge scan: `(status, due_date) WHERE status IN ('PENDING','OVERDUE')`; creation retry: `(provider_creation_status, provider_creation_last_attempt_at) WHERE provider_charge_id IS NULL` — standalone.
 - **Retention:** kept (anonymized) after a tenant purge for fiscal reasons — to be confirmed with the accountant (see main doc §4.6).
+
+**Annual example (slice H)** — an annual `PERIOD` charge (BR full catalog, illustrative 10× prices) and a mid-year `ADDON` charge for Lead Form with 5 months left:
+
+| field | annual period charge | add-on charge |
+|---|---|---|
+| `kind` / `status` | `PERIOD` / `PAID` | `ADDON` / `PAID` |
+| `period_start` → `period_end` | `2026-10-20` → `2027-10-19` | `2027-05-20` → `2027-10-19` |
+| `due_date` | `2026-10-20` (issued 30 days before) | `2027-05-20` (due on issue) |
+| `subtotal_minor` / `amount_minor` | `245000` / `245000` | `9500` / `9500` (5 × `1900`, capped at the annual `19000`) |
+| lines | five lines at the annual amounts | `LEAD_FORM` `9500` |
 
 **Example** — a paid `PERIOD` charge and an open `RECOVERY` charge (BR, tax-inclusive, so `amount = subtotal`):
 
@@ -400,7 +418,7 @@ All carry the standard envelope (`eventId`, `tenantId`, `occurredAt`, `correlati
 | `PlanChanged` | `subscriptionId`, `effectiveFrom`, `newMonthlyTotalMinor`, `added[]`, `removed[]` | Notification (email to the billing email) |
 | `BillingReminderDue` | `kind` (`PLAN_CONFIRMATION` \| `TRIAL_ENDING` \| `CHARGE_DUE_SOON` \| `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?` | Notification (dunning email, CAND-34); `PLAN_CONFIRMATION` asks an unconfirmed trial tenant to confirm its first paid plan (decision 115) |
 | `TenantPurgeWarning` | `subscriptionId`, `daysBefore` (30 or 7), `purgeAt` | Notification (email to the manager; Billing template, exempt from the gate) |
-| `SubscriptionPriceChangeAnnounced` | `featureKey`, `tier`, `oldAmountMinor`, `newAmountMinor`, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` — **one event per affected tenant** (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
+| `SubscriptionPriceChangeAnnounced` | `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) **limited to the features this tenant actually has**, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or annual total), `batchId?` — **one event per affected tenant per adjustment** (a tenant with five changed features gets one email listing all five, decision 127) (the envelope requires `tenantId`, so a platform-wide price change fans out per tenant) | Notification (email to managers) |
 | `TenantPurgeRequested` | `tenantId`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`) | every bounded context (each deletes its own data), storage cleanup |
 | `TenantPurgeContextCompleted` | `purgeJobId`, `participant`, `completedAt` | Billing purge coordinator |
 

@@ -21,6 +21,8 @@ All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; sta
 | `GET /v1/billing/plan` | catalog, current and next-paid-period selection, tiers, dependencies and effective date | 31 |
 | `POST /v1/billing/plan/preview` | preview the proposed **next paid period** selection and total | 31 |
 | `PUT /v1/billing/plan` | schedule the next paid-period selection (`items: [{ featureKey, tier }]`); during the trial it also sets `plan_confirmed_at` | 31 |
+| *(slice H)* `PUT /v1/billing/plan`, `POST /plan/preview`, `POST /plan/confirm` | accept an optional `cycle: "MONTHLY"|"ANNUAL"` (default: the subscription's current cycle); the preview returns the total and the monthly equivalent in that cycle; `GET /plan` returns both cycles' prices per feature and `nextCycle`/`nextCycleFrom` | 39 |
+| *(slice H)* `POST /v1/billing/plan/addon` | annual subscribers: `{ featureKey, tier }` → `201 { chargeId, amountMinor, months }` (co-terminus `ADDON` charge; the web then calls `payment-link`); `409 BILLING_ADDON_NOT_ALLOWED` on a monthly subscription | 40 |
 | `POST /v1/billing/plan/confirm` | trial only: confirm the current (default or saved) first paid selection unchanged → `200 { planConfirmedAt }`; triggers first-invoice issuing when within the 10-day lead; `409 BILLING_PLAN_ALREADY_CONFIRMED` | 31, 08 |
 | `POST /v1/billing/discard` | self-service discard of a never-paid tenant `{ confirmSlug }` → `202 { purgeJobId }`; `409 BILLING_DISCARD_NOT_ALLOWED` when a charge was ever paid | 36 |
 | `POST /v1/billing/cancel` | schedule cancellation at end of paid period | 28 |
@@ -35,6 +37,8 @@ GET /v1/billing/summary
   "exempt": false,                          // true: no charges ever; the page shows "Conta isenta de cobrança" and no actions
   "suspensionReason": null,                 // NON_PAYMENT | CANCELED | PAYMENT_REVERSED | OPERATOR when SUSPENDED
   "currency": "BRL", "countryCode": "BR",
+  "cycle": "MONTHLY",                       // MONTHLY | ANNUAL (slice H); totals and item prices below are in this cycle
+  "nextCycle": null, "nextCycleFrom": null, // a scheduled switch (slice H)
   "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null,
   "suspendsAt": null,                       // PAST_DUE only: coalesce(grace_until, past_due_since + 14 days)
   "cancelAt": null,
@@ -96,6 +100,7 @@ Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashb
 GET /v1/public/billing/prices?country=BR
 200 { "countryCode":"BR","currency":"BRL",
       "taxBehavior":"INCLUSIVE",
+      // slice H: also accepts &cycle=ANNUAL (default MONTHLY); each item then carries the annual amount and `monthlyEquivalentMinor`
       "items":[ {"featureKey":"HOTSITE","tier":"STANDARD","amountMinor":4900},
                 {"featureKey":"CHATBOT","tier":"BASIC","amountMinor":3900},
                 {"featureKey":"CHATBOT","tier":"PLUS","amountMinor":7900,"upcoming":{"amountMinor":8900,"effectiveFrom":"2026-12-10"}} ] }   // `upcoming` present only when a dated change is scheduled; amounts illustrative
@@ -161,7 +166,22 @@ Following `CronLeadFormController`/`CronChatbotController`: in production Cloud 
 
 All idempotent; the job passes an explicit `tenantId` to every use case (no `RequestContext`); provider calls never inside `txManager.run()`. `exempt` subscriptions are skipped by every job.
 
-### Price-change endpoint (operator only)
+### Percentage adjustment endpoint (operator only — the normal way to raise prices, decision 127)
+
+```
+POST /internal/billing/feature-prices/adjust?dryRun=true
+  Body: { "countryCode": "BR", "percent": 20, "roundToMinor": 100, "effectiveFrom": "2027-01-10",
+          "reason": "annual adjustment", "cycles": ["MONTHLY","ANNUAL"] (optional, default all),
+          "exclude": [ { "featureKey": "LEAD_FORM", "tier": "STANDARD" } ] (optional) }
+  200 (dryRun) { "batchPreview": [ { "featureKey","tier","cycle","oldAmountMinor":7900,"newAmountMinor":9500 }, … ],
+                 "affectedTenants": 14, "sampleTenantTotals": [ { "tenantId","oldTotalMinor":24500,"newTotalMinor":29200 } ],
+                 "minNoticeDays": 40, "effectiveFrom": "2027-01-10", "previewHash": "…" }
+  Without dryRun: body also carries "expectedPreviewHash"; 201 { "batchId", "versions": 6, "affectedTenants": 14, "announced": true }
+  422 BILLING_PRICE_NOTICE_TOO_SHORT | 409 BILLING_PRICE_BATCH_CHANGED (the active prices moved since the dry run) | 422 BILLING_PRICE_UNCHANGED (a price would not change after rounding)
+```
+It selects **every price of that country that is in force today** (a version with `effective_from <= today`, not superseded) and is either `selectable` or still used by a non-exempt subscription item (hidden prices that subscribers keep renewing are adjusted too), applies `percent` (negative = decrease) and rounds half-up to a multiple of `roundToMinor` (default 100 = whole real/dollar). In **one transaction** it inserts one `feature_price_versions` row per price sharing a `batch_id`, `effective_from` and `reason`, supersedes any pending version of those prices, and writes **one** `SubscriptionPriceChangeAnnounced` outbox event per affected tenant carrying only that tenant's changed features and its new total — one email, never one per feature. The notice check runs once for the whole batch (40 days; 60 when an `ANNUAL` price is included, slice H). The dry run shows the operator every new price and sample tenant totals so rounding is checked before saving, and `previewHash` makes the apply fail if the active prices changed in between. The audit is the `batch_id` group on `feature_price_versions` (who, why, when, old and new amounts).
+
+### Single exact price change (operator only — rare, e.g. a correction or one new tier)
 
 ```
 POST /internal/billing/feature-prices/CHATBOT/BR/PLUS/versions?dryRun=true
@@ -208,7 +228,7 @@ Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD) and the no
 
 Names follow the existing per-context convention in `packages/types/src/error-codes.ts` (`STAFF_*`, `LOYALTY_*`, `PLATFORM_*`): Billing codes are `BILLING_*`, signup codes `SIGNUP_*`.
 
-**Plumbing for the new origins (verified):** a `BillingErrorCode` and a `SignupErrorCode` const (each `<ORIGIN>_<MEMBER>`) in `packages/types/src/error-codes.ts`, both added to the `AnyErrorCode` union, to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`, to both `errors.json` files and to `docs/ERROR_CATALOG.md`; a BFF-thrown code must also enter the `BffThrowableCode` union used by `throwProblemDetail`. New this review: `BILLING_PLAN_ALREADY_CONFIRMED`, `BILLING_DISCARD_NOT_ALLOWED`.
+**Plumbing for the new origins (verified):** a `BillingErrorCode` and a `SignupErrorCode` const (each `<ORIGIN>_<MEMBER>`) in `packages/types/src/error-codes.ts`, both added to the `AnyErrorCode` union, to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`, to both `errors.json` files and to `docs/ERROR_CATALOG.md`; a BFF-thrown code must also enter the `BffThrowableCode` union used by `throwProblemDetail`. New this review: `BILLING_PLAN_ALREADY_CONFIRMED`, `BILLING_DISCARD_NOT_ALLOWED`, and for slice H `BILLING_ADDON_NOT_ALLOWED`, `BILLING_CYCLE_NOT_AVAILABLE` (no annual price for a selected feature).
 
 `BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_FEATURE_IN_USE`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_ADDRESS_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` (decided).
 

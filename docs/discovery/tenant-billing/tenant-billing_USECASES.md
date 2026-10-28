@@ -18,7 +18,7 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 | D — Enforcement across the system | 15–21 |
 | E — Self-signup, trial, clean-up | 22–27, 36 |
 
-Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deactivation stops billing) and CAND-38 (optional automatic card collection, slice F2), and changed CAND-01, 08, 10, 19, 22, 25, 31, 32 and 34.
+Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deactivation stops billing), CAND-38 (optional automatic card collection, slice F2) and CAND-39/40 (annual billing and the mid-year add-on, slice H), and changed CAND-01, 08, 10, 19, 22, 25, 31, 32 and 34.
 
 ---
 
@@ -58,6 +58,8 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A2: Attempt an operator reactivation of a payment-based suspension** → rejected; it cannot bypass provider-confirmed payment. The one exception is making the tenant `exempt` (CAND-32 A3), which makes it free rather than paid.
 - **Postconditions:** Grace or suspension changed, audited.
 - **Events Triggered:** `SubscriptionSuspended` when applicable.
+
+> **Review 3 (decision 127):** the usual price change is a **percentage adjustment of every price in force for a country** (`POST /internal/billing/feature-prices/adjust`, one transaction, one consolidated email per tenant, dry run with sample tenant totals and a preview hash). The per-price flow below remains for exact amounts, corrections and new prices; both share the same rules (notice, supersede, `effective_from` = service-period start).
 
 ### **CAND-07: Operator Maintains the List Prices (`FeaturePrice`)**
 - **Actor:** Operator.
@@ -439,6 +441,8 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Postconditions:** Cancellation scheduled (`ACTIVE`) or the subscription suspended (`PAST_DUE`/`TRIALING`).
 - **Events Triggered:** `SubscriptionCancelled` on every cancel (emailed to the billing email); `SubscriptionSuspended` immediately for `PAST_DUE` or an unpaid `TRIALING`; for `ACTIVE` none until `SubscriptionSuspended` at `cancelAt`. Response: `200 { cancelAt }` for a scheduled cancel, `200 { status: "SUSPENDED", cancelAt: null }` for an immediate one.
 
+> **Slice H note (annual billing, §4.8):** CAND-28's "end of the last paid period" is a year for an annual subscription, with no refund; CAND-29's recovery charge for an annual tenant is always one month at the monthly price and returns the subscription to `MONTHLY` (decisions 125–126).
+
 ### **CAND-29: Manager Reactivates a Cancelled or Suspended Subscription**
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** Cancelling, or `SUSPENDED` (either reason), before the purge.
@@ -513,6 +517,24 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Alternative Flows:** **A1:** `exempt` tenant → no change. **A2:** Re-activation of a tenant → manual reactivation path (CAND-29) applies.
 - **Postconditions:** A paying tenant that is offboarded is not charged afterwards.
 - **Events Triggered:** `SubscriptionCancelled`.
+
+### **CAND-39: Manager Chooses or Switches the Billing Cycle (Monthly / Annual)** — *slice H, decision 123*
+- **Actor:** Staff (MANAGER).
+- **Preconditions:** Slice H released; subscription `TRIALING` or `ACTIVE` (not `PAST_DUE`/`SUSPENDED`, plan read-only), not cancelling.
+- **Trigger:** Manager toggles **Mensal | Anual** on the Plano tab (or during the trial, when confirming the first plan).
+- **Main Flow:** The tab re-quotes every feature and the total in the chosen cycle (annual amounts with "equivale a R$ X/mês"); saving schedules `next_cycle` for the next paid period start and shows the date; the next unpaid invoice, if already issued, is cancelled and re-issued in the new cycle (annual: issued 30 days before the period start). A trial confirms its first plan and cycle together (CAND-31).
+- **Alternative Flows:** **A1:** next invoice already paid → the switch waits for the following renewal. **A2:** no annual price for a selected feature/tier/country → the annual option is hidden (no mixed cycles). **A3:** annual → monthly → applies at the end of the paid year, nothing is refunded. **A4:** price change on an annual price → announced with at least 60 days' notice.
+- **Postconditions:** `next_cycle`/`next_cycle_from` scheduled; entitlements unchanged until then.
+- **Events Triggered:** `PlanChanged` (carries the cycle); a re-issued charge raises `ChargeIssued`.
+
+### **CAND-40: Annual Subscriber Adds a Feature Mid-Year (Co-terminus Add-on)** — *slice H, decision 124 (proposed)*
+- **Actor:** Staff (MANAGER).
+- **Preconditions:** `ACTIVE` annual subscription, dependencies satisfied, no pending cycle switch.
+- **Trigger:** Manager adds a feature on the Plano tab of an annual subscription.
+- **Main Flow:** The page shows "Você paga só os meses restantes": remaining whole months × the feature's monthly price, never more than its annual price. On confirm, Billing creates an `ADDON` charge (due on issue) and its provider link; when it is paid the item starts at payment and joins the annual selection from the next renewal. Entitlement before payment is unchanged.
+- **Alternative Flows:** **A1:** payment never completes → charge expires, no item. **A2:** the feature is removed later → effective at renewal, nothing refunded. **A3:** monthly subscription → not applicable (monthly additions start next period, as before).
+- **Postconditions:** Feature active now; renews with the plan.
+- **Events Triggered:** `ChargeIssued`, `ChargePaid`, `PlanChanged`.
 
 ### **CAND-38: Manager Enables Automatic Card Collection (Provider-Hosted Recurring Checkout)** — *slice F2, decision 114, gated*
 - **Actor:** Staff (MANAGER).

@@ -4,7 +4,7 @@
 
 ## Overview
 
-69 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática (shown as "Em breve", see Addendum 4) — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
+73 screens across four areas: (1) the manager **billing page** (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática (shown as "Em breve", see Addendum 4) — one primary action per tab, like the service editor; cancel is a separate confirmation page); (2) **changed existing screens** (dashboard banners, locked features, hotsite editor panel); (3) the **suspended experience** for staff, customers and the public hotsite; (4) the **self-signup** flow on Ikaro's own hotsite (`/ikaro-trial`). Every screen has its alternate-state variants as separate files (index.html, "Estados alternativos").
 
 ## What is real vs invented
 
@@ -403,6 +403,10 @@ POST /v1/public/signup/tenant
 | Signup error for a missing/invalid tax ID | CAND-22 A9 | `public-05c` already shows the invalid case; an empty value shows `SIGNUP_TAX_ID_REQUIRED` with the same field-error pattern |
 | First-run onboarding (checklist) | CAND-24 | Depends on the onboarding presets work; not a billing screen |
 | Billing and purge-warning emails | CAND-19, CAND-27 | Email templates (pt-BR, en), designed with the notification templates, not as dashboard screens |
+| Annual billing: US Plano tab with the Mensal/Anual toggle | Addendum 5 | Same toggle as `manager-08` in English (US$ annual 120 / 260 / 70 / 90-190 / 50, illustrative); only the US price table (`public-03b`) is drawn with the toggle |
+| Annual billing: price-change notice for an annual subscription | Addendum 5 | `manager-01k` variant: new annual amounts, applied at the next annual renewal |
+| Annual billing: renewal reminder e-mails and the annual invoice e-mail | Addendum 5 | Templates (pt-BR, en): invoice issued 30 days before the period start, plus reminders; designed with the notification templates |
+| Annual billing: Plano tab of an active annual subscription, cancel-scheduled screen with annual dates, Cobranças tab with add-on charges, PAST_DUE annual Resumo | Addendum 5 | Not drawn; `manager-11` shows Resumo only and `manager-13` confirms into the monthly `manager-06b` |
 
 ---
 
@@ -432,3 +436,44 @@ Decisions applied to the HTML screens. Where a screen and the docs one level up 
 - **Signup details.** `public-06` has a rate-limited "Reenviar e-mail" (60 s) and "Já confirmou? Entrar com Google"; `public-04c` offers "Entrar na conta existente" or discarding the unpaid trial; `public-05*` offers only "Brasil" (US only in `public-05g`, flag on) with the hint "Define a moeda, o fuso padrão e o idioma"; `public-03b` is in Portuguese before the country is picked and says so.
 - **`manager-06b`** keeps the hard-coded "180 dias" because its tenant is a paid one (ACTIVE with a scheduled cancel); a never-paid tenant would see 90 days.
 - **Cleanup details.** `manager-01c` states the dunning cadence (1, 3, 7 and 12 days after the due date); `manager-01e` shows the reactivation amount only as "Um mês: R$ 245,00 (cobrado ao reativar)" with "Reativar assinatura" as the primary; `manager-01l` (exempt) no longer carries trial hint text in its pane script; `manager-06d` wording is accurate for both TRIALING and PAST_DUE; `manager-02e` no longer requires the US number (street, city, state and ZIP).
+
+---
+
+# Addendum 5 — annual billing (slice H, post-launch design)
+
+New screens: `manager-11-billing-active-annual`, `manager-12-addon-midyear-confirm`, `manager-13-cancel-annual-confirm`, `manager-01q-billing-suspended-annual-recovery`. Changed: the Mensal | Anual toggle on `manager-08`, `manager-08b`, `manager-09` (Plano tab) and `public-03` / `public-03b` (price tables). Where a screen and the docs one level up differ, the docs win.
+
+**All amounts below are illustrative (valores ilustrativos); the UI does not label them as such.**
+
+## Illustrative prices
+
+| Feature | BR monthly | BR annual (10x monthly, 2 months free) | US annual (illustrative) |
+|---|---|---|---|
+| HOTSITE | R$ 49 | R$ 490 | US$ 120 |
+| BOOKING | R$ 109 | R$ 1.090 | US$ 260 |
+| LOYALTY | R$ 29 | R$ 290 | US$ 70 |
+| CHATBOT Basic / Plus | R$ 39 / 79 | R$ 390 / 790 | US$ 90 / 190 |
+| LEAD_FORM | R$ 19 | R$ 190 | US$ 50 |
+| Full BR set | R$ 245,00/mês | R$ 2.450,00/ano | |
+
+## Decided rules
+
+- The billing cycle (monthly or annual) is a property of the **whole subscription**, never per feature. Every feature has a monthly and an annual list price; the customer sees everything quoted in the selected cycle.
+- Switching cycle is a plan change: it applies at the **next paid period start** (like other plan changes) and the screen shows the date ("A troca de ciclo vale a partir de dd/mm"). In a trial the chosen cycle applies to the first invoice.
+- Annual invoice is issued **30 days before** the period start (monthly: 10 days).
+- The refund footnote reuses the existing wording ("... tratados pelo provedor de pagamento ...").
+
+## Proposed, confirm in story discovery
+
+1. **Co-terminus add-on (proposed, confirm in story discovery).** On an annual subscription a feature may be added mid-year: paid now for the remaining whole months x the feature's monthly price, never more than its annual price; starts at payment; joins the annual selection at renewal. Removing a feature takes effect at renewal, no refund.
+2. **One-month recovery for annual (proposed, confirm in story discovery).** A suspended (NON_PAYMENT) annual tenant pays ONE MONTH at the monthly price (R$ 245,00 for the full BR set) and the subscription returns to monthly; the manager can choose annual again at the next renewal.
+3. **Cancel on annual without refund (proposed, confirm in story discovery).** Access until the end of the paid year; nothing is refunded, including the remaining months.
+
+## What each screen shows
+
+- **Plano tab toggle (`manager-08`, `08b`, `09`).** Segmented control "Mensal | Anual (2 meses grátis)" above the feature cards, default Mensal, with a note that the cycle applies to the whole subscription. In Anual each card shows the annual amount with "/ano" and "equivale a R$ X/mês", the chatbot tier options show annual amounts, and the preview and aside totals become "Novo total anual" (R$ 2.450,00 por ano for the full set, "equivale a R$ 204,17/mês"). Paid subscription (`manager-08`): "A troca de ciclo vale a partir de 10/11/2026". Trial (`08b`, `09`): the cycle applies to the first invoice on 04/11/2026. Implemented as a small script that swaps the prices read by `planRefresh()`; the toggle is not part of the "unsaved changes" state.
+- **Price tables (`public-03`, `public-03b`).** Same toggle; the header becomes "Preço anual", amounts switch to "/ano" with "equivale a .../mês" (the US page keeps its existing Portuguese UI copy).
+- **`manager-11` (Resumo, ACTIVE annual, BR).** "Plano anual" badge; period 20/10/2026 to 20/10/2027; next charge 20/10/2027, issued 30 days before (20/09/2027); features at annual prices; history with one paid annual charge; the note "Para adicionar um recurso durante o ano, você paga só os meses restantes"; links to `manager-12` and `manager-13`. **Deviation:** the drawn plan has four features (R$ 2.260,00/ano) with LEAD_FORM as the "Não contratado" add-on so `manager-12` is coherent; the full five-feature set, R$ 2.450,00/ano, is the renewal total after the add-on. Only Resumo is drawn (no tab strip).
+- **`manager-12` (add-on mid-year).** Date 20/05/2027, 5 months left: "R$ 95,00 agora (5 meses x R$ 19,00)", capped at R$ 190,00, starts today, joins the annual plan at renewal on 20/10/2027 (total R$ 2.260,00 to R$ 2.450,00); primary "Pagar e ativar agora" leads to the hosted-payment screen `manager-01i`.
+- **`manager-13` (cancel annual).** Access until 20/10/2027, nothing refunded, schedule (today, until 20/10/2027, suspension, data erased on 17/04/2028 = 180 days later, with 30 and 7 day warnings). The confirm button goes to the monthly `manager-06b` result screen (annual variant not drawn).
+- **`manager-01q` (suspended, annual tenant).** Today 03/11/2027; the unpaid annual charge of 20/10/2027 was cancelled and replaced by a one-month recovery charge of R$ 245,00; "Sua assinatura volta ao ciclo mensal; você poderá escolher o anual de novo na próxima renovação".

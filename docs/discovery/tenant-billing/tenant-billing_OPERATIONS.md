@@ -41,7 +41,7 @@ Confirm the first plan, pay, re-generate an expired link, discard a never-paid t
 
 | # | Situation | Why a human | Expected frequency | Automatic first response | Operator action (audited) |
 |---|---|---|---|---|---|
-| O1 | List-price change | A deliberate business decision | ~1–2 per year | dry run shows affected tenants; announcement fan-out is automatic | one call to the price-version endpoint |
+| O1 | List-price change | A deliberate business decision | ~1–2 per year | dry run shows every new price and sample tenant totals; announcement fan-out (one consolidated email per tenant) is automatic | one `adjust` call (e.g. +20 % for a country, whole-real rounding) after the dry run; the single-price endpoint only for exact corrections |
 | O2 | Free/partner/internal tenant | A commercial decision | rare | none | `exempt` set/clear (R12) |
 | O3 | Abuse or takedown of a tenant's hotsite | Judgment | rare | Turnstile, rate limits, reserved/impersonation slug list | `suspend` with reason `OPERATOR`; later `unsuspend` (only for this reason) |
 | O4 | Chargeback/dispute evidence | The provider requires the merchant's evidence | per dispute, rare | webhook records `CHARGEBACK`; a lost dispute suspends automatically (`PAYMENT_REVERSED`) | upload evidence in the provider console |

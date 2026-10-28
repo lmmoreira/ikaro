@@ -93,6 +93,7 @@ Stripe computes tax when the invoice is finalized, not before. The earlier desig
 7. Minimum charge per method (R$ 5, help center).
 8. **Slice F2 (hosted recurring-card checkout):** confirm in the sandbox that the card is typed only on Asaas's page; whether `cpfCnpj`/customer data is required at checkout and how an existing Ikaro customer is attached; whether the account needs enablement; what happens after the fifth refused attempt (subscription status, events); whether the first charge date can be a trial end and whether the generated charge can be created later than 40 days ahead without a duplicate of Ikaro's early invoice; the event that signals a revoked or expired card; whether `PUT` on the value is rejected while a charge is pending.
 9. Whether the payment object's `billingType` becomes known after the payer picks a method on an `UNDEFINED` invoice (would let the settlement margin be exact per method instead of keyed on `payment_return_seen_at`, decision 117).
+10. **Slice H (annual):** whether the hosted recurring checkout accepts a yearly `cycle` (the page documented `MONTHLY` only), the maximum single-charge value for a yearly card payment and whether card instalments (parcelamento) can be offered on the hosted invoice for annual amounts.
 
 **Stripe**
 1. USD presentment to US cards from a BR account, FX spread and fee, real payout timing (30-day initial settlement).
