@@ -28,7 +28,7 @@ Model the service buffer as an optional per-service override. `null` means “in
 
 Keep the internal reservation end distinct from the customer appointment end in the availability contract. The public UI and customer-facing booking confirmation use the appointment end; availability and resource-conflict logic continue to use the reserved end.
 
-### Story 0 — Restore buffer inheritance and resource-free service saves 🔴
+### Story 0 — Restore buffer inheritance and resource-free service saves 🔴 ✅ Done
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** XL
