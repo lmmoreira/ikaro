@@ -63,12 +63,34 @@ describe('RescheduleActionRail', () => {
         currentEnd={CURRENT_END}
         selectedSlot={{
           startsAt: '2026-06-17T14:00:00.000Z',
+          appointmentEndsAt: '2026-06-17T14:30:00.000Z',
           endsAt: '2026-06-17T14:30:00.000Z',
         }}
       />,
     );
 
     expect(screen.queryAllByText('Ainda não selecionado')).toHaveLength(0);
+  });
+
+  it('shows the appointment end of the selected slot, never the buffer-inclusive end', () => {
+    renderWithIntl(
+      <RescheduleActionRail
+        error={null}
+        pendingSubmit={false}
+        backHref="/dashboard/bookings/b-1"
+        currentStart={CURRENT_START}
+        currentEnd={CURRENT_END}
+        selectedSlot={{
+          startsAt: '2026-06-17T14:00:00.000Z',
+          // 11:00–11:30 local; a 10-minute buffer reserves the resource until 11:40.
+          appointmentEndsAt: '2026-06-17T14:30:00.000Z',
+          endsAt: '2026-06-17T14:40:00.000Z',
+        }}
+      />,
+    );
+
+    expect(screen.getAllByText(/11:00.*11:30/).length).toBeGreaterThan(0);
+    expect(screen.queryAllByText(/11:40/)).toHaveLength(0);
   });
 
   it('disables the submit button while pendingSubmit is true', () => {

@@ -598,8 +598,10 @@ GET /v1/schedule/availability?date=YYYY-MM-DD&serviceIds=uuid,uuid
 
 Returns:
 ```json
-{ "date": "2026-06-01", "available": true, "slots": [{ "startsAt": "2026-06-01T12:00:00.000Z", "endsAt": "2026-06-01T13:00:00.000Z" }] }
+{ "date": "2026-06-01", "available": true, "slots": [{ "startsAt": "2026-06-01T12:00:00.000Z", "appointmentEndsAt": "2026-06-01T12:50:00.000Z", "endsAt": "2026-06-01T13:00:00.000Z" }] }
 ```
+
+`appointmentEndsAt` is the end shown to the customer (start + the service durations); `endsAt` also includes the service's trailing buffer and is never displayed (`docs/API_CONTRACTS.md` § Customer Availability).
 
 #### **Main Flow:**
 1. Frontend loads calendar view → calls Phase 1 summary for the current week/month range.

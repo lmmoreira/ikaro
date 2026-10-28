@@ -23,6 +23,7 @@ vi.mock('@/features/booking/components/public/SlotPicker', () => ({
 
 const SLOT: AvailableSlot = {
   startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T12:30:00.000Z',
   endsAt: '2026-06-15T12:30:00.000Z',
 };
 

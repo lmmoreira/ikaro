@@ -6,7 +6,11 @@ import { useBookingSelections } from './useBookingSelections';
 
 const a = makeHotsiteService({ id: 'a' });
 const b = makeHotsiteService({ id: 'b' });
-const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+const slot = {
+  startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+  endsAt: '2026-06-15T13:00:00.000Z',
+};
 
 describe('useBookingSelections', () => {
   it('toggles services and exposes the selected service objects in selection order', () => {

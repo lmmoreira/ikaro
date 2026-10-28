@@ -12,6 +12,7 @@
 # resourceSelections = <serviceId>:<legIndex or ->:<resourceType>:<resourceId>[,…]
 
 ### Availability for one day
+# Each slot: startsAt, appointmentEndsAt (what the customer is told; no buffer), endsAt (window held, incl. the buffer)
 GET {{bffUrl}}/v1/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}
 X-Tenant-Slug: {{tenantSlug}}
 

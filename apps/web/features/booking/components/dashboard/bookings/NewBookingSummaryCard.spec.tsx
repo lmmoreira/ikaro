@@ -12,6 +12,7 @@ import { NewBookingSummaryCard } from './NewBookingSummaryCard';
 // 12:00Z is 09:00 in the default test tenant timezone (America/Sao_Paulo).
 const SLOT: AvailableSlot = {
   startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T12:30:00.000Z',
   endsAt: '2026-06-15T12:30:00.000Z',
 };
 

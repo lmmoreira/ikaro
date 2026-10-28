@@ -32,7 +32,13 @@ describe('useInitialSlotSuggestions', () => {
   afterEach(() => vi.mocked(fetchBookingAvailability).mockReset());
 
   it('loads the alternatives for the booking day and stops loading', async () => {
-    const slots = [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }];
+    const slots = [
+      {
+        startsAt: '2026-06-16T09:00:00.000Z',
+        appointmentEndsAt: '2026-06-16T09:30:00.000Z',
+        endsAt: '2026-06-16T09:30:00.000Z',
+      },
+    ];
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',
       available: true,

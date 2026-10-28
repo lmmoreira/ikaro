@@ -14,7 +14,13 @@ describe('SlotConflictAlert', () => {
       <SlotConflictAlert
         requestedAt="2026-06-16T10:00:00.000Z"
         totalDurationMins={30}
-        suggestions={[{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }]}
+        suggestions={[
+          {
+            startsAt: '2026-06-16T12:00:00.000Z',
+            appointmentEndsAt: '2026-06-16T12:30:00.000Z',
+            endsAt: '2026-06-16T12:40:00.000Z',
+          },
+        ]}
         onChooseSlot={onChooseSlot}
         onBack={onBack}
       />,
@@ -22,9 +28,12 @@ describe('SlotConflictAlert', () => {
 
     expect(screen.getByText('Horário não disponível')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Aprovar neste/ })).toBeInTheDocument();
+    // The suggestion shows the appointment end (09:30), never the buffer-inclusive one (09:40).
+    expect(screen.getByText(/09:00 — 09:30/)).toBeInTheDocument();
+    expect(screen.queryByText(/09:40/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Aprovar neste/ }));
-    expect(onChooseSlot).toHaveBeenCalledWith('2026-06-16T09:00:00.000Z');
+    expect(onChooseSlot).toHaveBeenCalledWith('2026-06-16T12:00:00.000Z');
 
     await userEvent.click(screen.getByRole('button', { name: /Voltar sem aprovar/ }));
     expect(onBack).toHaveBeenCalledOnce();

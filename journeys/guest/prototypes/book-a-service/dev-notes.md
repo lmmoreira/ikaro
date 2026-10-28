@@ -97,8 +97,9 @@ GET /schedule/availability
   Header: X-Tenant-Slug: {slug}
 
 Response: AvailabilityResponse
-  { date: string; slots: { startsAt: string; endsAt: string }[]; available: boolean }
+  { date: string; slots: { startsAt: string; appointmentEndsAt: string; endsAt: string }[]; available: boolean }
 ```
+Slot button label = `startsAt–appointmentEndsAt` (start + the service durations), e.g. `09:00–09:50`. `endsAt` additionally includes the service's trailing buffer: it is the window held, internal, and never rendered (TD51-S01).
 
 **State (in `BookingForm`):**
 - `selectedDate: string | null`

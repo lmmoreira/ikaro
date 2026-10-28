@@ -9,7 +9,13 @@ const DATE = '2026-06-09';
 
 const mockAvailability: AvailabilityResponse = {
   date: DATE,
-  slots: [{ startsAt: `${DATE}T12:00:00.000Z`, endsAt: `${DATE}T13:00:00.000Z` }],
+  slots: [
+    {
+      startsAt: `${DATE}T12:00:00.000Z`,
+      appointmentEndsAt: `${DATE}T13:00:00.000Z`,
+      endsAt: `${DATE}T13:00:00.000Z`,
+    },
+  ],
   available: true,
 };
 
@@ -67,6 +73,29 @@ describe('ScheduleAvailabilityController (component)', () => {
     expect(res.body.available).toBe(true);
     expect(res.body.slots).toHaveLength(1);
     expect(res.body.date).toBe(DATE);
+  });
+
+  it('passes appointmentEndsAt and endsAt through verbatim, without recomputing either (TD51-S01)', async () => {
+    const buffered: AvailabilityResponse = {
+      date: DATE,
+      available: true,
+      slots: [
+        {
+          startsAt: `${DATE}T12:00:00.000Z`,
+          appointmentEndsAt: `${DATE}T12:50:00.000Z`,
+          endsAt: `${DATE}T13:00:00.000Z`,
+        },
+      ],
+    };
+    backendHttpService.get.mockResolvedValueOnce({ id: TENANT_ID });
+    backendHttpService.getForPublic.mockResolvedValueOnce(buffered);
+
+    const res = await request(app.getHttpServer())
+      .get(availabilityUrl)
+      .set('x-tenant-slug', TENANT_SLUG);
+
+    expect(res.status).toBe(200);
+    expect(res.body.slots).toEqual(buffered.slots);
   });
 
   it('works without any JWT token (public endpoint)', async () => {

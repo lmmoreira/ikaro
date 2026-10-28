@@ -115,20 +115,22 @@
     <!--
       SLOT PICKER — shown when selectedDate is set
       Loading: "Carregando horários..." while fetching
+      Each button shows start–appointment end (slot.startsAt–slot.appointmentEndsAt), e.g. a 50-minute
+      service: 09:00–09:50. The service's trailing buffer is internal and never shown (TD51-S01).
     -->
     <div style="margin-top: 1.5rem;">
       <p style="font-size: 0.875rem; opacity: 0.75; margin-bottom: 0.75rem;">
         Horários disponíveis — Qua, 18 de junho
       </p>
       <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-        <button class="slot-btn">08:00</button>
-        <button class="slot-btn">09:00</button>
+        <button class="slot-btn">08:00–08:50</button>
+        <button class="slot-btn">09:00–09:50</button>
         <!-- Selected slot -->
-        <button class="slot-btn selected">10:00</button>
-        <button class="slot-btn">11:00</button>
-        <button class="slot-btn">14:00</button>
-        <button class="slot-btn">15:00</button>
-        <button class="slot-btn">16:00</button>
+        <button class="slot-btn selected">10:00–10:50</button>
+        <button class="slot-btn">11:00–11:50</button>
+        <button class="slot-btn">14:00–14:50</button>
+        <button class="slot-btn">15:00–15:50</button>
+        <button class="slot-btn">16:00–16:50</button>
       </div>
     </div>
 

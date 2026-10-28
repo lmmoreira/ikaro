@@ -40,6 +40,7 @@ const service: HotsiteServiceResponse = {
 
 const slot: AvailableSlot = {
   startsAt: '2026-06-18T13:00:00.000Z',
+  appointmentEndsAt: '2026-06-18T14:00:00.000Z',
   endsAt: '2026-06-18T14:00:00.000Z',
 };
 

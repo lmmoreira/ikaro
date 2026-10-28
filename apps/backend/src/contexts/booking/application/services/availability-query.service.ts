@@ -51,6 +51,7 @@ interface ScheduleContext {
 
 export interface AvailableSlotResult {
   startsAt: string;
+  appointmentEndsAt: string;
   endsAt: string;
 }
 

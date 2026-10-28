@@ -46,7 +46,13 @@ describe('fetchAvailability', () => {
   it('returns the availability for a date on a successful BFF response', async () => {
     const availability: AvailabilityResponse = {
       date: '2026-06-15',
-      slots: [{ startsAt: '2026-06-15T09:00:00.000Z', endsAt: '2026-06-15T10:00:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-15T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T10:00:00.000Z',
+          endsAt: '2026-06-15T10:00:00.000Z',
+        },
+      ],
       available: true,
     };
     mock.onGet('/schedule/availability?date=2026-06-15&serviceIds=svc-1').reply(200, availability);

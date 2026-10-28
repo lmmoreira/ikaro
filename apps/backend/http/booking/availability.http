@@ -13,6 +13,8 @@
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HAPPY PATH — open day, one service, no closures
+# Each slot has startsAt, appointmentEndsAt (what the customer is told: start + service
+# durations) and endsAt (appointmentEndsAt + the service buffer, the window held).
 # ─────────────────────────────────────────────────────────────────────────────
 
 GET {{baseUrl}}/schedule/availability?date=2026-06-01&serviceIds={{serviceId}}

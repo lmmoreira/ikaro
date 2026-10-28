@@ -117,7 +117,10 @@ export function CustomerReschedulePage({
     setNotice(null);
     try {
       await rescheduleBookingAsCustomer(booking.bookingId, selectedSlot.startsAt);
-      setMovedTo({ start: new Date(selectedSlot.startsAt), end: new Date(selectedSlot.endsAt) });
+      setMovedTo({
+        start: new Date(selectedSlot.startsAt),
+        end: new Date(selectedSlot.appointmentEndsAt),
+      });
     } catch (err) {
       const failure = classifyRescheduleFailure(extractProblemCode(err));
       if (failure.kind === 'windowExpired') {
@@ -168,7 +171,7 @@ export function CustomerReschedulePage({
   const target: BookingWindowFacts | null =
     selectedSlot === null
       ? null
-      : { start: new Date(selectedSlot.startsAt), end: new Date(selectedSlot.endsAt) };
+      : { start: new Date(selectedSlot.startsAt), end: new Date(selectedSlot.appointmentEndsAt) };
 
   function renderActionPane(): React.JSX.Element {
     return (

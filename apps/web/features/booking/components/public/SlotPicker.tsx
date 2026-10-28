@@ -139,7 +139,7 @@ export function SlotPicker({
               borderRadius: isDashboardVariant ? '0.75rem' : 'var(--ba-radius)',
             }}
           >
-            {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.endsAt))}
+            {formatTime(new Date(slot.startsAt))}–{formatTime(new Date(slot.appointmentEndsAt))}
             {isWithinNotice(slot, noticeMarkerHours) && (
               <span
                 aria-hidden="true"

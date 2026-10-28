@@ -12,6 +12,7 @@ import { BookingSubmittedDetails } from './BookingSubmittedDetails';
 
 const slot: AvailableSlot = {
   startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:15:00.000Z',
   endsAt: '2026-06-15T13:15:00.000Z',
 };
 
@@ -87,6 +88,30 @@ describe('BookingSubmittedDetails', () => {
       'Segunda-feira, 15 de junho às 09:00',
     );
     expect(screen.getByTestId('submitted-total')).toHaveTextContent('Total: R$ 80,00 · 1h 15min');
+  });
+
+  it('never shows the buffer-inclusive end of the slot (TD51-S01 regression)', () => {
+    const buffered: AvailableSlot = {
+      startsAt: '2026-06-15T12:00:00.000Z',
+      appointmentEndsAt: '2026-06-15T13:15:00.000Z',
+      endsAt: '2026-06-15T13:25:00.000Z',
+    };
+
+    const { container } = renderWithIntl(
+      <BookingSubmittedDetails
+        services={[makeHotsiteService({ id: 'svc-1', name: 'Corte + Escova' })]}
+        booking={makeBooking()}
+        selectedDate="2026-06-15"
+        selectedSlot={buffered}
+        picks={[]}
+        requirements={[]}
+      />,
+    );
+
+    expect(screen.getByTestId('submitted-datetime')).toHaveTextContent(
+      'Segunda-feira, 15 de junho às 09:00',
+    );
+    expect(container).not.toHaveTextContent('10:25');
   });
 
   it('shows no resource row for a service without chosen or assigned resources (pool)', () => {
