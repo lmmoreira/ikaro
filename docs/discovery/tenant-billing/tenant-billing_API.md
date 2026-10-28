@@ -8,7 +8,7 @@ Placement rules: public routes live in the billing slice's `billing.public.contr
 
 ## 1. Manager-facing (BFF, JWT, role MANAGER)
 
-All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; staff/customer get 403. These are **the only routes allowed while the tenant is `SUSPENDED`** (alongside the access endpoint and logout).
+All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; staff/customer get 403. For a **manager** of a `SUSPENDED` tenant these are the only routes allowed (alongside the access endpoint, logout and the tenant-switch endpoints, `@SuspensionAccess(AUTH_TENANT_SWITCH)`); staff and customer have their own narrow suspended-state routes (notice, history, cancel a future booking — §9).
 
 | Method / path | Purpose | CAND |
 |---|---|---|
@@ -20,11 +20,13 @@ All require `Authorization` (httpOnly cookie) and tenant scope from the JWT; sta
 | `POST /v1/billing/charges/{chargeId}/payment-return` | the web calls it when the manager returns from the hosted page: sets `payment_return_seen_at` and triggers an on-demand single-charge refresh from the provider | 09, 14 |
 | `GET /v1/billing/plan` | catalog, current and next-paid-period selection, tiers, dependencies and effective date | 31 |
 | `POST /v1/billing/plan/preview` | preview the proposed **next paid period** selection and total | 31 |
-| `PUT /v1/billing/plan` | schedule the next paid-period selection (`items: [{ featureKey, tier }]`) | 31 |
+| `PUT /v1/billing/plan` | schedule the next paid-period selection (`items: [{ featureKey, tier }]`); during the trial it also sets `plan_confirmed_at` | 31 |
+| `POST /v1/billing/plan/confirm` | trial only: confirm the current (default or saved) first paid selection unchanged → `200 { planConfirmedAt }`; triggers first-invoice issuing when within the 10-day lead; `409 BILLING_PLAN_ALREADY_CONFIRMED` | 31, 08 |
+| `POST /v1/billing/discard` | self-service discard of a never-paid tenant `{ confirmSlug }` → `202 { purgeJobId }`; `409 BILLING_DISCARD_NOT_ALLOWED` when a charge was ever paid | 36 |
 | `POST /v1/billing/cancel` | schedule cancellation at end of paid period | 28 |
 | `POST /v1/billing/reactivate` | undo scheduled cancel / cancel the stale open charge and issue the one-month recovery charge | 29 |
-| `POST /v1/billing/auto-billing` | **deferred release slice:** start verified provider-hosted authorization → `{ authorizationUrl }` | 30 |
-| `DELETE /v1/billing/auto-billing` | **deferred release slice:** revoke automatic charging | 30 |
+| `POST /v1/billing/auto-billing` | **deferred release slice:** start verified provider-hosted authorization → `{ authorizationUrl }` (`mode` `PIX_AUTOMATICO`, or `CARD_RECURRING` in slice F2 → hosted recurring checkout URL) | 30, 38 |
+| `DELETE /v1/billing/auto-billing` | **deferred release slice:** revoke automatic charging | 30, 38 |
 
 ```
 GET /v1/billing/summary
@@ -37,12 +39,15 @@ GET /v1/billing/summary
   "suspendsAt": null,                       // PAST_DUE only: coalesce(grace_until, past_due_since + 14 days)
   "cancelAt": null,
   "purgeAt": null,                          // SUSPENDED only: suspended_at + 90 days (never paid) or 180 days (has_ever_paid)
+  "planConfirmationRequired": false,        // true while TRIALING and plan_confirmed_at is NULL: the page and banner ask for "Confirmar plano" and no first invoice exists yet (decision 115)
+  "planConfirmationFallbackAt": null,       // the date the default plan will be invoiced automatically if still unconfirmed
+  "canDiscard": false,                      // never-paid TRIALING/SUSPENDED tenant and the purge participants are deployed → shows "Descartar este teste" (decision 116)
   "addressRequired": false,                 // BR and US: true until the full billing address is saved (NFS-e for BR, tax for US, decision 109); drives the Dados/Plano/banner warning (CAND-08 A7/A9)
   "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 },   // current-period price display (items store no price)
              { "featureKey": "CHATBOT", "tier": "BASIC", "unitPriceMinor": 3900 } ],
   "totalMinor": 8800,                       // net of tax; for US the page labels it "+ imposto calculado na cobrança" (tax exists only on the issued charge)
   "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
-  "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
+  "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO" | "CARD_RECURRING", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
   "paymentConfirmationPending": false,      // true while payment_return_seen_at is set and the charge is still open, until the paid webhook/reconcile lands (UI polls every 5 s, max ~60 s; the return already triggered an on-demand provider refresh)
   "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":7900,"newAmountMinor":8900,"effectiveFrom":"2026-12-10" } ]   // illustrative amounts
 }
@@ -81,8 +86,9 @@ Used by the web layouts / `proxy.ts` (routing by role when suspended), the dashb
 |---|---|---|
 | `GET /v1/public/billing/prices?country=BR` | selectable list prices | 23 |
 | `GET /v1/public/signup/slug-availability?slug=` | `available \| taken \| reserved \| invalid` | 23 |
-| `GET /v1/public/signup/session` | verified Google identity of the in-progress signup → `{ email, name, trialAvailable }` (`trialAvailable = false` when an earlier self-signup tenant of that Google `sub` never paid) | 22 |
-| `POST /v1/public/signup/tenant` | create the tenant (calls Platform's provisioning) | 22 |
+| `GET /v1/public/signup/session` | verified Google identity of the in-progress signup → `{ email, name, trialAvailable, existingTenantSlug? }` (`trialAvailable = false` when an earlier self-signup tenant of that Google `sub` never paid; `existingTenantSlug` lets the error page link to sign-in/discard, CAND-36) | 22 |
+| `POST /v1/public/signup/tenant` | BFF reserves the registration (Billing, internal) then creates the tenant (Platform's signup use case → provisioning with `registrationId`) | 22 |
+| `POST /v1/public/signup/resend` | rate-limited resend of the first-manager invitation email from the account-created page | 22 |
 | `POST /v1/public/billing/webhooks/asaas` | Asaas webhook; **must answer exactly `200`** | 09 |
 | `POST /v1/public/billing/webhooks/stripe` | Stripe webhook; `Stripe-Signature` on the raw body, 2xx fast, event ids deduped, object re-read before applying | 09 |
 
@@ -108,9 +114,9 @@ POST /v1/public/signup/tenant
   400 SIGNUP_TURNSTILE_FAILED | 429 SIGNUP_RATE_LIMITED (Retry-After)
 ```
 
-- **Signup session:** after Google sign-in the BFF issues a short-lived (30 min), httpOnly, signed cookie carrying only `{ email, name, googleSub }` (no tenant yet), reusing the signing/verification code of the staff selection token. The `201` clears it and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff.
+- **Signup session:** after Google sign-in the BFF issues a short-lived (30 min), httpOnly, signed cookie carrying only `{ email, name, googleSub }` (no tenant yet), built on `JwtService`/`OAuthStateService` — **there is no "staff selection token" to reuse** (verified: `/select-staff-tenant` is a page and `switch-staff-tenant` re-issues the session JWT). The `201` clears it and does **not** issue a tenant JWT: the browser navigates to the account-created/check-email page. `TenantProvisioned` then creates the first manager asynchronously; the existing invitation/login email is the only dashboard-access handoff.
 - **Abuse protection:** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug-availability is throttled to limit enumeration. The BFF `WebOnlyGuard` allowance must cover these routes.
-- **Webhooks:** both routes carry `@Public()` and the `WebOnlyGuard` bypass. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). For Asaas, whose token is the only authenticity proof, a state-changing event is applied only after `fetchChargeStatus` confirms it and the amount matches (decision 101). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
+- **Webhooks:** both routes carry `@Public()`, `@BypassWebOnlyGuard()` (the `WebOnlyGuard` has no `@Public()` escape; only the health controller bypasses it today, so these are the first) and `@SkipThrottle()` (or a tuned `@Throttle`) so provider retries from a few source IPs are not rate-limited. Asaas: header `asaas-access-token` (the configured `authToken`) validated timing-safe, no IP allowlist (the official IP list is not published); it counts only HTTP `200` as success, so the route returns exactly 200 after commit and never 201/204/redirects, and its queue pauses after 15 consecutive failures. Stripe: HMAC-SHA256 signature (5-minute tolerance) verified on the raw body; events can be duplicated and out of order. Common contract: raw body preserved (signature/replay checks need it). For Asaas, whose token is the only authenticity proof, a state-changing event is applied only after `fetchChargeStatus` confirms it and the amount matches (decision 101). The internal endpoint validates, deduplicates, applies the local charge/subscription transition and writes its outbox rows in **one transaction**; it returns `200` only after that transaction commits. Email is dispatched asynchronously from the outbox.
 
 ## 4. Hotsite changes
 
@@ -124,7 +130,8 @@ POST /v1/public/signup/tenant
 | Method / path | Purpose | CAND |
 |---|---|---|
 | `GET /internal/tenants/{tenantId}/access` | the access answer for BFF guards | 15 |
-| `GET /internal/billing/signup-trial-eligibility?googleSub=` | reserves a signup registration under the advisory lock and answers whether a trial is available (called by the BFF before Platform provisions; decision 96) | 22 |
+| `POST /internal/billing/registrations` | creates the provisioning registration `{ source, googleSub?, taxId?, terms? }` and, for `SELF_SIGNUP`, runs the trial-eligibility check under the advisory lock → `{ registrationId, trialAvailable }`; used by the BFF (self-signup) and by `provision-tenant.sh` (operator, `source = OPERATOR`); replaces the old GET-with-side-effect `signup-trial-eligibility` (decisions 96, 120) | 22, 01 |
+| `GET /internal/tenants/{tenantId}/billing/tenant-info` | not an endpoint: the read-only tenant-info **port** used by self-heal/backfill only (decision 119) | 35, 21 |
 | `GET /internal/billing/suspended-tenant-ids` | batch for the rare cross-tenant scan | 15 |
 | `POST /internal/billing/webhooks/{provider}` | normalized processing of the provider webhook (`asaas` \| `stripe`) | 09 |
 | `PUT /internal/billing/feature-prices` | create a price (feature × country × tier × cycle) with its first amount, or set `selectable = false` to hide it from new selection | 07 |
@@ -201,11 +208,15 @@ Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD) and the no
 
 Names follow the existing per-context convention in `packages/types/src/error-codes.ts` (`STAFF_*`, `LOYALTY_*`, `PLATFORM_*`): Billing codes are `BILLING_*`, signup codes `SIGNUP_*`.
 
+**Plumbing for the new origins (verified):** a `BillingErrorCode` and a `SignupErrorCode` const (each `<ORIGIN>_<MEMBER>`) in `packages/types/src/error-codes.ts`, both added to the `AnyErrorCode` union, to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`, to both `errors.json` files and to `docs/ERROR_CATALOG.md`; a BFF-thrown code must also enter the `BffThrowableCode` union used by `throwProblemDetail`. New this review: `BILLING_PLAN_ALREADY_CONFIRMED`, `BILLING_DISCARD_NOT_ALLOWED`.
+
 `BILLING_FEATURE_NOT_ENTITLED`, `BILLING_TENANT_SUSPENDED`, `BILLING_ALREADY_CANCELLING`, `BILLING_IDENTITY_TAX_ID_INVALID`, `BILLING_IDENTITY_EMAIL_INVALID`, `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_FEATURE_IN_USE`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`, `SIGNUP_TERMS_NOT_ACCEPTED`, `SIGNUP_TAX_ID_INVALID`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TRIAL_NOT_AVAILABLE`, `SIGNUP_RATE_LIMITED`, `BILLING_ADDRESS_REQUIRED`, `BILLING_PROVIDER_UNAVAILABLE`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`. Turnstile: the only existing code is lead-form specific (`PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED`); signup uses a new generic `SIGNUP_TURNSTILE_FAILED` (decided).
 
 ## 9. Declarative gating metadata
 
 Tenant-scoped routes declare `@RequiresFeature(FeatureKey.X)` where applicable and `@SuspensionAccess(...)` (`MANAGER_BILLING`, `STAFF_NOTICE`, `CUSTOMER_HISTORY`, `AUTH_TENANT_SWITCH`, `PUBLIC_NONE`, `DEFAULT_DENY`). `@NoFeatureGate()` is only for health, auth and webhooks. One global `TenantAccessGuard` enforces metadata; an architecture check makes omission fail. Record-dependent Booking policy remains in Booking. The staff tenant-selection endpoint returns `operational: boolean` and never filters suspended tenants; switching must not reject one.
+
+Verified placement: the backend `TenantAccessGuard` runs before `RequestInterceptor`, so it reads the `x-tenant-id` header itself (never `RequestContext`); `/internal/*`, `/cron/*`, `/pubsub/*` and `/health` bypass the interceptor, so the tenant-less signup/registration routes live under `/internal/*`; the staff-tenant list (`GET /auth/staff-tenants`, `StaffTenantOption` has no status field today) gains `operational` and both `switch-staff-tenant` and the customer `switch-tenant` must accept a suspended tenant.
 
 ## 10. Auth and headers
 

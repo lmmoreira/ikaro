@@ -12,11 +12,13 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
 
 | Group | CANDs |
 |---|---|
-| A — Subscription and pricing (operator / system reaction) | 01–07, 32, 33 |
+| A — Subscription and pricing (operator / system reaction) | 01–07, 32, 33, 37 |
 | B — System jobs and provider integration | 08–11, 34, 35 |
-| C — Manager billing | 12–14, 28–31 |
+| C — Manager billing | 12–14, 28–31, 38 |
 | D — Enforcement across the system | 15–21 |
-| E — Self-signup, trial, clean-up | 22–27 |
+| E — Self-signup, trial, clean-up | 22–27, 36 |
+
+Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deactivation stops billing) and CAND-38 (optional automatic card collection, slice F2), and changed CAND-01, 08, 10, 19, 22, 25, 31, 32 and 34.
 
 ---
 
@@ -30,14 +32,15 @@ Same fields as `docs/USE_CASES.md`: Actor / Preconditions / Trigger / Main Flow 
   1. Handler calls one use case with `tenantId`, `countryCode`, `timezone`, the hint and `correlationId`.
   2. Use case creates the `Subscription` (`TRIALING`, `trialEndsAt` = the tenant-local midnight closing day 14, `timezone` snapshot, `nextDueDate` = trial-end date, currency from the country's price rows, cycle `MONTHLY`).
   3. For every feature it creates a default paid item `[trialEndsAt, ∞)` (chatbot `BASIC`); there are no trial items — trial access is computed from the status (decision 83); items carry no price. `HOTSITE` is the root dependency and is mandatory for `BOOKING`; a booking-only selection is invalid. Ikaro's own tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`) and any tenant provisioned with the `exempt` hint get `status ACTIVE`, `exempt = true` and open-ended items.
-  4. It creates the `BillingAccount` from the hint (BR tax ID, signup terms and Google `sub` when the tenant came from self-signup, otherwise empty) and, for self-signup, the `signup_registrations` row, all in the same transaction, then invalidates the access cache after commit.
+  4. It creates the `BillingAccount` from the registration named by the event's `registrationId` (BR tax ID, signup terms and Google `sub`; the personal data is **not** in the event, decision 120), completes the registration (`tenant_id` set, tax id cleared) and creates the items, all in the same transaction, then invalidates the access cache after commit.
 - **Alternative Flows:**
   - **A1: Subscription already exists** (event redelivered) → no-op; idempotent on `UNIQUE(tenant_id)`.
   - **A2: No `FeaturePrice` rows for the country** → the use case fails loudly (error logged, event retried); the missing row is a provisioning/data-integrity incident, access is denied rather than granted (after the provisioning window), the self-heal job retries it (CAND-35), and an alert fires only if that fails; a missing price set for an enabled country is also caught at deploy time.
   - **A3: Provisioning passes an explicit feature subset** (event hint) → the subset defines the **default paid items**; the trial still grants every feature because it is computed from the status, so the trial is always complete (an exempt tenant gets only the subset, open-ended).
   - **A4: Non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off** → the use case fails loudly and alerts; provisioning paths also reject it up front (main doc §5.2). Exempt US tenants are allowed.
   - **A6: Access is read before this handler has run** → the tenant is younger than `PROVISIONING_GRACE_MINUTES`, so the access port treats it as a pending trial (allowed); if the window expires without a subscription, the self-heal job (CAND-35) runs this same use case.
-  - **A5: A v1 `TenantProvisioned` event** (published before the v2 deploy, no `countryCode`) → the handler fails and the event is retried; the v2 publisher goes live in the same release.
+  - **A5: A legacy `TenantProvisioned` payload** (outbox row written before the deploy, no `countryCode`; the bus does not version-route, verified) → the handler skips it and logs; the self-heal job (CAND-35) creates the trial through the narrow read-only tenant-info port (decision 119). Publisher and handler ship in the same release.
+  - **A7: Event without a `registrationId`** for a non-exempt tenant (an old script call) → the handler creates the subscription without tax id and flags the BR charge hold (CAND-08 A8); the manager supplies it in the dashboard.
 - **Postconditions:** Tenant has a `TRIALING` subscription with all items.
 - **Events Triggered:** None (the audit log is the `TenantProvisioned` handler itself).
 
@@ -77,8 +80,8 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Preconditions:** Subscription exists (or the tenant is being provisioned with the `exempt` hint).
 - **Trigger:** Operator calls `PUT /internal/tenants/{tenantId}/billing/exempt` with `{ exempt, reason }`, or provisions with `exempt=true`.
 - **Main Flow:**
-  1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items; any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep, purge and the ops digest.
-  2. **Clear:** the subscription becomes `TRIALING` with a fresh 14-day window and default paid items (CAND-01 step 3; trial access is computed from the status) so the manager picks the first paid selection; nothing is charged before the trial ends.
+  1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items; any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge (there is no ops digest, decision 107).
+  2. **Clear:** the subscription becomes `TRIALING` with a fresh 14-day window and `plan_confirmed_at = NULL`; the open-ended exempt items are **replaced** by the default paid items `[trial_ends_at, ∞)` in the same transaction (the GIST exclusion forbids overlap) so the manager picks and confirms the first paid selection; nothing is charged before the trial ends.
   3. Cache invalidated after commit; `operator_audit` row (`SET_EXEMPT`, who, why) written.
 - **Alternative Flows:**
   - **A1: Tenant is Ikaro's own** (`PLATFORM_OWNER_TENANT_SLUG`) → clearing is rejected.
@@ -114,13 +117,15 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   1. For each due subscription (standalone partial index on `next_due_date`), compute lines from the items scheduled for the next service period, reading each amount from the price version in force on that period's **start date**.
   2. Tax-inclusive BR charges carry zero extra tax and their `amount_minor` is known at insert. A tax-exclusive US charge is inserted with `subtotal_minor` only: Stripe computes the tax when it finalizes the invoice (step 3), so the provider result supplies `tax_amount_minor`, `amount_minor` and the tax lines, written once. There is no separate tax port (decision 62).
   3. Insert the `Charge` (`kind = PERIOD`) and feature lines in one transaction (`UNIQUE(tenant_id, subscription_id, period_start)` makes a re-run idempotent), then — outside the DB transaction — ask the provider (via the port, `billingType = UNDEFINED` for Asaas, a finalized `send_invoice` invoice for Stripe) to create the charge, and store its id, payment link, link expiry and, for US, the tax result and `amount_minor` with `provider_creation_status = READY`. `ChargeIssued` and the manager email go out only after READY.
-  4. For a `TRIALING` subscription the first charge is issued 10 days before trial end from the default paid items (or the manager's saved selection), due at trial end.
+  4. For a `TRIALING` subscription the first charge is issued from the manager's **confirmed** selection (`plan_confirmed_at` set, decision 115), due at trial end, as soon as it is within `CHARGE_ISSUE_LEAD_DAYS` (10 days before trial end). If the plan is still unconfirmed at `trial_ends_at − PLAN_CONFIRM_FALLBACK_DAYS` (3 days), the job issues it from the default paid items and the email says plainly which features and what total were invoiced and how to change them (A10). `next_due_date` advances one cycle in the same transaction that inserts a `PERIOD` charge (decision 118).
 - **Alternative Flows:**
   - **A1: Subscription is `exempt`** (Ikaro's own tenant or an operator-exempted tenant) → no charge created.
   - **A8: BR customer has no valid CPF/CNPJ** (should not happen: signup and `POST /internal/tenants` require it) → no provider charge; manager banner and email, same hold as A7, and issuing **resumes automatically** when the identity is saved; no operator step. A trial in this state is suspended at trial end.
   - **A6: No renewable price version for an item's (feature, tier, country, cycle)** → the charge is not issued; this is prevented at deploy time (a startup/CI check requires a complete price set for every enabled country) and alerts only if it somehow happens. A catalog row hidden from new selection remains renewable for existing subscribers.
   - **A2: Provider call fails** → the charge keeps `provider_creation_status = PENDING`; the retry candidate query, run inside this same issuing job, re-attempts creation without inserting a duplicate period charge; alert after N failures.
   - **A3: Job runs twice** → no duplicates.
+  - **A10: Trial plan not confirmed before the fallback day** → the invoice is issued from the default selection; if the manager changes the plan afterwards, the normal cancel-and-re-issue applies (CAND-31) as long as the invoice is unpaid.
+  - **A11: Tenant deactivated (`is_active = false`)** → skipped (CAND-37).
   - **A4: Tenant `SUSPENDED`** → skipped (no charges while suspended).
   - **A5: Subscription is cancelling (`cancelAt` set)** → no charge for periods after `cancelAt`.
   - **A9: BR address missing** (decision 109) → same hold as A7 with `BILLING_ADDRESS_REQUIRED`: the first paid-plan selection is rejected until the full address is saved, issuing resumes automatically when it is saved, and a trial reaching its end with no charge is suspended by the CAND-10 trial-end rule after email and banner warnings.
@@ -150,8 +155,8 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 ### **CAND-10: System Sweeps Statuses**
 - **Actor:** System (`/cron/billing-status-sweep`, **hourly**, decision 92).
 - **Preconditions:** None.
-- **Trigger:** Daily trigger (Cloud Scheduler → Pub/Sub → `ITriggerBus` handler; the `/cron/billing-status-sweep` endpoint is the manual path).
-- **Main Flow:** all dates are evaluated in `subscriptions.timezone`. (a) any `PENDING` charge past its tenant-local due date becomes `OVERDUE`; for an `ACTIVE` subscription it becomes `PAST_DUE` and records `pastDueSince`; (a2) **trial end:** a `TRIALING` subscription whose `trialEndsAt` plus `PAYMENT_SETTLEMENT_MARGIN_HOURS` (24) has passed, after re-reading the charge from the provider, with its first charge unpaid — or with no charge at all — becomes `SUSPENDED` (`NON_PAYMENT`) directly; there is no `PAST_DUE` after a trial; (b) `PAST_DUE` older than 14 days (or past `graceUntil`) becomes `SUSPENDED` (`NON_PAYMENT`); **on every suspension for `NON_PAYMENT` or `PAYMENT_REVERSED` the sweep cancels the stale open charge (locally and at the provider) and issues the recovery charge** (decision 72); (c) `cancelAt` reached becomes `SUSPENDED` (`CANCELED`); (a3) **trial → paid:** a `TRIALING` subscription whose `trialEndsAt` has passed and whose first charge is `PAID` becomes `ACTIVE` (period starts at trial end, `anchor_day` = trial-end local day clamped to 28); (d) confirmed payment converts `PAST_DUE`/`SUSPENDED` to `ACTIVE` through CAND-09. The trial's first paid period starts at its trial end and later renewals use that anchor day. `exempt` subscriptions are never touched by this job.
+- **Trigger:** Hourly trigger (decision 92; Cloud Scheduler → Pub/Sub → `ITriggerBus` handler; the `/cron/billing-status-sweep` endpoint is the manual path).
+- **Main Flow:** all dates are evaluated in `subscriptions.timezone`. (a) any `PENDING` charge past its tenant-local due date becomes `OVERDUE`; for an `ACTIVE` subscription it becomes `PAST_DUE` and records `pastDueSince`; (a2) **trial end:** a `TRIALING` subscription whose `trialEndsAt` plus the settlement margin has passed (`PAYMENT_SETTLEMENT_MARGIN_HOURS` = 24 h, or `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS` = 3 business days when `payment_return_seen_at` shows the manager already tried to pay a still-open charge, decision 117), after re-reading the charge from the provider, with its first charge unpaid — or with no charge at all — becomes `SUSPENDED` (`NON_PAYMENT`) directly; there is no `PAST_DUE` after a trial; (b) `PAST_DUE` older than 14 days (or past `graceUntil`) becomes `SUSPENDED` (`NON_PAYMENT`); **on every suspension for `NON_PAYMENT` or `PAYMENT_REVERSED` the sweep cancels the stale open charge (locally and at the provider) and issues the recovery charge** (decision 72); (c) `cancelAt` reached becomes `SUSPENDED` (`CANCELED`); (a3) **trial → paid:** a `TRIALING` subscription whose `trialEndsAt` has passed and whose first charge is `PAID` becomes `ACTIVE` (period starts at trial end, `anchor_day` = trial-end local day clamped to 28); (d) confirmed payment converts `PAST_DUE`/`SUSPENDED` to `ACTIVE` through CAND-09. The trial's first paid period starts at its trial end and later renewals use that anchor day. `exempt` subscriptions are never touched by this job.
 - **Alternative Flows:**
   - **A1: Job runs twice** → idempotent (status checks).
   - **A2: A payment arrives during the sweep** → row lock; the paid state wins.
@@ -264,7 +269,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** System (Notification send path).
 - **Preconditions:** None.
 - **Trigger:** Any notification about to be sent.
-- **Main Flow:** The send path asks the access port for the tenant (an `exempt` tenant is never suspended, so its sends are never skipped); if suspended it skips the send and records `SKIPPED_TENANT_SUSPENDED` (not replayed later); templates belonging to Billing (R10) are exempt.
+- **Main Flow:** The send path asks the access port for the tenant (an `exempt` tenant is never suspended, so its sends are never skipped); if suspended it skips the send and records `SKIPPED_TENANT_SUSPENDED` (not replayed later); templates belonging to Billing (R10) are exempt. **Placement (verified in code):** the gate runs in `BaseNotificationUseCase` *before* dispatch and writes the `SKIPPED_*` log and inbox row itself — inside the dispatcher a skip would be logged as `SENT` (`saveLog` always calls `markSent()`); the `status` column is widened first (`VARCHAR(20)` cannot hold the new names); the parallel `SendAvailabilityAlertMatchedEmailService` send path needs the same gate.
 - **Alternative Flows:**
   - **A1: Billing email but the manager has no address** → logged, ops alert.
   - **A2: Access lookup error** → fail open (send).
@@ -274,7 +279,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 
 ### **CAND-19: Billing Emails to the Manager**
 - **Actor:** System (one event handler per event; each handler calls exactly one use case).
-- **Preconditions:** Template exists in the tenant's language (pt-BR/en) — seeded for new tenants and backfilled for existing ones. The tenant is not `exempt` (R12): exempt tenants receive no billing emails, and the handlers skip them.
+- **Preconditions:** A platform-level (NULL-tenant) template exists in both languages (pt-BR/en) — shipped by migration and read through the new global-template lookup; **no per-tenant copy or backfill** (decision 100). The tenant is not `exempt` (R12): exempt tenants receive no billing emails, and the handlers skip them.
 - **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue` (Ikaro sends all of them: Asaas customers are created with `notificationDisabled = true` and Stripe customer emails are off, decision 59), and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …").
 - **Main Flow:** Resolve recipients (billing email, else the tenant's managers), render, send, log.
 - **Alternative Flows:**
@@ -320,12 +325,12 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   1. Page shows feature descriptions and the price table (BR/US switch; CAND-23 supplies prices).
   2. Visitor passes Turnstile and signs in with Google (verified email + name).
   3. Visitor fills business name, slug, country (BR|US), **CPF or CNPJ for BR** and accepts Terms and Privacy; language derives from the country.
-  4. System re-validates server-side, reserves the signup registration under the advisory lock and applies the trial rule (A3), then calls the existing `ProvisionTenantUseCase` (Platform) with the Google email as first manager; the Google `sub` and accepted terms version/timestamp are recorded in `signup_registrations`.
+  4. System re-validates server-side; the BFF asks Billing to reserve the registration (internal endpoint, advisory lock on the Google `sub`, trial rule A3), which stores the Google `sub`, the BR tax id and the accepted terms version/timestamp in `signup_registrations`; the BFF then calls Platform's signup use case, which verifies Turnstile and calls the existing `ProvisionTenantUseCase` with the Google email as first manager and the `registrationId`. None of the personal data travels in the event (decision 120).
   5. The endpoint returns the account-created page. `TenantProvisioned` asynchronously triggers Staff (first manager) and Billing (CAND-01); once the first-manager work completes, the existing invitation/login email is sent to the verified Google email. The visitor is not issued a tenant JWT and is not sent to the dashboard by signup.
 - **Alternative Flows:**
   - **A1: Slug taken / reserved / invalid** → field error with suggestions.
   - **A2: Turnstile fails** → retry screen.
-  - **A3: Trial not available for this Google account** (an earlier self-signup tenant of the same `sub` never paid) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído" + contact link. A first signup, or one where every earlier signup tenant has paid, always gets the trial.
+  - **A3: Trial not available for this Google account** (an earlier self-signup tenant of the same `sub` never paid) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído" with two self-service actions: "Entrar na conta existente" and "Descartar o teste não pago e começar de novo" (CAND-36, which needs a signed-in manager of that tenant; until the purge participants ship it shows the honest interim message, OPERATIONS O13). A first signup, or one where every earlier signup tenant has paid, always gets the trial.
   - **A4: Rate limit exceeded** (per IP/day) → friendly "tente mais tarde".
   - **A5: Terms not accepted** → blocked.
   - **A9: BR tax ID missing or with invalid check digits** → `SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`, field error; nothing is created.
@@ -363,7 +368,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** `TRIALING`.
 - **Trigger:** Any dashboard page.
-- **Main Flow:** Banner "Faltam N dias do seu teste" links to billing and prompts the manager to choose the first paid plan (CAND-31); trial entitlements remain fully enabled. Ten days before trial end, the first invoice is issued from that next-period selection (default: every trial feature continues); it is due on trial end and the manager is emailed.
+- **Main Flow:** Banner "Faltam N dias do seu teste" links to billing and, until the plan is confirmed, shows "Confirme seu plano para gerarmos a primeira cobrança" (CAND-31, decision 115); trial entitlements remain fully enabled. The first invoice is issued as soon as the manager confirms (from 10 days before trial end on), or automatically from the default selection 3 days before the end with a plain-language email (CAND-08 A10); it is due on trial end.
 - **Alternative Flows:**
   - **A2: Trial ended unpaid** → `SUSPENDED` at trial end (CAND-10 a2); the manager lands on the billing page with "Pague 1 mês para reativar". There is no `PAST_DUE` after a trial. The banner in the last days says "Faltam N dias… sua conta será suspensa se a primeira cobrança não for paga".
 - **Postconditions:** None.
@@ -376,7 +381,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Main Flow:**
   1. The tab lists every feature with its price for the tenant's country, a toggle, the chatbot tier choice (Básico/Plus), dependency hints and a live total.
   2. Manager changes the **next-period** selection; the page previews each change ("entra em 10/11" / "sai em 10/11") and that period's new total.
-  3. Manager saves (single primary action). System validates the proposed final dependency graph, schedules the item/tier changes at the next paid service-period start, and, if the next invoice is already issued and unpaid, cancels and re-issues it after commit. A paid invoice is never changed.
+  3. Manager saves (single primary action; during the trial the same action is labelled **Confirmar plano** and also sets `plan_confirmed_at`, `POST /v1/billing/plan/confirm` confirms the default untouched, decision 115). System validates the proposed final dependency graph, schedules the item/tier changes at the next paid service-period start, and, if the next invoice is already issued and unpaid, cancels and re-issues it after commit. A paid invoice is never changed.
 - **Alternative Flows:**
   - **A1: Dependency unmet / dependents active** (Loyalty without Booking; removing Booking while Loyalty is active) → whole selection rejected with the specific message; nothing saved.
   - **A2: `PAST_DUE` or `SUSPENDED`** → plan tab read-only until a settled payment/reactivation; no unpaid plan change is queued.
@@ -386,7 +391,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A7: Next invoice already paid** → change applies from the following renewal; the page says so.
   - **A8: Provider re-issue fails** → scheduled selection is saved and the provider-creation retry handles the replacement invoice; alert on repeated failure.
   - **A9: Save error** → message, selection kept.
-  - **A11: Removing `BOOKING`** (which includes recurring reservations and availability alerts) while any active booking, recurring schedule or alert extends on or after the effective date → rejected with `BILLING_FEATURE_IN_USE`; after a valid save the bookable window is capped at that date (decision 81).
+  - **A11: Removing `BOOKING`** (which includes recurring reservations and availability alerts) while any `PENDING`/`INFO_REQUESTED`/`APPROVED` booking, `PENDING_APPROVAL`/`ACTIVE` recurring schedule or `ACTIVE` alert extends on or after the effective date → rejected with `BILLING_FEATURE_IN_USE`; after a valid save a `bookableUntil` cap applies to every booking-window consumer (decision 81, main doc §4.1 lists the new Booking queries and consumers).
   - **A12: The provider refuses to cancel the old invoice because it was just paid** → the change waits for the following renewal and the page says so.
   - **A10: Cancellation scheduled (`cancelAt` set)** → plan tab read-only ("reative a assinatura para alterar o plano").
 - **Postconditions:** Current entitlements are unchanged; the validated selection applies at the next paid service-period start.
@@ -463,7 +468,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** System (daily `billing-reminders` job via the trigger pattern; `/cron/billing-reminders` is the manual path).
 - **Preconditions:** Subscription not `exempt`; the tenant has a billing email or managers.
 - **Trigger:** Daily.
-- **Main Flow:** For each subscription it publishes `BillingReminderDue` once per milestone (deduped by `(subscription, kind, daysOffset, chargeId)`): `TRIAL_ENDING` at 7 and 3 days before trial end and on the last day (with the payment link when the first invoice exists), `CHARGE_DUE_SOON` 3 days before a charge's due date, `CHARGE_OVERDUE` at 1, 3, 7 and 12 days after the due date of a `PAST_DUE` subscription (the last says the date of suspension). Ikaro sends every reminder itself because provider notifications are off (decision 59). Billing templates are exempt from the suspension gate.
+- **Main Flow:** For each subscription it publishes `BillingReminderDue` once per milestone (deduped by `(subscription, kind, daysOffset, chargeId)`): `PLAN_CONFIRMATION` at 10, 7 and 4 days before trial end while `plan_confirmed_at` is NULL (decision 115; the last one says the default plan will be invoiced in one day), `TRIAL_ENDING` at 7 and 3 days before trial end and on the last day (with the payment link when the first invoice exists), `CHARGE_DUE_SOON` 3 days before a charge's due date, `CHARGE_OVERDUE` at 1, 3, 7 and 12 days after the due date of a `PAST_DUE` subscription (the last says the date of suspension). Ikaro sends every reminder itself because provider notifications are off (decision 59). Billing templates are exempt from the suspension gate.
 - **Alternative Flows:**
   - **A1: Charge paid between scheduling and sending** → the handler re-checks and skips.
   - **A2: No recipient** → logged; the banner remains.
@@ -483,3 +488,42 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A2: Provider API cannot re-enable the webhook** → alert with the runbook; reconcile keeps money correct meanwhile.
 - **Postconditions:** The common failure modes resolve without an operator.
 - **Events Triggered:** None (a repaired trial raises nothing new; `SubscriptionSuspended` is simply delayed during a freeze).
+
+### **CAND-36: Manager Discards a Never-Paid Tenant (Self-Service)** — *review 3, decision 116*
+- **Actor:** Staff (MANAGER).
+- **Preconditions:** Subscription has `has_ever_paid = false`, is not `exempt`, and is `TRIALING` or `SUSPENDED` (`NON_PAYMENT` or `CANCELED`; not `OPERATOR`). The purge participants (stories G1–G10) are deployed.
+- **Trigger:** Manager opens "Descartar este teste" on the billing page (or follows the link from the `SIGNUP_TRIAL_NOT_AVAILABLE` page after signing in).
+- **Main Flow:**
+  1. A confirmation page lists exactly what is erased (hotsite, services, bookings, customers, staff, uploads) and that it cannot be undone; the manager types the tenant slug to confirm.
+  2. Billing cancels any open charge (locally and at the provider), creates a `TenantPurgeJob` with reason `SELF_SERVICE_DISCARD` and publishes `TenantPurgeRequested`; the subscription is shown as "Descartando…" (job status, not a subscription status) and every login for that tenant is already inert (it is `SUSPENDED` first when it was `TRIALING`).
+  3. The same participant pipeline as CAND-27 runs immediately; when it completes, Billing deletes the `signup_registrations` row (frees the trial eligibility) and Platform deletes the tenant root and releases the slug.
+  4. A confirmation email goes to the billing email/managers before erasure starts (Billing template, gate-exempt) — the last message the tenant receives.
+- **Alternative Flows:**
+  - **A1: Any charge was ever paid** → refused (`BILLING_DISCARD_NOT_ALLOWED`); the tenant follows the 180-day path or cancels.
+  - **A2: A participant fails** → retried with backoff like CAND-27; alert after N attempts (O8); the tenant stays inaccessible.
+  - **A3: Purge participants not yet deployed** → the action is not offered and the signup error page names the interim operator path (OPERATIONS O13).
+  - **A4: Slug typed wrongly** → blocked.
+- **Postconditions:** Tenant erased, slug and trial eligibility free; no support contact needed.
+- **Events Triggered:** `TenantPurgeRequested` (reason `SELF_SERVICE_DISCARD`).
+
+### **CAND-37: A Deactivated Tenant Stops Being Billed** — *review 3, open decision O-D1*
+- **Actor:** System (reacting to a future `TenantDeactivated` event from the offboarding flow, M17-S51).
+- **Preconditions:** The offboarding flow exists (today `Tenant.deactivate()` has no production caller — verified).
+- **Main Flow:** Billing cancels any open charge (locally and at the provider), clears `cancel_at`, and sets a `SUSPENDED`/`CANCELED` subscription so no further charge is issued and the clean-up clock starts; the issue job also skips tenants with `is_active = false`.
+- **Alternative Flows:** **A1:** `exempt` tenant → no change. **A2:** Re-activation of a tenant → manual reactivation path (CAND-29) applies.
+- **Postconditions:** A paying tenant that is offboarded is not charged afterwards.
+- **Events Triggered:** `SubscriptionCancelled`.
+
+### **CAND-38: Manager Enables Automatic Card Collection (Provider-Hosted Recurring Checkout)** — *slice F2, decision 114, gated*
+- **Actor:** Staff (MANAGER).
+- **Preconditions:** BRL tenant on Asaas; the F2 launch gates of `tenant-billing_PROVIDERS.md` §5 are verified in the sandbox and production (card data never touches Ikaro, account enablement, terminal behaviour after refused attempts). Until then the UI and endpoints are not released.
+- **Trigger:** Manager clicks "Pagar automaticamente no cartão".
+- **Main Flow:** Billing asks the provider (port) to create a hosted recurring checkout whose first due date is the next unissued `next_due_date` and whose value is the current plan total; the manager enters the card on the provider's page; `CHECKOUT_PAID`/subscription-created webhooks mark automatic collection active. From then on the provider generates each period charge; Billing mirrors it from the webhook as a `PERIOD` charge with `origin = PROVIDER_SUBSCRIPTION` (lines from the current items) and does not issue its own; plan/price changes `PUT` the subscription value at the period boundary. A refused charge follows the normal ladder (reminders, `PAST_DUE`, 14 days) and the hosted link remains available.
+- **Alternative Flows:**
+  - **A1: Checkout abandoned/expired** → status stays manual; restart offered.
+  - **A2: Card replaced/expired** → provider webhook; the manager is emailed and falls back to the hosted link.
+  - **A3: Disable** → provider subscription cancelled (pending charges removed); Ikaro resumes issuing its own charges from the next unissued period, without duplicates.
+  - **A4: Gate fails** → slice dropped; baseline unaffected.
+  - **A5: Both an Ikaro-issued and a provider-generated charge exist for one period** → the provider one wins if paid; the other is cancelled; a double payment is refunded in the provider console (OPERATIONS O5).
+- **Postconditions:** Monthly payment needs no manager action while the card works.
+- **Events Triggered:** `ChargeIssued` (mirrored), `ChargePaid`.

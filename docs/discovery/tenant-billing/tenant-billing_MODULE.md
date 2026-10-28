@@ -41,6 +41,7 @@ export interface TrialSignupCtaModuleData {
 5. **Admin config panel** in the hotsite editor (`manager-05` prototypes): title, text, button label, enabled toggle, presentation.
 6. **Docs:** add to the §3 table and §4 data interfaces of `HOTSITE_DYNAMIC_ARCHITECTURE.md`.
 7. **i18n:** `hotsite.layout.modules.TRIAL_SIGNUP_CTA.*` labels in both locales.
+8. **Verified extra touch points (review 3):** the backend mirror `contexts/platform/domain/hotsite-config.types.ts` (union of module data interfaces); `hotsite-layout.rules.ts` (per-type singleton rule, `presentation` allow-list, the owner-slug restriction goes here); `HotsiteModuleSchema` and its exhaustiveness spec in `packages/validation/src/hotsite-modules.ts`; the web `page-model.ts` and `default-layout.ts`; and `packages/hotsite-templates` (definitions plus `copy/{pt-BR,en}` — its tests require copy for every module key, and templates must **not** carry this module, so the catalogue test needs an explicit exclusion). Data vocabulary: `BookingCtaDataSchema` is a loose object (`variant?`, `title`, `subtitle?`, `ctaLabel`, plus image/layout options); mirror only `variant`/`title`/`subtitle`/`ctaLabel`.
 
 ## 5. The `/ikaro-trial` page (not a module)
 

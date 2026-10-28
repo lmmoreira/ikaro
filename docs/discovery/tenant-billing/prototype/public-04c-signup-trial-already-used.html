@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Testar — Teste já ativo</title>
+  <title>Testar — Teste em andamento</title>
   <link rel="stylesheet" href="../../../../journeys/shared/tokens.css">
   <style>
 .wrap{max-width:42rem;margin:0 auto;padding:2.5rem 1.5rem 4rem}
@@ -54,12 +54,12 @@ p.sub{font-size:.9375rem;opacity:.7;color:var(--ba-text);margin-bottom:1.5rem;li
 <body>
 <!--
 DISCOVERY PROTOTYPE -- illustrative only, NOT a journeys/ prototype.
-Grounds CAND-22 (Turnstile -> Google sign-in step). State: conta Google já tem teste ativo.
+Grounds CAND-22 (Turnstile -> Google sign-in step). State: conta Google já tem teste em andamento ou não concluído.
 COMPONENT (GAP): SignupGoogleStep (+ Turnstile widget; Google button follows the existing OAuth pattern of shared/login.html, same GoogleSignInButton used by login pages if one exists, otherwise GAP).
 BFF CALL (GAP): GET /v1/public/signup/session after the OAuth callback (Response: { email, name, trialAvailable:boolean }); the Turnstile token is kept client-side and sent later in POST /v1/public/signup/tenant.
-Google redirect: GET /api/auth/google?redirect=/ikaro-trial/entrar (signup intent, creates no tenant by itself). 04c: trialAvailable=false -> this screen with contact link "Falar com a gente" (Ikaro booking page).
+Google redirect: GET /api/auth/google?redirect=/ikaro-trial/entrar (signup intent, creates no tenant by itself). 04c: trialAvailable=false -> this screen with links "Entrar na conta existente" and "Descartar o teste não pago e começar de novo" (self-service discard, manager-10).
 -->
-<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — conta Google já tem teste ativo</div>
+<div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:.375rem 1rem;font-size:.8125rem;text-align:center;color:#92400e;">Protótipo — CAND-22 — conta Google já tem teste em andamento ou não concluído</div>
 <div class="auth-bar" style="justify-content:space-between;">
   <div style="display:flex;align-items:center;gap:.625rem;">
     <div style="width:1.75rem;height:1.75rem;border-radius:.375rem;background:var(--ba-primary);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8125rem;">I</div>
@@ -68,11 +68,11 @@ Google redirect: GET /api/auth/google?redirect=/ikaro-trial/entrar (signup inten
   <a href="../../../../journeys/shared/staff-login.html" style="display:flex;align-items:center;gap:.375rem;font-size:.875rem;font-weight:500;color:var(--ba-primary);text-decoration:none;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg> Entrar</a>
 </div><div class="wrap">
 <p class="ind">Passo 2 de 3 — Entrar com Google</p>
-<h1 class="t">Você já tem um teste ativo</h1>
-<div class="alert warn"><b>Esta conta Google já iniciou um teste.</b>Cada conta Google pode ter um teste ativo por vez. Entre na sua conta existente para continuar de onde parou.</div>
+<h1 class="t">Você já tem um teste em andamento ou não concluído</h1>
+<div class="alert warn"><b>Esta conta Google já iniciou um teste.</b>Conclua o pagamento do seu teste atual para continuar usando a Ikaro. Cada conta Google pode ter um teste por vez; entre na conta existente para continuar de onde parou.</div>
 <p class="sub">maria.souza@gmail.com</p>
-<div class="row"><a class="btn-primary" href="../../../../journeys/shared/staff-login.html">Entrar na minha conta</a><a class="btn-secondary" href="../../../../journeys/guest/prototypes/book-a-service/01-service-selection.html">Falar com a gente</a></div>
-<p class="fh">Acha que isso é um engano? Use "Falar com a gente" para marcar uma conversa com nossa equipe.</p>
+<div class="row"><a class="btn-primary" href="../../../../journeys/shared/staff-login.html">Entrar na conta existente</a><a class="btn-secondary" href="manager-10-discard-trial-confirm.html">Descartar o teste não pago e começar de novo</a></div>
+<p class="fh">Descartar apaga o teste não pago e tudo o que foi cadastrado nele, e libera o nome do endereço para um novo cadastro. Não dá para desfazer.</p>
 </div>
 </body>
 </html>

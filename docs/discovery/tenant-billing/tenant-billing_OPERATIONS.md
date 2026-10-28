@@ -26,12 +26,16 @@
 | Webhook endpoint disabled/paused at the provider | **provider health job** (CAND-35 step 2): re-enables it through the provider API if the API allows (launch-gate check), otherwise alerts; reconcile keeps money correct meanwhile |
 | Provider unhealthy (reconcile failing > 24 h, API down) | **suspension freeze** (CAND-35 step 3): the sweep stops suspending anyone until reconcile succeeds again, so an outage never locks out a paying tenant and no operator "grace" is needed |
 | Billing identity missing/invalid blocks a charge | charge held, manager gets a banner + email; **issuing resumes automatically** when the identity is saved |
+| First paid plan not confirmed | `PLAN_CONFIRMATION` reminders at 10/7/4 days, then the default plan is invoiced 3 days before trial end with a plain-language email (decision 115) |
+| Payment attempted but not yet settled at trial end (boleto) | settlement margin extends to 3 business days when the manager already returned from the payment page (decision 117) |
+| Wrong slug/country, lapsed unpaid trial blocking re-signup | the tenant discards its own never-paid tenant (CAND-36); until the purge participants ship, O13 |
+| Card keeps being refused (slice F2) | the normal ladder and the hosted link; the manager updates the card |
 | Erasure step fails | retried with backoff; alert only after N attempts |
 | Retention of `provider_events` | purge job |
 
 ## 3. What the tenant does by themselves (self-service)
 
-Pay, re-generate an expired link, download the receipt (the provider's hosted receipt/invoice link is exposed on each paid charge in the history), change the plan, change identity data (the provider customer is updated on the next charge), cancel, undo a scheduled cancel, reactivate after suspension (pay the recovery charge), see the exact reason and date for any state. The billing page never needs a support contact for these.
+Confirm the first plan, pay, re-generate an expired link, discard a never-paid tenant, download the receipt (the provider's hosted receipt/invoice link is exposed on each paid charge in the history), change the plan, change identity data (the provider customer is updated on the next charge), cancel, undo a scheduled cancel, reactivate after suspension (pay the recovery charge), see the exact reason and date for any state. The billing page never needs a support contact for these.
 
 ## 4. Operator edge cases (the complete list)
 
@@ -49,6 +53,7 @@ Pay, re-generate an expired link, download the receipt (the provider's hosted re
 | O10 | Accountant tasks (US sales-tax registration, tax filings, month closing) | Outside the product | periodic | none | calendar owner: the accountant |
 | O11 | NFS-e (Brazil) | Legal duty | **monthly if manual** | **provider-automatic emission configured once in the Asaas account (launch gate, decision 109); no per-charge work** | none once configured |
 | O12 | Secret rotation (provider keys, webhook tokens) | Security hygiene | yearly or on incident | none | runbook |
+| O13 | **Interim only:** a tenant stuck with a wrong slug/country or a lapsed unpaid trial that blocks re-signup, *before* the purge participants ship (so the self-service discard, CAND-36, is not available yet) | The self-service path depends on the purge pipeline | rare, launch weeks only | the signup error page says plainly what to do | operator-triggered purge of that never-paid tenant (`OPERATOR_REQUEST`) per M17-S51 runbook; retired when CAND-36 ships |
 
 Explicitly **not** operator work any more: marking a charge paid, reactivating a suspended tenant, granting a payment extension, fixing statuses by hand, working a daily overdue list, issuing invoices, answering "where is my receipt", re-sending a payment link, provisioning a self-signup tenant, creating a missing subscription.
 

@@ -121,14 +121,15 @@
 <h2 style="font-size:1.25rem;font-weight:700;color:var(--ba-text);margin:0 0 0.375rem;">Cancelar a assinatura de Lavacar BeloAuto?</h2>
 <p class="muted" style="margin-bottom:1.25rem;">Revise o que muda antes de confirmar.</p>
 <section class="section-card"><p class="section-card-title">Quando termina</p>
- <p style="font-size:0.9375rem;line-height:1.55;margin:0;color:var(--ba-text);">O cancelamento vale <strong>agora</strong>: a conta é suspensa imediatamente, o hotsite sai do ar e clientes não conseguem agendar. Como não há período pago em andamento, nada é cobrado e qualquer cobrança em aberto é cancelada.</p></section>
+ <p style="font-size:0.9375rem;line-height:1.55;margin:0;color:var(--ba-text);">O cancelamento vale <strong>agora</strong>: a conta é suspensa imediatamente, o hotsite sai do ar e clientes não conseguem agendar. Como não há período pago em andamento (no teste, nada foi cobrado; em atraso, o período atual não foi pago), nada mais é cobrado e qualquer cobrança em aberto é cancelada.</p></section>
 <section class="section-card"><p class="section-card-title">Reembolso</p>
- <p style="font-size:0.9375rem;margin:0;color:var(--ba-text);">Não há valor a reembolsar: <strong>nenhum período foi pago</strong>.</p></section>
+ <p style="font-size:0.9375rem;margin:0;color:var(--ba-text);">Não há valor a reembolsar. <strong>No teste</strong>, nada foi cobrado. <strong>Em atraso</strong>, o período atual está em aberto e não foi pago; períodos anteriores já pagos não são reembolsados.</p></section>
 <section class="section-card" style="background:#f8fafc;"><p class="section-card-title">E os seus dados?</p>
- <ul class="plain"><li>Guardamos tudo por <strong>180 dias</strong> após a suspensão (90 dias se a conta nunca chegou a pagar).</li>
+ <ul class="plain"><li>Guardamos tudo por <strong>180 dias</strong> após a suspensão se a conta já pagou alguma vez (conta em atraso), ou por <strong>90 dias</strong> se nunca pagou (teste).</li>
  <li>Depois disso o negócio e todos os dados são <strong>apagados definitivamente</strong>.</li>
  <li>Avisamos por e-mail <strong>30 e 7 dias</strong> antes da exclusão.</li>
- <li>Você pode <strong>reativar</strong> quando quiser antes disso, pagando 1 mês.</li></ul></section>
+ <li>Você pode <strong>reativar</strong> quando quiser antes disso, pagando 1 mês.</li>
+ <li>Se este for um teste que nunca foi pago, você também pode <a href="manager-10-discard-trial-confirm.html" style="color:#2563eb;">descartar o teste</a>: apaga tudo agora e libera o nome do endereço.</li></ul></section>
 <div class="form-actions"><a href="manager-01b-billing-trial.html" class="btn-secondary">Voltar</a><a href="manager-01d-billing-suspended.html" class="btn-danger" style="text-decoration:none;text-align:center;">Cancelar assinatura</a></div>
 </div><aside class="detail-aside" aria-label="Ações"><div class="card" style="padding:1.25rem;">
  <a href="manager-01d-billing-suspended.html" class="btn-danger" style="display:block;text-align:center;text-decoration:none;padding:.75rem;margin-bottom:.625rem;">Cancelar assinatura</a>
