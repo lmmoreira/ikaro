@@ -82,6 +82,7 @@ export function ServiceEditConfigTabPanels({
           initialResourceRequirements={service.resourceRequirements}
           initialLegs={service.legs}
           initialBufferAfterMinutes={service.bufferAfterMinutes}
+          tenantDefaultBufferMinutes={service.tenantDefaultBufferMinutes}
           onDirtyChange={(value) => onTabDirtyChange('recursos', value)}
           onActionChange={onRecursosAction}
           onLegsSaved={onLegsSaved}

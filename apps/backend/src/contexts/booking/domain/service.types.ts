@@ -111,9 +111,6 @@ export interface CreateServiceProps {
   isActive?: boolean;
   description?: string;
   bookingModel?: ServiceBookingModel;
-  // Tenant's current settings.serviceBufferMinutes, snapshotted by the caller at creation time
-  // (UC-053 step 1). Ignored for a SESSION service.
-  tenantServiceBufferMinutes?: number | null;
   classResourceSlots?: ClassResourceSlot[];
   // Resolved by the caller (IResourceRepository.findByTenant) — required whenever
   // classResourceSlots is non-empty; ignored otherwise. See setResourceRequirements()/setLegs()'s

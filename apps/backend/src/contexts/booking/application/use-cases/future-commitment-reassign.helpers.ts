@@ -7,6 +7,7 @@ import { ReassignTarget, reassignBookingResource } from './resource-reassignment
 export interface WorklistReassignInput {
   tenantId: string;
   timezone: string;
+  tenantServiceBufferMinutes: number;
   target?: ReassignTarget;
 }
 
@@ -38,6 +39,7 @@ export async function reassignThroughWorklist(
       sourceResourceId: exception.sourceId,
       target: input.target ?? { mode: 'AUTO' },
       timezone: input.timezone,
+      tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
     },
   );
   // UC-062/063: the customer is told the new resource's name only when the requirement shows it.

@@ -1,5 +1,9 @@
 import { makeBackendHttp } from '../../test/backend-http.mock';
 import { ServicesController } from './services.controller';
+import {
+  UpdateServiceBodySchema,
+  UpdateServiceResourceRequirementsBodySchema,
+} from './services.schemas';
 import { ServiceDetail, ServiceListResponse } from './services.types';
 
 const validCreateBody = {
@@ -44,6 +48,7 @@ const mockServiceDetail: ServiceDetail = {
   bookingModel: 'APPOINTMENT',
   resourceRequirements: [],
   bufferAfterMinutes: 60,
+  tenantDefaultBufferMinutes: 60,
   legs: null,
   classResourceSlots: null,
   bookingPolicy: mockBookingPolicy,
@@ -81,6 +86,7 @@ describe('ServicesController', () => {
             bookingModel: 'APPOINTMENT',
             resourceRequirements: [],
             bufferAfterMinutes: 60,
+            tenantDefaultBufferMinutes: 60,
             legs: null,
             classResourceSlots: null,
             bookingPolicy: mockBookingPolicy,
@@ -164,6 +170,25 @@ describe('ServicesController', () => {
       expect(result.serviceId).toBe(SERVICE_ID);
     });
 
+    it('forwards a null buffer unchanged — it clears the override (TD51-S00)', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue(mockServiceDetail),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      await controller.update(SERVICE_ID, { bufferAfterMinutes: null });
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(`/services/${SERVICE_ID}`, {
+        bufferAfterMinutes: null,
+      });
+    });
+
+    it('accepts a null and a zero buffer at the request boundary, and rejects a negative one', () => {
+      expect(UpdateServiceBodySchema.safeParse({ bufferAfterMinutes: null }).success).toBe(true);
+      expect(UpdateServiceBodySchema.safeParse({ bufferAfterMinutes: 0 }).success).toBe(true);
+      expect(UpdateServiceBodySchema.safeParse({ bufferAfterMinutes: -1 }).success).toBe(false);
+    });
+
     it('propagates 404 from backend', async () => {
       const backendHttp = makeBackendHttp({
         patch: jest.fn().mockRejectedValue(new Error('404')),
@@ -193,6 +218,23 @@ describe('ServicesController', () => {
         body,
       );
       expect(result.id).toBe(SERVICE_ID);
+    });
+
+    it('forwards an empty list unchanged — the resource-free service (TD51-S00)', async () => {
+      const backendHttp = makeBackendHttp({
+        patch: jest.fn().mockResolvedValue({ id: SERVICE_ID, resourceRequirements: [] }),
+      });
+      const controller = new ServicesController(backendHttp);
+
+      await controller.updateResourceRequirements(SERVICE_ID, { resourceRequirements: [] });
+
+      expect(backendHttp.patch).toHaveBeenCalledWith(
+        `/services/${SERVICE_ID}/resource-requirements`,
+        { resourceRequirements: [] },
+      );
+      expect(
+        UpdateServiceResourceRequirementsBodySchema.safeParse({ resourceRequirements: [] }).success,
+      ).toBe(true);
     });
 
     it('propagates backend errors', async () => {

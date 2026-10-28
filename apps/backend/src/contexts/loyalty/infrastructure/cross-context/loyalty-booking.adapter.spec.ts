@@ -39,6 +39,7 @@ describe('LoyaltyBookingAdapter', () => {
           bookingModel: 'APPOINTMENT',
           resourceRequirements: [],
           bufferAfterMinutes: 60,
+          tenantDefaultBufferMinutes: 60,
           legs: null,
           classResourceSlots: null,
           bookingPolicy: {

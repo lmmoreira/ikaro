@@ -117,6 +117,7 @@ describe('RequestAuthenticatedBookingUseCase', () => {
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
     businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+    tenantServiceBufferMinutes: 60,
     tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
   });
 

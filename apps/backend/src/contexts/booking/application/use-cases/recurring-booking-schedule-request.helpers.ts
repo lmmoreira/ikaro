@@ -68,6 +68,8 @@ export interface ConflictCheckParams {
   tenantId: string;
   timezone: string;
   businessHours: BusinessHours;
+  // settings.booking.serviceBufferMinutes — what the service inherits when its own buffer is null.
+  tenantServiceBufferMinutes: number;
   recurrence: RecurrenceRule;
   service: Service;
   startsOn: string;
@@ -126,7 +128,9 @@ async function collectConflicts(
     tenantId: params.tenantId,
     occurrences: params.occurrences,
     durationMinutes: params.recurrence.durationMinutes,
-    bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
+    bufferAfterMinutes: params.service.effectiveBufferAfterMinutes(
+      params.tenantServiceBufferMinutes,
+    ),
     groups: considered,
   });
   // Busy, closed or outside hours: none of these (resource, occurrence) pairs may be assigned.
@@ -170,7 +174,9 @@ async function findHoursRefusals(
       anyOpenResourceSuffices: group.anyFreeResourceSuffices,
       occurrences: params.occurrences,
       durationMinutes: params.recurrence.durationMinutes,
-      bufferAfterMinutes: params.service.bufferAfterMinutes ?? 0,
+      bufferAfterMinutes: params.service.effectiveBufferAfterMinutes(
+        params.tenantServiceBufferMinutes,
+      ),
     }),
   );
   return {

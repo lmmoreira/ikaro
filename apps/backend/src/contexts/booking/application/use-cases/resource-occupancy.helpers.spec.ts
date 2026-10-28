@@ -56,6 +56,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
     serviceMap: Map<string, Service>,
     resourceSelections: ResourceSelectionInput[] = [],
     scheduledAt: Date = SCHEDULED_AT,
+    tenantServiceBufferMinutes = 60,
   ) {
     return resolveBookingLinesResourceCandidates({
       resourceRepo,
@@ -64,6 +65,7 @@ describe('resolveBookingLinesResourceCandidates', () => {
       tenantId: TENANT_ID,
       scheduledAt,
       timezone: TIMEZONE,
+      tenantServiceBufferMinutes,
       lines,
       serviceMap,
       resourceSelections,
@@ -78,6 +80,54 @@ describe('resolveBookingLinesResourceCandidates', () => {
         new Map(),
       ),
     ).rejects.toBeInstanceOf(BookingServiceNotInTenantError);
+  });
+
+  describe('the service buffer on the persisted gap (TD51-S00)', () => {
+    const TENANT_BUFFER = 25;
+
+    // A resource-free service books against the tenant's LOCATION resource.
+    async function resolveWithBuffer(bufferAfterMinutes: number | null) {
+      await resourceRepo.save(
+        new ResourceBuilder().withTenantId(TENANT_ID).withType(ResourceType.LOCATION).build(),
+      );
+      const service = new ServiceBuilder()
+        .withId('service-1')
+        .withDurationMinutes(30)
+        .withResourceRequirements([])
+        .withBufferAfterMinutes(bufferAfterMinutes)
+        .build();
+      const result = await resolve(
+        [{ lineId: 'line-1', serviceId: 'service-1', durationMinsAtBooking: 30 }],
+        new Map([['service-1', service]]),
+        [],
+        SCHEDULED_AT,
+        TENANT_BUFFER,
+      );
+      return result.get('line-1')!.candidates[0];
+    }
+
+    it('holds the resource for the tenant default when the service buffer is null', async () => {
+      const candidate = await resolveWithBuffer(null);
+
+      expect(candidate.gapMinutes).toBe(TENANT_BUFFER);
+      expect(candidate.endsAt).toEqual(
+        new Date(SCHEDULED_AT.getTime() + (30 + TENANT_BUFFER) * 60_000),
+      );
+    });
+
+    it('holds the resource for the service override, not the tenant default', async () => {
+      const candidate = await resolveWithBuffer(10);
+
+      expect(candidate.gapMinutes).toBe(10);
+      expect(candidate.endsAt).toEqual(new Date(SCHEDULED_AT.getTime() + 40 * 60_000));
+    });
+
+    it('adds no gap for an explicit zero override even when the tenant default is larger', async () => {
+      const candidate = await resolveWithBuffer(0);
+
+      expect(candidate.gapMinutes).toBeNull();
+      expect(candidate.endsAt).toEqual(new Date(SCHEDULED_AT.getTime() + 30 * 60_000));
+    });
   });
 
   describe('flat (non-legged) services', () => {

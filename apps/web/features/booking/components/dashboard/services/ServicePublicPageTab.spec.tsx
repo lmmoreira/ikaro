@@ -47,6 +47,7 @@ function makeService(overrides: Partial<StaffServiceResponse> = {}): StaffServic
     bookingModel: 'APPOINTMENT',
     resourceRequirements: [],
     bufferAfterMinutes: null,
+    tenantDefaultBufferMinutes: 60,
     legs: null,
     classResourceSlots: null,
     bookingPolicy: {

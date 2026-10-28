@@ -51,6 +51,7 @@ const serviceDetail: ServiceDetail = {
   bookingModel: 'APPOINTMENT',
   resourceRequirements: [],
   bufferAfterMinutes: 60,
+  tenantDefaultBufferMinutes: 60,
   legs: null,
   classResourceSlots: null,
   bookingPolicy,
@@ -76,6 +77,7 @@ describe('toStaffServiceResponse()', () => {
       bookingModel: 'APPOINTMENT',
       resourceRequirements: [],
       bufferAfterMinutes: 60,
+      tenantDefaultBufferMinutes: 60,
       legs: null,
       classResourceSlots: null,
       bookingPolicy,
@@ -83,6 +85,17 @@ describe('toStaffServiceResponse()', () => {
       publicSlug: null,
       publicProfile: null,
     });
+  });
+
+  it('maps the inherit state: a null override with the backend-resolved effective buffer (TD51-S00)', () => {
+    const result = toStaffServiceResponse({
+      ...serviceDetail,
+      bufferAfterMinutes: null,
+      tenantDefaultBufferMinutes: 45,
+    });
+
+    expect(result.bufferAfterMinutes).toBeNull();
+    expect(result.tenantDefaultBufferMinutes).toBe(45);
   });
 
   it('preserves a null description', () => {
@@ -122,6 +135,7 @@ describe('toStaffServiceResponse()', () => {
       ...serviceDetail,
       resourceRequirements: [],
       bufferAfterMinutes: null,
+      tenantDefaultBufferMinutes: null,
       legs: [
         {
           legIndex: 0,
@@ -371,6 +385,7 @@ describe('toPublicServiceResponse() (M23-S29)', () => {
       'manualHoldMinutes',
       'classResourceSlots',
       'bufferAfterMinutes',
+      'tenantDefaultBufferMinutes',
     ]) {
       expect(serialized).not.toContain(leaked);
     }

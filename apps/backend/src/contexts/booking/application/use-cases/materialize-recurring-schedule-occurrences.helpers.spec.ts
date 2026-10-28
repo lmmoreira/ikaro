@@ -79,6 +79,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
       serviceOverride?: ReturnType<typeof service>;
       occurrences?: RecurrenceOccurrence[];
       approvedByStaffId?: string | null;
+      tenantServiceBufferMinutes?: number;
     } = {},
   ) {
     const usedService = overrides.serviceOverride ?? service();
@@ -95,6 +96,7 @@ describe('materializeRecurringScheduleOccurrences', () => {
         occurrences: overrides.occurrences ?? OCCURRENCES,
         resources: overrides.resources ?? OCCURRENCES.map(() => [room('Sala A')]),
         approvedByStaffId: overrides.approvedByStaffId ?? null,
+        tenantServiceBufferMinutes: overrides.tenantServiceBufferMinutes ?? 60,
       },
     );
   }
@@ -215,6 +217,27 @@ describe('materializeRecurringScheduleOccurrences', () => {
       'RESOURCE_TURNOVER',
     ]);
     expect(assignSpy.mock.calls[0][1].map((a) => a.candidates[0].gapMinutes)).toEqual([30, 15, 30]);
+  });
+
+  it.each([
+    ['inherits the tenant default when the service buffer is null', null, 25, 25],
+    ['uses the service override, not the tenant default', 10, 25, 10],
+    ['adds no buffer for an explicit zero override', 0, 25, 0],
+  ])('%s (TD51-S00)', async (_name, serviceBuffer, tenantBuffer, expectedGap) => {
+    const assignSpy = jest.spyOn(occupancyRepo, 'assignMany');
+
+    await run({
+      serviceOverride: service(serviceBuffer),
+      tenantServiceBufferMinutes: tenantBuffer,
+      resources: OCCURRENCES.map(() => [room('Sala A', 0)]),
+    });
+
+    const candidates = assignSpy.mock.calls[0][1].map((a) => a.candidates[0]);
+    for (const candidate of candidates) {
+      expect((candidate.endsAt.getTime() - candidate.startsAt.getTime()) / 60_000).toBe(
+        90 + expectedGap,
+      );
+    }
   });
 
   it('writes the occupancy rows to the repository the conflict check reads', async () => {

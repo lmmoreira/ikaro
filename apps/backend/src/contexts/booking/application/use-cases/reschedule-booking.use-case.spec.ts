@@ -97,6 +97,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(result.bookingId).toBe(booking.id);
@@ -132,6 +133,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       const kept = await exceptionRepo.findById(keptEntry.id, TENANT_A);
@@ -158,6 +160,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -181,6 +184,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       const saved = await bookingRepo.findById(booking.id, TENANT_A);
@@ -226,6 +230,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       // Old window is free again.
@@ -268,6 +273,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(eventBus.published).toHaveLength(1);
@@ -302,6 +308,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(result.quoteRevision).toBeUndefined();
@@ -351,6 +358,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(result.quoteRevision).toEqual({
@@ -399,6 +407,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(BookingSlotUnavailableError);
     });
@@ -446,6 +455,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).resolves.toBeDefined();
     });
@@ -462,6 +472,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });
@@ -483,6 +494,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(BookingScheduledInPastError);
     });
@@ -504,6 +516,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
@@ -525,6 +538,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(InvalidBookingTransitionError);
     });
@@ -546,6 +560,7 @@ describe('RescheduleBookingUseCase', () => {
           correlationId: CORRELATION_ID,
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
         }),
       ).rejects.toThrow(BookingNotFoundError);
     });
@@ -575,6 +590,7 @@ describe('RescheduleBookingUseCase', () => {
         correlationId: CORRELATION_ID,
         timezone: 'America/Sao_Paulo',
         businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+        tenantServiceBufferMinutes: 60,
       });
     }
 

@@ -7,10 +7,8 @@ import { ResourceType } from '../../domain/resource.types';
 import { ScheduleClosure } from '../../domain/schedule-closure.aggregate';
 import { ScheduleOpening } from '../../domain/schedule-opening.aggregate';
 import { ServiceLeg } from '../../domain/service-leg';
-import { IResourceRepository } from '../ports/resource-repository.port';
 import { AvailabilityLine } from './availability-lines.helpers';
 import {
-  createWindowResolutionContext,
   resolveActiveCandidates,
   WindowResolutionContext,
 } from './availability-window-candidates.helpers';
@@ -64,16 +62,9 @@ function computeLineSpans(candidateStart: Date, lines: AvailabilityLine[]): Line
 // does. Never throws on a requirement with zero candidates — an empty RequirementWindowEntry is
 // handled by the caller's own union/intersect combinators like any other "no match."
 export async function resolveAvailabilityRequirementWindows(
-  resourceRepo: IResourceRepository,
-  availabilityService: AvailabilityService,
-  tenantId: string,
   candidateStart: Date,
   lines: AvailabilityLine[],
-  ctx: WindowResolutionContext = createWindowResolutionContext(
-    resourceRepo,
-    availabilityService,
-    tenantId,
-  ),
+  ctx: WindowResolutionContext,
 ): Promise<RequirementWindowEntry[]> {
   const perLine = await Promise.all(
     computeLineSpans(candidateStart, lines).map(({ line, lineStart, lineEnd, isLastLine }) =>
@@ -107,7 +98,7 @@ async function resolveFlatWindows(
       return resources.map((resource) => {
         const gap = isLastLine
           ? ctx.availabilityService.effectiveFlatGapMinutes(
-              service.bufferAfterMinutes ?? 0,
+              service.effectiveBufferAfterMinutes(ctx.tenantServiceBufferMinutes),
               resource.turnoverMinutes,
             )
           : 0;
@@ -214,9 +205,6 @@ export async function isBookingWindowAvailable(
   contextCache: Map<string, Promise<ResourceAvailabilityContext>>,
 ): Promise<boolean> {
   const entries = await resolveAvailabilityRequirementWindows(
-    deps.windowContext.resourceRepo,
-    deps.availabilityService,
-    deps.windowContext.tenantId,
     candidateStart,
     lines,
     deps.windowContext,

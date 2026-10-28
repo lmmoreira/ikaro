@@ -110,7 +110,9 @@ export function calculateSlotsForDate(
     // Only the last requested service's own buffer applies (matching
     // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
     // only a fallback for a service with no override.
-    serviceBufferMinutes: ctx.lines.at(-1)!.service.bufferAfterMinutes ?? ctx.serviceBufferMinutes,
+    serviceBufferMinutes: ctx.lines
+      .at(-1)!
+      .service.effectiveBufferAfterMinutes(ctx.serviceBufferMinutes),
     closures: dayClosures,
     opening: dayTenantOpening,
     resourceOpening: dayResourceOpening,
@@ -187,6 +189,7 @@ export async function buildResourceScopedSummary(
     deps.resourceRepo,
     deps.availabilityService,
     tenantId,
+    request.serviceBufferMinutes,
   );
 
   // Days are independent — each reads its own slice of the range-wide, promise-cached data — so

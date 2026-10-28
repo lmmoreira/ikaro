@@ -94,6 +94,7 @@ describe('RescheduleBookingAsCustomerUseCase', () => {
       correlationId: CORRELATION_ID,
       timezone: 'America/Sao_Paulo',
       businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+      tenantServiceBufferMinutes: 60,
       tenantDefaultRescheduleWindowHours: DEFAULT_WINDOW_HOURS,
       tenantBookingWindow: { minBookingAdvanceHours: 0, maxBookingAdvanceDays: 90 },
       ...overrides,

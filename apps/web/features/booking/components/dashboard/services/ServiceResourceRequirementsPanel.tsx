@@ -11,25 +11,26 @@ import {
 } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { Card, CardContent } from '@/shared/components/ui/card';
 import {
   normalizeLegsResourcePoolIds,
   normalizeResourcePoolIds,
 } from './resource-pool-normalization';
 import { hasUnsatisfiableRequirement } from './resource-requirement-quantity';
 import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
-import { ServiceResourceTypeFields } from './ServiceResourceTypeFields';
+import { bufferToField, fieldToBuffer, isValidBufferField } from './service-buffer-field';
+import { ServiceFlatRequirementsCard } from './ServiceFlatRequirementsCard';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
 import { ServiceBufferAfterMinutesField } from './ServiceBufferAfterMinutesField';
 import { ServiceResourceModePicker } from './ServiceResourceModePicker';
-
-const FLAT_TYPES: ResourceType[] = ['STAFF', 'ROOM', 'EQUIPMENT'];
 
 interface ServiceResourceRequirementsPanelProps {
   readonly serviceId: string;
   readonly initialResourceRequirements: ResourceRequirementItem[];
   readonly initialLegs: ServiceLegItem[] | null;
   readonly initialBufferAfterMinutes: number | null;
+  // The business's current default buffer, what a blank field inherits; null where a buffer does
+  // not apply (legged and SESSION services).
+  readonly tenantDefaultBufferMinutes: number | null;
   readonly onDirtyChange: (dirty: boolean) => void;
   readonly onActionChange: ServiceTabActionChange;
   // Legs set the service's duration (their span), so the Detalhes tab needs the new value.
@@ -43,6 +44,7 @@ export function ServiceResourceRequirementsPanel({
   initialResourceRequirements,
   initialLegs,
   initialBufferAfterMinutes,
+  tenantDefaultBufferMinutes,
   onDirtyChange,
   onActionChange,
   onLegsSaved,
@@ -62,9 +64,17 @@ export function ServiceResourceRequirementsPanel({
   const [mode, setMode] = useState<'flat' | 'legs'>(initialLegs ? 'legs' : 'flat');
   const [requirements, setRequirements] = useState(initialResourceRequirements);
   const [legs, setLegs] = useState<ServiceLegItem[]>(initialLegs ?? []);
+  // '' = no override (the service inherits the business default and is saved as null); a number,
+  // including '0', is an explicit override.
   const [bufferAfterMinutes, setBufferAfterMinutes] = useState(
-    initialBufferAfterMinutes !== null ? String(initialBufferAfterMinutes) : '',
+    bufferToField(initialBufferAfterMinutes),
   );
+  // What each endpoint last accepted, so a save only sends what the manager actually changed — a
+  // buffer-only edit never touches the requirements endpoint (a resource-free service holds [],
+  // which is exactly what it must not be re-sent), and a retry after a half-failed save resends
+  // only the part that did not land.
+  const [savedRequirements, setSavedRequirements] = useState(initialResourceRequirements);
+  const [savedBuffer, setSavedBuffer] = useState(bufferToField(initialBufferAfterMinutes));
   const [dirty, setDirty] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedMessageVisible, setSavedMessageVisible] = useState(false);
@@ -78,6 +88,10 @@ export function ServiceResourceRequirementsPanel({
   // pending, so it never clears dirty for an edit it didn't actually persist (same race fixed for
   // Detalhes/Políticas/Formulário; this panel was missed the first time — Codex finding).
   const editRevisionRef = useRef(0);
+  const requirementsChanged = JSON.stringify(requirements) !== JSON.stringify(savedRequirements);
+  const bufferChanged = bufferAfterMinutes !== savedBuffer;
+  // Only a flat service has a buffer to validate; legs mode disables the field.
+  const bufferInvalid = mode === 'flat' && !isValidBufferField(bufferAfterMinutes);
 
   function markDirty(): void {
     editRevisionRef.current += 1;
@@ -131,24 +145,28 @@ export function ServiceResourceRequirementsPanel({
         setLegsLockedOnServer(true);
         onLegsSaved?.(savedLegs.totalSpanMinutes);
       } else {
-        const saved = await updateResourceRequirements.mutateAsync({
-          id: serviceId,
-          body: {
-            resourceRequirements: requirements.map((requirement) =>
-              normalizeResourcePoolIds(requirement, availableResources),
-            ),
-          },
-        });
-        onRequirementsSaved?.(saved.resourceRequirements);
-        // An emptied buffer input means "no buffer" (0), not "leave the previous value
-        // unchanged" — always send it so a manager can actually clear a previously-set override
-        // (CodeRabbit finding: a blank input used to silently skip the PATCH entirely).
-        const parsedBuffer = bufferAfterMinutes === '' ? 0 : Number(bufferAfterMinutes);
-        if (!Number.isNaN(parsedBuffer)) {
+        // Two independent mutations, each sent only when its own value changed: requirements
+        // first, then the buffer.
+        if (requirementsChanged) {
+          const saved = await updateResourceRequirements.mutateAsync({
+            id: serviceId,
+            body: {
+              resourceRequirements: requirements.map((requirement) =>
+                normalizeResourcePoolIds(requirement, availableResources),
+              ),
+            },
+          });
+          setSavedRequirements(requirements);
+          onRequirementsSaved?.(saved.resourceRequirements);
+        }
+        if (bufferChanged) {
+          // A blank field clears the override (null = inherit the business default); 0 is a
+          // real "no buffer" override.
           await updateService.mutateAsync({
             id: serviceId,
-            body: { bufferAfterMinutes: parsedBuffer },
+            body: { bufferAfterMinutes: fieldToBuffer(bufferAfterMinutes) },
           });
+          setSavedBuffer(bufferAfterMinutes);
         }
       }
       if (editRevisionRef.current === revisionAtSubmit) {
@@ -180,7 +198,8 @@ export function ServiceResourceRequirementsPanel({
     !resourcesLoading &&
     !resourcesLoadFailed &&
     !(mode === 'legs' && legs.length < 2) &&
-    !hasUnsatisfiableQuantity;
+    !hasUnsatisfiableQuantity &&
+    !bufferInvalid;
 
   useRegisterTabAction(onActionChange, {
     label: t('recursosSaveButton'),
@@ -198,40 +217,13 @@ export function ServiceResourceRequirementsPanel({
       />
 
       {mode === 'flat' ? (
-        <Card>
-          <CardContent className="space-y-3 p-5">
-            <label className="block text-sm font-semibold text-gray-900">
-              {t('recursosChecklistLabel')}
-            </label>
-
-            {requirements.length === 0 && (
-              <div
-                data-testid="resource-empty-state"
-                className="rounded-2xl border border-dashed border-slate-300 p-5 text-center"
-              >
-                <p className="text-sm font-semibold text-gray-900">
-                  {t('recursosEmptyStateTitle')}
-                </p>
-                <p className="mt-1 text-sm text-gray-500">{t('recursosEmptyStateDescription')}</p>
-              </div>
-            )}
-
-            {FLAT_TYPES.map((type) => (
-              <ServiceResourceTypeFields
-                key={type}
-                type={type}
-                checked={requirements.some((item) => item.type === type)}
-                requirement={requirements.find((item) => item.type === type) ?? null}
-                availableResources={availableByType(type)}
-                radioGroupName={`selmode-flat-${type}`}
-                scope="flat"
-                eligibilityReady={eligibilityReady}
-                onToggle={(checked) => handleToggleType(type, checked)}
-                onChange={handleChangeType}
-              />
-            ))}
-          </CardContent>
-        </Card>
+        <ServiceFlatRequirementsCard
+          requirements={requirements}
+          availableByType={availableByType}
+          eligibilityReady={eligibilityReady}
+          onToggleType={handleToggleType}
+          onChangeType={handleChangeType}
+        />
       ) : (
         <ServiceLegsPanel
           legs={legs}
@@ -247,6 +239,8 @@ export function ServiceResourceRequirementsPanel({
       <ServiceBufferAfterMinutesField
         value={bufferAfterMinutes}
         disabled={mode === 'legs'}
+        tenantDefaultMinutes={tenantDefaultBufferMinutes}
+        invalid={bufferInvalid}
         onChange={(value) => {
           setBufferAfterMinutes(value);
           markDirty();

@@ -26,6 +26,10 @@ export interface ServiceUseCaseResult {
   bookingModel: ServiceBookingModel;
   resourceRequirements: ResourceRequirementProps[];
   bufferAfterMinutes: number | null;
+  // The tenant's current serviceBufferMinutes — what this service inherits while bufferAfterMinutes
+  // is null (the effective buffer is bufferAfterMinutes ?? tenantDefaultBufferMinutes). null where
+  // a buffer does not apply (legged and SESSION services).
+  tenantDefaultBufferMinutes: number | null;
   legs: ServiceLegReconstituteProps[] | null;
   classResourceSlots: ReturnType<ClassResourceSlot['toJSON']>[] | null;
   bookingPolicy: ServiceBookingPolicyResult;
@@ -75,6 +79,7 @@ export function toServiceResult(
   locale: string,
   autoApproveEnabled: boolean,
   tenantWindow: TenantBookingWindow,
+  tenantBufferMinutes: number,
   resolveImageUrl: ResolveImageUrl,
 ): ServiceUseCaseResult {
   return {
@@ -94,6 +99,8 @@ export function toServiceResult(
     bookingModel: service.bookingModel,
     resourceRequirements: service.resourceRequirements.map((r) => r.toJSON()),
     bufferAfterMinutes: service.bufferAfterMinutes,
+    tenantDefaultBufferMinutes:
+      service.bookingModel === 'APPOINTMENT' && service.legs === null ? tenantBufferMinutes : null,
     legs: service.legs ? service.legs.map((l) => l.toJSON()) : null,
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map((s) => s.toJSON())

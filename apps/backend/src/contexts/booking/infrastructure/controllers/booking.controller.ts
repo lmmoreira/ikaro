@@ -110,6 +110,7 @@ export class BookingController {
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
@@ -131,6 +132,7 @@ export class BookingController {
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);
@@ -153,6 +155,7 @@ export class BookingController {
         countryCode: settings.localization.countryCode,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
         tenantBookingWindow: this.tenantBookingWindow(),
       })
       .catch(mapBookingError);

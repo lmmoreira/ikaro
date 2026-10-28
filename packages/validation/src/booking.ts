@@ -219,8 +219,11 @@ export const ClassResourceSlotSchema = z.object({
 // No .min(2) here on purpose — UC-052 A1's "fewer than 2 legs" rejection is a domain-level
 // 422 (BookingServiceLegsTooFewError), not a generic Zod 400; a Zod-level minimum would make
 // that error code unreachable.
+// No .min(1) here on purpose (TD51-S00): an empty flat list is the supported resource-free
+// service (it books against the degenerate LOCATION requirement). Each leg's own list in
+// ServiceLegSchema keeps .min(1) — a leg with no resource is not a configuration.
 export const UpdateServiceResourceRequirementsSchema = z.object({
-  resourceRequirements: z.array(ResourceRequirementSchema).min(1).max(20),
+  resourceRequirements: z.array(ResourceRequirementSchema).max(20),
 });
 
 export const UpdateServiceLegsSchema = z.object({

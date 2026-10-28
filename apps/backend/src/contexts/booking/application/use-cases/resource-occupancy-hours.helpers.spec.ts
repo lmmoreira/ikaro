@@ -93,6 +93,7 @@ describe('resolveBookingLinesResourceCandidates — working hours, closures and 
       timezone: TIMEZONE,
       lines,
       serviceMap,
+      tenantServiceBufferMinutes: 60,
       resourceSelections: selections.map((s) => ({ ...s, legIndex: null })),
       lockResources: (ids) => tenantLock.lockResources(TENANT_ID, ids),
       hoursSource: withHours

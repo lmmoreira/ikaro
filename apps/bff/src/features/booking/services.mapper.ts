@@ -69,6 +69,7 @@ export function toStaffServiceResponse(service: ServiceDetail): StaffServiceResp
     bookingModel: service.bookingModel,
     resourceRequirements: service.resourceRequirements.map(toResourceRequirementItem),
     bufferAfterMinutes: service.bufferAfterMinutes,
+    tenantDefaultBufferMinutes: service.tenantDefaultBufferMinutes,
     legs: service.legs ? service.legs.map(toServiceLegItem) : null,
     classResourceSlots: service.classResourceSlots
       ? service.classResourceSlots.map(toClassResourceSlotItem)

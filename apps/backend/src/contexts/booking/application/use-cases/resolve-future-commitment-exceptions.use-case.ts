@@ -72,6 +72,7 @@ export interface ResolveFutureCommitmentExceptionsUseCaseInput {
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
   exceptionIds: string[];
   resolutionType: FutureCommitmentExceptionResolutionType;
   reason?: string;
@@ -203,6 +204,7 @@ export class ResolveFutureCommitmentExceptionsUseCase {
         exceptionId,
         scheduledAt: input.scheduledAt,
         timezone: input.timezone,
+        tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
       });
     }
     return undefined;

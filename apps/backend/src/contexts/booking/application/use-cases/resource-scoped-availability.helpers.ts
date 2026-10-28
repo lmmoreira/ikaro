@@ -45,6 +45,18 @@ export interface ResourceScopedReadDeps {
   ) => Promise<ResourceOccupiedSlot[]>;
 }
 
+function newWindowContext(
+  deps: ResourceScopedReadDeps,
+  request: ResourceScopedAvailabilityRequest,
+): WindowResolutionContext {
+  return createWindowResolutionContext(
+    deps.resourceRepo,
+    deps.availabilityService,
+    request.tenantId,
+    request.serviceBufferMinutes,
+  );
+}
+
 // Shared by both GetAvailabilityUseCase (single day) and the summary use case's per-day loop —
 // UC-058/059: resolves every line's (and, for legged services, every leg's) own concrete
 // resourceRequirements window relative to each outer candidate start time; a bundle requirement
@@ -68,7 +80,7 @@ export async function calculateResourceScopedAvailability(
   // resource-specific window against business hours regardless of what this coarse pre-filter let
   // through.
   const lastService = lines.at(-1)!.service;
-  const outerBufferMinutes = lastService.bufferAfterMinutes ?? request.serviceBufferMinutes;
+  const outerBufferMinutes = lastService.effectiveBufferAfterMinutes(request.serviceBufferMinutes);
   const outerSlots = deps.availabilityService.calculate({
     date: request.date,
     services: lines.map((line) => ({ durationMinutes: line.durationMinutes })),
@@ -85,9 +97,7 @@ export async function calculateResourceScopedAvailability(
 
   const windowDeps: ResourceScopedAvailabilityDeps = {
     availabilityService: deps.availabilityService,
-    windowContext:
-      deps.windowContext ??
-      createWindowResolutionContext(deps.resourceRepo, deps.availabilityService, request.tenantId),
+    windowContext: deps.windowContext ?? newWindowContext(deps, request),
     date: request.date,
     businessHours: request.businessHours,
     loadResourceContext: (resourceId) => loadResourceAvailabilityContext(deps, request, resourceId),

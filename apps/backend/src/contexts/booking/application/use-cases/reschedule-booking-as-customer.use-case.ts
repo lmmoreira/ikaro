@@ -63,6 +63,7 @@ export type RescheduleBookingAsCustomerUseCaseInput = RescheduleBookingAsCustome
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
   tenantDefaultRescheduleWindowHours: number;
   tenantBookingWindow: TenantBookingWindow;
 };
@@ -255,6 +256,7 @@ export class RescheduleBookingAsCustomerUseCase {
       tenantId: input.tenantId,
       newScheduledAt,
       timezone: input.timezone,
+      tenantServiceBufferMinutes: input.tenantServiceBufferMinutes,
       overrideSelections: toResourceSelections(input.resourceSelections),
       durationChange,
       hoursSource: toHoursSource(this.closureRepo, this.openingRepo, input.businessHours),

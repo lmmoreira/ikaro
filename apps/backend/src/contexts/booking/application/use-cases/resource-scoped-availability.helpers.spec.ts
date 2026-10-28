@@ -120,6 +120,7 @@ describe('calculateResourceScopedAvailability', () => {
       resourceRepo,
       availabilityService,
       TENANT_ID,
+      0,
     );
     const lines = toPlainAvailabilityLines([roomService()]);
 

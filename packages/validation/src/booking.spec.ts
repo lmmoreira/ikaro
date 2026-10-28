@@ -8,7 +8,9 @@ import {
   ResourceSelectionsQueryStringSchema,
   ScheduleClosuresRangeQuerySchema,
   ScheduleDayGridQuerySchema,
+  ServiceLegSchema,
   UpdateServiceBookingPolicySchema,
+  UpdateServiceResourceRequirementsSchema,
   UpdateServicePublicPageSchema,
   MarkBookingNoShowSchema,
   CorrectBookingNoShowSchema,
@@ -27,6 +29,34 @@ describe('UpdateServiceBookingPolicySchema — recurringHorizonDays', () => {
     expect(UpdateServiceBookingPolicySchema.safeParse({ recurringHorizonDays }).success).toBe(
       false,
     );
+  });
+});
+
+describe('flat resource requirements vs leg requirements (TD51-S00)', () => {
+  it('accepts an empty flat requirements list — the supported resource-free service', () => {
+    expect(
+      UpdateServiceResourceRequirementsSchema.safeParse({ resourceRequirements: [] }).success,
+    ).toBe(true);
+  });
+
+  it('still rejects more than 20 flat requirements', () => {
+    const requirement = { type: 'ROOM', selectionMode: 'AUTO_ANY' };
+    expect(
+      UpdateServiceResourceRequirementsSchema.safeParse({
+        resourceRequirements: Array.from({ length: 21 }, () => requirement),
+      }).success,
+    ).toBe(false);
+  });
+
+  it('keeps rejecting a leg with no resource requirement', () => {
+    expect(
+      ServiceLegSchema.safeParse({
+        legIndex: 0,
+        name: 'Sauna',
+        durationMinutes: 20,
+        resourceRequirements: [],
+      }).success,
+    ).toBe(false);
   });
 });
 

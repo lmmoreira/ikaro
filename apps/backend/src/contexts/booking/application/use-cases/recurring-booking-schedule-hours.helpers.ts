@@ -28,7 +28,7 @@ export interface HoursCheckInput {
   anyOpenResourceSuffices: boolean;
   occurrences: RecurrenceOccurrence[];
   durationMinutes: number;
-  // Service.bufferAfterMinutes ?? 0 — with each resource's turnover it forms the trailing gap.
+  // The service's effective buffer (its own, else the tenant's default) — with each resource's turnover it forms the trailing gap.
   bufferAfterMinutes: number;
 }
 

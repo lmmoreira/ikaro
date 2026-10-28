@@ -27,6 +27,7 @@ export interface WorklistRescheduleParams {
   correlationId: string;
   timezone: string;
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
   scheduledAt: string;
   exception: FutureCommitmentException;
   booking: Booking;
@@ -52,9 +53,15 @@ export async function loadServiceMap(
 // follow re-read them. The reschedule below asks for the same ids again, which it already holds.
 export async function lockRescheduleResourcesBeforeEntry(
   deps: WorklistRescheduleDeps,
-  params: { tenantId: string; exceptionId: string; scheduledAt: string; timezone: string },
+  params: {
+    tenantId: string;
+    exceptionId: string;
+    scheduledAt: string;
+    timezone: string;
+    tenantServiceBufferMinutes: number;
+  },
 ): Promise<ResolutionSnapshot | undefined> {
-  const { tenantId, exceptionId, scheduledAt, timezone } = params;
+  const { tenantId, exceptionId, scheduledAt, timezone, tenantServiceBufferMinutes } = params;
   const entry = await deps.exceptionRepo.findById(exceptionId, tenantId);
   if (!entry) return undefined;
   const booking = await deps.bookingRepo.findById(entry.affectedId, tenantId);
@@ -72,6 +79,7 @@ export async function lockRescheduleResourcesBeforeEntry(
     tenantId,
     newScheduledAt,
     timezone,
+    tenantServiceBufferMinutes,
     overrideSelections: [],
     durationChange: undefined,
     alsoLockResourceIds: [...occupied, entry.sourceId],
@@ -102,6 +110,7 @@ export async function rescheduleThroughWorklist(
     correlationId: params.correlationId,
     timezone: params.timezone,
     businessHours: params.businessHours,
+    tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
     excludeExceptionIds: [params.exception.id],
     resolutionSnapshot: params.resolutionSnapshot,
   });

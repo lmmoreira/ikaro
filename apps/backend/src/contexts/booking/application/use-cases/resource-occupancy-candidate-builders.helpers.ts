@@ -42,6 +42,7 @@ export async function resolveFlatLineCandidates(
   lineEnd: Date,
   isLastLine: boolean,
   selectionsByKey: Map<string, string[]>,
+  tenantServiceBufferMinutes: number,
 ): Promise<ResourceOccupancyCandidate[]> {
   const requirements =
     service.resourceRequirements.length > 0
@@ -59,7 +60,7 @@ export async function resolveFlatLineCandidates(
   const gapFor = (resource: Resource): ResourceGap | null =>
     isLastLine
       ? ctx.availabilityService.resolveFlatGap(
-          service.bufferAfterMinutes ?? 0,
+          service.effectiveBufferAfterMinutes(tenantServiceBufferMinutes),
           resource.turnoverMinutes,
         )
       : null;

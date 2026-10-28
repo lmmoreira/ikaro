@@ -259,15 +259,19 @@ async function seedCustomers(q: ReturnType<DataSource['createQueryRunner']>): Pr
 }
 
 async function seedServices(q: ReturnType<DataSource['createQueryRunner']>): Promise<void> {
+  // The seeded businesses model no prep time (their LOCATION resources also have turnover 0), so
+  // each service carries an explicit 0 override. A null here would inherit the tenant's 60-minute
+  // default and hold the single exclusive LOCATION for 60 extra minutes per booking, which the
+  // shared E2E tenants have no capacity for.
   await q.query(
     `INSERT INTO booking.services
-      (id, tenant_id, name, price_amount, duration_minutes, loyalty_points_value, requires_pickup_address) VALUES
-      ($1, $7, 'Basic Wash',            70.00,  30,  5,  false),
-      ($2, $7, 'Premium Wash',         180.00,  75,  12, false),
-      ($3, $8, 'Lavagem Simples',       80.00,  30,  5,  false),
-      ($4, $8, 'Lavagem Completa',     150.00,  60,  10, false),
-      ($5, $8, 'Polimento',            350.00, 120,  25, true),
-      ($6, $9, 'Higienização Interna', 200.00,  90,  15, false)
+      (id, tenant_id, name, price_amount, duration_minutes, loyalty_points_value, requires_pickup_address, buffer_after_minutes) VALUES
+      ($1, $7, 'Basic Wash',            70.00,  30,  5,  false, 0),
+      ($2, $7, 'Premium Wash',         180.00,  75,  12, false, 0),
+      ($3, $8, 'Lavagem Simples',       80.00,  30,  5,  false, 0),
+      ($4, $8, 'Lavagem Completa',     150.00,  60,  10, false, 0),
+      ($5, $8, 'Polimento',            350.00, 120,  25, true,  0),
+      ($6, $9, 'Higienização Interna', 200.00,  90,  15, false, 0)
     ON CONFLICT (id) DO NOTHING`,
     [
       IDS.serviceIkaroBasica,

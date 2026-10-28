@@ -126,6 +126,20 @@ X-Actor-Role: MANAGER
 
 ###
 
+### Make the service resource-free: an empty flat list is accepted (TD51-S00)
+PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "resourceRequirements": []
+}
+
+###
+
 ### Set a bundled resource requirement (UC-051)
 PATCH {{baseUrl}}/services/{{serviceId}}/resource-requirements
 Content-Type: application/json
@@ -160,7 +174,7 @@ X-Actor-Role: MANAGER
 
 ###
 
-### Set the service's buffer override (UC-053)
+### Set the service's buffer override (UC-053) — 0 is an explicit "no buffer"
 PATCH {{baseUrl}}/services/{{serviceId}}
 Content-Type: application/json
 X-Tenant-ID: {{tenantId}}
@@ -170,6 +184,20 @@ X-Actor-Role: MANAGER
 
 {
   "bufferAfterMinutes": 15
+}
+
+###
+
+### Clear the buffer override (UC-053) — null = inherit the tenant's current serviceBufferMinutes
+PATCH {{baseUrl}}/services/{{serviceId}}
+Content-Type: application/json
+X-Tenant-ID: {{tenantId}}
+X-Actor-ID: {{managerId}}
+X-Actor-Type: STAFF
+X-Actor-Role: MANAGER
+
+{
+  "bufferAfterMinutes": null
 }
 
 ###

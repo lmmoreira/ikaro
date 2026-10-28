@@ -55,7 +55,7 @@ describe('toServiceResult', () => {
       .build();
 
     expect(
-      toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, (path) => path).bookingPolicy,
+      toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, 60, (path) => path).bookingPolicy,
     ).toMatchObject({
       effectiveMinBookingAdvanceHours: 2,
       effectiveMaxBookingAdvanceDays: 14,
@@ -71,7 +71,7 @@ describe('toServiceResult', () => {
         .withPublicProfile(ServicePublicProfile.create({ coverImageUrl: path }))
         .build();
 
-      const result = toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, resolveUrl);
+      const result = toServiceResult(service, 'pt-BR', false, TENANT_WINDOW, 60, resolveUrl);
 
       expect(result.publicProfile?.coverImageUrl).toBe(resolveUrl(path));
     });
@@ -82,6 +82,7 @@ describe('toServiceResult', () => {
         'pt-BR',
         false,
         TENANT_WINDOW,
+        60,
         resolveUrl,
       );
 

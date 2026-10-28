@@ -83,8 +83,14 @@ export class UpdateServiceUseCase {
 
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(tenantId);
     const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(tenantId);
-    return toServiceResult(service, locale, autoApproveEnabled, tenantWindow, (path) =>
-      this.storageService.getPublicUrl(path),
+    const tenantBufferMinutes = await this.bookingPlatform.getServiceBufferMinutes(tenantId);
+    return toServiceResult(
+      service,
+      locale,
+      autoApproveEnabled,
+      tenantWindow,
+      tenantBufferMinutes,
+      (path) => this.storageService.getPublicUrl(path),
     );
   }
 

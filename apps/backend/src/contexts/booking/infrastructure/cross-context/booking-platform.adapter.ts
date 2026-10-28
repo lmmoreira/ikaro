@@ -71,6 +71,11 @@ export class BookingPlatformAdapter implements IBookingPlatformPort {
     return tenant.settings.booking.autoApproveEnabled;
   }
 
+  async getServiceBufferMinutes(tenantId: string): Promise<number> {
+    const tenant = await this.getTenantById.execute({ tenantId });
+    return tenant.settings.booking.serviceBufferMinutes;
+  }
+
   async getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {
     const tenant = await this.getTenantById.execute({ tenantId });
     const { minBookingAdvanceHours, maxBookingAdvanceDays } = tenant.settings.booking;

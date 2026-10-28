@@ -212,12 +212,16 @@ export class RequestRecurringBookingScheduleUseCase {
     considered: ConsideredRequirement[],
   ): Promise<Resource[][]> {
     const { businessHours } = await this.bookingPlatform.getBusinessHoursAndLocale(input.tenantId);
+    const tenantServiceBufferMinutes = await this.bookingPlatform.getServiceBufferMinutes(
+      input.tenantId,
+    );
     return assertPatternConflictFree(
       this.conflictDeps,
       {
         tenantId: input.tenantId,
         timezone: input.timezone,
         businessHours,
+        tenantServiceBufferMinutes,
         recurrence: input.recurrence,
         service: prepared.service,
         startsOn: input.startsOn,
@@ -234,6 +238,9 @@ export class RequestRecurringBookingScheduleUseCase {
     resources: Resource[][],
     approvedByStaffId: string | null,
   ): Promise<void> {
+    const tenantServiceBufferMinutes = await this.bookingPlatform.getServiceBufferMinutes(
+      schedule.tenantId,
+    );
     await materializeRecurringScheduleOccurrences(
       {
         bookingRepo: this.bookingRepo,
@@ -247,6 +254,7 @@ export class RequestRecurringBookingScheduleUseCase {
         occurrences: prepared.occurrences,
         resources,
         approvedByStaffId,
+        tenantServiceBufferMinutes,
       },
     );
   }

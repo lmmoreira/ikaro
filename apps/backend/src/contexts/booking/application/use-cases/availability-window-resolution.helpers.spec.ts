@@ -60,11 +60,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([service]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries).toHaveLength(1);
@@ -94,11 +92,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([service]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries).toHaveLength(1);
@@ -122,11 +118,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([service]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries[0]).toHaveLength(2);
@@ -145,11 +139,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([service]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries[0]).toEqual([
@@ -170,11 +162,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([service]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries).toEqual([[]]);
@@ -204,11 +194,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([serviceA, serviceB]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries).toHaveLength(2);
@@ -248,11 +236,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([serviceA, serviceB]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     // First line: no gap applied (not the last line) — ends exactly at +30min.
@@ -293,11 +279,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([legged]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     expect(entries).toHaveLength(2);
@@ -346,11 +330,9 @@ describe('resolveAvailabilityRequirementWindows', () => {
       .build();
 
     const entries = await resolveAvailabilityRequirementWindows(
-      resourceRepo,
-      availabilityService,
-      TENANT_ID,
       CANDIDATE_START,
       toPlainAvailabilityLines([legged]),
+      createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
     );
 
     const [candidates] = entries;
@@ -415,7 +397,7 @@ describe('isBookingWindowAvailable', () => {
       .build();
     const deps = {
       availabilityService,
-      windowContext: createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID),
+      windowContext: createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
       date: '2026-06-01',
       businessHours: OPEN_ALL_DAY_UTC,
     };
@@ -460,19 +442,12 @@ describe('isBookingWindowAvailable', () => {
         ])
         .build();
       const findByTenant = jest.spyOn(resourceRepo, 'findByTenant');
-      const ctx = createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID);
+      const ctx = createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0);
       const lines = toPlainAvailabilityLines([service]);
 
       await Promise.all(
         [CANDIDATE_START, LATER_START].map((start) =>
-          resolveAvailabilityRequirementWindows(
-            resourceRepo,
-            availabilityService,
-            TENANT_ID,
-            start,
-            lines,
-            ctx,
-          ),
+          resolveAvailabilityRequirementWindows(start, lines, ctx),
         ),
       );
 
@@ -505,15 +480,56 @@ describe('isBookingWindowAvailable', () => {
         .build();
 
       const entries = await resolveAvailabilityRequirementWindows(
-        resourceRepo,
-        availabilityService,
-        TENANT_ID,
         CANDIDATE_START,
         toPlainAvailabilityLines([roomService, equipmentService]),
+        createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, 0),
       );
 
       expect(entries.map((entry) => entry[0].resourceId)).toEqual([room.id, equipment.id]);
       expect(entries[1][0].startsAt).toEqual(new Date(CANDIDATE_START.getTime() + 30 * 60_000));
+    });
+  });
+  describe('the service buffer on the offered window (TD51-S00)', () => {
+    const TENANT_BUFFER = 25;
+
+    async function windowEndFor(bufferAfterMinutes: number | null): Promise<Date> {
+      const room = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .withTurnoverMinutes(0)
+        .build();
+      await resourceRepo.save(room);
+      const service = new ServiceBuilder()
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(bufferAfterMinutes)
+        .withResourceRequirements([
+          ResourceRequirement.create({ type: ResourceType.ROOM, selectionMode: 'AUTO_ANY' }),
+        ])
+        .build();
+
+      const entries = await resolveAvailabilityRequirementWindows(
+        CANDIDATE_START,
+        toPlainAvailabilityLines([service]),
+        createWindowResolutionContext(resourceRepo, availabilityService, TENANT_ID, TENANT_BUFFER),
+      );
+
+      return entries[0][0].endsAt;
+    }
+
+    it('extends the window by the tenant default when the service buffer is null', async () => {
+      expect(await windowEndFor(null)).toEqual(
+        new Date(CANDIDATE_START.getTime() + (30 + TENANT_BUFFER) * 60_000),
+      );
+    });
+
+    it('extends the window by the service override, not the tenant default', async () => {
+      expect(await windowEndFor(10)).toEqual(
+        new Date(CANDIDATE_START.getTime() + (30 + 10) * 60_000),
+      );
+    });
+
+    it('adds nothing for an explicit zero override', async () => {
+      expect(await windowEndFor(0)).toEqual(new Date(CANDIDATE_START.getTime() + 30 * 60_000));
     });
   });
 });

@@ -63,6 +63,7 @@ export interface ServiceDetail {
   bookingModel: ServiceBookingModel;
   resourceRequirements: ResourceRequirementDetail[];
   bufferAfterMinutes: number | null;
+  tenantDefaultBufferMinutes: number | null;
   legs: ServiceLegDetail[] | null;
   classResourceSlots: ClassResourceSlotDetail[] | null;
   bookingPolicy: ServiceBookingPolicyDetail;

@@ -75,6 +75,7 @@ export class BookingLifecycleController {
         correlationId,
         timezone: settings.businessHours.timezone,
         businessHours: settings.businessHours,
+        tenantServiceBufferMinutes: settings.booking.serviceBufferMinutes,
       })
       .catch(mapBookingError);
   }

@@ -46,6 +46,7 @@ export interface ResolveBookingLinesResourceCandidatesParams {
   tenantId: string;
   scheduledAt: Date;
   timezone: string;
+  tenantServiceBufferMinutes: number;
   lines: BookingLineForResolution[];
   serviceMap: Map<string, Service>;
   resourceSelections?: ResourceSelectionInput[];
@@ -98,6 +99,7 @@ export async function resolveBookingLinesResourceCandidates(
       lineEnd,
       i === lines.length - 1,
       selectionsByKey,
+      params.tenantServiceBufferMinutes,
     );
 
     result.set(line.lineId, { candidates, isDegenerate: isDegenerateService(service) });
@@ -185,10 +187,19 @@ async function resolveOneLineCandidates(
   lineEnd: Date,
   isLastLine: boolean,
   selectionsByKey: Map<string, string[]>,
+  tenantServiceBufferMinutes: number,
 ): Promise<ResourceOccupancyCandidate[]> {
   return service.legs
     ? resolveLeggedLineCandidates(service, ctx, lineStart, selectionsByKey)
-    : resolveFlatLineCandidates(service, ctx, lineStart, lineEnd, isLastLine, selectionsByKey);
+    : resolveFlatLineCandidates(
+        service,
+        ctx,
+        lineStart,
+        lineEnd,
+        isLastLine,
+        selectionsByKey,
+        tenantServiceBufferMinutes,
+      );
 }
 
 // Replays a booking's already-persisted resource choice(s) into resourceSelections shape, for

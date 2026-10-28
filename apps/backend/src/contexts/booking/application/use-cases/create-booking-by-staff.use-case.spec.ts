@@ -117,6 +117,7 @@ describe('CreateBookingByStaffUseCase', () => {
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
     businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+    tenantServiceBufferMinutes: 60,
     tenantBookingWindow: window,
   });
 
@@ -132,6 +133,7 @@ describe('CreateBookingByStaffUseCase', () => {
     countryCode: 'BR',
     timezone: 'America/Sao_Paulo',
     businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+    tenantServiceBufferMinutes: 60,
     tenantBookingWindow: window,
   });
 
@@ -303,6 +305,7 @@ describe('CreateBookingByStaffUseCase', () => {
           countryCode: 'BR',
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
           tenantBookingWindow: strict,
         }),
       ).rejects.toBeInstanceOf(BookingTooSoonError);
@@ -387,6 +390,7 @@ describe('CreateBookingByStaffUseCase', () => {
           countryCode: 'BR',
           timezone: 'America/Sao_Paulo',
           businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+          tenantServiceBufferMinutes: 60,
           tenantBookingWindow: window,
         }),
       ).rejects.toBeInstanceOf(BookingIntakeAnswerMissingError);

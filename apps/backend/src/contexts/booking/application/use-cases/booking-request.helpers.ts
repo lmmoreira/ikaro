@@ -54,6 +54,8 @@ export interface PersistRequestedBookingParams {
   // The tenant's working hours (RequestContext settings, as the availability reads get them): the
   // booking is refused for a time those hours, a closure or an opening say the business is closed.
   businessHours: BusinessHours;
+  // settings.booking.serviceBufferMinutes — what a service with a null buffer inherits.
+  tenantServiceBufferMinutes: number;
   operations: PhotoPromotionOperation[];
   // Snapshotted pre-transaction (resolveServices()) — compared against each service's own
   // freshly-locked state below to detect (not just narrow) a concurrent bookingModel change.
@@ -154,6 +156,7 @@ async function resolveAndCheckCandidates(
     | 'scheduledAt'
     | 'timezone'
     | 'businessHours'
+    | 'tenantServiceBufferMinutes'
     | 'serviceMap'
     | 'resourceSelections'
   >,
@@ -167,6 +170,7 @@ async function resolveAndCheckCandidates(
     tenantId,
     scheduledAt,
     timezone,
+    tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
     lines: booking.lines.map((line) => ({
       lineId: line.lineId,
       serviceId: line.serviceId,

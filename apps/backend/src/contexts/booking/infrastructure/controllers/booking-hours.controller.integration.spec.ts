@@ -16,6 +16,7 @@ import { PlatformModule } from '../../../platform/platform.module';
 import { CustomerEntity } from '../../../customer/infrastructure/entities/customer.entity';
 import { BookingEntity } from '../entities/booking.entity';
 import { ResourceEntity } from '../entities/resource.entity';
+import { ResourceOccupancyEntity } from '../entities/resource-occupancy.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
 import { ServiceEntity } from '../entities/service.entity';
@@ -41,6 +42,7 @@ describe('booking creation honours hours, closures and openings (integration)', 
   let tenantBId: string;
   let serviceId: string;
   let bufferedServiceId: string;
+  let inheritingServiceId: string;
   let customerId: string;
   let locationId: string;
 
@@ -63,6 +65,13 @@ describe('booking creation honours hours, closures and openings (integration)', 
       .withTenantId(tenantAId)
       .withName('Lavagem Simples')
       .withDurationMinutes(30)
+      .withBufferAfterMinutes(0)
+      .withIsActive(true)
+      .build();
+    const inheriting = new ServiceEntityBuilder()
+      .withTenantId(tenantAId)
+      .withName('Lavagem Herdada')
+      .withDurationMinutes(30)
       .withBufferAfterMinutes(null)
       .withIsActive(true)
       .build();
@@ -73,9 +82,10 @@ describe('booking creation honours hours, closures and openings (integration)', 
       .withBufferAfterMinutes(60)
       .withIsActive(true)
       .build();
-    await ds.getRepository(ServiceEntity).save([plain, buffered]);
+    await ds.getRepository(ServiceEntity).save([plain, inheriting, buffered]);
     serviceId = plain.id;
     bufferedServiceId = buffered.id;
+    inheritingServiceId = inheriting.id;
 
     const customer = new CustomerEntityBuilder()
       .withTenantId(tenantAId)
@@ -189,6 +199,44 @@ describe('booking creation honours hours, closures and openings (integration)', 
       expect(body.code).toBe('BOOKING_OUTSIDE_BUSINESS_HOURS');
       const { body: created } = await route.send(startAt(lastStart), bufferedServiceId).expect(201);
       expect(created.bookingId).toEqual(expect.any(String));
+    });
+
+    it("counts the tenant's default buffer for a service with no override of its own, and persists that same gap (TD51-S00)", async () => {
+      const day = openDate(70 + route.index);
+      const closing = DEFAULT_TEST_BUSINESS_HOURS[getUtcWeekDayName(day)]!.close;
+      const [closeHour, closeMinute] = closing.split(':').map(Number);
+      // 30 minutes of service plus the tenant's default 60-minute buffer must end by closing.
+      const lastStart = closeHour * 60 + closeMinute - 90;
+      const startAt = (minutes: number) =>
+        localDateTimeToUTCIso(
+          day,
+          `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`,
+          DEFAULT_TEST_BUSINESS_HOURS.timezone,
+        );
+      const { body } = await route.send(startAt(lastStart + 30), inheritingServiceId).expect(409);
+      expect(body.code).toBe('BOOKING_OUTSIDE_BUSINESS_HOURS');
+
+      await route.send(startAt(lastStart), inheritingServiceId).expect(201);
+
+      const row = await ds.getRepository(ResourceOccupancyEntity).findOneByOrFail({
+        tenantId: tenantAId,
+        resourceId: locationId,
+        startsAt: new Date(startAt(lastStart)),
+      });
+      expect(row.gapMinutes).toBe(60);
+      expect(row.endsAt.getTime() - row.startsAt.getTime()).toBe(90 * 60_000);
+    });
+
+    it('adds no trailing gap for an explicit zero override even though the tenant default is larger (TD51-S00)', async () => {
+      const { body } = await route.send(at(65, 10)).expect(201);
+      expect(body.bookingId).toEqual(expect.any(String));
+      const row = await ds.getRepository(ResourceOccupancyEntity).findOneByOrFail({
+        tenantId: tenantAId,
+        resourceId: locationId,
+        startsAt: new Date(at(65, 10)),
+      });
+      expect(row.gapMinutes).toBeNull();
+      expect(row.endsAt.getTime() - row.startsAt.getTime()).toBe(30 * 60_000);
     });
 
     it('refuses a full-day closure with 409 BOOKING_SLOT_CLOSED', async () => {

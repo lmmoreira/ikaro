@@ -19,7 +19,6 @@ const ctx = {
   tenantId: TENANT_A,
   currency: 'BRL',
   locale: 'pt-BR',
-  tenantServiceBufferMinutes: 60,
 };
 
 const baseDto = {
@@ -131,9 +130,24 @@ describe('CreateServiceUseCase', () => {
     expect(result.bookingModel).toBe('APPOINTMENT');
   });
 
-  it('snapshots bufferAfterMinutes from the tenant default at creation (UC-053 step 1)', async () => {
-    const result = await useCase.execute({ ...baseDto, ...ctx, tenantServiceBufferMinutes: 45 });
-    expect(result.bufferAfterMinutes).toBe(45);
+  it('creates an appointment service with a null buffer override — it inherits the tenant default, never a snapshot (UC-053, TD51-S00)', async () => {
+    bookingPlatform.seedServiceBufferMinutes(TENANT_A, 45);
+
+    const result = await useCase.execute({ ...baseDto, ...ctx });
+
+    expect(result.bufferAfterMinutes).toBeNull();
+    expect(result.tenantDefaultBufferMinutes).toBe(45);
+    const stored = await repo.findById(result.id, TENANT_A);
+    expect(stored!.bufferAfterMinutes).toBeNull();
+  });
+
+  it('follows a later change of the tenant default (no persisted copy of it)', async () => {
+    bookingPlatform.seedServiceBufferMinutes(TENANT_A, 45);
+    const created = await useCase.execute({ ...baseDto, ...ctx });
+    bookingPlatform.seedServiceBufferMinutes(TENANT_A, 10);
+    const stored = await repo.findById(created.id, TENANT_A);
+
+    expect(stored!.effectiveBufferAfterMinutes(10)).toBe(10);
   });
 
   it('creates a SESSION service with classResourceSlots and a null bufferAfterMinutes', async () => {

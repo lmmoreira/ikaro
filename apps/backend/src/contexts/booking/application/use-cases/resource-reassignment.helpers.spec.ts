@@ -119,6 +119,7 @@ describe('reassignBookingResource', () => {
       sourceResourceId: room.id,
       target: { resourceId: target.id },
       timezone: TIMEZONE,
+      tenantServiceBufferMinutes: 60,
     });
 
     expect(targetResourceId).toBe(target.id);
@@ -146,6 +147,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { resourceId: target.id },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(result).toEqual({
@@ -170,6 +172,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { resourceId: target.id },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       });
 
       expect(result.disclosesResource).toBe(false);
@@ -188,6 +191,7 @@ describe('reassignBookingResource', () => {
       sourceResourceId: room.id,
       target: { resourceId: target.id },
       timezone: TIMEZONE,
+      tenantServiceBufferMinutes: 60,
     });
 
     expect(result.disclosesResource).toBe(false);
@@ -206,6 +210,7 @@ describe('reassignBookingResource', () => {
       sourceResourceId: room.id,
       target: { resourceId: target.id },
       timezone: TIMEZONE,
+      tenantServiceBufferMinutes: 60,
     });
 
     expect(lockSpy).toHaveBeenCalledWith(TENANT_ID, [target.id]);
@@ -225,6 +230,7 @@ describe('reassignBookingResource', () => {
       sourceResourceId: room.id,
       target: { mode: 'AUTO' },
       timezone: TIMEZONE,
+      tenantServiceBufferMinutes: 60,
     });
 
     expect(targetResourceId).toBe(spare.id);
@@ -242,6 +248,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { resourceId: otherRoom!.id },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       }),
     ).rejects.toThrow(FutureCommitmentExceptionReassignTargetInvalidError);
   });
@@ -257,6 +264,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { resourceId: '00000000-0000-7000-8000-00000000dead' },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       }),
     ).rejects.toThrow('does not exist');
   });
@@ -274,6 +282,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: stranger.id,
         target: { resourceId: target.id },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       }),
     ).rejects.toThrow('no longer occupies');
   });
@@ -289,12 +298,13 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { mode: 'AUTO' },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       }),
     ).rejects.toThrow('no eligible resource');
   });
 
   describe('gap recomputation for the target resource (M18-S10)', () => {
-    async function seedSingleRoom(roomTurnover: number, serviceBuffer: number) {
+    async function seedSingleRoom(roomTurnover: number, serviceBuffer: number | null) {
       const room = await world.addResourceWithTurnover('Sala 1', roomTurnover);
       const service = new ServiceBuilder()
         .withTenantId(TENANT_ID)
@@ -320,7 +330,7 @@ describe('reassignBookingResource', () => {
         .build();
       await world.bookingRepo.save(booking);
       const availability = new AvailabilityService();
-      const gap = availability.resolveFlatGap(serviceBuffer, roomTurnover);
+      const gap = availability.resolveFlatGap(serviceBuffer ?? 0, roomTurnover);
       await world.occupancyRepo.assign(
         TENANT_ID,
         lineId,
@@ -345,7 +355,11 @@ describe('reassignBookingResource', () => {
       return { booking, service, room, startsAt, lineId };
     }
 
-    const reassign = (seed: Awaited<ReturnType<typeof seedSingleRoom>>, targetId: string) =>
+    const reassign = (
+      seed: Awaited<ReturnType<typeof seedSingleRoom>>,
+      targetId: string,
+      tenantServiceBufferMinutes = 60,
+    ) =>
       reassignBookingResource(deps(), {
         tenantId: TENANT_ID,
         booking: seed.booking,
@@ -353,6 +367,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: seed.room.id,
         target: { resourceId: targetId },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes,
       });
 
     it("rewrites ends_at and the origin from the target's turnover when it is the larger gap", async () => {
@@ -378,6 +393,29 @@ describe('reassignBookingResource', () => {
       expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 60 * 60_000));
       expect(row.gapMinutes).toBeNull();
       expect(row.gapSource).toBeNull();
+    });
+
+    it('inherits the tenant default for a service with a null buffer (TD51-S00)', async () => {
+      const seed = await seedSingleRoom(0, null);
+      const target = await world.addResourceWithTurnover('Sala 2', 20);
+
+      await reassign(seed, target.id, 40);
+
+      const [row] = await occupancy([seed.lineId]);
+      expect(row.endsAt).toEqual(new Date(seed.startsAt.getTime() + 100 * 60_000));
+      expect(row.gapMinutes).toBe(40);
+      expect(row.gapSource).toBe('SERVICE_BUFFER');
+    });
+
+    it('does not apply the tenant default to an explicit zero override (TD51-S00)', async () => {
+      const seed = await seedSingleRoom(0, 0);
+      const target = await world.addResourceWithTurnover('Sala 2', 20);
+
+      await reassign(seed, target.id, 40);
+
+      const [row] = await occupancy([seed.lineId]);
+      expect(row.gapMinutes).toBe(20);
+      expect(row.gapSource).toBe('RESOURCE_TURNOVER');
     });
 
     it('keeps a service buffer that still dominates the target turnover', async () => {
@@ -455,6 +493,7 @@ describe('reassignBookingResource', () => {
         sourceResourceId: room.id,
         target: { resourceId: target.id },
         timezone: TIMEZONE,
+        tenantServiceBufferMinutes: 60,
       });
 
       const [row] = await occupancy([lineId]);

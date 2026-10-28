@@ -13,6 +13,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
   readonly revalidatedTenantIds: string[] = [];
   private readonly businessHoursAndLocaleByTenant = new Map<string, TenantBusinessHoursAndLocale>();
   private readonly autoApproveEnabledByTenant = new Map<string, boolean>();
+  private readonly serviceBufferMinutesByTenant = new Map<string, number>();
   private readonly bookingWindowByTenant = new Map<string, TenantBookingWindow>();
   private readonly alertContextByTenant = new Map<string, AvailabilityAlertTenantContext>();
   private readonly renewalSettingsByTenant = new Map<string, RecurringRenewalTenantSettings>();
@@ -33,6 +34,10 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.bookingWindowByTenant.set(tenantId, value);
   }
 
+  seedServiceBufferMinutes(tenantId: string, value: number): void {
+    this.serviceBufferMinutesByTenant.set(tenantId, value);
+  }
+
   seedAvailabilityAlertContext(tenantId: string, value: AvailabilityAlertTenantContext): void {
     this.alertContextByTenant.set(tenantId, value);
   }
@@ -47,6 +52,7 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
     this.autoApproveEnabledByTenant.clear();
     this.alertContextByTenant.clear();
     this.bookingWindowByTenant.clear();
+    this.serviceBufferMinutesByTenant.clear();
     this.renewalSettingsByTenant.clear();
   }
 
@@ -83,6 +89,11 @@ export class InMemoryBookingPlatformPort implements IBookingPlatformPort {
 
   async getAutoApproveEnabled(tenantId: string): Promise<boolean> {
     return this.autoApproveEnabledByTenant.get(tenantId) ?? false;
+  }
+
+  // 60 = the platform default (tenant-settings-defaults.ts) for a tenant never seeded.
+  getServiceBufferMinutes(tenantId: string): Promise<number> {
+    return Promise.resolve(this.serviceBufferMinutesByTenant.get(tenantId) ?? 60);
   }
 
   getTenantBookingWindow(tenantId: string): Promise<TenantBookingWindow> {

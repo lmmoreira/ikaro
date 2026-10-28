@@ -20,9 +20,11 @@ import {
   resourceWindowHoursVerdict,
 } from './schedule-hours.helpers';
 
-// What a booking-creating use case's input carries so the tenant's working hours apply.
+// What a booking-creating use case's input carries from the tenant's settings: its working hours,
+// and the serviceBufferMinutes a service with a null buffer inherits (TD51-S00).
 export interface BookingHoursRequest {
   businessHours: BusinessHours;
+  tenantServiceBufferMinutes: number;
 }
 
 // What a booking-creating caller hands to the resource resolution so it can steer the pick

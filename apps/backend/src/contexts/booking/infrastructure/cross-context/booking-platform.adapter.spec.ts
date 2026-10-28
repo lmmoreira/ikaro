@@ -180,6 +180,14 @@ describe('BookingPlatformAdapter', () => {
       });
     });
 
+    it('getServiceBufferMinutes returns the tenant serviceBufferMinutes (TD51-S00)', async () => {
+      const tenant = await seedTenant(45);
+
+      expect(await adapter.getServiceBufferMinutes(tenant.id)).toBe(
+        tenant.settings.booking.serviceBufferMinutes,
+      );
+    });
+
     it('getTenantBookingWindow returns the tenant minimum notice and maximum advance', async () => {
       const tenant = await seedTenant(45);
 

@@ -153,7 +153,7 @@ export class AvailabilityQueryService {
       // Only the last requested service's own buffer applies (matching
       // effectiveFlatGapMinutes's last-line-only rule everywhere else) — the tenant default is
       // only a fallback for a service with no override.
-      serviceBufferMinutes: lines.at(-1)!.service.bufferAfterMinutes ?? serviceBufferMinutes,
+      serviceBufferMinutes: lines.at(-1)!.service.effectiveBufferAfterMinutes(serviceBufferMinutes),
       closures,
       opening: tenantOpening,
       resourceOpening,
@@ -193,7 +193,7 @@ export class AvailabilityQueryService {
       businessHours,
       resource: null,
       slotGranularityMinutes,
-      serviceBufferMinutes: lines.at(-1)!.service.bufferAfterMinutes ?? serviceBufferMinutes,
+      serviceBufferMinutes: lines.at(-1)!.service.effectiveBufferAfterMinutes(serviceBufferMinutes),
       closures,
       opening: tenantOpening,
       resourceOpening: null,

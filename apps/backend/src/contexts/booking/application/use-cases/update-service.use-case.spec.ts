@@ -225,6 +225,54 @@ describe('UpdateServiceUseCase', () => {
     expect(result.bufferAfterMinutes).toBe(15);
   });
 
+  it('accepts an explicit zero buffer and keeps it as an override', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).withBufferAfterMinutes(30).build();
+    await repo.save(service);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      bufferAfterMinutes: 0,
+    });
+
+    expect(result.bufferAfterMinutes).toBe(0);
+  });
+
+  it('clears the override with null and reports the tenant default as the effective buffer', async () => {
+    bookingPlatform.seedServiceBufferMinutes(TENANT_A, 40);
+    const service = new ServiceBuilder().withTenantId(TENANT_A).withBufferAfterMinutes(15).build();
+    await repo.save(service);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      bufferAfterMinutes: null,
+    });
+
+    expect(result.bufferAfterMinutes).toBeNull();
+    expect(result.tenantDefaultBufferMinutes).toBe(40);
+    expect((await repo.findById(service.id, TENANT_A))!.bufferAfterMinutes).toBeNull();
+  });
+
+  it('leaves the stored override untouched when the request omits bufferAfterMinutes', async () => {
+    const service = new ServiceBuilder().withTenantId(TENANT_A).withBufferAfterMinutes(25).build();
+    await repo.save(service);
+
+    const result = await useCase.execute({
+      id: service.id,
+      tenantId: TENANT_A,
+      currency: 'BRL',
+      locale: 'pt-BR',
+      name: 'Renamed',
+    });
+
+    expect(result.bufferAfterMinutes).toBe(25);
+  });
+
   it('rejects a bufferAfterMinutes update when the service has legs', async () => {
     const legs = [
       ServiceLeg.create({

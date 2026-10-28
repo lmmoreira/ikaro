@@ -11,6 +11,8 @@ export interface WindowResolutionContext {
   resourceRepo: IResourceRepository;
   availabilityService: AvailabilityService;
   tenantId: string;
+  // The tenant's current serviceBufferMinutes — what a flat service with a null buffer inherits.
+  tenantServiceBufferMinutes: number;
   resourceCache: Map<string, Promise<Resource | null>>;
   candidateCache: Map<string, Promise<Resource[]>>;
 }
@@ -19,11 +21,13 @@ export function createWindowResolutionContext(
   resourceRepo: IResourceRepository,
   availabilityService: AvailabilityService,
   tenantId: string,
+  tenantServiceBufferMinutes: number,
 ): WindowResolutionContext {
   return {
     resourceRepo,
     availabilityService,
     tenantId,
+    tenantServiceBufferMinutes,
     resourceCache: new Map(),
     candidateCache: new Map(),
   };

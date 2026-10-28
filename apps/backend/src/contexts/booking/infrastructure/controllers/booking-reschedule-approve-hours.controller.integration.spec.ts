@@ -51,7 +51,7 @@ describe('reschedule and approve honour hours and closures (integration, TD50-S0
       .withTenantId(tenantAId)
       .withName('Lavagem Simples')
       .withDurationMinutes(30)
-      .withBufferAfterMinutes(null)
+      .withBufferAfterMinutes(0)
       .withIsActive(true)
       .build();
     await ds.getRepository(ServiceEntity).save(service);

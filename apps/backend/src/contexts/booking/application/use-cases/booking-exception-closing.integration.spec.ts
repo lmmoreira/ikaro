@@ -114,6 +114,7 @@ describe('closing a booking’s worklist entries (integration)', () => {
       correlationId: uuidv7(),
       timezone: 'America/Sao_Paulo',
       businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+      tenantServiceBufferMinutes: 60,
       exceptionIds: [entryIds[0]],
       resolutionType: 'REASSIGN',
       target: { resourceId: target.id },

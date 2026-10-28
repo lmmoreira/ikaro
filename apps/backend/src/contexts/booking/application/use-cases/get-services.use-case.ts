@@ -36,9 +36,10 @@ export class GetServicesUseCase {
     // One fetch for the whole list — not per service — since it's the same tenant-wide default.
     const autoApproveEnabled = await this.bookingPlatform.getAutoApproveEnabled(input.tenantId);
     const tenantWindow = await this.bookingPlatform.getTenantBookingWindow(input.tenantId);
+    const tenantBufferMinutes = await this.bookingPlatform.getServiceBufferMinutes(input.tenantId);
     return {
       items: services.map((s) =>
-        toServiceResult(s, locale, autoApproveEnabled, tenantWindow, (path) =>
+        toServiceResult(s, locale, autoApproveEnabled, tenantWindow, tenantBufferMinutes, (path) =>
           this.storageService.getPublicUrl(path),
         ),
       ),

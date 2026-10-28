@@ -136,6 +136,7 @@ export interface ResolveRescheduleCandidatesParams {
   tenantId: string;
   newScheduledAt: Date;
   timezone: string;
+  tenantServiceBufferMinutes: number;
   overrideSelections: ResourceSelectionInput[];
   durationChange: RescheduleDurationChange | undefined;
   // Resources the booking occupies before the move, locked with the candidates (M23-S48).
@@ -193,6 +194,7 @@ function toCandidatesParams(
     tenantId,
     scheduledAt: newScheduledAt,
     timezone,
+    tenantServiceBufferMinutes: params.tenantServiceBufferMinutes,
     lines: rescheduleLineInputs(booking, durationChange),
     serviceMap,
     resourceSelections,

@@ -41,7 +41,10 @@ import {
 } from '../ports/schedule-opening-repository.port';
 import { IServiceRepository, SERVICE_REPOSITORY } from '../ports/service-repository.port';
 import { ITenantLockPort, TENANT_LOCK_PORT } from '../ports/tenant-lock.port';
-import { materializeRecurringScheduleOccurrences } from './materialize-recurring-schedule-occurrences.helpers';
+import {
+  MaterializeOccurrencesParams,
+  materializeRecurringScheduleOccurrences,
+} from './materialize-recurring-schedule-occurrences.helpers';
 import { assertServiceEligible } from './recurring-booking-schedule-eligibility.helpers';
 import {
   assertPatternConflictFree,
@@ -93,6 +96,9 @@ export class ApproveRecurringBookingScheduleUseCase {
     input: ApproveRecurringBookingScheduleUseCaseInput,
   ): Promise<ApproveRecurringBookingScheduleUseCaseResult> {
     const initial = await this.load(input);
+    const tenantServiceBufferMinutes = await this.bookingPlatform.getServiceBufferMinutes(
+      input.tenantId,
+    );
 
     return this.txManager.run(async () => {
       await this.lockForApproval(initial);
@@ -117,26 +123,36 @@ export class ApproveRecurringBookingScheduleUseCase {
         new Date(),
       );
       if (occurrences.length === 0) throw new BookingScheduledInPastError();
-      const resources = await this.assertTermStillHonorable(schedule, service, occurrences, input);
+      const resources = await this.assertTermStillHonorable(
+        schedule,
+        service,
+        occurrences,
+        input,
+        tenantServiceBufferMinutes,
+      );
 
       await this.scheduleRepo.save(schedule);
-      const bookingIds = await materializeRecurringScheduleOccurrences(
-        {
-          bookingRepo: this.bookingRepo,
-          customerPort: this.customerPort,
-          occupancyRepo: this.occupancyRepo,
-          availabilityService: this.availabilityService,
-        },
-        {
-          schedule,
-          service,
-          occurrences,
-          resources,
-          approvedByStaffId: input.actorId,
-        },
+      const bookingIds = await this.materialize(
+        { schedule, service, occurrences, resources, tenantServiceBufferMinutes },
+        input.actorId,
       );
       return { id: schedule.id, status: 'ACTIVE' as const, occurrenceCount: bookingIds.length };
     });
+  }
+
+  private materialize(
+    term: Omit<MaterializeOccurrencesParams, 'approvedByStaffId'>,
+    approvedByStaffId: string,
+  ): Promise<string[]> {
+    return materializeRecurringScheduleOccurrences(
+      {
+        bookingRepo: this.bookingRepo,
+        customerPort: this.customerPort,
+        occupancyRepo: this.occupancyRepo,
+        availabilityService: this.availabilityService,
+      },
+      { ...term, approvedByStaffId },
+    );
   }
 
   private async load(
@@ -172,6 +188,7 @@ export class ApproveRecurringBookingScheduleUseCase {
     service: Service,
     occurrences: RecurrenceOccurrence[],
     input: ApproveRecurringBookingScheduleUseCaseInput,
+    tenantServiceBufferMinutes: number,
   ): Promise<Resource[][]> {
     assertServiceEligible(service);
     if (deriveAssignmentPolicy(service) !== schedule.assignmentPolicy) {
@@ -194,6 +211,7 @@ export class ApproveRecurringBookingScheduleUseCase {
         tenantId: input.tenantId,
         timezone: input.timezone,
         businessHours,
+        tenantServiceBufferMinutes,
         recurrence: schedule.recurrence,
         service,
         startsOn: schedule.startsOn,

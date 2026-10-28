@@ -55,6 +55,7 @@ const ctx = {
   correlationId: CORRELATION_ID,
   timezone: TZ,
   businessHours: DEFAULT_TEST_BUSINESS_HOURS,
+  tenantServiceBufferMinutes: 60,
 };
 
 describe('ApproveBookingUseCase', () => {

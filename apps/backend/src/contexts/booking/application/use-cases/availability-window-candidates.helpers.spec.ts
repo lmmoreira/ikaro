@@ -26,7 +26,7 @@ describe('availability-window-candidates.helpers', () => {
   };
 
   const newContext = () =>
-    createWindowResolutionContext(resourceRepo, new AvailabilityService(), TENANT_A);
+    createWindowResolutionContext(resourceRepo, new AvailabilityService(), TENANT_A, 0);
 
   beforeEach(() => {
     resourceRepo = new InMemoryResourceRepository();

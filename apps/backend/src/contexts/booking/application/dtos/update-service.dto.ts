@@ -12,8 +12,9 @@ export const UpdateServiceSchema = z
     // Disabled once the service has legs (UC-053 A1) — enforced by the aggregate, not here.
     // Non-negative to match settings.serviceBufferMinutes's own >= 0 bound
     // (docs/TENANTS_SETTINGS_SCHEMA.md) — a negative buffer has no real meaning for UC-059's
-    // max(bufferAfterMinutes, turnoverMinutes) availability formula.
-    bufferAfterMinutes: z.number().int().nonnegative().optional(),
+    // max(bufferAfterMinutes, turnoverMinutes) availability formula. null clears the override
+    // (the service inherits the tenant's current default again); 0 is an explicit no-buffer.
+    bufferAfterMinutes: z.number().int().nonnegative().nullable().optional(),
     // Immutable once the service has booking history (UC-056 A1) — enforced by the aggregate.
     bookingModel: BookingModelSchema.optional(),
     // Only meaningful (and required) when this same request converts bookingModel to SESSION —
