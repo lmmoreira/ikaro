@@ -154,10 +154,10 @@ beforeEach(() => {
 });
 
 describe('Topbar', () => {
-  it('keeps a min-height equal to the sticky offset sub-headers pin at, so no gap lets scrolled content show through', () => {
+  it('has a fixed height equal to the sticky offset sub-headers pin at, so no gap or overlap lets scrolled content show through', () => {
     render(<Topbar tenantName="Lavacar BH" userName="Ana Pereira" />);
 
-    expect(screen.getByRole('banner')).toHaveClass('min-h-[3.375rem]');
+    expect(screen.getByRole('banner')).toHaveClass('h-[3.375rem]');
   });
 
   it('renders the tenant name on mobile', () => {
