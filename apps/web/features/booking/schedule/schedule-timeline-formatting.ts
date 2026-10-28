@@ -81,6 +81,25 @@ export function resolveSlotCount(
 // Moved from schedule-timeline.ts (TD44 Story 3) to stay under that file's 250-line cap once this
 // story's shared-window plumbing landed there — pure coordinate math, no dependency on
 // TimelineEvent/domain types, fits this file's existing purpose exactly.
+// A block drawn at its true length: no one-slot floor and no content floor (cf. buildBlockStyle,
+// which bookings/closures/openings use so their text stays readable). Used by the informational
+// buffer block, whose label simply hides when the block is too short to hold it. `height` is px.
+export function buildProportionalBlockStyle(
+  startMinutes: number,
+  endMinutes: number,
+  timelineStartMinutes: number,
+  timelineEndMinutes: number,
+  slotGranularityMinutes: number,
+  slotHeight: number,
+): { top: number; height: number } {
+  const clampedStart = Math.max(startMinutes, timelineStartMinutes);
+  const clampedEnd = Math.min(timelineEndMinutes, Math.max(clampedStart, endMinutes));
+  return {
+    top: ((clampedStart - timelineStartMinutes) / slotGranularityMinutes) * slotHeight,
+    height: ((clampedEnd - clampedStart) / slotGranularityMinutes) * slotHeight,
+  };
+}
+
 export function buildBlockStyle(
   startMinutes: number,
   endMinutes: number,

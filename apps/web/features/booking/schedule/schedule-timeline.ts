@@ -38,6 +38,7 @@ export {
   getEventMinutes,
   getBlockMinHeightPx,
   buildBlockStyle,
+  buildProportionalBlockStyle,
   buildWeekShift,
   toLocalDate,
   formatEventRange,
