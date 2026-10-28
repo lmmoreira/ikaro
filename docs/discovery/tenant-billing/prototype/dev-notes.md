@@ -367,7 +367,7 @@ POST /v1/public/signup/tenant
 - **Exempt account (CAND-32, R12) — `manager-01l-billing-exempt.html`.** `GET /v1/billing/summary` returns `exempt: true`; every tab shows one grey notice ("Conta isenta de cobrança"), badge "Isenta", no primary action, no cancel link, no payment or plan editing. The dashboard shows no trial/past-due banner and every feature is unlocked. Reached by Ikaro's own tenant and any operator-exempted tenant.
 - **Trial end (decision 42).** Screens 01b and `manager-04` now say the account is suspended 24 hours after the trial end if the first invoice is unpaid (up to 3 business days when the payment is pending); there is no PAST_DUE after a trial. If no charge could be issued (for example a US tenant without state/ZIP), the same rule applies and the Plano/Dados tabs warn the manager beforehand.
 - **Deferred start of new features (decision 54).** `manager-03` and `manager-03b` say the feature starts at the next billing period (10/11/2026). The Plano preview already shows the same date per line.
-- **US totals.** Summary and Plano totals are net of tax and are labeled "+ imposto calculado na cobrança" for US tenants. The US Plano panel exists in `manager-02c` and `manager-02e` (English, "Plan" tab).
+- **US totals.** Summary and Plano totals (open, not yet issued amounts) are net of tax and are labeled "+ imposto calculado na cobrança" for US tenants; issued US charges show tax lines (see Addendum 6). The US Plano panel exists in `manager-02c` and `manager-02e` (English, "Plan" tab).
 - **Staff tenant switch.** The real routes are `GET /auth/staff-tenants` and `POST /auth/switch-staff-tenant`; both exist today and must keep working for a suspended tenant.
 - **Signup.** The language field was removed from `public-05*`; language derives from the country. The country selector offers only "Brasil" by default with the hint "Define a moeda, o fuso padrão e o idioma"; "Estados Unidos" appears only in `public-05g`, which models `FEATURE_FLAG_SIGNUP_US` on. Error `SIGNUP_TRIAL_NOT_AVAILABLE` reuses the 04c card.
 - **Error code names** are `BILLING_*`/`SIGNUP_*` per the repo convention (`BILLING_TENANT_SUSPENDED`, `BILLING_FEATURE_NOT_ENTITLED`).
@@ -465,7 +465,7 @@ New screens: `manager-11-billing-active-annual`, `manager-12-addon-midyear-confi
 
 ## Proposed, confirm in story discovery
 
-1. **Co-terminus add-on (proposed, confirm in story discovery).** On an annual subscription a feature may be added mid-year: paid now for the remaining whole months x the feature's monthly price, never more than its annual price; starts at payment; joins the annual selection at renewal. Removing a feature takes effect at renewal, no refund.
+1. **Co-terminus add-on (confirmed by the owner, 2026-10-28).** On an annual subscription a feature may be added mid-year: paid now for the remaining whole months x the feature's monthly price, never more than its annual price; starts at payment; joins the annual selection at renewal. Removing a feature takes effect at renewal, no refund.
 2. **One-month recovery for annual (proposed, confirm in story discovery).** A suspended (NON_PAYMENT) annual tenant pays ONE MONTH at the monthly price (R$ 245,00 for the full BR set) and the subscription returns to monthly; the manager can choose annual again at the next renewal.
 3. **Cancel on annual without refund (proposed, confirm in story discovery).** Access until the end of the paid year; nothing is refunded, including the remaining months.
 
@@ -477,3 +477,10 @@ New screens: `manager-11-billing-active-annual`, `manager-12-addon-midyear-confi
 - **`manager-12` (add-on mid-year).** Date 20/05/2027, 5 months left: "R$ 95,00 agora (5 meses x R$ 19,00)", capped at R$ 190,00, starts today, joins the annual plan at renewal on 20/10/2027 (total R$ 2.260,00 to R$ 2.450,00); primary "Pagar e ativar agora" leads to the hosted-payment screen `manager-01i`.
 - **`manager-13` (cancel annual).** Access until 20/10/2027, nothing refunded, schedule (today, until 20/10/2027, suspension, data erased on 17/04/2028 = 180 days later, with 30 and 7 day warnings). The confirm button goes to the monthly `manager-06b` result screen (annual variant not drawn).
 - **`manager-01q` (suspended, annual tenant).** Today 03/11/2027; the unpaid annual charge of 20/10/2027 was cancelled and replaced by a one-month recovery charge of R$ 245,00; "Sua assinatura volta ao ciclo mensal; você poderá escolher o anual de novo na próxima renovação".
+
+## Addendum 6 — US tax lines on charges
+
+- **What changed (`manager-02c`, US/English only).** Every issued US charge now shows Subtotal, tax as separate lines per jurisdiction, and Total. In Charge history each row's amount column is the total, and a "Tax details" disclosure under the reference expands to the three-part breakdown. The Open charge card on the Summary tab shows the big amount as the total (US$ 62.69), then Subtotal, tax line and Total, and the "Pay now" button carries the total.
+- **Illustrative numbers (Texas address).** Subtotal US$ 59.00; "Texas state sales tax (6.25%)" US$ 3.69; total US$ 62.69. One history row (March 2026) shows the zero-tax variant: "Tax: US$ 0.00 (none applicable)", total US$ 59.00 (no registration at that time).
+- **Unchanged.** Open amounts on the Summary ("Monthly amount") and Plan tabs stay net with "+ tax calculated when each invoice is issued". `manager-02e` (not issued yet) is untouched. BR screens are unchanged: prices are tax-inclusive, no tax lines.
+- **Source of the real lines.** The real tax lines come from Stripe Tax, computed from the tenant's billing address when the invoice is finalized, and exist only in slice E. The numbers above are invented for the prototype.

@@ -187,7 +187,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Actor:** Staff (MANAGER). Every manager of the tenant.
 - **Preconditions:** Logged in; tenant has a subscription.
 - **Trigger:** Manager opens Billing (or is redirected there when suspended).
-- **Main Flow:** The page shows status, trial end or next due date, active features with their tier and price, total, the open charge with **Pagar agora** (opens the provider's hosted page), the automatic-billing status, billing identity, paginated charge history (statuses `PENDING`/`PAID`/`OVERDUE`/`FAILED`/`CANCELED`/`REFUNDED`/`CHARGEBACK`, each paid charge with its receipt link), cancel link, and "Falar com a gente".
+- **Main Flow:** The page shows status, trial end or next due date, active features with their tier and price, total, the open charge with **Pagar agora** (opens the provider's hosted page), the automatic-billing status, billing identity, paginated charge history (each charge shows subtotal, tax lines per jurisdiction for US and total; BR has none; statuses `PENDING`/`PAID`/`OVERDUE`/`FAILED`/`CANCELED`/`REFUNDED`/`CHARGEBACK`, each paid charge with its receipt link), cancel link, and "Falar com a gente".
 - **Alternative Flows:**
   - **A1: Loading / load error with retry** (see prototype variants).
   - **A2: No charges yet** (trial) → empty-history message.
@@ -527,7 +527,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 - **Postconditions:** `next_cycle`/`next_cycle_from` scheduled; entitlements unchanged until then.
 - **Events Triggered:** `PlanChanged` (carries the cycle); a re-issued charge raises `ChargeIssued`.
 
-### **CAND-40: Annual Subscriber Adds a Feature Mid-Year (Co-terminus Add-on)** — *slice H, decision 124 (proposed)*
+### **CAND-40: Annual Subscriber Adds a Feature Mid-Year (Co-terminus Add-on)** — *slice H, decision 124 (confirmed by the owner, 2026-10-28)*
 - **Actor:** Staff (MANAGER).
 - **Preconditions:** `ACTIVE` annual subscription, dependencies satisfied, no pending cycle switch.
 - **Trigger:** Manager adds a feature on the Plano tab of an annual subscription.

@@ -50,16 +50,18 @@ GET /v1/billing/summary
   "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 },   // current-period price display (items store no price)
              { "featureKey": "CHATBOT", "tier": "BASIC", "unitPriceMinor": 3900 } ],
   "totalMinor": 8800,                       // net of tax; for US the page labels it "+ imposto calculado na cobrança" (tax exists only on the issued charge)
-  "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
+  "openCharge": { "id": "…", "kind": "PERIOD|RECOVERY", "dueDate": "2026-11-20", "subtotalMinor": 8800, "taxMinor": 0, "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" } | null,
   "autoBilling": { "mode": "NONE" | "PIX_AUTOMATICO" | "CARD_RECURRING", "status": "INACTIVE" | "PENDING_AUTHORIZATION" | "ACTIVE", "label": "Pix Automático ativo" | null },
   "paymentConfirmationPending": false,      // true while payment_return_seen_at is set and the charge is still open, until the paid webhook/reconcile lands (UI polls every 5 s, max ~60 s; the return already triggered an on-demand provider refresh)
   "upcomingPriceChanges": [ { "featureKey":"CHATBOT","tier":"PLUS","currentAmountMinor":7900,"newAmountMinor":8900,"effectiveFrom":"2026-12-10" } ]   // illustrative amounts
 }
 
 GET /v1/billing/charges?limit=20&offset=0
-200 { "items": [ { "id","kind":"PERIOD|RECOVERY","periodStart"|null,"periodEnd"|null,"dueDate","amountMinor","currency",
+200 { "items": [ { "id","kind":"PERIOD|RECOVERY","periodStart"|null,"periodEnd"|null,"dueDate","subtotalMinor","taxMinor","amountMinor","currency",
                    "status": "PAID|PENDING|OVERDUE|FAILED|CANCELED|REFUNDED|CHARGEBACK",
-                   "method":"PIX","paidAt","receiptUrl"|null, "lines":[{"featureKey","tier","unitPriceMinor"}] } ],
+                   "method":"PIX","paidAt","receiptUrl"|null, "lines":[{"featureKey","tier","unitPriceMinor"}],
+                   "taxLines":[{"jurisdiction":"TX","taxType":"sales_tax","rateBasisPoints":625,"amountMinor":369}] } ],
+      // taxLines is always [] and taxMinor 0 for BR (tax-inclusive prices); for US (slice E) the lines are the immutable Stripe Tax snapshot of that charge only — the tenant sees its own billing address's jurisdictions, never other locations; amountMinor = subtotalMinor + taxMinor
       "pagination": { "limit":20,"offset":0,"total":7,"hasMore":false } }
 
 PUT /v1/billing/identity   (every field optional)

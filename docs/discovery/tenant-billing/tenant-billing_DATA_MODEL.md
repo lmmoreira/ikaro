@@ -263,6 +263,8 @@ Cross-tenant job indexes (standalone, partial):
 - PK: `(tenant_id, charge_id, jurisdiction, tax_type)`. The charge aggregate writes its lines with the charge; later tax-rate changes never mutate them.
 - `INCLUSIVE` catalogs normally create no separate line; `EXCLUSIVE` US catalogs get their tax lines from Stripe's invoice finalization (`automatic_tax`), written once together with `provider_creation_status = READY`; with no Stripe registration the result is zero tax and no lines. A US charge whose customer location is invalid (Stripe needs at least a 5-digit ZIP; the full address is required by decision 39) is never issued: provider creation stays `PENDING` and the manager is warned.
 
+These rows are exposed to the tenant on the billing page: each charge in `GET /v1/billing/charges` carries `subtotalMinor`, `taxMinor` and `taxLines[]` (only that charge's jurisdictions for the tenant's own billing address). The open-charge card shows the same breakdown once the invoice is finalized; before that, totals are net with the "+ imposto calculado na cobrança" label.
+
 **Example** (US, slice E) — Texas state sales tax on a US$ 59.00 subtotal:
 
 | charge | jurisdiction | tax_type | rate_basis_points | amount_minor | provider_calculation_id |
