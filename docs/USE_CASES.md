@@ -864,7 +864,7 @@ Returns:
   3. System saves `Service.bufferAfterMinutes` (`number | null`). Existing numeric values are never rewritten automatically.
 - **Alternative Flows:**
   - **A1: Service has `legs`** → Field disabled; legs use per-leg transition gaps and per-resource turnover instead (UC-059).
-- **Postconditions:** Availability calculations for this service use `max(service.bufferAfterMinutes, resource.turnoverMinutes)`.
+- **Postconditions:** Availability calculations for this service use `max(effective buffer, resource.turnoverMinutes)`, where the effective buffer is `service.bufferAfterMinutes` when set (including `0`) and the tenant's current `serviceBufferMinutes` when it is `null` (`Service.effectiveBufferAfterMinutes`). The same effective buffer sets the gap persisted on the booking's resource occupancy.
 - **Events Triggered:** None.
 
 ---
