@@ -544,7 +544,10 @@ describe('BookingForm — journey review and success box (M23-S11b)', () => {
     expect(screen.getByTestId('line-own-pick')).toHaveTextContent('com Renata Souza (sua escolha)');
     expect(screen.queryByText(/Sala atribuída/)).not.toBeInTheDocument();
     expect(screen.getByText('Total: R$ 260,00 — 1h 30min')).toBeInTheDocument();
-    expect(screen.queryByText(/ – /)).not.toBeInTheDocument();
+    // No per-line time windows: only a journey draws them. The header range is the whole booking's.
+    for (const line of screen.getAllByTestId('basket-line')) {
+      expect(line).not.toHaveTextContent(/ – /);
+    }
   });
 
   it('shows the same lines and total on the summary card and the success box for a mixed basket', async () => {

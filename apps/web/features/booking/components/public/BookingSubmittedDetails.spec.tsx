@@ -85,7 +85,7 @@ describe('BookingSubmittedDetails', () => {
     expect(line).toHaveTextContent('Corte + Escova');
     expect(line).toHaveTextContent('R$ 80,00 · 1h 15min');
     expect(screen.getByTestId('submitted-datetime')).toHaveTextContent(
-      'Segunda-feira, 15 de junho às 09:00',
+      'Segunda-feira, 15 de junho · 09:00–10:15',
     );
     expect(screen.getByTestId('submitted-total')).toHaveTextContent('Total: R$ 80,00 · 1h 15min');
   });
@@ -109,7 +109,7 @@ describe('BookingSubmittedDetails', () => {
     );
 
     expect(screen.getByTestId('submitted-datetime')).toHaveTextContent(
-      'Segunda-feira, 15 de junho às 09:00',
+      'Segunda-feira, 15 de junho · 09:00–10:15',
     );
     expect(container).not.toHaveTextContent('10:25');
   });

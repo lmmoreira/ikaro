@@ -86,9 +86,11 @@ export function BookingSummaryCard({
           {t('summary.dateTimeLabel')}
         </p>
         <p className="font-semibold" style={{ color: 'var(--ba-text)' }}>
-          {basket.hasJourney && basket.endsAt
-            ? `${date} · ${formatTime(new Date(selectedSlot.startsAt))} – ${formatTime(basket.endsAt)}`
-            : `${date} ${t('summary.at')} ${formatTime(new Date(selectedSlot.startsAt))}`}
+          {`${date} · ${formatTime(new Date(selectedSlot.startsAt))} – ${formatTime(
+            basket.hasJourney && basket.endsAt
+              ? basket.endsAt
+              : new Date(selectedSlot.appointmentEndsAt),
+          )}`}
         </p>
         {rowPerLine && (
           <p className="mt-2 font-semibold" style={{ color: 'var(--ba-text)' }}>

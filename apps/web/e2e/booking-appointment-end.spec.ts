@@ -98,11 +98,17 @@ test.describe('TD51-S01 — appointment end vs reserved end', () => {
       await nextButton(guest.page).click();
       await fillGuestContact(guest.page);
       await nextButton(guest.page).click();
+      // The review step carries the same appointment range as the picker, never the buffered end.
+      const review = guest.page.getByTestId('confirmation-datetime');
+      await expect(review).toContainText(`${label(range.start)} – ${label(range.end)}`);
+      await expect(review).not.toContainText(
+        label(range.start + DURATION_MINUTES + BUFFER_MINUTES),
+      );
       await confirmBooking(guest.page);
 
       await expect(guest.page.getByTestId('booking-success')).toBeVisible();
       const details = guest.page.getByTestId('submitted-datetime');
-      await expect(details).toContainText(label(range.start));
+      await expect(details).toContainText(`${label(range.start)}–${label(range.end)}`);
       await expect(details).not.toContainText(
         label(range.start + DURATION_MINUTES + BUFFER_MINUTES),
       );

@@ -119,8 +119,9 @@ export function ConfirmationStep({
       </p>
 
       <p data-testid="confirmation-datetime" style={{ color: 'var(--ba-text)' }}>
-        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} {t('summary.at')}{' '}
-        {formatTime(new Date(selectedSlot.startsAt))}
+        {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))} ·{' '}
+        {formatTime(new Date(selectedSlot.startsAt))} –{' '}
+        {formatTime(new Date(selectedSlot.appointmentEndsAt))}
       </p>
 
       {status === 'error' && errorMessage && (

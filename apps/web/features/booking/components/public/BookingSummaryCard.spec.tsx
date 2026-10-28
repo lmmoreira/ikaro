@@ -45,7 +45,7 @@ describe('BookingSummaryCard', () => {
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
     expect(screen.getByText('R$ 60,00 — 30 min')).toBeInTheDocument();
     expect(screen.getByText('Data e horário')).toBeInTheDocument();
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
   });
 
   it('never shows the buffer-inclusive end of the slot (TD51-S01 regression)', () => {
@@ -65,7 +65,7 @@ describe('BookingSummaryCard', () => {
       />,
     );
 
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 10:30')).toBeInTheDocument();
     expect(container).not.toHaveTextContent('10:40');
   });
 
@@ -92,7 +92,7 @@ describe('BookingSummaryCard', () => {
     expect(rows[0]).toHaveTextContent('Lavagem SimplesR$ 60,00');
     expect(rows[1]).toHaveTextContent('CeraR$ 40,00');
     expect(screen.getByText('Total: R$ 100,00 — 50 min')).toBeInTheDocument();
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
   });
 
   it('fixed + variable duration: one row per line, the quoted amount joins the total', () => {

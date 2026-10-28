@@ -51,7 +51,7 @@ describe('ConfirmationStep', () => {
 
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
     expect(screen.getByText('Total: R$ 150,00 — 1h')).toBeInTheDocument();
-    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho · 09:00 – 10:00')).toBeInTheDocument();
   });
 
   it('fixed + variable duration: one row per line, the chosen duration and quoted amount on the variable one', () => {
