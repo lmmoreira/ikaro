@@ -104,50 +104,75 @@ Make `bufferAfterMinutes` nullable for appointment services throughout the domai
 
 **Agent:** backend-ts + bff-ts + frontend-ts
 **Complexity:** M
-**Docs to load:** `docs/API_CONTRACTS.md`; `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/TESTING_STRATEGY.md`
-**Dependencies:** Story 0
-**Pattern:** explicit dual-time API contract — `appointmentEndsAt` for customer communication and `endsAt` for internal reservation/availability
+**Docs to load:** `docs/API_CONTRACTS.md` § 4 Schedule & Availability; `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer; `docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components; `docs/TESTING_STRATEGY.md`; `docs/BUSINESS_LOGIC_REFERENCE.md` § Buffer / turnover / transition-gap formulas
+**Dependencies:** Story 0 (✅ Done, #688)
+**Pattern:** explicit dual-time API contract — `appointmentEndsAt` for what the customer receives, `endsAt` unchanged for internal reservation/availability
 **Discovered:** 2026-10-27, manager report of public slots such as `09:00–10:50` for a 50-minute service
-**Root cause:** `apps/backend/src/contexts/booking/application/services/availability-query.service.ts` returns the buffer-inclusive window as `endsAt`, and `apps/web/features/booking/components/public/SlotPicker.tsx` renders that value directly as the customer-facing end time.
+**Root cause:** `AvailabilityService.generateSlots()` (`apps/backend/src/contexts/booking/domain/services/availability.service.ts`) builds `endsAt` as start + summed durations + the last line's effective buffer; `SlotPicker.tsx`, `CustomerReschedulePage.tsx` and `RescheduleActionRail.tsx` render that value as the appointment end.
 
 **Description:**
-Extend the availability response with an explicit appointment end calculated from the selected services’ actual customer-visible duration. Preserve the existing buffer-inclusive `endsAt` for availability, conflict checks, alerts, and any operational tooling that needs the reserved window. Propagate the new field through backend, BFF, shared types, and hotsite API clients. Render the appointment end in the public slot picker and all customer-facing booking summaries/confirmations; do not expose buffer duration or reserved end to customers.
+Add a required `appointmentEndsAt` to every availability slot, computed in the domain `generateSlots()` as start + summed line durations (a legged service's duration is already its total span, transition gaps included; never the trailing buffer). `endsAt` is unchanged: start + durations + the last line's effective buffer. It excludes resource turnover (unknown at the outer pre-filter), so it is the offered window, not the full occupancy. Propagate the field through the query result, `@ikaro/types`, the BFF types and the web, and render it everywhere a slot's end is shown to a user. Buffer duration and the reserved end are never shown.
+
+**Decisions (discovery, 2026-10-28):**
+- The slot button keeps the range display and shows `start–appointmentEndsAt`; the validated prototype (start time only) is updated to match.
+- Every surface reading `slot.endsAt` switches: `SlotPicker` (guest, customer and dashboard variants), `CustomerReschedulePage` (both uses) and the staff `RescheduleActionRail`, so the from → to comparison is like for like.
+- `appointmentEndsAt` is required in `@ikaro/types`, the BFF and the backend (one PR, one deploy; no fallback in the web).
+- `BookingSummaryCard`, `BookingSubmittedDetails`, `BasketLines` and `LegItineraryStep` already compute their ends from durations without the buffer; they get regression tests only.
 
 **Backend use case steps:**
-1. Return both customer appointment end and reserved end for every availability slot.
-2. Ensure multi-service and legged-service appointment ends include service/leg duration and configured inter-leg transitions, but never a trailing internal buffer.
-**Backend HTTP surface:** extends existing public `GET /v1/schedule/availability` slot items with `appointmentEndsAt`; retains `startsAt` and buffer-inclusive `endsAt` for backward-compatible operational semantics.
-**BFF endpoint spec:** extends existing public `GET /v1/schedule/availability` response to pass through `appointmentEndsAt` alongside `startsAt` and `endsAt`.
-**Prototype references:** `journeys/customer/prototypes/` — identify and update the validated booking-slot/confirmation prototype during story discovery before implementation.
-**New migration / i18n keys / env vars / feature flags:** no migration, i18n keys, env vars, or feature flags expected.
+1. `generateSlots()` returns `appointmentEndsAt` and `endsAt` for every slot; all three compute paths (explicit `resourceId`, degenerate LOCATION, resource-scoped incl. pinned selections and legs) carry both.
+2. `AvailableSlotResult` in `availability-query.service.ts` carries the field.
+**Backend HTTP surface:** extends public `GET /v1/schedule/availability` slot items with `appointmentEndsAt`; `startsAt` and `endsAt` keep their meaning.
+**BFF endpoint spec:** passthrough (`getForPublic<AvailabilityResponse>`); types only.
+**Prototype references:** `journeys/guest/prototypes/book-a-service/02-calendar-slot.html` (slot buttons drawn start-only; update to the range) and `journeys/customer/prototypes/book-a-service/` (shares the guest flow, `dev-notes.md` line 167); parent `journeys/customer/book-a-service.md`.
+**New migration / i18n keys / env vars / feature flags:** none.
+**UI reuse:** no new control; existing `SlotPicker` only.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/application/services/availability-query.service.ts`
-- `apps/backend/src/contexts/booking/application/services/availability-query.service.spec.ts`
+- `apps/backend/src/contexts/booking/domain/services/availability.service.ts` + `availability.service.spec.ts`
+- `apps/backend/src/contexts/booking/application/services/availability-query.service.ts` + `.spec.ts`
 - `apps/backend/src/contexts/booking/infrastructure/controllers/schedule-availability.controller.integration.spec.ts`
-- `apps/bff/src/features/booking/schedule.types.ts`
-- `apps/bff/src/features/booking/schedule-availability.controller.component.spec.ts`
+- `apps/backend/http/booking/availability.http`, and the BFF availability `.http`
+- `apps/bff/src/features/booking/schedule.types.ts`, `schedule-availability.controller.component.spec.ts`
 - `packages/types/src/schedule.dto.ts`
-- `apps/web/features/platform/hotsite/api/schedule.ts`
-- `apps/web/features/booking/api/booking.spec.ts`
-- `apps/web/features/booking/components/public/SlotPicker.tsx`
-- `apps/web/features/booking/components/public/SlotPicker.spec.tsx`
+- `apps/web/features/platform/hotsite/api/schedule.ts`, `apps/web/features/booking/api/booking.spec.ts`
+- `apps/web/features/booking/components/public/SlotPicker.tsx` + `.spec.tsx`
+- `apps/web/features/customer/components/my-account/CustomerReschedulePage.tsx` + spec
+- `apps/web/features/booking/components/dashboard/bookings/RescheduleActionRail.tsx` + spec
+- Regression specs for `BookingSummaryCard`, `BookingSubmittedDetails`, `BasketLines`
+- `apps/web/e2e/` booking spec (customer booking and customer reschedule)
+- Docs: `docs/API_CONTRACTS.md` § 4, `docs/BUSINESS_LOGIC_REFERENCE.md` (buffer formulas), `docs/DOMAIN_MODEL.md` (if it describes the slot), `journeys/customer/book-a-service.md` (status), guest and customer `dev-notes.md`, `02-calendar-slot.html`
 
 **Acceptance criteria — product:**
-- [ ] A customer sees only the time they will receive the selected service(s), never the trailing operational buffer.
-- [ ] A 50-minute service beginning at 09:00 with a 10-minute buffer displays as `09:00–09:50`; the resource remains internally reserved through 10:00.
-- [ ] Customer booking summaries and post-submission details use the same appointment end as the slot picker.
+- [ ] A customer sees only the time they will receive, never the trailing operational buffer, on the slot picker and the reschedule screens.
+- [ ] A 50-minute service starting at 09:00 with a 10-minute buffer displays `09:00–09:50`; the resource stays internally reserved through 10:00.
+- [ ] Booking summaries and post-submission details show the same appointment end as the picker.
+- [ ] Staff reschedule compares the booking's real end with the new appointment end, not the buffer-inclusive one.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] `availability-query.service.spec.ts` proves `appointmentEndsAt` excludes trailing buffers for single, multi-service, and legged bookings.
-  - [ ] `SlotPicker.spec.tsx` proves the rendered label uses `appointmentEndsAt`, not reserved `endsAt`.
-- Integration:
-  - [ ] `schedule-availability.controller.integration.spec.ts` proves the public response exposes both timestamps with the expected distinct values.
+- Unit (`availability.service.spec.ts`):
+  - [ ] Buffer `0`: `appointmentEndsAt === endsAt`.
+  - [ ] Multi-service basket with different buffers: only the last line's buffer enters `endsAt`; `appointmentEndsAt` = start + summed durations.
+  - [ ] A slot whose appointment fits before closing but whose buffer would run past it stays hidden (negative guarantee: the buffer-inclusive fit rule is unchanged).
+  - [ ] Both timestamps are UTC ISO for a `America/Sao_Paulo` day.
+- Unit (`availability-query.service.spec.ts`):
+  - [ ] `CUSTOMER_SELECTED` service with `durationMinutes`: `appointmentEndsAt` uses the chosen duration.
+  - [ ] Service buffer `null` → `endsAt − appointmentEndsAt` equals the tenant default; explicit `0` → no difference (ties to S00).
+  - [ ] All three paths return the field: explicit `resourceId`, degenerate, resource-scoped (incl. pinned `resourceSelections`); a legged service includes transition gaps and excludes the trailing buffer.
+  - [ ] Negative guarantee: `endsAt` values are unchanged versus before this story.
+- Integration (`schedule-availability.controller.integration.spec.ts`):
+  - [ ] Buffered flat service and a legged service: `endsAt − appointmentEndsAt` equals the effective buffer.
+- BFF:
+  - [ ] Component spec: `appointmentEndsAt` passes through verbatim.
+- Web:
+  - [ ] `SlotPicker.spec.tsx` for guest, customer and dashboard variants renders `appointmentEndsAt`, not `endsAt`; the within-notice dot still renders.
+  - [ ] `CustomerReschedulePage` ("moved to" end and "to" window) and `RescheduleActionRail` ("to" end) use `appointmentEndsAt`.
+  - [ ] Regression: `BookingSummaryCard`, `BookingSubmittedDetails` and `BasketLines` show no buffer.
 - Tenant isolation:
-  - [ ] The public availability response resolves both timestamps only from services belonging to the resolved tenant.
-- E2E:
-  - [ ] Customer selects a buffered service and sees its actual appointment end consistently in the picker and confirmation.
+  - [ ] The availability tenant-isolation test is extended: both timestamps resolve only from the resolved tenant's services.
+- E2E (needs the user's yes to run the compose stack):
+  - [ ] Customer books a 50-minute service with a 10-minute buffer and sees `09:00–09:50` on the picker and the same end in the summary and confirmation.
+  - [ ] Customer reschedule screen shows the appointment end, not the buffer-inclusive one.
 - [ ] Coverage ≥80% on changed code.
 - [ ] `tsc --noEmit` clean, lint clean.
 
