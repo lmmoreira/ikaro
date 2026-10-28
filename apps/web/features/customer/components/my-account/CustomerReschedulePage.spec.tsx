@@ -41,7 +41,9 @@ vi.mock('./ReschedulePicker', () => ({
           onClick={() =>
             onSelectSlot({
               startsAt: '2030-06-23T13:00:00.000Z',
-              endsAt: '2030-06-23T14:00:00.000Z',
+              // Appointment 10:00–11:00 local; the 10-minute buffer reserves it until 11:10.
+              appointmentEndsAt: '2030-06-23T14:00:00.000Z',
+              endsAt: '2030-06-23T14:10:00.000Z',
             })
           }
         >
@@ -237,6 +239,28 @@ describe('CustomerReschedulePage', () => {
 
     expect(screen.getAllByTestId('reschedule-change-summary')[0]).toHaveTextContent(/De: /);
     expect(screen.getAllByTestId('reschedule-change-summary')[0]).toHaveTextContent(/Para: /);
+  });
+
+  it('shows the appointment end in the change summary, never the buffer-inclusive end', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: 'pick-slot' }));
+
+    const summary = screen.getAllByTestId('reschedule-change-summary')[0];
+    expect(summary).toHaveTextContent('11:00');
+    expect(summary).not.toHaveTextContent('11:10');
+  });
+
+  it('shows the appointment end on the success screen, never the buffer-inclusive end', async () => {
+    rescheduleMock.mockResolvedValueOnce(undefined);
+    renderPage();
+
+    await pickSlotAndConfirm();
+
+    await screen.findByTestId('reschedule-success');
+    const when = screen.getByTestId('reschedule-fact-when');
+    expect(when).toHaveTextContent('11:00');
+    expect(when).not.toHaveTextContent('11:10');
   });
 
   it('a lost race shows the catalogue message, clears the slot and reloads the list', async () => {

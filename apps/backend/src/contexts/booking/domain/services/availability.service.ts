@@ -41,6 +41,9 @@ export interface AvailabilityInput {
 
 export interface AvailableSlot {
   startsAt: string; // ISO-8601 UTC
+  // What the customer is told: start + summed service durations, never the trailing buffer.
+  appointmentEndsAt: string; // ISO-8601 UTC
+  // The offered window: appointmentEndsAt + the last line's effective buffer (no turnover).
   endsAt: string; // ISO-8601 UTC
 }
 
@@ -93,8 +96,8 @@ export class AvailabilityService {
 
     const { open, close, partialClosures } = effectiveHours;
     const timezone = businessHours.timezone;
-    const totalMins =
-      services.reduce((sum, s) => sum + s.durationMinutes, 0) + serviceBufferMinutes;
+    const appointmentMins = services.reduce((sum, s) => sum + s.durationMinutes, 0);
+    const totalMins = appointmentMins + serviceBufferMinutes;
     const bookedRanges = this.buildBookedRanges(existingOccupancy, timezone);
 
     return this.generateSlots({
@@ -102,6 +105,7 @@ export class AvailabilityService {
       timezone,
       open,
       close,
+      appointmentMins,
       totalMins,
       slotGranularityMinutes,
       partialClosures,
@@ -126,6 +130,7 @@ export class AvailabilityService {
     timezone: string;
     open: string;
     close: string;
+    appointmentMins: number;
     totalMins: number;
     slotGranularityMinutes: number;
     partialClosures: ScheduleClosure[];
@@ -148,6 +153,11 @@ export class AvailabilityService {
       if (!blockedByClosure && !blockedByBooking) {
         slots.push({
           startsAt: localDateTimeToUTCIso(ctx.date, cursor.value, ctx.timezone),
+          appointmentEndsAt: localDateTimeToUTCIso(
+            ctx.date,
+            cursor.addMinutes(ctx.appointmentMins).value,
+            ctx.timezone,
+          ),
           endsAt: localDateTimeToUTCIso(ctx.date, endTime.value, ctx.timezone),
         });
       }

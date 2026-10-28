@@ -83,7 +83,7 @@ export function SlotConflictAlert({
             <div className="space-y-2">
               {suggestions.map((slot) => {
                 const start = new Date(slot.startsAt);
-                const end = new Date(slot.endsAt);
+                const end = new Date(slot.appointmentEndsAt);
                 return (
                   <button
                     key={slot.startsAt}

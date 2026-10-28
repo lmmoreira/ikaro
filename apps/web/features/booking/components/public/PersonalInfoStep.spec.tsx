@@ -40,6 +40,7 @@ const service: HotsiteServiceResponse = {
 
 const slot: AvailableSlot = {
   startsAt: '2026-06-18T13:00:00.000Z',
+  appointmentEndsAt: '2026-06-18T14:00:00.000Z',
   endsAt: '2026-06-18T14:00:00.000Z',
 };
 
@@ -210,6 +211,6 @@ describe('PersonalInfoStep', () => {
     expect(screen.getByText('Revisar pedido')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
     expect(screen.getByText('R$ 60,00 — 30 min')).toBeInTheDocument();
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
   });
 });

@@ -129,6 +129,7 @@ export interface RequestMoreInfoRequest {
 
 export interface SlotConflictSuggestion {
   startsAt: string;
+  appointmentEndsAt: string;
   endsAt: string;
 }
 

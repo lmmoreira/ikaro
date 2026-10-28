@@ -23,6 +23,7 @@ function makeService(overrides?: Partial<HotsiteServiceResponse>): HotsiteServic
 
 const slot: AvailableSlot = {
   startsAt: '2026-06-18T13:00:00.000Z',
+  appointmentEndsAt: '2026-06-18T14:00:00.000Z',
   endsAt: '2026-06-18T14:00:00.000Z',
 };
 
@@ -44,7 +45,28 @@ describe('BookingSummaryCard', () => {
     expect(screen.getByText('Lavagem Simples')).toBeInTheDocument();
     expect(screen.getByText('R$ 60,00 — 30 min')).toBeInTheDocument();
     expect(screen.getByText('Data e horário')).toBeInTheDocument();
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
+  });
+
+  it('never shows the buffer-inclusive end of the slot (TD51-S01 regression)', () => {
+    const service = makeService();
+    const buffered: AvailableSlot = {
+      startsAt: '2026-06-18T13:00:00.000Z',
+      appointmentEndsAt: '2026-06-18T13:30:00.000Z',
+      endsAt: '2026-06-18T13:40:00.000Z',
+    };
+
+    const { container } = renderWithIntl(
+      <BookingSummaryCard
+        services={[service]}
+        selectedServiceIds={[service.id]}
+        selectedDate="2026-06-18"
+        selectedSlot={buffered}
+      />,
+    );
+
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 10:30')).toBeInTheDocument();
+    expect(container).not.toHaveTextContent('10:40');
   });
 
   it('shows the plural label and combined total when multiple services are selected', () => {
@@ -70,7 +92,7 @@ describe('BookingSummaryCard', () => {
     expect(rows[0]).toHaveTextContent('Lavagem SimplesR$ 60,00');
     expect(rows[1]).toHaveTextContent('CeraR$ 40,00');
     expect(screen.getByText('Total: R$ 100,00 — 50 min')).toBeInTheDocument();
-    expect(screen.getByText('Quinta-feira, 18 de junho às 10:00')).toBeInTheDocument();
+    expect(screen.getByText('Quinta-feira, 18 de junho · 10:00 – 11:00')).toBeInTheDocument();
   });
 
   it('fixed + variable duration: one row per line, the quoted amount joins the total', () => {

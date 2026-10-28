@@ -76,7 +76,11 @@ const ADDRESS_SPEC: HotsiteAddressSpec = {
 
 // 12:00Z is 09:00 in the default test tenant timezone (America/Sao_Paulo).
 const day: DaySummary = { date: '2026-06-15', available: true, slotCount: 1 };
-const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+const slot = {
+  startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+  endsAt: '2026-06-15T13:00:00.000Z',
+};
 const availability: AvailabilityResponse = { date: '2026-06-15', available: true, slots: [slot] };
 
 const FIXED = 'svc-fixed';
@@ -540,7 +544,10 @@ describe('BookingForm — journey review and success box (M23-S11b)', () => {
     expect(screen.getByTestId('line-own-pick')).toHaveTextContent('com Renata Souza (sua escolha)');
     expect(screen.queryByText(/Sala atribuída/)).not.toBeInTheDocument();
     expect(screen.getByText('Total: R$ 260,00 — 1h 30min')).toBeInTheDocument();
-    expect(screen.queryByText(/ – /)).not.toBeInTheDocument();
+    // No per-line time windows: only a journey draws them. The header range is the whole booking's.
+    for (const line of screen.getAllByTestId('basket-line')) {
+      expect(line).not.toHaveTextContent(/ – /);
+    }
   });
 
   it('shows the same lines and total on the summary card and the success box for a mixed basket', async () => {

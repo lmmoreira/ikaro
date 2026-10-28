@@ -359,6 +359,67 @@ describe('AvailabilityService', () => {
     expect(result[0].endsAt).toBe(utcIso(sunday, 11));
   });
 
+  // ── appointmentEndsAt (TD51-S01) ─────────────────────────────────────────────
+
+  describe('appointmentEndsAt', () => {
+    it('excludes the trailing buffer: 60 min service + 60 min buffer → appointment ends 60 min after start', () => {
+      const [first] = svc.calculate({ ...base, date: monday });
+
+      expect(first.appointmentEndsAt).toBe(utcIso(monday, 10));
+      expect(first.endsAt).toBe(utcIso(monday, 11)); // unchanged: appointment end + buffer
+    });
+
+    it('buffer 0: appointmentEndsAt equals endsAt', () => {
+      const result = svc.calculate({ ...base, date: monday, serviceBufferMinutes: 0 });
+
+      expect(result.length).toBeGreaterThan(0);
+      for (const slot of result) expect(slot.appointmentEndsAt).toBe(slot.endsAt);
+    });
+
+    it('a 50-minute service with a 10-minute buffer ends at 09:50 and is reserved through 10:00', () => {
+      const [first] = svc.calculate({
+        ...base,
+        date: monday,
+        services: [{ durationMinutes: 50 }],
+        serviceBufferMinutes: 10,
+      });
+
+      expect(first.startsAt).toBe(utcIso(monday, 9));
+      expect(first.appointmentEndsAt).toBe(utcIso(monday, 9, 50));
+      expect(first.endsAt).toBe(utcIso(monday, 10));
+    });
+
+    it('multi-service basket: appointmentEndsAt is start + the summed durations, plus only one buffer in endsAt', () => {
+      const [first] = svc.calculate({
+        ...base,
+        date: monday,
+        services: [{ durationMinutes: 30 }, { durationMinutes: 45 }],
+        serviceBufferMinutes: 15,
+      });
+
+      expect(first.appointmentEndsAt).toBe(utcIso(monday, 10, 15)); // 75 min
+      expect(first.endsAt).toBe(utcIso(monday, 10, 30)); // 75 + 15
+    });
+
+    it('does not change which slots are offered: a slot whose buffer runs past closing stays hidden', () => {
+      // 09:00–18:00; 60 min service + 60 min buffer → last offered start is 16:00 (buffer ends 18:00).
+      // 16:30 would end its appointment at 17:30 (before close) but its buffer would pass 18:00.
+      const result = svc.calculate({ ...base, date: monday });
+      const starts = result.map((s) => s.startsAt);
+
+      expect(starts).toContain(utcIso(monday, 16));
+      expect(starts).not.toContain(utcIso(monday, 16, 30));
+    });
+
+    it('returns both timestamps as UTC ISO-8601 strings', () => {
+      const result = svc.calculate({ ...base, date: monday });
+
+      for (const slot of result) {
+        expect(slot.appointmentEndsAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+      }
+    });
+  });
+
   // ── Edge cases ───────────────────────────────────────────────────────────────
 
   it('returns [] when opening window is smaller than total booking duration', () => {

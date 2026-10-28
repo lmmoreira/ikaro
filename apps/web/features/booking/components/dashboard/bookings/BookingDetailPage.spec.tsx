@@ -198,7 +198,13 @@ describe('BookingDetailPage', () => {
       });
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',
-      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-16T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-16T09:30:00.000Z',
+          endsAt: '2026-06-16T09:30:00.000Z',
+        },
+      ],
       available: true,
     });
 
@@ -221,7 +227,13 @@ describe('BookingDetailPage', () => {
   it('opens directly on the slot-conflict state when initialized from the queue shortcut', async () => {
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',
-      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-16T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-16T09:30:00.000Z',
+          endsAt: '2026-06-16T09:30:00.000Z',
+        },
+      ],
       available: true,
     });
 
@@ -455,7 +467,13 @@ describe('BookingDetailPage', () => {
       });
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',
-      slots: [{ startsAt: '2026-06-16T09:00:00.000Z', endsAt: '2026-06-16T09:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-16T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-16T09:30:00.000Z',
+          endsAt: '2026-06-16T09:30:00.000Z',
+        },
+      ],
       available: true,
     });
 

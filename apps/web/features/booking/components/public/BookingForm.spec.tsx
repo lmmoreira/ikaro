@@ -115,7 +115,11 @@ function bookingResponse(line: Partial<BookingResponse['lines'][number]> = {}): 
 }
 
 const day: DaySummary = { date: '2026-06-15', available: true, slotCount: 1 };
-const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+const slot = {
+  startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+  endsAt: '2026-06-15T13:00:00.000Z',
+};
 const availability: AvailabilityResponse = { date: '2026-06-15', available: true, slots: [slot] };
 const pickupAddress: Address = {
   street: 'Rua das Acácias',
@@ -335,7 +339,7 @@ describe('BookingForm', () => {
 
     expect(screen.getByText('Revisar pedido')).toBeInTheDocument();
     expect(screen.getByText('Lavagem Completa')).toBeInTheDocument();
-    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho · 09:00 – 10:00')).toBeInTheDocument();
   });
 
   it('moves to Step 4 with a booking summary after filling personal info', async () => {
@@ -346,7 +350,7 @@ describe('BookingForm', () => {
 
     expect(screen.getByText('Confirme seu agendamento')).toBeInTheDocument();
     expect(screen.getByText('Passo 4 de 4')).toBeInTheDocument();
-    expect(screen.getByText('Segunda-feira, 15 de junho às 09:00')).toBeInTheDocument();
+    expect(screen.getByText('Segunda-feira, 15 de junho · 09:00 – 10:00')).toBeInTheDocument();
   });
 
   it('shows the pickup address section in Step 1 when a selected service requires it', async () => {

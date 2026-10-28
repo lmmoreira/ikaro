@@ -46,7 +46,8 @@ export interface CreateOpeningRequest {
 
 export interface AvailableSlot {
   startsAt: string; // ISO-8601 datetime
-  endsAt: string; // ISO-8601 datetime
+  appointmentEndsAt: string; // ISO-8601 datetime — the end shown to customers (no trailing buffer)
+  endsAt: string; // ISO-8601 datetime — offered window: appointment end + the last line's buffer
 }
 
 export interface AvailabilityResponse {

@@ -2,15 +2,24 @@ import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
 import {
+  ResourceEntityBuilder,
   ScheduleClosureEntityBuilder,
   ScheduleOpeningEntityBuilder,
   ServiceEntityBuilder,
+  ServiceLegEntityBuilder,
+  ServiceLegResourceRequirementEntityBuilder,
 } from '../../../../test/builders/booking/index';
 import { createBookingIntegrationApp } from '../../../../test/utils/booking-integration-app';
 import { nextWeekday } from '../../../../test/utils/date-helpers';
 import { PlatformModule } from '../../../platform/platform.module';
+import { ResourceType } from '../../domain/resource.types';
+import { ResourceEntity } from '../entities/resource.entity';
 import { ScheduleClosureEntity } from '../entities/schedule-closure.entity';
 import { ScheduleOpeningEntity } from '../entities/schedule-opening.entity';
+import {
+  ServiceLegEntity,
+  ServiceLegResourceRequirementEntity,
+} from '../entities/service-leg.entity';
 import { ServiceEntity } from '../entities/service.entity';
 
 const TEST_KEY = 'availability-integ-test-key-avail-xx'; // 36 chars
@@ -346,6 +355,122 @@ describe('ScheduleAvailabilityController (integration)', () => {
     });
   });
 
+  // ─── appointmentEndsAt (TD51-S01) ─────────────────────────────────────────────
+
+  describe('GET /schedule/availability — appointmentEndsAt', () => {
+    const MIN = 60_000;
+    // TenantSettings.default().booking.serviceBufferMinutes — what a service inheriting (null) gets.
+    const TENANT_DEFAULT_BUFFER = 60;
+    let apptTenantId: string;
+
+    const firstSlotGaps = async (
+      serviceIds: string,
+      tenantId = apptTenantId,
+    ): Promise<{ appointment: number; buffer: number }> => {
+      const { body } = await request(app.getHttpServer())
+        .get(`/schedule/availability?date=${MONDAY}&serviceIds=${serviceIds}`)
+        .set(tenantHeader(tenantId))
+        .expect(200);
+      const slot = body.slots[0] as { startsAt: string; appointmentEndsAt: string; endsAt: string };
+      return {
+        appointment: (Date.parse(slot.appointmentEndsAt) - Date.parse(slot.startsAt)) / MIN,
+        buffer: (Date.parse(slot.endsAt) - Date.parse(slot.appointmentEndsAt)) / MIN,
+      };
+    };
+
+    beforeAll(async () => {
+      const { body } = await request(app.getHttpServer())
+        .post('/internal/tenants')
+        .set('X-Platform-Admin-Key', TEST_KEY)
+        .send({
+          name: 'Avail Appt Tenant',
+          slug: 'avail-appt-tenant',
+          adminEmail: 'appt@avail.test',
+          country_code: 'BR',
+        })
+        .expect(201);
+      apptTenantId = body.tenantId as string;
+    });
+
+    it('a flat service with a 10-minute buffer: endsAt is the appointment end plus the buffer', async () => {
+      const svc = new ServiceEntityBuilder()
+        .withTenantId(apptTenantId)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svc);
+
+      expect(await firstSlotGaps(svc.id)).toEqual({ appointment: 50, buffer: 10 });
+    });
+
+    it('a flat service inheriting the tenant buffer (null) is reserved for the tenant default beyond its appointment end', async () => {
+      const svc = new ServiceEntityBuilder()
+        .withTenantId(apptTenantId)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(null)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svc);
+
+      expect(await firstSlotGaps(svc.id)).toEqual({
+        appointment: 50,
+        buffer: TENANT_DEFAULT_BUFFER,
+      });
+    });
+
+    it('an explicit 0 buffer makes appointmentEndsAt equal endsAt', async () => {
+      const svc = new ServiceEntityBuilder()
+        .withTenantId(apptTenantId)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(0)
+        .build();
+      await ds.getRepository(ServiceEntity).save(svc);
+
+      expect(await firstSlotGaps(svc.id)).toEqual({ appointment: 50, buffer: 0 });
+    });
+
+    it('a legged service: the appointment spans its legs and the transition gap, then the buffer follows', async () => {
+      const room = new ResourceEntityBuilder()
+        .withTenantId(apptTenantId)
+        .withType(ResourceType.ROOM)
+        .build();
+      await ds.getRepository(ResourceEntity).save(room);
+      // durationMinutes is the persisted total span: 20 + 15 transition gap + 25.
+      const legged = new ServiceEntityBuilder()
+        .withTenantId(apptTenantId)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(10)
+        .build();
+      await ds.getRepository(ServiceEntity).save(legged);
+      const legSpecs = [
+        { legIndex: 0, durationMinutes: 20, transitionGapAfterMinutes: 15 },
+        { legIndex: 1, durationMinutes: 25, transitionGapAfterMinutes: 0 },
+      ];
+      for (const spec of legSpecs) {
+        const leg = new ServiceLegEntityBuilder()
+          .withTenantId(apptTenantId)
+          .withServiceId(legged.id)
+          .withLegIndex(spec.legIndex)
+          .withName(`Etapa ${spec.legIndex + 1}`)
+          .withDurationMinutes(spec.durationMinutes)
+          .withTransitionGapAfterMinutes(spec.transitionGapAfterMinutes)
+          .build();
+        await ds.getRepository(ServiceLegEntity).save(leg);
+        await ds
+          .getRepository(ServiceLegResourceRequirementEntity)
+          .save(
+            new ServiceLegResourceRequirementEntityBuilder()
+              .withTenantId(apptTenantId)
+              .withLegId(leg.id)
+              .withResourceType(ResourceType.ROOM)
+              .withSelectionMode('AUTO_ANY')
+              .build(),
+          );
+      }
+
+      expect(await firstSlotGaps(legged.id)).toEqual({ appointment: 60, buffer: 10 });
+    });
+  });
+
   // ─── Validation errors ────────────────────────────────────────────────────────
 
   describe('GET /schedule/availability — validation errors', () => {
@@ -417,6 +542,36 @@ describe('ScheduleAvailabilityController (integration)', () => {
 
       expect(body.available).toBe(true);
       expect(body.slots.length).toBeGreaterThan(0);
+    });
+
+    it("resolves both timestamps from the caller's own service only, never from another tenant's service of the same id", async () => {
+      const tenantBSvc = new ServiceEntityBuilder()
+        .withTenantId(tenantBId)
+        .withDurationMinutes(45)
+        .withBufferAfterMinutes(15)
+        .build();
+      await ds.getRepository(ServiceEntity).save(tenantBSvc);
+
+      // Tenant A asking for tenant B's service id: 404, no slots (and so no timestamps) leak.
+      const { body: leaked } = await request(app.getHttpServer())
+        .get(`/schedule/availability?date=${MONDAY}&serviceIds=${tenantBSvc.id}`)
+        .set(tenantHeader(tenantAId))
+        .expect(404);
+      expect(leaked.slots).toBeUndefined();
+
+      // Tenant B itself gets its own service's appointment end and buffer.
+      // Tuesday: the test above closes tenant B's Monday.
+      const { body } = await request(app.getHttpServer())
+        .get(`/schedule/availability?date=${nextWeekday(2)}&serviceIds=${tenantBSvc.id}`)
+        .set(tenantHeader(tenantBId))
+        .expect(200);
+      const [slot] = body.slots as {
+        startsAt: string;
+        appointmentEndsAt: string;
+        endsAt: string;
+      }[];
+      expect(Date.parse(slot.appointmentEndsAt) - Date.parse(slot.startsAt)).toBe(45 * 60_000);
+      expect(Date.parse(slot.endsAt) - Date.parse(slot.appointmentEndsAt)).toBe(15 * 60_000);
     });
   });
 });

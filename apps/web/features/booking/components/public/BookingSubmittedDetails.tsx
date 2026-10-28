@@ -214,9 +214,9 @@ export function BookingSubmittedDetails({
         data-testid="submitted-datetime"
       >
         {formatDateLong(new Date(selectedDate + 'T00:00:00Z'))}
-        {hasJourney && basketEnd
-          ? ` · ${formatTime(new Date(selectedSlot.startsAt))}–${formatTime(basketEnd)}`
-          : ` ${t('summary.at')} ${formatTime(new Date(selectedSlot.startsAt))}`}
+        {` · ${formatTime(new Date(selectedSlot.startsAt))}–${formatTime(
+          hasJourney && basketEnd ? basketEnd : new Date(selectedSlot.appointmentEndsAt),
+        )}`}
       </p>
 
       <p

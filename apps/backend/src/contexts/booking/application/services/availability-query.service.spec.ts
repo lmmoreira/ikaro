@@ -644,6 +644,246 @@ describe('AvailabilityQueryService', () => {
     });
   });
 
+  describe('appointmentEndsAt (TD51-S01)', () => {
+    const MIN = 60_000;
+    const gaps = (slot: { startsAt: string; appointmentEndsAt: string; endsAt: string }) => ({
+      appointment:
+        (new Date(slot.appointmentEndsAt).getTime() - new Date(slot.startsAt).getTime()) / MIN,
+      buffer: (new Date(slot.endsAt).getTime() - new Date(slot.appointmentEndsAt).getTime()) / MIN,
+    });
+    const run = (
+      serviceIds: string[],
+      overrides: Partial<Parameters<AvailabilityQueryService['query']>[0]> = {},
+    ) =>
+      useCase.query({
+        date: monday,
+        serviceIds,
+        tenantId: TENANT_ID,
+        businessHours: settings.businessHours,
+        slotGranularityMinutes: 30,
+        serviceBufferMinutes: 20, // the tenant default
+        ...overrides,
+      });
+    const room = async () => {
+      const resource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.ROOM)
+        .build();
+      await resourceRepo.save(resource);
+      return resource;
+    };
+    const auto = (type: ResourceType) =>
+      ResourceRequirement.create({ type, selectionMode: 'AUTO_ANY' });
+
+    it('degenerate path: a service inheriting the tenant buffer (null) is reserved for the tenant default beyond its appointment end', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(null)
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id]);
+
+      expect(slots.length).toBeGreaterThan(0);
+      expect(slots.every((slot) => gaps(slot).appointment === 50 && gaps(slot).buffer === 20)).toBe(
+        true,
+      );
+    });
+
+    it('degenerate path: an explicit 0 buffer makes both timestamps equal, the tenant default is not applied', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(0)
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id]);
+
+      expect(slots.length).toBeGreaterThan(0);
+      expect(slots.every((slot) => slot.appointmentEndsAt === slot.endsAt)).toBe(true);
+    });
+
+    it('degenerate path: an explicit numeric buffer is used as is', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id]);
+
+      expect(gaps(slots[0])).toEqual({ appointment: 50, buffer: 10 });
+    });
+
+    it('explicit resourceId path carries both timestamps', async () => {
+      const resource = await room();
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id], { resourceId: resource.id });
+
+      expect(gaps(slots[0])).toEqual({ appointment: 50, buffer: 10 });
+    });
+
+    it('resource-scoped path carries both timestamps', async () => {
+      await room();
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .withResourceRequirements([auto(ResourceType.ROOM)])
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id]);
+
+      expect(slots.length).toBeGreaterThan(0);
+      expect(gaps(slots[0])).toEqual({ appointment: 50, buffer: 10 });
+    });
+
+    it('multi-service basket: the appointment is the summed durations and only the last service buffer applies', async () => {
+      const first = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(30)
+        .withBufferAfterMinutes(45)
+        .build();
+      const last = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(40)
+        .withBufferAfterMinutes(10)
+        .build();
+      await serviceRepo.save(first);
+      await serviceRepo.save(last);
+
+      const { slots } = await run([first.id, last.id]);
+
+      expect(gaps(slots[0])).toEqual({ appointment: 70, buffer: 10 });
+    });
+
+    it('a CUSTOMER_SELECTED service uses the chosen duration for the appointment end', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(10)
+        .withBookingPolicy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          durationMinMinutes: 60,
+          durationMaxMinutes: 240,
+          durationIncrementMinutes: 60,
+          pricingPolicy: 'FIXED',
+        })
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id], { durationMinutes: 120 });
+
+      expect(gaps(slots[0])).toEqual({ appointment: 120, buffer: 10 });
+    });
+
+    it('a legged service: the appointment spans its legs and transition gaps, then the buffer follows', async () => {
+      await room();
+      // A persisted legged service's durationMinutes IS its total span (20 + 15 gap + 25); the
+      // builder does not recompute it the way the aggregate does, so it is set explicitly.
+      const legged = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(60)
+        .withBufferAfterMinutes(10)
+        .withLegs([
+          ServiceLeg.create({
+            legIndex: 0,
+            name: 'Etapa 1',
+            durationMinutes: 20,
+            resourceRequirements: [auto(ResourceType.ROOM)],
+            transitionGapAfterMinutes: 15,
+          }),
+          ServiceLeg.create({
+            legIndex: 1,
+            name: 'Etapa 2',
+            durationMinutes: 25,
+            resourceRequirements: [auto(ResourceType.ROOM)],
+            transitionGapAfterMinutes: 0,
+          }),
+        ])
+        .build();
+      await serviceRepo.save(legged);
+
+      const { slots } = await run([legged.id]);
+
+      expect(slots.length).toBeGreaterThan(0);
+      expect(gaps(slots[0])).toEqual({ appointment: 60, buffer: 10 });
+    });
+
+    it('pinned selections keep both timestamps on the resource-scoped path', async () => {
+      const staffResource = new ResourceBuilder()
+        .withTenantId(TENANT_ID)
+        .withType(ResourceType.STAFF)
+        .withRefId(uuidv7())
+        .build();
+      await resourceRepo.save(staffResource);
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .withResourceRequirements([
+          ResourceRequirement.create({
+            type: ResourceType.STAFF,
+            selectionMode: 'CUSTOMER_CHOICE',
+          }),
+        ])
+        .build();
+      await serviceRepo.save(service);
+
+      const { slots } = await run([service.id], {
+        resourceSelections: [
+          {
+            serviceId: service.id,
+            legIndex: null,
+            resourceType: ResourceType.STAFF,
+            resourceId: staffResource.id,
+          },
+        ],
+      });
+
+      expect(slots.length).toBeGreaterThan(0);
+      expect(gaps(slots[0])).toEqual({ appointment: 50, buffer: 10 });
+    });
+
+    it('endsAt keeps its offered-window meaning: an existing booking still blocks through the buffer', async () => {
+      const service = new ServiceBuilder()
+        .withTenantId(TENANT_ID)
+        .withDurationMinutes(50)
+        .withBufferAfterMinutes(10)
+        .build();
+      await serviceRepo.save(service);
+      const location = (
+        await resourceRepo.findByTenant(TENANT_ID, { type: ResourceType.LOCATION })
+      )[0];
+      // Occupied 09:00-10:00 local (12:00Z-13:00Z): a 09:00 appointment would end 09:50 but its
+      // buffer still reaches 10:00, so the next offered start is 10:00, never 09:50.
+      bookingPort.setSlots([
+        {
+          resourceId: location.id,
+          startsAt: new Date(`${monday}T12:00:00.000Z`),
+          endsAt: new Date(`${monday}T13:00:00.000Z`),
+        },
+      ]);
+
+      const { slots } = await run([service.id], { slotGranularityMinutes: 15 });
+      const starts = slots.map((slot) => slot.startsAt);
+
+      expect(starts).not.toContain(new Date(`${monday}T12:00:00.000Z`).toISOString());
+      expect(starts).not.toContain(new Date(`${monday}T12:45:00.000Z`).toISOString());
+      expect(starts).toContain(new Date(`${monday}T13:00:00.000Z`).toISOString());
+    });
+  });
+
   describe('pinned selections and a chosen duration (M23-S29)', () => {
     const OTHER_TENANT_ID = '00000000-0000-7000-8000-0000000000b2';
     const at = (time: string) => new Date(`${monday}T${time}.000Z`).toISOString();

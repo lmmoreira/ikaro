@@ -1024,11 +1024,13 @@ Response `200`:
   "date": "2026-06-01",
   "available": true,
   "slots": [
-    { "startsAt": "2026-06-01T12:00:00.000Z", "endsAt": "2026-06-01T13:15:00.000Z" },
-    { "startsAt": "2026-06-01T12:30:00.000Z", "endsAt": "2026-06-01T13:45:00.000Z" }
+    { "startsAt": "2026-06-01T12:00:00.000Z", "appointmentEndsAt": "2026-06-01T13:05:00.000Z", "endsAt": "2026-06-01T13:15:00.000Z" },
+    { "startsAt": "2026-06-01T12:30:00.000Z", "appointmentEndsAt": "2026-06-01T13:35:00.000Z", "endsAt": "2026-06-01T13:45:00.000Z" }
   ]
 }
 ```
+
+**Two end times per slot (TD51-S01).** `appointmentEndsAt` is the end the customer is told: the slot's `startsAt` plus the summed service durations (a legged service's duration is already its total span, transition gaps included), never the trailing buffer. `endsAt` is the offered window the engine checks against occupancy: `appointmentEndsAt` plus the last requested service's effective buffer (its own override, or the tenant `serviceBufferMinutes` when it inherits). It excludes resource turnover, which is only known per candidate resource. Every UI that shows a slot's end to a person (the booking slot picker, the review, confirmation and post-submission details, the customer and staff reschedule screens, the staff conflict alternatives) renders `appointmentEndsAt`; nothing public ever shows the buffer. Both fields are always present.
 
 Errors:
 - `404 BOOKING_SERVICE_NOT_FOUND` — serviceId unknown or from another tenant

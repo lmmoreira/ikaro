@@ -82,7 +82,11 @@ const ADDRESS_SPEC: HotsiteAddressSpec = {
 };
 
 const day: DaySummary = { date: '2026-06-15', available: true, slotCount: 1 };
-const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+const slot = {
+  startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+  endsAt: '2026-06-15T13:00:00.000Z',
+};
 const availability: AvailabilityResponse = { date: '2026-06-15', available: true, slots: [slot] };
 
 const SVC = 'svc-staff';

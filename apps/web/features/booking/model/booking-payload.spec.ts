@@ -9,6 +9,7 @@ import { emptyAddress, emptyPersonalInfo } from './personal-info';
 
 const slot: AvailableSlot = {
   startsAt: '2026-10-05T13:00:00.000Z',
+  appointmentEndsAt: '2026-10-05T14:00:00.000Z',
   endsAt: '2026-10-05T14:00:00.000Z',
 };
 

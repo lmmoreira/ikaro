@@ -33,6 +33,7 @@ export interface ScheduleOpeningListResponse {
 
 export interface AvailableSlot {
   startsAt: string;
+  appointmentEndsAt: string;
   endsAt: string;
 }
 

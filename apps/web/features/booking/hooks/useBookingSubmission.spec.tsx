@@ -25,6 +25,7 @@ vi.mock('@/features/platform/hotsite/api/customers', () => ({
 
 const SLOT: AvailableSlot = {
   startsAt: '2026-06-15T12:00:00.000Z',
+  appointmentEndsAt: '2026-06-15T13:00:00.000Z',
   endsAt: '2026-06-15T13:00:00.000Z',
 };
 

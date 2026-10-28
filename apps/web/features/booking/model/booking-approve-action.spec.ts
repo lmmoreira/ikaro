@@ -67,7 +67,11 @@ describe('buildApproveHandler', () => {
 
   it('routes a 409 conflict to the slot-conflict state with fresh suggestions', async () => {
     const suggestions: SlotConflictSuggestion[] = [
-      { startsAt: '2026-06-17T14:00:00.000Z', endsAt: '2026-06-17T14:30:00.000Z' },
+      {
+        startsAt: '2026-06-17T14:00:00.000Z',
+        appointmentEndsAt: '2026-06-17T14:30:00.000Z',
+        endsAt: '2026-06-17T14:30:00.000Z',
+      },
     ];
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-16',

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import type { StaffBookingDetailResponse } from '@ikaro/types';
+import type { AvailableSlot, StaffBookingDetailResponse } from '@ikaro/types';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
@@ -17,16 +17,13 @@ vi.mock('@/features/booking/components/public/AvailabilityCarousel', () => ({
 }));
 
 vi.mock('@/features/booking/components/public/SlotPicker', () => ({
-  SlotPicker: ({
-    onSelectSlot,
-  }: {
-    readonly onSelectSlot: (slot: { startsAt: string; endsAt: string }) => void;
-  }) => (
+  SlotPicker: ({ onSelectSlot }: { readonly onSelectSlot: (slot: AvailableSlot) => void }) => (
     <button
       type="button"
       onClick={() =>
         onSelectSlot({
           startsAt: '2026-06-17T10:00:00.000Z',
+          appointmentEndsAt: '2026-06-17T10:30:00.000Z',
           endsAt: '2026-06-17T10:30:00.000Z',
         })
       }
@@ -244,7 +241,13 @@ describe('RescheduleBookingPage', () => {
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-17',
       available: true,
-      slots: [{ startsAt: '2026-06-17T10:00:00.000Z', endsAt: '2026-06-17T10:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-17T10:00:00.000Z',
+          appointmentEndsAt: '2026-06-17T10:30:00.000Z',
+          endsAt: '2026-06-17T10:30:00.000Z',
+        },
+      ],
     });
 
     renderWithIntl(
@@ -275,7 +278,13 @@ describe('RescheduleBookingPage', () => {
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-17',
       available: true,
-      slots: [{ startsAt: '2026-06-17T10:00:00.000Z', endsAt: '2026-06-17T10:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-17T10:00:00.000Z',
+          appointmentEndsAt: '2026-06-17T10:30:00.000Z',
+          endsAt: '2026-06-17T10:30:00.000Z',
+        },
+      ],
     });
 
     renderWithIntl(
@@ -402,7 +411,13 @@ describe('RescheduleBookingPage — injected confirm (the "Reservas a resolver" 
     vi.mocked(fetchBookingAvailability).mockResolvedValue({
       date: '2026-06-17',
       available: true,
-      slots: [{ startsAt: '2026-06-17T11:00:00.000Z', endsAt: '2026-06-17T11:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-17T11:00:00.000Z',
+          appointmentEndsAt: '2026-06-17T11:30:00.000Z',
+          endsAt: '2026-06-17T11:30:00.000Z',
+        },
+      ],
     });
     renderWithIntl(
       <RescheduleBookingPage

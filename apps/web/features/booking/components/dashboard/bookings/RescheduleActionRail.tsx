@@ -91,7 +91,7 @@ export function RescheduleActionRail({
                 {selectedSlot
                   ? formatRangeLine(
                       new Date(selectedSlot.startsAt),
-                      new Date(selectedSlot.endsAt),
+                      new Date(selectedSlot.appointmentEndsAt),
                       formatDateLong,
                       formatTime,
                     )

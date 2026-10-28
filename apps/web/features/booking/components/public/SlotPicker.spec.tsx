@@ -33,8 +33,16 @@ describe('SlotPicker', () => {
       date: '2026-06-15',
       available: true,
       slots: [
-        { startsAt: '2026-06-15T09:00:00.000Z', endsAt: '2026-06-15T09:30:00.000Z' },
-        { startsAt: '2026-06-15T15:00:00.000Z', endsAt: '2026-06-15T15:30:00.000Z' },
+        {
+          startsAt: '2026-06-15T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T09:30:00.000Z',
+          endsAt: '2026-06-15T09:30:00.000Z',
+        },
+        {
+          startsAt: '2026-06-15T15:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T15:30:00.000Z',
+          endsAt: '2026-06-15T15:30:00.000Z',
+        },
       ],
     });
 
@@ -60,7 +68,13 @@ describe('SlotPicker', () => {
     vi.mocked(fetchAvailability).mockResolvedValue({
       date: '2026-06-15',
       available: true,
-      slots: [{ startsAt: '2026-06-15T09:00:00.000Z', endsAt: '2026-06-15T09:30:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-15T09:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T09:30:00.000Z',
+          endsAt: '2026-06-15T09:30:00.000Z',
+        },
+      ],
     });
 
     renderWithIntl(
@@ -97,7 +111,13 @@ describe('SlotPicker', () => {
     const availability: AvailabilityResponse = {
       date: '2026-06-15',
       available: true,
-      slots: [{ startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-15T12:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+          endsAt: '2026-06-15T13:00:00.000Z',
+        },
+      ],
     };
     vi.mocked(fetchAvailability).mockResolvedValue(availability);
 
@@ -113,6 +133,40 @@ describe('SlotPicker', () => {
 
     expect(await screen.findByText('09:00–10:00')).toBeInTheDocument();
   });
+
+  describe.each([['hotsite' as const], ['dashboard' as const]])(
+    'appointment end (%s variant)',
+    (variant) => {
+      it('labels the slot with appointmentEndsAt and never shows the buffer-inclusive end', async () => {
+        // 50-minute service, 10-minute buffer: appointment 09:00–09:50, reserved through 10:00.
+        vi.mocked(fetchAvailability).mockResolvedValue({
+          date: '2026-06-15',
+          available: true,
+          slots: [
+            {
+              startsAt: '2026-06-15T12:00:00.000Z',
+              appointmentEndsAt: '2026-06-15T12:50:00.000Z',
+              endsAt: '2026-06-15T13:00:00.000Z',
+            },
+          ],
+        });
+
+        renderWithIntl(
+          <SlotPicker
+            slug="lavacar-beloauto"
+            serviceIds={['svc-1']}
+            date="2026-06-15"
+            selectedSlot={null}
+            onSelectSlot={vi.fn()}
+            variant={variant}
+          />,
+        );
+
+        expect(await screen.findByText('09:00–09:50')).toBeInTheDocument();
+        expect(screen.queryByText(/10:00/)).not.toBeInTheDocument();
+      });
+    },
+  );
 
   it('shows a pt-BR empty state when there are no slots', async () => {
     vi.mocked(fetchAvailability).mockResolvedValue({
@@ -158,7 +212,11 @@ describe('SlotPicker', () => {
 
   it('calls onSelectSlot when a slot button is clicked', async () => {
     const user = userEvent.setup();
-    const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+    const slot = {
+      startsAt: '2026-06-15T12:00:00.000Z',
+      appointmentEndsAt: '2026-06-15T12:50:00.000Z',
+      endsAt: '2026-06-15T13:00:00.000Z',
+    };
     vi.mocked(fetchAvailability).mockResolvedValue({
       date: '2026-06-15',
       available: true,
@@ -176,13 +234,17 @@ describe('SlotPicker', () => {
       />,
     );
 
-    await user.click(await screen.findByText('09:00–10:00'));
+    await user.click(await screen.findByText('09:00–09:50'));
 
     expect(onSelectSlot).toHaveBeenCalledWith(slot);
   });
 
   it('marks the selected slot as pressed', async () => {
-    const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+    const slot = {
+      startsAt: '2026-06-15T12:00:00.000Z',
+      appointmentEndsAt: '2026-06-15T12:50:00.000Z',
+      endsAt: '2026-06-15T13:00:00.000Z',
+    };
     vi.mocked(fetchAvailability).mockResolvedValue({
       date: '2026-06-15',
       available: true,
@@ -199,11 +261,15 @@ describe('SlotPicker', () => {
       />,
     );
 
-    expect(await screen.findByText('09:00–10:00')).toHaveAttribute('aria-pressed', 'true');
+    expect(await screen.findByText('09:00–09:50')).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('uses dashboard rounded button styling when requested', async () => {
-    const slot = { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' };
+    const slot = {
+      startsAt: '2026-06-15T12:00:00.000Z',
+      appointmentEndsAt: '2026-06-15T12:50:00.000Z',
+      endsAt: '2026-06-15T13:00:00.000Z',
+    };
     vi.mocked(fetchAvailability).mockResolvedValue({
       date: '2026-06-15',
       available: true,
@@ -221,7 +287,7 @@ describe('SlotPicker', () => {
       />,
     );
 
-    expect(await screen.findByText('09:00–10:00')).toHaveStyle({ borderRadius: '0.75rem' });
+    expect(await screen.findByText('09:00–09:50')).toHaveStyle({ borderRadius: '0.75rem' });
   });
 
   it('shows an error message with a retry button when the fetch fails', async () => {
@@ -247,7 +313,13 @@ describe('SlotPicker', () => {
     vi.mocked(fetchAvailability).mockResolvedValue({
       date: '2026-06-15',
       available: true,
-      slots: [{ startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' }],
+      slots: [
+        {
+          startsAt: '2026-06-15T12:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+          endsAt: '2026-06-15T13:00:00.000Z',
+        },
+      ],
     });
     const pick = (resourceId: string) => [
       { serviceId: 'svc-1', legIndex: null, resourceType: 'STAFF' as const, resourceId },
@@ -281,8 +353,16 @@ describe('SlotPicker', () => {
       date: '2026-06-15',
       available: true,
       slots: [
-        { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' },
-        { startsAt: '2026-06-15T14:00:00.000Z', endsAt: '2026-06-15T15:00:00.000Z' },
+        {
+          startsAt: '2026-06-15T12:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+          endsAt: '2026-06-15T13:00:00.000Z',
+        },
+        {
+          startsAt: '2026-06-15T14:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T15:00:00.000Z',
+          endsAt: '2026-06-15T15:00:00.000Z',
+        },
       ],
     });
 
@@ -307,8 +387,16 @@ describe('SlotPicker', () => {
       date: '2026-06-15',
       available: true,
       slots: [
-        { startsAt: '2026-06-15T07:00:00.000Z', endsAt: '2026-06-15T08:00:00.000Z' },
-        { startsAt: '2026-06-15T12:00:00.000Z', endsAt: '2026-06-15T13:00:00.000Z' },
+        {
+          startsAt: '2026-06-15T07:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T08:00:00.000Z',
+          endsAt: '2026-06-15T08:00:00.000Z',
+        },
+        {
+          startsAt: '2026-06-15T12:00:00.000Z',
+          appointmentEndsAt: '2026-06-15T13:00:00.000Z',
+          endsAt: '2026-06-15T13:00:00.000Z',
+        },
       ],
     });
 

@@ -11,8 +11,16 @@ const DATE = '2026-06-01';
 const mockAvailability: AvailabilityResponse = {
   date: DATE,
   slots: [
-    { startsAt: `${DATE}T12:00:00.000Z`, endsAt: `${DATE}T13:00:00.000Z` },
-    { startsAt: `${DATE}T12:30:00.000Z`, endsAt: `${DATE}T13:30:00.000Z` },
+    {
+      startsAt: `${DATE}T12:00:00.000Z`,
+      appointmentEndsAt: `${DATE}T13:00:00.000Z`,
+      endsAt: `${DATE}T13:00:00.000Z`,
+    },
+    {
+      startsAt: `${DATE}T12:30:00.000Z`,
+      appointmentEndsAt: `${DATE}T13:30:00.000Z`,
+      endsAt: `${DATE}T13:30:00.000Z`,
+    },
   ],
   available: true,
 };

@@ -97,8 +97,9 @@ GET /schedule/availability
   Header: X-Tenant-Slug: {slug}
 
 Response: AvailabilityResponse
-  { date: string; slots: { startsAt: string; endsAt: string }[]; available: boolean }
+  { date: string; slots: { startsAt: string; appointmentEndsAt: string; endsAt: string }[]; available: boolean }
 ```
+Slot button label = `startsAt–appointmentEndsAt` (start + the service durations), e.g. `09:00–09:50`. `endsAt` additionally includes the service's trailing buffer: it is the window held, internal, and never rendered (TD51-S01).
 
 **State (in `BookingForm`):**
 - `selectedDate: string | null`
@@ -374,6 +375,7 @@ Summary banner on any failure: `data-testid="intake-error-summary"`, `role="aler
 - **One row per line, one total.** Total = fixed prices + the quoted amount of the variable line (the "a partir de" form only before a duration is chosen). Duration = the sum of the line durations; a journey counts its legs **plus the transitions between them** (90 + 15 = 105 min).
 - **Back-to-back from the chosen slot, in basket (`serviceIds`) order** — the backend's cursor. A journey that is not the first line starts when the previous lines end, so its leg times are the line start plus offsets, not the slot plus offsets.
 - **Per-line time ranges appear only when the basket contains a journey**; a multi-line basket without one keeps today's price-and-duration rows and one start time (`04i`).
+- **Date line is always a range (TD51-S01).** The summary card (Step 3), the review/confirmation (Step 4) and the success box show `{date} · {start} – {appointment end}` — the slot's `appointmentEndsAt`, or for a journey the end of its last leg — never `às {start}` alone, so it matches the slot button the guest picked and never includes the service's trailing buffer.
 - **Chosen duration and own picks on every row:** a variable-duration line always shows its chosen duration (a bare duration, or inside the range when the basket has a journey), and a flat or bundle line names the customer's own picks — on the summary card and the confirmation alike.
 - **Names:** before booking only the customer's own picks are named (`04g`/`10c`/`04i`); after booking every assigned resource from the response is named, automatic rooms included, a fungible pool never (`04h`).
 - **Step counts** (no intake): fixed + journey = 6 (`04g`); journey + variable duration = 7 (`10c`, `03e`, `04h`); bundle + fixed = 5 (`04i`).
