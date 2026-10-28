@@ -179,7 +179,7 @@ Auth: Bearer JWT (the tenant comes from the JWT)
 Body (optional): { scheduledAt?: string /* ISO datetime — approve at an alternative slot */ }   // ApproveBookingBodySchema, defaults to {}
 
 → 200: { id, status: 'APPROVED', approvedAt }
-→ 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }
+→ 409 (no suggestions in the body: the web loads adjacent slots from GET /schedule/availability and passes { startsAt, appointmentEndsAt, endsAt }[] to SlotConflictAlert, which shows appointmentEndsAt)
 ```
 
 ### Reject (M125-S05)
@@ -217,7 +217,7 @@ Auth: Bearer JWT (the tenant comes from the JWT)
 Body: { scheduledAt: string /* ISO8601 */, adminNotes?: string }
 
 → 200: { id, status: 'APPROVED', scheduledAt }
-→ 409: SlotConflictError { message, suggestions: { startsAt, endsAt }[] }   // same shape as approve's 409
+→ 409 (same handling as approve's 409)
 ```
 Booking status does **not** change — stays `APPROVED`. `adminNotes` is freeform (not auto-generated — see `docs/USE_CASES.md` UC-008 A1, fixed in the 2026-06-16 UC audit).
 
