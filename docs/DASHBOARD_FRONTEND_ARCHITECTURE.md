@@ -194,6 +194,14 @@ The image is built from the repository's digest-pinned Node 22 Alpine base. Its 
 | `BFF_UPSTREAM_URL` | `https://bff.<ikaro-domain>/v1` | Server-only absolute BFF base; never exposed to browser code |
 | `NODE_ENV` | `production` | |
 | `PORT` | `3000` | Cloud Run sets this automatically |
+| `APP_ENV` | `production` | Environment tier (`local` by default); set by Terraform on the web service |
+| `NEXT_PUBLIC_SITE_URL` | `https://<ikaro-domain>` | Public base URL for canonical URLs, Open Graph tags, JSON-LD and `sitemap.xml`; injected at request time like `NEXT_PUBLIC_BFF_URL` (`shared/lib/runtime-env/public-env.ts`) |
+| `NEXT_PUBLIC_HOTSITE_IMAGE_BASE_URL` | public image bucket origin | Origin only: feeds `next/image` `remotePatterns` and the CSP `img-src`. The web never composes an image URL with it |
+| `NEXT_PUBLIC_TURNSTILE_SITE_KEY` | Cloudflare Turnstile site key | Mounted by the public lead-form page's widget |
+| `WEB_INTERNAL_KEY` | Secret Manager secret | Shared secret sent as `X-Web-Internal-Key` on every BFF call (`shared/lib/api/bff-transport-headers.ts`); required in every environment, identical to the BFF's |
+| `JWT_SECRET` | Secret Manager secret | Verifies the access-token cookie in `proxy.ts` and the signed guest info-request token on `/bookings/:id/submit-info`; same value the BFF and backend sign with |
+| `HOTSITE_REVALIDATE_SECRET` | Secret Manager secret | Authorises `app/api/revalidate/route.ts`; same value as the backend's |
+| `BFF_AUTH_MODE`, `BFF_AUDIENCE` | Cloud Run env | `BFF_AUTH_MODE` is `none` (default) or `iam`, and `getBffAuthMode()` throws when `NODE_ENV=production` and it is not `iam`; in `iam` mode web attaches a Google ID token to every BFF call, with `BFF_AUDIENCE` as an optional audience override (default: the origin of `BFF_UPSTREAM_URL`). Terraform sets `iam` on the staging web service (`envs/staging/main.tf`) |
 
 **Gateway:** `app/v1/[...path]/route.ts` forwards `/v1/*` to `BFF_UPSTREAM_URL`; no Next.js rewrite or browser-visible BFF host is used.
 

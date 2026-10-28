@@ -67,7 +67,7 @@ Full contract: `docs/API_CONTRACTS.md` § Lead Form Admin Config.
 
 | Field | Rule | Error message |
 |---|---|---|
-| `title` / `ctaLabel` | min 1 char | "Informe o título." / "Informe o texto do botão." |
+| `title` / `ctaLabel` | min 1 char | No inline message ships for these two teaser fields: neither string below exists in `packages/i18n/locales/*/web.json`, and `LeadFormConfigPanel`/`LeadFormTeaserFields` show no teaser-field error. (Original prototype wording: "Informe o título." / "Informe o texto do botão.") |
 | a question's `label` | min 1 char | "Informe o texto da pergunta." |
 | a choice-type question's `options` | 2-10 entries | "Adicione entre 2 e 10 opções." |
 | adding a 21st question | blocked, button disabled | "Você atingiu o limite de 20 perguntas." |

@@ -21,7 +21,7 @@
 | `submit-booking-info.use-case.ts` | `SubmitBookingInfoUseCase` | INFO_REQUESTED | PENDING | `BookingInfoSubmitted` |
 | `submit-guest-booking-info.use-case.ts` | `SubmitGuestBookingInfoUseCase` | INFO_REQUESTED | PENDING | `BookingInfoSubmitted` |
 | `list-bookings.use-case.ts` | `ListBookingsUseCase` | read-only | — | — |
-| `get-booking.use-case.ts` | `GetBookingUseCase` | read-only | — | — |
+| `get-booking.use-case.ts` (now `get-booking-by-id.use-case.ts`) | `GetBookingUseCase` (now `GetBookingByIdUseCase`) | read-only | — | — |
 
 ### DTOs (`application/dtos/`)
 
@@ -107,7 +107,7 @@ All state-transition use cases call `booking.approve/reject/requestMoreInfo/subm
 Otherwise (`CUSTOMER`) → `customerId = actorId` (sees own bookings only).  
 This logic lives in the use case, not the controller or repository.
 
-### 4. Customer ownership check in GetBookingUseCase
+### 4. Customer ownership check in GetBookingUseCase (now `GetBookingByIdUseCase`)
 Customer accessing another customer's booking gets `BookingNotFoundError` (404), not `BookingForbiddenError` (403). This is intentional — avoids leaking booking existence to other customers.
 
 ### 5. Guest submit-info: contactEmail from token, not request body

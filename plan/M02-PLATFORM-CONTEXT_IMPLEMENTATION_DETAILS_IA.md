@@ -245,11 +245,11 @@ pnpm --filter @ikaro/backend run lint
 
 | Topic | Where |
 |---|---|
-| No DATABASE_URL anti-pattern | CLAUDE.md §8 |
-| forRootAsync timing | CLAUDE.md §8 |
-| REST Client `{{varName}}` syntax | CLAUDE.md §8 |
-| No barrel index.ts in ports/ | CLAUDE.md §7 + §8 |
-| No exported repository tokens | CLAUDE.md §8 |
-| mapXxxError helper pattern | CLAUDE.md §7 + §8 |
+| No DATABASE_URL anti-pattern | `docs/ANTI_PATTERNS.md` |
+| forRootAsync timing | `docs/ANTI_PATTERNS.md` |
+| REST Client `{{varName}}` syntax | `docs/ANTI_PATTERNS.md` |
+| No barrel index.ts in ports/ | `docs/ANTI_PATTERNS.md` |
+| No exported repository tokens | `docs/ANTI_PATTERNS.md` |
+| mapXxxError helper pattern | `docs/ANTI_PATTERNS.md` |
 | ManagerRoleGuard enforcement | M03-AUTHENTICATION.md §M03-S05 |
 | X-Actor-* identity headers | CLAUDE.md §2 invariant #11 |

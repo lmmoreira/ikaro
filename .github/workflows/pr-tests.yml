@@ -803,7 +803,8 @@ jobs:
   # ---------------------------------------------------------------------
   # Single consolidating gate (2026-07-23) replacing 9 individually-listed
   # branch-protection required checks (Backend/Backend Integration Unit
-  # Tests, Gitleaks, Snyk SCA, Trivy x3, Checkov, SonarCloud). CORRECTED
+  # Tests, Gitleaks, Snyk SCA [since moved to weekly-jobs.yml], Trivy x3,
+  # Checkov, SonarCloud). CORRECTED
   # framing (2026-07-23, cross-tool review + direct verification against
   # GitHub's documented behavior): a required check reporting "skipped"
   # DOES satisfy branch protection — same as "success" — so those 6

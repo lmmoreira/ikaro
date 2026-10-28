@@ -187,8 +187,8 @@ The original plan specified a CLI command. Replaced with a REST endpoint for pro
 **What is deferred from this story:**
 - First MANAGER staff creation → **M04-S06** (Staff context doesn't exist yet; triggered asynchronously via `TenantProvisioned` event)
 - Invitation email → **M11** (triggered via `StaffInvited` published by M04-S06)
-- Cloud Armor + Cloud IAP security hardening → **M15-S12**
-- Rate limiting on `/internal/tenants` → **M16-S07**
+- Cloud Armor + Cloud IAP security hardening → **M15-S12** (old numbering; cut — see `plan/M17-CLOUD-DEPLOY.md` D4, backend is internal-ingress only)
+- Rate limiting on `/internal/tenants` → **M16-S07** (old numbering; M14–M16 were folded into M17. M17-S30's discovery dropped the backend `POST /internal/tenants` rate limit: the endpoint is never routed through the BFF and sits behind IAM, `INTERNAL_API_KEY` and `PLATFORM_ADMIN_KEY`)
 
 **What to create:**
 

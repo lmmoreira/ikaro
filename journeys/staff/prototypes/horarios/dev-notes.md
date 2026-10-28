@@ -76,7 +76,7 @@ GET /v1/bookings?status=APPROVED&from=YYYY-MM-DD&to=YYYY-MM-DD
 - Show slots from `businessHours[dayOfWeek].open` to `businessHours[dayOfWeek].close`
 - For normally-closed days (`business_hours[dayOfWeek] = null`): show empty state + "Abrir dia especial" CTA
 - For days with a `ScheduleOpening`: show green opening window rows; rows outside the opening = grey
-- Slot height: fixed `3rem` per 30-min slot (`slot_granularity_minutes`)
+- Slot height: 72px per 30-min slot (`getSlotHeight` in `schedule-timeline-formatting.ts`; raised from 48 by TD44 Story 5 — see below), scaling with `slot_granularity_minutes`
 - Booking blocks: blue left border + `--ba-secondary` background; link to `/dashboard/bookings/[id]`
 - Closure blocks: grey hatch (`repeating-linear-gradient 135deg`) + grey left border; onclick opens `RemoveClosureDialog`
 - If a booking falls inside a closure window: orange tint + warning icon (UC-010a A4)

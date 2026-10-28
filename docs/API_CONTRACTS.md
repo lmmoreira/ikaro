@@ -61,7 +61,7 @@ The BFF's own `GET /bookings` request takes `page` (default 1) and `limit` (defa
 
 #### **Pattern B — Offset-based, `items` key, with `nextOffset`**
 
-Used by `GET /staff` (BFF-side `StaffItemListResponse` in `apps/bff/src/features/staff/staff.types.ts`, mapped to `StaffListResponse` from `@ikaro/types`, `packages/types/src/staff.dto.ts`).
+Used by `GET /staff` (BFF-side `StaffItemListResponse` in `apps/bff/src/features/staff/staff.types.ts`, mapped to `StaffListResponse` from `@ikaro/types`, `packages/types/src/staff.dto.ts`). The BFF's `limit` defaults to 50 (`offset` to 0) when omitted (`apps/bff/src/features/staff/staff.controller.ts`); the example below passes `limit=25` explicitly.
 
 ```
 GET /staff?limit=25&offset=0

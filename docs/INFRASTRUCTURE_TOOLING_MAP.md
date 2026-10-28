@@ -47,7 +47,7 @@ There is no maintained GCE observability VM, Grafana/Loki Compose stack, or `pnp
 
 ## Local development
 
-Docker Compose (`docker/docker-compose.yml`, started with `pnpm infra:up`) provides the local dependencies: PostgreSQL, the Pub/Sub emulator, the GCS emulator and MailHog. `pnpm infra:up` then runs `pnpm hotsite-templates:seed`, which uploads the template catalogue's images to the GCS emulator's public bucket (the emulator keeps nothing across restarts, and `db:seed` never touches storage). Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/OBSERVABILITY_STRATEGY.md`.
+Docker Compose (`docker/docker-compose.yml`, started with `pnpm infra:up`) provides the local dependencies: PostgreSQL, the Pub/Sub emulator, the GCS emulator and MailHog. `pnpm infra:up` then runs `pnpm hotsite-templates:seed`, which uploads the template catalogue's images to the GCS emulator's public bucket (the emulator keeps nothing across restarts, and `db:seed` never touches storage). Application services normally run through repository scripts. Local setup belongs in `README.md`; telemetry-specific local guidance is in `docs/OBSERVABILITY_STRATEGY.md`. For a per-story Playwright run use `pnpm infra:e2e` / `pnpm infra:e2e:down` instead of `infra:up`: it runs only from a git worktree under `.claude/worktrees/` and wipes the compose volume that `infra:up` also uses (`docs/TESTING_STRATEGY.md` § Running Playwright locally).
 
 ## Related documents
 

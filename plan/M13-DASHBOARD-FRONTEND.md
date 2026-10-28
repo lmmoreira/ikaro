@@ -3,7 +3,7 @@
 **Phase:** Local Development
 **Goal:** Staff have a functional command center to manage bookings, services, schedule, and loyalty. Managers additionally run team, settings, and hotsite administration. Customers have a portal to view bookings, loyalty, and switch tenants. Guests can respond to info requests via a standalone link. All pages connect to the local BFF and are protected by the JWT auth flow from M03.
 **Depends on:** M02 (Platform context), M03 (auth/JWT), M04 (staff aggregate), M05 (service aggregate), M08 (booking backend), M09 (cancellation/reschedule backend), M10 (loyalty backend), M12 (hotsite frontend foundation), M115 (production readiness baseline)
-**Blocks:** M16 (E2E tests cover dashboard flows)
+**Blocks:** M17 (formerly M16; E2E tests cover dashboard flows)
 
 ## Supersession note
 

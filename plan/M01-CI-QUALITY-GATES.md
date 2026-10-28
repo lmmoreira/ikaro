@@ -3,7 +3,7 @@
 **Phase:** Local Development (GitHub Actions — free tier, no cloud deploys)  
 **Goal:** Every pull request is automatically validated before merge. No human reviewer needs to catch lint errors, type errors, failing tests, or leaked secrets — the pipeline does it.  
 **Depends on:** M00  
-**Blocks:** M15 (deploy pipelines build on top of these gates)
+**Blocks:** M17 (formerly M15; deploy pipelines build on top of these gates)
 
 ---
 

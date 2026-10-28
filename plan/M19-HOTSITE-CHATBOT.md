@@ -2,7 +2,7 @@
 
 **Phase:** Local Development
 **Goal:** Add an LLM-backed FAQ chatbot widget to the public hotsite, scoped to each tenant's own business data — informational only (never confirms/creates/modifies a booking, never accesses customer/staff/booking records), with a ten-layer cost/abuse-prevention design and a swappable multi-provider LLM adapter (OpenRouter primary + Anthropic + OpenAI).
-**Depends on:** M12 (Hotsite Frontend — module rendering/manifest pattern), M13 (Dashboard Frontend — per-module config panel pattern, tenant settings form pattern), M15/M17 (GCP Infrastructure — Secret Manager + Cloud Scheduler modules, reused not rebuilt)
+**Depends on:** M12 (Hotsite Frontend — module rendering/manifest pattern), M13 (Dashboard Frontend — per-module config panel pattern, tenant settings form pattern), M17 (GCP Infrastructure — Secret Manager + Cloud Scheduler modules, reused not rebuilt)
 **Blocks:** none yet
 **Design rationale:** `docs/USE_CASES.md` UC-033–UC-036 (promoted via `/discovery-to-milestone` on 2026-08-08) — kept as the permanent *why*; this file and the canonical docs it cites (`docs/USE_CASES.md` UC-033–UC-036 + UC-026/UC-027 extensions, `docs/DOMAIN_MODEL.md`, `docs/BOUNDED_CONTEXTS.md`, `docs/DATABASE_SCHEMA.md`, `docs/API_CONTRACTS.md`, `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, `docs/TENANTS_SETTINGS_SCHEMA.md` §7) are the source of truth for implementation — nothing below should require opening the discovery doc to understand.
 
@@ -558,4 +558,4 @@ Originally drafted as "add 2 env vars + 2 Pub/Sub topics + 2 Cloud Scheduler job
 
 ---
 
-**Status:** Drafted — ready for `/story-discovery M19-S01`, the first story in Wave 0.
+**Status:** Complete — all 14 stories ✅ Done.

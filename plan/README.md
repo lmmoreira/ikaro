@@ -81,10 +81,11 @@ Each story in the milestone files tags the agent type required. Quick reference:
 |-----------|-------------|
 | `backend-ts` | NestJS, TypeORM, domain layer, use cases, event handlers, migrations |
 | `bff-ts` | NestJS BFF, OAuth, JWT, guards, interceptors, HTTP proxy to backend |
-| `frontend-ts` | Next.js 14, React 18, shadcn/ui, TanStack Query, Tailwind |
+| `frontend-ts` | Next.js 16, React 19, shadcn/ui, TanStack Query, Tailwind |
+| `web-ts` | Same scope as `frontend-ts` (both target `apps/web`; see `docs/STORY_SCHEMA.md`) |
 | `devops` | GitHub Actions YAML, Docker Compose, Terraform, GCP CLI |
 | `fullstack-ts` | Spans backend + BFF + frontend for a single vertical slice |
-| `test-ts` | Jest, Testcontainers, Playwright, tenant-isolation patterns |
+| `test-ts` | Jest, Testcontainers, Playwright, tenant-isolation patterns (legacy tag — not in `docs/STORY_SCHEMA.md`'s Agent set; new stories use the layer's tag) |
 
 ---
 

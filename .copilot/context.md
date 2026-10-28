@@ -69,14 +69,14 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 
 | Context | Type | Aggregates |
 |---|---|---|
-| **Booking** | Core | `Booking`, `Service`, `ScheduleClosure`, `ScheduleOpening`, `Resource` (M21) |
+| **Booking** | Core | `Booking`, `Service`, `Resource`, schedule/recurrence/alert aggregates |
 | **Customer** | Supporting | `Customer` (multi-tenant rows) |
 | **Staff** | Supporting | `Staff` (multi-tenant rows) |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` |
-| **Platform** | Foundational | `Tenant`, `HotsiteConfig` |
+| **Platform** | Foundational | `Tenant`, `HotsiteConfig`, lead-form, chatbot |
 
-These 5 names (`booking`, `customer`, `staff`, `loyalty`, `platform`) are also the canonical `features/` slice names in the BFF and web — see §11.
+These 5 names + `auth` are the BFF/web `features/` slices (§11). All aggregates: `docs/BOUNDED_CONTEXTS.md`.
 
 → Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/BOUNDED_CONTEXTS.md`
 
@@ -200,7 +200,7 @@ If a design keeps needing new safeguards or caveats as it's developed (e.g. "thi
 - **An E2E test computing "today" itself must match the app's own tenant-timezone computation, not the runner's clock** — they diverge for hours daily. → `docs/ENGINEERING_RULES_TESTING.md` § An E2E test that computes "today"
 - **A fixed-time-slot booking fixture on a shared/reused tenant needs a retry-on-conflict loop — or, check first, no booking at all.** → `docs/ENGINEERING_RULES_TESTING.md` § A fixed-time-slot booking fixture
 - **`scrollIntoView({ block: 'start' })` on a zero-height marker element is a fragile edge case for Playwright's `toBeInViewport()`** — use `block: 'center'`. → `docs/ENGINEERING_RULES_TESTING.md` § `scrollIntoView({ block: 'start' })`
-- **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-uuidv7-default`); every TypeORM entity needs a builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named `{ClassName}Input`/`{ClassName}Result` (`use-case-input-naming`, `use-case-result-naming`) — `ClassName` includes the `UseCase` suffix (`GetFooUseCaseInput`, never `GetFooInput`); BFF response types/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, not inline in the controller (`bff-controller-inline-type`); never stub a port-typed constructor param with `jest.fn()` — use an `InMemoryXxx` double (`no-jest-fn-for-repository-or-port`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`); this file itself is guarded (deleted gate, broken pointer, PR#/ISO-date literal, section budget, divergent `CLAUDE.md`/`AGENTS.md`/`gemini.md` symlink) (`agent-context-file`).
+- **CI-enforced by `architecture-check` detectors not otherwise mentioned in this file:** every TypeORM UUID-PK entity's builder must default to `uuidv7()` (`entity-builder-pk-uuidv7-default`); every TypeORM entity needs a builder in `src/test/builders/<context>/` (`test-builder-coverage`); a use case's `execute()` input/output types must be named `{ClassName}Input`/`{ClassName}Result` (`use-case-input-naming`, `use-case-result-naming`) — `ClassName` includes the `UseCase` suffix (`GetFooUseCaseInput`, never `GetFooInput`); BFF response types/Zod schemas live in sibling `.types.ts`/`.schemas.ts`, not inline in the controller (`bff-controller-inline-type`); never stub a port-typed constructor param with `jest.fn()` — use an `InMemoryXxx` double (`no-jest-fn-for-repository-or-port`); VO normalization-reachability and closed-enum mirror consistency (`vo-construction-validation`, `closed-enum-registry`); domain-error → HTTP mapping and `instanceof` safety (`error-mapper-coverage`, `shared-vo-error-mapper-coverage`, `error-prototype-chain`); shared VOs over primitive aggregate fields (`aggregate-primitive-vo`); the integration test-data harness in sync with entities/migrations (`test-harness-registration`); every lock port method catalogued in `docs/LOCK_CATALOG.md` (`lock-catalog-coverage`); resource occupancy released only through its choke point (`occupancy-release-choke-point`); doc pointers and the `When to load`/`Tags` header (`doc-link-integrity`, `doc-orientation`); this file itself is guarded (deleted gate, broken pointer, PR#/ISO-date literal, section budget, divergent `CLAUDE.md`/`AGENTS.md`/`gemini.md` symlink) (`agent-context-file`).
 
 ### BFF naming & transport
 

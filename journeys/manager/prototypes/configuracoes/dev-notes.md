@@ -42,6 +42,8 @@ PATCH /tenants/settings    // -> validates + updates tenants.settings + tenants.
 
 `Nome do estabelecimento` and `Slug` are `tenants` table columns, not part of the `settings` JSONB — everything else (cancellation window, buffer, loyalty expiry, business hours, business_info) lives in `settings`. UC-026 step 5 confirms the save updates both `tenants.settings` *and* `tenants.name` in one request. The form should hide this split from the admin; the BFF/backend already accept a combined payload.
 
+> **As built:** `PATCH /v1/tenants/settings` accepts only `{ settings }` (strict schema). The establishment name is saved by a separate `PATCH /v1/tenants` (`{ name }`, MANAGER only) through `renameTenant`; `SettingsForm` issues both calls. The `name?` field in the shape below was the original design.
+
 ```typescript
 interface UpdateTenantSettingsDto {
   name?: string;                         // tenants.name (not in settings JSONB)
@@ -113,7 +115,7 @@ interface UpdateTenantSettingsDto {
 **Validation:**
 | Field | Rule | Error message |
 |---|---|---|
-| `chatbot.knowledgeText` | optional string, max `maxKnowledgeTextLength` (4000 chars, tenant-overridable but not exposed in this form) | `400` — "O texto de conhecimento não pode ultrapassar 4000 caracteres." (exact copy TBD, confirm at story-discovery) |
+| `chatbot.knowledgeText` | optional string, max `maxKnowledgeTextLength` (4000 chars, tenant-overridable but not exposed in this form) | `400` — "O texto de conhecimento do assistente excede o limite de caracteres permitido." (`PLATFORM_SETTINGS_CHATBOT_KNOWLEDGE_TEXT_TOO_LONG`, `packages/i18n/locales/pt-BR/errors.json`) |
 
 **Deliberately absent from this form:** the 8 volume/cost caps (`maxConversationsPerDay`, etc.) and
 `llmProvider`/`llmModel` — fixed platform defaults, Ikaro-only per-tenant override, never accepted

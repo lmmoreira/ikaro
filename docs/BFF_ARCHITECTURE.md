@@ -65,6 +65,8 @@ apps/bff/src/
 
 **Frontend fetchers (`apps/web/features/<domain>/api/<name>.ts` or `apps/web/shells/<surface>/...`) mirror the BFF feature slice name** they call — e.g. `features/platform/hotsite/api/services.ts` ↔ `platform.public.controller.ts`.
 
+### Web-facing composite views
+
 **Web-facing composite views belong in the BFF, not in `apps/web`.** If a dashboard screen needs multiple backend reads, response merging, or display shaping across endpoints, expose one BFF contract that owns that fan-out and aggregation. Pages, route files, and feature helpers in `apps/web` should consume a single BFF response and render it; they should not orchestrate multiple BFF calls and merge the results themselves.
 
 ### Canonical Config And Settings Reads
@@ -466,7 +468,7 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 
 | Variable | Source | Description |
 |---|---|---|
-| `NODE_ENV` | Cloud Run env | `development` \| `staging` \| `production` |
+| `NODE_ENV` | Cloud Run env | `development` (default) \| `staging` \| `production` \| `test` |
 | `APP_ENV` | Cloud Run env | `local` (default) \| `staging` \| `production` — separate from `NODE_ENV`; `ENABLE_DEV_AUTH=true` is refused when `APP_ENV=production` |
 | `PORT` | Cloud Run env | `3002` (local) — Cloud Run sets this automatically |
 | `BACKEND_INTERNAL_URL` | Cloud Run env | Internal Cloud Run URL of the backend service (e.g. `https://ikaro-backend-xyz-uc.a.run.app`) |
@@ -482,7 +484,12 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | `BACKEND_AUTH_MODE` | Cloud Run env | `none` (default) \| `iam`; must be `iam` when `NODE_ENV=production` |
 | `BACKEND_AUDIENCE` | Cloud Run env | Optional URL used as the identity-token audience when `BACKEND_AUTH_MODE=iam` (defaults to the backend URL) |
 | `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | Not Terraform-set | Falls back to the hardcoded `http://localhost:4318/v1/traces` (`otel-tracing.ts`) — correct because the otel-collector sidecar (M17-S34) shares this instance's network namespace |
+| `LOG_LEVEL` | Cloud Run env | `DEBUG` \| `INFO` (default) \| `WARN` \| `ERROR` \| `VERBOSE` |
+| `LOG_VENDOR` | Cloud Run env | `gcp` (default, Cloud Logging format — `packages/observability/src/gcp-log-vendor-formatter.ts`) \| `none` |
+| `GCP_PROJECT` | Cloud Run env | Optional GCP project id; Terraform sets it on `ikaro-bff` in both environments |
+| `OTEL_TRACES_SAMPLER_ARG` | Cloud Run env | Trace sampling ratio, 0–1, default `1.0`; prod sets `0.1` on `ikaro-bff` |
+| `OTEL_SDK_DISABLED` | Cloud Run env | Optional. Unset: disabled when `APP_ENV=local`, enabled on staging/production. Set: only the exact string `true` disables (`packages/observability/src/otel-sdk-disabled.ts`) |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Not Terraform-set | Falls back to the hardcoded `http://localhost:4318/v1/traces` (`packages/observability/src/otel-tracing.ts`; the env schema's own default is the bare `http://localhost:4318`) — correct because the otel-collector sidecar (M17-S34) shares this instance's network namespace |
 | `SERVICE_NAME` | Not Terraform-set | Falls back to the literal `'ikaro-bff'` passed into `bootstrapTracing('ikaro-bff')` (`apps/bff/src/tracing.ts`) |
 
 **Local `.env.local` values:**

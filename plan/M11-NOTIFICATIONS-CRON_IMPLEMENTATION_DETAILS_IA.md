@@ -17,7 +17,7 @@
 | `IEmailSender` port | `contexts/notification/application/ports/email-sender.port.ts` |
 | `INotificationTemplateRepository` port | `contexts/notification/application/ports/notification-template-repository.port.ts` |
 | `INotificationLogRepository` port | `contexts/notification/application/ports/notification-log-repository.port.ts` |
-| `INotificationProcessedEventRepository` port | `contexts/notification/application/ports/processed-event-repository.port.ts` |
+| `INotificationProcessedEventRepository` port (historical — replaced by the shared `IInboxRepository`, `shared/ports/inbox.port.ts`, TD24-S04) | `contexts/notification/application/ports/processed-event-repository.port.ts` |
 | `EmailDeliveryChannelAdapter` | `contexts/notification/infrastructure/delivery/email-delivery-channel.adapter.ts` |
 | `MailhogEmailAdapter` | `contexts/notification/infrastructure/delivery/mailhog-email.adapter.ts` |
 | `BrevoEmailAdapter` (originally planned as `SendGridEmailAdapter` — never implemented; Brevo SMTP is the production adapter) | `contexts/notification/infrastructure/delivery/brevo-email.adapter.ts` |
@@ -27,7 +27,7 @@
 | `SeedDefaultTemplatesUseCase` | `contexts/notification/application/use-cases/seed-default-templates/seed-default-templates.use-case.ts` |
 | `TypeOrmNotificationLogRepository` | `contexts/notification/infrastructure/repositories/typeorm-notification-log.repository.ts` |
 | `TypeOrmNotificationTemplateRepository` | `contexts/notification/infrastructure/repositories/typeorm-notification-template.repository.ts` |
-| `TypeOrmProcessedEventRepository` | `contexts/notification/infrastructure/repositories/typeorm-processed-event.repository.ts` |
+| `TypeOrmProcessedEventRepository` (historical — replaced by the shared inbox, TD24-S04) | `contexts/notification/infrastructure/repositories/typeorm-processed-event.repository.ts` |
 | `createNotificationIntegrationApp()` | `src/test/utils/notification-integration-app.ts` |
 | `InMemoryNotificationDispatcher` | `src/test/infrastructure/in-memory-notification-dispatcher.ts` |
 | `InMemoryNotificationTemplateRepository` | `src/test/repositories/notification/in-memory-notification-template.repository.ts` |

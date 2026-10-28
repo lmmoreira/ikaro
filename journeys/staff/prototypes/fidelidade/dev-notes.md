@@ -41,7 +41,9 @@ Response: CustomerSearchListResponse { items: [{ customerId, name, email, phone,
 **Route:** `/dashboard/loyalty/[customerId]` — **path segment, not `?customerId=`** (an earlier draft of this journey assumed a query param; corrected 2026-07-31). Active tab is a query param: `?tab=redemptions` (default `entries`, omitted from the URL).
 **File:** `apps/web/app/dashboard/loyalty/[customerId]/page.tsx` + `features/loyalty/components/dashboard/CustomerLoyaltyPage.tsx`
 
-**BFF calls (all in parallel on mount):**
+> **As built:** the detail page's server component makes one composite call, `GET /v1/customers/:customerId/loyalty` (`loyalty.controller.ts`), and the BFF fans out to the customer, balance, entries and redemptions (page 1, limit 20). The per-endpoint calls below are what "Carregar mais" uses (`dashboard-api.ts`).
+
+**BFF calls (the loyalty endpoints the composite fans out to):**
 ```
 GET /v1/customers/:customerId/loyalty/balance
   → { currentPoints: number, nextExpiryDate: string|null, nextExpiryPoints: number|null }

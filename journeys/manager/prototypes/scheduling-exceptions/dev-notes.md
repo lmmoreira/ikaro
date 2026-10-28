@@ -80,7 +80,7 @@ POST /v1/scheduling-exceptions/dismiss      (exists in the API; NOT called by th
 
 Cards are the queue's `BookingCard` shape, grouped by the unavailable resource with `BookingQueueSection`'s header. Row actions: **Reatribuir** (primary), **Reagendar** (APPROVED only, secondary), **Cancelar** (secondary). There is deliberately no Manter / Dispensar — see § Why no Manter / Dispensar.
 
-- Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 compromissos"), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
+- Entries are grouped by the resource that became unavailable ("Camila ficou indisponível · 3 reservas" — `groupTitle` + `groupCount`), with a per-group "Selecionar todos". Grouping key: the entry's `sourceId` (the deactivated resource).
 - Each row: checkbox, date/time and service names, contact name, the current resource, a status badge (`Confirmada` = `APPROVED`, `Pendente` = `PENDING`/`INFO_REQUESTED`), the stored alternative ("Juliana Prado está livre neste horário") or "Sem alternativa compatível", and per-row actions.
 - **Reagendar is enabled only for a confirmed booking** and only when exactly one entry is in play (disabled with a tooltip in a row that is pending, and in the bulk bar).
 - Selecting one or more rows shows the fixed selection bar (`01b`): "N selecionados · Reatribuir · Cancelar"; on mobile it sits above the bottom nav, which stays. A hint in the bar says Reagendar is one entry at a time.
@@ -105,7 +105,7 @@ Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with
 | Reassign / cancel reason | optional | — |
 | Reschedule new time | required, one option picked | "Escolha um novo horário." |
 
-**Error messages (pt-BR, exact):** fetch error "Não foi possível carregar os compromissos. Verifique sua conexão e tente novamente." · submit error "Não foi possível concluir. Nenhuma reserva foi alterada. Tente novamente em instantes." · partial "N compromisso(s) resolvido(s) · M continua(m) aberto(s)".
+**Error messages (pt-BR, as shipped — `dashboard.schedulingExceptionsPage` in `packages/i18n/locales/pt-BR/web.json`):** fetch error (`loadError`) "Não foi possível carregar as reservas" · submit error (`submitErrorBody`) "Nenhuma reserva foi alterada. Sua seleção foi mantida — tente novamente em instantes." · partial result: an ICU plural `resultResolved` ("# reserva resolvida" / "# reservas resolvidas") plus `resultBody` ("Cada reserva foi tratada por conta própria. As resolvidas saíram da lista; as que continuam abertas precisam de uma nova decisão."). The prototype screens still draw the earlier "compromissos" wording.
 
 **Mobile notes:** the bulk bar is sticky at the bottom of the list; rows stack; per-row actions wrap. The prototype is a single responsive layout — no separate mobile screens.
 

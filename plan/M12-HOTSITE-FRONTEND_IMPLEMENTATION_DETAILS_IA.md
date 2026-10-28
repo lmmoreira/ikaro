@@ -30,9 +30,9 @@
 | `IHotsiteConfigRepository` port | `application/ports/hotsite-config-repository.port.ts` |
 | `ITenantRepository` port | `application/ports/tenant-repository.port.ts` |
 | `IFrontendRevalidationPort` | `application/ports/frontend-revalidation.port.ts` |
-| `IBookingLookupPort` (cross-context) | `application/ports/platform-booking.port.ts` |
+| `IBookingLookupPort` (cross-context; historical — removed, `FeatureBookingPhotoUseCase` now depends only on `IStorageService`) | `application/ports/platform-booking.port.ts` |
 | `FrontendRevalidationAdapter` | `infrastructure/adapters/frontend-revalidation.adapter.ts` |
-| `BookingLookupAdapter` (cross-context, injects `BookingQueryService`) | `infrastructure/cross-context/platform-booking.adapter.ts` |
+| `BookingLookupAdapter` (cross-context, injects `BookingQueryService`; historical — removed with the port) | `infrastructure/cross-context/platform-booking.adapter.ts` |
 | `HotsiteController` (public manifest) | `infrastructure/controllers/hotsite.controller.ts` |
 | `HotsiteAdminController` | `infrastructure/controllers/hotsite-admin.controller.ts` |
 | `InternalTenantController` / `InternalTenantReadController` | `infrastructure/controllers/internal-tenant{,-read}.controller.ts` |
@@ -170,7 +170,7 @@ Unset → `--ba-btn-hover-bg` defaults to `--ba-btn-bg` for `filled` (no-op hove
 
 - `IStorageService` (shared port) gains `getPublicUrl(storagePath)` (pure template, no API call) and `copy(sourcePath, destinationPath)` (server-side `file.copy()`, private → public bucket).
 - `GenerateHotsiteImageSignedUrlUseCase` issues upload URLs **against the public bucket** — the single point deciding "hotsite images live in the public bucket."
-- `FeatureBookingPhotoUseCase` (`POST /v1/tenants/hotsite/gallery/feature-booking-photo`, `MANAGER` only) — loads booking via `IBookingLookupPort` (`{ id, customerId, beforeServicePhotoUrls, afterServicePhotoUrls } | null`), derives `photoType` **server-side** by checking which list contains `photoUrl` (not in either → `400`), copies to `tenants/<tenantId>/hotsite/gallery/<uuid>/<fileName>` in the public bucket, returns `{ filePath, url, photoType }`.
+- `FeatureBookingPhotoUseCase` (`POST /v1/tenants/hotsite/gallery/feature-booking-photo`, `MANAGER` only) — loads booking via `IBookingLookupPort` (historical — the port was removed; the use case now takes only `IStorageService`) (`{ id, customerId, beforeServicePhotoUrls, afterServicePhotoUrls } | null`), derives `photoType` **server-side** by checking which list contains `photoUrl` (not in either → `400`), copies to `tenants/<tenantId>/hotsite/gallery/<uuid>/<fileName>` in the public bucket, returns `{ filePath, url, photoType }`.
 - `GalleryImage` gains `source: 'booking' | 'upload'`, `bookingId?`, `photoType?: 'before' | 'after'` (JSONB `data` field — no migration). `UpdateHotsiteContentUseCase.exists()` validates all gallery images against the public bucket uniformly regardless of `source`.
 
 ---

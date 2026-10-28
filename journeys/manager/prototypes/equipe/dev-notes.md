@@ -85,7 +85,7 @@ The "Desativar" action must not render on the logged-in admin's own row (compare
 
 | HTTP status | Scenario | UI response |
 |---|---|---|
-| `409` | Email already has an active staff record (UC-028 A1) | `email` field: red border + "Este e-mail já está cadastrado na sua equipe." — `02b-invite-error.html` |
+| `409` | Email already has an active staff record (UC-028 A1) | `email` field: red border + "Já existe um membro da equipe com este e-mail neste estabelecimento." (`STAFF_ALREADY_EXISTS`) — `02b-invite-error.html` |
 | — | Email has an inactive record (UC-028 A2) | Silently reactivates; same success toast as a new invite — no distinct screen needed |
 | `403` | Self-deactivation attempt (UC-029 A1) | `03b-deactivate-self-error.html` |
 | `409` | Last active MANAGER (UC-029 A2) | `03c-deactivate-lastmanager-error.html` |

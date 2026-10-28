@@ -185,7 +185,8 @@ await drainDomainEvents(aggregate, this.outboxPublisher);
 
 A context with no audit handler yet adds a small `extends AuditLogHandlerBase` class (`src/shared/infrastructure/audit-log/`, which owns the constructor, logger and `handle()`), registers it in its module, and imports `AuditLogModule` there. `AuditLogModule` is deliberately **not** `@Global()` — see `docs/ANTI_PATTERNS.md`. The detector fails CI for any `DomainEvent` class without the subscription, so forgetting step 1 is a red build, not a latent production bug. The consumer only logs the envelope fields (never `event.data`) and claims the `eventId` in `shared.inbox`; it is not a persisted audit trail. Commands and `cron-*` triggers are not covered — they register their own `subscribe()`/`registerTrigger()`.
 
-**Adding a cron-published event:**
+### Adding a cron-published event
+
 1. The event class extends `Command` (`shared/domain/command.ts`), not `DomainEvent` — a cron tick can legitimately construct the same business fact twice (retry, overlapping invocation), and `Command`'s required `dedupKey: string` is what the outbox's `UNIQUE(dedup_key)` collapses those duplicates down to one row on. Compute a deterministic key from business identity + a calendar date (tenant-local or UTC, whichever the job already computes for its own query window) — never a fresh UUID.
 2. The job injects `@Inject(OUTBOX_PUBLISHER) private readonly outboxPublisher: IOutboxPublisher` and `@Inject(TRANSACTION_MANAGER) private readonly txManager: ITransactionManager` — never `EVENT_BUS`.
 3. Resolve any cross-context reads (recipient lookups, settings lookups) **before** entering `txManager.run()` — the same "reads before writes" convention as everywhere else. Only the `outboxPublisher.publish()` calls belong inside the transaction.

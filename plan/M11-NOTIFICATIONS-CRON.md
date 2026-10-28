@@ -3,7 +3,7 @@
 **Phase:** Local Development  
 **Goal:** The Notification context is fully implemented: per-tenant email templates in pt-BR, complete NotificationLog audit trail, SendGrid adapter (with MailHog for local dev), event idempotency table, and all cron reminder jobs. Customers receive day-before and day-of reminders; admins receive a daily schedule digest; customers receive loyalty expiry warnings.  
 **Depends on:** M10 (all booking events exist), M04-S05 (Notification bootstrap), M02-S06 (tenant settings)  
-**Blocks:** M13 (dashboard notification history page), M15 (SendGrid API key in Secret Manager)
+**Blocks:** M13 (dashboard notification history page), M17 (formerly M15; the email provider's API key in Secret Manager — Brevo is the production adapter, not SendGrid)
 
 ---
 

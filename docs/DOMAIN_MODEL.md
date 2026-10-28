@@ -1087,7 +1087,7 @@ Customer {
   tenantId:       TenantId
   googleOAuthId:  String (unique from Google)
   email:          Email
-  phone:          Phone
+  phone:          Phone | null   -- nullable: collected later (UC-021 A3); the `phone` column in DATABASE_SCHEMA is NULLABLE
   name:           String
   defaultAddress: Address | null   -- optional; pre-fills both contactAddress and pickupAddress on the booking form.
                                    -- The booking always stores its own copy — this is convenience only.
@@ -1412,7 +1412,7 @@ Enum: `GUEST | CUSTOMER`
 Configurable **per tenant** via `tenants.settings.loyalty.expiryDays` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
 
 When a `LoyaltyEntry`'s `expiresAt` passes:
-- The entry stops contributing to active balance (query-time filter — nothing is mutated).
+- The entry stops contributing to active balance. The entry row itself is never mutated (append-only); the daily `ExpirePointsJob` (`contexts/loyalty/application/jobs/expire-points.job.ts`) decrements the `LoyaltyBalance` and records the entry in `loyalty.balance_expiry_log` so it is processed once.
 - No event is emitted. Customers are warned **in advance** via the weekly `PointsExpiringSoon` cron (see `NotifyExpiringPointsJob`, `contexts/loyalty/application/jobs/notify-expiring-points.job.ts`).
 
 > The previous `LoyaltyStatus` enum (`BRONZE / SILVER / GOLD`) has been removed. The admin reads raw active-point totals and decides when to offer rewards — there is no automated tier in MVP.

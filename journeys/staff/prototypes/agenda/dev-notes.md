@@ -335,8 +335,9 @@ These `tokens.css` classes do not exist in production — map them as follows:
 | `.status-badge.status-info` | shadcn `<Badge className="bg-blue-100 text-blue-800">` |
 | `.status-badge.status-approved` | shadcn `<Badge className="bg-green-100 text-green-800">` |
 | `.status-badge.status-rejected` | shadcn `<Badge className="bg-red-100 text-red-800">` |
-| `.status-badge.status-cancelled` | shadcn `<Badge className="bg-red-100 text-red-800">` |
+| `.status-badge.status-cancelled` | shadcn `<Badge className="bg-gray-100 text-gray-600">` (`booking-status.ts`; the prototype's `.status-cancelled` is red, the shipped badge is gray) |
 | `.status-badge.status-completed` | shadcn `<Badge className="bg-slate-100 text-slate-600">` |
+| `.status-badge.status-no-show` | shadcn `<Badge className="bg-violet-100 text-violet-800">` (`booking-status.ts`; `tokens.css` `.status-no-show`) |
 | `.role-badge-manager` | shadcn `<Badge variant="secondary">` |
 
 > **Note:** `status-info` is the single class for `INFO_REQUESTED` everywhere (queue cards, detail badge, success banners). An earlier draft of `01d-info-success.html` used a one-off `status-info-requested` class that was never defined in `tokens.css` — fixed to reuse `status-info`. Likewise `status-completed` replaces three ad-hoc inline-style instances of the same colors in `customer-dashboard.html` and `minha-conta/*.html`.

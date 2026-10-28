@@ -11,12 +11,12 @@
 | `LoyaltyRedemption` aggregate | `apps/backend/src/contexts/loyalty/domain/loyalty-redemption.aggregate.ts` |
 | Domain errors | `apps/backend/src/contexts/loyalty/domain/errors/loyalty-domain.error.ts` |
 | `ServicePointsEarned` event | `apps/backend/src/contexts/loyalty/domain/events/service-points-earned.event.ts` |
-| `RecordLoyaltyEntriesUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/record-loyalty-entries/` |
+| `RecordLoyaltyEntriesUseCase` (historical — replaced by `CompleteBookingLoyaltyEffectsUseCase`, `.../use-cases/complete-booking-loyalty-effects/`) | `apps/backend/src/contexts/loyalty/application/use-cases/record-loyalty-entries/` |
 | `GetLoyaltyBalanceUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/get-loyalty-balance/` |
 | `GetLoyaltyEntriesUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/get-loyalty-entries/` |
 | `GetLoyaltyRedemptionsUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/get-loyalty-redemptions/` |
 | `RedeemPointsUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/redeem-points/` |
-| `ExpirePointsUseCase` | `apps/backend/src/contexts/loyalty/application/use-cases/expire-points/` |
+| `ExpirePointsUseCase` (historical — now `ExpirePointsJob`, `.../loyalty/application/jobs/expire-points.job.ts`) | `apps/backend/src/contexts/loyalty/application/use-cases/expire-points/` |
 | `LoyaltyController` (tenant-scoped) | `apps/backend/src/contexts/loyalty/infrastructure/controllers/loyalty.controller.ts` |
 | `CronLoyaltyController` (expiry trigger) | `apps/backend/src/contexts/loyalty/infrastructure/controllers/cron-loyalty.controller.ts` |
 | `BookingCompletedHandler` | `apps/backend/src/contexts/loyalty/infrastructure/events/booking-completed.handler.ts` |
@@ -99,7 +99,7 @@ Pub/Sub consumer idempotency now lives in the shared `shared.inbox` table instea
 ## Structural Decisions
 
 ### LoyaltyBalance is a running total — never SUM entries
-`loyalty_balances.current_points` is the authoritative balance. It is incremented on earn (`RecordLoyaltyEntriesUseCase`), decremented on redemption (`RedeemPointsUseCase`) and expiry (`ExpirePointsUseCase`). Never compute balance via `SUM(loyalty_entries.points)` — O(n) and ignores redemptions.
+`loyalty_balances.current_points` is the authoritative balance. It is incremented on earn (`RecordLoyaltyEntriesUseCase`, now `CompleteBookingLoyaltyEffectsUseCase`), decremented on redemption (`RedeemPointsUseCase`) and expiry (`ExpirePointsUseCase`, now `ExpirePointsJob`). Never compute balance via `SUM(loyalty_entries.points)` — O(n) and ignores redemptions.
 
 ### Points expiry via HTTP trigger, not @Cron
 `POST /cron/loyalty-expiry` is called by GCP Cloud Scheduler at 02:00 UTC daily. `@nestjs/schedule` / `@Cron` not used. Reason: Cloud Run scales to zero (in-process cron never fires); multi-pod would duplicate. One HTTP request → one pod handles it. Controller is `CronLoyaltyController` — no TenantContext, no guard in MVP (M115-S03 adds `CronAuthGuard` with OIDC token).

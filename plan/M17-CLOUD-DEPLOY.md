@@ -5,6 +5,8 @@
 **Depends on:** M13 (dashboard frontend complete)
 **Supersedes:** M14, M15, M16 (all stories reconciled against the implemented codebase as of 2026-07-07 and merged here; the original files have since been deleted and stay recoverable from git history)
 
+> **Note:** this milestone predates `docs/STORY_SCHEMA.md`. Its stories use a single `**Acceptance criteria:**` block, put `**Dependencies:**` at the end, and carry no `**Pattern:**` or `**Files to create/modify:**` fields. `/story-discovery` writes those fields into a story before it is implemented; until then `/run-batch` cannot file-overlap-check an M17 story.
+
 ---
 
 ## 0. Decisions Log (agreed 2026-07-07 — do not re-litigate; raise a doc bug if code contradicts these)

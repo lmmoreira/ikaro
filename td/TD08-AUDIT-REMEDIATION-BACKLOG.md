@@ -746,7 +746,7 @@ The test's teardown list was asymmetric with its own setup (3 seeded tenants, on
 Extract one `cleanupFixtures()` helper (deletes `ServiceResourceRequirementEntity` → `ServiceEntity` → `ResourceEntity` → `TenantEntity`, in FK-safe order, scoped to all 3 fixture tenant IDs via `In(...)`) and call it both at the top of `beforeAll` (self-heals any leftover state from a prior incomplete run, regardless of cause) and as the entirety of `afterAll`'s cleanup (wrapped in `try/finally` so `app.close()` always runs even if a future schema change reintroduces a delete-order bug). This closes the bug class at its root — the test can no longer end a run in a state its own next run can't cleanly recover from — without touching CI's container-reuse setting, which is an intentional speed optimization elsewhere.
 
 **Files to create/modify:**
-- `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts`
+- `apps/backend/src/contexts/booking/infrastructure/backfill-service-resource-requirements-and-buffer.integration.spec.ts` (since removed)
 
 **Acceptance criteria — product:**
 - [x] N/A — internal test-infra fix, no user-observable behavior.
@@ -796,17 +796,17 @@ Also remove the `@types/nodemailer` devDependency (`apps/backend/package.json:36
 - `apps/backend/src/contexts/notification/infrastructure/delivery/brevo-email.adapter.spec.ts` (verify passes unchanged)
 
 **Acceptance criteria — product:**
-- [ ] N/A — internal dependency/security fix, no user-observable behavior change.
+- [x] N/A — internal dependency/security fix, no user-observable behavior change.
 
 **Acceptance criteria — technical:**
 - Unit:
-  - [ ] `mailhog-email.adapter.spec.ts` and `brevo-email.adapter.spec.ts` pass unchanged against `nodemailer@^10.0.10`
+  - [x] `mailhog-email.adapter.spec.ts` and `brevo-email.adapter.spec.ts` pass unchanged against `nodemailer@^10.0.10`
 - Integration: none — the email adapters have no `.integration.spec.ts` tier; existing unit specs already exercise the real nodemailer `Transporter` API surface
 - Tenant isolation: n/a — no tenant-scoped code touched
 - E2E: none — not applicable
-- [ ] Coverage ≥80% on changed code — n/a, no application logic changed, dependency bump only
-- [ ] `tsc --noEmit` clean, lint clean
-- [ ] `pnpm why nodemailer` resolves only `>=10.0.2` (no stale 9.x left anywhere in the tree)
+- [x] Coverage ≥80% on changed code — n/a, no application logic changed, dependency bump only
+- [x] `tsc --noEmit` clean, lint clean
+- [x] `pnpm why nodemailer` resolves only `>=10.0.2` (no stale 9.x left anywhere in the tree)
 - [ ] Aikido dashboard (or an equivalent scan) confirms both AIKIDO-2026-645479 and AIKIDO-2026-52490 close
 
 **Notes for the implementing agent**

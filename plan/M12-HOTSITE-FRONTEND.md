@@ -3,7 +3,7 @@
 **Phase:** Local Development  
 **Goal:** Every tenant has a public-facing website at `http://localhost:3000/[slug]` with their branding, a list of services, and a complete booking form flow. The frontend is driven by a server-side manifest so layout changes don't require code deployments.  
 **Depends on:** M07-S04 (guest booking endpoint), M05-S05 (public services list), M06-S04 (availability endpoint), M02 (hotsite manifest API), M115-S01 (GCS signed-URL upload — required for admin image uploads in M12-S02)  
-**Blocks:** M13 (dashboard includes hotsite manager), M16 (E2E tests include hotsite flow)
+**Blocks:** M13 (dashboard includes hotsite manager), M17 (formerly M16; E2E tests include hotsite flow)
 
 ---
 

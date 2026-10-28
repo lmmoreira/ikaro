@@ -63,7 +63,7 @@ journeys/
 
 ### Why MANAGER, not ADMIN
 
-`docs/USE_CASES.md` uses "Admin" loosely to mean "Staff or Manager." The system has exactly two staff-side JWT roles (CLAUDE.md §1): `STAFF` and `MANAGER`. `MANAGER` is a **superset** — everything `STAFF` can do, plus settings/team/hotsite management.
+`docs/USE_CASES.md` uses "Admin" loosely to mean "Staff or Manager." The system has exactly two staff-side JWT roles (`docs/BUSINESS_CONTEXT.md` § Target Users): `STAFF` and `MANAGER`. `MANAGER` is a **superset** — everything `STAFF` can do, plus settings/team/hotsite management.
 
 - A journey belongs in `staff/` if both `STAFF` and `MANAGER` can perform it.
 - A journey belongs in `manager/` only if the use case explicitly restricts it to the `MANAGER` role.
@@ -329,7 +329,7 @@ Each screen file must follow this structure:
 
   <!--
     COMPONENT: <ComponentName>
-    FILE:      apps/web/components/<path>/<ComponentName>.tsx  (EXISTS | GAP)
+    FILE:      apps/web/features/<domain>/components/<ComponentName>.tsx  (EXISTS | GAP)
     PROPS:     ...
     BFF CALL:  METHOD /endpoint  (if applicable)
   -->
@@ -454,8 +454,8 @@ This file is the bridge between prototype and implementation. A future agent rea
 
 | File | Status | Action |
 |---|---|---|
-| `apps/web/components/booking/Foo.tsx` | ✅ EXISTS | No changes |
-| `apps/web/components/booking/Bar.tsx` | ❌ Gap | Create — step 3 |
+| `apps/web/features/booking/components/Foo.tsx` | ✅ EXISTS | No changes |
+| `apps/web/features/booking/components/Bar.tsx` | ❌ Gap | Create — step 3 |
 
 ## Screen N — <Name> (`<ComponentName>`)
 

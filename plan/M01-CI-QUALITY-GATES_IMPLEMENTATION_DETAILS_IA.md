@@ -208,7 +208,7 @@ File: `.githooks/pre-push`
 Runs: `pnpm ci:fast`  
 Activation (one-time per developer): `git config core.hooksPath .githooks`
 
-The hook is not activated automatically — developers must run the git config command once. Check CLAUDE.md §15 item 12 for the reminder.
+The hook is not activated automatically — developers must run the git config command once. (The reminder now lives in the root `README.md`: "Enable the pre-push hook once".)
 
 ---
 
