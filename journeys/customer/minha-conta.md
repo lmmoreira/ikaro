@@ -2,8 +2,8 @@
 
 **Actor(s):** CUSTOMER  
 **Goal:** Logged-in customer views their booking history, checks loyalty balance, and cancels eligible bookings — all scoped to the current tenant  
-**UCs covered:** UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule about to end shipped in `M23-S41`, behind `M23-S21`'s `renewable` flag) · UC-076 (✅ Done — M23 Cluster 3, availability alerts: list, detail and cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
-**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is partly built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`/`S22`, alert creation `M23-S31` in the booking flow; the alerts management pages `M23-S43` and the Início tiles and "Renovar" card `M23-S41` are too) and the M24 Cluster 4 extension is not, see the ❓ GAP sections in `dev-notes.md`.
+**UCs covered:** UC-121 (planned Billing extension, appended section), UC-006, UC-007, UC-016 (balance summary + full breakdown), UC-023 (trigger), UC-005 A2 (authenticated customer path) — all ✅ Done · UC-069 (✅ Done — M23 Cluster 3, customer reschedule, `M23-S30`) · UC-070 (✅ Done — M23 Cluster 3: management `M23-S12`, creation `M23-S17`, renewal of an ended schedule `M23-S22`; services with no resource requirement or only the default location can recur from `TD49-S03`, and a staff + room bundle from `TD49` Stories 0 to 2; the "Renovar" on a schedule about to end shipped in `M23-S41`, behind `M23-S21`'s `renewable` flag) · UC-076 (✅ Done — M23 Cluster 3, availability alerts: list, detail and cancel `M23-S43`, creation `M23-S31`) · UC-089, UC-091, UC-094, UC-095, UC-102 (❓ Gap — M24 Cluster 4, class-session enrollment management)
+**Status:** Base flow implemented via `M13-S27`–`M13-S30` (all ✅ Done). M23 Cluster 3 is built (reschedule `M23-S30`, recurring reservations `M23-S12`/`S17`/`S22`, alert creation `M23-S31` in the booking flow; the alerts management pages `M23-S43` and the Início tiles and "Renovar" card `M23-S41` are too); only the M24 Cluster 4 extension (Turmas) is not built, see its ❓ GAP section in `dev-notes.md`.
 
 ## Flow
 
@@ -16,8 +16,8 @@ flowchart TD
     BookingConfirm["/{slug}/booking<br/>Confirmação (UC-002 step 10)"] -->|"'Ver meus agendamentos'"| MinhaConta
     InfoEmail["E-mail de info solicitada<br/>(UC-005 main flow)"] -->|"Link direto → detalhe"| Detail
 
-    MinhaConta["/{slug}/my-account<br/>Minha Conta"] --> LoyaltySummary["Cartão: pontos ativos + próxima expiração<br/>GET /v1/loyalty/balance"]
-    LoyaltySummary -->|"Toca cartão"| LoyaltyFull["/{slug}/my-account/loyalty<br/>Minha Fidelidade (UC-016)"]
+    MinhaConta["/{slug}/my-account/bookings<br/>Minha Conta — Agendamentos"] -->|"Aba Fidelidade"| LoyaltyFull["/{slug}/my-account/loyalty<br/>Minha Fidelidade (UC-016)<br/>GET /v1/loyalty/balance"]
+    Inicio["/{slug}/my-account<br/>Início (HomeDashboard)"] --> MinhaConta
     MinhaConta --> AvatarMenu(("Avatar dropdown"))
     AvatarMenu -->|"'Trocar empresa'<br/>(2+ tenants apenas)"| SwitchTenant["/switch-tenant<br/>POST /v1/auth/switch-tenant"]
     SwitchTenant -->|"Sucesso"| NewTenant["Hotsite nova empresa"]
@@ -40,10 +40,10 @@ flowchart TD
     InfoSubmit -->|"200 → status volta a PENDING"| Detail
 
     CancelPage -->|"Confirma"| CancelCall(("PATCH /v1/bookings/:id/cancel"))
-    CancelCall -->|"200 → status CANCELLED"| MinhaConta
+    CancelCall -->|"200 → status CANCELLED"| Inicio
     CancelCall -->|"422 fora da janela (APPROVED)"| CancelError["Página de erro dedicada (.../cancel/error):<br/>'Cancelamento fora do prazo'"]
 
-    class Hotsite,BookingConfirm,MinhaConta,Detail,CancelPage,LoyaltyFull,SwitchTenant,NewTenant existing
+    class Hotsite,BookingConfirm,Inicio,MinhaConta,Detail,CancelPage,LoyaltyFull,SwitchTenant,NewTenant existing
 ```
 
 ## Pages referenced
@@ -89,10 +89,10 @@ Cancel button visibility for **Próximos** (APPROVED): hidden with note when `sc
 
 ## Open questions / gaps
 
-- [ ] **"Total washes completed" + "Most recently completed service" (UC-006 step 6):** `GET /v1/loyalty/balance` returns only `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. Neither "total washes" nor "last service" is available from this endpoint. Options: (a) add fields to balance endpoint, (b) derive from `GET /v1/loyalty/entries` pagination `total` + first entry's `serviceName`, (c) drop from MVP minha-conta. Decide before `M13-S27` starts.
+- [x] **"Total washes completed" + "Most recently completed service" (UC-006 step 6) — closed (2026-10-09):** the points strip left the Agendamentos list, so neither field is shown there; the story is ✅ Done. Original question: `GET /v1/loyalty/balance` returns only `{ currentPoints, nextExpiryDate, nextExpiryPoints }`. Neither "total washes" nor "last service" is available from this endpoint. Options: (a) add fields to balance endpoint, (b) derive from `GET /v1/loyalty/entries` pagination `total` + first entry's `serviceName`, (c) drop from MVP minha-conta. Decide before `M13-S27` starts.
 - [x] **`CustomerBookingListResponse` DTO missing from `packages/types/src/`:** — **Resolved.** It now exists at `packages/types/src/booking.dto.ts` (`CustomerBookingListResponse`).
 - [x] **UC-005 A2 scope:** should the info submission form live in this journey's detail page or a separate journey? Recommendation: include it inline in `M13-S28` (detail page) since the customer reaches it from "My Bookings" — it's not a separate navigation destination. — **Resolved.** It is inline: `InfoSubmitForm` is rendered by `BookingDetailPage`.
-- [x] **Post-cancel destination:** after successful cancel from the detail page, navigate back to `/{slug}/my-account` list (recommended) or show inline CANCELLED state on the detail page and let the customer navigate back manually? — **Resolved.** Redirects to the my-account list, implemented in `M13-S28`.
+- [x] **Post-cancel destination:** after successful cancel from the detail page, navigate back to `/{slug}/my-account` list (recommended) or show inline CANCELLED state on the detail page and let the customer navigate back manually? — **Resolved.** Redirects to `returnTo` or, by default, `/{slug}/my-account` (Início, which previews only upcoming and pending bookings — the cancelled booking is listed under Histórico on Agendamentos), implemented in `M13-S28`.
 - [x] **Empty state CTA (UC-006 A1):** when customer has no bookings, what does the CTA say? "Fazer um agendamento" → `/{slug}/booking`? — **Resolved.** The CTA reads "Fazer agendamento" (`customer.emptyState.cta`) and links to `/{slug}/booking` (`BookingEmptyState.tsx`).
 - [x] **`GET /v1/bookings` query params for customer:** the existing endpoint accepts `status` filter. Should the frontend call it once (all statuses) and split client-side, or call it three times (one per section)? Single call + client split is simpler. — **Resolved.** One call with every status and `limit=50` (`fetchCustomerBookings`), split client-side by `splitBookingSections()`.
 - [x] **Pagination:** UC-006 doesn't specify pagination behaviour. The backend supports `limit`/`offset`. — **Resolved.** `limit=50`, no infinite scroll, implemented in `M13-S27`.
@@ -197,6 +197,41 @@ flowchart TD
 
 **Resolved at `/story-discovery M23-S30` (2026-10-07):** the customer booking read carries a server-resolved `reschedule` block (kept picks, availability pins, effective window, `eligibleUntil`) — a backend/BFF change in the same story; the booking's own current window shows as unavailable in the slot list (public availability reads, same as the staff reschedule); the S33 window errors show in `15k`; the `BookingRescheduled` customer email exists. Details: `customer/prototypes/minha-conta/dev-notes.md` § Reagendar.
 
+## Billing — tenant suspended (planned, UC-121)
+
+> Added for the planned Billing milestone (`docs/USE_CASES.md` UC-121). The shipped flows above are unchanged; this describes how the same account pages behave while the tenant is `SUSPENDED`. **Status: Draft — not yet built.** The screens were drawn during the tenant-billing discovery and moved here as `16`, `16b` and `16c` (`14` and `15` were taken by the recurring-reservation and reschedule screens).
+
+```mermaid
+flowchart TD
+    classDef existing fill:#e6ffe6,stroke:#3a3
+    classDef gap stroke:#f00,stroke-dasharray: 5 5,fill:#fee
+
+    Login(["Customer signs in (never blocked)"]) --> List["✅ /{slug}/my-account/bookings<br/>❓ GAP: 'Empresa inativa' badge on open bookings<br/>(16-agendamentos-empresa-inativa)"]
+    List -->|"history row"| Hist["✅ Booking detail (COMPLETED, CANCELLED, REJECTED, NO_SHOW)"]
+    List -->|"open row"| Blocked["❓ GAP: BookingBlockedNotice — 403 BILLING_TENANT_SUSPENDED<br/>(16b-detalhe-bloqueado)"]
+    List -->|"Novo agendamento (disabled)"| NewBlocked["❓ GAP: new booking refused — 403 BILLING_TENANT_SUSPENDED<br/>(16c-novo-agendamento-bloqueado)"]
+    List -->|"cancel a future booking"| Cancel["✅ existing cancel flow stays allowed"]
+
+    class Login,Hist,Cancel existing
+    class List,Blocked,NewBlocked gap
+```
+
+**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links; history stays linked to its detail page; "Novo agendamento" is rendered disabled; rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, is not reachable while suspended); cancelling an existing future booking stays allowed. The loyalty page is read-only: balance and history are visible, earning and redemption are blocked. The customer-safe `tenantOperational` flag (route decided at story discovery) drives the badge. Two policies are named open items of UC-121, decided in the Loyalty and Booking stories: pausing the loyalty expiry clock while suspended, and a reason-neutral email to customers with approved future bookings.
+
+| Page / Route | Component | Story | Status |
+|---|---|---|---|
+| `/{slug}/my-account/bookings` | booking list rows with the "Empresa inativa" badge (`tenantOperational` prop) | planned Billing milestone | ❓ Gap (list exists) |
+| `/{slug}/my-account/bookings/:id` (open booking) | `BookingBlockedNotice` | planned Billing milestone | ❓ Gap (route exists) |
+| `/{slug}/booking` (suspended) | variant of `BookingBlockedNotice` | planned Billing milestone | ❓ Gap (route exists) |
+
+| File | Screen | UC | Story | Status |
+|---|---|---|---|---|
+| `16-agendamentos-empresa-inativa.html` | Account list with the "Empresa inativa" badge, history visible | UC-121 | planned Billing milestone | ❓ Draft |
+| `16b-detalhe-bloqueado.html` | An open booking's detail is blocked (opened from the list, or by direct URL — UC-121 A1) | UC-121, A1 | planned Billing milestone | ❓ Draft |
+| `16c-novo-agendamento-bloqueado.html` | A new booking is blocked (the disabled "Novo agendamento" button and the refused `/{slug}/booking` request) | UC-121 | planned Billing milestone | ❓ Draft |
+
+---
+
 ## M24 — Multi-Vertical Scheduling, Cluster 4 extension (❓ Gap, not yet built)
 
 > Promoted from `docs/discovery/multivertical-booking/prototype/minha-conta-turmas-journey.md` via `/discovery-to-milestone` — that file already reached implementation-grade rigor during discovery UX work, so this carries its content forward with canonical UC numbers substituted for `CAND-XX`. "Minha Conta" gains a third section — Turmas — alongside the existing Agendamentos and Fidelidade. Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
@@ -246,7 +281,7 @@ POST /v1/class-session-bookings/:id/waitlist-offer/accept|decline     -- UC-091'
 
 ## M23 — Multi-Vertical Scheduling, Cluster 3 extension (recurring reservations ✅ built; availability alerts management ✅ built by M23-S43)
 
-> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and "Meus avisos" — the manager of the customer's availability alerts (UC-076, `M23-S12`). Alert **creation** is not here: it is a page of the booking flow (UC-072, `M23-S31`, `customer/book-a-service.md` § Availability alert page). Full implementation-handoff detail lives in `dev-notes.md`'s own ❓ GAP section — not duplicated here.
+> Promoted from `docs/discovery/multivertical-booking/`. "Minha Conta" gains two new sections: a standing recurring-reservation area (UC-070 — **creating** a schedule and **managing** it) and "Meus avisos" — the manager of the customer's availability alerts (UC-076, `M23-S12`). Alert **creation** is not here: it is a page of the booking flow (UC-072, `M23-S31`, `customer/book-a-service.md` § Availability alert page). Full implementation-handoff detail lives in `dev-notes.md`'s own built M23 sections — not duplicated here.
 >
 > The creation flow (`13`–`13e`, `14`, `14b`, and the re-shelled `06b`/`06c`, plus the proposed `06d`) was added on 2026-09-29 as a deliberately simple first pass, all inside the same account shell `08-turmas-lista.html` uses (Vitta Studio tenant, Agendamentos tab active). Before that, only the post-creation screens existed — nothing collected the pattern itself. Every choice below is a default to be rechecked at story discovery.
 
@@ -311,10 +346,10 @@ POST  /recurring-booking-schedules/:id/end       -- end early (the `…/pause` r
 - [x] **Hours and closures (`06d`) — decided 2026-09-29 in `M23-S18`'s discovery:** creation rejects the whole request with a `409` listing every affected occurrence and why (`OCCUPIED` / `CLOSED` / `OUTSIDE_HOURS`, merged into one list). Because occupancy and hours reasons arrive in one payload, `06b` and `06d` should become **one** screen with a reason label per row — a prototype pass to do before `M23-S17`.
 - [x] **Fixed term — decided 2026-09-29; the prototypes were updated in the same-day prototype pass (`13`, `13b`, `13c`, `13e`, `06`, `06b`, `06c`, `06d`, `14`, `14b`, new `13f`):** a recurring schedule always has an end date, chosen by the customer up to the service's maximum term (90 days by default); every occurrence is checked at creation and created once (immediately, or on staff approval). There is no rolling generation and no open-ended schedule, the screens now show: `13`/`13b` (an end-date field with a "máx. N dias" hint; "sem data final" copy removed), `13c` ("geradas… até 90 dias à frente" and "pode levar alguns minutos" no longer true — the whole term appears immediately), `13e` (states for a missing and an over-cap end date), `06`/`06b`/`06d` (the "geradas até 90 dias" copy), and `14`/`14b` (each row's term "até dd/mm", and an "Encerrada" badge for `ENDED`).
 - [x] **Pause is removed (prototype `06` and `14` no longer draw it):** with every occurrence already a booking, pausing has no effect and nothing can resume it; `M23-S20` deleted the endpoint (the Pause sheet was removed from prototype `06`). Skipping one occurrence and ending the schedule stay.
-- [x] **Renewal (built for ended schedules in `M23-S22`; the running-schedule "Renovar" and the email are still open — see the next item):** a customer who wants to continue after the term creates a new schedule. `M23-S21` sends the reminder email; `M23-S22` adds the "Renovar" button on the list (`14`) and the pre-filled form (`13`, opened by `?renewFrom=<id>`); the POST carries `renewsScheduleId` (the schedule being renewed) with the same service, weekdays, time and duration and a `startsOn` no later than the old `endsOn` + 1 day, which is what exempts it from the minimum-notice and maximum-days checks (`M23-S35`; a request that does not qualify is simply treated as a new schedule). `Começa em` stays editable (minimum today), and the form skips its own minimum-notice/maximum-days check in renewal mode, leaving it to the backend (decided at `M23-S22` discovery, 2026-10-10). `M23-S22` ships "Renovar" on `ENDED` schedules only; the `ACTIVE`-about-to-end "Renovar" (`14`, `06`) moves to `M23-S41`, behind `M23-S21`'s `renewable` flag. The button on `14` and the pre-filled form with its "Renovando sua reserva de …" banner and not-found notice (`13f`) are prototyped; the reminder email (`M23-S21`) has no screen. The "Renovar" visibility rule on an `ACTIVE` schedule is the `renewable` flag from `M23-S21`; recheck it at `/story-discovery M23-S22`.
+- [x] **Renewal (built for ended schedules in `M23-S22`; the running-schedule "Renovar" shipped in `M23-S41` and the email in `M23-S21` — see the next item):** a customer who wants to continue after the term creates a new schedule. `M23-S21` sends the reminder email; `M23-S22` adds the "Renovar" button on the list (`14`) and the pre-filled form (`13`, opened by `?renewFrom=<id>`); the POST carries `renewsScheduleId` (the schedule being renewed) with the same service, weekdays, time and duration and a `startsOn` no later than the old `endsOn` + 1 day, which is what exempts it from the minimum-notice and maximum-days checks (`M23-S35`; a request that does not qualify is simply treated as a new schedule). `Começa em` stays editable (minimum today), and the form skips its own minimum-notice/maximum-days check in renewal mode, leaving it to the backend (decided at `M23-S22` discovery, 2026-10-10). `M23-S22` ships "Renovar" on `ENDED` schedules only; the `ACTIVE`-about-to-end "Renovar" (`14`, `06`) moves to `M23-S41`, behind `M23-S21`'s `renewable` flag. The button on `14` and the pre-filled form with its "Renovando sua reserva de …" banner and not-found notice (`13f`) are prototyped; the reminder email (`M23-S21`) has no screen. The "Renovar" visibility rule on an `ACTIVE` schedule is the `renewable` flag from `M23-S21`; recheck it at `/story-discovery M23-S22`.
 - [x] **"Renovar" on a running schedule about to end, and the reminder email (`M23-S41`, `M23-S21`):** built — they need `M23-S21`'s `renewable` flag on the list item (`14`, `06`, the Início card) and its email, which links to the same `?renewFrom=` URL `M23-S22` shipped.
 - [x] **The form offers the default shape (no requirement, or a stored `NONE` location row), a service with one explicit resource requirement and, since TD49 Story 2, a bundle (several requirements, none with quantity above 1 or legs).** The API has accepted a bundle since TD49 Story 0; the form draws it in `13h` (one pick group per `CUSTOMER_CHOICE` requirement, the automatic requirement as an info line) and `13b#pacote`. The customer's list and detail do not show resources (they never did), and a conflict keeps the standard `06b` message with the dates.
-- [ ] `06`'s production route was proposed as `/my-account/recurring-reservations/[id]`; this journey now uses `/my-account/recurring-schedules/[id]`, matching `M23-S12`'s planned route. A creation has no id, so `06b`/`06c` are states of the `new` route, not of `[id]`.
+- [x] `06`'s production route was proposed as `/my-account/recurring-reservations/[id]`; the built route is `/my-account/recurring-schedules/[id]` (`M23-S12`). A creation has no id, so `06b`/`06c` are states of the `new` route, not of `[id]`.
 
 ### Detalhe completo do agendamento (auditoria de 2026-10-15)
 

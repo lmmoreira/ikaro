@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — GUEST: Hotsite não publicada</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; } h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; } p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; } li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    li a { color: var(--ba-primary); font-weight: 500; } .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-new { background: #fee2e2; color: #dc2626; } .tag-green { background: #dcfce7; color: #15803d; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — GUEST: Hotsite não publicada</h1>
+  <p>O visitante abre qualquer rota pública de um hotsite que não está publicado — o gerente despublicou, a empresa ainda não publicou ou a empresa está suspensa — e vê sempre a mesma página neutra, que nunca diz o motivo e mantém a barra superior com o login da equipe e do cliente. <strong>Draft</strong> (Billing milestone planejado, UC-122); os dados são inventados.</p>
+  <ul>
+    <li><a href="01-page-not-published.html">1 — “Página não publicada” com a barra de login (equipe e cliente)</a><span class="tag tag-new">CHANGED: Unavailable ganha a barra e o texto neutro</span></li>
+    <li><a href="../../../shared/hotsite.html">→ Como o hotsite aparece quando está publicado (referência)</a><span class="tag tag-green">EXISTS</span></li>
+    <li><a href="../../../shared/login.html">→ Entrar (cliente)</a><span class="tag tag-green">EXISTS</span></li>
+    <li><a href="../../../shared/staff-login.html">→ Área da Equipe</a><span class="tag tag-green">EXISTS</span></li>
+  </ul>
+  <hr>
+  <h2 style="font-size:1rem;font-weight:700;">Estados alternativos (unhappy paths)</h2>
+  <p style="font-size:0.875rem;">Esta jornada tem uma única tela e nenhum estado de erro próprio: o mesmo componente cobre despublicação pelo gerente, hotsite nunca publicado e empresa suspensa. Um <em>slug</em> desconhecido é outro caso (<code>app/not-found.tsx</code>, estilo estático da Ikaro) e não tem protótipo aqui.</p>
+  <div class="note">
+    <strong>Checklist de revisão</strong>
+    <ul style="display:block;margin:0.5rem 0 0 1.25rem;list-style:disc;">
+      <li style="display:list-item;">A página nunca menciona suspensão, pagamento ou cancelamento, e é idêntica para qualquer hotsite não publicado?</li>
+      <li style="display:list-item;">A barra superior mantém “Área da Equipe” e “Entrar” alcançáveis, para equipe e clientes entrarem mesmo assim?</li>
+      <li style="display:list-item;">A página herda as cores da empresa (tokens <code>--ba-*</code>) e pinta o próprio fundo?</li>
+    </ul>
+  </div>
+</body>
+</html>

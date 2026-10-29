@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protótipo — GUEST: Teste grátis da Ikaro</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; } h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; } p { margin-bottom: 1rem; font-size: 0.9375rem; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; margin: 1.25rem 0; } li { display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; }
+    li a { color: var(--ba-primary); font-weight: 500; } .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-new { background: #fee2e2; color: #dc2626; } .tag-green { background: #dcfce7; color: #15803d; } .tag-red { background: #fee2e2; color: #dc2626; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; margin-top: 1.5rem; font-size: 0.875rem; line-height: 1.6; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+    h2 { font-size: 1rem; font-weight: 700; margin-top: 1.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Protótipo — GUEST: Teste grátis da Ikaro</h1>
+  <p>Um dono de negócio abre o hotsite da própria Ikaro, lê o que a plataforma oferece e quanto custa, entra com o Google, cria o tenant em poucos campos e é avisado para conferir o e-mail — sem ninguém da Ikaro no meio. As páginas são servidas em <code>/ikaro-trial</code> e usam a marca do tenant da Ikaro. <strong>Draft</strong> (Billing milestone planejado, UC-127 e UC-128); os dados são inventados.</p>
+
+  <h2>Caminho principal</h2>
+  <ul>
+    <li><a href="01-ikaro-hotsite-cta.html">1 — Hotsite da Ikaro com a chamada para o teste</a><span class="tag tag-new">NEW: módulo TRIAL_SIGNUP_CTA</span></li>
+    <li><a href="02-ikaro-trial-details-br.html">2 — Detalhes e tabela de preços (Brasil)</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="02b-ikaro-trial-details-us.html">2b — Detalhes e tabela de preços (Estados Unidos)</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="03-signup-google-step.html">3 — Turnstile e entrada com o Google</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="04-signup-form.html">4 — Dados do negócio</a><span class="tag tag-new">NEW</span></li>
+    <li><a href="05-welcome-trial-started.html">5 — Conta criada — confira seu e-mail</a><span class="tag tag-new">NEW</span></li>
+  </ul>
+
+  <hr>
+  <h2>Estados alternativos (unhappy paths)</h2>
+  <ul>
+    <li><a href="02c-ikaro-trial-prices-loading.html">2c — Preços carregando</a><span class="tag tag-red">ESTADO</span></li>
+    <li><a href="02d-ikaro-trial-prices-error.html">2d — Erro ao carregar os preços (o cadastro continua possível)</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="03b-signup-turnstile-failed.html">3b — Turnstile falhou</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="03c-signup-trial-already-used.html">3c — Esta conta Google já tem um teste em andamento ou não concluído</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="04b-signup-slug-taken.html">4b — Endereço em uso, com sugestões</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="04c-signup-validation-error.html">4c — Erros de validação no formulário inteiro</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="04d-signup-submitting.html">4d — Criando a conta</a><span class="tag tag-red">ESTADO</span></li>
+    <li><a href="04e-signup-rate-limited.html">4e — Muitas tentativas (429)</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="04f-signup-provision-failed.html">4f — Falha ao criar a conta; nada foi criado</a><span class="tag tag-red">ERRO</span></li>
+    <li><a href="04g-signup-us-selected.html">4g — País Estados Unidos selecionado (sem CPF/CNPJ)</a><span class="tag tag-red">VARIANTE</span></li>
+  </ul>
+
+  <hr>
+  <ul>
+    <li><a href="../book-a-service/01-service-selection.html">→ Hotsite publicado de um tenant (referência de aparência)</a><span class="tag tag-green">EXISTS</span></li>
+    <li><a href="../../../shared/staff-login.html">→ Entrar na Área da Equipe (destino do e-mail de convite)</a><span class="tag tag-green">EXISTS</span></li>
+    <li><a href="../../../manager/prototypes/billing/10-discard-trial-confirm.html">→ Descartar o teste não pago (UC-141, tela do journey manager/billing)</a><span class="tag tag-red">GAP (deferred)</span></li>
+  </ul>
+
+  <div class="note">
+    <strong>Checklist de revisão</strong>
+    <ul style="display:block;margin:0.5rem 0 0 1.25rem;list-style:disc;">
+      <li style="display:list-item;">A tabela de preços deixa claro o que cada recurso inclui e o total padrão, sem prometer cobrança durante o teste?</li>
+      <li style="display:list-item;">Uma falha ao carregar os preços (2d) nunca impede o cadastro?</li>
+      <li style="display:list-item;">Os erros do formulário (4b, 4c, 4e, 4f) dizem o que fazer e, na falha de criação, que nada foi criado?</li>
+      <li style="display:list-item;">A página de conta criada (5) deixa claro que o acesso vem por e-mail e oferece reenvio e entrada com o Google?</li>
+      <li style="display:list-item;">As páginas usam as cores do tenant da Ikaro (tokens <code>--ba-*</code>) e funcionam em 360 px?</li>
+    </ul>
+  </div>
+</body>
+</html>

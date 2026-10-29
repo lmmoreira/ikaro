@@ -21,7 +21,7 @@ The *why* of choosing a primitive lives in `docs/ENGINEERING_RULES_BACKEND.md` �
 | M3 | `FOR UPDATE SKIP LOCKED` plus a lease | Several workers draining one queue | `shared/infrastructure/outbox/typeorm-outbox.repository.ts` |
 | M4 | Database constraint as the authoritative backstop | Two rows must never collide | migrations (`EX_…` exclusion, `UQ_…` unique) |
 | M5 | Idempotency key | At-least-once delivery, the same work twice | inbox `ON CONFLICT (event_id, consumer_name) DO NOTHING`, outbox `UQ_shared_outbox_dedup_key`, the null-safe occupancy-assignment insert (`ON CONFLICT … DO NOTHING`, see the constraints table below), two `ON CONFLICT DO NOTHING` inserts with no conflict target (any unique violation skips the row): `persistQuestionRefs` in `typeorm-lead-form-submission.repository.ts` and `copyGlobalDefaultsForTenant` in `typeorm-notification-template.repository.ts`, and the timestamp-guarded `orUpdate` upsert in `typeorm-chatbot-provider-balance.repository.ts` (`recordCallOutcome`: an older timestamp never overwrites a newer one) |
-| M6 | Optimistic concurrency (`version` column) | Two writers load the same aggregate and both save; no lock is held between read and write | `@VersionColumn` on `bookings`, `recurring_booking_schedules`, `availability_alerts`, `lead_form_configs` and `hotsite_configs` (the entity classes under `contexts/*/infrastructure/entities/`); the aggregate carries `version` and the repository's `save` UPDATE is version-checked |
+| M6 | Optimistic concurrency (`version` column) | Two writers load the same aggregate and both save; no lock is held between read and write | `@VersionColumn` on `bookings`, `recurring_booking_schedules`, `availability_alerts`, `lead_form_configs` and `hotsite_configs` (and, planned, `billing.subscriptions`) (the entity classes under `contexts/*/infrastructure/entities/`); the aggregate carries `version` and the repository's `save` UPDATE is version-checked |
 
 The M1 adapter (`Tenant lock requires an active transaction`) and the M2 `…ForUpdate` / `lockBookingModels` methods (an error naming the method) throw when no transaction is open, and all of them are released on commit or rollback. **Exception: `countActiveManagersByTenant` (R5) does not throw — outside a transaction it silently falls back to an unlocked `repo.count`.** Every transaction opened by `runInNewTransaction` sets a transaction-local `lock_timeout` of 2s (`DB_LOCK_TIMEOUT_MS`, `shared/infrastructure/run-in-new-transaction.ts`; M23-S49, §5 H5), so a wait for any M1 or M2 lock (and for an uncommitted conflicting row under M4) that lasts longer than 2s fails with `TransactionContentionError`, which the caller sees as a retryable 503 `AUTH_TRANSACTION_CONTENTION` with `Retry-After: 1`; a deadlock victim (`40P01`) gets the same error. The timeout bounds **each** wait, not the whole transaction. M3 (`SKIP LOCKED`) never waits.
 
@@ -40,6 +40,8 @@ A deadlock needs a cycle, so every transaction must take locks in the same order
 | L4 | Future-commitment exception rows (R4) | Batched and ordered by id |
 | L5 | Booking row | Taken implicitly by the `UPDATE` in `bookingRepo.save()`; no explicit lock exists |
 | L6 | Occupancy rows | `release`, `assign`, `move`; the exclusion constraint M4 waits on a conflicting uncommitted row |
+
+The planned Billing locks (B-A1 → B-R1 → charge rows) form their own ladder and never share a transaction with L0–L6; see "Billing locks" below.
 
 **Rules that follow from the order**
 - Several locks of one kind are taken in **one** call with a deterministic order, never one at a time in a loop.
@@ -123,6 +125,25 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 - **Level:** none of the above; it only touches `staff.staff`. The query has `ORDER BY id` since M23-S48 (H3).
 - **Only locks inside a transaction:** outside one, the repository falls back to an unlocked `repo.count`, with no error. Both callers run inside `txManager.run` today; a new caller must too.
 
+### Billing locks (planned — documented ahead of the code; not implemented yet)
+
+The Billing context (`docs/BOUNDED_CONTEXTS.md` § 7) adds two locks (B-A1, B-R1) and one unique constraint (B-Q1). They live in the `billing` schema and **never combine with L0–L6 in one transaction** (Billing never opens a Booking transaction), so they form their own small ladder: B-A1 (advisory) is taken before any row exists and in its own transaction; inside a subscription transaction the order is B-R1 → charge rows. None is implemented yet; until the code lands this section is the design, and the `lock-catalog-coverage` check will start enforcing the names once the port methods exist.
+
+#### B-A1 — signup registration, key `signup:{googleSub}`
+- **Taken by:** the Billing registration use case behind `POST /internal/billing/registrations` (the self-signup eligibility check, UC-127).
+- **Protects:** the trial-eligibility check (read earlier registrations of this Google `sub`, then insert a `RESERVED` row) — no row exists yet for the new signup, so there is nothing to row-lock and no constraint can express "all earlier self-signup tenants of this `sub` have paid". Two concurrent signups of one Google account must not both pass.
+- **Why advisory:** nothing exists yet. The key is **new** and may be namespaced freely (`signup:` prefix); transaction-scoped, the M1 mechanism: `pg_advisory_xact_lock(hashtextextended('signup:' || googleSub, 0))`.
+- **Level:** B-A1, alone in its transaction.
+
+#### B-R1 — subscription row, `subscriptionRepo.findByIdForUpdate`
+- **Taken by:** every use case that changes a subscription's status or period: payment confirmation (webhook, reconcile and on-demand refresh), the status sweep (one transaction per subscription), cancel and reactivate, plan save and confirm, and the operator suspend / unsuspend / exempt / grace actions. The `TenantProvisioned` handler does **not** take it: no subscription row exists before its first insert, so a redelivery is a no-op through `UNIQUE(tenant_id)` (`UQ_billing_subscriptions_tenant`), not through a lock.
+- **Protects:** a paid charge may move the subscription back to `ACTIVE` — two aggregates (`Charge` and `Subscription`) in one use case. A payment that arrives while the sweep is deciding to suspend must win ("the paid state wins"); two webhooks for one charge, or a webhook and a manager's cancel, must not interleave. `Subscription.version` (M6) is the second line of defence. Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on this lock alone.
+- **Why a row lock:** the row exists and is read then written.
+- **Level:** B-R1, then the charge rows are written through `chargeRepo.save()` (their `UNIQUE` indexes are the backstops, below). No provider I/O inside the transaction (CI-enforced `transactional-io`).
+
+#### B-Q1 — purge job, `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` *(slice G)*
+- One in-flight erasure per tenant; a second `TenantPurgeRequested` for the same tenant hits the constraint and is a no-op (M4). Participant completions are idempotent per `(job, participant)`.
+
 ### Queue lease (M3)
 
 #### Q1 — Outbox claim
@@ -149,6 +170,10 @@ Each entry: what is locked, who takes it, the business case, why this primitive,
 | `UQ_booking_availability_alert_attempts_window_channel` | availability alert attempts | One attempt per `(tenant_id, alert_id, matching_window, channel)` |
 | `UQ_notification_templates_global`, `UQ_notification_templates_tenant` | `notification.notification_templates` | Partial unique indexes: one global template (`tenant_id IS NULL`) per trigger event, channel and locale; `_tenant` allows one override per `(tenant_id, trigger_event, channel)` |
 | `UQ_platform_tenants_slug` | `platform.tenants` | Tenant slug is unique |
+| *(planned)* `EX_billing_subscription_items_window` | `billing.subscription_items` | GIST exclusion on `(tenant_id, subscription_id, feature_key, tstzrange(starts_at, coalesce(ends_at,'infinity'), '[)'))`: no overlapping entitlement windows per feature (needs `btree_gist`) |
+| *(planned)* `UQ_billing_charges_period`, `UQ_billing_charges_open_recovery` | `billing.charges` | Partial uniques: one non-cancelled `PERIOD` charge per `(tenant, subscription, period_start)` (the issuing cron is idempotent); at most one open `RECOVERY` charge per subscription |
+| *(planned)* `UQ_billing_charges_provider_charge`, `UQ_billing_billing_accounts_provider_customer` | `billing.charges`, `billing.billing_accounts` | Standalone uniques the webhook and reconcile resolve a tenant through |
+| *(planned)* `billing.provider_events` PK `(provider, event_id)`, `UQ_billing_subscriptions_tenant` | `billing.*` | Webhook idempotency (a duplicate event is a no-op); one subscription per tenant (a redelivered `TenantProvisioned` is a no-op) |
 | `UQ_booking_bookings_recurring_schedule_occurrence` | `booking.bookings` | One booking per schedule occurrence (the exceptions table and its constraint were dropped by M23-S24) |
 | `UQ_staff_tenant_google_oauth_id`, `UQ_staff_tenant_email`, `UQ_customer_customers_tenant_oauth` | `staff.staff`, `customer.customers` | Per-tenant identity (multi-tenancy invariants 5 and 6) |
 | `UQ_notification_logs_event_type_channel` (unique index; the earlier `UQ_notification_logs_event_channel` constraint was dropped by migration `1748200000010`), `UQ_loyalty_entries_tenant_booking_line` | notification and loyalty | A redelivered event does not send twice or earn twice |
@@ -177,6 +202,8 @@ A test counts as coverage for a lock only if **removing the lock makes it fail**
 | M4 constraints | the same slot-conflict races as A3 (the exclusion constraint is what makes them safe) | outcome | Existing tests |
 | M5 idempotency | `send-booking-approved-notification` › two concurrent deliveries of the same event | outcome | Existing test |
 
+The planned Billing locks (B-A1, B-R1, B-Q1) have no test yet; the story that implements each names its test here and runs the mutation check (§7 step 8) — for B-R1 the discriminating case is a payment webhook racing the status sweep on one subscription (the paid state must win), for B-A1 two concurrent signups of one Google `sub`.
+
 Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), and the removal path of A1 (not mutation-checked). Q1, M4 and M5 rely on existing tests that were not re-checked here; the A4 and A5 race tests turned out not to prove their locks, so those three may be the same.
 
 ---
@@ -203,6 +230,8 @@ Known gaps: R1 (no test can tell the read lock from the writer's own `UPDATE`), 
 | `DeactivateStaffUseCase`, `UpdateStaffProfileUseCase` | R5 → staff `save` |
 | Cancel (customer, staff), reject, end-recurring | A3 (everything the booking(s) hold, read again after the lock) → R4 (one batched query) → booking `save` → occupancy release → dismiss every entry |
 | `ExpireBookingHoldsJob` (TD51, one transaction per booking) | booking read → A3 (everything the booking holds, read again after the lock) → R4 (one batched query) → booking `save` → occupancy release → dismiss every entry. It reuses the cancel path's helper, so the order is the cancel row's; the booking is read before the lock and the optimistic version check turns a lost race into a skip |
+| *(planned)* Payment confirmation (webhook, reconcile, on-demand refresh), status sweep per subscription, cancel, reactivate, plan save, operator actions | B-R1 → charge `save` / subscription `save` → outbox rows (same transaction); provider calls only before or after, never inside |
+| *(planned)* Signup registration (`POST /internal/billing/registrations`) | B-A1 → read earlier registrations of the Google `sub` → insert `RESERVED` row (its own transaction; B-R1 is not taken) |
 | `SubmitBookingInfoUseCase`, `SubmitGuestBookingInfoUseCase` (TD51) | booking `save` → occupancy hold restart. Takes no resource lock: it only moves `hold_expires_at` on rows the booking already owns, after the booking row, the same order approve reaches them in (booking `save` → occupancy), so it cannot form a cycle with approve |
 
 ---

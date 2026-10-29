@@ -29,15 +29,17 @@
     2. Clicks "Entrar com Google" → buildGoogleOAuthUrl({ tenantSlug, type: 'staff' })
        → GET {BFF_URL}/auth/google?tenantSlug={slug}&type=staff
     3. Google OAuth consent
-    4. Callback → BFF resolves staff by googleOAuthId
-    5a. Active   → JWT cookie → redirect /dashboard/bookings
-    5b. Inactive → redirect /auth/first-login  (invite not yet accepted)
-    5c. Not found → redirect /auth/error?reason=not-a-staff-member
+    4. Callback → BFF resolves the tenant by slug, then finds the staff by email in that tenant
+       (links the Google account first if it is not yet linked)
+    5a. Active   → JWT cookie → redirect /dashboard (→ /dashboard/bookings)
+    5b. Inactive → redirect /auth/error?reason=staff-deactivated
+    5c. Not found → redirect /auth/error?reason=invite-not-found
 
     ── UC-025 First Login / Accept Invite ───────────────────────────────────
-    Staff receives invite email with a link that encodes the tenant slug directly:
-      GET {BFF_URL}/auth/google?tenantSlug={slug}&type=staff
-    Callback → BFF activates the staff record → issues JWT → /dashboard/bookings
+    Staff receives an invite email whose link opens this page (with the tenant slug):
+      /dashboard/login?tenantSlug={slug}
+    The invitee then clicks the same Google button -> GET {BFF_URL}/auth/google?tenantSlug={slug}&type=staff
+    Callback → BFF links the Google account to the invited record → issues JWT → /dashboard (→ /dashboard/bookings)
     In prototype: the "Primeiro acesso?" link is informational only.
 
     NOT built: any inline error banner on this page. A prior dev-notes.md draft

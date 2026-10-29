@@ -135,6 +135,18 @@ Rebuild and deploy: edit `config.yaml` (or bump the digest in the `Dockerfile`),
 
 Every policy emails the `notification_email` channel. Thresholds are module variables.
 
+**Billing alert policies and KPI numbers *(planned, Billing milestone)*.** Billing is operator-free by default, so its alerts are metric / log-based policies that fire **only after the automatic response failed**, each naming its runbook in `docs/RUNBOOKS.md` § Billing (planned):
+
+- webhook failure ratio (> 5 % non-`200` over 15 min, or the provider queue paused and not re-enabled);
+- reconcile failing (no success for 24 h — this also starts the suspension freeze);
+- reconcile drift (more than N charges differ in one run);
+- charge creation stuck (`provider_creation_status = PENDING` > 24 h after N attempts);
+- missing subscription (self-heal could not create it; the billing job names are in `docs/API_CONTRACTS.md` § Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140));
+- purge step stuck;
+- suspension freeze active.
+
+A missing price row (the Catalog runbook), a missing template and a live-adapter misconfiguration have **no alert policy**: startup validation and CI catch them, never runtime. There is no daily list for a human to work through. The dashboard shows, as weekly numbers: operator interventions per 100 active tenants per month (from `billing.operator_audit`; target ≤ 1 once past the first launch weeks), the share of charges paid with no manual action, involuntary churn (suspended for `NON_PAYMENT` and not recovered), webhook p95 lag, reconcile corrections per run, payment-to-reactivation time and open exceptions older than 24 h. The new policies must still be applied to staging and triggered once before being trusted (see "Verification" below).
+
 **Uptime checks.** Staging checks the BFF through the web host (`/v1/health/ready`, which chains to the backend's readiness, so one check covers web → BFF → backend) and the web (`/api/health/live`). The BFF's raw URL is internal-only in staging and unreachable from Google's prober. Production creates checks only when the edge is enabled (`enable_edge`), because the domains do not resolve before then and a check would fire forever.
 
 **Dashboards.** *Engineering*: per service request rate / 5xx, p99 latency and instance count; Cloud SQL connections and CPU; Pub/Sub oldest unacked age and DLQ depth; the GMP booking-latency widget. *Business*: six log-based counters (bookings requested, approved and completed; notifications failed; customer and staff logins) with a pinned `tenant_id` dashboard filter for per-tenant drill-down; the module records that the filter control itself was not confirmed live.

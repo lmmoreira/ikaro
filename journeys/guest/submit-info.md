@@ -3,7 +3,7 @@
 **Actor(s):** GUEST (main path — unauthenticated, email link); CUSTOMER (alt path — authenticated, via minha-conta)
 **Goal:** Submit the additional information requested by the admin so the booking returns to PENDING and can be approved.
 **UCs covered:** UC-005 A2
-**Status:** Reviewed — implemented via `M13-S38`/`M13-S39`/`M13-S40` (all ✅ Done in `plan/M13-DASHBOARD-FRONTEND.md`)
+**Status:** Built — implemented via `M13-S38`/`M13-S39`/`M13-S40` (all ✅ Done in `plan/M13-DASHBOARD-FRONTEND.md`)
 
 ## Flow
 

@@ -9,18 +9,17 @@
 <body>
 
   <!--
-    PAGE (GAP): apps/web/app/auth/first-login/page.tsx
-    ROUTE:      /auth/first-login
-    When shown: UC-022 Case B — BFF found the staff record but is_active = false
-                (invite was sent via UC-024/UC-028 but staff hasn't clicked the invite link yet)
-    Query param: ?staffId=<uuid>  (BFF encodes this so the page can show the invited email)
-
-    COMPONENT (GAP): FirstLoginPage
-    FILE: apps/web/app/auth/first-login/page.tsx
-    This is a static server component — no BFF call needed on load.
-    The invite link in the email goes directly to GET /v1/auth/google?state=__staff__:{slug}
-    so staff don't need a form here — just an explanation.
+    SUPERSEDED — kept only as a record of an early design proposal. This page is NOT built
+    and will not be: /auth/first-login does not exist. The shipped flow has no "invite not
+    accepted" state: a staff row is provisioned is_active=true at invite time, the invite
+    email links to /dashboard/login?tenantSlug={slug}, and the BFF callback links the Google
+    account on first login. An inactive (deactivated) record redirects to
+    /auth/error?reason=staff-deactivated instead. See ../dev-notes.md § First-login behavior.
   -->
+
+  <div style="background:#fef3c7; color:#92400e; padding:0.5rem 1rem; text-align:center; font-size:0.8125rem;">
+    SUPERSEDED — not built by design. See dev-notes.md § First-login behavior.
+  </div>
 
   <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center; background: #f9fafb;">
     <div class="card" style="width: 100%; max-width: 26rem; padding: 2.25rem; text-align: center;">

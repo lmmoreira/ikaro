@@ -20,11 +20,11 @@ flowchart TD
     %% UC-028 — Invite
     InviteBtn --> InviteForm["/dashboard/team/invite<br/>Invite Member Form"]
     InviteForm --> InviteSubmit(("Click 'Enviar convite'"))
-    InviteSubmit --> EmailCheck{"E-mail já tem<br/>staff ativo?"}
+    InviteSubmit --> EmailCheck{"E-mail já tem<br/>conta vinculada?"}
     EmailCheck -- "sim → 409 (A1)" --> EmailError["erro inline<br/>'Já existe um membro da equipe com este e-mail neste estabelecimento.'"]
     EmailError --> InviteForm
-    EmailCheck -- "inativo → reativa (A2)" --> ReactivateSuccess["toast verde<br/>'Convite reenviado'"]
-    EmailCheck -- "não → 201" --> InviteSuccess["toast verde<br/>'Convite enviado para [email]'"]
+    EmailCheck -- "convite pendente → reenvia (A2)" --> ReactivateSuccess["banner inline<br/>'Convite enviado!'"]
+    EmailCheck -- "não → 201" --> InviteSuccess["banner inline<br/>'Convite enviado para [email]'"]
     ReactivateSuccess --> List
     InviteSuccess --> List
 
@@ -37,7 +37,7 @@ flowchart TD
     SelfCheck -- "sim → 403" --> SelfError["erro<br/>'Você não pode desativar sua própria conta.'"]
     SelfCheck -- "não" --> LastManagerCheck{"Último MANAGER ativo? (A2)"}
     LastManagerCheck -- "sim → 409" --> LastManagerError["erro<br/>'Não é possível remover o último gerente ativo.'"]
-    LastManagerCheck -- "não → 200" --> DeactivateSuccess["toast verde<br/>'[Nome] foi desativado(a) com sucesso'"]
+    LastManagerCheck -- "não → 200" --> DeactivateSuccess["redireciona para a lista<br/>(sem mensagem)"]
     SelfError --> List
     LastManagerError --> List
     DeactivateSuccess --> List
@@ -46,16 +46,18 @@ flowchart TD
     List --> RowClick(("Click em uma linha ativa"))
     RowClick --> EditDetail["/dashboard/team/[id]<br/>Staff Detail / Edit"]
     EditDetail --> EditSubmit(("Click 'Salvar'"))
-    EditSubmit --> EditSuccess["toast verde<br/>'Perfil atualizado'"]
+    EditSubmit --> EditSuccess["redireciona para a lista<br/>(sem mensagem)"]
     EditSuccess --> List
 
     %% UC-031 — Reactivate
     List --> ActivateBtn(("Click 'Ativar' em uma linha inativa"))
-    ActivateBtn --> ActivateSuccess["toast verde<br/>'Membro ativado!'"]
+    ActivateBtn --> ActivateSuccess["texto inline na linha<br/>'Membro ativado!'"]
     ActivateSuccess --> List
 
     class List,InviteForm,EmailError,ReactivateSuccess,InviteSuccess,DeactivateConfirm,SelfError,LastManagerError,DeactivateSuccess,EditDetail,EditSuccess,ActivateSuccess existing
 ```
+
+**UC-028 A2, as built:** an invite for an email whose record has no linked Google account (a pending invitee) re-sends the invite (`Staff.reinvite`). An email whose record is already linked — including a deactivated member — returns `409 STAFF_ALREADY_EXISTS`; a deactivated member is brought back only through "Ativar" (UC-031). Success feedback is the inline `?invited=<email>` banner (invite), a plain redirect to the list (deactivate, edit) and the inline "Membro ativado!" text (activate) — there are no toasts.
 
 **Also shipped, not originally covered by this journey (2026-07-31 docs audit):** UC-030 (Admin Edits Staff Member Profile, `/dashboard/team/[id]`) and UC-031 (Admin Reactivates Staff Member, one-click "Ativar" on deactivated rows) — both `M13-S43`/`M13-S44`, ✅ Done. Prototype coverage: `04-staff-detail-edit.html` exists for UC-030 — see the Prototype table below; UC-031's one-click reactivate has no dedicated screen (it's a row action on `01-team-list.html`).
 
@@ -75,7 +77,7 @@ flowchart TD
 - [x] **List scope** — **Resolved/shipped.** `TeamListPage` shows Ativos / Convites pendentes / Inativos, matching the prototype.
 - [x] **Invite form surface** — **Resolved/shipped.** Full page (`InviteForm`), matching `staff/servicos.md`'s pattern.
 - [x] **Resend invite affordance** — resolved on the `M13-S43` branch (2026-07-06): `MemberRow.tsx`'s "Reenviar convite" is a direct one-click button, not a link back to the invite form. It calls `POST /staff/invite` with the row's existing name (split into firstName/lastName) and role — no retyping, no navigation.
-- [x] **Role badge** — **Resolved/shipped**, reusing the `.role-badge` pattern.
+- [x] **Role badge** — **Resolved/shipped.** `.role-badge` is a prototype-only class; in code `MemberRow.tsx` renders an inline Tailwind pill and the topbar uses `<Badge data-testid="team-role-badge">`.
 - [x] **Deactivate confirmation surface** — **Resolved/shipped.** Dedicated confirmation page (`DeactivateConfirmPage`), matching `staff/servicos.md`'s pattern.
 
 ## Prototype

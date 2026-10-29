@@ -35,6 +35,8 @@ interface HotsiteManifestResponse extends HotsiteResponse {
 }
 ```
 
+> **Planned with Billing (UC-122):** `isPublished` becomes the *effective* value — the manager's flag `&&` the tenant being operational (not `SUSPENDED`) — so a suspended tenant gets the same minimal unpublished payload (still `200`, branding kept). The contract note is in `docs/API_CONTRACTS.md` § Billing — Access Resolution and Suspended-State Effects.
+
 Each `layout` entry is `{ type, enabled, data, presentation? }` (TD56). `data` is the module's business content; `presentation` is an optional, closed **section presentation** — a *sibling* of `data`, never a key inside it — described under *Section presentation* in §4. An entry without it renders exactly as it did before TD56. Everything TD56 added fits inside the existing `layout` JSONB: no new top-level manifest key and no migration.
 
 The `layout` array is **ordered and fully controlled by the admin**. The admin can add, remove, and reorder modules freely from the dashboard. The page renders exactly in that order, full-width, top to bottom.
@@ -204,11 +206,12 @@ Module components consume these via inline `style` (e.g. `backgroundColor: 'var(
 | `CONTACT` | Address, phone, social, map | Tenant settings |
 | `CHATBOT` | AI-assisted FAQ widget, scoped to the tenant's own business data | Booking context (live services) + tenant settings (`knowledgeText`), assembled BFF-side — never in the manifest, see § CHATBOT below |
 | `LEAD_FORM` | Lead-capture form (manager-authored questions), teaser only in the manifest | Live question catalog fetched separately at `/[slug]/lead-form`, see § LEAD_FORM below |
+| `TRIAL_SIGNUP_CTA` *(planned with Billing)* | A call-to-action block on Ikaro's **own** tenant hotsite only (title, optional text, button): the button always opens the public trial page `/ikaro-trial` (UC-127, UC-131). Not a billable feature | Manifest — see § TRIAL_SIGNUP_CTA below |
 | `FOOTER` | Closing footer: business info, links and a surface-only `presentation` (`surface`, `customColor`) | Manifest + tenant business info (see § FOOTER; appended disabled by `materializeLayout`) |
 
 The `FOOTER` is a layout module like the others: its data is `FooterModuleData` (§4), and a tenant whose saved layout lacks it gets one appended, disabled, by `materializeLayout` (`MODULE_ORDER` in `apps/web/features/platform/hotsite/default-layout.ts` fixes the order of the missing types), so the manager can enable it in the Layout tab; `app/[slug]/page.tsx` renders it from its `data` plus the tenant's business info.
 
-**Twelve types, each a singleton.** A layout holds at most one entry per type, so at most 12. `MODULE_ORDER` validates a pasted layout's `type` values and its length, and `materializeLayout` adds every missing type as a disabled row — `NAVIGATION` in front (the backend requires it first), the others at the end — so the Layout list and the visual structure list always show all twelve.
+**Twelve types, each a singleton.** A layout holds at most one entry per type, so at most 12. `MODULE_ORDER` validates a pasted layout's `type` values and its length, and `materializeLayout` adds every missing type as a disabled row — `NAVIGATION` in front (the backend requires it first), the others at the end — so the Layout list and the visual structure list always show all twelve. *(Planned with Billing: a 13th type, `TRIAL_SIGNUP_CTA`, exists only for the platform-owner tenant — `PLATFORM_OWNER_TENANT_SLUG` — so every other tenant's layout still holds at most 12 and the Layout list shows twelve rows; § TRIAL_SIGNUP_CTA below.)*
 
 ### Module Type Union
 
@@ -228,6 +231,7 @@ type HotsiteModuleType =
   | 'FOOTER'
   | 'CHATBOT'
   | 'LEAD_FORM';
+  // planned with Billing, platform-owner tenant only: 'TRIAL_SIGNUP_CTA' (UC-131)
 
 // Shared contract (packages/types/src/hotsite.ts) — what the BFF returns and the web consumes:
 interface HotsiteModuleResponse {
@@ -508,6 +512,28 @@ interface LeadFormModuleData {
 
 Canonical rationale, domain model, and behavior: `docs/DOMAIN_MODEL.md` § `LeadFormConfig`/`LeadFormSubmission`, `docs/USE_CASES.md` UC-037–UC-043, and `docs/API_CONTRACTS.md` § Lead Form.
 
+### TRIAL_SIGNUP_CTA (planned with Billing — platform-owner tenant only)
+
+> **PLANNED, NOT YET BUILT.** The module is a call to action with **no form**: the multi-step signup flow (Turnstile, Google, details, provisioning — UC-127) is a page, `/ikaro-trial`, not a hotsite section. Manager flow: UC-131. It is not a billable feature (no price, no entitlement); Ikaro's own tenant is `exempt`.
+
+```typescript
+// Mirrors BookingCtaModuleData's vocabulary (variant / title / subtitle / ctaLabel) — no second naming scheme.
+interface TrialSignupCtaModuleData {
+  variant?: 'centered' | 'left-aligned';   // default 'centered'
+  title: string;                           // 1..80 chars
+  subtitle?: string;                       // optional, <= 200 chars
+  ctaLabel: string;                        // 1..30 chars, default "Testar grátis por 14 dias"
+}
+```
+
+- **No `href` field.** The module always links to `/ikaro-trial` (the language follows the hotsite's); a configurable URL would turn it into a generic button.
+- **Section background** is not a data field: it is the section-level `presentation.surface` (`background`, `secondary`, `primary` or `custom`, with `customColor` for `custom`) that every other module uses, a sibling of `data`. The editor panel maps "Título" to `title`, "Descrição" to `subtitle`, "Texto do botão" to `ctaLabel`, the alignment to `variant`, "Fundo da seção" to `presentation.surface` and "Exibir esta seção" to the module's `enabled`.
+- **Restriction to the platform-owner tenant.** `hotsite-layout.rules.ts` rejects a `TRIAL_SIGNUP_CTA` entry on any tenant whose slug is not `PLATFORM_OWNER_TENANT_SLUG` (an env var validated in `env.validation.ts`, never hardcoded). The check is server-side (the error code and `violations[]` shape for a rejected entry are decided at story discovery); the editor also hides the module from the add-module list for other tenants by asking the backend whether the tenant is the platform owner instead of comparing a slug on the client. How the editor asks is decided at story discovery. This is a deliberate exception inside a generic engine; the risk (a foreign tenant advertising Ikaro signup) is low and closed cheaply.
+- **Never in a template.** A template could be applied to a foreign tenant, so the catalogue must not carry it and template application must not carry it (whether application ignores or rejects such an entry is decided at story discovery, § 12); the catalogue spec `packages/hotsite-templates/src/catalogue.spec.ts` ("lists all twelve module types exactly once") compares every template layout to the full `HOTSITE_MODULE_TYPES` registry, so a 13th type makes it fail for all six templates until it carries an explicit exclusion for this type.
+- **Touch points** beyond the §7 checklist: the backend mirror `apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`, `hotsite-layout.rules.ts` (per-type singleton rule, the `presentation` allow-list and the owner restriction), `page-model.ts` and `default-layout.ts` on the web, and `packages/hotsite-templates`. The render component is a server component rendered through `HotsiteSectionShell`, using `var(--ba-*)` only.
+
+---
+
 ### NAVIGATION (TD56)
 
 ```typescript
@@ -720,7 +746,14 @@ The booking page is a hotsite page (it uses `--ba-*` branding and `BrandHeader`)
 
 When `manifest.isPublished === false`, `page.tsx` renders `<Unavailable />` (`apps/web/shells/hotsite/components/Unavailable.tsx`) instead of the module list — a generic "Em breve" placeholder. Because `app/[slug]/layout.tsx` has already applied `applyBranding(manifest.branding)`, `<Unavailable />` inherits the tenant's `var(--ba-*)` tokens automatically — for a freshly-provisioned tenant these resolve to `DEFAULT_HOTSITE_BRANDING`, so no special-casing is needed.
 
+> **Planned with Billing (UC-122):** this same page is what a `SUSPENDED` tenant's visitors see, so it must never reveal why the hotsite is unavailable. `Unavailable` gains the top bar (`HotsiteAuthBar`: team login and customer login, which it does not render today) and a reason-neutral "Página não publicada" copy variant, and it keeps inheriting the tenant's branding. Every public hotsite route renders it (`[slug]`, `booking`, `booking/availability-alert`, `lead-form` — via the stubbed empty layout of an unpublished manifest — and `servicos/[serviceSlug]`). The "Página não publicada" copy applies only when the hotsite is not (effectively) published: `lead-form` also renders `Unavailable` on a published hotsite whose lead-form module is disabled, and that case keeps the "Em breve" copy. Customer and team sign-in stay reachable because `[slug]/login` and `[slug]/my-account` never check `isPublished`. The journey is `journeys/guest/unpublished-hotsite.md`.
+
 This differs from the **unknown-slug** case (`app/not-found.tsx`, root-level, M12-S08): there, `fetchManifest()` calls `notFound()` inside `app/[slug]/layout.tsx` before it ever renders, so no manifest/branding is available and the 404 page uses static Ikaro styling instead of `var(--ba-*)` tokens. The page must live at the `app/` root rather than `app/[slug]/` because Next.js does not let a segment's own `not-found.tsx` catch a `notFound()` thrown by that segment's own `layout.tsx`.
+
+
+### The `/ikaro-trial` pages (planned with Billing)
+
+> **PLANNED, NOT YET BUILT** (UC-127, UC-128, UC-131). The public trial pages are served at `/ikaro-trial` and are **branded as the Ikaro tenant**: they take the platform-owner tenant's hotsite branding through the same `applyBranding()` path as any tenant page, so they look like Ikaro's own hotsite. Because `--ba-*` tokens exist only under the hotsite tree, the pages are implemented inside it (under `app/[slug]/…`, for the owner slug only; any other slug gets `notFound()`), and the public URL `/ikaro-trial` is a Next.js rewrite to `/{PLATFORM_OWNER_TENANT_SLUG}/ikaro-trial/*`; the rewrite mechanism is decided at story discovery. They are **independent of `isPublished`**: if the owner tenant's hotsite is unpublished they still render, because they only need the branding from the manifest (the owner tenant is `exempt` and cannot be suspended). The Turnstile widget needs the same CSP allowance as the lead-form page, scoped to every page a visitor could soft-navigate from, because the CTA reaches `/ikaro-trial` through a `next/link` and CSP is only re-read on a fresh top-level navigation (`docs/ENGINEERING_RULES_FRONTEND.md` § CSP allowances for a new external UI resource); the exact wording is decided at story discovery. The module that links to these pages is § TRIAL_SIGNUP_CTA.
 
 ---
 
@@ -809,7 +842,7 @@ Follow these steps in order. Every step is mandatory.
 
 **1. Define the data contract**
 
-Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` and a strict schema for it in `packages/types/src/hotsite-schemas.ts` and its entry in `HotsiteModuleSchema` (`packages/validation/src/hotsite-modules.ts`) — the spec there fails if a canonical type has no schema. The web registers the same schema (step 3), and the shared fixtures in `packages/types/src/testing/hotsite-module-contract.ts` get the matching cases. Also decide whether it accepts `presentation` and `presentation.background` (`hotsite-layout.rules.ts`), and add an entry to every exhaustive `Record<HotsiteModuleType, …>` (`MODULE_SCHEMAS` in `page-model.ts`, `MODULE_CONFIG_PANELS`, the `hotsite.layout.modules.*` labels) — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed.
+Add the new module-type string to `HOTSITE_MODULE_TYPES` in `packages/validation/src/hotsite.ts` and a strict schema for it in `packages/types/src/hotsite-schemas.ts` and its entry in `HotsiteModuleSchema` (`packages/validation/src/hotsite-modules.ts`) — the spec there fails if a canonical type has no schema. The web registers the same schema (step 3), and the shared fixtures in `packages/types/src/testing/hotsite-module-contract.ts` get the matching cases. Also decide whether it accepts `presentation` and `presentation.background` (`hotsite-layout.rules.ts`), and add an entry to every exhaustive `Record<HotsiteModuleType, …>` (`MODULE_SCHEMAS` in `page-model.ts`, `MODULE_CONFIG_PANELS`, the `hotsite.layout.modules.*` labels) — the canonical source since TD37-S21. The backend domain type (`apps/backend/src/contexts/platform/domain/hotsite-config.types.ts`) and its `MODULE_TYPES` runtime Set both derive from it automatically; no separate backend edit needed. A module that only one tenant may hold (the planned `TRIAL_SIGNUP_CTA`, platform-owner tenant only) also adds its restriction to `hotsite-layout.rules.ts` and an explicit exclusion in the template catalogue spec (`catalogue.spec.ts`, which compares every template layout to the full registry).
 
 In the **same commit**, also add the new member to `HotsiteModuleType` in `packages/types/src/enums.ts` — this is a deliberately independent, web-facing copy (never derived from `@ikaro/validation`, which `apps/web` must not depend on), but `packages/architecture-check`'s `closedEnumRegistry` detector requires it to always match the canonical source exactly, in both directions. Unlike `LEAD_FORM`'s original rollout (M20-S01 → M20-S07, staged across multiple PRs), a staged rollout for this enum is no longer supported — a member missing from either side fails `pnpm architecture-check`. Add the TypeScript data-shape interface itself to `packages/types/src/hotsite.ts` (alongside the other `XxxModuleData` interfaces, which `HotsiteModuleType` is only re-exported from — not declared in). Keep the `data` shape flat — avoid deep nesting.
 
@@ -925,6 +958,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 ### Sitemap & robots
 
 - `app/sitemap.ts` calls `fetchPublishedHotsiteSlugs()` (`apps/web/features/platform/api.server.ts`) and emits one entry per published tenant: `{ url: ${SITE_URL}/${slug}, lastModified: updatedAt }`, plus (TD56-S03) one `${SITE_URL}/${slug}/servicos/${publicSlug}` entry per active service whose public page is published — read from the same cached `fetchServices(slug)` the hotsite uses (web-side orchestration, no cross-tenant endpoint), ten tenants at a time. A tenant whose service list cannot be read is skipped (its home entry stays) so one failing tenant never breaks `/sitemap.xml`.
+- *(Planned with Billing, UC-122: the sitemap list comes from `published-hotsites`, which gains an operational filter — a suspended tenant drops out — and the `robots` meta / `noindex` in each page's `generateMetadata` follow the effective `isPublished`; `app/robots.ts` itself is static and does not change.)*
 - `app/robots.ts` allows `/`, disallows `/dashboard` and `/auth`, and references `${SITE_URL}/sitemap.xml`
 
 ### Published hotsites listing endpoint
@@ -944,6 +978,7 @@ Open Graph's `images` comes from `seo.ogImageUrl` (M18-S03) — a dedicated, aut
 
 A manager can start from one of six platform-owned compositions instead of configuring modules one at a time. The catalogue is data, not code: `packages/hotsite-templates/` holds each template's **structure** (`definitions/<id>.json`: module order, enabled set, variants, `presentation`, image paths, no visible text), its **text** (`copy/<locale>/<id>.json`, keyed `<MODULE_TYPE>.<dotted.path>`) and an append-only **asset manifest**; the image binaries live in the same package but ship only to the public bucket. The package README is the maintainer guide.
 
+- **Templates never carry the planned `TRIAL_SIGNUP_CTA` module** (platform-owner tenant only, § TRIAL_SIGNUP_CTA): a template can be applied to any tenant, so template application must not carry that type (whether it ignores or rejects it is decided at story discovery), and the catalogue spec that compares every template layout to the full module registry (`catalogue.spec.ts`, "lists all twelve module types exactly once") needs an explicit exclusion for it.
 - **Applying a template is a pure function** of the manager's current draft, the tenant and that tenant's language (`POST /v1/tenants/hotsite/templates/:templateId/apply`, `docs/API_CONTRACTS.md`). It returns a draft; nothing is saved, published or copied. What the draft keeps and what the template supplies: `docs/BUSINESS_LOGIC_REFERENCE.md` § Hotsite template application.
 - **The result is an ordinary manifest.** Nothing in a tenant's saved config refers back to the catalogue except its image paths, so a later catalogue change never alters a tenant's site unless they apply a template again.
 - **Catalogue images are shared, public, immutable and versioned**: `shared/hotsite-templates/<templateId>/v<n>/<file>.webp` in the existing public bucket (`ikaro-public-<env>`), referenced by every tenant that applied the template, never copied. A changed image ships as a new `v<n>`; a released object is never edited or removed. The path index that validation uses is the manifest (every released version), so a tenant on `v1` keeps saving after `v2` ships.

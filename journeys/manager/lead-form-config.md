@@ -42,7 +42,7 @@ Not drawn as a separate node (small, same-page state per README's "minor conditi
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/hotsite` (Layout tab, new row) | `HotsiteEditorMainView` | M20-S08 | ✅ Shipped |
+| `/dashboard/hotsite` (Layout tab, new row) | `HotsiteEditor` (wired via `ModuleConfigPreviewScreen` / `hotsite-editor-lazy-panels`) | M20-S08 | ✅ Shipped |
 | Lead Form config drill-down | `LeadFormConfigPanel` | M20-S08 | ✅ Shipped |
 
 ## Open questions / gaps
