@@ -62,8 +62,8 @@ Stripe computes tax when the invoice is finalized, not before. The earlier desig
 |---|---|
 | Asaas account owner | Ikaro as **PJ with a CNPJ active 6+ months** (eligible for Pix Automático and NFS-e) |
 | Stripe account (first US) | The **same Brazilian CNPJ**, cards only, BRL payouts. Atlas/US entity only if ACH or USD payouts become necessary |
-| Billing identity | BR: CPF/CNPJ required at signup; US: full address before the first paid selection |
-| Card auto-billing | Not in v1 (needs card data through our server) |
+| Billing identity | BR: CPF/CNPJ required at signup and the full address before the first paid selection (NFS-e, decision 109); US: full address before the first paid selection |
+| Card auto-billing | API tokenization is not offered (needs card data through our server, decision 58); the provider-hosted recurring-card checkout is the optional slice F2 (decision 114, A18–A22, gated by §5 item 8) |
 | Provider emails | Off. Ikaro sends every billing email |
 
 ## 4. Open the accounts: checklist

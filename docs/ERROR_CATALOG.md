@@ -101,9 +101,18 @@ Every code is namespaced `<ORIGIN>_<REASON>` (upper snake case). Full catalog: `
 | `LOYALTY_*` | `apps/backend/src/contexts/loyalty/` |
 | `PLATFORM_*` | `apps/backend/src/contexts/platform/` |
 | `ADDRESS_*`, `COUNTRY_CODE_*`, `PHONE_*`, `MONEY_*`, `SEO_*`, `SLUG_*`, `HEX_COLOR_*`, `TIMEZONE_*`, `TIME_OF_DAY_*`, `EMAIL_*`, `CALENDAR_DATE_*` | Shared value objects, `apps/backend/src/shared/value-objects/` — reused by whichever context calls the VO |
+| `BILLING_*` *(planned, Billing release)* | `apps/backend/src/contexts/billing/` (and the BFF billing slice for BFF-thrown ones) |
+| `SIGNUP_*` *(planned, Billing release)* | Self-signup: `apps/backend/src/contexts/platform/` (the signup use case) and the BFF signup routes |
 | `BFF_*` | BFF-originated conditions (guest-token failures, guard rejections, tenant-not-registered checks) — `apps/bff/src/shared/` |
 | `AUTH_*` | Auth/role framework fallback, shared by backend and BFF; also the infrastructure-level `AUTH_INTERNAL_ERROR`, `AUTH_RATE_LIMITED` and `AUTH_TRANSACTION_CONTENTION` (a lock timeout or deadlock abort, 503) |
 | `GENERIC_*` | VO-less Zod validation rules (no domain VO behind the rule) |
+
+### Planned origins: `BILLING_*` and `SIGNUP_*` (Billing release)
+
+Two new origins, added in `packages/types/src/error-codes.ts` as `BillingErrorCode` and `SignupErrorCode` (each `<ORIGIN>_<MEMBER>`). Plumbing every new origin needs — all in the same change, or CI fails: add both to the `AnyErrorCode` union; to the hard-coded `CATALOGS` map in `apps/web/shared/lib/i18n/error-codes-exhaustiveness.spec.ts`; to both `errors.json` files (entries in `pt-BR` and `en`); to this document; and a BFF-thrown code must also enter the `BffThrowableCode` union used by `throwProblemDetail`. Planned members (the list is additive once shipped, never renamed):
+
+- **`BILLING_*`:** `FEATURE_NOT_ENTITLED`, `TENANT_SUSPENDED`, `ALREADY_CANCELLING`, `IDENTITY_TAX_ID_INVALID`, `IDENTITY_EMAIL_INVALID`, `FEATURE_DEPENDENCY_UNMET`, `FEATURE_HAS_DEPENDENTS`, `FEATURE_IN_USE` (removing `BOOKING` while a booking, recurring schedule or alert extends past the effective date), `NO_PRICE_FOR_COUNTRY`, `CHARGE_NOT_PAYABLE`, `PRICE_NOTICE_TOO_SHORT`, `PRICE_UNCHANGED`, `PRICE_BATCH_CHANGED`, `PLAN_EMPTY`, `PLAN_CHANGE_NOT_ALLOWED`, `PLAN_ALREADY_CONFIRMED`, `ADDRESS_REQUIRED` (BR and US, before the first paid selection), `PROVIDER_UNAVAILABLE`, `EXEMPT_PROTECTED` (Ikaro's own tenant), `US_NOT_AVAILABLE` (a non-exempt US tenant while `FEATURE_FLAG_SIGNUP_US` is off), `DISCARD_NOT_ALLOWED` (a charge was ever paid, or exempt / operator-suspended), and for slice H `ADDON_NOT_ALLOWED`, `CYCLE_NOT_AVAILABLE`.
+- **`SIGNUP_*`:** `SLUG_TAKEN`, `SLUG_RESERVED`, `SLUG_INVALID`, `TERMS_NOT_ACCEPTED`, `TAX_ID_INVALID`, `TAX_ID_REQUIRED` (BR), `TRIAL_NOT_AVAILABLE`, `RATE_LIMITED`, and `TURNSTILE_FAILED` — the generic replacement for the lead-form-specific `PLATFORM_LEAD_FORM_TURNSTILE_VERIFICATION_FAILED` for the signup flow.
 
 ---
 

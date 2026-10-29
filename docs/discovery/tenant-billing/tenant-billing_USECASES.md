@@ -27,7 +27,7 @@ Review 3 (2026-10-28) added CAND-36 (self-service discard), CAND-37 (tenant deac
 ### **CAND-01: Billing Starts a Trial Subscription When a Tenant Is Provisioned**
 - **Actor:** System (reacting to `TenantProvisioned`).
 - **Preconditions:** Tenant exists. `FeaturePrice` rows exist for the tenant's country.
-- **Trigger:** `TenantProvisioned` event v2 (from the operator script or from self-signup, CAND-22); it carries `countryCode`, `timezone` and an optional billing hint (`exempt`, feature subset).
+- **Trigger:** `TenantProvisioned` (additive fields; `eventVersion` is bumped for documentation only, the bus routes by `eventName`, decision 119) from the operator script or from self-signup (CAND-22); it carries `countryCode`, `timezone` and an optional billing hint (`exempt`, feature subset).
 - **Main Flow:**
   1. Handler calls one use case with `tenantId`, `countryCode`, `timezone`, the hint and `correlationId`.
   2. Use case creates the `Subscription` (`TRIALING`, `trialEndsAt` = the tenant-local midnight closing day 14, `timezone` snapshot, `nextDueDate` = trial-end date, currency from the country's price rows, cycle `MONTHLY`).
@@ -113,7 +113,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
 
 ### **CAND-08: System Issues the Next Charge**
 - **Actor:** System (daily trigger: Cloud Scheduler → Pub/Sub → `ITriggerBus` handler; `/cron/billing-issue-charges` is the manual path).
-- **Preconditions:** Subscription `TRIALING` or `ACTIVE`, not cancelling, due date within 10 days.
+- **Preconditions:** Subscription `TRIALING` or `ACTIVE`, not cancelling, due date within `CHARGE_ISSUE_LEAD_DAYS` (10) days — 30 days (`ANNUAL_CHARGE_ISSUE_LEAD_DAYS`) for an annual subscription (slice H, decision 123).
 - **Trigger:** Daily cron.
 - **Main Flow:**
   1. For each due subscription (standalone partial index on `next_due_date`), compute lines from the items scheduled for the next service period, reading each amount from the price version in force on that period's **start date**.
@@ -163,6 +163,7 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A1: Job runs twice** → idempotent (status checks).
   - **A2: A payment arrives during the sweep** → row lock; the paid state wins.
   - **A3: Provider cancel call fails** → the local state still changes; the retry is picked up by reconcile.
+  - **A5: Provider refuses to cancel the stale charge because it was already paid** → that stale charge is the payment (recorded `PAID`, the subscription reactivates like any payment) and the recovery charge is cancelled; if both are ever paid, the second is refunded in the provider console and recorded `REFUNDED` (decision 85).
   - **A4: Suspension freeze active** (`billing.provider_health.freeze_active`, CAND-35) → the sweep still marks `OVERDUE`/`PAST_DUE` but suspends nobody until reconcile succeeds again.
 - **Postconditions:** Statuses consistent with the ladder.
 - **Events Triggered:** `SubscriptionPastDue`, `SubscriptionSuspended`.
@@ -452,12 +453,13 @@ Operator add/remove feature (02, 03), operator item-price change (04) and operat
   - **A1: Data already purged** → not possible; a new signup is required (contact Ikaro for the trial rule).
   - **A2: Payment not completed** → remains suspended.
   - **A3: Provider charge creation fails** → error with retry.
+  - **A4: The provider refuses to cancel the old open charge because it was just paid** → that charge is the payment and reactivates the subscription; the recovery charge is cancelled (decision 85, CAND-10 A5).
 - **Postconditions:** Tenant active.
 - **Events Triggered:** `ChargeIssued`, `ChargePaid`, `SubscriptionReactivated`.
 
 ### **CAND-30: Manager Enables or Disables Automatic Charging (Pix Automático only)** — *DEFERRED RELEASE GATE*
 - **Actor:** Staff (MANAGER).
-- **Preconditions:** BRL tenant on Asaas, Ikaro's Asaas account is a PJ with a CNPJ active 6+ months **and** the Pix Automático flow is verified end-to-end in the sandbox and production (`tenant-billing_PROVIDERS.md` §5). Until that gate passes, this UI and endpoint are not released. Card auto-billing is not offered (Asaas tokenization passes card data through Ikaro's server, decision 58).
+- **Preconditions:** BRL tenant on Asaas, Ikaro's Asaas account is a PJ with a CNPJ active 6+ months **and** the Pix Automático flow is verified end-to-end in the sandbox and production (`tenant-billing_PROVIDERS.md` §5). Until that gate passes, this UI and endpoint are not released. Card auto-billing through the provider's *API tokenization* is not offered (it passes card data through Ikaro's server, decision 58); the hosted recurring-card checkout is the separate optional slice F2 (CAND-38, decision 114).
 - **Trigger:** Manager clicks "Ativar cobrança automática" / "Desativar".
 - **Main Flow:** BFF asks the provider (port) for a hosted authorization URL (Pix Automático: the first payment's QR code carries the authorization, approved in the bank app); the manager completes it on the provider's page; the webhook marks automatic charging active once the bank confirms; the page shows "Pix Automático ativo". Ikaro keeps creating each charge itself (`paymentCreationMode = MANUAL`) referencing the authorization. Disabling asks the provider to revoke it. The hosted payment link keeps working in every case.
 - **Alternative Flows:**

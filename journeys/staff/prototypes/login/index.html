@@ -23,7 +23,7 @@
 
   <h1>Protótipo — STAFF: Login</h1>
   <p style="opacity: 0.65; margin-bottom: 0.25rem;">UCs cobertos: <strong>UC-022</strong> (login regular) · <strong>UC-025</strong> (primeiro acesso / aceitar convite)</p>
-  <p style="opacity: 0.65;">Journey: <code>staff/login.md</code> · Stories: M124-S01 — ✅ Done</p>
+  <p style="opacity: 0.65;">Journey: <code>staff/login.md</code> · Stories: M13-S13 — ✅ Done</p>
 
   <hr style="border: none; border-top: 1px solid var(--ba-secondary); margin: 1.5rem 0;">
 
@@ -46,6 +46,18 @@
     </li>
   </ul>
 
+  <h2>Conta suspensa (billing, UC-121) — Draft, planejado</h2>
+  <ul>
+    <li>
+      <a href="./02-suspended-notice.html">02 — Funcionário entra com a empresa suspensa: “Esta conta está suspensa. Fale com o gerente.”</a>
+      <span class="tag tag-red">GAP: TenantSuspendedNotice</span>
+    </li>
+    <li>
+      <a href="./03-select-tenant-suspended.html">03 — Funcionário com várias empresas: a suspensa continua listada com o selo “Suspensa”</a>
+      <span class="tag tag-green">EXISTS: SelectStaffTenantClient (+ selo)</span>
+    </li>
+  </ul>
+
   <h2>Estados alternativos (unhappy paths)</h2>
   <ul>
     <li>
@@ -54,12 +66,12 @@
       — adicionado 2026-07-31: estado real que faltava no protótipo
     </li>
     <li>
-      <a href="./01-first-login.html">01 — Convite não aceito</a>
+      <a href="./01-first-login.html">01 — Convite não aceito (proposta inicial, substituída)</a>
       <span class="tag tag-red">Superseded: /auth/first-login not built by design</span>
       — UC-022 Caso B: staff encontrado mas is_active=false — no produto o BFF redireciona para /auth/error?reason=staff-deactivated; esta tela não existe
     </li>
     <li>
-      <a href="./01b-error.html">01b — Conta não encontrada (reason=not-a-staff-member)</a>
+      <a href="./01b-error.html">01b — Conta não encontrada (reason=not-a-staff-member; só renderizado, o BFF não emite)</a>
       <span class="tag tag-green">EXISTS: /auth/error</span>
       — UC-022 Caso C
     </li>
@@ -69,7 +81,7 @@
       — UC-025 A1
     </li>
     <li>
-      <a href="./01d-error-tenant-deactivated.html">01d — Estabelecimento desativado (reason=tenant-deactivated)</a>
+      <a href="./01d-error-tenant-deactivated.html">01d — Estabelecimento desativado (reason=tenant-deactivated; só renderizado, o BFF não emite)</a>
       <span class="tag tag-green">EXISTS: /auth/error</span>
       — tenant desativado pela plataforma
     </li>
@@ -101,10 +113,8 @@
   <div class="checklist">
     <ul style="list-style: none; padding: 0;">
       <li>☐ A tela de login da equipe distingue claramente que é o acesso de funcionários (não de clientes)?</li>
-      <li>☐ A mensagem "Convite não aceito" é suficientemente clara para um staff que tenta logar antes de aceitar o convite?</li>
       <li>☐ A tela de erro indica a ação correta (falar com o gerente) sem revelar detalhes técnicos desnecessários?</li>
       <li>☐ A nota "Primeiro acesso? Use o link do e-mail de convite" na tela de login (shared/staff-login.html) é visível o suficiente?</li>
-      <li>☐ Após login bem-sucedido (UC-025), um banner de boas-vindas "Bem-vindo(a)!" é necessário na primeira tela do dashboard? (ainda não implementado — ver dev-notes.md)</li>
       <li>☐ A mensagem de e-mail não correspondente (01c) deixa claro que o convite foi enviado para outro endereço, sem expor qual é?</li>
       <li>☐ O CTA "Voltar" nos 7 estados de erro vai para o hotsite do tenant (ou site raiz) — isso é a ação certa, ou algum estado deveria oferecer outra orientação (ex.: contato de suporte)?</li>
     </ul>

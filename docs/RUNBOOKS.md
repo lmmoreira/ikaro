@@ -1,6 +1,6 @@
 # Runbooks — Ikaro
 
-> **When to load:** an operator is rolling back a production promote, handling a staging problem or running a Pub/Sub or scheduled-job procedure; why the system is built this way is in `docs/DEPLOYMENT_STRATEGY.md`.
+> **When to load:** an operator is rolling back a production promote, handling a staging problem or running a Pub/Sub or scheduled-job procedure, or responding to a billing alert or operator billing case (planned); why the system is built this way is in `docs/DEPLOYMENT_STRATEGY.md`.
 > **Tags:** infra
 
 Operational procedures for production incidents and controlled platform operations — what an operator actually runs, not why the system is built the way it is (that's `plan/M17-CLOUD-DEPLOY.md`).
@@ -150,7 +150,8 @@ Naming (from `infra/terraform/modules/pubsub` and `modules/scheduler`): a topic 
 1. List the jobs and their last attempt: `gcloud scheduler jobs list --project=<project> --location=<region>` (the `ikaro-cron-*` jobs; one per `cron-*` topic, defined in `modules/scheduler`'s `locals.jobs`).
 2. Fire one manually: `gcloud scheduler jobs run ikaro-cron-reminders --project=<project> --location=<region>`. The `POST /cron/*` routes on the backend are the **local/manual dev path only** (`InternalApiGuard`); in staging and production use the Scheduler job, not the route.
 3. A tick fans out to every consumer of its topic — `cron-reminders` (every 30 min) drives seven: `booking-reminder`, `booking-admin-schedule-reminder`, `availability-alert-expiry`, `availability-alert-sweep`, `recurring-schedule-approval-expiry`, `recurring-schedule-renewal-reminder` and `booking-hold-expiry`. You cannot trigger one consumer alone; each is idempotent (inbox claim), so re-running a tick is safe.
-4. Some consumers only act inside a tenant-local window (the availability-alert sweep runs 06:30–06:59 tenant time — `docs/BUSINESS_LOGIC_REFERENCE.md`), so a manual tick outside the window correctly does nothing.
+4. The planned Billing triggers (`billing-*`, see § Billing (planned)) follow the same rule: fire the Scheduler job `ikaro-cron-billing-<name>`, never the `/cron/billing-*` route, outside local development.
+5. Some consumers only act inside a tenant-local window (the availability-alert sweep runs 06:30–06:59 tenant time — `docs/BUSINESS_LOGIC_REFERENCE.md`), so a manual tick outside the window correctly does nothing.
 
 ### A message landed in a dead-letter topic
 
@@ -192,3 +193,28 @@ Validated procedure from M17-S35's live acceptance-criteria run against real sta
    ```bash
    gcloud pubsub subscriptions pull <dlq-inspect-subscription> --project=<project> --auto-ack --limit=<n>
    ```
+
+## Billing (planned)
+
+> **PLANNED, NOT YET BUILT** (Billing milestone): no billing alert policy, job or endpoint below exists yet. Billing is **operator-free by default** — the provider, the system and the tenant own every situation first; a runbook below applies only after the automatic response failed (an alert names its runbook) or for the few mapped operator cases. Contracts: `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API; the billing job names and schedules are in § Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140) of the same doc. Each entry: symptom · check · action · who.
+
+### Alert runbooks
+
+- **Webhook** — *Symptom:* more than 5 % non-`200` over 15 min, or the provider's webhook queue is paused and was not re-enabled. *Check:* the provider dashboard for the queue state; BFF logs for the webhook route (token / signature `401`, backend `5xx`). *Action:* fix the failing cause, re-enable the queue (Asaas pauses after 15 consecutive failures; events are kept 14 days), then fire the reconcile job (`gcloud scheduler jobs run ikaro-cron-billing-reconcile`, see § A scheduled job did not run) so no event is lost. *Who:* on-call developer.
+- **Provider incident** — *Symptom:* no successful reconcile for 24 h (the suspension freeze is already active, so nobody is wrongly suspended), account blocked, KYC question or a compromised key. *Check:* `billing.provider_health` (`last_reconcile_ok_at`, `freeze_active`), the provider status page. *Action:* restore provider access or rotate the secret (the secret-rotation entry below), confirm one reconcile succeeds — the freeze clears itself. *Who:* operator with the provider account.
+- **Drift** — *Symptom:* more than N charges differ between Ikaro and the provider in one reconcile run. *Check:* the reconcile log for the differing charge ids. *Action:* reconcile already corrected them; investigate the missed event (webhook gap, out-of-order handling) and fix the root cause. *Who:* developer.
+- **Charge creation** — *Symptom:* a charge sits in `provider_creation_status = PENDING` more than 24 h after N retries. *Check:* the charge's `provider_creation_attempts` and last error (invalid customer data, provider outage, missing identity). *Action:* resolve the cause (the issuing job retries on its own and resumes automatically once the manager's identity is saved); never insert a duplicate period charge by hand. *Who:* developer.
+- **Provisioning** — *Symptom:* self-heal could not create a tenant's missing trial subscription. *Check:* the tenant exists in `platform.tenants` but has no `billing.subscriptions` row; the `FeaturePrice` rows for its country. *Action:* fix the cause (usually a missing price set or an invalid country), then fire the self-heal job (`gcloud scheduler jobs run ikaro-cron-billing-self-heal`, see § A scheduled job did not run). *Who:* developer.
+- **Purge** *(deferred: ships with the tenant purge)* — *Symptom:* a purge step failed N times. *Check:* `billing.tenant_purge_steps` for the missing participant and the job's `last_error`. *Action:* fix the participant's deletion and let the retry run; the tenant stays inaccessible through its existing suspension meanwhile. *Who:* developer.
+- **Catalog** — *Symptom:* a price row is missing for an enabled country. *Check:* normally caught at **deploy time** by the startup / CI check, not at runtime. *Action:* add the price with `PUT /internal/billing/feature-prices` before enabling the country. This runbook has no alert policy: the case is prevented by the startup / CI check. *Who:* operator.
+
+### Operator cases
+
+- **Abuse or takedown of a hotsite:** `POST /internal/tenants/{tenantId}/billing/suspend` with reason `OPERATOR` (no recovery charge is issued, payment does not lift it); lift later with `…/unsuspend`. Audited. *Who:* operator.
+- **Chargeback evidence:** the webhook records `CHARGEBACK`; upload the evidence in the provider console before its deadline. A lost dispute suspends the tenant automatically (`PAYMENT_REVERSED`). *Who:* operator.
+- **Refund outside the no-refund policy:** refund in the provider console; the refund webhook records it. *Who:* operator.
+- **Data-subject (LGPD) export or erasure:** manual export until the self-service export exists; erasure follows the manual tenant-offboarding runbook of `plan/M17-CLOUD-DEPLOY.md` M17-S51 (once the purge coordinator ships, it is requested with reason `OPERATOR_REQUEST`). *Who:* operator.
+- **Interim — a never-paid tenant with a wrong slug or country, or a lapsed unpaid trial, blocks re-signup:** until the purge participants ship (so the self-service discard, `docs/USE_CASES.md` UC-141, is not offered), the trial-not-available page tells the visitor to contact Ikaro. An operator runs the manual tenant-offboarding runbook of `plan/M17-CLOUD-DEPLOY.md` M17-S51 for that never-paid tenant (once the purge coordinator ships, an operator-requested purge uses reason `OPERATOR_REQUEST`). Retired when the self-service discard ships. *Who:* operator.
+- **Provider-side incident beyond the freeze:** see **Provider incident** above. *Who:* operator.
+- **Secret rotation (provider keys, webhook tokens):** create the new secret version in Secret Manager, redeploy, update the token at the provider, then confirm a webhook and one reconcile succeed. Sandbox and live secrets are separate entries. *Who:* operator, yearly or on incident.
+

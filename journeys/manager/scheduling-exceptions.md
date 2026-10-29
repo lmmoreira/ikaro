@@ -23,7 +23,7 @@ flowchart TD
 
     Trigger(("Resource deactivated<br/>(directly, or its staff member deactivated)")) -->|"UC-073"| Raise["System creates one idempotent<br/>worklist entry per affected booking"]
     Raise --> List["✅ /dashboard/scheduling-exceptions<br/>Reservas a resolver (01-exception-worklist)"]
-    Raise -.->|"M23-S46: the booking is marked in the queue"| Detail["🆕 /dashboard/bookings/[id]<br/>decision panel (staff/03j): Reatribuir · Reagendar · Cancelar"]
+    Raise -.->|"M23-S46: the booking is marked in the queue"| Detail["/dashboard/bookings/[id]<br/>decision panel (staff/03j): Reatribuir · Reagendar · Cancelar"]
     List -->|"Click a card"| Detail
     Detail -->|"Reatribuir / Cancelar"| Sheets["same ReassignSheet / CancelSheet,<br/>one booking"]
     Detail -->|"Reagendar (approved only)"| Reschedule
@@ -74,6 +74,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 | `01d-resultado-parcial.html` | Per-entry result after a bulk action: resolved vs still open, with the reason | UC-077 A1 | ✅ Built |
 | `01e-reagendar.html` | Pick a new time for one confirmed booking with the staff reschedule picker — applies immediately | UC-077 | ✅ Built |
 | `01f-cancelar.html` | Confirm a cancellation of several bookings | UC-077 | ✅ Built |
+| *(no `01g`)* | Lettering skips `01g` — that variant was never drawn; the files keep their letters so existing links stay valid | — | — |
 | `01h-vazio.html` · `01i-carregando.html` · `01j-erro-carregar.html` | Empty, loading and fetch-error states | UC-073 | ✅ Built |
 | `01k-erro-enviar.html` | The whole request failed — nothing changed | UC-077 | ✅ Built |
 
@@ -81,7 +82,7 @@ Folder: `manager/prototypes/scheduling-exceptions/` — relocated from `docs/dis
 
 - [x] Stories exist: `M23-S08` (backend + BFF), `M23-S14` (this page), `M23-S23` (notifications). `M23-S14` still begins with `/story-discovery`.
 - [x] Reassign, reschedule, bulk and the "no entry per schedule" rules were decided in `M23-S08` and are drawn here (2026-09-30).
-- [x] Nav placement — a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with a count badge; in "Mais" on mobile) is now drawn in the shell; recheck at `M23-S14`'s discovery.
+- [x] Nav placement — a new MANAGER-only sidebar item ("Reservas a resolver", right below "Agenda", with a count badge; in "Mais" on mobile) is drawn in the shell and shipped with `M23-S14` (nav placement re-checked at its discovery, 2026-10-14).
 - [x] Slot source for `01e` — the existing staff availability endpoint; the route reuses the staff `RescheduleBookingPage` with an injected confirm (decided at `M23-S14`'s discovery, 2026-10-14).
 - [x] `M23-S45` (reactivation closes the open entries) is related to this page but not blocking it.
 - [ ] **Selecting "all from this resource from a time":** the prototype draws a per-resource "Selecionar todos" control; a free time filter ("a partir de …") is a proposal, not decided.

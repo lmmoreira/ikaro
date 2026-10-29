@@ -2,8 +2,8 @@
 
 **Actor(s):** MANAGER
 **Goal:** Customize the public hotsite's branding (colors, fonts, button style) and content modules (toggle/reorder/configure), set SEO overrides, and publish changes live
-**UCs covered:** UC-027
-**Status:** ✅ Built — all pages ✅ Done (M13-S35, S36, S37; see "Pages referenced")
+**UCs covered:** UC-027; planned Billing extension: UC-131
+**Status:** ✅ Built — all pages ✅ Done (M13-S35, S36, S37; visual editor TD55; templates, NAVIGATION/CONTENT_BLOCK panels and presentation controls TD56; see "Pages referenced")
 
 ## Flow
 
@@ -67,7 +67,7 @@ flowchart TD
 ## Open questions / gaps
 
 - [x] **Branding field set expanded** — per `/uc-audit UC-026,UC-027,UC-028,UC-029` (2026-06-16) and your decision to cover the full set, `docs/USE_CASES.md` UC-027 Section A lists 13 branding fields (colors, fonts, logo, border radius, button style, spacing, shadow style, button colors), not just the original 4. Resolved further during M13-S35 discovery (2026-07-07): the real `HotsiteBrandingResponse` type carries 5 more fields beyond those 13 (`heroBgStyle`, `alternateSectionBg`, `dividerStyle`, `brandName`, `brandTagline`) — all 18 are in scope for M13-S35, grouped into 5 sub-sections ("Cores" / "Logo e identidade" / "Tipografia" / "Forma e estilo" / "Ritmo visual"). See `journeys/manager/prototypes/hotsite/dev-notes.md` and `plan/M13-DASHBOARD-FRONTEND.md` § M13-S35.
-- [x] **Per-module configuration** — **Resolved/shipped (`M13-S36`).** Each module type has its own drill-down config panel (e.g. `FooterConfigPanel.tsx` for the `FOOTER` module type, added in the same story). The prototype's `01d-module-config-hero.html` shows only the HERO case; the other 7 module types' panels were built directly from the real types without new UX prototypes (an explicit `M13-S36` decision) — candidate for the next prototype touch-up pass if more panels are wanted for review.
+- [x] **Per-module configuration** — **Resolved/shipped (`M13-S36`).** Each module type has its own drill-down config panel (e.g. `FooterConfigPanel.tsx` for the `FOOTER` module type, added in the same story). The prototype's `01d-module-config-hero.html` shows the HERO case and `01f-module-config.html` covers seven further module types; NAVIGATION and CONTENT_BLOCK are in `editor-vision/`. Types with no prototype screen were built directly from the real types (an explicit `M13-S36` decision) — candidate for the next prototype touch-up pass if more panels are wanted for review.
 - [x] **Preview semantics** — resolved — client-side live preview, confirmed shipped. `HotsiteEditor` passes a `draft: HotsiteAdminContentResponse` prop directly into `apps/web/features/platform/components/hotsite/HotsitePreview.tsx`, which renders the module tree client-side from that prop. No BFF preview-mode parameter/token exists or is needed.
 - [x] **Unpublish action** — resolved: the editor exposes "Despublicar hotsite" in a danger-zone section (per `01-hotsite-editor.html`), with its own confirmation screen (`03b-unpublish-success.html`). See the `Unpublish`/`UnpublishSuccess` nodes in the flow above.
 - [x] **CHATBOT config panel** — **Resolved/shipped (`M19-S12`, 2026-08-18).** `ChatbotConfigPanel.tsx` (`apps/web/features/platform/components/hotsite/modules/`) follows the same drill-down pattern as the other module panels, plus a standing AI-provider-credit disclosure note and a conditional daily-cap-reached banner (`GET /v1/tenants/chatbot/cap-status`, UC-027 A5) that no other module panel has. `default-layout.ts`'s `MODULE_ORDER`/`DEFAULT_MODULE_DATA` also updated so the Layout tab and Manifesto tab both reach the 9th module type. See `manager/prototypes/hotsite/01e-module-config-chatbot.html` and its `dev-notes.md` entry.
@@ -97,6 +97,8 @@ Folder: `manager/prototypes/hotsite/`
 | `01d-module-config-hero.html` | Per-module config drill-down (HERO, complete shipped field set) | — | ✅ Criado |
 | `01e-module-config-chatbot.html` | Per-module config drill-down (CHATBOT, 9º tipo — implementado `M19-S12`) | UC-027 Section B | ✅ Criado |
 | `01f-module-config.html` | Per-module config drill-down for the seven remaining module types | UC-027 Section B | ✅ Criado |
+| `01g-module-config-trial-signup-cta.html` | Per-module config drill-down for the planned `TRIAL_SIGNUP_CTA` module (Ikaro's tenant only) | UC-131 | ❓ GAP — planned Billing milestone (Draft) |
+| `01h-module-config-trial-signup-cta-erro.html` | Same panel with validation errors (title over 80 characters, empty button label) | UC-131 | ❓ GAP — planned Billing milestone (Draft) |
 | `02-preview.html` | Draft preview mock | — | ✅ Criado |
 | `03-publish-success.html` | Publish confirmation | UC-027 | ✅ Criado |
 | `03b-unpublish-success.html` | Unpublish confirmation (zona de risco) | UC-027 | ✅ Criado |
@@ -126,3 +128,14 @@ Templates é o primeiro comando do editor visual (abre a galeria no inspetor) e 
 - **Desfazer template:** volta um passo (o rascunho de antes da última aplicação), pergunta antes se houve edições depois e some ao publicar. Uma nova aplicação substitui o passo guardado.
 - **Falhas:** se a lista ou a aplicação falham, um alerta com "Tentar novamente" aparece na galeria e o rascunho não muda.
 - **Edição depois:** todos os campos continuam editáveis nos dois editores (Branding, módulos e Compartilhamento); salvar funciona com as imagens compartilhadas do template.
+
+## Billing — módulo TRIAL_SIGNUP_CTA (planejado, só o tenant da Ikaro)
+
+> **Planejado, ainda não construído** (marco Billing planejado, UC-131). Nada do fluxo entregue acima muda: o editor continua com os doze módulos entregues. Esta seção descreve apenas o **13º tipo de módulo**, que existe só para o tenant dono da plataforma (`PLATFORM_OWNER_TENANT_SLUG`) e que os demais tenants nunca veem.
+
+- **O que é:** um bloco de chamada para ação no hotsite da própria Ikaro — título, texto opcional e um botão que sempre abre a página pública `/ikaro-trial` (`guest/ikaro-trial.md`). O módulo não tem formulário e não é um recurso vendido (sem preço, sem direito de uso).
+- **Painel de configuração (`01g`):** segue o padrão dos painéis de módulo (`ModuleConfigPanelProps`): "Título" (1–80), "Descrição" (opcional, até 200), "Texto do botão" (1–30), alinhamento (centralizado ou à esquerda), "Fundo da seção" e "Exibir esta seção". O destino do botão é fixo e não editável. Os erros de validação estão em `01h`.
+- **Quem vê:** o editor só oferece o módulo ao tenant dono da plataforma — ele pergunta ao backend se o tenant é o dono, sem comparar o slug no cliente — e a API rejeita o módulo em qualquer outro tenant. Templates nunca trazem o módulo.
+- **Contrato e regras:** `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § TRIAL_SIGNUP_CTA; fluxo do gerente em `docs/USE_CASES.md` UC-131.
+- **Em aberto:** como o editor consulta o backend sobre o tenant dono (decidido na discovery da story).
+

@@ -1,6 +1,6 @@
 # API Contracts - Ikaro
 
-> **When to load:** adding or changing an HTTP endpoint, or checking a request or response shape: base standards, auth and tenancy, discovery, bookings, schedule, classes, customers and loyalty, the internal platform API and RFC 9457 errors; error codes are in `docs/ERROR_CATALOG.md`, the BFF structure in `docs/BFF_ARCHITECTURE.md`.
+> **When to load:** adding or changing an HTTP endpoint, or checking a request or response shape: base standards, auth and tenancy, discovery, bookings, schedule, classes, customers and loyalty, the internal platform API, billing provider webhooks, the internal billing API, the manager billing API, billing access resolution and suspended-state effects, the public billing and signup API, and RFC 9457 errors; error codes are in `docs/ERROR_CATALOG.md`, the BFF structure in `docs/BFF_ARCHITECTURE.md`.
 > **Tags:** bff, backend
 
 ## Overview
@@ -9,7 +9,7 @@ Ikaro follows a **RESTful API** standard using **JSON** for all payloads. All co
 
 **Error Response Standard:** [RFC 9457 Problem Details](https://tools.ietf.org/html/rfc9457) — see [ERROR_CATALOG.md](ERROR_CATALOG.md) for complete error reference.
 
-> ⚠️ **PLANNED, NOT YET BUILT:** only the Tenant Onboarding Bootstrap (UC-075, `POST /onboarding/bootstrap`, moved to M24-S21) and §4b Classes & Sessions (M24 Cluster 4) — see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`. **Everything else in this doc is live,** including every endpoint tagged M21, M22 or M23: Resource Management (UC-044–UC-049), Service Extensions (M22), `GET /schedule/day-grid` (UC-057), the `resourceId` param on schedule closures/openings, Recurring Reservations (an occurrence is its linked booking, listed via `GET /bookings?recurringScheduleId=`), the Future Commitment Exceptions worklist (`/scheduling-exceptions`), Availability Alerts, the no-show routes, and staff-created bookings (`POST /bookings/staff`). Untagged content is live MVP behavior.
+> ⚠️ **PLANNED, NOT YET BUILT:** only the Tenant Onboarding Bootstrap (UC-075, `POST /onboarding/bootstrap`, moved to M24-S21), §4b Classes & Sessions (M24 Cluster 4) — see `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md` — and every **Billing** endpoint (`## Billing — Provider Webhooks and Internal API`, `## Billing — Manager API (BFF, role MANAGER)`, `## Billing — Access Resolution and Suspended-State Effects` and `## Billing — Public Signup API (BFF, no JWT)`, the planned Billing milestone: nothing under `contexts/billing` exists yet). **Everything else in this doc is live,** including every endpoint tagged M21, M22 or M23: Resource Management (UC-044–UC-049), Service Extensions (M22), `GET /schedule/day-grid` (UC-057), the `resourceId` param on schedule closures/openings, Recurring Reservations (an occurrence is its linked booking, listed via `GET /bookings?recurringScheduleId=`), the Future Commitment Exceptions worklist (`/scheduling-exceptions`), Availability Alerts, the no-show routes, and staff-created bookings (`POST /bookings/staff`). Untagged content is live MVP behavior.
 
 ---
 
@@ -133,7 +133,7 @@ A response field that refers to a stored public object is a **full public URL, r
 - `GET /auth/google/callback` -> Sets `access_token` httpOnly cookie directly and redirects; no intermediate temporary-code step for the flows that ship today.
 - `GET /auth/logout` -> Clears the `access_token` cookie, redirects to the hotsite (or bare frontend URL if `tenantSlug` is absent/invalid).
 - `POST /auth/switch-tenant` -> (UC-023, customer) `{ targetTenantId: uuid }` — sets `access_token` httpOnly cookie with new tenant scope; returns `{ tenantSlug: string; expiresIn: string }`. No JWT in response body.
-- `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at.
+- `GET /auth/staff-tenants` -> (UC-022, staff, authenticated) Lists every active tenant the current Google account is staff at. *(Planned with Billing: each entry gains `operational`, and a suspended tenant stays listed — `## Billing — Access Resolution and Suspended-State Effects`.)*
 - `POST /auth/switch-staff-tenant` -> (UC-022, staff) Same shape as the customer switch, staff-scoped.
 - `GET /auth/session` -> (any authenticated role) One call for the hotsite's auth bar: `{ staff: { id, name } | null, customer: { customerId, name } | null }`. The BFF makes exactly one backend lookup (`/staff/me` for STAFF|MANAGER, `/customers/me` otherwise).
 - `POST /auth/dev-login` -> (public, **local/staging dev tooling and E2E harnesses only**, never reachable by real users; not rate-limited) signs a test actor in without Google OAuth; see `docs/BFF_ARCHITECTURE.md` § Public vs Protected Routes.
@@ -228,13 +228,13 @@ Used by the Next.js hotsite renderer to fetch full branding and layout for a ten
   }
   ```
 
-- **Module types:** `NAVIGATION | HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTENT_BLOCK | CONTACT | FOOTER | CHATBOT | LEAD_FORM` (`HotsiteModuleType`, `packages/types/src/enums.ts`); each layout entry may also carry an optional `presentation` (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4)
+- **Module types:** `NAVIGATION | HERO | SERVICE_LIST | GALLERY | TESTIMONIALS | BOOKING_CTA | ABOUT | CONTENT_BLOCK | CONTACT | FOOTER | CHATBOT | LEAD_FORM` (`HotsiteModuleType`, `packages/types/src/enums.ts`) *(12 shipped; a 13th, `TRIAL_SIGNUP_CTA`, is planned with Billing for the platform-owner tenant only — `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § TRIAL_SIGNUP_CTA)*; each layout entry may also carry an optional `presentation` (`docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4)
 - **`enabled: false`** modules are included in the response; the frontend decides to skip them
 - **`business`** (M12-S06) — resolved from `tenants.settings.businessInfo` (`docs/TENANTS_SETTINGS_SCHEMA.md` §6), camelCased. Always present; any of `phone`/`email`/`address`/`socialLinks` (`{ whatsapp, instagram, facebook }`, each `string | null`) may be `null` if the admin hasn't filled them in. Consumed by the `CONTACT` module — see `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § CONTACT.
 - **`localization`** (M12-S09) — `HotsiteLocalizationResponse`: `language`, `currency`, `timezone`, `phonePrefix`, `dateFormat`, `timeFormat`, `numberFormat`, `firstDayOfWeek` and an `address` spec, all resolved from `tenants.settings.localization`. `language` is resolved from `tenants.settings.localization.language` (`docs/TENANTS_SETTINGS_SCHEMA.md` §5), e.g. `"pt-BR"`. Always present, falling back to `"pt-BR"` when `isPublished: false`. Drives the hotsite's `og:locale` (converted to `pt_BR` format).
 - **`booking?`** — optional `HotsiteBookingSettingsResponse` (`{ maxBookingAdvanceDays }`), the booking-window setting the hotsite's booking flow reads; typed optional on the shared `HotsiteManifestResponse`, always populated by the BFF manifest route.
 - **`seo`** (M12-S09; `ogImageUrl` added M18-S03) — tenant-configured overrides, edited via `PATCH /v1/tenants/hotsite` (see "Hotsite Admin Management" below). `title`/`description` are `string | null`; `null` means the admin hasn't set an override, and the frontend (`buildHotsiteMetadata()`) falls back to a generated `<title>`/meta description derived from `tenant.name` and `business.address` (city/state). `ogImageUrl` is `string` (never `null` — empty string means unset), a **permanent public address** like `branding.logoUrl`, resolved the same way; it's the source for the Open Graph share-image card and is intentionally separate from `branding.logoUrl` (small/square brand mark) — see `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §11.
-- **`isPublished: false`** — still a `200`, not a `404`. Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
+- **`isPublished: false`** — still a `200`, not a `404`. *(Planned with Billing: `isPublished` becomes the effective value, so a suspended tenant also gets this payload — `## Billing — Access Resolution and Suspended-State Effects`.)* Minimal payload: `branding` reflects the admin's configured (but unpublished) branding — needed so the "Em breve" placeholder (M12-S08) can render with the tenant's `var(--ba-*)` tokens. `layout: []` and `business` (all fields `null`) are stubbed — this public, unauthenticated endpoint never exposes a tenant's draft layout/services/gallery/contact info before they publish. (The admin's full draft state remains available via the authenticated `GET /v1/tenants/hotsite` below.)
 - `404` — tenant slug not found (no `HotsiteConfig` reachable for this slug at all)
 
 ### **Published Hotsites Listing (Public — M12-S09)**
@@ -1619,6 +1619,264 @@ These backend routes are consumed by the BFF (or operator tooling) and have no `
 | `GET /hotsite` | The tenant's hotsite manifest (`GetHotsiteManifestUseCase`); the BFF's public manifest route calls it after resolving the slug | `X-Tenant-ID`, no role guard |
 | `GET /loyalty/balances?customerIds=<uuid>,<uuid>` | Batch loyalty balances for many customers in the caller's tenant (the BFF customer search calls it; not an `/internal` route) | `X-Tenant-ID` + `STAFF\|MANAGER` role guard |
 | `GET /loyalty/balances/own` | The calling customer's balances across tenants, resolved from their own identity (takes no params) | `CUSTOMER` role guard |
+
+---
+
+## Billing — Provider Webhooks and Internal API
+
+> **PLANNED, NOT YET BUILT** (Billing milestone). Ikaro charging its tenants: rules and aggregates in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, tables in `docs/DATABASE_SCHEMA.md` § Schema: `billing`, use cases UC-110–UC-145 in `docs/USE_CASES.md`. This section covers the provider webhooks, the operator / internal backend routes, the cron triggers, the non-production routes and the provider port. The manager-facing billing routes are in the next section, `## Billing — Manager API (BFF, role MANAGER)`; the access route and the effects of a suspension on existing routes are in `## Billing — Access Resolution and Suspended-State Effects`; the public price and signup routes are in `## Billing — Public Signup API (BFF, no JWT)` (UC-127, UC-128). Money is **integer minor units + ISO currency** (a convention introduced by this section: Base Standards above define no money format); dates are ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). Error codes: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
+
+### `POST /v1/public/billing/webhooks/asaas` and `POST /v1/public/billing/webhooks/stripe` — Provider webhooks (UC-114)
+
+BFF routes called by the payment provider (never by the web app).
+
+- **Decorators:** `@Public()` **and** `@BypassWebOnlyGuard()` — the provider is not the web app and sends no `x-web-internal-key`; `WebOnlyGuard` has no `@Public()` escape, so these are the first non-health routes to bypass it — **and** `@SkipThrottle()` (or a tuned `@Throttle`) so provider retries from a few source IPs are not rate-limited.
+- **Authenticity:** Asaas — header `asaas-access-token` compared timing-safe with the configured token (Ikaro does not use an IP allowlist). Stripe — `Stripe-Signature` (HMAC-SHA256, 5-minute tolerance) verified on the **raw body**, which the route must preserve.
+- **Processing:** the BFF forwards the raw body to `POST /internal/billing/webhooks/{provider}`. The backend resolves the tenant from the provider customer id, deduplicates on `(provider, event_id)`, applies the charge / subscription transition and writes the outbox rows in **one transaction**, and for Asaas applies a state-changing event only after `fetchChargeStatus` confirms it and the amount matches; for Stripe the invoice is re-read before applying (events arrive out of order and duplicated).
+- **Response:** exactly `200` after the transaction commits — never `201`, `204` or a redirect (Asaas counts those as failures and pauses its queue after 15 consecutive failures). A duplicate event and an unknown provider customer also return `200`. `401` for a wrong token / signature (nothing stored); a non-2xx on a backend failure so the provider retries.
+
+### Internal backend endpoints (`InternalApiGuard`; operator routes also `PlatformAdminGuard`)
+
+All sit under the four-layer protection described in "Internal Platform API (Operator Only)" above; no `X-Tenant-ID` is expected. Where `PlatformAdminGuard` lives for Billing controllers: `docs/BOUNDED_CONTEXTS.md` § 7. Billing Context (Supporting Domain, Tenant-Scoped). Each tenant-scoped operator call takes a `reason` and writes a `billing.operator_audit` row; price-list changes have no tenant and are audited on `feature_price_versions`.
+
+| Method / path | Purpose | UC |
+|---|---|---|
+| `GET /internal/tenants/{tenantId}/access` | The access answer the BFF guards read: `{ status, suspensionReason, operational, features: [{ key, tier }] }`. Fail-open and missing-subscription handling: `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort` | UC-120 |
+| `GET /internal/billing/suspended-tenant-ids` | Batch for the rare cross-tenant scan (a cron never calls the access port once per tenant). Returns the full id list, unpaginated by design (Pattern D); the response shape is fixed at story discovery | UC-120 |
+| `POST /internal/billing/registrations` | Creates the provisioning registration `{ source, googleSub?, taxId?, terms? }` and, for `SELF_SIGNUP`, runs the trial-eligibility check under `pg_advisory_xact_lock(hashtextextended('signup:'||googleSub, 0))` → `{ registrationId, trialAvailable }`. Used by the BFF (self-signup) and by `scripts/provision-tenant.sh` (`source = OPERATOR`) | UC-110, UC-127 |
+| `POST /internal/billing/webhooks/{provider}` | Normalised processing of the provider webhook (`asaas` \| `stripe`), see above | UC-114 |
+| `PUT /internal/billing/feature-prices` | Create a price (feature × country × tier × cycle) with its first amount, or set `selectable = false` | UC-112 |
+| `POST /internal/billing/feature-prices/adjust?dryRun=` | Percentage adjustment of every price in force for a country | UC-112 |
+| `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | Schedule one exact price change | UC-112 |
+| `POST /internal/tenants/{tenantId}/billing/suspend` \| `/unsuspend` \| `/grace` | The mapped operator edge cases: `OPERATOR` suspension, its lifting, a grace extension. Never a payment override or a reactivation of a payment-based suspension | UC-111 |
+| `PUT /internal/tenants/{tenantId}/billing/exempt` | `{ exempt, reason }` — set or clear free access; `403 BILLING_EXEMPT_PROTECTED` for Ikaro's own tenant | UC-137 |
+| `GET /internal/billing/tenants?status=` | Read-only investigation list (status, overdue age, last charge); not a daily worklist. Offset-paginated, Pattern A (limits fixed at story discovery) | UC-111 |
+| `POST /internal/tenants` (existing, UC-024) | Gains optional `exempt: boolean` and `registrationId`, and — for a non-exempt BR tenant — a **required** valid `taxId` (CPF / CNPJ). `422 SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`; a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off (`422 BILLING_US_NOT_AVAILABLE`). The same inputs are added to `scripts/provision-tenant.sh` | UC-110, UC-137 |
+
+`GET /internal/tenants/{tenantId}/billing/tenant-info` is **not** an endpoint: it names the read-only tenant-info **port** that the self-heal job and the release backfill use (`country_code`, `timezone`, `slug`, `created_at`).
+
+#### `POST /internal/billing/feature-prices/adjust` — percentage adjustment (UC-112)
+
+```
+POST /internal/billing/feature-prices/adjust?dryRun=true
+Body: { "countryCode": "BR", "percent": 20, "roundToMinor": 100, "effectiveFrom": "2027-01-10",
+        "reason": "annual adjustment",
+        "cycles": ["MONTHLY"]  (optional, default all),
+        "exclude": [ { "featureKey": "LEAD_FORM", "tier": "STANDARD" } ]  (optional) }
+200 (dryRun) { "batchPreview": [ { "featureKey","tier","cycle","oldAmountMinor","newAmountMinor" } ],
+               "affectedTenants": 14,
+               "sampleTenantTotals": [ { "tenantId","oldTotalMinor","newTotalMinor" } ],
+               "minNoticeDays": 40, "effectiveFrom": "2027-01-10", "previewHash": "…" }
+Without dryRun the body also carries "expectedPreviewHash":
+201 { "batchId": "…", "versions": 6, "affectedTenants": 14, "announced": true }
+422 BILLING_PRICE_NOTICE_TOO_SHORT | 409 BILLING_PRICE_BATCH_CHANGED | 422 BILLING_PRICE_UNCHANGED
+```
+
+It selects every price of the country that is in force today (a version with `effective_from <= today`, not superseded) and is either `selectable` or still used by a non-exempt subscription item, applies `percent` (negative = decrease) and rounds half-up to a multiple of `roundToMinor`. In **one transaction** it inserts one `feature_price_versions` row per price sharing a `batch_id`, `effective_from` and `reason`, supersedes any pending version of those prices, and writes **one** `SubscriptionPriceChangeAnnounced` outbox event per affected tenant. The notice check runs once for the batch: 40 days (`PRICE_CHANGE_MIN_NOTICE_DAYS` 30 + `CHARGE_ISSUE_LEAD_DAYS` 10), 60 when an annual price is included (slice H). `previewHash` makes the apply fail if the active prices changed after the dry run.
+
+#### `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions` — one exact price (UC-112)
+
+```
+Body: { "amountMinor": 4900, "effectiveFrom": "2026-12-10", "reason": "correction" }
+200 (dryRun) { "affectedTenants": 14, "currency": "BRL", "oldAmountMinor": 3900, "newAmountMinor": 4900,
+               "minNoticeDays": 40, "effectiveFrom": "2026-12-10" }      // nothing saved, nothing sent
+Without dryRun: 201 { "versionId": "…", "affectedTenants": 14, "announced": true }
+422 BILLING_PRICE_NOTICE_TOO_SHORT
+```
+
+The affected tenants are those `TRIALING`, `ACTIVE` or `PAST_DUE` with an active or next-period scheduled item for that feature and tier in that country, not `exempt`; suspended tenants are not notified.
+
+### Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140)
+
+Cloud Scheduler publishes a tenant-less trigger to Pub/Sub; it is delivered through the shared `/pubsub/push` receiver to a handler registered with `ITriggerBus.registerTrigger(name, handler, consumer)`. The `POST /cron/*` routes below are the local / manual publishers only, behind `InternalApiGuard`, exactly like `POST /cron/lead-form-retention` above. Each returns `200 { "ok": true }` once the trigger is published, is idempotent, passes an explicit `tenantId` to every use case (no `RequestContext`), and skips `exempt` subscriptions. A trigger carries no tenant id, so each job selects its tenants through its own standalone index.
+
+| Path | Trigger name | Schedule | Purpose | UC |
+|---|---|---|---|---|
+| `POST /cron/billing-issue-charges` | `billing-issue-charges` | daily | Issue next charges 10 days before due (30 days for annual, slice H) | UC-113 |
+| `POST /cron/billing-status-sweep` | `billing-status-sweep` | **hourly** | Overdue / past-due / trial end (with the settlement margin) / suspend / cancel-at; honours the suspension freeze | UC-115 |
+| `POST /cron/billing-reminders` | `billing-reminders` | daily | Dunning and plan-confirmation reminders (`BillingReminderDue`) | UC-139 |
+| `POST /cron/billing-reconcile` | `billing-reconcile` | daily (all open charges) + hourly (at-risk tenants) | Reconcile with the provider | UC-116 |
+| `POST /cron/billing-self-heal` | `billing-self-heal` | hourly | Provisioning repair, provider health, suspension freeze | UC-140 |
+| `POST /cron/billing-provider-events-purge` | `billing-provider-events-purge` | daily | Retention of `provider_events` (30 days) | UC-114 |
+| `POST /cron/billing-tenant-purge` | `billing-tenant-purge` | daily | Purge warnings (30 / 7 days) and erasure; stays disabled until every purge participant ships *(slice G)* | UC-132 |
+
+### Non-production endpoints (UC-138)
+
+`POST /internal/dev/clock/advance` (`{ days?, hours? }` advances the injectable `IClock` for Billing decisions), `POST /internal/dev/billing/provider/simulate` and `POST /internal/dev/billing/seed`. They sit behind `InternalApiGuard` + `PlatformAdminGuard` and **do not exist** when `APP_ENV=production` (`404`); `simulate` works only for a subscription whose `merchant_profile_key` is a `*_FAKE` key.
+
+```
+POST /internal/dev/billing/provider/simulate
+Body: { "tenantId" | "chargeId": "…",
+        "event": "PAID_PIX" | "PAID_BOLETO" | "PAID_CARD" | "OVERDUE" | "REFUND_FULL" | "REFUND_PARTIAL"
+               | "CHARGEBACK_OPENED" | "CHARGEBACK_LOST",
+        "delivery": "NORMAL" | "DUPLICATE" | "DELAYED" | "OUT_OF_ORDER",
+        "failure"?: "PROVIDER_5XX" | "LINK_EXPIRED" | "INVALID_LOCATION" }
+```
+
+### Provider port (Ikaro's terms)
+
+`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. A live adapter refuses to start unless `APP_ENV=production`.
+
+```ts
+interface BillingProviderPort {
+  ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
+  // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
+  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference }):
+    Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
+  regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
+  cancelCharge(providerChargeId): Promise<void>;
+  startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
+  revokeAutoBilling(customerId): Promise<void>;
+  fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
+}
+// Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent
+//   PaymentConfirmed | PaymentOverdue | PaymentRefunded | PaymentChargeback | AutoBillingAuthorized | AutoBillingRevoked
+```
+
+There is no separate tax port (Stripe returns the breakdown when it finalizes the invoice) and no manual provider or manual mark-paid route.
+
+### Billing errors
+
+Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it originates is in `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`. The codes this section returns: `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PRICE_UNCHANGED`, `BILLING_PRICE_BATCH_CHANGED`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TAX_ID_INVALID`.
+
+---
+
+## Billing — Manager API (BFF, role MANAGER)
+
+> **PLANNED, NOT YET BUILT** (Billing milestone). The routes behind the manager's "Assinatura" page (`/dashboard/billing`, UC-117–UC-119, UC-130, UC-133–UC-136; slices UC-135, UC-143–UC-145 are deferred). Conventions are those of `## Billing — Provider Webhooks and Internal API` above (integer minor units + ISO currency, ISO-8601 UTC dates, `due_date` as `YYYY-MM-DD`); list endpoints are **Pattern A** (`items` + `pagination {limit, offset, total, hasMore}`). The flows, alternative paths and events of each route are in the cited use case — this section holds the contract only.
+
+- **Placement:** authenticated routes live in the billing slice's `billing.controller.ts`; response types and Zod schemas in sibling `billing.types.ts` / `billing.schemas.ts`; display strings are built by the BFF mapper in `billing.mapper.ts`, never by the backend. Types shared with the web go in `@ikaro/types` (grep it first).
+- **Auth and gating:** every route is `@Roles('MANAGER')` (staff and customers get `403`) and declares `@SuspensionAccess(MANAGER_BILLING)`, so a manager of a `SUSPENDED` tenant can still reach it — these routes, `GET /v1/billing/access`, logout and the tenant-switch endpoints are the only ones allowed to a suspended manager. The suspension guard is the global `TenantAccessGuard` (placement and the guard-not-interceptor rule: `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned), item 1). Tenant scope comes from the JWT; the BFF forwards `X-Actor-ID` / `X-Actor-Type` / `X-Actor-Role` and the backend reads `RequestContext`.
+
+| Method / path | Purpose | UC |
+|---|---|---|
+| `GET /v1/billing/summary` | Status, dates, active features, total, open charge, auto-billing, cancel state (shape below) | UC-117 |
+| `GET /v1/billing/charges?limit=&offset=` | Paginated charge history (Pattern A, newest first) | UC-117 |
+| `GET /v1/billing/identity` · `PUT /v1/billing/identity` | Read / save the billing identity; every `PUT` field is optional | UC-118 |
+| `POST /v1/billing/charges/{chargeId}/payment-link` | (Re)generate the hosted payment URL → `200 { paymentUrl, expiresAt }`; `BILLING_CHARGE_NOT_PAYABLE` (status decided at story discovery) | UC-119 |
+| `POST /v1/billing/charges/{chargeId}/payment-return` | The web calls it when the manager returns from the hosted page: sets `payment_return_seen_at` and triggers an on-demand single-charge refresh from the provider | UC-119, UC-116 |
+| `GET /v1/billing/plan` | Catalog, current and next-paid-period selection, tiers, dependencies and effective dates | UC-136 |
+| `POST /v1/billing/plan/preview` | Preview the proposed next-paid-period selection and total | UC-136 |
+| `PUT /v1/billing/plan` | Schedule the next paid-period selection `{ items: [{ featureKey, tier }] }`; during the trial it also sets `plan_confirmed_at`. Rejections: `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_FEATURE_IN_USE`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_ADDRESS_REQUIRED` (statuses decided at story discovery) | UC-136 |
+| `POST /v1/billing/plan/confirm` | Trial only: confirm the current first paid selection unchanged → `200 { planConfirmedAt }`; triggers first-invoice issuing when within the 10-day lead; `409 BILLING_PLAN_ALREADY_CONFIRMED` | UC-136 |
+| `POST /v1/billing/cancel` | Cancel (scheduled or immediate by status) → `200 { cancelAt }` or `200 { status: "SUSPENDED", cancelAt: null }`; `409 BILLING_ALREADY_CANCELLING` | UC-133 |
+| `POST /v1/billing/reactivate` | Undo a scheduled cancel, or cancel the stale open charge and issue the one-month recovery charge → `200 { cancelAt: null, openCharge: { …, kind: "RECOVERY" } \| null }`; it never returns a URL (the web then calls `payment-link`) | UC-134 |
+| `POST /v1/billing/discard` | **Deferred (slice G).** Self-service discard of a never-paid tenant `{ confirmSlug }` → `202 { purgeJobId }`; `409 BILLING_DISCARD_NOT_ALLOWED` when a charge was ever paid. Assigned the manager-billing suspension policy (`@SuspensionAccess(MANAGER_BILLING)`), which keeps it reachable while suspended; the status for a slug mismatch is decided at story discovery | UC-141 |
+| `POST /v1/billing/auto-billing` | **Deferred.** Start a provider-hosted authorization `{ mode: "PIX_AUTOMATICO" \| "CARD_RECURRING" }` → `200 { authorizationUrl }` (the field is `mode`, never `method`; `CARD_RECURRING` is slice F2) | UC-135, UC-143 |
+| `DELETE /v1/billing/auto-billing` | **Deferred.** Revoke automatic charging | UC-135, UC-143 |
+| `PUT /v1/billing/plan`, `POST /plan/preview`, `POST /plan/confirm` *(slice H)* | Accept an optional `cycle: "MONTHLY" \| "ANNUAL"` (default: the subscription's current cycle); the preview returns the total and the monthly equivalent; `GET /plan` returns both cycles' prices per feature and `nextCycle` / `nextCycleFrom`; `BILLING_CYCLE_NOT_AVAILABLE` when a selected feature has no annual price | UC-144 |
+| `POST /v1/billing/plan/addon` *(slice H)* | Annual subscribers: `{ featureKey, tier }` → `201 { chargeId, amountMinor, months }` (the web then calls `payment-link`); `409 BILLING_ADDON_NOT_ALLOWED` on a monthly subscription | UC-145 |
+
+`GET /v1/billing/access` (any role) is in `## Billing — Access Resolution and Suspended-State Effects` below (UC-120).
+
+**Summary response** (`GET /v1/billing/summary`):
+
+```json
+{
+  "status": "ACTIVE",
+  "exempt": false,
+  "suspensionReason": null,
+  "currency": "BRL", "countryCode": "BR",
+  "cycle": "MONTHLY",
+  "nextCycle": null, "nextCycleFrom": null,
+  "trialEndsAt": null, "nextDueDate": "2026-11-20", "pastDueSince": null,
+  "suspendsAt": null, "cancelAt": null, "purgeAt": null,
+  "planConfirmationRequired": false, "planConfirmationFallbackAt": null,
+  "canDiscard": false, "addressRequired": false,
+  "items": [ { "featureKey": "HOTSITE", "tier": "STANDARD", "unitPriceMinor": 4900 } ],
+  "totalMinor": 8800,
+  "openCharge": { "id": "…", "kind": "PERIOD", "dueDate": "2026-11-20", "subtotalMinor": 8800, "taxMinor": 0, "amountMinor": 8800, "status": "PENDING", "hasPaymentLink": true, "paymentLinkExpiresAt": "…" },
+  "autoBilling": { "mode": "NONE", "status": "INACTIVE", "label": null },
+  "paymentConfirmationPending": false,
+  "upcomingPriceChanges": [ { "featureKey": "CHATBOT", "tier": "PLUS", "currentAmountMinor": 7900, "newAmountMinor": 8900, "effectiveFrom": "2026-12-10" } ]
+}
+```
+
+- `status`: `TRIALING` | `ACTIVE` | `PAST_DUE` | `SUSPENDED`; `suspensionReason` is `NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR` only while `SUSPENDED`. `exempt: true` means no charges ever (the page shows "Conta isenta de cobrança" and no actions).
+- `cycle` is `MONTHLY` | `ANNUAL` (slice H); totals and item prices are in that cycle. `nextCycle` / `nextCycleFrom` carry a scheduled switch.
+- `suspendsAt` is set only for `PAST_DUE` (`coalesce(grace_until, past_due_since + 14 days)`); `purgeAt` only for `SUSPENDED` (the clean-up delay is in `docs/DOMAIN_MODEL.md` § Context 7, `has_ever_paid`).
+- `planConfirmationRequired` is true while `TRIALING` and `plan_confirmed_at` is null (no first invoice exists yet); `planConfirmationFallbackAt` is the date the default plan is invoiced automatically. `canDiscard` is true for a never-paid `TRIALING` / `SUSPENDED` tenant once the purge participants are deployed (UC-141). `addressRequired` is true until the full billing address is saved (BR and US; UC-118 A6).
+- `items` carry the current-period price for display only (items store no price). `totalMinor` is net of tax; for a US tenant the page labels it "+ imposto calculado na cobrança", because tax exists only on the issued charge.
+- `openCharge.kind` is a charge kind (`PERIOD` or `RECOVERY` here; enum in `docs/DOMAIN_MODEL.md` § Context 7); while `SUSPENDED` it is the recovery charge (UC-134). `autoBilling.mode` and `status` are the subscription's auto-billing enums (`docs/DATABASE_SCHEMA.md` § Schema: `billing`); the label comes from the provider as data.
+- `paymentConfirmationPending` is true while `payment_return_seen_at` is set and the charge is still open, until the paid webhook or reconcile lands (polling cadence: UC-117 A3).
+- `upcomingPriceChanges` lists dated list-price changes announced to the tenant (amounts illustrative above).
+
+**Charge history item** (`GET /v1/billing/charges`): `{ id, kind: "PERIOD" | "RECOVERY", periodStart | null, periodEnd | null, dueDate, subtotalMinor, taxMinor, amountMinor, currency, status: "PAID" | "PENDING" | "OVERDUE" | "FAILED" | "CANCELED" | "REFUNDED" | "CHARGEBACK", method, paidAt, receiptUrl | null, lines: [{ featureKey, tier, unitPriceMinor }], taxLines: [{ jurisdiction, taxType, rateBasisPoints, amountMinor }] }`. For BR `taxLines` is always `[]` and `taxMinor` is `0` (prices are tax-inclusive); for US (slice E) the lines are the immutable Stripe Tax snapshot of that charge only, and `amountMinor = subtotalMinor + taxMinor`. A recovery charge has no period dates. `receiptUrl` is the provider's hosted receipt link on a paid charge.
+
+**Identity** (`PUT /v1/billing/identity`, every field optional): `{ taxIdType: "CNPJ" | "CPF" | "OTHER" | null, taxId, legalName, billingEmail, address: { street, number, complement?, neighborhood?, city, state, zipCode } }` → `200` with the same shape. Errors: `422 BILLING_IDENTITY_TAX_ID_INVALID`, `422 BILLING_IDENTITY_EMAIL_INVALID`, and the existing `Address` error codes (postal / state format for the billing country). Field labels, placeholders and validation come from the billing country's `CountrySpec.address`; the BR form reuses the CEP lookup (`useAddressLookup` / ViaCEP).
+
+---
+
+## Billing — Access Resolution and Suspended-State Effects
+
+> **PLANNED, NOT YET BUILT** (Billing milestone). The read side of enforcement: how the web learns whether a tenant is operational and what a `SUSPENDED` tenant changes on routes that already exist (UC-120–UC-125). Unlike the manager routes above, these are not `MANAGER`-only. The mechanism (guard, decorators, event and cron gates, kill switch) is in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned); the access contract itself (fields, TTLs, fail-open) is in `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort`.
+
+**`GET /v1/billing/access`** (any authenticated role; UC-120)
+
+| Field | Meaning |
+|---|---|
+| `status` | the subscription status |
+| `operational` | `status != SUSPENDED` |
+| `features` | `[{ key, tier }]` — the entitled features |
+
+The answer is reduced to what the caller's role may see; the exact reduction per role is decided at story discovery. It is read by the web layouts and `proxy.ts` (routing by role while suspended, UC-121), the dashboard (locked items, UC-125) and the customer account (the "Empresa inativa" badge). It is cached in the BFF and **fails open** on a lookup error; the billing page and the access calls it makes bypass the BFF cache (UC-117). The BFF guard does not call this route — it reads the backend's internal access endpoint through the shared port.
+
+**What `SUSPENDED` changes on existing routes** (UC-121, UC-122)
+
+| Route | Change |
+|---|---|
+| `GET /v1/public/platform/manifest/{slug}` | `isPublished` becomes the **effective** value (the manager's flag `&&` operational). A suspended tenant keeps `branding` and otherwise returns the same minimal payload as today's `isPublished: false` — still `200`, never `404` (see "Tenant Hotsite Manifest" above). |
+| `GET /v1/public/platform/published-hotsites` | Excludes tenants that are not operational (today only `is_active` is filtered). |
+| `GET /auth/staff-tenants` | Gains a per-tenant `operational: boolean`. A suspended tenant stays listed and is never filtered; `POST /auth/switch-staff-tenant` and the customer `POST /auth/switch-tenant` must accept it. |
+| Customer booking and loyalty reads | The BFF exposes a customer-safe `tenantOperational` flag for the "Empresa inativa" badge and the read-only history; its route and response shape are decided at story discovery. Behaviour per UC-121. |
+| `GET /internal/tenants/by-slug/{slug}` | Unchanged by design: it ignores suspension so login can always resolve the tenant. |
+| Routes `RequestInterceptor` skips | `/internal/*`, `/cron/*`, `/pubsub/*` and `/health` bypass the interceptor, so tenant-less signup and registration routes live under `/internal/*`. `StaffTenantOption` (`GET /auth/staff-tenants`) has no status field today; UC-121 A4 adds the per-tenant `operational` flag. |
+
+**Typed denials.** A route refused for entitlement fails with `BILLING_FEATURE_NOT_ENTITLED`; one refused because the tenant is suspended fails with `BILLING_TENANT_SUSPENDED` (`docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`). The HTTP status of each is not yet specified in the discovery; it is decided at story discovery.
+
+---
+
+## Billing — Public Signup API (BFF, no JWT)
+
+> **PLANNED, NOT YET BUILT** (Billing milestone). The unauthenticated routes behind the public trial page `/ikaro-trial`: prices, slug availability and self-service signup (UC-127, UC-128). All carry `@Public()`; the provider webhook routes, which are also public, are in `## Billing — Provider Webhooks and Internal API`. Money is integer minor units + ISO currency (convention in that section). Errors: `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`.
+
+| Route | Purpose | UC |
+|---|---|---|
+| `GET /v1/public/billing/prices?country=BR` | The selectable list prices for a country (cacheable) | UC-128 |
+| `GET /v1/public/signup/slug-availability?slug=` | `available \| taken \| reserved \| invalid` (throttled) | UC-128 |
+| `GET /v1/public/signup/session` | The verified Google identity of the in-progress signup: `{ email, name, trialAvailable, existingTenantSlug? }`. `trialAvailable` is `false` when an earlier self-signup tenant of that Google `sub` never paid; `existingTenantSlug` lets the error page link to sign-in or discard (UC-141) | UC-127 |
+| `POST /v1/public/signup/tenant` | The BFF reserves the registration (Billing, `POST /internal/billing/registrations`) then creates the tenant (Platform's signup use case, which provisions with the `registrationId`) | UC-127 |
+| `POST /v1/public/signup/resend` | Rate-limited resend of the first-manager invitation email from the account-created page | UC-127 A10 |
+
+```
+GET /v1/public/billing/prices?country=BR
+200 { "countryCode":"BR", "currency":"BRL", "taxBehavior":"INCLUSIVE",
+      "items":[ { "featureKey":"HOTSITE", "tier":"STANDARD", "amountMinor":4900 },
+                { "featureKey":"CHATBOT", "tier":"PLUS", "amountMinor":7900,
+                  "upcoming": { "amountMinor":8900, "effectiveFrom":"2026-12-10" } } ] }
+```
+
+- `upcoming` is present only when a dated price change is scheduled; the amounts above are illustrative. Feature descriptions are translated copy in the web app, not API data. *(Slice H: `&cycle=ANNUAL`, default `MONTHLY`, makes each item carry the annual amount and `monthlyEquivalentMinor`.)*
+
+```
+GET /v1/public/signup/slug-availability?slug=lavacar-top
+200 { "status":"available" } | { "status":"reserved" } | { "status":"taken" } | { "status":"invalid", "reason":"TOO_SHORT" }
+
+POST /v1/public/signup/tenant
+  Body: { "businessName", "slug", "countryCode":"BR|US",
+          "taxId":"12.345.678/0001-90",          // BR only, CPF or CNPJ with valid check digits; omitted for US
+          "acceptedTermsVersion":"2026-10", "turnstileToken":"…" }
+  201 { "tenantSlug":"lavacar-top", "nextPath":"/ikaro-trial/conta-criada" }
+  400 SIGNUP_TURNSTILE_FAILED
+  409 SIGNUP_SLUG_TAKEN | SIGNUP_TRIAL_NOT_AVAILABLE
+  422 SIGNUP_SLUG_INVALID | SIGNUP_SLUG_RESERVED | SIGNUP_TAX_ID_REQUIRED | SIGNUP_TAX_ID_INVALID | SIGNUP_TERMS_NOT_ACCEPTED
+  429 SIGNUP_RATE_LIMITED   (Retry-After)
+```
+
+- **Email and name come from the signup session, never from the body.** The language derives from `countryCode`; there is no language field.
+- **Signup session.** After Google sign-in the BFF issues a short-lived (30 minutes), httpOnly, signed cookie that carries only `{ email, name, googleSub }` (no tenant yet), built on `JwtService` / `OAuthStateService`. There is no existing "staff selection token" to reuse: `/select-staff-tenant` is a page and `switch-staff-tenant` re-issues the session JWT. The `201` clears the cookie and does **not** issue a tenant JWT; the browser goes to the account-created page, and the existing invitation / login email created from `TenantProvisioned` is the only dashboard-access handoff. The cookie name is decided at story discovery.
+- **Abuse protection.** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug availability is throttled to limit enumeration. `WebOnlyGuard` has no per-route allowance: every route, `@Public()` or not, needs the web key, so these routes work when ikaro-web calls them server-side with no bypass; `@BypassWebOnlyGuard()` is needed only if a browser or the Google redirect hits the BFF directly, which is decided at story discovery. These routes are platform-level and carry no `X-Tenant-Slug` header. `429` carries `Retry-After`.
+- **Scope of this section.** Statuses are the ones above; anything not listed (for example the status of `GET /signup/session` without a valid cookie, or of `resend` when the first manager already exists, or the public answer when the US is selected while `FEATURE_FLAG_SIGNUP_US` is off or a country has no price list — `BILLING_US_NOT_AVAILABLE` and `BILLING_NO_PRICE_FOR_COUNTRY` exist on the operator path, `POST /internal/tenants`, but the public mapping is not yet specified) is decided at story discovery. The internal route that reserves the registration and the effect on `POST /internal/tenants` (UC-024) are in `## Billing — Provider Webhooks and Internal API`.
 
 ---
 

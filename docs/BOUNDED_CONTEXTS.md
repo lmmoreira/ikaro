@@ -117,16 +117,26 @@ Notification Context subscribes:
 │                             └────────────────────┘  │    Submission-│ │
 │                                                      │    Received   │ │
 │                                                      └───────────────┘ │
+│                                                                          │
+│  ┌───────────────────────────────────────────────────────────────────┐ │
+│  │                  BILLING CONTEXT  (Supporting, 7th)                │ │
+│  │  Aggregates: Subscription (+ items), BillingAccount, Charge        │ │
+│  │             (+ lines), FeaturePrice (+ versions, platform-wide)    │ │
+│  │  Published: ChargeIssued, ChargePaid, Subscription*, PlanChanged,  │ │
+│  │             BillingReminderDue, TenantPurge*  (billing emails)     │ │
+│  │  Consumes:  TenantProvisioned (Platform), TenantPurgeContext-      │ │
+│  │             Completed; implements the shared TenantAccessPort      │ │
+│  └───────────────────────────────────────────────────────────────────┘ │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 6 bounded contexts; the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a 7th business capability with its own aggregates. See `docs/ARCHITECTURE.md` §Communication Patterns and `docs/DOMAIN_EVENTS.md`.
+**Not pictured — `shared.outbox`/`shared.inbox` are transport infrastructure, not a context (TD24):** the diagram above shows the 7 bounded contexts (Billing, § 7, is the 7th); the transactional outbox (publish-side durability) and shared inbox (consume-side idempotency) that carry every event between them are deliberately absent from it — they're the same category as Pub/Sub itself, a cross-cutting mechanism every context's events flow through, not a further business capability with its own aggregates. See `docs/ARCHITECTURE.md` §Communication Patterns and `docs/DOMAIN_EVENTS.md`.
 
 ---
 
 ## Context Descriptions
 
-> Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context`.
+> Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
 
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 
@@ -310,6 +320,7 @@ TENANT B (completely separate):
 - Loyalty: `ServicePointsEarned`, `PointsExpiringSoon`.
 - Booking (resource impact, M23-S23): `ResourceDeactivationImpactRaised`, `BookingResourceReassigned`.
 - Staff: `StaffInvited`. Platform: `TenantProvisioned` (seeds the default templates).
+- Billing *(planned, § 7)*: `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue`, `TenantPurgeWarning`, `SubscriptionPriceChangeAnnounced` — each sends a manager email from a **platform-level** (`tenant_id IS NULL`) Billing template, read through a global-template lookup Notification gains for these send use cases (today's template lookup is tenant-strict). Billing emails are exempt from the suspension gate.
 
 **Event-to-Email Mapping:**
 ```
@@ -349,6 +360,9 @@ RecurringScheduleRenewalDue → Email: Customer "Your recurring reservation ends
 ServicePointsEarned → (Notification may batch per booking) Email: Customer "You earned [total] points across [N] services in your last visit."
 
 PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points on [Service] will expire on [date]. Book again to keep earning."
+
+Billing events (planned, § 7) → Email: the tenant's billing email, else its managers (platform-level templates, exempt from the suspension gate):
+  ChargeIssued (payment link) · ChargePaid (receipt) · SubscriptionPastDue · SubscriptionSuspended · SubscriptionReactivated · SubscriptionCancelled · PlanChanged · BillingReminderDue (plan confirmation, trial ending, charge due soon, charge overdue) · TenantPurgeWarning (30/7 days) · SubscriptionPriceChangeAnnounced (one consolidated email per tenant)
 ```
 
 **Dependencies:**
@@ -522,6 +536,12 @@ Notification Context subscribes, composes email, sends
 
 ---
 
+### **4. Shared Access Port (Synchronous, Billing → every context)**
+
+"May this tenant do this, now?" is a synchronous, hot-path question that events cannot answer (an event arrives after the request). It is answered through **one shared port, `TenantAccessPort`, in `src/shared/ports/`** — not through a cross-context Port+Adapter per consumer — implemented by Billing and read by every context, guard and job with an explicit `tenantId`. Access control reads state, never events; Billing's own events (`SubscriptionSuspended`, `SubscriptionReactivated`, …) only trigger emails and durable cross-context work such as hotsite revalidation. Cache TTLs, the fail-open rule and the missing-subscription incident are in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context (Entry point: `TenantAccessPort`); enforcement choke points are in `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned).
+
+---
+
 ## Context Isolation Contract
 
 These rules are **non-negotiable**. Any violation creates cross-context coupling — the spaghetti that eventually prevents independent testing, deployment, and evolution of each context. CI code review MUST reject PRs that break them.
@@ -554,6 +574,8 @@ NestJS module files (`*.module.ts`) MUST NOT `imports:` or `providers:` any clas
 ---
 
 ### Rule 2 — Communication via Events or BFF Only
+
+The one synchronous exception is the shared `TenantAccessPort` (Communication Patterns § 4): a single port in `src/shared/ports/`, never a per-consumer cross-context Port+Adapter.
 
 | Need | Allowed pattern | Forbidden |
 |---|---|---|
@@ -591,6 +613,7 @@ Each context owns its own **PostgreSQL schema**. TypeORM entities in a context o
 | Loyalty | `loyalty` |
 | Notification | `notification` |
 | Platform | `platform` |
+| Billing | `billing` |
 
 **Cross-context UUID references have no DB-level FK constraint.** If `loyalty.loyalty_entries` needs to reference a booking, it stores `booking_id UUID` with no `REFERENCES booking.bookings(id)`. Referential integrity across contexts is the application's responsibility (enforced by events and idempotency keys).
 
@@ -649,6 +672,7 @@ If a consumer needs data that the event does not carry, the fix is to **add that
 |---|---|
 | `IEventBus` port | Any entity or aggregate |
 | `IEmailSender` port | Any use case |
+| `TenantAccessPort` (Billing implements it; callers read status and entitled features) | Billing's subscription or charge state itself |
 | Base classes: `AggregateRoot`, `DomainEvent`, `ValueObject` | Any repository implementation |
 | Value objects used by multiple contexts: `Money`, `Address` | Any context-specific domain service |
 | `RequestContext` (request-scoped tenant identity) | Any controller |
@@ -785,12 +809,13 @@ For MVP: All deployed as single service, but code organized as separate modules 
 **Database:** `tenants` + `hotsite_configs` + `chatbot_sessions` + `chatbot_messages` + `chatbot_provider_balance` + `lead_form_configs` + `lead_form_submissions` + `lead_form_answers` + `lead_form_submission_question_refs` tables (see `docs/DATABASE_SCHEMA.md`)
 
 **Published Events:**
-- `TenantProvisioned` → consumed by **Staff** (first MANAGER), **Booking** (the tenant's location resource) and **Notification** (default-template seed), plus the shared `audit-log` consumer
+- `TenantProvisioned` → consumed by **Staff** (first MANAGER), **Booking** (the tenant's location resource), **Notification** (default-template seed) and **Billing** (the trial `Subscription` and `BillingAccount`, read from the billing registration named by the event's `registrationId`), plus the shared `audit-log` consumer
+- `TenantDeactivated` *(slice G; emitter decided at story discovery, UC-142, sequenced with M17-S51)* → consumed by **Billing** (cancels the subscription and stops charging, UC-142) and `audit-log`
 - `LeadFormSubmissionReceived` → consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an explicitly deferred fast-follow
 
 > Staff invite/deactivate (UC-025/UC-028) and their `StaffInvited`/`StaffDeactivated` events are owned by the **Staff Context** (§5), not Platform — Platform only hosts the tenant/hotsite/chatbot/lead-form aggregates listed above.
 
-**Consumed Events:** none — Platform is the source for its own data (it only *publishes* `TenantProvisioned`). The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/USE_CASES.md` UC-033.
+**Consumed Events:** `TenantPurgeRequested` *(slice G; UC-132, UC-141)* as one purge participant (deletes the tenant's Platform data and, last, the tenant root once Billing has recorded every other completion); otherwise none — Platform is the source for its own data. The chatbot flow reads live services/prices from Booking context via BFF orchestration (`BackendHttpService.getForPublic('/services', tenantId)`), not an event or an in-process port — see `docs/USE_CASES.md` UC-033.
 
 **Dependencies:**
 - **Output:** All other contexts read `tenant_id` and `tenants.settings` from here through their cross-context adapters, which call Platform's exported `GetTenantByIdUseCase` (e.g. `loyalty-platform.adapter.ts`) — never Platform's repository or tables directly
@@ -807,6 +832,41 @@ For MVP: All deployed as single service, but code organized as separate modules 
 - Repository pattern for `Tenant` and `HotsiteConfig`
 - Slug uniqueness enforced at DB level (`UNIQUE(slug)`) and validated at application level before insert
 - Chatbot cap enforcement queries Postgres directly (`chatbot_sessions`/`chatbot_messages` `COUNT`s) — never a per-instance `CachePort` cache, which would undercount independently on each Cloud Run replica and silently multiply an intended platform-wide/tenant-wide limit by the replica count
+
+---
+
+### **7. Billing Context (Supporting Domain, Tenant-Scoped)**
+
+**Purpose:** Ikaro charging its tenants — price list, subscription, charges, payment-provider integration, the access ladder (`TRIALING → ACTIVE → PAST_DUE → SUSPENDED`) and the entitlement set. The payment provider owns the money; Billing owns only three policies: the access ladder, the entitlement set and the clean-up (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context).
+
+**Owned Aggregates:**
+- `Subscription` (1 per tenant) — status, suspension reason, currency/country/timezone snapshot, cycle, anchor day, trial end, period, `cancelAt`, `exempt`, plus child **items** (feature, tier, `startsAt`, `endsAt`; no price)
+- `BillingAccount` (1 per tenant) — tax identity, legal name, billing email, address, provider customer id, accepted terms
+- `Charge` — one bill for one period (+ `charge_lines` price snapshot; US tax lines in slice E)
+- `FeaturePrice` (platform-wide, no `tenant_id`) — feature × country × tier × cycle with dated `feature_price_versions`
+- Supporting tables: `provider_events` (webhook inbox), `signup_registrations` (provisioning registration), `tenant_purge_jobs` / `tenant_purge_steps` (erasure coordinator), `provider_health`, `operator_audit`
+
+**Responsibilities:** issue and track charges against the provider (`BillingProviderPort`: Asaas for BRL, Stripe for USD, a `FakeBillingProvider` outside production); apply provider webhooks and reconcile; sweep statuses hourly; send every billing email; answer `TenantAccessPort`; own the operator touchpoints (`exempt`, `suspend`/`unsuspend`, `grace`, list-price changes); coordinate tenant erasure.
+
+**Database:** schema `billing` (`docs/DATABASE_SCHEMA.md` § Schema: billing).
+
+**Published Events:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue`, `SubscriptionPriceChangeAnnounced`, `TenantPurgeWarning`, `TenantPurgeRequested` — consumed by **Notification** (billing emails), hotsite revalidation (suspend/reactivate) and every context as a purge participant, plus the shared `audit-log` consumer (`BillingAuditLogHandler`).
+
+**Consumed Events:** `TenantProvisioned` (Platform), `TenantPurgeContextCompleted` (every participant; UC-132, UC-141), `TenantDeactivated` (Platform, slice G; UC-142).
+
+**Dependencies (the reviewed exceptions):**
+- **Input:** callers across the system read access through the shared `TenantAccessPort` (§ Communication Patterns 4) — never Billing's repositories.
+- **Billing → Platform (one narrow read):** the self-heal job and the release backfill create subscriptions for tenants whose `TenantProvisioned` payload is gone or legacy, so they read `country_code`, `timezone`, `slug` and `created_at` through a small read-only tenant-info port (precedent: Notification's `INotificationPlatformPort.getTenantInfo`), registered as an exact-path `permittedEdges` entry in `architecture-policy.json`. The live trial handler stays event-driven and does not call Platform. Nothing else in Billing reads Platform.
+- **Billing → Booking (Plano tab only):** removing `BOOKING` is rejected while any `PENDING`/`INFO_REQUESTED`/`APPROVED` booking, recurring schedule or active availability alert extends past the effective date (`BILLING_FEATURE_IN_USE`), checked through one new Booking use case behind one cross-context port (an exact-path `permittedEdges` entry).
+- **Billing → Notification:** none by call — emails flow through events; Notification gains a global (`tenant_id IS NULL`) template lookup for Billing's platform-level templates.
+- **Operator endpoints (planned):** Billing's operator routes (`feature-prices`, `suspend`/`unsuspend`/`grace`, `exempt`, the non-production `dev` routes) are guarded by `InternalApiGuard` + `PlatformAdminGuard`. Today `PlatformAdminGuard` lives only in the Platform context (`contexts/platform/infrastructure/guards/`) and nothing outside it imports it, so a Billing controller cannot use it without breaking Rule 1: the first Billing story that needs it either moves the guard to `src/shared/` or adds an exact-path `permittedEdges` entry; this doc does not decide which.
+- **External:** Asaas, Stripe (hosted pages, webhooks), Cloud Scheduler → Pub/Sub triggers for the jobs.
+
+**Tenant Isolation:**
+- Every Billing table is scoped by `tenant_id` with composite `(tenant_id, id)` FKs, **except** the platform-wide `feature_prices`, `feature_price_versions` and `provider_health`, and `provider_events` whose PK is `(provider, event_id)` (the webhook dedupes before it can resolve a tenant) — listed in `docs/TENANT_ISOLATION_STRATEGY.md`. Cross-tenant jobs (issue, sweep, reminders, reconcile, self-heal, purge) select through their own standalone indexes because no tenant id arrives with a trigger.
+- Billing never flips `platform.tenants.is_active` (a payment problem is not an offboarding) and never mutates the manager's `isPublished`: effective published = manager's flag AND tenant operational.
+
+**Tech Stack:** repository pattern per aggregate; paying a `Charge` may move the `Subscription` back to `ACTIVE` in one transaction under `findByIdForUpdate` (`docs/LOCK_CATALOG.md`); provider I/O is never inside `txManager.run()`.
 
 ---
 

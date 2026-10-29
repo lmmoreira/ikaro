@@ -737,14 +737,22 @@ Customer clicks "Cancel"
     "name":        "string",
     "slug":        "string",
     "adminEmail":  "string",
-    "timezone":    "America/Sao_Paulo"
+    "timezone":    "America/Sao_Paulo",
+    "countryCode": "BR | US",
+    "billingHint": {
+      "exempt":         "boolean (optional) — free access, never charged (Ikaro's own tenant, partner/test tenants)",
+      "features":       "FeatureKey[] (optional) — the default paid-item subset; omitted = every feature",
+      "registrationId": "uuid (optional) — the Billing provisioning registration (see below)"
+    }
   }
   ```
-  (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.)
+  (`tenantId` is the envelope's own field — the constructor's first argument — not part of `data`.) `countryCode`, `billingHint` (and therefore `exempt`, `features`, `registrationId`) are **additive** fields **planned** for the Billing release (today the event carries only `name`, `slug`, `adminEmail`, `timezone`, and `ProvisionTenantUseCaseInput` is `name`, `slug`, `adminEmail`, `country_code`, `timezone?`: the use-case input, `POST /internal/tenants` and `scripts/provision-tenant.sh` gain `exempt`, `features` and `registrationId` in that release); `eventVersion` is bumped for documentation only. A payload without `countryCode` (an outbox row written before the Billing release) is *legacy*: the Billing handler skips it and logs, and the self-heal job creates the trial through the narrow read-only tenant-info port (`docs/BOUNDED_CONTEXTS.md` § 7). **Personal data never travels in this event:** the Google `sub`, the BR CPF/CNPJ and the accepted-terms version live in the `billing.signup_registrations` row that Billing creates *before* provisioning (self-signup through BFF orchestration, operator provisioning through `POST /internal/billing/registrations`); the event carries only its `registrationId`, so the generic audit log and Pub/Sub never see them (LGPD).
 - **Consumers:**
   - Staff context (M04-S06) → creates first MANAGER `Staff` row (`isActive=true`, `googleOAuthId=null` until first login) + publishes `StaffInvited`
   - Booking context (`booking` consumer, `create-tenant-location-resource`) → creates the tenant's `LOCATION` resource
   - Notification context (`notification-template-seed` consumer) → seeds the tenant's default notification templates
+  - Billing context (`create-trial-subscription` consumer) → creates the `TRIALING` `Subscription`, its default paid items and the `BillingAccount` (copying tax id and terms from the registration, then clearing them from it) in one transaction; idempotent on `UNIQUE(tenant_id)`; an `exempt` hint creates an `ACTIVE`, exempt subscription instead
+  - `audit-log` (`PlatformAuditLogHandler`)
 - **Design note:** `invitedBy` in the downstream `StaffInvited` event is set to `SYSTEM_ACTOR_ID = '00000000-0000-0000-0000-000000000000'` because no human actor exists yet at provisioning time.
 
 ---
@@ -765,14 +773,93 @@ Customer clicks "Cancel"
 
 ---
 
+#### **TenantDeactivated** *(slice G — not implemented; today `Tenant.deactivate()` has no production caller)*
+- **Trigger:** a tenant is deactivated; the emitter (for example an operator action in the offboarding flow, `plan/M17-CLOUD-DEPLOY.md` M17-S51) is decided at story discovery (UC-142)
+- **State change:** `platform.tenants.is_active = false`
+- **Data:**
+  ```json
+  { "reason": "string" }
+  ```
+- **Consumers:** Billing (`cancel-subscription-on-tenant-deactivation`) → cancels any open charge locally and at the provider, clears `cancelAt`, suspends the subscription as `CANCELED` and starts the clean-up clock; an `exempt` tenant is unchanged; `audit-log` (`PlatformAuditLogHandler`)
+
+---
+
+### **Billing Context Events** (Billing Context)
+
+Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). Ikaro sends **every** billing email itself (the provider's own customer notifications are switched off), so each event below has a Notification consumer. Billing emails are platform-level (`tenant_id IS NULL`) templates, sent *for* the event's tenant, and are exempt from the suspension gate (UC-124); an `exempt` tenant receives none. All events carry the standard envelope; each needs a line in `BillingAuditLogHandler` (`domain-event-audit-coverage`). All are written to the outbox in the same transaction as the state change that produced them.
+
+#### **ChargeIssued**
+- **Trigger:** the issue job (UC-113), the recovery issue on suspension, "Reativar assinatura" (UC-134), a plan-change re-issue (UC-136), an annual add-on (UC-145, slice H), or a provider-generated charge mirrored from the webhook (UC-143, slice F2) — **only after** the provider call succeeds (`provider_creation_status = READY`)
+- **Data:** `chargeId`, `kind` (`PERIOD` | `RECOVERY` | `ADDON`), `dueDate`, `amountMinor`, `currency`, `paymentUrl`
+- **Consumers:** Notification (invoice email); `audit-log`
+
+#### **ChargePaid**
+- **Trigger:** the first of the provider's paid signals for a charge (webhook, reconcile or on-demand refresh; UC-114)
+- **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`), `paidAt`
+- **Consumers:** Notification (receipt); `audit-log`
+
+#### **SubscriptionPastDue**
+- **Trigger:** a `PERIOD` charge of an `ACTIVE` subscription went `OVERDUE` (status sweep, UC-115)
+- **Data:** `subscriptionId`, `pastDueSince`, `suspendsAt`
+- **Consumers:** Notification (dunning); `audit-log`
+
+#### **SubscriptionSuspended**
+- **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, or the operator (`OPERATOR`)
+- **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt`
+- **Consumers:** Notification; hotsite revalidation (`IFrontendRevalidationPort.revalidate(slug)`); access-cache invalidation (best-effort, on the handling instance); `audit-log`
+
+#### **SubscriptionReactivated**
+- **Trigger:** a recovery charge was paid, an `exempt` flag was set on a suspended tenant, or an `OPERATOR` suspension was lifted (`unsuspend`)
+- **Data:** `subscriptionId`, `reactivatedAt`
+- **Consumers:** Notification; hotsite revalidation; access-cache invalidation; `audit-log`
+
+#### **SubscriptionCancelled**
+- **Trigger:** the manager cancels (UC-133), or a deactivated tenant is cancelled (UC-142)
+- **Data:** `subscriptionId`, `cancelAt`, `immediate`
+- **Consumers:** Notification (to the billing email, else all managers); `audit-log`
+
+#### **PlanChanged**
+- **Trigger:** the manager saves a plan (UC-136), switches cycle (UC-144, slice H) or adds an annual add-on (UC-145, slice H)
+- **Data:** `subscriptionId`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
+- **Consumers:** Notification (to the billing email); `audit-log`
+
+#### **BillingReminderDue**
+- **Trigger:** the daily reminders job (UC-139), once per milestone, deduped by `(subscription, kind, daysOffset, chargeId)`
+- **Data:** `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?`
+- **Consumers:** Notification (dunning email; the handler re-checks the charge is still open and skips otherwise)
+
+#### **SubscriptionPriceChangeAnnounced**
+- **Trigger:** the operator schedules a list-price change (UC-112). **One event per affected tenant per adjustment** (the envelope requires a `tenantId`, so a platform-wide change fans out per tenant); a tenant with five changed features gets one email
+- **Data:** `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) limited to the features this tenant actually has, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or the annual total), `batchId?`
+- **Consumers:** Notification (to managers); `audit-log`
+
+#### **TenantPurgeWarning**
+- **Trigger:** the purge job at 30 and 7 days before the clean-up deadline (UC-132, slice G); deduped by `purge_warning_30_sent_at` / `purge_warning_7_sent_at`, cleared on reactivation
+- **Data:** `subscriptionId`, `daysBefore` (30 or 7), `purgeAt`
+- **Consumers:** Notification (to the manager; Billing template, exempt from the suspension gate); `audit-log`
+
+#### **TenantPurgeRequested**
+- **Trigger:** the clean-up deadline (`SUSPENSION_AGE`), the self-service discard of a never-paid tenant (`SELF_SERVICE_DISCARD`, UC-141) or an operator request (`OPERATOR_REQUEST`); creates a durable `TenantPurgeJob` first (slice G)
+- **Data:** `purgeJobId`, `reason` (`tenantId` is the envelope's own field; participants echo `purgeJobId` in `TenantPurgeContextCompleted`)
+- **Consumers:** every bounded context as a purge participant (each deletes its own data idempotently), storage cleanup, provider cancellation; `audit-log` (`BillingAuditLogHandler` records purge request/completion events as the purge coordinator)
+
+#### **TenantPurgeContextCompleted**
+- **Trigger:** a participant committed its local deletion (published after commit)
+- **Data:** `purgeJobId`, `participant` (`BOOKING` | `CUSTOMER` | `STAFF` | `LOYALTY` | `NOTIFICATION` | `PLATFORM` | `BILLING` | `STORAGE` | `PROVIDER`), `completedAt`
+- **Consumers:** Billing's purge coordinator, which records the completion; Platform deletes the tenant root only after every required step is recorded; `audit-log` (`BillingAuditLogHandler` records purge request/completion events as the purge coordinator, so a participant context needs no audit line of its own for it)
+
+> **`BillingReminderDue` and the command precedent:** the booking reminders (`BookingReminderDue` …) are `domain/commands/` classes, not events. `BillingReminderDue` follows the same cron-published-trigger shape; whether it is declared as a command or an event class is settled at story discovery against that precedent — its name, payload and Notification consumer are fixed here.
+
+---
+
 ## Event Publishing & Consumption
 
 - **Transport:** technology-agnostic `IEventBus` port. Local dev: GCP Pub/Sub Emulator (Docker). Production: GCP Pub/Sub (managed). Swappable to SQS/Kafka via a new adapter — domain code never changes.
 - **Delivery semantics:** at-least-once. **All consumers MUST be idempotent** (deduplicate by `eventId`).
-- **Every domain event has an `audit-log` consumer (M23-S36).** Each context owns one thin `<Context>AuditLogHandler` (`BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler`) (each extends `AuditLogHandlerBase`, which owns the constructor, logger and `handle()`) that subscribes with `<Event>.name` and `LogDomainEventUseCase.CONSUMER_NAME` (`audit-log`) and calls the shared `LogDomainEventUseCase` (`src/shared/application/use-cases/`). It claims the `eventId` in `shared.inbox` and writes one log line with the envelope fields only (`eventId`, `eventName`, `tenantId`, `occurredAt`, `correlationId`) — never `data`, which can carry customer contact details. It is not a persisted audit trail. It is also what gives every event a real Pub/Sub topic, so a new `DomainEvent` class must be added to its context's handler: `architecture-check`'s `domain-event-audit-coverage` detector fails CI otherwise. Commands (`BookingReminderDue` and the other `domain/commands/` classes), `cron-*` triggers and `dead-letter` are not domain events and get no `audit-log` subscription. Other consumers (`notification`, loyalty, `availability-alert-matching`, …) subscribe separately and are unaffected.
+- **Every domain event has an `audit-log` consumer (M23-S36).** Each context owns one thin `<Context>AuditLogHandler` (`BookingAuditLogHandler`, `LoyaltyAuditLogHandler`, `StaffAuditLogHandler`, `PlatformAuditLogHandler`, `BillingAuditLogHandler`) (each extends `AuditLogHandlerBase`, which owns the constructor, logger and `handle()`) that subscribes with `<Event>.name` and `LogDomainEventUseCase.CONSUMER_NAME` (`audit-log`) and calls the shared `LogDomainEventUseCase` (`src/shared/application/use-cases/`). It claims the `eventId` in `shared.inbox` and writes one log line with the envelope fields only (`eventId`, `eventName`, `tenantId`, `occurredAt`, `correlationId`) — never `data`, which can carry customer contact details. It is not a persisted audit trail. It is also what gives every event a real Pub/Sub topic, so a new `DomainEvent` class must be added to its context's handler: `architecture-check`'s `domain-event-audit-coverage` detector fails CI otherwise. Commands (`BookingReminderDue` and the other `domain/commands/` classes), `cron-*` triggers and `dead-letter` are not domain events and get no `audit-log` subscription. Other consumers (`notification`, loyalty, `availability-alert-matching`, …) subscribe separately and are unaffected.
 - **Operational (non-business) consumers, by `CONSUMER_NAME`** (each is a thin handler that calls one use case or job; all are in the `*-trigger.handler.ts` / `*.handler.ts` files under the owning context's `infrastructure/events/`, found with `grep -rn "CONSUMER_NAME =" apps/backend/src`):
-  - **Cron-topic triggers** (a Cloud Scheduler job publishes to a `cron-*` topic, see `infra/terraform/pubsub-catalog.json` and `docs/API_CONTRACTS.md` cron routes): Booking — `booking-reminder`, `booking-admin-schedule-reminder`, `booking-hold-expiry`, `recurring-schedule-approval-expiry`, `recurring-schedule-renewal-reminder`, `resource-occupancy-retention-purge`, `availability-alert-sweep`, `availability-alert-expiry`; Loyalty — `loyalty-expire-points`, `loyalty-notify-expiring-points`; Platform — `chatbot-retention-purge`, `chatbot-balance-poll`, `lead-form-retention-purge`; Shared — `outbox-relay`.
-  - **Business-event reactions that are not in the per-event consumer lists above:** `cascade-staff-deactivation` (Booking, consumes `StaffDeactivated`), `create-initial-manager` (Staff, reacts to `TenantProvisioned`), `notification-template-seed` (Notification, `TenantProvisioned`).
+  - **Cron-topic triggers** (a Cloud Scheduler job publishes to a `cron-*` topic, see `infra/terraform/pubsub-catalog.json` and `docs/API_CONTRACTS.md` cron routes): Booking — `booking-reminder`, `booking-admin-schedule-reminder`, `booking-hold-expiry`, `recurring-schedule-approval-expiry`, `recurring-schedule-renewal-reminder`, `resource-occupancy-retention-purge`, `availability-alert-sweep`, `availability-alert-expiry`; Loyalty — `loyalty-expire-points`, `loyalty-notify-expiring-points`; Platform — `chatbot-retention-purge`, `chatbot-balance-poll`, `lead-form-retention-purge`; Billing *(planned)* — `billing-issue-charges`, `billing-status-sweep`, `billing-reminders`, `billing-reconcile`, `billing-self-heal`, `billing-provider-events-purge`, `billing-tenant-purge`; Shared — `outbox-relay`.
+  - **Business-event reactions that are not in the per-event consumer lists above:** `cascade-staff-deactivation` (Booking, consumes `StaffDeactivated`), `create-initial-manager` (Staff, reacts to `TenantProvisioned`), `notification-template-seed` (Notification, `TenantProvisioned`), `create-trial-subscription` (Billing *(planned)*, `TenantProvisioned`).
   - **Dead-letter monitor:** `monitor` (`DeadLetterHandler`, Notification) logs every message that reaches a dead-letter topic; the operator procedure is `docs/RUNBOOKS.md` § A message landed in a dead-letter topic.
 - **Ordering:** not guaranteed across events. Consumers MUST tolerate out-of-order delivery (e.g. `BookingCompleted` arriving before `BookingApproved` should be rejected with a retry, not crash).
 - **Transactional outbox (`shared.outbox` + relay, TD24):** event publication for aggregate-driven events is transactional with the state change that produced it — the 7 event-emitting aggregates' repositories (`Booking`, `RecurringBookingSchedule`, `AvailabilityAlert`, `FutureCommitmentException`, `Staff`, `Tenant`, `LeadFormSubmission`) drain `clearDomainEvents()` into `shared.outbox` inside the same transaction as the business write (TD24-S02). A relay then delivers each row via Pub/Sub — inline immediately after commit on the happy path, with a scheduled sweep (`SKIP LOCKED`, every 5 min) as the durability guarantee if the inline attempt fails or the process crashes between commit and publish. End-to-end guarantee: **at-least-once delivery, exactly-once effect for idempotency-safe consumers** — dedup at both edges (`dedup_key` producer-side via `UNIQUE` + `ON CONFLICT DO NOTHING`, `eventId` consumer-side via `shared.inbox`). One documented exception: notification's multi-recipient dispatch can still resend to already-successful recipients after a partial batch failure (`td/TD08-AUDIT-REMEDIATION-BACKLOG.md` AUD-004 item 3, open). The 5 cron-published `Command` classes (`BookingReminderDue`, `BookingReminderDueToday`, `AdminDailyScheduleReminder`, `PointsExpiringSoon`, `RecurringScheduleRenewalDue`) publish through `OUTBOX_PUBLISHER` too, wrapped in a per-tenant-batch transaction (TD24-S03) — every publish site in the system goes through the same durable path now. See `docs/DATABASE_SCHEMA.md` § Event Publishing for the full design, its `Schema: shared` section for the table shapes, and `docs/ENGINEERING_RULES_BACKEND.md` § Aggregate domain events → outbox (repo auto-flush) for the repository auto-flush rule.
@@ -781,10 +868,10 @@ Customer clicks "Cancel"
 
 ## Event Versioning
 
-Add fields freely (consumers ignore unknown fields). Breaking changes require bumping `eventVersion`:
+Add fields freely (consumers ignore unknown fields) — this is the repo practice, e.g. `TenantProvisioned` is planned to gain `countryCode` and `billingHint` for Billing without a new version (not in code yet). A breaking change (a renamed or removed field) bumps `eventVersion` **for documentation only**:
 
 ```
 BookingRequested.v1 → BookingRequested.v2  (e.g. renamed or removed field)
 ```
 
-Consumers subscribe to specific `eventName` + `eventVersion`. Publishers emit the highest version they support; the bus may fan-out to multiple consumer versions if needed during a migration.
+**The bus never reads `eventVersion`.** Routing is by `eventName` alone: `IEventBus.subscribe(eventName, handler, consumerName)` has no version parameter, so there is no per-version subscription and no fan-out to consumer versions. A consumer must therefore tolerate both the old and the new payload shape during a rolling deploy (old and new code run side by side, and in-flight outbox rows keep their stored payload) — e.g. Billing's `TenantProvisioned` handler skips a legacy payload without `countryCode` and lets a self-heal job repair it. A genuinely incompatible change means publishing a differently named event.

@@ -89,7 +89,7 @@ Cards are the queue's `BookingCard` shape, grouped by the unavailable resource w
 
 ## Screen: ReassignSheet (`01c`)
 
-Choose the target: "Qualquer profissional livre (automático)" (`{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' current alternatives (recomputed on every read of an open entry, so a resource reactivated or a slot freed since the entry was raised shows up), each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
+Choose the target: "Qualquer recurso livre" (`reassignAutoLabel`; `{ mode: 'AUTO' }`, the default) or a specific resource from the union of the selected entries' current alternatives (recomputed on every read of an open entry, so a resource reactivated or a slot freed since the entry was raised shows up), each labelled "livre em N de M reservas" (computed client-side). A resource missing from an entry's alternatives is simply not compatible with it: the data carries no "ocupado" reasons, so none are drawn. A reason field (recorded on each entry). Submit label carries the count: "Reatribuir N compromissos".
 
 ## Screen: reschedule route (`01e`)
 
@@ -97,7 +97,7 @@ The existing staff `RescheduleBookingPage`, parametrized (see the file map). One
 
 ## Screen: BulkResultList (`01d`)
 
-Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with the reason it stayed open; a still-open entry keeps its row actions ("Tentar de novo", "Reagendar", "Cancelar"). **Distinct from a whole-request failure (`01k`):** a partial result means some bookings changed; an error means nothing did.
+Shown after any bulk action. One line per entry, `RESOLVED` or `STILL_OPEN` with the reason it stayed open; a still-open entry shows its reason and stays in the worklist — as built there are no per-row actions in the result view, only a back-to-list button (`backToList`); the code also renders a "not processed" group (`resultNotProcessed`) for entries never attempted after a batch stopped, a state no prototype draws. **Distinct from a whole-request failure (`01k`):** a partial result means some bookings changed; an error means nothing did.
 
 **Validation:**
 | Field | Rule | Error message |

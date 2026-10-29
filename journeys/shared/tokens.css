@@ -2,7 +2,7 @@
    Ikaro — shared branding tokens
    Single source of truth for ALL journey prototypes.
    Source: DEFAULT_HOTSITE_BRANDING in hotsite-config.aggregate.ts
-           + derivation logic in apps/web/lib/hotsite/apply-branding.ts
+           + derivation logic in apps/web/features/platform/hotsite/apply-branding.ts
    DO NOT duplicate this file per prototype — always reference via ../../../shared/tokens.css
    ============================================================ */
 :root {

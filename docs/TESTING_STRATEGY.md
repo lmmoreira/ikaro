@@ -849,6 +849,28 @@ describe('RescheduleBookingUseCase', () => {
 
 ---
 
+## Testing the billing provider — fake, sandbox, contract suite and clock *(planned, Billing milestone)*
+
+> **PLANNED, NOT YET BUILT.** Nothing under `contexts/billing` exists yet; this is the strategy the Billing stories implement (use cases UC-113–UC-116 and UC-138–UC-140 in `docs/USE_CASES.md`). The writing-time traps are in `docs/ENGINEERING_RULES_TESTING.md` § Billing provider tests.
+
+`exempt` is **not** the testing mechanism — it switches charging off. In every non-production environment **every tenant is charged normally** against a fake or sandbox gateway, and the provider is chosen **per environment**, never per tenant (the immutable `merchant_profile_key` given to new subscriptions).
+
+| Environment (`APP_ENV`) | Provider (`merchant_profile_key`) | Email | Time |
+|---|---|---|---|
+| `local` | `BRL_FAKE` / `USD_FAKE` — `FakeBillingProvider`; a real adapter can be opted into with a tunnel for webhooks | Mailhog | injectable `IClock`, "advance N days" |
+| CI per PR | the fake | Mailhog | fixed clock |
+| CI nightly (scheduled) | none — the shared contract suite runs against the Asaas sandbox and Stripe test mode to catch drift between the fake and the real APIs | — | — |
+| `staging` | `BRL_ASAAS_SANDBOX`, `USD_STRIPE_TEST` | Brevo with a recipient allowlist (rule: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned) — live adapters, fake/sandbox keys, the staging email allowlist and the scheduler jobs) | operator "advance time" action |
+| `production` | live keys only | Brevo | real clock |
+
+- **`FakeBillingProvider`** is an `InMemoryXxx`-style double that is also wired as a real adapter in `local`. It implements the whole `BillingProviderPort`, returns a hosted-link URL served by the app, and emits **signed webhooks to the app's own endpoint** on demand, reproducing the verified provider behaviour: Pix `RECEIVED` only; boleto `CONFIRMED` → `RECEIVED`; card `CONFIRMED`, `RECEIVED` later; overdue; refund; chargeback; **duplicate, delayed and out-of-order** delivery; provider 5xx; expired link; invalid location. A forgiving fake would hide the money loop's real bugs.
+- **One contract suite, two implementations.** The same provider-agnostic tests (create customer and charge, link, cancel, regenerate link, paid per method, overdue, refund, duplicate / out-of-order webhook, idempotent re-delivery, invalid location) run against the fake on every PR and against the sandboxes nightly. Passing both is the proof that swapping the fake for the real adapter is safe; a divergence is a bug in the fake or an undocumented provider behaviour to record in `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md` § 5.
+- **`IClock`** is a new port (system clock in production) used by every Billing date decision — trial end, due dates, grace, cancel-at, purge age — and by the sweep jobs. Non-production gets `POST /internal/dev/clock/advance` and a script like `provision-tenant.sh`; there is no UI. A test never calls `Date.now()` inside Billing code.
+- **Simulate and seed.** `POST /internal/dev/billing/provider/simulate` makes the fake deliver the chosen event to the normal webhook route (no test-only path exists in the use cases); `POST /internal/dev/billing/seed` creates one tenant per billing state through the normal use cases. Both sit behind `InternalApiGuard` + `PlatformAdminGuard` and exist only when `APP_ENV` is `local` or `staging`, but `simulate` works only for a subscription whose `merchant_profile_key` is a `*_FAKE` key (local and CI): staging uses sandbox keys, so a staging payment is made at the sandbox itself. See `docs/API_CONTRACTS.md` § Billing — Provider Webhooks and Internal API.
+- **Live mode cannot be sandboxed.** The production smoke test is one small real charge on a **dedicated non-exempt production test tenant** (never Ikaro's own tenant, which is exempt and cannot be charged), then a refund.
+
+---
+
 ## File Structure Reference
 
 ```
