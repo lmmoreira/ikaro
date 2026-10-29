@@ -7,7 +7,7 @@
 - **Context**: `apps/web` (dashboard shell, customer account, platform settings/hotsite editor), `packages/i18n` (error-code copy). No backend, BFF or `@ikaro/types` change.
 - **Created**: 2026-10-29
 - **Discovered**: Manager report on the service edit screen: saving the Políticas tab with `durationPolicy = CUSTOMER_SELECTED` and empty min/max/increment returned a 422 whose message rendered at the very bottom of a long form; follow-up read-only audit of `apps/web` showed the problem is systemic.
-- **Decision status**: Pattern decided in the 2026-10-29 session (see "Chosen approach"). Ready for discovery in the dependency order below; Story 0 produces the migration list that scopes Stories 6+; every story still begins with `/story-discovery`.
+- **Decision status**: Pattern decided in the 2026-10-29 session (see "Chosen approach"). Ready for discovery in the dependency order below; Story 0 produces the migration list that scopes Stories 7+ (Story 6 is the branded hotsite counterpart, decided in discovery); every story still begins with `/story-discovery`.
 - **Related**: `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives; `docs/ANTI_PATTERNS.md` (the "hand-built control" row); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`; TD23 (error-code → i18n pipeline, `resolveErrorMessage`)
 
 ## Problem
@@ -34,13 +34,15 @@ A save that fails silently from the user's viewpoint is a support ticket and a l
 2. **Forms with a primary action**: the form-level error *and* success message render in a feedback box **below the buttons, inside the action pane**. On desktop the pane is sticky (`lg:sticky lg:top-6`), so the feedback follows the scroll and is never scrolled away. On mobile the existing fixed bottom bar surfaces the same feedback.
 3. **Field level**: the offending input gets a red outline and an inline message (`aria-invalid` + `aria-describedby`), driven by the backend `ProblemDetail.field` for server errors as well as by client validation. The first invalid field is scrolled to and focused. Errors use `role="alert"`, success uses `role="status"`. Success persists until the next edit (the panels' existing `patch()` already clears it) — no auto-fade.
 4. **Row actions on lists**: when the action changes a status the row already displays (activate, deactivate, approve), the changed badge/button *is* the confirmation — no extra success text. An action with no visible change (resend invite) keeps a short inline confirmation beside the button. Row failures show the backend-resolved message inline beside the row, not a fixed string.
-5. **One shared implementation**: a feedback component and a shared `ActionPane` with a feedback slot in `apps/web/shared/components/ui/`, a `useFormFeedback` hook in `apps/web/shared/lib/`, and a resolver that returns `{ message, field }`. The feedback component is Tailwind-only (no `--ba-*`), usable in the dashboard and the customer account. The hotsite-branded `ErrorAlert` (`variant="hotsite"`, reads `--ba-radius`) stays as the branded counterpart — CLAUDE.md's web styling boundary forbids one component reading both branding systems.
+5. **One shared implementation**: a feedback component and a shared `ActionPane` with a feedback slot in `apps/web/shared/components/ui/`, a `useFormFeedback` hook in `apps/web/shared/lib/`, and a resolver that returns `{ message, field }`. The feedback component is Tailwind-only (no `--ba-*`), usable in the dashboard and the customer account. The public hotsite gets its own branded counterpart (Story 6, built on `ErrorAlert variant="hotsite"`, reads `--ba-*`) covering error, success and field-level messages — CLAUDE.md's web styling boundary forbids one component reading both branding systems. Both skins reuse the skin-agnostic `useFormFeedback` and `{ message, field }` resolver, so the pattern lives in the hook and only the markup differs. `ErrorAlert` and the Story 6 component are the only files allowed to draw a feedback box in the branded tree; no other branded file keeps hand-rolled markup.
+5a. **Surface classification (decided in discovery, 2026-10-29):** the *public hotsite* (`app/[slug]/`, `features/*/components/public/`, `features/platform/components/public/`) has no shell and no `ActionPane`; it uses the branded component only. The *hotsite editor* (`features/platform/components/hotsite/`) is dashboard-side: inline module panels use `FeedbackMessage` with no pane; only detail screens (`ModuleConfigShell`) use `ActionPane`. Route `error.tsx` files and load-failure states are page-level `FeedbackMessage` (or the branded component under `app/[slug]/`) with a retry — migrated, never exempt, so the Story 5 lint rule carries no path exemptions.
 6. **Layout rule**: every tab/section body starts with a card level with the action pane's card; intro text lives *inside* that card; only the tab bar sits above the grid.
 7. **Enforcement last**: an ESLint `no-restricted-syntax` selector blocking new hand-rolled `role="alert"` boxes, added only after the migration stories so it does not fail on unmigrated files.
 
 ### Open items for `/story-discovery` (not decided here)
 
-- Whether any branded public hotsite surface should adopt the shared component or keep `ErrorAlert` (decided per screen in Story 0's inventory).
+- ~~Whether any branded public hotsite surface should adopt the shared component or keep `ErrorAlert`~~ — resolved: branded surfaces use the Story 6 component (see 5a).
+- Branded error colour (Story 6): a fixed semantic red or derived from tenant `--ba-*` tokens, and how contrast is guaranteed against an arbitrary tenant background.
 - Whether the window-narrowing hint dropped from `BOOKING_SERVICE_BOOKING_POLICY_INVALID`'s catalog text should become a static hint on the booking-window card, or whether the backend should split the window violation into its own error code (Story 2).
 - The exact mobile-bar layout when the feedback is long (Story 1).
 
@@ -57,6 +59,8 @@ The 2026-10-29 survey was deliberately not exhaustive: it read ~15 representativ
 
 For every error or success surface under `apps/web/features/`, `apps/web/shells/` and `apps/web/app/`, record one row classified **form** (has a primary action), **row action** (list-row mutation) or **page-level** (load failure, route `error.tsx`), with: where the message renders; `role`; focus/scroll behaviour; whether the offending input is marked (`aria-invalid` *and* a visible red outline, verified in the field component, not by file-level grep — the survey's "fieldErrors without `aria-invalid`" grep produced 11 mostly false positives because forms delegate to child field components); whether an action pane exists, its implementation (dashboard `<aside>`, customer `action-pane-desktop`, hotsite inline), desktop stickiness and mobile behaviour; the first-box alignment against the pane; and every `data-testid` plus the Playwright specs that reference it (known: `e2e/team-invite.spec.ts`, `e2e/team-deactivate.spec.ts`, `e2e/services-resource-config.spec.ts`, `e2e/settings.spec.ts`).
 
+**Classification rules (see "Chosen approach" 5a):** each row also records its *skin* — SaaS (`FeedbackMessage`) or branded (reads `--ba-*`, Story 6 component) — decided by what the file actually reads, not by its folder. Rows already owned by Stories 2, 3 or 4 (service edit, `ResourceRow`, `MemberRow`) are marked "covered by Story N" and get no migration story. `error.tsx` and load-failure surfaces are rows of class page-level and are migrated by an area story, never marked exempt. The Appendix is split into one table per area.
+
 The output is an appendix to this file (`## Appendix A — Audit inventory`) and a set of migration stories appended with `/create-story`, one per area (candidates from the survey: resources, staff, settings, hotsite editor + module panels, customer account screens, bookings dashboard incl. `BookingDetailPage`/`BookingDecisionPanel`, public booking/lead forms, platform/loyalty tabs). Each migration story must list non-overlapping `Files to create/modify` so `/run-batch` can run them concurrently, and must state which `data-testid`s change and which E2E specs it updates. Visual alignment findings are marked "from structure" unless confirmed in a browser; a browser check needs the user's yes first (CLAUDE.md §0 local verification gate).
 
 **Files to create/modify:**
@@ -64,9 +68,12 @@ The output is an appendix to this file (`## Appendix A — Audit inventory`) and
 
 **Acceptance criteria — product:**
 - [ ] Appendix A lists every file returned by `grep -rl 'role="alert"' apps/web/features apps/web/shells apps/web/shared apps/web/app` plus every file containing an `<aside>` action pane or `data-testid="action-pane-*"`, each with all columns above.
-- [ ] Each migration story is appended with real, existing paths, a per-story testid/E2E impact list, and `Dependencies: Story 1` (and Story 2 where it reuses the service-edit slot).
+- [ ] Each migration story is appended with real, existing paths, a per-story testid/E2E impact list, and `Dependencies: Story 0, Story 1` (and Story 2 where it reuses the service-edit slot; Story 6 for every story that migrates a branded file).
 - [ ] Story 5's `Dependencies` is updated to include every appended migration story.
 - [ ] Any screen where the first box is not level with its pane is listed with the structural reason.
+- [ ] The first-box alignment of the service edit tabs (Recursos, Políticas, Formulário) is confirmed in a browser (Playwright or the dev stack; approved in discovery, `/tmp` cleared first, anything started is stopped afterwards) and marked "confirmed" instead of "from structure".
+- [ ] Every `error.tsx` under `apps/web/app` and every load-failure surface is a row, assigned to a migration story; none is marked exempt.
+- [ ] Every file with `role="alert"` that reads `--ba-*` is assigned to the Story 6 follow-up migration story.
 
 **Acceptance criteria — technical:**
 - Unit: none — docs-only story
@@ -74,6 +81,7 @@ The output is an appendix to this file (`## Appendix A — Audit inventory`) and
 - Tenant isolation: none — no data access
 - E2E: none — docs-only story
 - [ ] The commands used to enumerate files are recorded in Appendix A so the inventory is reproducible
+- [ ] Completeness check: re-running the recorded enumeration commands and diffing their output against the paths in Appendix A shows zero missing files (the objective pin for "every file is covered")
 - [ ] `doc-link-integrity` / `docs-audit` clean for the edited file
 
 ### Story 1 — Shared feedback component, `ActionPane`, `useFormFeedback` and the `{ message, field }` resolver 🔴
@@ -87,7 +95,7 @@ The output is an appendix to this file (`## Appendix A — Audit inventory`) and
 **Description:**
 Build the shared pieces every later story consumes, following the decisions in "Chosen approach".
 
-1. **`FeedbackMessage`** (`shared/components/ui/feedback-message.tsx`): variants `error` and `success`, plus an `inline` size for row actions. Error renders `role="alert"`, success `role="status"`. Optional `hint`, `onRetry`/`retryLabel` and `focusOnMount` (the behaviours of today's `ErrorAlert` and `NewBookingErrorBanner`). `testId` passthrough. Tailwind-only; never reads `--ba-*`. It replaces `NewBookingErrorBanner` (its 5 caller step components are migrated here and the old file is deleted); `ErrorAlert`'s `dashboard` variant callers (`CustomerReschedulePage`, `ReschedulePicker`, `NewBookingAvailabilityStep`, `RescheduleBookingPage`) move to it in the migration stories; `ErrorAlert` keeps only the branded `hotsite` variant.
+1. **`FeedbackMessage`** (`shared/components/ui/feedback-message.tsx`): variants `error` and `success`, plus an `inline` size for row actions. Error renders `role="alert"`, success `role="status"`. Optional `hint`, `onRetry`/`retryLabel` and `focusOnMount` (the behaviours of today's `ErrorAlert` and `NewBookingErrorBanner`). `testId` passthrough. Tailwind-only; never reads `--ba-*`. It replaces `NewBookingErrorBanner` (its 5 caller step components are migrated here and the old file is deleted); `ErrorAlert`'s `dashboard` variant callers (`CustomerReschedulePage`, `ReschedulePicker`, `NewBookingAvailabilityStep`, `RescheduleBookingPage`) move to it in the migration stories; `ErrorAlert` keeps only the branded `hotsite` variant, which Story 6 turns into the full branded pattern.
 2. **`ActionPane`** (`shared/components/ui/action-pane.tsx`): one component for the desktop sticky pane (`hidden lg:block lg:sticky lg:top-6`, `Card`) and the mobile fixed bar (extracted from `ServiceEditPanels.tsx` / `SettingsFormActions.tsx`, reusing `MOBILE_ACTION_BAR_CLEARANCE_CLASS` from `shells/dashboard/utils/mobile-action-bar.ts`). Props: `actions` (the buttons) and `feedback` (a `FeedbackMessage` model). The feedback renders **below the buttons** in the pane; in the mobile bar it renders above the buttons inside the fixed bar with a bounded height and scroll so a long message never pushes the bar off-screen.
 3. **`useFormFeedback`** (`shared/lib/feedback/use-form-feedback.ts`): holds `{ error, success, fieldErrors }`; `setFromApiError(err, locale)` resolves message and `field`; `setSuccess(message)`; `clear()` (called by the panels on edit); `registerField(name)` returning a ref-callback; `focusFirstInvalid()` which scrolls with `block: 'center'` and focuses the input. A `field` the form does not register falls back to the form-level message only.
 4. **Resolver** (`shared/lib/i18n/resolve-error-message.ts`): add `resolveApiErrorFeedback(err, locale): { message: string; field?: string }` built on `extractProblemDetailShape`; `resolveErrorMessageFromApiError` delegates to it so its 30 callers are untouched.
@@ -277,11 +285,11 @@ Apply the row-action rule. Remove the unreachable success branches: `resource-ro
 **Agent:** frontend-ts
 **Complexity:** M
 **Docs to load:** `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors must be checked against every already-documented bypass shape; `docs/ANTI_PATTERNS.md`; `docs/AGENT_CONTEXT_TRAP_SCENARIOS.md` § How to edit `context.md`
-**Dependencies:** Story 3, Story 4, and every migration story appended by Story 0 (the selector must not fail on an unmigrated file)
+**Dependencies:** Story 3, Story 4, Story 6, and every migration story appended by Story 0 (the selector must not fail on an unmigrated file)
 **Pattern:** plain composition — no named pattern applies (an ESLint config entry with tests)
 
 **Description:**
-Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside `LOCALE_LITERAL_SELECTOR`) that flags a JSX element with `role="alert"` or `role="status"` outside `shared/components/ui/feedback-message.tsx` (and the branded `ErrorAlert`, listed by an explicit `ignores`/`files` override with the rationale). Before considering it done, check it against the three bypass classes documented in `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors (an expression-container value `role={'alert'}`, a spread `{...{ role: 'alert' }}`, and `createElement`/non-JSX construction) and cover each in `shared/lib/eslint/restricted-syntax.eslint.spec.ts`. Add the `ANTI_PATTERNS.md` row (hand-rolled feedback box; fix: `FeedbackMessage` / `ActionPane` / `useFormFeedback`; **CI-enforced**) and, following the context-editing rules (a bullet stays in `.copilot/context.md` only if CI-enforced: name + one line), one `CI-enforced` bullet in §7 pointing at the `ENGINEERING_RULES_FRONTEND` section.
+Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside `LOCALE_LITERAL_SELECTOR`) that flags a JSX element with `role="alert"` or `role="status"` outside `shared/components/ui/feedback-message.tsx` (and the Story 6 branded component, the only other file listed by an explicit `ignores`/`files` override with the rationale — no path-based exemptions; `error.tsx` and load-failure surfaces are migrated, not exempt). Before considering it done, check it against the three bypass classes documented in `docs/ENGINEERING_RULES_SHARED.md` § `no-restricted-syntax` selectors (an expression-container value `role={'alert'}`, a spread `{...{ role: 'alert' }}`, and `createElement`/non-JSX construction) and cover each in `shared/lib/eslint/restricted-syntax.eslint.spec.ts`. Add the `ANTI_PATTERNS.md` row (hand-rolled feedback box; fix: `FeedbackMessage` / `ActionPane` / `useFormFeedback`; **CI-enforced**) and, following the context-editing rules (a bullet stays in `.copilot/context.md` only if CI-enforced: name + one line), one `CI-enforced` bullet in §7 pointing at the `ENGINEERING_RULES_FRONTEND` section.
 
 **Backend use case steps:** none
 **Backend HTTP surface:** none
@@ -302,7 +310,7 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] `restricted-syntax.eslint.spec.ts`: literal `role="alert"` flagged; `role={'alert'}` flagged; spread-object `role` flagged; `createElement('div', { role: 'alert' })` flagged; `role="status"` flagged
-  - [ ] the shared component file and the branded `ErrorAlert` are not flagged (negative guarantee, own test)
+  - [ ] the shared component file and the Story 6 branded component are not flagged (negative guarantee, own test)
 - Integration: none — lint configuration
 - Tenant isolation: none — no data access
 - E2E: none — lint rule
@@ -310,21 +318,58 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 - [ ] `agent-context-file` and `doc-link-integrity` checks clean
 - [ ] `tsc --noEmit` clean
 
+### Story 6 — Branded hotsite feedback component 🔴
+
+**Agent:** frontend-ts
+**Complexity:** M
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` (the section on `--ba-*` branding and § implicit vs. explicit CSS defaults); `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure
+**Dependencies:** Story 1 (reuses `useFormFeedback` and the `{ message, field }` resolver)
+**Pattern:** plain composition — a second skin over the Story 1 behaviour layer; no named pattern applies
+
+**Description:**
+The public hotsite has no shell and no action pane, but its forms (booking info, intake answers, availability alerts, lead form, login) need the same behaviour as the SaaS side: error and success announced with the right role, the offending field marked and focused, a retry where one applies. Today only `ErrorAlert variant="hotsite"` is shared; eight other `--ba-*` files draw their own `role="alert"` box. Build the branded counterpart on `ErrorAlert` (error, success, field-level message, `focusOnMount`, `onRetry`) reusing `useFormFeedback` and the resolver from Story 1. The error colour decision (fixed semantic red vs derived from tenant tokens, and the contrast guarantee) is locked in this story's own `/story-discovery`. Exact file layout and whether `ErrorAlert` is renamed are also decided there; the migration of the eight branded files is a follow-up story appended by Story 0.
+
+**Backend use case steps:** none
+**Backend HTTP surface:** none
+**BFF endpoint spec:** none
+**Prototype references:** none (visual spec is part of `/story-discovery`)
+**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales
+
+**Files to create/modify:**
+- `apps/web/features/booking/components/public/ErrorAlert.tsx` + `ErrorAlert.spec.tsx` (extend; final location decided in discovery)
+
+**Acceptance criteria — product:**
+- [ ] Public forms can show an error, a success and a field-level message in the tenant's branding with the same behaviour as the SaaS pattern.
+
+**Acceptance criteria — technical:**
+- Unit:
+  - [ ] error → `role="alert"`, success → `role="status"`; `focusOnMount`, retry and field marking covered
+  - [ ] the rendered output reads `--ba-*` and never a SaaS-palette token (negative guarantee, own test)
+  - [ ] existing `ErrorAlert` callers render unchanged until migrated
+- Integration: none — frontend story
+- Tenant isolation: none — no data access
+- E2E: none — covered by the public-forms migration story
+- [ ] Coverage ≥80% on changed code
+- [ ] `tsc --noEmit` clean, lint clean
+
 ## Dependency graph
 
 ```mermaid
 graph TD
-  S0[Story 0: Audit] --> M[Stories 6+: area migrations]
+  S0[Story 0: Audit] --> M[Stories 7+: area migrations]
   S1[Story 1: Shared building blocks] --> S2[Story 2: Service edit migration]
   S1 --> S4[Story 4: Row-action rule]
+  S1 --> S6[Story 6: Branded hotsite component]
   S1 --> M
+  S6 --> M
   S2 --> S3[Story 3: Service tab alignment]
   M --> S5[Story 5: ESLint guard + docs]
   S3 --> S5
   S4 --> S5
+  S6 --> S5
 ```
 
-Stories 0 and 1 are independent and can run in parallel; Stories 2 and 3 share files and must be sequential.
+Stories 0 and 1 are independent and can run in parallel; Stories 2 and 3 share files and must be sequential. Story 6 follows Story 1; migration stories of branded files also follow Story 6.
 
 ## Appendix A — Audit inventory
 
