@@ -54,7 +54,10 @@ interface HotsiteBranding {
   headingFontFamily: string;
   bodyFontFamily: string;
   logoUrl: string;
-  borderRadius: 'sharp' | 'rounded' | 'pill';
+  borderRadius: 'sharp' | 'rounded' | 'pill' | 'soft';   // 'soft' added by TD56-S06
+  buttonRadius?: 'sharp' | 'rounded' | 'pill';           // TD56-S06
+  headingWeight?: 400 | 500 | 600 | 700 | 800 | 900;    // TD56-S06
+  headingTransform?: 'none' | 'uppercase';               // TD56-S06
   buttonStyle: 'filled' | 'outline' | 'ghost';
   spacing: 'compact' | 'comfortable' | 'spacious';
   shadowStyle: 'none' | 'subtle' | 'strong';
@@ -68,7 +71,7 @@ interface HotsiteBranding {
 }
 ```
 
-The current editor exposes all 18 fields in five sections: Cores; Logo e identidade; Tipografia; Forma e estilo; Ritmo visual. `heroBgStyle` is `primary | background`, `alternateSectionBg` is a boolean switch, and `dividerStyle` is `none | gradient | solid`. `TD56-S06` (2026-10-24) added `borderRadius: soft`, `buttonRadius`, `headingWeight` and `headingTransform` to this tab, so the count is now 21; see `journeys/manager/hotsite.md` for the panel controls added alongside.
+The editor exposed the 18 fields above (before TD56-S06) in five sections: Cores; Logo e identidade; Tipografia; Forma e estilo; Ritmo visual. `heroBgStyle` is `primary | background`, `alternateSectionBg` is a boolean switch, and `dividerStyle` is `none | gradient | solid`. `TD56-S06` (2026-10-24) added `borderRadius: soft`, `buttonRadius`, `headingWeight` and `headingTransform` to this tab, so the count is now 21; see `journeys/manager/hotsite.md` for the panel controls added alongside.
 
 ---
 
@@ -117,3 +120,35 @@ The current editor exposes all 18 fields in five sections: Cores; Logo e identid
 ## Unpublish (new — not in original UC text)
 
 `POST /tenants/hotsite/unpublish` exists in the backend/BFF but UC-027's text never describes a take-down flow. The prototype places it in a "Zona de risco" panel inside the editor (`01-hotsite-editor.html`, bottom of page) as a secondary, visually de-emphasized action. Shipped (the "Despublicar hotsite" action; `hotsite-admin.controller.ts`).
+
+---
+
+# Billing — módulo TRIAL_SIGNUP_CTA (planejado, só o tenant da Ikaro)
+
+> **Planejado, ainda não construído** (UC-131). Movido como está das notas do protótipo de descoberta do Billing; reformatar para o modelo do `journeys/README.md` na discovery da story. O contrato do módulo está em `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § TRIAL_SIGNUP_CTA.
+
+## Billing (planejado) — `01g`: Editor do hotsite, módulo Chamada para teste grátis (`TrialSignupCtaConfigPanel`)
+
+Arquivo: `01g-module-config-trial-signup-cta.html` — Status: GAP. Mirrors `ChatbotConfigPanel` / hero panel (same `ModuleConfigPanelProps`).
+Availability: module offered only for the platform owner tenant (slug = `PLATFORM_OWNER_TENANT_SLUG`; `ikaro` is this prototype's illustrative value). The editor asks the backend; it does not hardcode the slug.
+BFF: `PATCH /v1/tenants/hotsite` (module data).
+Fields and validation:
+
+| Field | Rule | Error copy |
+|---|---|---|
+| `title` | required, trimmed, 1-80 chars | "Informe o título." / "O título pode ter no máximo 80 caracteres (você digitou N)." |
+| `subtitle` | optional, max 200 chars (`TrialSignupCtaModuleData.subtitle`) | "A descrição pode ter no máximo 200 caracteres." |
+| `ctaLabel` | required, 1-30 chars | "Informe o texto do botão." / "O texto do botão pode ter no máximo 30 caracteres." |
+| `variant` | `centered` \| `left-aligned`, default `centered` | — |
+| `presentation.surface` | `primary` \| `secondary` \| `background` \| `custom` (+ `customColor`), default `primary` (section-level presentation, not module data) | — |
+| `enabled` | boolean, default true | — |
+
+Button target is fixed to `/ikaro-trial` (not editable). Edits go to the draft; publishing is the existing hotsite publish flow.
+States: default (this file); validation (`01h`); submitting = "Aplicar" disabled with spinner label "Aplicando…"; submission error = inline red banner "Não foi possível aplicar as alterações. Tente novamente." above the form; success = returns to the editor with the existing inline confirmation.
+Mobile: fixed action bar above the bottom nav (`bottom: 3.75rem`, main `padding-bottom: 9rem`); desktop uses the aside.
+
+## Billing (planejado) — `01h`: Painel TRIAL_SIGNUP_CTA com erros
+
+Arquivo: `01h-module-config-trial-signup-cta-erro.html` — Status: GAP (same component).
+Whole panel shown; invalid fields only highlighted: title over 80 chars (counter `105/80`), empty button label. "Aplicar" disabled until fixed; aside shows the summary error. Server 422 re-renders the same state.
+

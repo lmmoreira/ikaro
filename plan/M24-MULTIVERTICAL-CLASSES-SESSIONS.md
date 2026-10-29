@@ -14,6 +14,14 @@
 - **A family-account/dependent hierarchy for minors** — UC-068's "a responsible authenticated adult may be the booker" note applies unchanged; no separate minor-account model.
 - **Dynamic per-day session duration ("span to closing time")** — a `ClassScheduleTemplate`'s occurrence duration always comes from the one `Service.durationMinutes` value, uniform across every day in its `recurrence` (see `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`). A business whose hours vary by weekday and wants a full-day session on each (e.g. a coworking-style day pass, shorter Saturday) creates one template per distinct-hours weekday group instead — zero new machinery, reuses the existing "two independent instances" pattern. A `durationMode: FIXED | SPAN_TO_CLOSE`-style field is deliberately deferred until a real discovery pass validates a vertical that actually needs it — raised 2026-09-02 while reasoning through a hypothetical coworking/hot-desk vertical (not a discovered one; no such vertical is in scope for this milestone).
 
+## Billing interaction (planned — tenant billing is a separate, earlier milestone)
+
+Ikaro billing its tenants (`docs/USE_CASES.md` UC-110–145, `docs/discovery/tenant-billing/tenant-billing.md`) is independent of this milestone and is expected to deploy **before** it. The Non-Goal above (no payment gateway for classes) is about customers paying a tenant for classes; the tenant's own subscription to Ikaro is a different thing. Nothing in M24 depends on Billing, but once Billing's enforcement is live these M24 stories must account for it:
+
+- **Route and job annotation.** Every new M24 route needs `@RequiresFeature` / `@SuspensionAccess` (or `@NoFeatureGate`), every new event subscription the `requires` / `skipWhenSuspended` options, and every new cron the shared tenant-job helper — `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned). Until the route detector is enforcing it only warns; after that an unannotated M24 route fails CI.
+- **BOOKING removal guard.** A tenant cannot remove the BOOKING feature while it still has live bookings (UC-136 A11, `docs/BUSINESS_LOGIC_REFERENCE.md` Booking Window `bookableUntil` subsection). The Booking use case behind the single cross-context port that Billing calls for this check (`docs/BOUNDED_CONTEXTS.md` § 7, "Billing → Booking") must also count **class-session bookings, enrollments and waitlist entries**; whichever M24 story introduces each of those records must extend that use case's queries in the same story, never with a cross-context SQL join.
+- **Onboarding checklist (optional, last).** UC-129 adds the trial banner and "Confirmar plano" step to the onboarding wizard (UC-075, S21/S22) only if that wizard ships; it is not a prerequisite for either milestone.
+
 ## Build order
 
 | Wave | Story | Theme |

@@ -2,7 +2,7 @@
 
 **Status:** Discovery — module spec at the level `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §7 ("Adding a New Module") needs. Not implemented.
 
-**Companion docs:** `tenant-billing.md` §6 · `tenant-billing_USECASES.md` (CAND-22, 26) · `prototype/` (`manager-05*`, `public-02`).
+**Companion docs:** `tenant-billing.md` §6 · `tenant-billing_USECASES.md` (CAND-22, 26) · `prototype/` (`manager-05*`, `public-02`) — promoted to `journeys/manager/prototypes/hotsite/01g`/`01h` and `journeys/guest/prototypes/ikaro-trial/`; the canonical module contract is now `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § TRIAL_SIGNUP_CTA.
 
 ## 1. What it is
 

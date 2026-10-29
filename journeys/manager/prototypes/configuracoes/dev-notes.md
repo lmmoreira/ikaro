@@ -26,7 +26,6 @@
 |---|---|---|---|
 | Get settings | `GET /tenants/settings` | STAFF, MANAGER | ✅ Exists |
 | Update settings | `PATCH /tenants/settings` | MANAGER | ✅ Exists |
-| Chatbot cap status | `GET /tenants/chatbot/cap-status` | MANAGER | ✅ Exists |
 
 `apps/bff/src/features/platform/tenant-settings.controller.ts` (EXISTS) proxies to the backend:
 
@@ -68,7 +67,7 @@ interface UpdateTenantSettingsDto {
 }
 ```
 
-Verify exact key casing (`businessHours` vs `business_hours`) against the actual DTO/Zod schema — `docs/TENANTS_SETTINGS_SCHEMA.md` uses snake_case for the JSONB keys but the BFF layer typically exposes camelCase to the frontend; don't assume, check the schema file directly when the BFF story lands.
+**Key casing — resolved:** the BFF exposes the `settings` keys in camelCase (`loyalty, booking, businessHours, localization, businessInfo, chatbot, leadForm`, `.strict()`), as defined by `buildUpdateTenantSettingsSchema` in `packages/validation/src/tenant-settings.ts`; `GET /tenants/chatbot/cap-status` is served by the same controller but consumed by the hotsite chatbot panel (see `manager/prototypes/hotsite/dev-notes.md`).
 
 ---
 
@@ -161,7 +160,7 @@ all 3 bounds are fully client-checkable — validated client-side the same way a
 | serviceBufferMinutes | 0–120 | "O valor máximo é 120 minutos." |
 | loyaltyExpiryDays | 1–3650 | "Informe um valor entre 1 e 3650 dias." |
 | timezone | valid IANA id | "Selecione um fuso horário válido." |
-| businessInfo.phone | E.164 (`isValidPhoneNumber`, `packages/validation/src/tenant-settings.ts`) — the web form shows the tenant's country calling code (`phonePrefix`) so the submitted value is E.164; optional | `PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID` — "O telefone informado é inválido." (`packages/i18n/locales/pt-BR/errors.json`) |
+| businessInfo.phone | E.164 (`isValidPhoneNumber`, `packages/validation/src/tenant-settings.ts`) — the web form shows the tenant's country calling code (`phonePrefix`) so the submitted value is E.164; optional | `PLATFORM_SETTINGS_BUSINESS_PHONE_INVALID` — server message "O telefone informado é inválido." (`packages/i18n/locales/pt-BR/errors.json`); the form shows `errors.phoneInvalid` = "Telefone inválido." (`dashboard.settingsPage.errors`, `packages/i18n/locales/pt-BR/web.json`) |
 | businessInfo.email | `z.email()`, optional | "E-mail inválido." |
 
 Slug is never submitted — input stays `disabled`; UC-026 A2 says the system silently ignores any manipulation attempt, so there's no need for a slug-specific error state.

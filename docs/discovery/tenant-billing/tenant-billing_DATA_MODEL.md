@@ -90,7 +90,7 @@ The second row came from a **+20 % adjustment** applied to every active BR price
 | `address` | jsonb NULL | **BR and US: required before the first paid selection (BR for provider-automatic NFS-e, decision 109; US for tax); not asked at signup.** Shaped exactly like the shared `Address` value object (`street`, `number`, `complement?`, `neighborhood?`, `city`, `state`, `zipCode`), validated with the **billing country's `AddressSpec`** from `packages/i18n/src/country-defaults.ts` (labels, postal regex, state pattern, neighbourhood on/off). The country is `subscriptions.country_code`, not repeated inside the JSON. A single bounded object, never an array |
 | `provider` | text NULL | `ASAAS` \| `STRIPE` |
 | `provider_customer_id` | text NULL | |
-| `auto_billing` | text NOT NULL DEFAULT `'NONE'` | `NONE` \| `PIX_AUTOMATICO` (card auto-billing is not offered, decision 58); mirrored from the provider (no card data) |
+| `auto_billing` | text NOT NULL DEFAULT `'NONE'` | `NONE` \| `PIX_AUTOMATICO` \| `CARD_RECURRING` (*slice F2*, the provider-hosted recurring-card checkout, decision 114; API tokenization stays dropped, decision 58); mirrored from the provider (no card data) |
 | `auto_billing_status` | text NOT NULL DEFAULT `'INACTIVE'` | `INACTIVE` \| `PENDING_AUTHORIZATION` \| `ACTIVE`; drives prototype states 07/07b/07c (deferred release slice) |
 | `auto_billing_label` | text NULL | display label supplied by the provider, e.g. `Pix Automático ativo`; never a PAN |
 | `terms_version` | text NULL | version the user accepted at signup |

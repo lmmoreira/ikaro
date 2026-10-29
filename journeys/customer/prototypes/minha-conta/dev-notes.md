@@ -20,14 +20,14 @@ Stories: `M13-S27` (list) · `M13-S28` (detail/cancel/info-submit) · `M13-S29` 
 
 ## Auth guard
 
-Both pages require a valid httpOnly `access_token` cookie with `role: CUSTOMER`.  
+Every my-account page requires a valid httpOnly `access_token` cookie with `role: CUSTOMER`.  
 On 401 → redirect to `/{slug}/login`.
 
 ## BFF calls
 
 | Screen | Call | Endpoint | Notes |
 |---|---|---|---|
-| Minha Conta (list) | `GET /v1/bookings` | booking context | No status filter — split client-side into 3 sections |
+| Minha Conta (list) | `GET /v1/bookings` | booking context | The web passes every status explicitly (`ALL_BOOKING_STATUSES`) with `limit=50`, because the BFF default is `PENDING,INFO_REQUESTED` / `limit=20` — split client-side into 3 sections (`customer.server.ts`) |
 | Minha Conta (list) | `GET /v1/loyalty/balance` | loyalty context | **No longer called by the list (2026-10-09):** the compact points strip was removed from Agendamentos — points show on Início and Fidelidade only. The list's page drops this read. |
 | Detail | `GET /v1/bookings/:id` | booking context | Ownership check: backend returns 404 if `customerId ≠ JWT.sub` (deliberate — doesn't reveal booking existence to a non-owner) |
 | Cancel | `PATCH /v1/bookings/:id/cancel` | BFF routes to `/cancel-customer` | 422 if outside the cancellation window (`cancellableUntil`) |
@@ -66,7 +66,7 @@ When `canCancel === false`: hide button, show note "Prazo encerrado" (i18n key `
 
 1. Customer clicks "Cancelar" → navigates to the dedicated page `apps/web/app/[slug]/my-account/bookings/[id]/cancel/page.tsx` (`CancelConfirmPage`) — not a bottom sheet (`CancelSheet` is a staff scheduling-exceptions component)
 2. Customer confirms → `PATCH /v1/bookings/:id/cancel`
-3. On 200 → back to the customer's booking area, with the booking in Histórico as CANCELLED
+3. On 200 → `router.push(returnTo ?? /{slug}/my-account)`: Início by default, which previews only upcoming and pending bookings; the cancelled booking is listed under Histórico on Agendamentos
 4. On 422 → the dedicated error page `.../cancel/error` (`CancelErrorPage`; `03b-cancel-error` prototype)
 
 ## Info-submit flow (UC-005 A2)
@@ -251,7 +251,7 @@ POST /recurring-booking-schedules
 
 ### Built by M23-S17 (2026-10) — what the code does beyond the drawn screens
 
-- **Where the "+ Novo ▾" menu sits on mobile:** in the page header, right of the title, on Início (full-width button), Agendamentos (`01`, and its empty state `01b`) and the recurring list (`14`). Desktop: the topbar, on every my-account screen. `14b` keeps its own call to action.
+- **Where the "+ Novo ▾" menu sits on mobile:** at the end of Início (full-width button, below the booking preview — `HomeDashboard.tsx`), and in the page header beside the title on Agendamentos (`01`, and its empty state `01b`) and the recurring list (`14`). Desktop: the topbar, on every my-account screen. `14b` keeps its own call to action.
 - **First occurrence in the booking window:** the form checks the first occurrence (first chosen weekday on or after the start date, in the tenant timezone) against the service's minimum notice and maximum advance before sending, and shows the catalog message above the form (`13e` A4); a pattern none of whose weekdays falls in the term shows A5. The `422`s of the same codes are the backstop.
 - **The service list does not say "requer aprovação":** the public service shape carries no approval mode, so the option reads "{name} — {duração} · {preço}"; the customer learns it from the outcome (`06c`).
 
@@ -265,7 +265,7 @@ POST /recurring-booking-schedules
 - ✅ **Renewal (`13f`): "Renovar" appears on an ended schedule (`M23-S22`) and on an active one the server flags `renewable` (`M23-S41`)** — the flag is the window of the reminder e-mail, owned by `M23-S21`. The by-id read that `13f` needs is `GET /recurring-booking-schedules/:id` from `M23-S42` (✅ Done). The create POST for a renewal carries `renewsScheduleId` (see the Renewal note in `minha-conta.md`); `Começa em` is editable (minimum today); in renewal mode the form skips its own minimum-notice/maximum-days check and the backend decides. `M23-S22` drew "Renovar" on `ENDED` rows (`14`) and on `06h`; `M23-S41` added it on `ACTIVE` rows (`14`) and on the active detail (`06`) when `renewable` is true, and the Início card (`shared/customer-dashboard.html`).
 - ✅ **A bundle (staff + room) is drawn in `13h` and `13b#pacote` and built by TD49 Story 2.** The API accepts it since TD49 Story 0. Customer-side lists and details do not change: a customer never sees the resources of a schedule (staff-only `assignedResources`, see the `06` note), so `14` and `06` still show only the service name; the conflict screen `06b` is unchanged too, because the 409 carries dates and reasons but not which requirement collided. Services with no requirement or only the default location recur from TD49-S03. Bundles are TD49 Stories 0 to 2.
 - ⚠ **Renewal of a schedule whose service has since stopped qualifying** (recurrence switched off, a second requirement added): `buildRenewalDraft()` (`features/booking/model/recurring-schedule-renewal.ts`) returns null and the customer lands on the blank form with the not-found notice (`13f` state B), or on `13g` when nothing qualifies at all. Defined behavior (TD49 Addendum item 7), not an error.
-- ⚠ **Staff creating on a customer's behalf** (allowed by UC-070) has no prototype.
+- ✅ **Staff creating on a customer's behalf** (allowed by UC-070) is a dashboard surface, prototyped in `staff/prototypes/agenda/09`, `09b` and `09c`, not in this folder.
 
 ### Alert creation is not in this folder
 
@@ -280,7 +280,7 @@ POST/GET/PATCH/DELETE  /availability-alerts[/:id]              -- UC-072, UC-076
 
 **Open questions / gaps:**
 - [x] Stories done: `M23-S12`, `M23-S17`, `M23-S18`, `M23-S20` (remove Pause), `M23-S21` (renewal reminder e-mail), `M23-S22` ("Renovar", `13f`) — all ✅ Done.
-- [ ] **Entry point** (default drawn): a "Reservas recorrentes" link on the Agendamentos page → `14`, with creation through the topbar "+ Novo ▾" menu (see Shell pattern). Alternatives: a "repetir toda semana" option inside the one-off booking flow, or an entry on the service page. Nav placement (a new top-level tab vs. folded into Agendamentos) is still a UI decision for the implementing story.
+- [x] **Entry point** (decided 2026-10-10 at `M23-S17`'s story discovery, built): creation is the "Reserva recorrente" item of the shared "+ Novo ▾" menu; the Agendamentos page links to the list `14` (shown only when the customer has any recurring schedule). Originally drawn as a "Reservas recorrentes" link on Agendamentos.
 - [ ] Every "known limitation" above.
 
 ---
@@ -368,3 +368,32 @@ The customer area had **no reschedule screen** (only the staff `RescheduleBookin
 - **`02h`, card "Recusa":** when and why, as shipped in `rejection: { at, reason }` (`CustomerBookingRejection` — the reason the business typed; S47 added it to the customer response). Nobody is named.
 - **Resources and itinerary stay.** They are read from the latest `booking_line_resource_assignments` row per slot, which a cancel or reject does not delete. The legs show their order and resource but **no times**: times exist only on `resource_occupancy`, which the cancel/reject releases. A completed or no-show booking (`02c`, `02f`) shows the times until the 90-day retention purge; the screens draw the times, and a booking old enough to have lost them renders like `02g`'s legs.
 - **Copy:** pt-BR in the files above; the `en` twin goes in the same commit as the components, under the existing `customer.bookingDetail` keys.
+
+
+---
+
+# Billing — tenant suspended (planned, UC-121)
+
+> Moved as-is from the tenant-billing discovery (screens `16`, `16b`, `16c`); Draft, to be reshaped at story discovery. The customer-safe active flag comes from the BFF (route decided at story discovery); anonymous visitors only get the effective `isPublished` from the manifest. Customer behaviour while suspended is UC-121; the two open policies (loyalty expiry, customer email) are named open items there.
+
+## Billing — account with an inactive company (`16-agendamentos-empresa-inativa.html`)
+
+File: `16-agendamentos-empresa-inativa.html` — Status: EXISTS (`my-account` booking list rows) + GAP prop `tenantOperational`.
+Behaviour: open bookings (PENDING, INFO_REQUESTED, APPROVED) are listed with the "Empresa inativa" badge and are not links (`aria-disabled`); history (COMPLETED, CANCELLED, REJECTED, NO_SHOW) stays linked to the detail page. "Novo agendamento" rendered disabled. The prototype-only link under the open list and the link on the disabled button exist to reach screens 16b and 16c; in production they are inert.
+BFF: `GET /v1/bookings` (unchanged), customer-safe active flag (see open points).
+Copy: "Empresa inativa", "Esta empresa não está operando no momento. Você pode consultar seu histórico, mas não é possível abrir agendamentos em aberto nem criar novos."
+States: empty history = existing empty copy; load-error = existing retry alert.
+Mobile: bottom nav (Início, Agendamentos, Fidelidade); badge wraps under status.
+
+## Billing — open booking detail blocked (`16b-detalhe-bloqueado.html`; `BookingBlockedNotice`)
+
+File: `16b-detalhe-bloqueado.html` — Status: GAP, route EXISTS.
+Backend: `GET /v1/bookings/:id` -> 403 `BILLING_TENANT_SUSPENDED` for non-terminal bookings; terminal ones still open.
+Copy: "Este agendamento não pode ser aberto agora", "Esta empresa está inativa no momento, por isso os detalhes de agendamentos em aberto não estão disponíveis.", "Voltar para Agendamentos". New error code needs translation in both `errors.json` locales.
+Mobile: drill-down page, bottom nav hidden.
+
+## Billing — new booking blocked (`16c-novo-agendamento-bloqueado.html`)
+
+File: `16c-novo-agendamento-bloqueado.html` — Status: GAP (variant of `BookingBlockedNotice`), booking route EXISTS.
+Backend: `POST /v1/bookings` -> 403 `BILLING_TENANT_SUSPENDED`.
+Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para minha conta".

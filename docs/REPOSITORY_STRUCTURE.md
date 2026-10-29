@@ -11,7 +11,7 @@
 .
 ├── apps/
 │   ├── backend/          # NestJS modular monolith
-│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/
+│   │   └── src/contexts/ # booking/ customer/ staff/ loyalty/ notification/ platform/ billing/ (planned)
 │   ├── bff/              # NestJS BFF (feature slices under src/features/)
 │   └── web/              # Next.js 16 (domain features + shell slices + shared/)
 ├── packages/
@@ -48,6 +48,7 @@ Backend is already in the canonical shape and should stay close to this layout:
 apps/backend/src/
 ├── config/
 ├── contexts/
+│   ├── billing/       # planned: Subscription, Charge, FeaturePrice, BillingAccount
 │   ├── booking/
 │   │   ├── domain/
 │   │   ├── application/
@@ -112,6 +113,7 @@ The BFF mirrors backend ownership by feature slice. Domain-owned code uses the c
 apps/bff/src/
 ├── features/
 │   ├── auth/                 # technical slice: OAuth, JWT issuance, tenant selection
+│   ├── billing/              # domain slice (planned): manager billing routes, provider webhooks, public prices
 │   ├── booking/              # domain slice: bookings, schedule, services, attachments
 │   ├── customer/             # domain slice
 │   ├── loyalty/              # domain slice
@@ -162,6 +164,7 @@ apps/web/
 ├── proxy.ts                 # route protection (Next.js 16 proxy, formerly middleware)
 ├── features/
 │   ├── auth/
+│   ├── billing/              # planned: the manager billing page, banner, locked-feature UI
 │   ├── booking/
 │   ├── customer/
 │   ├── loyalty/
@@ -186,7 +189,7 @@ apps/web/
 ### Web root-level exceptions
 
 - `app/` remains the routing and layout surface.
-- `features/` is the business-owning tree for booking, customer, loyalty, platform, staff, and auth (`uploads` is not a current slice — see the BFF tree above for the condition under which it would become one).
+- `features/` is the business-owning tree for billing (planned), booking, customer, loyalty, platform, staff, and auth (`uploads` is not a current slice — see the BFF tree above for the condition under which it would become one).
 - `shells/` owns route-composition only.
 - `shared/` is for cross-surface primitives and helpers only.
 - `providers/` stays root-level because it is app-wide composition.

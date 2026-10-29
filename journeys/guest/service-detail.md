@@ -22,10 +22,11 @@ flowchart TD
     Cta --> Booking["✅ /{slug}/booking?serviceId=…<br/>service preselected, no date"]
     BookingFallback --> Booking
     Direct(["URL direta / sitemap / busca"]) --> Detail
-    Detail -. "hotsite não publicado, serviço inativo,<br/>página do serviço despublicada" .-> NotFound["Página indisponível (01d)"]
+    Detail -. "serviço inativo/inexistente,<br/>página do serviço despublicada" .-> NotFound["Página indisponível (01d)"]
+    Detail -. "hotsite não publicado" .-> HotsiteUnavailable["Unavailable genérico 'Em breve'<br/>(igual a todas as rotas públicas; ver guest/unpublished-hotsite.md)"]
 
     class Home,ServiceList,Booking existing
-    class Detail,BookingFallback,NotFound existing
+    class Detail,BookingFallback,NotFound,HotsiteUnavailable existing
 ```
 
 ## Pages referenced

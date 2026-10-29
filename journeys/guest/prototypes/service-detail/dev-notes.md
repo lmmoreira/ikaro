@@ -41,7 +41,7 @@ Cache: the by-slug fetch uses `hotsiteServicesCacheTag(slug)`, so the existing s
 |---|---|---|
 | full profile | `01` | every optional block rendered |
 | partial profile | `01c` | only existing blocks render — never an empty heading or placeholder box |
-| unavailable | `01d` | hotsite unpublished, service inactive/missing, service page unpublished (republishing restores the same URL — no redirects needed) |
+| unavailable | `01d` | service inactive/missing or service page unpublished (republishing restores the same URL — no redirects needed). A **hotsite unpublished** case is not this screen: `servicos/[serviceSlug]/page.tsx` renders the generic `Unavailable` ("Em breve", no CTA) shared by every public hotsite route |
 | hotsite `SERVICE_LIST` disabled | — | detail pages still resolve by URL with default `detailPage` settings; they are just not linked |
 
 No loading state is drawn: the page is server-rendered per request, like the other hotsite pages.

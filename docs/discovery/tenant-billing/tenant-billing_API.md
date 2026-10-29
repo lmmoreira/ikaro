@@ -158,7 +158,7 @@ Following `CronLeadFormController`/`CronChatbotController`: in production Cloud 
 
 | Path | Purpose | CAND |
 |---|---|---|
-| `POST /cron/billing-issue-charges` | issue next charges 10 days before due | 08 |
+| `POST /cron/billing-issue-charges` | issue next charges 10 days before due (30 days for an annual subscription, slice H) | 08 |
 | `POST /cron/billing-status-sweep` | **hourly**: tenant-local due date → overdue/past-due, trial end (with the settlement margin), past-due → suspended, cancel-at; honours the suspension freeze | 10 |
 | `POST /cron/billing-reconcile` | reconcile with the provider (daily for all open charges, hourly for at-risk tenants) | 11 |
 | `POST /cron/billing-provider-events-purge` | retention of `provider_events` | 09 |

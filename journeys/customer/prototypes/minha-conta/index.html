@@ -36,7 +36,7 @@
 
   <h1>Protótipo — CUSTOMER: Minha Conta</h1>
   <p class="subtitle">UC-006 · UC-007 · UC-016 (resumo) &nbsp;|&nbsp;
-    Rota: <code>/{slug}/my-account</code> &amp; <code>/{slug}/my-account/bookings/[id]</code> — ✅ Done, M13-S27–S30
+    Rota: <code>/{slug}/my-account/bookings</code> &amp; <code>/{slug}/my-account/bookings/[id]</code> (a rota <code>/{slug}/my-account</code> é o Início) — ✅ Done, M13-S27–S30
   </p>
 
   <h2>Entrada</h2>
@@ -58,7 +58,7 @@
   <h2>Detalhe do Agendamento</h2>
   <ul>
     <li>
-      <a href="02-agendamento-detail.html">Tela 2 — Detalhe (APROVADO) — formas: <code>?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|completo</code> (também em 2b, 2c, 2f, 2g, 2h)</a>
+      <a href="02-agendamento-detail.html">Tela 2 — Detalhe (APROVADO) — formas: <code>?forma=simples|recurso|pacote|trajeto|formulario|retirada|recorrente|equipe|completo</code> (também em 2b, 2c, 2f, 2g, 2h)</a>
       <span class="tag tag-exists">EXISTS: M13-S28</span>
     </li>
     <li>
@@ -116,7 +116,7 @@
     </li>
   </ul>
 
-  <h2>M23 Cluster 3 — Reservas recorrentes — ❓ Gap, não construído ainda</h2>
+  <h2>M23 Cluster 3 — Reservas recorrentes — ✅ Construído (M23-S12, S17, S22)</h2>
   <p style="font-size:.875rem;opacity:.7;">Fluxo de criação: Lista (14) → Padrão (13) → Revisar (13b) → desfecho (13c · 06c · 06b · 06d · 13d · 13e); sem nenhum serviço oferecido: 13g. Renovação: Lista (14) ou e-mail de aviso → Padrão pré-preenchido (13f) → Revisar (13b). A recorrência tem prazo fixo (data final obrigatória, máx. 90 dias por padrão) e todas as reservas do período são criadas de uma vez; não existe "pausar". Primeira versão deliberadamente simples, a rever na discovery das stories.</p>
   <ul>
     <li><a href="14-recorrentes-lista.html">Tela 14 — Lista de reservas recorrentes (ativas / em análise / encerradas, com o prazo de cada uma e "Renovar")</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S12</span></li>
@@ -132,9 +132,9 @@
     <li><a href="13f-renovar-recorrencia.html">Tela 13f — Renovar: formulário pré-preenchido (estado A) e reserva não encontrada (estado B)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · M23-S22</span></li>
     <li><a href="13g-nova-recorrencia-sem-servicos.html">Tela 13g — Nenhum serviço oferecido: variante A (nenhum serviço habilitado) e B (habilitado, mas nenhum atende à regra)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · TD49-S03</span></li>
     <li><a href="13h-nova-recorrencia-pacote.html">Tela 13h — Nova reserva recorrente de um serviço com mais de um recurso (profissional + sala): um grupo de escolha por requisito, a sala automática só informativa; todas as composições aceitas pelo servidor: A/A2 (escolha + automático, tudo escolhido), C (falta escolher), D (tudo automático), E (conjunto de unidades), F (local + profissional), G (três requisitos), H (carregando / erro / sem opções); a revisão lista cada recurso (<code>13b#pacote</code>, <code>#pacote-automatico</code>, <code>#pacote-tres</code>)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 · TD49-S02</span></li>
-    <li><a href="06-reserva-recorrente.html">Tela 6 — Detalhe da reserva recorrente (detalhe central + painel de ações: pular → 03, reagendar → 15, encerrar → 6g; sem "pausar")</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
-    <li><a href="06g-encerrar-recorrencia.html">Tela 6g — Encerrar recorrência: página de confirmação (detalhe central + painel de ações)</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
-    <li><a href="06h-recorrencia-encerrada.html">Tela 6h — Reserva recorrente encerrada ou cancelada: detalhe somente leitura, com "Renovar" e "Nova reserva recorrente" no painel (alternar "ver como cancelada")</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP — UC-070 A2 · M23-S12</span></li>
+    <li><a href="06-reserva-recorrente.html">Tela 6 — Detalhe da reserva recorrente (detalhe central + painel de ações: pular → 03, reagendar → 15, encerrar → 6g; sem "pausar")</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 A2 · M23-S12</span></li>
+    <li><a href="06g-encerrar-recorrencia.html">Tela 6g — Encerrar recorrência: página de confirmação (detalhe central + painel de ações)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 A2 · M23-S12</span></li>
+    <li><a href="06h-recorrencia-encerrada.html">Tela 6h — Reserva recorrente encerrada ou cancelada: detalhe somente leitura, com "Renovar" e "Nova reserva recorrente" no painel (alternar "ver como cancelada")</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-070 A2 · M23-S12</span></li>
     <li><a href="06e-pular-fora-do-prazo.html">Tela 6e — Erro: pular fora do prazo de cancelamento (a ocorrência é uma reserva; vale o prazo de qualquer reserva)</a> <span class="tag" style="background:#e5e7eb;color:#374151;">SUBSTITUÍDA — usa a página de erro de cancelamento / reagendamento já existente</span></li>
     <li><a href="06f-reagendar-fora-do-prazo.html">Tela 6f — Erro: reagendar fora do prazo de reagendamento</a> <span class="tag" style="background:#e5e7eb;color:#374151;">SUBSTITUÍDA — usa a página de erro de cancelamento / reagendamento já existente</span></li>
   </ul>
@@ -155,8 +155,8 @@
     <li><a href="15k-erro-envio.html">Tela 15k — Erro ao enviar (rede / outros)</a></li>
   </ul>
 
-  <h2>M23 Cluster 3 — Avisos de disponibilidade — ❓ Gap, não construído ainda</h2>
-  <p style="font-size:.875rem;opacity:.7;">A criação NÃO fica aqui: ela parte do botão "Avise-me quando abrir" no passo de calendário do agendamento e abre uma página do próprio fluxo de agendamento (<a href="../book-a-service/16-novo-aviso.html">book-a-service/16*</a>, com a marca do estabelecimento). "Meus avisos" (tela 7) só lista, edita e cancela.</p>
+  <h2>M23 Cluster 3 — Avisos de disponibilidade — ✅ Construído (M23-S43)</h2>
+  <p style="font-size:.875rem;opacity:.7;">A criação NÃO fica aqui: ela parte do botão "Avise-me quando abrir" no passo de calendário do agendamento e abre uma página do próprio fluxo de agendamento (<a href="../book-a-service/16-novo-aviso.html">book-a-service/16*</a>, com a marca do estabelecimento). "Meus avisos" (tela 7) só lista e cancela.</p>
   <ul>
     <li><a href="07-availability-alert.html">Tela 7 — Meus avisos (listar e cancelar; sem criar e sem editar)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-076 · M23-S43</span></li>
     <li><a href="07b-avisos-vazio.html">Tela 7b — Meus avisos vazio</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-076 · M23-S43</span></li>
@@ -166,6 +166,13 @@
     <li><a href="07g-aviso-detalhe-historico.html">Tela 7g — Detalhe de um aviso já avisado (somente leitura)</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-076 · M23-S43</span></li>
     <li><a href="07h-cancelar-aviso.html">Tela 7h — Confirmar cancelamento do aviso</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-076 · M23-S43</span></li>
     <li><a href="07i-cancelar-aviso-erro.html">Tela 7i — Falha ao cancelar o aviso</a> <span class="tag" style="background:#bbf7d0;color:#166534;">✅ Done — UC-076 · M23-S43</span></li>
+  </ul>
+
+  <h2>Billing — empresa suspensa (UC-121) — Draft, planejado</h2>
+  <ul>
+    <li><a href="16-agendamentos-empresa-inativa.html">Tela 16 — Agendamentos com o selo “Empresa inativa”, histórico visível</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP</span></li>
+    <li><a href="16b-detalhe-bloqueado.html">Tela 16b — Detalhe de agendamento em aberto bloqueado</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP</span></li>
+    <li><a href="16c-novo-agendamento-bloqueado.html">Tela 16c — Novo agendamento bloqueado</a> <span class="tag" style="background:#fecaca;color:#b91c1c;">GAP</span></li>
   </ul>
 
   <h2>M24 Cluster 4 — Minhas Turmas — ❓ Gap, não construído ainda</h2>
@@ -208,9 +215,8 @@
     <strong>O que este protótipo valida</strong>
     <ul class="checklist">
       <li>As três seções (Próximos / Pendentes / Histórico) organizam bem os agendamentos?</li>
-      <li>O cartão de fidelidade (pontos ativos + data de expiração) é claro e bem posicionado?</li>
       <li>Cancelar direto do card vs. entrar no detalhe e cancelar — qual fluxo é mais intuitivo?</li>
-      <li>O sheet de confirmação de cancelamento fornece contexto suficiente antes de confirmar?</li>
+      <li>A página de confirmação de cancelamento fornece contexto suficiente antes de confirmar?</li>
       <li>O form de resposta ao admin (UC-005 A2) na tela INFO_SOLICITADO é compreensível?</li>
       <li>O detalhe CONCLUÍDO mostra preço cotado vs. cobrado de forma legível?</li>
       <li>A separação entre "Turmas" e "Agendamentos" como tabs distintas faz sentido para o cliente, ou gera confusão sobre onde procurar o quê?</li>
@@ -219,7 +225,6 @@
       <li>A distinção entre "pular sessão" (pontual) e "cancelar matrícula" (permanente) está clara o suficiente nas telas — especialmente no detalhe?</li>
       <li>O checkbox de confirmação explícita no cancelamento de matrícula é necessário, ou a página de confirmação já é suficiente como freio?</li>
       <li>Reservas recorrentes: a data final obrigatória (com o limite de 90 dias e a dica "depois você pode renovar") é compreensível, ou parece uma restrição arbitrária?</li>
-      <li>Reservas recorrentes: quando o botão "Renovar" deve aparecer numa recorrência ativa (janela do aviso por e-mail?) — e o pré-preenchimento de 13f dispensa a revisão?</li>
       <li>Reservas recorrentes: a lista de ocorrências afetadas (06b/06d) com o motivo de cada uma ("Já reservado", "Fechado", "Fora do horário") basta para a cliente corrigir o padrão numa única tentativa?</li>
     </ul>
     <br>

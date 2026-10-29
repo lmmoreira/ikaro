@@ -70,13 +70,13 @@ Raise a doc bug if a UC appears to violate these — do not "make it work."
 | Context | Type | Aggregates |
 |---|---|---|
 | **Booking** | Core | `Booking`, `Service`, `Resource`, schedule/recurrence/alert aggregates |
-| **Customer** | Supporting | `Customer` (multi-tenant rows) |
-| **Staff** | Supporting | `Staff` (multi-tenant rows) |
+| **Customer**, **Staff** | Supporting | `Customer`, `Staff` (multi-tenant) |
 | **Loyalty** | Supporting | `LoyaltyEntry` (append-only), `LoyaltyBalance`, `LoyaltyRedemption` (append-only) |
 | **Notification** | Supporting | `NotificationTemplate`, `NotificationLog` |
 | **Platform** | Foundational | `Tenant`, `HotsiteConfig`, lead-form, chatbot |
+| **Billing** (planned) | Supporting | `Subscription`, `Charge`, `FeaturePrice`, account |
 
-These 5 names + `auth` are the BFF/web `features/` slices (§11). All aggregates: `docs/BOUNDED_CONTEXTS.md`.
+All but Notification + `auth` = BFF/web `features/` slices (§11).
 
 → Aggregates, events published, cross-context communication patterns, Loyalty MVP rules: `docs/BOUNDED_CONTEXTS.md`
 
@@ -383,7 +383,7 @@ A doc with a `§` or "only" is read at that section (`grep -n '^## ' <doc>` for 
 Full trees: `docs/REPOSITORY_STRUCTURE.md` · Rationale: `docs/ARCHITECTURE.md` · BFF detail: `docs/BFF_ARCHITECTURE.md`. This is the live architecture, not a future plan.
 
 Three slice types, consistent across all three apps:
-- **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`
+- **Domain slices** (business capability, mirrors backend bounded contexts): `booking`, `customer`, `staff`, `loyalty`, `platform`, `billing` (planned)
 - **Shell slices** (web only — route composition, zero business policy; `app/` holds Next.js routes/layouts only, kept thin): `dashboard`, `hotsite`
 - **Technical slices** (not bounded contexts — never treat as domains): `auth`, `uploads`
 

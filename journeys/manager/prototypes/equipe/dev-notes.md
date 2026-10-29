@@ -68,7 +68,7 @@ This is implemented server-side in the BFF's `deriveStaffStatus()` (`apps/bff/sr
 
 ## Self-row protection (client-side, must also hold server-side)
 
-The "Desativar" action must not render on the logged-in admin's own row (compare `member.staffId` to the JWT's `sub`). This is a UX nicety, not the actual safety net — `DeactivateStaffUseCase` already throws `StaffSelfDeactivationError` (403) server-side regardless of what the UI does. `03b-deactivate-self-error.html` shows the defensive error screen for the case this protection is bypassed (stale client state, multi-tab race).
+The "Desativar" action must not render on the logged-in admin's own row (compare `member.id` (`StaffListItem.id`) to the JWT's `sub` (`currentStaffId`)). This is a UX nicety, not the actual safety net — `DeactivateStaffUseCase` already throws `StaffSelfDeactivationError` (403) server-side regardless of what the UI does. `03b-deactivate-self-error.html` shows the defensive error screen for the case this protection is bypassed (stale client state, multi-tab race).
 
 ---
 
@@ -86,7 +86,7 @@ The "Desativar" action must not render on the logged-in admin's own row (compare
 | HTTP status | Scenario | UI response |
 |---|---|---|
 | `409` | Email already has an active staff record (UC-028 A1) | `email` field: red border + "Já existe um membro da equipe com este e-mail neste estabelecimento." (`STAFF_ALREADY_EXISTS`) — `02b-invite-error.html` |
-| — | Email has an inactive record (UC-028 A2) | Silently reactivates; same success toast as a new invite — no distinct screen needed |
+| — | Email belongs to a pending invitee (UC-028 A2) | Re-sends the invite; same inline success banner as a new invite — no distinct screen needed. A linked (incl. deactivated) email returns 409 `STAFF_ALREADY_EXISTS`; reactivation is only the "Ativar" row action (UC-031) |
 | `403` | Self-deactivation attempt (UC-029 A1) | `03b-deactivate-self-error.html` |
 | `409` | Last active MANAGER (UC-029 A2) | `03c-deactivate-lastmanager-error.html` |
 | `404` | Staff not found (stale URL) | `notFound()` |

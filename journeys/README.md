@@ -719,19 +719,21 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 |---|---|---|---|
 | GUEST — Book a Service | `guest/book-a-service.md` | `guest/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`, incl. combined-basket screens; ✅ built — `M23-S31` alert button on the calendar step) |
 | GUEST — Service Detail Page | `guest/service-detail.md` | `guest/prototypes/service-detail/` | Built (TD56-S03) |
-| GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Reviewed |
+| GUEST — Responder à Solicitação de Informação | `guest/submit-info.md` | `guest/prototypes/submit-info/` | Built (M13-S38/S39/S40) |
 | GUEST — Ask Chatbot | `guest/ask-chatbot.md` | `guest/prototypes/ask-chatbot/` | Built (M19-S11) |
+| GUEST — Hotsite Não Publicada (Unpublished Hotsite) | `guest/unpublished-hotsite.md` | `guest/prototypes/unpublished-hotsite/` | Draft (planned Billing milestone) |
+| GUEST — Teste Grátis da Ikaro (Self-Service Trial Signup) | `guest/ikaro-trial.md` | `guest/prototypes/ikaro-trial/` | Draft (planned Billing milestone) |
 | CUSTOMER — Book a Service | `customer/book-a-service.md` | `customer/prototypes/book-a-service/` | Reviewed (M23 extension: ✅ built — `M23-S11a`/`S11b`; ✅ built — `M23-S31` alert button on the calendar step) |
 | CUSTOMER — Login & Tenant Selection | `customer/login.md` | `customer/prototypes/login/` | Reviewed |
-| STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Reviewed |
+| STAFF — Login & First Access | `staff/login.md` | `staff/prototypes/login/` | Shipped (M13-S13); billing extension (suspended notice, UC-121): Draft |
 | STAFF — Agenda (Booking Queue & Lifecycle Management) | `staff/agenda.md` | `staff/prototypes/agenda/` | Reviewed |
 | STAFF — Horários (Schedule & Closure Management) | `staff/horarios.md` | `staff/prototypes/horarios/` | Reviewed |
-| CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`) |
+| CUSTOMER — Minha Conta (Bookings + Loyalty) | `customer/minha-conta.md` | `customer/prototypes/minha-conta/` | Reviewed (M23 extensions: ✅ built — `M23-S30`, `S12`, `S17`, `S22`, `S41`, `S43`; billing extension: tenant-suspended screens `16`–`16c`, Draft) |
 | STAFF — Serviços (Service Catalog) | `staff/servicos.md` | `staff/prototypes/servicos/` | Shipped (M22-S04); public-page tab `03g`–`03i` Built (TD56-S03) |
 | STAFF — Fidelidade (Customer Loyalty Lookup) | `staff/fidelidade.md` | `staff/prototypes/fidelidade/` | Reviewed |
 | MANAGER — Equipe (Team Management) | `manager/equipe.md` | `manager/prototypes/equipe/` | Built (M13-S43, M13-S44) |
 | MANAGER — Configurações (Tenant Settings) | `manager/configuracoes.md` | `manager/prototypes/configuracoes/` | Built (M13-S31) |
-| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Built (M13-S35, S36, S37; visual editor TD55; templates, NAVIGATION/CONTENT_BLOCK panels and presentation controls TD56) |
+| MANAGER — Hotsite (Branding & Content) | `manager/hotsite.md` | `manager/prototypes/hotsite/` | Built (M13-S35, S36, S37; visual editor TD55; templates, NAVIGATION/CONTENT_BLOCK panels and presentation controls TD56) (planned Billing extension: `TRIAL_SIGNUP_CTA` module panel `01g`/`01h`, Draft) |
 | GUEST — Submit Lead Form | `guest/submit-lead-form.md` | `guest/prototypes/lead-form/` | Built (M20-S07, M20-S09) |
 | CUSTOMER — Submit Lead Form | `customer/submit-lead-form.md` | `customer/prototypes/lead-form/` | Built (M20-S09) |
 | MANAGER — Configure the Lead Form Module | `manager/lead-form-config.md` | `manager/prototypes/lead-form/` | Shipped (M20-S08) |
@@ -739,6 +741,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Shipped (M21-S01, M21-S04) |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
+| MANAGER — Assinatura (Billing, Plan & Payment) | `manager/billing.md` | `manager/prototypes/billing/` | Draft (planned Billing milestone) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |
 | MANAGER — Turmas (Class Configuration & Enrollment Management) | `manager/turmas.md` | `manager/prototypes/turmas/` | Draft (M24 Cluster 4) |
 | STAFF — Turmas (Daily Class Operations) | `staff/turmas.md` | `staff/prototypes/turmas/` | Draft (M24 Cluster 4) |

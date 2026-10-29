@@ -1,9 +1,9 @@
 # Tech Stack Architecture & Decisions - Ikaro
 
-> **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
+> **When to load:** questioning or revisiting a technology choice (TypeORM, NestJS, Next.js, Pub/Sub, Cloud Run, PostgreSQL, Secret Manager, Terraform, the email provider, the payment providers) and why it was made, with its scaling path; current infrastructure facts are in `docs/DEPLOYMENT_STRATEGY.md` and `docs/INFRASTRUCTURE_TOOLING_MAP.md`.
 > **Tags:** agent-process
 **Date:** 2026-05-12  
-**Status:** Decision record. The stack below is implemented; the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
+**Status:** Decision record. The stack below is implemented, except §10 Payment Providers, which is planned (Billing milestone); the checklist and next-steps sections near the end are the original pre-development plan, kept as history.  
 **Audience:** Development team, stakeholders, AI agents  
 **Related Documents:** See cross-references throughout
 
@@ -1227,6 +1227,28 @@ High-deliverability free tier (3k–10k emails/month) suitable at MVP scale; sta
 
 ---
 
+## 10. PAYMENT PROVIDERS: Asaas (BRL) + Stripe (USD) behind one port *(planned, Billing milestone)*
+
+**Added 2026-10-29** (promoted from the tenant-billing discovery; nothing under `contexts/billing` exists yet).
+
+### Decision
+Ikaro charges its tenants through **Asaas for BRL** (the first adapter, Brazil) and **Stripe for USD** (the same milestone sequence, released only after its real account and sandbox flow is verified), both behind one `BillingProviderPort` defined in Ikaro's terms — never a provider type beyond the adapter. **The provider owns the money** (charging, retries, hosted payment pages, receipts, refunds, chargebacks): Ikaro never stores card data and never renders a card form; it keeps only the status it needs, mirrored from the provider by webhook plus a reconcile job.
+
+| Provider | Verdict | Why |
+|---|---|---|
+| **Asaas** | First adapter (BRL) | Pix, boleto and card on one hosted invoice (`billingType UNDEFINED`); recurring Pix (Pix Automático) supported; webhook with a token header, at-least-once delivery and a documented event id; NFS-e emitted by the provider with the charge. Recurring Pix and NFS-e emission need a PJ account (a CNPJ active 6+ months). |
+| **Stripe** | USD adapter (cards only) | Best API, portal and hosted invoices; **Invoices** with `automatic_tax` are the hosted object. A Brazilian CNPJ account settles in BRL only (no USD payouts, no ACH), so the first US account is that account; an Atlas US entity is a later option only if ACH or USD payouts are needed. Stripe Tax calculates only where the account is registered and never files — registration is the accountant's call. |
+| **Appmax** | Rejected | E-commerce checkout; webhooks, NFS-e and Pix Automático are not confirmed for a recurring-subscription use. |
+
+### Consequences
+- **No provider subscriptions in the baseline:** Ikaro issues its own charges so plan changes at period boundaries, dated price versions and the early invoice stay Ikaro's policy; optional provider-collected card billing (a hosted recurring checkout) is a later slice that mirrors provider-generated charges into ordinary charges.
+- **Test environments never touch a live provider:** a `FakeBillingProvider` and one contract suite run on every PR, the provider sandboxes run nightly and in staging, and a live adapter refuses to start outside production — `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
+- **Ikaro absorbs provider fees** in the list price.
+- Secrets (`ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, sandbox and live separately) live in Secret Manager — § 7 above.
+- The verified provider facts, the account-opening checklist and the launch gates: `docs/discovery/tenant-billing/tenant-billing_PROVIDERS.md`; the decision's context: `docs/discovery/tenant-billing/tenant-billing.md` § 3.
+
+---
+
 ## 📊 COST SUMMARY
 
 ### MVP (Month 1)
@@ -1376,7 +1398,7 @@ This tech stack integrates with all architectural decisions:
 | `docs/TESTING_STRATEGY.md` | NestJS testing infrastructure |
 | `docs/ARCHITECTURE.md` | Hexagonal pattern with these technologies |
 | `docs/DATABASE_SCHEMA.md` | TypeORM entities + Cloud SQL |
-| `docs/API_CONTRACTS.md` | NestJS controllers + Next.js clients |
+| `docs/API_CONTRACTS.md` | NestJS controllers + Next.js clients; § Billing — Provider Webhooks and Internal API for the payment-provider routes and § Billing — Manager API for the manager billing page |
 | `infra/terraform/modules/secrets/main.tf` (`base_secret_ids`) | Secrets in Secret Manager |
 
 ---

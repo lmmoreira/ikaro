@@ -60,3 +60,13 @@ The following are explicitly deferred to M17-S51:
 - What happens to this data (and everything else, including the rows listed above) when a customer requests export or deletion
 - What happens to a tenant's data when they leave the platform
 - How the 7-day database backup window (M17-S13) interacts with a deletion that already happened
+
+---
+
+## Planned: automated tenant erasure (Billing, slice G)
+
+> **PLANNED, NOT YET BUILT.** This section only records that an automated answer to "what happens to a tenant's data when they leave" is planned; it does not change what the rows above do today, and it does not replace the M17-S51 deliverables.
+
+- **What is planned.** A suspended tenant's data is erased by a durable, cross-context purge: at the clean-up deadline and warning thresholds defined in `docs/USE_CASES.md` UC-132, or immediately when a manager discards a never-paid tenant (UC-141). Every bounded context deletes its own data idempotently, and Platform removes the tenant root last. The coordinator, its events and tables, and what Billing keeps for fiscal reasons are in `docs/DOMAIN_MODEL.md` § Context 7: Billing Context, `docs/DOMAIN_EVENTS.md` § Billing Context Events and `docs/DATABASE_SCHEMA.md` § Schema: `billing`.
+- **What it does not decide.** The per-context deletion rules (what each participant removes, including the files in the storage bucket) are specified when each participant's deletion story is written; the self-service data export is not a use case yet; the backup-window interplay stays an M17-S51 deliverable.
+- **Interim path.** Until every participant has shipped, the purge trigger stays disabled and tenant offboarding is the manual set of runbooks M17-S51 produces (`plan/M17-CLOUD-DEPLOY.md` M17-S51; operator procedure in `docs/RUNBOOKS.md` § Billing (planned), the "Interim" entry and the data-subject erasure entry). M17-S51 is not superseded by the automated pipeline: it remains the fallback and the home of the backup interplay.

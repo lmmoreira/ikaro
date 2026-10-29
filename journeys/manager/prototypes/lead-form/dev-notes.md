@@ -15,7 +15,7 @@ A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10t
 
 **"Aplicar" remains a temporary draft action:** it commits the panel's complete edit to the existing in-memory `HotsiteEditor` draft and makes no network request. When the manager clicks "Publicar", teaser fields (title/subtitle/ctaLabel/variant/bgStyle) and `audienceMode`/`questions[]` go in a single consolidated `PATCH /v1/tenants/hotsite` request (folded into the existing hotsite-content endpoint at M20-S08 — `audienceMode`/`questions` are two optional extra fields on it, not a separate endpoint), saved in one backend transaction spanning `HotsiteConfig`'s layout entry and `LeadFormConfig` (see `docs/DOMAIN_MODEL.md` § `LeadFormConfig` "Cross-aggregate save"). An earlier draft of this screen made two independent, unsynchronized calls — replaced because a partial failure could leave the manager's edit half-applied. The module's `enabled` toggle goes through this same `PATCH /v1/tenants/hotsite` endpoint too, but as a separate, pre-existing action on the Layout tab row itself (`../hotsite/01-hotsite-editor.html`) — not part of this panel's "Aplicar"/"Publicar" flow.
 
-**New sidebar/bottom-nav item:** "Leads" — added to `MAIN_NAV_KEYS` (visible to STAFF and MANAGER alike, same tier as Agenda/Horários/Serviços/Fidelidade), not under "Somente Gerente" (viewing submissions doesn't require MANAGER; editing the module config still does, enforced by the BFF's `@Roles('MANAGER')` on `PATCH /v1/tenants/hotsite`, not by nav visibility). **Gated, not unconditional (added during the post-review redesign; shipped `M20-S10`):** the item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant — see `../leads/dev-notes.md` for the full mechanism (fetched via the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — there is no single shared `app/dashboard/layout.tsx` doing this; each top-level section owns its own `layout.tsx`).
+**New sidebar/bottom-nav item:** "Leads" — appended after `MAIN_NAV_KEYS` as `LEADS_NAV_ITEM` when `leadFormEnabled` (visible to STAFF and MANAGER alike, same tier as Agenda/Horários/Serviços/Fidelidade), not under "Somente Gerente" (viewing submissions doesn't require MANAGER; editing the module config still does, enforced by the BFF's `@Roles('MANAGER')` on `PATCH /v1/tenants/hotsite`, not by nav visibility). **Gated, not unconditional (added during the post-review redesign; shipped `M20-S10`):** the item only renders when `GET /v1/tenants/lead-form/status` reports `enabled: true` for this tenant — see `../leads/dev-notes.md` for the full mechanism (fetched via the shared `loadDashboardShellContext()`, `apps/web/shells/dashboard/model/dashboard-shell-context.ts` — there is no single shared `app/dashboard/layout.tsx` doing this; each top-level section owns its own `layout.tsx`).
 
 ---
 
@@ -24,8 +24,9 @@ A per-module drill-down config panel for the new `LEAD_FORM` hotsite module (10t
 | File | Status | Role |
 |---|---|---|
 | `apps/web/app/dashboard/hotsite/page.tsx` + existing editor view | ✅ Existing | In-place manager config flow; no dedicated route |
+| `apps/web/features/platform/components/hotsite/HotsiteEditor.tsx`, `ModuleConfigPreviewScreen.tsx`, `hotsite-editor-lazy-panels.tsx` | ✅ Shipped M20-S08 | Wire the LEAD_FORM panel into the Layout tab (publish-blocked message, drill-down screen, lazy panel); `HotsiteEditorMainView.tsx` has no LEAD_FORM reference |
 | `apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | ✅ Shipped M20-S08 | The panel component — same `ModuleConfigPanelProps` contract every other module panel (Hero, Chatbot, ...) already uses |
-| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Shipped M20-S10 | Adds "Leads" to `MAIN_NAV_KEYS`, conditionally rendered on a `leadFormEnabled` prop |
+| `apps/web/shells/dashboard/components/Sidebar.tsx` | ✅ Shipped M20-S10 | Appends `LEADS_NAV_ITEM` ("Leads") after `MAIN_NAV_KEYS`, only when the `leadFormEnabled` prop is set |
 | `apps/web/shells/dashboard/model/dashboard-shell-context.ts` | ✅ Shipped M20-S10 | `loadDashboardShellContext()` fetches `GET /v1/tenants/lead-form/status` server-side — see `../leads/dev-notes.md` |
 
 ---
@@ -57,6 +58,7 @@ PATCH /v1/tenants/hotsite                      MANAGER only — ONE consolidated
   400 PLATFORM_LEAD_FORM_QUESTION_LIMIT_REACHED   — > 20 questions
   400 PLATFORM_LEAD_FORM_QUESTION_OPTIONS_INVALID — a choice-type question with < 2 or > 10 options
   400 GENERIC_FIELD_REQUIRED                       — a question with an empty label
+  (the question-count, option-count and label rules are enforced by the domain `LeadFormConfig.updateQuestions()`, not by the BFF Zod schema — `packages/validation/src/hotsite.ts`)
 GET  /v1/tenants/lead-form/status              STAFF|MANAGER — { enabled: boolean }, powers the
   gated "Leads" sidebar item (see ../leads/dev-notes.md), not called from this screen itself
 ```
@@ -70,7 +72,7 @@ Full contract: `docs/API_CONTRACTS.md` § Lead Form Admin Config.
 | `title` / `ctaLabel` | min 1 char | No inline message ships for these two teaser fields: neither string below exists in `packages/i18n/locales/*/web.json`, and `LeadFormConfigPanel`/`LeadFormTeaserFields` show no teaser-field error. (Original prototype wording: "Informe o título." / "Informe o texto do botão.") |
 | a question's `label` | min 1 char | "Informe o texto da pergunta." |
 | a choice-type question's `options` | 2-10 entries | "Adicione entre 2 e 10 opções." |
-| adding a 21st question | blocked, button disabled | "Você atingiu o limite de 20 perguntas." |
+| adding a 21st question | blocked, button disabled | "Você atingiu o limite de 20 perguntas. Remova uma pergunta existente para adicionar outra." |
 
 All panel copy belongs under `dashboard.hotsitePage.layout.panels.leadForm` in both
 `packages/i18n/locales/pt-BR/web.json` and `packages/i18n/locales/en/web.json`; no visible string is hardcoded.

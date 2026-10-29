@@ -11,7 +11,7 @@
 
 ```mermaid
 flowchart TD
-    Start(["Sidebar — clica 'Leads'<br/>(item novo, MAIN_NAV_KEYS, STAFF|MANAGER,<br/>só aparece se módulo enabled)"]) --> List{"GET /v1/tenants/lead-form/submissions"}
+    Start(["Sidebar — clica 'Leads'<br/>(item novo, após MAIN_NAV_KEYS, STAFF|MANAGER,<br/>só aparece se módulo enabled)"]) --> List{"GET /v1/tenants/lead-form/submissions"}
     List -- "vazio" --> Empty["nenhum envio ainda<br/>(01b-submissions-empty) |UC-041 A1|"]
     List -- "com dados" --> Submissions["lista paginada<br/>(01-submissions-list)"]
 

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Assinatura (Billing) — Navigation Hub</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <style>
+    body { padding: 2rem; max-width: 52rem; margin: 0 auto; }
+    h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem; }
+    h2 { font-size: 1.0625rem; font-weight: 700; margin: 1.75rem 0 0.5rem; }
+    p { margin-bottom: 1rem; font-size: 0.9375rem; line-height: 1.6; }
+    ul { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 0.625rem; margin: 1rem 0; }
+    li { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    li a { color: var(--ba-primary); font-weight: 500; }
+    .tag { font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 4px; white-space: nowrap; }
+    .tag-actor { background: var(--ba-secondary); color: var(--ba-text); }
+    .tag-green { background: #dcfce7; color: #166534; }
+    .tag-red { background: #fee2e2; color: #991b1b; }
+    hr { border: none; border-top: 1px solid var(--ba-secondary); margin: 1.25rem 0; }
+    .note { background: var(--ba-secondary); border-radius: var(--ba-radius); padding: 1rem 1.25rem; font-size: 0.875rem; line-height: 1.6; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>MANAGER — Assinatura (Billing, Plan &amp; Payment)</h1>
+  <p>
+    UC-117, 118, 119, 125, 130, 133, 134, 136 (+ UC-135, 141, 143, 144, 145 diferidos) — Draft, planned Billing milestone.
+    Journey: <a href="../../billing.md">../../billing.md</a> · Handoff: <a href="dev-notes.md">dev-notes.md</a> ·
+    Origem e racional: <a href="../../../../docs/discovery/tenant-billing/tenant-billing.md">docs/discovery/tenant-billing/tenant-billing.md</a>.
+    Inquilinos fictícios: <strong>Lavacar BeloAuto</strong> (BR, paga à Ikaro) e <strong>Sunrise Auto Spa</strong> (US).
+  </p>
+  <div class="note">
+    <strong>Illustrative only.</strong> Preços, datas, nomes de plano e a URL da Ikaro são inventados. Tokens, o shell do
+    dashboard e as páginas do hotsite são os reais de <code>journeys/shared/</code>. Tags:
+    <span class="tag tag-green">green</span> = reutiliza um componente existente, <span class="tag tag-red">red</span> = componente novo (GAP).
+    Os recursos bloqueados (03, 03b) e o descarte de teste (10) estão nesta pasta. O editor do hotsite com o módulo de teste está em
+    <code>manager/prototypes/hotsite/</code> (01g, 01h), o cadastro público em <code>guest/prototypes/ikaro-trial/</code> e as telas de suspensão em
+    <code>staff/prototypes/login/</code>, <code>customer/prototypes/minha-conta/</code> e <code>guest/prototypes/unpublished-hotsite/</code>.
+  </div>
+
+  <h1 style="font-size:1.25rem;margin-top:1.5rem;">Fluxo principal</h1>
+<h2>Resumo — a página Assinatura por estado</h2>
+<ul>
+  <li><a href="01-billing-active.html">Assinatura › Resumo — ACTIVE (itens, total, cobrança aberta; aba Cobranças com reembolso/chargeback)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: BillingPage</span></li>
+  <li><a href="01b-billing-trial.html">Resumo — Em teste (9 dias; primeira cobrança só depois de “Confirmar plano”)</a> <span class="tag tag-actor">UC-117, UC-130</span> <span class="tag tag-red">GAP: BillingPage (trial)</span></li>
+  <li><a href="09-plan-confirm-required.html">Plano — teste (8 dias): “Confirme seu plano”, confirmação automática 3 dias antes do fim</a> <span class="tag tag-actor">UC-136, UC-130</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01c-billing-past-due.html">Resumo — PAST_DUE (14 dias de carência)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: BillingStatusBanner</span></li>
+  <li><a href="01d-billing-suspended.html">Resumo — SUSPENDED por falta de pagamento (única página acessível)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP: SuspendedGate</span></li>
+  <li><a href="01e-billing-suspended-canceled.html">Resumo — SUSPENDED por cancelamento (Reativar assinatura)</a> <span class="tag tag-actor">UC-134</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01m-billing-suspended-payment-reversed.html">Resumo — SUSPENDED por pagamento estornado/contestado (cobrança de reativação, data de exclusão)</a> <span class="tag tag-actor">UC-117, UC-119</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01n-billing-suspended-operator.html">Resumo — SUSPENDED pela Ikaro (motivo neutro, sem botão de pagamento, só “Falar com a gente”)</a> <span class="tag tag-actor">UC-117</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01l-billing-exempt.html">Assinatura — conta isenta de cobrança (exempt)</a> <span class="tag tag-actor">UC-117 A7</span> <span class="tag tag-red">GAP: exempt state</span></li>
+  <li><a href="01k-billing-price-change-notice.html">Resumo — aviso de reajuste (novo valor a partir de 10/12)</a> <span class="tag tag-actor">UC-117</span> <span class="tag tag-red">GAP: PriceChangeNotice</span></li>
+</ul>
+<h2>Dados de cobrança</h2>
+<ul>
+  <li><a href="02-billing-identity-br.html">Dados de cobrança — BR (CPF/CNPJ obrigatório, demais campos opcionais, um botão Salvar)</a> <span class="tag tag-actor">UC-118</span> <span class="tag tag-red">GAP: BillingIdentityForm</span></li>
+  <li><a href="02c-billing-identity-us.html">Dados de cobrança — US (sem CNPJ)</a> <span class="tag tag-actor">UC-118 A3</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Plano</h2>
+<ul>
+  <li><a href="08-plan-edit.html">Plano — ativa, mudança em edição com prévia e novo total</a> <span class="tag tag-actor">UC-136</span> <span class="tag tag-red">GAP: PlanTab</span></li>
+  <li><a href="08b-plan-trial-choose.html">Plano — teste: revisar o plano antes da primeira cobrança</a> <span class="tag tag-actor">UC-136, UC-130</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Cancelar e reativar</h2>
+<ul>
+  <li><a href="06-cancel-confirm.html">Cancelar assinatura — confirmação (sem reembolso, política de limpeza)</a> <span class="tag tag-actor">UC-133</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="06b-cancel-scheduled.html">Resumo — “Cancelada — acesso até dd/mm” + Reativar</a> <span class="tag tag-actor">UC-133, UC-134</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="10-discard-trial-confirm.html">Descartar este teste (nunca pagou): apaga tudo, libera o nome e o teste; digitar o slug</a> <span class="tag tag-actor">UC-141</span> <span class="tag tag-red">GAP (deferred)</span></li>
+</ul>
+<h2>Cobrança automática (prévia – ainda não disponível)</h2>
+<ul>
+  <li><a href="07-auto-billing-activate.html">Cobrança automática — ativar (hoje a aba mostra “Em breve”)</a> <span class="tag tag-actor">UC-135</span> <span class="tag tag-red">GAP (deferred)</span></li>
+  <li><a href="07b-auto-billing-active.html">Cobrança automática — ativa (Pix Automático) + Desativar</a> <span class="tag tag-actor">UC-135</span> <span class="tag tag-red">GAP (deferred)</span></li>
+</ul>
+<h2>Recursos bloqueados (UC-125)</h2>
+<ul>
+  <li><a href="03-locked-feature.html">Configurações com o Chatbot não contratado (cadeados no menu; “Contratar este recurso” leva ao Plano)</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: FeatureLockedCard</span></li>
+  <li><a href="03b-locked-feature-direct-url.html">Rota de recurso bloqueado aberta por URL</a> <span class="tag tag-actor">UC-125</span> <span class="tag tag-red">GAP: FeatureLockedPage</span></li>
+</ul>
+<h2>Dashboard (banners)</h2>
+<ul>
+  <li><a href="04-dashboard-trial-banner.html">Agenda com banner do teste (faltam N dias; “Confirmar plano”)</a> <span class="tag tag-actor">UC-130</span> <span class="tag tag-red">GAP: SubscriptionBanner</span></li>
+  <li><a href="04b-dashboard-past-due-banner.html">Agenda com banner de pagamento em atraso (acesso total)</a> <span class="tag tag-actor">UC-130 A3</span> <span class="tag tag-red">GAP: SubscriptionBanner</span></li>
+</ul>
+  <hr>
+  <h1 style="font-size:1.25rem;">Estados alternativos (unhappy paths)</h1>
+  <p>Variantes de carregando, erro, vazio, validação, envio e sucesso, e as telas do ciclo anual (slice H).</p>
+<h2>Resumo e pagamento (estados alternativos)</h2>
+<ul>
+  <li><a href="01f-billing-loading.html">Carregando</a> <span class="tag tag-actor">UC-117 A1</span> <span class="tag tag-red">GAP: skeleton</span></li>
+  <li><a href="01g-billing-load-error.html">Erro ao carregar (tentar novamente)</a> <span class="tag tag-actor">UC-117 A1</span> <span class="tag tag-green">EXISTS: ErrorAlert</span></li>
+  <li><a href="01h-billing-no-charges.html">Em teste com a primeira cobrança emitida (histórico de pagas vazio)</a> <span class="tag tag-actor">UC-117 A2, UC-130</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01i-billing-payment-pending.html">Pagamento recebido — reativando sua conta…</a> <span class="tag tag-actor">UC-117 A3, UC-119</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01o-billing-payment-failed.html">Retorno da página de pagamento com falha: “não conseguimos confirmar o pagamento” + tentar de novo</a> <span class="tag tag-actor">UC-119 A3</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="01j-billing-payment-link-expired.html">Link de pagamento expirado — gerar novo</a> <span class="tag tag-actor">UC-119 A1</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Dados de cobrança (estados alternativos)</h2>
+<ul>
+  <li><a href="02b-billing-identity-br-erro.html">Identidade: CNPJ, e-mail, CEP e UF inválidos (formulário inteiro)</a> <span class="tag tag-actor">UC-118 A1, A2, A5</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="02d-billing-identity-saved.html">Identidade salva (sucesso inline)</a> <span class="tag tag-actor">UC-118</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="02e-billing-identity-us-address-required.html">Dados de cobrança (US, em teste) — endereço completo obrigatório para ser cobrado</a> <span class="tag tag-actor">UC-118 A6</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="02f-billing-identity-br-address-required.html">Dados de cobrança (BR, em teste) — endereço completo obrigatório para ser cobrado e receber nota fiscal</a> <span class="tag tag-actor">UC-118 A6</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Cancelamento (estados alternativos)</h2>
+<ul>
+  <li><a href="06c-cancel-error.html">Erro ao cancelar</a> <span class="tag tag-actor">UC-133 A4</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="06d-cancel-immediate.html">Cancelar (teste ou em atraso): vale agora, sem reembolso</a> <span class="tag tag-actor">UC-133 A3</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="06e-cancel-trial-paid.html">Cancelar durante o teste com a primeira cobrança já paga: vale ao fim do teste</a> <span class="tag tag-actor">UC-133</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Cobrança automática (estados alternativos, prévia)</h2>
+<ul>
+  <li><a href="07c-auto-billing-pending.html">Autorização ainda não confirmada</a> <span class="tag tag-actor">UC-135 A1</span> <span class="tag tag-red">GAP (deferred)</span></li>
+  <li><a href="07d-auto-billing-error.html">Erro ao iniciar autorização</a> <span class="tag tag-actor">UC-135 A2</span> <span class="tag tag-red">GAP (deferred)</span></li>
+</ul>
+<h2>Plano (estados alternativos)</h2>
+<ul>
+  <li><a href="08c-plan-dependency-error.html">Remover Agendamento com Fidelidade ativa (erro, formulário inteiro)</a> <span class="tag tag-actor">UC-136 A1</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08d-plan-saved.html">Plano salvo (sucesso inline)</a> <span class="tag tag-actor">UC-136</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08e-plan-readonly-suspended.html">Plano somente leitura (suspenso)</a> <span class="tag tag-actor">UC-136 A2</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08f-plan-past-due-no-add.html">Plano em atraso: somente leitura</a> <span class="tag tag-actor">UC-136 A2</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08g-plan-not-removable-yet.html">Alterações agendadas para o próximo período</a> <span class="tag tag-actor">UC-136</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08h-plan-save-error.html">Erro ao salvar (seleção mantida)</a> <span class="tag tag-actor">UC-136 A9</span> <span class="tag tag-red">GAP</span></li>
+  <li><a href="08i-plan-booking-in-use.html">Remover Agendamento bloqueado (agendamentos, recorrências ou alertas futuros)</a> <span class="tag tag-actor">UC-136 A11</span> <span class="tag tag-red">GAP</span></li>
+</ul>
+<h2>Cobrança anual (slice H, pós-lançamento)</h2>
+<ul>
+  <li><a href="11-billing-active-annual.html">Resumo de uma assinatura anual ativa: período 20/10/2026 a 20/10/2027, próxima cobrança em 20/10/2027</a> <span class="tag tag-actor">UC-144</span> <span class="tag tag-red">GAP (deferred)</span></li>
+  <li><a href="12-addon-midyear-confirm.html">Adicionar recurso no meio do ano: paga só os meses restantes (R$ 95,00 agora)</a> <span class="tag tag-actor">UC-145</span> <span class="tag tag-red">GAP (deferred)</span></li>
+  <li><a href="13-cancel-annual-confirm.html">Cancelar plano anual: acesso até 20/10/2027, sem reembolso, cronograma</a> <span class="tag tag-actor">UC-133 A5</span> <span class="tag tag-red">GAP (deferred)</span></li>
+  <li><a href="01q-billing-suspended-annual-recovery.html">Suspenso por falta de pagamento (tenant anual): reativação de 1 mês a R$ 245,00 e volta ao ciclo mensal</a> <span class="tag tag-actor">UC-134 A5</span> <span class="tag tag-red">GAP (deferred)</span></li>
+</ul>
+  <hr>
+  <h2>O que este protótipo valida</h2>
+  <ul style="list-style:disc;padding-left:1.25rem;display:block;">
+    <li>O gerente entende, na página de cobrança, o que paga, até quando e como pagar em um clique?</li>
+    <li>Ficar suspenso sem poder usar nada além da cobrança é claro, e o caminho para voltar (pagar 1 mês) é óbvio?</li>
+    <li>A confirmação de cancelamento deixa claro “sem reembolso” e a política de limpeza dos dados?</li>
+    <li>O banner do teste deixa claro que a primeira cobrança só é gerada depois de “Confirmar plano”?</li>
+    <li>O Plano deixa claro que uma mudança vale a partir do próximo período, e por que uma remoção foi bloqueada?</li>
+  </ul>
+</body>
+</html>

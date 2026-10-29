@@ -6,6 +6,7 @@ Source: `docs/USE_CASES.md`. Working checklist for journeys in this folder — s
 |---|---|---|---|
 | UC-022 | Staff Login (No Tenant Selection) | Entry point | `staff/login.md` |
 | UC-025 | Admin First Login (Accepts Invite) | First-time staff onboarding | `staff/login.md` |
+| UC-121 | Login Routing by Role When Suspended | Staff view only: login is never blocked; a `STAFF` member sees the suspended notice and a multi-tenant staff member sees the tenant marked "Suspensa" (`02`, `03`). The manager and customer sides are in `manager/billing.md` and `customer/minha-conta.md`. Promoted from `docs/discovery/tenant-billing/` for the planned Billing milestone. Draft — not yet shipped. | `staff/login.md` |
 | UC-003 | Admin Approves Booking | | `staff/agenda.md` |
 | UC-004 | Admin Rejects Booking | | `staff/agenda.md` |
 | UC-005 (main flow) | Admin Requests More Information | Alt flow A2 (info submission) lives in `customer/` / `guest/` | `staff/agenda.md` |

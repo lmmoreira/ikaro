@@ -271,6 +271,11 @@ ActiveStaffGuard (skipped on @Public() routes)
   │  For a staff caller, asks the backend whether the staff member is still active
   │  → rejects a deactivated staff member's still-valid JWT
   ▼
+TenantAccessGuard (planned with Billing, UC-125 — after TenantGuard and RolesGuard; its position relative to ActiveStaffGuard is confirmed at story discovery)
+  │  Reads @RequiresFeature / @SuspensionAccess metadata and asks the access port for the tenant;
+  │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
+  │  — the declarative choke points (planned)
+  ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes
   │  and log enrichment (it never runs for a Guard-rejected request — see its own comment)

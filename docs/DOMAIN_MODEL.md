@@ -11,7 +11,7 @@ This document defines the domain model using Domain-Driven Design (DDD) principl
 
 A bounded context is an autonomous domain with clear boundaries and its own model. **Each context is scoped to a tenant** - no cross-tenant data mixing.
 
-> **There are six contexts, not five.** The list below covers Contexts 1–5; **Context 6: Platform** (Tenant, HotsiteConfig, Chatbot*, LeadForm*) is documented further down in this file (search `Context 6: Platform Context`), after the Context Map, because it was added later. Its aggregates, like the other five, are listed in `docs/BOUNDED_CONTEXTS.md` § 6. Platform Context.
+> **There are seven contexts, not five.** The list below covers Contexts 1–5; **Context 6: Platform** (Tenant, HotsiteConfig, Chatbot*, LeadForm*) is documented further down in this file (search `Context 6: Platform Context`), after the Context Map, because it was added later. Its aggregates, like the other five, are listed in `docs/BOUNDED_CONTEXTS.md` § 6. Platform Context. **Context 7: Billing** (Subscription, BillingAccount, Charge, FeaturePrice — Ikaro charging its tenants) follows Platform at the end of the aggregates part (search `Context 7: Billing Context`); its tables are in `docs/DATABASE_SCHEMA.md` § Schema: `billing` and its contract with the other contexts in `docs/BOUNDED_CONTEXTS.md` § 7.
 
 ### **Context 1: Booking Context**
 **Purpose:** Manage the booking lifecycle from request to completion, **per tenant**. A booking groups **one or more services** ("lines") that the customer wants performed in a single appointment.
@@ -1332,8 +1332,23 @@ Every event below also has an `audit-log` consumer (one thin `<Context>AuditLogH
 
 | Event | Trigger | Consumers |
 |-------|---------|-----------|
-| `TenantProvisioned` | A new tenant is provisioned (UC-024) | Staff Context (first MANAGER), Booking Context (location resource), Notification Context (default template seed) |
+| `TenantProvisioned` | A new tenant is provisioned (UC-024) or self-signs up (UC-127) | Staff Context (first MANAGER), Booking Context (location resource), Notification Context (default template seed), **Billing Context** (trial subscription) |
 | `LeadFormSubmissionReceived` | A visitor submits a hotsite lead form (M20) | `audit-log` only |
+| `TenantDeactivated` *(slice G, not implemented)* | A tenant is deactivated (emitter decided at story discovery, sequenced with M17-S51; UC-142) | **Billing Context** (cancels the subscription), `audit-log` |
+
+### **Billing Context Events**
+
+Payloads and consumers: `docs/DOMAIN_EVENTS.md` § Billing Context Events. Every event also has an `audit-log` consumer (`BillingAuditLogHandler`).
+
+| Event | Trigger | Consumers |
+|-------|---------|-----------|
+| `ChargeIssued` | A charge exists at the provider with a payment link (issue job, recovery, re-issue) | Notification Context (invoice email) |
+| `ChargePaid` | The provider's first paid signal for a charge | Notification Context (receipt) |
+| `SubscriptionPastDue` / `SubscriptionSuspended` / `SubscriptionReactivated` | Status ladder transitions (UC-115, UC-134) | Notification Context; hotsite revalidation and access-cache invalidation (suspend / reactivate) |
+| `SubscriptionCancelled` / `PlanChanged` | The manager cancels or changes the plan (UC-133, UC-136) | Notification Context (billing email) |
+| `BillingReminderDue` | Daily dunning cadence (UC-139) | Notification Context |
+| `SubscriptionPriceChangeAnnounced` | The operator schedules a list-price change (UC-112), one per affected tenant | Notification Context |
+| `TenantPurgeWarning` / `TenantPurgeRequested` / `TenantPurgeContextCompleted` *(slice G)* | Clean-up of a long-suspended or discarded tenant (UC-132, UC-141) | Notification Context (warning); every context as a purge participant; Billing's purge coordinator |
 
 ### **Notification Context Events**
 
@@ -1408,6 +1423,12 @@ NO_SHOW         -> COMPLETED   (manager correction only; otherwise terminal)
 ### **BookingType**
 Enum: `GUEST | CUSTOMER`
 
+### **TaxId** *(Billing context; planned under `src/shared/value-objects/` because Platform's signup reuses it)*
+BR business or personal tax identity: **CNPJ** (14 digits) or **CPF** (11 digits), stored digits-only, check digits validated by `create()`; `reconstitute()` skips validation. The types a country accepts come from the `taxId` entry added to `CountrySpec` beside `AddressSpec` (BR: `CNPJ` | `CPF`; US: none — an optional free-text `OTHER`). A validation failure throws a typed domain error (`BILLING_IDENTITY_TAX_ID_INVALID` at the billing page, `SIGNUP_TAX_ID_INVALID` / `SIGNUP_TAX_ID_REQUIRED` at signup) with an `instanceof` branch in every calling `mapXxxError` (`vo-bare-error`). Required for a non-exempt BR tenant from signup because the provider needs `cpfCnpj` to create a customer.
+
+### **FeatureKey / ChatbotTier** *(Billing context; closed enums in `@ikaro/types`)*
+`FeatureKey` = `HOTSITE | BOOKING | LOYALTY | CHATBOT | LEAD_FORM` (mirrored per the `closed-enum-registry` detector; recurring reservations and availability alerts are part of `BOOKING`, not separate keys). `ChatbotTier` = `BASIC | PLUS`; every other feature has the single tier `STANDARD`. Every Billing amount is an **integer in minor units plus an ISO currency** (`amount_minor` bigint, never a float). The shared `Money` VO above is Decimal-based, so whether a minor-units money VO reuses it or sits beside it is settled by the implementing story; the stored shape is fixed here.
+
 ### **Expiration window (`loyalty.expiryDays`)**
 Configurable **per tenant** via `tenants.settings.loyalty.expiryDays` (integer, days). Typical values: 180 (6 months) or 365 (1 year). Defaults to 180 if unset.
 
@@ -1477,7 +1498,7 @@ Staff  → Notification: StaffInvited → invitation email
 - All Platform use cases (except super-admin provisioning) are performed by a staff member with `MANAGER` role within their own tenant scope.
 
 **Published Events:**
-- `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`), Booking Context (location resource), Notification Context (default template seed) and the shared `audit-log` consumer
+- `TenantProvisioned` — consumed by Staff Context (creates first MANAGER staff row + publishes `StaffInvited`), Booking Context (location resource), Notification Context (default template seed), Billing Context (the trial `Subscription`) and the shared `audit-log` consumer; carries `countryCode` and a `billingHint` since the Billing release (`docs/DOMAIN_EVENTS.md`)
 - `LeadFormSubmissionReceived` — consumed by `audit-log` (a placeholder logging consumer, M20-S16); a real notification/webhook consumer to the manager is still an obvious, explicitly deferred fast-follow
 
 ---
@@ -1523,7 +1544,7 @@ HotsiteConfig {
 }
 ```
 
-**Layout modules (types):** `NAVIGATION`, `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTENT_BLOCK`, `CONTACT`, `FOOTER`, `CHATBOT`, `LEAD_FORM` — twelve, each a singleton (TD56 added `NAVIGATION` and `CONTENT_BLOCK`; their data and the `presentation` object are in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4).
+**Layout modules (types):** `NAVIGATION`, `HERO`, `SERVICE_LIST`, `GALLERY`, `TESTIMONIALS`, `BOOKING_CTA`, `ABOUT`, `CONTENT_BLOCK`, `CONTACT`, `FOOTER`, `CHATBOT`, `LEAD_FORM` — twelve shipped, each a singleton; a 13th, `TRIAL_SIGNUP_CTA`, is planned with Billing for the platform-owner tenant only (TD56 added `NAVIGATION` and `CONTENT_BLOCK`; their data and the `presentation` object are in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §4).
 
 **Layout invariants (enforced by `updateContent()`, each with its own typed error — `hotsite-layout.rules.ts`):**
 - at most one entry per module type (`PLATFORM_HOTSITE_MODULE_DUPLICATE`);
@@ -1690,6 +1711,194 @@ LeadFormAnswer {
 
 ---
 
+### **Context 7: Billing Context**
+**Purpose:** Ikaro charging its tenants. Today the product is free to every tenant; Billing prices each feature by country, sells features separately, switches each one on only while it is paid for, and stops tenants that do not pay without a hard "login blocked" wall. **The payment provider owns the money** (charging, retries, hosted payment pages, receipts, refunds, chargebacks); Billing stores only the status it needs and owns exactly three policies: the **access ladder**, the **entitlement set** and the **clean-up**. Everything else is mirrored from the provider by webhook plus a reconcile job.
+
+**Standing rules that shape the model** (the full set: `docs/discovery/tenant-billing/tenant-billing.md` §2, kept as the permanent *why*):
+- **Everything sellable is a feature**, including the hotsite; a plan is a bundle of features, with no always-included base. `HOTSITE` is the root dependency (`BOOKING` requires it, `LOYALTY` requires `BOOKING`, `CHATBOT` and `LEAD_FORM` require `HOTSITE`) and can never be removed.
+- **Entitlement gates, preference tunes, and both must pass:** effective availability = entitled AND enabled. Losing an entitlement never deletes or rewrites the manager's preference (hotsite `enabled`, `settings.*`); regaining it resumes exactly as left. Billing never mutates the manager's `isPublished` (effective published = the flag AND the tenant being operational).
+- **Price is per feature × country × tier × cycle** from one list, in the country's currency (BR → BRL tax-inclusive, US → USD net of tax); no FX, **no per-tenant prices or negotiation**. A list change is operator-only, dated and announced.
+- **Access control reads state, not events** (`TenantAccessPort`); events trigger emails and durable cross-context work only.
+- **Providers sit behind a port.** Both Asaas (BRL) and Stripe (USD) are designed; an activation is released only after its real account and sandbox flow is verified.
+- **`exempt` is the one switch for "never charge this tenant"** — not a price of zero and not the global kill switch.
+- **Operator-free by default:** every situation is owned in order by the provider, the system, the tenant (self-service) and only then the operator; operator work is the mapped edge-case list only.
+
+**Key Aggregates:**
+- `Subscription` (root, 1 per tenant) — status ladder, entitlement items, period/anchor, flags
+- `BillingAccount` (root, 1 per tenant) — tax identity, billing email, address, provider customer id, accepted terms
+- `Charge` (root) — one bill for one period, with `ChargeLine` snapshot children
+- `FeaturePrice` (root, platform-wide, no `tenant_id`) — catalog identity with dated `FeaturePriceVersion` amounts
+
+Supporting persistence records (thin, not rich aggregates — same treatment as `NotificationLog`): `provider_events` (webhook idempotency inbox), `signup_registrations` (the provisioning registration), `tenant_purge_jobs` / `tenant_purge_steps` (the erasure coordinator), `provider_health` (platform-wide), `operator_audit`.
+
+**Published Events:** see `### Billing Context Events` above. **Consumed Events:** `TenantProvisioned`, `TenantPurgeContextCompleted`, `TenantDeactivated` (slice G).
+
+---
+
+#### **Aggregate: Subscription** (Root Entity)
+```
+Subscription {
+  subscriptionId:    SubscriptionId
+  tenantId:          TenantId          -- exactly one per tenant (UNIQUE)
+  status:            'TRIALING' | 'ACTIVE' | 'PAST_DUE' | 'SUSPENDED'
+  suspensionReason:  'NON_PAYMENT' | 'CANCELED' | 'PAYMENT_REVERSED' | 'OPERATOR' | null   -- non-null iff SUSPENDED
+  countryCode:       CountryCode       -- fixed at start
+  currency:          'BRL' | 'USD'     -- fixed at start (BR -> BRL, US -> USD)
+  timezone:          IANA zone         -- snapshot of the tenant timezone, IMMUTABLE; every period boundary is local midnight in it
+  merchantProfileKey: String           -- immutable key of the selling entity / provider account (BRL_FAKE, BRL_ASAAS_SANDBOX, live keys in production only)
+  cycle:             'MONTHLY'         -- 'ANNUAL' in slice H; applies to the whole subscription
+  anchorDay:         1..28             -- day-of-month the renewals land on (29-31 clamped to 28)
+  trialEndsAt:       DateTime | null   -- tenant-local midnight closing day 14
+  currentPeriodStart / currentPeriodEnd: DateTime | null
+  nextDueDate:       Date | null       -- due date of the next period still to be issued
+  pastDueSince:      DateTime | null
+  graceUntil:        DateTime | null   -- operator override of the 14-day grace
+  cancelAt:          DateTime | null   -- end of the last paid period when the manager cancelled
+  planConfirmedAt:   DateTime | null   -- the manager confirmed the first paid selection
+  suspendedAt:       DateTime | null   -- starts the clean-up clock
+  hasEverPaid:       Boolean           -- set on the first confirmed payment
+  exempt:            Boolean           -- free access, never charged
+  items:             SubscriptionItem[]
+  version:           int               -- optimistic lock
+}
+
+SubscriptionItem {   -- the SELECTED PLAN: what is paid for, from which period. No price.
+  featureKey: FeatureKey,  tier: 'STANDARD' | 'BASIC' | 'PLUS',  startsAt: DateTime,  endsAt: DateTime | null (open-ended)
+}
+```
+
+**Entitlement is not an aggregate and not a stored fact.** It is computed (the single formula every caller gets through `TenantAccessPort`):
+```
+entitled = SUSPENDED ? none
+         : TRIALING  ? every sellable feature (chatbot at tier BASIC)
+         : the items active now  (startsAt <= now AND (endsAt IS NULL OR endsAt > now))
+```
+Items hold only the *selected plan*. There are **no trial rows** (trial access comes from the status) and **suspension does not end-date items**, so reactivation is a status flip with nothing to restore. `operational = status != SUSPENDED`.
+
+**Status ladder:** `TRIALING → ACTIVE → PAST_DUE (14 days) → SUSPENDED`; a trial whose first invoice is unpaid goes **directly** `TRIALING → SUSPENDED` (`NON_PAYMENT`) at trial end — there is no `PAST_DUE` grace after a trial.
+
+| Status | Access |
+|---|---|
+| `TRIALING` | Everything, every feature, chatbot `BASIC`; 14 days ending at the tenant-local midnight closing day 14; no card. The Plano tab records the first paid selection but never reduces trial entitlements. **The first paid selection must be confirmed by the manager**; unconfirmed `PLAN_CONFIRM_FALLBACK_DAYS` (3) before the end, the default selection (all trial features) is invoiced with a plain-language email |
+| `ACTIVE` | The items active now |
+| `PAST_DUE` | **Full access** with a banner for managers; provider retries and Ikaro's dunning reminders; `graceUntil` can extend the 14 days |
+| `SUSPENDED` | Nothing entitled. Reasons: `NON_PAYMENT`, `CANCELED`, `PAYMENT_REVERSED` (a full refund / completed chargeback reversal that leaves the current period unpaid), `OPERATOR` (abuse/takedown; payment does not lift it, only the audited `unsuspend`). **No new charges are issued while suspended.** A manager can still log in, but only to the billing page; staff see a suspended notice; customers see an "Empresa inativa" badge with history readable and cancellation of a future booking allowed; the hotsite is effectively unpublished |
+
+**State transitions:**
+
+| Subscription | From → To | Caused by |
+|---|---|---|
+| `TRIALING` → `ACTIVE` | trial end with the first charge `PAID` | sweep (period starts at trial end; `anchorDay` = trial-end local day clamped to 28) |
+| `TRIALING` → `SUSPENDED` (`NON_PAYMENT`) | trial end + settlement margin, first charge unpaid or absent | sweep |
+| `ACTIVE` → `PAST_DUE` | a `PERIOD` charge goes `OVERDUE` | sweep |
+| `PAST_DUE` → `ACTIVE` | the overdue charge is `PAID` | payment |
+| `PAST_DUE` → `SUSPENDED` (`NON_PAYMENT`) | 14 days (or `graceUntil`) elapsed | sweep (not during a suspension freeze) |
+| `ACTIVE` / `PAST_DUE` / `TRIALING` → `SUSPENDED` (`CANCELED`) | `cancelAt` reached / immediate cancel | sweep / manager |
+| any paid status → `SUSPENDED` (`PAYMENT_REVERSED`) | full refund or lost dispute leaving the period unpaid | webhook |
+| any → `SUSPENDED` (`OPERATOR`) | operator suspend | operator |
+| `SUSPENDED` → `ACTIVE` | recovery charge `PAID` (not for `OPERATOR`); `exempt` set; `unsuspend` (`OPERATOR` only) | payment / operator |
+| `SUSPENDED` → (erased) | purge or self-service discard | purge coordinator (slice G) |
+
+**Settlement margin (trial end):** the sweep waits `PAYMENT_SETTLEMENT_MARGIN_HOURS` (24), or `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS` (3 business days, tenant-local calendar) when the manager already returned from the payment page and the charge is still open, before suspending; the rule and its flow are in `docs/USE_CASES.md` UC-115 step 2, and the constants are below.
+
+**Constants (defined once):** `CHARGE_ISSUE_LEAD_DAYS = 10`, `PRICE_CHANGE_MIN_NOTICE_DAYS = 30`, `RECOVERY_CHARGE_DUE_DAYS = 7`, grace = 14 days, `PROVISIONING_GRACE_MINUTES = 15`, `PAYMENT_SETTLEMENT_MARGIN_HOURS = 24`, `PAYMENT_PENDING_MARGIN_BUSINESS_DAYS = 3`, `PLAN_CONFIRM_FALLBACK_DAYS = 3`, `ANNUAL_CHARGE_ISSUE_LEAD_DAYS = 30` (slice H). An increase needs at least `PRICE_CHANGE_MIN_NOTICE_DAYS + CHARGE_ISSUE_LEAD_DAYS` (40) days of notice.
+
+**Invariants:**
+- Items of one feature never overlap in time (DB GIST exclusion); feature dependencies are enforced in the aggregate: adding a feature whose dependency is not active, or removing one another active feature depends on, is rejected; the proposed final selection is validated as one dependency graph; a plan always keeps at least one feature.
+- Removing `BOOKING` is rejected while any `PENDING`/`INFO_REQUESTED`/`APPROVED` booking, recurring schedule (`PENDING_APPROVAL` or `ACTIVE`) or `ACTIVE` availability alert extends on or after the removal's effective date (`BILLING_FEATURE_IN_USE`); once a removal is saved, the bookable window is capped at that date (a `bookableUntil` input honoured by every window consumer).
+- All plan changes (additions, removals, tier changes) become effective at the **next paid service-period start**; they never change current-period entitlements and need no proration. `PAST_DUE` and `SUSPENDED` plans are read-only. (The one proration, slice H: an annual subscriber adding a feature mid-year pays a co-terminus `ADDON` charge.)
+- `exempt` is reversible, except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG`; an exempt subscription is never charged, suspended, purged or emailed about billing. Clearing it starts a fresh 14-day first-selection window (`TRIALING`) and replaces the open-ended items with default paid items.
+- `has_ever_paid` alone selects the clean-up delay: **90 days** suspended if the subscription never paid, **180 days** if it paid at least once, regardless of the suspension reason, with warnings at 30 and 7 days (`purge_warning_30/7_sent_at`, cleared on reactivation).
+- Cancel: an `ACTIVE` subscription cancels at the end of its last paid period (`cancelAt`); `PAST_DUE` cancels immediately (`SUSPENDED/CANCELED`); `TRIALING` cancels at trial end when its first invoice is already paid, else immediately. Nothing is refunded.
+- **Reactivation never edits or re-dates the old open charge:** when the sweep suspends for `NON_PAYMENT`/`PAYMENT_REVERSED` it cancels the stale open charge (locally and at the provider) and issues one **recovery charge** (one month, amount fixed at issue from the versions in force on the issue date, lines = the current items). If the provider refuses to cancel because that charge was just paid, the stale charge is the payment and the recovery charge is cancelled. When the recovery charge is paid the subscription becomes `ACTIVE`, `currentPeriodStart` = the payment moment, `anchorDay` = the payment's tenant-local day clamped to 28; the recovery charge keeps its own period NULL.
+
+**Boundary note:** paying a `Charge` may move the `Subscription` back to `ACTIVE` — two aggregates in one use case, in one transaction, with a row lock on the subscription (`findByIdForUpdate`, `docs/LOCK_CATALOG.md`). Status is recomputable (the reconcile job re-derives it), so the invariant does not depend on the transaction alone.
+
+---
+
+#### **Aggregate: BillingAccount** (Root Entity)
+```
+BillingAccount {
+  tenantId:         TenantId            -- exactly one per tenant (UNIQUE)
+  taxId:            TaxId | null        -- BR: required from signup; US: optional
+  legalName:        String | null
+  billingEmail:     Email | null        -- falls back to the tenant's managers
+  address:          Address | null      -- shared Address VO; required before the first paid selection for BR and US; validated by the billing country's AddressSpec
+  provider:         'ASAAS' | 'STRIPE' | null
+  providerCustomerId: String | null
+  autoBilling:      'NONE' | 'PIX_AUTOMATICO' | 'CARD_RECURRING'   -- CARD_RECURRING only in slice F2
+  autoBillingStatus: 'INACTIVE' | 'PENDING_AUTHORIZATION' | 'ACTIVE'
+  acceptedTerms:    { version, acceptedAt, acceptedBy }
+}
+```
+A separate aggregate from `Subscription` (edited by a different actor for different reasons). Tax identity is financial data: never in `tenants.settings`. R5: **nothing fiscal is required to use the product; the minimum billing identity is required to charge it** (BR = CPF or CNPJ at signup plus the full address before the first paid selection; US = the full address). Ikaro never issues nota fiscal itself; the provider emits NFS-e automatically. The billing email falls back to the managers' emails.
+
+---
+
+#### **Aggregate: Charge** (Root Entity)
+```
+Charge {
+  chargeId:        ChargeId
+  tenantId, subscriptionId
+  kind:            'PERIOD' | 'RECOVERY' | 'ADDON'     -- ADDON only in slice H
+  periodStart / periodEnd: Date | null                 -- NULL forever for RECOVERY (the period lives on the Subscription; paidAt is its start)
+  dueDate:         Date                                -- tenant-timezone date
+  lines:           ChargeLine[]                        -- { featureKey, tier, unitPriceMinor } price SNAPSHOT
+  subtotalMinor / amountMinor: bigint, currency        -- BR tax-inclusive: equal; US (slice E): amount = subtotal + tax
+  status:          'PENDING' | 'PAID' | 'OVERDUE' | 'FAILED' | 'CANCELED' | 'REFUNDED' | 'CHARGEBACK'
+  method:          'CARD' | 'PIX' | 'BOLETO' | null
+  paidAt, provider, providerChargeId, paymentUrl, paymentUrlExpiresAt, receiptUrl
+  paymentReturnSeenAt: DateTime | null
+  refundedAmountMinor: bigint
+  providerCreationStatus: 'PENDING' | 'READY' | 'FAILED'
+}
+```
+**Not a child of `Subscription`** (one per period forever = unbounded); paginated by `(tenant_id, due_date DESC)`.
+
+**Price snapshot, one level:** items carry no price. When a charge is issued, the `FeaturePriceVersion` selected by the charge's **service-period start** (`effective_from <= period_start`) is copied into each line, so an invoice issued early (10 days before the period) uses its future period's price and a later list change never rewrites an issued charge. A recovery charge snapshots the versions in force on its issue date.
+
+**Immutability:** after insert only status and payment fields are ever written (and, in slice E, the provider-finalized tax and amount of a US charge). A plan change cancels the unpaid next charge and issues a new `PERIOD` charge for the same period; the cancelled one stays as history (the uniqueness index ignores cancelled charges).
+
+| Charge | From → To | Caused by |
+|---|---|---|
+| `PERIOD`/`RECOVERY` | (insert) → `PENDING` | issue job / recovery issue (`providerCreationStatus` `PENDING` → `READY`) |
+| | `PENDING` → `OVERDUE` | status sweep, tenant-local due date passed |
+| | `PENDING`/`OVERDUE` → `PAID` | the first of the provider's paid signals (webhook, reconcile, on-demand refresh) |
+| | `PENDING`/`OVERDUE` → `FAILED` | the provider reports a final non-recoverable failure |
+| | `PENDING`/`OVERDUE` → `CANCELED` | plan re-issue, cancel, suspension (stale charge), `exempt` set |
+| | `PAID` → `REFUNDED` / `CHARGEBACK` | full refund / lost dispute (a partial refund only raises `refundedAmountMinor`) |
+
+The provider call is always made **outside** the insert transaction: the charge is inserted `PENDING`, the provider is asked, and only then are the id, link and (US) tax written and `ChargeIssued` raised. The paid signal is method-dependent (Pix `RECEIVED` only; boleto `CONFIRMED` then `RECEIVED`; card `CONFIRMED`, `RECEIVED` ~32 days later): whichever arrives first yields the single paid transition and the later one is a no-op.
+
+---
+
+#### **Aggregate: FeaturePrice** (Root Entity, platform-wide)
+```
+FeaturePrice {            -- NO tenant_id
+  featureKey, countryCode, tier, cycle, currency
+  selectable:  Boolean    -- false hides it from NEW selection; existing subscribers keep renewing it
+  versions:    FeaturePriceVersion[]   -- { amountMinor, effectiveFrom, announcedAt, createdBy, reason, supersededAt, batchId }
+}
+```
+One list for everyone, **no fallback row** (a country needs a spec plus price rows; a missing renewable price is caught at deploy time by a startup/CI check, not at runtime). Versions in effect are immutable history; a not-yet-effective version can be **superseded** by a newer one (the old row is kept). `effectiveFrom` means a **service-period start date**: an invoice snapshots the new amount only when its period starts on or after that date. An increase needs at least 40 days of notice (`BILLING_PRICE_NOTICE_TOO_SHORT`); a decrease needs none but still has an explicit future `effectiveFrom`. The normal change is a **percentage adjustment of every price in force for a country** in one transaction, whole-unit rounding by default, one consolidated `SubscriptionPriceChangeAnnounced` per affected tenant (decision recorded in the discovery as the way operators raise prices); the single exact-price endpoint remains for corrections. Launch BR list (approved, monthly, tax-inclusive): `HOTSITE` R$ 49, `BOOKING` R$ 109, `LOYALTY` R$ 29, `CHATBOT` Básico R$ 39 / Plus R$ 79, `LEAD_FORM` R$ 19; the US list is staging-only until Stripe's real fees are confirmed.
+
+---
+
+#### **Entry point: `TenantAccessPort`** (shared port, `src/shared/ports/`)
+
+The one synchronous contract the rest of the system uses to ask "is this tenant operational, and is feature X entitled?". It returns `{ status, suspensionReason, operational, features: [{ key, tier }] }` for an **explicit `tenantId`** (never read from `RequestContext`). Billing implements it with a `CachingXxx` adapter over `CachePort`: **asymmetric TTLs** (an operational answer 60 s in the shared port and 30 s in the BFF guard; a `SUSPENDED` answer only 10 s in both, so a paying tenant comes back fast), plus best-effort invalidation on the instance that handles `SubscriptionSuspended` / `SubscriptionReactivated` (`CachePort` has no cross-instance broadcast, so other instances rely on the TTL). A **transient lookup error fails open**; a **successfully-read missing subscription** is a provisioning/data-integrity incident and denies access — except for a tenant younger than `PROVISIONING_GRACE_MINUTES`, which is treated as a pending trial (allowed, no alert) until the self-heal job creates the missing trial. `FEATURE_FLAG_BILLING_ENFORCEMENT=false` makes every choke point fail open (emergency switch; rules in the enforcement section linked below). Enforcement is declarative at a few choke points (route decorators and one global guard, an opt-in event-dispatcher gate, one shared tenant-job helper, the single notification send path, one web route-to-feature registry); never ad-hoc `if (tenant.hasChatbot)` code in use cases. Details: `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement — the declarative choke points (planned).
+
+---
+
+#### **Persistence records and operator touchpoints**
+- **`ProviderEvent`** `(provider, event_id)` — the webhook idempotency inbox; tenant resolved from the provider customer id before insert; unknown customers are acknowledged and logged, not stored.
+- **`SignupRegistration`** — the provisioning registration created *before* the tenant exists; holds the Google `sub`, the BR tax id and the accepted terms so none of it travels in `TenantProvisioned`. Statuses `RESERVED` → `COMPLETED`; a reservation older than one hour is released. Trial rule: a Google account's **first** self-signup tenant gets a free trial; a further one only while every earlier self-signup tenant of that `sub` has `has_ever_paid = true` (`SIGNUP_TRIAL_NOT_AVAILABLE` otherwise).
+- **`TenantPurgeJob` / `TenantPurgeStep`** *(slice G)* — the durable cross-context erasure coordinator; an operational process (`REQUESTED` / `IN_PROGRESS` / `FAILED` / `COMPLETED`), **not** a `Subscription` status. What Billing keeps after a purge (subscriptions without personal data; every charge and line, `tenant_id` an opaque id) and deletes (the billing account's personal data, the registration, provider events, audit payloads).
+- **`ProviderHealth`** — one row per merchant profile (`last_reconcile_ok_at`, `webhook_status`, `freeze_active`); while `freeze_active` the status sweep suspends nobody, so a provider outage never locks out a paying tenant.
+- **Operator touchpoints** (audited in `operator_audit`): `exempt` set/clear, `suspend` / `unsuspend` (reason `OPERATOR`), `grace`, and the price list. There is **no** operator payment override and no operator reactivation of a payment-based suspension (provider-confirmed payment is the only way back, except `exempt` or lifting an `OPERATOR` suspension).
+
+---
+
 ## Anti-Corruption Layer (Future)
 
-When integrating external services (e.g., payment provider, SMS service), create an anti-corruption layer to translate external models to our domain models. Not needed for MVP.
+When integrating external services (e.g., SMS service), create an anti-corruption layer to translate external models to our domain models. The payment providers are the planned application of the same pattern (none is built yet): Billing's `BillingProviderPort` is defined in Ikaro's terms (start payment, give a payment link, cancel, enable auto-billing; normalized inbound events) and each adapter (`AsaasBillingProvider`, `StripeBillingProvider`, the non-production `FakeBillingProvider`) translates one provider's model into it, so no provider type leaks beyond the adapter (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context). Nothing else is needed for MVP.

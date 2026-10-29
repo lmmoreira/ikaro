@@ -30,9 +30,10 @@
       4. Change: .topbar-page-title text
       5. Replace the <!-- CONTENT --> block with the step's content
 
-    PAGE: apps/web/app/dashboard/page.tsx  EXISTS (stub only)
+    PAGE: apps/web/app/dashboard/page.tsx  EXISTS (redirects to /dashboard/bookings)
     All sub-routes (/bookings, /schedule, /services, /loyalty, /team,
-    /settings, /hotsite) are GAP - no Next.js pages yet.
+    /settings, /hotsite, /resources, /scheduling-exceptions, /leads) exist
+    as Next.js pages under apps/web/app/dashboard/.
 
     Nav IA:
       Agenda        /dashboard/bookings   STAFF+MANAGER  BFF: bookings.controller.ts

@@ -109,6 +109,8 @@ Every pull request to `main` triggers (`pr-quality.yml`, `pr-tests.yml` — they
 | `domain-event-audit-coverage` | every domain event has an `audit-log` subscription |
 | `lock-catalog-coverage`, `occupancy-release-choke-point` | every lock in the code is in `docs/LOCK_CATALOG.md`; occupancy is released only through the shared choke-point helper |
 
+**Nightly billing provider contract job *(planned, Billing milestone)*** — a scheduled workflow, not a PR gate; description and policy: `docs/CI_CD_PIPELINE.md` § Nightly billing provider contract job (planned, Billing milestone); strategy: `docs/TESTING_STRATEGY.md` § Testing the billing provider — fake, sandbox, contract suite and clock.
+
 **Snyk SCA is not part of the per-PR gate** — it runs only as a weekly scheduled scan (`weekly-jobs.yml`, every Monday, `--all-projects`), not as a required PR check. Removed from `pr-tests.yml` and from `main`'s required status checks 2026-09-14 after the org's 200-test/month quota was repeatedly exhausted by `/pr-land`'s iterative bot-review rounds (each dependency-file-touching push re-ran a full-workspace scan). Trivy Image Scan still runs per-PR and substantially overlaps Snyk's coverage for any CVE that ends up in a built image.
 
 ---

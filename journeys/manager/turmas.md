@@ -1,9 +1,9 @@
 # MANAGER — Turmas (Class Configuration & Enrollment Management)
 
-**Actor(s):** STAFF | MANAGER (Service/class configuration matches today's Service management, not manager-exclusive — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 1)  
+**Actor(s):** STAFF | MANAGER (Service/class configuration matches today's Service management, not manager-exclusive — see `docs/discovery/multivertical-booking/prototype/dev-notes.md` item 1; M24-S15 adds the Turmas nav item to `MANAGER_NAV_KEYS` (manager-only) — reconcile at story discovery)  
 **Goal:** Configure recurring class templates, manage customer class-access contracts, and view/manage enrollments for a class type  
 **UCs covered:** UC-079, UC-080, UC-096 (templates) · UC-099 (class-access contracts) · UC-103, UC-104 (enrollments)  
-**Status:** ❓ Gap — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Stories in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`: `M24-S01`/`S02`/`S13` (backend; `S08` adds template `cancel-range`, `S11` adds contract cancel), `M24-S15` (manager Turmas frontend).
+**Status:** Draft — M24, Multi-Vertical Scheduling, Cluster 4 (Classes/Sessions). Stories in `plan/M24-MULTIVERTICAL-CLASSES-SESSIONS.md`: `M24-S01`/`S02`/`S13` (backend; `S08` adds template `cancel-range`, `S11` adds contract cancel), `M24-S15` (manager Turmas frontend).
 
 > Promoted from `docs/discovery/multivertical-booking/multivertical-booking_USECASES.md` (CAND-11, 12, 32, 35, 39, 40) via `/discovery-to-milestone`. See `docs/DOMAIN_MODEL.md` § `ClassScheduleTemplate`/`ClassAccessContract`/`RecurringEnrollment`. Complements `staff/turmas.md`, which covers the daily operational side (roster, close-out, capacity override, guest approval) rather than configuration.
 
