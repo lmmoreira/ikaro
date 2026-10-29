@@ -124,30 +124,35 @@ export function SchedulePage(props: SchedulePageProps): React.JSX.Element {
         />
       </div>
 
-      <ScheduleMainView
-        isWeekView={isWeekView}
-        showResourceColumns={showResourceColumns}
-        weekDayInfo={weekDayInfo}
-        weekTimelineCards={weekTimelineCards}
-        selectedDateKey={ui.selectedDateKey}
-        todayKey={todayKey}
-        onSelectDate={weekNav.handleSelectDate}
-        slotGranularityMinutes={slotGranularityMinutes}
-        statusLabels={statusLabels}
-        timezone={timezone}
-        scheduleReturnTo={scheduleReturnTo}
-        onOpeningClick={ui.setRemoveOpeningTarget}
-        onClosureClick={ui.setRemoveClosureTarget}
-        selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
-        resourceNameById={resourceNameById}
-        bookingsItems={bookingsItems}
-        selectedStatusSet={statusFilter.selectedStatusSet}
-        visibleClosures={visibleClosures}
-        visibleOpenings={visibleOpenings}
-        businessHours={businessHours}
-        selectedDayTimeline={selectedDayTimeline}
-        slotLabels={slotLabels}
-      />
+      {/* The grid's booking/opening blocks use z-5..z-20, which would otherwise compete with the
+          shell Topbar (z-10) and paint over it while scrolling — isolate keeps them in their own
+          stacking context, below both the Topbar and the z-30 sticky strip above. */}
+      <div className="isolate" data-testid="schedule-grid-stacking-context">
+        <ScheduleMainView
+          isWeekView={isWeekView}
+          showResourceColumns={showResourceColumns}
+          weekDayInfo={weekDayInfo}
+          weekTimelineCards={weekTimelineCards}
+          selectedDateKey={ui.selectedDateKey}
+          todayKey={todayKey}
+          onSelectDate={weekNav.handleSelectDate}
+          slotGranularityMinutes={slotGranularityMinutes}
+          statusLabels={statusLabels}
+          timezone={timezone}
+          scheduleReturnTo={scheduleReturnTo}
+          onOpeningClick={ui.setRemoveOpeningTarget}
+          onClosureClick={ui.setRemoveClosureTarget}
+          selectedResourceIdSet={resourceFilter.selectedResourceIdSet}
+          resourceNameById={resourceNameById}
+          bookingsItems={bookingsItems}
+          selectedStatusSet={statusFilter.selectedStatusSet}
+          visibleClosures={visibleClosures}
+          visibleOpenings={visibleOpenings}
+          businessHours={businessHours}
+          selectedDayTimeline={selectedDayTimeline}
+          slotLabels={slotLabels}
+        />
+      </div>
 
       {/* The dock stacks its children along the corner, the LAST one nearest it: status stays where it is today, the resource filter above it. */}
       <FloatingFilterDock pageKey="schedule">

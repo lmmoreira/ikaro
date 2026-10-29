@@ -8,6 +8,7 @@ import type {
 import { BOOKING_STATUS } from '@ikaro/types';
 import {
   buildBlockStyle,
+  buildProportionalBlockStyle,
   buildScheduleReturnTo,
   buildTimelineDayData,
   buildTimelineEvents,
@@ -535,5 +536,26 @@ describe('buildScheduleReturnTo', () => {
     expect(buildScheduleReturnTo('2026-08-17', '2026-08-18')).toBe(
       '/dashboard/schedule?weekStart=2026-08-17&date=2026-08-18',
     );
+  });
+});
+
+describe('buildProportionalBlockStyle', () => {
+  it('draws a block at its true length, with no one-slot floor', () => {
+    // 10 min on a 30-min / 72px slot = 24px, starting 50 min after the 08:00 timeline start.
+    expect(buildProportionalBlockStyle(530, 540, 480, 1080, 30, 72)).toEqual({
+      top: 120,
+      height: 24,
+    });
+  });
+
+  it('clamps the block to the timeline window', () => {
+    expect(buildProportionalBlockStyle(1070, 1100, 480, 1080, 30, 72)).toEqual({
+      top: 1416,
+      height: 24,
+    });
+    expect(buildProportionalBlockStyle(470, 500, 480, 1080, 30, 72)).toEqual({
+      top: 0,
+      height: 48,
+    });
   });
 });

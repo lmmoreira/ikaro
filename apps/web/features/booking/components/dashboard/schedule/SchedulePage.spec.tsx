@@ -285,6 +285,24 @@ describe('SchedulePage', () => {
     expect(await screen.findByTestId('schedule-week-view')).toBeInTheDocument();
   });
 
+  it('isolates the grid stacking context so booking blocks never paint over the shell Topbar', () => {
+    mockMatchMedia(true);
+
+    renderWithIntl(
+      <SchedulePage
+        initialClosures={emptyClosures()}
+        initialOpenings={emptyOpenings()}
+        initialBookings={emptyBookings()}
+        businessHours={makeBusinessHours(true)}
+        todayKey="2026-07-06"
+        weekStartKey="2026-07-06"
+        slotGranularityMinutes={30}
+      />,
+    );
+
+    expect(screen.getByTestId('schedule-grid-stacking-context')).toHaveClass('isolate');
+  });
+
   it('jumps back to today when the today button is clicked', async () => {
     const user = userEvent.setup();
 
