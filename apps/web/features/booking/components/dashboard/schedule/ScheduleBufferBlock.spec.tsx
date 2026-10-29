@@ -88,6 +88,39 @@ describe('ScheduleBufferBlock', () => {
     );
   });
 
+  it('is drawn at its true proportional height, not floored to a full slot', () => {
+    // 10 min of a 30-min slot at 48px/slot = 16px.
+    renderBlock(makeEvent({ startMinutes: 590, endMinutes: 600 }));
+
+    expect(screen.getByTestId('schedule-buffer-block')).toHaveStyle({
+      top: '80px',
+      height: '16px',
+    });
+  });
+
+  it('shows only the one-line heading when the block is too short for the origin line', () => {
+    renderBlock(
+      makeEvent({
+        startMinutes: 590,
+        endMinutes: 600,
+        gap: { source: 'SERVICE_BUFFER', minutes: 10, serviceName: 'Polimento' },
+      }),
+    );
+
+    expect(screen.getByText('Walace · até 10:00')).toBeInTheDocument();
+    expect(screen.queryByText('Buffer do serviço Polimento · 10 min')).not.toBeInTheDocument();
+  });
+
+  it('hides the label but keeps the tooltip when the block is too short to hold a line', () => {
+    renderBlock(makeEvent({ startMinutes: 595, endMinutes: 600 }));
+
+    expect(screen.queryByText('Walace · até 10:00')).not.toBeInTheDocument();
+    expect(screen.getByRole('note')).toHaveAttribute(
+      'title',
+      'Walace fica bloqueado(a) até 10:00. A origem deste bloqueio não foi registrada.',
+    );
+  });
+
   it('is not focusable or clickable', () => {
     renderBlock(makeEvent());
 
