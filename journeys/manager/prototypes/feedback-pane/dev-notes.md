@@ -52,11 +52,11 @@ Every tab body starts with a card level with the pane's card; intro text sits in
 - Resend invite (no visible change): short inline confirmation beside the button (`FeedbackMessage size="inline"`, `role="status"`).
 - Failure: the backend-resolved message inline beside the row (`role="alert"`), not a fixed string.
 
-## Screens 04 / 04b — Customer account (`CancelConfirmPage`)
+## Screens 03c / 03d — Customer account (`CancelConfirmPage`) — files in `customer/prototypes/minha-conta/`
 
 Same `ActionPane` and `FeedbackMessage` as the dashboard (SaaS skin; the customer account reads no `--ba-*` for feedback). Replaces the customer-only `data-testid="action-pane-desktop"` div.
 
-## Screens 05 / 05b — Public hotsite (branded)
+## Screens 01j / 01k — Public hotsite (branded) — files in `guest/prototypes/lead-form/`
 
 Branded counterpart, reads `--ba-*`. No `ActionPane`: the public hotsite has no shell, so the message sits directly under the submit button. Same `useFormFeedback` hook and `{ message, field }` resolver; only the markup differs.
 
