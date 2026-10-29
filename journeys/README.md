@@ -26,6 +26,7 @@ journeys/
 │   ├── staff-login.html             ← Google OAuth login screen (staff/manager)
 │   ├── customer-dashboard.html      ← "Início" tab of /{slug}/my-account
 │   ├── dashboard-shell.html         ← staff/manager dashboard master template (copy-me, not a page)
+│   ├── feedback-pane.css            ← TD57 inline feedback: message card under the action buttons (.fb*, .fb-pane*, .fb-ba*)
 │   ├── reschedule-picker.css        ← date strip + slot grid + alerts as the real picker renders them
 │   └── entry.html                   ← prototype-only actor picker
 ├── guest/
@@ -196,6 +197,7 @@ Currently shared:
 | `shared/customer-dashboard.html` | "Início" tab of `/{slug}/my-account` (the prototype folder keeps the pt-BR name "minha-conta") — overview stats + upcoming/history preview; cross-links to the Agendamentos (`customer/prototypes/minha-conta/01-minha-conta.html`) and Fidelidade tabs |
 | `shared/dashboard-shell.html` | Generic staff/manager dashboard master template (sidebar + bottom-nav + bottom-sheet). NOT a finished page — copy the shell when building a new staff page; `staff/prototypes/agenda/00-agenda.html` is the validated reference implementation, not this file |
 | `shared/reschedule-picker.css` | The date strip + slot grid + loading/empty/error alerts exactly as `AvailabilityCarousel`/`SlotPicker`/`ErrorAlert` render with `variant="dashboard"` — link it from any dashboard/account-shell prototype that picks a date and time (staff reschedule, customer reschedule) |
+| `shared/feedback-pane.css` | The TD57 inline-feedback pattern as the real components render it: `.fb*` (`FeedbackMessage`, SaaS skin), `.fb-pane*` / `.fb-mobile-bar` (`ActionPane`), `.fb-ba*` (branded hotsite counterpart) — link it after `tokens.css` from any prototype that shows a form error or success |
 | `shared/entry.html` | Prototype-only actor picker (Sou cliente / Sou funcionário) — lets a reviewer start from one URL; has no production equivalent |
 
 **Path convention from a step file to shared/:** Step files live at `<actor>/prototypes/<journey>/`, so shared/ is three levels up then back into shared/:
@@ -321,7 +323,7 @@ Each screen file must follow this structure:
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Passo N — <Screen Name></title>
-  <link rel="stylesheet" href="tokens.css">
+  <link rel="stylesheet" href="../../../shared/tokens.css">
 </head>
 <body>
 
@@ -738,6 +740,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Built (M20-S10, S12, S13) |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Shipped (M21-S01, M21-S04) |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
+| MANAGER — Feedback e painel de ações (inline feedback pattern, cross-actor) | `manager/feedback-pane.md` | `manager/prototypes/feedback-pane/` | Draft (TD57) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |
 | MANAGER — Turmas (Class Configuration & Enrollment Management) | `manager/turmas.md` | `manager/prototypes/turmas/` | Draft (M24 Cluster 4) |

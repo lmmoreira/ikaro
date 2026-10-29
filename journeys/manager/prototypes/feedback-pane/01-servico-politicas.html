@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Serviço — Políticas — Vitta Studio</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .f-group { margin-bottom: 1rem; min-width: 0; }
+    .f-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.55); margin-bottom: 0.375rem; }
+    .f-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .f-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+    @media (max-width: 640px) { .f-grid3 { grid-template-columns: minmax(0, 1fr); } }
+    .f-tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1rem; overflow-x: auto; }
+    .f-tab { padding: 0.625rem 0; font-size: 0.9375rem; color: rgba(17,24,39,0.55); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+    .f-tab.active { color: var(--ba-text); font-weight: 600; border-bottom-color: #2563eb; }
+    .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0 0 0.25rem; }
+    .f-intro { font-size: 0.875rem; color: rgba(17,24,39,0.6); margin: 0 0 1rem; }
+    .proto-note { background: #fef3c7; border: 1px dashed #d97706; color: #92400e; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; margin: 0 0 1rem; }
+    .pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
+    .pill-on  { background: #dcfce7; color: #166534; }
+    .pill-off { background: #f3f4f6; color: #4b5563; }
+    .pill-pend { background: #fef3c7; color: #92400e; }
+
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: ServiceEditPage + ServiceBookingPolicyPanel + ActionPane + FeedbackMessage
+    FILE:      apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx  (EXISTS — pane + mobile bar to be extracted)
+               apps/web/shared/components/ui/action-pane.tsx, feedback-message.tsx  (GAP — TD57-S01)
+    BFF CALL:  PATCH /v1/services/:id  → 422 BOOKING_SERVICE_BOOKING_POLICY_INVALID, field "durationMinMinutes"
+    PATTERN:   feedback = a SECOND card under the buttons card, rendered only when there is a message.
+               desktop: sticky with the pane (lg:sticky lg:top-6). mobile: inside the fixed bar, above the buttons.
+    STATE:     idle — no message, so NO second card (no empty box).
+  -->
+
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — TD57 — estado inicial: o painel só tem o cartão de botões, sem mensagem
+  </div>
+
+  <div class="dashboard-topbar">
+    <a href="../../../staff/prototypes/servicos/01-servicos-list.html" style="display:flex;align-items:center;gap:0.375rem;color:var(--ba-text);text-decoration:none;font-size:0.9375rem;font-weight:500;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <span style="font-weight:600;">Serviços</span>
+    </a>
+    <h1 class="topbar-page-title">Lavagem Completa</h1>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
+      <a href="../../../shared/staff-login.html" class="topbar-avatar" title="Sair">AP</a>
+      <span class="topbar-date">Hoje, 29 de outubro de 2026</span>
+    </div>
+  </div>
+
+  <div class="dashboard-layout">
+
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-logo">V</div>
+        <div><p class="sidebar-tenant-name">Vitta Studio</p><p class="sidebar-tenant-slug">@vittastudio</p></div>
+      </div>
+      <nav class="sidebar-nav" style="margin-top:0.5rem;">
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+        <a class="sidebar-nav-item active" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/turmas/01-turmas-proximas.html">Turmas</a>
+        <a class="sidebar-nav-item" href="../../../staff/prototypes/fidelidade/00-customer-search.html">Fidelidade</a>
+      </nav>
+      <p class="sidebar-section-label">Somente Gerente</p>
+      <nav class="sidebar-nav">
+        <a class="sidebar-nav-item" href="../resources/01-resources-list.html">Recursos</a>
+        <a class="sidebar-nav-item" href="../equipe/01-team-list.html">Equipe</a>
+        <a class="sidebar-nav-item" href="../configuracoes/01-settings-form.html">Configurações</a>
+        <a class="sidebar-nav-item" href="../hotsite/01-hotsite-editor.html">Hotsite</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="list-avatar" style="flex-shrink:0;width:2rem;height:2rem;font-size:0.8125rem;">AP</div>
+        <div style="min-width:0;"><p class="sidebar-user-name">Ana Pereira</p><span class="role-badge role-badge-manager">Gerente</span></div>
+        <a class="sidebar-logout" href="../../../shared/staff-login.html" title="Sair">Sair</a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <div class="dashboard-body">
+        
+        <!-- Only the tab bar sits above the grid (layout rule, TD57 Story 3). -->
+        <nav class="f-tabs" aria-label="Seções do serviço">
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Detalhes</a>
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Recursos</a>
+          <a class="f-tab active" href="01-servico-politicas.html">Políticas</a>
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Formulário</a>
+          <a class="f-tab" href="02-servico-recursos-alinhado.html">Página pública</a>
+        </nav>
+
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <!-- first card is level with the action pane's card; intro text lives INSIDE it -->
+            <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+              <h2 class="f-h2">Duração</h2>
+              <p class="f-intro">O cliente escolhe a duração dentro dos limites abaixo.</p>
+              <div class="f-group">
+                <label class="f-label" for="policy">Política de duração</label>
+                <select id="policy" class="f-input"><option>Escolhida pelo cliente</option></select>
+              </div>
+              <div class="f-grid3">
+                <div class="f-group">
+                  <label class="f-label" for="dmin">Mínimo (min)</label>
+                  <input id="dmin" class="f-input" placeholder="30">
+                </div>
+                <div class="f-group">
+                  <label class="f-label" for="dmax">Máximo (min)</label>
+                  <input id="dmax" class="f-input" placeholder="120">
+                </div>
+                <div class="f-group">
+                  <label class="f-label" for="dinc">Incremento (min)</label>
+                  <input id="dinc" class="f-input" placeholder="15">
+                </div>
+              </div>
+            </div>
+            <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+              <h2 class="f-h2">Preço</h2>
+              <p class="f-intro">Como o valor é calculado.</p>
+              <div class="f-group"><label class="f-label" for="pricing">Modelo de preço</label><select id="pricing" class="f-input"><option>Valor fixo</option></select></div>
+            </div>
+            <div class="card" style="padding:1.25rem;margin-bottom:1rem;">
+              <h2 class="f-h2">Janela de agendamento</h2>
+              <p class="f-intro">Antecedência mínima e máxima para reservar.</p>
+              <div class="f-grid3">
+                <div class="f-group"><label class="f-label" for="wmin">Mínima (h)</label><input id="wmin" class="f-input" value="2"></div>
+                <div class="f-group"><label class="f-label" for="wmax">Máxima (dias)</label><input id="wmax" class="f-input" value="60"></div>
+              </div>
+            </div>
+            <div class="fb-mobile-clearance"></div>
+          </div>
+
+          <!-- ActionPane (desktop): buttons card, then the feedback card ONLY when a message exists -->
+          <aside class="fb-pane" aria-label="Ações do serviço" data-testid="action-pane">
+            <div class="card">
+              <div class="fb-buttons">
+                <button type="button" class="btn-primary">Salvar</button>
+                <a href="../../../staff/prototypes/servicos/01-servicos-list.html" class="btn-secondary">Cancelar</a>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- ActionPane (mobile): fixed bottom bar, message ABOVE the buttons, bounded height + scroll -->
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="../../../staff/prototypes/servicos/01-servicos-list.html" class="btn-secondary">Cancelar</a>
+      <button type="button" class="btn-primary">Salvar</button>
+    </div>
+  </div>
+
+  <nav class="bottom-nav">
+    <a class="bottom-nav-item" href="../../../staff/prototypes/agenda/00-agenda.html">Agenda</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/horarios/00-schedule.html">Horários</a>
+    <a class="bottom-nav-item active" href="../../../staff/prototypes/servicos/01-servicos-list.html">Serviços</a>
+    <a class="bottom-nav-item" href="../../../staff/prototypes/turmas/01-turmas-proximas.html">Turmas</a>
+    <a class="bottom-nav-item" href="../resources/01-resources-list.html">Recursos</a>
+  </nav>
+
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Formulário — Sucesso — BeloAuto Demo</title>
+  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>
+    .f-group { margin-bottom: 1rem; min-width: 0; }
+    .f-label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.55); margin-bottom: 0.375rem; }
+    .f-input { width: 100%; box-sizing: border-box; border: 1.5px solid var(--ba-secondary); border-radius: var(--ba-radius); padding: 0.6875rem 0.875rem; font-size: 0.9375rem; font-family: inherit; color: var(--ba-text); background: white; }
+    .f-grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.75rem; }
+    @media (max-width: 640px) { .f-grid3 { grid-template-columns: minmax(0, 1fr); } }
+    .f-tabs { display: flex; gap: 1.25rem; border-bottom: 1px solid var(--ba-secondary); margin-bottom: 1rem; overflow-x: auto; }
+    .f-tab { padding: 0.625rem 0; font-size: 0.9375rem; color: rgba(17,24,39,0.55); text-decoration: none; white-space: nowrap; border-bottom: 2px solid transparent; }
+    .f-tab.active { color: var(--ba-text); font-weight: 600; border-bottom-color: #2563eb; }
+    .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0 0 0.25rem; }
+    .f-intro { font-size: 0.875rem; color: rgba(17,24,39,0.6); margin: 0 0 1rem; }
+    .proto-note { background: #fef3c7; border: 1px dashed #d97706; color: #92400e; border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; margin: 0 0 1rem; }
+    .pill { display: inline-block; font-size: 0.75rem; font-weight: 600; padding: 0.125rem 0.5rem; border-radius: 9999px; }
+    .pill-on  { background: #dcfce7; color: #166534; }
+    .pill-off { background: #f3f4f6; color: #4b5563; }
+    .pill-pend { background: #fef3c7; color: #92400e; }
+
+  </style>
+</head>
+<body>
+
+  <!--
+    COMPONENT: public lead form (LeadFormModule) + branded feedback component
+    FILE:      apps/web/features/platform/components/public/…  (EXISTS — hand-rolled box today)
+               apps/web/shared/components/ui/ — branded counterpart built on ErrorAlert variant="hotsite"  (GAP — TD57-S06)
+    SKIN:      branded: reads --ba-* (font, radius); NO ActionPane — the public hotsite has no shell. The message sits right under the submit button.
+    OPEN:      branded error colour (fixed semantic red vs derived from tenant tokens) and how contrast is guaranteed on any tenant background.
+               This prototype uses a fixed semantic colour on a white surface.
+    STATE:     success. role="status".
+  -->
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — TD57 Story 6/16 — hotsite público: mensagem de sucesso com a marca do negócio
+  </div>
+  <div style="background:white;border-bottom:1px solid var(--ba-secondary);padding:0.625rem 1.5rem;display:flex;align-items:center;justify-content:space-between;">
+    <div style="display:flex;align-items:center;gap:0.625rem;">
+      <div style="width:1.875rem;height:1.875rem;border-radius:0.375rem;background:var(--ba-primary);color:white;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.8125rem;">B</div>
+      <span style="font-weight:700;font-size:0.9375rem;color:var(--ba-text);">BeloAuto Demo</span>
+    </div>
+    <a href="../../../shared/login.html" style="font-size:0.875rem;color:var(--ba-primary);text-decoration:none;">Entrar</a>
+  </div>
+  <main class="step-container">
+    <h1 style="font-size:1.5rem;font-weight:700;color:var(--ba-text);margin-bottom:0.375rem;">Quer um orçamento personalizado?</h1>
+    <p style="opacity:0.65;margin-bottom:1rem;">Responda as perguntas abaixo — nossa equipe entra em contato em até 1 dia útil.</p>
+    <div class="card" style="padding:1.5rem;">
+      <div class="f-group">
+        <label class="f-label" for="name">Nome</label>
+        <input id="name" class="f-input" value="Carlos Mendes">
+      </div>
+      <div class="f-group">
+        <label class="f-label" for="email">E-mail</label>
+        <input id="email" type="email" class="f-input" value="carlos.email.com">
+      </div>
+      <button type="button" class="btn-primary" style="width:100%;">Enviar</button>
+        <div class="fb-ba fb-ba-success" role="status" style="margin-top:0.875rem;"><span class="fb-title">Recebemos seu pedido</span> Nossa equipe entra em contato em até 1 dia útil.</div>
+    </div>
+  </main>
+</body>
+</html>
