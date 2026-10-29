@@ -383,6 +383,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -424,6 +425,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -461,6 +463,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -510,6 +513,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -571,6 +575,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -641,6 +646,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -678,6 +684,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -721,6 +728,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -889,6 +897,7 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 ### How the columns were derived
 
 - **Class**, **Skin**, **Role**, **Field marking**, **Action pane**, **testids** and **E2E specs** are derived mechanically per file (regex over the source, imports followed one level inside the same folder) and spot-verified by hand on the files named in the findings below. Class is a heuristic: `form` (submits a mutation), `row action`, `page-level` (load failure, route error page, banners), `field / section message`, `pane only` (renders a pane without feedback of its own), `not feedback` (status badge, field style, nav).
+- **Message placement** compares the position of the file's first feedback message (a `role="alert"` or a feedback `data-testid`) with the position of its pane markup: `main column, before the pane markup` means the message is rendered in the content column ahead of the pane, `in or after the pane markup` means it is inside the pane or rail. **Scroll / focus** is `scroll` when the file calls `scrollIntoView`/`scrollTo` and `focus` when it calls `.focus()` or sets `autoFocus`; `none` means neither.
 - **Skin** is `branded (--ba-*)` when the file reads `--ba-*` or sits in the public hotsite tree, else `SaaS`.
 - **Field marking**: `aria-invalid+red outline` means both appear in the file (not that the outline is conditional on `aria-invalid`); `via X` means a same-folder component imported by the file carries `aria-invalid`; `none` means no field marking was found in the file or its same-folder imports.
 - **E2E specs** lists specs containing the testid as an exact quoted string. A `-` means no exact reference was found: ids built from template strings or reached only through `getByTestId` on a prefix are not detected, so a migration story re-greps before renaming any id.
@@ -903,196 +912,197 @@ comm -23 /tmp/td57-enum.txt /tmp/td57-listed.txt
 5. **Branded files outside the public tree**: `HotsitePreviewCanvas.tsx` (Hotsite editor) and `InformationCompletionPrompt.tsx` (Customer account, rendered under the hotsite theme) read `--ba-*`, so their area stories depend on Story 6.
 6. **Service-edit files beyond Story 2's original list** carry feedback too (`PolicyWhoHowCard`, `ServiceBufferAfterMinutesField`, `ServiceResourceTypeFields`, `IntakeQuestionsCard`, `ServiceLegsPanel`, `ServicePriceDurationFields`, `EligiblePoolPicker`, `ServiceEditDetailsTab`); they are owned by Story 2 + 3 (see A.1) and Story 2's file list now points at them.
 7. **Route error pages** (`app/dashboard/loyalty/[customerId]/error.tsx`, `app/[slug]/my-account/error.tsx`, `app/[slug]/my-account/alerts/error.tsx`) and every load-failure surface are rows with class `page-level` and an owner; none is exempt.
-8. **Not feedback surfaces** (listed so Story 5's selector can leave them alone): `booking-status.ts` and `BookingStatusIcon.tsx` (status badge colours), `ScheduleTimelineEventRenderer.tsx` (event colours), `color-picker.tsx`, `pill-multi-select.tsx`, `new-booking-styles.ts`, `ResourceIdentityFields.tsx`, `SettingsFormFields.tsx` (shared input style strings), `LeadFormSortableQuestion.tsx` (invalid border on a card), `RecurringApprovalActions.tsx` (destructive button), `Sidebar.tsx` (navigation `<aside>`).
+8. **Alignment of the other pane screens was not measured.** The browser pass covered only the five service edit tabs (the reported screen). The other pane files were not measured in a browser and no structural verdict is recorded for them here; each area story that owns pane screens carries an acceptance criterion to measure its own screens and fix any bare intro or loose control above the first card.
+9. **Not feedback surfaces** (listed so Story 5's selector can leave them alone): `booking-status.ts` and `BookingStatusIcon.tsx` (status badge colours), `ScheduleTimelineEventRenderer.tsx` (event colours), `color-picker.tsx`, `pill-multi-select.tsx`, `new-booking-styles.ts`, `ResourceIdentityFields.tsx`, `SettingsFormFields.tsx` (shared input style strings), `LeadFormSortableQuestion.tsx` (invalid border on a card), `RecurringApprovalActions.tsx` (destructive button), `Sidebar.tsx` (navigation `<aside>`).
 
 ### A.1 Service edit
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/dashboard/services/EligiblePoolPicker.tsx` | field / section message | SaaS | alert | none | - | - | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/IntakeQuestionsCard.tsx` | field / section message | SaaS | none | none | - | `intake-blank-label-error`, `intake-duplicate-fieldkey-error`, `intake-empty-key-error` | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/PolicyWhoHowCard.tsx` | field / section message | SaaS | alert | aria-invalid | - | `policy-availability-alert-eligible`, `policy-recurring-horizon-error` | `services-resource-config.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` | form | SaaS | alert | via PolicyWhoHowCard | - | `policy-error`, `policy-saved` | `services-resource-config.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceBufferAfterMinutesField.tsx` | field / section message | SaaS | alert | aria-invalid | - | - | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceEditDetailsTab.tsx` | page-level | SaaS | none | via ServiceFormFields | - | `service-created-banner` | `services-create.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceEditPanels.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceFormFields.tsx` | form | SaaS | none | aria-invalid+red outline | - | `service-description-error`, `service-name-error`, `service-points-error`, `service-submit-error` | `services-create.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` | form | SaaS | alert | red outline only | - | `intake-error` | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceLegsPanel.tsx` | page-level | SaaS | none | via ServiceResourceTypeFields | - | `legs-min-required-error` | - | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServicePriceDurationFields.tsx` | field / section message | SaaS | none | aria-invalid+red outline | - | `service-duration-error`, `service-price-error` | `services-create.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServicePublicPageTab.tsx` | form | SaaS | alert | red outline only | - | `public-page-error`, `public-page-saved` | `service-public-page.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` | page-level | SaaS | alert | via ServiceBufferAfterMinutesField | - | `resource-requirements-error`, `resource-requirements-saved` | `services-resource-config.spec.ts` | Story 2 + 3 |
-| `features/booking/components/dashboard/services/ServiceResourceTypeFields.tsx` | field / section message | SaaS | alert | aria-invalid | - | `resource-type-quantity-error` | `services-resource-config.spec.ts` | Story 2 + 3 |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/components/dashboard/services/EligiblePoolPicker.tsx` | field / section message | SaaS | alert | none | - | - | - | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/IntakeQuestionsCard.tsx` | field / section message | SaaS | none | none | - | `intake-blank-label-error`, `intake-duplicate-fieldkey-error`, `intake-empty-key-error` | - | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/PolicyWhoHowCard.tsx` | field / section message | SaaS | alert | aria-invalid | - | `policy-availability-alert-eligible`, `policy-recurring-horizon-error` | `services-resource-config.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` | form | SaaS | alert | via PolicyWhoHowCard | - | `policy-error`, `policy-saved` | `services-resource-config.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceBufferAfterMinutesField.tsx` | field / section message | SaaS | alert | aria-invalid | - | - | - | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceEditDetailsTab.tsx` | page-level | SaaS | none | via ServiceFormFields | - | `service-created-banner` | `services-create.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceEditPanels.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | Story 2 + 3 | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/services/ServiceFormFields.tsx` | form | SaaS | none | aria-invalid+red outline | - | `service-description-error`, `service-name-error`, `service-points-error`, `service-submit-error` | `services-create.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` | form | SaaS | alert | red outline only | - | `intake-error` | - | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceLegsPanel.tsx` | page-level | SaaS | none | via ServiceResourceTypeFields | - | `legs-min-required-error` | - | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServicePriceDurationFields.tsx` | field / section message | SaaS | none | aria-invalid+red outline | - | `service-duration-error`, `service-price-error` | `services-create.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServicePublicPageTab.tsx` | form | SaaS | alert | red outline only | - | `public-page-error`, `public-page-saved` | `service-public-page.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` | page-level | SaaS | alert | via ServiceBufferAfterMinutesField | - | `resource-requirements-error`, `resource-requirements-saved` | `services-resource-config.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
+| `features/booking/components/dashboard/services/ServiceResourceTypeFields.tsx` | field / section message | SaaS | alert | aria-invalid | - | `resource-type-quantity-error` | `services-resource-config.spec.ts` | Story 2 + 3 | inline in content (no pane) | none |
 
 ### A.2 Resources
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/dashboard/resources/ResourceCreateForm.tsx` | form | SaaS | none | via ResourceIdentityFields | dashboard aside, sticky, fixed mobile bar | `resource-create-submit-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceDeactivateConfirm.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | `resource-deactivate-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceDeactivatePage.tsx` | page-level | SaaS | none | none | - | `resource-deactivate-load-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceEditForm.tsx` | page-level | SaaS | none | none | - | `resource-edit-load-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceEditFormFields.tsx` | form | SaaS | none | via ResourceIdentityFields | dashboard aside, sticky, fixed mobile bar | `resource-edit-submit-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceIdentityFields.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceListPage.tsx` | page-level | SaaS | none | none | - | `resource-list-error` | - | new story (Resources) |
-| `features/booking/components/dashboard/resources/ResourceRow.tsx` | row action | SaaS | none | none | - | `resource-row-reactivate-error`, `resource-row-reactivate-success` | - | Story 4 |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/components/dashboard/resources/ResourceCreateForm.tsx` | form | SaaS | none | via ResourceIdentityFields | dashboard aside, sticky, fixed mobile bar | `resource-create-submit-error` | - | new story (Resources) | main column, before the pane markup | none |
+| `features/booking/components/dashboard/resources/ResourceDeactivateConfirm.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | `resource-deactivate-error` | - | new story (Resources) | main column, before the pane markup | none |
+| `features/booking/components/dashboard/resources/ResourceDeactivatePage.tsx` | page-level | SaaS | none | none | - | `resource-deactivate-load-error` | - | new story (Resources) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/resources/ResourceEditForm.tsx` | page-level | SaaS | none | none | - | `resource-edit-load-error` | - | new story (Resources) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/resources/ResourceEditFormFields.tsx` | form | SaaS | none | via ResourceIdentityFields | dashboard aside, sticky, fixed mobile bar | `resource-edit-submit-error` | - | new story (Resources) | main column, before the pane markup | none |
+| `features/booking/components/dashboard/resources/ResourceIdentityFields.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | new story (Resources) | n/a | none |
+| `features/booking/components/dashboard/resources/ResourceListPage.tsx` | page-level | SaaS | none | none | - | `resource-list-error` | - | new story (Resources) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/resources/ResourceRow.tsx` | row action | SaaS | none | none | - | `resource-row-reactivate-error`, `resource-row-reactivate-success` | - | Story 4 | inline in content (no pane) | none |
 
 ### A.3 Staff and team
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/staff/components/team/DeactivateConfirmPage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | `deactivate-error-body` | `team-deactivate.spec.ts` | new story (Staff and team) |
-| `features/staff/components/team/InviteForm.tsx` | form | SaaS | none | aria-invalid+red outline | dashboard aside, sticky, fixed mobile bar | `invite-email-error`, `invite-first-name-error`, `invite-last-name-error`, `invite-submit-error` | `team-invite.spec.ts` | new story (Staff and team) |
-| `features/staff/components/team/MemberRow.tsx` | row action | SaaS | none | none | - | `activate-member-error`, `activate-member-success`, `resend-invite-error`, `resend-invite-success` | `team-deactivate.spec.ts`, `team-invite.spec.ts` | Story 4 |
-| `features/staff/components/team/StaffDetailPage.tsx` | form | SaaS | none | aria-invalid+red outline | dashboard aside, sticky, fixed mobile bar | `staff-detail-name-error`, `staff-detail-submit-error` | `team-manage.spec.ts` | new story (Staff and team) |
-| `features/staff/components/team/TeamListPage.tsx` | page-level | SaaS | none | none | - | `team-invite-success-banner` | `team-invite.spec.ts` | new story (Staff and team) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/staff/components/team/DeactivateConfirmPage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | `deactivate-error-body` | `team-deactivate.spec.ts` | new story (Staff and team) | main column, before the pane markup | none |
+| `features/staff/components/team/InviteForm.tsx` | form | SaaS | none | aria-invalid+red outline | dashboard aside, sticky, fixed mobile bar | `invite-email-error`, `invite-first-name-error`, `invite-last-name-error`, `invite-submit-error` | `team-invite.spec.ts` | new story (Staff and team) | main column, before the pane markup | none |
+| `features/staff/components/team/MemberRow.tsx` | row action | SaaS | none | none | - | `activate-member-error`, `activate-member-success`, `resend-invite-error`, `resend-invite-success` | `team-deactivate.spec.ts`, `team-invite.spec.ts` | Story 4 | inline in content (no pane) | none |
+| `features/staff/components/team/StaffDetailPage.tsx` | form | SaaS | none | aria-invalid+red outline | dashboard aside, sticky, fixed mobile bar | `staff-detail-name-error`, `staff-detail-submit-error` | `team-manage.spec.ts` | new story (Staff and team) | main column, before the pane markup | none |
+| `features/staff/components/team/TeamListPage.tsx` | page-level | SaaS | none | none | - | `team-invite-success-banner` | `team-invite.spec.ts` | new story (Staff and team) | inline in content (no pane) | none |
 
 ### A.4 Settings
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/platform/components/settings/SettingsForm.tsx` | form | SaaS | alert | via SettingsHoursSection,SettingsLoyaltySection | - | `settings-saved-banner`, `settings-submit-error` | `settings.spec.ts` | new story (Settings) |
-| `features/platform/components/settings/SettingsFormActions.tsx` | form | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Settings) |
-| `features/platform/components/settings/SettingsFormFields.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | new story (Settings) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/platform/components/settings/SettingsForm.tsx` | form | SaaS | alert | via SettingsHoursSection,SettingsLoyaltySection | - | `settings-saved-banner`, `settings-submit-error` | `settings.spec.ts` | new story (Settings) | inline in content (no pane) | scroll |
+| `features/platform/components/settings/SettingsFormActions.tsx` | form | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Settings) | no own message (pane/layout only) | none |
+| `features/platform/components/settings/SettingsFormFields.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | new story (Settings) | n/a | none |
 
 ### A.5 Hotsite editor
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/platform/components/hotsite/HotsiteActionBanner.tsx` | page-level | SaaS | alert | red outline only | - | `hotsite-action-error-banner`, `hotsite-action-success-banner` | `hotsite-editor.spec.ts`, `hotsite-template-picker.spec.ts` | new story (Hotsite editor) |
-| `features/platform/components/hotsite/HotsiteEditorMainView.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/HotsitePreview.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/HotsitePreviewCanvas.tsx` | page-level | branded (--ba-*) | alert | none | - | `hotsite-preview-load-error` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/HotsiteTemplateGallery.tsx` | page-level | SaaS | alert | none | - | `template-apply-error`, `template-load-error` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/ManifestTab.tsx` | page-level | SaaS | alert | none | - | `hotsite-manifest-error` | `hotsite-editor.spec.ts` | new story (Hotsite editor) |
-| `features/platform/components/hotsite/SingleImageUploadField.tsx` | page-level | SaaS | none | none | - | `single-image-upload-error` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/VisualHotsiteEditorView.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | `visual-banner-slot` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/BookingPhotoPicker.tsx` | field / section message | SaaS | alert | none | - | `booking-photo-picker-error` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/ChatbotConfigPanel.tsx` | page-level | SaaS | alert | red outline only | - | `chatbot-cap-reached-banner` | `hotsite-editor.spec.ts` | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/GalleryImageManager.tsx` | page-level | SaaS | none | none | - | `gallery-upload-error` | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/LeadFormSortableQuestion.tsx` | not feedback | SaaS | - | red outline only | - | - | - | new story (Hotsite editor) |
-| `features/platform/components/hotsite/modules/ModuleConfigShell.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/platform/components/hotsite/HotsiteActionBanner.tsx` | page-level | SaaS | alert | red outline only | - | `hotsite-action-error-banner`, `hotsite-action-success-banner` | `hotsite-editor.spec.ts`, `hotsite-template-picker.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/HotsiteEditorMainView.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) | no own message (pane/layout only) | none |
+| `features/platform/components/hotsite/HotsitePreview.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) | no own message (pane/layout only) | none |
+| `features/platform/components/hotsite/HotsitePreviewCanvas.tsx` | page-level | branded (--ba-*) | alert | none | - | `hotsite-preview-load-error` | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/HotsiteTemplateGallery.tsx` | page-level | SaaS | alert | none | - | `template-apply-error`, `template-load-error` | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/ManifestTab.tsx` | page-level | SaaS | alert | none | - | `hotsite-manifest-error` | `hotsite-editor.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/SingleImageUploadField.tsx` | page-level | SaaS | none | none | - | `single-image-upload-error` | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/VisualHotsiteEditorView.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | `visual-banner-slot` | - | new story (Hotsite editor) | in or after the pane markup | scroll |
+| `features/platform/components/hotsite/modules/BookingPhotoPicker.tsx` | field / section message | SaaS | alert | none | - | `booking-photo-picker-error` | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/modules/ChatbotConfigPanel.tsx` | page-level | SaaS | alert | red outline only | - | `chatbot-cap-reached-banner` | `hotsite-editor.spec.ts` | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/modules/GalleryImageManager.tsx` | page-level | SaaS | none | none | - | `gallery-upload-error` | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Hotsite editor) | inline in content (no pane) | none |
+| `features/platform/components/hotsite/modules/LeadFormSortableQuestion.tsx` | not feedback | SaaS | - | red outline only | - | - | - | new story (Hotsite editor) | n/a | none |
+| `features/platform/components/hotsite/modules/ModuleConfigShell.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Hotsite editor) | no own message (pane/layout only) | none |
 
 ### A.6 Customer account
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `app/[slug]/my-account/error.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Customer account) |
-| `features/customer/components/InformationCompletionPrompt.tsx` | form | branded (--ba-*) | none | none | - | `information-completion-error` | `information-completion-prompt.spec.ts` | new story (Customer account) |
-| `features/customer/components/SwitchTenantClient.tsx` | page-level | SaaS | none | none | - | `switch-tenant-error`, `switch-tenant-fetch-error` | - | new story (Customer account) |
-| `features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` | form | SaaS | alert | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `alert-cancel-confirm`, `cancel-alert-confirm`, `cancel-alert-error` | `booking-appointment-end.spec.ts`, `my-account-alerts.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/AvailabilityAlertDetail.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `alert-detail`, `alert-new-booking`, `alert-status-badge`, `cancel-alert-link` | `booking-appointment-end.spec.ts`, `my-account-alerts.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/AvailabilityAlertListStates.tsx` | page-level | SaaS | alert | red outline only | - | `alerts-load-error`, `alerts-loading` | - | new story (Customer account) |
-| `features/customer/components/my-account/BookingDetailMain.tsx` | page-level | SaaS | none | none | - | `points-earned-banner` | `my-account-detail-cancel.spec.ts` | new story (Customer account) |
-| `features/customer/components/my-account/BookingDetailPage.tsx` | form | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/BookingStatusIcon.tsx` | not feedback | SaaS | - | none | - | - | - | new story (Customer account) |
-| `features/customer/components/my-account/CancelConfirmPage.tsx` | form | SaaS | alert | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `cancel-confirm-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/CustomerReschedulePage.tsx` | page-level | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `reschedule-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/InfoSubmitForm.tsx` | form | SaaS | alert | none | - | `info-validation-error` | `my-account-detail-cancel.spec.ts` | new story (Customer account) |
-| `features/customer/components/my-account/NewRecurringScheduleRenewalNotice.tsx` | page-level | SaaS | none | none | - | `new-schedule-renewal-banner` | `my-account-home-widgets.spec.ts`, `my-account-recurring-schedule-renew.spec.ts` | new story (Customer account) |
-| `features/customer/components/my-account/NewRecurringScheduleResult.tsx` | form | SaaS | alert | red outline only | - | - | - | new story (Customer account) |
-| `features/customer/components/my-account/RecurringScheduleDetail.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/RecurringScheduleEndConfirm.tsx` | form | SaaS | alert | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `end-schedule-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/RecurringSchedulePendingView.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) |
-| `features/customer/components/my-account/RescheduleSuccessView.tsx` | page-level | SaaS | none | none | - | `reschedule-success` | `my-account-reschedule.spec.ts` | new story (Customer account) |
-| `features/customer/components/my-account/RescheduleWindowExpiredView.tsx` | page-level | SaaS | alert | red outline only | - | `reschedule-window-error` | `my-account-reschedule.spec.ts` | new story (Customer account) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `app/[slug]/my-account/error.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/InformationCompletionPrompt.tsx` | form | branded (--ba-*) | none | none | - | `information-completion-error` | `information-completion-prompt.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/SwitchTenantClient.tsx` | page-level | SaaS | none | none | - | `switch-tenant-error`, `switch-tenant-fetch-error` | - | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/AvailabilityAlertCancelConfirm.tsx` | form | SaaS | alert | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `alert-cancel-confirm`, `cancel-alert-confirm`, `cancel-alert-error` | `booking-appointment-end.spec.ts`, `my-account-alerts.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/AvailabilityAlertDetail.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `alert-detail`, `alert-new-booking`, `alert-status-badge`, `cancel-alert-link` | `booking-appointment-end.spec.ts`, `my-account-alerts.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/AvailabilityAlertListStates.tsx` | page-level | SaaS | alert | red outline only | - | `alerts-load-error`, `alerts-loading` | - | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/BookingDetailMain.tsx` | page-level | SaaS | none | none | - | `points-earned-banner` | `my-account-detail-cancel.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/BookingDetailPage.tsx` | form | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/BookingStatusIcon.tsx` | not feedback | SaaS | - | none | - | - | - | new story (Customer account) | n/a | none |
+| `features/customer/components/my-account/CancelConfirmPage.tsx` | form | SaaS | alert | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `cancel-confirm-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/CustomerReschedulePage.tsx` | page-level | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `reschedule-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/InfoSubmitForm.tsx` | form | SaaS | alert | none | - | `info-validation-error` | `my-account-detail-cancel.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/NewRecurringScheduleRenewalNotice.tsx` | page-level | SaaS | none | none | - | `new-schedule-renewal-banner` | `my-account-home-widgets.spec.ts`, `my-account-recurring-schedule-renew.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/NewRecurringScheduleResult.tsx` | form | SaaS | alert | red outline only | - | - | - | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/RecurringScheduleDetail.tsx` | pane only (no feedback of its own) | SaaS | none | red outline only | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/RecurringScheduleEndConfirm.tsx` | form | SaaS | alert | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile`, `end-schedule-error` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/RecurringSchedulePendingView.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Customer account) | main column, before the pane markup | none |
+| `features/customer/components/my-account/RescheduleSuccessView.tsx` | page-level | SaaS | none | none | - | `reschedule-success` | `my-account-reschedule.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
+| `features/customer/components/my-account/RescheduleWindowExpiredView.tsx` | page-level | SaaS | alert | red outline only | - | `reschedule-window-error` | `my-account-reschedule.spec.ts` | new story (Customer account) | inline in content (no pane) | none |
 
 ### A.7 Bookings dashboard
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/dashboard/bookings/BookingActionSheetShell.tsx` | form | SaaS | none | none | - | `action-sheet-error` | `schedule.spec.ts` | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingCompletionSummary.tsx` | page-level | SaaS | none | none | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingDecisionBanner.tsx` | page-level | SaaS | none | none | - | `booking-decision-banner` | `scheduling-exceptions.spec.ts` | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingDecisionPanel.tsx` | form | SaaS | alert | none | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingDetailMainBanner.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingDetailPage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, no mobile bar | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingNoShowBanner.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingOutcomeActionRail.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingOutcomeLayout.tsx` | page-level | SaaS | none | red outline only | - | `outcome-banner-title` | `complete-booking.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-new-booking.ts` | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingQueueActionNeeded.tsx` | page-level | SaaS | none | red outline only | - | `recurrences-load-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/BookingQueuePage.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/CustomerSearchPanel.tsx` | page-level | SaaS | none | red outline only | - | `customer-search-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/GuestContactForm.tsx` | field / section message | SaaS | alert | aria-invalid | - | `guest-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/MarkCompleteActionRail.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/NewBookingOutcome.tsx` | page-level | SaaS | none | red outline only | - | `outcome-banner-title` | `complete-booking.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-new-booking.ts` | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/NewRecurringScheduleForStaffResult.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/RecurringApprovalActions.tsx` | not feedback | SaaS | - | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/RecurringApprovalBanner.tsx` | page-level | SaaS | none | red outline only | - | `recurring-hold-banner`, `recurring-hold-expired-banner` | `staff-recurring-approval.spec.ts` | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/RecurringApprovalLoadError.tsx` | page-level | SaaS | none | none | - | `recurring-approval-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/RecurringScheduleApprovalDetail.tsx` | page-level | SaaS | none | none | dashboard aside, sticky, no mobile bar | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/RescheduleActionRail.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/SlotConflictAlert.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/new-booking/NewBookingErrorBanner.tsx` | page-level | SaaS | alert | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/new-booking/NewBookingServiceCard.tsx` | field / section message | SaaS | alert | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/bookings/new-booking/new-booking-styles.ts` | not feedback | SaaS | - | red outline only | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx` | row action | SaaS | none | none | - | `resource-filter-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/schedule/ResourceSelectField.tsx` | field / section message | SaaS | none | none | - | `resource-select-field-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/schedule/SchedulePage.tsx` | page-level | SaaS | none | red outline only | - | `schedule-fetch-error` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` | page-level | SaaS | none | red outline only | - | `day-grid-fetch-error`, `schedule-column-spillover-banner` | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` | not feedback | SaaS | - | none | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` | page-level | SaaS | none | none | - | - | - | new story (Bookings dashboard) |
-| `features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` | page-level | SaaS | alert | red outline only | - | `scheduling-exceptions-load-error` | - | new story (Bookings dashboard) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/components/dashboard/bookings/BookingActionSheetShell.tsx` | form | SaaS | none | none | - | `action-sheet-error` | `schedule.spec.ts` | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/BookingCompletionSummary.tsx` | page-level | SaaS | none | none | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/BookingDecisionBanner.tsx` | page-level | SaaS | none | none | - | `booking-decision-banner` | `scheduling-exceptions.spec.ts` | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/BookingDecisionPanel.tsx` | form | SaaS | alert | none | - | - | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/BookingDetailMainBanner.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/BookingDetailPage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, no mobile bar | - | - | new story (Bookings dashboard) | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/bookings/BookingNoShowBanner.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/BookingOutcomeActionRail.tsx` | pane only (no feedback of its own) | SaaS | none | none | dashboard aside, sticky, fixed mobile bar | - | - | new story (Bookings dashboard) | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/bookings/BookingOutcomeLayout.tsx` | page-level | SaaS | none | red outline only | - | `outcome-banner-title` | `complete-booking.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-new-booking.ts` | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/BookingQueueActionNeeded.tsx` | page-level | SaaS | none | red outline only | - | `recurrences-load-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/BookingQueuePage.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/CustomerSearchPanel.tsx` | page-level | SaaS | none | red outline only | - | `customer-search-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/GuestContactForm.tsx` | field / section message | SaaS | alert | aria-invalid | - | `guest-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/MarkCompleteActionRail.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/NewBookingOutcome.tsx` | page-level | SaaS | none | red outline only | - | `outcome-banner-title` | `complete-booking.ts`, `staff-booking-lifecycle.spec.ts`, `staff-new-booking.spec.ts`, `staff-new-booking.ts` | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/NewRecurringScheduleForStaffResult.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/RecurringApprovalActions.tsx` | not feedback | SaaS | - | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/RecurringApprovalBanner.tsx` | page-level | SaaS | none | red outline only | - | `recurring-hold-banner`, `recurring-hold-expired-banner` | `staff-recurring-approval.spec.ts` | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/RecurringApprovalLoadError.tsx` | page-level | SaaS | none | none | - | `recurring-approval-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/RecurringScheduleApprovalDetail.tsx` | page-level | SaaS | none | none | dashboard aside, sticky, no mobile bar | - | - | new story (Bookings dashboard) | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/bookings/RescheduleActionRail.tsx` | form | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/SlotConflictAlert.tsx` | page-level | SaaS | none | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/bookings/new-booking/NewBookingErrorBanner.tsx` | page-level | SaaS | alert | red outline only | - | - | - | new story (Bookings dashboard) | inline in content (no pane) | focus |
+| `features/booking/components/dashboard/bookings/new-booking/NewBookingServiceCard.tsx` | field / section message | SaaS | alert | red outline only | - | - | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/bookings/new-booking/new-booking-styles.ts` | not feedback | SaaS | - | red outline only | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/schedule/ResourceFilterMenu.tsx` | row action | SaaS | none | none | - | `resource-filter-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/schedule/ResourceSelectField.tsx` | field / section message | SaaS | none | none | - | `resource-select-field-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/schedule/SchedulePage.tsx` | page-level | SaaS | none | red outline only | - | `schedule-fetch-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/schedule/ScheduleResourceColumnsBoard.tsx` | page-level | SaaS | none | red outline only | - | `day-grid-fetch-error`, `schedule-column-spillover-banner` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
+| `features/booking/components/dashboard/schedule/ScheduleTimelineEventRenderer.tsx` | not feedback | SaaS | - | none | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/scheduling-exceptions/BulkResultList.tsx` | page-level | SaaS | none | none | - | - | - | new story (Bookings dashboard) | n/a | none |
+| `features/booking/components/dashboard/scheduling-exceptions/SchedulingExceptionWorklistPage.tsx` | page-level | SaaS | alert | red outline only | - | `scheduling-exceptions-load-error` | - | new story (Bookings dashboard) | inline in content (no pane) | none |
 
 ### A.8 Services create/deactivate/list
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/dashboard/services/ServiceCreatePage.tsx` | form | SaaS | none | via ServiceFormFields | dashboard aside, sticky, fixed mobile bar | - | - | new story (Services create/deactivate/list) |
-| `features/booking/components/dashboard/services/ServiceDeactivatePage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | new story (Services create/deactivate/list) |
-| `features/booking/components/dashboard/services/ServiceListPage.tsx` | page-level | SaaS | none | none | - | - | - | new story (Services create/deactivate/list) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/components/dashboard/services/ServiceCreatePage.tsx` | form | SaaS | none | via ServiceFormFields | dashboard aside, sticky, fixed mobile bar | - | - | new story (Services create/deactivate/list) | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/services/ServiceDeactivatePage.tsx` | form | SaaS | none | red outline only | dashboard aside, sticky, fixed mobile bar | - | - | new story (Services create/deactivate/list) | no own message (pane/layout only) | none |
+| `features/booking/components/dashboard/services/ServiceListPage.tsx` | page-level | SaaS | none | none | - | - | - | new story (Services create/deactivate/list) | n/a | none |
 
 ### A.9 Recurring schedule forms
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/components/recurring/NewRecurringScheduleDateField.tsx` | field / section message | SaaS | alert | aria-invalid+red outline | - | - | - | new story (Recurring schedule forms) |
-| `features/booking/components/recurring/NewRecurringScheduleLayout.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Recurring schedule forms) |
-| `features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` | field / section message | SaaS | alert | none | - | - | - | new story (Recurring schedule forms) |
-| `features/booking/components/recurring/RecurringScheduleFields.tsx` | field / section message | SaaS | alert | via NewRecurringScheduleDateField | - | - | - | new story (Recurring schedule forms) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/components/recurring/NewRecurringScheduleDateField.tsx` | field / section message | SaaS | alert | aria-invalid+red outline | - | - | - | new story (Recurring schedule forms) | inline in content (no pane) | none |
+| `features/booking/components/recurring/NewRecurringScheduleLayout.tsx` | pane only (no feedback of its own) | SaaS | none | none | customer action-pane-*, sticky, in-flow mobile | `action-pane-desktop`, `action-pane-mobile` | `booking-appointment-end.spec.ts`, `my-account-detail-cancel.spec.ts`, `my-account-recurring-schedules.spec.ts`, `my-account-reschedule.spec.ts`, `recurring-schedule.ts` | new story (Recurring schedule forms) | main column, before the pane markup | none |
+| `features/booking/components/recurring/NewRecurringScheduleServiceFields.tsx` | field / section message | SaaS | alert | none | - | - | - | new story (Recurring schedule forms) | inline in content (no pane) | none |
+| `features/booking/components/recurring/RecurringScheduleFields.tsx` | field / section message | SaaS | alert | via NewRecurringScheduleDateField | - | - | - | new story (Recurring schedule forms) | inline in content (no pane) | none |
 
 ### A.10 Loyalty and page-level
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `app/dashboard/loyalty/[customerId]/error.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) |
-| `features/loyalty/components/dashboard/CustomerLoyaltyEntriesTab.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) |
-| `features/loyalty/components/dashboard/CustomerLoyaltyRedemptionsTab.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `app/dashboard/loyalty/[customerId]/error.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) | inline in content (no pane) | none |
+| `features/loyalty/components/dashboard/CustomerLoyaltyEntriesTab.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) | inline in content (no pane) | none |
+| `features/loyalty/components/dashboard/CustomerLoyaltyRedemptionsTab.tsx` | page-level | SaaS | alert | none | - | - | - | new story (Loyalty and page-level) | inline in content (no pane) | none |
 
 ### A.11 Public hotsite
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `app/[slug]/login/page.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | - | - | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/AvailabilityAlertFields.tsx` | field / section message | branded (--ba-*) | alert | none | - | `alert-field-error`, `alert-weekday` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/AvailabilityAlertOutcomeViews.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | `availability-alert-back-to-site`, `availability-alert-view-alerts` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/AvailabilityStep.tsx` | field / section message | branded (--ba-*) | none | none | - | `step2-error` | `booking-auto-journey.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-journey-basket.spec.ts`, `booking-submit-routing.spec.ts`, `staff-new-booking.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/BookingForm.tsx` | form | branded (--ba-*) | none | via IntakeAnswersStep | - | `step3-submit-error` | `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/ConfirmationStep.tsx` | form | branded (--ba-*) | none | none | - | `booking-success`, `confirmation-error` | `authenticated-booking.spec.ts`, `booking-appointment-end.spec.ts`, `booking-auto-journey.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-intake.spec.ts`, `booking-journey-basket.spec.ts`, `booking-submit-routing.spec.ts`, `booking-variable-duration.spec.ts`, `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/ErrorAlert.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | - | - | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/IntakeAnswersStep.tsx` | form | branded (--ba-*) | alert | aria-invalid | - | `intake-consent-error`, `intake-error-summary`, `intake-field-error-participants` | `booking-intake.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/IntakeQuestionField.tsx` | field / section message | branded (--ba-*) | none | aria-invalid | - | `intake-field-error` | `booking-intake.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/NewAvailabilityAlertForm.tsx` | form | branded (--ba-*) | none | none | - | `alert-composite-note`, `alert-resource-error`, `alert-submit`, `alert-submit-error` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/PersonalInfoStep.tsx` | field / section message | branded (--ba-*) | none | via ContactInfoFields | - | `personal-info-error` | `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/ResourcePicker.tsx` | page-level | branded (--ba-*) | none | none | - | `picker-load-error`, `picker-reselect-error` | `booking-chosen-resource.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/ServiceCard.tsx` | field / section message | branded (--ba-*) | alert | none | - | - | - | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/ServiceSelectionStep.tsx` | page-level | branded (--ba-*) | none | none | - | `step1-error`, `step1-form-error`, `step1-submit-error` | `availability-alert-email-link.spec.ts`, `booking-intake.spec.ts`, `booking-submit-routing.spec.ts`, `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/SubmitInfoForm.tsx` | form | branded (--ba-*) | alert | aria-invalid | - | - | - | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/SubmitInfoSuccessView.tsx` | form | branded (--ba-*) | none | none | - | `submit-info-success` | `guest-submit-info.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/booking/components/public/VariableDurationStep.tsx` | form | branded (--ba-*) | none | none | - | `duration-error`, `duration-quote-error` | `booking-variable-duration.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/platform/components/public/LeadFormFields.tsx` | form | branded (--ba-*) | alert | red outline only | - | `lead-form-captcha-banner`, `lead-form-validation-banner` | `guest-lead-form.spec.ts` | new story (Public hotsite, after Story 6) |
-| `features/platform/components/public/LeadFormPhoneField.tsx` | field / section message | branded (--ba-*) | none | none | - | `lead-form-phone-error` | - | new story (Public hotsite, after Story 6) |
-| `features/platform/components/public/LeadFormQuestionField.tsx` | field / section message | branded (--ba-*) | none | none | - | `lead-form-question-error` | - | new story (Public hotsite, after Story 6) |
-| `features/platform/components/public/LeadFormSuccess.tsx` | page-level | branded (--ba-*) | none | none | - | `lead-form-success` | `authenticated-lead-form.spec.ts`, `guest-lead-form.spec.ts`, `leads-golden-path.spec.ts`, `leads-search.spec.ts` | new story (Public hotsite, after Story 6) |
-| `shells/hotsite/components/ChatbotPanel.tsx` | page-level | branded (--ba-*) | none | none | - | `chatbot-validation-error` | - | new story (Public hotsite, after Story 6) |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `app/[slug]/login/page.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | - | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/AvailabilityAlertFields.tsx` | field / section message | branded (--ba-*) | alert | none | - | `alert-field-error`, `alert-weekday` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/AvailabilityAlertOutcomeViews.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | `availability-alert-back-to-site`, `availability-alert-view-alerts` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/AvailabilityStep.tsx` | field / section message | branded (--ba-*) | none | none | - | `step2-error` | `booking-auto-journey.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-journey-basket.spec.ts`, `booking-submit-routing.spec.ts`, `staff-new-booking.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/BookingForm.tsx` | form | branded (--ba-*) | none | via IntakeAnswersStep | - | `step3-submit-error` | `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/ConfirmationStep.tsx` | form | branded (--ba-*) | none | none | - | `booking-success`, `confirmation-error` | `authenticated-booking.spec.ts`, `booking-appointment-end.spec.ts`, `booking-auto-journey.spec.ts`, `booking-chosen-resource.spec.ts`, `booking-intake.spec.ts`, `booking-journey-basket.spec.ts`, `booking-submit-routing.spec.ts`, `booking-variable-duration.spec.ts`, `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/ErrorAlert.tsx` | page-level | branded (--ba-*) | alert | red outline only | - | - | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | focus |
+| `features/booking/components/public/IntakeAnswersStep.tsx` | form | branded (--ba-*) | alert | aria-invalid | - | `intake-consent-error`, `intake-error-summary`, `intake-field-error-participants` | `booking-intake.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | focus |
+| `features/booking/components/public/IntakeQuestionField.tsx` | field / section message | branded (--ba-*) | none | aria-invalid | - | `intake-field-error` | `booking-intake.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/NewAvailabilityAlertForm.tsx` | form | branded (--ba-*) | none | none | - | `alert-composite-note`, `alert-resource-error`, `alert-submit`, `alert-submit-error` | `availability-alert.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/PersonalInfoStep.tsx` | field / section message | branded (--ba-*) | none | via ContactInfoFields | - | `personal-info-error` | `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/ResourcePicker.tsx` | page-level | branded (--ba-*) | none | none | - | `picker-load-error`, `picker-reselect-error` | `booking-chosen-resource.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/ServiceCard.tsx` | field / section message | branded (--ba-*) | alert | none | - | - | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/ServiceSelectionStep.tsx` | page-level | branded (--ba-*) | none | none | - | `step1-error`, `step1-form-error`, `step1-submit-error` | `availability-alert-email-link.spec.ts`, `booking-intake.spec.ts`, `booking-submit-routing.spec.ts`, `guest-booking.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/SubmitInfoForm.tsx` | form | branded (--ba-*) | alert | aria-invalid | - | - | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/SubmitInfoSuccessView.tsx` | form | branded (--ba-*) | none | none | - | `submit-info-success` | `guest-submit-info.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/booking/components/public/VariableDurationStep.tsx` | form | branded (--ba-*) | none | none | - | `duration-error`, `duration-quote-error` | `booking-variable-duration.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/platform/components/public/LeadFormFields.tsx` | form | branded (--ba-*) | alert | red outline only | - | `lead-form-captcha-banner`, `lead-form-validation-banner` | `guest-lead-form.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/platform/components/public/LeadFormPhoneField.tsx` | field / section message | branded (--ba-*) | none | none | - | `lead-form-phone-error` | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/platform/components/public/LeadFormQuestionField.tsx` | field / section message | branded (--ba-*) | none | none | - | `lead-form-question-error` | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `features/platform/components/public/LeadFormSuccess.tsx` | page-level | branded (--ba-*) | none | none | - | `lead-form-success` | `authenticated-lead-form.spec.ts`, `guest-lead-form.spec.ts`, `leads-golden-path.spec.ts`, `leads-search.spec.ts` | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
+| `shells/hotsite/components/ChatbotPanel.tsx` | page-level | branded (--ba-*) | none | none | - | `chatbot-validation-error` | - | new story (Public hotsite, after Story 6) | inline in content (no pane) | none |
 
 ### A.12 Other
 
-| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner |
-|---|---|---|---|---|---|---|---|---|
-| `features/booking/model/booking-status.ts` | not feedback | SaaS | - | none | - | - | - | - |
-| `shared/components/ui/color-picker.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | - |
-| `shared/components/ui/pill-multi-select.tsx` | not feedback | SaaS | - | red outline only | - | - | - | - |
-| `shells/dashboard/components/Sidebar.tsx` | not feedback | SaaS | - | none | dashboard aside, sticky, no mobile bar | - | - | - |
+| File | Class | Skin | Role | Field marking | Action pane | Feedback `data-testid`s | E2E specs | Owner | Message placement | Scroll / focus |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `features/booking/model/booking-status.ts` | not feedback | SaaS | - | none | - | - | - | - | n/a | none |
+| `shared/components/ui/color-picker.tsx` | not feedback | SaaS | - | aria-invalid+red outline | - | - | - | - | n/a | none |
+| `shared/components/ui/pill-multi-select.tsx` | not feedback | SaaS | - | red outline only | - | - | - | - | n/a | none |
+| `shells/dashboard/components/Sidebar.tsx` | not feedback | SaaS | - | none | dashboard aside, sticky, no mobile bar | - | - | - | no own message (pane/layout only) | none |
 
