@@ -8,6 +8,21 @@
 
 ---
 
+## Follow-up milestones to write (reminders — nothing here is drafted yet)
+
+M27–M30 have numbers and outlines (§ Reserved follow-ups below) but **no milestone files and no stories**. Draft each one with the same milestone-drafting steps used for M25/M26 (group its UCs into stories, sequence the waves, write the stories, audit), working from the already-promoted canonical docs — no new `docs/discovery/` folder is needed unless the "Needs first" column says so.
+
+| Milestone | Write it when | Needs first |
+|---|---|---|
+| **M27** purge / discard / deactivation (UC-132, 141, 142) | **Before M26 launches** (a launch condition: M26-S39). The first possible erasure is 90 days after the first real suspension, which can only happen after launch. | A short discovery for the per-context deletion rules (what each of the nine contexts erases, what it keeps for fiscal reasons) and for who emits `TenantDeactivated`; the M17-S51 data inventory feeds it. |
+| **M29** Pix Automático + hosted card (UC-135, 143) | When the real Asaas production PJ account is live (M26-S39 observed) | The end-to-end Pix Automático verification in sandbox and production; for card, the spike's F2 checks (M25-S01). No new discovery. |
+| **M30** annual billing (UC-144, 145) | When the owner sets the annual prices | The annual price list. No new discovery. |
+| **M28** Stripe / US (no UC of its own) | When a Stripe account exists and the accountant has decided US sales-tax handling | The accountant's decision and real Stripe fees; a short discovery only if the tax decision changes how tax lines work. |
+
+Until M27 is written, `summary.canDiscard` stays `false` and the `billing-tenant-purge` cron stays disabled (see Non-Goals).
+
+---
+
 ## Non-Goals
 
 - **Purge, discard and deactivation (UC-132, UC-141, UC-142).** M27. The `billing.tenant_purge_*` tables already exist (M25-S03) but no M26 story reads or writes them. Consequences that M26 states rather than hides: `summary.canDiscard` is always `false` in M26 (no purge participant has shipped), UC-127 A3's second action is replaced by the honest "contact Ikaro" message, and the `purgeAt` clean-up date is shown on the suspended page but no job acts on it. The `billing-tenant-purge` trigger is **not** registered.
@@ -1938,6 +1953,7 @@ The go / no-go for charging real customers. The story is complete when each item
 - E2E: [ ] S35's suite green against the release candidate; the sandbox money-loop run observed once on staging
 - [ ] Checkov / Tfsec clean
 - [ ] Every item (1)–(9) recorded as observed in the PR description
+- [ ] **Follow-up gate:** `plan/M27-*.md` is drafted (its deletion-rules discovery done) before this story is marked done — see § Follow-up milestones to write; the first erasure can happen 90 days after the first real suspension
 
 ---
 
