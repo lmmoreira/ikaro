@@ -397,3 +397,9 @@ Mobile: drill-down page, bottom nav hidden.
 File: `16c-novo-agendamento-bloqueado.html` — Status: GAP (variant of `BookingBlockedNotice`), booking route EXISTS.
 Backend: `POST /v1/bookings` -> 403 `BILLING_TENANT_SUSPENDED`.
 Copy: "Esta empresa não está aceitando agendamentos no momento", "Voltar para minha conta".
+
+## Inline feedback in the action pane (`03c-cancel-confirm-feedback.html`, `03d-cancel-confirm-feedback-erro.html`; `CancelConfirmPage`)
+
+**Status:** ❌ Gap — TD57-S11. Drawn here so the customer account shows the same pattern as the dashboard; the pattern itself, its shared CSS (`shared/feedback-pane.css`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+
+Cancel errors move from a box above the content into a second card under the buttons card, inside the sticky `ActionPane`; the card only exists while there is a message. The heading sits inside the first card so it starts level with the pane's card. Open: customer mobile panes render in normal flow today; whether they adopt the fixed bottom bar is decided in TD57-S01 discovery.

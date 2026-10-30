@@ -96,3 +96,9 @@ Single-column `step-container` layout throughout (same wrapper `guest/prototypes
 - No LGPD erasure-before-expiry path — explicitly out of scope for M20 (see `plan/M20-LEAD-FORM-MODULE.md` Non-Goals).
 - No per-submission notification (email/webhook) to the manager for MVP — dashboard + list view only (CSV export also removed from scope, see Non-Goals).
 - ~~`NEXT_PUBLIC_TURNSTILE_SITE_KEY` must be added to the runtime-env allowlist.~~ — **Resolved.** It is in `PUBLIC_ENV_KEYS` in `apps/web/shared/lib/runtime-env/public-env.ts` (read via `getPublicEnv()`, not a raw build-time `NEXT_PUBLIC_*` read — TD29 precedent).
+
+## Branded inline feedback (`01j-erro-feedback.html`, `01k-sucesso-feedback.html`)
+
+**Status:** ❌ Gap — TD57-S06 (component), TD57-S16 (this form's migration). The pattern, its shared CSS (`shared/feedback-pane.css`, `.fb-ba*`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+
+The public hotsite has no shell and no `ActionPane`, so the message card sits directly under the submit button and reads `--ba-*` (font, radius). The offending field gets a red outline and its own message (`aria-invalid` + `aria-describedby`). Errors use `role="alert"`, success `role="status"`. Open: branded error colour (fixed semantic red here vs derived from tenant tokens).
