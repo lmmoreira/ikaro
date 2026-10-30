@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError, AuthError, ForbiddenError } from '@/shared/lib/api/errors';
 import {
   extractProblemCode,
+  resolveApiErrorFeedback,
   resolveErrorMessage,
   resolveErrorMessageFromApiError,
 } from './resolve-error-message';
@@ -134,6 +135,48 @@ describe('resolveErrorMessageFromApiError', () => {
   it('falls back to the generic message for a plain Error', () => {
     expect(resolveErrorMessageFromApiError(new Error('network down'), 'pt-BR')).toBe(
       'Algo deu errado. Tente novamente.',
+    );
+  });
+});
+
+describe('resolveApiErrorFeedback', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns the message and the field an ApiError names', () => {
+    const err = new ApiError(422, 'Invalid', {
+      code: 'TEST_NO_PARAM',
+      field: 'durationMinMinutes',
+    });
+
+    expect(resolveApiErrorFeedback(err, 'pt-BR')).toEqual({
+      message: 'Uma mensagem estática.',
+      field: 'durationMinMinutes',
+    });
+  });
+
+  it('returns no field when the ProblemDetail carries none', () => {
+    const err = new ApiError(409, 'Conflict', { code: 'TEST_NO_PARAM' });
+
+    expect(resolveApiErrorFeedback(err, 'en')).toEqual({ message: 'A static message.' });
+  });
+
+  it('returns the fallback message and no field for a plain Error', () => {
+    expect(resolveApiErrorFeedback(new Error('network down'), 'pt-BR')).toEqual({
+      message: 'Algo deu errado. Tente novamente.',
+    });
+  });
+
+  it('keeps resolveErrorMessageFromApiError returning the same message string', () => {
+    const err = new ApiError(422, 'Invalid', { code: 'TEST_NO_PARAM', field: 'x' });
+
+    expect(resolveErrorMessageFromApiError(err, 'pt-BR')).toBe(
+      resolveApiErrorFeedback(err, 'pt-BR').message,
     );
   });
 });

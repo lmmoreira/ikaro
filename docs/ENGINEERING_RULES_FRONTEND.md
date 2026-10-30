@@ -163,6 +163,37 @@ Treat this table as a starting point, not the full list — `ls apps/web/shared/
 
 ---
 
+## A form's error or success message lives in the action pane, never at the bottom of the form
+
+Every dashboard and customer-account screen reports a save, submit or action result through one shared pattern (TD57). Inline only — no toast, no new dependency. Build it from `ui/feedback-message`, `ui/action-pane`, `ui/field-feedback` and `shared/lib/feedback/use-form-feedback`; never draw a new `role="alert"` box. Reference: `journeys/manager/prototypes/feedback-pane/`.
+
+| Surface | Rule |
+|---|---|
+| **Form with a primary action** | The form-level error and success render in a second card **below the buttons card, inside `ActionPane`**. On desktop the pane is `lg:sticky lg:top-6`, so the message follows the scroll. On mobile the fixed bottom bar renders it above the buttons, `max-height` about 6.5rem with scroll. The card exists only while there is a message. |
+| **Roles** | Error `role="alert"`, success `role="status"` (`FeedbackMessage` sets both). Success persists until the next edit: the panel calls `clear()` from its `patch()`; no auto-fade. |
+| **Field level** | The offending input gets `aria-invalid` and `aria-describedby` (`fieldProps(name)`), the `FIELD_INVALID_CLASS` outline, and a `FieldFeedback` under it (`id={fieldErrorId(name)}`). The first invalid field is scrolled to (`block: 'center'`) and focused. The error comes from the server (`setFromApiError(err, locale)` reads `ProblemDetail.field`) or from client validation (`setFieldErrors({ name: message })`). A `field` the form never registered leaves only the form-level message. |
+| **Row action in a list** | When the action changes a status the row already shows (activate, deactivate, approve), the changed badge or button *is* the confirmation: no success text. An action with no visible change (resend invite) gets a short `FeedbackMessage size="inline"` beside the button. A failure shows the backend-resolved message inline beside the row, never a fixed string. |
+| **Page level** | A load failure or a route `error.tsx` is a page-level `FeedbackMessage` with `onRetry`. Never exempt. |
+| **Alignment** | Every tab or section body starts with a card level with the pane's card; intro text lives *inside* that card; only the tab bar sits above the grid. |
+| **Public hotsite** | `FeedbackMessage` reads no `--ba-*`, so it is dashboard and account only. The branded counterpart is TD57-S06; until it lands the hotsite keeps `ErrorAlert variant="hotsite"`. |
+
+```tsx
+const feedback = useFormFeedback();
+
+<input aria-label="Mínimo" {...feedback.fieldProps('durationMinMinutes')} />
+<FieldFeedback id={feedback.fieldErrorId('durationMinMinutes')}>
+  {feedback.fieldErrors.durationMinMinutes}
+</FieldFeedback>
+
+<ActionPane actions={<SaveButton />} feedback={feedback.feedback} />
+```
+
+- `ActionPane` takes `actions` for the desktop card and an optional `mobileActions` for the bar (default: the same node; pass `null` for no bar). Desktop and mobile each render the controls, so give the two copies different `data-testid`s and scope an E2E click to `action-pane-desktop` (`docs/ENGINEERING_RULES_TESTING.md` § On a customer account or dashboard detail page every action exists twice).
+- The mobile bar sits at `bottom-0` by default. A screen shown above the dashboard `BottomNav` passes `mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS}` (`shells/dashboard/utils/mobile-action-bar.ts`); `shared/` imports nothing from `shells/`, so the caller supplies it.
+- `registerField` takes any `HTMLElement`. A control that forwards no ref (`color-picker`, `pill-multi-select`, `time-picker`) attaches it to its wrapper; focus falls to the first focusable descendant.
+- A spec that exercises `focusFirstInvalid` stubs `HTMLElement.prototype.scrollIntoView` (jsdom has none) with `Object.defineProperty`, and asserts `{ block: 'center' }` (§ `scrollIntoView({ block: 'start' })` in `docs/ENGINEERING_RULES_TESTING.md`).
+- A new `FeedbackMessage` title that comes from an API error goes through `resolveApiErrorFeedback` / `resolveErrorMessageFromApiError`; never render `error.message` from the backend.
+
 ## Every `apps/web` route renders per request — verify the rendering mode before designing around a cache
 
 The root layout sets `export const dynamic = 'force-dynamic'` (`apps/web/app/layout.tsx`, with its reasoning in the comment above it), so a production `next build` lists every HTML route as `ƒ` (dynamic), `app/[slug]/page.tsx` and `app/[slug]/booking/page.tsx` included. A page-level `export const revalidate = 300` does not make that page's HTML cacheable. What is cached is the **data**: `fetchManifest` and `fetchServices` carry `next.revalidate` and tags, and the hotsite and booking pages share them.

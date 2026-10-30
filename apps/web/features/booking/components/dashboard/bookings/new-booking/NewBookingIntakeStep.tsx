@@ -8,9 +8,9 @@ import {
   type AttendeeDraft,
   type IntakeAnswersValue,
 } from '@/features/booking/model/intake-answers';
-import { NewBookingErrorBanner } from './NewBookingErrorBanner';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { INPUT_CLASS, LABEL_CLASS } from './new-booking-styles';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface NewBookingIntakeStepProps {
   readonly schema: ServiceIntakeSchemaVersion;
@@ -171,7 +171,7 @@ export function NewBookingIntakeStep({
         <p className="mt-1 text-sm text-gray-600">{tn('intakeOptional')}</p>
       </div>
 
-      {serverError && <NewBookingErrorBanner focusOnMount>{serverError}</NewBookingErrorBanner>}
+      {serverError && <FeedbackMessage focusOnMount title={serverError} />}
 
       {schema.questions.map((question) => (
         <QuestionField

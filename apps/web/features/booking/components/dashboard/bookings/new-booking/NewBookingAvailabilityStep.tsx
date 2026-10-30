@@ -5,9 +5,9 @@ import type { AvailableSlot, ResourceSelectionItem } from '@ikaro/types';
 import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import { AvailabilityCarousel } from '@/features/booking/components/public/AvailabilityCarousel';
 import { SlotPicker } from '@/features/booking/components/public/SlotPicker';
-import { NewBookingErrorBanner } from './NewBookingErrorBanner';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { SECTION_LABEL_CLASS } from './new-booking-styles';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 const CAROUSEL_DAYS = 14;
 
@@ -100,11 +100,7 @@ export function NewBookingAvailabilityStep({
         </section>
       )}
 
-      {error && (
-        <NewBookingErrorBanner focusOnMount testId="step2-error">
-          {error.message}
-        </NewBookingErrorBanner>
-      )}
+      {error && <FeedbackMessage focusOnMount testId="step2-error" title={error.message} />}
     </NewBookingStepLayout>
   );
 }
