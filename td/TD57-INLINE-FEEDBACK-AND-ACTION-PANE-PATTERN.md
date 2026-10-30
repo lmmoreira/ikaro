@@ -43,7 +43,7 @@ A save that fails silently from the user's viewpoint is a support ticket and a l
 
 - ~~Whether any branded public hotsite surface should adopt the shared component or keep `ErrorAlert`~~ — resolved: branded surfaces use the Story 6 component (see 5a).
 - Branded error colour (Story 6): a fixed semantic red or derived from tenant `--ba-*` tokens, and how contrast is guaranteed against an arbitrary tenant background.
-- Whether the window-narrowing hint dropped from `BOOKING_SERVICE_BOOKING_POLICY_INVALID`'s catalog text should become a static hint on the booking-window card, or whether the backend should split the window violation into its own error code (Story 2).
+- ~~Whether the window-narrowing hint dropped from `BOOKING_SERVICE_BOOKING_POLICY_INVALID`'s catalog text should become a static hint or a separate backend error code~~ — resolved (2026-10-30): the code is split per reason in Story 2, window codes carry the business limit in `params`; no static hint.
 - The exact mobile-bar layout when the feedback is long (Story 1).
 
 ### Story 0 — Audit every error/success surface and fix the migration scope ⚪ ✅ Done
@@ -144,64 +144,112 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — Service edit screen: feedback in the pane, `CUSTOMER_SELECTED` validation, reworded error 🔴
+### Story 2 — Service edit screen: feedback in the pane, specific policy errors, pre-send validation 🔴
 
-**Agent:** frontend-ts
+**Agent:** backend-ts + frontend-ts
 **Complexity:** L
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ERROR_CATALOG.md` § Code Origins; `docs/TESTING_STRATEGY.md` § Running Playwright locally; `docs/USE_CASES.md` (the service booking-policy UC — `grep -n 'booking policy'`)
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; `docs/AGENT_PATTERNS.md` Pattern #25; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ERROR_CATALOG.md` § Code Origins; `docs/ENGINEERING_RULES_BACKEND.md` (error mapping); `docs/TESTING_STRATEGY.md` § Running Playwright locally; `docs/USE_CASES.md` UC-055 (the service booking policy) and its A5 flow; `docs/API_CONTRACTS.md` § PATCH `/v1/services/:id/booking-policy`; `docs/BUSINESS_LOGIC_REFERENCE.md` (the booking-window rule)
 **Dependencies:** Story 1
-**Pattern:** extend the existing registered-action descriptor (`useRegisterTabAction` / `ServiceTabAction`) with a `feedback` field; plain composition otherwise
+**Pattern:** extend the existing registered-action descriptor (`useRegisterTabAction` / `ServiceTabAction`) with a `feedback` field; one `ServiceBookingPolicyInvalidError` class whose `reason` selects the code, the `field` and the `params` (the precedent is `RecurringBookingScheduleTermExceededError`); plain composition otherwise
 **Discovered:** 2026-10-29, manager report on the service edit screen
-**Root cause:** `ServiceBookingPolicyPanel.tsx` keeps a local `error` state and renders it after the four policy cards (~lines 101–110); `resolveErrorMessageFromApiError` drops `ProblemDetail.field`; nothing validates the `CUSTOMER_SELECTED` precondition client-side even though the backend enforces it; the catalog text for `BOOKING_SERVICE_BOOKING_POLICY_INVALID` carries an unrelated sentence.
+**Root cause:** `ServiceBookingPolicyPanel.tsx` keeps a local `error` state and renders it after the four policy cards (~lines 101–110); `resolveErrorMessageFromApiError` drops `ProblemDetail.field`; nothing validates the `CUSTOMER_SELECTED` precondition client-side even though the backend enforces it; `ServiceBookingPolicyInvalidError` carries seven different reasons under one code, so the catalog can hold only one vague sentence for all of them (the window-widening sentence was a patch for three of the seven).
+
+**Decisions locked in discovery (2026-10-30):**
+- **One story, full-stack.** The vague catalog text is fixed at its root: the code is split per reason in this story, not in a follow-up. The old code `BOOKING_SERVICE_BOOKING_POLICY_INVALID` is removed outright (no production yet; its only consumers are the web app and one integration spec), not kept as an alias.
+- **The backend `detail` is never shown** (developer English, unlocalized). Specificity comes from per-reason codes, from `params` interpolated into the translated text, and from client-side validation.
+- **No static booking-window hint.** The window codes carry the business limit in their text, so a permanent hint would repeat it.
+- **Pane copy follows the prototype:** error title "Não foi possível salvar" (one shared key) with the resolved message as body; success title "Alterações salvas" with a short per-tab body (for example "As políticas do serviço foram atualizadas."). Detalhes gets a success message too (it has none today). The panels build the `FeedbackModel` themselves, since `useFormFeedback().feedback` carries a title only.
+- **Detalhes:** only its form-level result (server error, activate error, the new success) moves to the pane. Its field-level errors (`service-name-error`, `service-price-error`, …) stay as they are, because `ServiceFormFields` is shared with `ServiceCreatePage`; Story 13 migrates that component once, with the create page, and owns Detalhes' field marking from a server `field`.
+- **Pre-send validation** covers the three rules the web can check itself (see below). Zero or negative values are left to the backend, whose `field` marks the input.
+- **Field messages:** a server error with a `field` shows the same translated text under the input as in the pane. Field-level `role="alert"` messages in the panels become `FieldFeedback` (no role, `aria-describedby`); `EligiblePoolPicker`'s stale-pool text is a section notice and keeps its text without the role.
 
 **Description:**
-Migrate every tab of `ServiceEditPage` to the shared pattern.
+Migrate every tab of `ServiceEditPage` to the shared pattern and make the policy errors specific.
 
-- `ServiceTabAction` (`service-tab-action.ts`) gains an optional `feedback` (the `FeedbackMessage` model from Story 1). `useRegisterTabAction` registers it with the action; `ServiceEditActionPanels` renders it through the shared `ActionPane` (desktop aside and mobile bar). The four config panels (`ServiceResourceRequirementsPanel`, `ServiceBookingPolicyPanel`, `ServiceIntakeSchemaPanel`, `ServicePublicPageTab`) stop rendering their own bottom boxes (`policy-error`, `policy-saved`, `public-page-saved`, `intake-published`, …); their existing "clear on next edit" logic is kept. Detalhes's `service-submit-error` (`ServiceFormFields`) and `fieldErrors` (`mapSubmitErrors`) move to the same pane slot.
-- **Server field errors**: `useFormFeedback` maps `ProblemDetail.field` to the panel's input; the Políticas fields register themselves so `durationMinMinutes` marks and focuses the min-duration input.
-- **Pre-send validation**: when `durationPolicy === 'CUSTOMER_SELECTED'` and any of `durationMinMinutes`, `durationMaxMinutes`, `durationIncrementMinutes` is empty, the save is blocked client-side and all missing fields are marked together with the first focused. The backend rule remains the safety net. A policy with `FIXED` duration is never blocked by this check.
-- **Reworded catalog text** for `BOOKING_SERVICE_BOOKING_POLICY_INVALID` in both `packages/i18n/locales/pt-BR/errors.json` and `en/errors.json`: keep "incomplete or invalid — check the duration, pricing and booking-window fields", drop the booking-window-widening sentence. That guidance moves to a static hint on the booking-window card (or a dedicated error code — open item from "Chosen approach", resolved in discovery). The exhaustiveness spec requires both locales in the same change.
+*Backend and types*
+- `ServiceBookingPolicyInvalidError` keeps one class. Its reason selects the code, the `field` and (for the window reasons) `params`:
 
-**Backend use case steps:** none
-**Backend HTTP surface:** none — reuses `PUT`/`PATCH` service booking-policy endpoint unchanged
-**BFF endpoint spec:** none — reuses the existing endpoint
-**Prototype references:** `journeys/manager/prototypes/` service-edit prototype, if present — checked in discovery
-**New migration / i18n keys / env vars / feature flags:** reworded `BOOKING_SERVICE_BOOKING_POLICY_INVALID` (both locales); possibly one static window hint key in `web.json` (both locales); no migration, env var or flag
+| Reason | New code | `field` | `params` |
+|---|---|---|---|
+| `custom-duration-details-required` | `BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED` | `durationMinMinutes` | none |
+| `duration-range-invalid` | `BOOKING_SERVICE_POLICY_DURATION_RANGE_INVALID` | `durationMaxMinutes` | none |
+| `pricing-increment-details-required` | `BOOKING_SERVICE_POLICY_PRICING_DETAILS_REQUIRED` | `pricingIncrementMinutes` | none |
+| `per-time-increment-requires-custom-duration` | `BOOKING_SERVICE_POLICY_INCREMENT_PRICING_REQUIRES_CUSTOM_DURATION` | `durationPolicy` | none |
+| `max-advance-exceeds-tenant` | `BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT` | `maxBookingAdvanceDaysOverride` | `{ maxAdvanceDays }` (the business limit) |
+| `min-advance-below-tenant` | `BOOKING_SERVICE_POLICY_MIN_ADVANCE_BELOW_TENANT` | `minBookingAdvanceHoursOverride` | `{ minAdvanceHours }` (the business limit) |
+| `booking-window-empty` | `BOOKING_SERVICE_POLICY_WINDOW_EMPTY` | `minBookingAdvanceHoursOverride` | the effective `minAdvanceHours` and `maxAdvanceDays` |
+
+- `SERVICE_BOOKING_POLICY_INVALID` leaves `BookingErrorCode` and `packages/types/src/error-codes.ts`; the seven new codes join the same union. The error-mapper entry (422) stays class-based, so it needs no new branch. `assertBookingWindowOverridesValid` passes the tenant limits to the error. Each code gets a pt-BR and an en text in `errors.json` (placeholders matching `params`), both in the same change.
+- Docs synced in the same change: `docs/API_CONTRACTS.md` (the booking-policy PATCH 422 list), `docs/USE_CASES.md` (UC-055 A5), `docs/BUSINESS_LOGIC_REFERENCE.md` (the booking-window section), and the old code's name in `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md`.
+
+*Web*
+- `ServiceTabAction` (`service-tab-action.ts`) gains an optional `feedback` (the `FeedbackModel` from Story 1). `useRegisterTabAction` registers it with the action; `ServiceEditActionPanels` renders it through the shared `ActionPane` (desktop aside and mobile bar; the existing 2-column button grid becomes `mobileActions`). The four config panels (`ServiceResourceRequirementsPanel`, `ServiceBookingPolicyPanel`, `ServiceIntakeSchemaPanel`, `ServicePublicPageTab`) stop rendering their own bottom boxes (`policy-error`, `policy-saved`, `public-page-error`, `public-page-saved`, `resource-requirements-error`, `resource-requirements-saved`, `intake-error`, `intake-published`); their existing "clear on next edit" logic is kept. Detalhes's `service-submit-error` moves to the same pane slot for the edit screen (the create page keeps its own until Story 13).
+- **Server field errors:** each panel owns a `useFormFeedback`; the Políticas inputs register with `fieldProps` so any of the six `field` values above marks and focuses its input.
+- **Pre-send validation** (a new `policy-validation.ts`, unit-tested): the save is blocked, with no API call, and every failing field is marked together with the first focused, when
+  1. `durationPolicy === 'CUSTOMER_SELECTED'` and any of `durationMinMinutes`, `durationMaxMinutes`, `durationIncrementMinutes` is empty ("Informe a duração mínima." and the like);
+  2. `durationMaxMinutes < durationMinMinutes` ("A duração máxima deve ser maior ou igual à mínima.");
+  3. `pricingPolicy === 'PER_TIME_INCREMENT'` and `pricingIncrementMinutes` or `pricePerIncrementAmount` is empty.
+  A `FIXED` duration is never blocked by rule 1 or 2. The backend rules remain the safety net.
+
+**Backend use case steps:** none new — `UpdateServiceBookingPolicyUseCase` and the aggregate keep their flow; only the error they raise changes shape
+**Backend HTTP surface:** none new — `PATCH /v1/services/:id/booking-policy` keeps its path and body; its 422 now carries one of the seven codes (and `params` for the window ones)
+**BFF endpoint spec:** none — the BFF already forwards `code`, `field` and `params` of a backend problem unchanged (precedent: `RECURRING_SCHEDULE_TERM_EXCEEDED`); implementation confirms it with the window case end to end
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` screens 01, 01b, 01c, 01d, 07 and `dev-notes.md` (Screen 01 / 01b / 01c / 01d section); journey `journeys/manager/feedback-pane.md`
+**New migration / i18n keys / env vars / feature flags:** no migration, env var or flag. Seven new codes in `packages/i18n/locales/{pt-BR,en}/errors.json` (the old key removed); `web.json` (both locales): the shared error title, the success title, one success body per tab, the pre-send validation messages
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/dashboard/services/service-tab-action.ts` + `service-tab-action.spec.tsx`
-- `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` + `ServiceEditPanels.spec.tsx`
-- `apps/web/features/booking/components/dashboard/services/ServiceEditPage.tsx` + `ServiceEditPage.spec.tsx`
-- `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` + `ServiceBookingPolicyPanel.spec.tsx`
-- `apps/web/features/booking/components/dashboard/services/PolicyDurationPricingCard.tsx` + spec
-- `apps/web/features/booking/components/dashboard/services/policy-card-helpers.ts` (or a new `policy-validation.ts` + spec)
-- `apps/web/features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx`, `ServiceIntakeSchemaPanel.tsx`, `ServicePublicPageTab.tsx` + specs
-- `apps/web/features/booking/components/dashboard/services/ServiceFormFields.tsx` + spec
-- the field-level files owned by Story 2 + 3 in Appendix A.1 (`PolicyWhoHowCard`, `ServiceBufferAfterMinutesField`, `ServiceResourceTypeFields`, `IntakeQuestionsCard`, `ServiceLegsPanel`, `ServicePriceDurationFields`, `EligiblePoolPicker`, `ServiceEditDetailsTab`) + specs, for their error `role` and field marking
-- `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json`; `web.json` (both locales) if the hint key is added
-- `apps/web/e2e/services-manage.spec.ts` and `apps/web/e2e/services-resource-config.spec.ts` (update ids; add the `CUSTOMER_SELECTED` scenario)
+- Backend and types:
+  - `packages/types/src/error-codes.ts`
+  - `apps/backend/src/contexts/booking/domain/errors/booking-service-policy.error.ts`
+  - `apps/backend/src/contexts/booking/application/use-cases/booking-window.helpers.ts` + its spec
+  - `apps/backend/src/contexts/booking/domain/service.spec.ts`
+  - `apps/backend/src/contexts/booking/application/use-cases/update-service-booking-policy.use-case.spec.ts`
+  - `apps/backend/src/contexts/booking/infrastructure/http/booking-error.mapper.spec.ts`
+  - `apps/backend/src/contexts/booking/infrastructure/controllers/service.controller.integration.spec.ts`
+  - an `.http` request file only if the policy PATCH already has one
+- Web, services folder `apps/web/features/booking/components/dashboard/services/`:
+  - `service-tab-action.ts` + `service-tab-action.spec.tsx`
+  - `ServiceEditPanels.tsx` + `ServiceEditPanels.spec.tsx`
+  - `ServiceEditPage.tsx` + `ServiceEditPage.spec.tsx`
+  - `ServiceBookingPolicyPanel.tsx` + `ServiceBookingPolicyPanel.spec.tsx`
+  - `PolicyDurationPricingCard.tsx` + spec, `PolicyDurationPolicyField.tsx` + spec, `PolicyConfirmationAndWindowCards.tsx` + spec
+  - a new `policy-validation.ts` + `policy-validation.spec.ts`
+  - `ServiceResourceRequirementsPanel.tsx`, `ServiceIntakeSchemaPanel.tsx`, `ServicePublicPageTab.tsx` + specs
+  - `ServiceEditDetailsTab.tsx` + spec (it stops passing `submit`; `ServiceFormFields.tsx` is not changed)
+  - the field-level files owned by Story 2 + 3 in Appendix A.1 (`PolicyWhoHowCard`, `ServiceBufferAfterMinutesField`, `ServiceResourceTypeFields`, `IntakeQuestionsCard`, `EligiblePoolPicker`) + specs, for their error `role` and field marking
+- `packages/i18n/locales/pt-BR/errors.json`, `packages/i18n/locales/en/errors.json`, `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json`
+- `apps/web/e2e/services-resource-config.spec.ts` (all the `*-saved`, `*-error`, `intake-published` assertions move to `form-feedback`; add the two scenarios below) and `apps/web/e2e/service-public-page.spec.ts` (`public-page-saved` → `form-feedback`)
+- Docs: `docs/API_CONTRACTS.md`, `docs/USE_CASES.md`, `docs/BUSINESS_LOGIC_REFERENCE.md`, `plan/M22-MULTIVERTICAL-SERVICE-AVAILABILITY_IMPLEMENTATION_DETAILS_IA.md`; the journey sync (`journeys/manager/feedback-pane.md` Pages table row for the service edit page, `dev-notes.md` status and file map)
+- Stale-reference sweep for `BOOKING_SERVICE_BOOKING_POLICY_INVALID`, `policy-error`, `policy-saved`, `public-page-saved`, `resource-requirements-saved`, `intake-published` across `docs/*.md`, `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/**`, `scripts/**` (fix any hit in the same change)
 
 **Acceptance criteria — product:**
-- [ ] Saving Políticas with `CUSTOMER_SELECTED` and any duration field empty does not call the API; the missing fields get a red outline and message, the first is focused, and the pane shows the form-level error without scrolling.
-- [ ] A backend 422 with a `field` marks and focuses that input and shows the message in the pane.
-- [ ] After a successful save, the pane shows "Políticas salvas" and the message disappears on the next edit.
+- [ ] Saving Políticas with `CUSTOMER_SELECTED` and any duration field empty does not call the API; the missing fields get a red outline and a specific message, the first is focused, and the pane shows the form-level error without scrolling.
+- [ ] Saving with a maximum duration below the minimum, or with per-increment pricing missing its increment or price, is blocked the same way, with a message naming the problem.
+- [ ] A backend 422 with a `field` marks and focuses that input and shows the translated message in the pane; a window violation names the business limit ("… até {maxAdvanceDays} dias …").
+- [ ] After a successful save, the pane shows "Alterações salvas" with the tab's body, and the message disappears on the next edit.
 - [ ] Every other tab (Detalhes, Recursos, Formulário, Página pública) shows its error/success in the pane, on desktop and in the mobile bar.
 - [ ] Scrolling the middle column keeps the pane and its feedback in view.
-- [ ] The reworded catalog text no longer mentions widening the booking window; the window-narrowing hint remains visible on the booking-window card.
+- [ ] No message mentions the old catch-all wording; the backend `detail` text is never rendered.
 
 **Acceptance criteria — technical:**
-- Unit:
-  - [ ] `ServiceBookingPolicyPanel.spec.tsx`: `CUSTOMER_SELECTED` + empty min/max/increment blocks the mutation and marks all three; a server `field: durationMinMinutes` marks only that input and focuses it
-  - [ ] `ServiceBookingPolicyPanel.spec.tsx`: `FIXED` duration with empty min/max/increment is not blocked (negative guarantee, own test)
-  - [ ] `ServiceBookingPolicyPanel.spec.tsx`: success then edit clears the success message
+- Unit (backend):
+  - [ ] `service.spec.ts`: each of the four aggregate reasons throws `ServiceBookingPolicyInvalidError` with its own code and `field`
+  - [ ] `booking-window.helpers` spec: the three window reasons carry their code, `field` and the tenant limits in `params`
+  - [ ] `booking-error.mapper.spec.ts`: the error maps to 422 with `code`, `field` and `params` (window case)
+  - [ ] `update-service-booking-policy.use-case.spec.ts` keeps passing with the new codes
+- Unit (web):
+  - [ ] `policy-validation.spec.ts`: each of the three rules, with all failing fields reported together; `FIXED` with empty min/max/increment is not blocked (negative guarantee, own test)
+  - [ ] `ServiceBookingPolicyPanel.spec.tsx`: a blocked save makes no mutation call and marks and focuses; a server `field: durationMinMinutes` marks only that input; a server `field: maxBookingAdvanceDaysOverride` marks the window input; success then edit clears the message
   - [ ] `service-tab-action.spec.tsx`: the registered action carries `feedback` and updates when it changes; unmount registers `null`
-  - [ ] `ServiceEditPanels.spec.tsx`: feedback renders below the buttons in the aside and in the mobile bar
-  - [ ] one spec per migrated panel asserting its old bottom box (`policy-error`, `policy-saved`, …) no longer renders
-  - [ ] `error-codes-exhaustiveness.spec.ts` passes with the reworded text in both locales
-- Integration: none — frontend story
-- Tenant isolation: none — no data access
-- E2E:
-  - [ ] Playwright (`services-manage.spec.ts`): Políticas with `CUSTOMER_SELECTED` and empty fields → error visible in the pane without scrolling, first invalid field focused; filling them and saving → "Políticas salvas" in the pane. Local run only after asking (CLAUDE.md §0)
+  - [ ] `ServiceEditPanels.spec.tsx`: feedback renders below the buttons in the aside and above them in the mobile bar
+  - [ ] one spec per migrated panel asserting its old box (`policy-error`, `policy-saved`, …) no longer renders
+  - [ ] `error-codes-exhaustiveness.spec.ts` passes with the seven codes in both locales and the old key gone
+- Integration: `service.controller.integration.spec.ts` — the existing "override looser than the tenant window" case asserts the new code and the limit in `params`; one case per remaining aggregate reason is covered at unit level (the HTTP path is the same)
+- Tenant isolation: unchanged — no new data access; the existing isolated-tenant case in the integration spec still asserts that nothing is stored after the 422
+- E2E (local run only after asking — approved in discovery, 2026-10-30; `/tmp/jest_rs` cleared first, stack stopped afterwards):
+  - [ ] `services-resource-config.spec.ts`: Políticas with `CUSTOMER_SELECTED` and empty fields → error visible in the pane without scrolling, first invalid field focused; filling them and saving → "Alterações salvas" in the pane
+  - [ ] `services-resource-config.spec.ts`: a maximum advance above the business limit → the specific message with the limit in the pane and the input marked
+  - [ ] the existing assertions in `services-resource-config.spec.ts` and `service-public-page.spec.ts` pass with the new `form-feedback` ids
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
@@ -707,7 +755,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
 
 **Description:**
-Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). 
+Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). **Detalhes' field-level marking from a server `field` is owned here:** Story 2 deliberately left `ServiceFormFields` untouched (it is shared with `ServiceCreatePage`), so this story migrates the component once for both the create and the edit screens (`fieldProps`/`FieldFeedback`, `setFromApiError`) and extends `ServiceEditDetailsTab`/`ServiceEditPage` to match. 
 
 **Backend use case steps:** none
 **Backend HTTP surface:** none

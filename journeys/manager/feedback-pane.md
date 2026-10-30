@@ -46,4 +46,4 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 
 - [ ] Customer screens: fixed mobile bar, or keep the in-flow layout they have today? `ActionPane` ships only the fixed bar; decided in TD57-S11
 - [ ] Branded error colour: fixed semantic red or derived from tenant tokens, and how contrast is guaranteed (TD57-S06)
-- [ ] Window-narrowing hint dropped from `BOOKING_SERVICE_BOOKING_POLICY_INVALID`: static hint on the window card, or a separate backend error code (TD57-S02)
+- [x] Window-narrowing hint: resolved in TD57-S02 discovery (2026-10-30) — the catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID` is split into seven per-reason codes; the window codes carry the business limit in their text; no static hint

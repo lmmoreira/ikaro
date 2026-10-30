@@ -30,7 +30,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 
 ## Screen 01 / 01b / 01c / 01d — Service edit, Políticas (`ServiceEditPanels` + `ActionPane`)
 
-**BFF call:** `PATCH /v1/services/:id` → `422 BOOKING_SERVICE_BOOKING_POLICY_INVALID`, `field: "durationMinMinutes"`.
+**BFF call:** `PATCH /v1/services/:id/booking-policy` → `422` with a per-reason code (TD57-S02 replaced the catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID`), e.g. `BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED` with `field: "durationMinMinutes"`; the window codes carry the business limit in `params`. The web also blocks the three checkable rules before sending (empty custom-duration fields, max below min, per-increment pricing missing details).
 
 **States:** idle (01) → submit error (01b, 01c) → success (01d). `patch()` on any edit clears the message.
 
