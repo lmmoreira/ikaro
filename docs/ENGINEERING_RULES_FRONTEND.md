@@ -185,6 +185,8 @@ The skeleton (hook, field marking, `ActionPane` with desktop and mobile actions)
 - `registerField` takes any `HTMLElement`. A control that forwards no ref (`color-picker`, `pill-multi-select`, `time-picker`) attaches it to its wrapper; focus falls to the first focusable descendant.
 - A spec that exercises `focusFirstInvalid` stubs `HTMLElement.prototype.scrollIntoView` (jsdom has none) with `Object.defineProperty`, and asserts `{ block: 'center' }` (§ `scrollIntoView({ block: 'start' })` in `docs/ENGINEERING_RULES_TESTING.md`).
 - A new `FeedbackMessage` title that comes from an API error goes through `resolveApiErrorFeedback` / `resolveErrorMessageFromApiError`; never render `error.message` from the backend.
+- **A message that must name a value** (a business limit the request exceeded) takes it from the problem's `params`: the backend error carries `params`, its mapper forwards them, `errors.json` holds the `{placeholder}` and `resolveApiErrorFeedback` interpolates them. Never read the backend `detail` to build the text.
+- **A panel that does not own the action pane** (the service edit tabs register their Save with the page) passes its feedback up with the action: `useRegisterTabAction(onActionChange, { …, feedback })` where `feedback` comes from `useTabFeedback(form)` (`features/booking/components/dashboard/services/service-tab-action.ts`). It is memoized on the message strings, so a re-render never re-registers an unchanged message.
 
 ## Every `apps/web` route renders per request — verify the rendering mode before designing around a cache
 

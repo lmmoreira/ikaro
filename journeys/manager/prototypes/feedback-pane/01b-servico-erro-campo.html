@@ -29,7 +29,7 @@
 
   <!--
     COMPONENT: ServiceEditPage + ServiceBookingPolicyPanel + ActionPane + FeedbackMessage
-    FILE:      apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx  (EXISTS — pane + mobile bar to be extracted)
+    FILE:      apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx  (DONE — TD57-S02: pane + mobile bar render through ActionPane)
                apps/web/shared/components/ui/action-pane.tsx, feedback-message.tsx  (EXISTS — TD57-S01)
     BFF CALL:  PATCH /v1/services/:id  → 422 BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED, field "durationMinMinutes"
     PATTERN:   feedback = a SECOND card under the buttons card, rendered only when there is a message.

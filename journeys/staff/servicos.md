@@ -33,7 +33,7 @@ flowchart TD
     EditForm --> EditSubmit(("Click 'Salvar alterações'"))
     EditSubmit --> EditCheck{"Válido?"}
     EditCheck -- "não" --> EditForm
-    EditCheck -- "sim → 200" --> EditSuccess["✅ Permanece na edição<br/>Aba salva in-place, dot de alteração some"]
+    EditCheck -- "sim → 200" --> EditSuccess["✅ Permanece na edição<br/>Aba salva in-place, dot de alteração some,<br/>'Alterações salvas' no painel de ações"]
 
     EditForm --> DeactivateBtn(("Click 'Desativar serviço'"))
     DeactivateBtn --> DeactivateConfirm["/dashboard/services/[id]/deactivate<br/>Confirmação de desativação"]
