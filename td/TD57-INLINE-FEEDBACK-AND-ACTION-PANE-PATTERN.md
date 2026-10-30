@@ -85,7 +85,7 @@ The output is an appendix to this file (`## Appendix A — Audit inventory`) and
 - [ ] Completeness check: re-running the recorded enumeration commands and diffing their output against the paths in Appendix A shows zero missing files (the objective pin for "every file is covered")
 - [ ] `doc-link-integrity` / `docs-audit` clean for the edited file
 
-### Story 1 — Shared feedback component, `ActionPane`, `useFormFeedback` and the `{ message, field }` resolver 🔴
+### Story 1 — Shared feedback component, `ActionPane`, `useFormFeedback` and the `{ message, field }` resolver 🔴 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
