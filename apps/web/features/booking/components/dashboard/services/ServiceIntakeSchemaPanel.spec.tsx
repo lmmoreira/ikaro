@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { useState } from 'react';
 import type { ServiceTabAction } from './service-tab-action';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ServiceIntakeSchemaPanel } from './ServiceIntakeSchemaPanel';
 
 // The panel no longer draws its own Save/Publish button — it registers the action with
@@ -26,6 +26,7 @@ function IntakePanelWithAction(
       >
         {action?.label}
       </button>
+      <TabActionFeedback feedback={action?.feedback} />
     </>
   );
 }
@@ -190,7 +191,9 @@ describe('ServiceIntakeSchemaPanel', () => {
       id: 'svc-1',
       body: expect.objectContaining({ consentText: 'v2' }),
     });
-    expect(await screen.findByTestId('intake-published')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
+    expect(screen.queryByTestId('intake-published')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('intake-error')).not.toBeInTheDocument();
     expect(getByVersion(container, 1)).toBeInTheDocument();
     expect(screen.getByTestId('intake-version-current')).toHaveTextContent('2');
   });
@@ -241,7 +244,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     await user.type(screen.getByTestId('intake-consent-text'), 'v7');
     await user.click(screen.getByTestId('intake-publish'));
 
-    expect(await screen.findByTestId('intake-published')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(getByVersion(container, 6)).toBeInTheDocument();
     expect(getByVersion(container, 2)).toBeInTheDocument();
     expect(
@@ -280,7 +283,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     await screen.findByTestId('intake-publish');
 
     expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
-    expect(screen.queryByTestId('intake-published')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   it('surfaces a publish error inline (e.g. a duplicate-fieldKey 422)', async () => {
@@ -296,7 +299,7 @@ describe('ServiceIntakeSchemaPanel', () => {
     );
 
     await user.click(screen.getByTestId('intake-publish'));
-    expect(await screen.findByTestId('intake-error')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
   });
 
   it('blocks publish and shows an inline warning when two questions resolve to the same fieldKey', async () => {

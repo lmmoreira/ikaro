@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { afterEach, describe, expect, it, vi, beforeEach } from 'vitest';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
 import { useState } from 'react';
 import type { ServiceTabAction } from './service-tab-action';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
 import { ServiceBookingPolicyPanel } from './ServiceBookingPolicyPanel';
 
@@ -42,6 +42,7 @@ function PolicyPanelWithAction(
       >
         {action?.label}
       </button>
+      <TabActionFeedback feedback={action?.feedback} />
     </>
   );
 }
@@ -176,7 +177,7 @@ describe('ServiceBookingPolicyPanel', () => {
     );
 
     await user.click(screen.getByTestId('policy-save'));
-    expect(await screen.findByTestId('policy-error')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'variável também deve declarar uma política de precificação',
     );
   });
@@ -212,10 +213,10 @@ describe('ServiceBookingPolicyPanel', () => {
     );
 
     await user.click(screen.getByTestId('policy-save'));
-    expect(await screen.findByTestId('policy-error')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('policy-recurrence-eligible'));
-    expect(screen.queryByTestId('policy-error')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   it('keeps dirty when a newer edit lands while an earlier save is still pending', async () => {
@@ -339,5 +340,137 @@ describe('ServiceBookingPolicyPanel', () => {
         'o cliente escolhe a duração',
       );
     });
+  });
+});
+
+describe('ServiceBookingPolicyPanel feedback', () => {
+  const scrollIntoView = vi.fn();
+  const CUSTOM_POLICY: ServiceBookingPolicyItem = {
+    ...BASE_POLICY,
+    durationPolicy: 'CUSTOMER_SELECTED',
+    durationMinMinutes: 30,
+    durationMaxMinutes: 120,
+    durationIncrementMinutes: 15,
+  };
+
+  function renderPanel(initialPolicy: ServiceBookingPolicyItem) {
+    return renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={initialPolicy}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+  }
+
+  beforeEach(() => {
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+  });
+
+  afterEach(() => scrollIntoView.mockReset());
+
+  it('blocks a CUSTOMER_SELECTED save with empty bounds, marks all three and focuses the first', async () => {
+    const user = userEvent.setup();
+    renderPanel(BASE_POLICY);
+
+    await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    for (const id of ['policy-duration-min', 'policy-duration-max', 'policy-duration-increment']) {
+      expect(screen.getByTestId(id)).toHaveAttribute('aria-invalid', 'true');
+    }
+    expect(screen.getByText('Informe a duração mínima.')).toBeInTheDocument();
+    expect(screen.getByTestId('policy-duration-min')).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+    expect(screen.getByTestId('form-feedback')).toHaveTextContent('Não foi possível salvar');
+    expect(screen.getByTestId('form-feedback')).toHaveTextContent(
+      'Revise os campos destacados para salvar.',
+    );
+  });
+
+  it('blocks a maximum duration below the minimum on the maximum field', async () => {
+    const user = userEvent.setup();
+    renderPanel({ ...CUSTOM_POLICY, durationMinMinutes: 120, durationMaxMinutes: 60 });
+
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(mutateAsync).not.toHaveBeenCalled();
+    expect(screen.getByTestId('policy-duration-max')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('policy-duration-min')).not.toHaveAttribute('aria-invalid');
+    expect(screen.getByText('A duração máxima deve ser maior ou igual à mínima.')).toBeVisible();
+  });
+
+  it('does not block a FIXED duration policy whose bounds are empty', async () => {
+    const user = userEvent.setup();
+    renderPanel(BASE_POLICY);
+
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(mutateAsync).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('policy-duration-detail')).not.toBeInTheDocument();
+  });
+
+  it('marks and focuses only the input a server error names', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, 'Invalid', {
+        code: 'BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED',
+        field: 'durationMinMinutes',
+      }),
+    );
+    renderPanel(CUSTOM_POLICY);
+
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(await screen.findByTestId('policy-duration-min')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(screen.getByTestId('policy-duration-min')).toHaveFocus();
+    expect(screen.getByTestId('policy-duration-max')).not.toHaveAttribute('aria-invalid');
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Para duração escolhida pelo cliente, informe a duração mínima, a máxima e o intervalo de escolha.',
+    );
+    expect(screen.queryByTestId('policy-error')).not.toBeInTheDocument();
+  });
+
+  it('names the business limit when a window override exceeds it', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValueOnce(
+      new ApiError(422, 'Invalid', {
+        code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
+        field: 'maxBookingAdvanceDaysOverride',
+        params: { maxAdvanceDays: 90 },
+      }),
+    );
+    renderPanel(BASE_POLICY);
+
+    await user.type(screen.getByTestId('policy-max-advance'), '365');
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(await screen.findByTestId('policy-max-advance')).toHaveAttribute('aria-invalid', 'true');
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'A antecedência máxima do serviço não pode passar de 90 dias, o limite do negócio.',
+    );
+  });
+
+  it('shows the saved message in the pane and clears it on the next edit', async () => {
+    const user = userEvent.setup();
+    renderPanel(BASE_POLICY);
+
+    await user.click(screen.getByTestId('policy-save'));
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent('Alterações salvas');
+    expect(screen.getByTestId('form-feedback')).toHaveTextContent(
+      'As políticas do serviço foram atualizadas.',
+    );
+    expect(screen.queryByTestId('policy-saved')).not.toBeInTheDocument();
+
+    await user.click(screen.getByTestId('policy-recurrence-eligible'));
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 });

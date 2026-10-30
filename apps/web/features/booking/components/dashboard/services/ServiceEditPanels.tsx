@@ -1,7 +1,8 @@
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { Button } from '@/shared/components/ui/button';
-import { Card, CardContent } from '@/shared/components/ui/card';
+import { ActionPane } from '@/shared/components/ui/action-pane';
+import type { FeedbackModel } from '@/shared/components/ui/feedback-message';
 import type { ServiceTabAction } from './service-tab-action';
 
 interface ServiceEditStatusSectionProps {
@@ -53,6 +54,8 @@ interface ServiceEditActionPanelsProps {
   // Save/Publish action via `tabAction` instead — one sticky place for every tab's primary action.
   readonly showPrimaryAction?: boolean;
   readonly tabAction?: ServiceTabAction | null;
+  // Detalhes' own save/activate result; every other tab's comes with its registered `tabAction`.
+  readonly feedback?: FeedbackModel | null;
   // Unsaved-changes guard (Topbar back button + this link) — decided at /story-discovery,
   // 2026-09-18. When omitted, the link behaves exactly as before (plain navigation).
   readonly onCancelClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
@@ -129,78 +132,74 @@ export function ServiceEditActionPanels({
   onActivate,
   showPrimaryAction = true,
   tabAction = null,
+  feedback = null,
   onCancelClick,
 }: ServiceEditActionPanelsProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const hasAction = showPrimaryAction || tabAction !== null;
+  const paneFeedback = showPrimaryAction ? feedback : (tabAction?.feedback ?? null);
 
-  return (
+  const actions = (
     <>
-      <aside className="hidden lg:block lg:sticky lg:top-6">
-        <Card>
-          <CardContent className="space-y-4 p-4">
-            {showPrimaryAction && (
-              <>
-                {!isActive && (
-                  <p className="text-sm leading-6 text-gray-600">{t('editInactiveDescription')}</p>
-                )}
+      {showPrimaryAction && (
+        <>
+          {!isActive && (
+            <p className="text-sm leading-6 text-gray-600">{t('editInactiveDescription')}</p>
+          )}
 
-                <ServiceEditPrimaryAction
-                  isActive={isActive}
-                  isSubmitting={isSubmitting}
-                  isActivating={isActivating}
-                  onActivate={onActivate}
-                  saveTestId="service-desktop-save-button"
-                  activateTestId="service-desktop-activate-button"
-                />
-              </>
-            )}
-
-            {tabAction && (
-              <ServiceEditTabActionButton action={tabAction} testId="service-desktop-tab-action" />
-            )}
-
-            <Button asChild variant="outline" className="w-full">
-              <Link
-                data-testid="service-cancel-desktop-link"
-                href="/dashboard/services"
-                onClick={onCancelClick}
-              >
-                {t('createCancel')}
-              </Link>
-            </Button>
-          </CardContent>
-        </Card>
-      </aside>
-
-      {hasAction && (
-        <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-          <div className="grid grid-cols-2 gap-3">
-            <Button asChild variant="outline" className="w-full">
-              <Link
-                data-testid="service-cancel-mobile-link"
-                href="/dashboard/services"
-                onClick={onCancelClick}
-              >
-                {t('createCancel')}
-              </Link>
-            </Button>
-            {showPrimaryAction && (
-              <ServiceEditPrimaryAction
-                isActive={isActive}
-                isSubmitting={isSubmitting}
-                isActivating={isActivating}
-                onActivate={onActivate}
-                saveTestId="service-mobile-save-button"
-                activateTestId="service-mobile-activate-button"
-              />
-            )}
-            {tabAction && (
-              <ServiceEditTabActionButton action={tabAction} testId="service-mobile-tab-action" />
-            )}
-          </div>
-        </div>
+          <ServiceEditPrimaryAction
+            isActive={isActive}
+            isSubmitting={isSubmitting}
+            isActivating={isActivating}
+            onActivate={onActivate}
+            saveTestId="service-desktop-save-button"
+            activateTestId="service-desktop-activate-button"
+          />
+        </>
       )}
+
+      {tabAction && (
+        <ServiceEditTabActionButton action={tabAction} testId="service-desktop-tab-action" />
+      )}
+
+      <Button asChild variant="outline" className="w-full">
+        <Link
+          data-testid="service-cancel-desktop-link"
+          href="/dashboard/services"
+          onClick={onCancelClick}
+        >
+          {t('createCancel')}
+        </Link>
+      </Button>
     </>
   );
+
+  const mobileActions = hasAction ? (
+    <div className="grid grid-cols-2 gap-3">
+      <Button asChild variant="outline" className="w-full">
+        <Link
+          data-testid="service-cancel-mobile-link"
+          href="/dashboard/services"
+          onClick={onCancelClick}
+        >
+          {t('createCancel')}
+        </Link>
+      </Button>
+      {showPrimaryAction && (
+        <ServiceEditPrimaryAction
+          isActive={isActive}
+          isSubmitting={isSubmitting}
+          isActivating={isActivating}
+          onActivate={onActivate}
+          saveTestId="service-mobile-save-button"
+          activateTestId="service-mobile-activate-button"
+        />
+      )}
+      {tabAction && (
+        <ServiceEditTabActionButton action={tabAction} testId="service-mobile-tab-action" />
+      )}
+    </div>
+  ) : null;
+
+  return <ActionPane actions={actions} mobileActions={mobileActions} feedback={paneFeedback} />;
 }

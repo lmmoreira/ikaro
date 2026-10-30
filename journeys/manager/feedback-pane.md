@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** In progress (TD57) — the shared components shipped with TD57-S01; the screens below still use their own boxes until their stories land. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01 and the service edit screen uses them since TD57-S02; the other screens below still use their own boxes until their stories land. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -34,7 +34,7 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
-| `/dashboard/services/[id]/edit` (Políticas) | `ServiceEditPanels` + `ActionPane` | TD57-S02 | ⚠ Exists, feedback at the bottom of the card |
+| `/dashboard/services/[id]/edit` (all five tabs) | `ServiceEditPanels` + `ActionPane` | TD57-S02 | ✅ Feedback in the pane; per-reason policy errors; pre-send validation |
 | `/dashboard/services/[id]/edit` (Recursos, Formulário) | `ServiceResourceModePicker`, `ServiceIntakeSchemaPanel` | TD57-S03 | ⚠ Exists, first box not level with the pane |
 | `/dashboard/team` | `MemberRow` | TD57-S04 | ⚠ Exists, success message never visible |
 | `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |

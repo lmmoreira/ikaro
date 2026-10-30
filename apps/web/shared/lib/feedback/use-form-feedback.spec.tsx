@@ -7,7 +7,7 @@ import { ApiError } from '@/shared/lib/api/errors';
 import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useFormFeedback } from './use-form-feedback';
 
-const CODE = 'BOOKING_SERVICE_BOOKING_POLICY_INVALID';
+const CODE = 'BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED';
 const catalogMessage = resolveErrorMessage(CODE, 'en');
 
 type FormFeedback = ReturnType<typeof useFormFeedback>;

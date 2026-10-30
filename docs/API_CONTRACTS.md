@@ -609,7 +609,16 @@ The frontend then includes the returned `{ url, photoType }` (plus `bookingId` a
   - `recurringHorizonDays`: integer 1–180 or `null` — the maximum term of a recurring schedule for this service; `null` inherits the 90-day platform default (UC-055 step 3)
   - `minBookingAdvanceHoursOverride` / `maxBookingAdvanceDaysOverride` (M23-S33): the tenant window is the ceiling — an override can only tighten it. `200` responses (and every service read) also carry the resolved `effectiveMinBookingAdvanceHours` / `effectiveMaxBookingAdvanceDays` (`max(override, tenant min)` / `min(override, tenant max)`); they are response-only and ignored in a request
   - `200` on success
-  - `422` `BOOKING_SERVICE_BOOKING_POLICY_INVALID` (M23-S33) if a changed override is looser than the tenant window (a maximum above the tenant maximum, a minimum below the tenant minimum), or the effective minimum notice (in whole days) is not shorter than the effective maximum — the response names the offending field. An override that merely went stale after the tenant shrank its own window does not block saving the rest of the policy; it is clamped on read
+  - `422` with one code per reason (TD57-S02 split the former catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID`), always naming the offending `field`:
+    - `BOOKING_SERVICE_POLICY_DURATION_DETAILS_REQUIRED` (`durationMinMinutes`): `CUSTOMER_SELECTED` without min, max and increment
+    - `BOOKING_SERVICE_POLICY_DURATION_RANGE_INVALID` (`durationMaxMinutes`): max below min
+    - `BOOKING_SERVICE_POLICY_PRICING_DETAILS_REQUIRED` (`pricingIncrementMinutes`): `PER_TIME_INCREMENT` without increment and price per increment
+    - `BOOKING_SERVICE_POLICY_INCREMENT_PRICING_REQUIRES_CUSTOM_DURATION` (`durationPolicy`): `PER_TIME_INCREMENT` without `CUSTOMER_SELECTED`
+    - `BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT` (`maxBookingAdvanceDaysOverride`, M23-S33): `params.maxAdvanceDays` is the business maximum
+    - `BOOKING_SERVICE_POLICY_MIN_ADVANCE_BELOW_TENANT` (`minBookingAdvanceHoursOverride`, M23-S33): `params.minAdvanceHours` is the business minimum
+    - `BOOKING_SERVICE_POLICY_WINDOW_EMPTY` (`minBookingAdvanceHoursOverride`, M23-S33): the effective minimum notice (in whole days) is not shorter than the effective maximum; `params.minAdvanceHours` and `params.maxAdvanceDays` are the effective values
+
+    An override that merely went stale after the tenant shrank its window does not block saving the rest of the policy; it is clamped on read
   - `422` if `durationPolicy = CUSTOMER_SELECTED` with no `pricingPolicy` (UC-055 A2)
   - `409` `BOOKING_SERVICE_LEGS_CUSTOM_DURATION_CONFLICT` if `durationPolicy = CUSTOMER_SELECTED` on a service that has `legs` (UC-055 A4)
   - `400` (request validation, `violations[]`, no error `code`) if `recurringHorizonDays` is outside 1–180 or not an integer (UC-055 A3); the dashboard validates the same bounds inline so it never sends one

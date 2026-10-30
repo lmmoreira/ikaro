@@ -59,6 +59,7 @@ export function EligiblePoolPicker({
           onChange([...(poolIds ?? []), nextId]);
         }}
         disabled={addableResources.length === 0}
+        aria-describedby={stalePool ? `${addEligibleId}-stale` : undefined}
         className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <option value="">{t('resourceAddEligiblePlaceholder')}</option>
@@ -69,13 +70,13 @@ export function EligiblePoolPicker({
         ))}
       </select>
       {stalePool && (
-        <p
-          role="alert"
+        <output
+          id={`${addEligibleId}-stale`}
           data-testid="resource-type-stale-pool"
-          className="mt-1 text-xs text-red-600"
+          className="mt-1 block text-xs text-red-600"
         >
           {t('resourceStalePoolNotice')}
-        </p>
+        </output>
       )}
     </div>
   );

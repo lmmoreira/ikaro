@@ -148,7 +148,7 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
 
 **Agent:** backend-ts + frontend-ts
 **Complexity:** L
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; `docs/AGENT_PATTERNS.md` Pattern #25; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ERROR_CATALOG.md` § Code Origins; `docs/ENGINEERING_RULES_BACKEND.md` (error mapping); `docs/TESTING_STRATEGY.md` § Running Playwright locally; `docs/USE_CASES.md` UC-055 (the service booking policy) and its A5 flow; `docs/API_CONTRACTS.md` § PATCH `/v1/services/:id/booking-policy`; `docs/BUSINESS_LOGIC_REFERENCE.md` (the booking-window rule)
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; `docs/AGENT_PATTERNS.md` Pattern #25; `docs/ENGINEERING_RULES_SHARED.md` § Adding a new error — checklist; `docs/ERROR_CATALOG.md` § Code Origins; `docs/ENGINEERING_RULES_BACKEND.md` (error mapping); `docs/TESTING_STRATEGY.md` § Running Playwright locally; `docs/USE_CASES.md` UC-055 (the service booking policy) and its A5 flow; `docs/API_CONTRACTS.md` § Service Extensions — M22 Cluster 2 (UC-050–056) (the `PATCH /services/:id/booking-policy` entry); `docs/BUSINESS_LOGIC_REFERENCE.md` (the booking-window rule)
 **Dependencies:** Story 1
 **Pattern:** extend the existing registered-action descriptor (`useRegisterTabAction` / `ServiceTabAction`) with a `feedback` field; one `ServiceBookingPolicyInvalidError` class whose `reason` selects the code, the `field` and the `params` (the precedent is `RecurringBookingScheduleTermExceededError`); plain composition otherwise
 **Discovered:** 2026-10-29, manager report on the service edit screen

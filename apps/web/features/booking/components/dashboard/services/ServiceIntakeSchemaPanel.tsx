@@ -5,8 +5,12 @@ import { useTranslations } from 'next-intl';
 import { SERVICE_INTAKE_HISTORY_LIMIT, type ServiceIntakeSchemaVersion } from '@ikaro/types';
 import { usePublishServiceIntakeSchema } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import {
+  useRegisterTabAction,
+  useTabFeedback,
+  type ServiceTabActionChange,
+} from './service-tab-action';
 import type { IntakeQuestionDraft } from './IntakeQuestionCard';
 import { IntakeQuestionsCard } from './IntakeQuestionsCard';
 import { IntakeParticipantsCard, IntakeConsentCard } from './IntakeParticipantsAndConsentCards';
@@ -76,8 +80,8 @@ export function ServiceIntakeSchemaPanel({
   const [active, setActive] = useState(initialActive);
   const [history, setHistory] = useState(initialHistory);
   const [previewVersion, setPreviewVersion] = useState<ServiceIntakeSchemaVersion | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [publishedMessageVisible, setPublishedMessageVisible] = useState(false);
+  const form = useFormFeedback();
+  const feedback = useTabFeedback(form);
   const nextKeySeed = useRef(questions.length);
   // Bumped on every draft edit — lets a publish in flight tell whether a *newer* edit landed
   // while it was pending, so it never clears dirty / shows "published" for a draft it didn't
@@ -87,7 +91,7 @@ export function ServiceIntakeSchemaPanel({
   function markDirty(): void {
     editRevisionRef.current += 1;
     onDirtyChange(true);
-    setPublishedMessageVisible(false);
+    form.clear();
   }
 
   function addQuestion(): void {
@@ -161,7 +165,7 @@ export function ServiceIntakeSchemaPanel({
     !hasEmptyFieldKey;
 
   async function handlePublish(): Promise<void> {
-    setError(null);
+    form.clear();
     const revisionAtSubmit = editRevisionRef.current;
     try {
       const result = await publishSchema.mutateAsync({
@@ -184,11 +188,11 @@ export function ServiceIntakeSchemaPanel({
       }
       setActive(result);
       if (editRevisionRef.current === revisionAtSubmit) {
-        setPublishedMessageVisible(true);
+        form.setSuccess(t('formularioPublishedBody'));
         onDirtyChange(false);
       }
     } catch (err) {
-      setError(resolveErrorMessageFromApiError(err, locale));
+      form.setFromApiError(err, locale);
     }
   }
 
@@ -197,6 +201,7 @@ export function ServiceIntakeSchemaPanel({
     disabled: !canPublish || publishSchema.isPending,
     pending: publishSchema.isPending,
     onSubmit: handlePublish,
+    feedback,
   });
 
   return (
@@ -234,22 +239,6 @@ export function ServiceIntakeSchemaPanel({
         history={history}
         onSelectVersion={setPreviewVersion}
       />
-
-      {error && (
-        <div
-          role="alert"
-          data-testid="intake-error"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {error}
-        </div>
-      )}
-
-      {publishedMessageVisible && (
-        <p data-testid="intake-published" className="text-sm text-green-600">
-          {t('formularioPublishedConfirm')}
-        </p>
-      )}
 
       {previewVersion && (
         <IntakeVersionModal version={previewVersion} onClose={() => setPreviewVersion(null)} />

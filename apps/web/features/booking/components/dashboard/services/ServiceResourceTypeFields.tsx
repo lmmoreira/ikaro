@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { ResourceRequirementItem, ResourceResponse, ResourceType } from '@ikaro/types';
+import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
 import { countQuantityCandidates, hasStaleEligiblePool } from './resource-requirement-quantity';
 import { EligiblePoolPicker } from './EligiblePoolPicker';
 
@@ -167,12 +169,14 @@ export function ServiceResourceTypeFields({
               }}
               aria-invalid={quantityExceedsCandidates}
               aria-describedby={quantityExceedsCandidates ? `${quantityId}-error` : undefined}
-              className="w-24 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500"
+              className={cn(
+                'w-24 rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm outline-none focus:border-blue-500',
+                quantityExceedsCandidates && FIELD_INVALID_CLASS,
+              )}
             />
             {quantityExceedsCandidates && (
               <p
                 id={`${quantityId}-error`}
-                role="alert"
                 data-testid="resource-type-quantity-error"
                 className="mt-1 text-xs text-red-600"
               >

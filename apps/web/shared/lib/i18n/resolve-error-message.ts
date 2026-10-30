@@ -89,7 +89,7 @@ export interface ApiErrorFeedback {
 // when one input caused the failure — so a form can mark that input instead of only showing text.
 export function resolveApiErrorFeedback(err: unknown, locale: SupportedLocale): ApiErrorFeedback {
   const shape = extractProblemDetailShape(err);
-  const message = resolveErrorMessage(shape?.code, locale);
+  const message = resolveErrorMessage(shape?.code, locale, shape?.params);
   return shape?.field ? { message, field: shape.field } : { message };
 }
 

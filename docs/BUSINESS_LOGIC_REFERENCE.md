@@ -275,7 +275,7 @@ It is called by `POST /bookings`, `POST /bookings/authenticated` and the **custo
 
 ### Saving a service policy
 
-`UpdateServiceBookingPolicyUseCase` rejects (`422 BOOKING_SERVICE_BOOKING_POLICY_INVALID`, field named) a *changed* override that is looser than the tenant window, and one that leaves `effective min hours / 24 >= effective max days` (nothing bookable). An override left unchanged is not re-validated, so one that went stale after the tenant shrank its window does not block saving the rest of the policy. The tenant settings validator enforces the same cross-field rule on the tenant's own two values (`minBookingAdvanceHours / 24 < maxBookingAdvanceDays`, ceilings 8760 h / 365 days).
+`UpdateServiceBookingPolicyUseCase` rejects (`422 BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT`, `..._MIN_ADVANCE_BELOW_TENANT` or `..._WINDOW_EMPTY`, field named, the business limit in `params`) a *changed* override that is looser than the tenant window, and one that leaves `effective min hours / 24 >= effective max days` (nothing bookable). An override left unchanged is not re-validated, so one that went stale after the tenant shrank its window does not block saving the rest of the policy. The tenant settings validator enforces the same cross-field rule on the tenant's own two values (`minBookingAdvanceHours / 24 < maxBookingAdvanceDays`, ceilings 8760 h / 365 days).
 
 
 ### Planned: the billing `bookableUntil` cap

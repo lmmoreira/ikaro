@@ -10,13 +10,17 @@ import {
   useUpdateServiceResourceRequirements,
 } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import {
   normalizeLegsResourcePoolIds,
   normalizeResourcePoolIds,
 } from './resource-pool-normalization';
 import { hasUnsatisfiableRequirement } from './resource-requirement-quantity';
-import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
+import {
+  useRegisterTabAction,
+  useTabFeedback,
+  type ServiceTabActionChange,
+} from './service-tab-action';
 import { bufferToField, fieldToBuffer, isValidBufferField } from './service-buffer-field';
 import { ServiceFlatRequirementsCard } from './ServiceFlatRequirementsCard';
 import { ServiceLegsPanel } from './ServiceLegsPanel';
@@ -76,8 +80,8 @@ export function ServiceResourceRequirementsPanel({
   const [savedRequirements, setSavedRequirements] = useState(initialResourceRequirements);
   const [savedBuffer, setSavedBuffer] = useState(bufferToField(initialBufferAfterMinutes));
   const [dirty, setDirty] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [savedMessageVisible, setSavedMessageVisible] = useState(false);
+  const form = useFormFeedback();
+  const feedback = useTabFeedback(form);
   // Service.setResourceRequirements() rejects (409) whenever the aggregate's own persisted
   // `legs` is non-null — legged→flat is deliberately not a supported transition via this
   // endpoint (service.aggregate.ts's own comment). Tracked as state (not derived from the
@@ -99,7 +103,7 @@ export function ServiceResourceRequirementsPanel({
       setDirty(true);
       onDirtyChange(true);
     }
-    setSavedMessageVisible(false);
+    form.clear();
   }
 
   function handleSelectMode(nextMode: 'flat' | 'legs'): void {
@@ -125,13 +129,13 @@ export function ServiceResourceRequirementsPanel({
   }
 
   async function handleSave(): Promise<void> {
-    setError(null);
+    form.clear();
     // useResources() is async — resourcesData is undefined until it resolves. Without this
     // guard, normalizeResourcePoolIds would treat every active resource as inactive on a save
     // that races ahead of the query (or one that lands after it failed), silently dropping every
     // requirement's resourcePoolIds instead of leaving them untouched (Codex finding).
     if (resourcesLoading || resourcesLoadFailed) {
-      setError(t('recursosResourcesLoadError'));
+      form.setError(t('recursosResourcesLoadError'));
       return;
     }
     const availableResources = resourcesData?.items ?? [];
@@ -172,10 +176,10 @@ export function ServiceResourceRequirementsPanel({
       if (editRevisionRef.current === revisionAtSubmit) {
         setDirty(false);
         onDirtyChange(false);
-        setSavedMessageVisible(true);
+        form.setSuccess(t('recursosSavedBody'));
       }
     } catch (err) {
-      setError(resolveErrorMessageFromApiError(err, locale));
+      form.setFromApiError(err, locale);
     }
   }
 
@@ -206,6 +210,7 @@ export function ServiceResourceRequirementsPanel({
     disabled: !canSave,
     pending: isSaving,
     onSubmit: handleSave,
+    feedback,
   });
 
   return (
@@ -246,22 +251,6 @@ export function ServiceResourceRequirementsPanel({
           markDirty();
         }}
       />
-
-      {error && (
-        <div
-          role="alert"
-          data-testid="resource-requirements-error"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {error}
-        </div>
-      )}
-
-      {savedMessageVisible && (
-        <p data-testid="resource-requirements-saved" className="text-sm text-green-600">
-          {t('recursosSavedConfirm')}
-        </p>
-      )}
     </div>
   );
 }

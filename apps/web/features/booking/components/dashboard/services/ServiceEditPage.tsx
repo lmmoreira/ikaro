@@ -8,12 +8,11 @@ import { useActivateService, useUpdateService } from '@/features/booking/service
 import type { ServiceFormErrors } from '@/features/booking/services/service-form';
 import { validateServiceForm } from '@/features/booking/services/service-form';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import type { SupportedLocale } from '@/shared/lib/i18n/get-messages';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import type { ServiceEditTabKey } from '@/features/booking/types/service';
 import { INITIAL_SERVICE_EDIT_DIRTY_STATE } from '@/features/booking/types/service';
 import { DiscardChangesDialog } from '@/shared/components/DiscardChangesDialog';
-import type { ServiceTabAction } from './service-tab-action';
+import { useTabFeedback, type ServiceTabAction } from './service-tab-action';
 import { useServiceEditLeaveGuard } from './useServiceEditLeaveGuard';
 import { ServiceEditActionPanels } from './ServiceEditPanels';
 import { ServiceEditTabBar } from './ServiceEditTabBar';
@@ -27,8 +26,22 @@ interface ServiceEditPageProps {
   readonly showCreatedBanner?: boolean;
 }
 
-function mapSubmitErrors(err: unknown, locale: SupportedLocale): ServiceFormErrors {
-  return { submit: resolveErrorMessageFromApiError(err, locale) };
+// The "service created" banner shows for a moment after the create redirect, then the URL is
+// cleaned so a reload does not show it again.
+function useCreatedBanner(initial: boolean, serviceId: string): boolean {
+  const router = useRouter();
+  const [show, setShow] = useState(initial);
+
+  useEffect(() => {
+    if (!show) return;
+    const timeoutId = globalThis.setTimeout(() => {
+      setShow(false);
+      router.replace(`/dashboard/services/${serviceId}/edit`, { scroll: false });
+    }, 1800);
+    return () => globalThis.clearTimeout(timeoutId);
+  }, [router, serviceId, show]);
+
+  return show;
 }
 
 export function ServiceEditPage({
@@ -38,8 +51,7 @@ export function ServiceEditPage({
 }: ServiceEditPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const locale = useResolvedLocale();
-  const router = useRouter();
-  const [showCreatedBanner, setShowCreatedBanner] = useState(initialShowCreatedBanner);
+  const showCreatedBanner = useCreatedBanner(initialShowCreatedBanner, service.serviceId);
   const updateServiceMutation = useUpdateService();
   const activateServiceMutation = useActivateService();
   const topbarStatus = useDashboardTopbarStatus();
@@ -71,6 +83,8 @@ export function ServiceEditPage({
   const [fieldErrors, setFieldErrors] = useState<ServiceFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
   const [isActivatingLocal, setIsActivatingLocal] = useState(false);
+  const form = useFormFeedback();
+  const feedback = useTabFeedback(form);
 
   const isSubmitting = isSubmittingLocal || updateServiceMutation.isPending;
   const isActivating = isActivatingLocal || activateServiceMutation.isPending;
@@ -83,21 +97,13 @@ export function ServiceEditPage({
 
   function markDetalhesDirty(): void {
     detalhesEditRevisionRef.current += 1;
+    form.clear();
     setTabDirty('detalhes', true);
   }
 
   useEffect(() => {
     setTopbarServiceStatus?.(isActive ? 'ACTIVE' : 'INACTIVE');
   }, [isActive, setTopbarServiceStatus]);
-
-  useEffect(() => {
-    if (!showCreatedBanner) return;
-    const timeoutId = globalThis.setTimeout(() => {
-      setShowCreatedBanner(false);
-      router.replace(`/dashboard/services/${service.serviceId}/edit`, { scroll: false });
-    }, 1800);
-    return () => globalThis.clearTimeout(timeoutId);
-  }, [router, service.serviceId, showCreatedBanner]);
 
   function setTabDirty(tab: ServiceEditTabKey, value: boolean): void {
     setDirty((current) => (current[tab] === value ? current : { ...current, [tab]: value }));
@@ -122,7 +128,7 @@ export function ServiceEditPage({
     if (activeTab !== 'detalhes') return;
 
     if (!isActive) {
-      setFieldErrors({ submit: t('editInactiveUpdateBlocked') });
+      form.setError(t('editInactiveUpdateBlocked'));
       return;
     }
 
@@ -130,8 +136,12 @@ export function ServiceEditPage({
       { name, description, priceAmount, durationMinutes, loyaltyPointsValue },
       t,
     );
+    form.clear();
     setFieldErrors(validation.errors);
-    if (validation.normalized === null) return;
+    if (validation.normalized === null) {
+      form.setError(t('feedbackValidationSummary'));
+      return;
+    }
 
     const revisionAtSubmit = detalhesEditRevisionRef.current;
     const pickupAtSubmit = requiresPickupAddress;
@@ -144,9 +154,10 @@ export function ServiceEditPage({
       setSavedRequiresPickupAddress(pickupAtSubmit);
       if (detalhesEditRevisionRef.current === revisionAtSubmit) {
         setTabDirty('detalhes', false);
+        form.setSuccess(t('editSavedBody'));
       }
     } catch (err) {
-      setFieldErrors(mapSubmitErrors(err, locale));
+      form.setFromApiError(err, locale);
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -154,13 +165,14 @@ export function ServiceEditPage({
 
   async function handleActivate(): Promise<void> {
     setFieldErrors({});
+    form.clear();
     setIsActivatingLocal(true);
 
     try {
       await activateServiceMutation.mutateAsync(service.serviceId);
       setIsActive(true);
     } catch (err) {
-      setFieldErrors(mapSubmitErrors(err, locale));
+      form.setFromApiError(err, locale);
     } finally {
       setIsActivatingLocal(false);
     }
@@ -245,6 +257,7 @@ export function ServiceEditPage({
           onActivate={handleActivate}
           showPrimaryAction={activeTab === 'detalhes'}
           tabAction={activeTab === 'detalhes' ? null : (tabActions[activeTab] ?? null)}
+          feedback={feedback}
           onCancelClick={handleCancelClick}
         />
       </div>

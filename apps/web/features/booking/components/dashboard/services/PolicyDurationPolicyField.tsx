@@ -2,11 +2,15 @@
 
 import { useTranslations } from 'next-intl';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
+import type { PolicyFieldBindings } from './policy-card-helpers';
 
 interface PolicyDurationPolicyFieldProps {
   readonly policy: ServiceBookingPolicyItem;
   // A legged service's length is fixed by its legs — a customer-chosen duration is not offered.
   readonly hasLegs: boolean;
+  readonly fields: PolicyFieldBindings;
   readonly onPatch: (next: Partial<ServiceBookingPolicyItem>) => void;
 }
 
@@ -16,9 +20,11 @@ interface PolicyDurationPolicyFieldProps {
 export function PolicyDurationPolicyField({
   policy,
   hasLegs,
+  fields,
   onPatch,
 }: PolicyDurationPolicyFieldProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
+  const message = fields.fieldErrors.durationPolicy;
 
   return (
     <div>
@@ -46,13 +52,18 @@ export function PolicyDurationPolicyField({
               : { durationPolicy },
           );
         }}
-        className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
+        {...fields.fieldProps('durationPolicy')}
+        className={cn(
+          'w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500',
+          message && FIELD_INVALID_CLASS,
+        )}
       >
         <option value="FIXED">{t('politicasDurationPolicyFixed')}</option>
         <option value="CUSTOMER_SELECTED" disabled={hasLegs}>
           {t('politicasDurationPolicyCustomer')}
         </option>
       </select>
+      <FieldFeedback id={fields.fieldErrorId('durationPolicy')}>{message}</FieldFeedback>
       <p className="mt-1 text-xs text-gray-500">
         {hasLegs ? t('politicasDurationPolicyLegsHint') : t('politicasDurationPolicyHint')}
       </p>

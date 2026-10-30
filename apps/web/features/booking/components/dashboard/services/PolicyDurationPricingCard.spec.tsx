@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, NO_FIELD_BINDINGS } from '@/test-utils';
 import { PolicyDurationPricingCard } from './PolicyDurationPricingCard';
 
 const BASE_POLICY: ServiceBookingPolicyItem = {
@@ -31,7 +31,12 @@ const BASE_POLICY: ServiceBookingPolicyItem = {
 describe('PolicyDurationPricingCard', () => {
   it('hides duration/pricing detail fields when policy is FIXED', () => {
     renderWithIntl(
-      <PolicyDurationPricingCard hasLegs={false} policy={BASE_POLICY} onPatch={vi.fn()} />,
+      <PolicyDurationPricingCard
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        policy={BASE_POLICY}
+        onPatch={vi.fn()}
+      />,
     );
 
     expect(screen.queryByTestId('policy-duration-detail')).not.toBeInTheDocument();
@@ -43,7 +48,12 @@ describe('PolicyDurationPricingCard', () => {
     const user = userEvent.setup();
     const onPatch = vi.fn();
     renderWithIntl(
-      <PolicyDurationPricingCard hasLegs={false} policy={BASE_POLICY} onPatch={onPatch} />,
+      <PolicyDurationPricingCard
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        policy={BASE_POLICY}
+        onPatch={onPatch}
+      />,
     );
 
     await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
@@ -54,6 +64,7 @@ describe('PolicyDurationPricingCard', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
         hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -74,6 +85,7 @@ describe('PolicyDurationPricingCard', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
         hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -94,6 +106,7 @@ describe('PolicyDurationPricingCard', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
         hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',
@@ -115,6 +128,7 @@ describe('PolicyDurationPricingCard', () => {
     renderWithIntl(
       <PolicyDurationPricingCard
         hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
         policy={{
           ...BASE_POLICY,
           durationPolicy: 'CUSTOMER_SELECTED',

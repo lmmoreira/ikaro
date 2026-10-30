@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, NO_FIELD_BINDINGS } from '@/test-utils';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
@@ -31,7 +31,12 @@ const FIXED_POLICY: ServiceBookingPolicyItem = {
 describe('PolicyDurationPolicyField', () => {
   it('offers both duration policies for a service without legs', () => {
     renderWithIntl(
-      <PolicyDurationPolicyField policy={FIXED_POLICY} hasLegs={false} onPatch={vi.fn()} />,
+      <PolicyDurationPolicyField
+        policy={FIXED_POLICY}
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        onPatch={vi.fn()}
+      />,
     );
 
     expect(screen.getByRole('option', { name: 'Fixa' })).toBeEnabled();
@@ -40,7 +45,14 @@ describe('PolicyDurationPolicyField', () => {
   });
 
   it('does not offer a customer-chosen duration for a service that has legs (its length is fixed by its legs)', () => {
-    renderWithIntl(<PolicyDurationPolicyField policy={FIXED_POLICY} hasLegs onPatch={vi.fn()} />);
+    renderWithIntl(
+      <PolicyDurationPolicyField
+        policy={FIXED_POLICY}
+        hasLegs
+        fields={NO_FIELD_BINDINGS}
+        onPatch={vi.fn()}
+      />,
+    );
 
     expect(screen.getByTestId('policy-duration-policy')).toBeEnabled();
     expect(screen.getByRole('option', { name: 'Fixa' })).toBeEnabled();
@@ -52,7 +64,12 @@ describe('PolicyDurationPolicyField', () => {
     const user = userEvent.setup();
     const onPatch = vi.fn();
     renderWithIntl(
-      <PolicyDurationPolicyField policy={FIXED_POLICY} hasLegs={false} onPatch={onPatch} />,
+      <PolicyDurationPolicyField
+        policy={FIXED_POLICY}
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        onPatch={onPatch}
+      />,
     );
 
     await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
@@ -71,6 +88,7 @@ describe('PolicyDurationPolicyField', () => {
           pricingPolicy: 'PER_TIME_INCREMENT',
         }}
         hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
         onPatch={onPatch}
       />,
     );

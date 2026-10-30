@@ -3,7 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ServiceBookingPolicyItem } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, NO_FIELD_BINDINGS } from '@/test-utils';
 import {
   PolicyConfirmationCard,
   PolicyBookingWindowCard,
@@ -59,7 +59,9 @@ describe('PolicyConfirmationCard', () => {
 
 describe('PolicyBookingWindowCard', () => {
   it('renders the min-advance and max-advance fields', () => {
-    renderWithIntl(<PolicyBookingWindowCard policy={BASE_POLICY} onPatch={vi.fn()} />);
+    renderWithIntl(
+      <PolicyBookingWindowCard policy={BASE_POLICY} fields={NO_FIELD_BINDINGS} onPatch={vi.fn()} />,
+    );
 
     expect(screen.getByTestId('policy-min-advance')).toBeInTheDocument();
     expect(screen.getByTestId('policy-max-advance')).toBeInTheDocument();
@@ -68,7 +70,9 @@ describe('PolicyBookingWindowCard', () => {
   it('calls onPatch with a parsed number when the min-advance field changes', async () => {
     const user = userEvent.setup();
     const onPatch = vi.fn();
-    renderWithIntl(<PolicyBookingWindowCard policy={BASE_POLICY} onPatch={onPatch} />);
+    renderWithIntl(
+      <PolicyBookingWindowCard policy={BASE_POLICY} fields={NO_FIELD_BINDINGS} onPatch={onPatch} />,
+    );
 
     await user.type(screen.getByTestId('policy-min-advance'), '2');
     expect(onPatch).toHaveBeenCalledWith({ minBookingAdvanceHoursOverride: 2 });

@@ -10,8 +10,13 @@ import type {
 import { recurrenceShapeBlockers } from '@/features/booking/model/recurrence-shape';
 import { useUpdateServiceBookingPolicy } from '@/features/booking/services/useServices';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import {
+  useRegisterTabAction,
+  useTabFeedback,
+  type ServiceTabActionChange,
+} from './service-tab-action';
+import { validateBookingPolicy } from './policy-validation';
 import { PolicyDurationPricingCard } from './PolicyDurationPricingCard';
 import { isValidRecurringHorizonDays } from './recurring-horizon';
 import {
@@ -46,8 +51,8 @@ export function ServiceBookingPolicyPanel({
   const updatePolicy = useUpdateServiceBookingPolicy();
 
   const [policy, setPolicy] = useState(initialPolicy);
-  const [error, setError] = useState<string | null>(null);
-  const [savedMessageVisible, setSavedMessageVisible] = useState(false);
+  const form = useFormFeedback();
+  const feedback = useTabFeedback(form);
   // Bumped on every edit — lets a save in flight tell whether a *newer* edit landed while it was
   // pending, so it never clears dirty for edits it didn't actually persist (CodeRabbit finding).
   const editRevisionRef = useRef(0);
@@ -55,23 +60,36 @@ export function ServiceBookingPolicyPanel({
   function patch(next: Partial<ServiceBookingPolicyItem>): void {
     editRevisionRef.current += 1;
     setPolicy((current) => ({ ...current, ...next }));
-    setError(null);
+    form.clear();
     onDirtyChange(true);
-    setSavedMessageVisible(false);
   }
 
   async function handleSave(): Promise<void> {
-    setError(null);
+    const invalid = validateBookingPolicy(policy, {
+      durationMinRequired: t('politicasDurationMinRequired'),
+      durationMaxRequired: t('politicasDurationMaxRequired'),
+      durationIncrementRequired: t('politicasDurationIncrementRequired'),
+      durationRangeInvalid: t('politicasDurationRangeInvalid'),
+      pricingIncrementRequired: t('politicasPricingIncrementRequired'),
+      pricePerIncrementRequired: t('politicasPricePerIncrementRequired'),
+    });
+    if (Object.keys(invalid).length > 0) {
+      form.setError(t('feedbackValidationSummary'));
+      form.setFieldErrors(invalid);
+      return;
+    }
+
+    form.clear();
     const revisionAtSubmit = editRevisionRef.current;
     const body: UpdateServiceBookingPolicyRequest = { ...policy };
     try {
       await updatePolicy.mutateAsync({ id: serviceId, body });
       if (editRevisionRef.current === revisionAtSubmit) {
         onDirtyChange(false);
-        setSavedMessageVisible(true);
+        form.setSuccess(t('politicasSavedBody'));
       }
     } catch (err) {
-      setError(resolveErrorMessageFromApiError(err, locale));
+      form.setFromApiError(err, locale);
     }
   }
 
@@ -80,6 +98,7 @@ export function ServiceBookingPolicyPanel({
     disabled: updatePolicy.isPending || !isValidRecurringHorizonDays(policy.recurringHorizonDays),
     pending: updatePolicy.isPending,
     onSubmit: handleSave,
+    feedback,
   });
 
   const recurrenceBlockers = recurrenceShapeBlockers({
@@ -94,26 +113,10 @@ export function ServiceBookingPolicyPanel({
     <div className="space-y-4">
       <p className="text-sm text-gray-500">{t('politicasIntro')}</p>
 
-      <PolicyDurationPricingCard policy={policy} hasLegs={hasLegs} onPatch={patch} />
+      <PolicyDurationPricingCard policy={policy} hasLegs={hasLegs} fields={form} onPatch={patch} />
       <PolicyConfirmationCard policy={policy} onPatch={patch} />
-      <PolicyBookingWindowCard policy={policy} onPatch={patch} />
+      <PolicyBookingWindowCard policy={policy} fields={form} onPatch={patch} />
       <PolicyWhoHowCard policy={policy} onPatch={patch} recurrenceBlockers={recurrenceBlockers} />
-
-      {error && (
-        <div
-          role="alert"
-          data-testid="policy-error"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {error}
-        </div>
-      )}
-
-      {savedMessageVisible && (
-        <p data-testid="policy-saved" className="text-sm text-green-600">
-          {t('politicasSavedConfirm')}
-        </p>
-      )}
     </div>
   );
 }

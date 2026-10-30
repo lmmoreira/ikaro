@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** In progress — the shared components shipped with TD57-S01; no screen uses them yet except the five New-booking steps. Pending stories: S02–S04 (service edit, rows), S06 (branded), S07–S16 (area migrations).
+**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. Pending stories: S03–S04 (tab alignment, rows), S06 (branded), S07–S16 (area migrations).
 
 ---
 
@@ -23,7 +23,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/shared/lib/feedback/use-form-feedback.ts` | ✅ EXISTS | TD57-S01 — `{ error, success, fieldErrors, feedback }`, `setFromApiError`, `setError`, `setSuccess`, `setFieldErrors`, `clear`, `registerField`, `fieldProps`, `fieldErrorId`, `focusFirstInvalid` |
 | `apps/web/shared/lib/i18n/resolve-error-message.ts` | ✅ EXISTS | TD57-S01 — `resolveApiErrorFeedback(err, locale): { message, field? }`; `resolveErrorMessageFromApiError` delegates to it |
 | Branded feedback component (built on `ErrorAlert variant="hotsite"`) | ❌ Gap | Create — TD57-S06 |
-| `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ EXISTS | Extract pane + mobile bar into `ActionPane`; render feedback in the pane — TD57-S02 |
+| `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ DONE | TD57-S02 — pane + mobile bar render through `ActionPane`; each tab registers its `feedback` with the action (`useTabFeedback`); Detalhes passes its own |
 | `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ EXISTS | Wrap in a card level with the pane — TD57-S03 |
 | `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ EXISTS | Drop the unseen success text; inline failure — TD57-S04 |
 | `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ EXISTS | Move the error into the pane — TD57-S11 |
