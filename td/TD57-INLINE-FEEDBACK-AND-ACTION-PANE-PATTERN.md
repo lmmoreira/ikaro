@@ -96,9 +96,10 @@ The output is an appendix to this file (`## Appendix A — Audit inventory`) and
 **Description:**
 Build the shared pieces every later story consumes, following the decisions in "Chosen approach".
 
-1. **`FeedbackMessage`** (`shared/components/ui/feedback-message.tsx`): variants `error` and `success`, plus an `inline` size for row actions. Error renders `role="alert"`, success `role="status"`. Optional `hint`, `onRetry`/`retryLabel` and `focusOnMount` (the behaviours of today's `ErrorAlert` and `NewBookingErrorBanner`). `testId` passthrough. Tailwind-only; never reads `--ba-*`. It replaces `NewBookingErrorBanner` (its 5 caller step components are migrated here and the old file is deleted); `ErrorAlert`'s `dashboard` variant callers (`CustomerReschedulePage`, `ReschedulePicker`, `NewBookingAvailabilityStep`, `RescheduleBookingPage`) move to it in the migration stories; `ErrorAlert` keeps only the branded `hotsite` variant, which Story 6 turns into the full branded pattern.
-2. **`ActionPane`** (`shared/components/ui/action-pane.tsx`): one component for the desktop sticky pane (`hidden lg:block lg:sticky lg:top-6`, `Card`) and the mobile fixed bar (extracted from `ServiceEditPanels.tsx` / `SettingsFormActions.tsx`, reusing `MOBILE_ACTION_BAR_CLEARANCE_CLASS` from `shells/dashboard/utils/mobile-action-bar.ts`). Props: `actions` (the buttons) and `feedback` (a `FeedbackMessage` model). The feedback renders **below the buttons** in the pane; in the mobile bar it renders above the buttons inside the fixed bar with a bounded height and scroll so a long message never pushes the bar off-screen.
-3. **`useFormFeedback`** (`shared/lib/feedback/use-form-feedback.ts`): holds `{ error, success, fieldErrors }`; `setFromApiError(err, locale)` resolves message and `field`; `setSuccess(message)`; `clear()` (called by the panels on edit); `registerField(name)` returning a ref-callback; `focusFirstInvalid()` which scrolls with `block: 'center'` and focuses the input. A `field` the form does not register falls back to the form-level message only.
+1. **`FeedbackMessage`** (`shared/components/ui/feedback-message.tsx`): variants `error` and `success`, plus an `inline` size for row actions. Error renders `role="alert"`, success `role="status"`. Required `title`, optional `children` body (the prototype's `.fb-title` + body), optional `hint`, `onRetry`/`retryLabel` and `focusOnMount` (the behaviours of today's `ErrorAlert` and `NewBookingErrorBanner`). `testId` passthrough. The five New-booking callers pass their message as `title`; the shared skin is the prototype's `.fb` look, slightly different from the old banner (decided in discovery, 2026-10-30). Tailwind-only; never reads `--ba-*`. It replaces `NewBookingErrorBanner` (its 5 caller step components are migrated here and the old file is deleted); `ErrorAlert`'s `dashboard` variant callers (`CustomerReschedulePage`, `ReschedulePicker`, `NewBookingAvailabilityStep`, `RescheduleBookingPage`) move to it in the migration stories; `ErrorAlert` keeps only the branded `hotsite` variant, which Story 6 turns into the full branded pattern.
+2. **`ActionPane`** (`shared/components/ui/action-pane.tsx`): one component for the desktop sticky pane (`hidden lg:block lg:sticky lg:top-6`, `Card`) and the mobile fixed bar (extracted from `ServiceEditPanels.tsx` / `SettingsFormActions.tsx`). Props: `actions` (the buttons), `feedback` (a `FeedbackMessage` model) and `mobileOffsetClassName` (default `bottom-0`; a caller above the dashboard `BottomNav` passes `MOBILE_ACTION_BAR_CLEARANCE_CLASS` from `shells/dashboard/utils/mobile-action-bar.ts`, so `shared/` never imports `shells/`). Only the fixed bottom bar ships; whether the customer account adopts it or needs an inline mobile mode is decided in Story 11. The feedback renders **below the buttons** in the pane; in the mobile bar it renders above the buttons inside the fixed bar with `max-height` about 6.5rem and scroll (the prototype's values, `07-mobile-barra-fixa.html`) so a long message never pushes the bar off-screen.
+3. **`useFormFeedback`** (`shared/lib/feedback/use-form-feedback.ts`): holds `{ error, success, fieldErrors }`; `setFromApiError(err, locale)` resolves message and `field`; `setSuccess(message)`; `clear()` (called by the panels on edit); `registerField(name)` returning a ref-callback that accepts any `HTMLElement` (a composite control attaches it to its wrapper); `fieldProps(name)` returning `{ ref, 'aria-invalid', 'aria-describedby' }`; `focusFirstInvalid()` which scrolls with `block: 'center'` and focuses the element itself if focusable, otherwise its first focusable descendant. A `field` the form does not register falls back to the form-level message only.
+3a. **`FieldFeedback`** (`shared/components/ui/field-feedback.tsx`): the inline message under an invalid input (`role` none, referenced by `aria-describedby`; the prototype's `.fb-field-msg`) plus the shared red-outline class for `aria-invalid` inputs, so Story 2 and the migration stories do not each invent one. Tailwind-only.
 4. **Resolver** (`shared/lib/i18n/resolve-error-message.ts`): add `resolveApiErrorFeedback(err, locale): { message: string; field?: string }` built on `extractProblemDetailShape`; `resolveErrorMessageFromApiError` delegates to it so its 30 callers are untouched.
 5. **Docs**: new section in `docs/ENGINEERING_RULES_FRONTEND.md` stating the pattern (placement, roles, focus, row-action rule, alignment rule) and a pointer from `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3.
 
@@ -107,18 +108,20 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none (no journey; a visual spec is part of `/story-discovery`)
+**Prototype references:** `journeys/manager/prototypes/feedback-pane/` (screens 01, 01b, 01c, 01d, 06, 07; `dev-notes.md`; shared CSS `journeys/shared/feedback-pane.css`); journey `journeys/manager/feedback-pane.md`
 **New migration / i18n keys / env vars / feature flags:** i18n keys only if the retry/dismiss labels are not already in `common` — decided in discovery, both `pt-BR` and `en` in the same change; no migration, env var or flag
 
 **Files to create/modify:**
 - `apps/web/shared/components/ui/feedback-message.tsx` + `feedback-message.spec.tsx` (new)
 - `apps/web/shared/components/ui/action-pane.tsx` + `action-pane.spec.tsx` (new)
+- `apps/web/shared/components/ui/field-feedback.tsx` + `field-feedback.spec.tsx` (new)
 - `apps/web/shared/lib/feedback/use-form-feedback.ts` + `use-form-feedback.spec.tsx` (new)
 - `apps/web/shared/lib/i18n/resolve-error-message.ts` + `resolve-error-message.spec.ts`
 - `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingErrorBanner.tsx` + spec (delete)
 - `apps/web/features/booking/components/dashboard/bookings/new-booking/NewBookingAvailabilityStep.tsx`, `NewBookingResourcePickerStep.tsx`, `NewBookingIntakeStep.tsx`, `NewBookingServicesStep.tsx`, `NewBookingDurationStep.tsx` (swap import)
 - `docs/ENGINEERING_RULES_FRONTEND.md`, `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`
-- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (only if new keys)
+- stale-reference sweep for `NewBookingErrorBanner` across `docs/*.md`, `plan/*_IMPLEMENTATION_DETAILS_*.md`, `.claude/**`, `scripts/**` (fix any hit in the same change)
+- `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (only if new keys; `common`/`tryAgain`-style retry keys already exist and callers pass `retryLabel`, so none are expected)
 
 **Acceptance criteria — product:**
 - [ ] The five New-booking step errors look and behave as before (message, hint, retry, focus on return) using the shared component.
@@ -129,12 +132,14 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
   - [ ] `feedback-message.spec.tsx`: error → `role="alert"`, success → `role="status"`; `focusOnMount` focuses; hint and retry render and fire; `inline` size; no `--ba-` class or variable in the rendered output
   - [ ] `action-pane.spec.tsx`: feedback renders below the actions; desktop wrapper carries the sticky classes; mobile bar carries `fixed` and renders the feedback; no feedback → no empty box
   - [ ] `use-form-feedback.spec.tsx`: a `field` mapped to a registered input marks it, scrolls (`block: 'center'`) and focuses it; an unregistered `field` leaves only the form-level message; `clear()` removes error and success; two invalid fields focus the first in DOM order
-  - [ ] `registerField` also works for a control that does not forward a ref (`color-picker`, `pill-multi-select`, `time-picker`): the story picks wrapper ref or a focus handle and a spec proves marking and focus for one such control (Appendix A finding 10)
+  - [ ] `registerField` also works for a control that does not forward a ref (`color-picker`, `pill-multi-select`, `time-picker`): decided — wrapper ref, focus falls back to the first focusable descendant; a spec proves marking and focus for one such control (Appendix A finding 10)
+  - [ ] `field-feedback.spec.tsx`: the message renders under the input and is referenced by `aria-describedby`; `fieldProps` sets `aria-invalid` only for a field with an error
+  - [ ] `action-pane.spec.tsx` also: `mobileOffsetClassName` default is `bottom-0` and a passed class replaces it; `shared/` imports nothing from `@/shells`
   - [ ] `resolve-error-message.spec.ts`: returns `{ message, field }` for an `ApiError` with `field`; returns the fallback and no `field` for a plain `Error`; `resolveErrorMessageFromApiError` output is unchanged for existing inputs
   - [ ] An unmigrated `ErrorAlert variant="hotsite"` still renders unchanged (negative guarantee: the branded variant is not touched)
 - Integration: none — frontend story, no `.integration.spec.ts` tier
 - Tenant isolation: none — no data access
-- E2E: none — covered in Story 2's scenario
+- E2E: no new scenario (covered in Story 2's). Regression run (approved in discovery, 2026-10-30; `/tmp/jest_rs` cleared first, stack stopped afterwards): the existing specs that reference the New-booking step testids — `booking-journey-basket`, `booking-chosen-resource`, `booking-auto-journey`, `booking-submit-routing`, `guest-booking` and `helpers/booking/staff-new-booking.ts` — pass unchanged, since `testId` passthrough keeps `step1-error`, `step2-error`, `duration-quote-error`, `picker-load-error`, …
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
