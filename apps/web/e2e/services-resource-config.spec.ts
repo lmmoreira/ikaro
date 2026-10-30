@@ -623,6 +623,6 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('service-mobile-tab-action')).toHaveText('Salvar políticas');
     await page.getByTestId('policy-recurrence-eligible').click();
     await page.getByTestId('service-mobile-tab-action').click();
-    await expect(page.getByTestId('form-feedback')).toBeVisible();
+    await expect(page.getByTestId('form-feedback-mobile')).toBeVisible();
   });
 });
