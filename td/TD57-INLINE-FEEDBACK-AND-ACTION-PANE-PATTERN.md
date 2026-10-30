@@ -403,16 +403,27 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 **Pattern:** plain composition — a second skin over the Story 1 behaviour layer; no named pattern applies
 
 **Description:**
-The public hotsite has no shell and no action pane, but its forms (booking info, intake answers, availability alerts, lead form, login) need the same behaviour as the SaaS side: error and success announced with the right role, the offending field marked and focused, a retry where one applies. Today only `ErrorAlert variant="hotsite"` is shared; eight other `--ba-*` files draw their own `role="alert"` box. Build the branded counterpart on `ErrorAlert` (error, success, field-level message, `focusOnMount`, `onRetry`) reusing `useFormFeedback` and the resolver from Story 1. The error colour decision (fixed semantic red vs derived from tenant tokens, and the contrast guarantee) is locked in this story's own `/story-discovery`. Exact file layout and whether `ErrorAlert` is renamed are also decided there; the migration of the eight branded files is a follow-up story appended by Story 0.
+The public hotsite has no shell and no action pane, but its forms (booking info, intake answers, availability alerts, lead form, login) need the same behaviour as the SaaS side: error and success announced with the right role, the offending field marked and focused, a retry where one applies. Today only `ErrorAlert variant="hotsite"` is shared; eight other `--ba-*` files draw their own `role="alert"` box. Build the branded counterpart (error, success, field-level message, `focusOnMount`, `onRetry`) reusing `useFormFeedback` and the resolver from Story 1. The migration of the eight branded files is Story 16.
+
+**Locked in discovery (2026-10-30):**
+- **Component:** new `BrandedFeedbackMessage` (`variant: 'error' | 'success'`, `title`, optional body, `hint`, `onRetry`, `retryLabel` required with `onRetry` and with no hardcoded default, `focusOnMount`, `testId`), plus `BrandedFieldFeedback` and `BRANDED_FIELD_INVALID_CLASS`, in `apps/web/shared/components/hotsite/` (new directory, shared by `booking` and `platform` public forms). `ErrorAlert` is not renamed, extended or touched; its callers migrate in Story 16. Error renders `<div role="alert">`, success `<output>` (SonarCloud S6819).
+- **Colour: a fixed semantic palette, never derived from tenant tokens.** Only `--ba-radius`, `--ba-body-font` and `--ba-heading-font` are branded. The box paints its own white surface and sets border, 4px left accent bar and text as one fixed pair; it never inherits `--ba-text` or `--ba-background` and never reads `--ba-primary`/`--ba-secondary` for colour. A faint neutral shadow separates it from any background even when a tenant colour equals the border colour. Rationale: a tenant-derived colour can make the box vanish or an error look like normal branding (`docs/ENGINEERING_RULES_FRONTEND.md` § Hotsite full-page components).
+- **Contrast guard (pure unit test, jsdom axe cannot compute contrast):** text on surface at least 4.5:1 and border/accent bar on white at least 3:1, for error and success; a sweep over the template palettes (`template-palette-contrast.spec.ts` precedent) and adversarial tenants (red, green, white, near-black background) asserting the box surface never equals the tenant background.
+- **Real-browser check** against one dark and one light tenant is a reviewer step in the PR body (local verification gate, CLAUDE.md §0).
+- Knip is report-only, so the component being unused until Story 16 is not a gate failure.
 
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none (visual spec is part of `/story-discovery`)
+**Prototype references:** `journeys/guest/prototypes/lead-form/01j-erro-feedback.html`, `01k-sucesso-feedback.html`; `journeys/shared/feedback-pane.css` (`.fb-ba*`); `journeys/guest/prototypes/lead-form/dev-notes.md` § Branded inline feedback
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales
 
 **Files to create/modify:**
-- `apps/web/features/booking/components/public/ErrorAlert.tsx` + `ErrorAlert.spec.tsx` (extend; final location decided in discovery)
+- `apps/web/shared/components/hotsite/branded-feedback-message.tsx` + `.spec.tsx`
+- `apps/web/shared/components/hotsite/branded-feedback-contrast.spec.ts`
+- `docs/ENGINEERING_RULES_FRONTEND.md` (Public hotsite row; hotsite-feedback rule)
+- `docs/AGENT_PATTERNS.md` (Pattern #25)
+- `journeys/guest/prototypes/lead-form/dev-notes.md`, `journeys/manager/prototypes/feedback-pane/dev-notes.md` (flip the branded-component gap rows)
 
 **Acceptance criteria — product:**
 - [ ] Public forms can show an error, a success and a field-level message in the tenant's branding with the same behaviour as the SaaS pattern.
@@ -420,8 +431,10 @@ The public hotsite has no shell and no action pane, but its forms (booking info,
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] error → `role="alert"`, success → `role="status"`; `focusOnMount`, retry and field marking covered
-  - [ ] the rendered output reads `--ba-*` and never a SaaS-palette token (negative guarantee, own test)
-  - [ ] existing `ErrorAlert` callers render unchanged until migrated
+  - [ ] the output reads only `--ba-radius`, `--ba-body-font`, `--ba-heading-font`; it never references `--ba-primary`, `--ba-text`, `--ba-background` or a shadcn token (`primary`, `destructive`, `muted`); fixed red/green are the intended exception (negative guarantee, own test)
+  - [ ] contrast: text on surface at least 4.5:1, border and accent bar on white at least 3:1, error and success; palette sweep plus red/green/white/near-black tenants never make the surface equal the tenant background (own test)
+  - [ ] the field message and invalid class: `aria-describedby` target id, fixed red outline
+  - [ ] `ErrorAlert` and its callers are untouched (negative guarantee: `ErrorAlert.spec.tsx` unchanged and green)
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E: none — covered by the public-forms migration story
