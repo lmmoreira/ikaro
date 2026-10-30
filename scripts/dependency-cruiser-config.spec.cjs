@@ -437,6 +437,8 @@ test(
       SHELL_IMPORT_SOURCE,
     );
 
+    assert.equal(shellToShared.status, 0, shellToShared.output);
+    assert.equal(testFile.status, 0, testFile.output);
     assert.doesNotMatch(shellToShared.output, /no-web-shared-to-shell-import/);
     assert.doesNotMatch(testFile.output, /no-web-shared-to-shell-import/);
   },
