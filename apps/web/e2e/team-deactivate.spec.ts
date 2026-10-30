@@ -43,7 +43,6 @@ test.describe('team member deactivate/activate flow', () => {
     await expect(row).toContainText('Inativo');
 
     await row.getByTestId('activate-member-button').click();
-    await expect(row.getByTestId('activate-member-success')).toBeVisible();
 
     // Confirms the router.refresh() fix: the badge and action both update in place,
     // no stale "Inativo"/"Ativar" left behind after a successful activation.

@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import type { ResourceResponse, ResourceType } from '@ikaro/types';
 import { useReactivateResource } from '@/features/booking/hooks/useResources';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { cn } from '@/shared/utils/cn';
 
 export const TYPE_BADGE_CLASSES: Record<ResourceType, string> = {
@@ -29,23 +32,29 @@ function workingHoursSummary(resource: ResourceResponse, inheritsLabel: string):
 
 // One-click row action, no confirmation screen — mirrors MemberRow.tsx's ActivateMemberAction
 // (TeamListPage's own established precedent for reactivation, which likewise has no dedicated
-// screen). Deactivation keeps its confirmation screen; only reactivation is inline.
+// screen). Deactivation keeps its confirmation screen; only reactivation is inline. The refetch
+// flips the badge and swaps this action for Desativar, so the change itself is the confirmation
+// and there is no success state to render (it would unmount with the action).
 function ReactivateResourceAction({
   resource,
 }: {
   readonly resource: ResourceResponse;
 }): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  const locale = useResolvedLocale();
   const reactivateResourceMutation = useReactivateResource();
-  const [reactivateState, setReactivateState] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reactivated, setReactivated] = useState(false);
 
   async function handleReactivate(): Promise<void> {
-    setReactivateState('idle');
+    setErrorMessage(null);
     try {
       await reactivateResourceMutation.mutateAsync(resource.id);
-      setReactivateState('success');
-    } catch {
-      setReactivateState('error');
+      // Stay disabled until the refetched row replaces this action, so a second click cannot
+      // reach the server in the gap between the mutation settling and the list updating.
+      setReactivated(true);
+    } catch (err) {
+      setErrorMessage(resolveApiErrorFeedback(err, locale).message);
     }
   }
 
@@ -55,26 +64,17 @@ function ReactivateResourceAction({
         type="button"
         data-testid="resource-row-reactivate-button"
         onClick={() => void handleReactivate()}
-        disabled={reactivateResourceMutation.isPending || reactivateState === 'success'}
+        disabled={reactivateResourceMutation.isPending || reactivated}
         className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
       >
         {reactivateResourceMutation.isPending ? t('activating') : t('activate')}
       </button>
-      {reactivateState === 'success' && (
-        <span
-          data-testid="resource-row-reactivate-success"
-          className="text-xs font-semibold text-emerald-600"
-        >
-          {t('activateSuccess')}
-        </span>
-      )}
-      {reactivateState === 'error' && (
-        <span
-          data-testid="resource-row-reactivate-error"
-          className="text-xs font-semibold text-red-600"
-        >
-          {t('activateError')}
-        </span>
+      {errorMessage && (
+        <FeedbackMessage
+          size="inline"
+          title={errorMessage}
+          testId="resource-row-reactivate-error"
+        />
       )}
     </div>
   );

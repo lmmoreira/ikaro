@@ -3,6 +3,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ResourceResponse } from '@ikaro/types';
+import { ApiError } from '@/shared/lib/api/errors';
 import { renderWithIntl } from '@/test-utils';
 import { ResourceRow } from './ResourceRow';
 
@@ -53,16 +54,27 @@ describe('ResourceRow', () => {
     await user.click(screen.getByTestId('resource-row-reactivate-button'));
 
     expect(reactivateMutateAsync).toHaveBeenCalledWith('room-1');
-    expect(await screen.findByTestId('resource-row-reactivate-success')).toBeInTheDocument();
+    // The refetch flips the badge and unmounts this action; no success text of its own.
+    expect(screen.queryByTestId('resource-row-reactivate-success')).not.toBeInTheDocument();
+    expect(screen.queryByText('Recurso reativado!')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Negative guarantee: no second activation can fire before the refetched row replaces it.
+    expect(screen.getByTestId('resource-row-reactivate-button')).toBeDisabled();
   });
 
-  it('shows an inline error if reactivation fails', async () => {
+  it('shows the backend-resolved message inline if reactivation fails', async () => {
     const user = userEvent.setup();
-    reactivateMutateAsync.mockRejectedValue(new Error('network down'));
+    reactivateMutateAsync.mockRejectedValue(
+      new ApiError(422, 'invalid', { code: 'BOOKING_RESOURCE_NO_WORKING_HOURS' }),
+    );
     renderWithIntl(<ResourceRow resource={INACTIVE_ROOM} />);
 
     await user.click(screen.getByTestId('resource-row-reactivate-button'));
 
-    expect(await screen.findByTestId('resource-row-reactivate-error')).toBeInTheDocument();
+    const error = await screen.findByTestId('resource-row-reactivate-error');
+    expect(error).toHaveTextContent(
+      'Este recurso não tem horário de funcionamento e o negócio também não tem horário padrão.',
+    );
+    expect(error).toHaveAttribute('role', 'alert');
   });
 });

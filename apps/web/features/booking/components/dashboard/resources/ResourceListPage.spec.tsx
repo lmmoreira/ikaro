@@ -90,12 +90,29 @@ describe('ResourceListPage', () => {
     const user = userEvent.setup();
     reactivateMutateAsync.mockResolvedValue({ id: 'room-1', isActive: true });
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
-    renderWithIntl(<ResourceListPage />);
+    const { rerender } = renderWithIntl(<ResourceListPage />);
 
     await user.click(screen.getByTestId('resource-row-reactivate-button'));
 
     expect(reactivateMutateAsync).toHaveBeenCalledWith('room-1');
-    expect(await screen.findByTestId('resource-row-reactivate-success')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-row-reactivate-success')).not.toBeInTheDocument();
+
+    // The refetch delivers the row as active: the changed badge and action are the confirmation.
+    useResourcesMock.mockReturnValue({
+      data: {
+        items: RESOURCES.map((resource) =>
+          resource.id === 'room-1' ? { ...resource, isActive: true } : resource,
+        ),
+      },
+      isLoading: false,
+    });
+    rerender(<ResourceListPage />);
+
+    expect(screen.queryByTestId('resource-row-reactivate-button')).not.toBeInTheDocument();
+    expect(screen.getByText('Estúdio 1').closest('div[class*="relative"]')).toHaveTextContent(
+      'Ativo',
+    );
+    expect(screen.getAllByTestId('resource-row-deactivate-link')).toHaveLength(2);
   });
 
   it('filters by type using the tabs', async () => {
