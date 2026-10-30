@@ -2,6 +2,7 @@ import { buildTemplateManifest, CATALOGUE_TEMPLATE_IDS } from '@ikaro/hotsite-te
 import { describe, expect, it } from 'vitest';
 import { contrastRatio } from '@/features/platform/hotsite/apply-branding';
 import {
+  BRANDED_FEEDBACK_EDGE,
   BRANDED_FEEDBACK_PALETTE,
   BRANDED_FEEDBACK_SHADOW,
   BRANDED_FEEDBACK_SURFACE,
@@ -59,16 +60,34 @@ describe('the box never disappears into a tenant palette', () => {
   );
 
   it.each([...ADVERSARIAL_BACKGROUNDS, ...TEMPLATE_BACKGROUNDS])(
-    'on a %s page: surface or border differs from it, and a colour-independent shadow remains',
+    'on a %s page: the white surface, the dark ring or the border stands out by at least 3:1',
     (tenantBackground) => {
       for (const variant of VARIANTS) {
-        const background = tenantBackground.toLowerCase();
-        const hidesSurface = background === BRANDED_FEEDBACK_SURFACE;
-        const hidesBorder = background === BRANDED_FEEDBACK_PALETTE[variant].border;
+        const separation = Math.max(
+          contrastRatio(tenantBackground, BRANDED_FEEDBACK_SURFACE),
+          contrastRatio(tenantBackground, BRANDED_FEEDBACK_EDGE),
+          contrastRatio(tenantBackground, BRANDED_FEEDBACK_PALETTE[variant].border),
+        );
 
-        expect(hidesSurface && hidesBorder).toBe(false);
+        expect(separation).toBeGreaterThanOrEqual(3);
       }
-      expect(BRANDED_FEEDBACK_SHADOW).not.toBe('none');
     },
   );
+
+  it('draws the dark ring in the shadow, not as a tenant colour', () => {
+    expect(BRANDED_FEEDBACK_SHADOW).toContain(BRANDED_FEEDBACK_EDGE);
+  });
+
+  it('sweeps every gray level: the surface or the ring always reaches 3:1', () => {
+    for (let level = 0; level <= 255; level += 5) {
+      const channel = level.toString(16).padStart(2, '0');
+      const background = `#${channel}${channel}${channel}`;
+      const separation = Math.max(
+        contrastRatio(background, BRANDED_FEEDBACK_SURFACE),
+        contrastRatio(background, BRANDED_FEEDBACK_EDGE),
+      );
+
+      expect(separation, background).toBeGreaterThanOrEqual(3);
+    }
+  });
 });

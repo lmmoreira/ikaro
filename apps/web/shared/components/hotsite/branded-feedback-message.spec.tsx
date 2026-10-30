@@ -2,7 +2,10 @@
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
-import { BrandedFeedbackMessage } from './branded-feedback-message';
+import {
+  BrandedFeedbackMessage,
+  type BrandedFeedbackMessageProps,
+} from './branded-feedback-message';
 
 const FORBIDDEN_TENANT_COLOURS = [
   '--ba-primary',
@@ -18,6 +21,13 @@ function tenantTokensIn(markup: string): string[] {
 }
 
 describe('BrandedFeedbackMessage', () => {
+  it('requires a retry label whenever onRetry is given', () => {
+    // @ts-expect-error onRetry without retryLabel would render an unnamed button
+    const props: BrandedFeedbackMessageProps = { title: 'Falhou', onRetry: () => {} };
+
+    expect(props.title).toBe('Falhou');
+  });
+
   it('renders an error as an alert with its title, body and hint', () => {
     render(
       <BrandedFeedbackMessage title="Não foi possível enviar" hint="Tente de novo" testId="fb">

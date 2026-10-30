@@ -7,18 +7,22 @@ import {
   BRANDED_FEEDBACK_SURFACE,
 } from './branded-feedback-palette';
 
-export interface BrandedFeedbackMessageProps {
+interface BrandedFeedbackMessageBaseProps {
   readonly variant?: 'error' | 'success';
   readonly title: string;
   readonly children?: React.ReactNode;
   readonly hint?: string;
-  readonly onRetry?: () => void;
-  /** Required with `onRetry`: the hotsite carries no default copy. */
-  readonly retryLabel?: string;
   /** Moves keyboard focus to the message when it appears. */
   readonly focusOnMount?: boolean;
   readonly testId?: string;
 }
+
+/** A retry button always has a label: the hotsite carries no default copy. */
+export type BrandedFeedbackMessageProps = BrandedFeedbackMessageBaseProps &
+  (
+    | { readonly onRetry?: undefined; readonly retryLabel?: undefined }
+    | { readonly onRetry: () => void; readonly retryLabel: string }
+  );
 
 /**
  * The public hotsite's counterpart of `ui/feedback-message`. Only radius and fonts follow the
