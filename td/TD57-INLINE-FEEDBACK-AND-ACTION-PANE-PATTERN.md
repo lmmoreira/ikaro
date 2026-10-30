@@ -134,7 +134,8 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
   - [ ] `use-form-feedback.spec.tsx`: a `field` mapped to a registered input marks it, scrolls (`block: 'center'`) and focuses it; an unregistered `field` leaves only the form-level message; `clear()` removes error and success; two invalid fields focus the first in DOM order
   - [ ] `registerField` also works for a control that does not forward a ref (`color-picker`, `pill-multi-select`, `time-picker`): decided — wrapper ref, focus falls back to the first focusable descendant; a spec proves marking and focus for one such control (Appendix A finding 10)
   - [ ] `field-feedback.spec.tsx`: the message renders under the input and is referenced by `aria-describedby`; `fieldProps` sets `aria-invalid` only for a field with an error
-  - [ ] `action-pane.spec.tsx` also: `mobileOffsetClassName` default is `bottom-0` and a passed class replaces it; `shared/` imports nothing from `@/shells`
+  - [ ] `action-pane.spec.tsx` also: `mobileOffsetClassName` default is `bottom-0` and a passed class replaces it
+  - [ ] `shared/` imports nothing from `@/shells`: pinned by the dependency-cruiser rule `no-web-shared-to-shell-import` (`scripts/dependency-cruiser.config.cjs`) and its fixture tests in `scripts/dependency-cruiser-config.spec.cjs`, not by `action-pane.spec.tsx` (PR #696)
   - [ ] `resolve-error-message.spec.ts`: returns `{ message, field }` for an `ApiError` with `field`; returns the fallback and no `field` for a plain `Error`; `resolveErrorMessageFromApiError` output is unchanged for existing inputs
   - [ ] An unmigrated `ErrorAlert variant="hotsite"` still renders unchanged (negative guarantee: the branded variant is not touched)
 - Integration: none — frontend story, no `.integration.spec.ts` tier
