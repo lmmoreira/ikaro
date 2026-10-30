@@ -36,7 +36,57 @@ export function parseDayOffset(daysAhead: number, seed: string): string {
   while (isWeekend(date)) {
     date.setUTCDate(date.getUTCDate() + 1);
   }
-  const slotIndex = hashSeed(seed) % 12;
-  date.setUTCHours(13 + Math.floor(slotIndex / 2), (slotIndex % 2) * 30, 0, 0);
-  return date.toISOString();
+  return slotAt(date, hashSeed(seed) % SLOT_COUNT).toISOString();
+}
+
+const SLOT_COUNT = 12;
+const FIRST_SLOT_HOUR_UTC = 13;
+// São Paulo closes at 14:00 on Saturday (17:00Z); the last half hour that still leaves room for the
+// 90-minute booking is 15:30Z, the sixth of the twelve slots.
+const LAST_SATURDAY_SLOT_INDEX = 5;
+// The backend refuses a start in the past, so a slot too close to now is not offered either.
+const SOONEST_LEAD_MS = 60 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+const LOOKAHEAD_DAYS = 14;
+// The seeded tenants' cancellation and reschedule window is 48 hours; an hour of margin keeps a
+// slot clear of the boundary while the request is in flight.
+const DEFAULT_WITHIN_HOURS = 47;
+
+function slotAt(day: Date, slotIndex: number): Date {
+  const slot = new Date(day);
+  slot.setUTCHours(FIRST_SLOT_HOUR_UTC + Math.floor(slotIndex / 2), (slotIndex % 2) * 30, 0, 0);
+  return slot;
+}
+
+function openSlotsBetween(day: Date, earliest: number, latest: number): Date[] {
+  if (day.getUTCDay() === SUNDAY) return [];
+  const lastIndex = day.getUTCDay() === SATURDAY ? LAST_SATURDAY_SLOT_INDEX : SLOT_COUNT - 1;
+  return Array.from({ length: lastIndex + 1 }, (_, index) => slotAt(day, index)).filter(
+    (slot) => slot.getTime() > earliest && slot.getTime() <= latest,
+  );
+}
+
+interface SoonestSlotOptions {
+  readonly withinHours?: number;
+  readonly now?: Date;
+}
+
+// A start for the São Paulo e2e tenant (lavacar-beloauto) that is open and no further than
+// `withinHours` away, for a spec that needs a booking inside a window measured in hours. It is open
+// Monday–Friday and Saturday until 14:00 and closed on Sunday, so "the next weekday" is not close
+// enough: from a Friday it is Monday, 60+ hours away, while a Saturday slot is not. The slot is
+// picked from the open ones inside the window; there may be none (a Saturday afternoon has few),
+// in which case this throws rather than hand back a start that makes the scenario assert nothing.
+export function parseSoonestSlot(seed: string, options: SoonestSlotOptions = {}): string {
+  const { withinHours = DEFAULT_WITHIN_HOURS, now = new Date() } = options;
+  const earliest = now.getTime() + SOONEST_LEAD_MS;
+  const latest = now.getTime() + withinHours * HOUR_MS;
+
+  for (let dayIndex = 0; dayIndex < LOOKAHEAD_DAYS; dayIndex += 1) {
+    const day = new Date(now);
+    day.setUTCDate(day.getUTCDate() + dayIndex);
+    const slots = openSlotsBetween(day, earliest, latest);
+    if (slots.length > 0) return slots[hashSeed(seed) % slots.length].toISOString();
+  }
+  throw new Error(`no open slot within ${withinHours}h of ${now.toISOString()}`);
 }

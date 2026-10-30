@@ -25,7 +25,7 @@ export async function approveBookingAsStaff(
 
 export async function createFreshApprovedBooking(
   page: Page,
-  daysAhead: number,
+  daysAhead: number | 'soonest',
   staffEmail: string,
   options: {
     readonly contactEmail?: string;
@@ -34,12 +34,16 @@ export async function createFreshApprovedBooking(
 ): Promise<AuthenticatedBookingSetup> {
   let lastError: string | null = null;
 
-  for (let attempt = 0; attempt < 12; attempt += 1) {
+  // 'soonest' has no later day to move on to (a later open day is outside the window it exists
+  // for), and createAuthenticatedBooking already cycles the open slots of its one day.
+  const attempts = daysAhead === 'soonest' ? 1 : 12;
+
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
     try {
       const setup = await createAuthenticatedBooking(page, {
         tenantSlug: STAFF_TENANT_SLUG,
         emailPrefix: `lifecycle-${daysAhead}`,
-        daysAhead: daysAhead + attempt,
+        daysAhead: daysAhead === 'soonest' ? daysAhead : daysAhead + attempt,
         ...(options.contactEmail ? { contactEmail: options.contactEmail } : {}),
         ...(options.serviceIds ? { serviceIds: options.serviceIds } : {}),
       });

@@ -192,12 +192,13 @@ test.describe('customer my-account: reschedule a booking (M23-S30, UC-069)', () 
     page,
   }) => {
     const customerEmail = uniqueTestEmail('reschedule-expired');
-    // daysAhead: 1 is tomorrow — always inside the 48h window a customer may reschedule from.
-    const setup = await createFreshApprovedBooking(page, 1, STAFF_EMAIL, {
+    // 'soonest' is the nearest open slot, so it is inside the 48h window a customer may reschedule
+    // from whatever weekday the run happens on.
+    const setup = await createFreshApprovedBooking(page, 'soonest', STAFF_EMAIL, {
       contactEmail: customerEmail,
     });
-    // The fixture helper moves to a later day when every slot of tomorrow is taken; a booking that
-    // drifted past the 48h window would make this scenario assert nothing.
+    // The fixture helper moves to a later open day when every slot of the nearest one is taken; a
+    // booking that drifted past the 48h window would make this scenario assert nothing.
     const msUntilStart = Date.parse(setup.scheduledAt) - Date.now();
     expect(msUntilStart).toBeGreaterThan(0);
     expect(msUntilStart).toBeLessThan(48 * 60 * 60 * 1000);
