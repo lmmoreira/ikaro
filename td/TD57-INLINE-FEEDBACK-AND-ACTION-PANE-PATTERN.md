@@ -253,7 +253,7 @@ Migrate every tab of `ServiceEditPage` to the shared pattern and make the policy
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 3 — Service edit tabs start with a card level with the action pane 🟡
+### Story 3 — Service edit tabs start with a card level with the action pane 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
