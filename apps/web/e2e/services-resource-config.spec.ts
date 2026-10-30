@@ -52,7 +52,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await resourceTypeCheckbox(page, 'ROOM').click();
     await resourceTypeCheckbox(page, 'EQUIPMENT').click();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await page.getByRole('tab', { name: 'Recursos' }).click();
@@ -78,8 +78,8 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await bufferInput.fill('10');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
-    await expect(page.getByTestId('resource-requirements-error')).toHaveCount(0);
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).not.toContainText('Não foi possível salvar');
 
     await page.reload();
     await page.getByRole('tab', { name: 'Recursos' }).click();
@@ -87,7 +87,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await bufferInput.fill('');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await page.getByRole('tab', { name: 'Recursos' }).click();
@@ -97,7 +97,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     // 0 is a real override, distinct from blank.
     await bufferInput.fill('0');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
     await page.reload();
     await page.getByRole('tab', { name: 'Recursos' }).click();
     await expect(bufferInput).toHaveValue('0');
@@ -146,7 +146,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('legs-total-span')).toContainText('70');
 
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     // A legged service's duration is its legs' span (M23-S11b): the Detalhes field follows the
     // save in the same session, read-only — and still does after a reload.
@@ -169,7 +169,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(recurrenceToggle).not.toBeChecked();
     await recurrenceToggle.click();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
@@ -193,7 +193,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await resourceTypeCheckbox(page, 'ROOM').click();
     await resourceTypeCheckbox(page, 'EQUIPMENT').click();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     // Two resources are no reason any more, in the same session and without a reload.
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
@@ -202,7 +202,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('policy-recurrence-eligible').click();
     await expect(page.getByTestId('service-desktop-tab-action')).toBeEnabled();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
   });
 
   // M23-S16 — the recurring-schedule maximum term (Service.bookingPolicy.recurringHorizonDays).
@@ -226,7 +226,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await horizon.fill('60');
     await expect(page.getByTestId('policy-recurring-horizon-error')).toBeHidden();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
@@ -234,7 +234,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
 
     await page.getByTestId('policy-recurring-horizon').fill('');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     await page.reload();
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
@@ -257,14 +257,65 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('policy-pricing-increment').fill('15');
     await page.getByTestId('policy-price-per-increment').fill('10');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     // The backend rejects pricingPolicy=PER_TIME_INCREMENT once durationPolicy is FIXED again —
     // switching duration back must force pricing back to FIXED too, or this save 422s.
     await page.getByTestId('policy-duration-policy').selectOption('FIXED');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
-    await expect(page.getByTestId('policy-error')).not.toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).not.toContainText('Não foi possível salvar');
+  });
+
+  test('blocks a customer-chosen duration with empty bounds and reports it in the action pane (TD57-S02)', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await page.getByTestId('policy-duration-policy').selectOption('CUSTOMER_SELECTED');
+    await page.getByTestId('service-desktop-tab-action').click();
+
+    const pane = page.getByTestId('action-pane-desktop');
+    await expect(pane.getByTestId('form-feedback')).toContainText('Não foi possível salvar');
+    await expect(pane.getByTestId('form-feedback')).toBeInViewport();
+    await expect(page.getByTestId('policy-duration-min')).toBeFocused();
+    await expect(page.getByTestId('policy-duration-min')).toHaveAttribute('aria-invalid', 'true');
+    const messageId = await page
+      .getByTestId('policy-duration-min')
+      .getAttribute('aria-describedby');
+    await expect(page.locator(`[id="${messageId}"]`)).toHaveText('Informe a duração mínima.');
+
+    await page.getByTestId('policy-duration-min').fill('30');
+    await page.getByTestId('policy-duration-max').fill('90');
+    await page.getByTestId('policy-duration-increment').fill('15');
+    await page.getByTestId('policy-pricing-policy').selectOption('PER_TIME_INCREMENT');
+    await page.getByTestId('policy-pricing-increment').fill('15');
+    await page.getByTestId('policy-price-per-increment').fill('10');
+    await page.getByTestId('service-desktop-tab-action').click();
+    await expect(pane.getByTestId('form-feedback')).toContainText('Alterações salvas');
+    await expect(pane.getByTestId('form-feedback')).toContainText(
+      'As políticas do serviço foram atualizadas.',
+    );
+  });
+
+  test('names the business limit when a service booking window is wider than the tenant window (TD57-S02)', async ({
+    page,
+  }) => {
+    const service = await seedService(page);
+
+    await openEditPage(page, service.serviceId);
+    await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
+    await page.getByTestId('policy-max-advance').fill('365');
+    await page.getByTestId('service-desktop-tab-action').click();
+
+    const pane = page.getByTestId('action-pane-desktop');
+    await expect(pane.getByTestId('form-feedback')).toContainText(
+      /A antecedência máxima do serviço não pode passar de \d+ dias, o limite do negócio\./,
+    );
+    await expect(page.getByTestId('policy-max-advance')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('policy-max-advance')).toBeFocused();
   });
 
   test('publishes a new intake-schema version and sees the previous version in history', async ({
@@ -291,7 +342,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
       .fill('Necessidades de acesso');
     await expect(page.getByTestId('service-desktop-tab-action')).toBeEnabled();
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('intake-published')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
     await expect(page.getByTestId('intake-version-current')).toContainText('1');
     // Publishing clears the tab's dirty flag, same as every other tab's save.
     await expect(
@@ -303,7 +354,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
       .locator('[data-testid="intake-question-label"][data-question-index="1"]')
       .fill('Segunda pergunta');
     await page.getByTestId('service-desktop-tab-action').click();
-    await expect(page.getByTestId('intake-published')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
     await expect(page.getByTestId('intake-version-current')).toContainText('2');
 
     const historyRow = page.locator('[data-testid="intake-version-history-row"][data-version="1"]');
@@ -372,14 +423,14 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(tabAction).toHaveText('Salvar recursos');
     await resourceTypeCheckbox(page, 'ROOM').click();
     await tabAction.click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     // Políticas de reserva
     await page.getByRole('tab', { name: 'Políticas de reserva' }).click();
     await expect(tabAction).toHaveText('Salvar políticas');
     await page.getByTestId('policy-recurrence-eligible').click();
     await tabAction.click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     // Formulário de reserva — Publish is disabled until the form is valid.
     await page.getByRole('tab', { name: 'Formulário de reserva' }).click();
@@ -395,7 +446,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await page.getByTestId('intake-consent-text').fill('Concordo com os termos');
     await expect(tabAction).toBeEnabled();
     await tabAction.click();
-    await expect(page.getByTestId('intake-published')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
 
     for (const tab of ['detalhes', 'recursos', 'politicas', 'formulario']) {
       await expect(dirtyDot(tab)).toHaveCount(0);
@@ -463,7 +514,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(quantityError).toHaveCount(0);
     await expect(tabAction).toBeEnabled();
     await tabAction.click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
   });
 
   test('blocks the save when every saved eligible resource has been deactivated, and unblocks it once a new one is picked', async ({
@@ -513,7 +564,7 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(row.getByTestId('resource-type-stale-pool')).toHaveCount(0);
     await expect(tabAction).toBeEnabled();
     await tabAction.click();
-    await expect(page.getByTestId('resource-requirements-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
   });
 
   test('discarding unsaved changes: the dialog can be kept-editing, confirmed via Cancelar, and opened from the topbar back button', async ({
@@ -572,6 +623,6 @@ test.describe('M22-S04 — Serviços resource-config tabs', () => {
     await expect(page.getByTestId('service-mobile-tab-action')).toHaveText('Salvar políticas');
     await page.getByTestId('policy-recurrence-eligible').click();
     await page.getByTestId('service-mobile-tab-action').click();
-    await expect(page.getByTestId('policy-saved')).toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toBeVisible();
   });
 });

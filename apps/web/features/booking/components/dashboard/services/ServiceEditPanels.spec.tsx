@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
@@ -153,7 +153,13 @@ describe('ServiceEditActionPanels', () => {
         isActivating={false}
         onActivate={vi.fn()}
         showPrimaryAction={false}
-        tabAction={{ label: 'Salvar recursos', disabled: false, pending: false, onSubmit }}
+        tabAction={{
+          label: 'Salvar recursos',
+          disabled: false,
+          pending: false,
+          onSubmit,
+          feedback: null,
+        }}
       />,
     );
 
@@ -178,6 +184,7 @@ describe('ServiceEditActionPanels', () => {
           disabled: true,
           pending: false,
           onSubmit: vi.fn(),
+          feedback: null,
         }}
       />,
     );
@@ -195,6 +202,7 @@ describe('ServiceEditActionPanels', () => {
           disabled: false,
           pending: true,
           onSubmit: vi.fn(),
+          feedback: null,
         }}
       />,
     );
@@ -219,5 +227,97 @@ describe('ServiceEditActionPanels', () => {
     expect(screen.getByTestId('service-cancel-desktop-link')).toBeInTheDocument();
     expect(screen.queryByTestId('service-cancel-mobile-link')).not.toBeInTheDocument();
     expect(screen.queryByTestId('service-desktop-tab-action')).not.toBeInTheDocument();
+  });
+});
+
+describe('ServiceEditActionPanels feedback', () => {
+  const ERROR = {
+    variant: 'error',
+    title: 'Não foi possível salvar',
+    body: 'Algo falhou.',
+  } as const;
+
+  it('renders the tab action feedback below the buttons in the aside', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={{
+          label: 'Salvar políticas',
+          disabled: false,
+          pending: false,
+          onSubmit: vi.fn(),
+          feedback: ERROR,
+        }}
+      />,
+    );
+
+    const aside = screen.getByTestId('action-pane-desktop');
+    const feedback = within(aside).getByTestId('form-feedback');
+    const button = within(aside).getByTestId('service-desktop-tab-action');
+    expect(feedback).toHaveTextContent('Algo falhou.');
+    expect(
+      button.compareDocumentPosition(feedback) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('renders the same feedback above the buttons in the mobile bar', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        showPrimaryAction={false}
+        tabAction={{
+          label: 'Salvar políticas',
+          disabled: false,
+          pending: false,
+          onSubmit: vi.fn(),
+          feedback: ERROR,
+        }}
+      />,
+    );
+
+    const bar = screen.getByTestId('action-pane-mobile');
+    const feedback = within(bar).getByTestId('form-feedback-mobile');
+    const button = within(bar).getByTestId('service-mobile-tab-action');
+    expect(feedback).toHaveTextContent('Algo falhou.');
+    expect(
+      feedback.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it('shows Detalhes its own feedback, not a tab action one', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+        feedback={{ variant: 'success', title: 'Alterações salvas' }}
+      />,
+    );
+
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByTestId('form-feedback'),
+    ).toHaveTextContent('Alterações salvas');
+  });
+
+  it('renders no feedback card when there is no message', () => {
+    renderWithIntl(
+      <ServiceEditActionPanels
+        isActive
+        isSubmitting={false}
+        isActivating={false}
+        onActivate={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback-mobile')).not.toBeInTheDocument();
   });
 });

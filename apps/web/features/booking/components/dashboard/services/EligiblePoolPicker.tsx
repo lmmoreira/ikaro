@@ -69,11 +69,7 @@ export function EligiblePoolPicker({
         ))}
       </select>
       {stalePool && (
-        <p
-          role="alert"
-          data-testid="resource-type-stale-pool"
-          className="mt-1 text-xs text-red-600"
-        >
+        <p data-testid="resource-type-stale-pool" className="mt-1 text-xs text-red-600">
           {t('resourceStalePoolNotice')}
         </p>
       )}

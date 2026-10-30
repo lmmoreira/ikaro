@@ -738,7 +738,11 @@ describe('ServiceController (integration)', () => {
         .send({ maxBookingAdvanceDaysOverride: 365 })
         .expect(422);
 
-      expect(body.code).toBe('BOOKING_SERVICE_BOOKING_POLICY_INVALID');
+      expect(body).toMatchObject({
+        code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
+        field: 'maxBookingAdvanceDaysOverride',
+        params: { maxAdvanceDays: 90 },
+      });
       const { body: fetched } = await request(app.getHttpServer())
         .get(`/services/${created.id}`)
         .set(actorHeaders(isolatedTenant, MANAGER_ID))

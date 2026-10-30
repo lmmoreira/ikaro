@@ -1,3 +1,4 @@
+import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { ServiceBuilder } from '../../../../test/builders/booking/service.builder';
 import {
   BookingScheduledInPastError,
@@ -5,6 +6,7 @@ import {
   BookingTooSoonError,
 } from '../../domain/errors/booking-domain.error';
 import {
+  assertBookingWindowOverridesValid,
   assertWithinBookingWindow,
   assertWithinEffectiveBookingWindow,
   resolveEffectiveBookingWindow,
@@ -195,6 +197,56 @@ describe('assertWithinEffectiveBookingWindow', () => {
           { ignoreMinAdvance: true },
         ),
       ).toThrow(BookingTooFarAheadError);
+    });
+  });
+});
+
+describe('assertBookingWindowOverridesValid', () => {
+  function errorOf(overrides: Parameters<typeof assertBookingWindowOverridesValid>[0]): unknown {
+    try {
+      assertBookingWindowOverridesValid(overrides, TENANT);
+    } catch (err) {
+      return err;
+    }
+    throw new Error('expected the overrides to be rejected');
+  }
+
+  it('accepts overrides that only tighten the business window', () => {
+    expect(() =>
+      assertBookingWindowOverridesValid(
+        { minBookingAdvanceHoursOverride: 24, maxBookingAdvanceDaysOverride: 30 },
+        TENANT,
+      ),
+    ).not.toThrow();
+  });
+
+  it('names the business maximum when a maximum above it is requested', () => {
+    expect(
+      errorOf({ minBookingAdvanceHoursOverride: null, maxBookingAdvanceDaysOverride: 365 }),
+    ).toMatchObject({
+      code: BookingErrorCode.SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT,
+      field: 'maxBookingAdvanceDaysOverride',
+      params: { maxAdvanceDays: 90 },
+    });
+  });
+
+  it('names the business minimum when a minimum below it is requested', () => {
+    expect(
+      errorOf({ minBookingAdvanceHoursOverride: 1, maxBookingAdvanceDaysOverride: null }),
+    ).toMatchObject({
+      code: BookingErrorCode.SERVICE_POLICY_MIN_ADVANCE_BELOW_TENANT,
+      field: 'minBookingAdvanceHoursOverride',
+      params: { minAdvanceHours: 2 },
+    });
+  });
+
+  it('names the effective window when the notice leaves no bookable day', () => {
+    expect(
+      errorOf({ minBookingAdvanceHoursOverride: 24 * 10, maxBookingAdvanceDaysOverride: 5 }),
+    ).toMatchObject({
+      code: BookingErrorCode.SERVICE_POLICY_WINDOW_EMPTY,
+      field: 'minBookingAdvanceHoursOverride',
+      params: { minAdvanceHours: 240, maxAdvanceDays: 5 },
     });
   });
 });

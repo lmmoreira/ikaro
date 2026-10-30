@@ -13,6 +13,7 @@ import {
   type FloatingFilterDockValue,
 } from '@/features/booking/components/dashboard/floating-filter-dock-context';
 import type { FloatingFilterCorner } from '@/features/booking/model/floating-filter-corner';
+import { FeedbackMessage, type FeedbackModel } from '@/shared/components/ui/feedback-message';
 
 // getPublicEnv() reads window.__PUBLIC_ENV__ in any jsdom (client-simulated) spec, never
 // process.env — mirrors what the root layout's PublicEnvScript injects into real pages (TD29).
@@ -241,4 +242,33 @@ export function getPillOption(testId: string, value: string): HTMLElement {
 
 export function queryPillOption(testId: string, value: string): HTMLElement | null {
   return screen.queryAllByTestId(testId).find((el) => el.dataset.value === value) ?? null;
+}
+
+// A form with no invalid field: the `useFormFeedback` surface a card needs to mark inputs, for a
+// spec that renders the card on its own.
+export const NO_FIELD_BINDINGS = {
+  fieldErrors: {},
+  fieldErrorId: (name: string): string => `${name}-error`,
+  fieldProps: (): {
+    ref: () => void;
+    'aria-invalid': true | undefined;
+    'aria-describedby': string | undefined;
+  } => ({
+    ref: () => undefined,
+    'aria-invalid': undefined,
+    'aria-describedby': undefined,
+  }),
+};
+
+// Plays the action pane's feedback slot for a spec that renders a tab panel on its own: the panel
+// registers its feedback with ServiceEditPage, so the harness has to draw it.
+export function TabActionFeedback({
+  feedback,
+}: Readonly<{ feedback: FeedbackModel | null | undefined }>): React.JSX.Element | null {
+  if (!feedback) return null;
+  return (
+    <FeedbackMessage variant={feedback.variant} title={feedback.title} testId="form-feedback">
+      {feedback.body}
+    </FeedbackMessage>
+  );
 }

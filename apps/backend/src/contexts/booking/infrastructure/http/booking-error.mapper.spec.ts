@@ -49,6 +49,7 @@ import {
   ResourceRequirementInvalidError,
   ScheduleAlreadyClosedError,
   ScheduleClosureNotFoundError,
+  ServiceBookingPolicyInvalidError,
   ServiceDeactivatedError,
   ServiceLegInvalidError,
   ServiceNotFoundError,
@@ -470,6 +471,30 @@ describe('mapBookingError', () => {
     expect(err.getResponse()).toMatchObject({
       code: BookingErrorCode.RECURRING_SCHEDULE_NO_OCCURRENCES,
     });
+  });
+
+  it('maps ServiceBookingPolicyInvalidError to 422 with its own code and the limit in params', () => {
+    const err = call(
+      new ServiceBookingPolicyInvalidError('max-advance-exceeds-tenant', { maxAdvanceDays: 90 }),
+    );
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    expect(err.getResponse()).toMatchObject({
+      status: 422,
+      code: BookingErrorCode.SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT,
+      field: 'maxBookingAdvanceDaysOverride',
+      params: { maxAdvanceDays: 90 },
+    });
+  });
+
+  it('maps a ServiceBookingPolicyInvalidError without a limit to 422 with no params', () => {
+    const err = call(new ServiceBookingPolicyInvalidError('custom-duration-details-required'));
+    expect(err.getStatus()).toBe(HttpStatus.UNPROCESSABLE_ENTITY);
+    const body = err.getResponse() as Record<string, unknown>;
+    expect(body).toMatchObject({
+      code: BookingErrorCode.SERVICE_POLICY_DURATION_DETAILS_REQUIRED,
+      field: 'durationMinMinutes',
+    });
+    expect(body).not.toHaveProperty('params');
   });
 
   it('maps RecurringBookingScheduleTermExceededError to 422 with the limit in params', () => {

@@ -4,6 +4,7 @@ import { mapSharedAddressError } from '../../../../shared/http/address-validatio
 import { mapSharedVoError } from '../../../../shared/http/vo-validation-error.mapper';
 import { ProblemDetail } from '@ikaro/types/protocol/errors';
 import { mapRecurringScheduleProblem } from './recurring-schedule-problem.mapper';
+import { mapServicePolicyProblem } from './service-policy-problem.mapper';
 import { SPLIT_ERROR_GROUPS } from './split-error-groups';
 import {
   AvailabilityDateInPastError,
@@ -239,6 +240,7 @@ function throwAddressValidationProblem(err: BookingAddressValidationError): neve
 export function mapBookingError(err: unknown): never {
   if (err instanceof BookingAddressValidationError) throwAddressValidationProblem(err);
   mapRecurringScheduleProblem(err);
+  mapServicePolicyProblem(err);
   mapSharedAddressError(err);
   mapSharedVoError(err);
 

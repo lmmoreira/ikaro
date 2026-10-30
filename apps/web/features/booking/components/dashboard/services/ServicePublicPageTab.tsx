@@ -4,10 +4,14 @@ import { useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import type { StaffServiceResponse } from '@ikaro/types';
 import { useUpdateServicePublicPage } from '@/features/booking/services/useServices';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { useTenant } from '@/providers/tenant-provider';
-import { useRegisterTabAction, type ServiceTabActionChange } from './service-tab-action';
+import {
+  useRegisterTabAction,
+  useTabFeedback,
+  type ServiceTabActionChange,
+} from './service-tab-action';
 import {
   toPublicPageDraft,
   toPublicPageProfileRequest,
@@ -49,16 +53,15 @@ export function ServicePublicPageTab({
     published: service.publicPagePublished,
     slug: service.publicSlug,
   });
-  const [error, setError] = useState<string | null>(null);
-  const [savedMessageVisible, setSavedMessageVisible] = useState(false);
+  const form = useFormFeedback();
+  const feedback = useTabFeedback(form);
   // Bumped on every edit — a save in flight must not clear the dirty flag for an edit made after it
   // was sent (same guard as the other tabs).
   const editRevisionRef = useRef(0);
 
   function touch(): void {
     editRevisionRef.current += 1;
-    setError(null);
-    setSavedMessageVisible(false);
+    form.clear();
     onDirtyChange(true);
   }
 
@@ -68,7 +71,7 @@ export function ServicePublicPageTab({
   }
 
   async function handleSave(): Promise<void> {
-    setError(null);
+    form.clear();
     const revisionAtSubmit = editRevisionRef.current;
     try {
       const result = await updatePublicPage.mutateAsync({
@@ -80,10 +83,10 @@ export function ServicePublicPageTab({
         // Adopt what the backend stored: a tmp upload comes back as its permanent path.
         setDraft(toPublicPageDraft(result.publicProfile));
         onDirtyChange(false);
-        setSavedMessageVisible(true);
+        form.setSuccess(t('publicPageSavedBody'));
       }
     } catch (err) {
-      setError(resolveErrorMessageFromApiError(err, locale));
+      form.setFromApiError(err, locale);
     }
   }
 
@@ -92,6 +95,7 @@ export function ServicePublicPageTab({
     disabled: updatePublicPage.isPending,
     pending: updatePublicPage.isPending,
     onSubmit: handleSave,
+    feedback,
   });
 
   const liveHref = saved.published && saved.slug ? `/${tenantSlug}/servicos/${saved.slug}` : null;
@@ -122,22 +126,6 @@ export function ServicePublicPageTab({
         onInclusionsChange={(items) => patchDraft({ inclusions: items })}
         onPreparationNotesChange={(value) => patchDraft({ preparationNotes: value })}
       />
-
-      {error && (
-        <div
-          role="alert"
-          data-testid="public-page-error"
-          className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-        >
-          {error}
-        </div>
-      )}
-
-      {savedMessageVisible && (
-        <p data-testid="public-page-saved" className="text-sm text-green-600">
-          {t('publicPageSavedConfirm')}
-        </p>
-      )}
     </div>
   );
 }

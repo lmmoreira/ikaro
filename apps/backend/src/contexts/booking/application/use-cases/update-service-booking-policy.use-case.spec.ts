@@ -154,7 +154,9 @@ describe('UpdateServiceBookingPolicyUseCase', () => {
         }),
       ).rejects.toMatchObject({
         name: 'ServiceBookingPolicyInvalidError',
+        code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
         field: 'maxBookingAdvanceDaysOverride',
+        params: { maxAdvanceDays: expect.any(Number) },
       });
     });
 
@@ -169,7 +171,9 @@ describe('UpdateServiceBookingPolicyUseCase', () => {
         }),
       ).rejects.toMatchObject({
         name: 'ServiceBookingPolicyInvalidError',
+        code: 'BOOKING_SERVICE_POLICY_MIN_ADVANCE_BELOW_TENANT',
         field: 'minBookingAdvanceHoursOverride',
+        params: { minAdvanceHours: expect.any(Number) },
       });
     });
 
@@ -186,7 +190,10 @@ describe('UpdateServiceBookingPolicyUseCase', () => {
           tenantId: TENANT_A,
           minBookingAdvanceHoursOverride: 24 * 10,
         }),
-      ).rejects.toMatchObject({ name: 'ServiceBookingPolicyInvalidError' });
+      ).rejects.toMatchObject({
+        name: 'ServiceBookingPolicyInvalidError',
+        code: 'BOOKING_SERVICE_POLICY_WINDOW_EMPTY',
+      });
     });
 
     it('does not block an unrelated edit when an earlier override has gone stale', async () => {

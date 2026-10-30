@@ -103,6 +103,8 @@ export class ApiError extends Error {
 export interface ProblemDetailShape {
   readonly code?: string;
   readonly field?: string;
+  // Values the translated message interpolates (e.g. the business limit a request exceeded).
+  readonly params?: Readonly<Record<string, string | number>>;
 }
 
 // bffClient's response interceptor collapses every failure into ApiError/AuthError/ForbiddenError,
@@ -113,5 +115,5 @@ export function extractProblemDetailShape(err: unknown): ProblemDetailShape | nu
     return null;
   }
   const data = err.data as Partial<ProblemDetail> | undefined;
-  return { code: data?.code, field: data?.field };
+  return { code: data?.code, field: data?.field, params: data?.params };
 }

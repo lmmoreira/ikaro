@@ -57,7 +57,7 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         .getByTestId('public-page-preparation')
         .fill('Chegue com 10 minutos de antecedência.');
       await page.getByTestId('service-desktop-tab-action').click();
-      await expect(page.getByTestId('public-page-saved')).toBeVisible();
+      await expect(page.getByTestId('form-feedback')).toBeVisible();
 
       // The link is live and opens in a NEW browser tab, so the editor stays where it is.
       const viewLink = page.getByTestId('public-page-view-link');
@@ -126,7 +126,7 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         await expect(page.getByTestId('public-page-chip')).toHaveText('Publicada');
         await page.getByTestId('public-page-switch').click();
         await page.getByTestId('service-desktop-tab-action').click();
-        await expect(page.getByTestId('public-page-saved')).toBeVisible();
+        await expect(page.getByTestId('form-feedback')).toBeVisible();
         await expect(page.getByTestId('public-page-chip')).toHaveText('Não publicada');
         await expect(page.getByTestId('public-page-view-link')).toHaveCount(0);
 
@@ -227,7 +227,7 @@ test.describe('service public page — manager publishes, visitor reads', () => 
         // Saving an edit that does not touch the images keeps them: the tab sent paths back.
         await page.getByTestId('public-page-description').fill('Texto da página, editado.');
         await page.getByTestId('service-desktop-tab-action').click();
-        await expect(page.getByTestId('public-page-saved')).toBeVisible();
+        await expect(page.getByTestId('form-feedback')).toBeVisible();
         await expectImagesLoaded();
       } finally {
         await visitor.close();
@@ -291,7 +291,7 @@ test.describe('service public page — STAFF', () => {
       await page.getByTestId('public-page-switch').click();
       await page.getByTestId('public-page-preparation').fill('Texto da equipe.');
       await page.getByTestId('service-desktop-tab-action').click();
-      await expect(page.getByTestId('public-page-saved')).toBeVisible();
+      await expect(page.getByTestId('form-feedback')).toBeVisible();
       await expect(page.getByTestId('public-page-view-link')).toBeVisible();
     } finally {
       await loginAsStaff(page, MANAGER_EMAIL, TENANT_SLUG);

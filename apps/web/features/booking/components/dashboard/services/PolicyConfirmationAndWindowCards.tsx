@@ -2,7 +2,13 @@
 
 import { useTranslations } from 'next-intl';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { parseNullableNumber, toNumberInput, type PolicyCardProps } from './policy-card-helpers';
+import { PolicyNumberField } from './PolicyNumberField';
+import {
+  parseNullableNumber,
+  toNumberInput,
+  type PolicyCardProps,
+  type PolicyFieldCardProps,
+} from './policy-card-helpers';
 
 export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
@@ -102,7 +108,11 @@ export function PolicyConfirmationCard({ policy, onPatch }: PolicyCardProps): Re
   );
 }
 
-export function PolicyBookingWindowCard({ policy, onPatch }: PolicyCardProps): React.JSX.Element {
+export function PolicyBookingWindowCard({
+  policy,
+  fields,
+  onPatch,
+}: PolicyFieldCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
 
   return (
@@ -112,44 +122,26 @@ export function PolicyBookingWindowCard({ policy, onPatch }: PolicyCardProps): R
           {t('politicasBookingWindowCardTitle')}
         </h2>
         <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label
-              htmlFor="policy-min-advance"
-              className="mb-1 block text-xs font-semibold text-gray-500"
-            >
-              {t('politicasMinAdvanceLabel')}
-            </label>
-            <input
-              id="policy-min-advance"
-              type="number"
-              min={0}
-              data-testid="policy-min-advance"
-              value={toNumberInput(policy.minBookingAdvanceHoursOverride)}
-              onChange={(event) =>
-                onPatch({ minBookingAdvanceHoursOverride: parseNullableNumber(event.target.value) })
-              }
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="policy-max-advance"
-              className="mb-1 block text-xs font-semibold text-gray-500"
-            >
-              {t('politicasMaxAdvanceLabel')}
-            </label>
-            <input
-              id="policy-max-advance"
-              type="number"
-              min={1}
-              data-testid="policy-max-advance"
-              value={toNumberInput(policy.maxBookingAdvanceDaysOverride)}
-              onChange={(event) =>
-                onPatch({ maxBookingAdvanceDaysOverride: parseNullableNumber(event.target.value) })
-              }
-              className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500"
-            />
-          </div>
+          <PolicyNumberField
+            name="minBookingAdvanceHoursOverride"
+            id="policy-min-advance"
+            testId="policy-min-advance"
+            label={t('politicasMinAdvanceLabel')}
+            value={policy.minBookingAdvanceHoursOverride}
+            min={0}
+            fields={fields}
+            onChange={(value) => onPatch({ minBookingAdvanceHoursOverride: value })}
+          />
+          <PolicyNumberField
+            name="maxBookingAdvanceDaysOverride"
+            id="policy-max-advance"
+            testId="policy-max-advance"
+            label={t('politicasMaxAdvanceLabel')}
+            value={policy.maxBookingAdvanceDaysOverride}
+            min={1}
+            fields={fields}
+            onChange={(value) => onPatch({ maxBookingAdvanceDaysOverride: value })}
+          />
         </div>
       </CardContent>
     </Card>

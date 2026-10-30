@@ -160,6 +160,19 @@ describe('resolveApiErrorFeedback', () => {
     });
   });
 
+  it('interpolates the ProblemDetail params into the translated message', () => {
+    const err = new ApiError(422, 'Invalid', {
+      code: 'TEST_WITH_PARAM',
+      field: 'maxBookingAdvanceDaysOverride',
+      params: { name: 'Ana', count: 3 },
+    });
+
+    expect(resolveApiErrorFeedback(err, 'en')).toEqual({
+      message: 'Hello Ana, you have 3 items.',
+      field: 'maxBookingAdvanceDaysOverride',
+    });
+  });
+
   it('returns no field when the ProblemDetail carries none', () => {
     const err = new ApiError(409, 'Conflict', { code: 'TEST_NO_PARAM' });
 

@@ -1,6 +1,8 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { FIELD_INVALID_CLASS } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
 
 interface ServiceBufferAfterMinutesFieldProps {
   // '' = no override: the service inherits the business default (saved as null).
@@ -51,12 +53,20 @@ export function ServiceBufferAfterMinutesField({
           inherits ? t('recursosBufferPlaceholder', { minutes: tenantDefaultMinutes }) : undefined
         }
         aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? 'resource-buffer-invalid' : undefined}
         onChange={(event) => onChange(event.target.value)}
-        className="w-48 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400"
+        className={cn(
+          'w-48 rounded-md border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-gray-400',
+          invalid && FIELD_INVALID_CLASS,
+        )}
       />
       <p className="mt-1 text-xs text-gray-500">{hint}</p>
       {invalid && (
-        <p role="alert" data-testid="resource-buffer-invalid" className="mt-1 text-xs text-red-600">
+        <p
+          id="resource-buffer-invalid"
+          data-testid="resource-buffer-invalid"
+          className="mt-1 text-xs text-red-600"
+        >
           {t('recursosBufferInvalid')}
         </p>
       )}

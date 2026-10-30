@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffServiceResponse } from '@ikaro/types';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ApiError } from '@/shared/lib/api/errors';
 import type { ServiceTabAction } from './service-tab-action';
 import { ServicePublicPageTab } from './ServicePublicPageTab';
@@ -105,6 +105,7 @@ function Harness({
       >
         {action?.label}
       </button>
+      <TabActionFeedback feedback={action?.feedback} />
     </>
   );
 }
@@ -198,9 +199,11 @@ describe('ServicePublicPageTab', () => {
         },
       },
     });
-    expect(await screen.findByTestId('public-page-saved')).toHaveTextContent(
-      'Página pública salva',
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'A página pública do serviço foi atualizada.',
     );
+    expect(screen.queryByTestId('public-page-saved')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('public-page-error')).not.toBeInTheDocument();
     expect(screen.getByTestId('public-page-view-link')).toHaveAttribute(
       'href',
       '/vitta/servicos/massagem',
@@ -285,11 +288,11 @@ describe('ServicePublicPageTab', () => {
     await user.click(screen.getByTestId('public-page-switch'));
     await user.click(screen.getByTestId('tab-save'));
 
-    expect(await screen.findByTestId('public-page-error')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'Não foi possível publicar a página agora. Tente novamente.',
     );
     expect(onDirtyChange).not.toHaveBeenCalledWith(false);
-    expect(screen.queryByTestId('public-page-saved')).not.toBeInTheDocument();
+    expect(screen.getByTestId('form-feedback')).not.toHaveTextContent('Alterações salvas');
   });
 
   it('does not clear dirty for an edit made while the save was in flight', async () => {

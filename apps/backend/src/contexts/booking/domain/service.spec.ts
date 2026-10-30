@@ -1,3 +1,4 @@
+import { BookingErrorCode } from '@ikaro/types/protocol/errors';
 import { Money } from '../../../shared/value-objects/money';
 import { ServiceBuilder } from '../../../test/builders/booking/index';
 import { ClassResourceSlot } from './class-resource-slot';
@@ -49,6 +50,16 @@ function activeIds(...types: ResourceType[]): ActiveResourceIdsByType {
 
 function policy(overrides: Partial<ServiceBookingPolicyProps> = {}): ServiceBookingPolicyProps {
   return { ...defaultServiceBookingPolicyProps(), ...overrides };
+}
+
+function policyErrorOf(candidate: ServiceBookingPolicyProps): unknown {
+  const service = new ServiceBuilder().withTenantId(TENANT).build();
+  try {
+    service.setBookingPolicy(candidate);
+  } catch (err) {
+    return err;
+  }
+  throw new Error('expected setBookingPolicy to throw');
 }
 
 const TENANT = 'tenant-abc';
@@ -827,63 +838,71 @@ describe('Service', () => {
     });
 
     it('rejects durationMaxMinutes < durationMinMinutes even when resolved from a partial PATCH', () => {
-      const service = new ServiceBuilder().withTenantId(TENANT).build();
-      expect(() =>
-        service.setBookingPolicy(
-          policy({
-            durationPolicy: 'CUSTOMER_SELECTED',
-            pricingPolicy: 'PER_TIME_INCREMENT',
-            durationMinMinutes: 120,
-            durationMaxMinutes: 60,
-            durationIncrementMinutes: 15,
-            pricingIncrementMinutes: 15,
-            pricePerIncrementAmount: 10,
-          }),
-        ),
-      ).toThrow(ServiceBookingPolicyInvalidError);
+      const error = policyErrorOf(
+        policy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          durationMinMinutes: 120,
+          durationMaxMinutes: 60,
+          durationIncrementMinutes: 15,
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(error).toBeInstanceOf(ServiceBookingPolicyInvalidError);
+      expect(error).toMatchObject({
+        code: BookingErrorCode.SERVICE_POLICY_DURATION_RANGE_INVALID,
+        field: 'durationMaxMinutes',
+      });
     });
 
     it('rejects pricingPolicy=PER_TIME_INCREMENT with no pricingIncrementMinutes/pricePerIncrementAmount', () => {
-      const service = new ServiceBuilder().withTenantId(TENANT).build();
-      expect(() =>
-        service.setBookingPolicy(
-          policy({
-            durationPolicy: 'CUSTOMER_SELECTED',
-            pricingPolicy: 'PER_TIME_INCREMENT',
-            durationMinMinutes: 30,
-            durationMaxMinutes: 120,
-            durationIncrementMinutes: 15,
-          }),
-        ),
-      ).toThrow(ServiceBookingPolicyInvalidError);
+      const error = policyErrorOf(
+        policy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          durationMinMinutes: 30,
+          durationMaxMinutes: 120,
+          durationIncrementMinutes: 15,
+        }),
+      );
+      expect(error).toBeInstanceOf(ServiceBookingPolicyInvalidError);
+      expect(error).toMatchObject({
+        code: BookingErrorCode.SERVICE_POLICY_PRICING_DETAILS_REQUIRED,
+        field: 'pricingIncrementMinutes',
+      });
     });
 
     it('rejects durationPolicy=CUSTOMER_SELECTED with no duration bounds/increment set', () => {
-      const service = new ServiceBuilder().withTenantId(TENANT).build();
-      expect(() =>
-        service.setBookingPolicy(
-          policy({
-            durationPolicy: 'CUSTOMER_SELECTED',
-            pricingPolicy: 'PER_TIME_INCREMENT',
-            pricingIncrementMinutes: 15,
-            pricePerIncrementAmount: 10,
-          }),
-        ),
-      ).toThrow(ServiceBookingPolicyInvalidError);
+      const error = policyErrorOf(
+        policy({
+          durationPolicy: 'CUSTOMER_SELECTED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(error).toBeInstanceOf(ServiceBookingPolicyInvalidError);
+      expect(error).toMatchObject({
+        code: BookingErrorCode.SERVICE_POLICY_DURATION_DETAILS_REQUIRED,
+        field: 'durationMinMinutes',
+      });
     });
 
     it('rejects pricingPolicy=PER_TIME_INCREMENT with durationPolicy=FIXED (reverse pairing)', () => {
-      const service = new ServiceBuilder().withTenantId(TENANT).build();
-      expect(() =>
-        service.setBookingPolicy(
-          policy({
-            durationPolicy: 'FIXED',
-            pricingPolicy: 'PER_TIME_INCREMENT',
-            pricingIncrementMinutes: 15,
-            pricePerIncrementAmount: 10,
-          }),
-        ),
-      ).toThrow(ServiceBookingPolicyInvalidError);
+      const error = policyErrorOf(
+        policy({
+          durationPolicy: 'FIXED',
+          pricingPolicy: 'PER_TIME_INCREMENT',
+          pricingIncrementMinutes: 15,
+          pricePerIncrementAmount: 10,
+        }),
+      );
+      expect(error).toBeInstanceOf(ServiceBookingPolicyInvalidError);
+      expect(error).toMatchObject({
+        code: BookingErrorCode.SERVICE_POLICY_INCREMENT_PRICING_REQUIRES_CUSTOM_DURATION,
+        field: 'durationPolicy',
+      });
     });
 
     it('clears stale duration detail fields when durationPolicy reverts to FIXED', () => {

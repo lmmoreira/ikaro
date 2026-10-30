@@ -100,10 +100,14 @@ export function assertBookingWindowOverridesValid(
   const { minBookingAdvanceHoursOverride: minHours, maxBookingAdvanceDaysOverride: maxDays } =
     policy;
   if (maxDays != null && maxDays > tenant.maxBookingAdvanceDays) {
-    throw new ServiceBookingPolicyInvalidError('max-advance-exceeds-tenant');
+    throw new ServiceBookingPolicyInvalidError('max-advance-exceeds-tenant', {
+      maxAdvanceDays: tenant.maxBookingAdvanceDays,
+    });
   }
   if (minHours != null && minHours < tenant.minBookingAdvanceHours) {
-    throw new ServiceBookingPolicyInvalidError('min-advance-below-tenant');
+    throw new ServiceBookingPolicyInvalidError('min-advance-below-tenant', {
+      minAdvanceHours: tenant.minBookingAdvanceHours,
+    });
   }
   const effectiveMinHours = Math.max(minHours ?? 0, tenant.minBookingAdvanceHours);
   const effectiveMaxDays = Math.min(
@@ -111,6 +115,9 @@ export function assertBookingWindowOverridesValid(
     tenant.maxBookingAdvanceDays,
   );
   if (effectiveMinHours / HOURS_PER_DAY >= effectiveMaxDays) {
-    throw new ServiceBookingPolicyInvalidError('booking-window-empty');
+    throw new ServiceBookingPolicyInvalidError('booking-window-empty', {
+      minAdvanceHours: effectiveMinHours,
+      maxAdvanceDays: effectiveMaxDays,
+    });
   }
 }

@@ -5,7 +5,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { useState } from 'react';
 import type { ResourceResponse } from '@ikaro/types';
 import type { ServiceTabAction } from './service-tab-action';
-import { renderWithIntl } from '@/test-utils';
+import { renderWithIntl, TabActionFeedback } from '@/test-utils';
 import { ServiceResourceRequirementsPanel } from './ServiceResourceRequirementsPanel';
 
 // The panel no longer draws its own Save/Publish button — it registers the action with
@@ -26,6 +26,7 @@ function ResourcePanelWithAction(
       >
         {action?.label}
       </button>
+      <TabActionFeedback feedback={action?.feedback} />
     </>
   );
 }
@@ -211,7 +212,9 @@ describe('ServiceResourceRequirementsPanel', () => {
       id: 'svc-1',
       body: { bufferAfterMinutes: 10 },
     });
-    expect(screen.getByTestId('resource-requirements-saved')).toBeInTheDocument();
+    expect(screen.getByTestId('form-feedback')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('resource-requirements-error')).not.toBeInTheDocument();
     expect(onDirtyChange).toHaveBeenCalledWith(false);
   });
 
@@ -238,7 +241,7 @@ describe('ServiceResourceRequirementsPanel', () => {
       id: 'svc-1',
       body: { bufferAfterMinutes: 10 },
     });
-    expect(screen.getByTestId('resource-requirements-saved')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
   });
 
   it('a requirements-only edit never calls the service endpoint for the buffer', async () => {
@@ -608,7 +611,7 @@ describe('ServiceResourceRequirementsPanel', () => {
     await screen.findByTestId('resource-requirements-save');
 
     expect(onDirtyChange).not.toHaveBeenLastCalledWith(false);
-    expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   describe('requiredQuantity vs. eligible resources', () => {

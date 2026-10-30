@@ -204,6 +204,37 @@ describe('ServiceEditPage', () => {
     expect(screen.getByLabelText('Nome do serviço')).toBeInTheDocument();
   });
 
+  it('confirms a Detalhes save in the pane and clears the message on the next edit', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockResolvedValue({ id: 'svc-1' });
+
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), ' Premium');
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent('Alterações salvas');
+    expect(screen.getByTestId('form-feedback')).toHaveTextContent(
+      'Os dados do serviço foram atualizados.',
+    );
+
+    await user.type(screen.getByLabelText('Nome do serviço'), '!');
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
+  });
+
+  it('keeps the Detalhes failure out of the form body (no inline submit error)', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockRejectedValue(new ApiError(500, 'Internal error'));
+
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.type(screen.getByLabelText('Nome do serviço'), ' Premium');
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+
+    await screen.findByTestId('form-feedback');
+    expect(screen.queryByTestId('service-submit-error')).not.toBeInTheDocument();
+  });
+
   it('shows the deactivated-service message when the backend rejects the update by code', async () => {
     const user = userEvent.setup();
     mockUpdateService.mockRejectedValue(
@@ -218,9 +249,9 @@ describe('ServiceEditPage', () => {
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
     await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
 
-    expect(
-      await screen.findByText('Este serviço está desativado e não pode ser atualizado.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Este serviço está desativado e não pode ser atualizado.',
+    );
   });
 
   it('shows the generic fallback message when the backend returns no code', async () => {
@@ -233,7 +264,9 @@ describe('ServiceEditPage', () => {
     await user.type(screen.getByLabelText('Nome do serviço'), 'Lavagem Premium');
     await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
 
-    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Algo deu errado. Tente novamente.',
+    );
   });
 
   it('shows an activate action for inactive services and updates the top bar after activation', async () => {
@@ -273,9 +306,9 @@ describe('ServiceEditPage', () => {
 
     fireEvent.submit(screen.getByLabelText('Nome do serviço').closest('form')!);
 
-    expect(
-      await screen.findByText('Ative este serviço antes de salvar alterações.'),
-    ).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Ative este serviço antes de salvar alterações.',
+    );
     expect(mockUpdateService).not.toHaveBeenCalled();
   });
 
@@ -359,11 +392,16 @@ describe('ServiceEditPage', () => {
 
     await user.click(getTabButton(container, 'politicas'));
     await user.selectOptions(screen.getByTestId('policy-duration-policy'), 'CUSTOMER_SELECTED');
+    await user.type(screen.getByTestId('policy-duration-min'), '30');
+    await user.type(screen.getByTestId('policy-duration-max'), '120');
+    await user.type(screen.getByTestId('policy-duration-increment'), '15');
     expect(getTabDirtyDot(container, 'politicas')).toBeInTheDocument();
 
     await user.click(screen.getByTestId('service-desktop-tab-action'));
 
-    expect(await screen.findByTestId('policy-saved')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'As políticas do serviço foram atualizadas.',
+    );
   });
 
   it('shows the pickup-address recurrence hint only for the saved value, not the unsaved toggle', async () => {

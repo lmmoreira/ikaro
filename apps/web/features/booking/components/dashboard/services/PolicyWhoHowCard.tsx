@@ -89,7 +89,6 @@ export function PolicyWhoHowCard({
           {!horizonValid && (
             <p
               id="policy-recurring-horizon-error"
-              role="alert"
               data-testid="policy-recurring-horizon-error"
               className="mt-1 text-xs text-red-600"
             >

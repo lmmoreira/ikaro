@@ -121,6 +121,19 @@ describe('extractProblemDetailShape', () => {
     expect(extractProblemDetailShape(err)).toEqual({ code: 'SLOT_UNAVAILABLE', field: undefined });
   });
 
+  it('extracts the params the message interpolates', () => {
+    const err = new ApiError(422, 'invalid', {
+      code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
+      field: 'maxBookingAdvanceDaysOverride',
+      params: { maxAdvanceDays: 90 },
+    });
+    expect(extractProblemDetailShape(err)).toEqual({
+      code: 'BOOKING_SERVICE_POLICY_MAX_ADVANCE_EXCEEDS_TENANT',
+      field: 'maxBookingAdvanceDaysOverride',
+      params: { maxAdvanceDays: 90 },
+    });
+  });
+
   it('extracts code/field from AuthError.data', () => {
     const err = new AuthError('expired', { code: 'BFF_GUEST_TOKEN_INVALID' });
     expect(extractProblemDetailShape(err)).toEqual({
