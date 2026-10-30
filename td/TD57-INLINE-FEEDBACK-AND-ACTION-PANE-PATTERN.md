@@ -311,7 +311,7 @@ The audit (Story 0) decides whether the same rule applies to other multi-tab or 
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 4 — Row actions: the status change is the confirmation 🟡
+### Story 4 — Row actions: the status change is the confirmation 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** S
