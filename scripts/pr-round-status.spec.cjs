@@ -8,7 +8,8 @@ const test = require('node:test');
 const script = process.env.PR_ROUND_STATUS_SCRIPT || path.resolve(__dirname, 'pr-round-status.sh');
 
 // Runs the real script against a fake `gh` (canned `gh pr checks` output per poll; the last
-// snapshot repeats; `gh pr view --json comments` returns `opts.comments` when set) and a fake
+// snapshot repeats; `gh pr view --json comments` returns `opts.comments` when set; the commit
+// check-runs endpoint returns `opts.checkRuns`, every other `gh api` call an empty list) and a fake
 // `curl` (SonarCloud: no open issues). `jq` is the real one.
 function run(snapshots, env = {}, opts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-round-status-'));
@@ -31,6 +32,10 @@ function run(snapshots, env = {}, opts = {}) {
     }),
   );
   fs.writeFileSync(
+    path.join(dir, 'check-runs.json'),
+    JSON.stringify({ check_runs: opts.checkRuns || [] }),
+  );
+  fs.writeFileSync(
     path.join(dir, 'gh'),
     `#!/usr/bin/env bash
 if [ "$1" = "pr" ] && [ "$2" = "checks" ]; then
@@ -42,7 +47,11 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
   cat "${dir}/comments.json"; exit 0
 fi
 if [ "$1" = "api" ]; then
-  echo '[]'; exit 0
+  case "$*" in
+    *check-runs*) cat "${dir}/check-runs.json" ;;
+    *) echo '[]' ;;
+  esac
+  exit 0
 fi
 exit 0
 `,
@@ -292,4 +301,80 @@ test('CODEX_LIVENESS_CHECK=0 restores waiting indefinitely, for a Codex this hos
     'still polling when the timeout hit',
   );
   assert.equal(result.pgrepCalls, 0, 'the process is never probed');
+});
+
+// CodeRabbit reports through a Checks-API check run named "CodeRabbit". A run with nothing to flag
+// posts no review and no comment beyond its two bookkeeping acks, and the commit-status endpoint
+// is empty, so before the check-run fallback this script waited on it forever.
+const codeRabbitRun = (overrides = {}) => ({
+  name: 'CodeRabbit',
+  status: 'completed',
+  conclusion: 'success',
+  started_at: '2026-01-01T00:00:30Z',
+  completed_at: '2026-01-01T00:07:00Z',
+  output: { title: 'Finished' },
+  ...overrides,
+});
+const BOOKKEEPING_ACKS = [
+  {
+    createdAt: '2026-01-01T00:00:05Z',
+    author: 'coderabbitai',
+    body: '<!-- This is an auto-generated comment: summarize by coderabbit.ai -->',
+  },
+  {
+    createdAt: '2026-01-01T00:00:20Z',
+    author: 'coderabbitai',
+    body: '<!-- This is an auto-generated reply by CodeRabbit -->',
+  },
+];
+
+test('treats a completed CodeRabbit check run as its response when it posted no review or comment', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-coderabbit', '--since', '2026-01-01T00:00:00Z'],
+      comments: BOOKKEEPING_ACKS,
+      checkRuns: [codeRabbitRun()],
+    },
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /CodeRabbit: Finished/);
+});
+
+test('keeps waiting while the CodeRabbit check run is still in progress', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-coderabbit', '--since', '2026-01-01T00:00:00Z'],
+      comments: BOOKKEEPING_ACKS,
+      checkRuns: [codeRabbitRun({ status: 'in_progress', conclusion: null })],
+      timeout: 1500,
+    },
+  );
+
+  assert.equal(result.status, null, 'an unfinished CodeRabbit run must not end the wait');
+});
+
+test('ignores a CodeRabbit check run that started before this round', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-coderabbit', '--since', '2026-01-01T00:00:00Z'],
+      comments: BOOKKEEPING_ACKS,
+      checkRuns: [codeRabbitRun({ started_at: '2025-12-31T23:00:00Z' })],
+      timeout: 1500,
+    },
+  );
+
+  assert.equal(result.status, null, "an earlier round's finished run must not end this one");
 });

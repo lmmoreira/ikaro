@@ -13,9 +13,10 @@
 #
 #   PR#              Optional — defaults to the open PR for the current branch.
 #   --wait-codex      Also block until a Codex /pr-review comment lands.
-#   --wait-coderabbit Also block until a CodeRabbit comment lands (an actual
-#                     review OR a rate-limit notice both count as terminal —
-#                     any new coderabbitai comment after --since is enough).
+#   --wait-coderabbit Also block until CodeRabbit has responded: a review, a
+#                     rate-limit notice, or a finished CodeRabbit check run all
+#                     count as terminal (a run with nothing to flag posts no
+#                     review and no comment, only the check run).
 #   --since           Required if either --wait-* flag is set. Only a comment
 #                     created at or after this ISO8601 timestamp counts as
 #                     "this round's" response — pass the time captured right
@@ -294,6 +295,19 @@ while true; do
           | sort_by(.updated_at) | last | .description // empty')
       fi
     fi
+
+    # Third fallback: CodeRabbit also reports through a Checks-API check run named "CodeRabbit",
+    # which the commit statuses endpoint above does not list. A run with nothing to flag posts no
+    # review and no comment beyond the two bookkeeping acks, so without this the wait never ended
+    # even though `gh pr checks` already showed `CodeRabbit  pass`. Only a run that has completed
+    # and started at or after --since counts: an in-progress run is not terminal, and an earlier
+    # round's finished run must not end this one. Keyed by the PR's head SHA, like the status.
+    if [ -z "$CODERABBIT_URL" ] && [ -z "$CODERABBIT_STATUS_DESC" ] && [ -n "$HEAD_SHA" ]; then
+      CODERABBIT_STATUS_DESC=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" 2>/dev/null | jq -r --arg since "$SINCE" '
+        [.check_runs[]? | select(.name == "CodeRabbit") | select(.status == "completed")
+         | select(.started_at >= $since)]
+        | sort_by(.completed_at) | last | (.output.title // .conclusion) // empty')
+    fi
   fi
 
   ALL_DONE=1
@@ -331,7 +345,7 @@ if [ "$WAIT_CODERABBIT" -eq 1 ]; then
   if [ -n "$CODERABBIT_URL" ]; then
     echo "CodeRabbit: ${CODERABBIT_URL}"
   elif [ -n "$CODERABBIT_STATUS_DESC" ]; then
-    echo "CodeRabbit: ${CODERABBIT_STATUS_DESC} (no review/comment posted — confirmed via the commit status API)"
+    echo "CodeRabbit: ${CODERABBIT_STATUS_DESC} (no review/comment posted — confirmed via the commit status or check-run API)"
   else
     echo "CodeRabbit: (no response detected)"
   fi
