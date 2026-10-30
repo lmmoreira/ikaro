@@ -175,7 +175,7 @@ describe('MemberRow', () => {
       isActive: true,
     });
     const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
-    renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
+    const { rerender } = renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     await user.click(screen.getByTestId('activate-member-button'));
 
@@ -186,6 +186,19 @@ describe('MemberRow', () => {
     expect(screen.queryByText('Membro ativado!')).not.toBeInTheDocument();
     // Negative guarantee: no second activation can fire before the refreshed row replaces it.
     expect(screen.getByTestId('activate-member-button')).toBeDisabled();
+
+    // The refreshed server data delivers the member as active.
+    rerender(
+      <MemberRow member={{ ...member, isActive: true, status: 'ACTIVE' }} isCurrentUser={false} />,
+    );
+
+    expect(screen.queryByTestId('activate-member-button')).not.toBeInTheDocument();
+    expect(screen.getByText('Ativo')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Desativar' })).toHaveAttribute(
+      'href',
+      `/dashboard/team/${member.id}/deactivate`,
+    );
+    expect(screen.queryByText('Membro ativado!')).not.toBeInTheDocument();
   });
 
   it('does not refresh the route when activation fails', async () => {
