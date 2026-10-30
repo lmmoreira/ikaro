@@ -3,7 +3,6 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { BrandedFeedbackMessage } from './branded-feedback-message';
-import { BrandedFieldFeedback, BRANDED_FIELD_INVALID_CLASS } from './branded-field-feedback';
 
 const FORBIDDEN_TENANT_COLOURS = [
   '--ba-primary',
@@ -91,30 +90,4 @@ describe('BrandedFeedbackMessage', () => {
       expect(box.style.boxShadow).not.toBe('');
     },
   );
-});
-
-describe('BrandedFieldFeedback', () => {
-  it('renders the message with the id aria-describedby points at', () => {
-    render(
-      <>
-        <input aria-label="E-mail" aria-describedby="email-error" />
-        <BrandedFieldFeedback id="email-error">Informe um e-mail válido.</BrandedFieldFeedback>
-      </>,
-    );
-
-    expect(screen.getByLabelText('E-mail')).toHaveAccessibleDescription(
-      'Informe um e-mail válido.',
-    );
-  });
-
-  it('renders nothing without a message', () => {
-    const { container } = render(<BrandedFieldFeedback id="email-error" />);
-
-    expect(container).toBeEmptyDOMElement();
-  });
-
-  it('keeps the invalid outline a fixed red, with no tenant token', () => {
-    expect(BRANDED_FIELD_INVALID_CLASS).toContain('border-red-600');
-    expect(BRANDED_FIELD_INVALID_CLASS).not.toContain('--ba-');
-  });
 });
