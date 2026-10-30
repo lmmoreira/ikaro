@@ -9,7 +9,8 @@ const script = process.env.PR_ROUND_STATUS_SCRIPT || path.resolve(__dirname, 'pr
 
 // Runs the real script against a fake `gh` (canned `gh pr checks` output per poll; the last
 // snapshot repeats; `gh pr view --json comments` returns `opts.comments` when set; the commit
-// check-runs endpoint returns `opts.checkRuns`, every other `gh api` call an empty list) and a fake
+// check-runs endpoint returns `opts.checkRuns` — the first 30 unless filtered with `check_name`,
+// like GitHub's — and every other `gh api` call an empty list) and a fake
 // `curl` (SonarCloud: no open issues). `jq` is the real one.
 function run(snapshots, env = {}, opts = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pr-round-status-'));
@@ -48,7 +49,8 @@ if [ "$1" = "pr" ] && [ "$2" = "view" ]; then
 fi
 if [ "$1" = "api" ]; then
   case "$*" in
-    *check-runs*) cat "${dir}/check-runs.json" ;;
+    *check_name=CodeRabbit*) jq '{check_runs: [.check_runs[] | select(.name == "CodeRabbit")]}' "${dir}/check-runs.json" ;;
+    *check-runs*) jq '{check_runs: .check_runs[0:30]}' "${dir}/check-runs.json" ;;
     *) echo '[]' ;;
   esac
   exit 0
@@ -377,4 +379,24 @@ test('ignores a CodeRabbit check run that started before this round', () => {
   );
 
   assert.equal(result.status, null, "an earlier round's finished run must not end this one");
+});
+
+test('finds the CodeRabbit check run on a head that carries more runs than one page holds', () => {
+  const done = [row('ESLint', 'pass'), row(GATE, 'pass')];
+  const unrelated = Array.from({ length: 40 }, (_, index) =>
+    codeRabbitRun({ name: `job-${index}`, output: { title: 'Other' } }),
+  );
+
+  const result = run(
+    [done],
+    {},
+    {
+      extraArgs: ['--wait-coderabbit', '--since', '2026-01-01T00:00:00Z'],
+      comments: BOOKKEEPING_ACKS,
+      checkRuns: [...unrelated, codeRabbitRun()],
+    },
+  );
+
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /CodeRabbit: Finished/);
 });

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { Button } from '@/shared/components/ui/button';
 import { cn } from '@/shared/utils/cn';
 
@@ -37,27 +37,28 @@ export function FeedbackMessage({
   focusOnMount = false,
   testId,
 }: FeedbackMessageProps): React.JSX.Element {
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (focusOnMount) ref.current?.focus();
-  }, [focusOnMount]);
+  const focusRef = useCallback(
+    (element: HTMLElement | null) => {
+      if (element && focusOnMount) element.focus();
+    },
+    [focusOnMount],
+  );
 
-  const inline = size === 'inline';
+  const container = {
+    ref: focusRef,
+    tabIndex: focusOnMount ? -1 : undefined,
+    'data-testid': testId,
+    className: cn(
+      'border text-sm outline-none',
+      VARIANT_CLASS[variant],
+      size === 'inline'
+        ? 'inline-block rounded-md px-2.5 py-1 text-[0.8125rem]'
+        : 'flex flex-col gap-1 rounded-lg px-4 py-3.5',
+    ),
+  };
 
-  return (
-    <div
-      ref={ref}
-      role={variant === 'error' ? 'alert' : 'status'}
-      tabIndex={focusOnMount ? -1 : undefined}
-      data-testid={testId}
-      className={cn(
-        'border text-sm outline-none',
-        VARIANT_CLASS[variant],
-        inline
-          ? 'inline-block rounded-md px-2.5 py-1 text-[0.8125rem]'
-          : 'flex flex-col gap-1 rounded-lg px-4 py-3.5',
-      )}
-    >
+  const content = (
+    <>
       <p className="font-bold">{title}</p>
       {children && <p>{children}</p>}
       {hint && <p className="text-[0.8125rem] opacity-85">{hint}</p>}
@@ -72,6 +73,14 @@ export function FeedbackMessage({
           {retryLabel}
         </Button>
       )}
+    </>
+  );
+
+  return variant === 'error' ? (
+    <div role="alert" {...container}>
+      {content}
     </div>
+  ) : (
+    <output {...container}>{content}</output>
   );
 }

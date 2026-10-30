@@ -54,42 +54,42 @@ function useFieldRegistry() {
 }
 
 function useMessages() {
-  const [error, setErrorState] = useState<string | null>(null);
-  const [success, setSuccessState] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const setError = useCallback((message: string) => {
-    setSuccessState(null);
-    setErrorState(message);
+    setSuccessMessage(null);
+    setErrorMessage(message);
   }, []);
 
   const setSuccess = useCallback((message: string) => {
-    setErrorState(null);
-    setSuccessState(message);
+    setErrorMessage(null);
+    setSuccessMessage(message);
   }, []);
 
   const clear = useCallback(() => {
-    setErrorState(null);
-    setSuccessState(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
   }, []);
 
   const feedback = useMemo<FeedbackModel | null>(() => {
-    if (error) return { variant: 'error', title: error };
-    if (success) return { variant: 'success', title: success };
+    if (errorMessage) return { variant: 'error', title: errorMessage };
+    if (successMessage) return { variant: 'success', title: successMessage };
     return null;
-  }, [error, success]);
+  }, [errorMessage, successMessage]);
 
-  return { error, success, feedback, setError, setSuccess, clear };
+  return { error: errorMessage, success: successMessage, feedback, setError, setSuccess, clear };
 }
 
 function useFieldErrors(registry: ReturnType<typeof useFieldRegistry>) {
   const formId = useId();
-  const [fieldErrors, setFieldErrorsState] = useState<FieldErrors>({});
+  const [errorsByField, setErrorsByField] = useState<FieldErrors>({});
   const latest = useRef<FieldErrors>({});
   const { registerField, focusFirstOf } = registry;
 
   const replace = useCallback((errors: FieldErrors) => {
     latest.current = errors;
-    setFieldErrorsState(errors);
+    setErrorsByField(errors);
   }, []);
 
   const focusFirstInvalid = useCallback(
@@ -110,13 +110,20 @@ function useFieldErrors(registry: ReturnType<typeof useFieldRegistry>) {
   const fieldProps = useCallback(
     (name: string) => ({
       ref: registerField(name),
-      'aria-invalid': fieldErrors[name] ? (true as const) : undefined,
-      'aria-describedby': fieldErrors[name] ? fieldErrorId(name) : undefined,
+      'aria-invalid': errorsByField[name] ? (true as const) : undefined,
+      'aria-describedby': errorsByField[name] ? fieldErrorId(name) : undefined,
     }),
-    [fieldErrors, fieldErrorId, registerField],
+    [errorsByField, fieldErrorId, registerField],
   );
 
-  return { fieldErrors, replace, setFieldErrors, focusFirstInvalid, fieldErrorId, fieldProps };
+  return {
+    fieldErrors: errorsByField,
+    replace,
+    setFieldErrors,
+    focusFirstInvalid,
+    fieldErrorId,
+    fieldProps,
+  };
 }
 
 function useFormActions(
@@ -125,7 +132,7 @@ function useFormActions(
   fields: ReturnType<typeof useFieldErrors>,
 ) {
   const { replace, setFieldErrors } = fields;
-  const { setError, setSuccess: setSuccessMessage, clear: clearMessages } = messages;
+  const { setError, setSuccess: showSuccess, clear: clearMessages } = messages;
   const { isRegistered } = registry;
 
   const clear = useCallback(() => {
@@ -136,9 +143,9 @@ function useFormActions(
   const setSuccess = useCallback(
     (message: string) => {
       replace({});
-      setSuccessMessage(message);
+      showSuccess(message);
     },
-    [replace, setSuccessMessage],
+    [replace, showSuccess],
   );
 
   const setFromApiError = useCallback(

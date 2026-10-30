@@ -302,8 +302,10 @@ while true; do
     # even though `gh pr checks` already showed `CodeRabbit  pass`. Only a run that has completed
     # and started at or after --since counts: an in-progress run is not terminal, and an earlier
     # round's finished run must not end this one. Keyed by the PR's head SHA, like the status.
+    # Filtered server-side with check_name: this endpoint returns 30 runs a page and a PR head
+    # carries 50+, so an unfiltered read can miss CodeRabbit's run entirely.
     if [ -z "$CODERABBIT_URL" ] && [ -z "$CODERABBIT_STATUS_DESC" ] && [ -n "$HEAD_SHA" ]; then
-      CODERABBIT_STATUS_DESC=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs" 2>/dev/null | jq -r --arg since "$SINCE" '
+      CODERABBIT_STATUS_DESC=$(gh api "repos/${REPO}/commits/${HEAD_SHA}/check-runs?check_name=CodeRabbit" 2>/dev/null | jq -r --arg since "$SINCE" '
         [.check_runs[]? | select(.name == "CodeRabbit") | select(.status == "completed")
          | select(.started_at >= $since)]
         | sort_by(.completed_at) | last | (.output.title // .conclusion) // empty')
