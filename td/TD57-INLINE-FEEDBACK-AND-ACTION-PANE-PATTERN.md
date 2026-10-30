@@ -420,6 +420,8 @@ The public hotsite has no shell and no action pane, but its forms (booking info,
 
 **Files to create/modify:**
 - `apps/web/shared/components/hotsite/branded-feedback-message.tsx` + `.spec.tsx`
+- `apps/web/shared/components/hotsite/branded-feedback-palette.ts` (the fixed colours, shared by the component and the contrast spec)
+- `apps/web/shared/components/hotsite/branded-field-feedback.tsx` + `.spec.tsx` (`BrandedFieldFeedback`, `BRANDED_FIELD_INVALID_CLASS`)
 - `apps/web/shared/components/hotsite/branded-feedback-contrast.spec.ts`
 - `docs/ENGINEERING_RULES_FRONTEND.md` (Public hotsite row; hotsite-feedback rule)
 - `docs/AGENT_PATTERNS.md` (Pattern #25)
