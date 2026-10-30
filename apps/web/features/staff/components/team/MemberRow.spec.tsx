@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffListItem } from '@ikaro/types';
+import { ApiError } from '@/shared/lib/api/errors';
+import { resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { renderWithIntl } from '@/test-utils';
 import { MemberRow } from './MemberRow';
 
@@ -115,17 +117,18 @@ describe('MemberRow', () => {
     );
   });
 
-  it('shows an inline error when the resend fails', async () => {
+  it('shows the backend-resolved message inline when the resend fails', async () => {
     const user = userEvent.setup();
-    mockInviteStaff.mockRejectedValue(new Error('network down'));
+    mockInviteStaff.mockRejectedValue(new ApiError(403, 'no', { code: 'AUTH_FORBIDDEN' }));
     const member = buildMember({ status: 'PENDING', role: 'STAFF', name: 'Novo Membro' });
     renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     await user.click(screen.getByTestId('resend-invite-button'));
 
-    expect(await screen.findByTestId('resend-invite-error')).toHaveTextContent(
-      'Não foi possível reenviar. Tente novamente.',
-    );
+    const error = await screen.findByTestId('resend-invite-error');
+    expect(error).toHaveTextContent(resolveErrorMessage('AUTH_FORBIDDEN', 'pt-BR'));
+    expect(error).not.toHaveTextContent('Não foi possível reenviar');
+    expect(error).toHaveAttribute('role', 'alert');
   });
 
   it('falls back to the email local part as first/last name when member has no name', async () => {
@@ -177,10 +180,10 @@ describe('MemberRow', () => {
     await user.click(screen.getByTestId('activate-member-button'));
 
     expect(mockActivateStaff).toHaveBeenCalledWith(member.id);
-    expect(await screen.findByTestId('activate-member-success')).toHaveTextContent(
-      'Membro ativado!',
-    );
-    expect(mockRouterRefresh).toHaveBeenCalledOnce();
+    await waitFor(() => expect(mockRouterRefresh).toHaveBeenCalledOnce());
+    // The status flip after router.refresh() is the confirmation; no success text of its own.
+    expect(screen.queryByTestId('activate-member-success')).not.toBeInTheDocument();
+    expect(screen.queryByText('Membro ativado!')).not.toBeInTheDocument();
   });
 
   it('does not refresh the route when activation fails', async () => {
@@ -195,16 +198,16 @@ describe('MemberRow', () => {
     expect(mockRouterRefresh).not.toHaveBeenCalled();
   });
 
-  it('shows an inline error when activation fails', async () => {
+  it('shows the backend-resolved message inline when activation fails', async () => {
     const user = userEvent.setup();
-    mockActivateStaff.mockRejectedValue(new Error('network down'));
+    mockActivateStaff.mockRejectedValue(new ApiError(403, 'no', { code: 'AUTH_FORBIDDEN' }));
     const member = buildMember({ isActive: false, status: 'DEACTIVATED' });
     renderWithIntl(<MemberRow member={member} isCurrentUser={false} />);
 
     await user.click(screen.getByTestId('activate-member-button'));
 
     expect(await screen.findByTestId('activate-member-error')).toHaveTextContent(
-      'Não foi possível ativar. Tente novamente.',
+      resolveErrorMessage('AUTH_FORBIDDEN', 'pt-BR'),
     );
   });
 

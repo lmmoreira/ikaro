@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
 import { useActivateStaff, useInviteStaff } from '@/features/staff/hooks/useStaff';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { getInitials } from '@/shared/utils/initials';
 import { cn } from '@/shared/utils/cn';
 
@@ -50,8 +53,10 @@ function splitFullName(
 
 function ResendInviteAction({ member }: { readonly member: StaffListItem }): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
+  const locale = useResolvedLocale();
   const inviteStaffMutation = useInviteStaff();
   const [resendState, setResendState] = useState<'idle' | 'success' | 'error'>('idle');
+  const [resendError, setResendError] = useState('');
 
   async function handleResend(): Promise<void> {
     setResendState('idle');
@@ -64,7 +69,8 @@ function ResendInviteAction({ member }: { readonly member: StaffListItem }): Rea
         role: member.role,
       });
       setResendState('success');
-    } catch {
+    } catch (err) {
+      setResendError(resolveApiErrorFeedback(err, locale).message);
       setResendState('error');
     }
   }
@@ -81,17 +87,15 @@ function ResendInviteAction({ member }: { readonly member: StaffListItem }): Rea
         {inviteStaffMutation.isPending ? t('resendInviting') : t('resendInvite')}
       </button>
       {resendState === 'success' && (
-        <span
-          data-testid="resend-invite-success"
-          className="text-xs font-semibold text-emerald-600"
-        >
-          {t('resendInviteSuccess')}
-        </span>
+        <FeedbackMessage
+          variant="success"
+          size="inline"
+          title={t('resendInviteSuccess')}
+          testId="resend-invite-success"
+        />
       )}
       {resendState === 'error' && (
-        <span data-testid="resend-invite-error" className="text-xs font-semibold text-red-600">
-          {t('resendInviteError')}
-        </span>
+        <FeedbackMessage size="inline" title={resendError} testId="resend-invite-error" />
       )}
     </div>
   );
@@ -100,20 +104,21 @@ function ResendInviteAction({ member }: { readonly member: StaffListItem }): Rea
 function ActivateMemberAction({ member }: { readonly member: StaffListItem }): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
   const router = useRouter();
+  const locale = useResolvedLocale();
   const activateStaffMutation = useActivateStaff();
-  const [activateState, setActivateState] = useState<'idle' | 'success' | 'error'>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   async function handleActivate(): Promise<void> {
-    setActivateState('idle');
+    setErrorMessage(null);
     try {
       await activateStaffMutation.mutateAsync(member.id);
-      setActivateState('success');
       // The team list is server-rendered (page.tsx fetches it, not a client query) — refresh()
       // re-runs the server fetch in place so the status badge and this row's action both flip
-      // from Inativo/Ativar to Ativo/Desativar without a full navigation.
+      // from Inativo/Ativar to Ativo/Desativar without a full navigation. That flip is the
+      // confirmation — this component unmounts with it, so there is no success state to render.
       router.refresh();
-    } catch {
-      setActivateState('error');
+    } catch (err) {
+      setErrorMessage(resolveApiErrorFeedback(err, locale).message);
     }
   }
 
@@ -123,23 +128,13 @@ function ActivateMemberAction({ member }: { readonly member: StaffListItem }): R
         type="button"
         data-testid="activate-member-button"
         onClick={() => void handleActivate()}
-        disabled={activateStaffMutation.isPending || activateState === 'success'}
+        disabled={activateStaffMutation.isPending}
         className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
       >
         {activateStaffMutation.isPending ? t('activating') : t('activate')}
       </button>
-      {activateState === 'success' && (
-        <span
-          data-testid="activate-member-success"
-          className="text-xs font-semibold text-emerald-600"
-        >
-          {t('activateSuccess')}
-        </span>
-      )}
-      {activateState === 'error' && (
-        <span data-testid="activate-member-error" className="text-xs font-semibold text-red-600">
-          {t('activateError')}
-        </span>
+      {errorMessage && (
+        <FeedbackMessage size="inline" title={errorMessage} testId="activate-member-error" />
       )}
     </div>
   );

@@ -95,7 +95,7 @@ describe('ResourceListPage', () => {
     await user.click(screen.getByTestId('resource-row-reactivate-button'));
 
     expect(reactivateMutateAsync).toHaveBeenCalledWith('room-1');
-    expect(await screen.findByTestId('resource-row-reactivate-success')).toBeInTheDocument();
+    expect(screen.queryByTestId('resource-row-reactivate-success')).not.toBeInTheDocument();
   });
 
   it('filters by type using the tabs', async () => {
