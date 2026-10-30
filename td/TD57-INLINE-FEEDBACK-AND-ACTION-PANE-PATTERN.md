@@ -144,7 +144,7 @@ No screen is migrated in this story except the `NewBookingErrorBanner` callers (
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 2 — Service edit screen: feedback in the pane, specific policy errors, pre-send validation 🔴
+### Story 2 — Service edit screen: feedback in the pane, specific policy errors, pre-send validation 🔴 ✅ Done
 
 **Agent:** backend-ts + frontend-ts
 **Complexity:** L
