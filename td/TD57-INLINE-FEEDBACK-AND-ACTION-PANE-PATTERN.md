@@ -335,7 +335,7 @@ Apply the row-action rule. Remove the unreachable success branches: `resource-ro
 - `apps/web/features/booking/components/dashboard/resources/ResourceListPage.spec.tsx`
 - `apps/web/features/staff/components/team/MemberRow.tsx` + spec
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json`
-- `apps/web/e2e/team-invite.spec.ts`, `apps/web/e2e/team-deactivate.spec.ts`, `apps/web/e2e/resources-manage.spec.ts` (as referencing the changed ids)
+- `apps/web/e2e/team-deactivate.spec.ts` (drops the `activate-member-success` assertion; the badge/Desativar assertions already cover the flip). `team-invite.spec.ts` (asserts `resend-invite-success`, which stays) and `resources-manage.spec.ts` (already asserts the status flip) need no change.
 
 **Acceptance criteria — product:**
 - [ ] Reactivating a resource or activating a member flips the badge and button; no extra success text is expected or shown.
@@ -349,7 +349,8 @@ Apply the row-action rule. Remove the unreachable success branches: `resource-ro
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated to assert the status change instead of the removed success ids; no new scenario
+  - [ ] `team-deactivate.spec.ts` asserts the status change instead of the removed success id; no new scenario
+- Locked in discovery (2026-10-30): resend success = `FeedbackMessage variant="success" size="inline"` (testid `resend-invite-success` kept); row errors = `FeedbackMessage size="inline"` titled with the `resolveApiErrorFeedback` message, locale from `useLocale()`, existing error testids kept; unit specs assert the removed success copy is absent after the flip (negative guarantee), `ResourceListPage.spec.tsx` reactivate test asserts the mutation call and the absent success id
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
