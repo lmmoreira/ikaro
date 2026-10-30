@@ -58,6 +58,8 @@ describe('ResourceRow', () => {
     expect(screen.queryByTestId('resource-row-reactivate-success')).not.toBeInTheDocument();
     expect(screen.queryByText('Recurso reativado!')).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    // Negative guarantee: no second activation can fire before the refetched row replaces it.
+    expect(screen.getByTestId('resource-row-reactivate-button')).toBeDisabled();
   });
 
   it('shows the backend-resolved message inline if reactivation fails', async () => {

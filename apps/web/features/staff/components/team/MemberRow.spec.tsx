@@ -184,6 +184,8 @@ describe('MemberRow', () => {
     // The status flip after router.refresh() is the confirmation; no success text of its own.
     expect(screen.queryByTestId('activate-member-success')).not.toBeInTheDocument();
     expect(screen.queryByText('Membro ativado!')).not.toBeInTheDocument();
+    // Negative guarantee: no second activation can fire before the refreshed row replaces it.
+    expect(screen.getByTestId('activate-member-button')).toBeDisabled();
   });
 
   it('does not refresh the route when activation fails', async () => {

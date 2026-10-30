@@ -107,11 +107,15 @@ function ActivateMemberAction({ member }: { readonly member: StaffListItem }): R
   const locale = useResolvedLocale();
   const activateStaffMutation = useActivateStaff();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activated, setActivated] = useState(false);
 
   async function handleActivate(): Promise<void> {
     setErrorMessage(null);
     try {
       await activateStaffMutation.mutateAsync(member.id);
+      // Stay disabled until router.refresh() replaces this action, so a second click cannot reach
+      // the server in the gap between the mutation settling and the refreshed row arriving.
+      setActivated(true);
       // The team list is server-rendered (page.tsx fetches it, not a client query) — refresh()
       // re-runs the server fetch in place so the status badge and this row's action both flip
       // from Inativo/Ativar to Ativo/Desativar without a full navigation. That flip is the
@@ -128,7 +132,7 @@ function ActivateMemberAction({ member }: { readonly member: StaffListItem }): R
         type="button"
         data-testid="activate-member-button"
         onClick={() => void handleActivate()}
-        disabled={activateStaffMutation.isPending}
+        disabled={activateStaffMutation.isPending || activated}
         className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
       >
         {activateStaffMutation.isPending ? t('activating') : t('activate')}

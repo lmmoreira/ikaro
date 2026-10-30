@@ -44,11 +44,15 @@ function ReactivateResourceAction({
   const locale = useResolvedLocale();
   const reactivateResourceMutation = useReactivateResource();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [reactivated, setReactivated] = useState(false);
 
   async function handleReactivate(): Promise<void> {
     setErrorMessage(null);
     try {
       await reactivateResourceMutation.mutateAsync(resource.id);
+      // Stay disabled until the refetched row replaces this action, so a second click cannot
+      // reach the server in the gap between the mutation settling and the list updating.
+      setReactivated(true);
     } catch (err) {
       setErrorMessage(resolveApiErrorFeedback(err, locale).message);
     }
@@ -60,7 +64,7 @@ function ReactivateResourceAction({
         type="button"
         data-testid="resource-row-reactivate-button"
         onClick={() => void handleReactivate()}
-        disabled={reactivateResourceMutation.isPending}
+        disabled={reactivateResourceMutation.isPending || reactivated}
         className="text-sm font-semibold text-blue-600 hover:underline disabled:opacity-50"
       >
         {reactivateResourceMutation.isPending ? t('activating') : t('activate')}
