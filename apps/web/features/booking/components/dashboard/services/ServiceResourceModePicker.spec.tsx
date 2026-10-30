@@ -37,4 +37,17 @@ describe('ServiceResourceModePicker', () => {
 
     expect(screen.getByTestId('resource-mode-flat')).toBeDisabled();
   });
+
+  it('renders the mode buttons inside a card headed by the question, styled like its sibling cards', () => {
+    renderWithIntl(
+      <ServiceResourceModePicker mode="flat" legsLockedOnServer={false} onSelectMode={vi.fn()} />,
+    );
+
+    const heading = screen.getByRole('heading', { name: 'Como este serviço usa recursos?' });
+    const card = heading.closest('.shadow-sm');
+    expect(card).not.toBeNull();
+    expect(card).toContainElement(screen.getByTestId('resource-mode-flat'));
+    expect(card).toContainElement(screen.getByTestId('resource-mode-legs'));
+    expect(heading).toHaveClass('text-sm', 'font-semibold');
+  });
 });

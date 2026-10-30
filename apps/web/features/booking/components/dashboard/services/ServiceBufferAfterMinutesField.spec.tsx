@@ -76,6 +76,26 @@ describe('ServiceBufferAfterMinutesField', () => {
     expect(screen.queryByText(/usa o padrão da empresa, hoje/)).not.toBeInTheDocument();
   });
 
+  it('sits inside a card headed by its label, styled like the sibling cards', () => {
+    renderWithIntl(
+      <ServiceBufferAfterMinutesField
+        value=""
+        disabled={false}
+        tenantDefaultMinutes={45}
+        invalid={false}
+        onChange={vi.fn()}
+      />,
+    );
+
+    const input = screen.getByTestId('resource-buffer-input');
+    const heading = screen.getByRole('heading', {
+      name: 'Tempo de preparo após o serviço (buffer)',
+    });
+    expect(heading).toHaveClass('text-sm', 'font-semibold');
+    expect(heading.closest('.shadow-sm')).toContainElement(input);
+    expect(screen.getByLabelText('Tempo de preparo após o serviço (buffer)')).toBe(input);
+  });
+
   it('flags an invalid value', () => {
     renderWithIntl(
       <ServiceBufferAfterMinutesField

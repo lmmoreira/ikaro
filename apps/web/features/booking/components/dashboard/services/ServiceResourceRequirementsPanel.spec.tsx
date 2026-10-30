@@ -97,6 +97,24 @@ function getResourceTypeCheckbox(container: HTMLElement, type: string): HTMLElem
 }
 
 describe('ServiceResourceRequirementsPanel', () => {
+  it('starts with the mode picker card, with no loose label before it', () => {
+    const { container } = renderWithIntl(
+      <ResourcePanelWithAction
+        serviceId="svc-1"
+        initialResourceRequirements={[]}
+        initialLegs={null}
+        initialBufferAfterMinutes={10}
+        tenantDefaultBufferMinutes={60}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    const first = container.firstElementChild?.firstElementChild;
+    expect(first).toHaveClass('shadow-sm');
+    expect(first).toContainElement(screen.getByTestId('resource-mode-flat'));
+    expect(container.querySelector(':scope > div > label')).toBeNull();
+  });
+
   it('shows the empty state when no resource types are checked', () => {
     renderWithIntl(
       <ResourcePanelWithAction

@@ -143,4 +143,31 @@ describe('PolicyDurationPricingCard', () => {
       screen.getByText(/Total = valor por incremento × número de incrementos/),
     ).toBeInTheDocument();
   });
+
+  it('renders the intro under the title when one is passed', () => {
+    renderWithIntl(
+      <PolicyDurationPricingCard
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        policy={BASE_POLICY}
+        onPatch={vi.fn()}
+        intro="Cada regra vale para este serviço."
+      />,
+    );
+
+    expect(screen.getByText('Cada regra vale para este serviço.')).toBeInTheDocument();
+  });
+
+  it('renders no intro paragraph when none is passed', () => {
+    const { container } = renderWithIntl(
+      <PolicyDurationPricingCard
+        hasLegs={false}
+        fields={NO_FIELD_BINDINGS}
+        policy={BASE_POLICY}
+        onPatch={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelector('h2 + p')).toBeNull();
+  });
 });

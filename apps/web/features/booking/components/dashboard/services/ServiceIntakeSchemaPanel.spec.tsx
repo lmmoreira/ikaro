@@ -74,6 +74,22 @@ function getByVersion(container: HTMLElement, version: number): HTMLElement {
 }
 
 describe('ServiceIntakeSchemaPanel', () => {
+  it('starts with a card that holds the intro, so it is level with the action pane', () => {
+    const { container } = renderWithIntl(
+      <IntakePanelWithAction
+        serviceId="svc-1"
+        initialActive={null}
+        initialHistory={[]}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    const first = container.firstElementChild?.firstElementChild;
+    expect(first).toHaveClass('shadow-sm');
+    expect(first).toHaveTextContent(/Perguntas que o cliente responde ao reservar/);
+    expect(container.querySelector(':scope > div > p')).toBeNull();
+  });
+
   it('shows the empty-question hint when there are no questions yet', () => {
     renderWithIntl(
       <IntakePanelWithAction

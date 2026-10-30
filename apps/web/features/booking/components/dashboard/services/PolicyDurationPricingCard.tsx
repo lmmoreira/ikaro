@@ -13,6 +13,8 @@ interface PolicyDurationPricingCardProps {
   readonly hasLegs: boolean;
   readonly fields: PolicyFieldBindings;
   readonly onPatch: (next: Partial<ServiceBookingPolicyItem>) => void;
+  // Tab intro, shown under the title so the tab's first box is the card level with the action pane.
+  readonly intro?: string;
 }
 
 export function PolicyDurationPricingCard({
@@ -20,6 +22,7 @@ export function PolicyDurationPricingCard({
   hasLegs,
   fields,
   onPatch,
+  intro,
 }: PolicyDurationPricingCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
   const isVariableDuration = policy.durationPolicy === 'CUSTOMER_SELECTED';
@@ -31,6 +34,7 @@ export function PolicyDurationPricingCard({
         <h2 className="text-sm font-semibold text-gray-900">
           {t('politicasDurationPricingCardTitle')}
         </h2>
+        {intro && <p className="text-sm text-gray-500">{intro}</p>}
 
         <PolicyDurationPolicyField
           policy={policy}
