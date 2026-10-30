@@ -270,6 +270,7 @@ Every tab body of the service edit screen starts with a card that is level with 
 - **Intro placement:** `PolicyDurationPricingCard` and `IntakeQuestionsCard` gain an optional `intro?: string` prop; the card renders it as a paragraph under its title, so any card that shows an intro does it one way. The panels pass `politicasIntro` / `formularioIntro` and drop their bare `<p>`. The prop is optional: a card without it renders unchanged, and no card is forced to have one.
 - **Recursos picker card:** a plain `Card` (not `SectionCard`) with an `h2` at `text-sm font-semibold`, the heading style of every sibling card; visual consistency across the project wins over `SectionCard`'s larger `text-base font-bold` title. The `h2` replaces the loose `<label>`; the `resource-mode-flat` / `resource-mode-legs` testids stay. In both flat and legs mode the picker card is the first box.
 - **Spacing:** each panel keeps its own `space-y-*`; not harmonised here.
+- **Buffer field:** `ServiceBufferAfterMinutesField` (the last loose control on Recursos, below the cards) goes in a plain `Card` with an `h2` at `text-sm font-semibold` replacing its label; input, hint, placeholder and `resource-buffer-input` testid unchanged. Added after the PR opened, found by the user.
 - **Browser check:** approved in discovery. After the change, measure the first-box top against the pane top on the five service edit tabs (`/tmp/jest_rs` cleared first, anything started is stopped afterwards) and move the Appendix A.1 alignment rows from "from structure" to "confirmed".
 
 The audit (Story 0) decides whether the same rule applies to other multi-tab or intro-text screens (settings sections, hotsite module panels, `ModuleConfigShell`); those become migration stories, not scope here. Layout is concluded from structure; confirm visually in a browser after the change (ask first, CLAUDE.md §0).
@@ -282,6 +283,8 @@ The audit (Story 0) decides whether the same rule applies to other multi-tab or 
 
 **Files to create/modify:**
 - `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` + `ServiceResourceModePicker.spec.tsx`
+- `apps/web/features/booking/components/dashboard/services/ServiceBufferAfterMinutesField.tsx` + spec
+- `docs/ENGINEERING_RULES_FRONTEND.md` (Alignment rule extended to cards, headings and loose controls)
 - `apps/web/features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` + spec
 - `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` + spec
 - `apps/web/features/booking/components/dashboard/services/PolicyDurationPricingCard.tsx` + spec (optional `intro`)
@@ -454,7 +457,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -497,7 +500,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -536,7 +539,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -589,7 +592,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -659,7 +662,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -746,7 +749,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -785,7 +788,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -833,7 +836,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] On desktop the first box of each pane screen starts level with the action pane's card (the Story 0 audit measured this only for the service edit tabs, so measure each screen here and fix a bare intro or loose control above the first card).
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -872,6 +875,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card, intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card when the screen has a pane. Route error pages have no pane: they only need the shared card and feedback look. Inspect each screen top to bottom and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
@@ -956,6 +960,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
+- [ ] The branded forms are consistent with each other: their cards, headings and feedback use the Story 6 branded component and the tenant's `--ba-*` tokens, with no dashboard `Card` styling copied in, and no control sits outside its card. They have no action pane, so there is no alignment check. Inspect each screen top to bottom and fix what is out of pattern.
 
 **Acceptance criteria — technical:**
 - Unit:
