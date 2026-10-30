@@ -79,7 +79,7 @@ describe('the box never disappears into a tenant palette', () => {
   });
 
   it('sweeps every gray level: the surface or the ring always reaches 3:1', () => {
-    for (let level = 0; level <= 255; level += 5) {
+    for (let level = 0; level <= 255; level += 1) {
       const channel = level.toString(16).padStart(2, '0');
       const background = `#${channel}${channel}${channel}`;
       const separation = Math.max(
