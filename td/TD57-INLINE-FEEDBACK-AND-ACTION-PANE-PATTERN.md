@@ -264,7 +264,13 @@ Migrate every tab of `ServiceEditPage` to the shared pattern and make the policy
 **Root cause:** `ServiceBookingPolicyPanel.tsx:95` and `ServiceIntakeSchemaPanel.tsx:204` render a bare `<p>` intro above the first card; `ServiceResourceModePicker.tsx` starts with a loose `<label>` and option buttons that are not inside any card; the grid in `ServiceEditPage.tsx` (`lg:items-start`) aligns the pane with whatever the panel starts with.
 
 **Description:**
-Every tab body of the service edit screen starts with a card that is level with the action pane's card. The intro text (`politicasIntro`, `formularioIntro`) moves inside the first card; Recursos wraps `ServiceResourceModePicker` in a card (`SectionCard`, title `recursosModeLabel` "Como este serviço usa recursos?") and drops the loose label. Only the tab bar remains above the grid. Reuse `shared/components/ui/section-card.tsx` or `Card`; no new primitive. Existing locale keys are reused, none are added.
+Every tab body of the service edit screen starts with a card that is level with the action pane's card. The intro text (`politicasIntro`, `formularioIntro`) moves inside the first card; Recursos wraps `ServiceResourceModePicker` in a card (`SectionCard`, title `recursosModeLabel` "Como este serviço usa recursos?") and drops the loose label. Only the tab bar remains above the grid. Existing locale keys are reused, none are added.
+
+**Decisions locked in discovery (2026-10-30):**
+- **Intro placement:** `PolicyDurationPricingCard` and `IntakeQuestionsCard` gain an optional `intro?: string` prop; the card renders it as a paragraph under its title, so any card that shows an intro does it one way. The panels pass `politicasIntro` / `formularioIntro` and drop their bare `<p>`. The prop is optional: a card without it renders unchanged, and no card is forced to have one.
+- **Recursos picker card:** a plain `Card` (not `SectionCard`) with an `h2` at `text-sm font-semibold`, the heading style of every sibling card; visual consistency across the project wins over `SectionCard`'s larger `text-base font-bold` title. The `h2` replaces the loose `<label>`; the `resource-mode-flat` / `resource-mode-legs` testids stay. In both flat and legs mode the picker card is the first box.
+- **Spacing:** each panel keeps its own `space-y-*`; not harmonised here.
+- **Browser check:** approved in discovery. After the change, measure the first-box top against the pane top on the five service edit tabs (`/tmp/jest_rs` cleared first, anything started is stopped afterwards) and move the Appendix A.1 alignment rows from "from structure" to "confirmed".
 
 The audit (Story 0) decides whether the same rule applies to other multi-tab or intro-text screens (settings sections, hotsite module panels, `ModuleConfigShell`); those become migration stories, not scope here. Layout is concluded from structure; confirm visually in a browser after the change (ask first, CLAUDE.md §0).
 
@@ -278,20 +284,27 @@ The audit (Story 0) decides whether the same rule applies to other multi-tab or 
 - `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` + `ServiceResourceModePicker.spec.tsx`
 - `apps/web/features/booking/components/dashboard/services/ServiceResourceRequirementsPanel.tsx` + spec
 - `apps/web/features/booking/components/dashboard/services/ServiceBookingPolicyPanel.tsx` + spec
+- `apps/web/features/booking/components/dashboard/services/PolicyDurationPricingCard.tsx` + spec (optional `intro`)
 - `apps/web/features/booking/components/dashboard/services/ServiceIntakeSchemaPanel.tsx` + spec
+- `apps/web/features/booking/components/dashboard/services/IntakeQuestionsCard.tsx` + spec (optional `intro`)
+- Journey sync: `journeys/manager/feedback-pane.md` Pages table row for the service edit page and `dev-notes.md` status
+- `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md` Appendix A.1 (alignment rows confirmed in the browser)
 
 **Acceptance criteria — product:**
 - [ ] On Recursos, Políticas and Formulário the first box starts at the same height as the action pane's card (desktop), matching Detalhes and Página pública.
 - [ ] The intro sentences are still shown, now inside the first card.
-- [ ] The Recursos mode picker appears inside a card titled "Como este serviço usa recursos?".
+- [ ] The Recursos mode picker appears inside a card titled "Como este serviço usa recursos?", with the same heading style as the other cards.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per tab (Recursos, Políticas, Formulário): the first element of the panel's root is a card and no bare `<p>` or `<label>` precedes it
   - [ ] `ServiceResourceModePicker.spec.tsx`: renders inside the card with the heading; mode selection and `legsLockedOnServer` behaviour unchanged
+  - [ ] `PolicyDurationPricingCard.spec.tsx` and `IntakeQuestionsCard.spec.tsx`: the intro renders under the title when `intro` is passed
+  - [ ] the same two specs: without `intro` no empty paragraph renders and the card is unchanged (negative guarantee, own test)
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
-- E2E: none — structural change covered by unit specs; existing service E2E scenarios must stay green
+- E2E: no new Playwright scenario — structural change covered by unit specs; existing service E2E scenarios must stay green
+- [ ] Browser check (approved in discovery, 2026-10-30; `/tmp/jest_rs` cleared first, anything started is stopped afterwards): on the five service edit tabs the first box's top equals the pane card's top; Appendix A.1 updated to "confirmed"
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
