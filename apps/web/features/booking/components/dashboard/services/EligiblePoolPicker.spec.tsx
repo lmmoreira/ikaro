@@ -68,4 +68,23 @@ describe('EligiblePoolPicker', () => {
 
     expect(screen.getByTestId('resource-type-stale-pool')).toBeInTheDocument();
   });
+
+  it('announces the stale-pool notice as a status and ties it to the add control', () => {
+    renderPicker({ stalePool: true, eligible: [], poolIds: ['gone'] });
+
+    const notice = screen.getByTestId('resource-type-stale-pool');
+    expect(notice).toHaveRole('status');
+    expect(screen.getByTestId('resource-type-add-eligible')).toHaveAttribute(
+      'aria-describedby',
+      notice.id,
+    );
+  });
+
+  it('describes nothing on the add control while the pool is not stale', () => {
+    renderPicker();
+
+    expect(screen.getByTestId('resource-type-add-eligible')).not.toHaveAttribute(
+      'aria-describedby',
+    );
+  });
 });

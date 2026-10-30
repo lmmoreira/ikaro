@@ -2206,7 +2206,7 @@
       "politicasAlertLabel": "Permitir alerta de disponibilidade",
       "politicasSaveButton": "Salvar políticas",
       "politicasSavedBody": "As políticas do serviço foram atualizadas.",
-      "politicasValidationSummary": "Revise os campos destacados para salvar.",
+      "feedbackValidationSummary": "Revise os campos destacados para salvar.",
       "politicasDurationMinRequired": "Informe a duração mínima.",
       "politicasDurationMaxRequired": "Informe a duração máxima.",
       "politicasDurationIncrementRequired": "Informe o intervalo de escolha.",

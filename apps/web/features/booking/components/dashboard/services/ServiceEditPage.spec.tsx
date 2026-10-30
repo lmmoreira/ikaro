@@ -222,6 +222,22 @@ describe('ServiceEditPage', () => {
     expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
+  it('explains a rejected Detalhes save in the pane and does not call the API', async () => {
+    const user = userEvent.setup();
+    mockUpdateService.mockClear();
+
+    renderWithIntl(<ServiceEditPage service={service} intakeSchema={intakeSchema} />);
+
+    await user.clear(screen.getByLabelText('Nome do serviço'));
+    await user.click(screen.getAllByRole('button', { name: 'Salvar alterações' })[0]);
+
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
+      'Revise os campos destacados para salvar.',
+    );
+    expect(screen.getByTestId('form-feedback')).toHaveTextContent('Não foi possível salvar');
+    expect(mockUpdateService).not.toHaveBeenCalled();
+  });
+
   it('keeps the Detalhes failure out of the form body (no inline submit error)', async () => {
     const user = userEvent.setup();
     mockUpdateService.mockRejectedValue(new ApiError(500, 'Internal error'));

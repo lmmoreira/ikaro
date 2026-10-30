@@ -2206,7 +2206,7 @@
       "politicasAlertLabel": "Allow availability alert",
       "politicasSaveButton": "Save policy",
       "politicasSavedBody": "The service policies were updated.",
-      "politicasValidationSummary": "Review the highlighted fields to save.",
+      "feedbackValidationSummary": "Review the highlighted fields to save.",
       "politicasDurationMinRequired": "Enter the minimum duration.",
       "politicasDurationMaxRequired": "Enter the maximum duration.",
       "politicasDurationIncrementRequired": "Enter the step.",

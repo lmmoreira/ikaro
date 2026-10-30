@@ -432,7 +432,7 @@ describe('ServiceBookingPolicyPanel feedback', () => {
     );
     expect(screen.getByTestId('policy-duration-min')).toHaveFocus();
     expect(screen.getByTestId('policy-duration-max')).not.toHaveAttribute('aria-invalid');
-    expect(screen.getByTestId('form-feedback')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'Para duração escolhida pelo cliente, informe a duração mínima, a máxima e o intervalo de escolha.',
     );
     expect(screen.queryByTestId('policy-error')).not.toBeInTheDocument();
@@ -453,7 +453,7 @@ describe('ServiceBookingPolicyPanel feedback', () => {
     await user.click(screen.getByTestId('policy-save'));
 
     expect(await screen.findByTestId('policy-max-advance')).toHaveAttribute('aria-invalid', 'true');
-    expect(screen.getByTestId('form-feedback')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'A antecedência máxima do serviço não pode passar de 90 dias, o limite do negócio.',
     );
   });

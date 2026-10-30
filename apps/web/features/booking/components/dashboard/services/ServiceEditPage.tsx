@@ -138,7 +138,10 @@ export function ServiceEditPage({
     );
     form.clear();
     setFieldErrors(validation.errors);
-    if (validation.normalized === null) return;
+    if (validation.normalized === null) {
+      form.setError(t('feedbackValidationSummary'));
+      return;
+    }
 
     const revisionAtSubmit = detalhesEditRevisionRef.current;
     const pickupAtSubmit = requiresPickupAddress;

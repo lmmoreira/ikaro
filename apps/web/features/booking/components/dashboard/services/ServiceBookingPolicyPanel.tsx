@@ -74,7 +74,7 @@ export function ServiceBookingPolicyPanel({
       pricePerIncrementRequired: t('politicasPricePerIncrementRequired'),
     });
     if (Object.keys(invalid).length > 0) {
-      form.setError(t('politicasValidationSummary'));
+      form.setError(t('feedbackValidationSummary'));
       form.setFieldErrors(invalid);
       return;
     }

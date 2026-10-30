@@ -212,7 +212,7 @@ describe('ServiceResourceRequirementsPanel', () => {
       id: 'svc-1',
       body: { bufferAfterMinutes: 10 },
     });
-    expect(screen.getByTestId('form-feedback')).toBeInTheDocument();
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
     expect(screen.queryByTestId('resource-requirements-saved')).not.toBeInTheDocument();
     expect(screen.queryByTestId('resource-requirements-error')).not.toBeInTheDocument();
     expect(onDirtyChange).toHaveBeenCalledWith(false);
