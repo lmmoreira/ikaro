@@ -80,6 +80,19 @@ export function extractProblemCode(err: unknown): string | undefined {
   return extractProblemDetailShape(err)?.code;
 }
 
+export interface ApiErrorFeedback {
+  readonly message: string;
+  readonly field?: string;
+}
+
+// Same chain as resolveErrorMessageFromApiError, plus the `ProblemDetail.field` the backend names
+// when one input caused the failure — so a form can mark that input instead of only showing text.
+export function resolveApiErrorFeedback(err: unknown, locale: SupportedLocale): ApiErrorFeedback {
+  const shape = extractProblemDetailShape(err);
+  const message = resolveErrorMessage(shape?.code, locale);
+  return shape?.field ? { message, field: shape.field } : { message };
+}
+
 // Shared shape for the `ApiError`/`AuthError`/`ForbiddenError` → `ProblemDetail.code` →
 // `resolveErrorMessage` chain repeated across every BFF-backed mutation handler in the dashboard
 // (reschedule, schedule sheets, service create/edit, staff invite/update/deactivate, ...). One
@@ -87,5 +100,5 @@ export function extractProblemCode(err: unknown): string | undefined {
 // catching `err instanceof Error`) silently regresses to showing raw backend text instead of a
 // resolved catalog message.
 export function resolveErrorMessageFromApiError(err: unknown, locale: SupportedLocale): string {
-  return resolveErrorMessage(extractProblemCode(err), locale);
+  return resolveApiErrorFeedback(err, locale).message;
 }

@@ -3,7 +3,7 @@ import { loginAsCustomer } from '../auth/customer-login';
 import { uniqueTestEmail } from '../auth';
 import { WEB_INTERNAL_KEY } from '../auth/shared';
 import { completeCustomerProfile } from '../customer';
-import { parseDayOffset } from './slot-seed';
+import { parseDayOffset, parseSoonestSlot } from './slot-seed';
 
 const BFF_URL = process.env.PLAYWRIGHT_BFF_URL ?? 'http://localhost:3002/v1';
 const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
@@ -11,7 +11,7 @@ const SERVICE_SIMPLES_ID = '00000000-0000-7000-8003-000000000001';
 export interface CreateAuthenticatedBookingOptions {
   readonly tenantSlug: string;
   readonly emailPrefix: string;
-  readonly daysAhead: number;
+  readonly daysAhead: number | 'soonest';
   readonly serviceIds?: readonly string[];
   readonly notes?: string;
   readonly contactEmail?: string;
@@ -34,7 +34,11 @@ export async function createAuthenticatedBooking(
   let lastError: string | null = null;
 
   for (let attempt = 0; attempt < 12; attempt += 1) {
-    const scheduledAt = parseDayOffset(options.daysAhead, `${contactEmail}:${attempt}`);
+    const seed = `${contactEmail}:${attempt}`;
+    const scheduledAt =
+      options.daysAhead === 'soonest'
+        ? parseSoonestSlot(seed)
+        : parseDayOffset(options.daysAhead, seed);
     const res = await page.request.post(`${BFF_URL}/bookings/authenticated`, {
       data: {
         scheduledAt,

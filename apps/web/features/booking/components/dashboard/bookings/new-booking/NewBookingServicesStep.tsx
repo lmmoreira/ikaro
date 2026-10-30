@@ -8,10 +8,10 @@ import type { StepError } from '@/features/booking/hooks/useBookingFlow';
 import type { BookingFormDataStatus } from '@/features/booking/hooks/useBookingFormData';
 import { isAddressFilled } from '@/features/booking/model/personal-info';
 import { NewBookingAddressFields } from './NewBookingAddressFields';
-import { NewBookingErrorBanner } from './NewBookingErrorBanner';
 import { NewBookingServiceCard } from './NewBookingServiceCard';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { SECTION_LABEL_CLASS } from './new-booking-styles';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface NewBookingServicesStepProps {
   readonly services: readonly HotsiteServiceResponse[];
@@ -107,32 +107,30 @@ export function NewBookingServicesStep({
         </section>
       )}
 
-      {error && <NewBookingErrorBanner testId="step1-error">{error}</NewBookingErrorBanner>}
+      {error && <FeedbackMessage testId="step1-error" title={error} />}
 
       {submitError && (
-        <NewBookingErrorBanner
+        <FeedbackMessage
           focusOnMount
           testId="step1-submit-error"
+          title={submitError.message}
           hint={
             submitError.code === BookingErrorCode.INVALID_MULTIPLE_VARIABLE_SERVICES
               ? t('multipleVariableHint')
               : undefined
           }
-        >
-          {submitError.message}
-        </NewBookingErrorBanner>
+        />
       )}
 
       {formStatus === 'error' && (
-        <NewBookingErrorBanner
+        <FeedbackMessage
           focusOnMount
           testId="step1-form-error"
+          title={t('formLoadErrorTitle')}
           hint={t('formLoadError')}
           onRetry={handleNext}
           retryLabel={tn('retry')}
-        >
-          {t('formLoadErrorTitle')}
-        </NewBookingErrorBanner>
+        />
       )}
     </NewBookingStepLayout>
   );

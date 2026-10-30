@@ -9,9 +9,9 @@ import type { ChosenDuration } from '@/features/booking/model/basket-lines';
 import { formatDuration } from '@/shared/lib/formatting/format-duration';
 import { useFormatting } from '@/shared/lib/formatting/use-formatting';
 import { Card, CardContent } from '@/shared/components/ui/card';
-import { NewBookingErrorBanner } from './NewBookingErrorBanner';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { INPUT_CLASS, LABEL_CLASS } from './new-booking-styles';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 interface NewBookingDurationStepProps {
   readonly slug: string;
@@ -70,7 +70,7 @@ export function NewBookingDurationStep({
       </div>
 
       {options.length === 0 ? (
-        <NewBookingErrorBanner>{t('duration.unavailable')}</NewBookingErrorBanner>
+        <FeedbackMessage title={t('duration.unavailable')} />
       ) : (
         <Card>
           <CardContent className="p-4">
@@ -123,13 +123,12 @@ export function NewBookingDurationStep({
               />
             )}
             {quote.status === 'error' && (
-              <NewBookingErrorBanner
+              <FeedbackMessage
                 testId="duration-quote-error"
+                title={t('duration.quoteError')}
                 onRetry={retryQuote}
                 retryLabel={tn('retry')}
-              >
-                {t('duration.quoteError')}
-              </NewBookingErrorBanner>
+              />
             )}
             {quote.status === 'ready' && (
               <>
@@ -143,11 +142,7 @@ export function NewBookingDurationStep({
         </Card>
       )}
 
-      {error && (
-        <NewBookingErrorBanner focusOnMount testId="duration-error">
-          {error.message}
-        </NewBookingErrorBanner>
-      )}
+      {error && <FeedbackMessage focusOnMount testId="duration-error" title={error.message} />}
     </NewBookingStepLayout>
   );
 }

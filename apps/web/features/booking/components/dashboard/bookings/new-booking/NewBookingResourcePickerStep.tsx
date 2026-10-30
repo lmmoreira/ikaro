@@ -13,9 +13,9 @@ import {
   resourceInitials,
 } from '@/features/booking/model/resource-picker-copy';
 import { findPick } from '@/features/booking/model/resource-picks';
-import { NewBookingErrorBanner } from './NewBookingErrorBanner';
 import { NewBookingStepLayout } from './NewBookingStepLayout';
 import { SECTION_LABEL_CLASS } from './new-booking-styles';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 
 type PickerStatus = 'loading' | 'error' | 'ready';
 
@@ -132,9 +132,12 @@ export function NewBookingResourcePickerStep({
       </div>
 
       {reselectMessage && (
-        <NewBookingErrorBanner focusOnMount testId="picker-reselect-error" hint={t('reselectHint')}>
-          {reselectMessage}
-        </NewBookingErrorBanner>
+        <FeedbackMessage
+          focusOnMount
+          testId="picker-reselect-error"
+          title={reselectMessage}
+          hint={t('reselectHint')}
+        />
       )}
       {status === 'loading' && (
         <output className="block text-sm text-gray-600" aria-busy="true">
@@ -142,14 +145,13 @@ export function NewBookingResourcePickerStep({
         </output>
       )}
       {status === 'error' && (
-        <NewBookingErrorBanner
+        <FeedbackMessage
           testId="picker-load-error"
+          title={t('loadError')}
           hint={t('loadErrorHint')}
           onRetry={onRetry}
           retryLabel={tn('retry')}
-        >
-          {t('loadError')}
-        </NewBookingErrorBanner>
+        />
       )}
       {status === 'ready' && (
         <>
