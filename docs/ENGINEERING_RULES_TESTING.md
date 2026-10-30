@@ -164,6 +164,14 @@ const tenantTodayKey = new Intl.DateTimeFormat('en-CA', {
 **Confirmed empirically (TD44-S4, PR #516, 2026-09-26):** a new scroll-to-now E2E test used a generic `nextOpenDateKey(0)` helper (runner-clock "today") for its fixture; CI hit the divergent window twice before the fixture was switched to the tenant-timezone computation above.
 
 
+## An E2E that needs a booking inside an hours-based window (cancel, reschedule) must not use a day offset — `daysAhead` counts weekdays
+
+`parseDayOffset(daysAhead)` (`e2e/helpers/booking/slot-seed.ts`) skips Saturday and Sunday, because the seeded tenants are closed on Sunday and for part of Saturday, so `daysAhead: 1` means "the next weekday". From a Friday that is Monday, 60+ hours away, outside the 48h `cancellationWindowHours` and reschedule window. A spec asserting "inside the window" with `createFreshApprovedBooking(page, 1, …)` therefore passes Monday to Thursday and fails every Friday, Saturday and Sunday run, with nothing in the code under test to blame.
+
+- **Inside a window measured in hours:** `createFreshApprovedBooking(page, 'soonest', …)`. `parseSoonestSlot` picks the nearest open slot between one hour and 47 hours ahead, including Saturday 08:00–14:00 (São Paulo), and throws when none fits instead of returning a start that makes the scenario assert nothing. `createFreshApprovedBooking` makes one attempt for `'soonest'`: a later open day is outside the window it exists for.
+- **Outside the window:** a large weekday offset (the existing specs use 9 or more); no weekday can bring that one inside.
+- `e2e/helpers/booking/slot-seed.spec.ts` sweeps every half hour of two weeks and pins the Friday-evening and Saturday-evening cases; run any new date helper the same way rather than on the day it was written. A date-dependent E2E that passes today proves nothing about tomorrow.
+
 ## An E2E fixture or assertion that depends on "what is bookable now" must trim to the clock and leave room — the availability read lists elapsed slots, and the last half hour of a day has nothing to spare
 
 **The availability read lists the whole business day, including hours already behind the clock.** Staff and the alert sweep read the same endpoint, so it is deliberately not trimmed (`docs/BUSINESS_LOGIC_REFERENCE.md` § Booking — Booking Window). Booking a start at or before now is `422 BOOKING_SCHEDULED_IN_PAST`, and the public booking page hides slots before `now + minimum notice`. Four consequences, each of which failed CI for a different spec:

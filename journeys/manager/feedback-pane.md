@@ -3,7 +3,7 @@
 **Actor(s):** MANAGER (dashboard), CUSTOMER (conta do cliente), GUEST/CUSTOMER (hotsite público)
 **Goal:** When a save, action or load fails or succeeds, the user sees the result next to the action they just took, with the offending field marked — on every surface of `apps/web`.
 **UCs covered:** none — a cross-cutting UI pattern. Source of truth: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`. Lives under `manager/` because the dashboard is its main surface. The customer-account and public-hotsite screens live in their own actor folders, as the folder convention requires: `customer/prototypes/minha-conta/03c`–`03d` and `guest/prototypes/lead-form/01j`–`01k`; the hub `index.html` here links to them.
-**Status:** Draft (TD57) — nothing built yet. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
+**Status:** In progress (TD57) — the shared components shipped with TD57-S01; the screens below still use their own boxes until their stories land. The service-edit error that triggered it is real: a 422 rendered below four cards, out of view.
 
 ## Flow
 
@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the shared components do not exist yet (`TD57-S01`, branded `TD57-S06`).
+Every node in red is a gap: the screens do not use the shared components yet (`TD57-S02` onward; the branded counterpart is `TD57-S06`). The shared components themselves exist since `TD57-S01`.
 
 ## Pages referenced
 
@@ -40,10 +40,10 @@ Every node in red is a gap: the shared components do not exist yet (`TD57-S01`, 
 | `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |
 | `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ⚠ Exists, error above the content |
 | `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S06, S16 | ⚠ Exists, hand-rolled box |
-| Shared components | `FeedbackMessage`, `ActionPane`, `useFormFeedback` | TD57-S01 | ❌ Gap |
+| Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 
 ## Open questions / gaps
 
-- [ ] Customer screens: fixed mobile bar, or keep the in-flow layout they have today? (TD57-S01 discovery)
+- [ ] Customer screens: fixed mobile bar, or keep the in-flow layout they have today? `ActionPane` ships only the fixed bar; decided in TD57-S11
 - [ ] Branded error colour: fixed semantic red or derived from tenant tokens, and how contrast is guaranteed (TD57-S06)
 - [ ] Window-narrowing hint dropped from `BOOKING_SERVICE_BOOKING_POLICY_INVALID`: static hint on the window card, or a separate backend error code (TD57-S02)

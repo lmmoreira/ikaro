@@ -38,10 +38,10 @@
 
   <!--
     COMPONENT: ActionPane mobile bar (fixed inset-x-0 bottom-0 lg:hidden) + FeedbackMessage
-    FILE:      apps/web/shared/components/ui/action-pane.tsx  (GAP — TD57-S01; extracted from ServiceEditPanels.tsx / SettingsFormActions.tsx)
+    FILE:      apps/web/shared/components/ui/action-pane.tsx  (EXISTS — TD57-S01; ServiceEditPanels.tsx / SettingsFormActions.tsx migrate to it in later stories)
     RULE:      message ABOVE the buttons inside the bar; max-height ~6.5rem with overflow scroll so a long message never pushes the bar off screen.
                The page keeps MOBILE_ACTION_BAR_CLEARANCE_CLASS so content is never hidden behind the bar.
-    OPEN:      customer screens render their mobile pane in normal flow today (not fixed) — decide in TD57-S01 discovery whether they adopt the fixed bar.
+    OPEN:      customer screens render their mobile pane in normal flow today (not fixed) — decided in TD57-S11 whether they adopt the fixed bar.
   -->
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
     Protótipo — TD57 — barra fixa mobile (360 px): mensagem curta, mensagem longa com rolagem e sucesso

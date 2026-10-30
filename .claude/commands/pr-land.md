@@ -62,7 +62,7 @@ In-scope actors:
 - **Codex** — always, for the dispatch that started this round.
 - **CodeRabbit** — **round 1 only**, from `/pre-pr`'s `@coderabbitai review` trigger. Never re-triggered in later rounds (per explicit instruction — Codex is re-dispatched every round, CodeRabbit is not).
 
-Use `scripts/pr-round-status.sh` for this — it blocks until every actor you ask it to wait for reaches a terminal state (a CodeRabbit rate-limit notice counts as terminal, same as an actual review), then prints one result per actor, including an unconditional SonarCloud open-issues line (no flag needed — it always runs):
+Use `scripts/pr-round-status.sh` for this — it blocks until every actor you ask it to wait for reaches a terminal state (a CodeRabbit rate-limit notice or a finished CodeRabbit check run counts as terminal, same as an actual review), then prints one result per actor, including an unconditional SonarCloud open-issues line (no flag needed — it always runs):
 
 ```bash
 # Round 1 (CI + Codex + CodeRabbit all in scope)

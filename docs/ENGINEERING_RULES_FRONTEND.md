@@ -143,6 +143,7 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | Multi-line text | `ui/textarea` | `ManifestTab` |
 | A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
 | A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
+| A save, submit or action result (error or success), or a page-level load failure | `ui/feedback-message`; in a screen with a primary action also `ui/action-pane` and `shared/lib/feedback/use-form-feedback`; a field's own message is `ui/field-feedback` — never a new `role="alert"` box (§ A form's error or success message lives in the action pane) | `NewBookingServicesStep` (`FeedbackMessage`); no screen uses `ActionPane` yet |
 | A button | `ui/button` | `DiscardChangesDialog` |
 | A user's avatar | `ui/avatar` | `Topbar`, `Sidebar` |
 | A searchable list inside a popover | `ui/command` | `ui/font-picker` |
@@ -170,23 +171,14 @@ Every dashboard and customer-account screen reports a save, submit or action res
 | Surface | Rule |
 |---|---|
 | **Form with a primary action** | The form-level error and success render in a second card **below the buttons card, inside `ActionPane`**. On desktop the pane is `lg:sticky lg:top-6`, so the message follows the scroll. On mobile the fixed bottom bar renders it above the buttons, `max-height` about 6.5rem with scroll. The card exists only while there is a message. |
-| **Roles** | Error `role="alert"`, success `role="status"` (`FeedbackMessage` sets both). Success persists until the next edit: the panel calls `clear()` from its `patch()`; no auto-fade. |
+| **Roles** | Error `role="alert"`, success `<output>` (its implicit `status` role; SonarCloud S6819 rejects `role="status"` on a `<div>`). `FeedbackMessage` chooses both. Success persists until the next edit: the panel calls `clear()` from its `patch()`; no auto-fade. |
 | **Field level** | The offending input gets `aria-invalid` and `aria-describedby` (`fieldProps(name)`), the `FIELD_INVALID_CLASS` outline, and a `FieldFeedback` under it (`id={fieldErrorId(name)}`). The first invalid field is scrolled to (`block: 'center'`) and focused. The error comes from the server (`setFromApiError(err, locale)` reads `ProblemDetail.field`) or from client validation (`setFieldErrors({ name: message })`). A `field` the form never registered leaves only the form-level message. |
 | **Row action in a list** | When the action changes a status the row already shows (activate, deactivate, approve), the changed badge or button *is* the confirmation: no success text. An action with no visible change (resend invite) gets a short `FeedbackMessage size="inline"` beside the button. A failure shows the backend-resolved message inline beside the row, never a fixed string. |
 | **Page level** | A load failure or a route `error.tsx` is a page-level `FeedbackMessage` with `onRetry`. Never exempt. |
 | **Alignment** | Every tab or section body starts with a card level with the pane's card; intro text lives *inside* that card; only the tab bar sits above the grid. |
 | **Public hotsite** | `FeedbackMessage` reads no `--ba-*`, so it is dashboard and account only. The branded counterpart is TD57-S06; until it lands the hotsite keeps `ErrorAlert variant="hotsite"`. |
 
-```tsx
-const feedback = useFormFeedback();
-
-<input aria-label="Mínimo" {...feedback.fieldProps('durationMinMinutes')} />
-<FieldFeedback id={feedback.fieldErrorId('durationMinMinutes')}>
-  {feedback.fieldErrors.durationMinMinutes}
-</FieldFeedback>
-
-<ActionPane actions={<SaveButton />} feedback={feedback.feedback} />
-```
+The skeleton (hook, field marking, `ActionPane` with desktop and mobile actions): `docs/AGENT_PATTERNS.md` Pattern #25.
 
 - `ActionPane` takes `actions` for the desktop card and an optional `mobileActions` for the bar (default: the same node; pass `null` for no bar). Desktop and mobile each render the controls, so give the two copies different `data-testid`s and scope an E2E click to `action-pane-desktop` (`docs/ENGINEERING_RULES_TESTING.md` § On a customer account or dashboard detail page every action exists twice).
 - The mobile bar sits at `bottom-0` by default. A screen shown above the dashboard `BottomNav` passes `mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS}` (`shells/dashboard/utils/mobile-action-bar.ts`); `shared/` imports nothing from `shells/`, so the caller supplies it.

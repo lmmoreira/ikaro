@@ -1,7 +1,7 @@
 # Agent Patterns — Ikaro
 
-> **When to load:** writing any backend, test, BFF or notification code: token-efficient code skeletons distilled from real files; the rules they follow are in `docs/CODE_STANDARDS.md` and `docs/ENGINEERING_RULES_SHARED.md`.
-> **Tags:** agent-process, backend
+> **When to load:** writing any backend, test, BFF, notification or web form code: token-efficient code skeletons distilled from real files; the rules they follow are in `docs/CODE_STANDARDS.md` and `docs/ENGINEERING_RULES_SHARED.md`.
+> **Tags:** agent-process, backend, web
 
 > Token-efficient code templates. Load this whenever writing any code (§10 maps it to "Writing any code").
 > Each skeleton is distilled from a real file in the repo — copy and substitute `Xxx`/`xxx`/`XXX` with your context name.
@@ -1073,3 +1073,59 @@ export class GetAvailabilityUseCase {
 ```
 
 A second caller (`AvailabilityAlertMatchingService`) injects `AvailabilityQueryService` directly. A type or enum another file needs goes in a sibling `*.types.ts`. Helpers used by both jobs and use cases live in `application/helpers/`. Full placement rules: `docs/ENGINEERING_RULES_BACKEND.md` § Layering inside `application/`. CI: `pnpm dep-cruise` (blocking).
+
+---
+
+## Web Patterns
+
+### 25. Form screen with an action pane and inline feedback
+
+A dashboard or customer-account screen that saves something reports the result in `ActionPane`, marks the offending field, and never draws its own `role="alert"` box. The rule (placement, roles, row actions, alignment) is `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; this is the skeleton. Canonical source: `apps/web/shared/lib/feedback/use-form-feedback.spec.tsx` (a harness that wires every piece) and `NewBookingServicesStep.tsx` (`FeedbackMessage` in a real step). No screen uses `ActionPane` yet; the first is TD57-S02, `ServiceEditPanels.tsx`.
+
+```tsx
+'use client';
+
+export function ThingForm(): React.JSX.Element {
+  const locale = useResolvedLocale();
+  const feedback = useFormFeedback();
+
+  const save = async (): Promise<void> => {
+    try {
+      await saveThing(values);
+      feedback.setSuccess(t('saved'));
+    } catch (err) {
+      feedback.setFromApiError(err, locale); // message from err.code; marks and focuses err.field if registered
+    }
+  };
+
+  return (
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
+      <Card>
+        <CardContent className="space-y-4 p-6">
+          <input
+            aria-label={t('durationMin')}
+            className={feedback.fieldErrors.durationMinMinutes ? FIELD_INVALID_CLASS : undefined}
+            onChange={(event) => {
+              patch({ durationMinMinutes: event.target.value });
+              feedback.clear(); // an edit removes the old error and success
+            }}
+            {...feedback.fieldProps('durationMinMinutes')} // ref + aria-invalid + aria-describedby
+          />
+          <FieldFeedback id={feedback.fieldErrorId('durationMinMinutes')}>
+            {feedback.fieldErrors.durationMinMinutes}
+          </FieldFeedback>
+        </CardContent>
+      </Card>
+
+      <ActionPane
+        actions={<Button data-testid="thing-save-desktop" onClick={save}>{t('save')}</Button>}
+        mobileActions={<Button data-testid="thing-save-mobile" onClick={save}>{t('save')}</Button>}
+        feedback={feedback.feedback}
+        // mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS} when the screen shows the dashboard BottomNav
+      />
+    </div>
+  );
+}
+```
+
+Client-side validation uses the same pieces: `feedback.setFieldErrors({ durationMinMinutes: t('required') })` marks every named field and focuses the first in document order; add `feedback.setError(...)` for a form-level line. A control that forwards no ref (`color-picker`, `pill-multi-select`, `time-picker`) takes `ref={feedback.registerField('name')}` on its wrapper. A list-row action uses `FeedbackMessage size="inline"` instead of a pane.

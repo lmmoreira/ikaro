@@ -30,7 +30,7 @@
   <!--
     COMPONENT: ServiceEditPage + ServiceBookingPolicyPanel + ActionPane + FeedbackMessage
     FILE:      apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx  (EXISTS — pane + mobile bar to be extracted)
-               apps/web/shared/components/ui/action-pane.tsx, feedback-message.tsx  (GAP — TD57-S01)
+               apps/web/shared/components/ui/action-pane.tsx, feedback-message.tsx  (EXISTS — TD57-S01)
     BFF CALL:  PATCH /v1/services/:id  → 422 BOOKING_SERVICE_BOOKING_POLICY_INVALID, field "durationMinMinutes"
     PATTERN:   feedback = a SECOND card under the buttons card, rendered only when there is a message.
                desktop: sticky with the pane (lg:sticky lg:top-6). mobile: inside the fixed bar, above the buttons.
@@ -137,7 +137,7 @@
           </div>
 
           <!-- ActionPane (desktop): buttons card, then the feedback card ONLY when a message exists -->
-          <aside class="fb-pane" aria-label="Ações do serviço" data-testid="action-pane">
+          <aside class="fb-pane" aria-label="Ações do serviço" data-testid="action-pane-desktop">
             <div class="card">
               <div class="fb-buttons">
                 <button type="button" class="btn-primary">Salvar</button>

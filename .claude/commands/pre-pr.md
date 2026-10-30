@@ -164,6 +164,8 @@ Check changed files for:
 ### Diff against the story's locked decisions
 Re-read the story's "Decisions already made", its "Locked at `/story-discovery`" notes and its "Files to create/modify" list, and compare each against the diff. A decision not implemented as written, a listed file that is missing or moved, or a listed artifact (a builder, a helper, a doc, a test) that was dropped is a **deviation**. Do not open the PR with one unannounced: tell the user in the same message what the story said, what shipped and why, and when it is deliberate update the story text in the PR's own commit. A reviewer must never be the first to find one. (M23-S44: the story specified a builder and a round-trip test, the implementation shipped only the parser, and Codex raised it as a Critical in round 1.)
 
+Do the same for the story's `Acceptance criteria — technical` bullets: each one names a spec, test or command that proves it, found in the diff or in CI. A bullet that holds only by construction ("imports nothing from X", "exempt", "not blocked") needs a test that pins it. A bullet with none is a deviation to fix or announce, not something to leave for `/mark-done` to find after the merge (TD57-S01: an action-pane line saying `shared/` imports nothing from `@/shells` had no test, and neither the PR review nor CI noticed).
+
 ---
 
 ## Step 3b — bad-smell-audit (mandatory, per changed layer)

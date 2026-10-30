@@ -742,7 +742,7 @@ Sidebar, bottom-nav, and bottom-sheet items that point to another journey (e.g. 
 | MANAGER/STAFF — View Leads Submissions | `manager/lead-form-submissions.md` | `manager/prototypes/leads/` | Built (M20-S10, S12, S13) |
 | MANAGER — Recursos (Resource Management) | `manager/resources.md` | `manager/prototypes/resources/` | Shipped (M21-S01, M21-S04) |
 | MANAGER — Scheduling Exceptions (Future Commitment Worklist) | `manager/scheduling-exceptions.md` | `manager/prototypes/scheduling-exceptions/` | Built (M23 Cluster 3) |
-| MANAGER — Feedback e painel de ações (inline feedback pattern, cross-actor) | `manager/feedback-pane.md` | `manager/prototypes/feedback-pane/` | Draft (TD57) |
+| MANAGER — Feedback e painel de ações (inline feedback pattern, cross-actor) | `manager/feedback-pane.md` | `manager/prototypes/feedback-pane/` | In progress (TD57-S01 shipped) |
 | MANAGER — Onboarding Preset Wizard | `manager/onboarding.md` | `manager/prototypes/onboarding/` | Draft (M24 Cluster 4) |
 | MANAGER — Assinatura (Billing, Plan & Payment) | `manager/billing.md` | `manager/prototypes/billing/` | Draft (planned Billing milestone) |
 | CUSTOMER — Reservar Aula (Turmas) | `customer/reservar-aula.md` | `customer/prototypes/reservar-aula/` | Draft (M24 Cluster 4) |

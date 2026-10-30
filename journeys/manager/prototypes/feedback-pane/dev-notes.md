@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** Draft — nothing here is built. Target stories: TD57-S01 (components), S02–S04 (service edit, rows), S06 (branded), S07–S16 (area migrations).
+**Status:** In progress — the shared components shipped with TD57-S01; no screen uses them yet except the five New-booking steps. Pending stories: S02–S04 (service edit, rows), S06 (branded), S07–S16 (area migrations).
 
 ---
 
@@ -17,10 +17,11 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 
 | File | Status | Action |
 |---|---|---|
-| `apps/web/shared/components/ui/feedback-message.tsx` | ❌ Gap | Create — TD57-S01 (`error` → `role="alert"`, `success` → `role="status"`, `inline` size, optional hint / retry / `focusOnMount`; Tailwind only, never `--ba-*`) |
-| `apps/web/shared/components/ui/action-pane.tsx` | ❌ Gap | Create — TD57-S01 (props `actions`, `feedback`; desktop `hidden lg:block lg:sticky lg:top-6`; mobile fixed bar) |
-| `apps/web/shared/lib/feedback/use-form-feedback.ts` | ❌ Gap | Create — TD57-S01 (`{ error, success, fieldErrors }`, `setFromApiError`, `setSuccess`, `clear`, `registerField`, `focusFirstInvalid`) |
-| `apps/web/shared/lib/i18n/resolve-error-message.ts` | ✅ EXISTS | Add `resolveApiErrorFeedback(err, locale): { message, field? }` — TD57-S01 |
+| `apps/web/shared/components/ui/feedback-message.tsx` | ✅ EXISTS | TD57-S01 — required `title`, optional body (`children`), `hint`, `onRetry`/`retryLabel`, `focusOnMount`, `size="inline"`; error renders `<div role="alert">`, success renders `<output>` (implicit `status` role); Tailwind only, never `--ba-*` |
+| `apps/web/shared/components/ui/field-feedback.tsx` | ✅ EXISTS | TD57-S01 — the inline message under an invalid input (`id` for `aria-describedby`) and `FIELD_INVALID_CLASS`, the red outline for an `aria-invalid` input |
+| `apps/web/shared/components/ui/action-pane.tsx` | ✅ EXISTS | TD57-S01 — props `actions`, `mobileActions` (default: `actions`; `null` = no bar), `feedback`, `mobileOffsetClassName` (default `bottom-0`; a screen above the dashboard `BottomNav` passes `MOBILE_ACTION_BAR_CLEARANCE_CLASS`); desktop `hidden lg:block lg:sticky lg:top-6`, mobile fixed bar |
+| `apps/web/shared/lib/feedback/use-form-feedback.ts` | ✅ EXISTS | TD57-S01 — `{ error, success, fieldErrors, feedback }`, `setFromApiError`, `setError`, `setSuccess`, `setFieldErrors`, `clear`, `registerField`, `fieldProps`, `fieldErrorId`, `focusFirstInvalid` |
+| `apps/web/shared/lib/i18n/resolve-error-message.ts` | ✅ EXISTS | TD57-S01 — `resolveApiErrorFeedback(err, locale): { message, field? }`; `resolveErrorMessageFromApiError` delegates to it |
 | Branded feedback component (built on `ErrorAlert variant="hotsite"`) | ❌ Gap | Create — TD57-S06 |
 | `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ EXISTS | Extract pane + mobile bar into `ActionPane`; render feedback in the pane — TD57-S02 |
 | `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ EXISTS | Wrap in a card level with the pane — TD57-S03 |
@@ -72,7 +73,7 @@ Load failures and route `error.tsx` use a page-level `FeedbackMessage` with a re
 
 - ⚠ The desktop pane and the mobile bar both contain the message in these static files. The real component renders one of them at a time.
 - ⚠ Branded error colour is a fixed semantic red on a white surface here. Whether it stays fixed or derives from tenant tokens is undecided (TD57 open item).
-- ⚠ Customer screens render their mobile pane in normal flow today, not fixed. Screen 07 shows the fixed bar. Decided in TD57-S01 discovery (2026-10-30): `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; whether the customer account adopts it or needs an inline mobile mode is decided in TD57-S11.
+- ⚠ Customer screens render their mobile pane in normal flow today, not fixed. Screen 07 shows the fixed bar. `ActionPane` ships only the fixed bar, with a `mobileOffsetClassName` prop; whether the customer account adopts it or needs an inline mobile mode is decided in TD57-S11.
 - ⚠ The first-box alignment numbers (screen 02) are from the current implementation. This prototype shows the target, not the current layout.
 
 ## data-testid changes
