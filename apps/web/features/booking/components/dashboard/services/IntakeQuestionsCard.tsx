@@ -19,6 +19,8 @@ interface IntakeQuestionsCardProps {
   readonly onChangeLabel: (key: string, label: string) => void;
   readonly onChangeType: (key: string, type: ServiceIntakeQuestionType) => void;
   readonly onChangeRequired: (key: string, required: boolean) => void;
+  // Tab intro, shown under the title so the tab's first box is the card level with the action pane.
+  readonly intro?: string;
 }
 
 export function IntakeQuestionsCard({
@@ -34,6 +36,7 @@ export function IntakeQuestionsCard({
   onChangeLabel,
   onChangeType,
   onChangeRequired,
+  intro,
 }: IntakeQuestionsCardProps): React.JSX.Element {
   const t = useTranslations('dashboard.servicesPage');
 
@@ -41,6 +44,7 @@ export function IntakeQuestionsCard({
     <Card>
       <CardContent className="space-y-3 p-5">
         <h2 className="text-sm font-semibold text-gray-900">{t('formularioQuestionsCardTitle')}</h2>
+        {intro && <p className="text-sm text-gray-500">{intro}</p>}
         <p className="text-xs text-gray-500">{t('formularioQuestionsHint')}</p>
 
         {questions.length === 0 && (

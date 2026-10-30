@@ -35,7 +35,7 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 | Page / Route | Component | Story | Status |
 |---|---|---|---|
 | `/dashboard/services/[id]/edit` (all five tabs) | `ServiceEditPanels` + `ActionPane` | TD57-S02 | ✅ Feedback in the pane; per-reason policy errors; pre-send validation |
-| `/dashboard/services/[id]/edit` (Recursos, Formulário) | `ServiceResourceModePicker`, `ServiceIntakeSchemaPanel` | TD57-S03 | ⚠ Exists, first box not level with the pane |
+| `/dashboard/services/[id]/edit` (Recursos, Políticas, Formulário) | `ServiceResourceModePicker`, `PolicyDurationPricingCard`, `IntakeQuestionsCard` | TD57-S03 | ✅ First box level with the pane on all five tabs (intro inside the first card; the mode picker in a card) |
 | `/dashboard/team` | `MemberRow` | TD57-S04 | ⚠ Exists, success message never visible |
 | `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |
 | `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ⚠ Exists, error above the content |

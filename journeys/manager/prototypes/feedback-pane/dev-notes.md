@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. Pending stories: S03–S04 (tab alignment, rows), S06 (branded), S07–S16 (area migrations).
+**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Pending stories: S04 (rows), S06 (branded), S07–S16 (area migrations).
 
 ---
 
@@ -24,7 +24,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 | `apps/web/shared/lib/i18n/resolve-error-message.ts` | ✅ EXISTS | TD57-S01 — `resolveApiErrorFeedback(err, locale): { message, field? }`; `resolveErrorMessageFromApiError` delegates to it |
 | Branded feedback component (built on `ErrorAlert variant="hotsite"`) | ❌ Gap | Create — TD57-S06 |
 | `apps/web/features/booking/components/dashboard/services/ServiceEditPanels.tsx` | ✅ DONE | TD57-S02 — pane + mobile bar render through `ActionPane`; each tab registers its `feedback` with the action (`useTabFeedback`); Detalhes passes its own |
-| `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ EXISTS | Wrap in a card level with the pane — TD57-S03 |
+| `apps/web/features/booking/components/dashboard/services/ServiceResourceModePicker.tsx` | ✅ DONE | TD57-S03 — the mode buttons sit in a `Card` headed by the question, level with the pane |
 | `apps/web/features/staff/components/team/MemberRow.tsx` | ✅ EXISTS | Drop the unseen success text; inline failure — TD57-S04 |
 | `apps/web/features/customer/components/my-account/CancelConfirmPage.tsx` | ✅ EXISTS | Move the error into the pane — TD57-S11 |
 
@@ -45,7 +45,7 @@ Shared CSS: `journeys/shared/feedback-pane.css` (`.fb*` SaaS skin, `.fb-pane*`, 
 
 ## Screen 02 — Tab alignment (`ServiceResourceModePicker`)
 
-Every tab body starts with a card level with the pane's card; intro text sits inside that card; only the tab bar is above the grid. Measured on 2026-10-29: pane card top 145 px on every tab; first box 265 px on Recursos, 181 px on Políticas and Formulário, 145 px on Detalhes and Página pública.
+Every tab body starts with a card level with the pane's card; intro text sits inside that card; only the tab bar is above the grid. Measured on 2026-10-29: pane card top 145 px on every tab; first box 265 px on Recursos, 181 px on Políticas and Formulário, 145 px on Detalhes and Página pública. TD57-S03 (measured again 2026-10-30): first box 145 px on all five tabs. The intro is an optional `intro` prop on the first card (`PolicyDurationPricingCard`, `IntakeQuestionsCard`); Recursos wraps the mode picker in a `Card` with the same small heading as its sibling cards.
 
 ## Screen 03 — Row actions (`MemberRow`)
 

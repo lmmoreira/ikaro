@@ -206,9 +206,8 @@ export function ServiceIntakeSchemaPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">{t('formularioIntro')}</p>
-
       <IntakeQuestionsCard
+        intro={t('formularioIntro')}
         questions={questions}
         resolveFieldKey={(question) => question.fieldKey || slugifyFieldKey(question.label)}
         hasDuplicateFieldKeys={hasDuplicateFieldKeys}

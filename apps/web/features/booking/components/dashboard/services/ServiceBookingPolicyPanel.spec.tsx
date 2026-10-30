@@ -78,6 +78,21 @@ const BASE_POLICY: ServiceBookingPolicyItem = {
 beforeEach(() => mutateAsync.mockClear());
 
 describe('ServiceBookingPolicyPanel', () => {
+  it('starts with a card that holds the intro, so it is level with the action pane', () => {
+    const { container } = renderWithIntl(
+      <PolicyPanelWithAction
+        serviceId="svc-1"
+        initialPolicy={BASE_POLICY}
+        onDirtyChange={vi.fn()}
+      />,
+    );
+
+    const first = container.firstElementChild?.firstElementChild;
+    expect(first).toHaveClass('shadow-sm');
+    expect(first).toHaveTextContent(/Cada regra vale para este serviço/);
+    expect(container.querySelector(':scope > div > p')).toBeNull();
+  });
+
   it('hides duration/pricing detail fields when policy is FIXED', () => {
     renderWithIntl(
       <PolicyPanelWithAction

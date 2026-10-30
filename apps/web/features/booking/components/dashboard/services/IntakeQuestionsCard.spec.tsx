@@ -166,4 +166,48 @@ describe('IntakeQuestionsCard', () => {
 
     expect(screen.getByTestId('intake-empty-key-error')).toBeInTheDocument();
   });
+
+  it('renders the intro under the title when one is passed', () => {
+    renderWithIntl(
+      <IntakeQuestionsCard
+        questions={QUESTIONS}
+        resolveFieldKey={(q) => q.fieldKey}
+        hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
+        hasEmptyFieldKey={false}
+        canAddQuestion
+        onAdd={vi.fn()}
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+        intro="Perguntas que o cliente responde."
+      />,
+    );
+
+    expect(screen.getByText('Perguntas que o cliente responde.')).toBeInTheDocument();
+  });
+
+  it('renders only the existing hint under the title when no intro is passed', () => {
+    const { container } = renderWithIntl(
+      <IntakeQuestionsCard
+        questions={QUESTIONS}
+        resolveFieldKey={(q) => q.fieldKey}
+        hasDuplicateFieldKeys={false}
+        hasBlankLabel={false}
+        hasEmptyFieldKey={false}
+        canAddQuestion
+        onAdd={vi.fn()}
+        onMove={vi.fn()}
+        onRemove={vi.fn()}
+        onChangeLabel={vi.fn()}
+        onChangeType={vi.fn()}
+        onChangeRequired={vi.fn()}
+      />,
+    );
+
+    expect(container.querySelectorAll('h2 + p')).toHaveLength(1);
+    expect(container.querySelector('h2 + p')).toHaveClass('text-xs');
+  });
 });

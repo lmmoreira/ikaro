@@ -111,9 +111,13 @@ export function ServiceBookingPolicyPanel({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-gray-500">{t('politicasIntro')}</p>
-
-      <PolicyDurationPricingCard policy={policy} hasLegs={hasLegs} fields={form} onPatch={patch} />
+      <PolicyDurationPricingCard
+        policy={policy}
+        hasLegs={hasLegs}
+        fields={form}
+        onPatch={patch}
+        intro={t('politicasIntro')}
+      />
       <PolicyConfirmationCard policy={policy} onPatch={patch} />
       <PolicyBookingWindowCard policy={policy} fields={form} onPatch={patch} />
       <PolicyWhoHowCard policy={policy} onPatch={patch} recurrenceBlockers={recurrenceBlockers} />
