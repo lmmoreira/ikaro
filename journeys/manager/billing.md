@@ -24,6 +24,9 @@ flowchart TD
     Hosted -->|"payment not confirmed"| Failed["Resumo — pagamento não confirmado (01o)"]
     Pending -->|"webhook / refresh confirms"| Billing
     Failed -->|"Tentar pagar novamente"| Hosted
+    Billing -->|"price change scheduled"| PriceNotice["Resumo/Plano — aviso de mudança de preço (01k)"]
+    PriceNotice --> Billing
+    Billing -->|"exempt tenant"| Exempt["Resumo — conta isenta, sem cobranças nem cancelamento (01l)"]
     Billing -->|"link expired"| Expired["Resumo — link expirado, gerar novo (01j)"]
     Expired --> Hosted
 
@@ -52,7 +55,7 @@ flowchart TD
     Billing -.->|"deferred slices"| Deferred["Deferred: Cobrança automática — Pix Automático / card (UC-135, UC-143; 07*) · Ciclo anual e add-on (UC-144, UC-145; 01q, 11, 12, 13)"]:::deferred
 ```
 
-> The flow above is the main path. The screens table under "Prototype" is the full list; screens not drawn as nodes: trial cancel variants `06d` (immediate, trial never paid or past due, ends in `01e`) and `06e` (first invoice paid, ends in `06b`), `01k` (price-change notice on Resumo and Plano), `01l` (exempt tenant, no charges or cancel), `01m`/`01n` (other suspension reasons), the `08*` Plano variants and the `11`–`13`/`01q` annual screens. Suspension routing: `01d` is non-payment (`NON_PAYMENT`), `01e` is cancellation (`CANCELED`, reached from the cancel page `06`/`06d`).
+> The flow above is the main path. The screens table under "Prototype" is the full list; screens not drawn as nodes: trial cancel variants `06d` (immediate, trial never paid or past due, ends in `01e`) and `06e` (first invoice paid, ends in `06b`), `01m`/`01n` (other suspension reasons), the `08*` Plano variants and the `11`–`13`/`01q` annual screens. Suspension routing: `01d` is non-payment (`NON_PAYMENT`), `01e` is cancellation (`CANCELED`, reached from the cancel page `06`/`06d`).
 
 ## Pages referenced
 

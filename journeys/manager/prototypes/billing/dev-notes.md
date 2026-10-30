@@ -14,7 +14,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 |---|---|---|
 | `app/dashboard/billing/page.tsx`, `loading.tsx`, `error.tsx` | GAP | Create, thin routes (M26-S27) |
 | `app/dashboard/billing/cancel/page.tsx` | GAP | Create, thin (M26-S31) |
-| `app/dashboard/suspended/page.tsx` (or the route `proxy.ts` chooses) | GAP | Create, staff notice (M25-S31) |
+| `app/dashboard/suspended/page.tsx` | GAP | Create, suspended notice: manager variant (M25-S29) and staff variant (M25-S31) |
 | `features/billing/api/billing.server.ts`, `billing.ts` | GAP | Create (M26-S27); modify in S28, S29, S30, S31 |
 | `features/billing/components/BillingPage.tsx`, `BillingTabs.tsx`, `BillingSummaryTab.tsx`, `BillingChargesTab.tsx`, `BillingStatusBadge.tsx`, `AutoBillingComingSoon.tsx`, `ExemptNotice.tsx` | GAP | Create (M26-S27); `BillingSummaryTab.tsx` modified in S28 |
 | `features/billing/components/PayNowButton.tsx`, `PaymentPendingBanner.tsx`, `PaymentLinkExpiredNotice.tsx`, `PaymentFailedNotice.tsx` | GAP | Create (M26-S28) |
@@ -35,7 +35,7 @@ All paths are new files under `apps/web` unless the Action says modify; each com
 | `features/billing/model/banner-state.ts` | GAP | Create, pure status to banner variant (M26-S32) |
 | `shared/lib/billing/feature-registry.ts`, `access.server.ts` | GAP | Create (M25-S29); registry modified in M26-S27, S32 |
 | `shells/dashboard/components/Sidebar.tsx`, `BottomNav.tsx`, `MoreSheet.tsx` | EXISTS | Modify: manager-only "Assinatura" entry (M26-S27); locked-item rendering (M25-S29) |
-| `app/dashboard/layout.tsx`, `proxy.ts` | EXISTS | Modify: load the access answer once, role routing while suspended (M25-S29); suspended-manager target (M26-S32) |
+| `app/dashboard/layout.tsx` | EXISTS | Modify: load the access answer once, redirect a suspended manager (M25-S29; `proxy.ts` is untouched, the JWT carries no tenant status); the manager's target becomes the billing page (M26-S32) |
 | `e2e/billing-money-loop.spec.ts`, `e2e/billing-suspended-experience.spec.ts`, `e2e/helpers/billing/` | GAP | Create (M26-S35) |
 
 Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup files (`features/billing/components/public/*`) belong to `guest/prototypes/ikaro-trial`.

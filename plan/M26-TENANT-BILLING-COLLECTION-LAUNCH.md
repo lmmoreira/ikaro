@@ -1487,7 +1487,7 @@ Add the 13th hotsite module type, `TRIAL_SIGNUP_CTA` — a call to action, **not
 **Agent:** `frontend-ts`
 **Complexity:** L
 **Docs to load:** `docs/USE_CASES.md` UC-117 (all, A1–A8), `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § Staff/Manager Shell (the planned Assinatura entry), `docs/API_CONTRACTS.md` § Billing — Manager API (summary and charge history), `docs/ENGINEERING_RULES_FRONTEND.md` § Reuse the repo's UI primitives, `docs/CODE_STANDARDS.md`, `docs/ENGINEERING_RULES_SHARED.md` § Authoring new i18n UI copy keys, `docs/BFF_ARCHITECTURE.md` § Web → BFF Transport Layer, `journeys/manager/billing.md`
-**Dependencies:** M26-S14 (summary and charges reads), M25-S29 (the route-to-feature registry and `proxy.ts` role routing the nav entry uses), M25-S31 (the suspended notice the manager page replaces for managers)
+**Dependencies:** M26-S14 (summary and charges reads), M25-S29 (the route-to-feature registry the nav entry uses), M25-S31 (the suspended notice the manager page replaces for managers)
 **Pattern:** Server Component fetch (`bffServerFetch`) with client sub-components for tabs; one shared `generateMetadata()` fetch via React `cache()`; tabs as query-param or sub-route state (settled at implementation against the prototype).
 
 **Description:**
@@ -1679,7 +1679,7 @@ Cancel is a **separate confirmation page** reached from the Resumo's "Cancelar a
 **Agent:** `frontend-ts`
 **Complexity:** M
 **Docs to load:** `docs/USE_CASES.md` UC-130 (all, A1–A6) and UC-121 (manager routing), `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § Staff/Manager Shell (the banner mount point is **open**: there is no single shared dashboard layout; route-scoped chrome state such as `topbar-status-context.tsx` lives in a provider mounted above both shell and page — CLAUDE.md §7 Web styling boundary), `docs/ENGINEERING_RULES_SHARED.md` § Tenant access enforcement (item 6 — `proxy.ts` role routing), `journeys/manager/billing.md`
-**Dependencies:** M26-S14 (summary fields), M26-S19 (`Confirmar plano` target), M25-S29 (`proxy.ts` role routing and the feature registry), M25-S31 (`/dashboard/suspended` notice)
+**Dependencies:** M26-S14 (summary fields), M26-S19 (`Confirmar plano` target), M25-S29 (the suspended redirect in `app/dashboard/layout.tsx` and the feature registry), M25-S31 (`/dashboard/suspended` notice)
 **Pattern:** One banner component mounted **once** above the page content via a provider above both shell and page (not shell-local state); status-driven variants; fail-silent.
 
 **Description:**
@@ -1694,7 +1694,7 @@ Cancel is a **separate confirmation page** reached from the Resumo's "Cancelar a
 - `apps/web/features/billing/components/SubscriptionBanner.tsx`, `SubscriptionBannerProvider.tsx` (+ `.spec.tsx` each) (new)
 - `apps/web/features/billing/model/banner-state.ts` (+ spec) (new — pure status → variant mapping incl. day counts in the tenant timezone)
 - `apps/web/shells/dashboard/components/DashboardSectionShell.tsx` and the section layouts `apps/web/app/dashboard/hotsite/layout.tsx`, `apps/web/app/dashboard/settings/layout.tsx`, `apps/web/app/dashboard/leads/layout.tsx` (modify — the mount point is chosen at story discovery among these verified candidates; the dashboard has no single shared layout)
-- `apps/web/proxy.ts` (+ its spec) (modify — suspended-manager target)
+- `apps/web/shared/lib/billing/` suspended-redirect helper (+ its spec) (modify — the suspended manager's target changes from `/dashboard/suspended` to the billing page; the redirect itself stays in `app/dashboard/layout.tsx`, M25-S29)
 - `apps/web/shared/lib/billing/feature-registry.ts` (+ spec) (modify)
 - `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` (modify)
 
@@ -1706,7 +1706,7 @@ Cancel is a **separate confirmation page** reached from the Resumo's "Cancelar a
 **Acceptance criteria — technical:**
 - Unit (Vitest):
   - [ ] `banner-state` table-driven (singular/plural, last day, tenant-timezone boundaries, address-missing, exempt); component fails silent on a load error
-  - [ ] `proxy.ts`: suspended `MANAGER` → billing, `STAFF` → notice, `CUSTOMER` unchanged
+  - [ ] Suspended-redirect helper: suspended `MANAGER` → billing, `STAFF` → notice, `CUSTOMER` unchanged
 - E2E:
   - [ ] Covered by S35 — **named here:** `billing-banner-and-suspension.spec.ts`
 - [ ] Coverage ≥80% on changed code
