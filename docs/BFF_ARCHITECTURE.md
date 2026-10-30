@@ -242,7 +242,7 @@ CorrelationMiddleware (Express middleware — runs before every Guard, so even a
   ▼
 WebOnlyGuard (global, registered first)
   │  Rejects any caller that is not ikaro-web: X-Web-Internal-Key must match WEB_INTERNAL_KEY
-  │  (constant-time compare). No @Public() escape hatch — only @BypassWebOnlyGuard() (health probes)
+  │  (constant-time compare). No @Public() escape hatch — only @BypassWebOnlyGuard() (health probes and, planned, the billing webhooks)
   ▼
 AppThrottlerGuard
   │  Rate limit per route (see Rate Limiting) — rejects over-limit requests before any JWT work
@@ -274,7 +274,8 @@ ActiveStaffGuard (skipped on @Public() routes)
 TenantAccessGuard (planned with Billing, UC-125 — after TenantGuard and RolesGuard; its position relative to ActiveStaffGuard is confirmed at story discovery)
   │  Reads @RequiresFeature / @SuspensionAccess metadata and asks the access port for the tenant;
   │  a Guard, never an Interceptor — see docs/ENGINEERING_RULES_SHARED.md § Tenant access enforcement
-  │  — the declarative choke points (planned)
+  │  — the declarative choke points (planned). Its 30 s (operational) / 10 s (SUSPENDED) answer cache is a
+  │  planned in-process cache in the BFF; nothing of it exists yet (TTLs: docs/DOMAIN_MODEL.md § Entry point)
   ▼
 RequestInterceptor
   │  Runs after the Guards, so req.user is populated: adds tenantId/actor to OTel span attributes
@@ -486,6 +487,7 @@ On limit exceeded: `429` with the standard RFC 9457 Problem Detail envelope, `co
 | `ENABLE_DEV_AUTH` | Cloud Run env | Optional; `true` enables `POST /auth/dev-login` (local and staging E2E only, startup fails under `APP_ENV=production`) |
 | `INTERNAL_API_KEY` | Secret Manager | Shared secret with the backend, min 32 chars |
 | `WEB_INTERNAL_KEY` | Secret Manager | Shared secret with `ikaro-web`, min 32 chars, checked by `WebOnlyGuard` on every request |
+| `ASAAS_WEBHOOK_TOKEN`, `STRIPE_WEBHOOK_SECRET` *(planned with Billing)* | Secret Manager | Verify the provider webhooks on the `@BypassWebOnlyGuard()` routes (Asaas token header compared timing-safe; Stripe signature on the raw body). Sandbox and live are separate entries; the full secret list (`ASAAS_API_KEY`, `STRIPE_SECRET_KEY` live on the backend) is in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned) |
 | `BACKEND_AUTH_MODE` | Cloud Run env | `none` (default) \| `iam`; must be `iam` when `NODE_ENV=production` |
 | `BACKEND_AUDIENCE` | Cloud Run env | Optional URL used as the identity-token audience when `BACKEND_AUTH_MODE=iam` (defaults to the backend URL) |
 | `GOOGLE_CALLBACK_URL` | Cloud Run env | `https://ikaro.online/v1/auth/google/callback` (prod; web-origin gateway) |

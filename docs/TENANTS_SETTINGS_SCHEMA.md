@@ -223,7 +223,7 @@ Country, currency, language, and regional preferences.
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | `countryCode` | string | — | ISO 3166-1 alpha-2 country code (e.g. `"BR"`, `"US"`). Drives the `CountrySpec` defaults below. |
-| `currency` | string | "BRL" | ISO 4217 currency code. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. |
+| `currency` | string | "BRL" | ISO 4217 currency code. Defaults from `countryCode`'s `CountrySpec`; overridable per tenant. **Display only:** Billing's currency is derived from `countryCode` at subscription start (BR → BRL, US → USD) and never reads this key (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context). |
 | `currencySymbol` | string | *(none — see note)* | Display symbol (used in UI). `TenantSettings.default()` does not set this field at all; it stays `undefined` unless explicitly configured. `useFormatting()` (`apps/web/shared/lib/formatting/use-formatting.ts`) falls back to `formatCurrencySymbol(locale, currency)` at display time when unset — for a BR tenant this computes to "R$", but that's a runtime derivation, not a stored settings default. |
 | `language` | string | "pt-BR" | Set at provisioning from `countryCode`'s `CountrySpec` and read-only in Settings: `pt-BR` or `en`, the two languages with shipped copy (`packages/i18n/locales/`). The web app and the notification copy and template rows are chosen from it through `resolveSupportedLocale()` (`@ikaro/i18n`), which also maps an `en-*` tag to `en` and anything else to `pt-BR` defensively. |
 | `decimalPlaces` | integer | 2 | Decimal precision for money display |

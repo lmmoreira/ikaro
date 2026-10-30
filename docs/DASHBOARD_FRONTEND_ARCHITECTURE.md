@@ -1,6 +1,6 @@
 # Dashboard Frontend Architecture (Backoffice) - Ikaro
 
-> **When to load:** building or changing the authenticated dashboard (staff and manager shell) or the customer My Account shell: role-based rendering, the fixed SaaS palette, shared shadcn/ui components, quality gates and folder structure; the public hotsite is in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, frontend rules in `docs/ENGINEERING_RULES_FRONTEND.md`.
+> **When to load:** building or changing the authenticated dashboard (staff and manager shell) or the customer My Account shell: role-based rendering, the fixed SaaS palette, shared shadcn/ui components, quality gates and folder structure; the public hotsite is in `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md`, frontend rules in `docs/ENGINEERING_RULES_FRONTEND.md`; the planned manager billing page ("Assinatura") and the suspended-state routing are covered here too.
 > **Tags:** web, prototypes
 
 ## Overview

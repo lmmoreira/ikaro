@@ -1,10 +1,46 @@
 # Dev Notes — MANAGER: Assinatura (Billing, Plan & Payment)
 
-**Status:** Draft, illustrative. **Moved as-is** from `docs/discovery/tenant-billing/prototype/dev-notes.md` (manager-facing parts only) when the prototype was promoted to `journeys/manager/prototypes/billing/`. **To be reshaped to the `journeys/README.md` dev-notes template (file map, props, BFF call, validation table, states) at story discovery** — the Billing stories do that when they are drafted. The canonical API contract is `docs/API_CONTRACTS.md` § Billing — Manager API; where a note below differs from the docs, the docs win. File names here are the new ones (the `manager-` prefix was dropped); `manager-05*` moved to `manager/prototypes/hotsite/` (`01g`, `01h`) and the discard screen is `10-discard-trial-confirm.html` in this folder. Sections about the staff, customer, public and signup screens moved with their journeys (`staff/prototypes/login`, `customer/prototypes/minha-conta`, `guest/prototypes/unpublished-hotsite`, `guest/prototypes/ikaro-trial`).
+**Status:** Draft, illustrative. **Moved as-is** from `docs/discovery/tenant-billing/prototype/dev-notes.md` (manager-facing parts only) when the prototype was promoted to `journeys/manager/prototypes/billing/`. **Only the `journeys/README.md` template's File map table was missing; it is added below** (derived from `plan/M25-TENANT-BILLING-FOUNDATION.md` S29/S31 and `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md` S27–S34). Props, BFF calls, validation and states already exist per screen. The canonical API contract is `docs/API_CONTRACTS.md` § Billing — Manager API; where a note below differs from the docs, the docs win. File names here are the new ones (the `manager-` prefix was dropped); `manager-05*` moved to `manager/prototypes/hotsite/` (`01g`, `01h`) and the discard screen is `10-discard-trial-confirm.html` in this folder. Sections about the staff, customer, public and signup screens moved with their journeys (`staff/prototypes/login`, `customer/prototypes/minha-conta`, `guest/prototypes/unpublished-hotsite`, `guest/prototypes/ikaro-trial`).
 
 ## Overview
 
 49 screens: `03`, `03b` and `10` plus 46 of the manager billing page (one "Assinatura" page with five tabs — Resumo, Plano, Cobranças, Dados de cobrança, Cobrança automática (shown as "Em breve") — one primary action per tab, like the service editor; cancel is a separate confirmation page), the two dashboard banners and the annual-billing screens (slice H).
+
+## File map (apps/web)
+
+All paths are new files under `apps/web` unless the Action says modify; each component also ships its `.spec.tsx` (hooks and model files a `.spec.ts`). Story ids are the M25/M26 story that creates the file.
+
+| apps/web path | Status | Action (story) |
+|---|---|---|
+| `app/dashboard/billing/page.tsx`, `loading.tsx`, `error.tsx` | GAP | Create, thin routes (M26-S27) |
+| `app/dashboard/billing/cancel/page.tsx` | GAP | Create, thin (M26-S31) |
+| `app/dashboard/suspended/page.tsx` (or the route `proxy.ts` chooses) | GAP | Create, staff notice (M25-S31) |
+| `features/billing/api/billing.server.ts`, `billing.ts` | GAP | Create (M26-S27); modify in S28, S29, S30, S31 |
+| `features/billing/components/BillingPage.tsx`, `BillingTabs.tsx`, `BillingSummaryTab.tsx`, `BillingChargesTab.tsx`, `BillingStatusBadge.tsx`, `AutoBillingComingSoon.tsx`, `ExemptNotice.tsx` | GAP | Create (M26-S27); `BillingSummaryTab.tsx` modified in S28 |
+| `features/billing/components/PayNowButton.tsx`, `PaymentPendingBanner.tsx`, `PaymentLinkExpiredNotice.tsx`, `PaymentFailedNotice.tsx` | GAP | Create (M26-S28) |
+| `features/billing/components/BillingIdentityTab.tsx`, `BillingIdentityForm.tsx`, `AddressRequiredNotice.tsx` | GAP | Create (M26-S29) |
+| `features/billing/components/BillingPlanTab.tsx`, `PlanFeatureRow.tsx`, `PlanTierSelect.tsx`, `PlanTotalBar.tsx`, `PlanChangePreview.tsx`, `PlanRemovalBlockedNotice.tsx`, `ConfirmPlanPrompt.tsx` | GAP | Create (M26-S30) |
+| `features/billing/components/CancelSubscriptionPage.tsx`, `CancelOutcome.tsx`, `ReactivateAction.tsx` | GAP | Create (M26-S31) |
+| `features/billing/components/SubscriptionBanner.tsx`, `SubscriptionBannerProvider.tsx` | GAP | Create (M26-S32); mount point chosen at story discovery |
+| `features/billing/components/FeatureGate.tsx`, `LockedFeaturePage.tsx` | GAP | Create (M25-S29) |
+| `features/billing/components/StaffSuspendedNotice.tsx` | GAP | Create (M25-S31) |
+| `features/billing/hooks/useBillingSummary.ts`, `useBillingCharges.ts` | GAP | Create (M26-S27) |
+| `features/billing/hooks/usePayCharge.ts`, `usePaymentConfirmationPolling.ts` | GAP | Create (M26-S28) |
+| `features/billing/hooks/useBillingIdentity.ts`, `useUpdateBillingIdentity.ts` | GAP | Create (M26-S29) |
+| `features/billing/hooks/useBillingPlan.ts`, `usePlanPreview.ts`, `useSavePlan.ts`, `useConfirmPlan.ts` | GAP | Create (M26-S30) |
+| `features/billing/hooks/useCancelSubscription.ts`, `useReactivateSubscription.ts` | GAP | Create (M26-S31) |
+| `features/billing/model/billing-view-model.ts` | GAP | Create, pure mapping summary to view state (M26-S27) |
+| `features/billing/model/identity-form.ts` | GAP | Create, Zod schema and country field mapping (M26-S29) |
+| `features/billing/model/plan-selection.ts` | GAP | Create, pure selection and dependency hints (M26-S30) |
+| `features/billing/model/banner-state.ts` | GAP | Create, pure status to banner variant (M26-S32) |
+| `shared/lib/billing/feature-registry.ts`, `access.server.ts` | GAP | Create (M25-S29); registry modified in M26-S27, S32 |
+| `shells/dashboard/components/Sidebar.tsx`, `BottomNav.tsx`, `MoreSheet.tsx` | EXISTS | Modify: manager-only "Assinatura" entry (M26-S27); locked-item rendering (M25-S29) |
+| `app/dashboard/layout.tsx`, `proxy.ts` | EXISTS | Modify: load the access answer once, role routing while suspended (M25-S29); suspended-manager target (M26-S32) |
+| `e2e/billing-money-loop.spec.ts`, `e2e/billing-suspended-experience.spec.ts`, `e2e/helpers/billing/` | GAP | Create (M26-S35) |
+
+Screens `03`/`03b` map to `FeatureGate` / `LockedFeaturePage`; the public signup files (`features/billing/components/public/*`) belong to `guest/prototypes/ikaro-trial`.
+
+**Numbering:** the "Screen N" headings, "Banner screen N", "Addendum N" and "Locked feature" sections below each restart their own numbering (they come from separate documents). The file name in each heading (`01d`, `06d`, ...) is the stable key; "Screen 1–30" are the Resumo/Dados/Cancel/Plano screens, "Banner screen 3/4" are `04`/`04b`, and "Locked features" are `03`/`03b`.
 
 ## What is real vs invented
 
@@ -91,7 +127,7 @@ Opens on the Dados de cobrança tab (same page as Screen 1). **File:** `BillingI
 Dados tab; whole form shown; invalid CNPJ, e-mail, CEP (`30140-07`) and UF (`M1`) highlighted, no autofill (lookup failed / not triggered); red alert at the top of the tab "Corrija os 4 campos destacados para salvar" / "CNPJ, e-mail de cobrança, CEP e UF."; amber dirty dot on the tab label.
 
 ## Screen 13 — Dados, US — 02c-billing-identity-us.html
-Same tab, `country = US`, tenant language `en`: the WHOLE page is English (title, four tabs Summary / Plan / Charges / Billing details — there is no Automatic billing tab for US since Pix Automático is BRL-only, labels, hints, buttons "Save changes" / "Cancel", action pane, badge "Active", money US$ 52.00, MM/DD/YYYY dates). Address labels are exactly the US `AddressSpec`: Street, Number, "Apt, Suite, etc." (complement), City, State (`^[A-Z]{2}$`), ZIP Code (placeholder 90210, `^\d{5}(-\d{4})?$`); no neighbourhood field and no postal lookup (`lookupService: 'none'`). Tax ID: optional free text "Tax ID (EIN)" (no CNPJ/CPF, no selector, not validated; needs the new CountrySpec tax-ID entry = GAP). Page strings come from the `en` locale JSON in `packages/i18n/locales/en` (UI copy) while address labels come from `CountrySpec.address`. The dashboard shell (sidebar, bottom nav, topbar date) would also be localized in production; the prototype only localizes the page and topbar title. Tenant "Sunrise Auto Spa" is illustrative.
+Same tab, `country = US`, tenant language `en`: the whole page content is English (the dashboard shell around it, sidebar and topbar, is still drawn in pt-BR for every tenant; shell language is a product decision still open) (title, four tabs Summary / Plan / Charges / Billing details — there is no Automatic billing tab for US since Pix Automático is BRL-only, labels, hints, buttons "Save changes" / "Cancel", action pane, badge "Active", money US$ 52.00, MM/DD/YYYY dates). Address labels are exactly the US `AddressSpec`: Street, Number, "Apt, Suite, etc." (complement), City, State (`^[A-Z]{2}$`), ZIP Code (placeholder 90210, `^\d{5}(-\d{4})?$`); no neighbourhood field and no postal lookup (`lookupService: 'none'`). Tax ID: optional free text "Tax ID (EIN)" (no CNPJ/CPF, no selector, not validated; needs the new CountrySpec tax-ID entry = GAP). Page strings come from the `en` locale JSON in `packages/i18n/locales/en` (UI copy) while address labels come from `CountrySpec.address`. The dashboard shell (sidebar, bottom nav, topbar date) would also be localized in production; the prototype only localizes the page and topbar title. Tenant "Sunrise Auto Spa" is illustrative.
 
 ## Screen 14 — Dados saved — 02d-billing-identity-saved.html
 Inline green alert at the top of the tab "Dados de cobrança salvos" / "Atualizamos as informações. Elas valem para as próximas cobranças." No floating toast; the form stays with saved values.
@@ -156,6 +192,10 @@ Operator-only price changes are dated and announced (`tenant-billing_API.md` "Pr
 ## Known limitations / notes for the lead
 - "Falar com a gente" links to `journeys/shared/hotsite.html` as a stand-in for Ikaro's own booking page.
 - Disabled nav items in suspended screens are intentionally `href="#"` + `aria-disabled`.
+- **Sidebar "active" item on state screens:** on the suspended and other state files the active "Assinatura" entry links to `01-billing-active.html` (the ACTIVE reference screen). Decision: left as is, because it is a prototype shortcut; the real nav links to `/dashboard/billing`, whatever the state.
+- **Disabled destructive/primary actions** in the prototype are `<a aria-disabled="true">`. The real component uses `<button disabled>` (or a real disabled state) plus a live-region message that says why it is unavailable.
+- **Layout classes are duplicated inline** in the `<style>` block of each of the 49 screen files. Recommendation: extract a shared stylesheet for the billing prototype (not done now, to keep the files stable).
+- **Dashboard shell language:** all prototype shells are pt-BR, also for the US tenant. Whether the shell follows the tenant or user locale is a product decision still open; see `guest/prototypes/ikaro-trial/dev-notes.md`.
 
 ---
 
@@ -200,7 +240,7 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 ## Addendum 2
 - **`01h` is now "TRIALING with the first invoice issued"** (badge "Em teste", due = trial end 04/11, history of paid charges empty). It is the state a trial tenant is in from day 4 to day 0. `01b` stays the state before the invoice exists.
 - **`01d` (SUSPENDED / NON_PAYMENT)** now shows the **recovery charge**: "Cobrança de reativação (um mês) · vence em 02/11/2026", says the previous open charge was cancelled and replaced, and shows the 90/180-day clean-up policy. The overdue variant (recovery due date passed) is the same screen with an "Vencida" badge and unchanged "Pagar agora" (the provider link keeps working). `PAYMENT_REVERSED` is now drawn in `01m` ("Conta suspensa: o pagamento foi estornado ou contestado", recovery charge with "Pagar agora", purge date) and `OPERATOR` in `01n` ("Conta suspensa pela Ikaro", reason-neutral, no charge, no pay button, only "Falar com a gente").
-- **New `06d-cancel-immediate`** (UC-133 A3): cancel for TRIALING or PAST_DUE takes effect now, no refund because nothing was paid; leads to `01d`.
+- **New `06d-cancel-immediate`** (UC-133 A3): cancel for TRIALING or PAST_DUE takes effect now, no refund because nothing was paid; leads to `01e` (suspended by cancellation; `01d` is the non-payment suspension).
 - **US screens (`02c`, `02e`)**: card only (no ACH or bank debit), no Automatic billing tab or row (Pix Automático is BRL-only; four tabs: Summary, Plan, Charges, Billing details), Chatbot Plus US$ 19, "+ tax calculated when each invoice is issued" under totals, all plan changes at the next paid period. `02e` is now a consistent TRIALING summary (no open charge yet, history empty).
 - **`07d`** shows the real Pix Automático authorization error with the method card kept and "Tentar novamente".
 - **Illustrative dates:** each screen uses its own illustrative "today" and charge dates; the trial screens (01b, 01h, 04, 09) follow the confirm-plan flow (invoice issued on confirmation, or automatically 3 days before the trial end); the former fixed 10-day invoice lead no longer applies to the trial. Other screens are not meant to be read as one continuous timeline.
@@ -216,6 +256,10 @@ After payment the banner disappears immediately; a short "pagamento recebido, re
 | Annual billing: price-change notice for an annual subscription | Addendum 5 | `01k` variant: new annual amounts, applied at the next annual renewal |
 | Annual billing: renewal reminder e-mails and the annual invoice e-mail | Addendum 5 | Templates (pt-BR, en): invoice issued 30 days before the period start, plus reminders; designed with the notification templates |
 | Annual billing: Plano tab of an active annual subscription, cancel-scheduled screen with annual dates, Cobranças tab with add-on charges, PAST_DUE annual Resumo | Addendum 5 | Not drawn; `11` shows Resumo only and `13` confirms into the monthly `06b` |
+| Per-tab loading and fetch-error states (Cobranças, Dados, Plano) | Screen 1 ("Tabs fetch lazily") | Skeleton inside the tab panel and a tab-level `ErrorAlert` with "Tentar novamente"; the tab bar and badge stay. Only the page-level `01f`/`01g` are drawn |
+| `409 BILLING_PLAN_ALREADY_CONFIRMED` on "Confirmar plano" | UC-136 / API contract | Inline notice that the plan was already confirmed (another session), then refresh the summary; no error page |
+| Payment-link failure on "Pagar agora" (`BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PROVIDER_UNAVAILABLE`) | UC-119 | `ErrorAlert` above the open-charge card ("Não foi possível abrir a página de pagamento"), the button stays enabled; `NOT_PAYABLE` refreshes the summary |
+| Discard before M27 (`canDiscard` false) | M26 non-goals, UC-141 | "Descartar este teste" is not rendered; the Resumo shows a plain line "Para descartar este teste, fale com a gente" with the "Falar com a gente" link |
 
 ## Addendum 3
 

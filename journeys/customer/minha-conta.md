@@ -210,13 +210,13 @@ flowchart TD
     List -->|"history row"| Hist["✅ Booking detail (COMPLETED, CANCELLED, REJECTED, NO_SHOW)"]
     List -->|"open row"| Blocked["❓ GAP: BookingBlockedNotice — 403 BILLING_TENANT_SUSPENDED<br/>(16b-detalhe-bloqueado)"]
     List -->|"Novo agendamento (disabled)"| NewBlocked["❓ GAP: new booking refused — 403 BILLING_TENANT_SUSPENDED<br/>(16c-novo-agendamento-bloqueado)"]
-    List -->|"cancel a future booking"| Cancel["✅ existing cancel flow stays allowed"]
+    List -->|"Cancelar link on an open future row"| Cancel["✅ existing cancel page (03-cancel-confirm) stays allowed; Booking decides the record-dependent rules"]
 
     class Login,Hist,Cancel existing
     class List,Blocked,NewBlocked gap
 ```
 
-**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links; history stays linked to its detail page; "Novo agendamento" is rendered disabled; rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, is not reachable while suspended); cancelling an existing future booking stays allowed. The loyalty page is read-only: balance and history are visible, earning and redemption are blocked. The customer-safe `tenantOperational` flag (route decided at story discovery) drives the badge. Two policies are named open items of UC-121, decided in the Loyalty and Booking stories: pausing the loyalty expiry clock while suspended, and a reason-neutral email to customers with approved future bookings.
+**Behaviour.** Open bookings (`PENDING`, `INFO_REQUESTED`, `APPROVED`) stay listed with the "Empresa inativa" badge and are not links, but each open future row carries a secondary "Cancelar" text link that goes straight to the existing cancel page (`03-cancel-confirm`), because UC-121 allows cancelling an existing future booking while the booking detail (`16b`) stays blocked; history stays linked to its detail page; "Novo agendamento" is rendered disabled; rescheduling an existing booking is blocked as well (the shipped reschedule page, `15`, is not reachable while suspended); cancelling an existing future booking stays allowed (entered from the "Cancelar" link on the list row, not from the blocked detail; Booking, not the web, decides the record-dependent rules such as the cancellation deadline, `docs/USE_CASES.md` UC-121). The loyalty page is read-only: balance and history are visible, earning and redemption are blocked. The customer-safe `tenantOperational` flag (route decided at story discovery) drives the badge. Two policies are named open items of UC-121, decided in the Loyalty and Booking stories: pausing the loyalty expiry clock while suspended, and a reason-neutral email to customers with approved future bookings.
 
 | Page / Route | Component | Story | Status |
 |---|---|---|---|

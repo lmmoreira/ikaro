@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — API Sketch
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — endpoint inventory and shapes at sketch level. Final contracts are written into `docs/API_CONTRACTS.md` on promotion. Conventions follow `docs/API_CONTRACTS.md` § Base Standards: the web only talks to the **BFF** (`/v1`), the BFF forwards actor headers to the internal backend, errors are RFC 9457 Problem Details, money is **integer minor units + ISO currency** (never floats), dates ISO-8601 UTC (`due_date`: `YYYY-MM-DD`). List endpoints use **Pattern A** pagination (`items` + `pagination {limit, offset, total, hasMore}`) like `GET /bookings`.
 
 **Companion docs:** `tenant-billing.md` · `tenant-billing_USECASES.md` · `tenant-billing_DATA_MODEL.md` · `tenant-billing_MODULE.md` · `tenant-billing_OPERATIONS.md`.

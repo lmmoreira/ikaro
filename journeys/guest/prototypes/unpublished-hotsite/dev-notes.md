@@ -1,6 +1,6 @@
 # Dev Notes — GUEST: Hotsite não publicada
 
-> **Status: Draft (planned Billing milestone, UC-122).** Moved as-is from the tenant-billing discovery; to be reshaped to the `journeys/README.md` template (file map, props, validation, states) at story discovery. The page is the shared root state for every public hotsite route when the manifest's effective `isPublished` is false; it is a different case from an unknown slug (`app/not-found.tsx`).
+> **Status: Draft (planned Billing milestone, UC-122).** Moved as-is from the tenant-billing discovery; the `journeys/README.md` template sections (File map, Props, States) are now added at the end; the page has no form, so there is no validation table. The page is the shared root state for every public hotsite route when the manifest's effective `isPublished` is false; it is a different case from an unknown slug (`app/not-found.tsx`).
 
 ## Overview
 
@@ -18,3 +18,32 @@ File: `01-page-not-published.html` — Status: **CHANGED** (`apps/web/shells/hot
 BFF: `GET /v1/public/platform/manifest/:slug` (a normal manifest with `isPublished === false`, effective value; the layout is stubbed empty); no billing detail exposed publicly.
 Copy: "Página não publicada", "Esta página não está disponível no momento. Volte em breve." Reason-neutral. Top bar keeps "Área da Equipe" and "Entrar".
 Background painted with `var(--ba-background)` (hotsite full-page rule).
+
+## File map (apps/web)
+
+From `plan/M25-TENANT-BILLING-FOUNDATION.md` M25-S30. Each component change also ships its `.spec.tsx`.
+
+| apps/web path | Status | Action |
+|---|---|---|
+| `shells/hotsite/components/Unavailable.tsx` | EXISTS (bare "Em breve", no props, no bar) | Modify: add the unpublished variant, the top bar and the tenant name/logo |
+| `shells/hotsite/components/HotsiteAuthBar.tsx` (and its `HotsiteAuthBarSignedOut`/`HotsiteAuthBarDropdown` parts) | EXISTS | Reuse as is; modify only if needed to reuse it; do not duplicate the bar |
+| `app/[slug]/page.tsx`, `app/[slug]/booking/page.tsx`, `app/[slug]/booking/availability-alert/page.tsx`, `app/[slug]/lead-form/page.tsx`, `app/[slug]/servicos/[serviceSlug]/page.tsx` | EXISTS | Modify: pass the variant and tenant context (pages stay thin) |
+| `packages/i18n/locales/pt-BR/web.json`, `packages/i18n/locales/en/web.json` | EXISTS | Modify: keys for the new copy variant, both locales |
+
+## Props
+
+- **`Unavailable` today takes none.** The component reads its copy from `useTranslations('hotsite')` (`unavailable.label`, `unavailable.body`) and paints `var(--ba-background)`.
+- **Proposed `Unavailable` props** (decided at story discovery): `variant: 'unpublished' | 'moduleDisabled'` (the second keeps the legacy "Em breve" for a published hotsite whose lead-form module is disabled), plus the tenant context the bar needs: `slug`, `tenantName`, `logoUrl`.
+- **`HotsiteAuthBar` props today** (reuse unchanged): `slug: string`, `logoUrl: string`, `tenantName: string`, and optional `navigation` / `navigationCta` (not passed here: this page has no navigation module). It is a client component; it fetches the session after hydration.
+
+## States
+
+| State | Trigger | Rendered |
+|---|---|---|
+| Unpublished | Manifest returned with effective `isPublished === false` (never published, unpublished by the manager, or tenant `SUSPENDED`; the reason is never shown) | `Unavailable` variant `unpublished`: top bar + "Página não publicada" |
+| Module disabled (legacy) | Published hotsite, `/lead-form` while the LEAD_FORM module is disabled | `Unavailable` variant `moduleDisabled`: bare "Em breve", unchanged |
+| Published | `isPublished === true` | The normal page, unchanged |
+| Unknown slug | Manifest `404` | Root `app/not-found.tsx` (not this page) |
+| Manifest loading | Server-rendered; the route has no client spinner | Not drawn. Next.js `loading.tsx` for the `[slug]` tree is not part of this story; today nothing is shown until the server responds |
+| Manifest error | Manifest fetch fails (BFF down, `5xx`) | Not drawn. Falls to the route's error boundary; it must NOT show "Página não publicada", because that would tell visitors a healthy hotsite was unpublished. Decide the error page at story discovery |
+| Bar session loading | `HotsiteAuthBar` fetching `/api/session` after hydration | The signed-out bar (team and customer login links) until the session answers; both links work without a session |

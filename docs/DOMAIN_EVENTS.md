@@ -780,62 +780,64 @@ Customer clicks "Cancel"
   ```json
   { "reason": "string" }
   ```
-- **Consumers:** Billing (`cancel-subscription-on-tenant-deactivation`) → cancels any open charge locally and at the provider, clears `cancelAt`, suspends the subscription as `CANCELED` and starts the clean-up clock; an `exempt` tenant is unchanged; `audit-log` (`PlatformAuditLogHandler`)
+- **Consumers:** Billing (`cancel-subscription-on-tenant-deactivation`) → cancels any open charge locally and at the provider, clears `cancelAt`, suspends the subscription as `CANCELED` and starts the clean-up clock — it emits **both** `SubscriptionCancelled` and `SubscriptionSuspended` (reason `CANCELED`), because access-cache invalidation and hotsite revalidation hang on `SubscriptionSuspended`; an `exempt` tenant is unchanged; `audit-log` (`PlatformAuditLogHandler`)
 
 ---
 
 ### **Billing Context Events** (Billing Context)
 
-Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). Ikaro sends **every** billing email itself (the provider's own customer notifications are switched off), so each event below has a Notification consumer. Billing emails are platform-level (`tenant_id IS NULL`) templates, sent *for* the event's tenant, and are exempt from the suspension gate (UC-124); an `exempt` tenant receives none. All events carry the standard envelope; each needs a line in `BillingAuditLogHandler` (`domain-event-audit-coverage`). All are written to the outbox in the same transaction as the state change that produced them.
+> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet). No event class, topic or handler below exists yet.
+
+Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). Ikaro sends **every** billing email itself (the provider's own customer notifications are switched off), so each event below has a Notification consumer. Billing emails are platform-level (`tenant_id IS NULL`) templates, sent *for* the event's tenant, and are exempt from the suspension gate (UC-124); an `exempt` tenant receives none. **The one documented exception to "events carry no contact data":** the email-triggering events carry `recipientEmail?` (nullable) — Billing resolves `billing_account.billing_email` and puts it in the event, so Notification needs no read edge into Billing; when it is null Notification falls back to the tenant's MANAGER emails. Events that carry it are marked below. The non-production `dev` routes (UC-138) publish no events of their own: the fake provider drives the same use cases, so the same events fire. All events carry the standard envelope; each needs a line in `BillingAuditLogHandler` (`domain-event-audit-coverage`). All are written to the outbox in the same transaction as the state change that produced them.
 
 #### **ChargeIssued**
 - **Trigger:** the issue job (UC-113), the recovery issue on suspension, "Reativar assinatura" (UC-134), a plan-change re-issue (UC-136), an annual add-on (UC-145, slice H), or a provider-generated charge mirrored from the webhook (UC-143, slice F2) — **only after** the provider call succeeds (`provider_creation_status = READY`)
-- **Data:** `chargeId`, `kind` (`PERIOD` | `RECOVERY` | `ADDON`), `dueDate`, `amountMinor`, `currency`, `paymentUrl`
+- **Data:** `chargeId`, `kind` (`PERIOD` | `RECOVERY` | `ADDON`), `dueDate`, `amountMinor`, `currency`, `paymentUrl`, `recipientEmail?`
 - **Consumers:** Notification (invoice email); `audit-log`
 
 #### **ChargePaid**
 - **Trigger:** the first of the provider's paid signals for a charge (webhook, reconcile or on-demand refresh; UC-114)
-- **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`), `paidAt`
+- **Data:** `chargeId`, `amountMinor`, `currency`, `method` (`CARD` | `PIX` | `BOLETO`), `paidAt`, `recipientEmail?`
 - **Consumers:** Notification (receipt); `audit-log`
 
 #### **SubscriptionPastDue**
 - **Trigger:** a `PERIOD` charge of an `ACTIVE` subscription went `OVERDUE` (status sweep, UC-115)
-- **Data:** `subscriptionId`, `pastDueSince`, `suspendsAt`
+- **Data:** `subscriptionId`, `pastDueSince`, `suspendsAt`, `recipientEmail?`
 - **Consumers:** Notification (dunning); `audit-log`
 
 #### **SubscriptionSuspended**
-- **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, or the operator (`OPERATOR`)
-- **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt`
+- **Trigger:** the sweep (`NON_PAYMENT`, `CANCELED`), a full refund/lost chargeback (`PAYMENT_REVERSED`), an immediate cancel, a deactivated tenant (UC-142: reason `CANCELED`, raised together with `SubscriptionCancelled`), or the operator (`OPERATOR`; never for an `exempt` tenant, `BILLING_EXEMPT_PROTECTED`)
+- **Data:** `subscriptionId`, `reason` (`NON_PAYMENT` | `CANCELED` | `PAYMENT_REVERSED` | `OPERATOR`), `suspendedAt`, `purgeAt`, `recipientEmail?`
 - **Consumers:** Notification; hotsite revalidation (`IFrontendRevalidationPort.revalidate(slug)`); access-cache invalidation (best-effort, on the handling instance); `audit-log`
 
 #### **SubscriptionReactivated**
 - **Trigger:** a recovery charge was paid, an `exempt` flag was set on a suspended tenant, or an `OPERATOR` suspension was lifted (`unsuspend`)
-- **Data:** `subscriptionId`, `reactivatedAt`
+- **Data:** `subscriptionId`, `reactivatedAt`, `recipientEmail?`
 - **Consumers:** Notification; hotsite revalidation; access-cache invalidation; `audit-log`
 
 #### **SubscriptionCancelled**
-- **Trigger:** the manager cancels (UC-133), or a deactivated tenant is cancelled (UC-142)
-- **Data:** `subscriptionId`, `cancelAt`, `immediate`
+- **Trigger:** the manager cancels (UC-133), or a deactivated tenant is cancelled (UC-142, which also raises `SubscriptionSuspended` with reason `CANCELED`)
+- **Data:** `subscriptionId`, `cancelAt`, `immediate`, `recipientEmail?`
 - **Consumers:** Notification (to the billing email, else all managers); `audit-log`
 
 #### **PlanChanged**
 - **Trigger:** the manager saves a plan (UC-136), switches cycle (UC-144, slice H) or adds an annual add-on (UC-145, slice H)
-- **Data:** `subscriptionId`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
+- **Data:** `subscriptionId`, `recipientEmail?`, `effectiveFrom`, `cycle`, `nextCycle?`, `nextCycleFrom?` *(slice H)*, `newTotalMinor` (total in the chosen cycle), `added[]`, `removed[]`
 - **Consumers:** Notification (to the billing email); `audit-log`
 
-#### **BillingReminderDue**
+#### **BillingReminderDue** *(a Command — see the note below the Billing events; not an audited domain event)*
 - **Trigger:** the daily reminders job (UC-139), once per milestone, deduped by `(subscription, kind, daysOffset, chargeId)`
-- **Data:** `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?`
+- **Data:** `kind` (`PLAN_CONFIRMATION` | `TRIAL_ENDING` | `CHARGE_DUE_SOON` | `CHARGE_OVERDUE`), `daysOffset`, `chargeId?`, `paymentUrl?`, `recipientEmail?`
 - **Consumers:** Notification (dunning email; the handler re-checks the charge is still open and skips otherwise)
 
 #### **SubscriptionPriceChangeAnnounced**
 - **Trigger:** the operator schedules a list-price change (UC-112). **One event per affected tenant per adjustment** (the envelope requires a `tenantId`, so a platform-wide change fans out per tenant); a tenant with five changed features gets one email
-- **Data:** `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) limited to the features this tenant actually has, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or the annual total), `batchId?`
+- **Data:** `changes[]` (`featureKey`, `tier`, `cycle`, `oldAmountMinor`, `newAmountMinor`) limited to the features this tenant actually has, `currency`, `effectiveFrom`, `firstAffectedDueDate`, `newMonthlyTotalMinor` (or the annual total), `batchId?`, `recipientEmail?`
 - **Consumers:** Notification (to managers); `audit-log`
 
 #### **TenantPurgeWarning**
 - **Trigger:** the purge job at 30 and 7 days before the clean-up deadline (UC-132, slice G); deduped by `purge_warning_30_sent_at` / `purge_warning_7_sent_at`, cleared on reactivation
-- **Data:** `subscriptionId`, `daysBefore` (30 or 7), `purgeAt`
+- **Data:** `subscriptionId`, `daysBefore` (30 or 7), `purgeAt`, `recipientEmail?`
 - **Consumers:** Notification (to the manager; Billing template, exempt from the suspension gate); `audit-log`
 
 #### **TenantPurgeRequested**

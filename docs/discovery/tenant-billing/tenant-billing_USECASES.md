@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Candidate Use Cases
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — candidate/speculative. Labeled `CAND-XX`, never `UC-XXX`, so this list cannot collide with the canonical index in `docs/USE_CASES.md`. Promotion assigns real UC numbers.
 
 **Companion docs:** `tenant-billing.md` (domain model and rules R1–R13) · `tenant-billing_OPERATIONS.md` (operator-free model) · `tenant-billing_DATA_MODEL.md` · `tenant-billing_API.md` · `tenant-billing_MODULE.md` · `prototype/` (start at `index.html`).

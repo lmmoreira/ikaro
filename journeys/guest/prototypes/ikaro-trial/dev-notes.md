@@ -60,6 +60,14 @@ POST /v1/public/signup/tenant
 **Error copy:** 04e "Muitas tentativas. Por segurança, aguarde alguns minutos antes de tentar de novo." ; 04f "Não conseguimos criar sua conta. Nada foi criado, então você pode tentar de novo com segurança." This applies only when the tenant-creation transaction fails. Post-commit manager/Billing setup is durable asynchronous work; its handoff is the account-created page and existing invitation/login email, not a dashboard redirect.
 **Notes:** slug and country are immutable after creation (hint shown). URL preview uses `ikaro.app/{slug}` (illustrative domain). Desktop buttons are inline, not stretched. Bot Turnstile token is single-use; after a failed submit the page must re-request a token.
 
+## Conventions and decisions added in the review pass
+
+- **Currency display:** the public price page keeps the `US$` prefix (`US$ 12.00`, period as decimal separator, as in the BRL page's `R$`) on the United States table, including the pt-BR text around it; `02b` and `04g` stay `lang="pt-BR"` because the page is Portuguese until the visitor chooses the country (the page's own note says so), only the price strings are USD. The real implementation formats with `Intl.NumberFormat` for the page locale and the price list's currency.
+- **US gate:** the US switch/option (`02b`, `04g`) is shown only while `FEATURE_FLAG_SIGNUP_US` is on; otherwise a US request is refused with `US_NOT_AVAILABLE` (`docs/ERROR_CATALOG.md`).
+- **Slug-taken suggestions (`04b`)** are generated client-side (typed slug plus a suffix) and each is checked with `GET /v1/public/signup/slug-availability`; the endpoint returns no suggestions.
+- **Placeholder links:** "Termos de Uso" and "Política de Privacidade" are `href="#"` in the signup form screens `04`–`04g` (prototype placeholders; `03` and `03b` only mention them as plain text). They are wired to `/ikaro-trial/termos` and `/ikaro-trial/privacidade` by M26-S33.
+- **Dashboard shell language:** the manager billing screens for the US tenant (`manager/prototypes/billing/02c`, `02e`; tenant "Sunrise Auto Spa") keep the dashboard shell (sidebar, topbar, nav) in pt-BR while the page content is English. Whether the shell language follows the tenant country or the user is a product decision still open.
+
 ## Screen 5 (`05`) — Account created / check email (`SignupAccountCreatedPage`)
 
 **File:** `conta-criada` page under `apps/web/app/[slug]/…` for the owner slug (GAP).

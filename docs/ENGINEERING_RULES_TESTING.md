@@ -1,6 +1,6 @@
 # Ikaro — Engineering Rules: Testing
 
-> **When to load:** writing or reviewing tests (unit, integration, component, E2E).
+> **When to load:** writing or reviewing tests (unit, integration, component, E2E), including (planned Billing) tests that use the provider fake, the injectable clock or the provider contract suite.
 > Split from the former single `ENGINEERING_RULES.md` (TD41-S4, 2026-09-23). Summary rules are in `CLAUDE.md §7`.
 > **Tags:** agent-process, testing
 

@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Provider Facts, Account Opening and Launch Gates
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — research record (2026-10-27). Facts below were read from official provider documentation by two research passes. Labels: **V** = stated in official docs, **I** = inferred (not stated outright), **NF** = not found. Page text came through a summarizing fetch tool, so quotes are paraphrases; **anything that decides money or tax is re-confirmed in the real account/sandbox before activation (§5).**
 
 **Companion docs:** `tenant-billing_OPERATIONS.md` (operator-free model) · `tenant-billing.md` (rules, decisions 36–37, 56–62, 101, 109) · `tenant-billing_API.md` §7 (provider port) · `tenant-billing_DATA_MODEL.md`.

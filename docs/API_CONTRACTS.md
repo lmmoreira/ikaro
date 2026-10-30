@@ -1641,19 +1641,19 @@ All sit under the four-layer protection described in "Internal Platform API (Ope
 
 | Method / path | Purpose | UC |
 |---|---|---|
-| `GET /internal/tenants/{tenantId}/access` | The access answer the BFF guards read: `{ status, suspensionReason, operational, features: [{ key, tier }] }`. Fail-open and missing-subscription handling: `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort` | UC-120 |
+| `GET /internal/billing/tenants/{tenantId}/access` | The access answer the BFF guards read: `{ status, suspensionReason, operational, features: [{ key, tier }] }`. Fail-open and missing-subscription handling: `docs/DOMAIN_MODEL.md` § Entry point: `TenantAccessPort` | UC-120 |
 | `GET /internal/billing/suspended-tenant-ids` | Batch for the rare cross-tenant scan (a cron never calls the access port once per tenant). Returns the full id list, unpaginated by design (Pattern D); the response shape is fixed at story discovery | UC-120 |
 | `POST /internal/billing/registrations` | Creates the provisioning registration `{ source, googleSub?, taxId?, terms? }` and, for `SELF_SIGNUP`, runs the trial-eligibility check under `pg_advisory_xact_lock(hashtextextended('signup:'||googleSub, 0))` → `{ registrationId, trialAvailable }`. Used by the BFF (self-signup) and by `scripts/provision-tenant.sh` (`source = OPERATOR`) | UC-110, UC-127 |
 | `POST /internal/billing/webhooks/{provider}` | Normalised processing of the provider webhook (`asaas` \| `stripe`), see above | UC-114 |
 | `PUT /internal/billing/feature-prices` | Create a price (feature × country × tier × cycle) with its first amount, or set `selectable = false` | UC-112 |
 | `POST /internal/billing/feature-prices/adjust?dryRun=` | Percentage adjustment of every price in force for a country | UC-112 |
 | `POST /internal/billing/feature-prices/{featureKey}/{countryCode}/{tier}/versions?dryRun=` | Schedule one exact price change | UC-112 |
-| `POST /internal/tenants/{tenantId}/billing/suspend` \| `/unsuspend` \| `/grace` | The mapped operator edge cases: `OPERATOR` suspension, its lifting, a grace extension. Never a payment override or a reactivation of a payment-based suspension | UC-111 |
+| `POST /internal/tenants/{tenantId}/billing/suspend` \| `/unsuspend` \| `/grace` | The mapped operator edge cases: `OPERATOR` suspension, its lifting, a grace extension. Never a payment override or a reactivation of a payment-based suspension. Refusals: `403 BILLING_EXEMPT_PROTECTED` (suspend of an `exempt` tenant), `409 BILLING_GRACE_NOT_ALLOWED` (grace when not `PAST_DUE`), `409 BILLING_UNSUSPEND_NOT_ALLOWED` (unsuspend of a non-`OPERATOR` suspension, including a payment-based one) | UC-111 |
 | `PUT /internal/tenants/{tenantId}/billing/exempt` | `{ exempt, reason }` — set or clear free access; `403 BILLING_EXEMPT_PROTECTED` for Ikaro's own tenant | UC-137 |
 | `GET /internal/billing/tenants?status=` | Read-only investigation list (status, overdue age, last charge); not a daily worklist. Offset-paginated, Pattern A (limits fixed at story discovery) | UC-111 |
 | `POST /internal/tenants` (existing, UC-024) | Gains optional `exempt: boolean` and `registrationId`, and — for a non-exempt BR tenant — a **required** valid `taxId` (CPF / CNPJ). `422 SIGNUP_TAX_ID_REQUIRED` / `SIGNUP_TAX_ID_INVALID`; a non-exempt US tenant is rejected while `FEATURE_FLAG_SIGNUP_US` is off (`422 BILLING_US_NOT_AVAILABLE`). The same inputs are added to `scripts/provision-tenant.sh` | UC-110, UC-137 |
 
-`GET /internal/tenants/{tenantId}/billing/tenant-info` is **not** an endpoint: it names the read-only tenant-info **port** that the self-heal job and the release backfill use (`country_code`, `timezone`, `slug`, `created_at`).
+`GET /internal/tenants/{tenantId}/billing/tenant-info` is **not** an endpoint: it names the read-only tenant-info **port** that the self-heal job, the release backfill and (for `created_at`, the 15-minute provisioning window) the access resolver use: country (`settings.localization.countryCode`), timezone (`settings.businessHours.timezone`), `slug`, `created_at`, `is_active`, served by a Platform read use case. Self-heal lists tenants through it and diffs against `subscriptions` in application code — no cross-schema join.
 
 #### `POST /internal/billing/feature-prices/adjust` — percentage adjustment (UC-112)
 
@@ -1686,7 +1686,7 @@ Without dryRun: 201 { "versionId": "…", "affectedTenants": 14, "announced": tr
 
 The affected tenants are those `TRIALING`, `ACTIVE` or `PAST_DUE` with an active or next-period scheduled item for that feature and tier in that country, not `exempt`; suspended tenants are not notified.
 
-### Billing cron triggers (UC-113, UC-115, UC-116, UC-132, UC-139, UC-140)
+### Billing cron triggers (UC-113, UC-114, UC-115, UC-116, UC-132, UC-139, UC-140)
 
 Cloud Scheduler publishes a tenant-less trigger to Pub/Sub; it is delivered through the shared `/pubsub/push` receiver to a handler registered with `ITriggerBus.registerTrigger(name, handler, consumer)`. The `POST /cron/*` routes below are the local / manual publishers only, behind `InternalApiGuard`, exactly like `POST /cron/lead-form-retention` above. Each returns `200 { "ok": true }` once the trigger is published, is idempotent, passes an explicit `tenantId` to every use case (no `RequestContext`), and skips `exempt` subscriptions. A trigger carries no tenant id, so each job selects its tenants through its own standalone index.
 
@@ -1702,7 +1702,7 @@ Cloud Scheduler publishes a tenant-less trigger to Pub/Sub; it is delivered thro
 
 ### Non-production endpoints (UC-138)
 
-`POST /internal/dev/clock/advance` (`{ days?, hours? }` advances the injectable `IClock` for Billing decisions), `POST /internal/dev/billing/provider/simulate` and `POST /internal/dev/billing/seed`. They sit behind `InternalApiGuard` + `PlatformAdminGuard` and **do not exist** when `APP_ENV=production` (`404`); `simulate` works only for a subscription whose `merchant_profile_key` is a `*_FAKE` key.
+`POST /internal/dev/clock/advance` (`{ days?, hours? }` advances the injectable `IClock` for Billing decisions), `POST /internal/dev/billing/provider/simulate` and `POST /internal/dev/billing/seed`. They sit behind `InternalApiGuard` + `PlatformAdminGuard` and are registered **only when `APP_ENV` is `local` or `staging`** (`404` in every other environment, production included); `simulate` works only for a subscription whose `merchant_profile_key` is a `*_FAKE` key.
 
 ```
 POST /internal/dev/billing/provider/simulate
@@ -1715,19 +1715,22 @@ Body: { "tenantId" | "chargeId": "…",
 
 ### Provider port (Ikaro's terms)
 
-`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. A live adapter refuses to start unless `APP_ENV=production`.
+`BillingProviderPort` is defined in Ikaro's terms and never leaks a provider type beyond the adapter. Adapters: `AsaasBillingProvider` (BRL), `StripeBillingProvider` (USD, slice E) and the non-production `FakeBillingProvider`; one contract suite runs against the fake on every PR and against the Asaas sandbox and Stripe test mode nightly. Live-adapter startup rule: `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
 
 ```ts
 interface BillingProviderPort {
   ensureCustomer(tenantId, identity): Promise<{ providerCustomerId: string }>;   // Asaas: name + cpfCnpj required, notificationDisabled=true; Stripe: location for tax
   // Asaas: billingType UNDEFINED, our charge id as externalReference. Stripe: one finalized invoice (send_invoice) with automatic_tax.
-  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference }):
+  createCharge(input: { merchantProfileKey, customerId, dueDate, lines, currency, taxBehavior, customerLocation, description, externalReference, returnUrl }):
     Promise<{ providerChargeId, paymentUrl, expiresAt, totalMinor, tax: { totalTaxMinor, lines, providerCalculationId? } }>;   // tax is empty while every price is tax-inclusive (BR); the Stripe adapter fills it (slice E)
   regeneratePaymentLink(providerChargeId): Promise<{ paymentUrl, expiresAt }>;
   cancelCharge(providerChargeId): Promise<void>;
   startAutoBilling(customerId, mode): Promise<{ authorizationUrl }>;   // slice F: Pix Automático / hosted recurring card checkout
   revokeAutoBilling(customerId): Promise<void>;
   fetchChargeStatus(providerChargeId): Promise<NormalizedChargeStatus>;
+  // Provider health (UC-140): the account-health read and the webhook-queue re-enable.
+  readAccountHealth(merchantProfileKey): Promise<{ webhookStatus: 'OK' | 'PAUSED' | 'UNKNOWN', queuePaused: boolean }>;
+  reenableWebhookQueue(merchantProfileKey): Promise<void>;   // Asaas: whether the API allows it is launch gate 0 (tenant-billing_PROVIDERS.md § 5); otherwise a documented operator step
 }
 // Inbound: adapter.parseWebhook(rawBody, headers) -> NormalizedProviderEvent
 //   PaymentConfirmed | PaymentOverdue | PaymentRefunded | PaymentChargeback | AutoBillingAuthorized | AutoBillingRevoked
@@ -1737,7 +1740,7 @@ There is no separate tax port (Stripe returns the breakdown when it finalizes th
 
 ### Billing errors
 
-Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it originates is in `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`. The codes this section returns: `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PRICE_UNCHANGED`, `BILLING_PRICE_BATCH_CHANGED`, `BILLING_EXEMPT_PROTECTED`, `BILLING_US_NOT_AVAILABLE`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TAX_ID_INVALID`.
+Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it originates is in `docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`. The codes this section returns: `BILLING_PRICE_NOTICE_TOO_SHORT`, `BILLING_PRICE_UNCHANGED`, `BILLING_PRICE_BATCH_CHANGED`, `BILLING_EXEMPT_PROTECTED`, `BILLING_GRACE_NOT_ALLOWED`, `BILLING_UNSUSPEND_NOT_ALLOWED`, `BILLING_US_NOT_AVAILABLE`, `BILLING_NO_PRICE_FOR_COUNTRY`, `SIGNUP_TAX_ID_REQUIRED`, `SIGNUP_TAX_ID_INVALID`.
 
 ---
 
@@ -1753,14 +1756,14 @@ Billing codes are `BILLING_*`, signup codes `SIGNUP_*`; every code and where it 
 | `GET /v1/billing/summary` | Status, dates, active features, total, open charge, auto-billing, cancel state (shape below) | UC-117 |
 | `GET /v1/billing/charges?limit=&offset=` | Paginated charge history (Pattern A, newest first) | UC-117 |
 | `GET /v1/billing/identity` · `PUT /v1/billing/identity` | Read / save the billing identity; every `PUT` field is optional | UC-118 |
-| `POST /v1/billing/charges/{chargeId}/payment-link` | (Re)generate the hosted payment URL → `200 { paymentUrl, expiresAt }`; `BILLING_CHARGE_NOT_PAYABLE` (status decided at story discovery) | UC-119 |
+| `POST /v1/billing/charges/{chargeId}/payment-link` | (Re)generate the hosted payment URL → `200 { paymentUrl, expiresAt }`; `BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PROVIDER_UNAVAILABLE` when the provider cannot issue a link (statuses decided at story discovery) | UC-119 |
 | `POST /v1/billing/charges/{chargeId}/payment-return` | The web calls it when the manager returns from the hosted page: sets `payment_return_seen_at` and triggers an on-demand single-charge refresh from the provider | UC-119, UC-116 |
 | `GET /v1/billing/plan` | Catalog, current and next-paid-period selection, tiers, dependencies and effective dates | UC-136 |
 | `POST /v1/billing/plan/preview` | Preview the proposed next-paid-period selection and total | UC-136 |
 | `PUT /v1/billing/plan` | Schedule the next paid-period selection `{ items: [{ featureKey, tier }] }`; during the trial it also sets `plan_confirmed_at`. Rejections: `BILLING_FEATURE_DEPENDENCY_UNMET`, `BILLING_FEATURE_HAS_DEPENDENTS`, `BILLING_FEATURE_IN_USE`, `BILLING_PLAN_EMPTY`, `BILLING_PLAN_CHANGE_NOT_ALLOWED`, `BILLING_NO_PRICE_FOR_COUNTRY`, `BILLING_ADDRESS_REQUIRED` (statuses decided at story discovery) | UC-136 |
 | `POST /v1/billing/plan/confirm` | Trial only: confirm the current first paid selection unchanged → `200 { planConfirmedAt }`; triggers first-invoice issuing when within the 10-day lead; `409 BILLING_PLAN_ALREADY_CONFIRMED` | UC-136 |
 | `POST /v1/billing/cancel` | Cancel (scheduled or immediate by status) → `200 { cancelAt }` or `200 { status: "SUSPENDED", cancelAt: null }`; `409 BILLING_ALREADY_CANCELLING` | UC-133 |
-| `POST /v1/billing/reactivate` | Undo a scheduled cancel, or cancel the stale open charge and issue the one-month recovery charge → `200 { cancelAt: null, openCharge: { …, kind: "RECOVERY" } \| null }`; it never returns a URL (the web then calls `payment-link`) | UC-134 |
+| `POST /v1/billing/reactivate` | Undo a scheduled cancel, or cancel the stale open charge and issue the one-month recovery charge → `200 { cancelAt: null, openCharge: { …, kind: "RECOVERY" } \| null }`; it never returns a URL (the web then calls `payment-link`). Errors: `BILLING_PROVIDER_UNAVAILABLE` (recovery charge creation failed, retryable), `BILLING_ADDRESS_REQUIRED` (reused: the recovery charge needs the billing address too) | UC-134 |
 | `POST /v1/billing/discard` | **Deferred (slice G).** Self-service discard of a never-paid tenant `{ confirmSlug }` → `202 { purgeJobId }`; `409 BILLING_DISCARD_NOT_ALLOWED` when a charge was ever paid. Assigned the manager-billing suspension policy (`@SuspensionAccess(MANAGER_BILLING)`), which keeps it reachable while suspended; the status for a slug mismatch is decided at story discovery | UC-141 |
 | `POST /v1/billing/auto-billing` | **Deferred.** Start a provider-hosted authorization `{ mode: "PIX_AUTOMATICO" \| "CARD_RECURRING" }` → `200 { authorizationUrl }` (the field is `mode`, never `method`; `CARD_RECURRING` is slice F2) | UC-135, UC-143 |
 | `DELETE /v1/billing/auto-billing` | **Deferred.** Revoke automatic charging | UC-135, UC-143 |
@@ -1830,7 +1833,9 @@ The answer is reduced to what the caller's role may see; the exact reduction per
 | `GET /auth/staff-tenants` | Gains a per-tenant `operational: boolean`. A suspended tenant stays listed and is never filtered; `POST /auth/switch-staff-tenant` and the customer `POST /auth/switch-tenant` must accept it. |
 | Customer booking and loyalty reads | The BFF exposes a customer-safe `tenantOperational` flag for the "Empresa inativa" badge and the read-only history; its route and response shape are decided at story discovery. Behaviour per UC-121. |
 | `GET /internal/tenants/by-slug/{slug}` | Unchanged by design: it ignores suspension so login can always resolve the tenant. |
-| Routes `RequestInterceptor` skips | `/internal/*`, `/cron/*`, `/pubsub/*` and `/health` bypass the interceptor, so tenant-less signup and registration routes live under `/internal/*`. `StaffTenantOption` (`GET /auth/staff-tenants`) has no status field today; UC-121 A4 adds the per-tenant `operational` flag. |
+| Routes `RequestInterceptor` skips | `/internal/*`, `/cron/*`, `/pubsub/*` and `/health` bypass the interceptor (note below the table). |
+
+*Notes on the table.* Tenant-less signup and registration routes live under `/internal/*` because those paths bypass `RequestInterceptor`. `StaffTenantOption` (`GET /auth/staff-tenants`) has no status field today; UC-121 A4 adds the per-tenant `operational` flag.
 
 **Typed denials.** A route refused for entitlement fails with `BILLING_FEATURE_NOT_ENTITLED`; one refused because the tenant is suspended fails with `BILLING_TENANT_SUSPENDED` (`docs/ERROR_CATALOG.md` § Planned origins: `BILLING_*` and `SIGNUP_*`). The HTTP status of each is not yet specified in the discovery; it is decided at story discovery.
 
@@ -1861,6 +1866,7 @@ GET /v1/public/billing/prices?country=BR
 ```
 GET /v1/public/signup/slug-availability?slug=lavacar-top
 200 { "status":"available" } | { "status":"reserved" } | { "status":"taken" } | { "status":"invalid", "reason":"TOO_SHORT" }
+# Slug suggestions are client-generated (derived from the business name in the web form) and re-checked through this same route; the API returns no `suggestions` field.
 
 POST /v1/public/signup/tenant
   Body: { "businessName", "slug", "countryCode":"BR|US",
@@ -1876,7 +1882,7 @@ POST /v1/public/signup/tenant
 - **Email and name come from the signup session, never from the body.** The language derives from `countryCode`; there is no language field.
 - **Signup session.** After Google sign-in the BFF issues a short-lived (30 minutes), httpOnly, signed cookie that carries only `{ email, name, googleSub }` (no tenant yet), built on `JwtService` / `OAuthStateService`. There is no existing "staff selection token" to reuse: `/select-staff-tenant` is a page and `switch-staff-tenant` re-issues the session JWT. The `201` clears the cookie and does **not** issue a tenant JWT; the browser goes to the account-created page, and the existing invitation / login email created from `TenantProvisioned` is the only dashboard-access handoff. The cookie name is decided at story discovery.
 - **Abuse protection.** Turnstile on `POST /signup/tenant` and on the first step; per-IP and per-Google-account throttles; slug availability is throttled to limit enumeration. `WebOnlyGuard` has no per-route allowance: every route, `@Public()` or not, needs the web key, so these routes work when ikaro-web calls them server-side with no bypass; `@BypassWebOnlyGuard()` is needed only if a browser or the Google redirect hits the BFF directly, which is decided at story discovery. These routes are platform-level and carry no `X-Tenant-Slug` header. `429` carries `Retry-After`.
-- **Scope of this section.** Statuses are the ones above; anything not listed (for example the status of `GET /signup/session` without a valid cookie, or of `resend` when the first manager already exists, or the public answer when the US is selected while `FEATURE_FLAG_SIGNUP_US` is off or a country has no price list — `BILLING_US_NOT_AVAILABLE` and `BILLING_NO_PRICE_FOR_COUNTRY` exist on the operator path, `POST /internal/tenants`, but the public mapping is not yet specified) is decided at story discovery. The internal route that reserves the registration and the effect on `POST /internal/tenants` (UC-024) are in `## Billing — Provider Webhooks and Internal API`.
+- **Scope of this section.** (UC-127 A1's "field error with suggestions": the suggestions are generated by the web form, not returned by the API.) Statuses are the ones above; anything not listed (for example the status of `GET /signup/session` without a valid cookie, or of `resend` when the first manager already exists, or the public answer when the US is selected while `FEATURE_FLAG_SIGNUP_US` is off or a country has no price list — `BILLING_US_NOT_AVAILABLE` and `BILLING_NO_PRICE_FOR_COUNTRY` exist on the operator path, `POST /internal/tenants`, but the public mapping is not yet specified) is decided at story discovery. The internal route that reserves the registration and the effect on `POST /internal/tenants` (UC-024) are in `## Billing — Provider Webhooks and Internal API`.
 
 ---
 

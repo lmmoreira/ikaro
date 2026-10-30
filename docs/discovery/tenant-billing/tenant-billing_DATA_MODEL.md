@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Data Model
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — sketch at schema level (tables and columns, not DDL). Every table follows CLAUDE.md §2 unless an exemption is stated and justified. Physically a new schema `billing` (schema-per-context, `docs/DATABASE_SCHEMA.md`). PKs are `uuidv7`. Timestamps are `timestamptz` UTC.
 
 **First-schema scope (decision 99):** the first migration is **BR-only**. Everything marked *slice E* below (tax columns, `charge_tax_lines`, `tax_behavior`) is added later by an expand migration when the Stripe/US slice is built; the provider port keeps the tax shape so nothing else changes.

@@ -15,12 +15,12 @@ Single PostgreSQL instance
 ├── staff      (Staff Context)
 ├── loyalty    (Loyalty Context)
 ├── notification (Notification Context)
-└── billing    (Billing Context)
+└── billing    (Billing Context — planned, not yet built)
 ```
 
 Plus a `shared` schema (not a bounded context) holding the transactional outbox/inbox transport tables (see **Schema: `shared`** below).
 
-**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; `platform.tenants`, which is the tenant itself; and the Billing platform-wide tables `billing.feature_prices`, `billing.feature_price_versions` and `billing.provider_health`, plus the primary key of `billing.provider_events` — see `docs/TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
+**Multi-tenant isolation within each schema** is enforced by a `tenant_id` column on every table (exemptions: `shared.inbox`, which carries none; `platform.chatbot_provider_balance`, platform-operator data; `loyalty.balance_expiry_log`, keyed by `entry_id` alone; `platform.tenants`, which is the tenant itself; and the Billing platform-wide tables `billing.feature_prices`, `billing.feature_price_versions` and `billing.provider_health`, plus the primary key of `billing.provider_events`, and `billing.signup_registrations.tenant_id`, which is NULL until the registration completes — see `docs/TENANT_ISOLATION_STRATEGY.md`), composite indexes starting with `tenant_id`, and composite FK constraints within a context.
 
 ---
 
@@ -79,6 +79,7 @@ Owned by: **Platform Context** (`src/contexts/platform/`)
 | is_active | BOOLEAN | NOT NULL DEFAULT true |
 | created_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
 | updated_at | TIMESTAMP WITH TIME ZONE | DEFAULT now() |
+| **INDEX** (standalone) *(planned, M26-S08 `AddTenantsCreatedAtIndex`, expand-only)* | (created_at) | Billing self-heal / provisioning window read through the tenant-info port; no `tenant_id`, so it is a cross-tenant-job index |
 
 ### `platform.hotsite_configs`
 | Column | Type | Constraints |
@@ -1234,11 +1235,13 @@ Replaced by `shared.inbox` (see **Schema: `shared`** below). Pre-production, so 
 
 ## Schema: `billing`
 
+> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet). Every table below is documented ahead of the code.
+
 Owned by: **Billing Context** (`src/contexts/billing/`) — Ikaro charging its tenants (`docs/DOMAIN_MODEL.md` § Billing Context, `docs/USE_CASES.md` UC-110–UC-145). A new schema; the first migration touches no existing table (**expand only**). `tenant_id` is a plain NOT NULL UUID with **no** FK to `platform.tenants` (§2), which is also what lets the billing history outlive a purged tenant. Every composite FK is `(tenant_id, id)`.
 
 **First-schema scope (BR-only):** the first migration is BR-only. Everything marked *slice E* (Stripe/US tax columns and `charge_tax_lines`, `feature_prices.tax_behavior`), *slice F2* (`charges.origin`) or *slice H* (annual billing) is **deferred** and added later by an expand migration; the provider port already carries the tax shape, so nothing else changes. `tax_amount_minor` etc. therefore do not exist until slice E.
 
-> **Tenant-id exemptions (listed in `docs/TENANT_ISOLATION_STRATEGY.md`):** `billing.feature_prices` and `billing.feature_price_versions` (the global price list, no tenant owner), `billing.provider_health` (one row per merchant profile) and the **primary key** of `billing.provider_events` (`(provider, event_id)`, because the webhook must dedupe before it can resolve a tenant; its `tenant_id` column is still NOT NULL and resolved first). Precedent: `platform.chatbot_provider_balance`.
+> **Tenant-id exemptions (listed in `docs/TENANT_ISOLATION_STRATEGY.md`):** `billing.feature_prices` and `billing.feature_price_versions` (the global price list, no tenant owner), `billing.provider_health` (one row per merchant profile) and the **primary key** of `billing.provider_events` (`(provider, event_id)`, because the webhook must dedupe before it can resolve a tenant; its `tenant_id` column is still NOT NULL and resolved first) and `billing.signup_registrations.tenant_id` (NULL until completed: the row is created before the tenant exists). Precedent: `platform.chatbot_provider_balance`.
 
 ### `billing.feature_prices` *(no `tenant_id`)*
 | Column | Type | Constraints |
@@ -1293,7 +1296,7 @@ Versions already in effect are immutable history. Price-list changes are audited
 | terms_accepted_at | TIMESTAMP WITH TIME ZONE | NULLABLE |
 | terms_accepted_by | VARCHAR(255) | NULLABLE — Google email of the signing user |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **UNIQUE** | (provider, provider_customer_id) WHERE provider_customer_id IS NOT NULL | **standalone** — the webhook resolves the tenant from the provider customer id before any tenant context exists |
+| **UNIQUE** | (provider, provider_customer_id) WHERE provider_customer_id IS NOT NULL — `UQ_billing_billing_accounts_provider_customer` | **standalone** — the webhook resolves the tenant from the provider customer id before any tenant context exists |
 
 A separate aggregate from `subscriptions` (different actor, different reasons to change; a shared row would create write conflicts). Tax identity is financial data: never in `tenants.settings`.
 
@@ -1301,7 +1304,7 @@ A separate aggregate from `subscriptions` (different actor, different reasons to
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY |
-| tenant_id | UUID | NOT NULL, UNIQUE; also UNIQUE (tenant_id, id) |
+| tenant_id | UUID | NOT NULL, `UQ_billing_subscriptions_tenant`; also UNIQUE (tenant_id, id) |
 | status | VARCHAR(12) | NOT NULL — `TRIALING` \| `ACTIVE` \| `PAST_DUE` \| `SUSPENDED` |
 | suspension_reason | VARCHAR(20) | NULLABLE — `NON_PAYMENT` \| `CANCELED` \| `PAYMENT_REVERSED` \| `OPERATOR`; CHECK: NOT NULL iff status = `'SUSPENDED'` |
 | country_code | CHAR(2) | NOT NULL — fixed at start |
@@ -1321,7 +1324,7 @@ A separate aggregate from `subscriptions` (different actor, different reasons to
 | plan_confirmed_at | TIMESTAMP WITH TIME ZONE | NULLABLE — when the manager confirmed the first paid selection; while `TRIALING` and NULL, the first invoice is not issued until `trial_ends_at − 3 days` |
 | suspended_at | TIMESTAMP WITH TIME ZONE | NULLABLE — starts the clean-up clock |
 | purge_warning_30_sent_at / purge_warning_7_sent_at | TIMESTAMP WITH TIME ZONE | NULLABLE — dedupe of the clean-up warning emails; cleared on reactivation |
-| has_ever_paid | BOOLEAN | NOT NULL DEFAULT false — set on the first confirmed payment; **alone** selects the clean-up delay (false = 90 days, true = 180 days) and gates further self-signup trials |
+| has_ever_paid | BOOLEAN | NOT NULL DEFAULT false — set on the first confirmed payment; **alone** selects the clean-up delay (false = 90 days, true = 180 days) and gates further self-signup trials; **can never be cleared** (no reactivation, refund or operator action resets it) |
 | exempt | BOOLEAN | NOT NULL DEFAULT false — free access: all features, never charged, suspended, purged or emailed about billing (replaces "price 0" items); reversible except for the tenant whose slug is `PLATFORM_OWNER_TENANT_SLUG` |
 | version | INT | NOT NULL DEFAULT 0 — optimistic lock, a second line of defence next to `FOR UPDATE` |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
@@ -1330,7 +1333,7 @@ A separate aggregate from `subscriptions` (different actor, different reasons to
 | **INDEX** (standalone) | (status, past_due_since); (trial_ends_at) WHERE status = 'TRIALING'; (cancel_at) WHERE cancel_at IS NOT NULL | status sweep |
 | **INDEX** (standalone) | (suspended_at) WHERE status = 'SUSPENDED' | tenant clean-up |
 
-The cross-tenant jobs cannot seek a `tenant_id`-leading index, so each has its own standalone index (§ Indexing Strategy). Self-heal needs no extra index: it anti-joins `platform.tenants` against `subscriptions` on `created_at`.
+The cross-tenant jobs cannot seek a `tenant_id`-leading index, so each has its own standalone index (§ Indexing Strategy). Self-heal needs no billing index and **no cross-schema join**: it lists tenants through the read-only tenant-info port (backed by the standalone `platform.tenants(created_at)` index added by M26-S08 `AddTenantsCreatedAtIndex`, expand-only), then diffs that list against `billing.subscriptions` in application code. The access resolver reads `created_at` through the same port for the 15-minute provisioning window (`PROVISIONING_GRACE_MINUTES`); the live trial handler stays event-driven and never calls Platform.
 
 ### `billing.subscription_items` — the selected plan
 | Column | Type | Constraints |
@@ -1344,7 +1347,7 @@ The cross-tenant jobs cannot seek a `tenant_id`-leading index, so each has its o
 | ends_at | TIMESTAMP WITH TIME ZONE | NULLABLE — NULL = open-ended |
 | created_by | VARCHAR(100) | NOT NULL — operator id, manager actor id, or `SYSTEM` |
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **EXCLUDE USING gist** | (tenant_id WITH =, subscription_id WITH =, feature_key WITH =, tstzrange(starts_at, coalesce(ends_at,'infinity'), '[)') WITH &&) | no overlapping entitlement windows per feature; the current row may end exactly when its replacement starts. Needs `CREATE EXTENSION IF NOT EXISTS btree_gist` (migration step 1) |
+| **EXCLUDE USING gist** — `EX_billing_subscription_items_window` | (tenant_id WITH =, subscription_id WITH =, feature_key WITH =, tstzrange(starts_at, coalesce(ends_at,'infinity'), '[)') WITH &&) | no overlapping entitlement windows per feature; the current row may end exactly when its replacement starts. Needs `CREATE EXTENSION IF NOT EXISTS btree_gist` (migration step 1) |
 | **INDEX** | (tenant_id, subscription_id) | access read (≤ ~20 live rows per tenant) |
 
 Items carry **no price** and there are **no trial rows**: at trial start one default paid row per feature `[trial_ends_at, ∞)` is created and trial access is computed from `status = TRIALING`. Suspension does not touch the rows. Saving a plan replaces the still-future rows (`starts_at > now`) in one transaction. Clearing `exempt` replaces the open-ended exempt rows first, otherwise the exclusion constraint rejects the insert. Feature dependencies are an aggregate rule, not SQL.
@@ -1375,9 +1378,9 @@ Items carry **no price** and there are **no trial rows**: at trial start one def
 | provider_creation_status | VARCHAR(10) | NOT NULL DEFAULT `'PENDING'` — `PENDING` \| `READY` \| `FAILED`; CHECK: `READY` ⇒ `provider_charge_id` NOT NULL. Every charge is inserted `PENDING`; a durable retry query inside the issuing job owns remote creation after local commit |
 | provider_creation_attempts / provider_creation_last_attempt_at | INT / TIMESTAMP WITH TIME ZONE | retry observability |
 | created_at / updated_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
-| **UNIQUE** | (tenant_id, subscription_id, period_start) WHERE kind = 'PERIOD' AND status <> 'CANCELED' | the issuing cron is idempotent; a cancelled (plan-change re-issue) charge does not block its replacement |
-| **UNIQUE** | (tenant_id, subscription_id) WHERE kind = 'RECOVERY' AND status IN ('PENDING','OVERDUE') | at most one open recovery charge |
-| **UNIQUE** (standalone) | (provider, provider_charge_id) WHERE provider_charge_id IS NOT NULL | webhook / reconcile lookup |
+| **UNIQUE** — `UQ_billing_charges_period` | (tenant_id, subscription_id, period_start) WHERE kind = 'PERIOD' AND status <> 'CANCELED' | the issuing cron is idempotent; a cancelled (plan-change re-issue) charge does not block its replacement |
+| **UNIQUE** — `UQ_billing_charges_open_recovery` | (tenant_id, subscription_id) WHERE kind = 'RECOVERY' AND status IN ('PENDING','OVERDUE') | at most one open recovery charge |
+| **UNIQUE** (standalone) — `UQ_billing_charges_provider_charge` | (provider, provider_charge_id) WHERE provider_charge_id IS NOT NULL | webhook / reconcile lookup |
 | **INDEX** | (tenant_id, due_date DESC) | billing-page history |
 | **INDEX** (standalone) | (status, due_date) WHERE status IN ('PENDING','OVERDUE') | reconcile / open-charge scan |
 | **INDEX** (standalone) | (provider_creation_status, provider_creation_last_attempt_at) WHERE provider_charge_id IS NULL | creation retry |
@@ -1413,7 +1416,7 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 | Column | Type | Constraints |
 |--------|------|-------------|
 | id | UUID | PRIMARY KEY — the reservation id |
-| tenant_id | UUID | NULLABLE, UNIQUE when not null — NULL while `RESERVED`, set when the `TenantProvisioned` handler completes it |
+| tenant_id | UUID | NULLABLE, UNIQUE when not null (`UNIQUE(tenant_id)`, Postgres allows many NULLs) — NULL until completed: set when the `TenantProvisioned` handler completes it. A tenant-id exemption (the row exists before the tenant) |
 | source | VARCHAR(12) | NOT NULL — `SELF_SIGNUP` \| `OPERATOR` |
 | status | VARCHAR(10) | NOT NULL — `RESERVED` \| `COMPLETED`; a `RESERVED` row older than one hour is released by the sweep |
 | google_sub | VARCHAR(100) | NULLABLE — NOT NULL for `SELF_SIGNUP` |
@@ -1422,7 +1425,7 @@ Created **before** the tenant exists, by every non-exempt provisioning path (sel
 | created_at | TIMESTAMP WITH TIME ZONE | NOT NULL DEFAULT now() |
 | **INDEX** (standalone) | (google_sub) | the signup eligibility check runs before any tenant context exists |
 
-The trial rule is checked under `pg_advisory_xact_lock(hashtextextended('signup:'||google_sub, 0))` (`docs/LOCK_CATALOG.md`). The row is deleted by the purge's `BILLING` step and, immediately, by the self-service discard of a never-paid tenant (which frees the trial eligibility).
+The trial rule is checked under `pg_advisory_xact_lock(hashtextextended('signup:'||google_sub, 0))` (`docs/LOCK_CATALOG.md`). The row is deleted by the purge's `BILLING` step and, immediately, by the self-service discard of a never-paid tenant (which frees the trial eligibility). **Retention:** a `COMPLETED` row keeps only the minimum needed for the trial-eligibility rule (`google_sub`, `terms_version` / `terms_accepted_at`, `tenant_id`; the tax id is already cleared) until the tenant is purged, then it is deleted; there is no separate TTL while the tenant lives because the eligibility rule needs it. Only a `RESERVED` row has a TTL (released after one hour). Retention summary: `docs/DATA_RETENTION_AND_PRIVACY.md` § Billing.
 
 ### `billing.tenant_purge_jobs` / `billing.tenant_purge_steps` — erasure coordinator *(slice G)*
 `tenant_purge_jobs`: `id`, `tenant_id`, `reason` (`SUSPENSION_AGE` \| `SELF_SERVICE_DISCARD` \| `OPERATOR_REQUEST`), `status` (`REQUESTED` \| `IN_PROGRESS` \| `FAILED` \| `COMPLETED`), `requested_at`, `completed_at`, `last_error`, audit timestamps; `UNIQUE(tenant_id) WHERE status <> 'COMPLETED'` permits one in-flight purge. `tenant_purge_steps`: one idempotent completion per required participant (`BOOKING`, `CUSTOMER`, `STAFF`, `LOYALTY`, `NOTIFICATION`, `PLATFORM`, `BILLING`, `STORAGE`, `PROVIDER`) with `completed_at` and diagnostic metadata. Execution record only: the suspension timestamp decides eligibility, and the job is **not** a `Subscription` status. The `BILLING` step anonymizes in place: it keeps `subscriptions` (no personal data) and every `charges` / `charge_lines` / `charge_tax_lines` row for fiscal reasons (`tenant_id` stays as an opaque id), and deletes the `billing_accounts` personal fields, the `signup_registrations` row, `provider_events` and the `operator_audit` payloads.
@@ -1442,7 +1445,7 @@ One row per `merchant_profile_key`: `last_reconcile_ok_at`, `webhook_status` (`O
 | **INDEX** | (tenant_id, occurred_at DESC) | append-only |
 
 ### Modified existing tables (Billing release)
-- `platform.tenants`: **no change** — `is_active` keeps meaning offboarding; billing never flips it. `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; the effective value is computed).
+- `platform.tenants`: **one expand-only index**, a standalone `(created_at)` index (`AddTenantsCreatedAtIndex`, M26-S08) so the tenant-info port can list tenants by age for self-heal and the provisioning window; no column change — `is_active` keeps meaning offboarding; billing never flips it. `platform.hotsite_configs`: **no change** (`is_published` stays the manager's preference; the effective value is computed).
 - `notification.notification_logs.status` is widened — see that table: the new values `SKIPPED_TENANT_SUSPENDED` (24 characters) and `SKIPPED_NOT_ALLOWLISTED` (23) do not fit `VARCHAR(20)`, so the migration widens the column (e.g. `VARCHAR(40)`) and replaces `CHK_notification_logs_status`; the type, the aggregate and the entity change together.
 - Platform-level (`tenant_id IS NULL`) Billing notification templates are inserted by migration (one row per template key and locale; content comes from `packages/i18n/locales/{pt-BR,en}/notifications.json`).
 - `Slug` value object (`apps/backend/src/shared/value-objects/slug.vo.ts`, not a table): add length 3–30, no leading/trailing hyphen and a reserved-word list with a typed error; existing tenants are unaffected (`Tenant.reconstitute()` takes an already-built `Slug` and does not re-validate; `Slug` itself has only `isValid`/`create`).

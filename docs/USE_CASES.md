@@ -2739,8 +2739,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Trigger:** The operator runs grace / suspend / unsuspend with `tenantId` and a `reason`, and for grace a `graceUntil`.
 - **Main Flow:** **Grace** sets `graceUntil` (the status sweep then waits until that date before suspending). **Suspend** (abuse / takedown) sets `SUSPENDED` with reason `OPERATOR`: no recovery charge is issued and payment does not lift it. **Unsuspend** — valid for the `OPERATOR` reason alone — restores access. Grace is a mapped edge case, rarely needed because the suspension freeze (UC-140) covers provider outages. There is **no** operator payment override and no operator reactivation of a `NON_PAYMENT`, `CANCELED` or `PAYMENT_REVERSED` suspension: only provider-confirmed payment restores access (UC-114, UC-134).
 - **Alternative Flows:**
-   - **A1: Grace on a tenant that is not `PAST_DUE`** → rejected.
-   - **A2: Attempt to reactivate a payment-based suspension** → rejected; it cannot bypass provider-confirmed payment. The one exception is making the tenant `exempt` (UC-137 A3), which makes it free rather than paid.
+   - **A1: Grace on a tenant that is not `PAST_DUE`** → rejected (`409 BILLING_GRACE_NOT_ALLOWED`).
+   - **A3: Suspend an `exempt` tenant** → rejected with `403 BILLING_EXEMPT_PROTECTED`: an exempt tenant is never suspended, including by the operator (clear `exempt` first, UC-137).
+   - **A2: Attempt to reactivate a payment-based suspension** → rejected; it cannot bypass provider-confirmed payment (`409 BILLING_UNSUSPEND_NOT_ALLOWED`; the same code refuses an unsuspend of any non-`OPERATOR` suspension). The one exception is making the tenant `exempt` (UC-137 A3), which makes it free rather than paid.
 - **Postconditions:** Grace or suspension changed; `operator_audit` row written; access cache invalidated.
 - **Events Triggered:** `SubscriptionSuspended` / `SubscriptionReactivated` where applicable.
 
@@ -2812,6 +2813,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A3: Out-of-order event** (paid after cancelled) → applied only if legal for the charge's current status; otherwise logged and left to reconcile (UC-116).
    - **A4: Backend down** → non-2xx so the provider retries (reconcile covers any gap).
    - **A5: Refund / chargeback** → a partial refund does not affect access; a full confirmed refund or completed chargeback reversal that leaves the current period without settled payment immediately suspends with reason `PAYMENT_REVERSED`. A merely opened dispute does not.
+   - **A6: Retention** → the daily `billing-provider-events-purge` job (`POST /cron/billing-provider-events-purge`, system actor, selected through the standalone `received_at` index) deletes `provider_events` rows older than 30 days; the 30 days is the retention window of the idempotency inbox (`docs/DATABASE_SCHEMA.md` § `billing.provider_events`).
 - **Postconditions:** Local state mirrors the provider.
 - **Events Triggered:** `ChargePaid`, `SubscriptionPastDue`, `SubscriptionReactivated`, `SubscriptionSuspended` as applicable.
 
@@ -2983,9 +2985,9 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Actor:** System (one event handler per event; each handler calls exactly one use case)
 - **Preconditions:** A platform-level (NULL-tenant) template exists in both languages (pt-BR and en), shipped by migration and read through the new global-template lookup; there is no per-tenant copy and no backfill. The tenant is not `exempt`: exempt tenants receive no billing emails and the handlers skip them.
 - **Trigger:** `ChargeIssued`, `ChargePaid`, `SubscriptionPastDue`, `SubscriptionSuspended`, `SubscriptionReactivated`, `SubscriptionCancelled`, `PlanChanged`, `BillingReminderDue` and `SubscriptionPriceChangeAnnounced` ("o valor de X passa de R$ 39 para R$ 49 a partir de 10/12; seu novo total mensal será R$ …"); the purge warning (UC-132) uses the same path. Ikaro sends all of these itself: Asaas customers are created with `notificationDisabled = true` and Stripe customer emails are off. The event-to-email map is in `docs/BOUNDED_CONTEXTS.md` § Communication Patterns.
-- **Main Flow:** Resolve the recipients (the billing email, else the tenant's managers), render, send, log.
+- **Main Flow:** Resolve the recipients (the event's `recipientEmail`, which Billing set from its `billing_email`; when it is null, the tenant's MANAGER emails through Notification's existing staff adapter), render, send, log. Billing carries the address in the event so Notification needs no read edge into Billing (`docs/DOMAIN_EVENTS.md` § Billing Context Events).
 - **Alternative Flows:**
-   - **A1: Template missing** → fail with an alert; never a silent drop.
+   - **A1: Template missing** → fail with an alert; never a silent drop. A missing platform billing template is money-critical, so it has a runtime alert policy (the Billing alert policies paragraph of `docs/OBSERVABILITY_STRATEGY.md`), unlike a missing price row.
    - **A2: Delivery fails** → the existing notification-log retry / failed handling.
    - **A3: Event redelivered** → deduplicated on `eventId`.
 - **Postconditions:** The manager is informed.
@@ -3036,7 +3038,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    4. The system re-validates everything server side. The BFF asks Billing to reserve the registration (`POST /internal/billing/registrations`, advisory lock B-A1 on the Google `sub`, trial rule A3), which stores the Google `sub`, the BR tax id and the accepted terms version and timestamp in `signup_registrations`. The BFF then calls Platform's signup use case, which verifies Turnstile and calls the existing `ProvisionTenantUseCase` with the Google email as first manager and the `registrationId`. None of the personal data travels in the event.
    5. The endpoint returns the account-created page. `TenantProvisioned` asynchronously triggers Staff (first manager) and Billing (UC-110); once the first-manager work completes, the existing invitation / login email is sent to the verified Google email. The visitor is not issued a tenant JWT and is not sent to the dashboard by signup.
 - **Alternative Flows:**
-   - **A1: Slug taken / reserved / invalid** → field error with suggestions (`SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`). A slug taken between the availability check (UC-128) and the submit lands here too.
+   - **A1: Slug taken / reserved / invalid** → field error with client-generated suggestions (the API returns none; the form derives them and re-checks each through UC-128) (`SIGNUP_SLUG_TAKEN`, `SIGNUP_SLUG_RESERVED`, `SIGNUP_SLUG_INVALID`). A slug taken between the availability check (UC-128) and the submit lands here too.
    - **A2: Turnstile fails** → retry screen (`SIGNUP_TURNSTILE_FAILED`).
    - **A3: Trial not available for this Google account** (an earlier self-signup tenant of the same `sub` never paid) → `SIGNUP_TRIAL_NOT_AVAILABLE`, "Você já tem um teste em andamento ou não concluído", with two self-service actions: "Entrar na conta existente" and "Descartar o teste não pago e começar de novo" (UC-141, which needs a signed-in manager of that tenant). Until the purge participants ship, the discard action is replaced by an honest message that tells the visitor to contact Ikaro, and an operator runs the offboarding runbook for that never-paid tenant (M17-S51). A first signup, or one where every earlier signup tenant has paid, always gets the trial.
    - **A4: Rate limit exceeded** (per IP per day, and per Google account) → friendly "tente mais tarde" (`SIGNUP_RATE_LIMITED`, with `Retry-After`).
@@ -3164,6 +3166,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A3: Provider charge creation fails** → error with retry (`BILLING_PROVIDER_UNAVAILABLE`).
    - **A4: The provider refuses to cancel the old open charge because it was just paid** → that charge is the payment and reactivates the subscription; the recovery charge is cancelled (UC-114 step 4, UC-115 A3).
    - **A5: Annual subscription** *(slice H)* → the recovery charge is always one month at the monthly price and the subscription returns to `MONTHLY` (UC-144).
+   - **A6: Billing address still missing** → `BILLING_ADDRESS_REQUIRED` (reused: a recovery charge needs the address like any charge, UC-118 A6); nothing is issued until it is saved.
 - **Postconditions:** Tenant active.
 - **Events Triggered:** `ChargeIssued`, `ChargePaid`, `SubscriptionReactivated`
 
@@ -3197,11 +3200,11 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    A newly selected feature starts only at the next paid period, up to about a month later; the locked-feature screens (UC-125) and this tab say so ("começa em dd/mm") and never imply instant access.
 - **Alternative Flows:**
    - **A1: Dependency unmet or dependents active** (Loyalty without Booking; removing Booking while Loyalty is active) → the whole selection is rejected with the specific message (`BILLING_FEATURE_DEPENDENCY_UNMET` / `BILLING_FEATURE_HAS_DEPENDENTS`); nothing is saved.
-   - **A2: `PAST_DUE` or `SUSPENDED`** → the tab is read-only until a settled payment / reactivation; no unpaid plan change is queued.
+   - **A2: `PAST_DUE` or `SUSPENDED`** → the tab is read-only until a settled payment / reactivation; no unpaid plan change is queued (a save attempted anyway is rejected with `BILLING_PLAN_CHANGE_NOT_ALLOWED`).
    - **A3: Trial** → all features remain active through the trial; the selection only determines the first paid period.
-   - **A4: Cancellation scheduled (`cancelAt` set)** → the tab is read-only ("reative a assinatura para alterar o plano").
+   - **A4: Cancellation scheduled (`cancelAt` set)** → the tab is read-only ("reative a assinatura para alterar o plano"); a save attempted anyway is rejected with `BILLING_PLAN_CHANGE_NOT_ALLOWED`.
    - **A5: Empty selection** → rejected (`BILLING_PLAN_EMPTY`; at least one feature).
-   - **A6: No list price for the country / tier** → the feature is shown as unavailable.
+   - **A6: No list price for the country / tier** → the feature is shown as unavailable; a save that still selects it is rejected with `BILLING_NO_PRICE_FOR_COUNTRY`.
    - **A7: Next invoice already paid** → the change applies from the following renewal; the page says so.
    - **A8: Provider re-issue fails** → the scheduled selection is saved and the provider-creation retry handles the replacement invoice (UC-113); an alert fires on repeated failure.
    - **A9: Save error** → message, selection kept.
@@ -3213,6 +3216,8 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Events Triggered:** `PlanChanged` (emailed to the billing email); a re-issued charge raises `ChargeIssued`
 
 ---
+
+> **Ordering note:** UC-143–UC-145 (slices F2 and H) sit here, next to UC-135 and UC-136 whose plan and auto-billing flows they extend, ahead of UC-137; the numbering is chronological, the placement is by topic. The Use Case Index below is in numeric order.
 
 ### **UC-143: Manager Enables Automatic Card Collection (Provider-Hosted Recurring Checkout)** — *slice F2, gated*
 
@@ -3269,7 +3274,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
 - **Preconditions:** The subscription exists (or the tenant is being provisioned with the `exempt` hint).
 - **Trigger:** The operator marks a tenant as free (partner, internal, test-that-must-never-be-charged) or puts it back on the paid ladder.
 - **Main Flow:**
-   1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items; any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge.
+   1. **Set:** the subscription becomes `ACTIVE`, `exempt = true`, every feature entitled with open-ended items (the existing default paid items are end-dated at the moment of the change and replaced, so the exclusion constraint never sees an overlap); any open charge is cancelled locally and at the provider; billing emails stop; the tenant is excluded from charge issuing, the sweep and purge.
    2. **Clear:** the subscription becomes `TRIALING` with a fresh 14-day window and `plan_confirmed_at = NULL`; the open-ended exempt items are **replaced** by the default paid items `[trial_ends_at, ∞)` in the same transaction (the exclusion constraint forbids overlap), so the manager picks and confirms the first paid selection; nothing is charged before the trial ends.
    3. The access cache is invalidated after commit and an `operator_audit` row (`SET_EXEMPT`, who, why) is written.
 - **Alternative Flows:**
@@ -3292,7 +3297,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    2. **Simulate a provider event:** the `FakeBillingProvider` builds the signed webhook for the chosen event (using the verified per-method event sequences: Pix `RECEIVED` only; boleto `CONFIRMED` → `RECEIVED`; card `CONFIRMED`, `RECEIVED` later), optionally duplicated, delayed or out of order, or fails the next provider call (5xx, expired link, invalid location), and delivers it to the app's own webhook route. The normal webhook path (UC-114) processes it; no test-only path exists in the use cases.
    3. **Seed:** creates one tenant per billing state through the normal use cases (`TRIALING`, `ACTIVE`, `ACTIVE` with a scheduled cancel, `PAST_DUE`, `SUSPENDED` for `NON_PAYMENT` and `CANCELED`, `exempt`, a US tenant with and without address).
 - **Alternative Flows:**
-   - **A1: `APP_ENV=production`** → the routes do not exist (404); a live adapter also refuses to start outside production, and a fake / sandbox profile key is rejected at provisioning in production.
+   - **A1: `APP_ENV` is neither `local` nor `staging`** (production included) → the routes do not exist (404); the live-adapter and profile-key startup rules are in `docs/ENGINEERING_RULES_INFRA.md` § Billing configuration (planned).
    - **A2: The subscription uses a sandbox or live key** → `simulate` is refused; staging sandboxes are driven through the provider's own sandbox actions.
    - **A3: Missing or wrong operator keys** → `401`, like every operator route.
 - **Postconditions:** Billing state changed exactly as the real event would have changed it; nothing was charged and no real communication was sent (Mailhog locally; the staging email recipient allowlist).
@@ -3361,7 +3366,7 @@ The promoted M20 lead-form design is canonical here for behavior, in `docs/DOMAI
    - **A1: `exempt` tenant** → no change.
    - **A2: The tenant is reactivated** → the manual reactivation path of UC-134 applies.
 - **Postconditions:** A paying tenant that is offboarded is not charged afterwards.
-- **Events Triggered:** `SubscriptionCancelled`.
+- **Events Triggered:** `SubscriptionCancelled` and `SubscriptionSuspended` (reason `CANCELED`; access-cache invalidation and hotsite revalidation hang on it).
 
 ---
 

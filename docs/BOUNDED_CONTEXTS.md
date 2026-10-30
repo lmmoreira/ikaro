@@ -119,7 +119,7 @@ Notification Context subscribes:
 │                                                      └───────────────┘ │
 │                                                                          │
 │  ┌───────────────────────────────────────────────────────────────────┐ │
-│  │                  BILLING CONTEXT  (Supporting, 7th)                │ │
+│  │          BILLING CONTEXT  (Supporting, 7th; planned)               │ │
 │  │  Aggregates: Subscription (+ items), BillingAccount, Charge        │ │
 │  │             (+ lines), FeaturePrice (+ versions, platform-wide)    │ │
 │  │  Published: ChargeIssued, ChargePaid, Subscription*, PlanChanged,  │ │
@@ -136,7 +136,7 @@ Notification Context subscribes:
 
 ## Context Descriptions
 
-> Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
+> The Billing context drawn in the diagram above is **planned, not yet built** (§ 7). Contexts **1–5** are described below. **§ 6. Platform Context (Foundational Domain)** is further down, after *Deployment & CI/CD Implications* — it was added later and was not moved here. Use the heading `6. Platform Context` to find it. **§ 7. Billing Context (Supporting Domain)** follows Platform, directly before *Future Scaling*.
 
 ### **1. Booking Context (Core Domain, Tenant-Scoped)**
 
@@ -193,6 +193,7 @@ Notification Context subscribes:
 > **Loyalty subscribes to `BookingCompleted` and, from M24 Cluster 4, `ClassSessionBookingCompleted`.** It does not consume any other Booking event.
 
 **Consumed Events:**
+- `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - `StaffDeactivated` (Staff Context) → UC-048, cascades to the wrapping `STAFF`-type `Resource` (M21 Cluster 1)
 - `TenantProvisioned` (Platform Context) → creates the tenant's `LOCATION` resource (`create-tenant-location-resource`)
 - Its own `BookingCancelled`/`BookingRejected`/`BookingRescheduled` (`availability-alert-matching`, M23-S07) and the `cron-reminders` trigger (alert sweep/expiry, recurring-schedule approval expiry, manual-approval booking hold expiry — TD51)
@@ -244,6 +245,7 @@ Notification Context subscribes:
 - `PointsExpiringSoon` (a Command published through the outbox, not a `DomainEvent`) → consumed by Notification. Forward-looking weekly warning.
 
 **Consumed Events:**
+- `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - `BookingCompleted` (from Booking) — **the only event Loyalty subscribes to.** For each line in `data.lines[]`, insert one `LoyaltyEntry` when `customerId != null`.
 
 **Tech Stack:**
@@ -316,6 +318,7 @@ TENANT B (completely separate):
 - None currently — audit/retry state is tracked on the `NotificationLog` entity itself, not via published domain events. (`EmailSent`/`EmailFailed` event classes do not exist in code.)
 
 **Consumed Events** (the authoritative list is `infra/terraform/pubsub-catalog.json`; each is a named consumer, not a catch-all):
+- `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - Booking: `BookingRequested`, `BookingApproved`, `BookingRejected`, `BookingInfoRequested`, `BookingInfoSubmitted`, `BookingCancelled`, `BookingRescheduled`, `BookingNoShow`, `RecurringBookingScheduleCreated`/`ApprovalRequested`/`Rejected`/`Ended`, `AvailabilityAlertMatched`, and the reminder/daily-schedule commands. **Not** `BookingCompleted`.
 - Loyalty: `ServicePointsEarned`, `PointsExpiringSoon`.
 - Booking (resource impact, M23-S23): `ResourceDeactivationImpactRaised`, `BookingResourceReassigned`.
@@ -361,7 +364,7 @@ ServicePointsEarned → (Notification may batch per booking) Email: Customer "Yo
 
 PointsExpiringSoon → Email (weekly digest): Customer "Heads up — [X] points on [Service] will expire on [date]. Book again to keep earning."
 
-Billing events (planned, § 7) → Email: the tenant's billing email, else its managers (platform-level templates, exempt from the suspension gate):
+Billing events (planned, § 7) → Email: the recipient is resolved by Billing (its `billing_email`) and carried as `recipientEmail` (nullable) in the email-triggering events; Notification uses it, and falls back to the tenant's MANAGER emails (through its existing staff adapter) when it is null. No new cross-context read edge. Platform-level templates, exempt from the suspension gate:
   ChargeIssued (payment link) · ChargePaid (receipt) · SubscriptionPastDue · SubscriptionSuspended · SubscriptionReactivated · SubscriptionCancelled · PlanChanged · BillingReminderDue (plan confirmation, trial ending, charge due soon, charge overdue) · TenantPurgeWarning (30/7 days) · SubscriptionPriceChangeAnnounced (one consolidated email per tenant)
 ```
 
@@ -402,6 +405,7 @@ Billing events (planned, § 7) → Email: the tenant's billing email, else its m
 - None (purely supporting)
 
 **Consumed Events:**
+- `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - None directly, but referenced by Booking events (tenant-scoped)
 
 **Dependencies:**
@@ -469,6 +473,7 @@ Same Person, Multiple Tenants:
 > `StaffDeactivated` is consumed by **Booking Context** (UC-048, added M21 Cluster 1) to cascade-deactivate a `STAFF`-type `Resource` — Staff Context itself remains unaware of this; it just publishes the event.
 
 **Consumed Events:**
+- `TenantPurgeRequested` *(slice G, deferred; UC-132, UC-141)* → this context is a purge participant: it deletes its own tenant data idempotently and then publishes `TenantPurgeContextCompleted` (see Communication Patterns § 1)
 - `TenantProvisioned` (Platform Context) → creates the tenant's first MANAGER `Staff` row and publishes `StaffInvited` (M04-S06)
 
 **Dependencies:**
@@ -514,6 +519,8 @@ Notification Context subscribes, composes email, sends
 - Resilience (if Notification fails, doesn't block Booking)
 - Scalability (can add new subscribers without changing Booking)
 - Testability (can mock events)
+
+**Tenant purge (slice G, deferred):** every bounded context is a `TenantPurgeRequested` consumer and a `TenantPurgeContextCompleted` publisher: each deletes its own tenant data idempotently and reports completion, Billing's coordinator records each step, and Platform deletes the tenant root last (`docs/DOMAIN_EVENTS.md` § Billing Context Events, UC-132). Each context's *Consumed Events* list carries a cross-reference line.
 
 **MVP Approach:**
 - GCP Pub/Sub Emulator (Docker) locally; GCP Pub/Sub (managed) in production
@@ -837,6 +844,8 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 ### **7. Billing Context (Supporting Domain, Tenant-Scoped)**
 
+> **PLANNED, NOT YET BUILT** (Billing milestone; rules and design only — no code, table or migration exists yet).
+
 **Purpose:** Ikaro charging its tenants — price list, subscription, charges, payment-provider integration, the access ladder (`TRIALING → ACTIVE → PAST_DUE → SUSPENDED`) and the entitlement set. The payment provider owns the money; Billing owns only three policies: the access ladder, the entitlement set and the clean-up (`docs/DOMAIN_MODEL.md` § Context 7: Billing Context).
 
 **Owned Aggregates:**
@@ -856,14 +865,14 @@ For MVP: All deployed as single service, but code organized as separate modules 
 
 **Dependencies (the reviewed exceptions):**
 - **Input:** callers across the system read access through the shared `TenantAccessPort` (§ Communication Patterns 4) — never Billing's repositories.
-- **Billing → Platform (one narrow read):** the self-heal job and the release backfill create subscriptions for tenants whose `TenantProvisioned` payload is gone or legacy, so they read `country_code`, `timezone`, `slug` and `created_at` through a small read-only tenant-info port (precedent: Notification's `INotificationPlatformPort.getTenantInfo`), registered as an exact-path `permittedEdges` entry in `architecture-policy.json`. The live trial handler stays event-driven and does not call Platform. Nothing else in Billing reads Platform.
+- **Billing → Platform (one narrow read):** the self-heal job and the release backfill create subscriptions for tenants whose `TenantProvisioned` payload is gone or legacy, so they read the tenant's country (`settings.localization.countryCode`), timezone (`settings.businessHours.timezone`), `slug`, `created_at` and `is_active` through a small read-only tenant-info port backed by a new Platform read use case (the lister walks tenants through it and diffs against `subscriptions` in application code, never a cross-schema join; the access resolver additionally reads `created_at` for the 15-minute provisioning window) (precedent: Notification's `INotificationPlatformPort.getTenantInfo`), registered as an exact-path `permittedEdges` entry in `architecture-policy.json`. The live trial handler stays event-driven and does not call Platform. Nothing else in Billing reads Platform.
 - **Billing → Booking (Plano tab only):** removing `BOOKING` is rejected while any `PENDING`/`INFO_REQUESTED`/`APPROVED` booking, recurring schedule or active availability alert extends past the effective date (`BILLING_FEATURE_IN_USE`), checked through one new Booking use case behind one cross-context port (an exact-path `permittedEdges` entry).
 - **Billing → Notification:** none by call — emails flow through events; Notification gains a global (`tenant_id IS NULL`) template lookup for Billing's platform-level templates.
 - **Operator endpoints (planned):** Billing's operator routes (`feature-prices`, `suspend`/`unsuspend`/`grace`, `exempt`, the non-production `dev` routes) are guarded by `InternalApiGuard` + `PlatformAdminGuard`. Today `PlatformAdminGuard` lives only in the Platform context (`contexts/platform/infrastructure/guards/`) and nothing outside it imports it, so a Billing controller cannot use it without breaking Rule 1: the first Billing story that needs it either moves the guard to `src/shared/` or adds an exact-path `permittedEdges` entry; this doc does not decide which.
 - **External:** Asaas, Stripe (hosted pages, webhooks), Cloud Scheduler → Pub/Sub triggers for the jobs.
 
 **Tenant Isolation:**
-- Every Billing table is scoped by `tenant_id` with composite `(tenant_id, id)` FKs, **except** the platform-wide `feature_prices`, `feature_price_versions` and `provider_health`, and `provider_events` whose PK is `(provider, event_id)` (the webhook dedupes before it can resolve a tenant) — listed in `docs/TENANT_ISOLATION_STRATEGY.md`. Cross-tenant jobs (issue, sweep, reminders, reconcile, self-heal, purge) select through their own standalone indexes because no tenant id arrives with a trigger.
+- Every Billing table is scoped by `tenant_id` with composite `(tenant_id, id)` FKs, **except** the platform-wide `feature_prices`, `feature_price_versions` and `provider_health`, and `provider_events` whose PK is `(provider, event_id)` (the webhook dedupes before it can resolve a tenant) — listed in `docs/TENANT_ISOLATION_STRATEGY.md`. Cross-tenant jobs (issue, sweep, reminders, reconcile, self-heal, provider-events purge, tenant purge) select through their own standalone indexes because no tenant id arrives with a trigger.
 - Billing never flips `platform.tenants.is_active` (a payment problem is not an offboarding) and never mutates the manager's `isPublished`: effective published = manager's flag AND tenant operational.
 
 **Tech Stack:** repository pattern per aggregate; paying a `Charge` may move the `Subscription` back to `ACTIVE` in one transaction under `findByIdForUpdate` (`docs/LOCK_CATALOG.md`); provider I/O is never inside `txManager.run()`.

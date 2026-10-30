@@ -40,15 +40,19 @@ flowchart TD
 
     Billing -->|"Cancelar assinatura (UC-133)"| CancelConfirm["❓ GAP: separate confirmation page (06)"]:::gap
     CancelConfirm -->|"ACTIVE or paid trial"| Scheduled["Cancelada — acesso até dd/mm (06b)"]
-    CancelConfirm -->|"PAST_DUE or unpaid trial"| Suspended["Conta suspensa — única página acessível (01d / 01e)"]
+    CancelConfirm -->|"PAST_DUE or unpaid trial: immediate (06d)"| Suspended["Conta suspensa por cancelamento — única página acessível (01e)"]
+    CancelConfirm -->|"paid trial: effective at trial end (06e)"| Scheduled
+    NonPayment["Conta suspensa por falta de pagamento (01d; payment reversed 01m, by Ikaro 01n)"] -->|"Pagar agora: one-month recovery charge (UC-119)"| Hosted
     Scheduled -->|"Reativar assinatura (UC-134)"| Billing
-    Suspended -->|"pay the recovery charge / Reativar (UC-134)"| Hosted
+    Suspended -->|"Reativar assinatura: recovery charge (UC-134)"| Hosted
 
     Billing -->|"Descartar este teste (never paid, UC-141, deferred)"| Discard["Deferred: discard confirmation — type the slug (10)"]:::deferred
     Discard -->|"confirm"| Erased(("Tenant erased, slug and trial freed"))
 
     Billing -.->|"deferred slices"| Deferred["Deferred: Cobrança automática — Pix Automático / card (UC-135, UC-143; 07*) · Ciclo anual e add-on (UC-144, UC-145; 01q, 11, 12, 13)"]:::deferred
 ```
+
+> The flow above is the main path. The screens table under "Prototype" is the full list; screens not drawn as nodes: trial cancel variants `06d` (immediate, trial never paid or past due, ends in `01e`) and `06e` (first invoice paid, ends in `06b`), `01k` (price-change notice on Resumo and Plano), `01l` (exempt tenant, no charges or cancel), `01m`/`01n` (other suspension reasons), the `08*` Plano variants and the `11`–`13`/`01q` annual screens. Suspension routing: `01d` is non-payment (`NON_PAYMENT`), `01e` is cancellation (`CANCELED`, reached from the cancel page `06`/`06d`).
 
 ## Pages referenced
 
@@ -69,13 +73,17 @@ flowchart TD
 | `POST /v1/billing/charges/{chargeId}/payment-link`, `…/payment-return` | Pagar agora / return from the hosted page | MANAGER |
 | `GET /v1/billing/plan`, `POST /plan/preview`, `PUT /plan`, `POST /plan/confirm` | Plano tab | MANAGER |
 | `POST /v1/billing/cancel`, `POST /v1/billing/reactivate` | Cancel page / Reativar assinatura | MANAGER |
+| `GET /v1/billing/access` | Every `/dashboard/**` request (feature entitlement and suspension routing, loaded once in the dashboard layout; UC-125, UC-121) | MANAGER, STAFF |
+| `POST /v1/billing/discard` *(deferred, UC-141, slice G, M27)* | Descartar este teste (`10`); until M27 the button is not rendered and the web shows the interim "contact Ikaro" message (`canDiscard` false) | MANAGER |
 | `POST` / `DELETE /v1/billing/auto-billing` *(deferred)* | Cobrança automática tab | MANAGER |
+
+UC-124 (Billing Emails to the Manager) has no screen of its own: the emails are Notification templates, not screens, and their links lead back to this page (`/dashboard/billing`).
 
 Full shapes: `docs/API_CONTRACTS.md` § Billing — Manager API (BFF, role MANAGER). A manager of a `SUSPENDED` tenant can reach only these routes (plus access, logout and tenant switch).
 
 ## Prototype
 
-Folder: `manager/prototypes/billing/` — relocated from `docs/discovery/tenant-billing/prototype/manager-*.html` (the `manager-` prefix was dropped; letter variants are unchanged). There is no `01p` file: the letter was never used. 49 screens:
+Folder: `manager/prototypes/billing/` — relocated from `docs/discovery/tenant-billing/prototype/manager-*.html` (the `manager-` prefix was dropped; letter variants are unchanged). There is no `01p` file: the letter was never used, and there is no `05`: it was the hotsite CTA panel, now `manager/prototypes/hotsite/01g`/`01h`. 49 screens:
 
 | Files | Screens | UC | Status |
 |---|---|---|---|
@@ -95,9 +103,9 @@ No screen of the Billing promotion stays in `docs/discovery/tenant-billing/proto
 ## Open questions / gaps
 
 - [ ] Stories do not exist yet — the Billing milestone is drafted after this promotion; each story needs `/story-discovery` before implementation.
-- [ ] `dev-notes.md` was moved as-is from the discovery and is **not** in the `journeys/README.md` template (file map, props, BFF call, validation table, states): reshape it at story discovery.
+- [ ] `dev-notes.md` was moved as-is from the discovery; only the `journeys/README.md` template's **File map** table was missing and is now added (apps/web path / status / action, from `plan/M25` and `plan/M26`). Props, BFF call, validation table and states already exist per screen; fold them into the template shape at story discovery.
 - [ ] Where `SubscriptionBanner` mounts: there is no single shared `/dashboard/**` layout (`docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` § 1), so each section layout must render it, or a shared layout must be introduced.
-- [ ] Not drawn, specified in the dev-notes ("Specified but not drawn"): US banner and Plano warning when the billing address is missing, US Plano preview total with tax label, a revoked Pix Automático authorization, the annual Plano / Cobranças / past-due states, receipts ("Recibo" link), and the billing emails (templates, not screens).
+- [ ] Not drawn, specified in the dev-notes ("Specified but not drawn"): US banner and Plano warning when the billing address is missing, US Plano preview total with tax label, a revoked Pix Automático authorization, the annual Plano / Cobranças / past-due states, receipts ("Recibo" link), and the billing emails (templates, not screens). Also not drawn: per-tab loading and fetch-error states for Cobranças, Dados and Plano (only the page-level `01f`/`01g` exist); `409 BILLING_PLAN_ALREADY_CONFIRMED` on "Confirmar plano"; payment-link failure on "Pagar agora" (`BILLING_CHARGE_NOT_PAYABLE`, `BILLING_PROVIDER_UNAVAILABLE`); and the interim "contact Ikaro" message for discarding a never-paid trial before M27 ships (`canDiscard` false).
 - [ ] Plan-change HTTP statuses (`BILLING_FEATURE_*`, `BILLING_PLAN_*`) are decided at story discovery.
 - [ ] Removing `BOOKING` must also count M24 class-session bookings, enrolments and waitlists in the in-use guard once M24 ships (UC-136 A11).
 - [ ] The M24 routes must declare their entitlement and suspension metadata (`@RequiresFeature` / `@SuspensionAccess`) once enforcement is on.

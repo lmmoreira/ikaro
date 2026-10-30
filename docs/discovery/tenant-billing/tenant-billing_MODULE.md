@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Hotsite Module `TRIAL_SIGNUP_CTA`
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — module spec at the level `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` §7 ("Adding a New Module") needs. Not implemented.
 
 **Companion docs:** `tenant-billing.md` §6 · `tenant-billing_USECASES.md` (CAND-22, 26) · `prototype/` (`manager-05*`, `public-02`) — promoted to `journeys/manager/prototypes/hotsite/01g`/`01h` and `journeys/guest/prototypes/ikaro-trial/`; the canonical module contract is now `docs/HOTSITE_DYNAMIC_ARCHITECTURE.md` § TRIAL_SIGNUP_CTA.

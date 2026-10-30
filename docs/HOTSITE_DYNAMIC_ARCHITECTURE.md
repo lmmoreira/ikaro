@@ -1,6 +1,6 @@
 # Hotsite Dynamic Architecture - Ikaro
 
-> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/API_CONTRACTS.md`.
+> **When to load:** building or changing the tenant hotsite: the server-driven manifest, branding and design tokens, the module library and its data contracts, Next.js routing and SSR, manifest caching, adding a module and SEO; the authenticated dashboard is in `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md`, endpoints in `docs/API_CONTRACTS.md`; it also covers the planned Billing surfaces: the `TRIAL_SIGNUP_CTA` module, the public `/ikaro-trial` pages and the suspended-tenant "Unavailable" hotsite variant.
 > **Tags:** web, bff, prototypes
 
 ## Overview

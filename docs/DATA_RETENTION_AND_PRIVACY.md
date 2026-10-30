@@ -1,6 +1,6 @@
 # Data Retention & Privacy — Reference
 
-> **When to load:** answering how long personal data is kept (booking photos, public marketing assets, booking-context personal data) or changing storage lifecycle and LGPD behavior; it is a stub, so read what it does not yet cover; the storage layout is in `docs/DATABASE_SCHEMA.md`.
+> **When to load:** answering how long personal data is kept (booking photos, public marketing assets, booking-context personal data, and the planned Billing data: provider events, signup registrations, billing account PII, fiscal retention) or changing storage lifecycle and LGPD behavior; it is a stub, so read what it does not yet cover; the storage layout is in `docs/DATABASE_SCHEMA.md`.
 > **Tags:** backend, database
 
 **Audience:** Platform operators and tenants. This is the source-of-truth reference for how long customer data is kept — tenants can draw from it to tell their own customers how long photos are kept, since the app has no live product-facing terms/privacy page yet.
@@ -60,6 +60,22 @@ The following are explicitly deferred to M17-S51:
 - What happens to this data (and everything else, including the rows listed above) when a customer requests export or deletion
 - What happens to a tenant's data when they leave the platform
 - How the 7-day database backup window (M17-S13) interacts with a deletion that already happened
+
+---
+
+## Planned: Billing data retention (Billing release)
+
+> **PLANNED, NOT YET BUILT.** Tables: `docs/DATABASE_SCHEMA.md` § Schema: `billing`. Nothing below is enforced until the Billing release ships.
+
+| Data | Where | Retention |
+|---|---|---|
+| Webhook idempotency inbox | `billing.provider_events` | **30 days**, deleted daily by the `billing-provider-events-purge` job (UC-114); no personal data beyond the opaque tenant and provider ids |
+| Signup registration (Google `sub`, tax id, terms acceptance) | `billing.signup_registrations` | The tax id is **cleared on completion** (copied to `billing_accounts`); a `RESERVED` row is released after one hour; a `COMPLETED` row (Google `sub`, terms version and time) is kept while the tenant lives because the trial-eligibility rule needs it, and is deleted by the purge's `BILLING` step or immediately by a never-paid self-service discard |
+| Billing account PII (tax id, legal name, billing email, address, terms acceptance) | `billing.billing_accounts` | Kept while the tenant lives; the personal fields are deleted by the purge's `BILLING` step |
+| Charges and their lines/tax lines | `billing.charges`, `charge_lines`, `charge_tax_lines` | **Kept (anonymized, `tenant_id` an opaque id) after a tenant purge for fiscal reasons.** The retention period in years is **not decided**: it is gated on the accountant's answer and must be recorded here before the first real charge |
+| Operator audit payloads | `billing.operator_audit` | Payloads deleted by the purge's `BILLING` step |
+
+Card data never touches Ikaro (the provider-hosted pages hold it), and `has_ever_paid` is never cleared.
 
 ---
 

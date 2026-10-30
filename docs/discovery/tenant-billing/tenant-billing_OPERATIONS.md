@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Operations Map (operator-free by default)
 
+**Promoted 2026-10-29;** canonical home: `docs/USE_CASES.md` (UC-110..145), `docs/DOMAIN_MODEL.md` § Context 7, `docs/DATABASE_SCHEMA.md` § Schema: `billing`, `docs/API_CONTRACTS.md`, `docs/BOUNDED_CONTEXTS.md` § 7 and the plans `plan/M25-TENANT-BILLING-FOUNDATION.md` / `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. Where this file differs, the docs win.
+
 **Status:** Discovery — operating model (added 2026-10-27, second review). Owner decision: this is a SaaS meant to scale, so billing must run with the **smallest possible operational work**. Everything is solved by the system, the tenant (self-service) or the payment provider; a human operator is reserved for genuine edge cases, and every such case is **mapped here** with its trigger, its automatic first response and its runbook.
 
 **Companion docs:** `tenant-billing.md` (R13, decisions 106–111) · `tenant-billing_USECASES.md` (CAND-34, CAND-35) · `tenant-billing_API.md` · `tenant-billing_PROMOTION_SKETCH.md` (stories C1, C5, C13).

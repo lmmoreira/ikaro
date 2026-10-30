@@ -3,7 +3,6 @@
 **Status:** Promoted on 2026-10-29: the use cases are canonical (`docs/USE_CASES.md` UC-110..145, with the other canonical docs) and the first two milestones are `plan/M25-TENANT-BILLING-FOUNDATION.md` and `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md`. This discovery set stays as the permanent *why*; `CAND-XX` labels below are discovery-only. **Still to write:** milestones M27–M30 (purge/discard/deactivation, Stripe/US, automatic collection, annual billing) — when and what each needs first: `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md` § Follow-up milestones to write.
 **Date:** 2026-10-26 (reviewed and revised 2026-10-27: decisions 42–79; second review 2026-10-27: decisions 80–113; third review 2026-10-28, code-verified: decisions 114–127) · **Slug:** `tenant-billing`
 **Companion docs:** `tenant-billing_USECASES.md` (CAND-01..CAND-40) · `tenant-billing_DATA_MODEL.md` (schema `billing`) · `tenant-billing_API.md` (endpoints, webhook, crons) · `tenant-billing_MODULE.md` (hotsite module `TRIAL_SIGNUP_CTA`) · `tenant-billing_PROVIDERS.md` (verified Asaas/Stripe facts, account-opening checklist, launch gates) · `tenant-billing_OPERATIONS.md` (operator-free operating model and the complete operator edge-case map) · `tenant-billing_PROMOTION_SKETCH.md` (suggested milestone and story order) · `prototype/` (start at `index.html`)
-**Promote with:** `/discovery-to-milestone docs/discovery/tenant-billing/tenant-billing.md`
 
 ---
 

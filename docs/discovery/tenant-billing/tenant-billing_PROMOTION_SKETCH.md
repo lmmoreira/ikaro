@@ -1,5 +1,7 @@
 # Discovery: Tenant Billing — Promotion Sketch (suggested milestones and story order)
 
+**Superseded** by `plan/M25-TENANT-BILLING-FOUNDATION.md` and `plan/M26-TENANT-BILLING-COLLECTION-LAUNCH.md` (promoted 2026-10-29); kept only as the discovery record. Where it differs, the plans and docs win.
+
 **Status:** Discovery — a rough, non-binding sketch to give `/discovery-to-milestone` a starting point. Revised in the 2026-10-27 second review: the work is split into **two milestones plus later slices** (it was one with about 45 stories; milestones 2 and 3 were merged on 2026-10-28 into one "collection, self-signup and launch" milestone, third review), the Asaas spike moved first, the tax-ID value object moved into the foundation, gating rollout made safe for in-flight branches, and the operator-free work (`tenant-billing_OPERATIONS.md`) became explicit stories. Story names are placeholders and sizes are not estimated (about 40 stories to the first BR launch: 17 in milestone 1 and 23–24 in milestone 2, plus about 26 in the later slices); the promotion skill decides the final split and may break C3, C10 and B1a–d further, and canonical-docs promotion (`DOMAIN_MODEL`, `USE_CASES`, `API_CONTRACTS`, …, main doc §12) is its Phase A, not a story here; `/discovery-to-milestone` re-derives the real sequence. CAND numbers refer to `tenant-billing_USECASES.md`. `GATE` = needs something outside the code, see `tenant-billing_PROVIDERS.md` §5.
 
 ## Ordering principles
