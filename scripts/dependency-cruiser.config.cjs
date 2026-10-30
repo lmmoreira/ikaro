@@ -202,6 +202,14 @@ module.exports = {
       to: { path: '^src/features/' },
     },
     {
+      name: 'no-web-shared-to-shell-import',
+      comment:
+        'Web shared code is the cross-cutting layer under the shells and must not import from them.',
+      severity: 'error',
+      from: { path: workspace === 'web' ? '^shared/' : '^never/', pathNot: testPath },
+      to: { path: '^shells/' },
+    },
+    {
       name: 'backend-types-protocol-subpaths-only',
       comment:
         'Backend may import only the approved framework-neutral @ikaro/types protocol subpaths.',

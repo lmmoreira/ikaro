@@ -62,6 +62,7 @@ test('boundary configuration contains every Story 1 rule family', () => {
     'no-domain-framework-or-infrastructure-imports',
     'no-bff-to-backend-context-import',
     'no-bff-shared-to-feature-import',
+    'no-web-shared-to-shell-import',
     'backend-types-protocol-subpaths-only',
   ]) {
     assert.ok(ruleNames.has(ruleName), `missing rule: ${ruleName}`);
@@ -372,5 +373,71 @@ test(
       "import { LoyaltyBalance } from '../../loyalty/domain/loyalty-balance.aggregate'; export { LoyaltyBalance };",
       { expectedRule: 'no-booking-to-loyalty-context-import' },
     );
+  },
+);
+
+function cruiseWebFixture(relativePath, source) {
+  const webRoot = path.join(root, 'apps/web');
+  const fixture = path.join(webRoot, relativePath);
+  fs.writeFileSync(fixture, source);
+  try {
+    const result = spawnSync(
+      process.execPath,
+      [
+        dependencyCruiseBin,
+        '--config',
+        path.join(root, 'scripts/dependency-cruiser.config.cjs'),
+        '--ts-config',
+        'tsconfig.json',
+        '--output-type',
+        'err',
+        '--progress',
+        'none',
+        relativePath,
+      ],
+      {
+        cwd: webRoot,
+        encoding: 'utf8',
+        env: { ...process.env, DEP_CRUISE_WORKSPACE: 'web' },
+      },
+    );
+    return { status: result.status, output: result.stdout + result.stderr };
+  } finally {
+    fs.rmSync(fixture, { force: true });
+  }
+}
+
+const SHELL_IMPORT_SOURCE =
+  "import { MOBILE_ACTION_BAR_CLEARANCE_CLASS } from '@/shells/dashboard/utils/mobile-action-bar'; export { MOBILE_ACTION_BAR_CLEARANCE_CLASS };";
+
+test(
+  'dependency-cruiser rejects web shared code importing from a shell',
+  { skip: !nodeSupportsDependencyCruiser() },
+  () => {
+    const { status, output } = cruiseWebFixture(
+      'shared/dependency-cruiser-boundary.fixture.ts',
+      SHELL_IMPORT_SOURCE,
+    );
+
+    assert.notEqual(status, 0, output);
+    assert.match(output, /no-web-shared-to-shell-import/);
+  },
+);
+
+test(
+  'a shell may import web shared code, and a test file under shared may import a shell',
+  { skip: !nodeSupportsDependencyCruiser() },
+  () => {
+    const shellToShared = cruiseWebFixture(
+      'shells/dashboard/dependency-cruiser-boundary.fixture.ts',
+      "import { Card } from '@/shared/components/ui/card'; export { Card };",
+    );
+    const testFile = cruiseWebFixture(
+      'shared/dependency-cruiser-boundary.fixture.spec.ts',
+      SHELL_IMPORT_SOURCE,
+    );
+
+    assert.doesNotMatch(shellToShared.output, /no-web-shared-to-shell-import/);
+    assert.doesNotMatch(testFile.output, /no-web-shared-to-shell-import/);
   },
 );
