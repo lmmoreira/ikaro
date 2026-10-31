@@ -10,7 +10,13 @@ import { InMemoryServiceRepository } from '../../../../test/repositories/booking
 import { InMemoryResourceRepository } from '../../../../test/repositories/booking/in-memory-resource.repository';
 import { ResourceBuilder, ServiceBuilder } from '../../../../test/builders/booking/index';
 import { testAddress, testAddressProps } from '../../../../test/utils/address-helpers';
-import { futureDate, nextWeekday, openSlot, pastDate } from '../../../../test/utils/date-helpers';
+import {
+  futureDate,
+  nextWeekday,
+  openDate,
+  openSlot,
+  pastDate,
+} from '../../../../test/utils/date-helpers';
 import { DEFAULT_TEST_BUSINESS_HOURS } from '../../../../test/utils/business-hours-fixtures';
 import { InMemoryScheduleClosureRepository } from '../../../../test/repositories/booking/in-memory-schedule-closure.repository';
 import { InMemoryScheduleOpeningRepository } from '../../../../test/repositories/booking/in-memory-schedule-opening.repository';
@@ -602,7 +608,7 @@ describe('CreateBookingByStaffUseCase', () => {
       await expect(
         useCase.execute({
           ...guestInput(),
-          scheduledAt: `${futureDate(1)}T23:00:00.000Z`,
+          scheduledAt: `${openDate(1)}T23:00:00.000Z`,
         }),
       ).rejects.toBeInstanceOf(BookingOutsideBusinessHoursError);
     });
