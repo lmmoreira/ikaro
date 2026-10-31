@@ -205,7 +205,7 @@ apps/web/
 - `shells/dashboard` owns authenticated dashboard composition and shell-only presentation.
 - `shells/hotsite` owns public route composition only.
 - Route files stay thin and delegate reusable logic into the owning feature or shell slice.
-- Shared UI primitives live only under `shared/components/ui/`.
+- Shared UI primitives live only under `shared/components/ui/`; the one exception is the public hotsite's branded feedback components under `shared/components/hotsite/`, which read only `--ba-radius`, `--ba-body-font` and `--ba-heading-font`.
 - Shared transport helpers live under `shared/lib/`.
 - Shared pure utilities live under `shared/utils/`.
 - **Actor-scoped view of another domain's aggregate** (e.g. a Customer reading/mutating their own Booking or Loyalty data): the *transport* (fetchers, and hooks that wrap them) and the domain logic live in the *owning* domain's slice (`booking`/`loyalty`), never the actor's own slice (`customer`) — matches the existing Staff-facing pattern. Decided 2026-07-23 per TD31 Story 11, closing a prior undocumented split where Customer-facing Booking/Loyalty transport had drifted into `features/customer/`. See `.copilot/context.md` §11 for the export-naming convention (e.g. `cancelBookingAsCustomer`).

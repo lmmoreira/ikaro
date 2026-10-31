@@ -28,7 +28,7 @@ flowchart TD
     class Ok,Err,Badge,RowErr,Page,PubMsg gap
 ```
 
-Every node in red is a gap: the screens do not use the shared components yet (`TD57-S02` onward; the branded counterpart is `TD57-S06`). The shared components themselves exist since `TD57-S01`.
+Every node in red is a gap: the screens do not use the shared components yet (`TD57-S02` onward). The shared components exist since `TD57-S01`; the branded counterpart for the public hotsite exists since `TD57-S06` and its callers migrate in `TD57-S16`.
 
 ## Pages referenced
 
@@ -39,11 +39,11 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 | `/dashboard/team` | `MemberRow` | TD57-S04 | ⚠ Exists, success message never visible |
 | `/dashboard/resources` | `ResourceListPage` | TD57-S07 | ⚠ Exists, hand-rolled error box |
 | `/[slug]/my-account/bookings/[id]/cancel` | `CancelConfirmPage` | TD57-S11 | ⚠ Exists, error above the content |
-| `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S06, S16 | ⚠ Exists, hand-rolled box |
+| `/[slug]` (lead form) | public lead form + branded feedback component | TD57-S16 | ⚠ Component exists (TD57-S06); form still uses a hand-rolled box |
 | Shared components | `FeedbackMessage`, `ActionPane`, `FieldFeedback`, `useFormFeedback` | TD57-S01 | ✅ EXISTS |
 
 ## Open questions / gaps
 
 - [ ] Customer screens: fixed mobile bar, or keep the in-flow layout they have today? `ActionPane` ships only the fixed bar; decided in TD57-S11
-- [ ] Branded error colour: fixed semantic red or derived from tenant tokens, and how contrast is guaranteed (TD57-S06)
+- [x] Branded error colour: resolved in TD57-S06 — a fixed semantic red/green on the box's own white surface with a dark 1px ring, so the white surface or the ring always reaches 3:1 against any tenant background; only radius and fonts follow the tenant
 - [x] Window-narrowing hint: resolved in TD57-S02 discovery (2026-10-30) — the catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID` is split into seven per-reason codes; the window codes carry the business limit in their text; no static hint
