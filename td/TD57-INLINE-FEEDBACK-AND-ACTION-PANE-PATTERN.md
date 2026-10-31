@@ -394,7 +394,7 @@ Add a `no-restricted-syntax` selector in `apps/web/eslint.config.js` (alongside 
 - [ ] `agent-context-file` and `doc-link-integrity` checks clean
 - [ ] `tsc --noEmit` clean
 
-### Story 6 — Branded hotsite feedback component 🔴
+### Story 6 — Branded hotsite feedback component 🔴 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
