@@ -99,6 +99,6 @@ Single-column `step-container` layout throughout (same wrapper `guest/prototypes
 
 ## Branded inline feedback (`01j-erro-feedback.html`, `01k-sucesso-feedback.html`)
 
-**Status:** ❌ Gap — TD57-S06 (component), TD57-S16 (this form's migration). The pattern, its shared CSS (`shared/feedback-pane.css`, `.fb-ba*`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
+**Status:** ❌ Gap — the component shipped with TD57-S06 (`shared/components/hotsite/branded-feedback-message.tsx`); TD57-S16 migrates this form onto it. The pattern, its shared CSS (`shared/feedback-pane.css`, `.fb-ba*`) and the rules are in `manager/prototypes/feedback-pane/dev-notes.md`.
 
-The public hotsite has no shell and no `ActionPane`, so the message card sits directly under the submit button and reads `--ba-*` (font, radius). The offending field gets a red outline and its own message (`aria-invalid` + `aria-describedby`). Errors use `role="alert"`, success `role="status"`. Open: branded error colour (fixed semantic red here vs derived from tenant tokens).
+The public hotsite has no shell and no `ActionPane`, so the message card sits directly under the submit button and reads `--ba-*` (font, radius). The offending field gets a red outline and its own message (`aria-invalid` + `aria-describedby`). Errors use `role="alert"`, success `role="status"`. Decided in TD57-S06: the colour is a fixed semantic red/green on the box's own white surface with a 4px accent bar, a fixed dark 1px ring and a faint shadow; only radius and fonts follow the tenant.

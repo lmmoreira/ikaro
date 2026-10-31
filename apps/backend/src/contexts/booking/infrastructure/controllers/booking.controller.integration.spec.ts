@@ -2540,7 +2540,7 @@ describe('BookingController (integration)', () => {
         .withTenantId(tenantAId)
         .withName('Janela Curta')
         .withDurationMinutes(30)
-        .withMaxBookingAdvanceDaysOverride(3)
+        .withMaxBookingAdvanceDaysOverride(5)
         .build();
       const notice = new ServiceEntityBuilder()
         .withTenantId(tenantAId)

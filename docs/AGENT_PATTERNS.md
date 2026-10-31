@@ -1129,3 +1129,5 @@ export function ThingForm(): React.JSX.Element {
 ```
 
 Client-side validation uses the same pieces: `feedback.setFieldErrors({ durationMinMinutes: t('required') })` marks every named field and focuses the first in document order; add `feedback.setError(...)` for a form-level line. A control that forwards no ref (`color-picker`, `pill-multi-select`, `time-picker`) takes `ref={feedback.registerField('name')}` on its wrapper. A list-row action uses `FeedbackMessage size="inline"` instead of a pane.
+
+**The public hotsite uses the same hook with a different skin** (it has no shell and no `ActionPane`): render `BrandedFeedbackMessage` (`shared/components/hotsite/`) directly under the submit button with `feedback.feedback`'s `variant`/`title`, and `BrandedFieldFeedback` + `BRANDED_FIELD_INVALID_CLASS` for the field. Never reach for `FeedbackMessage` there (it reads no `--ba-*`) and never colour the box from a tenant token.
