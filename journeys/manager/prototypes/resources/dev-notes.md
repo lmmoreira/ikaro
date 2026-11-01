@@ -40,11 +40,11 @@ All endpoints exist (`apps/bff/src/features/booking/resource.controller.ts`; bac
 
 Lists every `Resource`, sorted by `type` (`LOCATION` first — always exactly one, then `STAFF`, `ROOM`, `EQUIPMENT`), each row showing name, a working-hours summary ("Herda do negócio" when `workingHours = null`, otherwise the per-weekday summary), and an Ativo/Inativo badge. Filterable by both `type` (Todos/Local/Profissionais/Salas/Equipamentos tabs — the shipped list has a "Local" tab, since UC-044 lists `LOCATION` as a filterable type, that the prototype does not draw) and `isActive` (Todos/Ativos/Inativos, added during PR #459 bot review to satisfy UC-044's main flow — no prototype coverage for this second filter dimension). Inactive rows show a "Reativar" action instead of "Desativar" (the shipped row has no "Horários" action, unlike the prototype's rows — the whole row links to the edit route) — same one-click-row-action pattern `manager/equipe.md`'s "Ativar" already established for `UC-031`. `LOCATION` never offers a "Desativar" action (UC-047 doesn't cover deactivating a tenant's one default resource).
 
-**"+ Novo recurso"** — desktop topbar button + mobile FAB, same pair as `manager/equipe.md`'s "+ Convidar membro".
+**"+ Novo recurso"** — desktop topbar button + mobile FAB (`ui/floating-create-button`, shared with the Services and Team lists), same pair as `manager/equipe.md`'s "+ Convidar membro".
 
 ## Component: ResourceCreateForm (`/dashboard/resources/new`, UC-045)
 
-Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or Equipamento swaps the staff-picker for a display-name field, matching the discovery-stage prototype.
+Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or Equipamento swaps the staff-picker for a display-name field, matching the discovery-stage prototype. The create and edit forms share `ResourceFormActionPane` (save and cancel in the desktop pane and the mobile bar, with the form-level message under the buttons) and `use-resource-form-support` (the feedback hook, the staff options and tenant hours, the "an edit clears the old message" wrapper and the identity validation), so a change to either lands in both.
 
 **Form fields:**
 

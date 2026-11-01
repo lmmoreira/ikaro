@@ -1080,7 +1080,7 @@ A second caller (`AvailabilityAlertMatchingService`) injects `AvailabilityQueryS
 
 ### 25. Form screen with an action pane and inline feedback
 
-A dashboard or customer-account screen that saves something reports the result in `ActionPane`, marks the offending field, and never draws its own `role="alert"` box. The rule (placement, roles, row actions, alignment) is `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; this is the skeleton. Canonical source: `apps/web/shared/lib/feedback/use-form-feedback.spec.tsx` (a harness that wires every piece) and `NewBookingServicesStep.tsx` (`FeedbackMessage` in a real step). No screen uses `ActionPane` yet; the first is TD57-S02, `ServiceEditPanels.tsx`.
+A dashboard or customer-account screen that saves something reports the result in `ActionPane`, marks the offending field, and never draws its own `role="alert"` box. The rule (placement, roles, row actions, alignment) is `docs/ENGINEERING_RULES_FRONTEND.md` § A form's error or success message lives in the action pane; this is the skeleton. Canonical source: `apps/web/shared/lib/feedback/use-form-feedback.spec.tsx` (a harness that wires every piece) and `NewBookingServicesStep.tsx` (`FeedbackMessage` in a real step). A create/edit pair that shares one pane and one hook: `ResourceCreateForm.tsx` and `ResourceEditFormFields.tsx` with `ResourceFormActionPane.tsx` and `use-resource-form-support.ts` (extracted so the two forms do not repeat the plumbing, which SonarCloud's duplication gate flags); a tabbed screen whose panels register their save with the page: `ServiceEditPanels.tsx`.
 
 ```tsx
 'use client';
