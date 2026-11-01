@@ -497,42 +497,61 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 
 **Agent:** frontend-ts
 **Complexity:** M
-**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.3
-**Dependencies:** Story 0, Story 1
-**Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
+**Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; `docs/ENGINEERING_RULES_TESTING.md` § SonarCloud's duplicate-test rule; this TD's Appendix A.3
+**Dependencies:** Story 0, Story 1, Story 7 (the `useResourceFormSupport` / `ResourceFormActionPane` precedent this story generalises)
+**Pattern:** plain composition over the Story 1 building blocks, plus one shared `FormActionPane` extracted from Story 7's `ResourceFormActionPane` — no named pattern applies
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). Row actions in `MemberRow.tsx` belong to Story 4 and are not touched here.
 
+**Decisions locked in discovery (2026-11-01):**
+- **Shared pane:** `ResourceFormActionPane` is promoted to `shared/components/ui/form-action-pane.tsx` (props: submit label, cancel href and label, desktop and mobile save test ids, `isSubmitting`, `feedback`, optional hint). Resources, `InviteForm` and `StaffDetailPage` use it and `ResourceFormActionPane.tsx` (+ spec) is deleted, so no second near-identical pane exists (the SonarCloud duplication gate failed on exactly that in TD57-S07). `DeactivateConfirmPage` keeps `ActionPane` directly (its actions differ).
+- **Test ids:** the pane feedback of invite, edit and deactivate uses the pane's default `form-feedback` id. `invite-submit-error`, `staff-detail-submit-error` and the generic deactivate box are dropped. `FieldFeedback` takes no `data-testid`, so `invite-first-name-error`, `invite-last-name-error`, `invite-email-error` and `staff-detail-name-error` are dropped too; the specs assert `aria-invalid` plus the message text. `team-invite-success-banner` is kept.
+- **Deactivate error screens:** the self-deactivation and last-manager screens (`03b`, `03c`) stay dedicated screens, because retrying cannot succeed. The hand-rolled red box becomes a page-level `FeedbackMessage` (`role="alert"`, `testId="page-feedback"`, title `deactivateErrorTitle`, resolved message as the body). `deactivate-error-body` is dropped and `team-deactivate.spec.ts` asserts `page-feedback`. Any other failure (network, 500) renders as `form-feedback` in the pane under the buttons.
+- **Server `field`:** `StaffAlreadyExistsError` carries no `field`, so the duplicate-email error keeps its code-based mapping to the email input (today's behaviour, prototype `02b`), now through `feedback.setFieldErrors({ email })` so the input is marked and focused. No backend change. `NAME_REQUIRED` carries `field: 'name'`: registered on `StaffDetailPage`, unregistered on the invite form (it has first/last name), where it falls back to the form-level message.
+- **Team list:** the filter chips and the truncated-roster notice move inside the list `Card` (`data-testid="team-list-card"`); the invite success banner becomes a page-level success `FeedbackMessage` (`role="status"`, id `team-invite-success-banner` kept). Its 1.8 s auto-dismiss after the redirect is unchanged.
+- **Select staff tenant (`/select-staff-tenant`):** a failed switch keeps the list visible with a page-level `FeedbackMessage` above it (today the whole list disappears). A failed load (`initialOptions === null`) shows `FeedbackMessage` with a "Try again" button calling `router.refresh()`, replacing the link to `/dashboard`. Copy reuses `selectTenantError` / `selectTenantRetry`.
+- **Layout audit:** each Team screen is inspected in a browser (the user approves the local stack when it is started); the deactivate card heading moves to `text-sm font-semibold`.
+- **Journey sync:** `journeys/manager/prototypes/equipe/02b-invite-error.html`, `03b` and `03c` and the matching lines in `equipe/dev-notes.md` show the new placement.
+
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
-**New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
+**Prototype references:** `journeys/manager/prototypes/equipe/` (`02b-invite-error.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`, `dev-notes.md`); journey `journeys/manager/equipe.md`
+**New migration / i18n keys / env vars / feature flags:** none expected (`selectTenantError`, `selectTenantRetry` and the team copy exist); any new copy key in both locales in the same change
 
 **Files to create/modify:**
+- `apps/web/shared/components/ui/form-action-pane.tsx` + `form-action-pane.spec.tsx` (new, extracted from `ResourceFormActionPane`)
+- `apps/web/features/booking/components/dashboard/resources/ResourceFormActionPane.tsx` + `.spec.tsx` (delete), `ResourceCreateForm.tsx`, `ResourceEditForm.tsx` and their specs (switch to `FormActionPane`)
 - `apps/web/features/staff/components/SelectStaffTenantClient.tsx` + `SelectStaffTenantClient.spec.tsx`
 - `apps/web/features/staff/components/team/DeactivateConfirmPage.tsx` + `DeactivateConfirmPage.spec.tsx`
 - `apps/web/features/staff/components/team/InviteForm.tsx` + `InviteForm.spec.tsx`
 - `apps/web/features/staff/components/team/StaffDetailPage.tsx` + `StaffDetailPage.spec.tsx`
 - `apps/web/features/staff/components/team/TeamListPage.tsx` + `TeamListPage.spec.tsx`
-- `apps/web/e2e/team-deactivate.spec.ts` (update ids if the migration renames a `data-testid`)
-- `apps/web/e2e/team-invite.spec.ts` (update ids if the migration renames a `data-testid`)
-- `apps/web/e2e/team-manage.spec.ts` (update ids if the migration renames a `data-testid`)
+- `apps/web/e2e/select-staff-tenant.spec.ts` (new)
+- `apps/web/e2e/team-deactivate.spec.ts`, `apps/web/e2e/team-invite.spec.ts`, `apps/web/e2e/team-manage.spec.ts` (update ids for the renamed `data-testid`s)
+- `journeys/manager/prototypes/equipe/02b-invite-error.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`, `dev-notes.md`
 
 **Acceptance criteria — product:**
 - [ ] Every error and success message of these screens appears in the place Appendix A prescribes (the pane under the buttons, the field, or the page), announced with `role="alert"` / `role="status"`.
 - [ ] A backend `field` marks and focuses the offending input; the first invalid field is scrolled to and focused.
-- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input or button on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
+- [ ] Every screen this story owns follows the visual pattern (`docs/ENGINEERING_RULES_FRONTEND.md` § Alignment and cards): every control sits inside a card (no loose label, input, button or filter chip on the page background), intro text is inside the first card, card headings use the shared `text-sm font-semibold` style, and on desktop the first box starts level with the action pane's card. The Story 0 audit measured only the service edit tabs, so inspect each screen here, top to bottom, and fix what is out of pattern.
+- [ ] After a failed tenant switch the list of establishments stays on screen and the user can pick again.
 
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
-  - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test): `StaffDetailPage` with `field: 'name'`, and the invite form with an unregistered field
+  - [ ] a duplicate-email error (`STAFF_ALREADY_EXISTS`) marks and focuses the email input and shows no pane message
+  - [ ] `form-action-pane.spec.tsx`: feedback under the buttons, desktop and mobile save ids, submit label while submitting, cancel link target; Resources create and edit specs still pass on the shared pane (negative guarantee: `ResourceFormActionPane` no longer exists)
+  - [ ] `DeactivateConfirmPage`: self and last-manager errors render the `page-feedback` screen with the form gone; a generic error renders `form-feedback` in the pane with the form still present
+  - [ ] `TeamListPage`: chips and truncated notice render inside `team-list-card`; the invite banner has `role="status"`
+  - [ ] `SelectStaffTenantClient`: a failed switch keeps the list and shows the feedback; a failed load shows the retry button, which calls `router.refresh()`
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `team-deactivate.spec.ts`, `team-invite.spec.ts`, `team-manage.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] `team-invite.spec.ts`, `team-deactivate.spec.ts`, `team-manage.spec.ts` updated for the renamed ids; `resources-manage.spec.ts` stays green on the shared pane
+  - [ ] new `select-staff-tenant.spec.ts` (the route had no E2E): (1) the dev-login staff opens `/select-staff-tenant`, sees their establishment, picks it and lands on `/dashboard`; (2) with `page.route` stubbing the client-side `switch-staff-tenant` call to 500, the feedback shows and the list stays. The failed-load state is server-fetched and covered by unit only
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
