@@ -56,7 +56,14 @@ vi.mock('./ReschedulePicker', () => ({
 
 const NEW_START = '2030-06-23T13:00:00.000Z';
 const DAY_MS = 24 * 60 * 60 * 1000;
-const daysFromNow = (days: number): string => new Date(Date.now() + days * DAY_MS).toISOString();
+// Only the day is relative to now. The time of day is fixed (15:00 in the tenant's timezone): a
+// booking that starts at the wall-clock time prints that time in the summary and collides with
+// the clock values the assertions look for whenever the suite runs at that hour.
+const daysFromNow = (days: number): string => {
+  const date = new Date(Date.now() + days * DAY_MS);
+  date.setUTCHours(18, 0, 0, 0);
+  return date.toISOString();
+};
 const tenantDay = (iso: string): string =>
   new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(new Date(iso));
 
