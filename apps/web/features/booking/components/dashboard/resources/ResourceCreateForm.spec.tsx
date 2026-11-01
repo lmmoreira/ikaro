@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { renderWithIntl } from '@/test-utils';
@@ -57,9 +57,45 @@ function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
   return found;
 }
 
-beforeEach(() => vi.clearAllMocks());
+const seenWorkingHoursOnChange = vi.hoisted(() => [] as unknown[]);
+
+// Passes straight through to the real editor; it only records the onChange each render hands it.
+vi.mock('./ResourceWorkingHoursEditor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./ResourceWorkingHoursEditor')>();
+  return {
+    ...actual,
+    ResourceWorkingHoursEditor: (
+      props: React.ComponentProps<typeof actual.ResourceWorkingHoursEditor>,
+    ) => {
+      seenWorkingHoursOnChange.push(props.onChange);
+      return <actual.ResourceWorkingHoursEditor {...props} />;
+    },
+  };
+});
+
+const scrollIntoView = vi.fn();
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // jsdom has no scrollIntoView; the hook calls it before focusing the first invalid field.
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scrollIntoView,
+  });
+});
 
 describe('ResourceCreateForm', () => {
+  it('hands the working-hours editor an onChange that keeps its identity across re-renders', async () => {
+    const user = userEvent.setup();
+    seenWorkingHoursOnChange.length = 0;
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.type(screen.getByTestId('resource-identity-name-input'), 'x');
+
+    expect(seenWorkingHoursOnChange.length).toBeGreaterThan(1);
+    expect(new Set(seenWorkingHoursOnChange).size).toBe(1);
+  });
+
   it('swaps the staff-picker for a name field when switching type', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ResourceCreateForm />);
@@ -112,9 +148,95 @@ describe('ResourceCreateForm', () => {
     await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
     await user.click(screen.getByTestId('resource-create-save-desktop'));
 
-    expect(await screen.findByTestId('resource-create-submit-error')).toHaveTextContent(
-      'Este profissional já está vinculado a outro recurso.',
+    const feedback = await screen.findByTestId('form-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Este profissional já está vinculado a outro recurso.');
+    expect(screen.queryByTestId('resource-create-submit-error')).not.toBeInTheDocument();
+  });
+
+  it('renders the server error in the action pane, under the buttons', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(409, 'Conflict', { code: 'BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED' }),
     );
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    const pane = screen.getByTestId('action-pane-desktop');
+    expect(await within(pane).findByTestId('form-feedback')).toBeInTheDocument();
+  });
+
+  it('marks and focuses the staff select when the server names refId as the offending field', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(409, 'Conflict', {
+        code: 'BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED',
+        field: 'refId',
+      }),
+    );
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    const select = screen.getByTestId('resource-identity-staff-select');
+    await waitFor(() => expect(select).toHaveAttribute('aria-invalid', 'true'));
+    expect(select).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+  });
+
+  it('falls back to the form-level message when the server field is not one the form registers', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, 'Unprocessable Entity', {
+        code: 'BOOKING_RESOURCE_NO_WORKING_HOURS',
+        field: 'workingHours.monday',
+      }),
+    );
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-identity-staff-select')).not.toHaveAttribute(
+      'aria-invalid',
+    );
+    expect(screen.getByTestId('resource-identity-name-input')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('marks and focuses the first invalid field when client validation fails', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+
+    const select = screen.getByTestId('resource-identity-staff-select');
+    expect(select).toHaveAttribute('aria-invalid', 'true');
+    expect(select).toHaveFocus();
+    expect(screen.getByTestId('resource-identity-name-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    expect(mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('clears the server error as soon as the manager edits a field', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(409, 'Conflict', { code: 'BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED' }),
+    );
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
+    await user.click(screen.getByTestId('resource-create-save-desktop'));
+    await screen.findByTestId('form-feedback');
+
+    await user.type(screen.getByTestId('resource-identity-name-input'), 'x');
+
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   it('surfaces a 422 no-working-hours error inline (UC-045 A2)', async () => {
@@ -127,7 +249,7 @@ describe('ResourceCreateForm', () => {
     await user.selectOptions(screen.getByTestId('resource-identity-staff-select'), 's-1');
     await user.click(screen.getByTestId('resource-create-save-desktop'));
 
-    expect(await screen.findByTestId('resource-create-submit-error')).toHaveTextContent(
+    expect(await screen.findByTestId('form-feedback')).toHaveTextContent(
       'Este recurso não tem horário de funcionamento e o negócio também não tem horário padrão.',
     );
   });

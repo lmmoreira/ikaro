@@ -115,6 +115,18 @@ describe('ResourceListPage', () => {
     expect(screen.getAllByTestId('resource-row-deactivate-link')).toHaveLength(2);
   });
 
+  it('keeps every filter chip inside the list card, never on the page background', () => {
+    useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
+    renderWithIntl(<ResourceListPage />);
+
+    const card = screen.getByTestId('resource-list-card');
+    const chips = screen.getAllByRole('button').filter((el) => el.hasAttribute('aria-pressed'));
+
+    expect(chips).toHaveLength(8);
+    for (const chip of chips) expect(card).toContainElement(chip);
+    expect(within(card).getByTestId('resource-status-filters')).toBeInTheDocument();
+  });
+
   it('filters by type using the tabs', async () => {
     const user = userEvent.setup();
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
@@ -171,7 +183,25 @@ describe('ResourceListPage', () => {
     });
     renderWithIntl(<ResourceListPage />);
 
-    expect(screen.getByTestId('resource-list-error')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-list-error')).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
     expect(screen.queryByText('Nenhum recurso encontrado.')).not.toBeInTheDocument();
+  });
+
+  it('retries the list load from the page-level error', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+      refetch,
+    });
+    renderWithIntl(<ResourceListPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

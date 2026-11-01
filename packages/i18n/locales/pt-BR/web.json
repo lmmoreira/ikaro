@@ -1161,6 +1161,7 @@
       "deactivateWarningReactivate": "Pode ser reativado a qualquer momento",
       "deactivateConfirm": "Confirmar desativação",
       "deactivateError": "Não foi possível desativar. Tente novamente.",
+      "loadRetry": "Tentar novamente",
       "errors": {
         "nameRequired": "Informe o nome.",
         "staffRequired": "Selecione um profissional."

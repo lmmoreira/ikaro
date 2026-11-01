@@ -1,15 +1,31 @@
 // @vitest-environment jsdom
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { useEffect } from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResourceStaffOptionItem } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
 
 const STAFF_OPTIONS: ResourceStaffOptionItem[] = [
   { id: 's-1', email: 'camila@acme.com', name: 'Camila Duarte', isActive: true, isWrapped: false },
   { id: 's-2', email: 'bruno@acme.com', name: 'Bruno Alves', isActive: true, isWrapped: false },
 ];
+
+type FieldsProps = Omit<Parameters<typeof ResourceIdentityFields>[0], 'feedback'> & {
+  readonly errors?: Record<string, string>;
+};
+
+// Wires the real hook the parent form owns, so the spec exercises the same field marking.
+function Fields({ errors, ...props }: FieldsProps): React.JSX.Element {
+  const feedback = useFormFeedback();
+  const { setFieldErrors } = feedback;
+  useEffect(() => {
+    if (errors) setFieldErrors(errors);
+  }, [errors, setFieldErrors]);
+  return <ResourceIdentityFields {...props} feedback={feedback} />;
+}
 
 function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
   const found = screen
@@ -19,12 +35,29 @@ function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
   return found;
 }
 
+const NAME_REQUIRED = { name: 'Informe o nome.' };
+const STAFF_AND_NAME_REQUIRED = { refId: 'Selecione um profissional.', name: 'Informe o nome.' };
+
+const scrollIntoView = vi.fn();
+
 describe('ResourceIdentityFields', () => {
+  beforeEach(() => {
+    // jsdom has no scrollIntoView; the hook calls it before focusing the first invalid field.
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+  });
+
+  afterEach(() => {
+    scrollIntoView.mockClear();
+  });
+
   it('shows the staff picker for type=STAFF and swaps to a name field for ROOM/EQUIPMENT', async () => {
     const user = userEvent.setup();
     const onTypeChange = vi.fn();
     const { rerender } = renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker
         type="STAFF"
         onTypeChange={onTypeChange}
@@ -42,7 +75,7 @@ describe('ResourceIdentityFields', () => {
     expect(onTypeChange).toHaveBeenCalledWith('ROOM');
 
     rerender(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker
         type="ROOM"
         onTypeChange={onTypeChange}
@@ -64,7 +97,7 @@ describe('ResourceIdentityFields', () => {
       STAFF_OPTIONS[1]!,
     ];
     renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker={false}
         type="STAFF"
         onTypeChange={vi.fn()}
@@ -86,7 +119,7 @@ describe('ResourceIdentityFields', () => {
       { id: 's-3', email: 'ines@acme.com', name: 'Inês Souza', isActive: false, isWrapped: false },
     ];
     renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker={false}
         type="STAFF"
         onTypeChange={vi.fn()}
@@ -107,7 +140,7 @@ describe('ResourceIdentityFields', () => {
       { id: 's-3', email: 'ines@acme.com', name: 'Inês Souza', isActive: false, isWrapped: false },
     ];
     renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker={false}
         type="STAFF"
         onTypeChange={vi.fn()}
@@ -125,7 +158,7 @@ describe('ResourceIdentityFields', () => {
 
   it('hides the type picker when showTypePicker is false', () => {
     renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker={false}
         type="ROOM"
         onTypeChange={vi.fn()}
@@ -142,7 +175,7 @@ describe('ResourceIdentityFields', () => {
 
   it('renders inline errors when provided', () => {
     renderWithIntl(
-      <ResourceIdentityFields
+      <Fields
         showTypePicker={false}
         type="ROOM"
         onTypeChange={vi.fn()}
@@ -151,10 +184,73 @@ describe('ResourceIdentityFields', () => {
         name=""
         onNameChange={vi.fn()}
         staffOptions={STAFF_OPTIONS}
-        nameError="Informe o nome."
+        errors={NAME_REQUIRED}
       />,
     );
 
     expect(screen.getByText('Informe o nome.')).toBeInTheDocument();
+  });
+
+  it('marks the name input invalid, describes it by its message and focuses it', () => {
+    renderWithIntl(
+      <Fields
+        showTypePicker={false}
+        type="ROOM"
+        onTypeChange={vi.fn()}
+        refId=""
+        onRefIdChange={vi.fn()}
+        name=""
+        onNameChange={vi.fn()}
+        staffOptions={STAFF_OPTIONS}
+        errors={NAME_REQUIRED}
+      />,
+    );
+
+    const input = screen.getByTestId('resource-identity-name-input');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveAccessibleDescription(expect.stringContaining('Informe o nome.'));
+    expect(input).toHaveFocus();
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'center' });
+  });
+
+  it('marks the staff select invalid and focuses the first invalid field in document order', () => {
+    renderWithIntl(
+      <Fields
+        showTypePicker
+        type="STAFF"
+        onTypeChange={vi.fn()}
+        refId=""
+        onRefIdChange={vi.fn()}
+        name=""
+        onNameChange={vi.fn()}
+        staffOptions={STAFF_OPTIONS}
+        errors={STAFF_AND_NAME_REQUIRED}
+      />,
+    );
+
+    const select = screen.getByTestId('resource-identity-staff-select');
+    expect(select).toHaveAttribute('aria-invalid', 'true');
+    expect(select).toHaveFocus();
+    expect(screen.getByTestId('resource-identity-name-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+  });
+
+  it('leaves valid fields unmarked', () => {
+    renderWithIntl(
+      <Fields
+        showTypePicker={false}
+        type="ROOM"
+        onTypeChange={vi.fn()}
+        refId=""
+        onRefIdChange={vi.fn()}
+        name="Sala"
+        onNameChange={vi.fn()}
+        staffOptions={STAFF_OPTIONS}
+      />,
+    );
+
+    expect(screen.getByTestId('resource-identity-name-input')).not.toHaveAttribute('aria-invalid');
   });
 });

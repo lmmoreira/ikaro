@@ -192,10 +192,16 @@ test.describe('customer my-account: creating a recurring reservation (M23-S17, U
       await customer.page.getByTestId('recurring-schedules-empty-cta').click();
       await expect(customer.page).toHaveURL(NEW_SCHEDULE_PATH);
 
-      // "Today" is the tenant's: yesterday is not selectable, today is.
+      // "Today" is the tenant's: yesterday is not selectable, today is. The calendar draws only the
+      // weeks of the displayed month, so yesterday has a cell unless it falls outside them (the
+      // 1st of a month that starts a week). A cell that is drawn must be disabled; one that is not
+      // drawn cannot be picked either. Today's cell being enabled proves the calendar has rendered.
       await customer.page.getByTestId('new-schedule-starts-on').click();
       await expect(customer.page.locator(`[data-day="${tenantDate(0)}"] button`)).toBeEnabled();
-      await expect(customer.page.locator(`[data-day="${tenantDate(-1)}"] button`)).toBeDisabled();
+      const yesterday = customer.page.locator(`[data-day="${tenantDate(-1)}"] button`);
+      if ((await yesterday.count()) > 0) {
+        await expect(yesterday).toBeDisabled();
+      }
     } finally {
       await customer.close();
     }

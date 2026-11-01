@@ -1,15 +1,14 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
 import type { ResourceResponse, ResourceType } from '@ikaro/types';
 import { useResources } from '@/features/booking/hooks/useResources';
-import { Button } from '@/shared/components/ui/button';
+import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { ResourceRow, TYPE_LABEL_KEYS } from './ResourceRow';
 
@@ -73,7 +72,7 @@ export function ResourceListPage(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
-  const { data, isLoading, isError, error } = useResources();
+  const { data, isLoading, isError, error, refetch } = useResources();
   const [filter, setFilter] = useState<ResourceFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -119,11 +118,13 @@ export function ResourceListPage(): React.JSX.Element {
     );
   } else if (isError) {
     cardContent = (
-      <div
-        data-testid="resource-list-error"
-        className="px-4 py-10 text-center text-sm text-red-600"
-      >
-        {resolveErrorMessageFromApiError(error, locale)}
+      <div className="p-4">
+        <FeedbackMessage
+          title={resolveApiErrorFeedback(error, locale).message}
+          onRetry={() => void refetch()}
+          retryLabel={t('loadRetry')}
+          testId="resource-list-error"
+        />
       </div>
     );
   } else if (filteredResources.length > 0) {
@@ -153,48 +154,40 @@ export function ResourceListPage(): React.JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-1">
-        {FILTERS.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            type="button"
-            className={buildFilterClass(filter === key)}
-            aria-pressed={filter === key}
-            onClick={() => setFilter(key)}
-          >
-            {t(labelKey, { count: counts[key] })}
-          </button>
-        ))}
-      </div>
+      <Card className="overflow-hidden" data-testid="resource-list-card">
+        <div className="space-y-3 border-b border-border p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {FILTERS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                className={buildFilterClass(filter === key)}
+                aria-pressed={filter === key}
+                onClick={() => setFilter(key)}
+              >
+                {t(labelKey, { count: counts[key] })}
+              </button>
+            ))}
+          </div>
 
-      <div
-        data-testid="resource-status-filters"
-        className="flex flex-wrap items-center gap-2 px-4 pb-1"
-      >
-        {STATUS_FILTERS.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            type="button"
-            className={buildFilterClass(statusFilter === key)}
-            aria-pressed={statusFilter === key}
-            onClick={() => setStatusFilter(key)}
-          >
-            {t(labelKey, { count: statusCounts[key] })}
-          </button>
-        ))}
-      </div>
+          <div data-testid="resource-status-filters" className="flex flex-wrap items-center gap-2">
+            {STATUS_FILTERS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                className={buildFilterClass(statusFilter === key)}
+                aria-pressed={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+              >
+                {t(labelKey, { count: statusCounts[key] })}
+              </button>
+            ))}
+          </div>
+        </div>
+        {cardContent}
+      </Card>
 
-      <Card className="overflow-hidden">{cardContent}</Card>
-
-      <Button
-        asChild
-        size="icon"
-        className="fixed bottom-20 right-6 z-20 h-14 w-14 rounded-full shadow-lg shadow-blue-600/35 lg:hidden"
-      >
-        <Link href="/dashboard/resources/new" aria-label={t('create')}>
-          <Plus className="h-6 w-6" aria-hidden="true" />
-        </Link>
-      </Button>
+      <FloatingCreateButton href="/dashboard/resources/new" label={t('create')} />
     </div>
   );
 }

@@ -179,11 +179,14 @@
         </div>
 
       </div><aside class="detail-aside" aria-label="Ações do recurso"><div class="card" style="padding:1.25rem;">
-        <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.75rem;margin-bottom:1rem;font-size:0.8125rem;color:#dc2626;">
-          Não é possível criar este recurso: Camila Duarte já tem um recurso vinculado, e nenhum horário foi definido (nem aqui, nem no negócio). Resolva os dois pontos acima para continuar.
-        </div>
         <button class="btn-primary" style="display:block;width:100%;text-align:center;padding:.75rem;margin-bottom:.625rem;opacity:0.5;pointer-events:none;" disabled>Criar recurso</button>
         <a href="01-resources-list.html" class="btn-secondary" style="display:block;text-align:center;padding:.75rem;">Cancelar</a>
+      </div>
+      <!-- TD57-S07: the form-level message is its own card BELOW the buttons card, inside the
+           sticky pane (role="alert"), so it follows the scroll; the offending fields above are
+           marked and the first one is focused. -->
+      <div role="alert" style="margin-top:0.75rem;background:#fef2f2;border:1px solid #fca5a5;border-radius:var(--ba-radius);padding:0.875rem 1rem;font-size:0.8125rem;color:#991b1b;">
+        Não é possível criar este recurso: Camila Duarte já tem um recurso vinculado, e nenhum horário foi definido (nem aqui, nem no negócio). Resolva os dois pontos acima para continuar.
       </div></aside></div></div>
     </main>
   </div>
