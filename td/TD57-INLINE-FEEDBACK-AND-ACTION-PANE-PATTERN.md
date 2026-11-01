@@ -443,7 +443,7 @@ The public hotsite has no shell and no action pane, but its forms (booking info,
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 7 — Migrate Resources dashboard forms and load states to the feedback pattern 🟡
+### Story 7 — Migrate Resources dashboard forms and load states to the feedback pattern 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** M
