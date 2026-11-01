@@ -1161,6 +1161,7 @@
       "deactivateWarningReactivate": "Can be reactivated at any time",
       "deactivateConfirm": "Confirm deactivation",
       "deactivateError": "Could not deactivate. Please try again.",
+      "loadRetry": "Try again",
       "errors": {
         "nameRequired": "Enter a name.",
         "staffRequired": "Select a team member."

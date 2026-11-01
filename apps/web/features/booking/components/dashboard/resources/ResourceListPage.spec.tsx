@@ -171,7 +171,25 @@ describe('ResourceListPage', () => {
     });
     renderWithIntl(<ResourceListPage />);
 
-    expect(screen.getByTestId('resource-list-error')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-list-error')).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
     expect(screen.queryByText('Nenhum recurso encontrado.')).not.toBeInTheDocument();
+  });
+
+  it('retries the list load from the page-level error', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    useResourcesMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+      refetch,
+    });
+    renderWithIntl(<ResourceListPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

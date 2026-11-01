@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ResourceResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
+import { ApiError } from '@/shared/lib/api/errors';
 import { ResourceEditFormFields } from './ResourceEditFormFields';
 
 const routerPush = vi.fn();
@@ -82,7 +83,16 @@ vi.mock('@/features/platform/hooks/useTenantSettings', () => ({
   }),
 }));
 
-beforeEach(() => vi.clearAllMocks());
+const scrollIntoView = vi.fn();
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  // jsdom has no scrollIntoView; the hook calls it before focusing the first invalid field.
+  Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+    configurable: true,
+    value: scrollIntoView,
+  });
+});
 
 describe('ResourceEditFormFields', () => {
   it('pre-fills every field from the resource', () => {
@@ -171,6 +181,68 @@ describe('ResourceEditFormFields', () => {
       ),
     );
     expect(routerPush).toHaveBeenCalledWith('/dashboard/resources');
+  });
+
+  it('renders a server error in the action pane with an alert role', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, 'Unprocessable Entity', { code: 'BOOKING_RESOURCE_NO_WORKING_HOURS' }),
+    );
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(screen.queryByTestId('resource-edit-submit-error')).not.toBeInTheDocument();
+  });
+
+  it('marks and focuses the name input when the server names it as the offending field', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, 'Unprocessable Entity', {
+        code: 'BOOKING_RESOURCE_NO_WORKING_HOURS',
+        field: 'name',
+      }),
+    );
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    const input = screen.getByTestId('resource-identity-name-input');
+    await waitFor(() => expect(input).toHaveAttribute('aria-invalid', 'true'));
+    expect(input).toHaveFocus();
+  });
+
+  it('falls back to the form-level message for a field the form does not register', async () => {
+    const user = userEvent.setup();
+    mutateAsync.mockRejectedValue(
+      new ApiError(422, 'Unprocessable Entity', {
+        code: 'BOOKING_RESOURCE_NO_WORKING_HOURS',
+        field: 'workingHours',
+      }),
+    );
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    expect(await screen.findByTestId('form-feedback')).toBeInTheDocument();
+    expect(screen.getByTestId('resource-identity-name-input')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('marks and focuses the name input when client validation fails', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    await user.clear(screen.getByTestId('resource-identity-name-input'));
+    await user.click(screen.getByTestId('resource-edit-save-desktop'));
+
+    const input = screen.getByTestId('resource-identity-name-input');
+    expect(input).toHaveAttribute('aria-invalid', 'true');
+    expect(input).toHaveFocus();
+    expect(mutateAsync).not.toHaveBeenCalled();
   });
 
   it("preserves a STAFF resource's own custom name when editing an unrelated field (Resource.name is independent of Staff.name)", async () => {

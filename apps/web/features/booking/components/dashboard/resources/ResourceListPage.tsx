@@ -9,7 +9,8 @@ import { useResources } from '@/features/booking/hooks/useResources';
 import { Button } from '@/shared/components/ui/button';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { ResourceRow, TYPE_LABEL_KEYS } from './ResourceRow';
 
@@ -73,7 +74,7 @@ export function ResourceListPage(): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
-  const { data, isLoading, isError, error } = useResources();
+  const { data, isLoading, isError, error, refetch } = useResources();
   const [filter, setFilter] = useState<ResourceFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
@@ -119,11 +120,13 @@ export function ResourceListPage(): React.JSX.Element {
     );
   } else if (isError) {
     cardContent = (
-      <div
-        data-testid="resource-list-error"
-        className="px-4 py-10 text-center text-sm text-red-600"
-      >
-        {resolveErrorMessageFromApiError(error, locale)}
+      <div className="p-4">
+        <FeedbackMessage
+          title={resolveApiErrorFeedback(error, locale).message}
+          onRetry={() => void refetch()}
+          retryLabel={t('loadRetry')}
+          testId="resource-list-error"
+        />
       </div>
     );
   } else if (filteredResources.length > 0) {

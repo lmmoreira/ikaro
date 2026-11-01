@@ -4,7 +4,8 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useResource } from '@/features/booking/hooks/useResources';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { ResourceDeactivateConfirm } from './ResourceDeactivateConfirm';
 
@@ -19,10 +20,11 @@ interface ResourceDeactivatePageProps {
 export function ResourceDeactivatePage({
   resourceId,
 }: ResourceDeactivatePageProps): React.JSX.Element {
+  const t = useTranslations('dashboard.resourcesPage');
   const commonT = useTranslations('common');
   const locale = useResolvedLocale();
   const router = useRouter();
-  const { data: resource, isLoading, isError, error } = useResource(resourceId);
+  const { data: resource, isLoading, isError, error, refetch } = useResource(resourceId);
 
   useEffect(() => {
     if (resource && !resource.isActive) router.replace('/dashboard/resources');
@@ -30,12 +32,12 @@ export function ResourceDeactivatePage({
 
   if (isError) {
     return (
-      <div
-        data-testid="resource-deactivate-load-error"
-        className="px-4 py-10 text-center text-sm text-red-600"
-      >
-        {resolveErrorMessageFromApiError(error, locale)}
-      </div>
+      <FeedbackMessage
+        title={resolveApiErrorFeedback(error, locale).message}
+        onRetry={() => void refetch()}
+        retryLabel={t('loadRetry')}
+        testId="resource-deactivate-load-error"
+      />
     );
   }
 

@@ -2,6 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { ResourceStaffOptionItem, ResourceType } from '@ikaro/types';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import type { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { cn } from '@/shared/utils/cn';
 
 const INPUT_CLASS =
@@ -24,8 +26,10 @@ interface ResourceIdentityFieldsProps {
   readonly name: string;
   readonly onNameChange: (name: string) => void;
   readonly staffOptions: readonly ResourceStaffOptionItem[];
-  readonly nameError?: string;
-  readonly refIdError?: string;
+  readonly feedback: Pick<
+    ReturnType<typeof useFormFeedback>,
+    'fieldProps' | 'fieldErrors' | 'fieldErrorId'
+  >;
 }
 
 // Shared type-picker + STAFF-picker-or-name-field block, used by both ResourceCreateForm and
@@ -40,10 +44,10 @@ export function ResourceIdentityFields({
   name,
   onNameChange,
   staffOptions,
-  nameError,
-  refIdError,
+  feedback,
 }: ResourceIdentityFieldsProps): React.JSX.Element {
   const t = useTranslations('dashboard.resourcesPage');
+  const { fieldProps, fieldErrors, fieldErrorId } = feedback;
   // Only active staff can be newly wrapped (S01's own domain rule) — but keep the currently
   // selected option visible (disabled) if it points at a since-deactivated staff member, so
   // editing an already-wrapped resource still shows its real current selection instead of
@@ -99,8 +103,8 @@ export function ResourceIdentityFields({
                 const picked = staffOptions.find((staff) => staff.id === newRefId);
                 if (picked) onNameChange(picked.name ?? '');
               }}
-              aria-invalid={Boolean(refIdError)}
-              className={INPUT_CLASS}
+              {...fieldProps('refId')}
+              className={cn(INPUT_CLASS, fieldErrors.refId && FIELD_INVALID_CLASS)}
             >
               <option value="">{t('staffPlaceholder')}</option>
               {selectableStaffOptions.map((staff) => (
@@ -115,7 +119,7 @@ export function ResourceIdentityFields({
               ))}
             </select>
             <p className="mt-1.5 text-sm text-gray-500">{t('staffHint')}</p>
-            {refIdError && <p className="mt-1.5 text-sm text-red-600">{refIdError}</p>}
+            <FieldFeedback id={fieldErrorId('refId')}>{fieldErrors.refId}</FieldFeedback>
           </div>
 
           <div>
@@ -128,10 +132,10 @@ export function ResourceIdentityFields({
               value={name}
               onChange={(event) => onNameChange(event.target.value)}
               placeholder={t('staffNamePlaceholder')}
-              aria-invalid={Boolean(nameError)}
-              className={INPUT_CLASS}
+              {...fieldProps('name')}
+              className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
             />
-            {nameError && <p className="mt-1.5 text-sm text-red-600">{nameError}</p>}
+            <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
           </div>
         </>
       ) : (
@@ -145,13 +149,13 @@ export function ResourceIdentityFields({
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
             placeholder={type === 'ROOM' ? t('roomNamePlaceholder') : t('equipmentNamePlaceholder')}
-            aria-invalid={Boolean(nameError)}
-            className={INPUT_CLASS}
+            {...fieldProps('name')}
+            className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
           />
           <p className="mt-1.5 text-sm text-gray-500">
             {type === 'ROOM' ? t('roomNameHint') : t('equipmentNameHint')}
           </p>
-          {nameError && <p className="mt-1.5 text-sm text-red-600">{nameError}</p>}
+          <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
         </div>
       )}
     </>

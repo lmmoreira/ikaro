@@ -454,6 +454,13 @@ The public hotsite has no shell and no action pane, but its forms (booking info,
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). Row actions in `ResourceRow.tsx` belong to Story 4 and are not touched here.
 
+**Decisions locked in discovery (2026-11-01):**
+- **Test ids:** the pane feedback of create, edit and deactivate uses the pane's default `form-feedback` id, as the migrated service screens do (`services-resource-config.spec.ts`); the per-screen `resource-*-submit-error` / `resource-deactivate-error` ids are dropped. The three page-level load errors keep `resource-list-error`, `resource-edit-load-error` and `resource-deactivate-load-error`.
+- **Load failures:** page-level `FeedbackMessage` with `onRetry={() => void query.refetch()}` (precedent: `RecurringScheduleApprovalDetail`, `SchedulingExceptionWorklistPage`); the title comes from `resolveApiErrorFeedback`; the retry label reuses an existing `common` key, else a new key in both locales.
+- **Server `field`:** the backend resource errors already carry `field` (`refId`, `maxCapacity`, `type`, `workingHours`, `workingHours.<day>`). `ResourceIdentityFields` receives `fieldProps`, `fieldErrors` and `fieldErrorId` from the parent's `useFormFeedback`. A `field` the form does not register falls back to the form-level message. If a unit test shows the BFF drops `field`, the BFF fix is part of this story.
+- **Layout audit:** each Resources screen is inspected in a browser (user approved the local stack); the deactivate card heading moves to `text-sm font-semibold`.
+- **Journey sync:** `journeys/manager/prototypes/resources/02b-criar-recurso-erro.html` and its line in `dev-notes.md` are updated to show the error in the action pane.
+
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none

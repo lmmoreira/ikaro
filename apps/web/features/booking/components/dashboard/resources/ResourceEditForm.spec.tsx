@@ -97,6 +97,25 @@ describe('ResourceEditForm', () => {
     });
     renderWithIntl(<ResourceEditForm resourceId="r-1" />);
 
-    expect(screen.getByTestId('resource-edit-load-error')).toBeInTheDocument();
+    const feedback = screen.getByTestId('resource-edit-load-error');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
+  });
+
+  it('retries the load from the page-level error', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    useResourceMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+      refetch,
+    });
+    renderWithIntl(<ResourceEditForm resourceId="r-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });

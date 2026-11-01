@@ -57,7 +57,7 @@ Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or 
 | `turnoverMinutes` | `<Input type="number">` | optional, default 0, `>= 0` |
 | `maxCapacity` | `<Input type="number">` (hidden for STAFF — discarded on submit even if a stale value exists from a prior type selection) | optional, `> 0` when set |
 
-**Error messages (pt-BR, from UC-045 alt flows):** surfaced inline via the shared API-error resolver, not hardcoded per-code strings as originally drafted here.
+**Error messages (pt-BR, from UC-045 alt flows):** surfaced via the shared API-error resolver, not hardcoded per-code strings as originally drafted here. The form-level message renders in the action pane, in its own card below the buttons (TD57-S07); a `field` named by the server (`refId`, `name`) or by client validation marks and focuses that input, and any other `field` leaves only the form-level message.
 - 409 staff already wrapped → `BOOKING_RESOURCE_STAFF_ALREADY_WRAPPED`
 - 422 no working hours anywhere → `BOOKING_RESOURCE_NO_WORKING_HOURS`
 

@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { ResourceResponse } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
@@ -56,6 +57,25 @@ describe('ResourceDeactivatePage', () => {
     });
     renderWithIntl(<ResourceDeactivatePage resourceId="r-1" />);
 
-    expect(screen.getByTestId('resource-deactivate-load-error')).toBeInTheDocument();
+    const feedback = screen.getByTestId('resource-deactivate-load-error');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(screen.getByRole('button', { name: 'Tentar novamente' })).toBeInTheDocument();
+  });
+
+  it('retries the load from the page-level error', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn();
+    useResourceMock.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      error: new Error('network down'),
+      refetch,
+    });
+    renderWithIntl(<ResourceDeactivatePage resourceId="r-1" />);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });
