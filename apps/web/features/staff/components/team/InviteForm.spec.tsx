@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiError } from '@/shared/lib/api/errors';
@@ -77,7 +77,21 @@ describe('InviteForm', () => {
     expect(screen.getByText('Informe o nome.')).toBeInTheDocument();
     expect(screen.getByText('Informe o sobrenome.')).toBeInTheDocument();
     expect(screen.getByText('E-mail inválido.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Nome *')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('Nome *')).toHaveFocus();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(mockInviteStaff).not.toHaveBeenCalled();
+  });
+
+  it('removes a field error as soon as the field is edited', async () => {
+    const user = userEvent.setup();
+    renderWithIntl(<InviteForm />);
+
+    await user.click(getPrimarySubmitButton());
+    await user.type(screen.getByLabelText('Nome *'), 'M');
+
+    expect(screen.queryByText('Informe o nome.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText('Nome *')).not.toHaveAttribute('aria-invalid');
   });
 
   it('submits the invite and redirects to the team list with the invited email', async () => {
@@ -120,6 +134,8 @@ describe('InviteForm', () => {
       ),
     ).toBeInTheDocument();
     expect(screen.getByLabelText('E-mail *')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByLabelText('E-mail *')).toHaveFocus();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(screen.getByLabelText('Nome *')).toHaveValue('Maria');
     expect(screen.getByLabelText('Sobrenome *')).toHaveValue('Oliveira');
     expect(routerPush).not.toHaveBeenCalled();
@@ -136,7 +152,32 @@ describe('InviteForm', () => {
     await user.type(screen.getByLabelText('E-mail *'), 'maria.oliveira@gmail.com');
     await user.click(getPrimarySubmitButton());
 
-    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(screen.getByLabelText('E-mail *')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('falls back to the form-level message for a server field the form does not register', async () => {
+    const user = userEvent.setup();
+    mockInviteStaff.mockRejectedValue(
+      new ApiError(422, 'Unprocessable', { code: 'STAFF_NAME_REQUIRED', field: 'name' }),
+    );
+
+    renderWithIntl(<InviteForm />);
+
+    await user.type(screen.getByLabelText('Nome *'), 'Maria');
+    await user.type(screen.getByLabelText('Sobrenome *'), 'Oliveira');
+    await user.type(screen.getByLabelText('E-mail *'), 'maria.oliveira@gmail.com');
+    await user.click(getPrimarySubmitButton());
+
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveTextContent('O nome é obrigatório.');
+    expect(screen.getByLabelText('Nome *')).not.toHaveAttribute('aria-invalid');
   });
 
   it('links Cancelar to the team list on both desktop and mobile action bars', () => {

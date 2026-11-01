@@ -1,21 +1,23 @@
 'use client';
 
 import { useEffect, useState, type SubmitEvent } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { StaffErrorCode, type StaffRole } from '@ikaro/types';
 import { useInviteStaff } from '@/features/staff/hooks/useStaff';
-import { validateInviteForm, type InviteFormErrors } from '@/features/staff/invite-form';
-import { Button } from '@/shared/components/ui/button';
+import { validateInviteForm } from '@/features/staff/invite-form';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { cn } from '@/shared/utils/cn';
 
 const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
+  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 export function InviteForm(): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
@@ -25,11 +27,12 @@ export function InviteForm(): React.JSX.Element {
   const inviteStaffMutation = useInviteStaff();
   const topbarStatus = useDashboardTopbarStatus();
   const setStaffRoleStatus = topbarStatus?.setStaffRoleStatus;
+  const feedback = useFormFeedback();
+  const { fieldProps, fieldErrors, fieldErrorId, clear: clearFeedback } = feedback;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<StaffRole>('STAFF');
-  const [fieldErrors, setFieldErrors] = useState<InviteFormErrors>({});
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const isSubmitting = isSubmittingLocal || inviteStaffMutation.isPending;
@@ -38,25 +41,37 @@ export function InviteForm(): React.JSX.Element {
     setStaffRoleStatus?.(role);
   }, [role, setStaffRoleStatus]);
 
+  // An edit removes the previous error, as the other migrated forms do.
+  function edit<T>(setter: (value: T) => void): (value: T) => void {
+    return (value) => {
+      clearFeedback();
+      setter(value);
+    };
+  }
+
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    clearFeedback();
 
     const validation = validateInviteForm({ firstName, lastName, email, role }, t);
-    setFieldErrors(validation.errors);
-    if (!validation.normalized) return;
+    if (!validation.normalized) {
+      feedback.setFieldErrors(validation.errors);
+      return;
+    }
 
     setIsSubmittingLocal(true);
     try {
       await inviteStaffMutation.mutateAsync(validation.normalized);
       router.push(`/dashboard/team?invited=${encodeURIComponent(validation.normalized.email)}`);
     } catch (err) {
+      // The backend sends no `field` for an existing e-mail, so the code decides which input
+      // carries it; every other failure is the form-level message under the buttons.
       const code = extractProblemCode(err);
       if (code === StaffErrorCode.ALREADY_EXISTS) {
-        setFieldErrors({ email: resolveErrorMessage(code, locale) });
-        return;
+        feedback.setFieldErrors({ email: resolveErrorMessage(code, locale) });
+      } else {
+        feedback.setFromApiError(err, locale);
       }
-
-      setFieldErrors({ submit: resolveErrorMessage(code, locale) });
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -80,21 +95,14 @@ export function InviteForm(): React.JSX.Element {
                   data-testid="invite-first-name-input"
                   type="text"
                   value={firstName}
-                  onChange={(event) => setFirstName(event.target.value)}
+                  onChange={(event) => edit(setFirstName)(event.target.value)}
                   placeholder={t('firstNamePlaceholder')}
-                  aria-invalid={Boolean(fieldErrors.firstName)}
-                  aria-describedby={fieldErrors.firstName ? 'invite-first-name-error' : undefined}
-                  className={INPUT_CLASS}
+                  {...fieldProps('firstName')}
+                  className={cn(INPUT_CLASS, fieldErrors.firstName && FIELD_INVALID_CLASS)}
                 />
-                {fieldErrors.firstName && (
-                  <p
-                    id="invite-first-name-error"
-                    data-testid="invite-first-name-error"
-                    className="mt-1.5 text-sm text-red-600"
-                  >
-                    {fieldErrors.firstName}
-                  </p>
-                )}
+                <FieldFeedback id={fieldErrorId('firstName')}>
+                  {fieldErrors.firstName}
+                </FieldFeedback>
               </div>
               <div>
                 <label
@@ -108,21 +116,12 @@ export function InviteForm(): React.JSX.Element {
                   data-testid="invite-last-name-input"
                   type="text"
                   value={lastName}
-                  onChange={(event) => setLastName(event.target.value)}
+                  onChange={(event) => edit(setLastName)(event.target.value)}
                   placeholder={t('lastNamePlaceholder')}
-                  aria-invalid={Boolean(fieldErrors.lastName)}
-                  aria-describedby={fieldErrors.lastName ? 'invite-last-name-error' : undefined}
-                  className={INPUT_CLASS}
+                  {...fieldProps('lastName')}
+                  className={cn(INPUT_CLASS, fieldErrors.lastName && FIELD_INVALID_CLASS)}
                 />
-                {fieldErrors.lastName && (
-                  <p
-                    id="invite-last-name-error"
-                    data-testid="invite-last-name-error"
-                    className="mt-1.5 text-sm text-red-600"
-                  >
-                    {fieldErrors.lastName}
-                  </p>
-                )}
+                <FieldFeedback id={fieldErrorId('lastName')}>{fieldErrors.lastName}</FieldFeedback>
               </div>
             </div>
 
@@ -138,75 +137,32 @@ export function InviteForm(): React.JSX.Element {
                 data-testid="invite-email-input"
                 type="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => edit(setEmail)(event.target.value)}
                 placeholder={t('emailPlaceholder')}
-                aria-invalid={Boolean(fieldErrors.email)}
-                aria-describedby={fieldErrors.email ? 'invite-email-error' : 'invite-email-hint'}
-                className={INPUT_CLASS}
+                {...fieldProps('email')}
+                className={cn(INPUT_CLASS, fieldErrors.email && FIELD_INVALID_CLASS)}
               />
               {fieldErrors.email ? (
-                <p
-                  id="invite-email-error"
-                  data-testid="invite-email-error"
-                  className="mt-1.5 text-sm text-red-600"
-                >
-                  {fieldErrors.email}
-                </p>
+                <FieldFeedback id={fieldErrorId('email')}>{fieldErrors.email}</FieldFeedback>
               ) : (
-                <p id="invite-email-hint" className="mt-1.5 text-sm text-gray-500">
-                  {t('emailHint')}
-                </p>
+                <p className="mt-1.5 text-sm text-gray-500">{t('emailHint')}</p>
               )}
             </div>
 
-            <RoleSelectorField staffRole={role} onSelect={setRole} />
-
-            {fieldErrors.submit && (
-              <div
-                data-testid="invite-submit-error"
-                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-              >
-                {fieldErrors.submit}
-              </div>
-            )}
+            <RoleSelectorField staffRole={role} onSelect={edit(setRole)} />
           </CardContent>
         </Card>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <Button
-                type="submit"
-                data-testid="invite-submit-desktop"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? commonT('loading') : t('inviteSubmit')}
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/team">{commonT('cancel')}</Link>
-              </Button>
-              <hr className="border-t border-gray-200" />
-              <p className="text-sm leading-6 text-gray-500">{t('inviteAsideHint')}</p>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid grid-cols-2 gap-3">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/dashboard/team">{commonT('cancel')}</Link>
-          </Button>
-          <Button
-            type="submit"
-            data-testid="invite-submit-mobile"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? commonT('loading') : t('inviteSubmit')}
-          </Button>
-        </div>
+        <FormActionPane
+          submitLabel={isSubmitting ? commonT('loading') : t('inviteSubmit')}
+          cancelLabel={commonT('cancel')}
+          cancelHref="/dashboard/team"
+          desktopSaveTestId="invite-submit-desktop"
+          mobileSaveTestId="invite-submit-mobile"
+          isSubmitting={isSubmitting}
+          feedback={feedback.feedback}
+          hint={t('inviteAsideHint')}
+        />
       </div>
     </form>
   );

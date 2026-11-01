@@ -1,29 +1,25 @@
 'use client';
 
 import { useEffect, useState, type SubmitEvent } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { StaffResponse, StaffRole } from '@ikaro/types';
 import { useUpdateStaff } from '@/features/staff/hooks/useStaff';
-import { Button } from '@/shared/components/ui/button';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { RoleSelectorField } from '@/features/staff/components/team/RoleSelectorField';
-import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
+import { cn } from '@/shared/utils/cn';
 
 interface StaffDetailPageProps {
   readonly staff: StaffResponse;
 }
 
-interface StaffDetailFormErrors {
-  name?: string;
-  submit?: string;
-}
-
 const INPUT_CLASS =
-  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
+  'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100';
 
 export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Element {
   const t = useTranslations('dashboard.teamPage');
@@ -39,7 +35,8 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
   const setPageTitleOverride = topbarStatus?.setPageTitleOverride;
   const [name, setName] = useState(staff.name ?? '');
   const [role, setRole] = useState<StaffRole>(staff.role);
-  const [fieldErrors, setFieldErrors] = useState<StaffDetailFormErrors>({});
+  const feedback = useFormFeedback();
+  const { fieldProps, fieldErrors, fieldErrorId, clear: clearFeedback } = feedback;
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const isSubmitting = isSubmittingLocal || updateStaffMutation.isPending;
@@ -67,15 +64,23 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
     setPageTitleOverride,
   ]);
 
+  // An edit removes the previous error, as the other migrated forms do.
+  function edit<T>(setter: (value: T) => void): (value: T) => void {
+    return (value) => {
+      clearFeedback();
+      setter(value);
+    };
+  }
+
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
+    clearFeedback();
 
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setFieldErrors({ name: t('errors.fullNameRequired') });
+      feedback.setFieldErrors({ name: t('errors.fullNameRequired') });
       return;
     }
-    setFieldErrors({});
 
     setIsSubmittingLocal(true);
     try {
@@ -85,7 +90,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
       });
       router.push('/dashboard/team');
     } catch (err) {
-      setFieldErrors({ submit: resolveErrorMessageFromApiError(err, locale) });
+      feedback.setFromApiError(err, locale);
     } finally {
       setIsSubmittingLocal(false);
     }
@@ -108,20 +113,11 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
                 data-testid="staff-detail-name-input"
                 type="text"
                 value={name}
-                onChange={(event) => setName(event.target.value)}
-                aria-invalid={Boolean(fieldErrors.name)}
-                aria-describedby={fieldErrors.name ? 'staff-detail-name-error' : undefined}
-                className={INPUT_CLASS}
+                onChange={(event) => edit(setName)(event.target.value)}
+                {...fieldProps('name')}
+                className={cn(INPUT_CLASS, fieldErrors.name && FIELD_INVALID_CLASS)}
               />
-              {fieldErrors.name && (
-                <p
-                  id="staff-detail-name-error"
-                  data-testid="staff-detail-name-error"
-                  className="mt-1.5 text-sm text-red-600"
-                >
-                  {fieldErrors.name}
-                </p>
-              )}
+              <FieldFeedback id={fieldErrorId('name')}>{fieldErrors.name}</FieldFeedback>
             </div>
 
             <div>
@@ -143,52 +139,19 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
               <p className="mt-1.5 text-sm text-gray-500">{t('emailReadonlyHint')}</p>
             </div>
 
-            <RoleSelectorField staffRole={role} onSelect={setRole} />
-
-            {fieldErrors.submit && (
-              <div
-                data-testid="staff-detail-submit-error"
-                className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
-              >
-                {fieldErrors.submit}
-              </div>
-            )}
+            <RoleSelectorField staffRole={role} onSelect={edit(setRole)} />
           </CardContent>
         </Card>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
-              <Button
-                type="submit"
-                data-testid="staff-detail-save-desktop"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? commonT('loading') : commonT('save')}
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/team">{commonT('cancel')}</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <div className="grid grid-cols-2 gap-3">
-          <Button asChild variant="outline" className="w-full">
-            <Link href="/dashboard/team">{commonT('cancel')}</Link>
-          </Button>
-          <Button
-            type="submit"
-            data-testid="staff-detail-save-mobile"
-            className="w-full"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? commonT('loading') : commonT('save')}
-          </Button>
-        </div>
+        <FormActionPane
+          submitLabel={isSubmitting ? commonT('loading') : commonT('save')}
+          cancelLabel={commonT('cancel')}
+          cancelHref="/dashboard/team"
+          desktopSaveTestId="staff-detail-save-desktop"
+          mobileSaveTestId="staff-detail-save-mobile"
+          isSubmitting={isSubmitting}
+          feedback={feedback.feedback}
+        />
       </div>
     </form>
   );

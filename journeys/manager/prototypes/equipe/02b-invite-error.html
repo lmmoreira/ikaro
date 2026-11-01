@@ -103,7 +103,10 @@
         <div class="form-group">
           <label class="form-label" for="email">E-mail *</label>
           <input id="email" type="email" class="form-input has-error" value="joao.silva@gmail.com">
-          <p class="field-error">Este e-mail já está cadastrado na sua equipe.</p>
+          <!-- TD57-S08: the message is the input's aria-describedby text, the input is marked and takes
+               focus, and no message appears in the action pane (the backend sends no field, so the web
+               maps STAFF_ALREADY_EXISTS to this input). -->
+          <p class="field-error">Já existe um membro da equipe com este e-mail neste estabelecimento.</p>
         </div>
 
         <div class="form-group">

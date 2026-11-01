@@ -511,6 +511,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - **Server `field`:** `StaffAlreadyExistsError` carries no `field`, so the duplicate-email error keeps its code-based mapping to the email input (today's behaviour, prototype `02b`), now through `feedback.setFieldErrors({ email })` so the input is marked and focused. No backend change. `NAME_REQUIRED` carries `field: 'name'`: registered on `StaffDetailPage`, unregistered on the invite form (it has first/last name), where it falls back to the form-level message.
 - **Team list:** the filter chips and the truncated-roster notice move inside the list `Card` (`data-testid="team-list-card"`); the invite success banner becomes a page-level success `FeedbackMessage` (`role="status"`, id `team-invite-success-banner` kept). Its 1.8 s auto-dismiss after the redirect is unchanged.
 - **Select staff tenant (`/select-staff-tenant`):** a failed switch keeps the list visible with a page-level `FeedbackMessage` above it (today the whole list disappears). A failed load (`initialOptions === null`) shows `FeedbackMessage` with a "Try again" button calling `router.refresh()`, replacing the link to `/dashboard`. Copy reuses `selectTenantError` / `selectTenantRetry`.
+- **Resolver (found by the select-staff-tenant E2E):** `extractProblemDetailShape` ignored `FetchError`, the base of the raw-`fetch` helpers' errors (`AuthFetchError` among them), so a failed tenant switch always showed the generic message and dropped the backend `code` and `field`. It now reads `code` and `field` from a `FetchError` too (`shared/lib/api/errors.ts`), with a spec. The picker's unit spec throws a `FetchError`, as the real helper does.
 - **Layout audit:** each Team screen is inspected in a browser (the user approves the local stack when it is started); the deactivate card heading moves to `text-sm font-semibold`.
 - **Journey sync:** `journeys/manager/prototypes/equipe/02b-invite-error.html`, `03b` and `03c` and the matching lines in `equipe/dev-notes.md` show the new placement.
 
@@ -528,6 +529,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - `apps/web/features/staff/components/team/InviteForm.tsx` + `InviteForm.spec.tsx`
 - `apps/web/features/staff/components/team/StaffDetailPage.tsx` + `StaffDetailPage.spec.tsx`
 - `apps/web/features/staff/components/team/TeamListPage.tsx` + `TeamListPage.spec.tsx`
+- `apps/web/shared/lib/api/errors.ts` + `errors.spec.ts` (`extractProblemDetailShape` reads a `FetchError`)
 - `apps/web/e2e/select-staff-tenant.spec.ts` (new)
 - `apps/web/e2e/team-deactivate.spec.ts`, `apps/web/e2e/team-invite.spec.ts`, `apps/web/e2e/team-manage.spec.ts` (update ids for the renamed `data-testid`s)
 - `journeys/manager/prototypes/equipe/02b-invite-error.html`, `03b-deactivate-self-error.html`, `03c-deactivate-lastmanager-error.html`, `dev-notes.md`

@@ -150,6 +150,19 @@ describe('extractProblemDetailShape', () => {
     });
   });
 
+  it('extracts code/field from a FetchError subclass thrown by assertOk', () => {
+    class ExampleFetchError extends FetchError {
+      constructor(status: number, code?: string, field?: string) {
+        super('Example request failed', status, code, field);
+      }
+    }
+    const err = new ExampleFetchError(403, 'BFF_STAFF_NOT_REGISTERED_IN_TENANT', 'staffId');
+    expect(extractProblemDetailShape(err)).toEqual({
+      code: 'BFF_STAFF_NOT_REGISTERED_IN_TENANT',
+      field: 'staffId',
+    });
+  });
+
   it('returns null for an error class it does not recognize', () => {
     expect(extractProblemDetailShape(new Error('boom'))).toBeNull();
   });

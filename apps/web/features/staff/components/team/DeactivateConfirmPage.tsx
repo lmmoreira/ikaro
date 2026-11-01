@@ -4,20 +4,21 @@ import Link from 'next/link';
 import { useState, type SubmitEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { AlertTriangle, Ban } from 'lucide-react';
+import { AlertTriangle } from 'lucide-react';
 import { StaffErrorCode, type StaffResponse } from '@ikaro/types';
 import { useDeactivateStaff } from '@/features/staff/hooks/useStaff';
 import { getInitials } from '@/shared/utils/initials';
 import { Button } from '@/shared/components/ui/button';
+import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface DeactivateConfirmPageProps {
   readonly staff: StaffResponse;
 }
-
-type DeactivateErrorState = 'self' | 'lastManager' | 'generic' | null;
 
 interface DeactivateActionsProps {
   readonly isSubmitting: boolean;
@@ -64,18 +65,9 @@ function DeactivateErrorScreen({
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem] lg:items-start">
       <Card>
         <CardContent className="space-y-4 p-5 lg:p-6">
-          <div className="flex gap-3 rounded-2xl border border-red-200 bg-red-50 p-4">
-            <Ban className="h-6 w-6 shrink-0 text-red-700" />
-            <div>
-              <p className="font-bold text-red-800">{t(titleKey)}</p>
-              <p
-                data-testid="deactivate-error-body"
-                className="mt-1 text-sm leading-6 text-red-800"
-              >
-                {bodyMessage}
-              </p>
-            </div>
-          </div>
+          <FeedbackMessage title={t(titleKey)} testId="page-feedback">
+            {bodyMessage}
+          </FeedbackMessage>
           <p className="text-sm leading-6 text-gray-600">{t(hintKey)}</p>
           <Button asChild variant="outline" className="w-full">
             <Link href="/dashboard/team">{t('backToTeam')}</Link>
@@ -103,16 +95,16 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
   const router = useRouter();
   const deactivateStaffMutation = useDeactivateStaff();
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
-  const [errorState, setErrorState] = useState<DeactivateErrorState>(null);
-  const [errorCode, setErrorCode] = useState<string | undefined>(undefined);
+  const feedback = useFormFeedback();
+  // The two refusals no retry can fix (self, last manager) replace the form with their own screen.
+  const [blockedCode, setBlockedCode] = useState<string | null>(null);
 
   const isSubmitting = isSubmittingLocal || deactivateStaffMutation.isPending;
   const displayName = staff.name ?? staff.email;
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
-    setErrorState(null);
-    setErrorCode(undefined);
+    feedback.clear();
 
     setIsSubmittingLocal(true);
     try {
@@ -120,35 +112,29 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
       router.push('/dashboard/team');
     } catch (err) {
       const code = extractProblemCode(err);
-      setErrorCode(code);
-      if (code === StaffErrorCode.SELF_DEACTIVATION) {
-        setErrorState('self');
-      } else if (code === StaffErrorCode.LAST_ACTIVE_MANAGER) {
-        setErrorState('lastManager');
+      if (
+        code === StaffErrorCode.SELF_DEACTIVATION ||
+        code === StaffErrorCode.LAST_ACTIVE_MANAGER
+      ) {
+        setBlockedCode(code);
       } else {
-        setErrorState('generic');
+        feedback.setFromApiError(err, locale);
       }
     } finally {
       setIsSubmittingLocal(false);
     }
   }
 
-  if (errorState === 'self') {
+  if (blockedCode) {
     return (
       <DeactivateErrorScreen
         titleKey="deactivateErrorTitle"
-        bodyMessage={resolveErrorMessage(errorCode, locale)}
-        hintKey="deactivateSelfErrorHint"
-      />
-    );
-  }
-
-  if (errorState === 'lastManager') {
-    return (
-      <DeactivateErrorScreen
-        titleKey="deactivateErrorTitle"
-        bodyMessage={resolveErrorMessage(errorCode, locale)}
-        hintKey="deactivateLastManagerErrorHint"
+        bodyMessage={resolveErrorMessage(blockedCode, locale)}
+        hintKey={
+          blockedCode === StaffErrorCode.SELF_DEACTIVATION
+            ? 'deactivateSelfErrorHint'
+            : 'deactivateLastManagerErrorHint'
+        }
       />
     );
   }
@@ -159,7 +145,7 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
         <Card>
           <CardContent className="space-y-5 p-5 lg:p-6">
             <div className="space-y-1">
-              <h2 className="text-[1.0625rem] font-bold text-gray-900">{t('deactivateTitle')}</h2>
+              <h2 className="text-sm font-semibold text-gray-900">{t('deactivateTitle')}</h2>
               <p className="text-sm text-gray-500">
                 {t('deactivateSubtitle', { name: displayName })}
               </p>
@@ -191,27 +177,21 @@ export function DeactivateConfirmPage({ staff }: DeactivateConfirmPageProps): Re
                 <li>{t('deactivateWarningReinvite')}</li>
               </ul>
             </div>
-
-            {errorState === 'generic' && (
-              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                {resolveErrorMessage(errorCode, locale)}
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        <aside className="hidden lg:block lg:sticky lg:top-6">
-          <Card>
-            <CardContent className="space-y-4 p-4">
+        <ActionPane
+          actions={
+            <>
               <p className="text-sm leading-6 text-gray-600">{t('deactivateAsideHint')}</p>
               <DeactivateActions isSubmitting={isSubmitting} className="space-y-4" />
-            </CardContent>
-          </Card>
-        </aside>
-      </div>
-
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white p-4 pb-[calc(0.875rem+env(safe-area-inset-bottom))] shadow-[0_-2px_8px_rgba(0,0,0,0.06)] lg:hidden">
-        <DeactivateActions isSubmitting={isSubmitting} className="grid grid-cols-2 gap-3" />
+            </>
+          }
+          mobileActions={
+            <DeactivateActions isSubmitting={isSubmitting} className="grid grid-cols-2 gap-3" />
+          }
+          feedback={feedback.feedback}
+        />
       </div>
     </form>
   );

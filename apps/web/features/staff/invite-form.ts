@@ -17,12 +17,7 @@ export interface NormalizedInviteFormValues {
   readonly role: StaffRole;
 }
 
-export interface InviteFormErrors {
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  submit?: string;
-}
+export type InviteFormErrors = Partial<Record<'firstName' | 'lastName' | 'email', string>>;
 
 const EMAIL_SCHEMA = z.email();
 

@@ -33,7 +33,11 @@ test.describe('team member detail/edit flow', () => {
     await page.getByTestId('staff-detail-name-input').fill('');
     await page.getByTestId('staff-detail-save-desktop').click();
 
-    await expect(page.getByTestId('staff-detail-name-error')).toBeVisible();
+    await expect(page.getByTestId('staff-detail-name-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByTestId('staff-detail-name-input')).toBeFocused();
     await expect(page).toHaveURL(`/dashboard/team/${member.staffId}`);
   });
 
@@ -50,7 +54,7 @@ test.describe('team member detail/edit flow', () => {
     await getRoleOption(page, 'STAFF').click();
     await page.getByTestId('staff-detail-save-desktop').click();
 
-    await expect(page.getByTestId('staff-detail-submit-error')).toHaveText(
+    await expect(page.getByTestId('action-pane-desktop').getByTestId('form-feedback')).toHaveText(
       'Não é possível remover o último gerente ativo.',
     );
     await expect(page.url()).toContain('/dashboard/team/');
