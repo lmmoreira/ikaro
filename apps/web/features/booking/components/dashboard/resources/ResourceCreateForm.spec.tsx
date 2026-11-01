@@ -57,6 +57,22 @@ function getTypeOption(type: 'STAFF' | 'ROOM' | 'EQUIPMENT') {
   return found;
 }
 
+const seenWorkingHoursOnChange = vi.hoisted(() => [] as unknown[]);
+
+// Passes straight through to the real editor; it only records the onChange each render hands it.
+vi.mock('./ResourceWorkingHoursEditor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./ResourceWorkingHoursEditor')>();
+  return {
+    ...actual,
+    ResourceWorkingHoursEditor: (
+      props: React.ComponentProps<typeof actual.ResourceWorkingHoursEditor>,
+    ) => {
+      seenWorkingHoursOnChange.push(props.onChange);
+      return <actual.ResourceWorkingHoursEditor {...props} />;
+    },
+  };
+});
+
 const scrollIntoView = vi.fn();
 
 beforeEach(() => {
@@ -69,6 +85,17 @@ beforeEach(() => {
 });
 
 describe('ResourceCreateForm', () => {
+  it('hands the working-hours editor an onChange that keeps its identity across re-renders', async () => {
+    const user = userEvent.setup();
+    seenWorkingHoursOnChange.length = 0;
+    renderWithIntl(<ResourceCreateForm />);
+
+    await user.type(screen.getByTestId('resource-identity-name-input'), 'x');
+
+    expect(seenWorkingHoursOnChange.length).toBeGreaterThan(1);
+    expect(new Set(seenWorkingHoursOnChange).size).toBe(1);
+  });
+
   it('swaps the staff-picker for a name field when switching type', async () => {
     const user = userEvent.setup();
     renderWithIntl(<ResourceCreateForm />);

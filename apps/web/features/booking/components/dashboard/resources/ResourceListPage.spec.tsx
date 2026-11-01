@@ -115,6 +115,18 @@ describe('ResourceListPage', () => {
     expect(screen.getAllByTestId('resource-row-deactivate-link')).toHaveLength(2);
   });
 
+  it('keeps every filter chip inside the list card, never on the page background', () => {
+    useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });
+    renderWithIntl(<ResourceListPage />);
+
+    const card = screen.getByTestId('resource-list-card');
+    const chips = screen.getAllByRole('button').filter((el) => el.hasAttribute('aria-pressed'));
+
+    expect(chips).toHaveLength(8);
+    for (const chip of chips) expect(card).toContainElement(chip);
+    expect(within(card).getByTestId('resource-status-filters')).toBeInTheDocument();
+  });
+
   it('filters by type using the tabs', async () => {
     const user = userEvent.setup();
     useResourcesMock.mockReturnValue({ data: { items: RESOURCES }, isLoading: false });

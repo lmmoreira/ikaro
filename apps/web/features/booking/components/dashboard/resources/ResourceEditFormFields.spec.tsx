@@ -83,6 +83,22 @@ vi.mock('@/features/platform/hooks/useTenantSettings', () => ({
   }),
 }));
 
+const seenWorkingHoursOnChange = vi.hoisted(() => [] as unknown[]);
+
+// Passes straight through to the real editor; it only records the onChange each render hands it.
+vi.mock('./ResourceWorkingHoursEditor', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./ResourceWorkingHoursEditor')>();
+  return {
+    ...actual,
+    ResourceWorkingHoursEditor: (
+      props: React.ComponentProps<typeof actual.ResourceWorkingHoursEditor>,
+    ) => {
+      seenWorkingHoursOnChange.push(props.onChange);
+      return <actual.ResourceWorkingHoursEditor {...props} />;
+    },
+  };
+});
+
 const scrollIntoView = vi.fn();
 
 beforeEach(() => {
@@ -181,6 +197,17 @@ describe('ResourceEditFormFields', () => {
       ),
     );
     expect(routerPush).toHaveBeenCalledWith('/dashboard/resources');
+  });
+
+  it('hands the working-hours editor an onChange that keeps its identity across re-renders', async () => {
+    const user = userEvent.setup();
+    seenWorkingHoursOnChange.length = 0;
+    renderWithIntl(<ResourceEditFormFields resourceId="r-1" resource={ROOM_RESOURCE} />);
+
+    await user.type(screen.getByTestId('resource-identity-name-input'), 'x');
+
+    expect(seenWorkingHoursOnChange.length).toBeGreaterThan(1);
+    expect(new Set(seenWorkingHoursOnChange).size).toBe(1);
   });
 
   it('renders a server error in the action pane with an alert role', async () => {

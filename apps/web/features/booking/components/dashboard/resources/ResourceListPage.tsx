@@ -156,38 +156,38 @@ export function ResourceListPage(): React.JSX.Element {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-1">
-        {FILTERS.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            type="button"
-            className={buildFilterClass(filter === key)}
-            aria-pressed={filter === key}
-            onClick={() => setFilter(key)}
-          >
-            {t(labelKey, { count: counts[key] })}
-          </button>
-        ))}
-      </div>
+      <Card className="overflow-hidden" data-testid="resource-list-card">
+        <div className="space-y-3 border-b border-border p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {FILTERS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                className={buildFilterClass(filter === key)}
+                aria-pressed={filter === key}
+                onClick={() => setFilter(key)}
+              >
+                {t(labelKey, { count: counts[key] })}
+              </button>
+            ))}
+          </div>
 
-      <div
-        data-testid="resource-status-filters"
-        className="flex flex-wrap items-center gap-2 px-4 pb-1"
-      >
-        {STATUS_FILTERS.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            type="button"
-            className={buildFilterClass(statusFilter === key)}
-            aria-pressed={statusFilter === key}
-            onClick={() => setStatusFilter(key)}
-          >
-            {t(labelKey, { count: statusCounts[key] })}
-          </button>
-        ))}
-      </div>
-
-      <Card className="overflow-hidden">{cardContent}</Card>
+          <div data-testid="resource-status-filters" className="flex flex-wrap items-center gap-2">
+            {STATUS_FILTERS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                className={buildFilterClass(statusFilter === key)}
+                aria-pressed={statusFilter === key}
+                onClick={() => setStatusFilter(key)}
+              >
+                {t(labelKey, { count: statusCounts[key] })}
+              </button>
+            ))}
+          </div>
+        </div>
+        {cardContent}
+      </Card>
 
       <Button
         asChild

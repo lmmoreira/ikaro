@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type SubmitEvent } from 'react';
+import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -56,6 +56,17 @@ export function ResourceCreateForm(): React.JSX.Element {
   const tenantBusinessHours = tenantSettingsData
     ? toResourceBusinessHours(tenantSettingsData.settings.businessHours)
     : null;
+
+  // ResourceWorkingHoursEditor memoizes its day rows on a stable onChange (see its own comment),
+  // so this handler must keep its identity across renders instead of going through edit().
+  const { clear: clearFeedback } = feedback;
+  const handleWorkingHoursChange = useCallback(
+    (value: ResourceWorkingHours | null) => {
+      clearFeedback();
+      setWorkingHours(value);
+    },
+    [clearFeedback],
+  );
 
   // An edit removes the previous error or success, as the other migrated forms do.
   function edit<T>(setter: (value: T) => void): (value: T) => void {
@@ -120,7 +131,7 @@ export function ResourceCreateForm(): React.JSX.Element {
 
             <ResourceWorkingHoursEditor
               value={workingHours}
-              onChange={edit(setWorkingHours)}
+              onChange={handleWorkingHoursChange}
               tenantBusinessHours={tenantBusinessHours}
             />
 
