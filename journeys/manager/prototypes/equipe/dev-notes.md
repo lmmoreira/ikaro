@@ -89,9 +89,9 @@ The "Desativar" action must not render on the logged-in admin's own row (compare
 | — | Email belongs to a pending invitee (UC-028 A2) | Re-sends the invite; same inline success banner as a new invite — no distinct screen needed. A linked (incl. deactivated) email returns 409 `STAFF_ALREADY_EXISTS`; reactivation is only the "Ativar" row action (UC-031) |
 | `403` | Self-deactivation attempt (UC-029 A1) | `03b-deactivate-self-error.html` |
 | `409` | Last active MANAGER (UC-029 A2) | `03c-deactivate-lastmanager-error.html` |
+| `404` | Staff not found (stale URL) | `notFound()` |
 
 **Feedback placement (TD57-S08).** The invite, edit and deactivate forms share `shared/components/ui/form-action-pane.tsx` (save and cancel in the desktop pane and the mobile bar, the form-level message under the buttons as `form-feedback`). The duplicate-email error is the exception: it marks and focuses the e-mail input and shows nothing in the pane. `03b` and `03c` stay dedicated screens, drawn as a page-level `FeedbackMessage` (`page-feedback`); every other deactivate failure shows in the pane with the form still on screen. The team list keeps its filter chips and the truncated-roster notice inside the list card, and the invite success banner is a success `FeedbackMessage` (`team-invite-success-banner`).
-| `404` | Staff not found (stale URL) | `notFound()` |
 
 ---
 
