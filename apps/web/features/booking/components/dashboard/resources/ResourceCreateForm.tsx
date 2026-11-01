@@ -1,19 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState, type SubmitEvent } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, type SubmitEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ResourceType, ResourceWorkingHours } from '@ikaro/types';
-import { useCreateResource, useResourceStaffOptions } from '@/features/booking/hooks/useResources';
-import { useTenantSettings } from '@/features/platform/hooks/useTenantSettings';
+import { useCreateResource } from '@/features/booking/hooks/useResources';
 import { useDashboardTopbarStatus } from '@/shells/dashboard/components/topbar-status-context';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
-import { ResourceWorkingHoursEditor, toResourceBusinessHours } from './ResourceWorkingHoursEditor';
-import { useFormFeedback } from '@/shared/lib/feedback/use-form-feedback';
+import { ResourceWorkingHoursEditor } from './ResourceWorkingHoursEditor';
+import { ResourceFormActionPane } from './ResourceFormActionPane';
+import { useResourceFormSupport } from './use-resource-form-support';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
-import { Button } from '@/shared/components/ui/button';
-import { ActionPane } from '@/shared/components/ui/action-pane';
 import { Card, CardContent } from '@/shared/components/ui/card';
 
 const INPUT_CLASS =
@@ -25,8 +22,6 @@ export function ResourceCreateForm(): React.JSX.Element {
   const locale = useResolvedLocale();
   const router = useRouter();
   const createResourceMutation = useCreateResource();
-  const { data: staffOptionsData } = useResourceStaffOptions();
-  const { data: tenantSettingsData } = useTenantSettings();
   const topbarStatus = useDashboardTopbarStatus();
   const setBackHrefOverride = topbarStatus?.setBackHrefOverride;
   const setBackLabelOverride = topbarStatus?.setBackLabelOverride;
@@ -47,45 +42,22 @@ export function ResourceCreateForm(): React.JSX.Element {
   const [workingHours, setWorkingHours] = useState<ResourceWorkingHours | null>(null);
   const [turnoverMinutes, setTurnoverMinutes] = useState('0');
   const [maxCapacity, setMaxCapacity] = useState('');
-  const feedback = useFormFeedback();
+  const {
+    feedback,
+    staffOptions,
+    tenantBusinessHours,
+    edit,
+    handleWorkingHoursChange,
+    validateIdentity,
+  } = useResourceFormSupport(setWorkingHours);
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const isSubmitting = isSubmittingLocal || createResourceMutation.isPending;
 
-  const staffOptions = staffOptionsData?.items ?? [];
-  const tenantBusinessHours = tenantSettingsData
-    ? toResourceBusinessHours(tenantSettingsData.settings.businessHours)
-    : null;
-
-  // ResourceWorkingHoursEditor memoizes its day rows on a stable onChange (see its own comment),
-  // so this handler must keep its identity across renders instead of going through edit().
-  const { clear: clearFeedback } = feedback;
-  const handleWorkingHoursChange = useCallback(
-    (value: ResourceWorkingHours | null) => {
-      clearFeedback();
-      setWorkingHours(value);
-    },
-    [clearFeedback],
-  );
-
-  // An edit removes the previous error or success, as the other migrated forms do.
-  function edit<T>(setter: (value: T) => void): (value: T) => void {
-    return (value) => {
-      feedback.clear();
-      setter(value);
-    };
-  }
-
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
 
-    const errors: Record<string, string> = {};
-    if (type === 'STAFF' && !refId) errors.refId = t('errors.staffRequired');
-    if (!name.trim()) errors.name = t('errors.nameRequired');
-    if (Object.keys(errors).length > 0) {
-      feedback.setFieldErrors(errors);
-      return;
-    }
+    if (!validateIdentity({ staffRequired: type === 'STAFF', refId, name })) return;
     feedback.clear();
 
     setIsSubmittingLocal(true);
@@ -168,37 +140,11 @@ export function ResourceCreateForm(): React.JSX.Element {
           </CardContent>
         </Card>
 
-        <ActionPane
-          actions={
-            <>
-              <Button
-                type="submit"
-                data-testid="resource-create-save-desktop"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {t('createSubmit')}
-              </Button>
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/resources">{t('cancel')}</Link>
-              </Button>
-            </>
-          }
-          mobileActions={
-            <div className="grid grid-cols-2 gap-3">
-              <Button asChild variant="outline" className="w-full">
-                <Link href="/dashboard/resources">{t('cancel')}</Link>
-              </Button>
-              <Button
-                type="submit"
-                data-testid="resource-create-save-mobile"
-                className="w-full"
-                disabled={isSubmitting}
-              >
-                {t('createSubmit')}
-              </Button>
-            </div>
-          }
+        <ResourceFormActionPane
+          submitLabel={t('createSubmit')}
+          desktopSaveTestId="resource-create-save-desktop"
+          mobileSaveTestId="resource-create-save-mobile"
+          isSubmitting={isSubmitting}
           feedback={feedback.feedback}
         />
       </div>

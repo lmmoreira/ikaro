@@ -1,12 +1,10 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
 import type { ResourceResponse, ResourceType } from '@ikaro/types';
 import { useResources } from '@/features/booking/hooks/useResources';
-import { Button } from '@/shared/components/ui/button';
+import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
@@ -189,15 +187,7 @@ export function ResourceListPage(): React.JSX.Element {
         {cardContent}
       </Card>
 
-      <Button
-        asChild
-        size="icon"
-        className="fixed bottom-20 right-6 z-20 h-14 w-14 rounded-full shadow-lg shadow-blue-600/35 lg:hidden"
-      >
-        <Link href="/dashboard/resources/new" aria-label={t('create')}>
-          <Plus className="h-6 w-6" aria-hidden="true" />
-        </Link>
-      </Button>
+      <FloatingCreateButton href="/dashboard/resources/new" label={t('create')} />
     </div>
   );
 }

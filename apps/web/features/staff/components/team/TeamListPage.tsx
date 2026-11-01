@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Plus } from 'lucide-react';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
-import { Button } from '@/shared/components/ui/button';
+import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
 import { cn } from '@/shared/utils/cn';
 import { MemberRow } from './MemberRow';
@@ -126,15 +124,7 @@ export function TeamListPage({
         )}
       </Card>
 
-      <Button
-        asChild
-        size="icon"
-        className="fixed bottom-20 right-6 z-20 h-14 w-14 rounded-full shadow-lg shadow-blue-600/35 lg:hidden"
-      >
-        <Link href="/dashboard/team/invite" aria-label={t('invite')}>
-          <Plus className="h-6 w-6" aria-hidden="true" />
-        </Link>
-      </Button>
+      <FloatingCreateButton href="/dashboard/team/invite" label={t('invite')} />
     </div>
   );
 }
