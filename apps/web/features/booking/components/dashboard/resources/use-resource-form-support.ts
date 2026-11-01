@@ -27,7 +27,7 @@ function useResourceFormData(resourceId?: string) {
 }
 
 // What the create and the edit form share: the feedback hook, the data the identity and hours
-// fields read, the "an edit clears the old message" wrapper, and the identity validation.
+// fields read and the identity validation.
 // `setWorkingHours` must be a stable setter (a useState setter): the handler built from it keeps
 // its identity so ResourceWorkingHoursEditor can keep memoizing its day rows.
 export function useResourceFormSupport(
@@ -36,16 +36,8 @@ export function useResourceFormSupport(
 ) {
   const t = useTranslations('dashboard.resourcesPage');
   const feedback = useFormFeedback();
-  const { clear: clearFeedback, setFieldErrors } = feedback;
+  const { clear: clearFeedback, edit, setFieldErrors } = feedback;
   const { staffOptions, tenantBusinessHours } = useResourceFormData(resourceId);
-
-  // An edit removes the previous error or success, as the other migrated forms do.
-  function edit<T>(setter: (value: T) => void): (value: T) => void {
-    return (value) => {
-      clearFeedback();
-      setter(value);
-    };
-  }
 
   const handleWorkingHoursChange = useCallback(
     (value: ResourceWorkingHours | null) => {

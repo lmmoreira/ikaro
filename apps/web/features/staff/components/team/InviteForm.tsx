@@ -28,7 +28,7 @@ export function InviteForm(): React.JSX.Element {
   const topbarStatus = useDashboardTopbarStatus();
   const setStaffRoleStatus = topbarStatus?.setStaffRoleStatus;
   const feedback = useFormFeedback();
-  const { fieldProps, fieldErrors, fieldErrorId, clear: clearFeedback } = feedback;
+  const { fieldProps, fieldErrors, fieldErrorId, edit, clear: clearFeedback } = feedback;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,14 +40,6 @@ export function InviteForm(): React.JSX.Element {
   useEffect(() => {
     setStaffRoleStatus?.(role);
   }, [role, setStaffRoleStatus]);
-
-  // An edit removes the previous error, as the other migrated forms do.
-  function edit<T>(setter: (value: T) => void): (value: T) => void {
-    return (value) => {
-      clearFeedback();
-      setter(value);
-    };
-  }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();

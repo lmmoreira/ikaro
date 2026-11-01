@@ -36,7 +36,7 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
   const [name, setName] = useState(staff.name ?? '');
   const [role, setRole] = useState<StaffRole>(staff.role);
   const feedback = useFormFeedback();
-  const { fieldProps, fieldErrors, fieldErrorId, clear: clearFeedback } = feedback;
+  const { fieldProps, fieldErrors, fieldErrorId, edit, clear: clearFeedback } = feedback;
   const [isSubmittingLocal, setIsSubmittingLocal] = useState(false);
 
   const isSubmitting = isSubmittingLocal || updateStaffMutation.isPending;
@@ -63,14 +63,6 @@ export function StaffDetailPage({ staff }: StaffDetailPageProps): React.JSX.Elem
     setBackLabelOverride,
     setPageTitleOverride,
   ]);
-
-  // An edit removes the previous error, as the other migrated forms do.
-  function edit<T>(setter: (value: T) => void): (value: T) => void {
-    return (value) => {
-      clearFeedback();
-      setter(value);
-    };
-  }
 
   async function handleSubmit(event: SubmitEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
