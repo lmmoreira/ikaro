@@ -7,10 +7,10 @@ import type { ResourceResponse, ResourceType, ResourceWorkingHours } from '@ikar
 import { useUpdateResource } from '@/features/booking/hooks/useResources';
 import { ResourceIdentityFields } from './ResourceIdentityFields';
 import { ResourceWorkingHoursEditor } from './ResourceWorkingHoursEditor';
-import { ResourceFormActionPane } from './ResourceFormActionPane';
 import { useResourceFormSupport } from './use-resource-form-support';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 import { Card, CardContent } from '@/shared/components/ui/card';
+import { FormActionPane } from '@/shared/components/ui/form-action-pane';
 
 const INPUT_CLASS =
   'w-full rounded-md border border-border bg-white px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 aria-[invalid=true]:border-red-500 aria-[invalid=true]:bg-red-50';
@@ -151,8 +151,10 @@ export function ResourceEditFormFields({
           </CardContent>
         </Card>
 
-        <ResourceFormActionPane
+        <FormActionPane
           submitLabel={t('editSubmit')}
+          cancelLabel={t('cancel')}
+          cancelHref="/dashboard/resources"
           desktopSaveTestId="resource-edit-save-desktop"
           mobileSaveTestId="resource-edit-save-mobile"
           isSubmitting={isSubmitting}

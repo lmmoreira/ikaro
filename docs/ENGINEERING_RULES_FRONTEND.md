@@ -143,7 +143,8 @@ A secondary trap in the same incident: a component with a *fixed*, non-branded a
 | Multi-line text | `ui/textarea` | `ManifestTab` |
 | A status or count chip | `ui/badge` | `Topbar`, `LoyaltySearchResults` |
 | A grouped surface | `ui/card`, `ui/section-card` | `CustomerLoyaltyPage`, `BrandingTab` |
-| A save, submit or action result (error or success), or a page-level load failure | `ui/feedback-message`; in a screen with a primary action also `ui/action-pane` and `shared/lib/feedback/use-form-feedback`; a field's own message is `ui/field-feedback` — never a new `role="alert"` box (§ A form's error or success message lives in the action pane) | `NewBookingServicesStep` (`FeedbackMessage`); no screen uses `ActionPane` yet |
+| A save, submit or action result (error or success), or a page-level load failure | `ui/feedback-message`; in a screen with a primary action also `ui/action-pane` and `shared/lib/feedback/use-form-feedback`; a field's own message is `ui/field-feedback` — never a new `role="alert"` box (§ A form's error or success message lives in the action pane) | `NewBookingServicesStep` (`FeedbackMessage`); `ResourceCreateForm`, `InviteForm` (`ActionPane` through `FormActionPane`) |
+| The save and cancel buttons of a create or edit form (desktop pane, mobile bar, message under the buttons) | `ui/form-action-pane` | `ResourceCreateForm`, `InviteForm`, `StaffDetailPage` |
 | A button | `ui/button` | `DiscardChangesDialog` |
 | The mobile create action of a list screen (a round "+" floating above the bottom nav; desktop uses the topbar) | `ui/floating-create-button` | `ResourceListPage`, `ServiceListPage`, `TeamListPage` |
 | A user's avatar | `ui/avatar` | `Topbar`, `Sidebar` |

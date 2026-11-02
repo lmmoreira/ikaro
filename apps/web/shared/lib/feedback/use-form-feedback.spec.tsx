@@ -95,6 +95,17 @@ describe('useFormFeedback', () => {
     expect(api().feedback).toBeNull();
   });
 
+  it('edit() clears the message and the field marks, then calls the setter with the value', () => {
+    const setter = vi.fn();
+    act(() => api().setFromApiError(problem('first'), 'en'));
+
+    act(() => api().edit(setter)('typed'));
+
+    expect(setter).toHaveBeenCalledWith('typed');
+    expect(api().feedback).toBeNull();
+    expect(screen.getByLabelText('first')).not.toHaveAttribute('aria-invalid');
+  });
+
   it('replaces an error with a success and a success with an error', () => {
     act(() => api().setError('Failed'));
     act(() => api().setSuccess('Saved'));

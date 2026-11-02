@@ -44,7 +44,7 @@ Lists every `Resource`, sorted by `type` (`LOCATION` first — always exactly on
 
 ## Component: ResourceCreateForm (`/dashboard/resources/new`, UC-045)
 
-Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or Equipamento swaps the staff-picker for a display-name field, matching the discovery-stage prototype. The create and edit forms share `ResourceFormActionPane` (save and cancel in the desktop pane and the mobile bar, with the form-level message under the buttons) and `use-resource-form-support` (the feedback hook, the staff options and tenant hours, the "an edit clears the old message" wrapper and the identity validation), so a change to either lands in both.
+Real interactive type-switcher (`ResourceIdentityFields`) — selecting Sala or Equipamento swaps the staff-picker for a display-name field, matching the discovery-stage prototype. The create and edit forms share `shared/components/ui/form-action-pane.tsx` (`FormActionPane`: save and cancel in the desktop pane and the mobile bar, with the form-level message under the buttons) and `use-resource-form-support` (the feedback hook, the staff options and tenant hours, the "an edit clears the old message" wrapper and the identity validation), so a change to either lands in both.
 
 **Form fields:**
 

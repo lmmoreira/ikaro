@@ -1,11 +1,13 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { StaffTenantOption } from '@ikaro/types';
 import { switchStaffTenant } from '@/features/auth/api';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
+import { resolveApiErrorFeedback } from '@/shared/lib/i18n/resolve-error-message';
+import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
 
 interface SelectStaffTenantClientProps {
   readonly initialOptions: StaffTenantOption[] | null;
@@ -16,18 +18,21 @@ export function SelectStaffTenantClient({
 }: SelectStaffTenantClientProps): React.JSX.Element {
   const t = useTranslations('auth');
   const router = useRouter();
+  const locale = useResolvedLocale();
 
-  const [error, setError] = useState(initialOptions === null);
+  const loadFailed = initialOptions === null;
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const [selecting, setSelecting] = useState<string | null>(null);
 
   const select = async (staffId: string) => {
     setSelecting(staffId);
+    setSwitchError(null);
     try {
       await switchStaffTenant(staffId);
       router.push('/dashboard');
-    } catch {
+    } catch (err) {
       setSelecting(null);
-      setError(true);
+      setSwitchError(resolveApiErrorFeedback(err, locale).message);
     }
   };
 
@@ -37,20 +42,27 @@ export function SelectStaffTenantClient({
         <h1 className="mb-1.5 text-xl font-bold text-gray-900">{t('selectTenantHeading')}</h1>
         <p className="mb-6 text-sm text-gray-500">{t('selectTenantSubtitle')}</p>
 
-        {error && (
-          <div className="text-center">
-            <p className="mb-4 text-sm text-red-600">{t('selectTenantError')}</p>
-            <Link href="/dashboard" className="text-sm text-indigo-600 underline">
-              {t('selectTenantRetry')}
-            </Link>
+        {loadFailed && (
+          <FeedbackMessage
+            title={t('selectTenantError')}
+            onRetry={() => router.refresh()}
+            retryLabel={t('selectTenantRetry')}
+            testId="page-feedback"
+          />
+        )}
+
+        {switchError && (
+          <div className="mb-4">
+            <FeedbackMessage title={switchError} testId="page-feedback" />
           </div>
         )}
 
-        {!error && (
+        {!loadFailed && (
           <ul className="flex flex-col gap-3">
             {(initialOptions ?? []).map((opt) => (
               <li key={opt.staffId}>
                 <button
+                  data-testid="staff-tenant-option"
                   onClick={() => void select(opt.staffId)}
                   disabled={selecting !== null}
                   className={`flex w-full items-center justify-between rounded-lg border border-gray-200 px-5 py-4 text-left transition-colors ${

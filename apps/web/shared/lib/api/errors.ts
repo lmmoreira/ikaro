@@ -109,8 +109,11 @@ export interface ProblemDetailShape {
 
 // bffClient's response interceptor collapses every failure into ApiError/AuthError/ForbiddenError,
 // each carrying the raw ProblemDetail body under `.data` — this extracts code/field uniformly so a
-// caller only needs one check instead of a separate instanceof branch per error class.
+// caller only needs one check instead of a separate instanceof branch per error class. A raw
+// `fetch` helper that goes through assertOk() throws a FetchError subclass instead, which carries
+// the same code/field as plain properties.
 export function extractProblemDetailShape(err: unknown): ProblemDetailShape | null {
+  if (err instanceof FetchError) return { code: err.code, field: err.field };
   if (!(err instanceof ApiError || err instanceof AuthError || err instanceof ForbiddenError)) {
     return null;
   }

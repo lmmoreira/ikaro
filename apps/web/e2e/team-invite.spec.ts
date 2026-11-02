@@ -61,7 +61,9 @@ test.describe('team invite flow', () => {
     await page.getByTestId('invite-email-input').fill('admin@lavacar.com.br');
     await page.getByRole('button', { name: 'Enviar convite' }).click();
 
-    await expect(page.getByTestId('invite-email-error')).toHaveText(
+    // The message is the input's accessible description (aria-describedby points at it).
+    await expect(page.getByTestId('invite-email-input')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('invite-email-input')).toHaveAccessibleDescription(
       'Já existe um membro da equipe com este e-mail neste estabelecimento.',
     );
   });
@@ -71,9 +73,16 @@ test.describe('team invite flow', () => {
     await page.getByTestId('invite-email-input').fill('not-an-email');
     await page.getByRole('button', { name: 'Enviar convite' }).click();
 
-    await expect(page.getByTestId('invite-first-name-error')).toBeVisible();
-    await expect(page.getByTestId('invite-last-name-error')).toBeVisible();
-    await expect(page.getByTestId('invite-email-error')).toBeVisible();
+    await expect(page.getByTestId('invite-first-name-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByTestId('invite-last-name-input')).toHaveAttribute(
+      'aria-invalid',
+      'true',
+    );
+    await expect(page.getByTestId('invite-email-input')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('invite-first-name-input')).toBeFocused();
   });
 
   test('back arrow returns to the team list without submitting', async ({ page }) => {

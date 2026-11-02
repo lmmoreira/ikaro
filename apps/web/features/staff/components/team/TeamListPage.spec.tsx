@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffListItem } from '@ikaro/types';
@@ -150,8 +150,9 @@ describe('TeamListPage', () => {
       />,
     );
 
-    expect(screen.getByTestId('team-invite-success-banner')).toBeInTheDocument();
-    expect(screen.getByText('Convite enviado para maria.oliveira@gmail.com.')).toBeInTheDocument();
+    const banner = screen.getByRole('status');
+    expect(banner).toHaveAttribute('data-testid', 'team-invite-success-banner');
+    expect(banner).toHaveTextContent('Convite enviado para maria.oliveira@gmail.com.');
   });
 
   it('auto-dismisses the invited-success banner by redirecting back to the plain list URL', () => {
@@ -177,6 +178,14 @@ describe('TeamListPage', () => {
     renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore />);
 
     expect(screen.getByTestId('team-list-truncated-notice')).toBeInTheDocument();
+  });
+
+  it('keeps the filter chips and the truncation notice inside the list card', () => {
+    renderWithIntl(<TeamListPage members={buildMembers()} currentStaffId={CURRENT_ID} hasMore />);
+
+    const card = screen.getByTestId('team-list-card');
+    expect(within(card).getByRole('button', { name: 'Todos (4)' })).toBeInTheDocument();
+    expect(within(card).getByTestId('team-list-truncated-notice')).toBeInTheDocument();
   });
 
   it('hides the truncation notice when the roster fits in one page', () => {

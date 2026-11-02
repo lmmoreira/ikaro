@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffResponse } from '@ikaro/types';
@@ -68,9 +68,10 @@ describe('DeactivateConfirmPage', () => {
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
-    expect(
-      await screen.findByText('Você não pode desativar sua própria conta.'),
-    ).toBeInTheDocument();
+    const feedback = await screen.findByTestId('page-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Você não pode desativar sua própria conta.');
+    expect(screen.queryByRole('button', { name: 'Confirmar desativação' })).not.toBeInTheDocument();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
@@ -82,9 +83,10 @@ describe('DeactivateConfirmPage', () => {
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
-    expect(
-      await screen.findByText('Não é possível remover o último gerente ativo.'),
-    ).toBeInTheDocument();
+    const feedback = await screen.findByTestId('page-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Não é possível remover o último gerente ativo.');
+    expect(screen.queryByRole('button', { name: 'Confirmar desativação' })).not.toBeInTheDocument();
     expect(routerPush).not.toHaveBeenCalled();
   });
 
@@ -94,7 +96,10 @@ describe('DeactivateConfirmPage', () => {
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Confirmar desativação' })[0]);
 
-    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
+    const feedback = within(screen.getByTestId('action-pane-desktop')).getByTestId('form-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(screen.queryByTestId('page-feedback')).not.toBeInTheDocument();
     expect(screen.getByText('Rafael Costa')).toBeInTheDocument();
   });
 

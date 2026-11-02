@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import type { StaffListItem, StaffStatus } from '@ikaro/types';
 import { FloatingCreateButton } from '@/shared/components/ui/floating-create-button';
 import { Card } from '@/shared/components/ui/card';
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { cn } from '@/shared/utils/cn';
 import { MemberRow } from './MemberRow';
 
@@ -76,39 +77,38 @@ export function TeamListPage({
   return (
     <div className="space-y-4">
       {invitedEmail && (
-        <output
-          aria-live="polite"
-          className="mx-4 block rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4"
-          data-testid="team-invite-success-banner"
+        <FeedbackMessage
+          variant="success"
+          title={t('invitedSuccessTitle')}
+          testId="team-invite-success-banner"
         >
-          <p className="text-[0.9375rem] font-bold text-emerald-800">{t('invitedSuccessTitle')}</p>
-          <p className="mt-1 text-sm text-emerald-700">
-            {t('invitedSuccessBody', { email: invitedEmail })}
-          </p>
-        </output>
+          {t('invitedSuccessBody', { email: invitedEmail })}
+        </FeedbackMessage>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 px-4 pb-1">
-        {FILTERS.map(({ key, labelKey }) => (
-          <button
-            key={key}
-            type="button"
-            className={buildFilterClass(filter === key)}
-            aria-pressed={filter === key}
-            onClick={() => setFilter(key)}
-          >
-            {t(labelKey, { count: counts[key] })}
-          </button>
-        ))}
-      </div>
+      <Card className="overflow-hidden" data-testid="team-list-card">
+        <div className="space-y-3 border-b border-border p-4">
+          <div className="flex flex-wrap items-center gap-2">
+            {FILTERS.map(({ key, labelKey }) => (
+              <button
+                key={key}
+                type="button"
+                className={buildFilterClass(filter === key)}
+                aria-pressed={filter === key}
+                onClick={() => setFilter(key)}
+              >
+                {t(labelKey, { count: counts[key] })}
+              </button>
+            ))}
+          </div>
 
-      {hasMore && (
-        <p className="px-4 text-sm text-gray-500" data-testid="team-list-truncated-notice">
-          {t('truncatedNotice')}
-        </p>
-      )}
+          {hasMore && (
+            <p className="text-sm text-gray-500" data-testid="team-list-truncated-notice">
+              {t('truncatedNotice')}
+            </p>
+          )}
+        </div>
 
-      <Card className="overflow-hidden">
         {filteredMembers.length > 0 ? (
           <div className="divide-y divide-border">
             {filteredMembers.map((member) => (

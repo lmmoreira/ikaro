@@ -158,7 +158,17 @@ function useFormActions(
     [isRegistered, replace, setError, setFieldErrors],
   );
 
-  return { clear, setSuccess, setFromApiError };
+  // Wraps a state setter so that an edit removes the previous error, success and field marks.
+  const edit = useCallback(
+    <T>(setter: (value: T) => void) =>
+      (value: T): void => {
+        clear();
+        setter(value);
+      },
+    [clear],
+  );
+
+  return { clear, edit, setSuccess, setFromApiError };
 }
 
 export function useFormFeedback() {

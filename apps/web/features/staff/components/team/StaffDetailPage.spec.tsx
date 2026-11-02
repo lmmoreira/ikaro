@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffResponse } from '@ikaro/types';
@@ -84,7 +84,10 @@ describe('StaffDetailPage', () => {
     await user.clear(screen.getByTestId('staff-detail-name-input'));
     await user.click(getPrimarySaveButton());
 
-    expect(screen.getByTestId('staff-detail-name-error')).toBeInTheDocument();
+    expect(screen.getByText('Informe o nome.')).toBeInTheDocument();
+    expect(screen.getByTestId('staff-detail-name-input')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('staff-detail-name-input')).toHaveFocus();
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
     expect(mockUpdateStaff).not.toHaveBeenCalled();
   });
 
@@ -121,9 +124,11 @@ describe('StaffDetailPage', () => {
     await user.click(getRoleOption('MANAGER'));
     await user.click(getPrimarySaveButton());
 
-    expect(
-      await screen.findByText('Não é possível remover o último gerente ativo.'),
-    ).toBeInTheDocument();
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Não é possível remover o último gerente ativo.');
     expect(routerPush).not.toHaveBeenCalled();
   });
 
@@ -135,7 +140,39 @@ describe('StaffDetailPage', () => {
 
     await user.click(getPrimarySaveButton());
 
-    expect(await screen.findByText('Algo deu errado. Tente novamente.')).toBeInTheDocument();
+    const feedback = await within(screen.getByTestId('action-pane-desktop')).findByTestId(
+      'form-feedback',
+    );
+    expect(feedback).toHaveTextContent('Algo deu errado. Tente novamente.');
+    expect(screen.getByTestId('staff-detail-name-input')).not.toHaveAttribute('aria-invalid');
+  });
+
+  it('marks and focuses the name input when the server reports the name field', async () => {
+    const user = userEvent.setup();
+    mockUpdateStaff.mockRejectedValue(
+      new ApiError(422, 'Unprocessable', { code: 'STAFF_NAME_REQUIRED', field: 'name' }),
+    );
+
+    renderWithIntl(<StaffDetailPage staff={STAFF} />);
+
+    await user.click(getPrimarySaveButton());
+
+    await within(screen.getByTestId('action-pane-desktop')).findByTestId('form-feedback');
+    expect(screen.getByTestId('staff-detail-name-input')).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.getByTestId('staff-detail-name-input')).toHaveFocus();
+  });
+
+  it('removes the form-level message as soon as the form is edited', async () => {
+    const user = userEvent.setup();
+    mockUpdateStaff.mockRejectedValue(new Error('network down'));
+
+    renderWithIntl(<StaffDetailPage staff={STAFF} />);
+
+    await user.click(getPrimarySaveButton());
+    await within(screen.getByTestId('action-pane-desktop')).findByTestId('form-feedback');
+    await user.click(getRoleOption('MANAGER'));
+
+    expect(screen.queryByTestId('form-feedback')).not.toBeInTheDocument();
   });
 
   it('links Cancelar to the team list on both desktop and mobile action bars', () => {

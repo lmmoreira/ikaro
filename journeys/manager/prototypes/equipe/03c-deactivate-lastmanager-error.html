@@ -78,8 +78,10 @@
       <div class="dashboard-body">
         <div class="detail-layout"><div>
 
-        <div class="error-box">
-          <div class="error-box-icon">🚫</div>
+        <!-- TD57-S08: a page-level feedback box (role="alert", data-testid="page-feedback"): the title and
+             the backend-resolved message, no icon. The screen replaces the form because a retry can never
+             succeed; any other failure shows in the action pane under the buttons instead. -->
+        <div class="error-box" role="alert">
           <div>
             <p class="error-box-title">Não foi possível desativar</p>
             <p class="error-box-body">O estabelecimento precisa de pelo menos um gerente ativo.</p>

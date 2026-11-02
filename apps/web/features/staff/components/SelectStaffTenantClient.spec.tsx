@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { StaffTenantOption } from '@ikaro/types';
 import { SelectStaffTenantClient } from './SelectStaffTenantClient';
 import { switchStaffTenant } from '@/features/auth/api';
+import { FetchError } from '@/shared/lib/api/errors';
 
 const push = vi.fn();
+const refresh = vi.fn();
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push }),
+  useRouter: () => ({ push, refresh }),
 }));
 
 vi.mock('next-intl', () => ({
+  useLocale: () => 'pt-BR',
   useTranslations: () => (key: string) =>
     ({
       selectTenantHeading: 'Selecione o estabelecimento',
@@ -42,6 +45,7 @@ function makeOption(overrides: Partial<StaffTenantOption> = {}): StaffTenantOpti
 describe('SelectStaffTenantClient', () => {
   beforeEach(() => {
     push.mockReset();
+    refresh.mockReset();
     vi.mocked(switchStaffTenant).mockReset();
   });
 
@@ -49,14 +53,20 @@ describe('SelectStaffTenantClient', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the retry state when the initial options are unavailable', () => {
+  it('shows the load failure as an alert with a retry that refreshes the page', async () => {
+    const user = userEvent.setup();
     render(<SelectStaffTenantClient initialOptions={null} />);
 
-    expect(screen.getByText('Não foi possível carregar os estabelecimentos.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Tente novamente' })).toHaveAttribute(
-      'href',
-      '/dashboard',
-    );
+    const feedback = screen.getByTestId('page-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(
+      within(feedback).getByText('Não foi possível carregar os estabelecimentos.'),
+    ).toBeInTheDocument();
+
+    await user.click(within(feedback).getByRole('button', { name: 'Tente novamente' }));
+
+    expect(refresh).toHaveBeenCalledOnce();
+    expect(screen.queryByRole('link', { name: 'Tente novamente' })).not.toBeInTheDocument();
   });
 
   it('renders the tenant options with the correct role labels', () => {
@@ -89,15 +99,39 @@ describe('SelectStaffTenantClient', () => {
     expect(push).toHaveBeenCalledWith('/dashboard');
   });
 
-  it('shows the retry state when the tenant switch fails', async () => {
+  it('keeps the list and shows the backend message when the tenant switch fails', async () => {
     const user = userEvent.setup();
-    vi.mocked(switchStaffTenant).mockRejectedValue(new Error('boom'));
+    vi.mocked(switchStaffTenant).mockRejectedValue(
+      new FetchError('Switch failed', 403, 'BFF_STAFF_NOT_REGISTERED_IN_TENANT'),
+    );
 
     render(<SelectStaffTenantClient initialOptions={[makeOption()]} />);
 
     await user.click(screen.getByRole('button', { name: /Lavacar BeloAuto/ }));
 
-    expect(screen.getByText('Não foi possível carregar os estabelecimentos.')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Tente novamente' })).toBeInTheDocument();
+    const feedback = await screen.findByTestId('page-feedback');
+    expect(feedback).toHaveAttribute('role', 'alert');
+    expect(feedback).toHaveTextContent('Você não está registrado neste estabelecimento.');
+    expect(screen.getByRole('button', { name: /Lavacar BeloAuto/ })).toBeEnabled();
+    expect(push).not.toHaveBeenCalled();
+  });
+
+  it('clears the switch failure when the user picks again', async () => {
+    const user = userEvent.setup();
+    vi.mocked(switchStaffTenant)
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValueOnce({ tenantSlug: 'lavacar-beloauto' });
+
+    render(<SelectStaffTenantClient initialOptions={[makeOption()]} />);
+
+    await user.click(screen.getByRole('button', { name: /Lavacar BeloAuto/ }));
+    expect(await screen.findByTestId('page-feedback')).toHaveTextContent(
+      'Algo deu errado. Tente novamente.',
+    );
+
+    await user.click(screen.getByRole('button', { name: /Lavacar BeloAuto/ }));
+
+    expect(screen.queryByTestId('page-feedback')).not.toBeInTheDocument();
+    expect(push).toHaveBeenCalledWith('/dashboard');
   });
 });
