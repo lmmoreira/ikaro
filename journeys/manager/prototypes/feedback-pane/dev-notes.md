@@ -3,7 +3,7 @@
 **Journey:** MANAGER — Feedback e painel de ações (`manager/feedback-pane.md`)
 **UCs:** none — a cross-cutting UI pattern, not a use case. Source: `td/TD57-INLINE-FEEDBACK-AND-ACTION-PANE-PATTERN.md`
 **Prototype:** `manager/prototypes/feedback-pane/`
-**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Pending stories: S04 (rows) and S06 (branded component) are done; pending: S07–S16 (area migrations).
+**Status:** In progress — the shared components shipped with TD57-S01; the service edit screen (all five tabs) and the five New-booking steps use them; TD57-S02 also split the policy error into per-reason codes. TD57-S03 made every service edit tab start with a card level with the pane. Done: S04 (rows), S06 (branded component), S07 (Resources), S08 (Team, deactivate screens, tenant picker) and S09 (Settings); pending: S05 (lint guard) and S10–S16 (area migrations).
 
 ---
 
