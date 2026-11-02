@@ -4,18 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reagendar — sem horários</title>
-  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/customer-shell.css">
   <link rel="stylesheet" href="../../../shared/reschedule-picker.css">
   <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .section-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.4); margin:0 0 0.625rem; }
-    .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
-    .ok-box { background:#f0fdf4; border:2px solid #86efac; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
-    .help-box { background:var(--ba-secondary); border-radius:var(--ba-radius); padding:0.875rem 1rem; margin-bottom:1.25rem; font-size:0.875rem; color:var(--ba-text); line-height:1.6; }
-    .kv { display:flex; justify-content:space-between; gap:1rem; padding:0.5rem 0; font-size:0.9375rem; color:var(--ba-text); border-bottom:1px solid var(--ba-secondary); }
+    .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ik-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
+    .ok-box { background:#f0fdf4; border:2px solid #86efac; border-radius:var(--ik-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
+    .help-box { background:var(--ik-soft); border-radius:var(--ik-radius); padding:0.875rem 1rem; margin-bottom:1.25rem; font-size:0.875rem; color:var(--ik-text); line-height:1.6; }
+    .kv { display:flex; justify-content:space-between; gap:1rem; padding:0.5rem 0; font-size:0.9375rem; color:var(--ik-text); border-bottom:1px solid var(--ik-soft); }
     .kv:last-child { border-bottom:none; }
     .kv .k { opacity:0.6; }
-    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ba-radius); height:2.75rem; }
+    .skeleton { background:linear-gradient(90deg,#e5e7eb,#f3f4f6,#e5e7eb); border-radius:var(--ik-radius); height:2.75rem; }
     .btn-disabled { opacity:0.5; cursor:not-allowed; pointer-events:none; }
     .detail-layout { display:block; }
     .detail-aside { display:none; }
@@ -24,13 +24,13 @@
       .detail-aside { display:block; position:sticky; top:1.5rem; }
       .mobile-actions { display:none !important; }
     }
-    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
-    .card > .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0; padding: 1rem 0 0.125rem; }
-    .card-sub { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); padding: 0 0 0.25rem; }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ik-text); padding: 0.875rem 0 0.25rem; }
+    .card > .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ik-text); margin: 0; padding: 1rem 0 0.125rem; }
+    .card-sub { font-size: 0.75rem; opacity: 0.55; color: var(--ik-text); padding: 0 0 0.25rem; }
     .fb-mobile-only { display: block; }
     @media (min-width: 1024px) { .fb-mobile-only { display: none; } }
     .fb-pane .card > p { margin: 0 0 0.75rem; }
-    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ba-text); text-align: center; margin: .625rem 0 0; }
+    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ik-text); text-align: center; margin: .625rem 0 0; }
   </style>
 </head>
 <body>
@@ -51,9 +51,8 @@
     STATE: no free slot in the queried range (every day unavailable) — explanatory box; the booking is untouched.
   -->
 
-  <div class="dashboard-topbar" style="position:relative;">
-    <span style="position:absolute;left:50%;transform:translateX(-50%);font-weight:700;font-size:0.9375rem;color:var(--ba-text);pointer-events:none;white-space:nowrap;">BeloAuto</span>
-    <a href="02-agendamento-detail.html" style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;color:var(--ba-primary);font-size:0.9375rem;font-weight:600;">
+  <div class="dashboard-topbar">
+    <a href="02-agendamento-detail.html" style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;color:var(--ik-text);font-size:0.9375rem;font-weight:600;">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       Agendamento
     </a>
@@ -85,7 +84,7 @@
 
           <aside class="fb-pane" aria-label="Ações do reagendamento" data-testid="action-pane-desktop">
             <div class="card">
-              <p style="font-size:.875rem;opacity:.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Escolha o novo horário. O agendamento continua aprovado e você receberá a confirmação por email.</p>
+              <p style="font-size:.875rem;opacity:.6;color:var(--ik-text);margin-bottom:1rem;line-height:1.5;">Escolha o novo horário. O agendamento continua aprovado e você receberá a confirmação por email.</p>
               <div class="fb-buttons">
                 <button class="btn-primary btn-disabled" disabled aria-disabled="true">Confirmar novo horário</button>
                 <a href="02-agendamento-detail.html" class="btn-secondary">Voltar ao agendamento</a>

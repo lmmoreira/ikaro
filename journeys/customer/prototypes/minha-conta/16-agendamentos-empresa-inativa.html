@@ -4,24 +4,24 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meus agendamentos — Empresa inativa — Lavacar BeloAuto</title>
-  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/customer-shell.css">
   <style>
-    .customer-nav { display: none; background: white; border-bottom: 1px solid var(--ba-secondary); padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5; }
-    .customer-nav-item { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500; color: var(--ba-text); text-decoration: none; border-bottom: 2px solid transparent; opacity: 0.5; }
-    .customer-nav-item.active { color: var(--ba-primary); border-bottom-color: var(--ba-primary); opacity: 1; }
-    .list-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.8125rem 0; border-bottom: 1px solid var(--ba-secondary); }
+    .customer-nav { display: none; background: white; border-bottom: 1px solid var(--ik-soft); padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5; }
+    .customer-nav-item { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500; color: var(--ik-text); text-decoration: none; border-bottom: 2px solid transparent; opacity: 0.5; }
+    .customer-nav-item.active { color: var(--ik-primary); border-bottom-color: var(--ik-primary); opacity: 1; }
+    .list-item { display: flex; align-items: center; gap: 0.75rem; padding: 0.8125rem 0; border-bottom: 1px solid var(--ik-soft); }
     .list-item:last-child { border-bottom: none; }
-    .list-item-icon { width: 2.125rem; height: 2.125rem; border-radius: var(--ba-radius); background: var(--ba-secondary); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .list-item-icon { width: 2.125rem; height: 2.125rem; border-radius: var(--ik-radius); background: var(--ik-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
     .list-item-info { flex: 1; min-width: 0; }
-    .list-item-name { font-weight: 600; font-size: 0.9375rem; color: var(--ba-text); }
-    .list-item-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ba-text); margin-top: 0.125rem; }
+    .list-item-name { font-weight: 600; font-size: 0.9375rem; color: var(--ik-text); }
+    .list-item-meta { font-size: 0.8125rem; opacity: 0.55; color: var(--ik-text); margin-top: 0.125rem; }
     .list-item.disabled { cursor: not-allowed; }
     .list-item.disabled .list-item-info, .list-item.disabled .list-item-icon { opacity: 0.55; }
     .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.625rem; margin-top: 1.25rem; }
     .section-label { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(17,24,39,0.4); margin: 0; }
     .cancel-link { margin-left: auto; flex-shrink: 0; font-size: 0.8125rem; font-weight: 500; color: #b91c1c; text-decoration: underline; cursor: pointer; }
     .inactive-badge { background: #f3f4f6; color: #4b5563; border: 1px solid #d1d5db; }
-    .notice { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: var(--ba-radius); padding: 0.875rem 1rem; margin-bottom: 1rem; display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.5; color: var(--ba-text); }
+    .notice { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: var(--ik-radius); padding: 0.875rem 1rem; margin-bottom: 1rem; display: flex; gap: 0.625rem; align-items: flex-start; font-size: 0.875rem; line-height: 1.5; color: var(--ik-text); }
     .detail-layout { display: block; }
     .detail-aside { display: none; }
     @media (min-width: 1024px) {
@@ -52,7 +52,7 @@
   <div class="dashboard-topbar">
     <div class="topbar-brand"><div class="topbar-logo-mark">L</div><span class="topbar-tenant-name">Lavacar BeloAuto</span></div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:0.75rem;">
-      <a href="../../../shared/hotsite-logged-in.html" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;color:var(--ba-text);font-size:0.875rem;font-weight:500;">
+      <a href="../../../shared/hotsite-logged-in.html" style="display:flex;align-items:center;gap:0.5rem;text-decoration:none;color:var(--ik-text);font-size:0.875rem;font-weight:500;">
         <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;flex-shrink:0;">MF</div>
         <span class="topbar-user-name" style="display:none;font-weight:600;">Maria Fernanda</span>
       </a>
@@ -88,7 +88,7 @@
             <a class="cancel-link" href="03-cancel-confirm.html">Cancelar</a>
           </div>
         </div>
-        <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);margin-top:0.5rem;">Agendamentos em aberto aparecem para consulta, mas não podem ser abertos enquanto a empresa estiver inativa, mas você ainda pode cancelá-los. <a href="16b-detalhe-bloqueado.html" style="color:var(--ba-primary);">(só no protótipo: ver o que acontece ao abrir por link direto)</a></p>
+        <p style="font-size:0.75rem;opacity:0.5;color:var(--ik-text);margin-top:0.5rem;">Agendamentos em aberto aparecem para consulta, mas não podem ser abertos enquanto a empresa estiver inativa, mas você ainda pode cancelá-los. <a href="16b-detalhe-bloqueado.html" style="color:var(--ik-primary);">(só no protótipo: ver o que acontece ao abrir por link direto)</a></p>
 
         <div class="section-header"><p class="section-label">Histórico</p></div>
         <div class="card" style="padding:0 1rem;">
@@ -111,7 +111,7 @@
 
         <div style="margin-top:1.5rem;">
           <a class="btn-primary" href="16c-novo-agendamento-bloqueado.html" style="text-decoration:none;opacity:0.5;display:inline-block;" title="Esta empresa não está aceitando agendamentos no momento">Novo agendamento</a>
-          <p style="font-size:0.75rem;opacity:0.5;color:var(--ba-text);margin-top:0.5rem;">Indisponível enquanto a empresa estiver inativa (toque para ver a mensagem).</p>
+          <p style="font-size:0.75rem;opacity:0.5;color:var(--ik-text);margin-top:0.5rem;">Indisponível enquanto a empresa estiver inativa (toque para ver a mensagem).</p>
         </div>
 
       </div>

@@ -4,21 +4,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Fidelidade — BeloAuto</title>
-  <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/customer-shell.css">
   <style>
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
     .customer-nav {
-      display: none; background: white; border-bottom: 1px solid var(--ba-secondary);
+      display: none; background: white; border-bottom: 1px solid var(--ik-soft);
       padding: 0 1.5rem; position: sticky; top: 3.375rem; z-index: 5;
     }
     .customer-nav-item {
       display: inline-flex; align-items: center; gap: 0.375rem;
       padding: 0.75rem 1rem; font-size: 0.875rem; font-weight: 500;
-      color: var(--ba-text); text-decoration: none;
+      color: var(--ik-text); text-decoration: none;
       border-bottom: 2px solid transparent; opacity: 0.5;
     }
-    .customer-nav-item.active { color: var(--ba-primary); border-bottom-color: var(--ba-primary); opacity: 1; }
+    .customer-nav-item.active { color: var(--ik-primary); border-bottom-color: var(--ik-primary); opacity: 1; }
     @media (min-width: 1024px) {
       .topbar-brand { display: flex !important; }
       .topbar-user-name { display: inline !important; }
@@ -49,7 +49,7 @@
       <div style="position:relative;">
         <details>
           <summary style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;
-                          color:var(--ba-text);font-size:0.875rem;font-weight:500;padding:0;">
+                          color:var(--ik-text);font-size:0.875rem;font-weight:500;padding:0;">
             <div class="list-avatar" style="width:2rem;height:2rem;font-size:0.8125rem;flex-shrink:0;">JS</div>
             <span class="topbar-user-name" style="display:none;font-weight:600;">João Silva</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -58,18 +58,18 @@
             </svg>
           </summary>
           <div style="position:absolute;right:0;top:calc(100% + 0.5rem);background:white;
-                      border:1px solid var(--ba-secondary);border-radius:var(--ba-radius);
+                      border:1px solid var(--ik-soft);border-radius:var(--ik-radius);
                       box-shadow:0 4px 12px rgba(0,0,0,.12);min-width:12rem;overflow:hidden;z-index:50;">
-            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--ba-secondary);">
-              <p style="font-size:0.875rem;font-weight:600;color:var(--ba-text);margin:0;">João Silva</p>
-              <p style="font-size:0.8125rem;opacity:.5;color:var(--ba-text);margin:0.125rem 0 0;">joao@email.com</p>
+            <div style="padding:0.75rem 1rem;border-bottom:1px solid var(--ik-soft);">
+              <p style="font-size:0.875rem;font-weight:600;color:var(--ik-text);margin:0;">João Silva</p>
+              <p style="font-size:0.8125rem;opacity:.5;color:var(--ik-text);margin:0.125rem 0 0;">joao@email.com</p>
             </div>
             <a href="../../../shared/hotsite-logged-in.html"
                style="display:flex;align-items:center;gap:0.625rem;padding:0.625rem 1rem;
-                      font-size:0.875rem;color:var(--ba-text);text-decoration:none;opacity:.65;">
+                      font-size:0.875rem;color:var(--ik-text);text-decoration:none;opacity:.65;">
               ← Site BeloAuto
             </a>
-            <hr style="border:none;border-top:1px solid var(--ba-secondary);margin:0;">
+            <hr style="border:none;border-top:1px solid var(--ik-soft);margin:0;">
             <a href="../../../shared/hotsite.html"
                style="display:flex;padding:0.625rem 1rem;font-size:0.875rem;
                       color:#dc2626;text-decoration:none;font-weight:500;">
@@ -91,18 +91,18 @@
     <main class="main-content">
       <div class="dashboard-body">
 
-        <h1 style="font-size:1.125rem;font-weight:700;color:var(--ba-text);margin-bottom:1rem;">
+        <h1 style="font-size:1.125rem;font-weight:700;color:var(--ik-text);margin-bottom:1rem;">
           Minha Fidelidade
         </h1>
 
         <!-- Empty balance card — muted -->
         <div style="
-          background: #f3f4f6; border: 1px solid var(--ba-secondary);
-          border-radius: var(--ba-radius); padding: 1.375rem 1.5rem;
+          background: #f3f4f6; border: 1px solid var(--ik-soft);
+          border-radius: var(--ik-radius); padding: 1.375rem 1.5rem;
           margin-bottom: 1.5rem;
         ">
-          <div style="font-size:3rem;font-weight:800;line-height:1;color:var(--ba-text);opacity:0.2;">0</div>
-          <div style="font-size:0.875rem;opacity:0.45;color:var(--ba-text);margin-top:0.25rem;">
+          <div style="font-size:3rem;font-weight:800;line-height:1;color:var(--ik-text);opacity:0.2;">0</div>
+          <div style="font-size:0.875rem;opacity:0.45;color:var(--ik-text);margin-top:0.25rem;">
             pontos ativos
           </div>
         </div>
@@ -111,18 +111,18 @@
         <div style="text-align:center;padding:2.5rem 1rem;">
           <div style="
             width:3.5rem;height:3.5rem;border-radius:9999px;
-            background:var(--ba-secondary);margin:0 auto 1rem;
+            background:var(--ik-soft);margin:0 auto 1rem;
             display:flex;align-items:center;justify-content:center;
           ">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ik-primary)"
                  stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
             </svg>
           </div>
-          <p style="font-weight:700;font-size:1rem;color:var(--ba-text);margin-bottom:0.375rem;">
+          <p style="font-weight:700;font-size:1rem;color:var(--ik-text);margin-bottom:0.375rem;">
             Nenhum ponto acumulado ainda
           </p>
-          <p style="font-size:0.875rem;opacity:0.55;color:var(--ba-text);line-height:1.6;max-width:22rem;margin:0 auto 1.5rem;">
+          <p style="font-size:0.875rem;opacity:0.55;color:var(--ik-text);line-height:1.6;max-width:22rem;margin:0 auto 1.5rem;">
             Complete um agendamento para começar a acumular pontos e trocar por descontos.
           </p>
           <a href="../book-a-service/01-service-selection.html" class="btn-primary"

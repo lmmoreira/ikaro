@@ -1,0 +1,278 @@
+/* ============================================================
+   Ikaro — customer account shell (SaaS skin)
+   The look of CustomerShell / CustomerTopbar / CustomerBottomNav and the cards, buttons and
+   badges of the logged-in customer account (apps/web/features/customer).
+   NEVER reads --ba-*: those tokens belong to the tenant's public hotsite.
+   Link it instead of tokens.css from a customer-account prototype:
+     <link rel="stylesheet" href="../../../shared/customer-shell.css">
+   ============================================================ */
+:root {
+  color-scheme: only light;
+  --ik-primary:    #2563eb;   /* blue-600 */
+  --ik-on-primary: #ffffff;
+  --ik-soft:       #eff6ff;   /* blue-50 */
+  --ik-text:       #111827;   /* gray-900 */
+  --ik-bg:         #f9fafb;   /* CustomerShell <main> background */
+  --ik-border:     #f3f4f6;   /* gray-100 */
+  --ik-radius:     8px;       /* rounded-lg: buttons, inputs */
+  --ik-radius-card:12px;      /* rounded-xl: cards */
+  --ik-shadow:     none;
+  --ik-font:       'Geist', 'Inter', system-ui, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--ik-font); background: var(--ik-bg); color: var(--ik-text); line-height: 1.5; }
+h1, h2, h3 { font-family: var(--ik-font); }
+
+.btn-primary {
+  background-color: var(--ik-primary);
+  color: var(--ik-on-primary);
+  border: 2px solid var(--ik-primary);
+  border-radius: var(--ik-radius);
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-primary:hover { opacity: 0.9; }
+
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.btn-secondary {
+  background-color: transparent;
+  color: var(--ik-text);
+  border: 1px solid var(--ik-soft);
+  border-radius: var(--ik-radius);
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: #ffffff;
+  border: 2px solid #dc2626;
+  border-radius: var(--ik-radius);
+  padding: 0.75rem 2rem;
+  font-weight: 600;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn-danger:hover { opacity: 0.9; }
+
+.card {
+  border: 1px solid var(--ik-soft);
+  border-radius: var(--ik-radius);
+  padding: 1rem;
+  box-shadow: var(--ik-shadow);
+}
+
+.card.selected { border-color: var(--ik-primary); border-width: 2px; }
+
+.step-container {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 3rem 1.5rem;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+  color: var(--ik-text);
+}
+
+.form-input {
+  width: 100%;
+  border: 1px solid var(--ik-soft);
+  border-radius: var(--ik-radius);
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  font-family: var(--ik-font);
+  color: var(--ik-text);
+}
+
+.form-input:focus {
+  outline: 2px solid var(--ik-primary);
+  outline-offset: 1px;
+  border-color: var(--ik-primary);
+}
+
+.nav-buttons {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  align-items: center;
+}
+
+.list-avatar {
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 9999px;
+  background: #2563eb; 
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+}
+
+.dashboard-layout { display: block; min-height: 100vh; }
+
+.main-content {
+  background: #f9fafb;
+  min-height: 100vh;
+  padding-bottom: 5rem;
+}
+
+.dashboard-topbar {
+  background: white;
+  border-bottom: 1px solid var(--ik-soft);
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.topbar-brand     { display: flex; align-items: center; gap: 0.625rem; }
+
+.topbar-logo-mark {
+  width: 1.75rem; height: 1.75rem; flex-shrink: 0;
+  background: #2563eb; border-radius: 6px; 
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 0.8125rem; color: white;
+}
+
+.topbar-tenant-name { font-weight: 700; font-size: 0.9375rem; color: var(--ik-text); }
+
+.dashboard-body { padding: 1rem; }
+
+.bottom-nav {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: white;
+  border-top: 1px solid var(--ik-soft);
+  display: flex;
+  z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.bottom-nav-item {
+  flex: 1;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 0.5rem 0.25rem 0.375rem;
+  text-decoration: none;
+  color: rgba(17,24,39,0.4);
+  font-size: 0.625rem; font-weight: 600;
+  letter-spacing: 0.02em;
+  gap: 0.25rem;
+  border: none; background: none; cursor: pointer;
+  transition: color 0.12s;
+  font-family: var(--ik-font);
+}
+
+.bottom-nav-item.active { color: #2563eb; }
+
+.bottom-nav-icon { width: 1.375rem; height: 1.375rem; flex-shrink: 0; }
+
+.status-badge {
+  font-size: 0.6875rem; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 0.1875rem 0.5rem;
+  border-radius: 4px; white-space: nowrap; flex-shrink: 0;
+}
+
+.status-pending   { background: #fef3c7; color: #92400e; }
+
+.status-info      { background: #dbeafe; color: #1d4ed8; }
+
+.status-approved  { background: #dcfce7; color: #15803d; }
+
+.status-cancelled { background: #fee2e2; color: #dc2626; }
+
+.status-rejected  { background: #fee2e2; color: #dc2626; }
+
+.status-completed { background: #f1f5f9; color: #475569; }
+
+.status-no-show   { background: #ede9fe; color: #6d28d9; }
+
+.booking-card-actions .btn-primary {
+  width: 100%;
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.booking-card-actions .btn-secondary {
+  flex: 1;
+  text-align: center;
+  padding: 0.625rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+@media (min-width: 1024px) {
+  .dashboard-layout  { display: flex; }
+  .sidebar           { display: flex; }
+  .bottom-nav        { display: none; }
+  .main-content      { flex: 1; min-width: 0; padding-bottom: 0; min-height: auto; }
+  .dashboard-body    { padding: 1.5rem; }
+  .dashboard-topbar  { padding: 0.875rem 1.5rem; }
+  .topbar-brand      { display: none; }
+  .topbar-avatar     { display: none; }
+  .topbar-page-title { display: block; }
+  .topbar-date       { display: block; }
+
+  
+  .booking-card                  { display: flex; align-items: center; gap: 1rem; }
+  .booking-card-header           { flex: 1; margin-bottom: 0; }
+  .booking-card-actions          { flex-shrink: 0; flex-wrap: nowrap; }
+  .booking-card-actions .btn-primary,
+  .booking-card-actions .btn-secondary {
+    flex: none;
+    width: auto;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* ---------- Customer account look (overrides the generic rules above) ---------- */
+.card { background: #fff; border: 1px solid var(--ik-border); border-radius: var(--ik-radius-card); box-shadow: none; padding: 1rem; }
+.card.selected { border-color: var(--ik-primary); border-width: 2px; }
+.btn-primary, .btn-secondary, .btn-danger {
+  border-radius: var(--ik-radius); padding: 0.625rem 1rem; font-size: 0.875rem; font-weight: 600;
+  text-align: center; cursor: pointer; text-decoration: none; display: inline-block; line-height: 1.25rem;
+}
+.btn-primary   { background: var(--ik-primary); color: var(--ik-on-primary); border: 0; }
+.btn-secondary { background: #fff; color: #374151; border: 1px solid #e5e7eb; }
+.btn-secondary:hover { background: #f9fafb; }
+.btn-danger    { background: #dc2626; color: #fff; border: 0; }
+.btn-primary:hover, .btn-danger:hover { opacity: .9; }
+.btn-primary:disabled, .btn-disabled { opacity: .6; cursor: not-allowed; }
+.dashboard-topbar { background: #fff; border-bottom: 1px solid var(--ik-border); padding: 0.75rem 1rem; }
+.main-content { background: var(--ik-bg); }
+.form-label { font-size: 0.875rem; font-weight: 600; color: var(--ik-text); }
+.form-input { border: 1px solid #e5e7eb; border-radius: var(--ik-radius); padding: 0.5rem 0.75rem; font-size: 0.875rem; }
+.form-input:focus { outline: none; border-color: var(--ik-primary); }
+/* the topbar status badge (shared/ui Badge: rounded-full, 0.875rem, semibold) */
+.status-badge { border-radius: 9999px; padding: 0.5rem 0.875rem; font-size: 0.875rem; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.status-pending   { background: #fef9c3; color: #854d0e; }   /* yellow-100 / yellow-800 */
+.status-info      { background: #dbeafe; color: #1e40af; }   /* blue-100 / blue-800 */
+.status-approved  { background: #dcfce7; color: #166534; }   /* green-100 / green-800 */
+.status-rejected  { background: #fee2e2; color: #991b1b; }   /* red-100 / red-800 */
+.status-cancelled { background: #f3f4f6; color: #4b5563; }   /* gray-100 / gray-600 */
+.status-completed { background: #f1f5f9; color: #475569; }   /* slate-100 / slate-600 */
+.status-no-show   { background: #ede9fe; color: #5b21b6; }   /* violet-100 / violet-800 */
