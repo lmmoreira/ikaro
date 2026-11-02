@@ -19,7 +19,7 @@ flowchart TD
     Submit --> Valid{"Todos os campos válidos?"}
     Valid -- "não (A1)" --> FieldError["campo destacado<br/>com mensagem de erro inline"]
     FieldError --> Form
-    Valid -- "sim → 200" --> Success["banner verde inline<br/>'Configurações salvas!'"]
+    Valid -- "sim → 200" --> Success["confirmação verde sob o botão Salvar (painel de ações)<br/>'Configurações salvas!'"]
     Success --> Form
 
     class Form,FieldError,Success existing

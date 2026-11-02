@@ -22,6 +22,19 @@
     .toggle-switch.on { background: var(--ba-primary); }
     .toggle-knob { position: absolute; top: 2px; left: 2px; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background: white; transition: transform 0.15s; box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
     .toggle-switch.on .toggle-knob { transform: translateX(1.25rem); }
+
+    .form-actions {
+      position: fixed; bottom: 3.5rem; left: 0; right: 0; z-index: 20; background: white;
+      border-top: 1px solid #e5e7eb; padding: 0.75rem 1rem; box-shadow: 0 -2px 8px rgba(0,0,0,.06);
+    }
+    .form-actions .btn-primary { display: block; text-align: center; padding: 0.875rem; }
+    .detail-layout { display: block; }
+    .detail-aside  { display: none; }
+    @media (min-width: 1024px) {
+      .detail-layout { display: grid; grid-template-columns: 1fr 22rem; gap: 1.5rem; align-items: start; }
+      .detail-aside  { display: block; position: sticky; top: 1.5rem; }
+      .form-actions  { display: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -73,27 +86,7 @@
 
     <main class="main-content" style="padding-bottom:5.5rem;">
       <div class="dashboard-body">
-
-        <!-- Inline success banner — same pattern as agenda/04b-complete-success.html -->
-        <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);
-                    padding:1.125rem 1.25rem;margin-bottom:1.5rem;
-                    display:flex;align-items:flex-start;gap:0.875rem;">
-          <div style="width:2rem;height:2rem;border-radius:9999px;background:#16a34a;
-                      display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-            <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="white"
-                 stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"/>
-            </svg>
-          </div>
-          <div>
-            <p style="font-weight:700;font-size:0.9375rem;color:#15803d;margin-bottom:0.125rem;">
-              Configurações salvas!
-            </p>
-            <p style="font-size:0.875rem;color:#166534;opacity:0.85;line-height:1.5;">
-              As alterações foram aplicadas. Novos agendamentos já seguem as novas regras.
-            </p>
-          </div>
-        </div>
+        <div class="detail-layout"><div>
 
         <!-- Geral -->
         <div class="section-card">
@@ -355,8 +348,37 @@
             </div>
           </div>
         </div>
+
+        </div><!-- /form col -->
+        <div class="detail-aside">
+          <div class="card" style="padding:1.25rem;">
+            <a href="01-settings-form.html" class="btn-primary" style="display:block;text-align:center;padding:0.75rem;">
+              Salvar configurações
+            </a>
+            <hr style="border:0;border-top:1px solid #e5e7eb;margin:1rem 0;">
+            <p style="font-size:0.875rem;line-height:1.5;opacity:0.6;">As configurações afetam novos agendamentos. Horários de funcionamento e fuso entram em vigor imediatamente.</p>
+          </div>
+          <!-- TD57-S09: success = second card under the buttons card (role="status"), kept until the
+               next edit; no auto-fade. On mobile it sits in the fixed bar above the button. -->
+          <div role="status" data-testid="form-feedback"
+               style="margin-top:0.75rem;background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);
+                      padding:0.875rem 1rem;color:#166534;">
+            <p style="font-weight:700;font-size:0.875rem;">Configurações salvas!</p>
+            <p style="font-size:0.8125rem;opacity:0.85;line-height:1.5;margin-top:0.125rem;">As alterações foram aplicadas. Novos agendamentos já seguem as novas regras.</p>
+          </div>
+        </div>
+        </div><!-- /detail-layout -->
+
       </div>
     </main>
+  </div>
+
+  <div class="form-actions">
+    <div role="status" style="margin-bottom:0.5rem;background:#f0fdf4;border:1px solid #86efac;border-radius:var(--ba-radius);
+                padding:0.5rem 0.75rem;font-size:0.8125rem;color:#166534;">
+      <strong>Configurações salvas!</strong> As alterações foram aplicadas.
+    </div>
+    <span class="btn-primary">Salvar configurações</span>
   </div>
 
   <nav class="bottom-nav">

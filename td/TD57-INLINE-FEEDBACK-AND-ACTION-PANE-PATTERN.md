@@ -562,22 +562,36 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Agent:** frontend-ts
 **Complexity:** S
 **Docs to load:** `docs/ENGINEERING_RULES_FRONTEND.md` (the section added by Story 1); `docs/DASHBOARD_FRONTEND_ARCHITECTURE.md` §3; `docs/TESTING_STRATEGY.md` § apps/web Testing Infrastructure; this TD's Appendix A.4
-**Dependencies:** Story 0, Story 1
+**Dependencies:** Story 0, Story 1, Story 8 (the `FormActionPane` / field-marking precedent)
 **Pattern:** plain composition over the Story 1 building blocks — no named pattern applies
 
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). 
 
+**Decisions locked in discovery (2026-11-02):**
+- **Pane:** `SettingsFormActions.tsx` becomes a `Settings` pane built on `ActionPane` directly (no cancel link, so `FormActionPane` does not fit) with `mobileOffsetClassName={MOBILE_ACTION_BAR_CLEARANCE_CLASS}`. `settings-submit-desktop` / `settings-submit-mobile` and the `actionHint` stay. The banners above the grid and `globalThis.scrollTo(top)` are removed (the pane is sticky).
+- **Field wiring:** `SettingsForm` owns one `useFormFeedback`; the hook's `fieldProps` and `fieldErrorId` are passed down as props, replacing the `fieldErrors` prop of the sections and field primitives (no new context). Every edit goes through `edit(...)`, so success and errors clear on the next change. Client validation calls `setFieldErrors(errors)` (marks and focuses the first invalid field, no pane message).
+- **Test ids:** `settings-saved-banner` and `settings-submit-error` become the pane's `form-feedback`. `FieldFeedback` takes no test id, so the per-field `*-error` ids (e.g. `settings-recurring-renewal-reminder-days-error`) are dropped and the specs assert `aria-invalid` plus the message text; `settings.spec.ts` is updated.
+- **Server `field`:** a small backend-path → form-key map in `SettingsForm` (`chatbot.knowledgeText` → `knowledgeText`) replaces the knowledgeText special case; an unknown `field` falls back to the pane message.
+- **Rename partial failure** (`PATCH /v1/tenants/settings` saved, `PATCH /v1/tenants` `{ name }` failed): an **error** in the pane with the existing `errors.renamePartialFailure` text and the name input marked invalid with the reason; no success card (the hook allows one message).
+- **Success:** `successTitle` as the title and `successBody` as the body of a `FeedbackModel`.
+- **Layout:** the Settings sections use the `text-sm font-semibold` heading through a Settings-only option on `SectionCard`; no global restyle (hotsite tabs and service public pages keep theirs). The first card starts level with the pane once the banners leave the top of the form.
+- **Types:** `SettingsFormErrors.submit` is removed (`settings-form-types.ts`).
+- **Journey sync:** `journeys/manager/prototypes/configuracoes/` (`01b`, `01c`, `index.html`, `dev-notes.md`) and `journeys/manager/configuracoes.md` show the message in the pane (done in discovery).
+
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
-**Prototype references:** none
+**Prototype references:** `journeys/manager/prototypes/configuracoes/` (`01b-validation-error.html`, `01c-saved-success.html`, `dev-notes.md`); journey `journeys/manager/configuracoes.md`
 **New migration / i18n keys / env vars / feature flags:** none expected; any new copy key in both locales in the same change
 
 **Files to create/modify:**
 - `apps/web/features/platform/components/settings/SettingsForm.tsx` + `SettingsForm.spec.tsx`
 - `apps/web/features/platform/components/settings/SettingsFormActions.tsx` + `SettingsFormActions.spec.tsx`
-- `apps/web/features/platform/components/settings/SettingsFormFields.tsx` + `SettingsFormFields.spec.tsx`
+- `apps/web/features/platform/components/settings/SettingsFormFields.tsx` + `SettingsFormFields.spec.tsx`, `SettingsFormAdvancedFields.tsx` + spec (field primitives take `fieldProps`/`fieldErrorId`)
+- the eight section components in the same folder (`SettingsGeneralSection`, `SettingsBookingSection`, `SettingsLoyaltySection`, `SettingsHoursSection`, `SettingsContactSection`, `SettingsChatbotSection`, `SettingsLeadFormSection`) + their specs (pass the props down; `SettingsLocalizationSection` is read-only, only its heading style changes)
+- `apps/web/shared/components/ui/section-card.tsx` + spec (Settings-only heading option)
+- `apps/web/features/platform/settings-form-types.ts` (drop `submit`)
 - `apps/web/e2e/settings.spec.ts` (update ids if the migration renames a `data-testid`)
 
 **Acceptance criteria — product:**
@@ -588,11 +602,13 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Acceptance criteria — technical:**
 - Unit:
   - [ ] one spec per migrated file asserting the old hand-rolled box no longer renders and the shared component does, with the right `role`
-  - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test)
+  - [ ] a server `field` error marks and focuses its input; an unknown `field` falls back to the form-level message (own test); `chatbot.knowledgeText` marks the knowledge textarea
+  - [ ] rename partial failure: the pane shows the error and no success, and the name input is `aria-invalid` (own test); a plain save shows `successTitle` + `successBody` with `role="status"`, cleared by the next edit
+  - [ ] negative guarantee: `settings-saved-banner`, `settings-submit-error` and `globalThis.scrollTo` are no longer used by `SettingsForm`
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `settings.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] `settings.spec.ts` updated for the renamed ids (`form-feedback`, no `*-error` ids); one new scenario: with `page.route` stubbing `PATCH` settings to 500, the error shows in the pane and the form keeps its values. `/dashboard/settings` is the only route
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 

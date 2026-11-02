@@ -151,6 +151,22 @@ all 3 bounds are fully client-checkable — validated client-side the same way a
 
 ---
 
+## Feedback placement (TD57-S09)
+
+The form-level message is **not** a banner above the form. It renders in the sticky action pane (`ActionPane`, `SettingsFormActions.tsx`), as a second card under the Salvar button card (`data-testid="form-feedback"`; on mobile `form-feedback-mobile` inside the fixed bar). Error is `role="alert"`, success is `role="status"` and stays until the next edit (no auto-fade, no scroll-to-top).
+
+| Case | What the manager sees |
+|---|---|
+| Client validation fails | Fields marked (`aria-invalid` + red outline + message under the input); the first invalid field is scrolled to and focused; no pane message (`01b`) |
+| Server error with a `field` (e.g. `chatbot.knowledgeText`) | Same field marking; an unknown `field` falls back to the pane message |
+| Other server error | Resolved message in the pane |
+| Settings saved, **rename failed** | Error in the pane ("As configurações foram salvas, mas não foi possível renomear o estabelecimento: …") and the name input marked invalid; no success card |
+| Saved | `successTitle` + `successBody` in the pane (`01c`) |
+
+The `*-error` field test ids are gone; specs assert `aria-invalid` plus the message text.
+
+---
+
 ## Validation (UC-026 A1)
 
 | Field | Rule | Error message |
