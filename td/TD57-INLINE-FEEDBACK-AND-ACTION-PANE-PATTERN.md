@@ -612,7 +612,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
-### Story 10 — Migrate Hotsite editor and module panels to the feedback pattern 🟡
+### Story 10 — Migrate Hotsite editor and module panels to the feedback pattern 🟡 ✅ Done
 
 **Agent:** frontend-ts
 **Complexity:** L
