@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cancelar Agendamento — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .section-label {
       font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
@@ -38,18 +39,23 @@
       .detail-aside { display: block; position: sticky; top: 1.5rem; }
       .mobile-actions { display: none !important; }
     }
+    .card-sub { font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; opacity: 0.45; color: var(--ik-text); padding: 0.5rem 0 0.25rem; }
+    .card .booking-summary { background: none; padding: 0; margin: 0; }
+    .f-h2 { font-size: 1.125rem; font-weight: 700; color: var(--ik-text); margin: 0; }
   </style>
 </head>
 <body>
 
   <!--
-    UC-007 main flow — customer confirms cancellation
-    ACTION: PATCH /v1/bookings/:id/cancel  (BFF routes to /cancel-customer)
-    200 → status CANCELLED → back to 01-minha-conta.html
-    422 (outside window) → 03b-cancel-error.html
+    COMPONENT: CancelConfirmPage (customer account) + ActionPane + FeedbackMessage
+    FILE:      apps/web/features/customer/components/my-account/CancelConfirmPage.tsx  (EXISTS — migrated in TD57-S11)
+    UC-007 main flow — customer confirms cancellation. PATCH /v1/bookings/:id/cancel (BFF routes to /cancel-customer)
+               200 → status CANCELLED → back to 01-minha-conta.html · 422 outside the window → 03b-cancel-error.html
+    SKIN:      SaaS (FeedbackMessage). The customer account reads no tenant (--ba-*) tokens, so it shares the dashboard component.
+    LAYOUT:    title, irreversible note and booking summary in the first card, level with the pane; the deadline warning is a notice box.
+    STATE:     idle.
   -->
-
-  <!-- TOP BAR -->
+<!-- TOP BAR -->
   <div class="dashboard-topbar">
     <a href="02-agendamento-detail.html"
        style="display:flex;align-items:center;gap:0.375rem;text-decoration:none;
@@ -68,19 +74,13 @@
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="detail-layout">
-
-          <!-- LEFT / MAIN -->
-          <div>
-            <h1 style="font-size:1.125rem;font-weight:700;color:var(--ik-text);margin-bottom:0.25rem;">
-              Cancelar agendamento?
-            </h1>
-            <p style="font-size:0.875rem;opacity:.55;color:var(--ik-text);margin-bottom:1.5rem;">
-              Esta ação não pode ser desfeita.
-            </p>
-
-            <p class="section-label">Agendamento</p>
-            <div class="booking-summary">
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
+              <h2 class="f-h2">Cancelar agendamento?</h2>
+              <p style="font-size:0.875rem;opacity:.55;color:var(--ik-text);margin-top:0.25rem;">Esta ação não pode ser desfeita.</p>
+              <div class="card-sub">Agendamento</div>
+              <div class="booking-summary">
               <div class="booking-summary-name">Lavagem Completa Detalhada</div>
               <div class="booking-summary-meta">
                 <span>Sáb, 20 jun 2026</span>
@@ -88,7 +88,7 @@
                 <span>R$ 180,00</span>
               </div>
             </div>
-
+            </div>
             <div class="warning-box">
               <span>⚠️</span>
               <span>
@@ -96,42 +96,28 @@
                 podem não ser aceitos conforme a política do estabelecimento.
               </span>
             </div>
-
-            <!-- Mobile-only action buttons -->
-            <div class="mobile-actions">
-              <a href="01-minha-conta.html" class="btn-danger"
-                 style="display:block;text-align:center;padding:0.875rem;margin-bottom:0.75rem;">
-                Confirmar cancelamento
-              </a>
-              <a href="02-agendamento-detail.html" class="btn-secondary"
-                 style="display:block;text-align:center;padding:0.875rem;">
-                Voltar
-              </a>
-            </div>
+            <div class="fb-mobile-clearance"></div>
           </div>
 
-          <!-- RIGHT SIDEBAR — desktop only -->
-          <div class="detail-aside">
+          <aside class="fb-pane" aria-label="Ações do agendamento" data-testid="action-pane-desktop">
             <div class="card">
-              <p style="font-size:0.875rem;opacity:0.6;color:var(--ik-text);
-                        margin-bottom:1rem;line-height:1.5;">
-                Tem certeza? O agendamento será cancelado permanentemente.
-              </p>
-              <a href="01-minha-conta.html" class="btn-danger"
-                 style="display:block;text-align:center;padding:0.75rem;margin-bottom:0.625rem;">
-                Confirmar cancelamento
-              </a>
-              <a href="02-agendamento-detail.html" class="btn-secondary"
-                 style="display:block;text-align:center;padding:0.75rem;">
-                Voltar
-              </a>
+              <p style="font-size:0.875rem;opacity:0.6;color:var(--ik-text);margin:0 0 0.75rem;line-height:1.5;">Tem certeza? O agendamento será cancelado permanentemente.</p>
+              <div class="fb-buttons">
+                <a href="01-minha-conta.html" class="btn-danger">Confirmar cancelamento</a>
+                <a href="02-agendamento-detail.html" class="btn-secondary">Voltar</a>
+              </div>
             </div>
-          </div>
-
+          </aside>
         </div>
       </div>
     </main>
   </div>
 
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="02-agendamento-detail.html" class="btn-secondary">Voltar</a>
+      <a href="01-minha-conta.html" class="btn-danger">Confirmar</a>
+    </div>
+  </div>
 </body>
 </html>

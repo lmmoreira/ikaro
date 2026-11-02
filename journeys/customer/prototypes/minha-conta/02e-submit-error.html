@@ -122,7 +122,7 @@
             <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
           </div>
           </form></div>
-            <!-- Booking summary (read-only) -->
+            <!-- Booking summary (read-only — unchanged) -->
         <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Resumo do agendamento</div>
           <div class="detail-row">
             <div class="detail-row-icon">
@@ -158,56 +158,16 @@
         <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
           <div class="service-line">
             <div>
-              <div class="service-name" id="svc-name">Polimento Completo + Higienização</div>
+              <div class="service-name">Polimento Completo + Higienização</div>
               <div class="service-duration">180 min</div>
             </div>
             <span class="service-price">R$ 350,00</span>
           </div>
           <div class="total-row">
-            <span class="total-label">Total cotado</span>
-            <span class="total-value">R$ 350,00</span>
+            <span style="font-size:0.875rem;font-weight:700;opacity:0.6;color:var(--ik-text);">Total cotado</span>
+            <span style="font-size:1rem;font-weight:800;color:var(--ik-text);">R$ 350,00</span>
           </div>
         </div>
-
-        <div class="card" data-v="recurso pacote completo recorrente" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Recursos</div>
-              <div class="fx-kv" data-v="recurso pacote completo recorrente"><span>Sala</span><span>Sala Aurora</span></div>
-              <div class="fx-kv" data-v="pacote completo"><span>Equipamento</span><span>Projetor 2</span></div>
-              <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima</span></div>
-              <div class="fx-kv" data-v="pacote completo"><span>Cadeiras</span><span>Do conjunto</span></div>
-            </div>
-            <p class="fx-note" data-v="recurso pacote completo recorrente">O que você escolheu e o que o estabelecimento atribuiu. Sem requisito de recurso, o cartão não aparece.</p>
-
-            <div class="card" data-v="trajeto" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Trajeto</div>
-              <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida · 09:00 — 09:40</span></div></div>
-              <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio · 09:40 — 11:10</span></div></div>
-              <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta · 11:10 — 11:50</span></div></div>
-            </div>
-
-            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Participantes</div>
-              <div class="fx-kv" data-v="formulario completo"><span>Participantes</span><span>3</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Maria Souza</span><span>Você</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Pedro Souza</span><span>Menor de idade</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Ana Souza</span><span>Participante</span></div>
-            </div>
-
-            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Suas respostas</div>
-              <div class="fx-kv" data-v="formulario completo"><span>Nível de experiência</span><span>Iniciante</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Tem alguma restrição física?</span><span>Sim</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Observações de saúde</span><span>Dor no joelho direito</span></div>
-              <div class="fx-kv" data-v="formulario completo"><span>Termo de responsabilidade</span><span>Aceito em 10/06/2026 às 14:02</span></div>
-            </div>
-            <p class="fx-note" data-v="formulario completo">As respostas que você deu ao reservar. Aqui não se edita; para mudar algo, fale com o estabelecimento.</p>
-
-            <div class="card" data-v="retirada completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Endereço</div>
-              <div class="fx-kv" data-v="retirada completo"><span>Retirada do veículo</span><span>Rua das Flores, 120 — Pinheiros, São Paulo/SP, 05422-000</span></div>
-            </div>
-
-            <div class="card" data-v="recorrente completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Origem</div>
-              <div class="fx-kv" data-v="recorrente completo"><span>Reserva recorrente</span><span>Toda terça, 10:00 <a href="06-reserva-recorrente.html" style="color:var(--ik-primary);">Ver recorrência</a></span></div>
-            </div>
-            <p class="fx-note" data-v="recorrente completo">Quando o agendamento é uma ocorrência de uma reserva recorrente, liga à página da recorrência (a volta preserva a página das ocorrências).</p>
-
-            
             <div class="fb-mobile-clearance"></div>
           </div>
 
@@ -239,17 +199,6 @@
     </div>
   </div>
 <script>
-    /* Shape variants via ?forma= (prototype only). Default: completo (every card; a real booking shows only the cards that have data). See the header comment. */
-    (function () {
-      var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};
-      var q = new URLSearchParams(location.search).get('forma') || 'completo';
-      if (!(q in NAMES)) q = 'completo';
-      document.querySelectorAll('[data-v]').forEach(function (el) {
-        el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
-      });
-      var n = document.getElementById('svc-name'); if (n) n.textContent = NAMES[q];
-      document.querySelectorAll('[data-f]').forEach(function (a) { if (a.getAttribute('data-f') === q) a.className = 'on'; });
-    })();
   
   (function () {
     var s = new URLSearchParams(location.search).get('estado') || 'envio';
