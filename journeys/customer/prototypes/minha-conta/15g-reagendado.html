@@ -22,6 +22,13 @@
       .detail-aside { display:block; position:sticky; top:1.5rem; }
       .mobile-actions { display:none !important; }
     }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
+    .card > .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0; padding: 1rem 0 0.125rem; }
+    .card-sub { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); padding: 0 0 0.25rem; }
+    .fb-mobile-only { display: block; }
+    @media (min-width: 1024px) { .fb-mobile-only { display: none; } }
+    .fb-pane .card > p { margin: 0 0 0.75rem; }
+    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ba-text); text-align: center; margin: .625rem 0 0; }
   </style>
 </head>
 <body>
@@ -58,34 +65,36 @@
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="detail-layout">
-          <div>
-            <div class="ok-box" data-testid="reschedule-success" role="status">
-              <div style="font-size:1rem;font-weight:800;color:#15803d;margin-bottom:.5rem;">✅ Agendamento reagendado!</div>
-              <div style="font-size:.9375rem;color:#14532d;line-height:1.6;">Seu agendamento continua <strong>aprovado</strong>. Enviamos a confirmação por email.</div>
-            </div>
-            <p class="section-label">Novo horário</p>
-            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <output class="fb fb-success" data-testid="reschedule-success"><span class="fb-title">Agendamento reagendado!</span><span>Seu agendamento continua <strong>aprovado</strong>. Enviamos a confirmação por email.</span></output>
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Novo horário</div>
               <div class="kv"><span class="k">Serviço</span><span>Lavagem Completa Detalhada</span></div>
               <div class="kv"><span class="k">Data e horário</span><span>Terça, 23 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Antes</span><span style="text-decoration:line-through;opacity:.6;">Sábado, 20 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>60 min · R$ 180,00 (sem alteração)</span></div>
             </div>
-            <div class="mobile-actions">
-              <a href="02-agendamento-detail.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Ver agendamento</a>
-              <a href="01-minha-conta.html" class="btn-secondary" style="display:block;text-align:center;">Meus agendamentos</a>
-            </div>
+            <div class="fb-mobile-clearance"></div>
           </div>
-          <div class="detail-aside">
+
+          <aside class="fb-pane" aria-label="Ações do reagendamento" data-testid="action-pane-desktop">
             <div class="card">
               <p style="font-size:.875rem;opacity:.6;color:var(--ba-text);margin-bottom:1rem;">O novo horário já está confirmado.</p>
-              <a href="02-agendamento-detail.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Ver agendamento</a>
-              <a href="01-minha-conta.html" class="btn-secondary" style="display:block;text-align:center;">Meus agendamentos</a>
+              <div class="fb-buttons">
+                <a href="02-agendamento-detail.html" class="btn-primary">Ver agendamento</a>
+                <a href="01-minha-conta.html" class="btn-secondary">Meus agendamentos</a>
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </main>
+  </div>
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="01-minha-conta.html" class="btn-secondary">Meus agendamentos</a>
+      <a href="02-agendamento-detail.html" class="btn-primary">Ver agendamento</a>
+    </div>
   </div>
 </body>
 </html>

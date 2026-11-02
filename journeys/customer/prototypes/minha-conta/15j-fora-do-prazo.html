@@ -22,6 +22,13 @@
       .detail-aside { display:block; position:sticky; top:1.5rem; }
       .mobile-actions { display:none !important; }
     }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
+    .card > .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0; padding: 1rem 0 0.125rem; }
+    .card-sub { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); padding: 0 0 0.25rem; }
+    .fb-mobile-only { display: block; }
+    @media (min-width: 1024px) { .fb-mobile-only { display: none; } }
+    .fb-pane .card > p { margin: 0 0 0.75rem; }
+    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ba-text); text-align: center; margin: .625rem 0 0; }
   </style>
 </head>
 <body>
@@ -60,35 +67,36 @@
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="detail-layout">
-          <div>
-            <div class="error-box" role="alert" data-testid="reschedule-window-error">
-              <div style="display:flex;align-items:center;gap:.5rem;font-size:1rem;font-weight:800;color:#b91c1c;margin-bottom:.625rem;"><span>🚫</span> Reagendamento fora do prazo</div>
-              <div style="font-size:.9375rem;color:#7f1d1d;line-height:1.6;margin-bottom:.75rem;">O prazo para reagendamento deste agendamento já passou. Agendamentos aprovados só podem ser reagendados com pelo menos <strong>48 horas de antecedência</strong>.</div>
-              <div style="background:white;border:1px solid #fca5a5;border-radius:6px;padding:.625rem .75rem;font-size:.875rem;color:#991b1b;">O prazo de reagendamento encerrou em:<br><strong>18 de junho de 2026 às 10h00</strong></div>
-            </div>
-            <p class="section-label">Agendamento atual</p>
-            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="fb fb-error" role="alert" data-testid="reschedule-window-error"><span class="fb-title">Reagendamento fora do prazo</span><span>O prazo para reagendamento deste agendamento já passou. Agendamentos aprovados só podem ser reagendados com pelo menos <strong>48 horas de antecedência</strong>.</span><span style="background:#fff;border:1px solid #fca5a5;border-radius:6px;padding:.5rem .75rem;margin-top:.25rem;">O prazo de reagendamento encerrou em:<br><strong>18 de junho de 2026 às 10h00</strong></span></div>
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Agendamento atual</div>
               <div class="kv"><span class="k">Serviço</span><span>Lavagem Completa Detalhada</span></div>
               <div class="kv"><span class="k">Data e horário</span><span>Sábado, 20 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>60 min · R$ 180,00</span></div>
             </div>
-            <div class="help-box"><strong style="display:block;margin-bottom:.25rem;">Precisa reagendar mesmo assim?</strong>Entre em contato diretamente com o estabelecimento via WhatsApp ou telefone. A equipe pode fazer a alteração manualmente.</div>
-            <div class="mobile-actions">
-              <a href="02-agendamento-detail.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Voltar ao agendamento</a>
-              <a href="https://wa.me/5511999990000" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;">Contato via WhatsApp</a>
-            </div>
+            <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;"><div class="card-title">Precisa reagendar mesmo assim?</div><p style="font-size:.875rem;color:var(--ba-text);line-height:1.6;margin:0;">Entre em contato diretamente com o estabelecimento via WhatsApp ou telefone. A equipe pode fazer a alteração manualmente.</p></div>
+            <div class="fb-mobile-clearance"></div>
           </div>
-          <div class="detail-aside">
+
+          <aside class="fb-pane" aria-label="Ações do reagendamento" data-testid="action-pane-desktop">
             <div class="card">
               <p style="font-size:.875rem;opacity:.6;color:var(--ba-text);margin-bottom:1rem;">O prazo de reagendamento já encerrou. Entre em contato com o estabelecimento se precisar de ajuda.</p>
-              <a href="02-agendamento-detail.html" class="btn-primary" style="display:block;text-align:center;margin-bottom:.625rem;">Voltar ao agendamento</a>
-              <a href="https://wa.me/5511999990000" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;">Contato via WhatsApp</a>
+              <div class="fb-buttons">
+                <a href="02-agendamento-detail.html" class="btn-primary">Voltar ao agendamento</a>
+                <a href="https://wa.me/5511999990000" target="_blank" rel="noopener" class="btn-secondary">Contato via WhatsApp</a>
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </main>
+  </div>
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="https://wa.me/5511999990000" target="_blank" rel="noopener" class="btn-secondary">Contato via WhatsApp</a>
+      <a href="02-agendamento-detail.html" class="btn-primary">Voltar ao agendamento</a>
+    </div>
   </div>
 </body>
 </html>

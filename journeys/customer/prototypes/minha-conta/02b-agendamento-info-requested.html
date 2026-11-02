@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agendamento — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .section-label {
       font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
@@ -77,21 +78,21 @@
     .fx-step { display: flex; gap: 0.75rem; padding: 0.625rem 0; border-bottom: 1px solid var(--ba-secondary); color: var(--ba-text); }
     .fx-step:last-child { border-bottom: none; }
     .fx-step b { width: 1.5rem; height: 1.5rem; border-radius: 9999px; background: var(--ba-primary); color: #fff; font-size: 0.75rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
+    .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0 0 0.75rem; }
   </style>
 </head>
 <body>
 
   <!--
-    COMPONENT: AgendamentoDetailPage
-    PAGE:       apps/web/app/[slug]/my-account/bookings/[id]/page.tsx  (EXISTS)
-    UC-005 A2 — customer submits info | status: INFO_REQUESTED
-    DATA:
-      GET  /v1/bookings/:id
-      PATCH /v1/bookings/:id/submit-info
+    COMPONENT: BookingDetailPage (customer account) + InfoSubmitForm + ActionPane
+    FILE:      apps/web/features/customer/components/my-account/BookingDetailPage.tsx, InfoSubmitForm.tsx  (EXISTS — migrated in TD57-S11)
+    UC-005 A2 — status INFO_REQUESTED. PATCH /v1/bookings/:id/submit-info
+    LAYOUT:    heading inside the first card, level with the action pane's card. The reply fields sit in the main column
+               (a card); the submit action and the cancel link live in the pane (desktop, sticky) and the fixed bar (mobile).
+    STATES:    02b idle · 02e submit error / empty field · 02d sent
   -->
-
-  <!-- TOP BAR -->
-  <div class="fx-bar">Forma do agendamento (?forma=): <a href="?forma=simples" data-f="simples">simples</a> · <a href="?forma=recurso" data-f="recurso">recurso</a> · <a href="?forma=pacote" data-f="pacote">pacote</a> · <a href="?forma=trajeto" data-f="trajeto">trajeto</a> · <a href="?forma=formulario" data-f="formulario">formulario</a> · <a href="?forma=retirada" data-f="retirada">retirada</a> · <a href="?forma=recorrente" data-f="recorrente">recorrente</a> · <a href="?forma=equipe" data-f="equipe">equipe</a> · <a href="?forma=completo" data-f="completo">completo</a></div>
+<div class="fx-bar">Forma do agendamento (?forma=): <a href="?forma=simples" data-f="simples">simples</a> · <a href="?forma=recurso" data-f="recurso">recurso</a> · <a href="?forma=pacote" data-f="pacote">pacote</a> · <a href="?forma=trajeto" data-f="trajeto">trajeto</a> · <a href="?forma=formulario" data-f="formulario">formulario</a> · <a href="?forma=retirada" data-f="retirada">retirada</a> · <a href="?forma=recorrente" data-f="recorrente">recorrente</a> · <a href="?forma=equipe" data-f="equipe">equipe</a> · <a href="?forma=completo" data-f="completo">completo</a></div>
   <div class="dashboard-topbar" style="position:relative;">
     <span style="
       position:absolute;left:50%;transform:translateX(-50%);
@@ -113,48 +114,25 @@
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-
-        <h1 style="font-size:1.125rem;font-weight:700;color:var(--ba-text);margin-bottom:1.25rem;">
-          Detalhe do Agendamento
-        </h1>
-
-        <!-- UC-005 A2 — Admin info request -->
-        <div class="info-request-box">
-          <div class="info-request-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            O admin precisa de mais informações
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
+              <h2 class="f-h2">Detalhe do Agendamento</h2>
+              
+            </div>
+            <form id="info-form" onsubmit="return false">
+          <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;">
+            <div class="card-title">Sua resposta</div>
+            <label class="form-label" for="response">Mensagem</label>
+            <textarea id="response" class="form-textarea" placeholder="Escreva sua resposta aqui…"></textarea>
+            <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
           </div>
-          <div class="info-request-body">
-            "Preciso confirmar se o veículo tem película protetora instalada, pois isso afeta o produto que utilizamos no polimento."
-          </div>
-          <div class="info-request-meta">Carlos M. · 22 jun 2026, 11h15</div>
-        </div>
-
-        <!-- Response form -->
-        <p class="section-label">Sua resposta</p>
-        <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
-          <label class="form-label" for="response">Mensagem</label>
-          <textarea id="response" class="form-textarea" placeholder="Escreva sua resposta aqui…"></textarea>
-          <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
-          <!-- Prototype: links to success state after submit -->
-          <a href="02d-info-sent.html" class="btn-primary"
-             style="display:block;text-align:center;margin-top:0.75rem;">
-            Enviar resposta
-          </a>
-        </div>
-
-        <!-- Booking summary (read-only) -->
-        <p class="section-label">Resumo do agendamento</p>
-        <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+          </form>
+            <!-- Booking summary (read-only) -->
+        <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Resumo do agendamento</div>
           <div class="detail-row">
             <div class="detail-row-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
@@ -200,8 +178,7 @@
           </div>
         </div>
 
-        <p class="section-label" data-v="recurso pacote completo recorrente">Recursos</p>
-            <div class="card" data-v="recurso pacote completo recorrente" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+        <div class="card" data-v="recurso pacote completo recorrente" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Recursos</div>
               <div class="fx-kv" data-v="recurso pacote completo recorrente"><span>Sala</span><span>Sala Aurora</span></div>
               <div class="fx-kv" data-v="pacote completo"><span>Equipamento</span><span>Projetor 2</span></div>
               <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima</span></div>
@@ -209,23 +186,20 @@
             </div>
             <p class="fx-note" data-v="recurso pacote completo recorrente">O que você escolheu e o que o estabelecimento atribuiu. Sem requisito de recurso, o cartão não aparece.</p>
 
-            <p class="section-label" data-v="trajeto">Trajeto</p>
-            <div class="card" data-v="trajeto" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+            <div class="card" data-v="trajeto" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Trajeto</div>
               <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida · 09:00 — 09:40</span></div></div>
               <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio · 09:40 — 11:10</span></div></div>
               <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta · 11:10 — 11:50</span></div></div>
             </div>
 
-            <p class="section-label" data-v="formulario completo">Participantes</p>
-            <div class="card" data-v="formulario completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Participantes</div>
               <div class="fx-kv" data-v="formulario completo"><span>Participantes</span><span>3</span></div>
               <div class="fx-kv" data-v="formulario completo"><span>Maria Souza</span><span>Você</span></div>
               <div class="fx-kv" data-v="formulario completo"><span>Pedro Souza</span><span>Menor de idade</span></div>
               <div class="fx-kv" data-v="formulario completo"><span>Ana Souza</span><span>Participante</span></div>
             </div>
 
-            <p class="section-label" data-v="formulario completo">Suas respostas</p>
-            <div class="card" data-v="formulario completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Suas respostas</div>
               <div class="fx-kv" data-v="formulario completo"><span>Nível de experiência</span><span>Iniciante</span></div>
               <div class="fx-kv" data-v="formulario completo"><span>Tem alguma restrição física?</span><span>Sim</span></div>
               <div class="fx-kv" data-v="formulario completo"><span>Observações de saúde</span><span>Dor no joelho direito</span></div>
@@ -233,29 +207,39 @@
             </div>
             <p class="fx-note" data-v="formulario completo">As respostas que você deu ao reservar. Aqui não se edita; para mudar algo, fale com o estabelecimento.</p>
 
-            <p class="section-label" data-v="retirada completo">Endereço</p>
-            <div class="card" data-v="retirada completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+            <div class="card" data-v="retirada completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Endereço</div>
               <div class="fx-kv" data-v="retirada completo"><span>Retirada do veículo</span><span>Rua das Flores, 120 — Pinheiros, São Paulo/SP, 05422-000</span></div>
             </div>
 
-            <p class="section-label" data-v="recorrente completo">Origem</p>
-            <div class="card" data-v="recorrente completo" style="padding: 0 1rem; margin-bottom: 1.25rem;">
+            <div class="card" data-v="recorrente completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Origem</div>
               <div class="fx-kv" data-v="recorrente completo"><span>Reserva recorrente</span><span>Toda terça, 10:00 <a href="06-reserva-recorrente.html" style="color:var(--ba-primary);">Ver recorrência</a></span></div>
             </div>
             <p class="fx-note" data-v="recorrente completo">Quando o agendamento é uma ocorrência de uma reserva recorrente, liga à página da recorrência (a volta preserva a página das ocorrências).</p>
 
-            <!-- Secondary: cancel -->
-        <a href="03-cancel-confirm.html" class="btn-danger"
-           style="display:block;text-align:center;width:100%;padding:0.8125rem;opacity:0.8;">
-          Cancelar solicitação
-        </a>
+            
+            <div class="fb-mobile-clearance"></div>
+          </div>
 
+          <aside class="fb-pane" aria-label="Ações do agendamento" data-testid="action-pane-desktop">
+            <div class="card">
+              <div class="fb-buttons">
+                <button type="submit" form="info-form" class="btn-primary" data-testid="info-submit">Enviar resposta</button>
+                <a href="03-cancel-confirm.html" class="btn-danger" style="display:block;text-align:center;padding:0.75rem;opacity:0.9;">Cancelar solicitação</a>
+              </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   </div>
 
-
-  <script>
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="03-cancel-confirm.html" class="btn-danger" style="background:#fff;">Cancelar</a>
+      <button type="submit" form="info-form" class="btn-primary" data-testid="info-submit">Enviar</button>
+    </div>
+  </div>
+<script>
     /* Shape variants via ?forma= (prototype only). Default: completo (every card; a real booking shows only the cards that have data). See the header comment. */
     (function () {
       var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};

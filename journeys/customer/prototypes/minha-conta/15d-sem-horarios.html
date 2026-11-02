@@ -6,6 +6,7 @@
   <title>Reagendar — sem horários</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
   <link rel="stylesheet" href="../../../shared/reschedule-picker.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .section-label { font-size:0.6875rem; font-weight:700; letter-spacing:0.07em; text-transform:uppercase; color:rgba(17,24,39,0.4); margin:0 0 0.625rem; }
     .error-box { background:#fef2f2; border:2px solid #fca5a5; border-radius:var(--ba-radius); padding:1.125rem 1rem; margin-bottom:1.25rem; }
@@ -23,6 +24,13 @@
       .detail-aside { display:block; position:sticky; top:1.5rem; }
       .mobile-actions { display:none !important; }
     }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
+    .card > .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0; padding: 1rem 0 0.125rem; }
+    .card-sub { font-size: 0.75rem; opacity: 0.55; color: var(--ba-text); padding: 0 0 0.25rem; }
+    .fb-mobile-only { display: block; }
+    @media (min-width: 1024px) { .fb-mobile-only { display: none; } }
+    .fb-pane .card > p { margin: 0 0 0.75rem; }
+    .fb-deadline { font-size: .8125rem; opacity: .6; color: var(--ba-text); text-align: center; margin: .625rem 0 0; }
   </style>
 </head>
 <body>
@@ -58,35 +66,41 @@
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-        <div class="detail-layout">
-          <div>
-            <h1 style="font-size:1.125rem;font-weight:700;color:var(--ba-text);margin-bottom:1.25rem;">Reagendar agendamento</h1>
-            <p class="section-label">Agendamento atual</p>
-            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><h2 class="f-h2">Reagendar agendamento</h2><div class="card-sub">Agendamento atual</div>
               <div class="kv"><span class="k">Serviço</span><span>Lavagem Completa Detalhada</span></div>
               <div class="kv"><span class="k">Data e horário</span><span>Sábado, 20 jun 2026 · 10h00</span></div>
               <div class="kv"><span class="k">Duração · valor</span><span>60 min · R$ 180,00</span></div>
             </div>
-            <p class="section-label">Escolha a nova data</p>
-            <div class="avc-row" data-testid="reschedule-days"><button type="button" class="avc-chev" aria-label="Dias anteriores"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="avc-scroll"><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-17" aria-pressed="false" disabled><span class="wd">Hoje</span><span class="dn">17</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-18" aria-pressed="false" disabled><span class="wd">Qui</span><span class="dn">18</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-19" aria-pressed="false" disabled><span class="wd">Sex</span><span class="dn">19</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-20" aria-pressed="false" disabled><span class="wd">Sáb</span><span class="dn">20</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-21" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">21</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-22" aria-pressed="false" disabled><span class="wd">Seg</span><span class="dn">22</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-23" aria-pressed="false" disabled><span class="wd">Ter</span><span class="dn">23</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-24" aria-pressed="false" disabled><span class="wd">Qua</span><span class="dn">24</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-25" aria-pressed="false" disabled><span class="wd">Qui</span><span class="dn">25</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-26" aria-pressed="false" disabled><span class="wd">Sex</span><span class="dn">26</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-27" aria-pressed="false" disabled><span class="wd">Sáb</span><span class="dn">27</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-28" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">28</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-29" aria-pressed="false" disabled><span class="wd">Seg</span><span class="dn">29</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-30" aria-pressed="false" disabled><span class="wd">Ter</span><span class="dn">30</span></button></div><button type="button" class="avc-chev" aria-label="Próximos dias"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
+            <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;"><div class="card-title">Escolha a nova data</div>
+              <div class="avc-row" data-testid="reschedule-days"><button type="button" class="avc-chev" aria-label="Dias anteriores"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button><div class="avc-scroll"><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-17" aria-pressed="false" disabled><span class="wd">Hoje</span><span class="dn">17</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-18" aria-pressed="false" disabled><span class="wd">Qui</span><span class="dn">18</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-19" aria-pressed="false" disabled><span class="wd">Sex</span><span class="dn">19</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-20" aria-pressed="false" disabled><span class="wd">Sáb</span><span class="dn">20</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-21" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">21</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-22" aria-pressed="false" disabled><span class="wd">Seg</span><span class="dn">22</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-23" aria-pressed="false" disabled><span class="wd">Ter</span><span class="dn">23</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-24" aria-pressed="false" disabled><span class="wd">Qua</span><span class="dn">24</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-25" aria-pressed="false" disabled><span class="wd">Qui</span><span class="dn">25</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-26" aria-pressed="false" disabled><span class="wd">Sex</span><span class="dn">26</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-27" aria-pressed="false" disabled><span class="wd">Sáb</span><span class="dn">27</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-28" aria-pressed="false" disabled><span class="wd">Dom</span><span class="dn">28</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-29" aria-pressed="false" disabled><span class="wd">Seg</span><span class="dn">29</span></button><button type="button" class="avc-day" data-testid="day-option" data-date="2026-06-30" aria-pressed="false" disabled><span class="wd">Ter</span><span class="dn">30</span></button></div><button type="button" class="avc-chev" aria-label="Próximos dias"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button></div>
             <div style="margin:-.5rem 0 1.25rem" data-testid="fully-booked-message"><div class="pk-alert" role="alert"><div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="msg">Nenhum horário disponível nos próximos dias</span></div></div></div>
-            <p class="section-label">Horários disponíveis</p>
-            <output class="pk-alert amber" data-testid="reschedule-empty"><div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="msg">Nenhum horário disponível</span></div></output>
-            <div class="mobile-actions">
-              <button class="btn-primary btn-disabled" disabled aria-disabled="true" style="display:block;width:100%;margin-bottom:.625rem;">Confirmar novo horário</button>
-              <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>
             </div>
+            <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;"><div class="card-title">Horários disponíveis</div>
+              <output class="pk-alert amber" data-testid="reschedule-empty"><div class="row"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span class="msg">Nenhum horário disponível</span></div></output>
+            </div>
+            <div class="fb-mobile-clearance"></div>
           </div>
-          <div class="detail-aside">
+
+          <aside class="fb-pane" aria-label="Ações do reagendamento" data-testid="action-pane-desktop">
             <div class="card">
               <p style="font-size:.875rem;opacity:.6;color:var(--ba-text);margin-bottom:1rem;line-height:1.5;">Escolha o novo horário. O agendamento continua aprovado e você receberá a confirmação por email.</p>
-              <button class="btn-primary btn-disabled" disabled aria-disabled="true" style="display:block;width:100%;margin-bottom:.625rem;">Confirmar novo horário</button>
-              <a href="02-agendamento-detail.html" class="btn-secondary" style="display:block;text-align:center;">Voltar ao agendamento</a>
+              <div class="fb-buttons">
+                <button class="btn-primary btn-disabled" disabled aria-disabled="true">Confirmar novo horário</button>
+                <a href="02-agendamento-detail.html" class="btn-secondary">Voltar ao agendamento</a>
+              </div>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
     </main>
+  </div>
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div class="fb-buttons">
+      <a href="02-agendamento-detail.html" class="btn-secondary">Voltar ao agendamento</a>
+      <button class="btn-primary btn-disabled" disabled aria-disabled="true">Confirmar novo horário</button>
+    </div>
   </div>
 </body>
 </html>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Agendamento — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/tokens.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     .section-label {
       font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.07em;
@@ -59,24 +60,17 @@
       resize: vertical; min-height: 96px; color: var(--ba-text); background: #fff5f5;
     }
     .form-hint { font-size: 0.8125rem; opacity: 0.5; color: var(--ba-text); margin-top: 0.375rem; }
+    .card-title { font-size: 0.875rem; font-weight: 600; color: var(--ba-text); padding: 0.875rem 0 0.25rem; }
+    .f-h2 { font-size: 1rem; font-weight: 700; color: var(--ba-text); margin: 0 0 0.75rem; }
   </style>
 </head>
 <body>
 
-  <!--
-    COMPONENT: AgendamentoDetailPage
-    PAGE:       apps/web/app/[slug]/my-account/bookings/[id]/page.tsx  (EXISTS)
-    UC-005 A2 — PATCH /v1/bookings/:id/submit-info returned 500 / network error.
-    Form re-enabled. Filled values preserved. Error banner shown above submit button.
-    "Tentar novamente" re-triggers the same PATCH.
-  -->
-
-  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
-               font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-005 A2 — estado: erro ao enviar resposta (retry disponível)
+  <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;font-size:0.8125rem;text-align:center;color:#92400e;">
+    Protótipo — UC-005 A2 — erro ao enviar resposta (TD57-S11): mensagem no painel, abaixo dos botões; campo vazio marca a caixa de texto
   </div>
-
-  <!-- TOP BAR -->
+<!-- TOP BAR -->
+    <div class="fx-bar">Estado (?estado=): <a href="?estado=envio" data-e="envio">falha ao enviar</a> · <a href="?estado=campo" data-e="campo">campo vazio</a></div>
   <div class="dashboard-topbar" style="position:relative;">
     <span style="
       position:absolute;left:50%;transform:translateX(-50%);
@@ -98,71 +92,33 @@
     </div>
   </div>
 
-  <!-- MAIN CONTENT -->
   <div class="dashboard-layout">
     <main class="main-content">
       <div class="dashboard-body">
-
-        <h1 style="font-size:1.125rem;font-weight:700;color:var(--ba-text);margin-bottom:1.25rem;">
-          Detalhe do Agendamento
-        </h1>
-
-        <!-- Admin info request (unchanged — still visible on error) -->
-        <div class="info-request-box">
-          <div class="info-request-header">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
-            O admin precisa de mais informações
+        <div class="fb-layout">
+          <div style="min-width:0;">
+            <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
+              <h2 class="f-h2">Detalhe do Agendamento</h2>
+              
+            </div>
+            <div data-s="envio"><form id="info-form" onsubmit="return false">
+          <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;">
+            <div class="card-title">Sua resposta</div>
+            <label class="form-label" for="response">Mensagem</label>
+            <textarea id="response" class="form-textarea" placeholder="Escreva sua resposta aqui…"></textarea>
+            <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
           </div>
-          <div class="info-request-body">
-            "Preciso confirmar se o veículo tem película protetora instalada, pois isso afeta o produto que utilizamos no polimento."
+          </form></div><div data-s="campo" hidden><form id="info-form-campo" onsubmit="return false">
+          <div class="card" style="padding:0 1rem 1rem;margin-bottom:1.25rem;">
+            <div class="card-title">Sua resposta</div>
+            <label class="form-label" for="response-campo">Mensagem</label>
+            <textarea id="response-campo" class="form-textarea fb-field-invalid" aria-invalid="true" aria-describedby="response-msg" placeholder="Escreva sua resposta aqui…"></textarea>
+          <p id="response-msg" class="fb-field-msg" data-testid="info-validation-error">Informe sua resposta antes de enviar.</p>
+            <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
           </div>
-          <div class="info-request-meta">Carlos M. · 22 jun 2026, 11h15</div>
-        </div>
-
-        <!-- Submission error alert -->
-        <div style="
-          background:#fef2f2;border:1px solid #fecaca;border-radius:var(--ba-radius);
-          padding:0.875rem 1rem;margin-bottom:1.25rem;
-          display:flex;gap:0.75rem;align-items:flex-start;
-        ">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626"
-               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-               style="flex-shrink:0;margin-top:1px;">
-            <circle cx="12" cy="12" r="10"/>
-            <line x1="12" y1="8" x2="12" y2="12"/>
-            <line x1="12" y1="16" x2="12.01" y2="16"/>
-          </svg>
-          <div>
-            <p style="font-weight:700;font-size:0.9375rem;color:#dc2626;margin-bottom:0.25rem;">
-              Falha ao enviar
-            </p>
-            <p style="font-size:0.875rem;color:#7f1d1d;margin:0;line-height:1.5;">
-              Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente.
-              Sua mensagem foi preservada.
-            </p>
-          </div>
-        </div>
-
-        <!-- Response form — re-enabled, text preserved -->
-        <p class="section-label">Sua resposta</p>
-        <div class="card" style="padding:1rem;margin-bottom:1.25rem;">
-          <label class="form-label" for="response">Mensagem</label>
-          <textarea id="response" class="form-textarea">O carro tem película protetora instalada, pode confirmar o polimento.</textarea>
-          <p class="form-hint">Após enviar, o admin revisará e aprovará o agendamento.</p>
-          <a href="02d-info-sent.html" class="btn-primary"
-             style="display:block;text-align:center;margin-top:0.75rem;">
-            Tentar novamente
-          </a>
-        </div>
-
-        <!-- Booking summary (read-only — unchanged) -->
-        <p class="section-label">Resumo do agendamento</p>
-        <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;">
+          </form></div>
+            <!-- Booking summary (read-only) -->
+        <div class="card" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Resumo do agendamento</div>
           <div class="detail-row">
             <div class="detail-row-icon">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--ba-primary)"
@@ -197,26 +153,104 @@
         <div class="card" style="padding:0 1rem;margin-bottom:1.5rem;">
           <div class="service-line">
             <div>
-              <div class="service-name">Polimento Completo + Higienização</div>
+              <div class="service-name" id="svc-name">Polimento Completo + Higienização</div>
               <div class="service-duration">180 min</div>
             </div>
             <span class="service-price">R$ 350,00</span>
           </div>
           <div class="total-row">
-            <span style="font-size:0.875rem;font-weight:700;opacity:0.6;color:var(--ba-text);">Total cotado</span>
-            <span style="font-size:1rem;font-weight:800;color:var(--ba-text);">R$ 350,00</span>
+            <span class="total-label">Total cotado</span>
+            <span class="total-value">R$ 350,00</span>
           </div>
         </div>
 
-        <!-- Secondary: cancel -->
-        <a href="03-cancel-confirm.html" class="btn-danger"
-           style="display:block;text-align:center;width:100%;padding:0.8125rem;opacity:0.8;">
-          Cancelar solicitação
-        </a>
+        <div class="card" data-v="recurso pacote completo recorrente" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Recursos</div>
+              <div class="fx-kv" data-v="recurso pacote completo recorrente"><span>Sala</span><span>Sala Aurora</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Equipamento</span><span>Projetor 2</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Profissional</span><span>Marcos Lima</span></div>
+              <div class="fx-kv" data-v="pacote completo"><span>Cadeiras</span><span>Do conjunto</span></div>
+            </div>
+            <p class="fx-note" data-v="recurso pacote completo recorrente">O que você escolheu e o que o estabelecimento atribuiu. Sem requisito de recurso, o cartão não aparece.</p>
 
+            <div class="card" data-v="trajeto" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Trajeto</div>
+              <div class="fx-step"><b>1</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Ida · 09:00 — 09:40</span></div></div>
+              <div class="fx-step"><b>2</b><div><strong>Paula Nogueira (guia)</strong><br><span style="font-size:0.8125rem;opacity:.6;">Passeio · 09:40 — 11:10</span></div></div>
+              <div class="fx-step"><b>3</b><div><strong>Van 2</strong><br><span style="font-size:0.8125rem;opacity:.6;">Volta · 11:10 — 11:50</span></div></div>
+            </div>
+
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Participantes</div>
+              <div class="fx-kv" data-v="formulario completo"><span>Participantes</span><span>3</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Maria Souza</span><span>Você</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Pedro Souza</span><span>Menor de idade</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Ana Souza</span><span>Participante</span></div>
+            </div>
+
+            <div class="card" data-v="formulario completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Suas respostas</div>
+              <div class="fx-kv" data-v="formulario completo"><span>Nível de experiência</span><span>Iniciante</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Tem alguma restrição física?</span><span>Sim</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Observações de saúde</span><span>Dor no joelho direito</span></div>
+              <div class="fx-kv" data-v="formulario completo"><span>Termo de responsabilidade</span><span>Aceito em 10/06/2026 às 14:02</span></div>
+            </div>
+            <p class="fx-note" data-v="formulario completo">As respostas que você deu ao reservar. Aqui não se edita; para mudar algo, fale com o estabelecimento.</p>
+
+            <div class="card" data-v="retirada completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Endereço</div>
+              <div class="fx-kv" data-v="retirada completo"><span>Retirada do veículo</span><span>Rua das Flores, 120 — Pinheiros, São Paulo/SP, 05422-000</span></div>
+            </div>
+
+            <div class="card" data-v="recorrente completo" style="padding:0 1rem;margin-bottom:1.25rem;"><div class="card-title">Origem</div>
+              <div class="fx-kv" data-v="recorrente completo"><span>Reserva recorrente</span><span>Toda terça, 10:00 <a href="06-reserva-recorrente.html" style="color:var(--ba-primary);">Ver recorrência</a></span></div>
+            </div>
+            <p class="fx-note" data-v="recorrente completo">Quando o agendamento é uma ocorrência de uma reserva recorrente, liga à página da recorrência (a volta preserva a página das ocorrências).</p>
+
+            
+            <div class="fb-mobile-clearance"></div>
+          </div>
+
+          <aside class="fb-pane" aria-label="Ações do agendamento" data-testid="action-pane-desktop">
+            <div class="card">
+              <div class="fb-buttons">
+                <button type="submit" form="info-form" class="btn-primary" data-testid="info-submit">Tentar novamente</button>
+                <a href="03-cancel-confirm.html" class="btn-danger" style="display:block;text-align:center;padding:0.75rem;opacity:0.9;">Cancelar solicitação</a>
+              </div>
+            </div>
+            <div data-s="envio">
+            <div class="fb fb-error" role="alert" data-testid="form-feedback">
+              <span class="fb-title">Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente.</span>
+            </div>
+            </div>
+          </aside>
+        </div>
       </div>
     </main>
   </div>
 
+  <div class="fb-mobile-bar" data-testid="action-pane-mobile">
+    <div data-s="envio"><div class="fb fb-error" role="alert" data-testid="form-feedback">
+              <span class="fb-title">Não foi possível enviar sua resposta. Verifique sua conexão e tente novamente.</span>
+            </div></div>
+    <div class="fb-buttons">
+      <a href="03-cancel-confirm.html" class="btn-danger" style="background:#fff;">Cancelar</a>
+      <button type="submit" form="info-form" class="btn-primary" data-testid="info-submit">Tentar novamente</button>
+    </div>
+  </div>
+<script>
+    /* Shape variants via ?forma= (prototype only). Default: completo (every card; a real booking shows only the cards that have data). See the header comment. */
+    (function () {
+      var NAMES = {"simples": "Lavagem Simples", "recurso": "Reserva de sala", "pacote": "Sala + projetor + técnico", "trajeto": "Passeio de van com guia", "formulario": "Aula experimental", "retirada": "Lavagem com busca e entrega", "recorrente": "Reserva de sala", "equipe": "Aula experimental", "completo": "Sala + projetor + técnico"};
+      var q = new URLSearchParams(location.search).get('forma') || 'completo';
+      if (!(q in NAMES)) q = 'completo';
+      document.querySelectorAll('[data-v]').forEach(function (el) {
+        el.hidden = el.getAttribute('data-v').split(' ').indexOf(q) < 0;
+      });
+      var n = document.getElementById('svc-name'); if (n) n.textContent = NAMES[q];
+      document.querySelectorAll('[data-f]').forEach(function (a) { if (a.getAttribute('data-f') === q) a.className = 'on'; });
+    })();
+  
+  (function () {
+    var s = new URLSearchParams(location.search).get('estado') || 'envio';
+    document.querySelectorAll('[data-s]').forEach(function (el) { el.hidden = el.getAttribute('data-s') !== s; });
+    document.querySelectorAll('[data-e]').forEach(function (a) { if (a.getAttribute('data-e') === s) a.className = 'on'; });
+  })();
+</script>
 </body>
 </html>
