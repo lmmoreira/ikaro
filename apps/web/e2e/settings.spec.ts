@@ -168,7 +168,10 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-loyalty-expiry-warning').fill('30');
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('settings-loyalty-expiry-warning-error')).toBeVisible();
+    const warning = page.getByTestId('settings-loyalty-expiry-warning');
+    await expect(warning).toHaveAttribute('aria-invalid', 'true');
+    await expect(warning).toBeFocused();
+    await expect(page.getByTestId('form-feedback')).toBeHidden();
   });
 
   test('blocks submit on a partially-filled address (all-or-nothing)', async ({ page }) => {
@@ -178,7 +181,8 @@ test.describe('tenant settings management (MANAGER)', () => {
     // zipCode/number/city/state left blank on purpose.
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('settings-address-zip-error')).toBeVisible();
+    await expect(page.getByTestId('settings-address-zip')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByTestId('form-feedback')).toBeHidden();
   });
 
   test("Monday's copy button applies its hours to Tue-Fri but not Sat/Sun", async ({ page }) => {
@@ -221,8 +225,7 @@ test.describe('tenant settings management (MANAGER)', () => {
     await page.getByTestId('settings-service-buffer').fill('50');
     await page.getByTestId('settings-submit-desktop').click();
 
-    await expect(page.getByTestId('form-feedback')).toBeVisible();
-    await expect(page.getByTestId('settings-submit-error')).not.toBeVisible();
+    await expect(page.getByTestId('form-feedback')).toContainText('Configurações salvas!');
 
     const after = await getTenantSettings(page);
     expect(after.settings.businessInfo?.socialLinks).toBeNull();
