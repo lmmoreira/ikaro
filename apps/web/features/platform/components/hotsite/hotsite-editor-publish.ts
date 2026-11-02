@@ -4,7 +4,7 @@ import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { materializeLayout } from '@/features/platform/hotsite/default-layout';
 import { stripResolvedImageUrls } from '@/features/platform/hotsite/strip-resolved-image-urls';
 import { resolveErrorMessageFromApiError } from '@/shared/lib/i18n/resolve-error-message';
-import type { ActionBanner } from './HotsiteEditorMainView';
+import type { ActionBanner } from './useHotsiteActionFeedback';
 import type { LeadFormConfigDraft } from './hotsite-editor-views';
 import { stripLeadFormConfig } from './hotsite-editor-views';
 
@@ -35,7 +35,9 @@ type PublishArgs = {
   // its Preview / module-config drill-down for the tabs; the visual editor has nowhere to go, so
   // it stays where it is.
   readonly onSettled: () => void;
-  readonly onBanner: (banner: ActionBanner) => void;
+  // null drops the previous result as an action starts, so a repeat of the same result mounts its
+  // message afresh (the visual editor focuses it on mount).
+  readonly onBanner: (banner: ActionBanner | null) => void;
   // Called once a publish actually commits — clears the editor's own leadFormConfigDraft state
   // (HotsiteEditor.tsx). Without this, that draft is write-once-but-never-cleared: a later,
   // unrelated publish (branding/SEO/layout, no lead-form edit involved) keeps re-sending the same
@@ -52,6 +54,7 @@ type PublishArgs = {
 
 export async function executeHotsitePublish(args: PublishArgs): Promise<void> {
   const { locale, publishHotsite, onSettled, onBanner, onLeadFormPublished } = args;
+  onBanner(null);
   try {
     await persistDraft(args);
     await publishHotsite.mutateAsync();
@@ -66,7 +69,6 @@ export async function executeHotsitePublish(args: PublishArgs): Promise<void> {
       message: resolveErrorMessageFromApiError(error, locale),
     });
   }
-  globalThis.scrollTo?.({ top: 0, behavior: 'smooth' });
 }
 
 // One consolidated PATCH /v1/tenants/hotsite call, always — audienceMode/questions are optional

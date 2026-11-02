@@ -5,7 +5,7 @@ import { axe } from 'jest-axe';
 import { describe, expect, it } from 'vitest';
 import { HOTSITE_TEMPLATE_CAPABILITIES } from '@ikaro/types';
 import { renderWithIntl } from '@/test-utils';
-import { HotsiteTemplateGallery } from './HotsiteTemplateGallery';
+import { HotsiteTemplateGallery, HotsiteTemplateGalleryTab } from './HotsiteTemplateGallery';
 import { makeTemplateSummaries, makeTemplatesController } from './templates-controller.fixture';
 
 function card(id: string): HTMLElement {
@@ -170,6 +170,7 @@ describe('HotsiteTemplateGallery', () => {
       renderWithIntl(<HotsiteTemplateGallery controller={controller} />);
 
       const alert = screen.getByTestId('template-load-error');
+      expect(alert).toHaveAttribute('role', 'alert');
       expect(alert).toHaveTextContent('Não foi possível carregar os templates.');
       await user.click(within(alert).getByRole('button', { name: 'Tentar novamente' }));
 
@@ -182,6 +183,7 @@ describe('HotsiteTemplateGallery', () => {
       renderWithIntl(<HotsiteTemplateGallery controller={controller} />);
 
       const alert = screen.getByTestId('template-apply-error');
+      expect(alert).toHaveAttribute('role', 'alert');
       expect(alert).toHaveTextContent('Seu rascunho não foi alterado.');
       await user.click(within(alert).getByRole('button', { name: 'Tentar novamente' }));
 
@@ -352,5 +354,51 @@ describe('HotsiteTemplateGallery', () => {
 
       expect(controller.apply).toHaveBeenCalledWith('beloauto');
     });
+  });
+
+  describe('HotsiteTemplateGalleryTab (the detailed editor host)', () => {
+    it('puts the heading and intro in a card with the compact card heading', () => {
+      renderWithIntl(<HotsiteTemplateGalleryTab controller={makeTemplatesController()} />);
+
+      const heading = screen.getByRole('heading', { name: 'Comece com um template' });
+      expect(heading).toHaveClass('text-sm', 'font-semibold');
+      expect(heading.closest('.bg-card')).not.toBeNull();
+    });
+
+    it('keeps the catalogue outside that card, so the template cards are not nested in a card', () => {
+      renderWithIntl(<HotsiteTemplateGalleryTab controller={makeTemplatesController()} />);
+
+      expect(screen.getByTestId('template-list').closest('.bg-card')).toBeNull();
+      expect(screen.getAllByTestId('template-card')).toHaveLength(6);
+    });
+
+    it('keeps the undo control in the header card', () => {
+      renderWithIntl(
+        <HotsiteTemplateGalleryTab
+          controller={makeTemplatesController({ canUndo: true, appliedTemplateId: 'origem' })}
+        />,
+      );
+
+      expect(screen.getByTestId('template-undo').closest('.bg-card')).not.toBeNull();
+    });
+
+    it('reports a load failure with a retry', async () => {
+      const user = userEvent.setup();
+      const controller = makeTemplatesController({ isError: true, templates: undefined });
+      renderWithIntl(<HotsiteTemplateGalleryTab controller={controller} />);
+
+      expect(screen.getByTestId('template-load-error')).toHaveAttribute('role', 'alert');
+      await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+      expect(controller.reload).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('keeps the inspector heading at its own size, outside any card', () => {
+    renderWithIntl(<HotsiteTemplateGallery controller={makeTemplatesController()} />);
+
+    const heading = screen.getByRole('heading', { name: 'Comece com um template' });
+    expect(heading).toHaveClass('text-base');
+    expect(heading.closest('.bg-card')).toBeNull();
   });
 });

@@ -147,4 +147,17 @@ describe('HotsitePreview', () => {
     expect(screen.getByTestId('hotsite-preview-publish-desktop')).toBeDisabled();
     expect(screen.getByTestId('hotsite-preview-publish-mobile')).toBeDisabled();
   });
+
+  it('builds its publish chrome on the shared action pane', async () => {
+    mockFetchManifest.mockResolvedValue(makeManifest());
+    renderWithIntl(<HotsitePreview draft={makeDraft()} onPublish={vi.fn()} isPublishing={false} />);
+
+    expect(screen.getByTestId('action-pane-desktop')).toContainElement(
+      screen.getByTestId('hotsite-preview-publish-desktop'),
+    );
+    expect(screen.getByTestId('action-pane-mobile')).toContainElement(
+      screen.getByTestId('hotsite-preview-publish-mobile'),
+    );
+    await waitFor(() => expect(mockFetchManifest).toHaveBeenCalled());
+  });
 });

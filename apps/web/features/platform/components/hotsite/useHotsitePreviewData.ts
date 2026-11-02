@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type {
   HotsiteAdminContentResponse,
   HotsiteBusinessInfoResponse,
@@ -23,9 +23,11 @@ export interface PreviewSupplementaryData {
 export function usePreviewSupplementaryData(
   tenantSlug: string,
   hasServiceList: boolean,
-): { data: PreviewSupplementaryData | null; loadError: boolean } {
+): { data: PreviewSupplementaryData | null; loadError: boolean; reload: () => void } {
   const [data, setData] = useState<PreviewSupplementaryData | null>(null);
   const [loadError, setLoadError] = useState(false);
+  // Bumped by reload() to re-run the fetch after a failure.
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -52,9 +54,14 @@ export function usePreviewSupplementaryData(
     return () => {
       cancelled = true;
     };
-  }, [tenantSlug, hasServiceList]);
+  }, [tenantSlug, hasServiceList, attempt]);
 
-  return { data, loadError };
+  const reload = useCallback(() => {
+    setLoadError(false);
+    setAttempt((current) => current + 1);
+  }, []);
+
+  return { data, loadError, reload };
 }
 
 // A not-yet-promoted tmp/ upload lives in the private bucket — it can't resolve via the public

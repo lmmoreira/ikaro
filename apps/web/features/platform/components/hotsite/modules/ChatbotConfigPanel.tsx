@@ -1,5 +1,6 @@
 'use client';
 
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useTranslations } from 'next-intl';
 import type { ChatbotModuleData } from '@ikaro/types';
 import { PillSelect } from '@/shared/components/ui/pill-select';
@@ -28,14 +29,9 @@ export function ChatbotConfigPanel({ data, onChange }: ModuleConfigPanelProps): 
   return (
     <div className="space-y-5">
       {capStatus?.dailyCapReachedToday === true && (
-        <div
-          role="alert"
-          data-testid="chatbot-cap-reached-banner"
-          className="rounded-xl border border-red-300 bg-red-50 p-4 text-sm text-red-700"
-        >
-          <p className="font-semibold">{t('capReachedBannerTitle')}</p>
-          <p className="mt-1">{t('capReachedBannerBody')}</p>
-        </div>
+        <FeedbackMessage title={t('capReachedBannerTitle')} testId="chatbot-cap-reached-banner">
+          {t('capReachedBannerBody')}
+        </FeedbackMessage>
       )}
 
       <div

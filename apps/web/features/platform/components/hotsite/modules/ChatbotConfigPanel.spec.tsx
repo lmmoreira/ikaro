@@ -45,7 +45,9 @@ describe('ChatbotConfigPanel', () => {
 
     renderPanel();
 
-    expect(await screen.findByTestId('chatbot-cap-reached-banner')).toBeInTheDocument();
+    const banner = await screen.findByTestId('chatbot-cap-reached-banner');
+    expect(banner).toHaveAttribute('role', 'alert');
+    expect(banner).toHaveTextContent(/volta a funcionar automaticamente amanhã/);
   });
 
   it('hides the cap-reached banner when dailyCapReachedToday is false', async () => {

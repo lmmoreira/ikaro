@@ -66,6 +66,22 @@ describe('LeadFormConfigPanel', () => {
     );
   });
 
+  it('retries the config fetch from the error state', async () => {
+    const user = userEvent.setup();
+    const refetch = vi.fn().mockResolvedValue({});
+    mockUseLeadFormConfig.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      isError: true,
+      refetch,
+    } as unknown as ReturnType<typeof useLeadFormConfig>);
+    renderWithIntl(<LeadFormConfigPanel data={{}} onChange={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }));
+
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
+
   it('adds and edits a question, preserving normalized order', async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

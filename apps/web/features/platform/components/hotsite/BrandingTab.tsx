@@ -45,7 +45,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
 
   return (
     <div className={`space-y-4 lg:space-y-6 ${FONT_PREVIEW_CLASS}`}>
-      <SectionCard title={t('sections.colors')}>
+      <SectionCard title={t('sections.colors')} size="compact">
         <BrandingColorsSection
           value={value}
           onPrimaryColorChange={(v) => setField('primaryColor', v)}
@@ -57,7 +57,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
         />
       </SectionCard>
 
-      <SectionCard title={t('sections.logo')}>
+      <SectionCard title={t('sections.logo')} size="compact">
         <LogoUpload value={value.logoUrl} onChange={(logoUrl) => setField('logoUrl', logoUrl)} />
         <div>
           <label
@@ -95,7 +95,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
         </div>
       </SectionCard>
 
-      <SectionCard title={t('sections.typography')}>
+      <SectionCard title={t('sections.typography')} size="compact">
         <div className="grid gap-4 md:grid-cols-2">
           <FontPicker
             id="hotsite-heading-font"
@@ -137,7 +137,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
         />
       </SectionCard>
 
-      <SectionCard title={t('sections.shape')}>
+      <SectionCard title={t('sections.shape')} size="compact">
         <PillSelect
           label={t('borderRadiusLabel')}
           value={value.borderRadius}
@@ -197,7 +197,7 @@ export function BrandingTab({ value, onChange }: BrandingTabProps): React.JSX.El
         />
       </SectionCard>
 
-      <SectionCard title={t('sections.rhythm')}>
+      <SectionCard title={t('sections.rhythm')} size="compact">
         <PillSelect
           label={t('heroBgStyleLabel')}
           value={value.heroBgStyle ?? 'primary'}

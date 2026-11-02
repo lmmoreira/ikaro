@@ -9,6 +9,8 @@ import {
 } from '@/features/platform/api/tenant-settings';
 import { uploadFileToSignedUrl } from '@/shared/lib/upload/upload-to-signed-url';
 import { compressImage, LOW_RESOLUTION_ERROR_MESSAGE } from '@/shared/utils/compress-image';
+import { FIELD_INVALID_CLASS, FieldFeedback } from '@/shared/components/ui/field-feedback';
+import { cn } from '@/shared/utils/cn';
 import { isTmpImagePath } from '@/features/platform/hotsite/resolve-hotsite-image-url';
 import { extractProblemCode, resolveErrorMessage } from '@/shared/lib/i18n/resolve-error-message';
 import { useResolvedLocale } from '@/shared/lib/i18n/use-resolved-locale';
@@ -185,6 +187,9 @@ export function SingleImageUploadField({
   // (fetched above) when there is no local blob preview.
   const displaySrc = previewUrl ?? (isTmpImagePath(value) ? remoteReadUrl : value);
 
+  const errorId = `${id}-error`;
+  const hasError = status === 'error';
+
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-gray-900">
@@ -193,7 +198,10 @@ export function SingleImageUploadField({
 
       <label
         htmlFor={id}
-        className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50"
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-gray-200 bg-gray-50 px-6 py-8 text-center transition hover:border-blue-300 hover:bg-blue-50/50',
+          hasError && FIELD_INVALID_CLASS,
+        )}
       >
         {displaySrc && status !== 'uploading' && (
           /* eslint-disable-next-line @next/next/no-img-element -- preview may be a local object URL or signed storage URL */
@@ -213,6 +221,8 @@ export function SingleImageUploadField({
           id={id}
           data-testid="single-image-upload-input"
           data-field-id={id}
+          aria-invalid={hasError ? true : undefined}
+          aria-describedby={hasError ? errorId : undefined}
           type="file"
           accept="image/jpeg,image/png,image/webp"
           onChange={(event) => {
@@ -222,15 +232,7 @@ export function SingleImageUploadField({
         />
       </label>
 
-      {status === 'error' && (
-        <p
-          data-testid="single-image-upload-error"
-          data-field-id={id}
-          className="mt-1.5 text-sm text-red-600"
-        >
-          {errorMessage}
-        </p>
-      )}
+      {hasError && <FieldFeedback id={errorId}>{errorMessage}</FieldFeedback>}
 
       {displaySrc && status !== 'uploading' && (
         <button

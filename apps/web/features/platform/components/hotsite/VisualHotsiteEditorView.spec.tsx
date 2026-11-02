@@ -359,12 +359,31 @@ describe('VisualHotsiteEditorView', () => {
     }
   });
 
-  it('shows the publish result banner in its slot', () => {
+  it('shows the publish result in its slot as a status and moves focus to it', () => {
     renderView({ actionBanner: { kind: 'publish', status: 'success' } });
 
-    expect(
-      within(screen.getByTestId('visual-banner-slot')).getByTestId('hotsite-action-success-banner'),
-    ).toBeInTheDocument();
+    const message = within(screen.getByTestId('visual-banner-slot')).getByTestId(
+      'hotsite-action-success-banner',
+    );
+    expect(message.tagName).toBe('OUTPUT');
+    expect(message).toHaveFocus();
+  });
+
+  it('shows a publish error in its slot as an alert and moves focus to it', () => {
+    renderView({ actionBanner: { kind: 'publish', status: 'error', message: 'Falhou' } });
+
+    const message = within(screen.getByTestId('visual-banner-slot')).getByTestId(
+      'hotsite-action-error-banner',
+    );
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(message).toHaveTextContent('Falhou');
+    expect(message).toHaveFocus();
+  });
+
+  it('keeps the slot empty without a result', () => {
+    renderView();
+
+    expect(screen.getByTestId('visual-banner-slot')).toBeEmptyDOMElement();
   });
 
   it('places the preview before the inspector in document order', () => {

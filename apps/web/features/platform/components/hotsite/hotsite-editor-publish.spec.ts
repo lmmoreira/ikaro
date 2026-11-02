@@ -54,7 +54,8 @@ describe('executeHotsitePublish', () => {
       }),
     );
     expect(publishHotsite.mutateAsync).toHaveBeenCalledOnce();
-    expect(onBanner).toHaveBeenCalledWith({ kind: 'publish', status: 'success' });
+    // The previous result is dropped as the action starts, then the new one is reported.
+    expect(onBanner.mock.calls).toEqual([[null], [{ kind: 'publish', status: 'success' }]]);
     // Clears HotsiteEditor's leadFormConfigDraft so a later, unrelated publish doesn't keep
     // re-sending this now-stale snapshot (M20-S08 PR #429 Codex review finding, 2026-08-26).
     expect(onLeadFormPublished).toHaveBeenCalledOnce();
@@ -192,5 +193,26 @@ describe('executeHotsitePublish', () => {
 
     expect(args.onSettled).toHaveBeenCalledOnce();
     expect(args.onLeadFormPublished).toHaveBeenCalledOnce();
+  });
+
+  it('never scrolls the page: the result sits in the sticky pane or the focused slot', async () => {
+    const scrollTo = vi.spyOn(globalThis, 'scrollTo').mockImplementation(() => {});
+    const failing = { mutateAsync: vi.fn().mockRejectedValue(new Error('boom')) };
+
+    await executeHotsitePublish({
+      content,
+      leadFormConfig: null,
+      tenantId: 'tenant-1',
+      locale: 'pt-BR',
+      updateConfig: failing,
+      publishHotsite: { mutateAsync: vi.fn() },
+      setDraft: vi.fn(),
+      onSettled: vi.fn(),
+      onBanner: vi.fn(),
+      onLeadFormPublished: vi.fn(),
+    });
+
+    expect(scrollTo).not.toHaveBeenCalled();
+    scrollTo.mockRestore();
   });
 });

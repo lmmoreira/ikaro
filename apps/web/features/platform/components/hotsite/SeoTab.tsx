@@ -29,7 +29,7 @@ export function SeoTab({ value, onChange }: SeoTabProps): React.JSX.Element {
   }
 
   return (
-    <SectionCard title={t('sectionTitle')}>
+    <SectionCard title={t('sectionTitle')} size="compact">
       <div>
         <label
           htmlFor="hotsite-seo-title"

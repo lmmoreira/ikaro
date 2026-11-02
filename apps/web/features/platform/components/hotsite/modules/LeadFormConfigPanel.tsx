@@ -1,5 +1,6 @@
 'use client';
 
+import { FeedbackMessage } from '@/shared/components/ui/feedback-message';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import {
@@ -144,7 +145,16 @@ export function LeadFormConfigPanel({ data, onChange }: ModuleConfigPanelProps):
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   if (config.isLoading) return <p>{t('loading')}</p>;
-  if (config.isError) return <p role="alert">{t('loadError')}</p>;
+  if (config.isError) {
+    return (
+      <FeedbackMessage
+        title={t('loadError')}
+        onRetry={() => void config.refetch()}
+        retryLabel={t('retry')}
+        testId="lead-form-config-load-error"
+      />
+    );
+  }
 
   return (
     <div className="space-y-6" data-testid="lead-form-config-panel">

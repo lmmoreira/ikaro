@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import type { HotsiteAdminContentResponse } from '@ikaro/types';
@@ -123,22 +123,76 @@ describe('HotsiteEditorMainView', () => {
     expect(props.onActiveTabChange).toHaveBeenCalledWith('layout');
   });
 
-  it('renders the success and error action banners', () => {
-    const { rerender } = renderWithIntl(
+  it('shows the publish result under the buttons, in the action pane, as a status', () => {
+    renderWithIntl(
       <HotsiteEditorMainView
         {...baseProps()}
         actionBanner={{ kind: 'publish', status: 'success' }}
       />,
     );
-    expect(screen.getByTestId('hotsite-action-success-banner')).toBeInTheDocument();
 
-    rerender(
+    const pane = screen.getByTestId('action-pane-desktop');
+    const message = within(pane).getByTestId('hotsite-action-success-banner');
+    expect(message.tagName).toBe('OUTPUT');
+    expect(message).toHaveTextContent('@tenant-a');
+    // The mobile bar carries its own copy of the same message.
+    expect(
+      within(screen.getByTestId('action-pane-mobile')).getByTestId(
+        'hotsite-action-success-banner-mobile',
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a publish error in the action pane as an alert', () => {
+    renderWithIntl(
       <HotsiteEditorMainView
         {...baseProps()}
         actionBanner={{ kind: 'publish', status: 'error', message: 'Falhou' }}
       />,
     );
-    expect(screen.getByTestId('hotsite-action-error-banner')).toHaveTextContent('Falhou');
+
+    const message = within(screen.getByTestId('action-pane-desktop')).getByTestId(
+      'hotsite-action-error-banner',
+    );
+    expect(message).toHaveAttribute('role', 'alert');
+    expect(message).toHaveTextContent('Falhou');
+  });
+
+  it('shows an unpublish result in the same pane message', () => {
+    renderWithIntl(
+      <HotsiteEditorMainView
+        {...baseProps()}
+        actionBanner={{ kind: 'unpublish', status: 'success' }}
+      />,
+    );
+
+    expect(
+      within(screen.getByTestId('action-pane-desktop')).getByTestId(
+        'hotsite-action-success-banner',
+      ),
+    ).toHaveTextContent('Hotsite offline');
+  });
+
+  it('renders no message, and no banner above the grid, without a result', () => {
+    renderWithIntl(<HotsiteEditorMainView {...baseProps()} />);
+
+    expect(screen.queryByTestId('hotsite-action-success-banner')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('hotsite-action-error-banner')).not.toBeInTheDocument();
+  });
+
+  it('keeps the tab bar above the grid, so the first box starts level with the action pane', () => {
+    renderWithIntl(<HotsiteEditorMainView {...baseProps()} />);
+
+    expect(screen.getByRole('tablist').closest('.grid')).toBeNull();
+    expect(screen.getByRole('tabpanel').closest('.grid')).toContainElement(
+      screen.getByTestId('action-pane-desktop'),
+    );
+  });
+
+  it('puts the unpublish button in a card', () => {
+    renderWithIntl(<HotsiteEditorMainView {...baseProps()} />);
+
+    expect(screen.getByTestId('hotsite-unpublish-button').closest('.bg-card')).not.toBeNull();
   });
 
   it('calls onPublish, onOpenPreview, and onUnpublish from their buttons', async () => {

@@ -193,9 +193,9 @@ describe('BookingPhotoPicker', () => {
     fireEvent.load(beforeThumb!);
     await user.click(beforeThumb!.closest('button')!);
 
-    expect(await screen.findByTestId('booking-photo-picker-error')).toHaveTextContent(
-      'A foto não pertence ao agendamento informado.',
-    );
+    const error = await screen.findByTestId('booking-photo-picker-error');
+    expect(error).toHaveAttribute('role', 'alert');
+    expect(error).toHaveTextContent('A foto não pertence ao agendamento informado.');
     expect(onPick).not.toHaveBeenCalled();
   });
 

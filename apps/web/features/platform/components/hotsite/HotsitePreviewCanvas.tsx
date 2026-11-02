@@ -5,6 +5,7 @@ import type { HotsiteAdminContentResponse } from '@ikaro/types';
 import { useTenant } from '@/providers/tenant-provider';
 import { applyBranding } from '@/features/platform/hotsite/apply-branding';
 import { getActiveFontVariables } from '@/features/platform/hotsite/font-config';
+import { BrandedFeedbackMessage } from '@/shared/components/hotsite/branded-feedback-message';
 import { HotsiteAuthBarSignedOut } from '@/shells/hotsite/components/HotsiteAuthBarSignedOut';
 import {
   buildHotsiteModuleRenderPlan,
@@ -45,7 +46,7 @@ export function HotsitePreviewCanvas({
   const modulesWithVariant = buildHotsiteModuleRenderPlan(layout, alternateSectionBg, branding);
   const navigation = resolveHotsiteNavigation(layout, modulesWithVariant);
   const hasServiceList = modulesWithVariant.some(({ parsed }) => parsed.type === 'SERVICE_LIST');
-  const { data, loadError } = usePreviewSupplementaryData(tenantSlug, hasServiceList);
+  const { data, loadError, reload } = usePreviewSupplementaryData(tenantSlug, hasServiceList);
   const tenantBrand = branding.brandName
     ? { name: branding.brandName, tagline: branding.brandTagline }
     : undefined;
@@ -61,12 +62,13 @@ export function HotsitePreviewCanvas({
       style={{ transform: 'translateZ(0)' }}
     >
       {loadError && (
-        <div
-          role="alert"
-          data-testid="hotsite-preview-load-error"
-          className="p-4 text-sm text-red-700"
-        >
-          {t('loadError')}
+        <div className="p-4">
+          <BrandedFeedbackMessage
+            title={t('loadError')}
+            onRetry={reload}
+            retryLabel={t('retry')}
+            testId="hotsite-preview-load-error"
+          />
         </div>
       )}
       {!data && !loadError && (
