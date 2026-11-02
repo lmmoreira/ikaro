@@ -44,6 +44,6 @@ Every node in red is a gap: the screens do not use the shared components yet (`T
 
 ## Open questions / gaps
 
-- [ ] Customer screens: fixed mobile bar, or keep the in-flow layout they have today? `ActionPane` ships only the fixed bar; decided in TD57-S11
+- [x] Customer screens: resolved in TD57-S11 discovery (2026-11-02) — they adopt the shared fixed bottom bar at `bottom-0` (drill-down routes hide the customer bottom nav)
 - [x] Branded error colour: resolved in TD57-S06 — a fixed semantic red/green on the box's own white surface with a dark 1px ring, so the white surface or the ring always reaches 3:1 against any tenant background; only radius and fonts follow the tenant
 - [x] Window-narrowing hint: resolved in TD57-S02 discovery (2026-10-30) — the catch-all `BOOKING_SERVICE_BOOKING_POLICY_INVALID` is split into seven per-reason codes; the window codes carry the business limit in their text; no static hint
