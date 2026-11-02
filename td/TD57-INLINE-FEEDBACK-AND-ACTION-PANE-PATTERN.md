@@ -623,6 +623,15 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 **Description:**
 Replace every hand-rolled error/success box listed for this area in Appendix A with the shared pattern (see "Chosen approach"): forms with a primary action show their form-level feedback below the buttons in `ActionPane` (SaaS skin) and route the offending `field` through `useFormFeedback`; page-level load failures use a page-level `FeedbackMessage` with a retry; field-level messages keep `aria-invalid` + `aria-describedby` and gain the red outline where Appendix A shows none. Every feedback box gets a `role` (the audit found most had none, so they were never announced). Inline module panels use `FeedbackMessage` with no `ActionPane`; only `ModuleConfigShell` and the editor main views use `ActionPane`. `HotsitePreviewCanvas.tsx` renders the tenant hotsite preview and reads `--ba-*`, so it uses the Story 6 branded component, not `FeedbackMessage`.
 
+**Decisions locked in discovery (2026-11-02):**
+- **Detailed editor publish/unpublish:** `HotsiteActionBanner` is deleted. The result (success `publishSuccessTitle`/`Body` with the slug, or the resolved error) goes in the `ActionPane` of `HotsiteEditorMainView` under the buttons, as a `FeedbackModel` keeping the ids `hotsite-action-success-banner` / `hotsite-action-error-banner`. The unpublish button stays in the danger zone; its result shows in the same pane (one shared banner state). `globalThis.scrollTo` is removed from `hotsite-editor-publish.ts` and `hotsite-editor-views.tsx` (the pane is sticky). The mobile bar becomes the pane's `mobileActions` with `MOBILE_ACTION_BAR_CLEARANCE_CLASS`; the E2E audit checks any mobile-viewport assertion on the plain id (the mobile copy carries a `-mobile` suffix).
+- **Visual editor:** it has no action pane (Publish is in `VisualCommandRow`, the aside is an inspector), so the result is a page-level `FeedbackMessage` with `focusOnMount` in the existing `visual-banner-slot`; no pane is forced onto the layout. Its command row (already a bordered white box), preview canvas (the tenant site as a stage) and card-less inspector keep their current look.
+- **Server `field`:** publish errors are form-level only (the draft spans tabs and modules that may be unmounted; routing a `field` there would be a workaround). Field-level marking applies where a screen owns the input: the manifest JSON error (local state: `aria-invalid`, `FIELD_INVALID_CLASS`, `FieldFeedback`, focus) and the upload error under `SingleImageUploadField` (self-contained: its own state, `FieldFeedback`, `aria-invalid` on its input; the ~10 panels using it inherit the change). An absent or unknown `field` falls back to the pane message.
+- **Section-level messages:** `GalleryImageManager` and `BookingPhotoPicker` use a default-size `FeedbackMessage` (`size="inline"` is for row actions); ids kept. The chatbot cap-reached banner is a persistent status, not an action result; it stays visible as an error `FeedbackMessage` (title + body, id kept) so no hand-rolled `role="alert"` box remains. `LeadFormConfigPanel` and `HotsiteTemplateGallery` load/apply failures are `FeedbackMessage` with `onRetry` (`useLeadFormConfig().refetch`, the existing `retry` copy).
+- **Preview canvas:** `BrandedFeedbackMessage` with a retry; `usePreviewSupplementaryData` gains a reload trigger (page-level errors are never exempt).
+- **Cards:** hosts own the card, shared content does not. `HotsiteTemplateGallery` is split into a header and a body that hosts compose (no style prop): the detailed editor's templates tab wraps them in a `Card` with the `text-sm font-semibold` heading and the intro inside; the visual inspector keeps its `text-base` heading and its look. The danger zone becomes a `Card` keeping its destructive tone. The other tabs and the module panels are inspected top to bottom and any loose control is wrapped. `ModuleConfigShell` becomes an `ActionPane` with no feedback slot (Apply is local; a publish leaves the view through `onSettled`).
+- **Test ids:** `FieldFeedback` takes none, so `hotsite-manifest-error` and `single-image-upload-error` become `aria-invalid` + text assertions in the specs and E2E.
+
 **Backend use case steps:** none
 **Backend HTTP surface:** none
 **BFF endpoint spec:** none
@@ -643,6 +652,7 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - `apps/web/features/platform/components/hotsite/modules/GalleryImageManager.tsx` + `GalleryImageManager.spec.tsx`
 - `apps/web/features/platform/components/hotsite/modules/LeadFormConfigPanel.tsx` + `LeadFormConfigPanel.spec.tsx`
 - `apps/web/features/platform/components/hotsite/modules/ModuleConfigShell.tsx` + `ModuleConfigShell.spec.tsx`
+- `apps/web/features/platform/components/hotsite/hotsite-editor-publish.ts`, `hotsite-editor-views.tsx`, `useHotsitePreviewData.ts`, `HotsiteEditor.tsx` (banner state, `scrollTo` removal, preview reload) + their specs; `HotsiteActionBanner.tsx` and its spec are deleted
 - `apps/web/e2e/helpers/hotsite/hotsite-editor-navigation.ts` (helper referencing a migrated id; update if renamed)
 - `apps/web/e2e/hotsite-editor.spec.ts` (update ids if the migration renames a `data-testid`)
 - `apps/web/e2e/hotsite-template-picker.spec.ts` (update ids if the migration renames a `data-testid`)
@@ -661,7 +671,9 @@ Replace every hand-rolled error/success box listed for this area in Appendix A w
 - Integration: none — frontend story
 - Tenant isolation: none — no data access
 - E2E:
-  - [ ] existing specs updated for any renamed `data-testid`: `helpers/hotsite/hotsite-editor-navigation.ts`, `hotsite-editor.spec.ts`, `hotsite-template-picker.spec.ts`, `service-public-page.spec.ts`; no new scenario unless a route has none (then one scenario per such route)
+  - [ ] audit every hotsite E2E spec and helper for a changed id or a mobile-viewport assertion on the plain feedback id, and update them: `helpers/hotsite/hotsite-editor-navigation.ts`, `hotsite-editor.spec.ts`, `hotsite-template-picker.spec.ts`, `service-public-page.spec.ts`
+  - [ ] new scenarios (the dev stack may be started locally for fast feedback, with the user's yes, and stopped afterwards): a visual-editor publish failure shows the message in its slot and keeps the edits; an invalid manifest JSON marks and focuses the textarea; a single-image upload failure shows the message under its control; a template-gallery load or apply failure shows the message with a working retry. The detailed editor's publish failure already exists (`hotsite-editor.spec.ts`)
+  - [ ] negative guarantee: `HotsiteActionBanner` is gone and `globalThis.scrollTo` is no longer called from `hotsite-editor-publish.ts` or `hotsite-editor-views.tsx` (unit test)
 - [ ] Coverage ≥80% on changed code
 - [ ] `tsc --noEmit` clean, lint clean
 
