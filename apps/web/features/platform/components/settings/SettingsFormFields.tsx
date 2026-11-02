@@ -38,15 +38,13 @@ export function settingsFieldWiring(
   const error = feedback.fieldErrors[name];
   const errorId = feedback.fieldErrorId(name);
   const hintId = `${id}-hint`;
+  const describedBy = (error ? errorId : hint && hintId) || undefined;
 
   return {
     error,
     errorId,
     hintId,
-    inputProps: {
-      ...feedback.fieldProps(name),
-      'aria-describedby': error ? errorId : hint ? hintId : undefined,
-    },
+    inputProps: { ...feedback.fieldProps(name), 'aria-describedby': describedBy },
     inputClassName: (base) => cn(base, error && FIELD_INVALID_CLASS),
   };
 }
