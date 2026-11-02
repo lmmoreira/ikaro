@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Meus avisos — erro — Vitta Studio</title>
   <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
   <style>
     details summary { list-style: none; }
     details summary::-webkit-details-marker { display: none; }
@@ -107,11 +108,7 @@
     <main class="main-content">
       <div class="dashboard-body">
         <div class="page-head"><h1 class="page-title">Meus avisos</h1></div>
-        <div class="notice notice-error" role="alert">
-          <strong>Não foi possível carregar seus avisos.</strong>
-          <p style="margin-top:.25rem;font-size:.875rem;">Verifique sua conexão e tente de novo.</p>
-          <a class="btn-primary" href="07-availability-alert.html" style="text-decoration:none;display:inline-block;margin-top:.75rem;">Tentar novamente</a>
-        </div>
+        <div class="fb fb-error" role="alert" data-testid="alerts-load-error" style="margin-top:1rem;"><span class="fb-title">Não foi possível carregar seus avisos.</span><span class="fb-hint">Verifique sua conexão e tente de novo.</span><a class="fb-retry" href="07-availability-alert.html" data-testid="alerts-retry" style="text-decoration:none;">Tentar novamente</a></div>
 
       </div>
     </main>

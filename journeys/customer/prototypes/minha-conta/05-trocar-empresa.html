@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Trocar empresa — BeloAuto</title>
   <link rel="stylesheet" href="../../../shared/customer-shell.css">
+  <link rel="stylesheet" href="../../../shared/feedback-pane.css">
+  <style>[hidden] { display: none !important; }</style>
 </head>
 <body>
 
@@ -32,7 +34,7 @@
 
   <div style="background:#fef3c7;border-bottom:1px solid #d97706;padding:0.375rem 1rem;
                font-size:0.8125rem;text-align:center;color:#92400e;">
-    Protótipo — UC-023 — trocar empresa (mesmo padrão visual do /select-tenant)
+    Protótipo — UC-023 — trocar empresa (mesmo padrão visual do /select-tenant) · Estado: <a href="?">normal</a> · <a href="?estado=fetch">falha ao carregar</a> · <a href="?estado=switch">falha ao trocar</a>
   </div>
 
   <div style="min-height: 100vh; display: flex; align-items: center; justify-content: center;
@@ -57,8 +59,15 @@
         </p>
       </div>
 
+      <!-- Load failure (TD57-S11): page-level message with retry, replaces the list -->
+      <div data-s="fetch" hidden>
+        <div class="fb fb-error" role="alert" data-testid="switch-tenant-fetch-error">
+          <span class="fb-title">Não foi possível carregar os estabelecimentos.</span>
+          <button type="button" class="fb-retry">Tente novamente</button>
+        </div>
+      </div>
       <!-- Tenant list -->
-      <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <div data-list style="display: flex; flex-direction: column; gap: 0.75rem;">
 
         <!-- Current tenant — non-clickable, "Atual" badge -->
         <div style="
@@ -149,6 +158,12 @@
 
       </div>
 
+      <!-- Switch failure (TD57-S11): inline message under the list -->
+      <div data-s="switch" hidden style="margin-top: 1rem;">
+        <div class="fb fb-error" role="alert" data-testid="switch-tenant-error">
+          <span class="fb-title">Não foi possível trocar de empresa. Tente novamente.</span>
+        </div>
+      </div>
       <!-- Cancel link — key difference vs. login select-tenant -->
       <p style="margin-top: 1.75rem; text-align: center;">
         <a href="01-minha-conta.html"
@@ -160,5 +175,12 @@
     </div>
   </div>
 
+  <script>
+    (function () {
+      var st = new URLSearchParams(location.search).get('estado') || '';
+      document.querySelectorAll('[data-s]').forEach(function (el) { el.hidden = el.getAttribute('data-s') !== st; });
+      var list = document.querySelector('[data-list]'); if (list && st === 'fetch') list.hidden = true;
+    })();
+  </script>
 </body>
 </html>
